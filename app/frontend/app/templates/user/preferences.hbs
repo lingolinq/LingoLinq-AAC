@@ -1500,7 +1500,7 @@
                 <div style='width: 60px;'>
                   {{key-code-text-field id='scanning_select_keycode' class='form-control' value=this.pending_preferences.device.scanning_select_keycode action=(mut this.pending_preferences.device.scanning_select_keycode) placeholder='press a key'}}
                 </div>
-                <span class='form-control-static' style='color: var(--md-muted);'>{{select_keycode_string}}</span>
+                <span class='form-control-static' style='color: var(--md-muted);'>{{this.select_keycode_string}}</span>
               </div>
             </div>
           </div>
@@ -1512,7 +1512,7 @@
                   <div style='width: 60px;'>
                     {{key-code-text-field id='scanning_next_keycode' class='form-control' value=this.pending_preferences.device.scanning_next_keycode placeholder='press a key'}}
                   </div>
-                  <span class='form-control-static' style='color: var(--md-muted);'>{{next_keycode_string}}</span>
+                  <span class='form-control-static' style='color: var(--md-muted);'>{{this.next_keycode_string}}</span>
                 </div>
               </div>
             </div>
@@ -1523,7 +1523,7 @@
                   <div style='width: 60px;'>
                     {{key-code-text-field id='scanning_prev_keycode' class='form-control' value=this.pending_preferences.device.scanning_prev_keycode placeholder='press a key'}}
                   </div>
-                  <span class='form-control-static' style='color: var(--md-muted);'>{{prev_keycode_string}}</span>
+                  <span class='form-control-static' style='color: var(--md-muted);'>{{this.prev_keycode_string}}</span>
                 </div>
               </div>
             </div>
@@ -1535,7 +1535,7 @@
                 <div style='width: 60px;'>
                   {{key-code-text-field id='scanning_cancel_keycode' class='form-control' value=this.pending_preferences.device.scanning_cancel_keycode placeholder='press a key'}}
                 </div>
-                <span class='form-control-static' style='color: var(--md-muted);'>{{cancel_keycode_string}}</span>
+                <span class='form-control-static' style='color: var(--md-muted);'>{{this.cancel_keycode_string}}</span>
               </div>
             </div>
           </div>

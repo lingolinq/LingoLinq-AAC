@@ -1,0 +1,4 @@
+archive/
+dist/
+tmp/
+node_modules/

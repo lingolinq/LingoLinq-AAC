@@ -8,7 +8,7 @@
     {{#if this.boardsCtrl.show_welcome_notice}}
       <div class="ll-welcome-notice" role="status">
         <span class="ll-welcome-notice__text">{{t "Welcome to %app_name%! Watch for an email from us in your inbox." key="welcome_remember_confirm"}}</span>
-        <button type="button" class="ll-welcome-notice__close" {{on "click" (this.ctrlAction "dismiss_welcome_notice" target)}} aria-label={{t "Dismiss" key="dismiss"}}>
+        <button type="button" class="ll-welcome-notice__close" {{on "click" (this.ctrlAction "dismiss_welcome_notice" this.target)}} aria-label={{t "Dismiss" key="dismiss"}}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -91,7 +91,7 @@
           {{t "Available Boards" key="available_boards_colon"}}
         {{/if}}
       </h2>
-      <button class="md-btn md-btn--primary ub-boards-page__new-board-btn" type="button" {{on "click" (this.ctrlAction "newBoard" target)}}>
+      <button class="md-btn md-btn--primary ub-boards-page__new-board-btn" type="button" {{on "click" (this.ctrlAction "newBoard" this.target)}}>
         {{#if this.boardsCtrl.is_boards_empty}}
           + {{t "Create Your First Board" key="create_first_board"}}
         {{else}}
@@ -102,18 +102,18 @@
 
     <ul class="ub-boards-page__tabs" role="tablist">
       {{#if this.boardsCtrl.model.permissions.edit}}
-        <li role="presentation" class={{if this.boardsCtrl.mine_selected "is-active"}}><a href="#" {{on "click" (this.ctrlAction "set_selected" "mine" target)}}>{{t "Mine" key="mine"}}</a></li>
+        <li role="presentation" class={{if this.boardsCtrl.mine_selected "is-active"}}><a href="#" {{on "click" (this.ctrlAction "set_selected" "mine" this.target)}}>{{t "Mine" key="mine"}}</a></li>
       {{else if this.boardsCtrl.model.permissions.model}}
-        <li role="presentation" class={{if this.boardsCtrl.mine_selected "is-active"}}><a href="#" {{on "click" (this.ctrlAction "set_selected" "mine" target)}}>{{t "Mine" key="mine"}}</a></li>
+        <li role="presentation" class={{if this.boardsCtrl.mine_selected "is-active"}}><a href="#" {{on "click" (this.ctrlAction "set_selected" "mine" this.target)}}>{{t "Mine" key="mine"}}</a></li>
       {{/if}}
       {{#unless this.appState.currentUser.modeling_only}}
-        <li role="presentation" class={{if this.boardsCtrl.public_selected "is-active"}}><a href="#" {{on "click" (this.ctrlAction "set_selected" "public" target)}}>{{t "Public" key="public"}}</a></li>
+        <li role="presentation" class={{if this.boardsCtrl.public_selected "is-active"}}><a href="#" {{on "click" (this.ctrlAction "set_selected" "public" this.target)}}>{{t "Public" key="public"}}</a></li>
       {{/unless}}
       {{#if this.boardsCtrl.model.permissions.model}}
-        <li role="presentation" class={{if this.boardsCtrl.root_selected "is-active"}}><a href="#" {{on "click" (this.ctrlAction "set_selected" "root" target)}}>{{t "Root" key="root"}}</a></li>
+        <li role="presentation" class={{if this.boardsCtrl.root_selected "is-active"}}><a href="#" {{on "click" (this.ctrlAction "set_selected" "root" this.target)}}>{{t "Root" key="root"}}</a></li>
       {{/if}}
       {{#unless this.appState.currentUser.modeling_only}}
-        <li role="presentation" class={{if this.boardsCtrl.starred_selected "is-active"}}><a href="#" {{on "click" (this.ctrlAction "set_selected" "starred" target)}}>{{t "Liked" key="starred"}}</a></li>
+        <li role="presentation" class={{if this.boardsCtrl.starred_selected "is-active"}}><a href="#" {{on "click" (this.ctrlAction "set_selected" "starred" this.target)}}>{{t "Liked" key="starred"}}</a></li>
       {{/unless}}
       {{#unless this.appState.currentUser.modeling_only}}
         {{#if this.boardsCtrl.model.permissions.model}}
@@ -123,16 +123,16 @@
             </a>
             <ul class="dropdown-menu">
               {{#if this.boardsCtrl.model.permissions.edit}}
-                <li><a href="#" {{on "click" (this.ctrlAction "set_selected" "shared" target)}}>{{t "Shared with Me" key="shared_with_me"}}</a></li>
+                <li><a href="#" {{on "click" (this.ctrlAction "set_selected" "shared" this.target)}}>{{t "Shared with Me" key="shared_with_me"}}</a></li>
               {{/if}}
               {{#if this.boardsCtrl.model.prior_home_boards}}
-                <li><a href="#" {{on "click" (this.ctrlAction "set_selected" "prior_home" target)}}>{{t "Prior Home Boards" key="prior_home"}}</a></li>
+                <li><a href="#" {{on "click" (this.ctrlAction "set_selected" "prior_home" this.target)}}>{{t "Prior Home Boards" key="prior_home"}}</a></li>
               {{/if}}
               {{#if this.boardsCtrl.model.permissions.edit}}
-                <li><a href="#" {{on "click" (this.ctrlAction "set_selected" "private" target)}}>{{t "Private" key="private"}}</a></li>
+                <li><a href="#" {{on "click" (this.ctrlAction "set_selected" "private" this.target)}}>{{t "Private" key="private"}}</a></li>
               {{/if}}
               {{#each this.boardsCtrl.model.board_tags as |tag|}}
-                <li><a href="#" {{on "click" (this.ctrlAction "set_tag" tag target)}}>{{tag}}</a></li>
+                <li><a href="#" {{on "click" (this.ctrlAction "set_tag" tag this.target)}}>{{tag}}</a></li>
               {{/each}}
             </ul>
           </li>
@@ -149,7 +149,7 @@
 
   {{#if this.boardsCtrl.show_back_to_top}}
     <div class="ub-boards-page__back-to-top-wrap">
-      <button class="ub-boards-page__back-to-top" type="button" {{on "click" (this.ctrlAction "scroll_to_top" target)}} title={{t "Back to top" key="back_to_top"}}>
+      <button class="ub-boards-page__back-to-top" type="button" {{on "click" (this.ctrlAction "scroll_to_top" this.target)}} title={{t "Back to top" key="back_to_top"}}>
         <span class="glyphicon glyphicon-chevron-up" aria-hidden="true"></span>
         <span class="ub-boards-page__back-to-top-label">{{t "Top" key="top"}}</span>
       </button>

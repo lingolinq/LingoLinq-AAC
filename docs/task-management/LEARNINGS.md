@@ -6555,3 +6555,39 @@ Fix pattern: a `ResizeObserver` on the PARENT (not the self-sized element) that
 re-renders when the container settles — deterministic, no rAF/setTimeout guessing,
 and it also fixes window-resize sizing. Guard with a <2px no-op check to prevent
 loops. See `docs/task-management/2026-07-15-search-my-boards-empty-self-userid.md`. (2026-07-15)
+
+### Modernizing a Bootstrap input+dropdown combobox → native <datalist>
+When replacing a Bootstrap `input + .btn-group.dropdown` "type-or-pick" control
+in a modal, a native `<input list="x"> + <datalist id="x">` preserves BOTH free
+text and preset suggestions with zero JS and no bootstrap — the cleanest modern
+swap. Caveat: selecting a datalist option only updates the bound input value, so
+any SIDE EFFECT the old dropdown action performed (e.g. external-device's
+`set_vocab` also auto-filled Vocab Size from the preset's `buttons`) is lost —
+re-apply it via an `{{on "change" ...}}` handler that re-matches the value
+against the option list. Modern modal field classes already exist:
+`md-modal-field` / `md-modal-label` / `md-modal-input` / `md-modal-select` /
+`md-modal-hint` / `md-modal-btn(--primary/--cancel/--secondary)`; add
+`md-modal-segment`/`__option(--active)` for a two-choice toggle (replaces
+`.btn-group`). (2026-07-15)
+
+### `<datalist>` + `{{#each ... as |option|}}` — never name the block param `option`
+Rendering `<option value={{option.name}}>` where `option` is ALSO the each block
+param shadows the native `<option>` HTML element. Glimmer flags it
+`no-shadowed-elements` ("Ambiguous element used") and throws an UNRECOVERABLE
+render error at runtime — the whole app then spams "Attempted to rerender, but
+the Ember application has had an unrecoverable error occur during render." The
+page that hosts the component may still paint (the error fires when the
+shadowing template actually renders — e.g. when a modal opens), which makes it
+look unrelated. Fix: rename the block param (`as |opt|` → `<option value=
+{{opt.name}}>`). Catch these fast with `npx ember-template-lint <file.hbs>`
+before blaming data/JS. (2026-07-15)
+
+### Ember 4.x/5.x removed implicit-`this` fallback → bare `{{prop}}` throws an UNRECOVERABLE render error
+A bare property reference in a classic `.hbs` template — `{{board-icon board=home_board_pref}}` or `{{home_board_pref}}` where `home_board_pref` is a CONTROLLER/component property (not `this.`, not `@arg`, not a block param) — worked in Ember 3.28 via the implicit-`this` fallback. Ember 4.x/5.x REMOVED that fallback, so the bare word is now resolved as a HELPER, isn't found, and throws:
+`Attempted to resolve a helper in a strict mode template, but that value was not in scope: <name>`
+This is an UNRECOVERABLE render error — Ember then halts and every nav link changes the URL but can't re-render, so the whole app looks frozen/dead (looks like "navigation is broken," but it's a render throw).
+LATENT + dangerous: it only fires when the specific branch that contains the bare ref actually renders. So a page can work for years until a data state (or an unrelated edit that changes which `{{else if}}` branch renders) reaches that line. Example: `marcus_williams_slp` never rendered the `home_board_pref` line because they hit the External AAC branch first; removing that branch dropped them into it and exposed the upgrade bug.
+Fix: add `this.` (`board=this.home_board_pref`). To find these BEFORE they ship, the `no-implicit-this` template-lint rule catches them — it is NOT enabled in this app's `.template-lintrc.js`, which is why they slip through. Diagnose a frozen app by getting the RED console error (Pause on Caught Exceptions, or filter to errors) — the "Attempted to rerender" spam is downstream noise. See account-page fix 2026-07-15 (`templates/user/index.hbs:149`). (2026-07-15)
+
+### Scanning for implicit-`this` bugs: ember-template-lint is UNRELIABLE on large legacy templates — cross-check with grep
+`no-implicit-this` IS enabled in this repo (`.template-lintrc.js` extends 'recommended') but is NOT enforced by `ember serve`, so violations ship. Worse: when scanning for them, ember-template-lint SILENTLY MISSES the violation in several large legacy route templates (`templates/user/index.hbs`, `templates/user/preferences.hbs`, `templates/trends.hbs`) — it flags the exact same `arg=bare_prop` line in a small temp file but reports 0 for these files (not a cache/ignore/inline-disable issue; unexplained scope-tracking miss on big files). So do NOT trust a green ember-template-lint run as proof there are no implicit-this bugs. Cross-check with grep for the property-shaped patterns: bare `{{snake_case}}` mustaches, `arg=snake_case` values, and `{{#if/each/let snake_case}}` — then rule out block params (`{{#each x as |name|}}`, `{{#let x as |name|}}`), helper INVOCATIONS with args (`{{date_ago x}}`, `{{is_equal a b}}`), component invocations (`{{subscribe}}`, `{{masquerade}}` = real components), and i18n interpolation param names (`board_key=this....`). The 2026-07-15 sweep found 6 real bugs across 3 files (home_board_pref ×1, *_keycode_string ×4, elem_style ×1) that the linter missed entirely. (2026-07-15)

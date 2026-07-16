@@ -44513,7 +44513,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 /* ---------- User page (My Account) hero and summary ---------- */
 .md-hero--user {
-  position: relative;
+  /* !important to beat the shared `.md-hero { position: static !important }`
+     (app.scss ~42670) — this card MUST be the positioning context so the absolute
+     AAC chip (.md-hero--user__aac) anchors to the card's bottom-right, not the page. */
+  position: relative !important;
   padding: 36px 24px 32px !important;
   width: 100%;
   margin-left: auto;
@@ -44521,7 +44524,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: flex;
   align-items: center;
   gap: 28px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(248, 250, 252, 0.95));
+  /* !important so this actually paints — the shared `.md-hero { background:
+     transparent !important }` (app.scss ~42675) was overriding it, leaving the
+     card fully transparent (it only looked light because the page behind is).
+     Alpha bumped up so the card reads as a solid, ~15%-less-transparent surface. */
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.90)) !important;
   border: 1px solid var(--md-line);
   border-bottom: 2px solid rgba($la-navy, 0.08);
   border-radius: var(--md-r-lg, 22px);
@@ -44564,6 +44571,67 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-hero--user__body {
   flex: 1 1 auto;
   min-width: 0;
+}
+/* Current AAC solution — an action chip pinned to the hero card's bottom-right.
+   Shows the app/device the user currently uses; opens the Current AAC Solution
+   modal. Absolute so it doesn't disturb the avatar+body flex row. */
+.md-hero--user__aac {
+  position: absolute;
+  right: 24px;
+  bottom: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 280px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba($la-navy, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 2px 6px rgba($la-navy, 0.08);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
+}
+.md-hero--user__aac:hover {
+  background: #fff;
+  box-shadow: 0 4px 12px rgba($la-navy, 0.14);
+  transform: translateY(-1px);
+}
+.md-hero--user__aac-icon {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: linear-gradient(135deg, rgba($brand-slate-blue, 0.16), rgba($brand-charcoal-blue, 0.10));
+  color: $brand-charcoal-blue;
+}
+.md-hero--user__aac-icon img { width: 30px; height: 30px; object-fit: contain; border-radius: 6px; }
+.md-hero--user__aac-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.md-hero--user__aac-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba($la-navy, 0.5);
+}
+.md-hero--user__aac-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: $la-navy;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (min-width: 1025px) {
+  /* Match the hero's wider side padding at this width. */
+  .md-hero--user__aac { right: 88px; }
+}
+@media (max-width: 768px) {
+  /* Column layout — flow the chip below the content instead of overlapping. */
+  .md-hero--user__aac { position: static; margin: 14px auto 0; }
 }
 /* 1024px and smaller (but still in the row layout, above the 768px mobile-column
    breakpoint): center the avatar + text group horizontally within the card. The body
@@ -81837,6 +81905,48 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   outline: none;
   border-color: $brand-verdigris;
   box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.12);
+}
+/* Segmented two-choice control (e.g. Primary Solution: app vs. Something Else) —
+   modern replacement for the Bootstrap `.btn-group` toggle. A pill container with
+   equal-width options; the active one gets the slate-blue brand fill. */
+.md-modal-segment {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba($la-navy, 0.05);
+  border: 1px solid rgba($la-navy, 0.10);
+}
+.md-modal-segment__option {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 11px 14px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 600;
+  color: $la-navy;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background 0.14s ease, color 0.14s ease, box-shadow 0.14s ease;
+}
+.md-modal-segment__option:hover { background: rgba($la-navy, 0.06); }
+.md-modal-segment__option--active,
+.md-modal-segment__option--active:hover {
+  background: linear-gradient(135deg, $brand-slate-blue, $brand-charcoal-blue);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba($brand-charcoal-blue, 0.28);
+}
+/* Read-only value line (e.g. the current home board key). */
+.md-modal-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: $la-navy;
+  margin: 0 0 10px;
+  word-break: break-word;
 }
 /* Style any Bootstrap form-control inside modern modals to match the
    md-modal-input / md-modal-select look (e.g. user-select component
