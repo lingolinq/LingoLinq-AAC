@@ -97,6 +97,9 @@ describe('RegisterController', 'controller:register', function() {
     expect(controller.get('euUnder16Registration')).toEqual(true);
     expect(controller.get('showProductImprovementOptIn')).toEqual(false);
     expect(controller.get('productImprovementOptIn')).toEqual(false);
+    expect(controller.get('model.preferences.cookies')).toEqual(false);
+    expect(controller.get('model.preferences.telemetry_opt_in')).toEqual(false);
+    expect(controller.get('model.preferences.comms_log_opt_in')).toEqual(false);
   });
 
   it("shows product-improvement opt-in for non-EU under-16 communicators", function() {

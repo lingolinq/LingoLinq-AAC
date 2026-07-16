@@ -412,10 +412,18 @@ export default Controller.extend({
   },
   _setProductImprovementPrefs: function(value) {
     var enabled = !!value;
-    this.set('user.preferences.cookies', enabled);
+    // Signup model is the user record (route createRecord); do not require a
+    // separate controller.user — EU under-16 auto-opt-out runs before that
+    // alias exists and Ember set() errors if the preferences path is missing.
+    if(!this.get('model.preferences')) {
+      this.set('model.preferences', {});
+    }
     this.set('model.preferences.cookies', enabled);
     this.set('model.preferences.telemetry_opt_in', enabled);
     this.set('model.preferences.comms_log_opt_in', enabled);
+    if(this.get('user.preferences')) {
+      this.set('user.preferences.cookies', enabled);
+    }
   },
   init() {
     this._super(...arguments);
