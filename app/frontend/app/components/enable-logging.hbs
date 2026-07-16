@@ -26,7 +26,7 @@
 
     <div class="md-modal-field">
       <label class="md-modal-checkbox-label">
-        <Input @type="checkbox" @checked={{this.research}} class="md-modal-checkbox" />
+        <input type="checkbox" checked={{this.research}} class="md-modal-checkbox" {{on "change" (set-field this "research" "checkbox")}} />
         <span>{{t "Share anonymized usage data with researchers and in community summary reports" key="allow_research"}}</span>
       </label>
     </div>
@@ -43,7 +43,7 @@
             {{#if this.research_use_requires_other}}
               <div class="md-modal-field">
                 <label for="research_primary_use_other" class="md-modal-label">{{t "Please specify (sent to researchers as entered)" key="research_primary_use_please_specify"}}</label>
-                <Input @value={{this.research_use_other_spec}} class="md-modal-input" id="research_primary_use_other" />
+                <input value={{this.research_use_other_spec}} class="md-modal-input" id="research_primary_use_other" {{on "input" (set-field this "research_use_other_spec")}} />
               </div>
             {{/if}}
           </div>
@@ -62,7 +62,7 @@
 
       <div class="md-modal-field">
         <label class="md-modal-checkbox-label">
-          <Input @type="checkbox" @checked={{this.publishing}} class="md-modal-checkbox" />
+          <input type="checkbox" checked={{this.publishing}} class="md-modal-checkbox" {{on "change" (set-field this "publishing" "checkbox")}} />
           <span>{{t "Allow anonymized logs to be included in public data sets for automated research and analysis" key="allow_publishing"}}</span>
         </label>
       </div>
@@ -74,7 +74,7 @@
 
     <div class="md-modal-field">
       <label class="md-modal-checkbox-label">
-        <Input @type="checkbox" @checked={{this.model.user.preferences.geo_logging}} class="md-modal-checkbox" />
+        <input type="checkbox" checked={{this.model.user.preferences.geo_logging}} class="md-modal-checkbox" {{on "change" (set-field this "model.user.preferences.geo_logging" "checkbox")}} />
         <span>{{t "Include geolocation in logs" key="include_geolocation"}}</span>
       </label>
     </div>

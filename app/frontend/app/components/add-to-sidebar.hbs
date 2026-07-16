@@ -22,7 +22,7 @@
       </div>
       <div class="md-modal-field">
         <label class="md-modal-label" for="name">{{t "Name" key="name"}}</label>
-        <Input @value={{this.model.board.name}} class="md-modal-input" id="name" placeholder="Board" />
+        <input value={{this.model.board.name}} class="md-modal-input" id="name" placeholder="Board" {{on "input" (set-field this "model.board.name")}} />
       </div>
       <div class="md-modal-field">
         <label class="md-modal-label" for="icon">{{t "Icon" key="icon"}}</label>
@@ -38,7 +38,7 @@
       {{/if}}
       <div class="md-modal-field">
         <label class="md-modal-checkbox-label" id="home">
-          <Input @type="checkbox" @checked={{this.model.board.home_lock}} class="md-modal-checkbox" />
+          <input type="checkbox" checked={{this.model.board.home_lock}} class="md-modal-checkbox" {{on "change" (set-field this "model.board.home_lock" "checkbox")}} />
           <span>{{t "Set as temporary Home when loaded from the sidebar" key="set_home_lock_sidebar"}}</span>
         </label>
       </div>

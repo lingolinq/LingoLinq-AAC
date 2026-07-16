@@ -121,7 +121,7 @@
             {{#if this.reuse_or_existing}}
               <span style='width: 240px; display: inline-block;'>
                 <span style='display: inline-block; width: 100%; vertical-align: middle;'>
-                  <Input id="find_source" @value={{this.title}} placeholder="Word List Name" class="form-control inline select_on_click" />
+                  <input value={{this.title}} id="find_source" placeholder="Word List Name" class="form-control inline select_on_click" {{on "input" (set-field this "title")}} />
                 </span>
               </span>
             {{else}}
@@ -251,7 +251,7 @@
                 </div>
                 <div class="form-group">
                   <label for="focus_words_ai_count">{{t "Number of words" key="ai_focus_words_count_label"}}</label>
-                  <Input id="focus_words_ai_count" @type="number" @value={{this.ai_word_count}} min="5" max="50" class="form-control" />
+                  <input type="number" value={{this.ai_word_count}} id="focus_words_ai_count" min="5" max="50" class="form-control" {{on "input" (set-field this "ai_word_count")}} />
                 </div>
                 <button type="button"
                         class="btn btn-primary nb-ai-generate__btn"
@@ -273,7 +273,7 @@
           {{#if this.model.user}}
             <div class="col-sm-12" style='margin-top: 4px;'>
               <label style='display: flex; align-items: center; gap: 10px; border: 1px solid #ccc; border-radius: 20px; padding: 6px 14px; cursor: pointer; width: fit-content; font-weight: normal; margin-bottom: 0;'>
-                <Input type="checkbox" @checked={{this.reuse}} style='margin: 0; width: 16px; height: 16px; cursor: pointer;' />
+                <input value={{this.reuse}} type="checkbox" style='margin: 0; width: 16px; height: 16px; cursor: pointer;' {{on "input" (set-field this "reuse")}} />
                 <span>{{t "Save for Re-Use" key="save_for_reuse"}}{{#if this.model.user.user_name}} {{t "(%{user_name})" user_name=this.model.user.user_name key="paren_user_name"}}{{/if}}</span>
               </label>
             </div>

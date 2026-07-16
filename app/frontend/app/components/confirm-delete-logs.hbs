@@ -17,7 +17,7 @@
       <div class="form-group">
         <label for="user_name" class="col-sm-3 control-label">{{t "User Name" key="user_name"}}</label>
         <div class="col-sm-5">
-          <Input @value={{this.user_name}} class="form-control" id="user_name" placeholder="user_name" />
+          <input value={{this.user_name}} class="form-control" id="user_name" placeholder="user_name" {{on "input" (set-field this "user_name")}} />
         </div>
       </div>
     </div>

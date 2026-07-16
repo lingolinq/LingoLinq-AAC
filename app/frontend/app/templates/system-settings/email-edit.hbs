@@ -13,7 +13,7 @@
   {{#unless this.hasI18nBlocks}}
     <div class="la-system-settings__field">
       <label for="system-email-subject" class="la-system-settings__label-text">{{t "Subject" key="system_settings_email_subject"}}</label>
-      <Input @value={{this.subject}} class="form-control la-system-settings__input" id="system-email-subject" />
+      <input value={{this.subject}} class="form-control la-system-settings__input" id="system-email-subject" {{on "input" (set-field this "subject")}} />
     </div>
   {{/unless}}
 

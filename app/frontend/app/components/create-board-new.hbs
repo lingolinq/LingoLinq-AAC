@@ -261,15 +261,7 @@
               <div class="nb-basics-grid__col nb-basics-grid__col--left">
                 <div class="nb-field">
                   <label for="new_board_name" class="nb-field__label">{{t "Name" key="name"}}</label>
-                  <Input @value={{this.model.name}}
-                         required={{true}}
-                         aria-required="true"
-                         aria-invalid={{if this.field_errors.name "true" "false"}}
-                         aria-describedby={{if this.field_errors.name "new-board-name-error"}}
-                         class="form-control nb-field__input {{if this.field_errors.name 'nb-field__input--error'}}"
-                         id="new_board_name"
-                         placeholder="My Board"
-                         {{on "blur" (this.ctrlAction "markFieldTouched" "name")}} />
+                  <input value={{this.model.name}} required={{true}} aria-required="true" aria-invalid={{if this.field_errors.name "true" "false"}} aria-describedby={{if this.field_errors.name "new-board-name-error"}} class="form-control nb-field__input {{if this.field_errors.name 'nb-field__input--error'}}" id="new_board_name" placeholder="My Board" {{on "blur" (this.ctrlAction "markFieldTouched" "name")}} {{on "input" (set-field this "model.name")}} />
                   {{#if this.field_errors.name}}
                     <p id="new-board-name-error" class="nb-field__hint nb-field__hint--error" role="alert">{{this.field_errors.name}}</p>
                   {{/if}}
@@ -328,7 +320,7 @@
                 <button type="button" class="nb-stepper-mini__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "model.grid.rows")}} aria-label={{t "Decrease rows" key="decrease_rows"}}>
                   <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
                 </button>
-                <Input @type="number" @value={{this.model.grid.rows}} class="nb-stepper-mini__input" id="new_board_rows" aria-labelledby="nb-rows-label" />
+                <input type="number" value={{this.model.grid.rows}} class="nb-stepper-mini__input" id="new_board_rows" aria-labelledby="nb-rows-label" {{on "input" (set-field this "model.grid.rows")}} />
                 <button type="button" class="nb-stepper-mini__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "model.grid.rows")}} aria-label={{t "Increase rows" key="increase_rows"}}>
                   <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M6 2.5 L6 9.5 M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
                 </button>
@@ -338,7 +330,7 @@
                 <button type="button" class="nb-stepper-mini__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "model.grid.columns")}} aria-label={{t "Decrease columns" key="decrease_columns"}}>
                   <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
                 </button>
-                <Input @type="number" @value={{this.model.grid.columns}} class="nb-stepper-mini__input" id="new_board_columns" aria-labelledby="nb-cols-label" />
+                <input type="number" value={{this.model.grid.columns}} class="nb-stepper-mini__input" id="new_board_columns" aria-labelledby="nb-cols-label" {{on "input" (set-field this "model.grid.columns")}} />
                 <button type="button" class="nb-stepper-mini__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "model.grid.columns")}} aria-label={{t "Increase columns" key="increase_columns"}}>
                   <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M6 2.5 L6 9.5 M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
                 </button>
@@ -1035,11 +1027,7 @@
                                         aria-label={{t "Pick paint color" key="board_detail_pick_paint_color"}}
                                         autocomplete="off"
                                         {{on "input" (this.ctrlActionEventValue "update_custom_paint_color" "value")}}>
-                                      <Input id="nb-paint-hex-input"
-                                        @value={{this.custom_paint_color}}
-                                        placeholder="#hex"
-                                        class="md-board-edit-right-panel__custom-picker-hex"
-                                        autocomplete="off" />
+                                      <input value={{this.custom_paint_color}} id="nb-paint-hex-input" placeholder="#hex" class="md-board-edit-right-panel__custom-picker-hex" autocomplete="off" {{on "input" (set-field this "custom_paint_color")}} />
                                       <button type="button"
                                         class="md-board-edit-right-panel__custom-picker-apply"
                                         {{on "click" (this.ctrlAction "apply_custom_paint_color")}}>
@@ -1363,7 +1351,7 @@
               </div>
               <div class="nb-field new-board-field--key">
                 <label for="new_board_key" class="nb-field__label">{{t "Key" key="key"}}</label>
-                <Input @value={{this.model.key}} class="form-control nb-field__input nb-field__input--narrow" id="new_board_key" placeholder={{this.key_placeholder}} />
+                <input value={{this.model.key}} class="form-control nb-field__input nb-field__input--narrow" id="new_board_key" placeholder={{this.key_placeholder}} {{on "input" (set-field this "model.key")}} />
               </div>
               <div class="nb-field new-board-field--locale">
                 <label for="locale" class="nb-field__label">{{t "Language" key="locale"}}</label>

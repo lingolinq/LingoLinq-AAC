@@ -7,16 +7,16 @@
   {{#if this.prompt_user}}
     <div class="la-contact-form__row">
       <label for="beta_name" class="la-contact-form__label">{{t "Name" key="name"}}</label>
-      <Input @value={{this.name}} class="la-contact-input" id="beta_name" placeholder={{t "Your Name" key="your_name"}} maxlength="255" />
+      <input value={{this.name}} class="la-contact-input" id="beta_name" placeholder={{t "Your Name" key="your_name"}} maxlength="255" {{on "input" (set-field this "name")}} />
     </div>
     <div class="la-contact-form__row">
       <label for="beta_email" class="la-contact-form__label">{{t "Email" key="email"}}</label>
-      <Input @value={{this.email}} class="la-contact-input" id="beta_email" type="email" placeholder="you@example.com" maxlength="254" />
+      <input value={{this.email}} class="la-contact-input" id="beta_email" type="email" placeholder="you@example.com" maxlength="254" {{on "input" (set-field this "email")}} />
     </div>
   {{/if}}
   <div class="la-contact-form__row la-beta-feedback__meeting-row">
     <label class="la-beta-feedback__meeting-label">
-      <Input @type="checkbox" @checked={{this.requestVirtualMeeting}} class="la-beta-feedback__meeting-checkbox" />
+      <input type="checkbox" checked={{this.requestVirtualMeeting}} class="la-beta-feedback__meeting-checkbox" {{on "change" (set-field this "requestVirtualMeeting" "checkbox")}} />
       <span>{{t "I'd like to request a virtual meeting with the team to discuss my feedback." key="beta_feedback_virtual_meeting_label"}}</span>
     </label>
   </div>
@@ -136,7 +136,7 @@
     <label class="la-contact-form__label">{{t "Screen recording (optional)" key="beta_feedback_recording_label"}}</label>
     <p class="la-contact-form__hint">{{t "Recordings can help us understand beta issues, but they may include personal or sensitive information. If your browser offers audio, choose a browser tab and share tab audio so Speak Mode sound can be heard. You can also allow microphone audio." key="beta_feedback_recording_sensitive_hint_audio"}}</p>
     <label class="la-beta-feedback__consent" id="beta_recording_consent">
-      <Input @type="checkbox" @checked={{this.recordingConsent}} {{on "change" this.onToggleRecordingConsent}} />
+      <input type="checkbox" checked={{this.recordingConsent}} {{on "change" this.onToggleRecordingConsent}} {{on "change" (set-field this "recordingConsent" "checkbox")}} />
       <span>{{t "I am 13 or older, or I am a parent/guardian/authorized adult, and I consent to upload this recording with my beta feedback. I understand it may include personal or sensitive information, including browser audio or microphone audio if I allow it." key="beta_feedback_recording_consent_upload"}}</span>
     </label>
     {{#if this.errors.recording}}

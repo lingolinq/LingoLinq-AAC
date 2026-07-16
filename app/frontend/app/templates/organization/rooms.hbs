@@ -131,7 +131,7 @@
   <hr class="md-org-report-divider">
   <form class="md-org-room-add-form" {{on "submit" (this.ctrlAction "add_unit")}}>
     <span class="md-org-room-add-form__label">{{t "Add a Room" key="add_a_room"}}</span>
-    <Input type="text" @value={{this.new_unit_name}} placeholder="Room Name" class="md-org-report-input" />
+    <input value={{this.new_unit_name}} type="text" placeholder="Room Name" class="md-org-report-input" {{on "input" (set-field this "new_unit_name")}} />
     <button type="submit" class="md-org-btn md-org-btn--outline">{{t "Add Room" key="add_room"}}</button>
   </form>
 {{/if}}

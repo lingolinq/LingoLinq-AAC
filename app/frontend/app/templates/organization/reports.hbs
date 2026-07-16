@@ -42,7 +42,7 @@
           {{#if this.show_filter}}
             <div class="md-org-report-field md-org-report-field--inline">
               <label for="report_filter" class="md-org-report-field__label">{{t "Filter:" key="filter_colon"}}</label>
-              <Input id="report_filter" @type="text" @value={{this.filter}} class="md-org-report-input" placeholder={{t "Search..." key="search_ellipsis"}} />
+              <input type="text" value={{this.filter}} id="report_filter" class="md-org-report-input" placeholder={{t "Search..." key="search_ellipsis"}} {{on "input" (set-field this "filter")}} />
             </div>
           {{/if}}
         </div>

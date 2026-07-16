@@ -18,10 +18,10 @@
       </div>
       <div class='col-sm-2'><p class='form-control-static'>{{t "Date:" key="date_colon"}}</p></div>
       <div class='col-sm-4'>
-        <Input type="date" @value={{this.date}} class="form-control" />
+        <input value={{this.date}} type="date" class="form-control" {{on "input" (set-field this "date")}} />
       </div>
       <div class='col-sm-4'>
-        <Input type="time" @value={{this.time}} class="form-control" />
+        <input value={{this.time}} type="time" class="form-control" {{on "input" (set-field this "time")}} />
       </div>
       <div class='col-sm-12' style='margin-top: 20px; margin-bottom: 20px;'>
         <Textarea @value={{this.words}} class="form-control" placeholder="one word/button per line" rows={{10}} />

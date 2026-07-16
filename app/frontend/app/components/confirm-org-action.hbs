@@ -60,7 +60,7 @@
                 <div class="col-sm-6">
                   <div class="checkbox big_checkbox">
                     <label>
-                      <Input @type="checkbox" id="extras" @checked={{this.add_symbols}} />
+                      <input type="checkbox" checked={{this.add_symbols}} id="extras" {{on "change" (set-field this "add_symbols" "checkbox")}} />
                       {{t "Grant premium symbol access if not already granted" key="grand_premium_symbols_if_needed"}}
                       ({{this.model.org.extras_available_count}} {{t "left" key="left"}})
                     </label>
@@ -76,7 +76,7 @@
             {{#unless this.model.lesson_name}}
               <div class="form-group">
                 <div class="col-sm-8 col-sm-offset-2">
-                  <Input @value={{this.confirmed}} class="form-control" placeholder="..." />
+                  <input value={{this.confirmed}} class="form-control" placeholder="..." {{on "input" (set-field this "confirmed")}} />
                 </div>
               </div>
             {{/unless}}

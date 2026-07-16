@@ -16,7 +16,7 @@
         <div class="form-group">
           <label for="communicator_lookup" class="col-sm-3 control-label">{{t "User" key="user"}}</label>
           <div class="col-sm-8">
-            <Input @value={{this.lookup_value}} class="form-control" id="communicator_lookup" placeholder={{t "Username or email address" key="username_or_email_placeholder"}} />
+            <input value={{this.lookup_value}} class="form-control" id="communicator_lookup" placeholder={{t "Username or email address" key="username_or_email_placeholder"}} {{on "input" (set-field this "lookup_value")}} />
           </div>
         </div>
         <div class="form-group">

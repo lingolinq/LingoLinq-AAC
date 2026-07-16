@@ -32,7 +32,7 @@
 
       <div class="la-tag-board-section">
         <label class="la-tag-board-label" for="category">{{t "Category" key="category"}}</label>
-        <Input type="text" id="category" class="la-tag-board-input" @value={{this.tag}} placeholder={{t "Enter category name" key="enter_category_name"}} />
+        <input value={{this.tag}} type="text" id="category" class="la-tag-board-input" placeholder={{t "Enter category name" key="enter_category_name"}} {{on "input" (set-field this "tag")}} />
         {{#if this.model.user.board_tags}}
           {{!-- Inline category chips replace the previous Bootstrap
                dropdown — clicking a chip drops its name into the
@@ -58,7 +58,7 @@
       {{#if this.boardForTag.downstream_boards}}
         <div class="la-tag-board-section">
           <label class="la-tag-board-checkbox">
-            <Input @type="checkbox" @checked={{this.downstream}} class="la-tag-board-check" />
+            <input type="checkbox" checked={{this.downstream}} class="la-tag-board-check" {{on "change" (set-field this "downstream" "checkbox")}} />
             <span>{{t "Categorize all Linked Boards in the same category" key="categorize_linked_board"}}</span>
           </label>
         </div>

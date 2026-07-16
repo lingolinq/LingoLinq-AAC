@@ -21,7 +21,7 @@
       <div class="md-modal-field">
         <label for="description" class="md-modal-label">{{t "Assessment Type" key="assessment_type"}}</label>
         <div class="md-quick-assess-type-row">
-          <Input @value={{this.description}} disabled={{this.goal_id}} class="form-control md-quick-assess-type-input" id="description" placeholder={{t "brief description" key="brief_description"}} />
+          <input value={{this.description}} disabled={{this.goal_id}} class="form-control md-quick-assess-type-input" id="description" placeholder={{t "brief description" key="brief_description"}} {{on "input" (set-field this "description")}} />
           {{#if this.goal_options}}
             <div class="btn-group md-quick-assess-goal-menu">
               <button type="button" class="md-modal-btn md-modal-btn--secondary md-quick-assess-goal-btn dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -44,7 +44,7 @@
             <button type="button" class="md-quick-assess-stepper__btn md-quick-assess-stepper__btn--minus" aria-label={{t "Decrease correct" key="decrease_correct"}} title={{t "oops? subtract one" key="oops_subtract"}} {{on "click" (this.ctrlAction "plus_minus" "minus" "totals.correct")}}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>
-            <Input @value={{this.totals.correct}} @type="number" class="form-control md-quick-assess-stepper__input" id="correct_tally" placeholder="0" min="0" />
+            <input type="number" value={{this.totals.correct}} class="form-control md-quick-assess-stepper__input" id="correct_tally" placeholder="0" min="0" {{on "input" (set-field this "totals.correct")}} />
             <button type="button" class="md-quick-assess-stepper__btn md-quick-assess-stepper__btn--plus" aria-label={{t "Increase correct" key="increase_correct"}} {{on "click" (this.ctrlAction "plus_minus" "plus" "totals.correct")}}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>
@@ -60,7 +60,7 @@
             <button type="button" class="md-quick-assess-stepper__btn md-quick-assess-stepper__btn--minus" aria-label={{t "Decrease incorrect" key="decrease_incorrect"}} title={{t "oops? subtract one" key="oops_subtract"}} {{on "click" (this.ctrlAction "plus_minus" "minus" "totals.incorrect")}}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>
-            <Input @value={{this.totals.incorrect}} @type="number" class="form-control md-quick-assess-stepper__input" id="incorrect_tally" placeholder="0" min="0" />
+            <input type="number" value={{this.totals.incorrect}} class="form-control md-quick-assess-stepper__input" id="incorrect_tally" placeholder="0" min="0" {{on "input" (set-field this "totals.incorrect")}} />
             <button type="button" class="md-quick-assess-stepper__btn md-quick-assess-stepper__btn--plus" aria-label={{t "Increase incorrect" key="increase_incorrect"}} {{on "click" (this.ctrlAction "plus_minus" "plus" "totals.incorrect")}}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>

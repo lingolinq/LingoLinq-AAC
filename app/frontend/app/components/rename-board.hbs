@@ -26,12 +26,12 @@
     <form class="la-rename-board-form" {{on "click" (this.ctrlAction "nothing")}}>
       <div class="la-rename-board-field">
         <label for="old_key" class="la-rename-board-label">{{t "Current Key" key="current_key"}}</label>
-        <Input @type="text" class="la-rename-board-input" id="old_key" @value={{this.old_key_value}} placeholder="shown above" />
+        <input type="text" value={{this.old_key_value}} class="la-rename-board-input" id="old_key" placeholder="shown above" {{on "input" (set-field this "old_key_value")}} />
       </div>
 
       <div class="la-rename-board-field">
         <label for="new_key" class="la-rename-board-label">{{t "New Key" key="new_key"}}</label>
-        <Input @type="text" class="la-rename-board-input" id="new_key" @value={{this.new_key_value}} placeholder="new key" />
+        <input type="text" value={{this.new_key_value}} class="la-rename-board-input" id="new_key" placeholder="new key" {{on "input" (set-field this "new_key_value")}} />
       </div>
     </form>
 

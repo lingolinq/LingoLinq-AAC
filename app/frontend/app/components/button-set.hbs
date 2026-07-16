@@ -48,7 +48,7 @@
         <div class="md-translate-row md-translate-row--board">
           <div class="md-translate-row__source">{{this.model.board.name}}</div>
           <div class="md-translate-row__target">
-            <Input type="text" @value={{this.model.board.translated_name}} class="md-translate-input" placeholder={{t "translation" key="translation_placeholder"}} />
+            <input value={{this.model.board.translated_name}} type="text" class="md-translate-input" placeholder={{t "translation" key="translation_placeholder"}} {{on "input" (set-field this "model.board.translated_name")}} />
           </div>
         </div>
       {{/if}}

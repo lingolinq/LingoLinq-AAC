@@ -17,11 +17,11 @@
       {{/if}}
       <div class="md-org-report-field md-org-report-field--inline">
         <label for="telemetry_start_at" class="md-org-report-field__label">{{t "Start:" key="start_colon"}}</label>
-        <Input id="telemetry_start_at" @type="date" @value={{this.start_at}} class="md-org-report-input" />
+        <input type="date" value={{this.start_at}} id="telemetry_start_at" class="md-org-report-input" {{on "input" (set-field this "start_at")}} />
       </div>
       <div class="md-org-report-field md-org-report-field--inline">
         <label for="telemetry_end_at" class="md-org-report-field__label">{{t "End:" key="end_colon"}}</label>
-        <Input id="telemetry_end_at" @type="date" @value={{this.end_at}} class="md-org-report-input" />
+        <input type="date" value={{this.end_at}} id="telemetry_end_at" class="md-org-report-input" {{on "input" (set-field this "end_at")}} />
       </div>
 
       {{#if (is-equal this.scope "organization")}}

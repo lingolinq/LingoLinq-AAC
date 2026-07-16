@@ -42,7 +42,7 @@
         <div class='col-sm-8 col-sm-offset-4'>
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.same_locale}} />
+              <input type="checkbox" checked={{this.same_locale}} {{on "change" (set-field this "same_locale" "checkbox")}} />
               {{t "Use the same language for button labels and speech generation" key="use_same_language"}}
             </label>
           </div>

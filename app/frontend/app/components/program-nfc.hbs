@@ -31,7 +31,7 @@
         {{else}}
           {{t "Phrase to speak" key="phrase_to_speak"}}
           <div>
-            <Input type="text" class="form-control" @value={{this.label}} />
+            <input value={{this.label}} type="text" class="form-control" {{on "input" (set-field this "label")}} />
           </div>
         {{/if}}
       </div>
@@ -64,13 +64,13 @@
       {{#if this.can_write}}
         {{#unless this.update_tag_id}}
           <label>
-            <Input @type="checkbox" @checked={{this.write_tag}} />
+            <input type="checkbox" checked={{this.write_tag}} {{on "change" (set-field this "write_tag" "checkbox")}} />
             {{t "Write data to the NFC tag if possible" key="write_data_to_nfc_tag"}}
           </label>
         {{/unless}}
       {{/if}}
       <label>
-        <Input @type="checkbox" @checked={{this.public}} />
+        <input type="checkbox" checked={{this.public}} {{on "change" (set-field this "public" "checkbox")}} />
         {{t "Let others see this data when they tap the tag to their devices" key="share_tag_with_others"}}
       </label>
     {{/unless}}

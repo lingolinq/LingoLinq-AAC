@@ -25,12 +25,12 @@
 
     <div class="md-modal-field">
       <label class="md-modal-label" for="board_name">{{t "Name:" key="name_colon"}}</label>
-      <Input @type="text" class="md-modal-input" id="board_name" @value={{this.board_name}} placeholder="Name for board copy" />
+      <input type="text" value={{this.board_name}} class="md-modal-input" id="board_name" placeholder="Name for board copy" {{on "input" (set-field this "board_name")}} />
     </div>
 
     <div class="md-modal-field">
       <label class="md-modal-checkbox-label">
-        <Input @type="checkbox" @checked={{this.set_as_home}} class="md-modal-checkbox" />
+        <input type="checkbox" checked={{this.set_as_home}} class="md-modal-checkbox" {{on "change" (set-field this "set_as_home" "checkbox")}} />
         <span>
           {{#if this.has_supervisees}}
             {{t "Set as the User's Home Board (optional)" key="set_as_users_home_board"}}
@@ -102,18 +102,18 @@
     {{#if this.show_more_options}}
       <div class="md-modal-field">
         <label class="md-modal-label" for="board_prefix">{{t "Prefix:" key="prefix"}}</label>
-        <Input @type="text" class="md-modal-input" id="board_prefix" @value={{this.board_prefix}} placeholder="Prefix" />
+        <input type="text" value={{this.board_prefix}} class="md-modal-input" id="board_prefix" placeholder="Prefix" {{on "input" (set-field this "board_prefix")}} />
         <p class="md-modal-hint" style="margin-top: 4px;">{{t "applied to all copied boards" key="applied_to_all_copied_boards"}}</p>
       </div>
       <div class="md-modal-field">
         <label class="md-modal-checkbox-label">
-          <Input @type="checkbox" @checked={{this.public}} class="md-modal-checkbox" />
+          <input type="checkbox" checked={{this.public}} class="md-modal-checkbox" {{on "change" (set-field this "public" "checkbox")}} />
           <span>{{t "Make the copied board(s) public to share changes with others" key="make_copies_public"}}</span>
         </label>
       </div>
       <div class="md-modal-field">
         <label class="md-modal-checkbox-label">
-          <Input @type="checkbox" @checked={{this.translate}} class="md-modal-checkbox" />
+          <input type="checkbox" checked={{this.translate}} class="md-modal-checkbox" {{on "change" (set-field this "translate" "checkbox")}} />
           <span>{{t "Translate the copied board(s) into a different language" key="translate_boards_to_language"}}</span>
         </label>
       </div>
@@ -121,7 +121,7 @@
         {{#if this.model.board.permissions.edit}}
           <div class="md-modal-field">
             <label class="md-modal-checkbox-label" style="color: #9ca3af;">
-              <Input @type="checkbox" @checked={{this.new_owner}} class="md-modal-checkbox" />
+              <input type="checkbox" checked={{this.new_owner}} class="md-modal-checkbox" {{on "change" (set-field this "new_owner" "checkbox")}} />
               <span>{{t "Allow this user to make copies of the protected board(s) for others" key="allow_sub_copies"}}</span>
             </label>
           </div>
@@ -130,7 +130,7 @@
       {{#if this.model.board.permissions.edit}}
         <div class="md-modal-field">
           <label class="md-modal-checkbox-label" style="color: #9ca3af;">
-            <Input @type="checkbox" @checked={{this.disconnect}} class="md-modal-checkbox" />
+            <input type="checkbox" checked={{this.disconnect}} class="md-modal-checkbox" {{on "change" (set-field this "disconnect" "checkbox")}} />
             <span>{{t "Mark this copy as unrelated to the original" key="disconnect_from_original"}}</span>
           </label>
         </div>

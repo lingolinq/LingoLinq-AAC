@@ -17,7 +17,7 @@
       <div class="md-sc-form">
         <div class="md-org-settings-field">
           <label class="md-org-settings-field__label">{{t "Template Name" key="template_name"}}</label>
-          <Input @value={{this.current_template.title}} class="md-org-settings-input" type="text" placeholder="Template Name" />
+          <input value={{this.current_template.title}} class="md-org-settings-input" type="text" placeholder="Template Name" {{on "input" (set-field this "current_template.title")}} />
         </div>
         <div class="md-org-settings-field">
           <label class="md-org-settings-field__label">{{t "Template Contents" key="template_contents"}}</label>

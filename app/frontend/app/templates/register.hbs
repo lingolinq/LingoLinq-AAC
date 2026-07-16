@@ -42,14 +42,14 @@
                 direct session), show it here so the user isn't stuck. }}
             {{#if this.showCoppaConsent}}
               <div class="checkbox big_checkbox">
-                <Input @type="checkbox" @checked={{this.googleSignupTerms}} id="register_google_terms_consent" aria-labelledby="register_google_terms_consent_text" />
+                <input type="checkbox" checked={{this.googleSignupTerms}} id="register_google_terms_consent" aria-labelledby="register_google_terms_consent_text" {{on "change" (set-field this "googleSignupTerms" "checkbox")}} />
                 <span id="register_google_terms_consent_text" class="big_checkbox__consent">
                   {{t "I have read and agree to the " key="register_consent_terms_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t " and " key="register_consent_and"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_terms_suffix"}}
                 </span>
               </div>
             {{else}}
               <div class="checkbox big_checkbox">
-                <Input @type="checkbox" @checked={{this.combined_google_consent}} id="register_google_combined_consent" aria-labelledby="register_google_combined_consent_text" />
+                <input type="checkbox" checked={{this.combined_google_consent}} id="register_google_combined_consent" aria-labelledby="register_google_combined_consent_text" {{on "change" (set-field this "combined_google_consent" "checkbox")}} />
                 <span id="register_google_combined_consent_text" class="big_checkbox__consent">
                   {{t "I am at least 13 years old, have read and agree to the " key="register_consent_combined_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t " and " key="register_consent_and"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_combined_suffix"}}
                 </span>
@@ -58,14 +58,14 @@
           {{/unless}}
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.googleSignupProductImprovementOptIn}} />
+              <input type="checkbox" checked={{this.googleSignupProductImprovementOptIn}} {{on "change" (set-field this "googleSignupProductImprovementOptIn" "checkbox")}} />
               {{t "Help improve LingoLinq by sharing usage, performance, and anonymized troubleshooting data." key="product_improvement_opt_in"}}
             </label>
           </div>
         </div>
         <div class="form-group">
           <label for="google_signup_user_name">{{t "Username" key="username"}}</label>
-          <Input @value={{this.googleSignupUserName}} class="form-control" id="google_signup_user_name" placeholder={{t "choose a username" key="choose_a_username"}} autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+          <input value={{this.googleSignupUserName}} class="form-control" id="google_signup_user_name" placeholder={{t "choose a username" key="choose_a_username"}} autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" {{on "input" (set-field this "googleSignupUserName")}} />
           {{#if this.googleSignupUserNameMissing}}
             <span class="text-danger">{{t "username required" key="username_required"}}</span>
           {{else if this.googleSignupUserNameInvalid}}
@@ -147,7 +147,7 @@
             {{#if this.start_code}}
               <div class="form-group">
                 <label for="start_code_role">{{t "Start Code" key="start_code"}}</label>
-                <Input @value={{this.model.start_code}} class="form-control" id="start_code_role" placeholder={{t "optional, if provided" key="optional_if_provided"}} />
+                <input value={{this.model.start_code}} class="form-control" id="start_code_role" placeholder={{t "optional, if provided" key="optional_if_provided"}} {{on "input" (set-field this "model.start_code")}} />
               </div>
             {{else}}
               <button type="button" class="register-start-code-link" {{on "click" (this.ctrlAction "allow_start_code")}}>
@@ -194,7 +194,7 @@
             {{#if this.start_code}}
               <div class="form-group">
                 <label for="start_code_supporter">{{t "Start Code" key="start_code"}}</label>
-                <Input @value={{this.model.start_code}} class="form-control" id="start_code_supporter" placeholder={{t "optional, if provided" key="optional_if_provided"}} />
+                <input value={{this.model.start_code}} class="form-control" id="start_code_supporter" placeholder={{t "optional, if provided" key="optional_if_provided"}} {{on "input" (set-field this "model.start_code")}} />
               </div>
             {{else}}
               <button type="button" class="register-start-code-link" {{on "click" (this.ctrlAction "allow_start_code")}}>
@@ -211,7 +211,7 @@
             <p class="register-step-copy">{{t "A parent or guardian needs to approve this account before it can be used." key="under_13_parent_approval_intro"}}</p>
             <div class="form-group">
               <label for="parent_consent_email">{{t "Parent or guardian email" key="coppa_parent_email_label"}}</label>
-              <Input @value={{this.parent_consent_email}} class="form-control" id="parent_consent_email" placeholder={{t "Parent's email address (must differ from account email)" key="coppa_parent_email_placeholder"}} autocomplete="email" inputmode="email" />
+              <input value={{this.parent_consent_email}} class="form-control" id="parent_consent_email" placeholder={{t "Parent's email address (must differ from account email)" key="coppa_parent_email_placeholder"}} autocomplete="email" inputmode="email" {{on "input" (set-field this "parent_consent_email")}} />
               {{#if this.coppaParentEmailMissing}}
                 <span class="text-danger">{{t "Parent or guardian email is required for users under 13." key="coppa_parent_email_required"}}</span>
               {{/if}}
@@ -221,7 +221,7 @@
             </div>
             <div class="form-group">
               <label for="user_name_under_13">{{t "Username" key="username"}}</label>
-              <Input @type="text" @value={{this.model.user_name}} class="form-control" id="user_name_under_13" placeholder={{t "choose a username" key="choose_a_username"}} autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+              <input type="text" value={{this.model.user_name}} class="form-control" id="user_name_under_13" placeholder={{t "choose a username" key="choose_a_username"}} autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" {{on "input" (set-field this "model.user_name")}} />
               {{#if this.userNameMissing}}
                 <span class='text-danger'>{{t "username required" key="username_required"}}</span>
               {{else if this.noSpacesName}}
@@ -232,7 +232,7 @@
             </div>
             <div class="form-group">
               <label for="email_under_13">{{t "Email" key="email"}}</label>
-              <Input @type="email" @value={{this.model.email}} class="form-control" id="email_under_13" autocomplete="email" inputmode="email" />
+              <input type="email" value={{this.model.email}} class="form-control" id="email_under_13" autocomplete="email" inputmode="email" {{on "input" (set-field this "model.email")}} />
               {{#if this.badEmail}}
                 <span class='text-danger'>{{t "email required" key="email_required"}}</span>
               {{/if}}
@@ -247,7 +247,7 @@
             {{#if this.start_code}}
               <div class="form-group">
                 <label for="start_code_under_13">{{t "Start Code" key="start_code"}}</label>
-                <Input @value={{this.model.start_code}} class="form-control" id="start_code_under_13" placeholder={{t "optional, if provided" key="optional_if_provided"}} />
+                <input value={{this.model.start_code}} class="form-control" id="start_code_under_13" placeholder={{t "optional, if provided" key="optional_if_provided"}} {{on "input" (set-field this "model.start_code")}} />
               </div>
             {{else}}
               <button type="button" class="register-start-code-link" {{on "click" (this.ctrlAction "allow_start_code")}}>
@@ -256,7 +256,7 @@
             {{/if}}
             <div class="register-checkboxes">
               <div class="checkbox big_checkbox">
-                <Input @type="checkbox" @checked={{this.model.terms_agree}} id="register_under_13_terms_consent" aria-labelledby="register_under_13_terms_consent_text" />
+                <input type="checkbox" checked={{this.model.terms_agree}} id="register_under_13_terms_consent" aria-labelledby="register_under_13_terms_consent_text" {{on "change" (set-field this "model.terms_agree" "checkbox")}} />
                 <span id="register_under_13_terms_consent_text" class="big_checkbox__consent">
                   {{t "I have read and agree to the " key="register_consent_terms_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t " and " key="register_consent_and"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_terms_suffix"}}
                 </span>
@@ -304,14 +304,14 @@
             <div class="register-checkboxes">
               {{#if this.showCoppaConsent}}
                 <div class="checkbox big_checkbox">
-                  <Input @type="checkbox" @checked={{this.model.terms_agree}} id="register_terms_consent" aria-labelledby="register_terms_consent_text" />
+                  <input type="checkbox" checked={{this.model.terms_agree}} id="register_terms_consent" aria-labelledby="register_terms_consent_text" {{on "change" (set-field this "model.terms_agree" "checkbox")}} />
                   <span id="register_terms_consent_text" class="big_checkbox__consent">
                     {{t "I have read and agree to the " key="register_consent_terms_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t " and " key="register_consent_and"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_terms_suffix"}}
                   </span>
                 </div>
               {{else}}
                 <div class="checkbox big_checkbox">
-                  <Input @type="checkbox" @checked={{this.combined_consent}} id="register_combined_consent" aria-labelledby="register_combined_consent_text" />
+                  <input type="checkbox" checked={{this.combined_consent}} id="register_combined_consent" aria-labelledby="register_combined_consent_text" {{on "change" (set-field this "combined_consent" "checkbox")}} />
                   <span id="register_combined_consent_text" class="big_checkbox__consent">
                     {{t "I am at least 13 years old, have read and agree to the " key="register_consent_combined_prefix"}}<a href="/terms" target="_blank" rel="noopener">{{t "Terms of Use and License Agreement" key="terms_of_use_and_license"}}</a>{{t " and " key="register_consent_and"}}<a href="/privacy" target="_blank" rel="noopener">{{t "Privacy Policy" key="privacy_policy"}}</a>{{t ", and am capable of binding to a legal contract." key="register_consent_combined_suffix"}}
                   </span>
@@ -356,14 +356,14 @@
             <div class="register-checkboxes">
               <div class="checkbox big_checkbox">
                 <label>
-                  <Input @type="checkbox" @checked={{this.productImprovementOptIn}} />
+                  <input type="checkbox" checked={{this.productImprovementOptIn}} {{on "change" (set-field this "productImprovementOptIn" "checkbox")}} />
                   {{t "Help improve LingoLinq by sharing usage, performance, and anonymized troubleshooting data." key="product_improvement_opt_in"}}
                 </label>
               </div>
             </div>
             <div class="form-group">
               <label for="user_name_email">{{t "Username" key="username"}}</label>
-              <Input @type="text" @value={{this.model.user_name}} class="form-control" id="user_name_email" placeholder={{t "choose a username" key="choose_a_username"}} autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+              <input type="text" value={{this.model.user_name}} class="form-control" id="user_name_email" placeholder={{t "choose a username" key="choose_a_username"}} autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" {{on "input" (set-field this "model.user_name")}} />
               {{#if this.userNameMissing}}
                 <span class='text-danger'>{{t "username required" key="username_required"}}</span>
               {{else if this.noSpacesName}}
@@ -374,7 +374,7 @@
             </div>
             <div class="form-group">
               <label for="email_email_step">{{t "Email" key="email"}}</label>
-              <Input @type="email" @value={{this.model.email}} class="form-control" id="email_email_step" autocomplete="email" inputmode="email" />
+              <input type="email" value={{this.model.email}} class="form-control" id="email_email_step" autocomplete="email" inputmode="email" {{on "input" (set-field this "model.email")}} />
               {{#if this.badEmail}}
                 <span class='text-danger'>{{t "email required" key="email_required"}}</span>
               {{/if}}
@@ -389,7 +389,7 @@
             {{#if this.start_code}}
               <div class="form-group">
                 <label for="start_code_email">{{t "Start Code" key="start_code"}}</label>
-                <Input @value={{this.model.start_code}} class="form-control" id="start_code_email" placeholder={{t "optional, if provided" key="optional_if_provided"}} />
+                <input value={{this.model.start_code}} class="form-control" id="start_code_email" placeholder={{t "optional, if provided" key="optional_if_provided"}} {{on "input" (set-field this "model.start_code")}} />
               </div>
             {{else}}
               <button type="button" class="register-start-code-link register-start-code-link--spaced" {{on "click" (this.ctrlAction "allow_start_code")}}>

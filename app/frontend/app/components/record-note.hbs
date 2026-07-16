@@ -94,13 +94,13 @@
 
       <div class="md-modal-field">
         <label class="md-modal-check {{if this.notify "is-selected"}}" for="notify_others">
-          <Input @checked={{this.notify}} @type="checkbox" id="notify_others" class="md-modal-check__input" />
+          <input type="checkbox" checked={{this.notify}} id="notify_others" class="md-modal-check__input" {{on "change" (set-field this "notify" "checkbox")}} />
           <span class="md-modal-check__label">{{t "Notify others of this message" key="notify_others"}}</span>
         </label>
       </div>
       <div class="md-modal-field">
         <label class="md-modal-check {{if this.notify_user "is-selected"}}" for="alert_user">
-          <Input @checked={{this.notify_user}} @type="checkbox" id="alert_user" class="md-modal-check__input" />
+          <input type="checkbox" checked={{this.notify_user}} id="alert_user" class="md-modal-check__input" {{on "change" (set-field this "notify_user" "checkbox")}} />
           <span class="md-modal-check__label">{{t "Send an alert to the communicator about this message" key="alert_user"}}</span>
         </label>
       </div>

@@ -32,7 +32,7 @@
         <label for="name" class="col-sm-2 control-label">{{t "Name" key="name"}}</label>
         <div class="col-sm-10">
           <div style="width: 100px;">
-            <Input @value={{this.model.button.name}} class="form-control" id="name" placeholder="Board" />
+            <input value={{this.model.button.name}} class="form-control" id="name" placeholder="Board" {{on "input" (set-field this "model.button.name")}} />
           </div>
         </div>
       </div>
@@ -47,7 +47,7 @@
           <div class="col-sm-10 col-sm-offset-2">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.model.button.home_lock}} />
+                <input type="checkbox" checked={{this.model.button.home_lock}} {{on "change" (set-field this "model.button.home_lock" "checkbox")}} />
                 {{t "Set as temporary Home when loaded from the sidebar" key="set_home_lock_sidebar"}}
               </label>
             </div>
@@ -60,7 +60,7 @@
           <div class="col-sm-10">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.model.button.fenced}} />
+                <input type="checkbox" checked={{this.model.button.fenced}} {{on "change" (set-field this "model.button.fenced" "checkbox")}} />
                 {{t "Highlight this board at certain locations/times" key="geo_fence_button"}}
               </label>
             </div>
@@ -83,7 +83,7 @@
             <div class="form-group">
               <label for="ssids" class="col-sm-2 control-label">{{t "Network" key="network"}}</label>
               <div class="col-sm-5">
-                <Input @value={{this.model.button.ssids}} class="form-control" id="ssids" placeholder="comma-separated wi-fi network names" />
+                <input value={{this.model.button.ssids}} class="form-control" id="ssids" placeholder="comma-separated wi-fi network names" {{on "input" (set-field this "model.button.ssids")}} />
               </div>
               <div class="col-sm-5">
                 {{#if this.appState.current_ssid}}
@@ -98,11 +98,11 @@
               <div class="col-sm-10" style='margin-bottom: 5px;'>
                 <div>
                   <span style='display: inline-block; width: 30%;'>
-                    <Input @type="time" @value={{this.start}} class="form-control" placeholder="HH:MMam/pm" />
+                    <input type="time" value={{this.start}} class="form-control" placeholder="HH:MMam/pm" {{on "input" (set-field this "start")}} />
                   </span>
                   to
                   <span style='display: inline-block; width: 30%;'>
-                    <Input @type="time" @value={{this.end}} class="form-control" placeholder="HH:MMam/pm" />
+                    <input type="time" value={{this.end}} class="form-control" placeholder="HH:MMam/pm" {{on "input" (set-field this "end")}} />
                   </span>
                   <span style='display: inline-block; width: 10%;'>
                     <button {{on "click" (this.ctrlAction "add_time")}} class='btn btn-default'>{{t "Add" key="add"}}</button>
@@ -110,7 +110,7 @@
                 </div>
               </div>
               <div class="col-sm-7 col-sm-offset-2">
-                <Input @value={{this.model.button.times}} class="form-control" id="times" placeholder="comma-separated time-blocks" />
+                <input value={{this.model.button.times}} class="form-control" id="times" placeholder="comma-separated time-blocks" {{on "input" (set-field this "model.button.times")}} />
               </div>
             </div>
           {{/if}}
@@ -133,7 +133,7 @@
                 <button {{on "click" (this.ctrlAction "add_place")}} class='btn btn-default'>{{t "Add" key="add"}}</button>
               </div>
               <div class="col-sm-7 col-sm-offset-2">
-                <Input @value={{this.model.button.places}} class="form-control" id="places" placeholder="comma-separated location names" />
+                <input value={{this.model.button.places}} class="form-control" id="places" placeholder="comma-separated location names" {{on "input" (set-field this "model.button.places")}} />
               </div>
               <div class='col-sm-2' style='font-weight: normal; font-size: 14px;'>
                 <p class='form-control-static'>{{t "(needs wifi)" key="requires_wifi"}}</p>

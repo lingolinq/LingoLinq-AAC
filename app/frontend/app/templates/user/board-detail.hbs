@@ -1965,18 +1965,7 @@
               <span class="md-board-detail-phrase-builder__search-icon" aria-hidden="true">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               </span>
-              <Input
-                id="bd-phrase-builder-search"
-                name="bd-phrase-builder-search"
-                @type="text"
-                @value={{this.phrase_search}}
-                class="md-board-detail-phrase-builder__input"
-                placeholder={{t "Type a word or a full sentence…" key="board_detail_phrase_builder_placeholder"}}
-                aria-label={{t "Search for buttons or type a sentence" key="board_detail_search_buttons_aria"}}
-                autocomplete="off"
-                autocorrect="off"
-                spellcheck="false"
-              />
+              <input type="text" value={{this.phrase_search}} id="bd-phrase-builder-search" name="bd-phrase-builder-search" class="md-board-detail-phrase-builder__input" placeholder={{t "Type a word or a full sentence…" key="board_detail_phrase_builder_placeholder"}} aria-label={{t "Search for buttons or type a sentence" key="board_detail_search_buttons_aria"}} autocomplete="off" autocorrect="off" spellcheck="false" {{on "input" (set-field this "phrase_search")}} />
               {{#if this.has_phrase_search}}
                 <button type="button" class="md-board-detail-phrase-builder__clear" data-bd-action="clear_phrase_search" {{on "click" (this.ctrlAction "clear_phrase_search")}} aria-label={{t "Clear search" key="board_detail_clear_search"}}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -2657,11 +2646,7 @@
                             autocomplete="off"
                             oninput={{this.onUpdateCustomPaintColor}}
                             onchange={{this.onUpdateCustomPaintColor}}>
-                          <Input id="bd-paint-hex-input"
-                            @value={{this.custom_paint_color}}
-                            placeholder="#hex"
-                            class="md-board-edit-right-panel__custom-picker-hex"
-                            autocomplete="off" />
+                          <input value={{this.custom_paint_color}} id="bd-paint-hex-input" placeholder="#hex" class="md-board-edit-right-panel__custom-picker-hex" autocomplete="off" {{on "input" (set-field this "custom_paint_color")}} />
                           <button type="button"
                             class="md-board-edit-right-panel__custom-picker-apply"
                             data-bd-action="apply_custom_paint_color" {{on "click" (this.ctrlAction "apply_custom_paint_color")}}>

@@ -64,16 +64,16 @@
                   {{#if this.prompt_user}}
                     <div class="la-contact-form__row">
                       <label for="support_name" class="la-contact-form__label">{{t "Name" key="name"}}</label>
-                      <Input @value={{this.name}} class="la-contact-input" id="support_name" placeholder={{t "Your Name" key="your_name"}} />
+                      <input value={{this.name}} class="la-contact-input" id="support_name" placeholder={{t "Your Name" key="your_name"}} {{on "input" (set-field this "name")}} />
                     </div>
                     <div class="la-contact-form__row">
                       <label for="support_email" class="la-contact-form__label">{{t "Email" key="email"}}</label>
-                      <Input @value={{this.email}} class="la-contact-input" id="support_email" placeholder="you@example.com" />
+                      <input value={{this.email}} class="la-contact-input" id="support_email" placeholder="you@example.com" {{on "input" (set-field this "email")}} />
                     </div>
                   {{/if}}
                   <div class="la-contact-form__row">
                     <label for="support_subject" class="la-contact-form__label">{{t "Subject" key="subject"}}</label>
-                    <Input @value={{this.subject}} class="la-contact-input" id="support_subject" placeholder="" />
+                    <input value={{this.subject}} class="la-contact-input" id="support_subject" placeholder="" {{on "input" (set-field this "subject")}} />
                   </div>
                   <div class="la-contact-form__row">
                     <label for="support_message" class="la-contact-form__label">{{t "Message" key="message"}}</label>

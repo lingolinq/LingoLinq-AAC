@@ -41,11 +41,11 @@
                     <div class="la-database-explorer__toolbar">
                       <label class="la-database-explorer__search-label">
                         <span class="la-database-explorer__label-text">{{t "Filter tables" key="database_explorer_table_search_label"}}</span>
-                        <Input @type="search" @value={{this.tableSearch}} class="form-control la-database-explorer__search-input" autocomplete="off" placeholder={{t "Table name…" key="database_explorer_table_search_placeholder"}} />
+                        <input type="search" value={{this.tableSearch}} class="form-control la-database-explorer__search-input" autocomplete="off" placeholder={{t "Table name…" key="database_explorer_table_search_placeholder"}} {{on "input" (set-field this "tableSearch")}} />
                       </label>
                       <label class="la-database-explorer__search-label">
                         <span class="la-database-explorer__label-text">{{t "Filter columns" key="database_explorer_column_search_label"}}</span>
-                        <Input @type="search" @value={{this.columnSearch}} class="form-control la-database-explorer__search-input" autocomplete="off" placeholder={{t "Column name or type…" key="database_explorer_column_search_placeholder"}} />
+                        <input type="search" value={{this.columnSearch}} class="form-control la-database-explorer__search-input" autocomplete="off" placeholder={{t "Column name or type…" key="database_explorer_column_search_placeholder"}} {{on "input" (set-field this "columnSearch")}} />
                       </label>
                     </div>
 
@@ -119,7 +119,7 @@
                     <div class="la-database-explorer__toolbar">
                       <label class="la-database-explorer__search-label">
                         <span class="la-database-explorer__label-text">{{t "Find table" key="database_explorer_find_table_label"}}</span>
-                        <Input @type="search" @value={{this.contentsTableSearch}} class="form-control la-database-explorer__search-input" autocomplete="off" placeholder={{t "Table name…" key="database_explorer_table_search_placeholder"}} />
+                        <input type="search" value={{this.contentsTableSearch}} class="form-control la-database-explorer__search-input" autocomplete="off" placeholder={{t "Table name…" key="database_explorer_table_search_placeholder"}} {{on "input" (set-field this "contentsTableSearch")}} />
                       </label>
                     </div>
 

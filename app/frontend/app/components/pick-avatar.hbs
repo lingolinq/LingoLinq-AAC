@@ -42,7 +42,7 @@
       </div>
       <div class="row">
         <div class="col-xs-12" style="padding-top: 5px;">
-          <Input @type="text" class="form-control" @value={{this.model.user.avatar_url}} placeholder="avatar url" />
+          <input type="text" value={{this.model.user.avatar_url}} class="form-control" placeholder="avatar url" {{on "input" (set-field this "model.user.avatar_url")}} />
         </div>
       </div>
     {{/if}}

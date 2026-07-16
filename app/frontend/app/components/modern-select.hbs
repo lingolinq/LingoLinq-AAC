@@ -27,14 +27,7 @@
               <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
           </span>
-          <Input
-            class="modern-select__search-input"
-            @type="text"
-            @value={{this.searchString}}
-            placeholder={{this.searchPlaceholder}}
-            aria-label={{this.searchPlaceholder}}
-            {{on "keydown" this.onSearchKeydown}}
-          />
+          <input type="text" value={{this.searchString}} class="modern-select__search-input" placeholder={{this.searchPlaceholder}} aria-label={{this.searchPlaceholder}} {{on "keydown" this.onSearchKeydown}} {{on "input" (set-field this "searchString")}} />
         </li>
       {{/if}}
       {{#each this.filteredContent as |item|}}

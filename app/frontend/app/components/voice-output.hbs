@@ -37,7 +37,7 @@
       <label for="vo-voice-rate" class="md-modal-label">{{t "Voice Rate" key="voice_rate"}}</label>
       <div class="md-number-picker">
         <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "bump_rate" -0.1)}} aria-label={{t "Decrease rate" key="voice_output_decrease_rate"}}>−</button>
-        <Input @value={{this.pending_prefs.rate}} @type="text" class="md-number-picker__input" id="vo-voice-rate" placeholder="1.0" />
+        <input type="text" value={{this.pending_prefs.rate}} class="md-number-picker__input" id="vo-voice-rate" placeholder="1.0" {{on "input" (set-field this "pending_prefs.rate")}} />
         <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "bump_rate" 0.1)}} aria-label={{t "Increase rate" key="voice_output_increase_rate"}}>+</button>
       </div>
     </div>
@@ -47,7 +47,7 @@
       <label for="vo-voice-pitch" class="md-modal-label">{{t "Voice Pitch" key="voice_pitch"}}</label>
       <div class="md-number-picker">
         <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "bump_pitch" -0.1)}} aria-label={{t "Decrease pitch" key="voice_output_decrease_pitch"}}>−</button>
-        <Input @value={{this.pending_prefs.pitch}} @type="text" class="md-number-picker__input" id="vo-voice-pitch" placeholder="1.0" />
+        <input type="text" value={{this.pending_prefs.pitch}} class="md-number-picker__input" id="vo-voice-pitch" placeholder="1.0" {{on "input" (set-field this "pending_prefs.pitch")}} />
         <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "bump_pitch" 0.1)}} aria-label={{t "Increase pitch" key="voice_output_increase_pitch"}}>+</button>
       </div>
     </div>
@@ -58,7 +58,7 @@
       <div class="md-voice-output__volume-row">
         <div class="md-number-picker">
           <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "bump_volume" -0.1)}} aria-label={{t "Decrease volume" key="voice_output_decrease_volume"}}>−</button>
-          <Input @value={{this.pending_prefs.volume}} @type="text" class="md-number-picker__input" id="vo-voice-volume" placeholder="1.0" />
+          <input type="text" value={{this.pending_prefs.volume}} class="md-number-picker__input" id="vo-voice-volume" placeholder="1.0" {{on "input" (set-field this "pending_prefs.volume")}} />
           <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "bump_volume" 0.1)}} aria-label={{t "Increase volume" key="voice_output_increase_volume"}}>+</button>
         </div>
         <button type="button" class="btn md-modal-btn md-modal-btn--primary" {{on "click" (this.ctrlAction "test_voice")}}>

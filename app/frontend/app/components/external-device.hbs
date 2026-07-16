@@ -33,7 +33,7 @@
       {{else}}
         <div class="md-modal-field">
           <label class="md-modal-label" for="device_type">{{t "App/Device" key="app_device"}}</label>
-          <Input @value={{this.external_device}} class="md-modal-input" id="device_type" list="ext_device_options" placeholder="third-party app or device name" autocomplete="off" />
+          <input value={{this.external_device}} class="md-modal-input" id="device_type" list="ext_device_options" placeholder="third-party app or device name" autocomplete="off" {{on "input" (set-field this "external_device")}} />
           <datalist id="ext_device_options">
             {{#each this.device_options as |opt|}}<option value={{opt.name}}></option>{{/each}}
           </datalist>
@@ -41,14 +41,14 @@
         {{#if this.external_device}}
           <div class="md-modal-field">
             <label class="md-modal-label" for="vocabulary_type">{{t "Vocabulary" key="vocabulary"}}</label>
-            <Input @value={{this.external_vocab}} class="md-modal-input" id="vocabulary_type" list="ext_vocab_options" placeholder="vocabulary used" autocomplete="off" {{on "change" (this.ctrlAction "vocab_changed")}} />
+            <input value={{this.external_vocab}} class="md-modal-input" id="vocabulary_type" list="ext_vocab_options" placeholder="vocabulary used" autocomplete="off" {{on "change" (this.ctrlAction "vocab_changed")}} {{on "input" (set-field this "external_vocab")}} />
             <datalist id="ext_vocab_options">
               {{#each this.vocab_options as |opt|}}<option value={{opt.name}}></option>{{/each}}
             </datalist>
           </div>
           <div class="md-modal-field">
             <label class="md-modal-label" for="vocab_size">{{t "Vocab Size" key="vocab_size"}}</label>
-            <Input @type="number" @value={{this.external_vocab_size}} class="md-modal-input" id="vocab_size" placeholder="typical buttons per board" />
+            <input type="number" value={{this.external_vocab_size}} class="md-modal-input" id="vocab_size" placeholder="typical buttons per board" {{on "input" (set-field this "external_vocab_size")}} />
             <p class="md-modal-hint">{{t "average buttons per board" key="average_buttons_per_view"}}</p>
           </div>
         {{/if}}

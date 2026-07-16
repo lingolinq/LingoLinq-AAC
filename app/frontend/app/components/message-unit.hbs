@@ -44,7 +44,7 @@
           <div class="col-sm-10 col-sm-offset-2">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.notify_user}} />
+                <input type="checkbox" checked={{this.notify_user}} {{on "change" (set-field this "notify_user" "checkbox")}} />
                 {{t "Send an alert to communicators about this message" key="alert_users"}}
               </label>
             </div>
@@ -54,7 +54,7 @@
           <div class="col-sm-10 col-sm-offset-2">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.include_footer}} />
+                <input type="checkbox" checked={{this.include_footer}} {{on "change" (set-field this "include_footer" "checkbox")}} />
                 {{t "Include status-check links at the end of the message" key="include_footer"}}
               </label>
             </div>
@@ -85,7 +85,7 @@
           <div class="col-sm-10 col-sm-offset-2">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.notify_user}} />
+                <input type="checkbox" checked={{this.notify_user}} {{on "change" (set-field this "notify_user" "checkbox")}} />
                 {{t "Send an alert to communicators about this message" key="alert_users"}}
               </label>
             </div>
@@ -95,7 +95,7 @@
           <div class="col-sm-10 col-sm-offset-2">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.include_footer}} />
+                <input type="checkbox" checked={{this.include_footer}} {{on "change" (set-field this "include_footer" "checkbox")}} />
                 {{t "Include status-check links at the end of the message" key="include_footer"}}
               </label>
             </div>

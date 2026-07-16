@@ -104,7 +104,7 @@
           <div class="md-goal-form__group-title">{{t "Goal Details" key="goal_details"}}</div>
           <div class="md-goal-field">
             <label class="md-goal-field__label" for="new_goal_summary">{{t "Summary" key="summary"}}</label>
-            <Input @value={{this.model.summary}} class="form-control" id="new_goal_summary" placeholder="short goal summary" />
+            <input value={{this.model.summary}} class="form-control" id="new_goal_summary" placeholder="short goal summary" {{on "input" (set-field this "model.summary")}} />
           </div>
           <div class="md-goal-field">
             <label class="md-goal-field__label" for="new_goal_description">{{t "Description" key="description"}}</label>
@@ -129,7 +129,7 @@
           <div class="md-goal-field">
             <div class="checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.model.auto_assessment}} id="auto_assessment" />
+                <input type="checkbox" checked={{this.model.auto_assessment}} id="auto_assessment" {{on "change" (set-field this "model.auto_assessment" "checkbox")}} />
                 {{t "Automatically assess this goal daily based on usage data" key="auto_assess_goal_daily"}}
               </label>
             </div>
@@ -149,7 +149,7 @@
         <div class="md-goal-field">
           <div class="checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.model.badges_enabled}} id="badges" />
+              <input type="checkbox" checked={{this.model.badges_enabled}} id="badges" {{on "change" (set-field this "model.badges_enabled" "checkbox")}} />
               {{t "Enable badge rewards" key="goal_has_badges"}}
             </label>
           </div>
@@ -157,7 +157,7 @@
         {{#if this.model.badges_enabled}}
           <div class="md-goal-field">
             <label class="md-goal-field__label" for="badge_name">{{t "Badge Name" key="badge_name"}}</label>
-            <Input @value={{this.model.badge_name}} class="form-control" id="badge_name" placeholder={{this.model.summary}} />
+            <input value={{this.model.badge_name}} class="form-control" id="badge_name" placeholder={{this.model.summary}} {{on "input" (set-field this "model.badge_name")}} />
           </div>
           {{#each this.model.badges as |badge index|}}
             <div class="md-goal-badge-editor">

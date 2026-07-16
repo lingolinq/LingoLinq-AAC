@@ -60,7 +60,7 @@
           {{#if this.board.downstream_boards}}
             <div class="md-modal-field">
               <label class="md-modal-checkbox-label">
-                <Input @checked={{this.board.update_visibility_downstream}} @type="checkbox" class="md-modal-checkbox" />
+                <input type="checkbox" checked={{this.board.update_visibility_downstream}} class="md-modal-checkbox" {{on "change" (set-field this "board.update_visibility_downstream" "checkbox")}} />
                 <span>{{t "Make all linked boards public as well" key="make_all_public"}}</span>
               </label>
             </div>
@@ -115,7 +115,7 @@
           <div class="md-modal-field">
             <div style="display: flex; align-items: center; gap: 8px;">
               <label for="share_board_user_name" class="sr-only">{{t "User name to add" key="user_name_to_add"}}</label>
-              <Input id="share_board_user_name" @value={{this.share_user_name}} class="md-modal-input" placeholder="user name to add" style="flex: 1;" />
+              <input value={{this.share_user_name}} id="share_board_user_name" class="md-modal-input" placeholder="user name to add" style="flex: 1;" {{on "input" (set-field this "share_user_name")}} />
               {{#if this.appState.currentUser.known_supervisees}}
                 <div class="btn-group">
                   <button class="btn md-modal-btn md-modal-btn--cancel dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" type="button">
@@ -132,13 +132,13 @@
           </div>
           <div class="md-modal-field">
             <label class="md-modal-checkbox-label">
-              <Input @type="checkbox" @checked={{this.share_include_downstream}} class="md-modal-checkbox" />
+              <input type="checkbox" checked={{this.share_include_downstream}} class="md-modal-checkbox" {{on "change" (set-field this "share_include_downstream" "checkbox")}} />
               <span>{{t "also share any linked boards" key="include_downstream_boards"}}</span>
             </label>
           </div>
           <div class="md-modal-field">
             <label class="md-modal-checkbox-label">
-              <Input @type="checkbox" @checked={{this.share_allow_editing}} class="md-modal-checkbox" />
+              <input type="checkbox" checked={{this.share_allow_editing}} class="md-modal-checkbox" {{on "change" (set-field this "share_allow_editing" "checkbox")}} />
               <span>{{t "allow editing (and deleting) as well" key="include_editing_downstream_boards"}}</span>
             </label>
           </div>
