@@ -23,6 +23,12 @@
   raised the count to 16 (wider scan coverage, not new regressions); those 16 were dispositioned
   in #419 (14 fixed-intent / 2 accepted), and the fixed-intent set has since been remediated and
   verified-closed, leaving **4 open High** at the 2026-06-19 register (SHA `445336592`).
+- **GCP infrastructure agreements recorded (2026-07-16, post-attestation).** The GCP CDPA + HIPAA
+  BAA (accepted 2026-07-12) and SCCs (certified 2026-07-14) for project `lingolinq-prod` are
+  recorded in the framework table and the migration section above, and in `SUBPROCESSORS.md` /
+  `COMPLIANCE.md`. Finding counts are unchanged. This factual update post-dates the 2026-06-19
+  attestation and is **pending Scot's re-attestation**; the ATTESTED banner and headline figures
+  are deliberately left as-attested rather than hand-edited.
 
 ## Headline
 
@@ -68,8 +74,8 @@ one framework):
 | Framework | Open findings | Open High | Context |
 |---|---:|---:|---|
 | FERPA (US schools) | 8 | 2 | Student data isolation, access scoping, audit trail. |
-| HIPAA (US hospitals) | 6 | 3 | PHI handling, minimum necessary, BAA coverage. AWS BAA on file (2026-02); GCP HIPAA BAA accepted (2026-06). |
-| GDPR (EU clients) | 2 | 0 | Data residency, subprocessor posture, deletion and export paths. GCP SCCs certified (2026-06). |
+| HIPAA (US hospitals) | 6 | 3 | PHI handling, minimum necessary, BAA coverage. AWS BAA on file (2026-02); GCP HIPAA BAA accepted (project `lingolinq-prod` 2026-07-12; org-wide 2026-06-08). |
+| GDPR (EU clients) | 2 | 0 | Data residency, subprocessor posture, deletion and export paths. GCP SCCs certified (2026-07-14, project `lingolinq-prod`). |
 | COPPA (under-13 users) | 1 | 1 | Amended Rule enforceable since 2026-04-22. The one open High is the eval-narration consent-binding residual (LL-11db0dc848). Product controls below. |
 | WCAG (accessibility) | 11 | 0 | Tracked as a standing domain because it is product-existential for an AAC tool. See Accessibility below. |
 | SOC 2 (in progress) | 9 | 1 | Control-evidence and audit-system hardening items. |
@@ -108,11 +114,18 @@ and email staying on AWS. Two compliance-relevant items are in flight:
   and TLS. The current Render environment still runs plaintext `redis://`, so the corresponding
   finding (LL-6619cc1811, HIPAA) is held open until the cutover lands. Closure is gated on the
   migration, not on a separate fix.
-- **GCP Business Associate Agreement.** The Google Cloud HIPAA BAA was accepted in-console
-  (certified 2026-06-08; acceptance evidence captured 2026-06-19), and the GCP Standard
-  Contractual Clauses were certified 2026-06-08 for EU-transfer coverage. Add Google as an active
-  subprocessor in `docs/legal/SUBPROCESSORS.md` at cutover, when Google compute begins carrying
-  production data; until then it remains a planned subprocessor.
+- **GCP Business Associate Agreement.** The Google Cloud HIPAA BAA was first accepted in-console
+  org-wide (certified 2026-06-08; acceptance evidence captured 2026-06-19). On 2026-07-12 the
+  Cloud Data Processing Addendum (CDPA) and the HIPAA BAA were reviewed and accepted for project
+  `lingolinq-prod` specifically, and the Standard Contractual Clauses (EU GDPR, UK GDPR, Swiss
+  FDPA) were certified 2026-07-14 for EU/UK/Swiss-transfer coverage. Under the HIPAA BAA, PHI is
+  permitted on Google Cloud subject to BAA terms (HIPAA-eligible services, encryption, private
+  VPC). Evidence: Drive "Compliance Audits" / "Google Cloud Platform - Accepted Compliance
+  Agreements (captured 2026-07-14)". This is an infrastructure BAA (Cloud Run, Cloud SQL,
+  Memorystore, and Google's Vertex AI service under Google's terms); it does not extend to the
+  Anthropic model-provider egress path. Add Google as an active subprocessor in
+  `docs/legal/SUBPROCESSORS.md` at cutover, when Google compute begins carrying production data;
+  until then it remains a planned subprocessor.
 
 ## Accessibility
 

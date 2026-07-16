@@ -125,6 +125,7 @@
 | Compliance Program - Claim vs Code Review | drive | [open](https://docs.google.com/document/d/1IHQ5yFkoU39N01wyTt5SRXM-Q71aKa9wuXvnGVWnbRg/edit) | Supply hash during Drive review; the repo has no Google Docs body fetch/write workflow yet. |
 | Data & Compliance Pipeline - Build Inventory (dated) | drive | [open](https://docs.google.com/document/d/1xxLsESUXKm6rDWuqr_Z-Ob5kWzUZUbFD3gTKZWfLMnY/edit) | Supply hash during Drive review; the repo has no Google Docs body fetch/write workflow yet. |
 | Data Retention Schedule (branded) | drive | [open](https://docs.google.com/document/d/1GRFuvaacbUbcAixhaOAOsdGKhOfclAByYS53bWap14k/edit) | Supply hash during Drive review; the repo has no Google Docs body fetch/write workflow yet. |
+| Google Cloud Platform - Accepted Compliance Agreements | drive | [open](https://docs.google.com/document/d/1CcyQpNfg8aiuY5VA7RHYbYqQEQtzHAdEkjpxcQIhNmM/edit) | Supply hash during Drive review; the repo has no Google Docs body fetch/write workflow yet. |
 | Incident Log (branded) | drive | [open](https://docs.google.com/document/d/1i5XFqAtgbxpDMLMdd80KS09WP7kWQ-GnTJU0ox7JGqQ/edit) | Supply hash during Drive review; the repo has no Google Docs body fetch/write workflow yet. |
 | Incident Response and Breach Runbook (branded) | drive | [open](https://docs.google.com/document/d/1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po/edit) | Supply hash during Drive review; the repo has no Google Docs body fetch/write workflow yet. |
 | Parental Consent (COPPA / under-13) (branded) | drive | [open](https://docs.google.com/document/d/1ljRwXPEAkQdJT81iGgAMHkfZTdbJ3EZPkIbHNuDtNxE/edit) | Supply hash during Drive review; the repo has no Google Docs body fetch/write workflow yet. |
@@ -145,4 +146,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_53 documents tracked. 50 stale review item(s). 23 Drive refresh item(s). 4 Notion hash item(s)._
+_54 documents tracked. 50 stale review item(s). 23 Drive refresh item(s). 4 Notion hash item(s)._

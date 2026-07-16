@@ -1287,7 +1287,7 @@
         "verifierNote": "Superseded 2026-06-12: prod is migrating off Render to GCP Cloud Run; Google org-wide BAA accepted 2026-06-08. The Render hosting BAA is no longer the compliance path for PHI. Render stays as a PHI-free dev/staging + rollback surface (project_render_cloud_migration).",
         "attestation": ""
       },
-      "notes": "Render prod remains the live rollback path until GCP cutover, but carries no PHI under the migration plan."
+      "notes": "Render prod remains the live rollback path until GCP cutover, but carries no PHI under the migration plan. | 2026-07-16: Google Cloud infrastructure agreements formalized at the project lingolinq-prod level: CDPA + HIPAA BAA accepted 2026-07-12, SCCs certified 2026-07-14 (formalizing the org-wide Google BAA of 2026-06-08); evidence in Drive 'Compliance Audits' / 'Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14)'. Status unchanged (superseded); recorded for evidence continuity only. This infrastructure BAA does NOT close the open cutover-gated infra findings (Redis TLS LL-6619cc1811, sslmode/verify-full LL-ba0585ab93, and the Postgres network-allowlist finding) or the model-provider AI-egress gap (Anthropic egress has no GCP coverage); those remain open for Scot's disposition."
     },
     {
       "id": "LL-97f9001bb4",
