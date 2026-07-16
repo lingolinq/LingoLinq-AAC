@@ -89,7 +89,7 @@
 | Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Parental Consent (COPPA / under-13) (branded) | Drive | [open](https://docs.google.com/document/d/1ljRwXPEAkQdJT81iGgAMHkfZTdbJ3EZPkIbHNuDtNxE/edit) | published | COPPA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, school-dpa-package |
-| Parental Consent Email (COPPA / under-13) | git | `docs/legal/PARENTAL_CONSENT_EMAIL.md` | approved | COPPA | Scot Wahlquist | 2026-06-11 | 2027-06-11 | 2026-06-21 | `961c4f5a22f5` | school-dpa-package |
+| Parental Consent Email (COPPA / under-13) | git | `docs/legal/PARENTAL_CONSENT_EMAIL.md` | approved | COPPA | Scot Wahlquist | 2026-06-11 | 2027-06-11 | 2026-06-21 | `cab41be40abc` | school-dpa-package |
 
 ### agent-config (6)
 
