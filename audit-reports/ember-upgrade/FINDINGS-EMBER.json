@@ -1,0 +1,8 @@
+{
+  "meta": {
+    "schemaVersion": "1.1",
+    "register": "LingoLinq-AAC Ember upgrade findings register",
+    "description": "Single source of truth for Ember 3.28->5.12 upgrade-regression findings. Separate from the compliance register (audit-reports/FINDINGS.json) on purpose: framework-upgrade bugs are engineering findings, not compliance findings, but they use the SAME merge/citation machinery (scripts/audit-merge.rb, scripts/citation-check.rb) and the same governance: the merge never closes or downgrades; only Scot closes a finding. See audit-reports/ember-upgrade/README.md."
+  },
+  "findings": []
+}
