@@ -1798,6 +1798,103 @@ describe Api::UsersController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['error']).to eq('Invalid authentication attempt')
     end
+
+    it 'returns coppa_parent_email_required when pending without parent email' do
+      token = GoSecure.browser_token
+      u = User.process_new({
+        'user_name' => 'coppa_resend_needemail',
+        'name' => 'COPPA Need Email',
+        'email' => 'child_needemail@example.com',
+        'password' => 'seashell',
+        'terms_agree' => true
+      })
+      u.settings['school_authorization'] = {
+        'basis' => 'school_official',
+        'organization_id' => '1_1',
+        'authorized_at' => Time.now.utc.iso8601
+      }
+      u.save!
+      u.begin_family_offboarding_consents!(org: nil, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 10)
+      expect(u.reload.coppa_needs_parent_email?).to eq(true)
+      post :resend_parental_consent, params: {
+        :client_id => 'browser',
+        :client_secret => token,
+        :username => 'coppa_resend_needemail',
+        :password => 'seashell'
+      }
+      expect(response.status).to eq(400)
+      json = JSON.parse(response.body)
+      expect(json['coppa_parent_email_required']).to eq(true)
+    end
+  end
+
+  describe 'submit_parental_consent_email' do
+    before do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+    end
+    after(:each) { AuditEvent.delete_all }
+
+    it 'stamps parent email and queues consent mail without issuing a session' do
+      token = GoSecure.browser_token
+      u = User.process_new({
+        'user_name' => 'coppa_submit_kid',
+        'name' => 'COPPA Submit Kid',
+        'email' => 'child_submit@example.com',
+        'password' => 'seashell',
+        'terms_agree' => true
+      })
+      u.settings['school_authorization'] = {
+        'basis' => 'school_official',
+        'organization_id' => '1_1',
+        'authorized_at' => Time.now.utc.iso8601
+      }
+      u.save!
+      u.begin_family_offboarding_consents!(org: nil, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 10)
+      expect(u.reload.coppa_needs_parent_email?).to eq(true)
+      expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_request, u.global_id).once
+      post :submit_parental_consent_email, params: {
+        :client_id => 'browser',
+        :client_secret => token,
+        :username => 'coppa_submit_kid',
+        :password => 'seashell',
+        :parent_consent_email => 'guardian_submit@example.com'
+      }
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['sent']).to eq(true)
+      expect(json['coppa_parental_consent_pending']).to eq(true)
+      u.reload
+      expect(u.coppa_needs_parent_email?).to eq(false)
+      expect(u.settings['coppa']['parent_email']).to eq('guardian_submit@example.com')
+    end
+
+    it 'rejects parent email matching the account email' do
+      token = GoSecure.browser_token
+      u = User.process_new({
+        'user_name' => 'coppa_submit_same',
+        'name' => 'COPPA Submit Same',
+        'email' => 'child_submit_same@example.com',
+        'password' => 'seashell',
+        'terms_agree' => true
+      })
+      u.settings['school_authorization'] = {
+        'basis' => 'school_official',
+        'organization_id' => '1_1',
+        'authorized_at' => Time.now.utc.iso8601
+      }
+      u.save!
+      u.begin_family_offboarding_consents!(org: nil, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 10)
+      post :submit_parental_consent_email, params: {
+        :client_id => 'browser',
+        :client_secret => token,
+        :username => 'coppa_submit_same',
+        :password => 'seashell',
+        :parent_consent_email => 'child_submit_same@example.com'
+      }
+      expect(response.status).to eq(400)
+      json = JSON.parse(response.body)
+      expect(json['invalid_parent_consent_email']).to eq(true)
+    end
   end
 
   describe "password_reset" do

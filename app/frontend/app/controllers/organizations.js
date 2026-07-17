@@ -132,13 +132,31 @@ export default Controller.extend({
   },
 
 
+  jurisdiction_list: computed(function() {
+    return [
+      {name: i18n.t('org_jurisdiction_placeholder', "[ Organization location ]"), id: ''},
+      {name: i18n.t('org_jurisdiction_us', "United States"), id: 'US'},
+      {name: i18n.t('org_jurisdiction_eu', "European Union"), id: 'EU'}
+    ];
+  }),
+
   actions: {
     add_org: function() {
       if(this.get('has_admin_access')) {
         var _this = this;
         var user_name = this.get('org_user_name');
+        var jurisdiction = (this.get('org_jurisdiction') || '').toString().trim().toUpperCase();
+        if(!this.get('org_org_name')) {
+          modal.error(i18n.t('org_name_required', "Organization name is required"));
+          return;
+        }
+        if(jurisdiction !== 'US' && jurisdiction !== 'EU') {
+          modal.error(i18n.t('org_jurisdiction_required', "Please choose United States or European Union for the organization location"));
+          return;
+        }
         var org = this.store.createRecord('organization');
         org.set('name', this.get('org_org_name'));
+        org.set('jurisdiction', jurisdiction);
         org.set('org_access', true);
         org.set('premium', true);
         org.save().then(function() {
@@ -146,6 +164,9 @@ export default Controller.extend({
             org.set('management_action', 'add_manager-' + user_name);
           }
           org.save().then(function() {
+            _this.set('org_org_name', '');
+            _this.set('org_user_name', '');
+            _this.set('org_jurisdiction', '');
             _this.refresh_orgs();
             _this.router.transitionTo('organization', org.get('id'));
           }, function(err) {

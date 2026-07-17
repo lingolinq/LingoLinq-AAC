@@ -18,6 +18,11 @@
               {{t "Would you like to set a home board for the user <b>%{user_name}</b>, if they don't already have one set?" user_name=this.model.user_name key="confirm_set_home_board"}}
             {{else if this.model.user_name}}
               {{t "Are you sure you want to remove the user <b>%{user_name}</b> from the org?" user_name=this.model.user_name key="confirm_remove_user"}}
+              {{#if this.show_offboarding_age}}
+                <span class="help-block" style="margin-top: 12px; display: block;">
+                  {{t "Enter their birth month and year so we can apply the right family-account protections. Under 13 needs parental consent to keep using the account. Under 16 will have AI features turned off (a parent can approve AI later in preferences)." key="offboarding_age_help"}}
+                </span>
+              {{/if}}
             {{else if this.model.unit_user_name}}
               {{t "Are you sure you want to remove the user from the room?" user_name=this.model.user_name key="confirm_remove_unit_user"}}
             {{else if this.model.org_name}}
@@ -71,6 +76,36 @@
           {{/if}}
         {{/if}}
       {{else}}
+        {{#if this.show_offboarding_age}}
+          <div class="form-group">
+            <label class="col-sm-offset-1 col-sm-3 control-label" for="offboarding_birth_month">
+              {{t "Date of birth" key="date_of_birth"}}
+            </label>
+            <div class="col-sm-6">
+              <div class="row">
+                <div class="col-xs-6" style="padding-left: 0;">
+                  {{bound-select select_class="form-control" select_id="offboarding_birth_month" content=this.birthMonths selection=this.birth_month action=(mut this.birth_month) }}
+                </div>
+                <div class="col-xs-6" style="padding-right: 0;">
+                  {{bound-select select_class="form-control" select_id="offboarding_birth_year" content=this.birthYears selection=this.birth_year action=(mut this.birth_year) }}
+                </div>
+              </div>
+            </div>
+          </div>
+        {{/if}}
+        {{#if this.show_offboarding_parent_email}}
+          <div class="form-group">
+            <label for="offboarding_parent_email" class="col-sm-offset-1 col-sm-3 control-label">
+              {{t "Parent email (optional)" key="offboarding_parent_email_label"}}
+            </label>
+            <div class="col-sm-6">
+              <Input @type="email" @value={{this.offboarding_parent_email}} class="form-control" id="offboarding_parent_email" placeholder={{t "Parent or guardian email" key="offboarding_parent_email_placeholder"}} autocomplete="email" inputmode="email" />
+              <span class="help-block">
+                {{t "Optional now. If blank, they will be asked for a parent email the next time they log in." key="offboarding_parent_email_under13_help"}}
+              </span>
+            </div>
+          </div>
+        {{/if}}
         {{#unless this.model.user_name}}
           {{#unless this.model.unit_user_name}}
             {{#unless this.model.lesson_name}}
