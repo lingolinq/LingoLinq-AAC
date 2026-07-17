@@ -1,14 +1,16 @@
 # LingoLinq AAC Compliance Posture Report
 
-> **ATTESTED 2026-06-19 by Scot Wahlquist, CEO.** This is a Phase 3 report generated from the
-> findings register. The headline counts are read directly from `audit-reports/FINDINGS.json`;
-> every other report in `audit-reports/` is a point-in-time snapshot and is not authoritative for
-> status. Drafted by the compliance-officer; adversary-reviewed; attested by the CEO.
+> **ATTESTED 2026-06-19 by Scot Wahlquist, CEO. RE-ATTESTED 2026-07-16** after a counts refresh to
+> the 2026-07-08 register. This is a Phase 3 report generated from the findings register. The
+> headline counts are read directly from `audit-reports/FINDINGS.json`; every other report in
+> `audit-reports/` is a point-in-time snapshot and is not authoritative for status. Drafted by the
+> compliance-officer; adversary-reviewed; attested by the CEO.
 >
-> Refreshed and attested: 2026-06-19. Register audited SHA: `445336592` (auditedDate 2026-06-19,
-> ref `staging`). Counts in this report were re-derived from the register at that SHA prior to
-> attestation. Headline counts are read directly from `audit-reports/FINDINGS.json`; do not
-> hand-edit the figures, refresh them from the register.
+> Register audited SHA: `20953ab3` (auditedDate 2026-07-08, ref `scot/compliance/audit-refresh-2026-07-07`).
+> Counts in this report were re-derived from the register at that SHA prior to re-attestation, using
+> the publisher convention (`open` + `remediated-unverified` findings by severity, per
+> `scripts/compliance-notion-publish.rb`). Do not hand-edit the figures; refresh them from the
+> register.
 
 ### Changes since the prior draft (2026-06-13)
 
@@ -23,20 +25,34 @@
   raised the count to 16 (wider scan coverage, not new regressions); those 16 were dispositioned
   in #419 (14 fixed-intent / 2 accepted), and the fixed-intent set has since been remediated and
   verified-closed, leaving **4 open High** at the 2026-06-19 register (SHA `445336592`).
+- **GCP infrastructure agreements recorded (2026-07-12/14).** The GCP CDPA + HIPAA BAA (accepted
+  2026-07-12) and SCCs (certified 2026-07-14) for project `lingolinq-prod` are recorded in the
+  framework table and migration section, and in `SUBPROCESSORS.md` / `COMPLIANCE.md` /
+  `docs/legal/GCP_BAA_ACCEPTED.md`. Confirmed 2026-07-16 that `lingolinq-prod` holds no real users
+  or tenant personal data yet, so GCP remains a planned (not active) subprocessor.
+- **Counts refreshed and re-attested 2026-07-16.** The register was restamped to auditedSha
+  `20953ab3` (auditedDate 2026-07-08) after the 2026-07-07 audit refresh, which the 2026-06-19
+  figures predated. Recomputing per the publisher convention (open + remediated-unverified by
+  severity) gives **0 Critical / 7 High / 24 Medium / 23 Low**, with 49 verified-closed. The
+  headline and framework table below are refreshed to that register state. Open Critical remains 0
+  (the gating metric). The rise in open High (4 -> 7) and across several framework rows reflects
+  the wider 2026-07-07 audit refresh now incorporated; see `audit-reports/FINDINGS.json` for the
+  per-finding detail.
 
 ## Headline
 
 | Metric | Count |
 |---|---|
 | **Open Critical findings** | **0** |
-| **Open High findings** | **4** |
-| Open Medium / Low | 25 / 19 |
-| Verified closed (Scot attested) | 27 |
-| Accepted risk | 2 |
+| **Open High findings** | **7** |
+| Open Medium / Low | 24 / 23 |
+| Verified closed (Scot attested) | 49 |
+| Accepted risk | 3 |
 | Superseded | 2 |
 
-The headline is the count of open Critical and High findings, not a synthetic readiness score
-(modernization decision 5.9.2). Zero open Critical findings is the gating metric. Open High
+The headline counts `open` plus `remediated-unverified` findings by severity (the publisher
+convention, modernization decision 5.9.2), not a synthetic readiness score. Zero open Critical
+findings is the gating metric. Open High
 findings are tracked to closure under remediation service levels (High: 15 to 30 days,
 advisory). No finding is marked closed until the fix is verified against live code and Scot
 signs the attestation.
@@ -67,15 +83,16 @@ one framework):
 
 | Framework | Open findings | Open High | Context |
 |---|---:|---:|---|
-| FERPA (US schools) | 8 | 2 | Student data isolation, access scoping, audit trail. |
-| HIPAA (US hospitals) | 6 | 3 | PHI handling, minimum necessary, BAA coverage. AWS BAA on file (2026-02); GCP HIPAA BAA accepted (2026-06). |
-| GDPR (EU clients) | 2 | 0 | Data residency, subprocessor posture, deletion and export paths. GCP SCCs certified (2026-06). |
-| COPPA (under-13 users) | 1 | 1 | Amended Rule enforceable since 2026-04-22. The one open High is the eval-narration consent-binding residual (LL-11db0dc848). Product controls below. |
-| WCAG (accessibility) | 11 | 0 | Tracked as a standing domain because it is product-existential for an AAC tool. See Accessibility below. |
-| SOC 2 (in progress) | 9 | 1 | Control-evidence and audit-system hardening items. |
+| FERPA (US schools) | 12 | 2 | Student data isolation, access scoping, audit trail. |
+| HIPAA (US hospitals) | 6 | 2 | PHI handling, minimum necessary, BAA coverage. AWS BAA on file (2026-02); GCP HIPAA BAA accepted (project `lingolinq-prod` 2026-07-12; org-wide 2026-06-08). |
+| GDPR (EU clients) | 10 | 2 | Data residency, subprocessor posture, deletion and export paths. GCP SCCs certified (2026-07-14, project `lingolinq-prod`). |
+| COPPA (under-13 users) | 4 | 2 | Amended Rule enforceable since 2026-04-22. Open High items include the eval-narration consent-binding residual (LL-11db0dc848). Product controls below. |
+| WCAG (accessibility) | 9 | 0 | Tracked as a standing domain because it is product-existential for an AAC tool. See Accessibility below. |
+| SOC 2 (in progress) | 21 | 3 | Control-evidence and audit-system hardening items. |
 
-A single finding can map to more than one framework, so these rows do not sum to the 48 open
-total. 21 open findings carry no framework tag (engineering-quality and API-contract items).
+A single finding can map to more than one framework, so these rows do not sum to the 54 open total
+(open + remediated-unverified). 9 of those findings carry no framework tag (engineering-quality and
+API-contract items).
 
 ### Active product controls (evidence in code)
 
@@ -108,11 +125,24 @@ and email staying on AWS. Two compliance-relevant items are in flight:
   and TLS. The current Render environment still runs plaintext `redis://`, so the corresponding
   finding (LL-6619cc1811, HIPAA) is held open until the cutover lands. Closure is gated on the
   migration, not on a separate fix.
-- **GCP Business Associate Agreement.** The Google Cloud HIPAA BAA was accepted in-console
-  (certified 2026-06-08; acceptance evidence captured 2026-06-19), and the GCP Standard
-  Contractual Clauses were certified 2026-06-08 for EU-transfer coverage. Add Google as an active
-  subprocessor in `docs/legal/SUBPROCESSORS.md` at cutover, when Google compute begins carrying
-  production data; until then it remains a planned subprocessor.
+- **GCP Business Associate Agreement.** The Google Cloud HIPAA BAA was first accepted in-console
+  org-wide (certified 2026-06-08; acceptance evidence captured 2026-06-19). On 2026-07-12 the
+  Cloud Data Processing Addendum (CDPA) and the HIPAA BAA were reviewed and accepted for project
+  `lingolinq-prod` specifically, and the Standard Contractual Clauses (EU GDPR, UK GDPR, Swiss
+  FDPA) were certified 2026-07-14 for EU/UK/Swiss-transfer coverage. (This 2026-07-14 project-level
+  SCC certification supersedes this report's earlier reference to SCCs certified 2026-06-08, which
+  reflected the org-wide acceptance; if reconciling against the branded Drive mirror, confirm the
+  2026-06-08 SCC entry.) Under the HIPAA BAA, PHI is permitted on Google Cloud subject to BAA
+  terms, which are necessary but not sufficient (HIPAA-eligible services, encryption in transit and
+  at rest, access controls, minimum necessary; private VPC additionally). Recorded in-repo at
+  `docs/legal/GCP_BAA_ACCEPTED.md`; evidence in Drive "Compliance Audits" / "Google Cloud Platform
+  - Accepted Compliance Agreements (captured 2026-07-14)". This is an infrastructure BAA (Cloud
+  Run, Cloud SQL, Memorystore) covering only products on Google's HIPAA Covered Products list; it
+  does not extend to Vertex AI as a whole or to the Anthropic model-provider egress path. Any future
+  Vertex AI or Gemini inference path requires per-product covered-service verification before PHI or
+  child data. Add Google as an active subprocessor in
+  `docs/legal/SUBPROCESSORS.md` at cutover, when Google compute begins carrying production data;
+  until then it remains a planned subprocessor.
 
 ## Accessibility
 
@@ -144,8 +174,9 @@ EU AI Act classification analysis are documented in the AI Governance Memo
 | Prepared by | compliance-officer agent (draft) |
 | Reviewed by | adversary agent |
 | Attested by | **Scot Wahlquist, CEO** |
-| Attestation date | **2026-06-19** |
+| Attestation date | **2026-06-19; re-attested 2026-07-16** |
 
 _Phase 3 deliverable of the Audit/Compliance System Modernization (plan section 6). Counts
-re-derived from the register at SHA `445336592` (2026-06-19) prior to attestation. The one-way
-Notion publish of this report is a separate, human-initiated step into the Master Inbox._
+re-derived from the register at SHA `20953ab3` (auditedDate 2026-07-08) prior to the 2026-07-16
+re-attestation. The one-way Notion publish of this report is a separate, human-initiated step into
+the Master Inbox._
