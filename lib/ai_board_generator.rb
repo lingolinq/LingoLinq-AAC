@@ -1,17 +1,20 @@
 # frozen_string_literal: true
 
 require 'anthropic'
-require 'openai'
+require 'set'
 require_relative 'pii_scrubber'
+require_relative 'art50_marker'
 
 module AiBoardGenerator
   # Default model for board generation — Haiku is fast and cheap for structured output
   DEFAULT_MODEL = 'claude-haiku-4-5-20251001'
-  GEMINI_MODEL = 'gemini-2.5-flash'
 
   class << self
-    # Generates word labels, suggested name, and description for an AAC board using Claude or Gemini.
-    # Prefers ANTHROPIC_API_KEY; falls back to GEMINI_API_KEY if Anthropic is not configured.
+    # Generates word labels, suggested name, and description for an AAC board using Claude.
+    # Requires ANTHROPIC_API_KEY. The prior GEMINI_API_KEY fallback (Gemini Developer/AI-Studio
+    # endpoint) was disabled 2026-07-09 -- its data-handling terms could not be confirmed adequate
+    # for child data (see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2). A Vertex AI fallback
+    # may replace this in a future change.
     # Returns { words: [...], name: "...", description: "...", error: nil } on success,
     # or { words: nil, name: nil, description: nil, error: "..." } on failure.
     # include_core_words: when true, mix 40-60% core vocabulary with topic-specific; when false, topic-specific only.
@@ -19,12 +22,26 @@ module AiBoardGenerator
     def generate_words(prompt:, rows:, columns:, locale: 'en', include_core_words: true, user: nil)
       api_config = resolve_api_config
       if api_config.blank?
-        return { words: nil, name: nil, description: nil, error: 'AI board generation is not configured' }
+        err = { words: nil, name: nil, description: nil, error: 'AI board generation is not configured' }
+        err.merge!(dev_diag(:configuration,
+          'Set ANTHROPIC_API_KEY in the environment (not only .env for the asset pipeline) and restart Rails. The GEMINI_API_KEY fallback is disabled -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'))
+        return err
       end
 
       # Check org-level AI opt-out (FERPA/HIPAA compliance)
-      if defined?(FeatureFlags) && !FeatureFlags.ai_feature_enabled_for?('ai_board_generation', user)
-        return { words: nil, name: nil, description: nil, error: 'AI features are disabled for this organization' }
+      if !FeatureFlags.ai_feature_enabled_for?('ai_board_generation', user)
+        err = { words: nil, name: nil, description: nil, error: 'AI features are disabled for this organization' }
+        err.merge!(dev_diag(:org_ai_disabled,
+          'FeatureFlags.ai_feature_enabled_for?("ai_board_generation", user) is false for this user/org.'))
+        return err
+      end
+
+      # COPPA Final Rule hard-gate: block under-13 users awaiting parental consent.
+      if FeatureFlags.coppa_blocks_ai_for?(user)
+        err = { words: nil, name: nil, description: nil, error: 'AI features require parental consent for this account' }
+        err.merge!(dev_diag(:coppa_consent_pending,
+          'FeatureFlags.coppa_blocks_ai_for?(user) returned true. The user has settings["coppa"]["pending_parent_consent"] set without a parent_consent_granted_at timestamp.'))
+        return err
       end
 
       cell_count = rows * columns
@@ -72,56 +89,87 @@ module AiBoardGenerator
       start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
       begin
-        if provider == :anthropic
-          response = call_anthropic(api_key: api_key, model: model, system_prompt: system_prompt,
-                                    user_prompt: user_prompt, cell_count: cell_count)
-          raw = extract_content_anthropic(response)
-        else
-          response = call_gemini(api_key: api_key, model: model, system_prompt: system_prompt,
-                                 user_prompt: user_prompt, cell_count: cell_count)
-          raw = extract_content_openai(response)
+        last_raw = nil
+        last_response = nil
+        last_payload = { words: [], name: nil, description: nil }
+
+        2.times do |attempt|
+          prompt_turn = attempt.zero? ? user_prompt : "#{user_prompt}#{board_retry_nudge(cell_count)}"
+          last_response = call_anthropic(api_key: api_key, model: model, system_prompt: system_prompt,
+                                         user_prompt: prompt_turn, cell_count: cell_count)
+
+          raw = extract_content_anthropic(last_response)
+          raw = raw.to_s.delete("\uFEFF").strip  # Strip BOM and normalize
+          raw = strip_markdown_code_fence(raw)   # Claude may wrap in ``` blocks
+          last_raw = raw
+          last_payload = structured_parse_payload(raw, cell_count)
+          words = last_payload[:words]
+
+          if words.length >= cell_count
+            duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
+            log_params = {
+              provider: provider.to_s,
+              model: model,
+              user: user,
+              request_summary: "Board generation: #{scrubbed_prompt.truncate(200)}",
+              response_summary: raw.truncate(500),
+              duration_ms: duration_ms,
+              pii_detected: pii_detected,
+              pii_findings: scrub_result[:findings],
+              success: true
+            }
+            log_params[:tokens_sent] = last_response.usage&.input_tokens
+            log_params[:tokens_received] = last_response.usage&.output_tokens
+            # EU AI Act Article 50(2): mark the board-generation output. The marking
+            # is NOT feature-flag-gated (only the Article 50(1) disclosure is); within
+            # this path every successful AI output is marked. SCOPE: this slice marks
+            # board generation only. Other AI-output surfaces are NOT yet marked and are
+            # tracked follow-up: generate_focus_words (below; persists via AiFocusWordSet
+            # cache), AiWordPredictor.predict, eval narration, AiPredictionGenerator.
+            # Durable persistence of this marker (board.settings + relinking copy_for)
+            # is also follow-up; see boards_controller#generate_labels. Until those land,
+            # do not record the Article 50(2) obligation as closed.
+            # ai_generated_content_id is a best-effort link to this output's AiApiLog
+            # row; under alert-but-continue an audit-write failure is alerted (loud) but
+            # the marker is still returned, so a valid marker does not by itself prove a
+            # persisted audit row.
+            marker = Art50Marker.build(provider: provider.to_s, model: model)
+            log_params[:ai_content_marked] = true
+            log_params[:ai_generated_content_id] = marker['content_id']
+            log_ai_call(**log_params)
+            return {
+              words: words.first(cell_count),
+              name: last_payload[:name].presence,
+              description: last_payload[:description].presence,
+              ai_generated: marker,
+              error: nil
+            }
+          end
+
+          break if attempt == 1
         end
 
-        raw = raw.to_s.delete("\uFEFF").strip  # Strip BOM and normalize
-        raw = strip_markdown_code_fence(raw)   # Claude may wrap in ``` blocks
-        parsed = parse_structured_response(raw, cell_count)
-
         duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
+        wc = last_payload[:words].length
+        Rails.logger.warn "AiBoardGenerator parse/shortfall (wc=#{wc}, cells=#{cell_count}, raw_len=#{last_raw.to_s.length})"
         log_params = {
           provider: provider.to_s,
           model: model,
           user: user,
           request_summary: "Board generation: #{scrubbed_prompt.truncate(200)}",
-          response_summary: raw.truncate(500),
+          response_summary: last_raw.to_s.truncate(500),
           duration_ms: duration_ms,
           pii_detected: pii_detected,
           pii_findings: scrub_result[:findings],
-          success: parsed.present?
+          success: false
         }
-        if provider == :anthropic
-          log_params[:tokens_sent] = response.usage&.input_tokens
-          log_params[:tokens_received] = response.usage&.output_tokens
-        else
-          log_params[:tokens_sent] = response.dig('usage', 'prompt_tokens')
-          log_params[:tokens_received] = response.dig('usage', 'completion_tokens')
+        if last_response
+          log_params[:tokens_sent] = last_response.usage&.input_tokens
+          log_params[:tokens_received] = last_response.usage&.output_tokens
         end
         log_ai_call(**log_params)
 
-        unless parsed
-          Rails.logger.warn "AiBoardGenerator parse failed. Raw response (first 500 chars): #{raw.to_s.truncate(500).inspect}"
-          return parse_error_response(raw)
-        end
-
-        words = parsed[:words]
-        if words.length < (cell_count / 2)
-          return parse_error_response(raw)
-        end
-        {
-          words: words.first(cell_count),
-          name: parsed[:name].presence,
-          description: parsed[:description].presence,
-          error: nil
-        }
+        return parse_shortfall_response(last_raw, cell_count, wc)
       rescue Anthropic::Errors::APIError => e
         duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
         log_ai_call(
@@ -134,7 +182,8 @@ module AiBoardGenerator
           success: false, error_message: e.message
         )
         Rails.logger.error "AiBoardGenerator Claude API error: #{e.message}"
-        api_error_response('AI service unavailable. Please try again later.', e)
+        api_error_response('AI service unavailable. Please try again later.', e,
+          kind: :anthropic_api, provider: provider, model: model)
       rescue Faraday::Error => e
         duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
         log_ai_call(
@@ -146,8 +195,9 @@ module AiBoardGenerator
           pii_detected: pii_detected, pii_findings: scrub_result[:findings],
           success: false, error_message: e.message
         )
-        Rails.logger.error "AiBoardGenerator Gemini API error: #{e.message}"
-        api_error_response('AI service unavailable. Please try again later.', e)
+        Rails.logger.error "AiBoardGenerator API HTTP error: #{e.message}"
+        api_error_response('AI service unavailable. Please try again later.', e,
+          kind: :api_http, provider: provider, model: model)
       rescue StandardError => e
         duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
         log_ai_call(
@@ -160,14 +210,212 @@ module AiBoardGenerator
           success: false, error_message: "#{e.class}: #{e.message}"
         )
         Rails.logger.error "AiBoardGenerator error: #{e.class}: #{e.message}"
-        api_error_response('Generation failed', e)
+        api_error_response('Generation failed', e, kind: :unexpected, provider: provider, model: model)
+      end
+    end
+
+    # Generates a reusable focus-word list for highlighting words on an existing AAC board.
+    # Returns { words: [...], title: "...", error: nil } on success.
+    def generate_focus_words(prompt:, word_count:, locale: 'en', include_core_words: true, user: nil, existing_words: [])
+      requested_count = [[word_count.to_i, 5].max, 50].min
+      existing_words = parse_words(Array(existing_words).join(', '), requested_count).uniq { |w| w.downcase }
+      missing_count = [requested_count - existing_words.length, 0].max
+      return { words: [], title: nil, error: nil } if missing_count.zero?
+
+      api_config = resolve_api_config
+      if api_config.blank?
+        err = { words: nil, title: nil, error: 'AI board generation is not configured' }
+        err.merge!(dev_diag(:configuration,
+          'Set ANTHROPIC_API_KEY in the environment (not only .env for the asset pipeline) and restart Rails. The GEMINI_API_KEY fallback is disabled -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'))
+        return err
+      end
+
+      if !FeatureFlags.ai_feature_enabled_for?('ai_board_generation', user)
+        err = { words: nil, title: nil, error: 'AI features are disabled for this organization' }
+        err.merge!(dev_diag(:org_ai_disabled,
+          'FeatureFlags.ai_feature_enabled_for?("ai_board_generation", user) is false for this user/org.'))
+        return err
+      end
+
+      if FeatureFlags.coppa_blocks_ai_for?(user)
+        err = { words: nil, title: nil, error: 'AI features require parental consent for this account' }
+        err.merge!(dev_diag(:coppa_consent_pending,
+          'FeatureFlags.coppa_blocks_ai_for?(user) returned true. The user has settings["coppa"]["pending_parent_consent"] set without a parent_consent_granted_at timestamp.'))
+        return err
+      end
+
+      if user
+        names = [user.user_name]
+        names << user.settings['full_name'] if user.settings && user.settings['full_name']
+        PiiScrubber.configure_blocklist(names)
+      end
+
+      scrub_result = PiiScrubber.redact_for_ai(prompt)
+      scrubbed_prompt = scrub_result[:payload]
+      pii_detected = scrub_result[:pii_found]
+
+      system_prompt = <<~PROMPT.strip
+        You are an AAC (Augmentative and Alternative Communication) vocabulary expert.
+        Generate focus words for highlighting vocabulary that already exists on a user's AAC board.
+        CRITICAL: You MUST output exactly the requested number of new words—count them before responding.
+        Output in this exact format:
+        WORDS: word1, word2, word3, ... (comma-separated, all on one line)
+        TITLE: Short 2-5 word title only (optional)
+      PROMPT
+
+      vocabulary_instruction = if include_core_words
+        'Include 40-60% high-frequency core words useful in this context (e.g. I, want, go, more, stop, like, not, help, do, is, it, the, my, turn, fast, slow, yes, no, you) and the rest topic-specific vocabulary.'
+      else
+        'Focus on topic-specific vocabulary only: nouns, topic verbs, descriptors, and phrases unique to that context. Do NOT include generic core words like I, want, go, more, help, yes, no.'
+      end
+      existing_instruction = if existing_words.any?
+        "Do NOT repeat these already available focus words: #{existing_words.join(', ')}."
+      else
+        ''
+      end
+      user_prompt = <<~PROMPT.strip
+        Generate exactly #{missing_count} focus words for highlighting words on an existing AAC board. CRITICAL: Output exactly #{missing_count} comma-separated words after WORDS: —no more, no fewer. Count to verify.
+        Context: #{scrubbed_prompt}
+        Language: #{locale}
+        #{vocabulary_instruction}
+        #{existing_instruction}
+        Format:
+        WORDS: w1, w2, w3, ... w#{missing_count}
+        TITLE: Short title (2-5 words, e.g. "Grinch Focus Words")
+      PROMPT
+
+      provider = api_config[:provider]
+      api_key = api_config[:api_key]
+      model = api_config[:model]
+      start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+      begin
+        last_raw = nil
+        last_response = nil
+        last_payload = { words: [], title: nil }
+
+        2.times do |attempt|
+          prompt_turn = attempt.zero? ? user_prompt : "#{user_prompt}#{focus_retry_nudge(missing_count)}"
+          last_response = call_anthropic(api_key: api_key, model: model, system_prompt: system_prompt,
+                                         user_prompt: prompt_turn, cell_count: missing_count)
+
+          raw = extract_content_anthropic(last_response)
+          raw = raw.to_s.delete("\uFEFF").strip
+          raw = strip_markdown_code_fence(raw)
+          last_raw = raw
+          last_payload = structured_parse_focus_payload(raw, missing_count, existing_words)
+          words = last_payload[:words]
+
+          if words.length >= missing_count
+            duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
+            log_params = {
+              provider: provider.to_s,
+              model: model,
+              user: user,
+              request_summary: "Focus word generation: #{scrubbed_prompt.truncate(200)}",
+              response_summary: raw.truncate(500),
+              duration_ms: duration_ms,
+              pii_detected: pii_detected,
+              pii_findings: scrub_result[:findings],
+              success: true,
+              request_type: 'focus_word_generation'
+            }
+            log_params[:tokens_sent] = last_response.usage&.input_tokens
+            log_params[:tokens_received] = last_response.usage&.output_tokens
+            # EU AI Act Article 50(2): a focus-word list is AI-generated synthetic text
+            # persisted in a durable artifact (AiFocusWordSet), so it IS in content-marking
+            # scope (unlike word prediction; see EU_AI_ACT_ARTICLE_50_PLAN.md sec 9). Mint the
+            # marker here (same provenance-bound Art50Marker as board generation), stamp the
+            # audit row, and return it so the controller can persist it on the set.
+            marker = Art50Marker.build(provider: provider.to_s, model: model)
+            log_params[:ai_content_marked] = true
+            log_params[:ai_generated_content_id] = marker['content_id']
+            log_ai_call(**log_params)
+            return {
+              words: words.first(missing_count),
+              title: last_payload[:title].presence,
+              ai_generated: marker,
+              error: nil
+            }
+          end
+
+          break if attempt == 1
+        end
+
+        duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
+        wc = last_payload[:words].length
+        Rails.logger.warn "AiBoardGenerator focus parse/shortfall (wc=#{wc}, requested=#{missing_count}, raw_len=#{last_raw.to_s.length})"
+        log_params = {
+          provider: provider.to_s,
+          model: model,
+          user: user,
+          request_summary: "Focus word generation: #{scrubbed_prompt.truncate(200)}",
+          response_summary: last_raw.to_s.truncate(500),
+          duration_ms: duration_ms,
+          pii_detected: pii_detected,
+          pii_findings: scrub_result[:findings],
+          success: false,
+          request_type: 'focus_word_generation'
+        }
+        if last_response
+          log_params[:tokens_sent] = last_response.usage&.input_tokens
+          log_params[:tokens_received] = last_response.usage&.output_tokens
+        end
+        log_ai_call(**log_params)
+
+        friendly = wc.positive? ? "The AI returned too few focus words (#{wc}/#{missing_count}). Try Generate again." : 'Could not parse AI response'
+        result = { words: nil, title: nil, error: friendly }
+        result.merge!(dev_diag(:parse_error, "After 2 attempts: word_count=#{wc}, requested=#{missing_count}. First 400 chars: #{last_raw.to_s.truncate(400).inspect}"))
+        result
+      rescue Anthropic::Errors::APIError => e
+        duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
+        log_ai_call(
+          provider: provider.to_s,
+          model: model,
+          user: user,
+          request_summary: "Focus word generation: #{scrubbed_prompt.truncate(200)}",
+          response_summary: nil, duration_ms: duration_ms,
+          pii_detected: pii_detected, pii_findings: scrub_result[:findings],
+          success: false, error_message: e.message, request_type: 'focus_word_generation'
+        )
+        Rails.logger.error "AiBoardGenerator Claude focus API error: #{e.message}"
+        api_error_response('AI service unavailable. Please try again later.', e,
+          kind: :anthropic_api, provider: provider, model: model).merge(title: nil)
+      rescue Faraday::Error => e
+        duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
+        log_ai_call(
+          provider: provider.to_s,
+          model: model,
+          user: user,
+          request_summary: "Focus word generation: #{scrubbed_prompt.truncate(200)}",
+          response_summary: nil, duration_ms: duration_ms,
+          pii_detected: pii_detected, pii_findings: scrub_result[:findings],
+          success: false, error_message: e.message, request_type: 'focus_word_generation'
+        )
+        Rails.logger.error "AiBoardGenerator focus API HTTP error: #{e.message}"
+        api_error_response('AI service unavailable. Please try again later.', e,
+          kind: :api_http, provider: provider, model: model).merge(title: nil)
+      rescue StandardError => e
+        duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
+        log_ai_call(
+          provider: provider.to_s,
+          model: model,
+          user: user,
+          request_summary: "Focus word generation: #{scrubbed_prompt.truncate(200)}",
+          response_summary: nil, duration_ms: duration_ms,
+          pii_detected: pii_detected, pii_findings: scrub_result[:findings],
+          success: false, error_message: "#{e.class}: #{e.message}", request_type: 'focus_word_generation'
+        )
+        Rails.logger.error "AiBoardGenerator focus error: #{e.class}: #{e.message}"
+        api_error_response('Generation failed', e, kind: :unexpected, provider: provider, model: model).merge(title: nil)
       end
     end
 
     private
 
-    def parse_structured_response(raw, expected_count)
-      return nil if raw.blank?
+    # Parses WORDS:/NAME:/DESCRIPTION: without rejecting short lists (caller enforces cell_count).
+    def structured_parse_payload(raw, expected_count)
+      return { words: [], name: nil, description: nil } if raw.blank?
 
       name = nil
       description = nil
@@ -199,56 +447,85 @@ module AiBoardGenerator
       # Fallback: treat whole response as words if no structured format found
       words_str = raw if words_str.blank? && !raw.include?('NAME:') && !raw.include?('DESCRIPTION:')
       words = parse_words(words_str || raw, expected_count)
-      return nil if words.length < (expected_count / 2)
-
       { words: words, name: name.presence, description: description.presence }
     end
 
+    def structured_parse_focus_payload(raw, expected_count, existing_words = [])
+      return { words: [], title: nil } if raw.blank?
+
+      title = nil
+      words_str = nil
+      accumulating = nil
+
+      raw.split(/\n/).each do |line|
+        line_stripped = line.strip
+        next if line_stripped.blank?
+
+        if line_stripped =~ /\Awords:\s*(.*)\z/i
+          words_str = ::Regexp.last_match(1).strip
+          accumulating = :words
+        elsif line_stripped =~ /\Atitle:\s*(.*)\z/i
+          title = ::Regexp.last_match(1).strip
+          accumulating = :title
+        elsif accumulating == :words
+          words_str = [words_str, line_stripped].compact.join(', ')
+        elsif accumulating == :title && title
+          title = "#{title} #{line_stripped}".strip
+        end
+      end
+
+      words_str = raw if words_str.blank? && !raw.match?(/\Atitle:/i)
+      existing_lookup = Array(existing_words).map { |w| w.to_s.downcase.strip }.reject(&:blank?).to_set
+      words = parse_words(words_str || raw, expected_count)
+        .reject { |word| existing_lookup.include?(word.downcase.strip) }
+        .uniq { |word| word.downcase.strip }
+      { words: words, title: title.presence }
+    end
+
+    def board_retry_nudge(cell_count)
+      <<~NUDGE
+
+
+        CRITICAL: Your previous reply did not include exactly #{cell_count} comma-separated vocabulary items on the WORDS: line. Reply again with:
+        - One WORDS: line containing exactly #{cell_count} entries (count before sending)
+        - Then NAME: and DESCRIPTION: on separate lines
+        Do not stop after a partial list.
+      NUDGE
+    end
+
+    def focus_retry_nudge(word_count)
+      <<~NUDGE
+
+
+        CRITICAL: Your previous reply did not include exactly #{word_count} comma-separated focus words on the WORDS: line. Reply again with:
+        - One WORDS: line containing exactly #{word_count} entries (count before sending)
+        - Then TITLE: on a separate line
+        Do not stop after a partial list.
+      NUDGE
+    end
+
+    # GEMINI_API_KEY fallback disabled 2026-07-09 -- it pointed at the Gemini Developer/AI-Studio
+    # endpoint (generativelanguage.googleapis.com), not Vertex AI, and that endpoint's data-handling
+    # terms could not be confirmed adequate for child data. See
+    # docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2. A Vertex AI fallback may replace this.
     def resolve_api_config
       anthropic_key = ENV['ANTHROPIC_API_KEY'].to_s.strip
-      if anthropic_key.present?
-        return {
-          provider: :claude,
-          api_key: anthropic_key,
-          model: ENV.fetch('ANTHROPIC_MODEL', DEFAULT_MODEL)
-        }
-      end
-      gemini_key = ENV['GEMINI_API_KEY'].to_s.strip
-      if gemini_key.present?
-        return {
-          provider: :gemini,
-          api_key: gemini_key,
-          model: ENV.fetch('GEMINI_MODEL', GEMINI_MODEL)
-        }
-      end
-      nil
+      return nil if anthropic_key.blank?
+
+      {
+        provider: :claude,
+        api_key: anthropic_key,
+        model: ENV.fetch('ANTHROPIC_MODEL', DEFAULT_MODEL)
+      }
     end
 
     def call_anthropic(api_key:, model:, system_prompt:, user_prompt:, cell_count:)
       client = Anthropic::Client.new(api_key: api_key)
       client.messages.create(
         model: model,
-        max_tokens: [1024, (cell_count * 4) + 150].max,
+        max_tokens: completion_max_tokens(cell_count),
         system: system_prompt,
         messages: [{ role: 'user', content: user_prompt }]
-      )
-    end
-
-    def call_gemini(api_key:, model:, system_prompt:, user_prompt:, cell_count:)
-      client = OpenAI::Client.new(
-        access_token: api_key,
-        uri_base: 'https://generativelanguage.googleapis.com/v1beta/openai/'
-      )
-      client.chat(
-        parameters: {
-          model: model,
-          messages: [
-            { role: 'system', content: system_prompt },
-            { role: 'user', content: user_prompt }
-          ],
-          max_tokens: [1024, (cell_count * 4) + 150].max,
-          temperature: 0.5
-        }
       )
     end
 
@@ -256,12 +533,6 @@ module AiBoardGenerator
       return '' unless response&.content&.is_a?(Array)
       text_blocks = response.content.select { |block| block.type.to_s == 'text' }
       text_blocks.map { |b| b.respond_to?(:text) ? b.text : b.to_s }.join("\n").strip
-    end
-
-    def extract_content_openai(response)
-      return '' unless response.is_a?(Hash)
-      msg = response.dig('choices', 0, 'message', 'content')
-      msg.to_s.strip
     end
 
     def parse_words(raw, expected_count)
@@ -287,33 +558,82 @@ module AiBoardGenerator
       s.strip
     end
 
-    def parse_error_response(raw)
-      result = { words: nil, name: nil, description: nil, error: 'Could not parse AI response' }
-      if Rails.env.development? && raw.present?
-        result[:error_detail] = "Raw response (first 300 chars): #{raw.to_s.truncate(300).inspect}"
+    def parse_shortfall_response(raw, cell_count, word_count)
+      min_bar = cell_count / 2
+      friendly = if word_count >= min_bar && word_count < cell_count
+        "The AI returned an incomplete word list (#{word_count} of #{cell_count}). Try Generate again, or use fewer rows or columns."
+      elsif word_count.positive?
+        "The AI returned too few words for this board (#{word_count}/#{cell_count}). Try fewer rows or columns, or tap Generate again."
+      else
+        'Could not parse AI response'
+      end
+      result = { words: nil, name: nil, description: nil, error: friendly }
+      if Rails.env.development?
+        detail = "After 2 attempts: word_count=#{word_count}, cell_count=#{cell_count}, min_bar=#{min_bar}. First 400 chars: #{raw.to_s.truncate(400).inspect}"
+        result.merge!(dev_diag(:parse_error, detail))
       end
       result
     end
 
-    def api_error_response(message, exception)
+    # Completion output budget: medium/large boards need headroom; 1024 was too low for many models.
+    def completion_max_tokens(cell_count)
+      [[cell_count * 8 + 320, 2048].max, 8192].min
+    end
+
+    def dev_diag(kind, detail)
+      return {} unless Rails.env.development?
+      { error_kind: kind.to_s, error_detail: detail }
+    end
+
+    def api_error_response(message, exception, kind:, provider: nil, model: nil)
       result = { words: nil, name: nil, description: nil, error: message }
-      if Rails.env.development? && exception
-        result[:error_detail] = "#{exception.class}: #{exception.message}"
+      return result unless Rails.env.development?
+
+      result[:error_kind] = kind.to_s
+      parts = []
+      parts << "provider=#{provider}" if provider
+      parts << "model=#{model}" if model
+      if exception
+        parts << "#{exception.class}: #{exception.message}"
+        parts.concat(faraday_response_excerpt(exception))
       end
+      result[:error_detail] = parts.compact.join(' | ') if parts.any?
       result
+    end
+
+    def faraday_response_excerpt(exception)
+      return [] unless exception.is_a?(Faraday::Error)
+      return [] unless exception.respond_to?(:response)
+
+      resp = exception.response
+      return [] unless resp
+
+      status = resp.respond_to?(:status) ? resp.status : resp[:status]
+      body = resp.respond_to?(:body) ? resp.body : resp[:body]
+      out = []
+      out << "HTTP #{status}" if status
+      out << body.to_s.truncate(400) if body.present?
+      out
     end
 
     def log_ai_call(provider:, model:, user:, request_summary:, response_summary:,
                     tokens_sent: nil, tokens_received: nil, duration_ms: nil,
-                    pii_detected: false, pii_findings: [], success: true, error_message: nil)
+                    pii_detected: false, pii_findings: [], success: true, error_message: nil,
+                    request_type: 'board_generation',
+                    ai_content_marked: false, ai_generated_content_id: nil)
       return unless defined?(AiApiLog)
+      # Scrub the model OUTPUT before it reaches AiApiLog. Generated board names/descriptions
+      # can echo user-supplied sensitive context, so the raw response must never be persisted
+      # unredacted (request_summary is already scrubbed upstream). nil passes through untouched
+      # for the API-error paths that log no response body.
+      safe_response_summary = response_summary.nil? ? nil : PiiScrubber.redact_for_ai(response_summary)[:payload]
       AiApiLog.log_ai_call(
         provider: provider,
         model: model,
-        type: 'board_generation',
+        type: request_type,
         user: user,
         request_summary: request_summary,
-        response_summary: response_summary,
+        response_summary: safe_response_summary,
         tokens_sent: tokens_sent,
         tokens_received: tokens_received,
         duration_ms: duration_ms,
@@ -321,7 +641,11 @@ module AiBoardGenerator
         pii_findings: pii_findings,
         success: success,
         error_message: error_message,
-        feature_flag: 'ai_board_generation'
+        feature_flag: 'ai_board_generation',
+        # EU AI Act Article 50(2): record that the output was machine-readable marked
+        # and link this audit row to the marked content via its content_id.
+        ai_content_marked: ai_content_marked,
+        ai_generated_content_id: ai_generated_content_id
       )
     rescue StandardError => e
       Rails.logger.warn "AiBoardGenerator: failed to log AI API call: #{e.message}"

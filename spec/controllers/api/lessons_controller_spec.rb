@@ -266,6 +266,45 @@ describe Api::LessonsController, :type => :controller do
       json = assert_success_json
       expect(json['lesson']['id']).to eq(l.global_id)
     end
+
+    it "should withhold lesson content when nonce matches but the share token doesn't resolve and the viewer isn't independently authorized (Codex review High finding)" do
+      l = Lesson.create
+      l.settings['title'] = 'Secret Lesson Title'
+      l.settings['description'] = 'Secret lesson description'
+      l.settings['url'] = 'https://example.com/secret-lesson'
+      l.save
+      get 'show', params: {'id' => "#{l.global_id}:#{l.nonce}:not-a-real-token"}
+      json = assert_success_json
+      expect(json['lesson']['id']).to eq(l.global_id)
+      expect(json['lesson']['title']).to eq(nil)
+      expect(json['lesson']['description']).to eq(nil)
+      expect(json['lesson']['url']).to eq(nil)
+      expect(json['lesson']['original_url']).to eq(nil)
+    end
+
+    it "should return full content when the share token resolves, even for an anonymous viewer (regression)" do
+      u = User.create
+      l = Lesson.create
+      l.settings['title'] = 'Visible Lesson Title'
+      l.save
+      future_ts = (Time.now + 1.day).to_i
+      sig = GoSecure.sha512("#{u.global_id}-#{future_ts}", 'lesson_share_token verifier')[0, 30]
+      token = "#{u.global_id}-#{future_ts}-#{sig}"
+      get 'show', params: {'id' => "#{l.global_id}:#{l.nonce}:#{token}"}
+      json = assert_success_json
+      expect(json['lesson']['title']).to eq('Visible Lesson Title')
+      expect(json['lesson']['user']).to_not eq(nil)
+    end
+
+    it "should return full content for an independently-authorized viewer even without a resolved share token (admin preview, regression)" do
+      token_user
+      l = Lesson.create(user_id: @user.id)
+      l.settings['title'] = 'Owner Preview Title'
+      l.save
+      get 'show', params: {'id' => "#{l.global_id}:#{l.nonce}:not-a-real-token"}
+      json = assert_success_json
+      expect(json['lesson']['title']).to eq('Owner Preview Title')
+    end
   end
 
   describe "complete" do
@@ -279,16 +318,31 @@ describe Api::LessonsController, :type => :controller do
       assert_not_found('whatever')
     end
 
-    it "should mark as complete for the specified user" do
+    it "should mark as complete for the specified user (legacy permanent-token link still works)" do
       u = User.create
       l = Lesson.create
       id = "#{l.global_id}:#{l.nonce}:#{u.user_token}"
       post 'complete', params: {'lesson_id' => id}
       json = assert_success_json
+      # The response id must ECHO the requested id unchanged (Ember Data findRecord id-stability):
+      # minting a fresh token into the response id would break the lesson route, which has no
+      # normalizer to reconcile a changed primary id (LL-90045bb29c option (b)).
       expect(json['lesson']['id']).to eq(id)
+      expect(User.find_by_lesson_share_token(json['lesson']['id'].split(':')[2])).to eq(u)
       ue = UserExtra.find_by(user: u)
       expect(ue.settings['completed_lessons']).to_not eq(nil)
       expect(ue.settings['completed_lessons'][0]['id']).to eq(l.global_id)
+      expect(l.reload.settings['completions']).to_not eq(nil)
+      expect(l.settings['completions'][0]['user_id']).to eq(u.global_id)
+    end
+
+    it "should mark as complete when the new expiring lesson_share_token is used (LL-90045bb29c option (b))" do
+      u = User.create
+      l = Lesson.create
+      id = "#{l.global_id}:#{l.nonce}:#{u.lesson_share_token}"
+      post 'complete', params: {'lesson_id' => id}
+      json = assert_success_json
+      expect(json['lesson']['id']).to eq(id) # id stability: response echoes the requested token
       expect(l.reload.settings['completions']).to_not eq(nil)
       expect(l.settings['completions'][0]['user_id']).to eq(u.global_id)
     end

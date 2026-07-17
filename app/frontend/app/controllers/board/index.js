@@ -3,29 +3,45 @@ import RSVP from 'rsvp';
 import $ from 'jquery';
 import boundClasses from '../../utils/bound_classes';
 import word_suggestions from '../../utils/word_suggestions';
-import editManager from '../../utils/edit_manager';
+import editManager, { fastHtmlHasRenderableContent } from '../../utils/edit_manager';
 import LingoLinq from '../../app';
 import capabilities from '../../utils/capabilities';
+import { buttonSpacingHalfPx, buttonBorderPx } from '../../utils/display_prefs';
 import { inject as service } from '@ember/service';
 import i18n from '../../utils/i18n';
 import modal from '../../utils/modal';
+import { check_for_share_approval as runShareApprovalCheck } from '../../utils/share_approval';
+import paint_view_switch_overlay from '../../utils/view_switch_overlay';
+import { sync_current_board_state as runBoardStateSync } from '../../utils/board_state_sync';
+import { reload_on_connect as runReloadOnConnect } from '../../utils/reload_on_connect';
+import { bg_class as computeBgClass, bg_style as computeBgStyle, bg_img_style as computeBgImgStyle } from '../../utils/board_background';
 import Button from '../../utils/button';
+import obf from '../../utils/obf';
 import frame_listener from '../../utils/frame_listener';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { htmlSafe } from '@ember/template';
-import { later as runLater } from '@ember/runloop';
+import { later as runLater, cancel as cancelLater } from '@ember/runloop';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
+import prefClasses from '../../mixins/pref-classes';
 
 var cached_images = {};
 var last_redraw = (new Date()).getTime();
 
-export default Controller.extend({
+export default Controller.extend(prefClasses, {
   appState: service('app-state'),
   app_state: alias('appState'),
   stashes: service('stashes'),
   persistence: service('persistence'),
+  router: service('router'),
+  // The user's saved board-UI preference. 'modern' = the board-detail
+  // panelled experience; 'classic' = this board-alt grid. Defaults to
+  // 'modern'. Drives the edit-mode view toggle's active state + the
+  // conditional "open the other view" jump link.
+  board_view_style: computed('appState.currentUser.preferences.board_view_style', function() {
+    return this.get('appState.currentUser.preferences.board_view_style') === 'classic' ? 'classic' : 'modern';
+  }),
   title: computed('model.name', function() {
     var name = this.get('model.name');
     var title = "Board";
@@ -34,7 +50,25 @@ export default Controller.extend({
     }
     return title;
   }),
+  // The template checks `this.board.grid` (and this.board.* throughout), but the
+  // controller only ever had `model` set — `this.board` resolved to undefined,
+  // so any board whose grid isn't reached some other way rendered "Grid not
+  // defined!". Surfaced by the eval (client-built obf boards) after the Ember
+  // 5.12 upgrade removed the implicit-`this` template fallback that used to let
+  // bare `{{board.grid}}` reach the model. Alias it to the current model.
+  board: alias('model'),
   ordered_buttons: null,
+  suggestions: null,
+  word_prediction_locale: function() {
+    return this.appState.get('label_locale') ||
+      this.get('model.locale') ||
+      this.appState.get('currentBoardState.default_locale') ||
+      'en';
+  },
+  set_suggestions: function(updates) {
+    var current = this.get('suggestions') || {};
+    this.set('suggestions', Object.assign({}, current, updates));
+  },
   processButtons: observer('appState.board_reload_key', function(ignore_fast_html) {
     var _vb = (window.LingoLinq || {}).verboseDebug;
     if (_vb) { console.log('[BOARD-DEBUG] board/index processButtons() start', { hasModel: !!(this && this.get && this.get('model')), modelKey: this && this.get && this.get('model.key') }); }
@@ -43,6 +77,7 @@ export default Controller.extend({
     this.update_button_symbol_class();
     boundClasses.add_rules(this.get('model.buttons'));
     this.computeHeight();
+    if (this.appState.get('speak_mode')) { runLater(() => { this._setupSpeakBarObserver(); }, 200); }
     if (_vb) { console.log('[BOARD-DEBUG] board/index processButtons() calling editManager.process_for_displaying'); }
     editManager.process_for_displaying(ignore_fast_html);
     if (_vb) { console.log('[BOARD-DEBUG] board/index processButtons() done'); }
@@ -52,35 +87,49 @@ export default Controller.extend({
     'appState.currentUser.pending_board_shares',
     'appState.default_mode',
     'appState.speak_mode',
-    function() {
-      var board_id = this.get('model.id');
-      var _this = this;
-      if(board_id && _this.appState.get('currentBoardState')) {
-        var shares = _this.appState.get('currentUser.pending_board_shares') || [];
-        var matching_shares = shares.filter(function(s) { return s.board_id && s.board_id == board_id; });
-        if(matching_shares.length > 0) {
-          // If not in Speak Mode, or just barely launched into Speak Mode
-          if(_this.appState.get('default_mode') || (_this.appState.get('speak_mode') && _this.stashes.get('boardHistory.length') > 0)) {
-            // Only prompt once if in Speak Mode
-            var already = (_this.appState.get('speak_mode') && this.get('already_checked_boards')) || {};
-            if(!already[board_id]) {
-              already[board_id] = true;
-              this.set('already_checked_boards', already);
-              modal.open('approve-board-share', {board: _this.get('model'), shares: matching_shares});
-            }
-          }
-        }
+    function() { runShareApprovalCheck(this, this.appState); }
+  ),
+  // In-place eval pause (utils/eval.js sets appState.eval_paused). The overlay
+  // blocks input; here we freeze the board's own timers: cancel the pending
+  // audio reprompt on pause, and on resume shift `rendered` forward by the
+  // paused span so the per-item response clock (time_to_select = now - rendered)
+  // excludes the pause.
+  eval_pause_watcher: observer('appState.eval_paused', function() {
+    if(!this.appState.get('eval_mode')) { return; }
+    var board = this.get('model');
+    if(!board || !board.get) { return; }
+    if(this.appState.get('eval_paused')) {
+      if(board.get('reprompt_wait')) {
+        cancelLater(board.get('reprompt_wait'));
+        board.set('reprompt_wait', null);
+      }
+    } else {
+      var ms = this.appState.get('eval_last_pause_ms') || 0;
+      if(ms && board.get('rendered')) {
+        board.set('rendered', board.get('rendered') + ms);
       }
     }
-  ),
+  }),
   updateSuggestions: observer(
     'appState.button_list',
-    'this.appState.button_list.[]',
+    'appState.button_list.[]',
     'appState.currentUser',
+    'appState.referenced_user.preferences.word_suggestions',
     'appState.shift',
     'appState.inflection_shift',
+    'appState.label_locale',
+    'appState.vocalization_locale',
+    'model.locale',
+    'model.translations',
     function() {
-      if(!this.get('model.word_suggestions')) { return; }
+      // Word prediction is governed by the global user preference (only an
+      // explicit true is on; null/undefined = off), not a per-board flag — it
+      // behaves identically on the classic board-alt and modern board-detail
+      // speak pages.
+      // Eval boards (obf/eval*) are a controlled assessment — word prediction
+      // would interfere and its symbols aren't part of the test — so suppress
+      // the lookup (and the bar below) whenever eval_mode is active.
+      if(this.appState.get('referenced_user.preferences.word_suggestions') !== true || !this.appState.get('speak_mode') || this.appState.get('eval_mode')) { return; }
       var _this = this;
       var button_list = this.get('appState.button_list');
       var last_button = button_list[button_list.length - 1];
@@ -92,12 +141,22 @@ export default Controller.extend({
       var last_finished_word = ((last_button && (last_button.vocalization || last_button.label)) || "").toLowerCase();
       var word_in_progress = ((current_button && (current_button.vocalization || current_button.label)) || "").toLowerCase();
       if(capabilities.system == 'Android') {
-        _this.set('suggestions.pending', true);
+        _this.set_suggestions({ pending: true, ready: false });
+      } else {
+        _this.set_suggestions({ ready: false });
       }
       runLater(function() {
-        word_suggestions.lookup({
+        var sentence = button_list.map(function(b) {
+          return (b.vocalization || b.label || '').replace(/^:/, '');
+        }).join(' ').trim();
+        word_suggestions.lookup_with_ai({
           last_finished_word: last_finished_word,
           word_in_progress: word_in_progress,
+          topic_context: (_this.get('model') && _this.get('model.name')) || '',
+          sentence: sentence,
+          locale: _this.word_prediction_locale(),
+          board_locale: (_this.get('model') && _this.get('model.locale')) || 'en',
+          translations: (_this.get('model') && _this.get('model.translations')) || null,
           board_ids: [_this.appState.get('currentUser.preferences.home_board.id'), _this.stashes.get('temporary_root_board_state.id')]
         }).then(function(result) {
           // this delay prevents a weird use case on android
@@ -105,11 +164,11 @@ export default Controller.extend({
           // attached and triggers a HashChangeEvent which causes
           // navigation back to the index page
           runLater(function() {
-            _this.set('suggestions.pending', null);
+            _this.set_suggestions({ pending: null });
           }, 200);
-          _this.set('suggestions.list', result);
+          _this.set_suggestions({ ready: true, list: result || [] });
         }, function() {
-          _this.set('suggestions.list', []);
+          _this.set_suggestions({ ready: true, list: [] });
         });
       });
     }
@@ -276,16 +335,17 @@ export default Controller.extend({
     'appState.referenced_user.preferences.skin',
     'appState.referenced_user.preferences.preferred_symbols',
     function() {
-      var res = !!(this.get('model.fast_html') && this.get('model.fast_html.width') == this.get('width') 
-            && this.get('model.fast_html.height') == this.get('height') 
-            && this.get('model.current_revision') == this.get('model.fast_html.revision') 
-            && this.get('model.fast_html.label_locale') == this.appState.get('label_locale') 
-            && this.get('model.fast_html.display_level') == this.get('model.display_level') 
-            && this.appState.get('inflection_prefix') == this.get('model.fast_html.inflection_prefix') 
-            && this.appState.get('inflection_shift') == this.get('model.fast_html.inflection_shift') 
-            && this.appState.get('referenced_user.preferences.skin') == this.get('model.fast_html.skin') 
-            && this.appState.get('referenced_user.preferences.preferred_symbols') == this.get('model.fast_html.symbols') 
-            && this.get('model.focus_id') == this.get('model.fast_html.focus_id'));
+      var fast = this.get('model.fast_html');
+      var res = !!(fast && fastHtmlHasRenderableContent(fast) && fast.width == this.get('width')
+            && fast.height == this.get('height')
+            && this.get('model.current_revision') == fast.revision
+            && fast.label_locale == this.appState.get('label_locale')
+            && fast.display_level == this.get('model.display_level')
+            && this.appState.get('inflection_prefix') == fast.inflection_prefix
+            && this.appState.get('inflection_shift') == fast.inflection_shift
+            && this.appState.get('referenced_user.preferences.skin') == fast.skin
+            && this.appState.get('referenced_user.preferences.preferred_symbols') == fast.symbols
+            && this.get('model.focus_id') == fast.focus_id);
       return res;
     }
   ),
@@ -343,15 +403,7 @@ export default Controller.extend({
     'model.integration_name',
     'model.locale',
     'model.locales',
-    function() {
-      if(this.get('model.id') && this.appState.get('currentBoardState.id') == (this.get('model.global_id') || this.get('model.id'))) {
-        this.appState.setProperties({
-          'currentBoardState.integration_name': this.get('model.integration') && this.get('model.integration_name'),
-          'currentBoardState.text_direction': i18n.text_direction(this.get('model.locale')),
-          'currentBoardState.translatable': (this.get('model.locales') || []).length > 1
-        });
-      }
-    }
+    function() { runBoardStateSync(this, this.appState); }
   ),
   height: 400,
   computeHeight: observer(
@@ -359,7 +411,7 @@ export default Controller.extend({
     'appState.edit_mode',
     'appState.revision_id',
     'appState.focus_words.list',
-    'model.word_suggestions',
+    'appState.referenced_user.preferences.word_suggestions',
     'model.description',
     'model.focus_id',
     'appState.sidebar_pinned',
@@ -367,7 +419,7 @@ export default Controller.extend({
     'long_description',
     'appState.currentUser.preferences.word_suggestion_images',
     'text_position',
-    'this.stashes.board_level',
+    'stashes.board_level',
     'appState.inflection_prefix',
     'appState.inflection_shift',
     'appState.flipped',
@@ -386,9 +438,31 @@ export default Controller.extend({
       this.appState.set('window_inner_width', inner_width);
       this.appState.set('window_inner_height', height);
       var show_description = !this.appState.get('edit_mode') && !this.appState.get('speak_mode') && this.get('long_description');
-      var topHeight = this.appState.get('header_height') + 5;
+      // Fixed top offset the board height must reserve. Normally
+      // header_height + 5. EXCEPTION: board-alt (classic) in speak mode.
+      // There the fixed outer <header> overlays the content and #content
+      // clears it via padding-top. The header height varies with the
+      // user's vocalization_height (legacy `header.speaking.<size>`), so
+      // no constant is correct. _updateFromSpeakBarResize measures the
+      // real fixed-header height and publishes it as `speak_header_height`
+      // (+ the matching `--speak-header-height` CSS var the #content rule
+      // reads). Reserve EXACTLY that here so the grid clears the header
+      // with no clipped top row and no dead strip — CSS and JS stay in
+      // lockstep off the same measurement. Fall back to header_height
+      // until the first measurement lands. Scoped to the board-alt speak
+      // route only: /board (board-view) and normal mode are unchanged.
+      var header_base = this.appState.get('header_height') + 5;
+      if(this.appState.get('speak_mode') && this.appState.get('current_route') === 'user.board-alt.index') {
+        var measured = this.appState.get('speak_header_height');
+        if(measured && measured > 0) {
+          // speak_header_height already includes extra_header_height
+          // (it's the full measured header), so do NOT add extra again.
+          header_base = measured - (this.appState.get('extra_header_height') || 0);
+        }
+      }
+      var topHeight = header_base + (this.appState.get('extra_header_height') || 0);
       var sidebarTopHeight = topHeight;
-      this.set('show_word_suggestions', this.get('model.word_suggestions') && this.appState.get('speak_mode'));
+      this.set('show_word_suggestions', (this.appState.get('referenced_user.preferences.word_suggestions') === true) && this.appState.get('speak_mode') && !this.appState.get('eval_mode'));
       if(this.get('show_word_suggestions')) {
         topHeight = topHeight + 55;
         var style = this.get('get_style');
@@ -451,9 +525,106 @@ export default Controller.extend({
             _thisCtrl.appState.refresh_suggestions();
           }
         });
+      } else if(this.appState.get('speak_mode') && this.get('model') && this.get('model.grid')) {
+        // First layout can run before speak bar height is final (ResizeObserver / extra_header_height).
+        // Without a re-run, fast_html/ordered_buttons may never match viewport → "Loading" until a full route refresh (e.g. Back).
+        var nw = this.get('width');
+        var nh = this.get('height');
+        if(nw > 0 && nh > 0) {
+          var layoutKey = (this.get('model.id') || '') + '|' + nw + '|' + nh;
+          if(this._lastSpeakLayoutProcessKey !== layoutKey) {
+            this._lastSpeakLayoutProcessKey = layoutKey;
+            var _dimCtrl = this;
+            runLater(function() {
+              if(_dimCtrl.isDestroyed || !_dimCtrl.get('model')) { return; }
+              editManager.process_for_displaying();
+            });
+          }
+        }
       }
     }
   ),
+  _speakBarObserver: null,
+  _watchSpeakMode: observer('appState.speak_mode', function() {
+    var _this = this;
+    if (_this.appState.get('speak_mode')) {
+      _this.set('_lastSpeakLayoutProcessKey', null);
+      runLater(function() { _this._setupSpeakBarObserver(); }, 100);
+    } else {
+      _this._teardownSpeakBarObserver();
+      _this.appState.set('extra_header_height', 0);
+      _this.appState.set('speak_header_height', 0);
+      document.documentElement.style.removeProperty('--speak-bar-extra');
+      document.documentElement.style.removeProperty('--speak-header-height');
+    }
+  }),
+  _setupSpeakBarObserver() {
+    if (this._speakBarObserver) { return; }
+    var _this = this;
+    var innerHeader = document.getElementById('inner_header');
+    if (!innerHeader) { return; }
+    this._speakBarObserver = new ResizeObserver(function() {
+      _this._updateFromSpeakBarResize();
+    });
+    this._speakBarObserver.observe(innerHeader);
+    this._updateFromSpeakBarResize();
+  },
+  _teardownSpeakBarObserver() {
+    if (this._speakBarObserver) {
+      this._speakBarObserver.disconnect();
+      this._speakBarObserver = null;
+    }
+  },
+  _updateFromSpeakBarResize() {
+    var innerHeader = document.getElementById('inner_header');
+    if (!innerHeader || !this.appState.get('speak_mode')) { return; }
+    var actualHeight = innerHeader.offsetHeight;
+    var topbarHeight = parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue('--topbar-height')
+    ) || this.appState.get('header_height') || 0;
+    var extra = Math.max(0, actualHeight - topbarHeight);
+    // The element that actually overlays the content is the fixed outer
+    // <header> (position: fixed, top: 0 — see _header_sizing.scss and
+    // app.scss `#within_ember > header`). Its height is what #content
+    // must reserve. It varies with the user's vocalization_height
+    // (legacy `header.speaking.<size>` heights), so NO constant (34,
+    // --topbar-height, header_height) reserves the right amount across
+    // sizes — measure it. Fall back to inner_header if the outer header
+    // isn't found.
+    var outerHeader = innerHeader.closest('header') || innerHeader;
+    var measuredHeader = Math.round(outerHeader.getBoundingClientRect().height) || actualHeight;
+    // Previously this subtracted an 8px "SPEAK_BAR_BOTTOM_PADDING"
+    // from the measured header on the theory that the 8px padding
+    // BELOW the speak-bar card was decorative and could be left
+    // unreserved by #content (the header bg would peek through as a
+    // thin slate hairline). In practice the outer header bg is now
+    // charcoal-blue (board-alt-specific rule, app.scss ~line 1628),
+    // so that 8px reads as a dark band sitting ON TOP of the first
+    // 8px of the button grid — user-reported as the speak bar
+    // "overlapping the top row." Reserving the FULL measured header
+    // height lines the grid up flush with the bottom of the header
+    // and pushes the buttons cleanly below it.
+    var headerHeight = Math.max(0, measuredHeader);
+    var prevExtra = this.appState.get('extra_header_height') || 0;
+    var prevHeaderHeight = this.appState.get('speak_header_height') || 0;
+    if (prevExtra === extra && prevHeaderHeight === headerHeight) { return; }
+    this.appState.set('extra_header_height', extra);
+    this.appState.set('speak_header_height', headerHeight);
+    document.documentElement.style.setProperty('--speak-bar-extra', extra + 'px');
+    // Both #content padding (CSS) and the board height (computeHeight)
+    // reserve EXACTLY this measured height, so the grid clears the
+    // header with no dead strip and no clipped top row.
+    document.documentElement.style.setProperty('--speak-header-height', headerHeight + 'px');
+    this.computeHeight();
+  },
+  willDestroy() {
+    this._super(...arguments);
+    this._teardownSpeakBarObserver();
+    this.appState.set('extra_header_height', 0);
+    this.appState.set('speak_header_height', 0);
+    document.documentElement.style.removeProperty('--speak-bar-extra');
+    document.documentElement.style.removeProperty('--speak-header-height');
+  },
   board_style: computed('height', 'model.background.color', function() {
     var str = "position: relative; height: " + (this.get('height') + 5) + "px;";
     if(this.get('model.background.color') && window.tinycolor) {
@@ -465,12 +636,7 @@ export default Controller.extend({
     return htmlSafe(str);
   }),
   bg_class: computed('model.background.position', function() {
-    var pos = (this.get('model.background.position') || '').split(',');
-    var fit = 'stretch';
-    if(pos[0] == 'center') {
-      fit = 'contain';
-    }
-    return htmlSafe(fit);
+    return computeBgClass(this.model);
   }),
   bg_style: computed(
     'model.background.image',
@@ -478,44 +644,14 @@ export default Controller.extend({
     'model.grid.columns',
     'model.background.position',
     'model.background.color',
-    function() {
-      var rows = this.get('model.grid.rows');
-      var cols = this.get('model.grid.columns');
-      var pos = (this.get('model.background.position') || '').split(',');
-      var xmin = Math.max(parseInt(pos[1], 10) || 0, 0), xmax = Math.min(parseInt(pos[3], 10) || cols - 1, cols - 1) + 1,
-          ymin = Math.max(parseInt(pos[2], 10) || 0, 0), ymax = Math.min(parseInt(pos[4], 10) || rows - 1, rows - 1) + 1;
-
-      var width = 100 * (xmax - xmin) / cols;
-      var height = 100 * (ymax - ymin) / rows;
-      var left = 100 * xmin / cols;
-      var top = 100 * ymin / rows;
-      
-      var str = 'position: absolute; top: ' + top + '%; left: ' + left + '%; width: ' + width + '%; height: ' + height + '%; overflow: hidden;'
-      if(this.get('model.background.color') && window.tinycolor) {
-        var clr = window.tinycolor(this.get('model.background.color'));
-        if(clr && clr.toRgbString()) {
-          str = str + ' background: ' + clr.toRgbString();
-        }
-      }
-      return htmlSafe(str);
-    }
+    function() { return computeBgStyle(this.model); }
   ),
   bg_img_style: computed(
     'model.background.image',
     'model.grid.rows',
     'model.grid.columns',
     'model.background.position',
-    function() {
-      var pos = (this.get('model.background.position') || '').split(',');
-      // center, stretch, cover, or pos,x%,y%,w%,h% as row/col units
-      var fit = 'fill';
-      if(pos[0] == 'center') {
-        fit = 'contain';
-      } else if(pos[0] == 'cover') {
-        fit = 'cover';
-      }
-      return htmlSafe('object-fit: ' + fit + '; object-position: center;');
-    }
+    function() { return computeBgImgStyle(this.model); }
   ),
   redraw_if_needed: function() {
     var now = (new Date()).getTime();
@@ -563,8 +699,12 @@ export default Controller.extend({
       this.set('model.text_size', 'normal');
       if(starting_height < 35) {
         this.set('model.text_size', 'really_small_text');
+        // Scale label down so images stay visible on dense grids
+        currentLabelHeight = Math.min(currentLabelHeight, Math.max(Math.floor(starting_height * 0.25), 8));
       } else if(starting_height < 75) {
         this.set('model.text_size', 'small_text');
+        // Scale label down so images stay visible on dense grids
+        currentLabelHeight = Math.min(currentLabelHeight, Math.max(Math.floor(starting_height * 0.3), 10));
       }
 
       var $canvas = $("#board_canvas");
@@ -687,8 +827,8 @@ export default Controller.extend({
               }
             }
           }
-          var image_height = button_height - currentLabelHeight - LingoLinq.boxPad - (inner_pad * 2) + 8;
-          var image_width = button_width - LingoLinq.boxPad - (inner_pad * 2) + 8;
+          var image_height = (button_height - currentLabelHeight - LingoLinq.boxPad - (inner_pad * 2) + 8) * 0.9;
+          var image_width = (button_width - LingoLinq.boxPad - (inner_pad * 2) + 8) * 0.9;
 
           var top_margin = currentLabelHeight + LingoLinq.labelHeight - 8;
           if(_this.get('model.text_size') == 'really_small_text') {
@@ -854,7 +994,7 @@ export default Controller.extend({
   }),
   current_level: computed(
     'model.default_level',
-    'this.stashes.board_level',
+    'stashes.board_level',
     'preview_level',
     function() {
       return this.get('preview_level') || this.stashes.get('board_level') || this.get('model.default_level') || 10;
@@ -874,7 +1014,7 @@ export default Controller.extend({
       });
     });
     this.clear_levels_change();
-    return levels.uniq().sort(function(a, b) { return a - b; });
+    return [...new Set(levels)].sort(function(a, b) { return a - b; });
   }),
   clear_levels_change() {
     this.set('levels_change', false);
@@ -919,22 +1059,15 @@ export default Controller.extend({
     'appState.currentUser.preferences.device.button_spacing',
     'appState.window_inner_width',
     function() {
+      // Board-alt grid gap. Reads from the canonical display-prefs
+      // map in utils/display_prefs.js so the SAME user preference
+      // produces the SAME visual gap on both board-alt and board-
+      // detail. `buttonSpacingHalfPx` returns half the canonical px
+      // because each button on board-alt has `extra_pad` of empty
+      // space on every side (position math at ~line 700) — adjacent
+      // buttons add up to 2 * extra_pad of rendered gap.
       var spacing = this.appState.get('currentUser.preferences.device.button_spacing') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_spacing);
-      if(spacing == 'none') {
-        return 0;
-      } else if(spacing == 'minimal' || this.appState.get('window_inner_width') < 600) {
-        return 1;
-      } else if(spacing == "extra-small" || this.appState.get('window_inner_width') < 750) {
-        return 2;
-      } else if(spacing == "medium") {
-        return 10;
-      } else if(spacing == "large") {
-        return 20;
-      } else if(spacing == "huge") {
-        return 45;
-      } else {
-        return 5;
-      }
+      return buttonSpacingHalfPx(spacing);
     }
   ),
   inner_pad: computed(
@@ -1015,17 +1148,6 @@ export default Controller.extend({
       return "text_position_" + (position || 'top');
     }
   ),
-  symbol_background: computed('appState.currentUser.preferences.symbol_background', function() {
-    var bg = this.appState.get('currentUser.preferences.symbol_background');
-    if(!bg) {
-      if(this.appState.get('currentUser')) {
-        bg = 'white';
-      } else {
-        bg = (window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.symbol_background) || 'white';
-      }
-    }
-    return "symbol_background_" + bg;
-  }),
   border_style: computed('appState.currentUser.preferences.device.button_border', function() {
     var spacing = this.appState.get('currentUser.preferences.device.button_border') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_border);
     return "border_" + spacing;
@@ -1035,6 +1157,9 @@ export default Controller.extend({
   }),
   editModeNormalText: computed('appState.edit_mode', 'model.text_size', function() {
     return this.appState.get('edit_mode') && this.get('model.text_size') != 'really_small_text';
+  }),
+  nothing_visible: computed('model.nothing_visible', function() {
+    return this.get('model.nothing_visible');
   }),
   nothing_visible_not_edit: computed('nothing_visible', 'appState.edit_mode', function() {
     return this.get('nothing_visible') && !this.appState.get('edit_mode');
@@ -1055,7 +1180,9 @@ export default Controller.extend({
     'appState.currentUser.preferences.folder_icons',
     'appState.currentUser.preferences.stretch_buttons',
     'appState.eval_mode',
-    'appState.currentUser.preferences.high_contrast',
+    'eval_intro_active',
+    'high_contrast_class',
+    'symbol_background_class',
     function() {
       var res = "board advanced_selection ";
       if(this.appState.get('edit_mode')) {
@@ -1064,8 +1191,8 @@ export default Controller.extend({
       if(!this.appState.get('currentUser.preferences.folder_icons')) {
         res = res + "colored_icons ";
       }
-      if(this.appState.get('currentUser.preferences.high_contrast')) {
-        res = res + "high_contrast ";
+      if(this.get('high_contrast_class')) {
+        res = res + this.get('high_contrast_class') + " ";
       }
       if(this.get('model.finding_target')) {
         res = res + "finding_target ";
@@ -1081,6 +1208,8 @@ export default Controller.extend({
           res = res + 'hint_hidden_buttons ';
         } else if(!stretchable && this.appState.get('currentUser.preferences.hidden_buttons') == 'grid' && !this.get('model.hide_empty')) {
           res = res + 'grid_hidden_buttons ';
+        } else if(!stretchable && this.appState.get('currentUser.preferences.hidden_buttons') == 'hide' && !this.get('model.hide_empty')) {
+          res = res + 'hide_hidden_buttons ';
         }
       }
       var displayUser = this.appState.get('speak_mode') ? this.appState.get('referenced_user') : this.appState.get('currentUser');
@@ -1099,8 +1228,8 @@ export default Controller.extend({
       if(this.get('text_position')) {
         res = res + this.get('text_position') + " ";
       }
-      if(this.get('symbol_background')) {
-        res = res + this.get('symbol_background') + " ";
+      if(this.get('symbol_background_class')) {
+        res = res + this.get('symbol_background_class') + " ";
       }
       if(this.get('button_style')) {
         var style = Button.style(this.get('button_style'));
@@ -1113,9 +1242,48 @@ export default Controller.extend({
           res = res + style.font_class + " ";
         }
       }
+      if(this.appState.get('eval_mode')) {
+        res = res + 'eval_mode ';
+      }
+      if(this.appState.get('eval_mode') && this.get('eval_intro_active')) {
+        res = res + 'eval_intro ';
+      }
       return res;
     }
   ),
+  /* Bespoke modern eval intro screen: active when in eval mode and the
+     current step is an intro (the board-grid render is replaced by the
+     <eval-intro> component — see templates/board/index.hbs). Keyed on the
+     board key so it recomputes as the eval flow jumps between boards. */
+  eval_intro_active: computed('appState.eval_mode', 'appState.currentBoardState.key', function() {
+    if(!this.appState.get('eval_mode')) { return false; }
+    var ev = obf.eval;
+    return !!(ev && ev.current_intro && ev.current_intro());
+  }),
+  eval_intro_text: computed('appState.eval_mode', 'appState.currentBoardState.key', function() {
+    var ev = obf.eval;
+    var intro = ev && ev.current_intro && ev.current_intro();
+    return intro ? intro.text : '';
+  }),
+  /* Whether the header Skip control is available for this intro step
+     (section intros can be skipped; the welcome intro can't). Mirrors the
+     application controller's eval_intro_header_show_skip so the bespoke
+     screen shows Skip exactly when the toolbar does. */
+  eval_intro_show_skip: computed('appState.eval_mode', 'appState.currentBoardState.key', function() {
+    if(!this.appState.get('eval_mode')) { return false; }
+    var ev = obf.eval;
+    if(!ev || !ev.intro_header_visibility) { return false; }
+    return !!ev.intro_header_visibility().showSkip;
+  }),
+  /* The welcome intro ('intro') is the combined first screen — it shows the
+     succinct checklist (no section nav) and starts the actual evaluation.
+     Section intros (diff_target, symbols, …) are mid-evaluation and keep the
+     lead text + Back/Skip/Next nav. */
+  eval_intro_is_welcome: computed('appState.eval_mode', 'appState.currentBoardState.key', function() {
+    var ev = obf.eval;
+    var intro = ev && ev.current_intro && ev.current_intro();
+    return !!(intro && intro.intro === 'intro');
+  }),
   suggestion_class: computed(
     'button_style',
     'text_style',
@@ -1176,18 +1344,7 @@ export default Controller.extend({
     }
   ),
   reload_on_connect: observer('persistence.online', function() {
-    if(!this || typeof this.get !== 'function') { return; }
-    var persistenceService = this.get('persistence') || this.persistence;
-    if(persistenceService && typeof persistenceService.get === 'function' && persistenceService.get('online') && !this.get('model.id')) {
-      try {
-        this.send('refreshData');
-      } catch(e) { }
-//       var _this = this;
-//       var obj = this.store.findRecord('board', editManager.get('last_board_key'));
-//       return obj.then(function(data) {
-//         _this.set('model', data);
-//       }, function() { });
-    }
+    runReloadOnConnect(this, this.persistence);
   }),
 
   _extractButtonId: function(id, event) {
@@ -1198,8 +1355,144 @@ export default Controller.extend({
     return { id: id, event: event };
   },
 
+  boardMenuOpen: false,
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
+
   actions: {
+    // Persist the user's preferred board UI shell. 'classic' = this
+    // board-alt grid, 'modern' = board-detail. Saves only — navigation
+    // is the separate go_to_modern_edit action so flipping the
+    // preference doesn't yank the user away mid-edit. Same dirty-bit
+    // trick board-detail uses: poke preferences.device.updated so
+    // Ember Data ships the full raw preferences blob.
+    set_board_view_style: function(style) {
+      if(style !== 'modern' && style !== 'classic') { return; }
+      var user = this.get('appState.currentUser');
+      if(!user) { return; }
+      user.set('preferences.board_view_style', style);
+      this.notifyPropertyChange('board_view_style');
+      if(user.save) {
+        user.set('preferences.device.updated', true);
+        user.save();
+      }
+    },
+
+    // "Take me to the Modern View (in edit mode)". board-detail HAS a
+    // dedicated /edit subroute, so we transition straight into it.
+    go_to_modern_edit: function() {
+      var board = this.get('model');
+      var key = board && board.get && board.get('key');
+      var key_parts = key ? key.split('/') : [];
+      // board-detail fetches /api/v1/boards/<user_name>/<boardname>, so
+      // user_name MUST be the board's OWNER (key prefix), not the
+      // session/communicator user — otherwise a board owned by another
+      // user (seeded/shared boards) 404s. Mirrors style-switcher.js.
+      var user_name = (key_parts.length > 1 ? key_parts[0] : null) ||
+        this.get('appState.sessionUser.user_name') || this.get('appState.currentUser.user_name');
+      var boardname = key_parts.length > 1 ? key_parts.slice(1).join('/') : null;
+      if(!user_name || !boardname) { return; }
+      this.get('router').transitionTo('user.board-detail.edit', user_name, boardname);
+    },
+
+    // Normal-mode "Modern View" button: persist the user's preference
+    // to 'modern' (so future logins land in the modern view) AND then
+    // take them straight to the modern (board-detail) view.
+    go_to_modern: function() {
+      var user = this.get('appState.currentUser');
+      if(user) {
+        user.set('preferences.board_view_style', 'modern');
+        this.notifyPropertyChange('board_view_style');
+        if(user.save) {
+          user.set('preferences.device.updated', true);
+          user.save();
+        }
+      }
+      var board = this.get('model');
+      var key = board && board.get && board.get('key');
+      var key_parts = key ? key.split('/') : [];
+      // board-detail fetches /api/v1/boards/<user_name>/<boardname>, so
+      // user_name MUST be the board's OWNER (key prefix), not the
+      // session/communicator user — otherwise a board owned by another
+      // user (seeded/shared boards) 404s. Mirrors style-switcher.js.
+      var user_name = (key_parts.length > 1 ? key_parts[0] : null) ||
+        this.get('appState.sessionUser.user_name') || this.get('appState.currentUser.user_name');
+      var boardname = key_parts.length > 1 ? key_parts.slice(1).join('/') : null;
+      if(!user_name || !boardname) { return; }
+      // Anti-flash: board-detail's route model hook does an async /tree
+      // fetch on cache-miss, and Ember keeps THIS classic route rendered
+      // until it resolves — that's the visible flash of stale content.
+      // We mask the flash with the shared view-switch overlay (see
+      // utils/view_switch_overlay.js for full DOM + lifecycle notes).
+      //
+      // Theme detection: the destination (board-detail) defaults to
+      // `dark_mode: true` (see controllers/user/board-detail.js:319), so
+      // most users land on the dark variant unless they've explicitly
+      // toggled to light. Assume dark and only flip to light when
+      // appState gives us an EXPLICIT non-dark theme signal.
+      var routerSvc = this.get('router');
+      var appStateService = this.get('appState');
+      var isDark = true;
+      if (appStateService && typeof appStateService.get === 'function') {
+        var themeMode = appStateService.get('themeMode');
+        if (themeMode === 'light' || themeMode === 'midDay' || themeMode === 'default') {
+          isDark = false;
+        }
+      }
+      paint_view_switch_overlay({
+        routerSvc: routerSvc,
+        isDark: isDark,
+        // Classic → Modern: keep the accent at its default (heavy)
+        // weight. The Modern → Classic direction in
+        // controllers/user/board-detail.js#go_to_classic sets
+        // accentLight:true to render the parenthetical lighter.
+        accentLight: false,
+        transition: function() {
+          return routerSvc.transitionTo('user.board-detail', user_name, boardname);
+        }
+      });
+    },
+
+    toggleBoardMenu: function() {
+      this.toggleProperty('boardMenuOpen');
+      if(this.get('boardMenuOpen')) {
+        var _this = this;
+        var handler = function(e) {
+          if(!e.target.closest('.la-board-mobile-menu') && !e.target.closest('.la-board-hamburger')) {
+            _this.set('boardMenuOpen', false);
+            document.removeEventListener('click', handler, true);
+          }
+        };
+        setTimeout(function() {
+          document.addEventListener('click', handler, true);
+        }, 10);
+      }
+    },
     boardDetails: function() {
+      this.set('boardMenuOpen', false);
       modal.open('board-details', {board: this.get('model')});
     },
     buttonSelect: function(id, event) {
@@ -1235,6 +1528,15 @@ export default Controller.extend({
     complete_word: function(word) {
       try {
         var _this = this;
+        if(word && word.word && typeof word_suggestions.record_selection === 'function') {
+          var button_list = _this.appState.get('button_list') || [];
+          var last_button = button_list[button_list.length - 1];
+          if(last_button && last_button.in_progress) {
+            last_button = button_list[button_list.length - 2];
+          }
+          var prefix = ((last_button && (last_button.vocalization || last_button.label)) || '').toLowerCase();
+          word_suggestions.record_selection(word.word, null, prefix, _this.word_prediction_locale());
+        }
         var text = word.word;
         var button = editManager.fake_button();
         button.set('label', text);

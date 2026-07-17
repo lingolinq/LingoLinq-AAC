@@ -19,6 +19,28 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+
     const modalService = this.get('modal');
     const template = 'modals/slice-locales';
     const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
@@ -51,15 +73,22 @@ export default Component.extend({
         return;
       }
       const _this = this;
-      BoardHierarchy.load_with_button_set(board, {
-        deselect_on_different: true,
-        prevent_keyboard: true,
-        prevent_different: true
-      }).then(function(hierarchy) {
-        _this.set('hierarchy', hierarchy);
-      }, function() {
-        _this.set('hierarchy', { error: true });
-      });
+      var loadHierarchy = function() {
+        BoardHierarchy.load_with_button_set(board, {
+          deselect_on_different: true,
+          prevent_keyboard: true,
+          prevent_different: true
+        }).then(function(hierarchy) {
+          _this.set('hierarchy', hierarchy);
+        }, function() {
+          _this.set('hierarchy', { error: true });
+        });
+      };
+      if (board.reload) {
+        board.reload(true).then(loadHierarchy, loadHierarchy);
+      } else {
+        loadHierarchy();
+      }
     },
     closing() {},
     nothing() {},
@@ -98,5 +127,18 @@ export default Component.extend({
         _this.set('status', { error: true });
       });
     }
-  }
+  },
+
+  didInsertElement() {
+  this._super(...arguments);
+  var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
+    // Ember 5.12 modal migration: the service-based modal system does not
+    // auto-invoke opening() (this.onOpening is vestigial), so build modal state
+    // here on insert. Without this, opening() never runs. See assessment-settings.
+    self.send('opening');
+},
+
 });

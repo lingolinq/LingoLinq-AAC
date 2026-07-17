@@ -10,8 +10,8 @@ describe Api::ButtonSetsController, :type => :controller do
   
   describe "show" do
     it "should not require api token" do
-      get :show, params: {:id => 'asdf'}
-      assert_not_found('asdf')
+      get :show, params: {:id => '1_19999'}
+      assert_not_found('1_19999')
     end
     
     it "should require existing object" do
@@ -77,14 +77,14 @@ describe Api::ButtonSetsController, :type => :controller do
 
   describe "generate" do
     it "should require an api token" do
-      post :generate, params: {'id' => 'asdf'}
+      post :generate, params: {'id' => '1_19999'}
       assert_missing_token
     end
 
     it "should require a valid board" do
       token_user
-      post :generate, params: {'id' => 'asdf'}
-      assert_not_found('asdf')
+      post :generate, params: {'id' => '1_19999'}
+      assert_not_found('1_19999')
     end
 
     it "should require permissions" do
@@ -93,6 +93,17 @@ describe Api::ButtonSetsController, :type => :controller do
       b = Board.create(user: u)
       post :generate, params: {'id' => b.global_id}
       assert_unauthorized
+    end
+
+    it "should not leak a backtrace in the debug_sync error response" do
+      token_user
+      b = Board.create(user: @user)
+      expect(BoardDownstreamButtonSet).to receive(:generate_for).and_raise("boom in generate_for")
+      post :generate, params: {'id' => b.global_id, 'debug_sync' => '1'}
+      expect(response.code).to eq('500')
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('boom in generate_for')
+      expect(json).to_not have_key('backtrace')
     end
 
     it "should return exists message if true, including URL" do

@@ -3,9 +3,12 @@ import { later as runLater } from '@ember/runloop';
 import contentGrabbers from '../utils/content_grabbers';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 
 export default Component.extend({
   appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
   tagName: 'div',
   willInsertElement: function () {
     var _this = this;
@@ -35,6 +38,31 @@ export default Component.extend({
     // must have an active paid subscription to access video logs on your account
     return this.get('user.currently_premium');
   }),
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
     setup_recording: function () {
       contentGrabbers.videoGrabber.record_video();

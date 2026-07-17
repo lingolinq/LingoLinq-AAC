@@ -3,27 +3,29 @@
   <div id="inner_header">
   {{#if this.app_state.speak_mode}}
     <span id="speak">
-      <button class="btn btn-default access" {{action "home"}}>
+      <button class="btn btn-default access" {{on "click" (this.ctrlAction "home")}}>
         <span class="sr-only">{{t "Home" key="home"}}</span>
         <span class="glyphicon glyphicon-home button_icon"></span>
       </button>
       {{#unless this.app_state.empty_board_history}}
-        <button class="btn btn-default access skinnier" {{action "back"}}>
+        <button class="btn btn-default access skinnier" {{on "click" (this.ctrlAction "back")}}>
           <span class="sr-only">{{t "Back" key="back"}}</span>
           <span class="glyphicon glyphicon-arrow-left button_icon"></span>
         </button>
       {{/unless}}
-      <a href='#' tabindex="0" id="button_list" class={{this.button_list_class}} {{ action "vocalize" on="select"}} data-placement="bottom" data-trigger="manual">
-        {{#let this.app_state.button_list as |button_list|}}
-          {{button-list buttonList=button_list}}
-        {{/let}}
-      </a>
-      <button class="btn btn-default" {{action "speakOptions"}} id="speak_options"><span class="sr-only">{{t "speak options" key="speak_options"}}</span><span class="glyphicon glyphicon-chevron-down"></span></button>
-      <button class="btn btn-default access skinnier" {{action "backspace"}}>
+      <div class="speak-bar__button-list-wrap">
+        <a href='#' tabindex="0" id="button_list" class={{this.button_list_class}} {{on "select" (this.ctrlAction "vocalize")}} data-placement="bottom" data-trigger="manual">
+          {{#let this.app_state.button_list as |button_list|}}
+            <ButtonList @buttonList={{button_list}} />
+          {{/let}}
+        </a>
+        <button class="btn btn-default" {{on "click" (this.ctrlAction "speakOptions")}} id="speak_options"><span class="sr-only">{{t "speak options" key="speak_options"}}</span><span class="glyphicon glyphicon-chevron-down"></span></button>
+      </div>
+      <button class="btn btn-default access skinnier" {{on "click" (this.ctrlAction "backspace")}}>
         <span class="sr-only">{{t "backspace" key="backspace_lower"}}</span>
         <img src={{path "images/delete.svg"}}>
       </button>
-      <button class="btn btn-default access" {{action "clear"}}>
+      <button class="btn btn-default access" {{on "click" (this.ctrlAction "clear")}}>
         <span class="sr-only">{{t "clear" key="clear_lower"}}</span>
         <span class="glyphicon glyphicon-remove button_icon" style="margin: 5px -5px 0;"></span>
       </button>
@@ -31,8 +33,8 @@
   {{else}}
     <span id="nav_header">
     <h1 class={{if this.app_state.currentBoardState "with_board"}}>
-      <a href="#" {{action "index"}}>
-        <img src={{if this.app_state.domain_settings.logo_url this.app_state.domain_settings.logo_url (path "images/logo-big.png")}} alt="LingoLinq">
+      <a href="#" {{on "click" (this.ctrlAction "index")}}>
+        <img src={{if this.app_state.domain_settings.logo_url this.app_state.domain_settings.logo_url (path "images/LL_Logo_Line_Bright.png")}} alt="LingoLinq">
         <span>
           {{t "%app_name_upper%" key="app_name_upper"}}
         </span>
@@ -60,9 +62,9 @@
       {{#if (persistence-online)}}
         <form style="display: inline-block; padding-left: 10px;">
           <div style="float: left; margin-right: 4px; width: 150px;">
-          <Input @type="text" @value={{this.searchString}} @enter={{action "searchBoards"}} class="form-control" placeholder="Search Boards" />
+          <Input @type="text" @value={{this.searchString}} @enter={{this.ctrlAction "searchBoards"}} class="form-control" placeholder="Search Boards" />
           </div>
-          <button class="btn btn-default" {{action "searchBoards"}}>{{t "Go" key="go"}}</button>
+          <button class="btn btn-default" {{on "click" (this.ctrlAction "searchBoards")}}>{{t "Go" key="go"}}</button>
           <div style="clear: left;"></div>
         </form>
       {{/if}}
@@ -76,7 +78,7 @@
           {{t "Copy Button to Stash" key="copy_button_to_stash"}}
         </button>
       {{else}}
-        <button class={{this.no_paint_mode_class}} {{action "noPaint"}}><span class='wide'>{{t "&nbsp;&nbsp;Edit&nbsp;&nbsp;" key="edit_padded"}}</span><span class='skinny glyphicon glyphicon-hand-up'></span></button>
+        <button class={{this.no_paint_mode_class}} {{on "click" (this.ctrlAction "noPaint")}}><span class='wide'>{{t "&nbsp;&nbsp;Edit&nbsp;&nbsp;" key="edit_padded"}}</span><span class='skinny glyphicon glyphicon-hand-up'></span></button>
         <span class="dropdown" style="display: inline-block;">
           <button class={{this.paint_mode_class}} data-toggle="dropdown">
             <span class="wide">{{t "Paint" key="paint"}}</span><span class="skinny glyphicon glyphicon-tint"></span>
@@ -87,7 +89,7 @@
           <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
             {{#each this.swatches as |swatch|}}
               <li role="presentation">
-                <a role="menuitem" href="#" tabindex="-1" {{action "paint" swatch.fill swatch.border}}>
+                <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "paint" swatch.fill swatch.border)}}>
                   <span class="swatch" style={{swatch.style}}></span>
                   <span style="width: 70px; overflow: hidden; text-overflow: ellipsis; display: inline-block; vertical-align: top;">{{swatch.color}}</span>
                   {{#if swatch.hint}}
@@ -97,33 +99,33 @@
               </li>
             {{/each}}
             <li role="presentation">
-              <a role="menuitem" href="#" tabindex="-1" {{action "paint" "hide"}} style="float: left; width: 140px; clear: right;"><span class="glyphicon glyphicon-minus-sign"></span> {{t "Hide" key="hide_upper"}}</a>
-              <a role="menuitem" href="#" tabindex="-1" {{action "paint" "show"}} style="float: left; width: 140px; clear: right;"><span class="glyphicon glyphicon-ok-sign"></span> {{t "Show" key="show"}}</a>
+              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "paint" "hide")}} style="float: left; width: 140px; clear: right;"><span class="glyphicon glyphicon-minus-sign"></span> {{t "Hide" key="hide_upper"}}</a>
+              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "paint" "show")}} style="float: left; width: 140px; clear: right;"><span class="glyphicon glyphicon-ok-sign"></span> {{t "Show" key="show"}}</a>
               <span style="clear: left;"></span>
             </li>
             <li role="presentation" class="text-muted">
-              <a role="menuitem" href="#" tabindex="-1" {{action "paint" "close"}} style="float: left; width: 140px; clear: right;"><span class="glyphicon glyphicon-remove-sign"></span> {{t "De-Link" key="de_link"}}</a>
-              <a role="menuitem" href="#" tabindex="-1" {{action "paint" "open"}} style="float: left; width: 140px; clear: right;"><span class="glyphicon glyphicon-plus-sign"></span> {{t "Re-Link" key="re_link"}}</a>
+              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "paint" "close")}} style="float: left; width: 140px; clear: right;"><span class="glyphicon glyphicon-remove-sign"></span> {{t "De-Link" key="de_link"}}</a>
+              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "paint" "open")}} style="float: left; width: 140px; clear: right;"><span class="glyphicon glyphicon-plus-sign"></span> {{t "Re-Link" key="re_link"}}</a>
               <span style="clear: left;"></span>
             </li>
           </ul>
         </span>
         <span style="padding-right: 10px;"></span>
-        <button class="btn btn-default wide" {{action "undoEdit"}} disabled={{this.board.noUndo}}><span class="wide">{{t "Undo" key="undo"}}</span><span class="skinny glyphicon glyphicon-backward"></span></button>
-        <button class="btn btn-default wide" {{action "redoEdit"}} disabled={{this.board.noRedo}}><span class="wide">{{t "Redo" key="redo"}}</span><span class="skinny glyphicon glyphicon-forward"></span></button>
+        <button class="btn btn-default wide" {{on "click" (this.ctrlAction "undoEdit")}} disabled={{this.board.noUndo}}><span class="wide">{{t "Undo" key="undo"}}</span><span class="skinny glyphicon glyphicon-backward"></span></button>
+        <button class="btn btn-default wide" {{on "click" (this.ctrlAction "redoEdit")}} disabled={{this.board.noRedo}}><span class="wide">{{t "Redo" key="redo"}}</span><span class="skinny glyphicon glyphicon-forward"></span></button>
         <span class="dropdown" style="display: inline-block;">
           <button class="btn btn-default" data-toggle="dropdown"><span class="wide">{{t "Grid +/-" key="grid_plus_minus"}}</span><span class="skinny glyphicon glyphicon-th"></span></button>
           <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
             <li role="presentation">
               <span style="display: block; width: 300px; height: 180px; position: relative;">
-                <a role="menuitem" tabindex="-1" href="#" style="position: absolute; top: 0; left: 0; width: 100%; text-align: center;" {{action "modifyGrid" "add" "row" "top"}}>{{t "Add Row" key="add_row"}} <span class="glyphicon glyphicon-chevron-up"></span></a>
-                <a role="menuitem" tabindex="-1" href="#" style="position: absolute; top: 20px; left: 0; width: 100%; text-align: center;" {{action "modifyGrid" "remove" "row" "top"}}>{{t "Remove Row" key="remove_row"}} <span class="glyphicon glyphicon-remove"></span></a>
-                <a role="menuitem" tabindex="-1" href="#" style="position: absolute; top: 70px; right: 0; width: 50%; text-align: right;" {{action "modifyGrid" "add" "column" "right"}}>{{t "Add Column" key="add_column"}} <span class="glyphicon glyphicon-chevron-right"></span></a>
-                <a role="menuitem" tabindex="-1" href="#" style="position: absolute; top: 90px; right: 0; width: 50%; text-align: right;" {{action "modifyGrid" "remove" "column" "right"}}>{{t "Remove Column" key="remove_column"}} <span class="glyphicon glyphicon-remove"></span></a>
-                <a role="menuitem" tabindex="-1" href="#" style="position: absolute; top: 70px; left: 0; width: 50%;" {{action "modifyGrid" "add" "column" "left"}}><span class="glyphicon glyphicon-chevron-left"></span> {{t "Add Column" key="add_column"}}</a>
-                <a role="menuitem" tabindex="-1" href="#" style="position: absolute; top: 90px; left: 0; width: 50%;" {{action "modifyGrid" "remove" "column" "left"}}><span class="glyphicon glyphicon-remove"></span> {{t "Remove Column" key="remove_column"}}</a>
-                <a role="menuitem" tabindex="-1" href="#" style="position: absolute; top: 160px; left: 0; width: 100%; text-align: center;" {{action "modifyGrid" "add" "row" "bottom"}}>{{t "Add Row" key="add_row"}}  <span class="glyphicon glyphicon-chevron-down"></span></a>
-                <a role="menuitem" tabindex="-1" href="#" style="position: absolute; top: 140px; left: 0; width: 100%; text-align: center;" {{action "modifyGrid" "remove" "row" "bottom"}}>{{t "Remove Row" key="remove_row"}}  <span class="glyphicon glyphicon-remove"></span></a>
+                <a role="menuitem" tabindex="-1" href="#" style="position: absolute; top: 0; left: 0; width: 100%; text-align: center;" {{on "click" (this.ctrlAction "modifyGrid" "add" "row" "top")}}>{{t "Add Row" key="add_row"}} <span class="glyphicon glyphicon-chevron-up"></span></a>
+                <a role="menuitem" tabindex="-1" href="#" style="position: absolute; top: 20px; left: 0; width: 100%; text-align: center;" {{on "click" (this.ctrlAction "modifyGrid" "remove" "row" "top")}}>{{t "Remove Row" key="remove_row"}} <span class="glyphicon glyphicon-remove"></span></a>
+                <a role="menuitem" tabindex="-1" href="#" style="position: absolute; top: 70px; right: 0; width: 50%; text-align: right;" {{on "click" (this.ctrlAction "modifyGrid" "add" "column" "right")}}>{{t "Add Column" key="add_column"}} <span class="glyphicon glyphicon-chevron-right"></span></a>
+                <a role="menuitem" tabindex="-1" href="#" style="position: absolute; top: 90px; right: 0; width: 50%; text-align: right;" {{on "click" (this.ctrlAction "modifyGrid" "remove" "column" "right")}}>{{t "Remove Column" key="remove_column"}} <span class="glyphicon glyphicon-remove"></span></a>
+                <a role="menuitem" tabindex="-1" href="#" style="position: absolute; top: 70px; left: 0; width: 50%;" {{on "click" (this.ctrlAction "modifyGrid" "add" "column" "left")}}><span class="glyphicon glyphicon-chevron-left"></span> {{t "Add Column" key="add_column"}}</a>
+                <a role="menuitem" tabindex="-1" href="#" style="position: absolute; top: 90px; left: 0; width: 50%;" {{on "click" (this.ctrlAction "modifyGrid" "remove" "column" "left")}}><span class="glyphicon glyphicon-remove"></span> {{t "Remove Column" key="remove_column"}}</a>
+                <a role="menuitem" tabindex="-1" href="#" style="position: absolute; top: 160px; left: 0; width: 100%; text-align: center;" {{on "click" (this.ctrlAction "modifyGrid" "add" "row" "bottom")}}>{{t "Add Row" key="add_row"}}  <span class="glyphicon glyphicon-chevron-down"></span></a>
+                <a role="menuitem" tabindex="-1" href="#" style="position: absolute; top: 140px; left: 0; width: 100%; text-align: center;" {{on "click" (this.ctrlAction "modifyGrid" "remove" "row" "bottom")}}>{{t "Remove Row" key="remove_row"}}  <span class="glyphicon glyphicon-remove"></span></a>
               </span>
             </li>
           </ul>
@@ -132,27 +134,27 @@
           <button class="btn btn-default" data-toggle="dropdown"><span class="wide">{{t "More" key="more"}}</span><span class="skinny glyphicon glyphicon-wrench"></span> <span class='caret'></span></button>
           <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
             <li role="presentation" class={{this.undo_class}}>
-              <a role="menuitem" href="#" tabindex="-1" {{action "undoEdit"}}>{{t "Undo" key="undo"}}</a>
+              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "undoEdit")}}>{{t "Undo" key="undo"}}</a>
             </li>
             <li role="presentation" class={{this.redo_class}}>
-              <a role="menuitem" href="#" tabindex="-1" {{action "redoEdit"}} disabled="true">{{t "Redo" key="redo"}}</a>
+              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "redoEdit")}} disabled="true">{{t "Redo" key="redo"}}</a>
             </li>
             <li role="presentation">
-              <a role="menuitem" href="#" tabindex="-1" {{action "editBoardDetails"}}>{{t "Edit Name & Details" key="edit_details"}}</a>
+              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "editBoardDetails")}}>{{t "Edit Name & Details" key="edit_details"}}</a>
             </li>
             <li role="presentation">
-              <a role="menuitem" href="#" tabindex="-1" {{action "openButtonStash"}}>{{t "Button Stash" key="button_stash"}}</a>
+              <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "openButtonStash")}}>{{t "Button Stash" key="button_stash"}}</a>
             </li>
           </ul>
         </span>
-        <button class="btn btn-primary" {{action "saveBoard"}}><span class="wide">{{t "Save" key="save"}}</span><span class="skinny glyphicon glyphicon-floppy-disk"></span></button>
-        <button class="btn btn-default" {{action "resetBoard"}}><span class="wide">{{t "Cancel" key="cancel"}}</span><span class="skinny glyphicon glyphicon-remove"></span></button>
+        <button class="btn btn-primary" {{on "click" (this.ctrlAction "saveBoard")}}><span class="wide">{{t "Save" key="save"}}</span><span class="skinny glyphicon glyphicon-floppy-disk"></span></button>
+        <button class="btn btn-default" {{on "click" (this.ctrlAction "resetBoard")}}><span class="wide">{{t "Cancel" key="cancel"}}</span><span class="skinny glyphicon glyphicon-remove"></span></button>
       {{/if}}
     {{else}}
       {{#if this.app_state.currentBoardState}}
         <span id="normal_mode">
           {{#unless this.app_state.empty_board_history}}
-            <a class="btn btn-default" href="#" {{action "back"}}>
+            <a class="btn btn-default" href="#" {{on "click" (this.ctrlAction "back")}}>
               <span class="glyphicon glyphicon-arrow-left"></span>
               <span class="hidden">{{t "back" key="back_lower"}}</span>
             </a>
@@ -166,14 +168,14 @@
                     <span class="caret"></span>
                   </a>
                   <ul class="dropdown-menu" role="menu">
-                    <li><a href="#" {{action "setSpeakModeUser" "self"}}>{{t "speak as" key="speak_as_lower"}} me</a></li>
+                    <li><a href="#" {{on "click" (this.ctrlAction "setSpeakModeUser" "self")}}>{{t "speak as" key="speak_as_lower"}} me</a></li>
                     {{#each this.app_state.currentUser.known_supervisees as |supervisee|}}
-                      <li><a href="#" {{action "setSpeakModeUser" supervisee.id}}>{{t "speak as" key="speak_as_lower"}} {{supervisee.user_name}}</a></li>
+                      <li><a href="#" {{on "click" (this.ctrlAction "setSpeakModeUser" supervisee.id)}}>{{t "speak as" key="speak_as_lower"}} {{supervisee.user_name}}</a></li>
                     {{/each}}
                   </ul>
                 </div>
               {{else}}
-                <a class="btn btn-primary" href="#" {{action "toggleSpeakMode"}} id="speak_mode" data-placement="bottom" data-trigger="manual">
+                <a class="btn btn-primary" href="#" {{on "click" (this.ctrlAction "toggleSpeakMode")}} id="speak_mode" data-placement="bottom" data-trigger="manual">
                   <span class="wide">{{t "Speak Mode" key="speak_mode"}}</span><span class="skinny real_skinny glyphicon glyphicon-volume-up"></span>
                 </a>
               {{/if}}
@@ -189,35 +191,35 @@
               {{/if}}
 
               {{#if this.board.model.permissions.edit}}
-                <a class='btn btn-default' href="#" {{action "toggleEditMode"}}>
+                <a class='btn btn-default' href="#" {{on "click" (this.ctrlAction "toggleEditMode")}}>
                   <span class="wide">{{t "Edit Board" key="edit_board"}}</span><span class="skinny real_skinny glyphicon glyphicon-pencil"></span>
                 </a>
               {{else}}
-                <a class='btn btn-default' href="#" {{action "tweakBoard"}}>
+                <a class='btn btn-default' href="#" {{on "click" (this.ctrlAction "tweakBoard")}}>
                   <span class="wide">{{t "Make a Copy" key="make_copy"}}</span><span class="skinny real_skinny glyphicon glyphicon-file"></span>
                 </a>
               {{/if}}
               {{#unless this.app_state.current_board_is_home}}
                 {{#unless this.app_state.currentUser.preferences.home_board}}
-                  <a class="btn btn-default" href="#" {{action "setAsHome"}}>
+                  <a class="btn btn-default" href="#" {{on "click" (this.ctrlAction "setAsHome")}}>
                     <span class="wide">{{t "Set as Home" key="set_as_home"}}</span><span class="skinny real_skinny glyphicon glyphicon-home"></span>
                   </a>
                 {{/unless}}
               {{/unless}}
             {{/if}}
             {{#if this.app_state.currentUser}}
-              <a class='btn btn-default' href="#" {{action "star"}}>
-                <img src={{this.board.starImage}} alt={{this.board.starAlt}} style="margin-top: -5px; width: 20px;">
+              <a class='btn btn-default' href="#" {{on "click" (this.ctrlAction "star")}}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="{{if this.board.model.starred 'currentColor' 'none'}}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top: -3px; vertical-align: middle; color: #e74c6f;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                 <span class="wide">{{t "Like" key="star"}}</span> <span class="badge">{{this.board.stars}}</span>
               </a>
             {{else}}
               <span class='btn btn-default' href="#">
-                <img src={{this.board.starImage}} alt={{this.board.starAlt}} style="margin-top: -5px; width: 20px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="{{if this.board.model.starred 'currentColor' 'none'}}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top: -3px; vertical-align: middle; color: #e74c6f;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                 <span class="wide">{{t "Like" key="star"}}</span> <span class="badge">{{this.board.stars}}</span>
               </span>
             {{/if}}
             {{#if this.board.model.shareable}}
-              <a class='btn btn-default' href="#" {{action "shareBoard"}}>
+              <a class='btn btn-default' href="#" {{on "click" (this.ctrlAction "shareBoard")}}>
                 <span class="wide">{{t "Share" key="share"}}</span><span class="skinny real_skinny glyphicon glyphicon-share"></span>
               </a>
             {{/if}}
@@ -227,30 +229,30 @@
               </a>
               <ul class="dropdown-menu skinny-right" role="menu" aria-labelledby="dLabel">
                 <li role="presentation">
-                  <a role="menuitem" tabindex="-1" href="#" {{action "boardDetails"}}>{{t "Board Details" key="board_details"}}</a>
+                  <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "boardDetails")}}>{{t "Board Details" key="board_details"}}</a>
                 </li>
                 {{#if this.app_state.currentUser}}
                 <li role="presentation">
-                  <a role="menuitem" tabindex="-1" href="#" {{action "tweakBoard"}}>{{t "Make a Copy" key="make_copy"}}</a>
+                  <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "tweakBoard")}}>{{t "Make a Copy" key="make_copy"}}</a>
                 </li>
                 {{#unless this.app_state.current_board_is_home}}
                   <li role="presentation">
-                    <a role="menuitem" tabindex="-1" href="#" {{action "setAsHome"}}>{{t "Set as Home Board" key="set_as_home_board"}}</a>
+                    <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "setAsHome")}}>{{t "Set as Home Board" key="set_as_home_board"}}</a>
                   </li>
                 {{/unless}}
                 {{/if}}
                 <li role="presentation">
-                  <a role="menuitem" tabindex="-1" href="#" {{action "downloadBoard"}}>{{t "Download Board" key="download_board"}}</a>
+                  <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "downloadBoard")}}>{{t "Download Board" key="download_board"}}</a>
                 </li>
                 <li role="presentation">
-                  <a role="menuitem" tabindex="-1" href="#" {{action "printBoard"}}>{{t "Print Board" key="print_board"}}</a>
+                  <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "printBoard")}}>{{t "Print Board" key="print_board"}}</a>
                 </li>
                 {{#if this.board.model.permissions.edit}}
                   <li role="presentation">
-                    <a role="menuitem" tabindex="-1" href="#" {{action "renameBoard"}}>{{t "Rename Board" key="rename_board"}}</a>
+                    <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "renameBoard")}}>{{t "Rename Board" key="rename_board"}}</a>
                   </li>
                   <li role="presentation">
-                    <a role="menuitem" tabindex="-1" href="#" {{action "deleteBoard"}}>{{t "Delete Board" key="delete_board"}}</a>
+                    <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "deleteBoard")}}>{{t "Delete Board" key="delete_board"}}</a>
                   </li>
                 {{/if}}
               </ul>
@@ -286,7 +288,7 @@
         <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style="right: 0; left: inherit; text-align: left;">
           {{#if this.app_state.speak_mode}}
             <li role="presentation" style="font-size: 20px;">
-              <a href="#" {{action "toggleSpeakMode"}}>{{t "Exit Speak Mode" key="exit_speak_mode"}}</a>
+              <a href="#" {{on "click" (this.ctrlAction "toggleSpeakMode")}}>{{t "Exit Speak Mode" key="exit_speak_mode"}}</a>
             </li>
             {{#unless this.app_state.currentUser.preferences.require_speak_mode_pin}}
               {{#if this.session.isAuthenticated}}
@@ -315,21 +317,21 @@
           {{/unless}}
           {{#unless this.superProtectedSpeakMode}}
             {{#if this.app_state.currentBoardState}}
-              <li><a href="#" {{action "find_button"}}>{{t "Find a Button" key="find_a_button"}}</a></li>
+              <li><a href="#" {{on "click" (this.ctrlAction "find_button")}}>{{t "Find a Button" key="find_a_button"}}</a></li>
             {{/if}}
             {{#if this.session.isAuthenticated}}
               {{#if this.app_state.currentBoardState}}
                 {{#if this.app_state.speak_mode}}
                   {{#if this.stashes.sticky_board}}
-                    <li><a href="#" {{action "toggle_sticky_board"}}>{{t "Release Board Lock" key="release_board_lock"}}</a></li>
+                    <li><a href="#" {{on "click" (this.ctrlAction "toggle_sticky_board")}}>{{t "Release Board Lock" key="release_board_lock"}}</a></li>
                   {{else}}
-                    <li><a href="#" {{action "toggle_sticky_board"}}>{{t "Stay on this Board" key="stay_on_board"}}</a></li>
+                    <li><a href="#" {{on "click" (this.ctrlAction "toggle_sticky_board")}}>{{t "Stay on this Board" key="stay_on_board"}}</a></li>
                   {{/if}}
                   {{#if this.app_state.currentUser.preferences.logging}}
                     {{#if this.app_state.logging_paused}}
-                      <li><a href="#" {{action "toggle_pause_logging"}}>{{t "Resume Logging" key="resume_logging"}}</a></li>
+                      <li><a href="#" {{on "click" (this.ctrlAction "toggle_pause_logging")}}>{{t "Resume Logging" key="resume_logging"}}</a></li>
                     {{else}}
-                      <li><a href="#" {{action "toggle_pause_logging"}}>{{t "Pause Logging" key="pause_logging"}}</a></li>
+                      <li><a href="#" {{on "click" (this.ctrlAction "toggle_pause_logging")}}>{{t "Pause Logging" key="pause_logging"}}</a></li>
                     {{/if}}
                   {{/if}}
                 {{/if}}
@@ -340,9 +342,9 @@
             {{#if this.session.isAuthenticated}}
               {{#unless this.app_state.speak_mode}}
                 <li><LinkTo @route="search" @models={{array "any" "_"}}>{{t "Find Board" key="find_board"}}</LinkTo></li>
-                <li><a href="#" {{action "newBoard"}}>{{t "Create a New Board" key="create_a_new_board"}}</a></li>
+                <li><a href="#" {{on "click" (this.ctrlAction "newBoard")}}>{{t "Create a New Board" key="create_a_new_board"}}</a></li>
               {{/unless}}
-              <li><LinkTo @route="user.preferences" @model={{this.app_state.currentUser.user_name}}>{{t "Preferences" key="preferences"}}</LinkTo></li>
+              <li><LinkTo @route="user.preferences" @model={{this.app_state.currentUser.user_name}}>{{t "Settings" key="preferences"}}</LinkTo></li>
               <li><LinkTo @route="user.logs" @model={{this.app_state.currentUser.user_name}} @query={{hash type="note"}}>
                 {{#if this.app_state.currentUser.unread_messages}}
                   <span class="label label-danger" style="border-radius: 5px;">{{this.app_state.currentUser.unread_messages}}</span>
@@ -350,20 +352,22 @@
                 {{t "Messages" key="messages"}}
               </LinkTo></li>
               {{#if this.session.as_user_id}}
-                <li><a href="#" {{action "stopMasquerading"}}>{{t "Stop Masquerading" key="stop_masquerading"}}</a></li>
+                <li><a href="#" {{on "click" (this.ctrlAction "stopMasquerading")}}>{{t "Stop Masquerading" key="stop_masquerading"}}</a></li>
               {{/if}}
               {{#unless this.app_state.speak_mode}}
-                <li><a href="#" {{action "invalidateSession"}}>{{t "Sign Out" key="logout"}}</a></li>
+                <li><a href="#" {{on "click" (this.ctrlAction "invalidateSession")}}>{{t "Sign Out" key="logout"}}</a></li>
               {{/unless}}
             {{else}}
-              <li role="presentation">
-                <LinkTo @route="login">{{t "Sign In" key="login"}}</LinkTo>
-              </li>
-              {{#if this.app_state.domain_settings.full_domain}}
+              {{#unless this.app_state.feature_flags.landing_beta_closed}}
                 <li role="presentation">
-                  <LinkTo @route="register">{{t "Register" key="register"}}</LinkTo>
+                  <LinkTo @route="login">{{t "Sign In" key="login"}}</LinkTo>
                 </li>
-              {{/if}}
+                {{#if this.app_state.domain_settings.full_domain}}
+                  <li role="presentation">
+                    <LinkTo @route="register">{{t "Register" key="register"}}</LinkTo>
+                  </li>
+                {{/if}}
+              {{/unless}}
             {{/if}}
           {{/unless}}
         </ul>
@@ -379,45 +383,38 @@
     {{#unless this.app_state.currentUser.preferences.quick_sidebar}}
       <span style="margin: 5px; text-align: right;">
         {{#if this.app_state.currentUser}}
-          <button class='btn btn-default' style="width: 52px;" {{action "stickSidebar"}}><span class="glyphicon glyphicon-pushpin"></span></button>
-          <button class='btn btn-default' {{action "toggleSidebar"}}>&times;</button>
+          <button class='btn btn-default' style="width: 52px;" {{on "click" (this.ctrlAction "stickSidebar")}}><span class="glyphicon glyphicon-pushpin"></span></button>
+          <button class='btn btn-default' {{on "click" (this.ctrlAction "toggleSidebar")}}>&times;</button>
         {{else}}
-          <button class='btn btn-default' style="width: 90px;" {{action "toggleSidebar"}}>&times; {{t "Hide" key="hide_upper"}}</button>
+          <button class='btn btn-default' style="width: 90px;" {{on "click" (this.ctrlAction "toggleSidebar")}}>&times; {{t "Hide" key="hide_upper"}}</button>
         {{/if}}
       </span>
     {{/unless}}
     {{#each this.app_state.currentUser.sidebar_boards_with_fallbacks as |board|}}
-      {{#if board.alert}}
-        <a href="#" {{action "alert" "sidebar"}}>
-          {{board.name}}
-          <img src={{board.image}} style="width: 50px;" alt="">
+      {{#if this.board.alert}}
+        <a href="#" {{on "click" (this.ctrlAction "alert" "sidebar")}}>
+          {{this.board.name}}
+          <img src={{this.board.image}} style="width: 50px;" alt="">
         </a>
       {{else}}
-        <a href='#' {{action "jump" board.key "sidebar" board}}>
-          {{board.name}}
-          <img src={{board.image}} style="width: 50px;" alt="">
+        <a href='#' {{on "click" (this.ctrlAction "jump" board.key "sidebar" board)}}>
+          {{this.board.name}}
+          <img src={{this.board.image}} style="width: 50px;" alt="">
         </a>
       {{/if}}
     {{/each}}
     {{#if this.app_state.currentUser.preferences.quick_sidebar}}
       {{#unless this.app_state.currentUser.preferences.lock_quick_sidebar}}
         <span style="margin: 5px; text-align: right;">
-          <button class='btn btn-default' style="width: 90px; margin-bottom: 5px; " {{action "stickSidebar"}}>Hide</button>
+          <button class='btn btn-default' style="width: 90px; margin-bottom: 5px; " {{on "click" (this.ctrlAction "stickSidebar")}}>Hide</button>
         </span>
       {{/unless}}
     {{/if}}
   </div>
 {{else}}
-  {{#if this.app_state.speak_mode}}
-    {{#unless this.app_state.currentUser.preferences.disable_quick_sidebar}}
-      <div id="sidebar_tease" class="advanced_selection" {{action "toggleSidebar"}}>
-        {{t "sidebar" key="sidebar"}}
-      </div>
-    {{/unless}}
-  {{/if}}
+  <SidebarTease />
 {{/if}}
 
-{{outlet "flash-message"}}
   <footer>
     <div class="wide_links">
       <div class="row">
@@ -430,7 +427,7 @@
           {{#unless this.app_state.installed_app}}
             {{#if this.app_state.feature_flags.subscriptions}}
               {{#if this.app_state.domain_settings.full_domain}}
-                <LinkTo @route="pricing">{{t "Pricing" key="pricing"}}</LinkTo> <span class='text-muted'>|</span>
+                {{!-- <LinkTo @route="pricing">{{t "Pricing" key="pricing"}}</LinkTo> <span class='text-muted'>|</span> --}}
               {{/if}}
             {{/if}}
           {{/unless}}
@@ -443,9 +440,11 @@
           {{/unless}}
         </div>
         <div class='col-sm-3 col-sm-offset-3' style="text-align: right;">
-          {{#unless this.app_state.installed_app}}
-            <a href="https://github.com/swahlquist/LingoLinq-AAC" target="_blank" rel="noopener">{{t "Developers" key="developers"}}</a> <span class='text-muted'>|</span>
-          {{/unless}}
+          {{#if this.app_state.showFooterGithubLinks}}
+            {{#unless this.app_state.installed_app}}
+              <a href="https://github.com/lingolinq/LingoLinq-AAC" target="_blank" rel="noopener" class="page-footer__developers-link">{{t "Developers" key="developers"}}</a> <span class='text-muted'>|</span>
+            {{/unless}}
+          {{/if}}
           <LinkTo @route="privacy">{{t "Privacy" key="privacy"}}</LinkTo> <span class='text-muted'>|</span>
           <LinkTo @route="terms">{{t "Terms" key="terms"}}</LinkTo>
         </div>

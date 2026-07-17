@@ -157,7 +157,7 @@ var words = {
 */
 for(var key in words) {
   if(words[key] && words[key].path) {
-    words[key].url = templateHelpers.path(("images/emergency/" + words[key].path));
+    words[key].local_url = templateHelpers.path(("images/emergency/" + words[key].path));
   }
 }
 
@@ -232,7 +232,7 @@ emergency.boards = {
   // http://www.project-core.com/36-location/
   // https://ussaac.org/news/communication_tools_category/communication-tools/
   en: [
-    {id: 'project-core', name: "Project Core - 36 Location Universal Core (6 x 6)", rows: 6, cols: 6, key: 'wahlquist/projectcore-36universalcore', starter: true, buttons: [
+    {id: 'project-core', name: "Project Core - 36 Location Universal Core (6 x 6)", rows: 6, cols: 6, key: 'emergency/project-core', starter: true, buttons: [
       [{label: "like", color: 'green'}, {label: "want", color: 'green'}, {label: "get", color: 'green'}, {label: "make", color: 'green'}, {label: "good", color: 'blue'}, {label: "more", color: 'gray'}],
       [{label: "not", color: 'red'}, {label: "go", color: 'green'}, {label: "look", color: 'green'}, {label: "turn", color: 'green'}, {label: "help", color: 'green'}, {label: "different", color: 'blue'}],
       [{label: "I", color: 'yellow'}, {label: "he", color: 'yellow'}, {label: "open", color: 'green'}, {label: "do", color: 'green'}, {label: "put", color: 'green'}, {label: "same", color: 'blue'}],

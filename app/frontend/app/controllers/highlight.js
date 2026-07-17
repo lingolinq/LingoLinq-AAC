@@ -8,32 +8,66 @@ import app_state from '../utils/app_state';
 import scanner from '../utils/scanner';
 import buttonTracker from '../utils/raw_events';
 import { htmlSafe } from '@ember/template';
-import { observer, computed } from '@ember/object';
+import { observer, computed, set } from '@ember/object';
+
+function highlightModel(controller) {
+  return controller.get('model');
+}
+
+function setModelProperty(controller, key, value) {
+  var model = highlightModel(controller);
+  if(!model) { return; }
+  set(model, key, value);
+}
 
 export default modal.ModalController.extend({
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
+    this.onSelectRelease = function(e) { self.send('select_release', e); };
+  },
+
   opening: function() {
     modal.highlight_controller = this;
     this.set('pending', false);
-    if(!this.get('model.secondary_highlight')) {
+    var model = highlightModel(this);
+    if(!model) { return; }
+    if(!model.secondary_highlight) {
       scanner.setup(this);
     }
     var _this = this;
     runLater(function() {
-      _this.compute_styles();
+      if(highlightModel(_this)) {
+        _this.compute_styles();
+      }
     }, 500);
-    _this.set('model.shift_color', false);
-    _this.set('model.shifted_color', null);
-    if(_this.get('model.highlight_type') == 'model') {
+    setModelProperty(_this, 'shift_color', false);
+    setModelProperty(_this, 'shifted_color', null);
+    if(model.highlight_type == 'model') {
       var id = Math.random();
-      this.set('model.shift_id', id);
+      setModelProperty(_this, 'shift_id', id);
       runLater(function() {
-        if(_this.get('model.shift_id') == id) {
-          _this.set('model.shift_color', true);
+        if(highlightModel(_this) && _this.get('model.shift_id') == id) {
+          setModelProperty(_this, 'shift_color', true);
         }
       }, 15000);
       runLater(function() {
-        if(_this.get('model.shift_id') == id) {
-          _this.set('model.clear_overlay', false);
+        if(highlightModel(_this) && _this.get('model.shift_id') == id) {
+          setModelProperty(_this, 'clear_overlay', false);
         }
       }, 30000);
     }
@@ -41,7 +75,11 @@ export default modal.ModalController.extend({
       window.removeEventListener('resize', _this.recompute);
     }
     _this.recompute = function() {
-      runDebounce(_this, _this.compute_styles, 500);
+      runDebounce(_this, function() {
+        if(highlightModel(_this)) {
+          _this.compute_styles();
+        }
+      }, 500);
     };
     window.addEventListener('resize', _this.recompute);
   },
@@ -49,19 +87,24 @@ export default modal.ModalController.extend({
     'app_state.short_refresh_stamp',
     'model.shift_color',
     function() {
-      if(this.get('model.shift_color')) {
+      if(!highlightModel(this)) { return; }
+      var model = highlightModel(this);
+      if(model && model.shift_color) {
         var now = (new Date()).getTime();
-        var last = this.get('model.last_shift') || 0;
+        var last = model.last_shift || 0;
         if(last < now - 1000) {
-          this.set('model.shifted_color', !this.get('model.shifted_color'));
-          this.set('model.last_shift', now);
+          set(model, 'shifted_color', !model.shifted_color);
+          set(model, 'last_shift', now);
         }
       }
     }
   ),
   closing: function() {
-    this.set('model.shift_color', false);
-    this.set('model.shifted_color', null);
+    var model = highlightModel(this);
+    if(model) {
+      set(model, 'shift_color', false);
+      set(model, 'shifted_color', null);
+    }
     window.removeEventListener('resize', this.recompute);
     this.recompute = null;
     modal.highlight_controller = null;
@@ -77,20 +120,22 @@ export default modal.ModalController.extend({
     'model.clear_overlay',
     'model.secondary_highlight',
     function() {
+      var model = highlightModel(this);
+      if(!model) { return; }
       var opacity = "0.3";
-      var display = this.get('model.overlay') ? '' : 'display: none;';
-      if(this.get('model.clear_overlay')) {
+      var display = model.overlay ? '' : 'display: none;';
+      if(model.clear_overlay) {
         opacity = "0.0";
       }
       var header_height = $("header").outerHeight();
       var window_height = $(window).outerHeight();
       var window_width = $(window).outerWidth();
-      var top = this.get('model.top');
-      var left = this.get('model.left');
-      var bottom = this.get('model.bottom');
-      var right = this.get('model.right');
-      var width = this.get('model.width');
-      var height = this.get('model.height');
+      var top = model.top;
+      var left = model.left;
+      var bottom = model.bottom;
+      var right = model.right;
+      var width = model.width;
+      var height = model.height;
       if(top < 4) {
         height = height - (4 - top);
         top = 4;
@@ -111,7 +156,7 @@ export default modal.ModalController.extend({
         width = window_width - 8;
       }
       var z = 2000;
-      if(this.get('model.secondary_highlight')) {
+      if(model.secondary_highlight) {
         z = 2005;
         left = left + 10;
         right = right - 10;
@@ -120,14 +165,14 @@ export default modal.ModalController.extend({
         bottom = bottom - 10;
         height = height - 20;
       }
-      this.set('model.top_style', htmlSafe(display + "z-index: " + z + "; position: absolute; top: -" + header_height + "px; left: 0; background: #000; opacity: " + opacity + "; width: 100%; height: " + (top + header_height) + "px;"));
-      this.set('model.left_style', htmlSafe(display + "z-index: " + z + "; position: absolute; top: " + (top) + "px; left: 0; background: #000; opacity: " + opacity + "; width: " + left + "px; height: " + height + "px;"));
-      this.set('model.right_style', htmlSafe(display + "z-index: " + z + "; position: absolute; top: " + (top) + "px; left: calc(" + left+ "px + " + width + "px); background: #000; opacity: " + opacity + "; width: calc(100% - " + left + "px - " + width + "px); height: " + height + "px;"));
-      this.set('model.bottom_style', htmlSafe(display + "z-index: " + z + "; position: absolute; top: " + (bottom) + "px; left: 0; background: #000; opacity: " + opacity + "; width: 100%; height: 5000px;"));
-      this.set('model.highlight_style', htmlSafe("z-index: " + (z + 1) + "; position: absolute; top: " + (top - 4) + "px; left: " + (left - 4) + "px; width: " + (width + 8) + "px; height: " + (height + 8) + "px; cursor: pointer;"));
-      this.set('model.inner_highlight_style', htmlSafe("z-index: " + (z + 1) + "; position: absolute; top: " + (top) + "px; left: " + left + "px; width: " + width + "px; height: " + height + "px; cursor: pointer;"));
+      set(model, 'top_style', htmlSafe(display + "z-index: " + z + "; position: absolute; top: -" + header_height + "px; left: 0; background: #000; opacity: " + opacity + "; width: 100%; height: " + (top + header_height) + "px;"));
+      set(model, 'left_style', htmlSafe(display + "z-index: " + z + "; position: absolute; top: " + (top) + "px; left: 0; background: #000; opacity: " + opacity + "; width: " + left + "px; height: " + height + "px;"));
+      set(model, 'right_style', htmlSafe(display + "z-index: " + z + "; position: absolute; top: " + (top) + "px; left: calc(" + left+ "px + " + width + "px); background: #000; opacity: " + opacity + "; width: calc(100% - " + left + "px - " + width + "px); height: " + height + "px;"));
+      set(model, 'bottom_style', htmlSafe(display + "z-index: " + z + "; position: absolute; top: " + (bottom) + "px; left: 0; background: #000; opacity: " + opacity + "; width: 100%; height: 5000px;"));
+      set(model, 'highlight_style', htmlSafe("z-index: " + (z + 1) + "; position: absolute; top: " + (top - 4) + "px; left: " + (left - 4) + "px; width: " + (width + 8) + "px; height: " + (height + 8) + "px; cursor: pointer;"));
+      set(model, 'inner_highlight_style', htmlSafe("z-index: " + (z + 1) + "; position: absolute; top: " + (top) + "px; left: " + left + "px; width: " + width + "px; height: " + height + "px; cursor: pointer;"));
       var icon_size = Math.min(Math.max(8, (height - 27) / 2), 75);
-      this.set('model.icon_style', htmlSafe("font-size: " + icon_size + 'px;'));
+      set(model, 'icon_style', htmlSafe("font-size: " + icon_size + 'px;'));
     }
   ),
   highlight_class: computed(

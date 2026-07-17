@@ -8,7 +8,25 @@ import persistence from '../utils/persistence';
 import i18n from '../utils/i18n';
 import progress_tracker from '../utils/progress_tracker';
 import LingoLinq from '../app';
+import app_state from '../utils/app_state';
+import modal from '../utils/modal';
 import { observer, computed } from '@ember/object';
+
+function boardIdStr(id) {
+  if (id == null) { return ''; }
+  return String(id);
+}
+
+function boardIdIncluded(boardIds, boardId) {
+  if (!boardIds || !boardIds.length) { return false; }
+  var bid = boardIdStr(boardId);
+  return boardIds.some(function(id) { return boardIdStr(id) === bid; });
+}
+
+function rootBoardIdMatches(boardId, rootBoardId, altBoardId) {
+  var bid = boardIdStr(boardId);
+  return bid === boardIdStr(rootBoardId) || bid === boardIdStr(altBoardId);
+}
 
 export default Component.extend({
   modal: service('modal'),
@@ -16,6 +34,28 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+
     const modalService = this.get('modal');
     const template = 'button-set';
     const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
@@ -24,110 +64,255 @@ export default Component.extend({
     this.set('model', options);
   },
 
+  _root_board_id: function() {
+    return this.get('model.board.global_id') || this.get('model.board.id');
+  },
+
+  _selected_board_ids: function() {
+    return this.get('model.old_board_ids_to_translate') || null;
+  },
+
+  _selection_includes_linked_boards: function() {
+    var board_ids = this._selected_board_ids();
+    if (!board_ids || !board_ids.length) { return false; }
+    var root_board_id = this._root_board_id();
+    var alt_id = this.get('model.board.id');
+    return board_ids.some(function(id) {
+      return !rootBoardIdMatches(id, root_board_id, alt_id);
+    });
+  },
+
+  /* Single source for review rows and /users/self/translate batches. */
+  _buttons_for_translate: function() {
+    var _this = this;
+    var root_board_id = _this._root_board_id();
+    var alt_board_id = _this.get('model.board.id');
+    var words = (_this.get('model.button_set.buttons') || []).slice();
+    var board_ids = _this._selected_board_ids();
+    var linkedSelected = _this._selection_includes_linked_boards();
+
+    if (_this.get('model.board.buttons') && words.length === 0) {
+      if (linkedSelected) {
+        return [];
+      }
+      (_this.get('model.board.buttons') || []).forEach(function(button) {
+        if (!words.find(function(b) {
+          return rootBoardIdMatches(b.board_id, root_board_id, alt_board_id) && b.id === button.id;
+        })) {
+          words.push($.extend({}, button, {
+            board_id: root_board_id,
+            board_key: _this.get('model.board.key'),
+            depth: 0
+          }));
+        }
+      });
+    }
+
+    if (board_ids && board_ids.length) {
+      words = words.filter(function(b) { return boardIdIncluded(board_ids, b.board_id); });
+    } else {
+      words = words.filter(function(b) {
+        return rootBoardIdMatches(b.board_id, root_board_id, alt_board_id);
+      });
+    }
+    return words;
+  },
+
   didInsertElement() {
     this._super(...arguments);
-    this.set('saving_translations', null);
-    this.set('error_saving_translations', null);
-    if (persistence.get('online') && this.get('model.button_set')) {
-      this.get('model.button_set').reload();
-    }
-    this.set('translating', null);
+    var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
+    var _this = this;
+    _this.set('saving_translations', null);
+    _this.set('error_saving_translations', null);
+    _this.set('translating', null);
 
-    if (this.get('model.locale') && this.get('model.button_set')) {
-      var _this = this;
+    var buttonSet = _this.get('model.button_set');
+    var prepButtons = function() {
+      if (persistence.get('online') && buttonSet && typeof buttonSet.load_buttons === 'function') {
+        return buttonSet.load_buttons(true).then(function() { return true; });
+      }
+      return RSVP.resolve(true);
+    };
+
+    if (_this.get('model.locale') && _this.get('model.button_set')) {
       _this.set('translating', { loading: true });
-
-      var lists = [];
-      var list = [];
-      list.push({ label: this.get('model.board.name') });
-      (this.get('model.button_set.buttons') || []).forEach(function(b) {
-        if (b.locale !== _this.get('model.locale')) {
-          list.push(b);
-        }
-        if (list.length >= 100) {
-          lists.push(list);
-          list = [];
+      prepButtons().then(function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        _this._startTranslating();
+      }, function(err) {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        LingoLinq.track_error('button-set load_buttons failed - ' + JSON.stringify(err), err);
+        if (_this._selection_includes_linked_boards()) {
+          _this.set('translating', { error: true, load_error: true });
+        } else {
+          _this._startTranslating();
         }
       });
-      _this.set('translations', {});
-      if (list.length > 0) { lists.push(list); }
+    }
+  },
 
-      var promises = [];
-      lists.forEach(function(buttons, idx) {
-        var words = [];
-        buttons.forEach(function(b) {
-          if (b.label) { words.push(b.label); }
-          if (b.vocalization && b.vocalization !== b.label) { words.push(b.vocalization); }
-        });
-        promises.push(new RSVP.Promise(function(res, rej) {
-          runLater(function() {
-            persistence.ajax('/api/v1/users/self/translate', {
-              type: 'POST',
-              data: {
-                words: words,
-                destination_lang: _this.get('model.locale'),
-                source_lang: _this.get('model.board.locale') || 'en'
-              }
-            }).then(function(data) {
-              var trans = _this.get('translations');
-              for (var key in data.translations) {
+  _startTranslating() {
+    var _this = this;
+    var dest_lang = _this.get('model.locale');
+    var board_locale = _this.get('model.source_locale') || _this.get('model.board.locale') || 'en';
+    var root_board_id = _this._root_board_id();
+    var dest_root = (dest_lang || '').split(/-|_/)[0];
+    var force_update_default = _this.get('model.force_update_default');
+
+    var source_lang_for_button = function(b) {
+      var bid = b.board_id;
+      if (rootBoardIdMatches(bid, root_board_id, _this.get('model.board.id'))) {
+        return board_locale;
+      }
+      var brd = LingoLinq.store.peekRecord('board', bid);
+      if (force_update_default && brd && brd.get('translations.default')) {
+        return brd.get('translations.default');
+      }
+      if (brd && brd.get('locale')) {
+        return brd.get('locale');
+      }
+      var btn_loc = b.locale || board_locale;
+      var btn_root = btn_loc.split(/-|_/)[0];
+      if (dest_root && btn_root === dest_root && board_locale.split(/-|_/)[0] !== dest_root) {
+        return board_locale;
+      }
+      return btn_loc;
+    };
+
+    var by_locale = {};
+    var push_word = function(locale, word) {
+      if (!word) { return; }
+      locale = locale || board_locale;
+      by_locale[locale] = by_locale[locale] || [];
+      if (by_locale[locale].indexOf(word) === -1) {
+        by_locale[locale].push(word);
+      }
+    };
+
+    push_word(board_locale, _this.get('model.board.name'));
+
+    _this.set('translations', {});
+
+    var words = _this._buttons_for_translate();
+    if (_this._selection_includes_linked_boards() && words.length === 0) {
+      _this.set('translating', { error: true, load_error: true });
+      return;
+    }
+
+    words.forEach(function(b) {
+      var loc = source_lang_for_button(b);
+      if (b.label) { push_word(loc, b.label); }
+      if (b.vocalization && b.vocalization !== b.label) { push_word(loc, b.vocalization); }
+    });
+
+    var batches = [];
+    Object.keys(by_locale).forEach(function(src_lang) {
+      var batch_words = by_locale[src_lang];
+      for (var i = 0; i < batch_words.length; i += 100) {
+        batches.push({ src: src_lang, words: batch_words.slice(i, i + 100) });
+      }
+    });
+
+    if (batches.length === 0) {
+      _this.set('translating', { done: true });
+      return;
+    }
+
+    var promises = batches.map(function(batch, idx) {
+      return new RSVP.Promise(function(resolve, reject) {
+        runLater(function() {
+          if (_this.isDestroyed || _this.isDestroying) { resolve(); return; }
+          persistence.ajax('/api/v1/users/self/translate', {
+            type: 'POST',
+            data: {
+              words: batch.words,
+              destination_lang: dest_lang,
+              source_lang: batch.src
+            }
+          }).then(function(data) {
+            if (_this.isDestroyed || _this.isDestroying) { resolve(); return; }
+            var trans = _this.get('translations');
+            for (var key in (data && data.translations) || {}) {
+              if (data.translations[key] && data.translations[key] !== key) {
                 trans[key] = data.translations[key];
               }
-              _this.set('translation_index', (_this.get('translation_index') || 0) + 1);
-              res(data);
-            }, function(err) {
-              rej(err);
-            });
-          }, idx * 1000);
-        }));
+            }
+            _this.set('translation_index', (_this.get('translation_index') || 0) + 1);
+            resolve(data);
+          }, function(err) {
+            reject(err);
+          });
+        }, idx * 1000);
       });
-      RSVP.all_wait(promises).then(function() {
-        _this.set('translating', { done: true });
-      }, function() {
-        _this.set('translating', { error: true });
-      });
+    });
+
+    RSVP.all_wait(promises).then(function() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      _this.set('translating', { done: true });
+    }, function() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      _this.set('translating', { error: true });
+    });
+  },
+
+  _build_save_translations_map: function() {
+    var _this = this;
+    var translations = {};
+    var auto = _this.get('translations') || {};
+    var boardName = _this.get('model.board.name');
+    var translatedName = _this.get('model.board.translated_name');
+    if (translatedName) {
+      translations[boardName] = translatedName;
+    } else if (boardName && auto[boardName]) {
+      translations[boardName] = auto[boardName];
     }
+    (_this.get('sorted_buttons') || []).forEach(function(b) {
+      var label = emberGet(b, 'label');
+      var rowTrans = emberGet(b, 'translation');
+      if (rowTrans && label) {
+        translations[label] = rowTrans;
+      } else if (label && auto[label]) {
+        translations[label] = auto[label];
+      }
+      var voc = emberGet(b, 'vocalization');
+      var vocTrans = emberGet(b, 'secondary_translation');
+      if (vocTrans && voc) {
+        translations[voc] = vocTrans;
+      } else if (voc && auto[voc]) {
+        translations[voc] = auto[voc];
+      }
+    });
+    return translations;
   },
 
   destination_language: computed('model.locale', function() {
     return i18n.readable_language(this.get('model.locale'));
   }),
-  source_language: computed('model.board.locale', function() {
-    return i18n.readable_language(this.get('model.board.locale'));
+  source_language: computed('model.source_locale', 'model.board.locale', function() {
+    return i18n.readable_language(this.get('model.source_locale') || this.get('model.board.locale'));
   }),
   sorted_buttons: computed(
     'model.button_set.buttons',
+    'model.board.buttons',
+    'model.old_board_ids_to_translate',
     'model.locale',
-    'model.board_ids',
+    'translating',
     function() {
-      var words = (this.get('model.button_set.buttons') || []).slice();
-      // Only merge board.buttons when button_set hasn't loaded yet (fallback).
-      // When both exist, button_set.buttons already contains the board's buttons;
-      // merging causes duplicates when board_id/id comparison fails (e.g. type mismatch).
-      if (this.get('model.board.buttons') && words.length === 0) {
-        var _this = this;
-        var board_id = this.get('model.board.global_id') || this.get('model.board.id');
-        this.get('model.board.buttons').forEach(function(button) {
-          if (!words.find(function(b) { return b.board_id === board_id && b.id === button.id; })) {
-            words.push($.extend({}, button, {
-              board_id: board_id,
-              board_key: _this.get('model.board.key'),
-              depth: 0
-            }));
-          }
-        });
-      }
+      var words = this._buttons_for_translate();
       var res = [];
-      var locale = this.get('model.locale');
-      var board_ids = this.get('model.old_board_ids_to_translate');
-      var translations = this.get('translations') || {};
-      var original_board_id = this.get('model.board.global_id') || this.get('model.board.id');
+      var board_ids = this._selected_board_ids();
+      var original_board_id = this._root_board_id();
+      var alt_board_id = this.get('model.board.id');
       var translating = !!(this.get('translating'));
       words.forEach(function(b, idx) {
         if (translating) {
-          if (locale && b.locale && b.locale === locale) { return; }
-          if (board_ids && board_ids.indexOf(b.board_id) === -1) { return; }
-          if (!board_ids && b.board_id !== original_board_id) { return; }
+          if (board_ids && board_ids.length && !boardIdIncluded(board_ids, b.board_id)) { return; }
+          if (!board_ids || !board_ids.length) {
+            if (!rootBoardIdMatches(b.board_id, original_board_id, alt_board_id)) { return; }
+          }
         }
         emberSet(b, 'voc_or_label', b.vocalization || b.label);
         words.forEach(function(b2, idx2) {
@@ -153,11 +338,15 @@ export default Component.extend({
       _this.set('model.board.translated_name', translations[_this.get('model.board.name')]);
     }
     (_this.get('sorted_buttons') || []).forEach(function(b) {
-      if (translations[b.label]) {
-        emberSet(b, 'translation', translations[b.label]);
+      var label_trans = translations[b.label] || (b.label && translations[b.label.trim()]);
+      if (label_trans) {
+        emberSet(b, 'translation', label_trans);
       }
-      if (b.vocalization && b.vocalization !== b.label && translations[b.vocalization]) {
-        emberSet(b, 'secondary_translation', translations[b.vocalization]);
+      if (b.vocalization && b.vocalization !== b.label) {
+        var voc_trans = translations[b.vocalization] || (b.vocalization && translations[b.vocalization.trim()]);
+        if (voc_trans) {
+          emberSet(b, 'secondary_translation', voc_trans);
+        }
       }
     });
   }),
@@ -183,7 +372,7 @@ export default Component.extend({
     closing() {},
     download_list() {
       var element = document.createElement('a');
-      var words = this.get('sorted_filtered_buttons').mapBy('label').uniq();
+      var words = [...new Set(this.get('sorted_filtered_buttons').map(function(o) { return emberGet(o, 'label'); }))];
       element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(words.join('\n')));
       element.setAttribute('download', this.get('model.board.key').replace(/\//, '-') + '-words.txt');
       element.style.display = 'none';
@@ -198,34 +387,44 @@ export default Component.extend({
       var _this = this;
       _this.set('saving_translations', true);
       _this.set('error_saving_translations', null);
-      var translations = {};
-      if (_this.get('model.board.translated_name')) {
-        translations[_this.get('model.board.name')] = _this.get('model.board.translated_name');
-      }
-      _this.get('sorted_buttons').forEach(function(b) {
-        if (emberGet(b, 'translation')) {
-          translations[emberGet(b, 'label')] = emberGet(b, 'translation');
-        }
-        if (emberGet(b, 'secondary_translation')) {
-          translations[emberGet(b, 'vocalization')] = emberGet(b, 'secondary_translation');
-        }
+      var translations = _this._build_save_translations_map();
+      var boardName = _this.get('model.board.name');
+      var buttonKeyCount = 0;
+      Object.keys(translations).forEach(function(key) {
+        if (key !== boardName) { buttonKeyCount++; }
       });
+      if (buttonKeyCount === 0) {
+        _this.set('saving_translations', null);
+        _this.set('error_saving_translations', true);
+        modal.flash(i18n.t('no_translations_to_save', "No button translations to save. Wait for auto-translate to finish or enter translations manually."), 'error');
+        return;
+      }
       persistence.ajax('/api/v1/boards/' + _this.get('model.copy.id') + '/translate', {
         type: 'POST',
         data: {
-          source_lang: _this.get('model.board.locale'),
+          source_lang: _this.get('model.source_locale') || _this.get('model.board.locale'),
           destination_lang: _this.get('model.locale'),
           set_as_default: _this.get('model.default_language'),
+          force_update_default: _this.get('model.force_update_default') || false,
           translations: translations,
           board_ids_to_translate: _this.get('model.new_board_ids_to_translate')
         }
       }).then(function(res) {
-        progress_tracker.track(res.progress, function(event) {
-          if (event.status === 'errored' || (event.status === 'finished' && event.result && event.result.translated === false)) {
+        app_state.set('board_translate_in_progress', true);
+        modal.flash(i18n.t('applying_translations', "Applying Translations..."), 'notice', false, true);
+        var track_id = null;
+        track_id = progress_tracker.track(res.progress, function(event) {
+          if (_this.isDestroyed || _this.isDestroying) { return; }
+          if (progress_tracker.is_terminal(event)) {
+            app_state.set('board_translate_in_progress', false);
+            modal.close('flash');
+            progress_tracker.untrack(track_id);
+          }
+          if (progress_tracker.is_errored(event) || (progress_tracker.is_finished(event) && event.result && event.result.translated === false)) {
             _this.set('saving_translations', null);
             LingoLinq.track_error('translation save fail - ' + JSON.stringify(event), event);
             _this.set('error_saving_translations', true);
-          } else if (event.status === 'finished') {
+          } else if (progress_tracker.is_finished(event)) {
             _this.set('saving_translations', null);
             _this.set('error_saving_translations', null);
             _this.get('modal').close({ translated: true });

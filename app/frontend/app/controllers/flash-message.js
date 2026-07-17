@@ -7,7 +7,8 @@ import { computed } from '@ember/object';
 
 export default Controller.extend({
   appState: service('app-state'),
-  
+  router: service('router'),
+
   display_class: computed('alert_type', function() {
     var res = "alert alert-dismissable ";
     if(this.get('alert_type')) {
@@ -15,6 +16,31 @@ export default Controller.extend({
     }
     return res;
   }),
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
     opening: function() {
       var settings = modal.settings_for['flash'];
@@ -38,14 +64,14 @@ export default Controller.extend({
     confirm: function(temp_action) {
       if(this.get('redirect')) {
         if(this.get('redirect.subscribe') && !capabilities.installed_app) {
-          this.transitionToRoute('user.subscription', this.appState.get('currentUser.user_name'));
+          this.router.transitionTo('user.subscription', this.appState.get('currentUser.user_name'));
         }
       } else if(this.get('action.callback')) {
         this.get('action').callback();
       }
     },
     contact: function() {
-      this.transitionToRoute('contact');
+      this.router.transitionTo('contact');
     }
   }
 });

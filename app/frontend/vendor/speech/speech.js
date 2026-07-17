@@ -28,7 +28,10 @@ var cloud_speak = function(utterance) {
   player.cloud_handler = utterance.trigger;
   if(!player.ready_listener) {
     player.ready_listener = function() { 
-      player.play(); 
+      var playResult = player.play();
+      if (playResult && typeof playResult.catch === 'function') {
+        playResult.catch(function() { });
+      }
     };
     player.addEventListener('canplay', player.ready_listener);
   }
@@ -265,7 +268,13 @@ function polyfillSpeechSynthesis(scope) {
     };
   }
   if(wav_audio.play) {
-    wav_audio.play();
+    var playResult = wav_audio.play();
+    if(playResult && typeof playResult.catch === 'function') {
+      playResult.catch(function() {
+        scope.speechSynthesis.cloud_only = true;
+        wav_audio.unsupported = true;
+      });
+    }
   } else {
     scope.speechSynthesis.cloud_only = true;
     wav_audio.unsupported = true;

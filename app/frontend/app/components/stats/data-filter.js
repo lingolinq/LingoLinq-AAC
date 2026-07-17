@@ -5,9 +5,11 @@ import { htmlSafe } from '@ember/template';
 import { computed } from '@ember/object';
 
 export default Component.extend({
+  customFilterPendingApply: false,
   elem_class: computed('side_by_side', function() {
+    /* Compare row uses flex (left | art | right); col-xs-6 is 50% of full row and misaligns Period 1 */
     if(this.get('side_by_side')) {
-      return htmlSafe('col-xs-6');
+      return htmlSafe('');
     } else {
       return htmlSafe('col-xs-12');
     }
@@ -32,7 +34,6 @@ export default Component.extend({
     res.push({name: i18n.t('2_4_months_ago', "2-4 Months Ago"), id: "2_4_months_ago"});
     res.push({name: i18n.t('custom_filter', "Custom Filter"), id: "custom"});
     if(this.get('snapshots')) {
-      res.push({name: '----------------', id: '', disabled: true});
       this.get('snapshots').forEach(function(snap) {
         res.push({name: i18n.t('snapshot_dash', "Snapshot - ") + snap.get('name'), id: 'snapshot_' + snap.get('id')});
       });
@@ -46,7 +47,47 @@ export default Component.extend({
       return this.get('usage_stats.custom_filter') || this.get('ref_stats.custom_filter') || this.get('usage_stats.snapshot_id') || this.get('ref_stats.snapshot_id');
     }
   ),
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
+    onPeriodChange: function(id) {
+      this.set('usage_stats.filter', id);
+      if (id === 'custom') {
+        this.set('customFilterPendingApply', true);
+      } else {
+        this.set('customFilterPendingApply', false);
+        var fn = this.get('update_filter');
+        if (typeof fn === 'function') { fn('date'); }
+      }
+    },
+    applyCustomFilter: function() {
+      this.set('customFilterPendingApply', false);
+      var fn = this.get('update_filter');
+      if (typeof fn === 'function') { fn('date'); }
+    },
     compare_to: function() {
       var fn = this.get('compare_to');
       if (typeof fn === 'function') { fn(); }

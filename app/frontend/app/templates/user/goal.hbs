@@ -1,308 +1,273 @@
-<h2>{{this.model.summary}}</h2>
-<div class="row">
-  <div class="col-sm-3 col-xs-2">
-    <div class="panel panel-default summary smaller">
-      <div class="panel-heading">{{t "State" key="state"}}</div>
-      <div class="panel-body">
+<div class="md-goal {{if this.editing 'md-goal--editing'}}">
+  <header class="md-goal__hero">
+    {{#if this.model.badge_image_url}}
+      <div class="md-goal__hero-badge">
+        <img src={{this.model.badge_image_url}} class="md-goal__hero-badge-img" alt="">
+      </div>
+    {{/if}}
+    <div class="md-goal__hero-body">
+      <div class="md-goal__hero-top">
+        <h1 class="md-goal__title">{{this.model.summary}}</h1>
         {{#if this.model.active}}
           {{#if this.model.primary}}
-            {{t "Primary Goal" key="primary_goal"}}
+            <span class="md-goal__state-pill">{{t "Primary Goal" key="primary_goal"}}</span>
           {{else}}
-            {{t "Secondary Goal" key="secondary_goal"}}
+            <span class="md-goal__state-pill">{{t "Secondary Goal" key="secondary_goal"}}</span>
           {{/if}}
+        {{else}}
+          <span class="md-goal__state-pill md-goal__state-pill--past">{{t "Past Goal" key="past_goal"}}</span>
+        {{/if}}
+      </div>
+    </div>
+  </header>
+
+  {{!-- Stat tiles (shown in both view and edit mode, matching the legacy layout) --}}
+  <div class="md-goal__stats">
+    <div class="md-goal-stat">
+      <div class="md-goal-stat__label">{{t "State" key="state"}}</div>
+      <div class="md-goal-stat__value">
+        {{#if this.model.active}}
+          {{#if this.model.primary}}{{t "Primary Goal" key="primary_goal"}}{{else}}{{t "Secondary Goal" key="secondary_goal"}}{{/if}}
         {{else}}
           {{t "Past Goal" key="past_goal"}}
         {{/if}}
+      </div>
+      <div class="md-goal-stat__sub">
+        {{#if this.model.unit_name}}
+          <em>{{t "org-created Goal" key="org_created_goal"}}</em>
+        {{else}}
+          {{t "author: " key="author_colon"}}<LinkTo @route="user" @model={{this.model.author.user_name}}>{{this.model.author.user_name}}</LinkTo>
+        {{/if}}
+      </div>
+    </div>
 
-        <br>
-        <span class='text-muted'>
-          {{#if this.model.unit_name}}
-            <em>{{t "org-created Goal" key="org_created_goal"}}</em>
-          {{else}}
-            {{t "author: " key="author_colon"}}
-            <LinkTo @route="user" @model={{this.model.author.user_name}}>{{this.model.author.user_name}}</LinkTo>
-          {{/if}}
-        </span>
+    <div class="md-goal-stat">
+      <div class="md-goal-stat__label">{{t "Date" key="date"}}</div>
+      <div class="md-goal-stat__value">
+        {{#if this.model.active}}{{t "started" key="started"}}{{else if this.model.ended}}{{t "ended" key="ended"}}{{else}}{{t "none" key="none_lower"}}{{/if}}
+        {{#if this.model.active}}{{date this.model.started "short_day"}}{{else if this.model.ended}}{{date this.model.ended "short_day"}}{{/if}}
+      </div>
+      <div class="md-goal-stat__sub">
+        {{#if this.model.advance}}
+          {{t "changes" key="changes_lower"}} {{date this.model.advance "short_day"}}
+        {{else if this.model.expires}}
+          {{t "concludes" key="concludes_lower"}} {{date this.model.expires "short_day"}}
+        {{else if this.model.duration_diff}}
+          {{date_ago this.model.duration_diff}}
+        {{else if this.model.started}}
+          {{date_ago this.model.started}}
+        {{/if}}
       </div>
     </div>
-  </div>
-  <div class="col-sm-3 col-xs-2">
-    <div class="panel panel-default summary smaller">
-      <div class="panel-heading">{{t "Date" key="date"}}</div>
-      <div class="panel-body">
-          {{#if this.model.active}}
-            {{t "started" key="started"}}
-          {{else if this.model.ended}}
-            {{t "ended" key="ended"}}
-          {{else}}
-            {{t "none" key="none_lower"}}
-          {{/if}}
-          {{#if this.model.active}}
-            {{date this.model.started "short_day"}}
-          {{else if this.model.ended}}
-            {{date this.model.ended "short_day"}}
-          {{/if}}
-          <br>
-          <span class='text-muted'>
-            {{#if this.model.advance}}
-              {{t "changes" key="changes_lower"}}
-              <!-- TODO: make this a link to the template for the next goal -->
-              {{date this.model.advance "short_day"}}
-            {{else if this.model.expires}}
-              {{t "concludes" key="concludes_lower"}}
-              {{date this.model.expires "short_day"}}
-            {{else if this.model.duration_diff}}
-              {{date_ago this.model.duration_diff}}
-            {{else if this.model.started}}
-              {{date_ago this.model.started}}
-            {{/if}}
-            &nbsp;
-          </span>
+
+    <div class="md-goal-stat">
+      <div class="md-goal-stat__label">{{t "Average" key="average_success"}}</div>
+      <div class="md-goal-stat__value">{{this.model.stats.weighted_percent_positive}}% {{t "weighted" key="weighted"}}</div>
+      <div class="md-goal-stat__sub">
+        {{#if this.model.stats.weighted_average_status}}
+          <span class='face_label' style='vertical-align: middle; opacity: 0.7;'><span class={{this.weighted_average_status_face_class}}></span></span>
+          {{t "weighted status" key="weighted_status"}}
+        {{else}}
+          {{t "no statuses recorded" key="no_statuses"}}
+        {{/if}}
       </div>
     </div>
-  </div>
-  <div class="col-sm-3 col-xs-2">
-    <div class="panel panel-default summary smaller">
-      <div class="panel-heading">{{t "Average" key="average_success"}}</div>
-      <div class="panel-body">
-        {{this.model.stats.weighted_percent_positive}}%
-        {{t "weighted" key="weighted"}}
-        <br>
-        <span class='text-muted'>
-          {{#if this.model.stats.weighted_average_status}}
-            <span class='face_label' style='vertical-align: middle; opacity: 0.7;'><span class={{this.weighted_average_status_face_class}}></span></span>
-            {{t "weighted status" key="weighted_status"}}
-          {{else}}
-            {{t "no statuses recorded" key="no_statuses"}}
-          {{/if}}
-        </span>
-      </div>
+
+    <div class="md-goal-stat">
+      <div class="md-goal-stat__label">{{t "Total Sessions" key="total_sessions"}}</div>
+      <div class="md-goal-stat__value">{{t "session" key="n_sessions" count=this.model.stats.sessions}}</div>
     </div>
   </div>
-  <div class="col-sm-3 col-xs-2">
-    <div class="panel panel-default summary smaller">
-      <div class="panel-heading">{{t "Total Sessions" key="total_sessions"}}</div>
-      <div class="panel-body" style='line-height: 44px;'>
-        {{t "session" key="n_sessions" count=this.model.stats.sessions}}
-      </div>
-    </div>
-  </div>
+
   {{#if this.model.stats.sessions}}
-    {{#if this.model.any_statuses}}
-      <div class="col-sm-6">
-        {{stats/goal-statuses-over-time goal=this.model}}
-      </div>
-    {{/if}}
-    <div class="col-sm-6">
-      {{stats/goal-summary goal=this.model}}
+    <div class="md-goal__charts">
+      {{#if this.model.any_statuses}}
+        <Stats::GoalStatusesOverTime @goal={{this.model}} />
+      {{/if}}
+      <Stats::GoalSummary @goal={{this.model}} />
     </div>
   {{/if}}
-</div>
 
-{{#if this.editing}}
-    <form class="form-horizontal">
-      <!-- TODO: form should wrap to include submit button, no? -->
+  {{#if this.editing}}
+    {{!-- ── Edit form ──────────────────────────────────────────────────────── --}}
+    {{!-- form-horizontal restores Bootstrap's grid for the shared badge-settings
+         component (built on .form-group/.col-sm-*); the top fields use .md-goal-field
+         classes and are unaffected by it. --}}
+    <form class="md-goal-form form-horizontal">
       {{#unless this.model.id}}
-        <div class="form-group">
-          <div class="col-sm-10 col-sm-offset-2">
-            <a href="#" {{action "browse_goals"}}>{{t "Not sure what kind of goal to set? Check out our community-built goals!" key="community_goals"}}</a>
-          </div>
-        </div>
+        <p class="md-goal-form__intro">
+          <a href="#" {{on "click" (this.ctrlAction "browse_goals")}}>{{t "Not sure what kind of goal to set? Check out our community-built goals!" key="community_goals"}}</a>
+        </p>
       {{/unless}}
       {{#unless this.badges_only}}
-        <div class="form-group">
-          <label for="new_goal_summary" class="col-sm-2 control-label">{{t "Summary" key="summary"}}</label>
-          <div class="col-sm-10" style='max-width: 300px;'>
-            <Input @value={{this.model.summary}} class="form-control" id="new_goal_summary" placeholder="short goal summary" />
+        <div class="md-goal-form__group">
+          <div class="md-goal-form__group-title">{{t "Goal Details" key="goal_details"}}</div>
+          <div class="md-goal-field">
+            <label class="md-goal-field__label" for="new_goal_summary">{{t "Summary" key="summary"}}</label>
+            <input value={{this.model.summary}} class="form-control" id="new_goal_summary" placeholder="short goal summary" {{on "input" (set-field this "model.summary")}} />
+          </div>
+          <div class="md-goal-field">
+            <label class="md-goal-field__label" for="new_goal_description">{{t "Description" key="description"}}</label>
+            <textarea class="form-control" id="new_goal_description" placeholder="longer, detailed description of the goal" {{on "input" (set-field this "model.description")}}>{{this.model.description}}</textarea>
           </div>
         </div>
-        <div class="form-group">
-          <label for="new_goal_description" class="col-sm-2 control-label">{{t "Description" key="description"}}</label>
-          <div class="col-sm-10">
-            <Textarea @value={{this.model.description}} class="form-control" id="new_goal_description" placeholder="longer, detailed description of the goal" />
-          </div>
-        </div>
-        {{#if this.model.video}}
-          <div class="form-group">
-            <label class="col-sm-2 control-label">{{t "Video" key="video"}}</label>
-            <div class="col-sm-10">
-              <div style="margin-top: 10px;">
-                <video src={{this.model.video.url}} controls style='max-width: 100%; max-height: 400px; border: 1px solid #ccc;'></video>
-              </div>
-              <a href="#" {{action "reset_video"}}>{{t "Remove Video" key="remove_video"}}</a>
+
+        <div class="md-goal-form__group">
+          <div class="md-goal-form__group-title">{{t "Optional Features" key="optional_features"}}</div>
+          {{#if this.model.video}}
+            <div class="md-goal-field">
+              <label class="md-goal-field__label">{{t "Video" key="video"}}</label>
+              <video src={{this.model.video.url}} controls class="md-goal__video"></video>
+              <div class="md-goal-field__hint"><a href="#" {{on "click" (this.ctrlAction "reset_video")}}>{{t "Remove Video" key="remove_video"}}</a></div>
             </div>
-          </div>
-        {{else}}
-          <div class="form-group">
-            <label class="col-sm-2 control-label">{{t "Video" key="video"}}</label>
-            <div class="col-sm-10">
-              {{video-recorder user=this.model.user video_ready="video_ready" video_not_ready="video_not_ready"}}
+          {{else}}
+            <div class="md-goal-field md-goal-field--video">
+              <label class="md-goal-field__label">{{t "Video" key="video"}}</label>
+              <VideoRecorder @user={{this.model.user}} @video_ready={{this.ctrlAction "video_ready"}} @video_not_ready={{this.ctrlAction "video_not_ready"}} />
             </div>
-          </div>
-        {{/if}}
-        <div class="form-group">
-          <label for="auto_assessment" class="col-sm-2 control-label">{{t "Assessment" key="auto_assessment"}}</label>
-          <div class="col-sm-10">
-            <div class="checkbox big_checkbox">
+          {{/if}}
+          <div class="md-goal-field">
+            <div class="checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.model.auto_assessment}} id="auto_assessment" />
+                <input type="checkbox" checked={{this.model.auto_assessment}} id="auto_assessment" {{on "change" (set-field this "model.auto_assessment" "checkbox")}} />
                 {{t "Automatically assess this goal daily based on usage data" key="auto_assess_goal_daily"}}
               </label>
             </div>
           </div>
+          {{#if this.model.assessment_badge}}
+            <div class="md-goal-badge-editor">
+              <BadgeSettings @badge={{this.model.assessment_badge}} @assessment={{true}} />
+            </div>
+          {{/if}}
         </div>
-        {{#if this.model.assessment_badge}}
-          {{badge-settings badge=this.model.assessment_badge assessment=true}}
-        {{/if}}
       {{else}}
-        <div class='form-group'>
-          <div class='col-sm-10 col-sm-offset-2'>
-            <h3>{{t "Define Badges For This Goal" key="badges_for_goal"}}</h3>
-          </div>
-        </div>
+        <h3 class="md-goal-form__badges-title">{{t "Define Badges For This Goal" key="badges_for_goal"}}</h3>
       {{/unless}}
-      <div class="form-group">
-        <label for="badges_enabled" class="col-sm-2 control-label">{{t "Badges" key="badges"}}</label>
-        <div class="col-sm-5">
-          <div class="checkbox big_checkbox">
+
+      <div class="md-goal-form__group">
+        <div class="md-goal-form__group-title">{{t "Badge Rewards" key="badge_rewards"}}</div>
+        <div class="md-goal-field">
+          <div class="checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.model.badges_enabled}} id="badges" />
-              {{t "This goal will have one or more badges attached" key="goal_has_badges"}}
+              <input type="checkbox" checked={{this.model.badges_enabled}} id="badges" {{on "change" (set-field this "model.badges_enabled" "checkbox")}} />
+              {{t "Enable badge rewards" key="goal_has_badges"}}
             </label>
           </div>
         </div>
+        {{#if this.model.badges_enabled}}
+          <div class="md-goal-field">
+            <label class="md-goal-field__label" for="badge_name">{{t "Badge Name" key="badge_name"}}</label>
+            <input value={{this.model.badge_name}} class="form-control" id="badge_name" placeholder={{this.model.summary}} {{on "input" (set-field this "model.badge_name")}} />
+          </div>
+          {{#each this.model.badges as |badge index|}}
+            <div class="md-goal-badge-editor">
+              <BadgeSettings @badge={{badge}} @index={{index}} @remove_badge="remove_badge" />
+            </div>
+          {{/each}}
+          <button type="button" class="md-goal-form__add-level" {{on "click" (this.ctrlAction "add_badge_level")}}>+ {{t "Add another badge level" key="add_another_badge_level"}}</button>
+        {{/if}}
       </div>
-      {{#if this.model.badges_enabled}}
-        <div class="form-group">
-          <label for="badge_name" class="col-sm-2 control-label">{{t "Badge Name" key="badge_name"}}</label>
-          <div class="col-sm-5">
-            <Input @value={{this.model.badge_name}} class="form-control" id="badge_name" placeholder={{this.model.summary}} />
-          </div>
-        </div>
-        {{#each this.model.badges as |badge index|}}
-          {{badge-settings badge=badge index=index remove_badge="remove_badge"}}
-        {{/each}}
-        <div class="form-group" style='border-top: 1px solid #ddd; padding-top: 10px;'>
-          <div class="col-sm-5 col-sm-offset-2">
-            <button class='btn btn-default' {{action "add_badge_level"}}>{{t "Add Badge Level" key="add_badge_level"}}</button>
-          </div>
-        </div>
-      {{/if}}
-      <div class='form-group' style='margin-top: 20px;'>
-        <div class='col-sm-10 col-sm-offset-2'>
-          <button {{action "save_goal"}} disabled={{this.save_disabled}} class="btn btn-primary">
-            {{#if this.saving}}
-              {{t "Updating Goal" key="updating_goal"}}
-            {{else}}
-              {{t "Update Goal" key="update_goal"}}
-            {{/if}}
-          </button>
-          <button {{action "cancel_edit"}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
-          {{#if this.error}}
-            <p class='text-danger'>{{t "There was an error trying to save the goal" key="error_saving_goal"}}</p>
-          {{/if}}
-        </div>
+
+      <div class="md-goal-form__actions">
+        {{#if this.error}}
+          <p class="md-goal-form__error">{{t "There was an error trying to save the goal" key="error_saving_goal"}}</p>
+        {{/if}}
+        <button type="button" {{on "click" (this.ctrlAction "cancel_edit")}} class="md-goal-btn">{{t "Cancel" key="cancel"}}</button>
+        <button type="button" {{on "click" (this.ctrlAction "save_goal")}} disabled={{this.save_disabled}} class="md-goal-btn md-goal-btn--primary">
+          {{#if this.saving}}{{t "Updating Goal" key="updating_goal"}}{{else}}{{t "Update Goal" key="update_goal"}}{{/if}}
+        </button>
       </div>
     </form>
-{{else}}
-  <div class='safe_html' style='margin: 20px 0 50px;'>{{safe this.model.description}}</div>
-  {{#if this.model.video}}
-    <div style="margin-top: 10px;">
-      <video src={{this.model.video.url}} controls style='max-width: 100%; max-height: 400px; border: 1px solid #ccc;'></video>
-    </div>
-  {{/if}}
+  {{else}}
+    {{!-- ── View ───────────────────────────────────────────────────────────── --}}
+    {{#if this.model.description}}
+      <section class="md-goal__section">
+        <h2 class="md-goal__section-title">{{t "Description" key="description"}}</h2>
+        <div class="md-goal__description">{{safe this.model.description}}</div>
+      </section>
+    {{/if}}
+    {{#if this.model.video}}
+      <video src={{this.model.video.url}} controls class="md-goal__video"></video>
+    {{/if}}
 
-  {{#if this.model.assessment_badge}}
-    <h4>{{t "Automated Tracking" key="automated_tracking"}}</h4>
-    <div style='margin-bottom: 30px;'>
-      {{#if this.assessment_badge_description}}
-        <em>{{t "Assessments will be automatically generated based on the following criteria:" key="assessments_based_on_criteria"}}</em><br>
-        {{this.assessment_badge_description}}
-      {{else}}
-        {{t "Assessment not properly configured, data will not be reliable" key="assessment_misconfigured"}}
+    {{#if this.model.assessment_badge}}
+      <section class="md-goal__section">
+        <h2 class="md-goal__section-title">{{t "Automated Tracking" key="automated_tracking"}}</h2>
+        {{#if this.assessment_badge_description}}
+          <p class="md-goal__note"><em>{{t "Assessments will be automatically generated based on the following criteria:" key="assessments_based_on_criteria"}}</em><br>{{this.assessment_badge_description}}</p>
+        {{else}}
+          <p class="md-goal__note">{{t "Assessment not properly configured, data will not be reliable" key="assessment_misconfigured"}}</p>
+        {{/if}}
+      </section>
+    {{/if}}
+
+    {{#if this.model.badges}}
+      <section class="md-goal__section">
+        <h2 class="md-goal__section-title">{{t "Badges" key="badges"}}</h2>
+        {{#if this.model.badge_name}}<p class="md-goal__note">{{this.model.badge_name}}</p>{{/if}}
+        <div class="md-goal-badges">
+          {{#each this.mapped_badges as |badge|}}
+            <div class="md-goal-badge {{if badge.user_badge.earned 'is-earned'}} {{if badge.user_badge 'is-clickable'}} {{unless badge.user_badge 'is-locked'}}">
+              <button type="button" class="md-goal-badge__img-wrap" {{on "click" (this.ctrlAction "badge_popup" badge)}} aria-label={{t "Level %{level}" level=badge.level key="level_n"}}>
+                <img src={{badge.image_url}} class="md-goal-badge__img" alt="">
+                {{#if badge.user_badge.earned}}<span class="md-goal-badge__sparkle">&#10022;</span>{{/if}}
+              </button>
+              <div class="md-goal-badge__level">{{t "Level %{level}" level=badge.level key="level_n"}}</div>
+              {{#if badge.user_badge.earned}}
+                <span class="md-goal-badge__earned"><span class="glyphicon glyphicon-ok"></span> {{t "Earned!" key="earned"}}</span>
+              {{else if badge.user_badge}}
+                <div class="md-goal-badge__progress">
+                  <div class="md-goal-badge__bar" role="progressbar" style={{badge.user_badge.progress_style}} aria-valuenow={{badge.user_badge.progress_out_of_100}} aria-valuemin="0" aria-valuemax="100">
+                    <span class="sr-only">{{t "%{pct}% Complete" key="percent_complete" pct=badge.user_badge.progress_out_of_100}}</span>
+                  </div>
+                </div>
+              {{else}}
+                <span class="md-goal-badge__hint">{{t "Not Started" key="not_started"}}</span>
+              {{/if}}
+            </div>
+          {{/each}}
+        </div>
+      </section>
+    {{/if}}
+
+    <section class="md-goal__section">
+      <h2 class="md-goal__section-title">{{t "Notes and Assessments" key="notes_and_assessments"}}</h2>
+      <div class="md-goal-notes">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 10px;">{{t "Type" key="type"}}</th>
+              <th>{{t "Summary" key="summary"}}</th>
+              <th style="width: 20%;">{{t "Date" key="date"}}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each this.logs as |log|}}
+              <LogItem @log={{log}} @user={{this.model.author}} @model={{this.model}} @messagesOnly={{false}} />
+            {{/each}}
+            {{#unless this.logs}}
+              <tr class="md-goal-notes__empty">
+                <td colspan='3'>{{t "No data available" key="no_data_available"}}</td>
+              </tr>
+            {{/unless}}
+          </tbody>
+        </table>
+      </div>
+      {{#if this.more_available}}
+        <button type="button" class="md-goal-btn" style="margin-top: 12px;" {{on "click" (this.ctrlAction "more_results")}}>{{t "More" key="more"}}</button>
+      {{/if}}
+    </section>
+
+    <div class="md-goal__actions">
+      <button type="button" class="md-goal-btn" {{on "click" (this.ctrlAction "new_note")}}>{{t "New Note" key="new_note"}}</button>
+      <button type="button" class="md-goal-btn" {{on "click" (this.ctrlAction "quick_assessment")}}>{{t "Quick Assessment" key="quick_assessment"}}</button>
+      {{#if this.model.permissions.edit}}
+        {{#if this.model.uneditable}}
+          <p class="md-goal-btn__uneditable">{{t "This goal was created by a connected organization and can't be edited" key="uneditable_goal"}}</p>
+        {{else}}
+          <button type="button" class="md-goal-btn md-goal-btn--primary" {{on "click" (this.ctrlAction "edit_goal")}}>{{t "Edit Goal" key="edit_goal"}}</button>
+        {{/if}}
       {{/if}}
     </div>
   {{/if}}
-
-  {{#if this.model.badges}}
-    <h4>{{t "Badges" key="badges"}}</h4>
-    {{#if this.model.badge_name}}{{this.model.badge_name}}<br>{{/if}}
-    <table class='goal_badges'>
-      <tbody>
-        <tr>
-        {{#each this.mapped_badges as |badge|}}
-            <td class={{if badge.user_badge "sparkle_list_item goal_badge" "sparkle_list_item goal_badge dim"}}>
-              <span style='display: inline-block; position: relative;'>
-                <span {{action "badge_popup" badge}} style={{if badge.user_badge "cursor: pointer;"}}>
-                  <img src={{badge.image_url}} style='width: 80px;' >
-                  {{#if badge.user_badge.earned}}
-                    <div class='sparkle'>&#10022;</div>
-                  {{/if}}
-                </span>
-              </span>
-              <div class='text'>
-                {{t "Level %{level}" level=badge.level key="level_n"}}<br>
-                {{#if badge.user_badge.earned}}
-                  <span class='text-muted'>
-                    <span class='glyphicon glyphicon-ok'></span>
-                    {{t "Earned!" key="earned"}}
-                  </span>
-                {{else if badge.user_badge}}
-                  <div class="progress" style="border: 1px solid #aaa;height: 15px; margin-bottom: 0;">
-                    <div class="progress-bar" role="progressbar" aria-value={{badge.user_badge.progress_out_of_100}} aria-valuemin="0" aria-valuemax="100" style={{badge.user_badge.progress_style}}>
-                      <span class="sr-only">
-                        {{t "%{pct}% Complete" key="percent_complete" pct=badge.user_badge.progress_out_of_100}}
-                      </span>
-                    </div>
-                  </div>
-                {{else}}
-                  {{t "Not Started" key="not_started"}}
-                {{/if}}
-              </div>
-            </td>
-        {{/each}}
-        </tr>
-      </tbody>
-    </table>
-  {{/if}}
-
-  <div style='display: none;'>
-    <h4>{{t "Comments" key="comments"}}</h4>
-    <p>{{t "No Comments" key="no_comments"}}</p>
-    <button class='btn btn-default'>{{t "Add Comment" key="add_comment"}}</button>
-  </div>
-  <h4 style='margin-top: 20px;'>{{t "Notes and Assessments" key="notes_and_assessments"}}</h4>
-  <div class="table-responsive">
-    <table class="table table-hover table-bordered">
-      <thead>
-        <tr>
-          <th style="width: 10px;">{{t "Type" key="type"}}</th>
-          <th>{{t "Summary" key="summary"}}</th>
-          <th style="width: 20%;">{{t "Date" key="date"}}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {{#each this.logs as |log|}}
-          <LogItem @log={{log}} @user={{this.model.author}} @model={{this.model}} @messagesOnly={{false}} />
-        {{/each}}
-        {{#unless this.logs}}
-          <tr>
-            <td colspan='3'>{{t "No data available" key="no_data_available"}}</td>
-          </tr>
-        {{/unless}}
-      </tbody>
-    </table>
-  </div>
-  {{#if this.more_available}}
-    <button class='btn btn-default' {{action "more_results"}}>{{t "More" key="more"}}</button>
-  {{/if}}
-  <button class='btn btn-default' {{action "new_note"}}>{{t "New Note" key="new_note"}}</button>
-  <button class='btn btn-default' {{action "quick_assessment"}}>{{t "Quick Assessment" key="quick_assessment"}}</button>
-  {{#if this.model.permissions.edit}}
-    {{#if this.model.uneditable}}
-      <p>{{t "This goal was created by a connected organization and can't be edited" key="uneditable_goal"}}</p>
-    {{else}}
-      <button class='btn btn-default' {{action "edit_goal"}}>{{t "Edit Goal" key="edit_goal"}}</button>
-    {{/if}}
-  {{/if}}
-{{/if}}
+</div>

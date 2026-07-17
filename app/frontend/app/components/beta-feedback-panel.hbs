@@ -1,0 +1,59 @@
+<div class="beta-feedback-panel {{if @isDrawer "beta-feedback-panel--drawer"}}">
+  <header class="beta-feedback-panel__header">
+    <div class="beta-feedback-panel__hero">
+      <span class="la-section-eyebrow-badge">LingoLinq {{t "BETA" key="beta_feedback_eyebrow"}}</span>
+      <div class="la-hero-title-wrap">
+        {{#if @isDrawer}}
+          <h2 class="la-hero-title beta-feedback-panel__title">{{t "Beta " key="beta_feedback_title_prefix"}}<span class="hero-gradient">{{t "Feedback" key="beta_feedback_title_highlight"}}</span></h2>
+        {{else}}
+          <h1 class="la-hero-title beta-feedback-panel__title">{{t "Beta " key="beta_feedback_title_prefix"}}<span class="hero-gradient">{{t "Feedback" key="beta_feedback_title_highlight"}}</span></h1>
+        {{/if}}
+      </div>
+      <div class="beta-feedback-panel__checklist" role="group" aria-label={{t "How to give feedback" key="beta_feedback_checklist_aria"}}>
+        <ul class="beta-feedback-panel__checklist-items">
+          <li class="beta-feedback-panel__checklist-item">
+            <span class="beta-feedback-panel__checklist-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </span>
+            <span>{{t "Tell us what happened" key="beta_feedback_checklist_what"}}</span>
+          </li>
+          <li class="beta-feedback-panel__checklist-item">
+            <span class="beta-feedback-panel__checklist-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </span>
+            <span>{{t "Share how it felt" key="beta_feedback_checklist_felt"}}</span>
+          </li>
+          <li class="beta-feedback-panel__checklist-item">
+            <span class="beta-feedback-panel__checklist-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </span>
+            <span>{{t "Optionally attach a screenshot or screen recording" key="beta_feedback_checklist_attach"}}</span>
+          </li>
+        </ul>
+        <div class="beta-feedback-panel__info-pill" role="note">
+          <span class="beta-feedback-panel__info-pill-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </span>
+          <p class="beta-feedback-panel__privacy-note">
+            {{t "Please do not include private information unless it is needed to explain the issue. Recordings and screenshots may show sensitive details." key="beta_feedback_privacy_note"}}
+          </p>
+        </div>
+      </div>
+    </div>
+    {{#if @onClose}}
+      <button type="button" class="beta-feedback-panel__close" {{on "click" @onClose}} aria-label={{if @isDrawer (t "Hide feedback form" key="beta_feedback_hide_form") (t "Close" key="close")}}>
+        {{#if @isDrawer}}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 15 12 9 18 15"/></svg>
+        {{else}}
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        {{/if}}
+      </button>
+    {{/if}}
+  </header>
+  <div class="beta-feedback-panel__body">
+    <BetaFeedbackForm @onSubmitSuccess={{@onSubmitSuccess}} @onCancel={{@onCancel}} @isDrawer={{@isDrawer}} />
+  </div>
+</div>

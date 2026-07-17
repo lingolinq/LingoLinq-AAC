@@ -6,9 +6,17 @@ import i18n from '../../utils/i18n';
 import LingoLinq from '../../app';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 import app_state from '../../utils/app_state';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  // Ember Data 5.x removed automatic `store` injection into controllers.
+  store: service('store'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
+  router: service('router'),
   advance_options: [
     {name: i18n.t('never', "Never"), id: "none"},
     {name: i18n.t('on_the_date', "On the Date"), id: "date"},
@@ -61,7 +69,7 @@ export default Controller.extend({
       _this.store.query('goal', {template_header_id: header_id}).then(function(list) {
         _this.set('status', null);
         var res = [{id: '', name: i18n.t('none_set', "None Set")}];
-        list = list.map(function(i) { return i; });
+        list = list.slice();
         list.forEach(function(g) {
           if(!g.get('related')) { g.set('related', {}); }
           if(!g.get('related.next') && g.get('next_template_id')) {
@@ -92,6 +100,31 @@ export default Controller.extend({
       this.load_templates();
     }
   }),
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
     save: function() {
       var goal = this.get('model');
@@ -132,7 +165,7 @@ export default Controller.extend({
       var _this = this;
       modal.open('modals/confirm-remove-goal', {source_type: 'unit', source: {id: _this.get('model.unit_id'), name: _this.get('model.unit_name')}, goal: _this.get('model')}).then(function(res) {
         if(res.confirmed) {
-          _this.transitionToRoute('organization.room', _this.get('model.unit_org_id'), _this.get('model.unit_id'));
+          _this.router.transitionTo('organization.room', _this.get('model.unit_org_id'), _this.get('model.unit_id'));
         }
       });
     },

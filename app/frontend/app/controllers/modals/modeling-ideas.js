@@ -1,3 +1,36 @@
+/*
+ * ⚠️ ORPHANED MODAL CONTROLLER — NOT CURRENTLY WIRED INTO THE APP (kept for team review).
+ *
+ * During the component-modal migration this modal was reimplemented as the co-located
+ * component `app/components/<same-name>.{js,hbs}`, which is what actually renders now
+ * (via `components/modal-container.js` -> its `convertedModals` list). There is no
+ * `app/templates/modals/<name>.hbs` backing this controller, and nothing imports it or
+ * resolves it through `controllerFor`, so Ember never instantiates it. As of the Ember
+ * 5.12 work this is dead code.
+ *
+ * REVIEW NEEDED: DELETE this file, OR RE-WIRE it if the team still wants the modal. If you
+ * revive it, reconcile with the component version first — the two have diverged since the
+ * split (fixes landed in the component, not here).
+ * Context: docs/task-management/2026-07-14-ember-5-12-full-deprecation-audit.md
+ */
+
+/*
+ * ⚠️ EMBER 6 / EXTEND_PROTOTYPES BREAKAGE — MUST FIX BEFORE RE-WIRING.
+ *
+ * This controller calls Ember array-prototype-extension methods (.pushObject / .sortBy /
+ * .mapBy / .uniq / .compact) on NATIVE arrays. The Ember 5.12 upgrade set
+ * `EXTEND_PROTOTYPES: false` (config/environment.js), so these methods are `undefined` on a
+ * native array and throw `TypeError` the moment the code runs — they "work" here only
+ * because this file is never executed. Ember 6 removes the prototype extensions entirely,
+ * so relying on them is not an option going forward.
+ *
+ * If revived, rewrite each call before use: wrap the receiver in `A()`
+ * (import { A } from '@ember/array') or use native JS (.push, .map(o => o.id),
+ * [...new Set()], .filter(x => x != null)). The live `components/<name>.js` version was
+ * already fixed this way during the 5.12 upgrade — port that, don't reinvent it.
+ * Sites: (this.get('model.users') || []).mapBy('id') x2; follow_ups.sortBy('timestamp'); for_word.concat(middles.slice(...)).uniq(); w.reasons.map(...).uniq().compact(); (this.get('user_words') || []).mapBy('word').
+ */
+
 import modal from '../../utils/modal';
 import templateHelpers from '../../utils/template_helpers';
 import app_state from '../../utils/app_state';
@@ -6,8 +39,10 @@ import i18n from '../../utils/i18n';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default modal.ModalController.extend({
+  router: service('router'),
   opening: function() {
     var users = this.get('model.users');
 
@@ -330,7 +365,7 @@ export default modal.ModalController.extend({
       var _this = this;
       modal.open('new-goal', {users: _this.get('model.users') }).then(function(res) {
         if(res && res.get('id') && res.get('set_badges')) {
-          _this.transitionToRoute('user.goal', _this.get('model.user_name'), res.get('id'));
+          _this.router.transitionTo('user.goal', _this.get('model.user_name'), res.get('id'));
         } else if(res) {
           modal.success(i18n.t('goal_added', "Goal added! Check back with Modeling Ideas soon to see updated ideas based on the new goal."));
         }

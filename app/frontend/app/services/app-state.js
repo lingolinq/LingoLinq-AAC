@@ -25,19 +25,25 @@ import modal from '../utils/modal';
 import LingoLinq from '../app';
 
 import editManager from '../utils/edit_manager';
+import word_suggestions from '../utils/word_suggestions';
+import boardDetailCache from '../utils/board_detail_cache';
 import buttonTracker from '../utils/raw_events';
 import capabilities from '../utils/capabilities';
 import scanner from '../utils/scanner';
+import { vocalizationHeightPx } from '../utils/display_prefs';
 
 import speecher from '../utils/speecher';
 import geolocation from '../utils/geo';
 import i18n from '../utils/i18n';
 import frame_listener from '../utils/frame_listener';
 import Button from '../utils/button';
+import actionLock from '../utils/action-lock';
+import paint_view_switch_overlay from '../utils/view_switch_overlay';
 import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import sync from '../utils/sync';
+import config from '../config/environment';
 
 // tracks:
 // current mode (edit mode, speak mode, default)
@@ -53,12 +59,20 @@ export default Service.extend({
   router: service('router'),
   session: service('session'),
   contentGrabbers: service('content-grabbers'),
+
+  /** Set true to show GitHub links in footers (Developers, API Docs, Open Source). */
+  showFooterGithubLinks: false,
+
   init() {
     LingoLinq.appState = this;
     // Expose globally for utilities
     window.appState = this;
     if (typeof window !== 'undefined') {
-      window.LingoLinq = window.LingoLinq || {};
+      // Never assign `{}` here: it is truthy and would replace the real namespace
+      // (including `Lessons`) if something created an empty `window.LingoLinq` early.
+      if (!window.LingoLinq || !window.LingoLinq.Lessons) {
+        window.LingoLinq = LingoLinq;
+      }
       window.LingoLinq.appState = this;
     }
     // Also assign to buttonTracker as it's used in raw_events
@@ -126,6 +140,16 @@ export default Service.extend({
     }
     
     this.setup();
+    if (typeof document !== 'undefined' && !isTesting() && !this._visibilityPrefetchBound) {
+      this._visibilityPrefetchBound = true;
+      var _this = this;
+      document.addEventListener('visibilitychange', function() {
+        if (document.hidden || _this.isDestroyed || _this.isDestroying) { return; }
+        if (!_this.get('persistence.online')) { return; }
+        var user = _this.get('currentUser');
+        _this.prefetch_board_details_for_user(user);
+      });
+    }
     // Defer refresh timers to ensure all services are initialized
     // This prevents errors if window.persistence isn't ready yet
     var _this = this;
@@ -134,6 +158,18 @@ export default Service.extend({
         _this._setupRefreshTimers();
       }
     }, 0);
+  },
+
+  willDestroy() {
+    this._super(...arguments);
+    if (this.refreshing_user) {
+      runCancel(this.refreshing_user);
+      this.refreshing_user = null;
+    }
+    if (this.check_for_board_readiness && this.check_for_board_readiness.timer) {
+      runCancel(this.check_for_board_readiness.timer);
+      this.check_for_board_readiness.timer = null;
+    }
   },
 
   setup: function() {
@@ -199,6 +235,41 @@ export default Service.extend({
     settings.app_name = LingoLinq.app_name || settings.app_name || "LingoLinq";
     settings.company_name = LingoLinq.company_name || settings.company_name || "LingoLinq";
     this.set('domain_settings', settings);
+    var _domainSync = function() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      var w = window.domain_settings || {};
+      _this.set('domain_settings', Object.assign({}, w));
+      if (config.environment === 'development') {
+        // eslint-disable-next-line no-console
+        console.info('[LingoLinq] domain_settings synced: coppa_parental_consent=', w.coppa_parental_consent, 'full_domain=', w.full_domain);
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('lingolinq-domain-settings-sync', _domainSync);
+      runLater(_domainSync, 500);
+    }
+    // Bento dashboard theme: light | midDay | dark | default - persisted in localStorage (gold palette renamed to default)
+    var theme = 'light';
+    try {
+      var storedTheme = localStorage.getItem('ll_bento_theme_mode');
+      if (storedTheme === 'flat' || storedTheme === 'pastel') {
+        theme = 'light';
+        try { localStorage.setItem('ll_bento_theme_mode', 'light'); } catch (e) { /* ignore */ }
+      } else if (storedTheme === 'gold') {
+        theme = 'default';
+        try { localStorage.setItem('ll_bento_theme_mode', 'default'); } catch (e) { /* ignore */ }
+      } else if (storedTheme === 'coolBlue') {
+        theme = 'light';
+        try { localStorage.setItem('ll_bento_theme_mode', 'light'); } catch (e) { /* ignore */ }
+      } else if (storedTheme === 'light' || storedTheme === 'midDay' || storedTheme === 'dark' || storedTheme === 'default') {
+        theme = storedTheme;
+      } else if (storedTheme && localStorage.getItem('ll_bento_dark_mode') === 'true') {
+        theme = 'dark';
+      }
+      // else: light (first visit or invalid stored value)
+    } catch (e) { /* ignore */ }
+    this.set('themeMode', theme);
+    this.updateFaviconForTheme(theme);
     // Ensure window.user_preferences.any_user exists to prevent TypeError
     window.user_preferences = window.user_preferences || {};
     window.user_preferences.any_user = window.user_preferences.any_user || {};
@@ -535,16 +606,29 @@ export default Service.extend({
         }
       }, 10);
     });
-    $('#loading_box').remove();
+    // Cross-fade the bootstrap skeleton (boards/index.html.erb) into
+    // the real Ember UI rather than ripping it out. The skeleton has
+    // `transition: opacity 0.32s` and styles the `.is-fading` class
+    // to opacity:0, so adding the class + delaying remove() gives a
+    // smooth handoff. Matches the cross-fade pattern in NN/g + Material
+    // 2026 skeleton guidance.
+    var $loadingBox = $('#loading_box');
+    if($loadingBox.length) {
+      $loadingBox.addClass('is-fading');
+      setTimeout(function() { $loadingBox.remove(); }, 400);
+    }
     $("body").removeClass('pretty_loader');
   },
   refresh_user: function() {
     var _this = this;
+    if (_this.isDestroyed || _this.isDestroying) { return; }
     runCancel(_this.refreshing_user);
 
     function refresh() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
       runCancel(_this.refreshing_user);
       _this.refreshing_user = runLater(function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
         _this.refresh_user();
       }, 60000 * 15);
     }
@@ -578,7 +662,7 @@ export default Service.extend({
     }
     this.set('from_url', from_url);
     var from = [transition.from_route].concat(transition.from_params);
-    if(from[0] && from[0] != 'board.index') {
+    if(from[0] && from[0] != 'board.index' && from[0] != 'user.board-alt.index') {
       this.set('from_route', from);
     }
     this.set('latest_board_id', null);
@@ -594,7 +678,7 @@ export default Service.extend({
     if(capabilities.mobile) {
       this.set('index_view', transition.to_route == 'index');
     }
-    if(transition.to_route == 'board.index') {
+    if(transition.to_route == 'board.index' || transition.to_route == 'user.board-alt.index') {
       boundClasses.setup();
       var delay = this.get('currentUser.preferences.board_jump_delay') || window.user_preferences.any_user.board_jump_delay;
       LingoLinq.log.track('global transition handled');
@@ -614,13 +698,14 @@ export default Service.extend({
     }
 //           $(".hover_button").remove();
     this.set('hide_search', transition.to_route == 'search');
-    if(transition.to_route != 'board.index') {
+    if(transition.to_route != 'board.index' && transition.to_route != 'user.board-alt.index' && transition.to_route != 'user.board-detail.index' && transition.to_route != 'user.board-detail.edit') {
       this.set('currentBoardState', null);
     }
     if(!this.get('sessionUser') && this.session.get('isAuthenticated')) {
       this.refresh_session_user();
     }
     this.set('current_route', transition.to_route);
+    this.updateFavicon();
   },
   finish_global_transition: function() {
     var _this = this;
@@ -628,20 +713,16 @@ export default Service.extend({
     runNext(function() {
       var target = _this.get('current_route');
       _this.set('index_view', target == 'index');
+      // footer is now a computed on application controller (from currentBoardState)
+      if(_this.get('to_target') && _this.get('to_target') != 'setup' && _this.get('to_target') != 'home-boards') {
+        try {
+          _this.controller.set('setup_footer', false);
+          _this.controller.set('simple_board_header', false);
+          _this.set('setup_user', null);
+          _this.controller.set('setup_user_id', null);
+        } catch(e) { }
+      }
     });
-    // footer was showing up too quickly and looking weird when the rest of the page hadn't
-    // re-rendered yet.
-    if(!this.get('currentBoardState')) {
-      try {
-        this.controller.set('footer', true);
-        if(this.get('to_target') && this.get('to_target') != 'setup' && this.get('to_target') != 'home-boards') {
-          this.controller.set('setup_footer', false);
-          this.controller.set('simple_board_header', false);
-          this.set('setup_user', null);
-          this.controller.set('setup_user_id', null);
-        }
-      } catch(e) { }
-    }
     if(LingoLinq.embedded && !this.get('speak_mode')) {
       if(window.top && window.top != window.self) {
         window.top.location.replace(window.location);
@@ -655,6 +736,23 @@ export default Service.extend({
     }
     LingoLinq.protected_user = protect_user;
     this.stashes.persist('protected_user', protect_user);
+  }),
+  _persist_last_board_for_user: observer('stashes.root_board_state', function() {
+    var state = this.stashes.get('root_board_state');
+    var userName = this.get('currentUser.user_name') || this.get('sessionUser.user_name');
+    // Skip synthetic OBF boards (eval intro screens, emergency, stars, etc.).
+    // Their keys live under `obf/...` and their records are minted in
+    // `utils/obf.js` with throwaway ids like `b123b<timestamp>x<rand>`.
+    // Persisting them as the user's "last board" surfaces a board card
+    // on the dashboard with a useless synthetic name.
+    if(state && state.key && /^obf\//.test(state.key)) {
+      return;
+    }
+    if(state && state.name && userName) {
+      try {
+        localStorage['ll_last_board_' + userName] = JSON.stringify({name: state.name, key: state.key});
+      } catch(e) { }
+    }
   }),
   set_root_board_state: observer('set_as_root_board_state', 'currentBoardState', function() {
     // When browsing boards from the "select a home board" interface,
@@ -677,21 +775,33 @@ export default Service.extend({
     }
   }),
   domain_board_user_name: computed('domain_settings.board_user_name', function() {
-    return this.get('domain_settings.board_user_name') || 'example';
+    return this.get('domain_settings.board_user_name') || 'lingolinq';
   }),
-  h1_class: computed('currentBoardState.id', 'from_route', 'edit_mode', function() {
+  darkMode: computed('themeMode', function() {
+    return this.get('themeMode') === 'dark';
+  }),
+  midDayMode: computed('themeMode', function() {
+    return this.get('themeMode') === 'midDay';
+  }),
+  defaultMode: computed('themeMode', function() {
+    return this.get('themeMode') === 'default';
+  }),
+  lightMode: computed('themeMode', function() {
+    return this.get('themeMode') === 'light';
+  }),
+  h1_class: computed('currentBoardState.id', 'edit_mode', function() {
     var res = "";
     if(this.get('currentBoardState.id')) {
       res = res + "with_board " ;
-      if(this.get('from_route') && !this.get('edit_mode')) {
+      if(!this.get('edit_mode')) {
         res = res + "sr-only ";
       }
     }
     return htmlSafe(res);
   }),
-  nav_header_class: computed('currentBoardState.id', 'from_route', function() {
+  nav_header_class: computed('currentBoardState.id', 'edit_mode', function() {
     var res = "no_beta ";
-    if(this.get('currentBoardState.id') && this.get('from_route') && !this.get('edit_mode')) {
+    if(this.get('currentBoardState.id') && !this.get('edit_mode')) {
       res = res + "board_done ";
     }
     return htmlSafe(res);
@@ -700,6 +810,7 @@ export default Service.extend({
     this.set('latest_board_id', this.get('currentBoardState.id'));
   }),
   check_for_board_readiness: function(delay) {
+    if (this.isDestroyed || this.isDestroying) { return; }
     if(this.check_for_board_readiness.timer) {
       runCancel(this.check_for_board_readiness.timer);
     }
@@ -739,10 +850,133 @@ export default Service.extend({
   return_to_index: function() {
     var router = this.get('router') || this.router;
     if(router && typeof router.transitionTo === 'function') {
-      router.transitionTo('index');
+      var cu = this.get('currentUser');
+      if (cu && cu.get('user_name')) {
+        router.transitionTo('user.home', cu.get('user_name'));
+      } else {
+        router.transitionTo('index');
+      }
     } else {
       console.warn('[APP-STATE] Cannot transition to index route: router not available');
     }
+  },
+  /**
+   * Default to `user/board-detail/…`. Preserve `user/board/…` (board-alt) only when the
+   * current screen is already board-alt. Legacy glob `board` is used for obf/, integrations/,
+   * and single-segment keys where the user/boardname split doesn't apply.
+   */
+  transitionToBoardForCurrentUiStyle: function(router, boardKey, opts) {
+    opts = opts || {};
+    if(!router || typeof router.transitionTo !== 'function' || !boardKey) { return; }
+    // In-board board changes (tapping a folder/link button in speak mode, sidebar
+    // jumps, home entry) route through here. Show the shared "Preparing your Board"
+    // overlay ONLY if the new board is slow to settle — quick taps stay snappy.
+    // Skip when navigating to the board we're already on: an identical transition
+    // may not fire routeDidChange, which would leave the overlay up until its 8s
+    // safety timer.
+    var curBoardKey = null;
+    try { curBoardKey = this.get('currentBoardState.key'); } catch(e) { curBoardKey = null; }
+    if(curBoardKey !== boardKey) {
+      this._debounceBoardLoadOverlay(router);
+    }
+    var routeName = '';
+    try {
+      routeName = this.get('current_route') || '';
+      var r = this.get('router') || this.router;
+      if(r && r.get) { routeName = routeName || (r.get('currentRouteName') || ''); }
+    } catch(e) {
+      routeName = '';
+    }
+    var parts = String(boardKey).split('/');
+    if(parts.length < 2 || !parts[0]) {
+      router.transitionTo('board', boardKey);
+      return;
+    }
+    if(boardKey.indexOf('obf/') === 0 || boardKey.indexOf('integrations/') === 0) {
+      router.transitionTo('board', boardKey);
+      return;
+    }
+    var userName = parts[0];
+    var boardSlug = parts.slice(1).join('/');
+    if(!boardSlug) {
+      router.transitionTo('board', boardKey);
+      return;
+    }
+    // Decision order:
+    //   1. If we're ALREADY on board-alt, stay on board-alt — keeps
+    //      in-session folder navigation continuous (don't bounce a
+    //      user mid-session into the other shell on every folder tap).
+    //      Sidebar jumps pass honorViewPreference so quick links always
+    //      land in the communicator's preferred shell instead.
+    //   2. Otherwise honor the communicator's saved
+    //      `board_view_style` preference: 'classic' → board-alt,
+    //      anything else (default 'modern') → board-detail. This is
+    //      what makes post-login landing drop the user into their
+    //      chosen view. Read referenced_user first (the person
+    //      actually communicating in speak mode), then currentUser.
+    if(!opts.honorViewPreference && routeName.indexOf('board-alt') !== -1) {
+      router.transitionTo('user.board-alt', userName, boardSlug);
+      return;
+    }
+    var prefersClassic = false;
+    try {
+      var pref_user = this.get('referenced_user') || this.get('currentUser');
+      prefersClassic = !!(pref_user && pref_user.get && pref_user.get('preferences.board_view_style') === 'classic');
+    } catch(e) { prefersClassic = false; }
+    if(prefersClassic) {
+      router.transitionTo('user.board-alt', userName, boardSlug);
+    } else {
+      router.transitionTo('user.board-detail', userName, boardSlug);
+    }
+  },
+  // Debounced loading overlay for in-board board changes. Unlike a board CARD
+  // click (which masks the cross-route load immediately), tapping a folder/link
+  // button is usually instant, so flashing the overlay on every tap would be jank.
+  // Instead: arm a short timer; if the board's route settles (routeDidChange)
+  // BEFORE it fires, cancel — no overlay. If the board is still loading when the
+  // timer fires, paint the shared overlay, which then dismisses itself on the next
+  // routeDidChange (same overlay + dismissal a card click / view-switch uses).
+  _debounceBoardLoadOverlay: function(router) {
+    var _this = this;
+    if(typeof document === 'undefined' || !router || typeof router.on !== 'function') { return; }
+    // Replace any pending debounce (rapid successive taps reuse one timer).
+    if(this._boardLoadOverlayCleanup) { this._boardLoadOverlayCleanup(); }
+    // Another overlay is already up (e.g. a card-click mask) — let it run.
+    if(document.getElementById('ll-pre-reload-overlay')) { return; }
+    var timer = null;
+    var cleanup = function() {
+      if(timer) { try { runCancel(timer); } catch(e) {} timer = null; }
+      try { router.off('routeDidChange', onSettled); } catch(e) {}
+      if(_this._boardLoadOverlayCleanup === cleanup) { _this._boardLoadOverlayCleanup = null; }
+    };
+    var onSettled = function() {
+      // Board settled before the threshold — no overlay needed.
+      cleanup();
+    };
+    this._boardLoadOverlayCleanup = cleanup;
+    try { router.on('routeDidChange', onSettled); } catch(e) {}
+    timer = runLater(function() {
+      timer = null;
+      // Stop listening with onSettled; the painted overlay arms its OWN
+      // routeDidChange dismissal (+ 8s safety) from here on.
+      try { router.off('routeDidChange', onSettled); } catch(e) {}
+      if(_this._boardLoadOverlayCleanup === cleanup) { _this._boardLoadOverlayCleanup = null; }
+      // Match the board's theme (dark by default, like board-icon's card → board
+      // navigation) so the mask doesn't flash a light card over a dark board.
+      var isDark = true;
+      var themeMode = _this.get('themeMode');
+      if(themeMode === 'light' || themeMode === 'midDay' || themeMode === 'default') { isDark = false; }
+      paint_view_switch_overlay({ routerSvc: router, isDark: isDark });
+    }, 200);
+  },
+  // Public entry point for flows that navigate to a board via a DIRECT transitionTo
+  // (style switch, board import, board create) rather than through
+  // transitionToBoardForCurrentUiStyle. Call this IMMEDIATELY before the transitionTo
+  // so the debounced "Preparing your Board" overlay times the resulting board load and
+  // is shown only if it's actually slow. Router defaults to the app's router service.
+  arm_board_load_overlay: function(router) {
+    router = router || this.get('router') || this.router;
+    this._debounceBoardLoadOverlay(router);
   },
   jump_to_board: function(new_state, old_state) {
     buttonTracker.transitioning = true;
@@ -797,7 +1031,9 @@ export default Service.extend({
       var router = _this.get && _this.get('router') || _this.router;
       if(router && typeof router.transitionTo === 'function') {
         try {
-          router.transitionTo('board', new_state.key);
+          _this.transitionToBoardForCurrentUiStyle(router, new_state.key, {
+            honorViewPreference: !!(new_state && new_state.source === 'sidebar')
+          });
         } catch(e) {
           console.warn('[APP-STATE] router.transitionTo threw:', e);
         }
@@ -888,14 +1124,26 @@ export default Service.extend({
     var res = !!(this.get('manual_modeling') || this.get('modeling_for_user'));
     return res;
   }),
+  // True whenever a modeling session is *initiated*, regardless of the
+  // current route's mode. `modeling` flips false during edit mode because
+  // `current_mode` switches from 'speak' to 'edit' (which cascades through
+  // `speak_mode` → `modeling_for_user`). The badge needs a session-level
+  // signal that survives that transition so the supervisor still sees
+  // "modeling paused" while editing a supervisee's board.
+  modeling_session_active: computed('manual_modeling', 'modeling_for_user', 'modeling_for_self', 'referenced_speak_mode_user', 'modeling_ts', function() {
+    return !!(this.get('manual_modeling') || this.get('modeling_for_user') || this.get('modeling_for_self') || this.get('referenced_speak_mode_user'));
+  }),
   modeling_for_user: computed('speak_mode', 'currentUser', 'referenced_speak_mode_user', 'modeling_for_self', function() {
     var res = this.get('speak_mode') && this.get('currentUser') && this.get('referenced_speak_mode_user') && this.get('currentUser.id') != this.get('referenced_speak_mode_user.id');
     res = res || this.get('modeling_for_self');
     var _this = this;
     // this is weird and hacky, but for some reason modeling wasn't reliably updating when modeling_for_user changed
-    runLater(function() {
-      _this.set('modeling_ts', (new Date()).getTime() + "_" + Math.random());
-    });
+    if (!isTesting()) {
+      runLater(function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('modeling_ts', (new Date()).getTime() + "_" + Math.random());
+      });
+    }
     return !!res;
   }),
   auto_clear_modeling: observer('short_refresh_stamp', 'modeling', function() {
@@ -964,7 +1212,7 @@ export default Service.extend({
     this.set('referenced_board', state);
     var router = this.get('router') || this.router;
     if(router && typeof router.transitionTo === 'function') {
-      router.transitionTo('board', state.key);
+      this.transitionToBoardForCurrentUiStyle(router, state.key);
     } else {
       console.warn('[APP-STATE] Cannot transition to board route: router not available');
     }
@@ -973,7 +1221,6 @@ export default Service.extend({
     options = options || {};
     var index_as_fallback = options.index_as_fallback;
     var auto_home = options.auto_home;
-
 
     this.set_history([]);
     var current = this.get('currentBoardState');
@@ -1001,7 +1248,7 @@ export default Service.extend({
         this.set('referenced_board', state);
         var router = this.get('router') || this.router;
         if(router && typeof router.transitionTo === 'function') {
-          router.transitionTo('board', state.key);
+          this.transitionToBoardForCurrentUiStyle(router, state.key);
         } else {
           console.warn('[APP-STATE] Cannot transition to board route: router not available');
         }
@@ -1050,7 +1297,43 @@ export default Service.extend({
       // TODO: option to jump between communicators? Nah.
     }
   },
+  speak_mode_exit_pin_required: function() {
+    if(!this.get('currentUser.preferences.require_speak_mode_pin') || !this.get('currentUser.preferences.speak_mode_pin')) {
+      return false;
+    }
+    if(this.get('speak_mode') || this.stashes.get('current_mode') == 'speak') {
+      return true;
+    }
+    // board-detail always presents as speak mode unless the edit subroute
+    // is active; `speak_mode` can be false after a partial exit left
+    // `current_mode` on 'default' while the user is still on the board.
+    var routeName = this.get('router.currentRouteName') || this.get('current_route') || '';
+    return routeName.indexOf('board-detail') !== -1 && routeName.indexOf('.edit') === -1;
+  },
+  open_speak_mode_exit_pin: function(action) {
+    if(!this.speak_mode_exit_pin_required()) {
+      return RSVP.resolve({correct_pin: true});
+    }
+    return modal.open('speak-mode-pin', {
+      actual_pin: this.get('currentUser.preferences.speak_mode_pin'),
+      action: action || 'none',
+      hide_hint: this.get('currentUser.preferences.hide_pin_hint')
+    });
+  },
+  finish_speak_mode_exit: function() {
+    if(this.stashes.get('current_mode') == 'speak') {
+      this.toggle_mode('speak');
+    }
+  },
   toggle_speak_mode: function(decision) {
+    // If we're currently in speak mode and the user is triggering any exit
+    // (including 'goHome', 'rememberRealHome', 'goBrowsedHome', 'currentAsHome',
+    // or no decision at all), show the loading overlay until the home board
+    // renders. 'off' is already-off; skip.
+    var exitingSpeakMode = this.get('speak_mode') && decision !== 'off';
+    if(exitingSpeakMode) {
+      this.show_loading_overlay(i18n.t('loading_home_page', "Loading Home Page..."));
+    }
     if(decision) {
       modal.close(true);
     }
@@ -1081,7 +1364,7 @@ export default Service.extend({
     } else if(this.stashes.get('current_mode') == 'speak') {
       if(this.get('embedded')) {
         modal.open('about-lingolinq', {no_exit: true});
-      } else if(this.get('currentUser.preferences.require_speak_mode_pin') && decision != 'off' && this.get('currentUser.preferences.speak_mode_pin')) {
+      } else if(this.speak_mode_exit_pin_required() && decision != 'off') {
         modal.open('speak-mode-pin', {actual_pin: this.get('currentUser.preferences.speak_mode_pin'), hide_hint: this.get('currentUser.preferences.hide_pin_hint')});
       } else {
         this.toggle_mode('speak');
@@ -1093,13 +1376,60 @@ export default Service.extend({
     } else {
       this.controller.send('pickWhichHome');
     }
+    if(exitingSpeakMode) {
+      // Release the overlay — hide_loading_overlay enforces the minimum
+      // display time, so fast transitions still show it for ~700ms.
+      this.hide_loading_overlay();
+    }
+  },
+  /**
+   * Board model for the current screen.
+   * `setup_controller` always passes the application controller, not child routes.
+   * Classic board UI uses application.board.model; board-detail keeps the board on
+   * controller:user.board-detail only.
+   */
+  resolve_board_from_controller: function() {
+    var c = this.controller;
+    if(!c || typeof c.get !== 'function') { return null; }
+    var routeName = this.get('router.currentRouteName') || this.get('current_route') || '';
+    if(routeName.indexOf('board-detail') !== -1) {
+      var owner = getOwner(this);
+      if(owner) {
+        var detailCtrl = owner.lookup('controller:user.board-detail') ||
+          owner.lookup('controller:user/board-detail');
+        if(detailCtrl) {
+          var m = detailCtrl.get('model');
+          if(m && m.get && !m.get('error') && (m.get('key') || m.get('id'))) {
+            return m;
+          }
+        }
+      }
+    }
+    var board = c.get('board.model');
+    if(board) { return board; }
+    return null;
+  },
+  /**
+   * True when the board-detail symbol grid should get speak-mode-style long-press scheduling
+   * (inflections overlay) even if global speak_mode is off. Board-detail uses Ember actions
+   * for taps, so it must not use the .advanced_selection click trap on the grid.
+   */
+  board_detail_inflections_active: function() {
+    var routeName = this.get('current_route') || '';
+    if(routeName.indexOf('board-detail') === -1) { return false; }
+    var owner = getOwner(this);
+    if(!owner) { return false; }
+    var detailCtrl = owner.lookup('controller:user.board-detail') ||
+      owner.lookup('controller:user/board-detail');
+    if(!detailCtrl || typeof detailCtrl.get !== 'function') { return false; }
+    return !detailCtrl.get('edit_mode');
   },
   assert_source: function() {
     var _this = this;
     if(!_this.controller || typeof _this.controller.get !== 'function') {
       return RSVP.reject({error: 'no board controller'});
     }
-    var board = _this.controller.get('board.model');
+    var board = _this.resolve_board_from_controller();
     if(!board) { return RSVP.reject({error: 'no board found'}); }
     if(board.get('local_only')) {
       if(board.get('locale') && !this.get('speak_mode')) {
@@ -1133,18 +1463,21 @@ export default Service.extend({
     }
   },
   toggle_edit_mode: function(decision) {
+    if (this.get('board_layout_mode')) { return; }
     editManager.clear_history();
     var _this = this;
-    this.assert_source().then(function() {
-      if(!_this.get('controller.board.model.permissions.edit')) {
-        modal.open('confirm-needs-copying', {board: _this.controller.get('board.model')}).then(function(res) {
+    var routeName = this.get('router.currentRouteName') || this.get('current_route') || '';
+    var onBoardDetail = routeName.indexOf('board-detail') !== -1;
+    this.assert_source().then(function(board) {
+      if(!board.get('permissions.edit')) {
+        modal.open('confirm-needs-copying', {board: board}).then(function(res) {
           if(res == 'confirm') {
-            _this.toggle_mode('edit', {copy_on_save: true});
+            _this.controller.send('copy_and_edit_board', board, onBoardDetail);
           }
         });
         return;
-      } else if(decision == null && !_this.get('edit_mode') && _this.controller && _this.controller.get('board').get('model').get('could_be_in_use')) {
-        modal.open('confirm-edit-board', {board: _this.controller.get('board.model')}).then(function(res) {
+      } else if(decision == null && !_this.get('edit_mode') && board.get('could_be_in_use')) {
+        modal.open('confirm-edit-board', {board: board}).then(function(res) {
           if(res == 'tweak') {
             _this.controller.send('tweakBoard');
           }
@@ -1189,16 +1522,18 @@ export default Service.extend({
         // check if it's the user's home or sidebar board, and override
         // the user's preferred level
         // TODO: save level as part of starring a board
-        if(user.get('preferences.home_board.id') == state.id) {
-          level.preferred = user.get('preferences.home_board.level');
-          level.source = 'home';
-        } else {
-          (user.get('preferences.sidebar_boards') || []).forEach(function(board) {
-            if(board && board.id == state.id) {
-              level.preferred = board.level;
-              level.source = 'sidebar';
-            }
-          });
+        if(state) {
+          if(user.get('preferences.home_board.id') == state.id) {
+            level.preferred = user.get('preferences.home_board.level');
+            level.source = 'home';
+          } else {
+            (user.get('preferences.sidebar_boards') || []).forEach(function(board) {
+              if(board && board.id == state.id) {
+                level.preferred = board.level;
+                level.source = 'sidebar';
+              }
+            });
+          }
         }
         var save_user = false;
         if(user == speak_mode_user) {
@@ -1291,6 +1626,9 @@ export default Service.extend({
         this.stashes.persist('current_mode', this.stashes.get('last_mode'));
       } else {
         this.stashes.persist('current_mode', 'default');
+      }
+      if(mode == 'edit') {
+        this.set('board_layout_mode', null);
       }
       if(mode == 'speak' && this.get('currentBoardState')) {
         this.set('currentBoardState.reload_token', Math.random());
@@ -1468,8 +1806,8 @@ export default Service.extend({
         user_preferred = speak_mode_user.get('preferences.home_board');
       }
     }
-    var preferred = opts.force_board_state || user_preferred || opts.fallback_board_state || this.stashes.get('root_board_state') || {key: 'example/yesno'};
-    if(preferred.locale) {
+    var preferred = opts.force_board_state || user_preferred || opts.fallback_board_state || this.stashes.get('root_board_state') || null;
+    if(preferred && preferred.locale) {
       this.stashes.persist('label_locale', preferred.locale);
       this.stashes.persist('vocalization_locale', preferred.locale);
     }
@@ -1481,8 +1819,24 @@ export default Service.extend({
         this.home_in_speak_mode(opts);
       });
     }
-    if(preferred && speak_mode_user && preferred.id == speak_mode_user.get('preferences.home_board.id')) {
+    if(preferred && speak_mode_user && speak_mode_user.get('preferences.home_board') && preferred.id == speak_mode_user.get('preferences.home_board.id')) {
       preferred = speak_mode_user.get('preferences.home_board') || preferred;
+    }
+    if(!preferred) {
+      if(!this.get('speak_mode')) {
+        this.set('speakModeUser', null);
+        this.set('referenced_speak_mode_user', null);
+        this.stashes.persist('speak_mode_user_id', null);
+        this.stashes.persist('referenced_speak_mode_user_id', null);
+      }
+      var msg;
+      if(speak_mode_user && this.get('sessionUser') && speak_mode_user.get('id') != this.get('sessionUser.id')) {
+        msg = i18n.t('speak_mode_communicator_needs_home_board', "%{name} does not have a home board set yet. Set a home board for this communicator, then try Model for or Speak as again.", { name: speak_mode_user.get('user_name') || speak_mode_user.get('id') });
+      } else {
+        msg = i18n.t('no_home_board_yet', "You haven't selected a home board yet.");
+      }
+      modal.warning(msg);
+      return;
     }
     // Resolve board key for URL (route uses key, e.g. example/yesno)
     var boardKey = preferred && (preferred.key || (preferred.get && preferred.get('key')));
@@ -1524,7 +1878,7 @@ export default Service.extend({
     }
     if(boardKey && router && typeof router.transitionTo === 'function') {
       try {
-        router.transitionTo('board', boardKey);
+        this.transitionToBoardForCurrentUiStyle(router, boardKey);
       } catch(e) {
         console.error('[APP-STATE] Error transitioning to board route:', e);
       }
@@ -1551,12 +1905,12 @@ export default Service.extend({
       if(_this.get('speak_mode') && _this.get('currentUser.preferences.device.scanning')) { // scanning mode
         buttonTracker.scanning_enabled = true;
         buttonTracker.any_select = _this.get('currentUser.preferences.device.scanning_select_on_any_event');
-        buttonTracker.select_keycode = _this.get('currentUser.preferences.device.scanning_select_keycode');
+        buttonTracker.select_keycode = _this.get('currentUser.preferences.device.scanning_select_keycode') || 32; // default: spacebar
         buttonTracker.skip_header = _this.get('currentUser.preferences.device.scanning_skip_header');
         buttonTracker.scan_modeling = _this.get('currentUser.preferences.device.scan_modeling');
-        buttonTracker.next_keycode = _this.get('currentUser.preferences.device.scanning_next_keycode');
+        buttonTracker.next_keycode = _this.get('currentUser.preferences.device.scanning_next_keycode') || 13; // default: Enter
         buttonTracker.prev_keycode = _this.get('currentUser.preferences.device.scanning_prev_keycode');
-        buttonTracker.cancel_keycode = _this.get('currentUser.preferences.device.scanning_cancel_keycode');
+        buttonTracker.cancel_keycode = _this.get('currentUser.preferences.device.scanning_cancel_keycode') || 27; // default: Escape
         buttonTracker.left_screen_action = _this.get('currentUser.preferences.device.scanning_left_screen_action');
         buttonTracker.right_screen_action = _this.get('currentUser.preferences.device.scanning_right_screen_action');
         if(capabilities.system == 'iOS' && !capabilities.installed_app && !buttonTracker.left_screen_action && !buttonTracker.right_screen_action) {
@@ -1564,6 +1918,10 @@ export default Service.extend({
         }
         if(modal.is_open() && (!modal.highlight_settings || modal.highlight_settings.highlight_type != 'button_search')) {
           modal.close();
+        }
+        // Ensure scanner has a reference to appState for preference checks
+        if(!scanner.get('appState')) {
+          scanner.set('appState', _this);
         }
         var interval = parseInt(_this.get('currentUser.preferences.device.scanning_interval'), 10);
         scanner.start({
@@ -1631,6 +1989,111 @@ export default Service.extend({
         }
       }
     }, 1000);
+  },
+  // Audit performed 2026-04-25 against grep "this.set('" — 75 unique property
+  // names found, ~50 classified user-scoped, ~25 app-scoped. The user-scoped
+  // subset cleared below covers SPEC R5 minimum (sessionUser, currentUser,
+  // speakModeUser, referenced_speak_mode_user, modeling_for_self,
+  // currentBoardState) plus per-user board nav, modeling, login flow, route
+  // memory, and locale-derived overrides. App-scoped properties (browser,
+  // system, version, themeMode, battery*, domain_settings, installed_app,
+  // button_list, geolocation, current_ssid, stashes) are intentionally
+  // untouched. See clear_user_state below.
+  clear_user_state: function() {
+    // Explicit version of what page reload was implicitly doing.
+    // Called from services/session.js#invalidate when the auth_spa_transition
+    // feature flag is enabled. SPEC R5.
+    // SAFE to call when no user is logged in — every set is unconditional.
+
+    // Core per-user identity
+    this.set('sessionUser', null);
+    this.set('currentUser', null);
+    this.set('speakModeUser', null);
+    this.set('referenced_speak_mode_user', null);
+    this.set('modeling_for_self', null);
+
+    // Per-user board / navigation state
+    this.set('currentBoardState', null);
+    this.set('latest_board_id', null);
+    this.set('referenced_board', null);
+    this.set('temporary_root_board_key', null);
+    this.set('meta_home', null);
+    this.set('last_fenced_board', null);
+    this.set('set_as_root_board_state', false);
+
+    // Per-user modeling / speak-mode state
+    this.set('manual_modeling', false);
+    this.set('modeling_started', null);
+    this.set('modeling_ts', null);
+    this.set('last_activation', null);
+    this.set('sync_utterance', null);
+    this.set('depth_actions', null);
+    this.set('speak_mode_started', null);
+    this.set('speak_mode_activities_at', null);
+    this.set('speak_mode_modeling_ideas', null);
+    this.set('last_speak_mode', null);
+    this.set('last_ding_state', null);
+    this.set('battery_after_speak_mode', false);
+
+    // Per-user login flow state (cleared so re-login starts clean)
+    this.set('logging_in', false);
+    this.set('login_followup', false);
+    this.set('login_modal', false);
+    this.set('login_index', false);
+    this.set('login_single_assertion', false);
+    this.set('already_homed', false);
+    this.set('already_scrolled', false);
+    this.set('setup_user', null);
+    this.set('pairing', null);
+
+    // Per-user route memory (next route transition would overwrite anyway,
+    // but clearing here removes stale "previous user" context from any
+    // computed that reads it before the next transition fires)
+    this.set('from_route', null);
+    this.set('from_url', null);
+    this.set('current_route', null);
+    this.set('to_target', null);
+    this.set('index_view', false);
+    this.set('hide_search', false);
+
+    // Per-user locale-derived overrides (locale itself is app-scoped via
+    // stashes, but these computed mirrors are user-scoped)
+    this.set('label_locale', null);
+    this.set('vocalization_locale', null);
+
+    // Per-user cached badge / suggestion / followers / focus state
+    this.set('user_badge', null);
+    this.set('user_badge_hash', null);
+    this.set('suggestion_id', null);
+    this.set('followers', null);
+    this.set('focus_words', null);
+
+    // Per-user transient UI overlays / refresh timers
+    this.set('loading_overlay_message', null);
+    this._loading_overlay_shown_at = null;
+    this._loading_overlay_min_ms = null;
+    this.set('toast', null);
+
+    // In-memory board JSON / ordered_buttons / image-warm state must not
+    // leak across users on SPA sign-out (full reload clears module state).
+    try { boardDetailCache.clear(); } catch(e) { /* non-critical */ }
+    this.set('last_keepalive', null);
+    this.set('refresh_stamp', null);
+    this.set('short_refresh_stamp', null);
+    this.set('medium_refresh_stamp', null);
+    this.set('limited_free_space', null);
+
+    // Do NOT clear: browser, system, version, themeMode, battery,
+    // battery_warns, battery_fulls, geolocation, installed_app,
+    // domain_settings, button_list, stashes, current_ssid, licenseOptions,
+    // device_name, no_linky, embedded, eye_gaze, board_layout_mode,
+    // colored_keys, flipped, full_screen_capable.
+
+    // Close any open modal so it does not overlay the post-signout login
+    // form. SPEC R5 — the page reload used to discard modals implicitly;
+    // on the SPA path we must close them explicitly. modal.reset() is
+    // idempotent.
+    modal.reset();
   },
   refresh_session_user: function() {
     var _this = this;
@@ -1953,9 +2416,7 @@ export default Service.extend({
       $('html,body').css('overflow', '');
     } else if(!this.get('testing')) {
       $('html,body').css('overflow', 'hidden').scrollTop(0);
-      try {
-        this.controller.set('footer', false);
-      } catch(e) { }
+      // footer is now a computed on application controller (from currentBoardState)
     }
   }),
   update_button_tracker: observer(
@@ -2081,6 +2542,25 @@ export default Service.extend({
     });
     return res;
   }),
+  beta_program_access: computed('currentUser.preferences.beta_program_access', function() {
+    return !!this.get('currentUser.preferences.beta_program_access');
+  }),
+  index_or_landing_view: computed('index_view', 'current_route', 'currentBoardState.id', function() {
+    var route = this.get('current_route');
+    if (this.get('index_view') || route === 'user.home' || route === 'user.extras' || route === 'landing-alt' || route === 'bento') {
+      return true;
+    }
+    // Error fallback: when on a board route but no board is loaded
+    // (e.g. board failed to resolve, error.hbs renders in the outlet),
+    // treat the page as index-like so the body picks up the same header
+    // / chrome / footer layout used on the authenticated home page
+    // (.index-or-landing-view + .bento-default-mode-active +
+    // .bento-page-with-footer body classes).
+    if ((route === 'board.index' || (route && route.indexOf('board.') === 0)) && !this.get('currentBoardState.id')) {
+      return true;
+    }
+    return false;
+  }),
   empty_header: computed('default_mode', 'currentBoardState', 'hide_search', function() {
     return !!(this.get('default_mode') && !this.get('currentBoardState') && !this.get('hide_search'));
   }),
@@ -2114,28 +2594,26 @@ export default Service.extend({
         // Silently ignore if controller.get fails
         console.warn('header_size: error accessing controller.get:', e);
       }
-      if(window.innerHeight < 400) {
-        size = 'tiny';
-      } else if(window.innerHeight < 600 && size != 'tiny') {
+      // Viewport-height floor: keep the speak bar visually compact
+      // on short viewports. `tiny` (50px) was removed from the
+      // user-facing options — it forced the stacked toggles below
+      // WCAG 2.5.5 AAA. Force `small` (90px) instead so even very
+      // short viewports get the smallest currently-supported bar.
+      if(window.innerHeight < 600 && size != 'tiny') {
         size = 'small';
       }
       return size;
     }
   ),
+  extra_header_height: 0,
   header_height: computed('header_size', 'speak_mode', function() {
+    // Reads from the canonical vocalization-height map in
+    // utils/display_prefs.js (50/70/100/150/200 for
+    // tiny/small/medium/large/huge). 70 is the default for non-
+    // speak-mode (just matches the "small" size — the non-speak
+    // header is fixed at this single value across all sizes).
     if(this.get('speak_mode')) {
-      var size = this.get('header_size');
-      if(size == 'tiny') {
-        return 50;
-      } else if(size == 'small') {
-        return 70;
-      } else if(size == 'medium') {
-        return 100;
-      } else if(size == 'large') {
-        return 150;
-      } else if(size == 'huge') {
-        return 200;
-      }
+      return vocalizationHeightPx(this.get('header_size'));
     } else {
       return 70;
     }
@@ -2159,15 +2637,23 @@ export default Service.extend({
   },
   check_for_needing_purchase: function(prevent_unless_purchased) {
     var user = this.get('sessionUser');
-    // Modeling-only and expired communicator accounts have 
+    // Modeling-only and expired communicator accounts have
     // a number of features that they are prevented from using.
     // If the user is very expired, or they are modeling-only
     // then remind them about purchasing,
     // and possibly prevent the action.
     if(!user || (user.get('really_expired') || user.get('modeling_only'))) {
       var user_name = user && user.get('user_name');
-      return modal.open('premium-required', {user_name: user_name, reason: "combo2-" + !user + "." + (user.get('really_expired')+  "." + user.get('modeling_only')), cancel_on_close: false, remind_to_upgrade: true}).then(function() {
-        if(user.get('modeling_only') || prevent_unless_purchased) {
+      // Defensive: when called before sessionUser has resolved (e.g. on
+      // direct-URL navigation to a route whose setupController invokes
+      // this), the original `reason` interpolation called user.get()
+      // unconditionally inside the string and crashed. Build the reason
+      // suffix only when user exists.
+      var reason_suffix = user
+        ? (user.get('really_expired') + "." + user.get('modeling_only'))
+        : "no-user";
+      return modal.open('premium-required', {user_name: user_name, reason: "combo2-" + !user + "." + reason_suffix, cancel_on_close: false, remind_to_upgrade: true}).then(function() {
+        if((user && user.get('modeling_only')) || prevent_unless_purchased) {
           // modeling-only are prevented from the actions
           // not just reminded about them.
           return RSVP.reject({dialog: true});
@@ -2180,10 +2666,34 @@ export default Service.extend({
     }
   },
   on_user_change: observer('currentUser', function() {
+    if (this.isDestroyed || this.isDestroying) { return; }
     if(this.get('currentUser') && LingoLinq.Board) {
       LingoLinq.Board.clear_fast_html();
     }
+    // Session-start prefetch: as soon as we know who the user is,
+    // fire a background fetch of their entire home board tree
+    // (boards + images) so the cache is fully warm by the time they
+    // navigate to Boards. boardDetailCache.prefetch_for_user dedupes
+    // per user id, so this observer firing repeatedly during session
+    // restore only triggers one prefetch.
+    var user = this.get('currentUser');
+    this.prefetch_board_details_for_user(user);
   }),
+  on_online_board_prefetch: observer('persistence.online', function() {
+    if(!this.get('persistence.online')) { return; }
+    var user = this.get('currentUser');
+    this.prefetch_board_details_for_user(user);
+  }),
+  prefetch_board_details_for_user: function(user) {
+    if(user && user.get && user.get('id') && boardDetailCache) {
+      if(boardDetailCache.prefetch_for_user) {
+        try { boardDetailCache.prefetch_for_user(user); } catch(e) { /* non-critical */ }
+      }
+      if(boardDetailCache.prefetch_caseload_for_user) {
+        try { boardDetailCache.prefetch_caseload_for_user(user); } catch(e) { /* non-critical */ }
+      }
+    }
+  },
   speak_mode_handlers: observer(
     'speak_mode',
     'currentUser.id',
@@ -2191,6 +2701,7 @@ export default Service.extend({
     'referenced_user.preferences.logging',
     'referenced_user.id',
     function() {
+      if (this.isDestroyed || this.isDestroying) { return; }
       if(this.session.get('isAuthenticated') && !this.get('currentUser.id')) {
         // Don't run handlers on page reload until user is loaded
         return;
@@ -2240,7 +2751,7 @@ export default Service.extend({
           var noticed = false;
           if(this.stashes.get('logging_enabled')) {
             noticed = true;
-            modal.notice(i18n.t('logging_enabled', "Logging is enabled"), true);
+            this.show_toast(i18n.t('logging_enabled', "Logging is enabled"), 'success');
           }
           if(this.get('currentBoardState.has_fallbacks')) {
             modal.notice(i18n.t('board_using_fallbacks', "This board uses premium assets which you don't have access to so you will see free images and sounds which may not perfectly match the author's intent"), true);
@@ -2304,33 +2815,55 @@ export default Service.extend({
               }
             }, function() { });
           }
-        }
-        this.set('eye_gaze', capabilities.eye_gaze);
-        this.set('embedded', !!(LingoLinq.embedded));
-        this.set('full_screen_capable', capabilities.fullscreen_capable());
-        if(this.get('currentBoardState') && this.get('currentUser.needs_speak_mode_intro')) {
-          var intro = this.get('currentUser.preferences.progress.speak_mode_intro_done');
-          if(!intro && !this.get('speak-mode-intro')) {
-            if(modal.route && !modal.is_open('speak-mode-intro')) {
-              modal.open('speak-mode-intro');
-            }
-          } else if(intro && !this.get('currentUser.preferences.progress.modeling_intro_done') && this.get('currentUser.preferences.logging') && !this.get('modeling-intro')) {
-            var now = (new Date()).getTime();
-            if(intro === true && this.get('currentUser.joined')) { intro = this.get('currentUser.joined').getTime(); }
-            if(now - intro > (4 * 24 * 60 * 60 * 1000)) {
-              if(modal.route && !modal.is_open('modeling-intro')) {
-                modal.open('modeling-intro');
+          // Speak-mode / modeling intros belong with first speak-mode entry only.
+          // speak_mode_handlers also fires on board loads and referenced-user
+          // changes while already in speak mode — showing the intro here on every
+          // fire made board switches re-open the welcome modal.
+          // Eval boards (obf/eval*) require speak mode and enter it as part of the
+          // assessment's own flow, which has its own on-board intro. Suppress the
+          // generic speak-mode-intro / modeling-intro here so they don't interrupt
+          // an eval. speak_mode_intro_done stays unset, so a later normal (non-eval)
+          // speak-mode entry still shows the intro. (Same spirit as the tour guard
+          // below, where the guided tour IS the intro.)
+          if(this.get('currentBoardState') && this.get('currentUser.needs_speak_mode_intro') && !this.get('eval_mode')) {
+            var intro = this.get('currentUser.preferences.progress.speak_mode_intro_done');
+            // Stand down when a board-detail SPEAK tour is pending/handing off (home
+            // tour "start speaking" button, board picker, board-preview overlay): the
+            // guided tour IS the speak-mode intro, so the legacy modal would otherwise
+            // race it and render dimmed behind the tour card. The tour clears the flag
+            // once it opens, after which normal (no-tour) entry shows the modal again.
+            if(!intro && !this.get('speak-mode-intro') && !this.get('board_detail_tour_pending_speak')) {
+              if(modal.route && !modal.is_open('speak-mode-intro')) {
+                modal.open('speak-mode-intro');
+              }
+            } else if(intro && !this.get('currentUser.preferences.progress.modeling_intro_done') && this.get('currentUser.preferences.logging') && !this.get('modeling-intro')) {
+              var now = (new Date()).getTime();
+              if(intro === true && this.get('currentUser.joined')) { intro = this.get('currentUser.joined').getTime(); }
+              if(now - intro > (4 * 24 * 60 * 60 * 1000)) {
+                if(modal.route && !modal.is_open('modeling-intro')) {
+                  modal.open('modeling-intro');
+                }
               }
             }
           }
         }
+        this.set('eye_gaze', capabilities.eye_gaze);
+        this.set('embedded', !!(LingoLinq.embedded));
+        this.set('full_screen_capable', capabilities.fullscreen_capable());
       } else if(!this.get('speak_mode') && this.get('last_speak_mode') !== undefined) {
         capabilities.wakelock('speak!', false);
         var fullscreenPromise = capabilities.fullscreen(false);
         this.check_scanning();
         buttonTracker.hit_spots = [];
         this.set('suggestion_id', null);
-        if(this.get('last_speak_mode') !== false) {
+        // Entering edit mode temporarily flips speak_mode false, but the
+        // supervisor's modeling session should survive the round-trip. Skip
+        // the state teardown (referenced_speak_mode_user et al.) when the
+        // transition target is 'edit' — the edit route's resetController
+        // restores current_mode='speak' on exit, at which point this observer
+        // re-enters the setup branch and the session is intact.
+        var entering_edit = this.stashes.get('current_mode') === 'edit';
+        if(this.get('last_speak_mode') !== false && !entering_edit) {
           if(this.get('sessionUser')) {
             this.set('sessionUser.request_alert', null);
           }
@@ -2426,17 +2959,23 @@ export default Service.extend({
     }
   ),
   refresh_suggestions: function() {
-    var board = this.controller && this.controller.get('board.model');
-    if(board && !board.get('isDeleted')) {
+    var board = this.resolve_board_from_controller();
+    // Guard `board.get`: board.model can transiently be a non-Ember
+    // object (the { error: true, boardname } POJO board-detail's model()
+    // resolves with on a failed /tree fetch). Calling .get on that throws
+    // and hard-crashes the view via the speak_mode_handlers observer.
+    if(board && typeof board.get === 'function' && !board.get('isDeleted')) {
       // TODO: only load this if we know we need it?
       var history_string = (this.stashes.get('working_vocalization') || []).map(function(v) { return (v.label || "") + (v.button_id || "n") + ((v.board || {}).id || "n"); }).join(",");
       var ref = board.id + "::" + history_string + "::" + this.get('shift');
       if(ref != this.get('suggestion_id')) {
+        var routeName = this.get('current_route') || '';
+        var on_board_detail = routeName.indexOf('board-detail') !== -1;
         var $board = $(".board[data-id='" + board.id + "']");
-        if($board.length > 0) {
+        if($board.length > 0 || on_board_detail) {
           this.set('suggestion_id', ref);
           board.clear_real_time_changes();
-          board.load_word_suggestions([this.get('currentUser.preferences.home_board.id'), this.stashes.get('temporary_root_board_state.id')]);
+          board.load_word_suggestions(word_suggestions.lookup_board_ids(this, this.stashes, [board.id]));
           if(this.get('referenced_user.preferences.auto_inflections') || this.get('inflection_shift') || this.get('shift')) {
             board.load_real_time_inflections();
           }
@@ -2491,11 +3030,30 @@ export default Service.extend({
       text_fallback(tag.text.slice(1, tag.text.length - 2));
     }
   },
-  speak_mode: computed('stashes.current_mode', 'currentBoardState', function() {
-    return !!(this.stashes.get('current_mode') == 'speak' && this.get('currentBoardState'));
+  speak_mode: computed('stashes.current_mode', 'currentBoardState', {
+    get: function() {
+      return !!(this.stashes.get('current_mode') == 'speak' && this.get('currentBoardState'));
+    },
+    set: function(key, value) {
+      // Ember 5 forbids set() on a computed lacking a setter. As with
+      // edit_mode, the app drives mode via stashes.current_mode and only
+      // tests force speak_mode directly; cache the forced value (it
+      // re-derives from current_mode/currentBoardState on dependency change).
+      return !!value;
+    }
   }),
-  edit_mode: computed('stashes.current_mode', 'currentBoardState', function() {
-    return !!(this.stashes.get('current_mode') == 'edit' && this.get('currentBoardState'));
+  edit_mode: computed('stashes.current_mode', 'currentBoardState', {
+    get: function() {
+      return !!(this.stashes.get('current_mode') == 'edit' && this.get('currentBoardState'));
+    },
+    set: function(key, value) {
+      // Ember 5 forbids set() on a computed lacking a setter. The app itself
+      // never assigns edit_mode on app-state (it drives mode via
+      // stashes.current_mode in toggle_edit_mode); only tests force it
+      // directly. Accept and cache the forced value; it re-derives from
+      // current_mode/currentBoardState if a dependency later changes.
+      return !!value;
+    }
   }),
   default_mode: computed('stashes.current_mode', 'currentBoardState', function() {
     return !!(this.stashes.get('current_mode') == 'default' || !this.get('currentBoardState'));
@@ -2564,6 +3122,86 @@ export default Service.extend({
         i.src = img.getAttribute('rel-url');
       }
     })
+  }),
+  // When the loading overlay becomes active, wait for the next router
+  // routeDidChange event (destination route fully rendered) and then clear it.
+  // This keeps the overlay visible for the full transition duration on slow
+  // networks, instead of clearing on a fixed 450ms timer.
+  // Minimum time the overlay stays on screen once shown, so fast synchronous
+  // transitions still let the user see it (and don't flash-and-disappear).
+  LOADING_OVERLAY_MIN_MS: 700,
+  // Shorter minimum when navigation is a known cache hit (raw JSON + Ember
+  // record already in memory). Still long enough for click feedback.
+  LOADING_OVERLAY_CACHE_HIT_MIN_MS: 150,
+
+  show_loading_overlay: function(message, opts) {
+    opts = opts || {};
+    this.set('loading_overlay_message', message);
+    this._loading_overlay_shown_at = Date.now();
+    if (opts.min_ms != null) {
+      this._loading_overlay_min_ms = opts.min_ms;
+    } else {
+      this._loading_overlay_min_ms = null;
+    }
+  },
+
+  hide_loading_overlay: function() {
+    var _this = this;
+    var shown_at = this._loading_overlay_shown_at || 0;
+    var elapsed = Date.now() - shown_at;
+    var min = this._loading_overlay_min_ms != null ?
+      this._loading_overlay_min_ms :
+      (this.get('LOADING_OVERLAY_MIN_MS') || 700);
+    var remaining = Math.max(0, min - elapsed);
+    runLater(function() {
+      if(_this.isDestroyed) { return; }
+      _this.set('loading_overlay_message', null);
+      _this._loading_overlay_shown_at = null;
+      _this._loading_overlay_min_ms = null;
+    }, remaining);
+  },
+
+  // Modern toast notification — slides in from top, auto-dismisses.
+  // kind: 'info' (default), 'success', 'warning', 'error'
+  // duration_ms: how long before auto-dismiss (default 3500)
+  show_toast: function(message, kind, duration_ms) {
+    var _this = this;
+    if(!message) { return; }
+    if(this._toast_timer) { runCancel(this._toast_timer); this._toast_timer = null; }
+    this.set('toast', {
+      message: message,
+      kind: kind || 'info',
+      id: Date.now()
+    });
+    var duration = duration_ms || 3500;
+    this._toast_timer = runLater(function() {
+      if(_this.isDestroyed) { return; }
+      _this.set('toast', null);
+      _this._toast_timer = null;
+    }, duration);
+  },
+
+  hide_toast: function() {
+    if(this._toast_timer) { runCancel(this._toast_timer); this._toast_timer = null; }
+    this.set('toast', null);
+  },
+
+  _wire_loading_overlay_clear_on_route_change: observer('loading_overlay_message', function() {
+    // Reserved for cleanup hooks on overlay state change.
+  }),
+  // Safety net — in case the speak_mode transition fails or stalls, never leave
+  // the overlay on-screen for more than ~4 seconds.
+  _loading_overlay_timeout_guard: observer('loading_overlay_message', function() {
+    if(this.get('loading_overlay_message')) {
+      var _this = this;
+      if(this._loading_overlay_guard_timer) { return; }
+      this._loading_overlay_guard_timer = runLater(function() {
+        _this._loading_overlay_guard_timer = null;
+        if(!_this.isDestroyed) { _this.set('loading_overlay_message', null); }
+      }, 15000);
+    } else if(this._loading_overlay_guard_timer) {
+      this._loading_overlay_guard_timer = null;
+    }
   }),
   auto_exit_speak_mode: observer('speak_mode_started', 'medium_refresh_stamp', function() {
     var now = (new Date()).getTime();
@@ -2716,15 +3354,26 @@ export default Service.extend({
       return this.get_history().length === 0;
     }
   ),
+  // The speak-mode SIDEBAR (the quick/inline sidebar) shows by DEFAULT: an UNSET
+  // `quick_sidebar` preference is treated as `true` (show). Once the user uses the
+  // sidebar's expand/unexpand button the preference is set explicitly (persisted by
+  // application#stickSidebar — expand => true, collapse => false) and that wins.
+  // Single source of truth so every sidebar read site agrees on the default.
+  effective_quick_sidebar: computed('currentUser.preferences.quick_sidebar', 'currentUser.preferences.disable_quick_sidebar', function() {
+    // A user who explicitly disabled the quick sidebar keeps it off (don't let the
+    // show-by-default override their choice).
+    if(this.get('currentUser.preferences.disable_quick_sidebar')) { return false; }
+    var qs = this.get('currentUser.preferences.quick_sidebar');
+    return (qs === undefined || qs === null) ? true : !!qs;
+  }),
   sidebar_visible: computed(
     'speak_mode',
     'stashes.sidebarEnabled',
-    'currentUser',
-    'currentUser.preferences.quick_sidebar',
+    'effective_quick_sidebar',
     'eval_mode',
     function() {
       // TODO: does this need to trigger board resize event? maybe...
-      return this.get('speak_mode') && !this.get('eval_mode') && (this.stashes.get('sidebarEnabled') || this.get('currentUser.preferences.quick_sidebar'));
+      return this.get('speak_mode') && !this.get('eval_mode') && (this.stashes.get('sidebarEnabled') || this.get('effective_quick_sidebar'));
     }
   ),
   sidebar_relegated: computed('speak_mode', 'window_inner_width', function() {
@@ -2753,7 +3402,7 @@ export default Service.extend({
       if(_this.get('nearby_places') && any_places) {
         // set current_place_types to the list of places for the closest-retrieved place
         (_this.get('nearby_places') || []).forEach(function(place) {
-          var d = geolocation.distance(place.latitude, place.longitude, this.stashes.get('geo.latest.coords.latitude'), this.stashes.get('geo.latest.coords.longitude'));
+          var d = geolocation.distance(place.latitude, place.longitude, _this.stashes.get('geo.latest.coords.latitude'), _this.stashes.get('geo.latest.coords.longitude'));
           // anything with 500ft could be a winner
           if(d && d < 500) {
             place.types.forEach(function(type) {
@@ -2778,12 +3427,12 @@ export default Service.extend({
           matches['ssid'] = true;
         }
         var geo_set = false;
-        if(brd.geos && this.stashes.get('geo.latest.coords')) {
+        if(brd.geos && _this.stashes.get('geo.latest.coords')) {
           var geos = brd.geos || [];
           if(geos.split) { geos = geos.split(/;/).map(function(g) { return g.split(/,/).map(function(n) { return parseFloat(n); }); }); }
           brd.geo_distance = -1;
           geos.forEach(function(geo) {
-            var d = geolocation.distance(this.stashes.get('geo.latest.coords.latitude'), this.stashes.get('geo.latest.coords.longitude'), geo[0], geo[1]);
+            var d = geolocation.distance(_this.stashes.get('geo.latest.coords.latitude'), _this.stashes.get('geo.latest.coords.longitude'), geo[0], geo[1]);
             if(d && d < loose_tolerance && (brd.geo_distance == -1 || d < brd.geo_distance)) {
               brd.geo_distance = d;
               geo_set = true;
@@ -2908,10 +3557,9 @@ export default Service.extend({
   ),
   sidebar_pinned: computed(
     'speak_mode',
-    'currentUser',
-    'currentUser.preferences.quick_sidebar',
+    'effective_quick_sidebar',
     function() {
-      return this.get('speak_mode') && this.get('currentUser.preferences.quick_sidebar');
+      return this.get('speak_mode') && this.get('effective_quick_sidebar');
     }
   ),
   referenced_user: computed(
@@ -2966,8 +3614,14 @@ export default Service.extend({
       if(LingoLinq.store && user && !user.get('supporter_role') && user.get('currently_premium') && last_check < (now - 600000)) {
         _this.set('last_user_badge_load_for_' + user.get('id'), now);
         runLater(function() {
+          if (_this.isDestroyed || _this.isDestroying) {
+            return;
+          }
           _this.set('user_badge_hash', badge_hash);
           LingoLinq.store.query('badge', {user_id: user.get('id'), recent: 1}).then(function(badges) {
+            if (_this.isDestroyed || _this.isDestroying) {
+              return;
+            }
             _this.set('user_badge_hash', badge_hash);
             badges = badges.filter(function(b) { return b.get('user_id') == user.get('id'); });
             var badge = LingoLinq.Badge.best_earned_badge(badges);
@@ -2977,6 +3631,9 @@ export default Service.extend({
             }
             _this.set('user_badge', badge);
           }, function(err) {
+            if (_this.isDestroyed || _this.isDestroying) {
+              return;
+            }
             _this.set('user_badge_hash', old_badge_hash);
           });
         });
@@ -3043,10 +3700,15 @@ export default Service.extend({
     // track modeling events correctly
     var now = (new Date()).getTime();
     var skip_navigation = false;
-    if(this.get('modeling')) {
-      obj.modeling = true;
-    } else if(this.stashes.last_selection && this.stashes.last_selection.modeling && this.stashes.last_selection.ts > (now - 500)) {
-      obj.modeling = true;
+    // When `modeling_paused` is set (e.g. supervisor is on the supervisee's
+    // edit page), the session is still live but taps must NOT be logged as
+    // modeled actions — they'd pollute the communicator's report data.
+    if(!this.get('modeling_paused')) {
+      if(this.get('modeling')) {
+        obj.modeling = true;
+      } else if(this.stashes.last_selection && this.stashes.last_selection.modeling && this.stashes.last_selection.ts > (now - 500)) {
+        obj.modeling = true;
+      }
     }
 
 
@@ -3058,10 +3720,21 @@ export default Service.extend({
           obj.label = suggestion.word;
           obj.completion = suggestion.word;
           obj.suggestion_override = true;
-          obj.image = suggestion.image;
-          obj.image_license = suggestion.image_license;
+          var suggestion_image = word_suggestions.resolve_word_image(suggestion);
+          if(suggestion_image) {
+            obj.image = suggestion_image;
+            obj.image_license = suggestion.image_license;
+          }
         }
       }
+    }
+
+    // Keyboard letter keys use vocalizations like +t. Speak only the new
+    // character while utterance accumulates the in-progress word.
+    var activation_vocalization = obj.vocalization || button.vocalization || '';
+    var keyboard_letter = null;
+    if(activation_vocalization.match(/^\+.$/)) {
+      keyboard_letter = activation_vocalization.substring(1);
     }
 
     if(obj.vocalization == ':predict' || obj.vocalization == ':complete') {
@@ -3090,6 +3763,29 @@ export default Service.extend({
       }
     } else if(button.load_board) {
       obj.type = 'link';
+    }
+    var action_lock_key = null;
+    if(button.load_board && button.load_board.key) {
+      action_lock_key = 'board-link:' + ((obj.board && (obj.board.key || obj.board.id)) || 'current') + ':' + button.load_board.key;
+    } else if(button.url) {
+      action_lock_key = 'external-url:' + button.url;
+    } else if(button.apps) {
+      action_lock_key = 'external-app:' + (
+        (capabilities.system == 'iOS' && button.apps.ios && button.apps.ios.launch_url) ||
+        (capabilities.system == 'Android' && button.apps.android && button.apps.android.launch_url) ||
+        (button.apps.web && button.apps.web.launch_url) ||
+        button.id ||
+        obj.button_id ||
+        'unknown'
+      );
+    } else if(button.integration && button.integration.action_type == 'webhook') {
+      action_lock_key = 'integration:' + (button.integration.user_integration_id || button.id || obj.button_id || 'unknown') + ':webhook';
+    } else if(button.integration && button.integration.action_type == 'render') {
+      action_lock_key = 'integration:' + button.integration.user_integration_id + ':render:' + (button.integration.action || '');
+    }
+    if(action_lock_key && actionLock.isLocked(action_lock_key)) {
+      actionLock.warn(action_lock_key);
+      return false;
     }
     var overlay = obj.overlay;
     delete obj['overlay'];
@@ -3141,7 +3837,7 @@ export default Service.extend({
     var skip_auto_return = false;
     // check if the button is part of a board that has a custom handler,
     // and skip the other actions if handled
-    if(button.board == this.controller.get('board.model') && button.board.get('button_handler')) {
+    if(button.board && button.board == this.controller.get('board.model') && button.board.get('button_handler')) {
       var button_handled = button.board.get('button_handler')(button, obj);
       if(button_handled) { 
         if(button_handled.highlight === false) { skip_highlight = true; }
@@ -3195,11 +3891,21 @@ export default Service.extend({
           } else {
             obj.spoken = true;
             obj.for_speaking = true;
+            var speakDone = false;
             var doSpeak = function() {
-              if (typeof console !== 'undefined' && console.log) {
-                console.log('[speak-mode] button activate:', button_to_speak.label || '(no label)', 'sound:', !!button_to_speak.sound, 'vocalization:', (button_to_speak.vocalization || button_to_speak.label) || '(none)');
+              if(speakDone) { return; }
+              speakDone = true;
+              var to_speak = button_to_speak;
+              if(keyboard_letter && to_speak) {
+                to_speak = Object.assign({}, to_speak, {
+                  vocalization: keyboard_letter,
+                  label: keyboard_letter
+                });
               }
-              utterance.speak_button(button_to_speak);
+              if (typeof console !== 'undefined' && console.log) {
+                console.log('[speak-mode] button activate:', to_speak.label || '(no label)', 'sound:', !!to_speak.sound, 'vocalization:', (to_speak.vocalization || to_speak.label) || '(none)');
+              }
+              utterance.speak_button(to_speak);
               vibrate();
             };
             if (button_to_speak && !button_to_speak.sound) {
@@ -3270,78 +3976,162 @@ export default Service.extend({
         user_prefers_native_keyboard = window.user_preferences.any_user.prefer_native_keyboard;
       }
       var native_keyboard_available = capabilities.installed_app && (capabilities.system == 'iOS' || capabilities.system == 'Android') && !buttonTracker.scanning_enabled;
-      var expecting_key = (button.vocalization || '').match(/:native-keyboard/) || (button.load_board && button.load_board.key == 'example/keyboard');
+      var load_key = button.load_board && button.load_board.key;
+      var expecting_key = (button.vocalization || '').match(/:native-keyboard/) || (load_key && load_key.match(/\/keyboard$/));
       if(expecting_key && native_keyboard_available && user_prefers_native_keyboard && window.Keyboard && window.Keyboard.hide) {
         scanner.native_keyboard();
       } else if(this.stashes.get('sticky_board') && this.get('speak_mode')) {
         modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
-      } else {
-        runLater(function() {
-          _this.track_depth('link');
-          _this.jump_to_board({
-            id: button.load_board.id,
-            key: button.load_board.key,
-            button_triggered: true,
-            meta_home: button.meta_home,
-            home_lock: button.home_lock
-          }, obj.board);
-        }, 50);
+      } else if(button.load_board) {
+        actionLock.run(action_lock_key, function() {
+          return new RSVP.Promise(function(resolve, reject) {
+            runLater(function() {
+              var jump;
+              _this.track_depth('link');
+              jump = _this.jump_to_board({
+                id: button.load_board.id,
+                key: button.load_board.key,
+                button_triggered: true,
+                meta_home: button.meta_home,
+                home_lock: button.home_lock
+              }, obj.board);
+              if(jump && typeof jump.then === 'function') {
+                jump.then(resolve, reject);
+              } else {
+                resolve();
+              }
+            }, 50);
+          });
+        }, {timeout: 5000});
       }
     } else if(button.url) {
       this.track_depth('clear');
       if(this.stashes.get('sticky_board') && this.get('speak_mode')) {
         modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
       } else if(this.get('currentUser.preferences.external_links') == 'prevent') {
-        modal.warning(i18n.t('external_links_disabled_notice', "External Links have been disabled in this user's preferences."), true);
+        modal.warning(i18n.t('external_links_disabled_notice', "External Links have been disabled in this user's settings."), true);
       } else {
-        this.launch_url(button, null, obj.board);
+        actionLock.run(action_lock_key, function() {
+          return _this.launch_url(button, null, obj.board);
+        }, {timeout: 5000});
       }
     } else if(button.apps) {
       this.track_depth('clear');
       if(this.stashes.get('sticky_board') && this.get('speak_mode')) {
         modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
       } else if(this.get('currentUser.preferences.external_links') == 'prevent') {
-        modal.warning(i18n.t('external_links_disabled_notice', "External Links have been disabled in this user's preferences."), true);
+        modal.warning(i18n.t('external_links_disabled_notice', "External Links have been disabled in this user's settings."), true);
       } else {
-        if((!this.get('currentUser') && (window.user_preferences.any_user.external_links || '').match(/confirm/)) || (this.get('currentUser.preferences.external_links') || '').match(/confirm/)) {
-          modal.open('confirm-external-app', {apps: button.apps});
-        } else if((!this.get('currentUser') && window.user_preferences.any_user.confirm_external_links) || this.get('currentUser.preferences.confirm_external_links')) {
-          modal.open('confirm-external-app', {apps: button.apps});
-        } else {
-          if(capabilities.system == 'iOS' && button.apps.ios && button.apps.ios.launch_url) {
-            capabilities.window_open(button.apps.ios.launch_url, '_blank');
-          } else if(capabilities.system == 'Android' && button.apps.android && button.apps.android.launch_url) {
-            capabilities.window_open(button.apps.android.launch_url, '_blank');
-          } else if(button.apps.web && button.apps.web.launch_url) {
-            capabilities.window_open(button.apps.web.launch_url, '_blank');
+        actionLock.run(action_lock_key, function() {
+          if((!_this.get('currentUser') && (window.user_preferences.any_user.external_links || '').match(/confirm/)) || (_this.get('currentUser.preferences.external_links') || '').match(/confirm/)) {
+            return modal.open('confirm-external-app', {apps: button.apps});
+          } else if((!_this.get('currentUser') && window.user_preferences.any_user.confirm_external_links) || _this.get('currentUser.preferences.confirm_external_links')) {
+            return modal.open('confirm-external-app', {apps: button.apps});
           } else {
-            // TODO: handle this edge case smartly I guess
+            if(capabilities.system == 'iOS' && button.apps.ios && button.apps.ios.launch_url) {
+              capabilities.window_open(button.apps.ios.launch_url, '_blank');
+            } else if(capabilities.system == 'Android' && button.apps.android && button.apps.android.launch_url) {
+              capabilities.window_open(button.apps.android.launch_url, '_blank');
+            } else if(button.apps.web && button.apps.web.launch_url) {
+              capabilities.window_open(button.apps.web.launch_url, '_blank');
+            } else {
+              // TODO: handle this edge case smartly I guess
+            }
           }
-        }
+        }, {timeout: 5000});
       }
     } else if(specialty_button) {
       this.track_depth('clear');
-      var res = this.specialty_actions(button.vocalization);
+      var res = this.specialty_actions(obj.vocalization || button.vocalization);
       var auto_return_possible = !!specialty_button.default_speak || res.auto_return_possible;
       if(auto_return_possible && !res.already_navigating && !skip_auto_return) {
         this.possible_auto_home(obj);
       }
     } else if(button.integration && button.integration.action_type == 'webhook') {
       this.track_depth('clear');
-      Button.extra_actions(button);
-      runLater(function() { _this.check_scanning(); }, 200);
+      actionLock.run(action_lock_key, function() {
+        var extra = Button.extra_actions(button);
+        runLater(function() { _this.check_scanning(); }, 200);
+        return extra;
+      }, {timeout: 5000});
     } else if(button.integration && button.integration.action_type == 'render') {
       this.track_depth('clear');
-      runLater(function() {
-      _this.jump_to_board({
-        id: "i" + button.integration.user_integration_id,
-        key: "integrations/" + button.integration.user_integration_id + ":" + (button.integration.action || ''),
-        home_lock: button.home_lock,
-        meta_home: button.meta_home
-      }, obj.board);
-      }, 100);
+      actionLock.run(action_lock_key, function() {
+        return new RSVP.Promise(function(resolve, reject) {
+          runLater(function() {
+            var jump = _this.jump_to_board({
+              id: "i" + button.integration.user_integration_id,
+              key: "integrations/" + button.integration.user_integration_id + ":" + (button.integration.action || ''),
+              home_lock: button.home_lock,
+              meta_home: button.meta_home
+            }, obj.board);
+            if(jump && typeof jump.then === 'function') {
+              jump.then(resolve, reject);
+            } else {
+              resolve();
+            }
+          }, 100);
+        });
+      }, {timeout: 5000});
     } else if(!skip_auto_return) {
       this.possible_auto_home(obj);
+    }
+    // Board-detail sentence bar uses sentence_parts; overlay inflections only update utterance
+    // via add_button. Mirror the chosen label into the last matching token (or append if none).
+    if(obj.source === 'overlay' && this.board_detail_inflections_active() && obj.label) {
+      var owner = getOwner(this);
+      var detailCtrl = owner && (owner.lookup('controller:user.board-detail') ||
+        owner.lookup('controller:user/board-detail'));
+      if(detailCtrl && typeof detailCtrl.get === 'function') {
+        var bid = button.get ? button.get('id') : button.id;
+        var sparts = (detailCtrl.get('sentence_parts') || []).slice();
+        var replaced = false;
+        for(var spi = sparts.length - 1; spi >= 0; spi--) {
+          if(String((sparts[spi] || {}).id) === String(bid)) {
+            sparts[spi] = Object.assign({}, sparts[spi], { label: obj.label });
+            replaced = true;
+            break;
+          }
+        }
+        if(!replaced && bid != null) {
+          var imgUrl = button.get && (button.get('local_image_url') || button.get('image_url'));
+          if(!imgUrl) {
+            imgUrl = button.local_image_url || button.image_url;
+          }
+          sparts.push({ id: bid, label: obj.label, image_url: imgUrl });
+        }
+        detailCtrl.set('sentence_parts', sparts);
+      }
+    }
+    // Speak menu punctuation (.,?! etc.) updates utterance; board-detail bar uses sentence_parts.
+    if(obj.source === 'speak_menu' && this.board_detail_inflections_active() && obj.label) {
+      var ownerSm = getOwner(this);
+      var detailSm = ownerSm && (ownerSm.lookup('controller:user.board-detail') ||
+        ownerSm.lookup('controller:user/board-detail'));
+      if(detailSm && typeof detailSm.get === 'function') {
+        var smParts = (detailSm.get('sentence_parts') || []).slice();
+        var punct = String(obj.label);
+        var gluePunct = /^[.!?,;:]$/.test(punct);
+        if(smParts.length > 0 && gluePunct) {
+          var lastPart = smParts[smParts.length - 1];
+          smParts[smParts.length - 1] = Object.assign({}, lastPart, {
+            label: (lastPart.label || '') + punct
+          });
+        } else {
+          smParts.push({ id: 'punct_' + Date.now(), label: punct, image_url: null });
+        }
+        detailSm.set('sentence_parts', smParts);
+      }
+    }
+    // Keep board-detail sentence bar in sync (partial words while typing,
+    // symbol image when a word completes).
+    if(this.board_detail_inflections_active() && button_added_or_spoken) {
+      var ownerBd = getOwner(this);
+      var detailBd = ownerBd && (ownerBd.lookup('controller:user.board-detail') ||
+        ownerBd.lookup('controller:user/board-detail'));
+      if(detailBd && typeof detailBd.sync_sentence_from_button_list === 'function') {
+        detailBd.sync_sentence_from_button_list();
+      }
     }
     frame_listener.notify_of_button(button, obj);
     return true;
@@ -3588,7 +4378,14 @@ export default Service.extend({
     if(obj.prevent_return) {
       // integrations and configured buttons can explicitly prevent navigating away when activated
       runLater(function() { _this.check_scanning(); }, 200);
-    } else if(this.get('speak_mode') && ((!this.get('currentUser') && window.user_preferences.any_user.auto_home_return) || this.get('currentUser.preferences.auto_home_return'))) {
+    } else if(this.get('speak_mode') && (function(_this) {
+      if(!_this.get('currentUser') && window.user_preferences.any_user.auto_home_return) { return true; }
+      var ru = _this.get('referenced_user');
+      if(ru && ru.get && typeof ru.get('preferences.auto_home_return') !== 'undefined') {
+        return !!ru.get('preferences.auto_home_return');
+      }
+      return !!_this.get('currentUser.preferences.auto_home_return');
+    })(this)) {
       if(this.stashes.get('sticky_board') && this.get('speak_mode')) {
         var state = this.stashes.get('temporary_root_board_state') || this.stashes.get('root_board_state');
         var current = this.get('currentBoardState');
@@ -3607,15 +4404,52 @@ export default Service.extend({
       }
     }
   },
+  // In-place eval pause state (set by utils/eval.js pause/unpause). eval_paused
+  // drives the pause overlay + the Pause/Resume button label; eval_last_pause_ms
+  // is read once by board/index on the unpause flip to shift the board's
+  // `rendered` so per-item response time excludes the paused span.
+  eval_paused: false,
+  eval_last_pause_ms: 0,
+  eval_paused_elapsed: null,
   eval_mode: computed('currentBoardState.key', function() {
     return (this.get('currentBoardState.key') || '').match(/^obf\/eval/);
+  }),
+  /**
+   * Eval boards require speak mode: fast_html path, eval.js handlers, and the speak header
+   * (eval toolbar lives inside {{#if speak_mode}} in application.hbs).
+   * Dashboard "Run evaluation" uses set_speak_mode_user(..., 'obf/eval') → home_in_speak_mode
+   * → toggle_mode('speak'), which already enables speak mode. This catches jump_to_board,
+   * deep links, or any path that lands on obf/eval without speak mode.
+   */
+  ensure_speak_mode_for_eval: observer('currentBoardState.key', 'stashes.current_mode', function() {
+    if(isTesting()) { return; }
+    var key = this.get('currentBoardState.key') || '';
+    if(!key.match(/^obf\/eval/)) { return; }
+    if(this.get('speak_mode')) { return; }
+    if(this.get('sessionUser.eval_ended')) { return; }
+    var board_state = this.get('currentBoardState');
+    if(!board_state || !board_state.key) { return; }
+    var _this = this;
+    if(this._ensureSpeakForEvalScheduled) { return; }
+    this._ensureSpeakForEvalScheduled = true;
+    runLater(function() {
+      _this._ensureSpeakForEvalScheduled = false;
+      if(!_this || (_this.isDestroyed !== undefined && _this.isDestroyed)) { return; }
+      var k = _this.get('currentBoardState.key') || '';
+      if(!k.match(/^obf\/eval/)) { return; }
+      if(_this.get('speak_mode')) { return; }
+      if(_this.get('sessionUser.eval_ended')) { return; }
+      var bs = _this.get('currentBoardState');
+      if(!bs || !bs.key) { return; }
+      _this.toggle_mode('speak', {force: true, override_state: bs});
+    }, 1);
   }),
   launch_url: function(button, force, board) {
     var _this = this;
     if(!force && _this.get('currentUser.preferences.external_links') == 'confirm_all') {
-      modal.open('confirm-external-link', {url: button.url}).then(function(res) {
+      return modal.open('confirm-external-link', {url: button.url}).then(function(res) {
         if(res && res.open) {
-          _this.launch_url(button, true, board);
+          return _this.launch_url(button, true, board);
         }
       });
     } else {
@@ -3626,32 +4460,40 @@ export default Service.extend({
         real_url = button.book.url;
       }
       if(button.video && button.video.popup) {
-        modal.open('inline-video', button);
+        return modal.open('inline-video', button);
       } else if(button.book && button.book.popup && book_integration) {
         var opts = $.extend({}, button.book || {});
         delete opts['base_url'];
         delete opts['url'];
         delete opts['popup'];
         delete opts['type'];
-        runLater(function() {
-          _this.jump_to_board({
-            id: "i_tarheel",
-            key: "integrations/tarheel:" + encodeURIComponent(btoa(JSON.stringify(opts))),
-            home_lock: button.home_lock,
-            meta_home: button.meta_home
-          }, board);
-        }, 100);
+        return new RSVP.Promise(function(resolve, reject) {
+          runLater(function() {
+            var jump = _this.jump_to_board({
+              id: "i_tarheel",
+              key: "integrations/tarheel:" + encodeURIComponent(btoa(JSON.stringify(opts))),
+              home_lock: button.home_lock,
+              meta_home: button.meta_home
+            }, board);
+            if(jump && typeof jump.then === 'function') {
+              jump.then(resolve, reject);
+            } else {
+              resolve();
+            }
+          }, 100);
+        });
       } else {
         var do_confirm = (!_this.get('currentUser') && window.user_preferences.any_user.external_links == 'confirm_custom') || _this.get('currentUser.preferences.external_links') == 'confirm_custom';
         do_confirm = do_confirm || (!_this.get('currentUser') && window.user_preferences.any_user.confirm_external_links) || _this.get('currentUser.preferences.confirm_external_links');
         if(!force && do_confirm) {
-          modal.open('confirm-external-link', {url: button.url, real_url: real_url}).then(function(res) {
+          return modal.open('confirm-external-link', {url: button.url, real_url: real_url}).then(function(res) {
             if(res && res.open) {
               capabilities.window_open(real_url || button.url, '_blank');
             }
           });
         } else {
           capabilities.window_open(real_url || button.url, '_blank');
+          return RSVP.resolve();
         }
       }
     }
@@ -3659,6 +4501,35 @@ export default Service.extend({
   remember_global_integrations: observer('sessionUser.global_integrations', function() {
     if(this.get('sessionUser.global_integrations')) {
       this.stashes.persist('global_integrations', this.get('sessionUser.global_integrations'));
+    }
+  }),
+  /** Mirror the user's symbol_background pref onto <html> via the
+   *  `.fitzgerald-soft` / `.fitzgerald-faded` classes. Putting the class
+   *  at :root means both CSS rules using var(--fitzgerald-*) and JS
+   *  reads via getComputedStyle on documentElement see the muted
+   *  variants. Fires on sessionUser change (initial load) and on every
+   *  symbol_background change (so picking a different option from
+   *  another tab/window also syncs). LingoLinq.set_fitzgerald_scope
+   *  lives in app.js and also invalidates the JS palette cache. */
+  sync_fitzgerald_scope: observer('sessionUser', 'sessionUser.preferences.symbol_background', function() {
+    var bg = this.get('sessionUser.preferences.symbol_background');
+    if(window.LingoLinq && window.LingoLinq.set_fitzgerald_scope) {
+      window.LingoLinq.set_fitzgerald_scope(bg);
+    }
+  }),
+  /** Mirror the user's dashboard_layout pref onto <body> via the
+   *  `.ll-layout-focused` class so the Focused View styling overlay applies
+   *  app-wide, gated on the saved preference. Fires on sessionUser change
+   *  (initial load / login, i.e. the per-page-load check) and on every
+   *  dashboard_layout change. LingoLinq.set_layout_scope lives in app.js and
+   *  treats anything other than 'gentle' as the 'focused' default.
+   *  NOTE (security review — LOW, non-issue: "observer concurrency/flicker"): this
+   *  only toggles ONE idempotent class; Ember observers already batch in the run loop,
+   *  and it mirrors the long-shipped sync_fitzgerald_scope. No debounce needed. */
+  sync_layout_scope: observer('sessionUser', 'sessionUser.preferences.dashboard_layout', function() {
+    var layout = this.get('sessionUser.preferences.dashboard_layout');
+    if(window.LingoLinq && window.LingoLinq.set_layout_scope) {
+      window.LingoLinq.set_layout_scope(layout);
     }
   }),
   toggle_cookies: observer('sessionUser.preferences.cookies', function(state, change) {
@@ -3691,16 +4562,16 @@ export default Service.extend({
   board_virtual_dom: computed(function() {
     var _this = this;
     var dom = {
-      sendAction: function() {
+      triggerAction: function() {
       },
       trigger: function(event, id, args) {
         var useVirtualDom = _this.get('currentUser.preferences.device.canvas_render') || _this.get('speak_mode');
         if(useVirtualDom && LingoLinq.customEvents[event]) {
-          var sendAction = _this.get('board_virtual_dom.sendAction');
-          if(typeof sendAction === 'function') {
-            sendAction(LingoLinq.customEvents[event], id, {event: args});
+          var triggerAction = _this.get('board_virtual_dom.triggerAction');
+          if(typeof triggerAction === 'function') {
+            triggerAction(LingoLinq.customEvents[event], id, {event: args});
           } else {
-            dom.sendAction(LingoLinq.customEvents[event], id, {event: args});
+            dom.triggerAction(LingoLinq.customEvents[event], id, {event: args});
           }
         }
       },
@@ -3723,7 +4594,7 @@ export default Service.extend({
           dom.each_button(function(b) {
             if(b.id == id && !emberGet(b, state)) {
               emberSet(b, state, true);
-              dom.sendAction('redraw', b.id);
+              dom.triggerAction('redraw', b.id);
             }
           });
         }
@@ -3732,17 +4603,17 @@ export default Service.extend({
         dom.each_button(function(b) {
           if(b.id != except_id && emberGet(b, state)) {
             emberSet(b, state, false);
-            dom.sendAction('redraw', b.id);
+            dom.triggerAction('redraw', b.id);
           }
         });
       },
       clear_touched: function() {
         dom.clear_state('touched');
-//        dom.sendAction('redraw');
+//        dom.triggerAction('redraw');
       },
       clear_hover: function() {
         dom.clear_state('hover');
-//        dom.sendAction('redraw');
+//        dom.triggerAction('redraw');
       },
       button_result: function(b) {
         var pos = b.positioning;
@@ -3856,6 +4727,49 @@ export default Service.extend({
         }
       }, 500);
     }
+  },
+
+  toggleDarkMode: function() {
+    var modes = ['light', 'midDay', 'dark', 'default'];
+    var current = this.get('themeMode') || 'light';
+    var idx = modes.indexOf(current);
+    var next = modes[(idx + 1) % modes.length];
+    this.setThemeMode(next);
+  },
+
+  setThemeMode: function(mode) {
+    // Pastel removed: treat as 'light'. Gold renamed to default: treat legacy 'gold' as 'default'
+    if (mode === 'pastel') {
+      mode = 'light';
+    } else if (mode === 'gold') {
+      mode = 'default';
+    }
+    this.set('themeMode', mode);
+    try {
+      localStorage.setItem('ll_bento_theme_mode', mode);
+      localStorage.setItem('ll_bento_dark_mode', mode === 'dark' ? 'true' : 'false');
+    } catch (e) { /* ignore */ }
+    this.updateFavicon();
+  },
+
+  updateFavicon: function() {
+    try {
+      var links = document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]');
+      var rootURL = (typeof window !== 'undefined' && window.ENV && window.ENV.rootURL) ? window.ENV.rootURL : '/';
+      if (rootURL !== '/' && rootURL.slice(-1) !== '/') { rootURL += '/'; }
+      var base = rootURL + 'images/';
+      var faviconHref = base + 'logo-new.png?v=3';
+      for (var i = 0; i < links.length; i++) {
+        var href = links[i].getAttribute('href') || '';
+        if (href.indexOf('favicon-pastel') !== -1 || href.indexOf('logo-big') !== -1) {
+          links[i].setAttribute('href', faviconHref);
+        }
+      }
+    } catch (e) { /* ignore */ }
+  },
+
+  updateFaviconForTheme: function(mode) {
+    this.updateFavicon();
   }
 });
 

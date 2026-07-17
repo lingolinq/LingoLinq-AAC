@@ -122,10 +122,11 @@ class Api::OrganizationsController < ApplicationController
   def start_code_lookup
     code = Organization.parse_activation_code(params['code'])
     if code && !code[:disabled] && code[:target]
-      hash = params['v']
       valid = false
       include_users = false
-      if params['v'] == GoSecure.sha512(Webhook.get_record_code(code[:target]), 'start_code_verifier')[0, 5]
+      # Anonymous lookups must present the share-link verifier; accepts the
+      # current 16-char and legacy 5-char values (LL-4e243f3e16).
+      if Organization.valid_start_code_verifier?(code[:target], params['v'])
         valid = true
       elsif code[:target].is_a?(User) && code[:target].allows?(@api_user, 'edit')
         valid = true
@@ -209,6 +210,45 @@ class Api::OrganizationsController < ApplicationController
     render json: JsonApi::User.paginate(params, users, {:limited_identity => true, :include_email => true, :organization => @org, :prefix => prefix})
   end
   
+  def licenses
+    return unless allowed?(@org, 'edit')
+    licenses = @org.licenses
+    if params['status'].present?
+      licenses = licenses.where(status: params['status'])
+    end
+    if params['available'] == 'true'
+      licenses = licenses.where(user_id: nil)
+    end
+    allowed_sort_columns = %w[id status seat_type granted_at expires_at created_at].freeze
+    sort_by = allowed_sort_columns.include?(params['sort_by']) ? params['sort_by'] : 'id'
+    sort_order = (params['sort_order'] || 'desc').to_s
+    sort_order = 'asc' unless ['asc', 'desc'].include?(sort_order)
+    licenses = licenses.order("#{sort_by} #{sort_order == 'asc' ? 'ASC' : 'DESC'}")
+    
+    render json: JsonApi::License.paginate(params, licenses, {prefix: "/organizations/#{@org.global_id}/licenses"})
+  end
+
+  def claim_user
+    return unless allowed?(@org, 'manage')
+    user = User.find_by_path(params['user_id'])
+    return unless exists?(user, params['user_id'])
+    
+    seat_type = params['seat_type'] || 'student'
+    begin
+      license = @org.claim_user(user, seat_type)
+      AuditEvent.log_command(@api_user.global_id, {
+        'type' => 'license_claim',
+        'organization_id' => @org.global_id,
+        'user_id' => user.global_id,
+        'license_id' => license.global_id,
+        'seat_type' => seat_type
+      })
+      render json: {success: true, license: JsonApi::License.as_json(license)}
+    rescue => e
+      api_error 400, {error: e.message}
+    end
+  end
+
   def stats
     org = Organization.find_by_path(params['organization_id'])
     return unless allowed?(org, 'edit')
@@ -807,7 +847,7 @@ class Api::OrganizationsController < ApplicationController
     if org.process(org_data, {'updater' => @api_user})
       render json: JsonApi::Organization.as_json(org, :wrapper => true, :permissions => @api_user).to_json
     else
-      api_error(400, {error: "organization update failed", errors: org.processing_errors})
+      api_error(400, {error: "organization update failed", errors: (Array(org.processing_errors) + Array(org.errors.full_messages)).uniq})
     end
   end
   

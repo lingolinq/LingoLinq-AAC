@@ -1,4 +1,4 @@
-class Organization < ActiveRecord::Base
+class Organization < ApplicationRecord
   include Permissions
   include Processable
   include GlobalId
@@ -8,7 +8,32 @@ class Organization < ActiveRecord::Base
   secure_serialize :settings
   before_save :generate_defaults
   after_save :touch_parent
+  has_many :licenses
   include Replicate
+
+  def can_manage_user?(user)
+    # District can see data ONLY if they have an active license for this user
+    self.licenses.where(user_id: user.id, status: 'active').exists?
+  end
+
+  def claim_user(user, seat_type='student')
+    # Find an empty seat
+    license = self.licenses.where(user_id: nil, seat_type: seat_type, status: 'active').first
+    raise "No seats available in this district" unless license
+
+    License.transaction do
+      # 1. Assign the seat
+      license.update!(user_id: user.id, granted_at: Time.now)
+
+      # 2. Set the user to be managed by this district
+      user.update!(managing_organization_id: self.id, expires_at: license.expires_at)
+
+      # 3. Create the UserLink to grant dashboard/tracking rights
+      UserLink.generate(user, self, 'org_user', { sponsored: true }).save!
+    end
+    license
+  end
+
 
   # UserLink.joins("LEFT OUTER JOIN users on users.id = user_links.user_id").where('users.user_name IS NULL').map(&:id)
   
@@ -989,8 +1014,16 @@ class Organization < ActiveRecord::Base
     user = User.find_by_path(user_key)
     raise "invalid user, #{user_key}" unless user
     raise "invalid settings" if eval_account && !sponsored
-    # for_different_org ||= user.settings && user.settings['managed_by'] && (user.settings['managed_by'].keys - [self.global_id]).length > 0
-    # raise "already associated with a different organization" if for_different_org
+    
+    if sponsored && !eval_account
+      # Try to use formal license first
+      license = self.licenses.available.where(seat_type: 'student').first
+      if license
+        return self.claim_user(user, 'student')
+      end
+    end
+
+    # Fallback for old system or eval accounts
     if eval_account
       sponsored_eval_count = self.eval_users(false).count
       raise "no eval licenses available" if sponsored && ((self.settings || {})['total_eval_licenses'] || 0) <= sponsored_eval_count
@@ -1007,15 +1040,24 @@ class Organization < ActiveRecord::Base
   def remove_user(user_key)
     user = User.find_by_path(user_key)
     raise "invalid user, #{user_key}" unless user
-    pending = !!UserLink.links_for(user).detect{|l| l['type'] == 'org_user' && l['record_code'] == Webhook.get_record_code(self) && l['state']['pending'] }
-    user.schedule(:update_available_boards)
-    user.update_subscription_organization("r#{self.global_id}")
-    notify('org_removed', {
-      'user_id' => user.global_id,
-      'user_type' => 'user',
-      'removed_at' => Time.now.iso8601
-    }) unless pending
-    OrganizationUnit.schedule(:remove_as_member, user_key, 'communicator', self.global_id)
+    
+    # Release formal license if exists
+    license = self.licenses.find_by(user_id: user.id, status: 'active')
+    if license
+      license.release_user!
+    else
+      # Fallback for old system if no formal license record exists yet
+      pending = !!UserLink.links_for(user).detect{|l| l['type'] == 'org_user' && l['record_code'] == Webhook.get_record_code(self) && l['state']['pending'] }
+      user.schedule(:update_available_boards)
+      user.update_subscription_organization("r#{self.global_id}")
+      notify('org_removed', {
+        'user_id' => user.global_id,
+        'user_type' => 'user',
+        'removed_at' => Time.now.iso8601
+      }) unless pending
+      OrganizationUnit.schedule(:remove_as_member, user_key, 'communicator', self.global_id)
+    end
+    
     self.remove_extras_from_user(user.user_name)
     true
   end
@@ -1127,8 +1169,11 @@ class Organization < ActiveRecord::Base
       Organization.where(custom_domain: true).order('id ASC').each do |org|
         (org.settings['hosts'] || []).each do |host|
           if !domains[host]
-            domains[host] = org.settings['host_settings'] || {}
+            domains[host] = (org.settings['host_settings'] || {}).dup
             domains[host]['org_id'] = org.global_id
+            if org.settings['email_templates'].is_a?(Hash)
+              domains[host]['email_templates'] = org.settings['email_templates']
+            end
           end
         end
       end
@@ -1270,6 +1315,30 @@ class Organization < ActiveRecord::Base
     true
   end
 
+  # Length of the share-link verifier ('v') embedded in start-code links. New
+  # links carry a 16-char verifier (~64 bits) instead of the original 5-char
+  # (~20 bits) value, which was brute-forceable on the unauthenticated
+  # start_code lookup (LL-4e243f3e16). The 5-char legacy length is still
+  # accepted on lookup so links already distributed keep working; the lookup
+  # endpoint is also rate-limited (Throttling::PROTECTED_PATHS) so the short
+  # legacy prefix cannot be brute-forced during the transition.
+  START_CODE_VERIFIER_LENGTH = 16
+  START_CODE_VERIFIER_LEGACY_LENGTH = 5
+
+  def self.start_code_verifier(org_or_user, length = START_CODE_VERIFIER_LENGTH)
+    GoSecure.sha512(Webhook.get_record_code(org_or_user), 'start_code_verifier')[0, length]
+  end
+
+  # True when +provided+ matches the current 16-char verifier OR the legacy
+  # 5-char verifier for +org_or_user+ (backward compatibility for already-issued
+  # links). Both lengths are explicit so only those two prefixes validate.
+  def self.valid_start_code_verifier?(org_or_user, provided)
+    return false unless provided.is_a?(String)
+    full = GoSecure.sha512(Webhook.get_record_code(org_or_user), 'start_code_verifier')
+    provided == full[0, START_CODE_VERIFIER_LENGTH] ||
+      provided == full[0, START_CODE_VERIFIER_LEGACY_LENGTH]
+  end
+
   def self.start_codes(org_or_user)
     res = []
     org_or_user.settings['activation_settings'].each do |rnd, opts|
@@ -1282,7 +1351,7 @@ class Organization < ActiveRecord::Base
       hash[:locale] = opts['locale'] if opts['locale']
       hash[:symbol_library] = opts['symbol_library'] if opts['symbol_library']
       hash[:premium] = opts['premium'] if opts['premium'] != nil
-      hash[:v] = GoSecure.sha512(Webhook.get_record_code(org_or_user), 'start_code_verifier')[0, 5]
+      hash[:v] = Organization.start_code_verifier(org_or_user)
       hash[:premium_symbols] = opts['premium_symbols'] if opts['premium_symbols'] != nil
       hash[:supervisors] = opts['supervisors'] if opts['supervisors']
       hash[:shallow_clone] = true if opts['shallow_clone']
@@ -1387,6 +1456,9 @@ class Organization < ActiveRecord::Base
         end
         activate_for.settings['preferences']['locale'] = locale if locale
         activate_for.settings['preferences']['preferred_symbols'] = symbol_library if symbol_library
+        if org_or_user.is_a?(Organization)
+          activate_for.settings['preferences']['beta_program_access'] = org_or_user.default_beta_program_access?
+        end
         do_copy = false
         if !activate_for.settings['preferences']['home_board'] && copy_board
           # if overrides['shallow_clone']
@@ -1407,11 +1479,18 @@ class Organization < ActiveRecord::Base
     end
   end
   
+  def default_beta_program_access?
+    self.settings['default_beta_program_access'] != false
+  end
+
   def process_params(params, non_user_params)
     self.settings ||= {}
     self.settings['name'] = process_string(params['name']) if params['name']
     self.settings['premium'] = process_boolean(params['premium']) if params['premium'] != nil
     self.settings['org_access'] = process_boolean(params['org_access']) if params['org_access'] != nil
+    if params.key?('default_beta_program_access') || params.key?(:default_beta_program_access)
+      self.settings['default_beta_program_access'] = process_boolean(params['default_beta_program_access'])
+    end
     self.settings['inactivity_timeout'] = params['inactivity_timeout'].to_i if params['inactivity_timeout']
     self.settings.delete('inactivity_timeout') if (self.settings['inactivity_timeout'] || 0) < 10
     self.settings['image_url'] = process_string(params['image_url']) if params['image_url']
@@ -1447,16 +1526,21 @@ class Organization < ActiveRecord::Base
         }, false)
       end
     end
+    # Only change parent when id is present (set or move) or explicitly cleared (id key present but blank).
+    # Partial payloads without an id key (e.g. Ember display-only {name, pending}) must not clear parent.
     if params[:parent_org]
-      if params[:parent_org]['id']
-        if params[:parent_org]['id'] != self.parent_org_id
-          org = Organization.find_by_path(params[:parent_org]['id'])
-          if org
-            self.parent_organization_id = org.id
+      parent_org = params[:parent_org]
+      parent_org = parent_org.to_unsafe_h if parent_org.respond_to?(:to_unsafe_h)
+      parent_org = parent_org.with_indifferent_access if parent_org.is_a?(Hash)
+      if parent_org.is_a?(Hash)
+        if parent_org['id'].present?
+          if parent_org['id'] != self.parent_org_id
+            org = Organization.find_by_path(parent_org['id'])
+            self.parent_organization_id = org.id if org
           end
+        elsif parent_org.key?('id') && !parent_org['id'].present?
+          self.parent_organization_id = nil
         end
-      else
-        self.parent_organization_id = nil
       end
     end
     if params[:external_auth_shortcut]
@@ -1545,7 +1629,7 @@ class Organization < ActiveRecord::Base
       self.settings['host_settings']['company_name'] = params[:host_settings]['company_name'].blank? ? "LingoLinq" : params[:host_settings]['company_name']
       ['ios_store_url', 'play_store_url', 'kindle_store_url', 'windows_32_bit_url', 'windows_64_bit_url',
                 'blog_url', 'twitter_url', 'twitter_handle', 'facebook_url', 'youtube_url',
-                'support_url', 'logo_url', 'css_url', 'admin_email', 'board_user_name'].each do |str|
+                'support_url', 'logo_url', 'css_url', 'admin_email', 'board_user_name', 'email_signature'].each do |str|
                 
         if params[:host_settings][str] != nil
           val = process_string(params[:host_settings][str])
@@ -1560,20 +1644,26 @@ class Organization < ActiveRecord::Base
 
     ['communicator_profile', 'supervisor_profile'].each do |prof|
       prof_id = prof + "_id"
+      prof_type = prof.sub(/_profile$/, '')
       do_assert = false
+      incoming = params[prof_id]
+      incoming = incoming.to_s.strip if incoming.is_a?(String)
+      incoming = nil if incoming.respond_to?(:empty?) && incoming.empty?
+
       opts = {'profile_id' => params[prof_id]}
       if params[prof + "_frequency"].to_i > 0
         do_assert = (self.settings[prof] || {})['frequency'] != params[prof + "_frequency"].to_i
         opts['frequency'] = params[prof + "_frequency"].to_f 
         opts['frequency'] *= 1.month.to_i if opts['frequency'] < 300
       end
-      if params[prof_id] && (self.settings[prof] || {})['profile_id'] != params[prof_id]
+      stored_pid = (self.settings[prof] || {})['profile_id']
+      if incoming.present? && !ProfileTemplate.same_profile?(stored_pid, incoming, prof_type)
         valid = false
-        if params[prof_id] == 'default' || params[prof_id] == 'none'
+        if incoming == 'default' || incoming == 'none'
           valid = true
-          opts = nil if params[prof_id] == 'none'
+          opts = nil if incoming == 'none'
         else
-          pt = ProfileTemplate.find_by_code(params[prof_id])
+          pt = ProfileTemplate.find_by_code(incoming)
           if pt
             if pt.settings['public'] == false && pt.organization != self
               add_processing_error("#{prof_id} not authorized for this organization")

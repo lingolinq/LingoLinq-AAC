@@ -10,7 +10,7 @@ var boundClasses = {};
 
   $.extend(boundClasses, {
     setup: function(reset) {
-      if(!styleElement || reset) {
+      if(!styleElement || reset || !this.classes) {
         this.classes = {
           '__': true
         };
@@ -23,7 +23,7 @@ var boundClasses = {};
     },
     keyify: function(button) {
       if(!button) { throw "need button"; }
-      return ('b_' + (button.border_color || '') + '__' + (button.background_color || '')).replace(/[^a-zA-Z0-9]/g, '_');
+      return ('b_' + (button.background_color || '')).replace(/[^a-zA-Z0-9]/g, '_');
     },
     add_rules: function(buttons) {
       if(!buttons) { return; }
@@ -40,32 +40,28 @@ var boundClasses = {};
         var str = '';
         var hoverStr = '';
         var cornerStr = '';
-        if(button.border_color) {
-          // TODO: compute and store hover colors, mark them as "server-side approved"
-          // and use them without tinycolor if approved
-          var border = window.tinycolor(button.border_color || '#eee');
-          str = str + 'border-color: ' + border.toRgbString() + ';';
-          button.dark_border_color = window.tinycolor(border.toRgb()).darken(5).toRgbString();
-          hoverStr = hoverStr + 'border-color: ' + button.dark_border_color + ';';
-        }
         if(button.background_color) {
           var fill = window.tinycolor(button.background_color || '#fff');
+          // Always use an outline 20% darker than the background for visibility
+          var autoBorder = window.tinycolor(button.background_color).darken(20);
+          str = str + 'outline-color: ' + autoBorder.toRgbString() + ';';
+          // Also expose the same darkened color as a CSS variable so
+          // .button's `box-shadow: inset 0 0 0 3px var(--btn-ring-color)`
+          // renders the inner ring uniformly on all four sides (the
+          // outline+negative-offset approach was rendering thinner on
+          // the top edge with rounded corners).
+          str = str + '--btn-ring-color: ' + autoBorder.toRgbString() + ';';
           str = str + 'background-color: ' + fill.toRgbString() + ';';
+          str = str + '--btn-bg: ' + fill.toRgbString() + ';';
+          button.dark_border_color = autoBorder.darken(5).toRgbString();
           button.dark_background_color = window.tinycolor(fill.toRgb()).darken(5).toRgbString();
-          hoverStr = hoverStr + 'background-color: ' + button.dark_background_color + ';';
           var text = window.tinycolor.mostReadable(fill, ['#fff', '#000']);
           button.text_color = text.toRgbString();
           str = str + 'color: ' + button.text_color + ';';
-          if(button.background_color == button.border_color) {
-            var border = window.tinycolor(button.border_color || '#eee');
-            if(text.toHexString() == '#ffffff') {
-              var light_corner = border.lighten(50).toRgbString();
-              cornerStr = cornerStr + 'border-color: ' + light_corner + ' !important;'
-            } else {
-              var dark_corner = border.darken(50).toRgbString();
-              cornerStr = cornerStr + 'border-color: ' + dark_corner + ' !important;'
-            }
-          }
+        } else if(button.border_color) {
+          var border = window.tinycolor(button.border_color || '#eee');
+          str = str + 'border-color: ' + border.toRgbString() + ';';
+          button.dark_border_color = window.tinycolor(border.toRgb()).darken(5).toRgbString();
         }
 
         add_css_rule('.button.' + key, str);
@@ -96,6 +92,9 @@ var boundClasses = {};
       }
       if(button.dim) {
         classes = classes + " dim_button";
+      }
+      if(button.focus_word_match) {
+        classes = classes + " focus_word_button";
       }
       emberSet(button, 'display_class', classes);
     }

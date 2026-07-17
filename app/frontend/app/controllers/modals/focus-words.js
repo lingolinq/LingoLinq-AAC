@@ -1,3 +1,36 @@
+/*
+ * ⚠️ ORPHANED MODAL CONTROLLER — NOT CURRENTLY WIRED INTO THE APP (kept for team review).
+ *
+ * During the component-modal migration this modal was reimplemented as the co-located
+ * component `app/components/<same-name>.{js,hbs}`, which is what actually renders now
+ * (via `components/modal-container.js` -> its `convertedModals` list). There is no
+ * `app/templates/modals/<name>.hbs` backing this controller, and nothing imports it or
+ * resolves it through `controllerFor`, so Ember never instantiates it. As of the Ember
+ * 5.12 work this is dead code.
+ *
+ * REVIEW NEEDED: DELETE this file, OR RE-WIRE it if the team still wants the modal. If you
+ * revive it, reconcile with the component version first — the two have diverged since the
+ * split (fixes landed in the component, not here).
+ * Context: docs/task-management/2026-07-14-ember-5-12-full-deprecation-audit.md
+ */
+
+/*
+ * ⚠️ EMBER 6 / EXTEND_PROTOTYPES BREAKAGE — MUST FIX BEFORE RE-WIRING.
+ *
+ * This controller calls Ember array-prototype-extension methods (.pushObject / .sortBy /
+ * .mapBy / .uniq / .compact) on NATIVE arrays. The Ember 5.12 upgrade set
+ * `EXTEND_PROTOTYPES: false` (config/environment.js), so these methods are `undefined` on a
+ * native array and throw `TypeError` the moment the code runs — they "work" here only
+ * because this file is never executed. Ember 6 removes the prototype extensions entirely,
+ * so relying on them is not an option going forward.
+ *
+ * If revived, rewrite each call before use: wrap the receiver in `A()`
+ * (import { A } from '@ember/array') or use native JS (.push, .map(o => o.id),
+ * [...new Set()], .filter(x => x != null)). The live `components/<name>.js` version was
+ * already fixed this way during the 5.12 upgrade — port that, don't reinvent it.
+ * Sites: list.sortBy('updated').reverse() in the recent_list computed.
+ */
+
 import LingoLinq from '../../app';
 import app_state from '../../utils/app_state';
 import modal from '../../utils/modal';
@@ -5,6 +38,7 @@ import { htmlSafe } from '@ember/template';
 import { set as emberSet } from '@ember/object';
 import Button from '../../utils/button';
 import { computed,  observer } from '@ember/object';
+import { inject as service } from '@ember/service';
 import RSVP from 'rsvp';
 import $ from 'jquery';
 import stashes from '../../utils/_stashes';
@@ -15,6 +49,7 @@ import editManager from '../../utils/edit_manager';
 import sync from '../../utils/sync';
 
 export default modal.ModalController.extend({
+  router: service('router'),
   opening: function() {
     this.set('analysis', null);
     this.set('search', null);
@@ -172,7 +207,10 @@ export default modal.ModalController.extend({
     return this.get('search') || this.get('browse');
   }),
   words_list: computed('words', function() {
-    return (this.get('words') || '').replace(/[^\s\n\w]/g, '').split(/[\n\s]+/).filter(function(s) { return s.length > 0; });
+    return (this.get('words') || '')
+      .split(/[\n\s]+/)
+      .map(function(s) { return s.replace(/[^\p{L}\p{N}_]/gu, ''); })
+      .filter(function(s) { return s.length > 0; });
   }),
   browse_categories: computed('model', function() {
     var res = [];
@@ -316,10 +354,11 @@ export default modal.ModalController.extend({
         }).then(function(data) { }, function(err) { });  
       }
 
-      app_state.set('focus_words', {list: words, focus_id: Math.random()});
+      var focusRevision = Math.random();
+      app_state.set('focus_words', {list: words, focus_id: focusRevision});
       var boardController = editManager.controller;
       if (boardController && boardController.get && boardController.get('model')) {
-        boardController.get('model').set('focus_id', 'force_refresh');
+        boardController.get('model').set('focus_id', focusRevision);
       }
       modal.close();
       editManager.process_for_displaying();
@@ -363,7 +402,7 @@ export default modal.ModalController.extend({
           var last_button = btn;
           [btn].concat(btn.sequence.buttons).forEach(function(btn) {
             var last = (last_button == btn);
-            var style = "position: relative; display: inline-block; border-radius: 5px; height: 70px; text-align: center; min-width: 75px; max-width: 100px; overflow: hidden; font-size: 12px;";
+            var style = "position: relative; display: inline-block; border-radius: 5px; height: 70px; text-align: center; min-width: 75px; max-width: 100px; overflow: hidden; font-size: 14px;";
             var big_style = "vertical-align: middle; position: relative; display: inline-block; border-radius: 5px; height: 100px; text-align: center; min-width: 100px; max-width: 120px; overflow: hidden; font-size: 16px;";
             var mini_style = "display: inline-block; padding: 5px 10px; border: 1px solid #888; border-radius: 5px; font-weight: bold; margin-right: 5px; min-width: 30px; text-align: center;"
             var print_style = "position: absolute; top: 0; left: 0; width: 100%;"
@@ -410,7 +449,7 @@ export default modal.ModalController.extend({
           _this.set('model.words', _this.get('words'));
           _this.set('model.title', _this.get('title'));
           app_state.set('focus_route', _this.get('model'));
-          _this.transitionToRoute('user.focus', _this.get('model.user.user_name'));
+          _this.router.transitionTo('user.focus', _this.get('model.user.user_name'));
         }
 
       });

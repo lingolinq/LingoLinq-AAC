@@ -1,0 +1,321 @@
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
+  <div class="modal-header md-modal-header md-new-goal-header">
+    <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="md-new-goal-header__row">
+      <span class="md-modal-icon-circle md-new-goal-icon" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V4" stroke="#46505F"/><path d="M4 4h11l-1.5 4 1.5 4H4" stroke="#2A9D8F"/></svg>
+      </span>
+      <h3 class="md-modal-title">
+        {{#if this.goal.id}}
+          {{t "Edit Goal" key="edit_goal"}}
+        {{else}}
+          {{t "Set a New Goal" key="set_a_new_goal"}}
+        {{/if}}
+      </h3>
+    </div>
+  </div>
+  <div class="modal-body md-modal-body">
+    {{#if this.selected_goal}}
+      <form class="form-horizontal">
+        {{#if this.selected_goal.sequence}}
+          <div class="form-group">
+            <label for="sequence_summary" class="col-sm-2 control-label">{{t "Sequence" key="sequence"}}</label>
+            <div class="col-sm-10">
+              <p class='form-control-static'>
+                <strong>{{this.selected_goal.sequence_summary}}</strong><br>
+                {{t "sequence of" key="sequence_of"}}
+                {{t "goal" key="n_goals" count=this.selected_goal.template_stats.goals}}{{#if this.selected_goal.template_stats.total_duration}}{{t " over " key="over"}}
+                  {{seconds_ago this.selected_goal.template_stats.total_duration "long"}}
+                {{/if}}
+                {{#if this.selected_goal.template_stats.loop}}{{t "(repeating sequence)" key="repeating_sequence"}}{{/if}}
+              </p>
+            </div>
+            <div class="col-sm-10 col-sm-offset-2">
+              <div class='form-control-static safe_html'>{{safe this.selected_goal.sequence_description}}</div>
+            </div>
+          </div>
+          <div class="form-group">
+            {{#if this.selected_goal.date_based}}
+              <label class="col-sm-12"><h4>{{t "Current Goal in the Sequence" key="current_goal_details"}}</h4></label>
+            {{else}}
+              <label class="col-sm-12"><h4>{{t "First Goal in the Sequence" key="first_goal_details"}}</h4></label>
+            {{/if}}
+          </div>
+        {{/if}}
+        <div class="form-group">
+          <div class='col-sm-10 col-sm-offset-2'>
+            {{#if this.selected_goal.badge_image_url}}
+              <img src={{this.selected_goal.badge_image_url}} style='width: 50px; max-height: 50px; opacity: 0.8;' >
+            {{else}}
+              <span class='glyphicon glyphicon-flag' style='margin-top: 10px; font-size: 50px; '></span>
+            {{/if}}
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="new_goal_summary" class="col-sm-2 control-label">{{t "Summary" key="summary"}}</label>
+          <div class="col-sm-10">
+            <p class='form-control-static'>{{this.selected_goal.current_template.summary}}</p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="new_goal_description" class="col-sm-2 control-label">{{t "Description" key="description"}}</label>
+          <div class="col-sm-10">
+            <div class='form-control-static safe_html'>{{safe this.selected_goal.current_template.description}}</div>
+          </div>
+        </div>
+        {{#if this.selected_goal.current_template.duration}}
+          <div class="form-group">
+            <label for="new_goal_duration" class="col-sm-2 control-label">{{t "Duration" key="duration"}}</label>
+            <div class="col-sm-10">
+              <p class='form-control-static'>{{seconds_ago this.selected_goal.current_template.duration "long"}}</p>
+            </div>
+          </div>
+        {{else if this.selected_goal.current_template.advance}}
+          <div class="form-group">
+            <label for="new_goal_changes" class="col-sm-2 control-label">{{t "Changes" key="changes"}}</label>
+            <div class="col-sm-10">
+              <p class='form-control-static'>{{date this.selected_goal.current_template.advance}}</p>
+            </div>
+          </div>
+        {{/if}}
+        {{#if this.selected_goal.current_template.stats.badges}}
+          <div class="form-group">
+            <label for="badges_total" class="col-sm-2 control-label">{{t "Badges" key="abdges"}}</label>
+            <div class="col-sm-10">
+              <p class='form-control-static'>{{t "badge" count=this.selected_goal.current_template.stats.badges key="n_badges"}}</p>
+            </div>
+          </div>
+        {{/if}}
+        <div class="form-group">
+          <fieldset>
+            <label class="col-sm-2 control-label">{{t "Primary" key="primary"}}</label>
+            <div class="col-sm-10">
+              <div class="checkbox big_checkbox">
+                <label>
+                  <input type="checkbox" checked={{this.selected_goal.user_primary}} id="primary" {{on "change" (set-field this "selected_goal.user_primary" "checkbox")}} />
+                  {{t "Set as the User's Primary Goal" key="set_as_primary_user_goal"}}
+                </label>
+              </div>
+            </div>
+          </fieldset>
+        </div>
+        {{#unless this.selected_goal.sequence}}
+          <div class="form-group">
+            <label for="new_goal_concludes" class="col-sm-2 control-label">{{t "Concludes" key="concludes"}}</label>
+            <div class="col-sm-7" style='max-width: 300px;'>
+              <input type="date" value={{this.goal.expires}} class="form-control" id="new_goal_concludes" {{on "input" (set-field this "goal.expires")}} />
+            </div>
+            <div class='col-sm-3'>
+              <button class='btn btn-default' {{on "click" (this.ctrlAction "clear_expires")}}>{{t "clear" key="clear_lower"}}</button>
+            </div>
+          </div>
+        {{/unless}}
+      </form>
+    {{else if this.browse_goals}}
+      {{#if this.goals}}
+        {{#each this.goals as |goal|}}
+          <div class='well goal' {{on "click" (this.ctrlAction "select_goal" goal)}} style='cursor: pointer;'>
+            <div style='float: left; width: 50px; height: 65px; overflow: hidden; margin-right: 10px; font-size: 40px; text-align: center; line-height: 20px;'>
+              {{#if goal.badge_image_url}}
+                <img src={{goal.badge_image_url}} style='widht: 50px; max-height: 50px; opacity: 0.8;' >
+              {{else}}
+                <span class='glyphicon glyphicon-flag' style='margin-top: 0px;'></span>
+              {{/if}}
+            </div>
+            {{goal.high_level_summary}}
+            {{#if goal.sequence}}
+              <div class='details'>
+                {{t "sequence of" key="sequence_of"}}
+                {{t "goal" key="n_goals" count=goal.template_stats.goals}}
+                {{#if goal.template_stats.badges}}{{t "with" key="with"}} {{t "badge" count=goal.template_stats.badges key="n_badges"}}{{/if}}
+                {{#if goal.template_stats.loop}}{{t "(repeating sequence)" key="repeating_sequence"}}{{/if}}
+              </div>
+            {{else if goal.stats.badges}}
+              <div class='details'>
+                {{t "badge" count=goal.stats.badges key="n_badges"}}
+              </div>
+            {{/if}}
+            <div class='description text-muted'>
+              {{safe goal.high_level_description "stripped"}}
+            </div>
+          </div>
+        {{/each}}
+      {{else}}
+        {{#unless this.goals.loading}}
+          {{#unless this.goals.error}}
+            <p>{{t "No goals to show" key="no_goals"}}</p>
+          {{/unless}}
+        {{/unless}}
+      {{/if}}
+      {{#if this.goals.loading}}
+        <p>{{t "Loading goals..." key="loading_goals"}}</p>
+      {{else if this.goals.error}}
+        <p>{{t "There was an error loading goals" key="error_loading_goals_lower"}}</p>
+      {{/if}}
+    {{else}}
+      <form class="md-modal-form">
+        <div class="md-modal-field">
+          <label for="new_goal_type" class="md-modal-label">{{t "Type" key="type"}}</label>
+          {{modern-select class="md-modal-modern-select" selectId="new_goal_type" content=this.simple_types selection=this.goal.simple_type action=(this.ctrlAction "updateGoalSimpleType") ariaLabel=(t "Goal type" key="goal_type_aria") placeholder=(t "[ Select a Goal Type ]" key="select_a_goal_type")}}
+        </div>
+        {{#if this.goal_type.strings_list}}
+          <div class="md-modal-field">
+            <label for="new_goal_strings_list" class="md-modal-label">{{t "Target Words" key="target_words"}}</label>
+            {{#if this.goal_type.modeling}}
+              <input value={{this.goal.strings_list}} class="form-control" id="new_goal_strings_list" placeholder="modeling targets (optional)" {{on "input" (set-field this "goal.strings_list")}} />
+            {{else}}
+              <input value={{this.goal.strings_list}} class="form-control" id="new_goal_strings_list" placeholder="words, to, watch, for" {{on "input" (set-field this "goal.strings_list")}} />
+            {{/if}}
+          </div>
+        {{/if}}
+        {{#if this.goal_type.instance_count}}
+          <div class="md-modal-field">
+            <label for="new_goal_instance_count" class="md-modal-label">{{t "Try For" key="try_for"}}</label>
+            <div class="md-modal-inline-row">
+              <input value={{this.goal.instance_count}} class="form-control md-modal-input--narrow" id="new_goal_instance_count" placeholder="#" {{on "input" (set-field this "goal.instance_count")}} />
+              <span class="md-modal-hint md-modal-hint--inline">{{this.goal_simple_action}} {{t "per day" key="per_day_lower"}}</span>
+            </div>
+          </div>
+        {{/if}}
+        {{#if this.goal_type}}
+          {{#if this.has_simple_content}}
+            <div class="md-modal-field">
+              <label for="new_goal_summary" class="md-modal-label">{{t "Summary" key="summary"}}</label>
+              <input value={{this.goal.summary}} class="form-control" id="new_goal_summary" placeholder="short goal summary" {{on "input" (set-field this "goal.summary")}} />
+            </div>
+          {{/if}}
+        {{/if}}
+        {{#if this.goal_type.custom}}
+          <div class="md-modal-field">
+            <label for="new_goal_description" class="md-modal-label">{{t "Description" key="description"}}</label>
+            <textarea class="form-control" id="new_goal_description" placeholder="longer, detailed description of the goal" {{on "input" (set-field this "goal.description")}}>{{this.goal.description}}</textarea>
+          </div>
+          {{#if this.goal.video}}
+            <div class="md-modal-field">
+              <label class="md-modal-label">{{t "Video" key="video"}}</label>
+              <video src={{this.model.video.url}} controls class="md-modal-video"></video>
+              <a href="#" class="md-modal-link" {{on "click" (this.ctrlAction "reset_video")}}>{{t "Remove Video" key="remove_video"}}</a>
+            </div>
+          {{else}}
+            <div class="md-modal-field">
+              <label class="md-modal-label">{{t "Video" key="video"}}</label>
+              <VideoRecorder @user={{this.model.user}} @video_ready={{this.ctrlAction "video_ready"}} @video_not_ready={{this.ctrlAction "video_not_ready"}} />
+            </div>
+          {{/if}}
+          <div class="md-modal-field">
+            <label class="md-modal-label">{{t "Assessment" key="auto_assessment"}}</label>
+            <label class="md-modal-check" for="auto_assessment">
+              <input type="checkbox" checked={{this.goal.auto_assessment}} id="auto_assessment" class="md-modal-check__input" {{on "change" (set-field this "goal.auto_assessment" "checkbox")}} />
+              <span class="md-modal-check__label">{{t "Generate a daily progress report for mastery of this goal" key="auto_generate_goal_daily"}}</span>
+            </label>
+          </div>
+          {{#if this.goal.assessment_badge}}
+            <BadgeSettings @badge={{this.goal.assessment_badge}} @assessment={{true}} />
+          {{/if}}
+
+        {{/if}}
+        {{#if this.goal_type}}
+          {{#if this.model.users}}
+            <div class="md-modal-field">
+              <label class="md-modal-label">{{t "Users" key="users"}}</label>
+              <ul class="md-modal-user-list">
+                {{#each this.model.users as |user|}}
+                  <li>
+                    <label class="md-modal-check md-modal-check--user {{if user.not_premium "is-not-premium"}} {{if user.add_goal "is-selected"}}">
+                      <Input @type="checkbox" @checked={{user.add_goal}} disabled={{user.not_premium}} class="md-modal-check__input" />
+                      <img src={{user.avatar_url}} class="md-modal-user-list__avatar" alt="">
+                      <span class="md-modal-check__label">{{user.user_name}}</span>
+                    </label>
+                  </li>
+                {{/each}}
+              </ul>
+            </div>
+          {{/if}}
+          {{#if this.has_simple_content}}
+            {{#if this.single_user}}
+              <div class="md-modal-field">
+                <label class="md-modal-label">{{t "Badges" key="badges"}}</label>
+                <label class="md-modal-check" for="set_badges">
+                  <input type="checkbox" checked={{this.goal.set_badges}} id="set_badges" class="md-modal-check__input" {{on "change" (set-field this "goal.set_badges" "checkbox")}} />
+                  <span class="md-modal-check__label">{{t "I want to create earnable badges as part of this goal" key="created_badges"}}</span>
+                </label>
+              </div>
+            {{/if}}
+            {{#unless this.model.unit}}
+              <div class="md-modal-field">
+                <label class="md-modal-label">{{t "Primary" key="primary"}}</label>
+                <label class="md-modal-check" for="primary">
+                  <input type="checkbox" checked={{this.goal.primary}} id="primary" class="md-modal-check__input" {{on "change" (set-field this "goal.primary" "checkbox")}} />
+                  <span class="md-modal-check__label">
+                    {{#if this.model.user.user_goal}}
+                      {{t "Set as the User's New Primary Goal" key="set_as_new_primary_user_goal"}}
+                    {{else}}
+                      {{t "Set as the User's Primary Goal" key="set_as_primary_user_goal"}}
+                    {{/if}}
+                  </span>
+                </label>
+              </div>
+            {{/unless}}
+          {{/if}}
+        {{/if}}
+        {{#if this.goal.simple_type}}
+          <div class="md-modal-field">
+            <label for="new_goal_concludes" class="md-modal-label">{{t "Concludes" key="concludes"}}</label>
+            <div class="md-modal-inline-row">
+              <input type="date" value={{this.goal.expires}} class="form-control md-modal-input--date" id="new_goal_concludes" {{on "input" (set-field this "goal.expires")}} />
+              <button type="button" class="md-modal-btn md-modal-btn--cancel md-modal-btn--inline" {{on "click" (this.ctrlAction "clear_expires")}}>{{t "clear" key="clear_lower"}}</button>
+            </div>
+          </div>
+        {{/if}}
+      </form>
+    {{/if}}
+  </div>
+  <div class="modal-footer md-modal-footer">
+    <button type="button" {{on "click" (this.ctrlAction "close")}} class="md-modal-btn md-modal-btn--cancel">{{t "Cancel" key="cancel"}}</button>
+    {{#if this.browse_goals}}
+      {{#if this.selected_goal}}
+        <button type="button" {{on "click" (this.ctrlAction "clear_selected_goal")}} class="md-modal-btn md-modal-btn--secondary">{{t "Back to Goal List" key="back_to_goals"}}</button>
+      {{/if}}
+      <button type="button" {{on "click" (this.ctrlAction "browse_goals")}} class="md-modal-btn md-modal-btn--secondary">{{t "Create My Own Goal" key="create_own_goal"}}</button>
+    {{/if}}
+    <button type="button" {{on "click" (this.ctrlAction "save_goal")}} disabled={{this.save_disabled}} class="md-modal-btn md-modal-btn--primary {{if this.saving "is-loading"}}">
+      {{#if this.saving}}
+        <span class="md-modal-btn__spinner" aria-hidden="true"></span>
+      {{/if}}
+      {{#if this.goal.id}}
+        {{#if this.saving}}
+          {{t "Updating Goal" key="updating_goal"}}
+        {{else}}
+          {{t "Update Goal" key="update_goal"}}
+        {{/if}}
+      {{else}}
+        {{#if this.saving}}
+          {{t "Adding Goal" key="adding_goal"}}
+        {{else}}
+          {{t "Add Goal" key="add_goal"}}
+        {{/if}}
+      {{/if}}
+    </button>
+    {{#if this.saving}}
+      {{!-- Indeterminate progress bar pinned to the bottom of the
+           footer while the save round-trip is in flight. Visual
+           feedback for slower connections where the button text
+           alone isn't enough to signal "work is happening". --}}
+      <div class="md-modal-progress" role="progressbar" aria-label={{t "Saving goal" key="saving_goal"}} aria-busy="true">
+        <span class="md-modal-progress__bar"></span>
+      </div>
+    {{/if}}
+    {{#if this.save_error_key}}
+      {{#if (is-equal this.save_error_key "device_scopes_none")}}
+        <p class="md-modal-error">{{t "This session cannot save goals until you finish signing in (for example, complete two-factor verification for this browser) or your account uses a device that is not disabled. Try signing out and back in; contact support if the problem continues." key="goal_save_device_scopes_none"}}</p>
+      {{else if (is-equal this.save_error_key "valet_blocked")}}
+        <p class="md-modal-error">{{t "Goals cannot be saved while using a limited valet session. Sign in with your full password to add or change goals." key="goal_save_valet_blocked"}}</p>
+      {{else}}
+        <p class="md-modal-error">{{t "There was an error trying to save the goal" key="error_saving_goal"}}</p>
+      {{/if}}
+    {{/if}}
+  </div>
+</ModalDialog>

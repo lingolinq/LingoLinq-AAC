@@ -95,6 +95,38 @@ describe Api::OrganizationsController, :type => :controller do
       expect(json['organization']['id']).to eq(o.global_id)
       expect(json['organization']['name']).to eq('my cool org')
     end
+
+    it "should update name when parent_org is a partial hash without id (must not clear parent)" do
+      token_user
+      admin_o = Organization.create(:admin => true)
+      admin_o.add_manager(@user.user_name, true)
+      parent = Organization.create
+      child = Organization.create
+      child.parent_organization_id = parent.id
+      child.save!
+      child.add_manager(@user.user_name)
+      expect(child.parent_organization_id).to eq(parent.id)
+      put :update, params: {:id => child.global_id, :organization => {:name => "renamed child", :parent_org => {"name" => "Loading...", "pending" => true}}}
+      expect(response.successful?).to eq(true)
+      child.reload
+      expect(child.parent_organization_id).to eq(parent.id)
+      expect(child.settings['name']).to eq("renamed child")
+    end
+
+    it "should clear parent when parent_org id is explicitly blank" do
+      token_user
+      admin_o = Organization.create(:admin => true)
+      admin_o.add_manager(@user.user_name, true)
+      parent = Organization.create
+      child = Organization.create
+      child.parent_organization_id = parent.id
+      child.save!
+      child.add_manager(@user.user_name)
+      put :update, params: {:id => child.global_id, :organization => {:parent_org => {"id" => ""}}}
+      expect(response.successful?).to eq(true)
+      child.reload
+      expect(child.parent_organization_id).to eq(nil)
+    end
     
     it "should not allow updating license count unless authorized" do
       token_user
@@ -686,10 +718,69 @@ describe Api::OrganizationsController, :type => :controller do
       expect(json['user'][1]['id']).to eq(u2.global_id)
       expect(json['user'][1]['org_manager']).to eq(nil)
       expect(json['user'][1]['org_assistant']).to eq(nil)
-      expect(json['user'][1]['org_supervision_pending']).to eq(true)      
+      expect(json['user'][1]['org_supervision_pending']).to eq(true)
     end
   end
-  
+
+  describe "licenses" do
+    it "should require api token" do
+      get :licenses, params: {:organization_id => 1}
+      assert_missing_token
+    end
+
+    it "should return unauthorized unless edit permissions allowed" do
+      o = Organization.create
+      token_user
+      get :licenses, params: {:organization_id => o.global_id}
+      assert_unauthorized
+    end
+
+    it "should not expose external_reference to an org assistant with only edit permission (LL-55baae6d40)" do
+      o = Organization.create
+      token_user
+      o.add_manager(@user.user_name, false) # assistant: view+edit, not manage
+      License.create!(organization: o, seat_type: 'student', status: 'active', external_reference: 'cus_stripe_hidden')
+
+      get :licenses, params: {:organization_id => o.global_id}
+      expect(response.successful?).to eq(true)
+      json = JSON.parse(response.body)
+      expect(json['license'].length).to eq(1)
+      expect(json['license'][0]).to_not have_key('external_reference')
+      expect(json['license'][0]['seat_type']).to eq('student')
+      expect(json['license'][0]['status']).to eq('active')
+    end
+  end
+
+  describe "claim_user" do
+    it "should require api token" do
+      post :claim_user, params: {:organization_id => 1}
+      assert_missing_token
+    end
+
+    it "should return unauthorized unless manage permissions allowed" do
+      o = Organization.create
+      token_user
+      post :claim_user, params: {:organization_id => o.global_id}
+      assert_unauthorized
+    end
+
+    it "should not expose external_reference when a license is claimed for a user (LL-55baae6d40)" do
+      o = Organization.create
+      token_user
+      o.add_manager(@user.user_name, true) # full manager: has manage permission
+      u = User.create
+      License.create!(organization: o, seat_type: 'student', status: 'active', external_reference: 'PO-hidden-99')
+
+      post :claim_user, params: {:organization_id => o.global_id, :user_id => u.global_id}
+      expect(response.successful?).to eq(true)
+      json = JSON.parse(response.body)
+      expect(json['success']).to eq(true)
+      expect(json['license']).to_not have_key('external_reference')
+      expect(json['license']['user_id']).to eq(u.global_id)
+      expect(json['license']['user_name']).to eq(u.user_name)
+    end
+  end
+
   describe "logs" do
     it "should require api token" do
       get :logs, params: {:organization_id => 1}
@@ -925,11 +1016,12 @@ describe Api::OrganizationsController, :type => :controller do
       get :admin_reports, params: {:organization_id => o.global_id, :report => "premium_voices"}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      ts = Time.now.strftime('%m-%Y')
+      # Derive the expected month from each event's own created_at (what the report groups by)
+      # rather than a second Time.now read, so the suite can't flake across a month boundary.
       expect(json['stats']).to eq({
-        "#{ts} asd iOS" => 1,
-        "#{ts} asd Android" => 1,
-        "#{ts} asdf iOS" => 1
+        "#{ae3.created_at.strftime('%m-%Y')} asd iOS" => 1,
+        "#{ae1.created_at.strftime('%m-%Y')} asd Android" => 1,
+        "#{ae4.created_at.strftime('%m-%Y')} asdf iOS" => 1
       })
     end
     
@@ -1048,10 +1140,11 @@ describe Api::OrganizationsController, :type => :controller do
       get :admin_reports, params: {:organization_id => o.global_id, :report => "extras"}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      ts = Time.now.strftime('%m-%Y')
+      # Derive the expected month from each event's own created_at (what the report groups by)
+      # rather than a second Time.now read, so the suite can't flake across a month boundary.
       expect(json['stats']).to eq({
-        "#{ts} asd" => 2,
-        "#{ts} asdf" => 1
+        "#{ae1.created_at.strftime('%m-%Y')} asd" => 2,
+        "#{ae4.created_at.strftime('%m-%Y')} asdf" => 1
       })
     end
     

@@ -1,4 +1,5 @@
 import Service from '@ember/service';
+import { inject as service } from '@ember/service';
 import RSVP from 'rsvp';
 import {
   later as runLater,
@@ -15,6 +16,8 @@ import scanner from '../utils/scanner';
  * the existing modal.open() and modal.close() API.
  */
 export default Service.extend({
+  appState: service('app-state'),
+
   // Current modal state
   currentTemplate: null,
   currentOptions: null,
@@ -33,8 +36,9 @@ export default Service.extend({
   autoCloseTimer: null,
   autoCloseCallback: null,
   
-  // Highlight system state
-  highlightController: null,
+  // Highlight overlay state (replaces named outlets removed in Ember 4)
+  highlightModel: null,
+  highlight2Model: null,
   highlight2Controller: null,
   highlightPromise: null,
   highlight2Promise: null,
@@ -87,13 +91,17 @@ export default Service.extend({
     if (this.get('currentTemplate')) {
       this._resolveCurrentPromise({replaced: true});
     }
-    
+
+    // Always clear first so Ember detects the change even if the same
+    // template name is opened twice in a row (e.g. after a close/reopen cycle)
+    this.set('currentTemplate', null);
+
     // Store settings
     if (!this.settingsFor) {
       this.settingsFor = {};
     }
     this.settingsFor[template] = options;
-    
+
     // Set current state
     this.set('currentTemplate', template);
     this.set('currentOptions', options);
@@ -131,7 +139,7 @@ export default Service.extend({
     const controllerName = template === 'highlight-secondary' ? 'highlight2Controller' : 'highlightController';
     const promiseName = template === 'highlight-secondary' ? 'highlight2Promise' : 'highlightPromise';
     const settingsName = template === 'highlight-secondary' ? 'highlight2Settings' : 'highlightSettings';
-    
+    const modelKey = template === 'highlight-secondary' ? 'highlight2Model' : 'highlightModel';
     const settings = this.get(settingsName) || EmberObject.create();
     settings.setProperties({
       left: options.left || 0,
@@ -148,8 +156,8 @@ export default Service.extend({
     });
     
     this.set(settingsName, settings);
+    this.set(modelKey, settings);
     
-    // If controller exists, update it; otherwise will be handled by old system
     const existingController = this.get(controllerName);
     if (existingController) {
       const existingPromise = this.get(promiseName);
@@ -180,7 +188,7 @@ export default Service.extend({
     
     // Auto-fade if not sticky
     if (!options.sticky) {
-      const timeout = options.below_header ? 500 : (options.timeout || 1500);
+      const timeout = options.below_header ? 3500 : (options.timeout || 1500);
       this.set('flashTimer', runLater(() => {
         this.fadeFlash();
       }, timeout));
@@ -198,9 +206,12 @@ export default Service.extend({
       locale: options.locale,
       option: options.option,
       allowStyle: options.allow_style,
-      callback: options.callback
+      callback: options.callback,
+      // When true, the preview is a "recommended home board" suggestion (opened by
+      // "Assign a Home Board For Me") — the overlay swaps its header copy.
+      recommend: options.recommend
     });
-    
+
     return RSVP.resolve();
   },
   
@@ -233,9 +244,23 @@ export default Service.extend({
    * Close regular modal
    */
   _closeModal(success) {
+    const wasGettingStarted = this.get('currentTemplate') === 'getting-started';
+    const appState = this.get('appState');
+
     // Resolve or reject promise
     this._resolveCurrentPromise(success);
-    
+
+    // After closing Getting Started, show welcome celebration icon next to username (once per session)
+    if (wasGettingStarted && appState && !appState.get('index_celebration_shown')) {
+      appState.set('show_index_celebration', true);
+      runLater(() => {
+        if (appState.get('show_index_celebration')) {
+          appState.set('show_index_celebration', false);
+          appState.set('index_celebration_shown', true);
+        }
+      }, 2500);
+    }
+
     // Clear state
     this.set('currentTemplate', null);
     this.set('currentOptions', null);
@@ -289,6 +314,8 @@ export default Service.extend({
     }
     
     this.set(controllerName, null);
+    const modelKey = outlet === 'highlight-secondary' ? 'highlight2Model' : 'highlightModel';
+    this.set(modelKey, null);
   },
   
   /**
@@ -355,7 +382,7 @@ export default Service.extend({
    */
   scannableTargets() {
     if (this.isOpen()) {
-      return document.querySelectorAll('.modal-dialog .modal_targets .btn, .modal-dialog .modal_targets a, .modal-dialog .modal_targets .speak_menu_button');
+      return document.querySelectorAll('.modal-dialog .modal_targets .btn, .modal-dialog .modal_targets a, .modal-dialog .modal_targets .speak_menu_button, .modal-dialog .modal_targets .md-speak-menu__btn, .modal-dialog .modal_targets .md-speak-menu__bottom-btn');
     }
     return document.querySelectorAll('nothing'); // Return empty NodeList
   },

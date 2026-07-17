@@ -16,27 +16,55 @@ export default Component.extend({
   appState: service('app-state'),
   persistence: service('persistence'),
   tagName: '',
-  
+  compactInline: false,
+  /** When true, hide "Make me a Supervisor" / supervisee CTA (e.g. dashboard supervisors modal). */
+  hideMakeSupervisorButton: false,
+
   init() {
     this._super(...arguments);
-    // Get options from service or passed model
-    const modal = this.get('modal');
-    const template = 'supervision-settings';
-    const options = (modal && modal.getSettingsFor && modal.getSettingsFor(template)) || 
-                    (modal && modal.settingsFor && modal.settingsFor[template]) ||
-                    this.get('model') || {};
-    
-    // Initialize add_supervisee_hit property
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
     this.set('add_supervisee_hit', false);
-    
-    // Set model from options.user (as per original controller)
-    if (options.user) {
-      this.set('model', options.user);
-      this.get('model').reload();
-      this.set('model.load_all_connections', true);
+
+    if (this.get('inline')) {
+      const model = this.get('model');
+      if (model && model.reload) {
+        model.reload();
+        this.set('model.load_all_connections', true);
+      }
     } else {
-      // No user passed - use EmberObject so .get() works; plain {} would break model.get(), model.reload(), etc.
-      this.set('model', EmberObject.create(options));
+      const modal = this.get('modal');
+      const template = 'supervision-settings';
+      const options = (modal && modal.getSettingsFor && modal.getSettingsFor(template)) ||
+                      (modal && modal.settingsFor && modal.settingsFor[template]) ||
+                      this.get('model') || {};
+      if (options.user) {
+        this.set('model', options.user);
+        this.get('model').reload();
+        this.set('model.load_all_connections', true);
+      } else {
+        // No user passed - use EmberObject so .get() works; plain {} would break model.get(), model.reload(), etc.
+        this.set('model', EmberObject.create(options));
+      }
     }
   },
   
@@ -186,5 +214,14 @@ export default Component.extend({
     start_codes: function() {
       modalUtil.open('modals/start-codes', {user: this.get('model')});
     }
-  }
+  },
+
+  didInsertElement() {
+  this._super(...arguments);
+  var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
+},
+
 });

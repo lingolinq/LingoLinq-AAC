@@ -564,8 +564,7 @@ RSpec.describe WordData, :type => :model do
       User.link_supervisor_to_user(u, u2)
       res = WordData.activities_for(u.reload, true)
       expect(res.instance_variable_get('@fresh')).to eq(true)
-      expect(res.except('generated')).to eq({
-        'checked' => Time.now.iso8601,
+      expect(res.except('checked', 'generated')).to eq({
         'list' => [
           {"id"=>"1", "score"=>11, "user_ids"=>[u.global_id, u2.global_id]}, 
           {"id"=>"5", "score"=>10, "user_ids"=>[u2.global_id]}, 
@@ -580,6 +579,8 @@ RSpec.describe WordData, :type => :model do
           {"word"=>"most", "locale"=>"en", "user_ids"=>[u2.global_id]}
         ]
       })
+      expect(res['checked']).to be > (Time.now - 5).iso8601
+      expect(res['checked']).to be < (Time.now + 5).iso8601
       expect(res['generated']).to be > (Time.now - 5).iso8601
       expect(res['generated']).to be < (Time.now + 5).iso8601
     end
@@ -934,6 +935,14 @@ RSpec.describe WordData, :type => :model do
   end
 
   describe "inflection_locations_for" do
+    around do |example|
+      prior_cache = Thread.current[:word_inflection_cache]
+      Thread.current[:word_inflection_cache] = {}
+      example.run
+    ensure
+      Thread.current[:word_inflection_cache] = prior_cache
+    end
+
     it "should return an empty hash for no words or locales" do
       expect(WordData).to_not receive(:where)
       expect(WordData.inflection_locations_for([], 'en')).to eq({})
@@ -1418,6 +1427,9 @@ RSpec.describe WordData, :type => :model do
           regulars: ['comparative']
         }
       }, {updater: u.reload})
+      allow(Setting).to receive(:get_cached).and_wrap_original do |method, key|
+        key.to_s.start_with?('rules/') ? nil : method.call(key)
+      end
       hash = WordData.inflection_locations_for(['he', 'ugly', 'mask', 'run', 'angrily'], 'en-AU')
       expect(hash['he']).to include(
         'c' => 'hee',
@@ -1521,6 +1533,9 @@ RSpec.describe WordData, :type => :model do
           regulars: ['present_participle', 'plural_present']
         }
       }, {updater: u.reload})
+      allow(Setting).to receive(:get_cached).and_wrap_original do |method, key|
+        key.to_s.start_with?('rules/') ? nil : method.call(key)
+      end
       hash = WordData.inflection_locations_for(['he', 'ugly', 'mask', 'run', 'angrily'], 'en-AU')
       expect(hash['he']).to include(
         'c' => 'he',
@@ -1715,6 +1730,9 @@ RSpec.describe WordData, :type => :model do
           regulars: ['comparative', 'past', 'personal_past']
         }
       }, {updater: u.reload})
+      allow(Setting).to receive(:get_cached).and_wrap_original do |method, key|
+        key.to_s.start_with?('rules/') ? nil : method.call(key)
+      end
       hash = WordData.inflection_locations_for(['he', 'ugly', 'mask', 'foul', 'grave', 'run', 'mute', 'down'], 'en-AU')
       expect(hash['he']).to include(
         'c' => 'he',

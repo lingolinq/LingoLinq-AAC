@@ -16,6 +16,28 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+
     const modalService = this.get('modal');
     const template = 'modals/external-device';
     const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
@@ -107,6 +129,17 @@ export default Component.extend({
         this.set('external_vocab_size', vocab.buttons);
       }
     },
+    // The modern modal offers the vocab presets via a <datalist> (free text +
+    // suggestions) instead of a Bootstrap dropdown. Selecting/typing a preset
+    // name only updates the bound input, so re-apply the preset's button count
+    // to Vocab Size here — preserving the old dropdown's auto-fill behavior.
+    vocab_changed() {
+      const str = this.get('external_vocab');
+      const match = (this.get('vocab_options') || []).find(function(v) { return v.name === str; });
+      if (match && match.buttons) {
+        this.set('external_vocab_size', match.buttons);
+      }
+    },
     update() {
       const _this = this;
       const user = this.get('model.user');
@@ -145,5 +178,14 @@ export default Component.extend({
         _this.set('status', { error: true });
       });
     }
-  }
+  },
+
+  didInsertElement() {
+  this._super(...arguments);
+  var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
+},
+
 });

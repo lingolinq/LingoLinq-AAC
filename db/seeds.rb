@@ -6,9 +6,12 @@
 #
 # Sensitive credentials: Use environment variables. In production/staging, SEED_*_PASSWORD
 # must be set; in development/test, defaults are used if not set.
-#   SEED_EXAMPLE_PASSWORD - example user (default in dev: 'password')
-#   SEED_ADMIN_PASSWORD   - lingolinq_admin (default in dev: 'admin2025!')
-#   SEED_DEMO_PASSWORD   - demo users: SLPs, students (default in dev: 'demo2025!')
+#   SEED_ADMIN_PASSWORD     - lingolinq_admin (default in dev: 'admin2025!')
+#   SEED_DEMO_PASSWORD      - demo user(s) (default in dev: 'password')
+#   SEED_LINGOLINQ_PASSWORD - lingolinq system boards user (default in dev: 'password')
+#   SEED_ACCESSIBILITY_USERS  - set to 1 to seed lingolinq-eyegaze and lingolinq-switchuser
+#   SEED_EYE_GAZE_PASSWORD    - lingolinq-eyegaze (default in dev: 'password')
+#   SEED_SWITCH_USER_PASSWORD - lingolinq-switchuser (default in dev: 'password')
 
 def seed_password(env_key, dev_default)
   if (Rails.env.production? || ENV['RAILS_ENV'] == 'staging') && ENV[env_key].blank?
@@ -16,16 +19,31 @@ def seed_password(env_key, dev_default)
   end
   ENV[env_key].presence || dev_default
 end
+load Rails.root.join('lib', 'beta_seed.rb')
+
+BetaSeed.ensure_baseline!
+load Rails.root.join('lib', 'accessibility_seed.rb')
+if ENV['SEED_ACCESSIBILITY_USERS'].to_s =~ BetaSeed::TRUTHY_PATTERN
+  AccessibilitySeed.ensure_all!
+else
+  puts 'Skipping accessibility users (set SEED_ACCESSIBILITY_USERS=1)'
+end
+SEED_DEMO_DATA = BetaSeed.demo_data_enabled?
 #
 # Examples:
 #
 #   cities = City.create([{ name: 'Chicago' }, { name: 'Copenhagen' }])
 #   Mayor.create(name: 'Emanuel', city: cities.first)
 
-# Check if seeding has already been done
+# Check if legacy demo/example seeding has already been done
 SEEDING_ALREADY_DONE = User.exists?(user_name: 'example') && Organization.exists?(admin: true)
 
-if SEEDING_ALREADY_DONE
+if !SEED_DEMO_DATA
+  puts "=" * 60
+  puts "Skipping legacy example/demo seed data"
+  puts "Set SEED_DEMO_DATA=1 to seed the old example account, sample logs, and demo district."
+  puts "=" * 60
+elsif SEEDING_ALREADY_DONE
   puts "=" * 60
   puts "Seeding already completed - skipping initial seed data"
   puts "=" * 60
@@ -337,8 +355,8 @@ else
   puts "=" * 60
 end
 
-# Ensure example user has logging and geo_logging enabled for stats map (runs every seed)
-example_user = User.find_by(user_name: 'example')
+# Ensure example user has logging and geo_logging enabled for stats map (demo-only)
+example_user = SEED_DEMO_DATA && User.find_by(user_name: 'example')
 if example_user
   example_user.settings ||= {}
   example_user.settings['preferences'] ||= {}
@@ -384,6 +402,13 @@ end
 # From console (no full seed): load Rails.root.join('lib', 'seed_organization.rb'); seed_organization(org_name: "Sample Organization")
 # From command line: bundle exec rake db:seed_organization
 load Rails.root.join('lib', 'seed_organization.rb')
+
+# Eval protocol seeds: persists the five baseline Quick Screen profiles
+# so SLP-authored overrides have a starting point in the DB. The model
+# falls back to in-memory static_template lookups if rows are missing,
+# so this load is idempotent and safe to skip in environments that
+# don't need DB-backed protocols.
+load Rails.root.join('db', 'seeds', 'eval_protocols.rb')
 
 
 # ============================================================
@@ -436,7 +461,12 @@ load Rails.root.join('lib', 'seed_organization.rb')
 # Use the lingolinq_admin user as the sentinel instead.
 DEMO_ALREADY_SEEDED = User.exists?(user_name: 'lingolinq_admin') && Organization.where(admin: false).exists?
 
-unless DEMO_ALREADY_SEEDED
+if !SEED_DEMO_DATA
+  puts "\n" + "=" * 60
+  puts "Skipping Demo School District seed data"
+  puts "Set SEED_DEMO_DATA=1 to create demo users, rooms, logs, and report history."
+  puts "=" * 60
+elsif !DEMO_ALREADY_SEEDED
   puts "\n" + "=" * 60
   puts "Seeding Demo School District with 90 days of usage data..."
   puts "=" * 60
@@ -1142,3 +1172,7 @@ end
 #         ]
 #       }
 #     ];
+
+
+# Beta baseline system content is ensured near the top of this file by
+# BetaSeed.ensure_baseline!, before optional demo data runs.

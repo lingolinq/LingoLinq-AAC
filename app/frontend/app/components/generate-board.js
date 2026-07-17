@@ -21,6 +21,28 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+
     this.set('prompt', '');
     this.set('labels', '');
     this.set('name', '');
@@ -139,6 +161,12 @@ export default Component.extend({
     setForUserId(userId) {
       this.set('for_user_id', userId);
     },
+    setLocale(value) {
+      this.set('locale', value);
+    },
+    setLabelsOrder(value) {
+      this.set('labels_order', value);
+    },
     grid_event(action, row, col) {
       this.send(action, row, col);
     },
@@ -194,6 +222,9 @@ export default Component.extend({
         _this.set('labels', labels);
         if (res && res.name) { _this.set('name', res.name); }
         if (res && res.description) { _this.set('description', res.description); }
+        // EU AI Act Article 50(2): hold the signed AI-generation marker so createBoard
+        // can include it in the board payload for the server to verify + persist.
+        if (res && res.ai_generated) { _this.set('ai_generated', res.ai_generated); }
       }, function(err) {
         var msg = i18n.t('generate_failed', 'Generation failed');
         var resp = (err && err.fakeXHR && err.fakeXHR.responseJSON) || (err && err.responseJSON) || (err && err.responseText ? (function() {
@@ -201,7 +232,8 @@ export default Component.extend({
         })() : null);
         if (resp && resp.error) {
           msg = resp.error;
-          if (resp.error_detail) { msg += ' (' + resp.error_detail + ')'; }
+          if (resp.error_kind) { msg += ' [' + resp.error_kind + ']'; }
+          if (resp.error_detail) { msg += ' - ' + resp.error_detail; }
         }
         _this.set('status', { error: msg });
       });
@@ -238,6 +270,11 @@ export default Component.extend({
       if (this.get('image_url')) {
         boardPayload.image_url = this.get('image_url');
       }
+      // EU AI Act Article 50(2): pass the signed AI-generation marker through so the
+      // server verifies and persists it onto the new board's settings.
+      if (this.get('ai_generated')) {
+        boardPayload.ai_generated = this.get('ai_generated');
+      }
 
       if (!persistenceService || !persistenceService.ajax) {
         this.set('status', { error: i18n.t('app_not_ready', 'App is not ready. Please try again.') });
@@ -255,7 +292,12 @@ export default Component.extend({
           modalUtil.close(true);
           editManager.auto_edit(board.id);
           _this.appState.set('referenced_board', { id: board.id, key: board.key });
-          _this.get('router').transitionTo('board', board.key);
+          var parts = (board.key || '').split('/');
+          if (parts.length >= 2) {
+            _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+          } else {
+            _this.get('router').transitionTo('board', board.key);
+          }
         } else {
           _this.set('status', {
             error: (res && res.error) || i18n.t('create_failed', 'Board creation failed')
@@ -274,5 +316,12 @@ export default Component.extend({
         _this.set('status', { error: msg });
       });
     }
-  }
+  },
+
+  didInsertElement() {
+    this._super(...arguments);
+    var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+  },
 });

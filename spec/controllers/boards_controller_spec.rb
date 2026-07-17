@@ -123,7 +123,7 @@ describe BoardsController, :type => :controller do
       b = Board.create(:user => u)
       get :icon, params: {:id => b.global_id}
       expect(response).to be_redirect
-      expect(response.location).to eq(b.icon_url_or_fallback)
+      expect(response.location).to eq("http://test.host#{b.icon_url_or_fallback}")
     end
   end
   
@@ -150,6 +150,48 @@ describe BoardsController, :type => :controller do
   end
 
   
+  describe "lesson" do
+    it "should render the app shell when the lesson exists but the share token is expired" do
+      u = User.create
+      l = Lesson.create
+      expired_ts = (Time.now - 1.day).to_i
+      sig = GoSecure.sha512("#{u.global_id}-#{expired_ts}", 'lesson_share_token verifier')[0, 30]
+      token = "#{u.global_id}-#{expired_ts}-#{sig}"
+      get :lesson, params: {lesson_id: l.global_id, lesson_code: l.nonce, user_token: token}
+      expect(response).to render_template(:index)
+      expect(response).not_to be_redirect
+    end
+
+    it "should render the app shell when the token is unresolvable/malformed" do
+      l = Lesson.create
+      get :lesson, params: {lesson_id: l.global_id, lesson_code: l.nonce, user_token: 'not-a-real-token'}
+      expect(response).to render_template(:index)
+      expect(response).not_to be_redirect
+    end
+
+    it "should redirect to /404 when the lesson is missing" do
+      get :lesson, params: {lesson_id: '0_999999999', lesson_code: 'whatever', user_token: 'whatever'}
+      expect(response).to redirect_to('/404')
+    end
+
+    it "should redirect to /404 when the lesson_code (nonce) does not match" do
+      l = Lesson.create
+      get :lesson, params: {lesson_id: l.global_id, lesson_code: 'wrong-code', user_token: 'whatever'}
+      expect(response).to redirect_to('/404')
+    end
+
+    it "should render the app shell for a valid unexpired token" do
+      u = User.create
+      l = Lesson.create
+      future_ts = (Time.now + 1.day).to_i
+      sig = GoSecure.sha512("#{u.global_id}-#{future_ts}", 'lesson_share_token verifier')[0, 30]
+      token = "#{u.global_id}-#{future_ts}-#{sig}"
+      get :lesson, params: {lesson_id: l.global_id, lesson_code: l.nonce, user_token: token}
+      expect(response).to render_template(:index)
+      expect(response).not_to be_redirect
+    end
+  end
+
   describe "GET utterance_redirect" do
     it 'should not require an access token' do
       get 'utterance_redirect', params: {'reply_code' => 'asdf'}

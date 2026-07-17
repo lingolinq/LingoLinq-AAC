@@ -1,4 +1,3 @@
-import DS from 'ember-data';
 import RSVP from 'rsvp';
 import EmberObject from '@ember/object';
 import {
@@ -17,17 +16,28 @@ import speecher from '../../utils/speecher';
 import capabilities from '../../utils/capabilities';
 import persistence from '../../utils/persistence';
 import Utils from '../../utils/misc';
-import { run as emberRun } from '@ember/runloop';
+import { run as emberRun, later } from '@ember/runloop';
 
 describe('User', function() {
+  function stubFixedMoment() {
+    var mm = window.moment;
+    stub(window, 'moment', function(a, b) {
+      if(a || b) {
+        return mm(a, b);
+      } else {
+        return mm('2015-11-01');
+      }
+    });
+  }
+
   describe("avatar_url_with_fallback", function() {
     it("should key off avatar_url if defined", function() {
       var u = LingoLinq.store.createRecord('user', {avatar_url: "http://pic.example.com"});
       expect(u.get('avatar_url_with_fallback')).toEqual("http://pic.example.com");
     });
     it("should automatically check for locally-stored avatar data-uri on load", function() {
-      var user = LingoLinq.store.createRecord('user');
-      user.didLoad();
+      var user = LingoLinq.store.createRecord('user', { avatar_url: 'data:image/png;abc' });
+      user.checkForDataURL();
       expect(user.get('checked_for_data_url')).toEqual(true);
     });
   });
@@ -40,9 +50,9 @@ describe('User', function() {
     it('should return the correct value', function() {
       var user = LingoLinq.store.createRecord('user');
       expect(user.get('has_management_responsibility')).toEqual(false);
-      user.set('managed_orgs', [{}, {}]);
+      user.set('organizations', [{type: 'manager'}, {type: 'manager'}]);
       expect(user.get('has_management_responsibility')).toEqual(true);
-      user.set('managed_orgs', []);
+      user.set('organizations', []);
       expect(user.get('has_management_responsibility')).toEqual(false);
     });
   });
@@ -143,8 +153,7 @@ describe('User', function() {
       expect(user.get('supervisor_names')).toEqual("");
       user.set('supervisors', [{name: 'fred'}, {name: 'sam'}]);
       expect(user.get('supervisor_names')).toEqual("fred, sam");
-      user.set('is_managed', true);
-      user.set('managing_org', {name: 'cool'});
+      user.set('organizations', [{type: 'user', name: 'cool'}]);
       expect(user.get('supervisor_names')).toEqual("cool, fred, sam");
     });
   });
@@ -182,32 +191,24 @@ describe('User', function() {
   describe('currently_premium', function() {
     it('should return the correct value', function() {
       var user = LingoLinq.store.createRecord('user');
+      user.set('subscription', { billing_state: 'modeling_only' });
       expect(user.get('currently_premium')).toEqual(false);
-      user.set('expired', true);
+      user.set('subscription', { billing_state: 'expired_communicator' });
       expect(user.get('currently_premium')).toEqual(false);
-      user.set('free_premium', true);
-      expect(user.get('currently_premium')).toEqual(false);
-      user.set('expired', false);
-      expect(user.get('currently_premium')).toEqual(false);
-      user.set('free_premium', false);
+      user.set('subscription', { billing_state: 'trialing_supporter', premium_supporter: true });
+      expect(user.get('currently_premium')).toEqual(true);
+      user.set('subscription', { never_expires: true, premium_supporter: true });
       expect(user.get('currently_premium')).toEqual(true);
     });
   });
 
-  describe('free_premium', function() {
-    it('should return the correct value', function() {
-      var user = LingoLinq.store.createRecord('user');
-      expect(user.get('free_premium')).toEqual(false);
-      user.set('subscription', {free_premium: false});
-      expect(user.get('free_premium')).toEqual(false);
-      user.set('subscription', {free_premium: true});
-      expect(user.get('free_premium')).toEqual(true);
-    });
-  });
-
   describe('expired', function() {
+    beforeEach(function() {
+      stubFixedMoment();
+    });
     it('should return the correct value', function() {
       var user = LingoLinq.store.createRecord('user');
+      user.set('membership_type', 'free');
       expect(user.get('expired')).toEqual(true);
       user.set('membership_type', 'premium');
       expect(user.get('expired')).toEqual(false);
@@ -215,17 +216,6 @@ describe('User', function() {
       expect(user.get('expired')).toEqual(false);
       user.set('subscription', {expires: '2010-01-01'});
       expect(user.get('expired')).toEqual(true);
-    });
-  });
-
-  describe('expired_or_limited_supervisor', function() {
-    it('should return the correct value', function() {
-      var user = LingoLinq.store.createRecord('user');
-      expect(user.get('expired_or_limited_supervisor')).toEqual(true);
-      user.set('expired', false);
-      expect(user.get('expired_or_limited_supervisor')).toEqual(false);
-      user.set('subscription', {limited_supervisor: true});
-      expect(user.get('expired_or_limited_supervisor')).toEqual(true);
     });
   });
 
@@ -239,6 +229,9 @@ describe('User', function() {
   });
 
   describe('really_expired', function() {
+    beforeEach(function() {
+      stubFixedMoment();
+    });
     it('should return the correct value', function() {
       var user = LingoLinq.store.createRecord('user');
       expect(user.get('really_expired')).toEqual(false);
@@ -248,6 +241,9 @@ describe('User', function() {
   });
 
   describe('really_really_expired', function() {
+    beforeEach(function() {
+      stubFixedMoment();
+    });
     it('should return the correct value', function() {
       var user = LingoLinq.store.createRecord('user');
       expect(user.get('really_really_expired')).toEqual(false);
@@ -257,10 +253,15 @@ describe('User', function() {
   });
 
   describe('expired_or_grace_period', function() {
+    beforeEach(function() {
+      stubFixedMoment();
+    });
     it('should return the correct value', function() {
       var user = LingoLinq.store.createRecord('user');
+      user.set('membership_type', 'free');
       expect(user.get('expired_or_grace_period')).toEqual(true);
-      user.set('expired', false);
+      user.set('membership_type', 'premium');
+      user.set('subscription', { expires: '2099-01-01' });
       expect(user.get('expired_or_grace_period')).toEqual(false);
       user.set('subscription', {grace_period: true});
       expect(user.get('expired_or_grace_period')).toEqual(true);
@@ -430,21 +431,17 @@ describe('User', function() {
     it("should load correctly", function() {
       var user = LingoLinq.store.createRecord('user');
       user.set('id', '1234');
-      stub(user.store, 'query', function(type, args) {
+      stub(LingoLinq.store, 'query', function(type, args) {
         expect(type).toEqual('goal');
         expect(args).toEqual({active: true, user_id: '1234'});
-        return RSVP.resolve({
-          map: function() {
-            return [
-              EmberObject.create({id: '5'}),
-              EmberObject.create({id: '2'}),
-              EmberObject.create({id: '6', primary: true}),
-              EmberObject.create({id: '4'}),
-              EmberObject.create({id: '1'}),
-              EmberObject.create({id: '3'})
-            ];
-          }
-        });
+        return RSVP.resolve([
+          EmberObject.create({id: '5'}),
+          EmberObject.create({id: '2'}),
+          EmberObject.create({id: '6', primary: true}),
+          EmberObject.create({id: '4'}),
+          EmberObject.create({id: '1'}),
+          EmberObject.create({id: '3'})
+        ]);
       });
       user.load_active_goals();
       waitsFor(function() { return user.get('active_goals'); });
@@ -556,6 +553,32 @@ describe('User', function() {
       });
     });
 
+    it('should localize remote avatars when loading supervisors', function() {
+      var user = LingoLinq.store.createRecord('user');
+      user.set('id', 'bob');
+      user.set('supervisors', [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}]);
+      stub(persistence, 'ajax', function(url, opts) {
+        if(url == '/api/v1/users/bob/supervisors') {
+          return RSVP.resolve({
+            user: [{avatar_url: 'https://example.com/avatar.png'}]
+          });
+        } else {
+          return RSVP.reject();
+        }
+      });
+      stub(persistence, 'find_url', function(url, type) {
+        expect(url).toEqual('https://example.com/avatar.png');
+        expect(type).toEqual('image');
+        return RSVP.resolve('data:image/png;base64,avatar');
+      });
+      user.set('load_all_connections', true);
+      waitsFor(function() { return user.get('all_connections.loaded') && user.get('supervisors.0.avatar_url') == 'data:image/png;base64,avatar'; });
+      runs(function() {
+        expect(user.get('supervisors.0.original_avatar_url')).toEqual('https://example.com/avatar.png');
+        expect(user.get('supervisors.0.avatar_url')).toEqual('data:image/png;base64,avatar');
+      });
+    });
+
     it('should load supervisees if it is possible there are more', function() {
       var user = LingoLinq.store.createRecord('user');
       user.set('id', 'bob');
@@ -655,15 +678,16 @@ describe('User', function() {
       });
       var rejected = false;
       u.check_integrations().then(null, function() { rejected = true; });
-      var updated = false;
       waitsFor(function() { return rejected; });
       runs(function() {
         expect(called).toEqual(false);
-        updated = true;
         u.set('permissions', {supervise: true});
+        u.check_integrations().then(null, function() { });
       });
-      waitsFor(function() { return updated && called; });
-      runs();
+      waitsFor(function() { return called; });
+      runs(function() {
+        expect(called).toEqual(true);
+      });
     });
 
     it('should return the promise if defined', function() {
@@ -786,7 +810,23 @@ describe('User', function() {
     });
 
     it('should also check for supervisee permission if possible', function() {
-      expect('test').toEqual('todo');
+      var u = LingoLinq.store.createRecord('user', {id: 'supervisor'});
+      u.set('supervisees', [{user_id: 'child', user_name: 'child'}]);
+      stub(LingoLinq.User, 'find_integration', function(user_id, key) {
+        if(user_id == 'supervisor' && key == 'bacon') {
+          return RSVP.reject({error: 'no matching integration found'});
+        } else if(user_id == 'child' && key == 'bacon') {
+          return RSVP.resolve(EmberObject.create({template_key: 'bacon'}));
+        } else {
+          return RSVP.reject({error: 'unexpected lookup'});
+        }
+      });
+      var result = null;
+      u.find_integration('bacon', 'child').then(function(res) { result = res; });
+      waitsFor(function() { return result; });
+      runs(function() {
+        expect(result.get('template_key')).toEqual('bacon');
+      });
     });
   });
 
@@ -826,13 +866,13 @@ describe('User', function() {
     it('should return all button sets on success', function() {
       var u = LingoLinq.store.createRecord('user');
       u.set('preferences', {home_board: {id: 'asdf'}, sidebar_boards: [{key: 'asdf/qwer'}, {key: 'asdf/zxcv'}]});
-      stub(LingoLinq.store, 'findRecord', function(type, id) {
-        if(type == 'buttonset' && id == 'asdf') {
-          return RSVP.resolve('one');
-        } else if(type == 'buttonset' && id == 'asdf/qwer') {
-          return RSVP.resolve('two');
-        } else if(type == 'buttonset' && id == 'asdf/zxcv') {
-          return RSVP.resolve('three');
+      stub(LingoLinq.Buttonset, 'load_button_set', function(id) {
+        if(id == 'asdf') {
+          return RSVP.resolve(LingoLinq.store.createRecord('buttonset', {id: 'asdf'}));
+        } else if(id == 'asdf/qwer') {
+          return RSVP.resolve(LingoLinq.store.createRecord('buttonset', {id: 'asdf/qwer'}));
+        } else if(id == 'asdf/zxcv') {
+          return RSVP.resolve(LingoLinq.store.createRecord('buttonset', {id: 'asdf/zxcv'}));
         } else {
           return RSVP.reject();
         }
@@ -841,18 +881,21 @@ describe('User', function() {
       u.load_button_sets().then(function(l) { list = l; });
       waitsFor(function() { return list; });
       runs(function() {
-        expect(list).toEqual(['one', 'two', 'three']);
+        expect(list.length).toEqual(3);
+        expect(list[0].get('id')).toEqual('asdf');
+        expect(list[1].get('id')).toEqual('asdf/qwer');
+        expect(list[2].get('id')).toEqual('asdf/zxcv');
       });
     });
 
     it('should error on failing to retrieve any button set', function() {
       var u = LingoLinq.store.createRecord('user');
       u.set('preferences', {home_board: {id: 'asdf'}, sidebar_boards: [{key: 'asdf/qwer'}, {key: 'asdf/zxcv'}]});
-      stub(LingoLinq.store, 'findRecord', function(type, id) {
-        if(type == 'buttonset' && id == 'asdf') {
-          return RSVP.resolve('one');
-        } else if(type == 'buttonset' && id == 'asdf/zxcv') {
-          return RSVP.resolve('three');
+      stub(LingoLinq.Buttonset, 'load_button_set', function(id) {
+        if(id == 'asdf') {
+          return RSVP.resolve(LingoLinq.store.createRecord('buttonset', {id: 'asdf'}));
+        } else if(id == 'asdf/zxcv') {
+          return RSVP.resolve(LingoLinq.store.createRecord('buttonset', {id: 'asdf/zxcv'}));
         } else {
           return RSVP.reject();
         }
@@ -894,7 +937,7 @@ describe('User', function() {
       stub(list2, 'find_buttons', function(label) {
         expect(label).toEqual('bacon');
         return new RSVP.Promise(function(res, rej) {
-          emberRun.later(function() {
+          later(function() {
             res([{label: 'baking', id: 2.1}, {label: 'Bacon', id: 2}]);
           }, 100);
         });
@@ -926,7 +969,7 @@ describe('User', function() {
       stub(list2, 'find_buttons', function(label) {
         expect(label).toEqual('bacon');
         return new RSVP.Promise(function(res, rej) {
-          emberRun.later(function() {
+          later(function() {
             res([{label: 'baking', id: 2.1}, {label: 'Bacon!', id: 2}]);
           }, 100);
         });

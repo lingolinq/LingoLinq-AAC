@@ -18,6 +18,28 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+
     const modalService = this.get('modal');
     const template = 'add-supervisor';
     const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
@@ -28,6 +50,10 @@ export default Component.extend({
 
   didInsertElement() {
     this._super(...arguments);
+    var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
     this.set('existing_user', true);
     this.set('new_user', false);
     this.set('start_code', false);
@@ -56,10 +82,10 @@ export default Component.extend({
 
   supervisor_types: computed(function() {
     return [
-      { name: i18n.t('choose_access_level', "[ Choose Access Level ]"), id: '' },
-      { name: i18n.t('edit_access', "Can modify boards and settings, and see reports"), id: 'edit' },
-      { name: i18n.t('read_only_access', "Can see boards, settings and reports, but not modify"), id: 'read_only' },
-      { name: i18n.t('modeling_access', "Can see boards, and model only"), id: 'modeling_only' }
+      { name: i18n.t('choose_access_level', "( Choose Supervisor Access )"), id: '' },
+      { name: i18n.t('edit_access', "[Modify] boards and settings, and [View] reports"), id: 'edit' },
+      { name: i18n.t('read_only_access', "[View Only] boards, settings, and reports"), id: 'read_only' },
+      { name: i18n.t('modeling_access', "[View Only] boards and model"), id: 'modeling_only' }
     ];
   }),
 

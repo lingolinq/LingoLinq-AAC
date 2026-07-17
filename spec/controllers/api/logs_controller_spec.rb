@@ -13,6 +13,45 @@ describe Api::LogsController, :type => :controller do
       get :index, params: {:user_id => u.global_id}
       assert_unauthorized
     end
+
+    it "allows basic_supervision token to list logs when filtered by goal_id" do
+      sup = User.create
+      comm = User.create
+      User.link_supervisor_to_user(sup, comm, nil, false)
+      dev = Device.create(:user => sup, :developer_key_id => 1, :device_key => 'bacon')
+      dev.settings['permission_scopes'] = ['basic_supervision']
+      dev.save!
+      request.headers['Authorization'] = "Bearer #{dev.tokens[0]}"
+      request.headers['Check-Token'] = 'true'
+
+      goal = UserGoal.create(:user => comm)
+      goal.settings['summary'] = 'scoped goal'
+      goal.save!
+      d = Device.create(:user => comm)
+      LogSession.process_new({
+        'note' => {'text' => 'goal note', 'timestamp' => 5.minutes.ago.to_i},
+        'goal_id' => goal.global_id
+      }, {:user => comm, :author => comm, :device => d, :ip_address => '1.2.3.4'})
+
+      get :index, params: {:user_id => comm.global_id, :goal_id => goal.global_id, :type => 'note'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['log'].length).to eq(1)
+    end
+
+    it "still rejects basic_supervision token for unrestricted log index" do
+      sup = User.create
+      comm = User.create
+      User.link_supervisor_to_user(sup, comm, nil, false)
+      dev = Device.create(:user => sup, :developer_key_id => 1, :device_key => 'bacon')
+      dev.settings['permission_scopes'] = ['basic_supervision']
+      dev.save!
+      request.headers['Authorization'] = "Bearer #{dev.tokens[0]}"
+      request.headers['Check-Token'] = 'true'
+
+      get :index, params: {:user_id => comm.global_id, :per_page => 4}
+      assert_unauthorized
+    end
     
     it "should not be allowed in valet mode" do
       valet_token_user
@@ -458,6 +497,131 @@ describe Api::LogsController, :type => :controller do
       Worker.process_queues
       log = LogSession.last
       expect(log.data['event_summary']).to eq('cool')
+    end
+
+    it "should persist a tiered eval report's data through the real create path" do
+      token_user
+      post :create, params: {:log => {
+        :log_type => 'eval',
+        :data => {
+          :eval_mode => 'comprehensive',
+          :protocol_version => '1.0',
+          :intake => {'age_band' => 'adult'},
+          :recommendation => {'access_method' => 'direct'},
+          # EvalSession#recordEvent (app/frontend/app/utils/eval_session.js) stamps real
+          # events with a 'ts' key in JS milliseconds, NOT 'timestamp' in seconds -- this
+          # matters because LogSession#generate_defaults has an older events-timestamp
+          # derivation (for realtime button-press 'session' logs) keyed on 'timestamp' in
+          # seconds that runs before the eval_mode branch; a real-shape event here proves
+          # that derivation is a no-op for tiered eval and doesn't corrupt started_at/ended_at.
+          :events => [
+            {'ts' => (Time.now.to_i * 1000) - 120_000, 'subtest' => 'stage_probe', 'response' => 'correct'},
+            {'ts' => Time.now.to_i * 1000, 'subtest' => 'access_snapshot', 'response' => 'correct'}
+          ],
+          :duration_s => 42,
+          :slp_notes => 'looked good',
+          :sett => {'student' => 'Jane'},
+          :ai_narrative => 'AI-drafted narrative text'
+        },
+        :user_id => @user.global_id
+      }}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      log = LogSession.last
+      expect(log.log_type).to eq('eval')
+      expect(log.data['eval_mode']).to eq('comprehensive')
+      expect(log.data['recommendation']).to eq({'access_method' => 'direct'})
+      expect(log.data['slp_notes']).to eq('looked good')
+      expect(log.data['sett']).to eq({'student' => 'Jane'})
+      expect(log.data['ai_narrative']).to eq('AI-drafted narrative text')
+      expect(log.data['duration_s'].to_i).to eq(42)
+      # started_at/ended_at must be sane (current era), not derived from the ms-scale
+      # 'ts' event timestamps via the seconds-based legacy events derivation
+      expect(log.ended_at).to be_within(1.minute).of(Time.now)
+      expect(log.started_at).to be_within(1.minute).of(Time.now - 42.seconds)
+      expect(log.data['event_count']).to eq(2)
+      # round-trips through JsonApi::Log's tiered_eval view, not just the raw column
+      expect(json['log']['tiered_eval']['eval_mode']).to eq('comprehensive')
+      expect(json['log']['tiered_eval']['ai_narrative']).to eq('AI-drafted narrative text')
+      expect(json['log']['tiered_eval']['slp_notes']).to eq('looked good')
+      expect(json['log']['tiered_eval']['event_count']).to eq(2)
+    end
+
+    it "should persist a valid Article 50(2) eval-narration marker and expose only its public view" do
+      token_user
+      marker = Art50Marker.build(provider: 'claude', model: 'claude-opus-4-7')
+      post :create, params: {:log => {
+        :log_type => 'eval',
+        :data => {
+          :eval_mode => 'comprehensive',
+          :events => [],
+          :duration_s => 42,
+          :ai_narrative => 'AI-drafted narrative text',
+          :ai_generated => marker
+        },
+        :user_id => @user.global_id
+      }}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      log = LogSession.last
+      # Stored value is the re-verified, canonicalized marker (includes signature --
+      # needed so a later read can re-verify it), not whatever shape the client sent.
+      # ('marked' round-trips as the string "true" through the form-encoded test post,
+      # same true/'true' duality Art50Marker.verify already accepts -- see its m['marked']
+      # check -- so this asserts on content, not exact type, across that boundary.)
+      expect(Art50Marker.verify(log.data['ai_generated'])).to eq(true)
+      expect(log.data['ai_generated']['provider']).to eq('claude')
+      expect(log.data['ai_generated']['model']).to eq('claude-opus-4-7')
+      expect(log.data['ai_generated']['content_id']).to eq(marker['content_id'])
+      expect(log.data['ai_generated']['signature']).to eq(marker['signature'])
+      # The API response withholds signature + content_id -- only the public view.
+      expect(json['log']['tiered_eval']['ai_generated']).to eq(
+        'marked' => true, 'spec' => marker['spec'], 'provider' => 'claude',
+        'model' => 'claude-opus-4-7', 'generated_at' => marker['generated_at']
+      )
+      expect(json['log']['tiered_eval']['ai_generated']).not_to have_key('signature')
+      expect(json['log']['tiered_eval']['ai_generated']).not_to have_key('content_id')
+    end
+
+    it "should drop a forged or garbage ai_generated marker to nil rather than storing it as marked" do
+      token_user
+      post :create, params: {:log => {
+        :log_type => 'eval',
+        :data => {
+          :eval_mode => 'comprehensive',
+          :events => [],
+          :duration_s => 42,
+          :ai_generated => {'marked' => true, 'spec' => 'eu-ai-act-art50-2', 'provider' => 'claude',
+                             'model' => 'claude-opus-4-7', 'generated_at' => Time.now.utc.iso8601,
+                             'content_id' => 'fake', 'sig_alg' => 'GoSecure.lite_hmac.v1', 'signature' => 'not-a-real-signature'}
+        },
+        :user_id => @user.global_id
+      }}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      log = LogSession.last
+      expect(log.data['ai_generated']).to be_nil
+      expect(json['log']['tiered_eval']['ai_generated']).to be_nil
+    end
+
+    it "should not mutate a tiered eval report's historical started_at/ended_at on a later, unrelated save" do
+      token_user
+      post :create, params: {:log => {
+        :log_type => 'eval',
+        :data => {:eval_mode => 'comprehensive', :events => [], :duration_s => 42, :ai_narrative => 'text'},
+        :user_id => @user.global_id
+      }}
+      log = LogSession.last
+      original_started_at = log.started_at
+      original_ended_at = log.ended_at
+
+      sleep 1 # no Timecop in this codebase; a real elapsed second is enough to detect drift
+      log.highlighted = true
+      log.save!
+      log.reload
+
+      expect(log.started_at).to eq(original_started_at)
+      expect(log.ended_at).to eq(original_ended_at)
     end
 
     it "should try to extract and canonicalize the ip address" do
@@ -1078,10 +1242,12 @@ describe Api::LogsController, :type => :controller do
 
     it 'should return events data if no encryption header sent' do
       token_user
+      event1_ts = 4.seconds.ago.to_i
+      event2_ts = 3.seconds.ago.to_i
       log = LogSession.process_new({
         :events => [
-          {'timestamp' => 4.seconds.ago.to_i, 'type' => 'button', 'button' => {'label' => 'ok', 'board' => {'id' => '1_1'}}},
-          {'timestamp' => 3.seconds.ago.to_i, 'type' => 'button', 'button' => {'label' => 'never mind', 'board' => {'id' => '1_1'}}}
+          {'timestamp' => event1_ts, 'type' => 'button', 'button' => {'label' => 'ok', 'board' => {'id' => '1_1'}}},
+          {'timestamp' => event2_ts, 'type' => 'button', 'button' => {'label' => 'never mind', 'board' => {'id' => '1_1'}}}
         ]
       }, {:user => @user, :device => @device, :author => @user})
       get :show, params: {:id => log.global_id}
@@ -1091,13 +1257,13 @@ describe Api::LogsController, :type => :controller do
         "parts_of_speech"=>{"types"=>["other"]},
         "spoken"=>false,
         "summary"=>"ok",
-        "timestamp"=>4.seconds.ago.to_i,
+        "timestamp"=>event1_ts.to_f,
         "type"=>"button"},
       {"id"=>2,
         "parts_of_speech"=>{"types"=>["other"]},
         "spoken"=>false,
         "summary"=>"never mind",
-        "timestamp"=>3.seconds.ago.to_i,
+        "timestamp"=>event2_ts.to_f,
         "type"=>"button"
       }])
       expect(json['log']['data_url']).to eq(nil)

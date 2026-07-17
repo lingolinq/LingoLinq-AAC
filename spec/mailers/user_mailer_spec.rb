@@ -53,7 +53,7 @@ describe UserMailer, :type => :mailer do
       expect(m.to).to eq(["bob@example.com"])
       html = message_body(m, :html)
       expect(html).to match(/Welcome to LingoLinq!/)
-      expect(html).to match("-The Someone Team")
+      expect(html).to match("The Lingolinq Team")
       expect(html).to match(/<b>#{u.user_name}<\/b>/)
       text = message_body(m, :text)
       expect(text).to match(/Welcome to LingoLinq!/)
@@ -77,7 +77,142 @@ describe UserMailer, :type => :mailer do
       m = UserMailer.confirm_registration(u.global_id)
       expect(m.subject).to eq("Cheddar - Welcome!")
       html = message_body(m, :html)
-      expect(html).to match("-The Cheddarific Team")
+      expect(html).to match("The Cheddarific Team")
+    end
+  end
+
+  describe "schedule_parent_consent_delivery" do
+    it "delivers inline in development when INLINE_PARENTAL_CONSENT_EMAIL is set" do
+      allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('development'))
+      allow(UserMailer).to receive(:inline_parental_consent_email?).and_return(true)
+      expect(UserMailer).to receive(:deliver_message).with(:parental_consent_request, '1_1')
+      expect(UserMailer).not_to receive(:schedule_delivery)
+      UserMailer.schedule_parent_consent_delivery(:parental_consent_request, '1_1')
+    end
+
+    it "queues when not in inline development mode" do
+      allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('test'))
+      expect(UserMailer).to receive(:schedule_delivery).with(:parental_consent_confirmation, '1_1')
+      expect(UserMailer).not_to receive(:deliver_message)
+      UserMailer.schedule_parent_consent_delivery(:parental_consent_confirmation, '1_1')
+    end
+  end
+
+  describe "parental_consent_request" do
+    after do
+      Setting.find_by(key: SystemEmailTemplates::DEFAULT_KEY)&.destroy
+      RedisInit.default.del("setting/#{SystemEmailTemplates::DEFAULT_KEY}")
+    end
+
+    it "sends to the parent email with a consent URL" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      JsonApi::Json.load_domain('test.host')
+      u = User.process_new({
+        'name' => 'mail_kid',
+        'email' => 'kid_m@example.com',
+        'password' => 'abcdef',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_m@example.com'
+      }, {:pending => true})
+      expect(u).to be_persisted
+      m = UserMailer.parental_consent_request(u.global_id)
+      expect(m.to).to eq(['parent_m@example.com'])
+      expect(m.subject).to eq(I18n.t('parental_consent_mailer.subject', app_name: 'LingoLinq'))
+      html = message_body(m, :html)
+      expect(html).to match(/parental_consent\/complete/)
+    end
+
+    it "uses admin-edited i18n overrides in the email body" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      SystemEmailTemplates.set_template!(nil, 'user_mailer/parental_consent_request', {
+        i18n_overrides: {
+          'parental_consent_mailer.greeting' => 'Custom greeting,'
+        }
+      })
+      JsonApi::Json.load_domain('test.host')
+      u = User.process_new({
+        'name' => 'mail_kid2',
+        'email' => 'kid_m2@example.com',
+        'password' => 'abcdef',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_m2@example.com'
+      }, {:pending => true})
+      m = UserMailer.parental_consent_request(u.global_id)
+      html = message_body(m, :html)
+      expect(html).to include('Custom greeting,')
+    end
+
+    it 'applies the email layout when an html_body override is stored' do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      SystemEmailTemplates.set_template!(nil, 'user_mailer/parental_consent_request', {
+        html_body: '<p>Custom layout test body</p>'
+      })
+      JsonApi::Json.load_domain('test.host')
+      u = User.process_new({
+        'name' => 'mail_kid3',
+        'email' => 'kid_m3@example.com',
+        'password' => 'abcdef',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_m3@example.com'
+      }, {:pending => true})
+      m = UserMailer.parental_consent_request(u.global_id)
+      html = message_body(m, :html)
+      expect(html).to include('Custom layout test body')
+      expect(html).to include('background-color: #eee')
+    end
+  end
+
+  describe "parental_consent_confirmation" do
+    after do
+      Setting.find_by(key: SystemEmailTemplates::DEFAULT_KEY)&.destroy
+      RedisInit.default.del("setting/#{SystemEmailTemplates::DEFAULT_KEY}")
+    end
+
+    it "sends to the parent email with a revoke URL after consent is granted" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      JsonApi::Json.load_domain('test.host')
+      u = User.process_new({
+        'name' => 'mail_kid_confirm',
+        'email' => 'kid_confirm@example.com',
+        'password' => 'abcdef',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_confirm@example.com'
+      }, {:pending => true})
+      tok = u.settings['coppa']['parent_consent_token']
+      expect(u.grant_parental_consent!(tok)).to eq(true)
+      m = UserMailer.parental_consent_confirmation(u.global_id)
+      expect(m.to).to eq(['parent_confirm@example.com'])
+      expect(m.subject).to eq(I18n.t('parental_consent_confirmation_mailer.subject', app_name: 'LingoLinq'))
+      html = message_body(m, :html)
+      expect(html).to match(/parental_consent\/revoke/)
+    end
+  end
+
+  describe "parental_consent_revoked" do
+    it "sends to the parent email after consent is withdrawn" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      JsonApi::Json.load_domain('test.host')
+      u = User.process_new({
+        'name' => 'mail_kid_revoked',
+        'email' => 'kid_revoked@example.com',
+        'password' => 'abcdef',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_revoked@example.com'
+      }, {:pending => true})
+      tok = u.settings['coppa']['parent_consent_token']
+      expect(u.grant_parental_consent!(tok)).to eq(true)
+      revoke_tok = u.settings['coppa']['parent_consent_revoke_token']
+      expect(u.revoke_parental_consent!(revoke_tok)).to eq(true)
+      m = UserMailer.parental_consent_revoked(u.global_id)
+      expect(m.to).to eq(['parent_revoked@example.com'])
+      expect(m.subject).to eq(I18n.t('parental_consent_revoked_mailer.subject', app_name: 'LingoLinq'))
+      html = message_body(m, :html)
+      expect(html).to match(/withdrawn/i)
     end
   end
   
@@ -759,13 +894,18 @@ describe UserMailer, :type => :mailer do
       expect(html).to match(/Super Lesson/)
       expect(html).to match(/This is a great lesson/)
       expect(html).to match(/14 minutes/)
-      expect(html).to match(/#{JsonApi::Json.current_host}\/lessons\/#{l.global_id}\/#{l.nonce}\/#{u.user_token}/)
-      
+      # The lesson link now carries an expiring lesson_share_token, not the permanent user_token
+      # (LL-90045bb29c option (b)); assert the path shape and that the embedded token resolves to u.
+      lesson_link = /#{JsonApi::Json.current_host}\/lessons\/#{l.global_id}\/#{l.nonce}\/([\w-]+)/
+      expect(html).to match(lesson_link)
+      expect(User.find_by_lesson_share_token(html.match(lesson_link)[1])).to eq(u)
+
       text = message_body(m, :text)
       expect(text).to match(/Super Lesson/)
       expect(text).to match(/This is a great lesson/)
       expect(text).to match(/14 minutes/)
-      expect(text).to match(/#{JsonApi::Json.current_host}\/lessons\/#{l.global_id}\/#{l.nonce}\/#{u.user_token}/)
+      expect(text).to match(lesson_link)
+      expect(User.find_by_lesson_share_token(text.match(lesson_link)[1])).to eq(u)
     end
   end
   

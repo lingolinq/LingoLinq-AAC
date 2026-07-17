@@ -103,6 +103,168 @@ describe ContactMessage, :type => :model do
     })
   end
 
+  it "should schedule beta feedback email delivery" do
+    expect(AdminMailer).to receive(:schedule_delivery).with(:beta_feedback_sent, /\d+_\d+/).and_return(true)
+    ContactMessage.process_new({
+      'name' => 'Beta User',
+      'email' => 'beta@example.com',
+      'subject' => 'Short summary ok',
+      'recipient' => 'beta_feedback',
+      'feedback_type' => 'crash',
+      'severity' => 'major',
+      'general_feedback' => 'Detailed feedback here ok'
+    })
+  end
+
+  it "should accept beta feedback without email address and still schedule delivery" do
+    expect(AdminMailer).to receive(:schedule_delivery).with(:beta_feedback_sent, /\d+_\d+/).and_return(true)
+    m = ContactMessage.process_new({
+      'recipient' => 'beta_feedback',
+      'subject' => 'Summary',
+      'feedback_type' => 'crash',
+      'severity' => 'major',
+      'general_feedback' => 'x' * 12
+    })
+    expect(m.errored?).to eq(false)
+    expect(m.recipient).to eq('beta_feedback')
+  end
+
+  it "should persist request_virtual_meeting for beta feedback" do
+    [true, 'true', '1', 'on'].each do |value|
+      m = ContactMessage.process_new({
+        'recipient' => 'beta_feedback',
+        'subject' => 'Summary',
+        'feedback_type' => 'crash',
+        'severity' => 'major',
+        'general_feedback' => 'x' * 12,
+        'request_virtual_meeting' => value
+      })
+
+      expect(m.errored?).to eq(false)
+      expect(m.settings['request_virtual_meeting']).to eq(true)
+    end
+  end
+
+  it "should reject beta feedback without subject" do
+    m = ContactMessage.process_new({
+      'recipient' => 'beta_feedback',
+      'email' => 'a@b.com',
+      'general_feedback' => 'x' * 12
+    })
+    expect(m.errored?).to eq(true)
+    expect(m.processing_errors).to eq(['Summary is required for beta feedback'])
+  end
+
+  it "should reject invalid beta screenshot" do
+    m = ContactMessage.process_new({
+      'recipient' => 'beta_feedback',
+      'email' => 'a@b.com',
+      'subject' => 'ok',
+      'general_feedback' => 'x' * 12,
+      'screenshot_data' => 'not valid'
+    })
+    expect(m.errored?).to eq(true)
+    expect(m.processing_errors).to eq(['Invalid screenshot format'])
+  end
+
+  it "should attach a confirmed beta feedback recording" do
+    rec = BetaFeedbackRecording.create!(
+      content_type: 'video/webm',
+      byte_size: 1000,
+      status: 'confirmed',
+      confirmed_at: Time.now
+    )
+    m = ContactMessage.process_new({
+      'recipient' => 'beta_feedback',
+      'subject' => 'Recording feedback',
+      'feedback_type' => 'boards',
+      'severity' => 'major',
+      'general_feedback' => 'x' * 12,
+      'recording_id' => rec.global_id,
+      'recording_token' => rec.token,
+      'recording_consent' => true
+    })
+
+    expect(m.errored?).to eq(false)
+    rec.reload
+    expect(rec.contact_message_id).to eq(m.id)
+    expect(m.settings['recording_id']).to eq(rec.global_id)
+  end
+
+  it "should reject beta feedback recording without consent" do
+    rec = BetaFeedbackRecording.create!(
+      content_type: 'video/webm',
+      byte_size: 1000,
+      status: 'confirmed',
+      confirmed_at: Time.now
+    )
+    m = ContactMessage.process_new({
+      'recipient' => 'beta_feedback',
+      'subject' => 'Recording feedback',
+      'feedback_type' => 'boards',
+      'severity' => 'major',
+      'general_feedback' => 'x' * 12,
+      'recording_id' => rec.global_id,
+      'recording_token' => rec.token
+    })
+
+    expect(m.errored?).to eq(true)
+    expect(m.processing_errors).to eq(['Recording consent is required'])
+  end
+
+  it "should reject beta feedback with invalid email" do
+    m = ContactMessage.process_new({
+      'recipient' => 'beta_feedback',
+      'email' => 'not-an-email',
+      'subject' => 'ok',
+      'feedback_type' => 'crash',
+      'severity' => 'major',
+      'general_feedback' => 'x' * 12
+    })
+    expect(m.errored?).to eq(true)
+    expect(m.processing_errors).to eq(['Invalid email address'])
+  end
+
+  it "should reject beta feedback with invalid feedback type" do
+    m = ContactMessage.process_new({
+      'recipient' => 'beta_feedback',
+      'email' => 'a@b.com',
+      'subject' => 'ok',
+      'feedback_type' => 'injection_attempt',
+      'severity' => 'major',
+      'general_feedback' => 'x' * 12
+    })
+    expect(m.errored?).to eq(true)
+    expect(m.processing_errors).to eq(['Invalid feedback type'])
+  end
+
+  it "should reject beta feedback with invalid severity" do
+    m = ContactMessage.process_new({
+      'recipient' => 'beta_feedback',
+      'email' => 'a@b.com',
+      'subject' => 'ok',
+      'feedback_type' => 'crash',
+      'severity' => 'critical',
+      'general_feedback' => 'x' * 12
+    })
+    expect(m.errored?).to eq(true)
+    expect(m.processing_errors).to eq(['Invalid severity'])
+  end
+
+  it "should reject beta feedback when a field is too long" do
+    m = ContactMessage.process_new({
+      'recipient' => 'beta_feedback',
+      'email' => 'a@b.com',
+      'subject' => 'ok',
+      'feedback_type' => 'crash',
+      'severity' => 'major',
+      'general_feedback' => 'x' * 12,
+      'device_context' => 'y' * 3000
+    })
+    expect(m.errored?).to eq(true)
+    expect(m.processing_errors).to eq(['One or more fields are too long'])
+  end
+
   it "should handle custom author_id correctly" do
     u1 = User.create(settings: {'name' => 'Bob Jones', 'email' => 'bob@example.com'})
     u2 = User.create(settings: {'name' => 'Alice Rider', 'email' => 'alice@example.com'})

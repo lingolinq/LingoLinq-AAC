@@ -5,7 +5,8 @@ import Subscription from '../utils/subscription';
 
 export default modal.ModalController.extend({
   appState: service('app-state'),
-  
+  router: service('router'),
+
   opening: function() {
     if(this.appState.get('currentUser')) {
       this.set('model', {
@@ -34,7 +35,7 @@ export default modal.ModalController.extend({
         window.ga('send', 'event', 'Setup', 'launch', 'Setup started');
       }
       this.appState.set('auto_setup', true);
-      this.transitionToRoute('setup', {queryParams: {user_id: null, page: null}});
+      this.router.transitionTo('setup', {queryParams: {user_id: null, page: null}});
     },
     subscription_error: function(err) {
       this.set('error', err);
@@ -42,7 +43,7 @@ export default modal.ModalController.extend({
     subscription_success: function(msg) {
       modal.close();
       this.appState.set('auto_setup', true);
-      this.transitionToRoute('setup', {queryParams: {user_id: null, page: null}});
+      this.router.transitionTo('setup', {queryParams: {user_id: null, page: null}});
       modal.success(msg);
     }
   }

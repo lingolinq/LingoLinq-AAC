@@ -1,3 +1,19 @@
+/*
+ * ⚠️ ORPHANED MODAL CONTROLLER — NOT CURRENTLY WIRED INTO THE APP (kept for team review).
+ *
+ * During the component-modal migration this modal was reimplemented as the co-located
+ * component `app/components/<same-name>.{js,hbs}`, which is what actually renders now
+ * (via `components/modal-container.js` -> its `convertedModals` list). There is no
+ * `app/templates/modals/<name>.hbs` backing this controller, and nothing imports it or
+ * resolves it through `controllerFor`, so Ember never instantiates it. As of the Ember
+ * 5.12 work this is dead code.
+ *
+ * REVIEW NEEDED: DELETE this file, OR RE-WIRE it if the team still wants the modal. If you
+ * revive it, reconcile with the component version first — the two have diverged since the
+ * split (fixes landed in the component, not here).
+ * Context: docs/task-management/2026-07-14-ember-5-12-full-deprecation-audit.md
+ */
+
 import LingoLinq from '../../app';
 import modal from '../../utils/modal';
 import BoardHierarchy from '../../utils/board_hierarchy';
@@ -73,14 +89,14 @@ export default class StartCodesController extends modal.ModalController {
     // originally depended on current_user but didn't use it
     var list = [];
     list.push({name: i18n.t('dont_set_preferred_symbols', "Don't Set Preferred Symbols"), id: ''});
-    list.push({name: i18n.t('use_opensymbols', "Opensymbols.org free symbol libraries"), id: 'opensymbols'});
+    list.push({name: i18n.t('use_opensymbols', "Opensymbols.org"), id: 'opensymbols'});
     list.push({name: i18n.t('use_lessonpix_with_addon', "LessonPix symbol library (requires paid add-on)"), id: 'lessonpix'});
     list.push({name: i18n.t('use_symbolstix_with_addon', "SymbolStix Symbols (requires paid add-on)"), id: 'symbolstix'});
     list.push({name: i18n.t('use_pcs_with_addon', "PCS Symbols by Tobii Dynavox (requires paid add-on)"), id: 'pcs'});  
     list.push({name: i18n.t('use_twemoji', "Emoji icons (authored by Twitter)"), id: 'twemoji'});
-    list.push({name: i18n.t('use_noun-project', "The Noun Project black outlines"), id: 'noun-project'});
+    list.push({name: i18n.t('use_noun-project', "Noun Project black outlines"), id: 'noun-project'});
     list.push({name: i18n.t('use_arasaac', "ARASAAC free symbols"), id: 'arasaac'});
-    list.push({name: i18n.t('use_tawasol', "Tawasol symbol library"), id: 'tawasol'});
+    list.push({name: i18n.t('use_tawasol', "Tawasol"), id: 'tawasol'});
 
     return list;
   }

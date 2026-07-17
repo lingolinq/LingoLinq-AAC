@@ -51,6 +51,9 @@ describe Device, :type => :model do
       # nil developer_key_id is treated as system device (legacy devices from seeds)
       expect(d.unique_device_key).to eq('default')
       d.device_key = 'default'
+      # nil developer_key_id treated as system-generated (legacy devices)
+      d.developer_key_id = nil
+      expect(d.unique_device_key).to eq('default')
       d.developer_key_id = 0
       expect(d.unique_device_key).to eq('default')
     end

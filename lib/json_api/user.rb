@@ -30,7 +30,7 @@ module JsonApi::User
     
     if args.key?(:permissions)
       json['permissions'] = user.permissions_for(args[:permissions])
-      json['admin'] = true if ::Organization.admin_manager?(user)
+      json['admin'] = true if user.admin?
     end
         
     if json['permissions'] && json['permissions']['model']
@@ -39,6 +39,8 @@ module JsonApi::User
       json['unread_messages'] = user.settings['unread_messages'] || 0
       json['unread_alerts'] = user.settings['unread_alerts'] || 0
       json['user_token'] = user.user_token
+      json['lesson_share_token'] = user.lesson_share_token
+      json['protected_image_token'] = user.protected_image_token
       json['access_methods'] = user.access_methods
       if user.settings['external_device']
         json['external_device'] = user.settings['external_device']
@@ -73,7 +75,8 @@ module JsonApi::User
       json['target_words'] = user.settings['target_words'].slice('generated', 'list') if user.settings['target_words']
       json['preferences']['home_board'] = user.settings['preferences']['home_board']
       json['home_board_key'] = user.settings['preferences'] && user.settings['preferences']['home_board'] && user.settings['preferences']['home_board']['key']
-      json['preferences']['skin'] = user.settings['preferences']['skin'] || 'default'
+      # Omit default so setup shows "Mix of Tones" until user picks a skin; image code uses skin || 'default'
+json['preferences']['skin'] = user.settings['preferences']['skin']
       json['preferences']['progress'] = user.settings['preferences']['progress']
       json['preferences']['protected_usage'] = !user.external_email_allowed?
       if json['preferences']['cookies'] == nil
@@ -175,8 +178,12 @@ module JsonApi::User
         if extra
           json['lesson_ids'] = (extra.settings['lessons'] || []).map{|l| l['id'] }
           user_topics += extra.settings['topics'] || []
-          tags = (extra.settings['board_tags'] || {}).to_a.map(&:first).sort
+          board_tags_hash = (extra.settings['board_tags'] || {})
+          tags = board_tags_hash.to_a.map(&:first).sort
           json['board_tags'] = tags if !tags.blank?
+          if !board_tags_hash.blank?
+            json['board_tag_map'] = board_tags_hash.transform_values { |v| v || [] }
+          end
           json['focus_words'] = extra.active_focus_words
           if json['permissions']['supervise']
             soonest = nil
@@ -210,6 +217,10 @@ module JsonApi::User
         supervisees.each do |sup|
           json['premium_voices']['claimed'] = json['premium_voices']['claimed'] | ((sup.settings['premium_voices'] || {})['claimed'] || [])
         end
+        # org_status (for the "Communicators Need Attention" card) is set inside
+        # as_json's limited_identity+supervisor branch via org_status_for, so it is
+        # also present on the /supervisees index the client refetches for 10+
+        # communicators. See JsonApi::User.org_status_for.
         json['supervisees'] = supervisees[0, 10].map{|u| JsonApi::User.as_json(u, limited_identity: true, supervisor: user) }
         json['supervised_units'] = OrganizationUnit.supervised_units(user).map{|ou|
           {
@@ -327,10 +338,47 @@ module JsonApi::User
       if args[:supervisor]
         json['edit_permission'] = args[:supervisor].edit_permission_for?(user)
         json['modeling_only'] = args[:supervisor].modeling_only_for?(user)
+        # org_status drives the supervisor home's "Communicators Need Attention"
+        # card. Set here (not only in the dashboard loop) so it survives the
+        # /supervisees index refetch the client runs for 10+ communicators —
+        # otherwise the reload overwrites supervisees without it and the card
+        # silently empties for exactly the largest caseloads.
+        json['org_status'] = org_status_for(user)
+        # Match Api::GoalsController#create: same scope normalization as ApplicationController#allowed?
+        scopes = PermissionScopesNormalize.for_api(args[:supervisor].permission_scopes || [])
+        json['can_set_goals'] = user.allows?(args[:supervisor], 'set_goals', scopes)
         json['premium'] = user.any_premium_or_grace_period?
         json['skin'] = user.settings['preferences']['skin']
         json['symbols'] = user.settings['preferences']['preferred_symbols']
         json['goal'] = user.settings['primary_goal']
+        # Total count + a small slice of this user's active goals so the
+        # supervisor's caseload card can show a real "GOALS n" count
+        # and (when more than one) render the expandable list. Capped
+        # to keep the payload light — the caseload is a quick overview,
+        # not the full goals page. Existing index
+        # `index_user_goals_on_user_id_and_active` keeps both queries cheap.
+        json['goals_count'] = UserGoal.where(:user_id => user.id, :active => true).count
+        json['active_goals'] = UserGoal.where(:user_id => user.id, :active => true)
+          .order('"primary" DESC NULLS LAST, updated_at DESC').limit(10).map do |g|
+            # Derived status — surfaces a high-level state the
+            # caseload card can color-code without the supporter
+            # having to open the goal detail page.
+            #   'achieved'    → goal is no longer active but ended
+            #   'in_progress' → started + updated within 14 days
+            #   'paused'      → active but no recent updates
+            #   'active'      → default (started, currently active)
+            status =
+              if !g.active && g.settings && g.settings['ended_at']
+                'achieved'
+              elsif g.updated_at && g.updated_at > 14.days.ago
+                'in_progress'
+              elsif g.settings && g.settings['started_at'].nil?
+                'paused'
+              else
+                'active'
+              end
+            { 'id' => g.global_id, 'summary' => g.summary, 'primary' => !!g.primary, 'status' => status }
+          end
         json['target_words'] = user.settings['target_words'].slice('generated', 'list') if user.settings['target_words']
         json['home_board_key'] = user.settings['preferences'] && user.settings['preferences']['home_board'] && user.settings['preferences']['home_board']['key']
       elsif args[:supervisee]
@@ -436,6 +484,23 @@ module JsonApi::User
         end
       end
     end
+    # Exposed for registration (COPPA): lets the client detect pending consent even if response meta is not matched.
+    json['coppa_parental_consent_pending'] = true if user.coppa_parental_consent_pending?
+    json['coppa_parental_consent_revoked'] = true if user.coppa_parental_consent_revoked?
     json
+  end
+
+  # Derive a communicator's org_status for the supervisor-facing views (the
+  # dashboard "Communicators Need Attention" card AND the /supervisees index that
+  # the client refetches once a supervisor has 10+ communicators). Uses the
+  # explicit org_user status when set; otherwise derives one from setup:
+  # 'tree-deciduous' (making progress) when a home board is set, else
+  # 'no-home-board' so the card can name WHY they need attention. Always a hash
+  # like {'state' => '<status-id>', ...} — the contract every org_status consumer
+  # reads (dashboard_sections.js, user-status.js, json_api/user.rb org branch).
+  def self.org_status_for(user)
+    status_link = UserLink.links_for(user).detect{|l| l['type'] == 'org_user' && l['state'] && l['state']['status'] }
+    (status_link ? status_link['state']['status'] : nil) ||
+      {'state' => (user.settings['preferences'] && user.settings['preferences']['home_board'] ? 'tree-deciduous' : 'no-home-board')}
   end
 end

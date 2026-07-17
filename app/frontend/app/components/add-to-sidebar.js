@@ -19,6 +19,28 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+
     const modalService = this.get('modal');
     const template = 'add-to-sidebar';
     const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
@@ -29,6 +51,10 @@ export default Component.extend({
 
   didInsertElement() {
     this._super(...arguments);
+    var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
     const appState = this.get('appState');
     this.set('has_supervisees', (appState.get('sessionUser.supervisees') || []).length > 0 || (appState.get('sessionUser.managed_orgs') || []).length > 0);
     this.set('loading', false);
@@ -61,6 +87,7 @@ export default Component.extend({
     },
     opening() {},
     closing() {},
+    nothing() {},
     updateBoardImage(url) {
       if (this.get('model.board')) {
         this.set('model.board.image', url);
@@ -101,8 +128,14 @@ export default Component.extend({
         return user.save();
       });
 
-      update_user.then(function() {
+      update_user.then(function(user) {
         _this.set('loading', false);
+        const appState = _this.get('appState');
+        const sessionUser = appState.get('sessionUser');
+        if (user_id === 'self' || (sessionUser && user.get('id') === sessionUser.get('id'))) {
+          appState.set('sessionUser', user);
+          appState.set('currentUser', user);
+        }
         if (_this.get('persistence').get('online')) {
           runLater(function() {
             if (_this.get('persistence').get('auto_sync')) {

@@ -414,7 +414,8 @@ describe ExtraData, :type => :model do
     it 'should apply the remote request results if a url is available' do
       s = LogSession.new(data: {'extra_data_nonce' => 'asdfasdf'})
       expect(s.extra_data_private_url).to_not eq(nil)
-      expect(Typhoeus).to receive(:get).with(s.extra_data_private_url, {timeout: 3}).and_return(OpenStruct.new(body: [{a: 1}].to_json))
+      expect(Uploader).to receive(:signed_internal_url).with(s.extra_data_private_url).and_return('https://signed.example.com/extra-data')
+      expect(Typhoeus).to receive(:get).with('https://signed.example.com/extra-data', {timeout: 3}).and_return(OpenStruct.new(body: [{a: 1}].to_json))
       s.assert_extra_data
       expect(s.data['events']).to eq([{'a' => 1}])
     end
@@ -609,11 +610,28 @@ describe ExtraData, :type => :model do
       checksum = Digest::MD5.hexdigest(bs.encrypted_json({a: 1}))
       expect(Uploader).to receive(:remote_remove_later).with('z/y/x.json', 'checksm')
       res = bs.upload_remote_data({a: 1}, 'a/b/c.json', 'private')
-      expect(res).to eq(:uploaded)    
+      expect(res).to eq(:uploaded)
       expect(bs.data['extra_data_private_path']).to eq('c/d/e.json')
       expect(bs.data['extra_data_private_checksum']).to eq(checksum)
     end
-  end 
+
+    it 'should NOT schedule deletion when the previous path carries a /chksm.../ segment' do
+      u = User.create
+      b = Board.create(user: u)
+      bs = BoardDownstreamButtonSet.create(board: b)
+      bs.data['extra_data_private_path'] = 'a/b/chksm12345/c.json'
+      bs.data['extra_data_private_checksum'] = 'checksm'
+      bs.save
+      expect(Uploader).to receive(:remote_upload) do |remote_path, local_path, type, digest|
+        str = File.read(local_path)
+        expect(bs.decrypted_json(str)).to eq({'a' => 1})
+      end.and_return({path: 'a/b/chksm67890/c.json', uploaded: true})
+      expect(Uploader).to_not receive(:remote_remove_later)
+      res = bs.upload_remote_data({a: 1}, 'a/b/c.json', 'private')
+      expect(res).to eq(:uploaded)
+      expect(bs.data['extra_data_private_path']).to eq('a/b/chksm67890/c.json')
+    end
+  end
 
   describe 'allow_encryption?' do
     it 'should return the correct value for the type' do

@@ -16,6 +16,19 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
     const modalService = this.get('modal');
     const template = 'switch-languages';
     const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
@@ -28,6 +41,18 @@ export default Component.extend({
     this.set('label_locale', labels);
     this.set('vocalization_locale', vocalizations);
     this.set('same_locale', labels === vocalizations);
+  },
+
+  didInsertElement() {
+    this._super(...arguments);
+    var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
+    var board = this.get('model.board');
+    if (board && board.reload) {
+      board.reload(true).then(null, function() {});
+    }
   },
 
   update_matching_other: observer('vocalization_locale', 'same_locale', function() {
@@ -63,6 +88,7 @@ export default Component.extend({
   }),
 
   actions: {
+    nothing() {},
     close() {
       this.get('modal').close();
     },
@@ -74,6 +100,9 @@ export default Component.extend({
     set_languages() {
       const appState = this.get('appState');
       const stashes = this.get('stashes');
+      if (this.get('same_locale')) {
+        this.set('label_locale', this.get('vocalization_locale'));
+      }
       appState.set('label_locale', this.get('label_locale'));
       stashes.persist('label_locale', this.get('label_locale'));
       appState.set('vocalization_locale', this.get('vocalization_locale'));
@@ -93,6 +122,19 @@ export default Component.extend({
       stashes.persist('override_label_locale', null);
       stashes.persist('override_vocalization_locale', null);
       this.get('modal').close({ switched: true });
+    },
+    open_translate() {
+      const board = this.get('model.board');
+      if (!board) { return; }
+      const opts = { board: board };
+      if (board.get) {
+        opts.button_set = board.get('button_set');
+      }
+      const locale = this.get('vocalization_locale') || this.get('label_locale');
+      if (locale) {
+        opts.translate_locale = locale;
+      }
+      modal.open('translation-select', opts);
     }
   }
 });

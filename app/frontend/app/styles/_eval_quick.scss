@@ -1,0 +1,2823 @@
+// Quick Screen eval (Mode 1) — modern dashboard surface treatment.
+// Class prefix: .evq* (eval-quick).
+// Layout is full-page, designed for iPad landscape (the most common AAC form factor).
+// All design tokens come from _variables.scss; surface aesthetic mirrors the
+// .md-card.md-card--caseload pattern (multi-radial gradients over a white→cream
+// linear base) so the eval flow reads as part of the supervisor dashboard.
+
+@use "variables" as *;
+@use "sass:color";
+
+$evq-radius: 18px;
+$evq-radius-sm: 12px;
+$evq-radius-pill: 999px;
+$evq-shadow: 0 24px 48px -28px rgba(11, 23, 50, 0.32),
+             0 4px 12px -6px rgba(11, 23, 50, 0.08);
+$evq-shadow-sm: 0 8px 18px -10px rgba(11, 23, 50, 0.18);
+$evq-shadow-pill: 0 6px 18px -8px rgba(40, 96, 201, 0.45);
+$evq-text: $brand-charcoal-dark;
+$evq-text-muted: $brand-slate-gray;
+$evq-accent: $brand-verdigris-aa;
+$evq-accent-soft: rgba(42, 157, 143, 0.10);
+$evq-primary: $brand-dusty-denim-aa;
+$evq-primary-soft: rgba(40, 96, 201, 0.08);
+$evq-border: rgba($la-navy, 0.10);
+$evq-border-strong: rgba($la-navy, 0.18);
+$evq-danger: $brand-danger;
+// Multi-radial composition layered over a white→cream linear base.
+// Same pattern as .md-card.md-card--caseload so the surfaces feel
+// like one product. Reused on the header card and the intake/runner/
+// report cards (with reduced opacity on the inner cards so the hero
+// header still reads as the primary surface).
+@mixin evq-hero-surface($accent-strength: 1) {
+  background:
+    radial-gradient(720px 320px at 12% 0%, rgba(42, 157, 143, calc(0.08 * #{$accent-strength})), rgba(0, 0, 0, 0) 55%),
+    radial-gradient(560px 260px at 92% 12%, rgba(40, 96, 201, calc(0.06 * #{$accent-strength})), rgba(0, 0, 0, 0) 55%),
+    radial-gradient(400px 280px at 80% 88%, rgba(70, 80, 95, calc(0.04 * #{$accent-strength})), rgba(0, 0, 0, 0) 50%),
+    linear-gradient(rgb(255, 255, 255) 0%, rgb(252, 254, 253) 60%, rgb(244, 250, 249) 100%);
+}
+
+// Page chrome ---------------------------------------------------------
+
+.evq {
+  display: block;
+  min-height: 100vh;
+  color: $evq-text;
+  font-family: inherit;
+  // Soft warmth behind the cards. The radial puts a hint of teal at
+  // the upper-right and dusty-denim at the lower-left so the eye
+  // wants to track from header (top) → submit CTA (bottom).
+  background:
+    radial-gradient(900px 500px at 100% 0%, rgba(42, 157, 143, 0.06), rgba(0, 0, 0, 0) 60%),
+    radial-gradient(800px 600px at 0% 100%, rgba(40, 96, 201, 0.04), rgba(0, 0, 0, 0) 60%),
+    linear-gradient(180deg, #ffffff 0%, $brand-stone-100 100%);
+}
+// #content is a fixed-height scroll container; the app's flex layout zeroes the
+// min-height of its children, which collapses .evq to content height and lets
+// #content's bg show below the cards in a tall viewport. Force .evq to fill
+// #content so the gradient reaches the bottom. Higher specificity (#within_ember
+// #content > .evq.evq--quick) + !important beats the layout rule regardless of
+// source order (this partial is @use'd before app.scss's body).
+#within_ember #content > .evq.evq--quick {
+  min-height: 100vh !important;
+}
+
+.evq__shell {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: clamp(20px, calc(20px + 1vw), 40px);
+  // Push the entire eval flow 5rem below the shell's natural top
+  // so the header card lands well below the global navbar instead
+  // of butting up against it.
+  padding-top: calc(5rem + clamp(20px, calc(20px + 1vw), 40px));
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+// Header card ---------------------------------------------------------
+
+.evq__header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 28px;
+  border-radius: $evq-radius;
+  border: 1px solid $evq-border;
+  border-bottom: 2px solid rgba($la-navy, 0.08);
+  box-shadow: $evq-shadow;
+  @include evq-hero-surface;
+
+  @media (max-width: 720px) {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "back  meta"
+      "title title";
+    .evq__back        { grid-area: back; }
+    .evq__header-meta { grid-area: meta; justify-self: end; }
+    .evq__header-title { grid-area: title; padding-top: 4px; }
+  }
+}
+
+.evq__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid $evq-border;
+  border-radius: $evq-radius-pill;
+  padding: 8px 14px 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: $evq-text-muted;
+  cursor: pointer;
+  transition: border-color 140ms ease, color 140ms ease, background 140ms ease, transform 80ms ease, box-shadow 140ms ease;
+
+  svg { transition: transform 140ms ease; }
+
+  &:hover, &:focus-visible {
+    color: $la-navy;
+    border-color: $evq-border-strong;
+    background: #ffffff;
+    box-shadow: $evq-shadow-sm;
+    outline: none;
+
+    svg { transform: translateX(-2px); }
+  }
+}
+
+.evq__header-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: center;
+  // Premium SaaS hierarchy: small uppercase eyebrow, oversized title,
+  // and a quiet subtitle. Negative letter-spacing on the title gives
+  // the heading the same visual gravity as $la-navy product titles.
+  .evq__eyebrow {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: $evq-accent;
+    font-weight: 700;
+  }
+  .evq__title {
+    margin: 0;
+    font-size: clamp(22px, calc(20px + 0.7vw), 32px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: $la-navy;
+    line-height: 1.15;
+  }
+  .evq__subtitle {
+    font-size: 13px;
+    color: $evq-text-muted;
+    margin-top: 2px;
+  }
+}
+
+.evq__user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 16px 7px 8px;
+  border-radius: $evq-radius-pill;
+  background: #ffffff;
+  border: 1px solid $evq-border;
+  color: $la-navy;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: -0.005em;
+  box-shadow: $evq-shadow-sm;
+  // Avatar dot on the leading edge of the chip — same teal gradient
+  // as the report progress fill so the user identity reads as a
+  // first-class affordance, not a label.
+  &::before {
+    content: '';
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, $brand-verdigris-aa, $brand-dusty-denim-aa);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset;
+    flex-shrink: 0;
+  }
+}
+
+.evq__body {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  // Each eval-screen content (intake, runner, report) sits 5rem
+  // below the header card so the active step has clear breathing
+  // room and the SLP's eye lands on the content, not the chrome.
+  margin-top: 5rem;
+}
+
+// Intake card ---------------------------------------------------------
+
+.evq-intake {
+  border-radius: $evq-radius;
+  border: 1px solid $evq-border;
+  border-bottom: 2px solid rgba($la-navy, 0.08);
+  box-shadow: $evq-shadow;
+  padding: clamp(24px, calc(20px + 1.2vw), 44px);
+  @include evq-hero-surface($accent-strength: 0.55);
+}
+
+.evq-intake__header {
+  text-align: center;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid $evq-border;
+
+  .evq-intake__title {
+    margin: 0 0 6px 0;
+    font-size: clamp(22px, calc(20px + 0.7vw), 30px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: $la-navy;
+  }
+  .evq-intake__caption {
+    margin: 0;
+    color: $evq-text-muted;
+    font-size: 14px;
+    line-height: 1.5;
+    max-width: 540px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+// --- Intake choice gate (tailor vs. general) -------------------------
+// Shown before the demographic form. Two option cards: "Tailor" reveals
+// the four questions; "General" skips them and runs an un-narrowed screen.
+.evq-intake__choice {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 16px;
+}
+
+.evq-choice-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  width: 100%;
+  text-align: left;
+  padding: 22px 20px 24px;
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: $evq-radius-sm;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(252, 254, 253, 0.68) 100%);
+  box-shadow:
+    0 14px 32px -18px rgba($la-navy, 0.22),
+    0 4px 8px -2px rgba($la-navy, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  transition: box-shadow 200ms ease, transform 120ms ease, border-color 160ms ease;
+}
+.evq-choice-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba($evq-accent, 0.32);
+  box-shadow:
+    0 22px 42px -18px rgba($la-navy, 0.28),
+    0 6px 12px -3px rgba($la-navy, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+.evq-choice-card:focus-visible {
+  outline: 3px solid rgba($evq-accent, 0.5);
+  outline-offset: 2px;
+}
+.evq-choice-card:active { transform: translateY(0); }
+
+.evq-choice-card__icon {
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.evq-choice-card--tailor .evq-choice-card__icon {
+  background: linear-gradient(135deg, $evq-accent, color.adjust($evq-accent, $lightness: -12%));
+}
+.evq-choice-card--general .evq-choice-card__icon {
+  background: linear-gradient(135deg, $evq-primary, color.adjust($evq-primary, $lightness: -12%));
+}
+
+.evq-choice-card__body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.evq-choice-card__title {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: $la-navy;
+  line-height: 1.25;
+}
+.evq-choice-card__desc {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: $evq-text-muted;
+}
+.evq-choice-card__chev {
+  flex-shrink: 0;
+  align-self: center;
+  color: rgba($la-navy, 0.35);
+  transition: transform 160ms ease, color 160ms ease;
+}
+.evq-choice-card:hover .evq-choice-card__chev {
+  transform: translateX(3px);
+  color: $evq-accent;
+}
+
+// "Back" affordance on the form (tailor) step so the choice is reversible.
+.evq-intake__header--form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.evq-intake__back {
+  align-self: flex-start;
+  margin-bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid $evq-border;
+  border-radius: $evq-radius-pill;
+  background: rgba(255, 255, 255, 0.7);
+  color: $evq-text-muted;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+.evq-intake__back:hover {
+  color: $la-navy;
+  border-color: $evq-border-strong;
+  background: #fff;
+}
+.evq-intake__back:focus-visible {
+  outline: 3px solid rgba($evq-accent, 0.5);
+  outline-offset: 2px;
+}
+
+.evq-intake__form {
+  display: flex;
+  flex-direction: column;
+  // Bumped from 24px so each section reads as its own grouped step
+  // rather than a packed list of choices.
+  gap: 32px;
+}
+
+// Each fieldset is now a soft glass panel — frosted-white card with
+// 1px hairline border, an inner top highlight, and a two-layer drop
+// shadow so it visibly lifts off the parent intake card. The result:
+// the form becomes a stack of discrete "step" panels (Age band →
+// Etiology → Current communication → Suspected access) that read as
+// raised surfaces, not flat sections.
+.evq-intake__field {
+  border: 1px solid rgba($la-navy, 0.07);
+  border-radius: $evq-radius-sm;
+  margin: 0;
+  padding: 18px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba(252, 254, 253, 0.65) 100%);
+  // Two-layer drop shadow for clear elevation:
+  //   • soft 24px diffuse — gives the card "weight" against the page
+  //   • tight 4px — paints a crisp grounding edge under the card
+  // Inner top highlight stays for the lit-edge glass effect.
+  box-shadow:
+    0 14px 32px -18px rgba($la-navy, 0.22),
+    0 4px 8px -2px rgba($la-navy, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: box-shadow 200ms ease, transform 120ms ease;
+}
+
+// Section legend with a small accent dot — quiet but unmistakably
+// "modern dashboard". Verdigris dot keeps the eye anchored to the
+// section start without competing with the active pill colors.
+.evq-intake__legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: $la-navy;
+  font-weight: 700;
+  margin: 0;
+  padding: 0;
+
+  &::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: $evq-accent;
+    box-shadow:
+      0 0 0 3px rgba(42, 157, 143, 0.14),
+      0 0 12px rgba(42, 157, 143, 0.35);
+    flex-shrink: 0;
+  }
+}
+
+.evq-pillgroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+// Access-channel pills wrap to a two-line layout (label + status
+// badge) so the hardware-detection signal is visible below each
+// option. Slightly more vertical padding to accommodate the badge.
+.evq-pillgroup--access .evq-pill--access {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px 18px 12px;
+  line-height: 1.25;
+
+  &[disabled] {
+    opacity: 0.45;
+    cursor: not-allowed;
+    filter: grayscale(0.4);
+  }
+}
+
+.evq-pill__label {
+  font-weight: 700;
+}
+
+.evq-pill__status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  line-height: 1;
+
+  &--ready {
+    background: rgba($brand-verdigris-aa, 0.16);
+    color: color.scale($brand-verdigris-aa, $lightness: -20%);
+  }
+
+  &--software_fallback {
+    background: rgba($brand-dusty-denim-aa, 0.14);
+    color: color.scale($brand-dusty-denim-aa, $lightness: -25%);
+  }
+
+  &--unavailable {
+    background: rgba(#B85040, 0.14);
+    color: #8E3E32;
+  }
+}
+
+// When the access pill is in its --active state the background flips
+// to the lightened denim gradient and the dark badge colors fail
+// contrast. Override every badge variant with a near-white text /
+// translucent-white pill so the badge reads against the saturated
+// active fill.
+.evq-pill--access.evq-pill--active .evq-pill__status-badge {
+  background: rgba(255, 255, 255, 0.22) !important;
+  color: #FFFFFF !important;
+}
+
+// Pills: true frosted-glass when inactive — translucent gradient
+// base + backdrop blur + double-layer shadow (inner top highlight
+// for a "lit" edge, outer 1px hairline shadow for elevation).
+// Active state is the brand denim→charcoal gradient with a soft
+// reflective inset highlight, so the selected option reads as a
+// "pressed glass" tile, not a flat fill.
+.evq-pill {
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba(248, 251, 253, 0.65) 100%);
+  border: 1px solid rgba($la-navy, 0.14);
+  border-radius: $evq-radius-pill;
+  padding: 11px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: $la-navy;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 1px 2px rgba($la-navy, 0.05),
+    0 4px 12px -8px rgba($la-navy, 0.08);
+  transition:
+    background 180ms ease,
+    color 180ms ease,
+    border-color 180ms ease,
+    transform 120ms ease,
+    box-shadow 200ms ease;
+
+  &:hover, &:focus-visible {
+    border-color: rgba($brand-dusty-denim-aa, 0.42);
+    color: $evq-primary;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 252, 255, 0.85) 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.95),
+      0 8px 22px -12px rgba($brand-dusty-denim-aa, 0.35);
+    transform: translateY(-1px);
+    outline: none;
+  }
+
+  &--active,
+  &[aria-checked='true'] {
+    // Pill active state — denim gradient lightened ~37% toward white.
+    // Halfway between the original saturated navy (which was too
+    // dark / overpowering at the top of the intake) and the very
+    // pale sky-blue try. White text still has ~4.5:1 contrast.
+    background:
+      linear-gradient(135deg,
+        color.scale($brand-dusty-denim-aa, $lightness: 37%) 0%,
+        color.scale($brand-charcoal-blue, $lightness: 37%) 100%);
+    color: #ffffff;
+    border-color: rgba($brand-dusty-denim-aa, 0.42);
+    box-shadow:
+      $evq-shadow-pill,
+      inset 0 1px 0 rgba(255, 255, 255, 0.40),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+
+    &:hover, &:focus-visible {
+      color: #ffffff;
+      border-color: rgba($brand-dusty-denim-aa, 0.55);
+      transform: translateY(-1px);
+      box-shadow:
+        0 12px 28px -10px rgba($brand-dusty-denim-aa, 0.42),
+        inset 0 1px 0 rgba(255, 255, 255, 0.48),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+    }
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow:
+      inset 0 1px 3px rgba($la-navy, 0.10),
+      0 1px 2px rgba($la-navy, 0.04);
+  }
+}
+
+// Inline preview of the matched item-bank profile. Soft teal panel
+// with a leading bar accent — same affordance pattern as the
+// .md-board-detail-actions-menu callouts.
+.evq-intake__preview {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 14px 18px;
+  background: $evq-accent-soft;
+  border-radius: $evq-radius-sm;
+  border-left: 3px solid $evq-accent;
+  font-size: 14px;
+  color: $evq-text;
+
+  .evq-intake__preview-name {
+    color: $evq-accent;
+    font-family: ui-monospace, "SF Mono", "Menlo", monospace;
+    font-size: 13px;
+    padding: 2px 8px;
+    background: rgba(42, 157, 143, 0.10);
+    border-radius: 6px;
+    font-weight: 700;
+  }
+}
+
+.evq-intake__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+// Buttons -------------------------------------------------------------
+
+.evq-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 22px;
+  border-radius: $evq-radius-pill;
+  border: 1px solid transparent;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 100ms ease, box-shadow 160ms ease;
+
+  &:disabled {
+    cursor: not-allowed;
+    // Note: NO opacity here. Each variant handles its disabled state
+    // explicitly so the button surface stays legible on light cards.
+    // (Setting 0.45 opacity blends the gradient with the white card
+    // beneath, which is why the button used to look gray-washed.)
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+}
+
+.evq-btn--primary {
+  // Matches the Save and Exit button on board-detail edit mode
+  // (.md-board-edit-panel__back-link) — same slate-blue → charcoal
+  // diagonal gradient + 1px charcoal-tinted border + soft charcoal
+  // drop shadow. Reads as the same primary CTA family across the
+  // app.
+  background: linear-gradient(135deg, $brand-slate-blue, $brand-charcoal-blue);
+  color: #ffffff;
+  padding: 14px 28px;
+  border: 1px solid rgba($brand-charcoal-blue, 0.40);
+  box-shadow: 0 12px 28px -14px rgba($brand-charcoal-blue, 0.45),
+              0 2px 6px rgba($brand-charcoal-blue, 0.25),
+              inset 0 1px 0 rgba(255, 255, 255, 0.18);
+
+  &:hover:not(:disabled),
+  &:focus-visible:not(:disabled) {
+    box-shadow: 0 16px 32px -14px rgba($brand-charcoal-blue, 0.50),
+                0 4px 10px rgba($brand-charcoal-blue, 0.28),
+                inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    transform: translateY(-1px);
+    outline: none;
+  }
+
+  svg { transition: transform 160ms ease; }
+  &:hover:not(:disabled) svg { transform: translateX(2px); }
+
+  // Disabled: keep the gradient solid against the light card so the
+  // button never washes out. Text + icon stay full white; the only
+  // disabled signal is dropping the lift shadow + hover lift, plus
+  // the not-allowed cursor from the base .evq-btn rule.
+  &:disabled {
+    box-shadow:
+      0 2px 6px rgba($brand-charcoal-blue, 0.20),
+      inset 0 1px 0 rgba(255, 255, 255, 0.10);
+    transform: none;
+  }
+}
+
+.evq-btn--ghost {
+  background: rgba(255, 255, 255, 0.7);
+  color: $la-navy;
+  border-color: $evq-border-strong;
+
+  &:hover:not(:disabled),
+  &:focus-visible:not(:disabled) {
+    border-color: $la-navy;
+    background: #ffffff;
+    box-shadow: $evq-shadow-sm;
+    outline: none;
+  }
+}
+
+// Runner --------------------------------------------------------------
+
+.evq-runner {
+  border-radius: $evq-radius;
+  border: 1px solid $evq-border;
+  border-bottom: 2px solid rgba($la-navy, 0.08);
+  box-shadow: $evq-shadow;
+  padding: clamp(24px, calc(20px + 1.2vw), 44px);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  @include evq-hero-surface($accent-strength: 0.55);
+}
+
+// Scan-mode highlight — applied by eval_scanner.js to whichever
+// student-facing tile is currently dwelling. Uses the same lightened
+// denim gradient family as the access-snapshot target, plus a
+// pulsing ring so the dwell window is unmistakable. Animation pauses
+// on prefers-reduced-motion so it doesn't trigger photosensitivity.
+@keyframes evq-scan-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 0 rgba($brand-dusty-denim-aa, 0.55),
+      0 0 0 6px rgba($brand-dusty-denim-aa, 0.18);
+  }
+  50% {
+    box-shadow:
+      0 0 0 4px rgba($brand-dusty-denim-aa, 0.55),
+      0 0 0 12px rgba($brand-dusty-denim-aa, 0.10);
+  }
+}
+.evq-scan-active {
+  position: relative;
+  border-color: rgba($brand-dusty-denim-aa, 0.6) !important;
+  background: linear-gradient(135deg,
+    color.scale($brand-dusty-denim-aa, $lightness: 60%) 0%,
+    color.scale($brand-charcoal-blue, $lightness: 60%) 100%) !important;
+  animation: evq-scan-pulse 1.4s ease-in-out infinite;
+  z-index: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .evq-scan-active { animation: none; }
+}
+
+// ── Gaze mode ────────────────────────────────────────────────────
+// .evq-gaze-active is applied to whichever student-facing cell the
+// gaze (or mouse-proxy) is currently dwelling on. A conic-gradient
+// border-mask ring uses the --evq-gaze-dwell-pct custom property
+// (set every tick by eval_gazer.js) to visualize how close the cell
+// is to firing. When the ring fills, the cell selects.
+.evq-gaze-active {
+  position: relative;
+  border-color: rgba($brand-dusty-denim-aa, 0.6) !important;
+  background: linear-gradient(135deg,
+    color.scale($brand-dusty-denim-aa, $lightness: 60%) 0%,
+    color.scale($brand-charcoal-blue, $lightness: 60%) 100%) !important;
+  z-index: 1;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: inherit;
+    pointer-events: none;
+    background:
+      conic-gradient(
+        color.scale($brand-verdigris-aa, $lightness: 10%) var(--evq-gaze-dwell-pct, 0%),
+        rgba($brand-verdigris-aa, 0.12) 0
+      );
+    -webkit-mask:
+      radial-gradient(farthest-side, transparent calc(100% - 5px), black calc(100% - 5px));
+    mask:
+      radial-gradient(farthest-side, transparent calc(100% - 5px), black calc(100% - 5px));
+    transition: background 80ms linear;
+  }
+}
+
+// Cursor that follows the gaze position (translucent ring). Lives
+// at <body> level, positioned via translate(). 24px diameter ring
+// so it's visible without obscuring the cell underneath.
+#evq-gaze-cursor {
+  position: fixed;
+  top: -16px;     // anchor offset (cursor is centered on x,y)
+  left: -16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  background: radial-gradient(circle at center,
+    rgba($brand-dusty-denim-aa, 0.35) 0%,
+    rgba($brand-dusty-denim-aa, 0.12) 55%,
+    transparent 70%);
+  border: 1.5px solid rgba($brand-dusty-denim-aa, 0.55);
+  box-shadow: 0 0 12px rgba($brand-dusty-denim-aa, 0.35);
+  transition: transform 90ms linear;
+  will-change: transform;
+}
+
+body.evq-gaze-mode { cursor: crosshair; }
+
+.evq-runner__progress {
+  height: 8px;
+  background: rgba($la-navy, 0.06);
+  border-radius: $evq-radius-pill;
+  overflow: hidden;
+}
+
+.evq-runner__progress-fill {
+  height: 100%;
+  // Lightened 50% — original verdigris + denim gradient reads too
+  // dark/saturated for a progress indicator on a pale surface.
+  background: linear-gradient(90deg,
+    color.scale($brand-verdigris-aa, $lightness: 50%),
+    color.scale($brand-dusty-denim-aa, $lightness: 50%));
+  border-radius: $evq-radius-pill;
+  transition: width 280ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.evq-runner__header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  .evq-runner__step {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: $evq-accent;
+    font-weight: 700;
+  }
+  .evq-runner__title {
+    margin: 0;
+    font-size: clamp(22px, calc(20px + 0.7vw), 30px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: $la-navy;
+    line-height: 1.2;
+  }
+  .evq-runner__item-count {
+    color: $evq-text-muted;
+    font-size: 13px;
+  }
+}
+
+.evq-runner__item-card {
+  background: rgba(255, 255, 255, 0.65);
+  border: 1.5px dashed $evq-border-strong;
+  border-radius: $evq-radius;
+  padding: clamp(24px, calc(16px + 2vw), 48px);
+  text-align: center;
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.evq-runner__item-id {
+  font-family: ui-monospace, "SF Mono", "Menlo", monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: $evq-text-muted;
+  background: #ffffff;
+  border-radius: $evq-radius-pill;
+  padding: 4px 12px;
+  border: 1px solid $evq-border;
+}
+
+.evq-runner__item-prompt {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: $la-navy;
+  max-width: 520px;
+  line-height: 1.4;
+}
+
+.evq-runner__score-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12px;
+  align-items: stretch;
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.evq-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  border-radius: $evq-radius-sm;
+  border: 1.5px solid $evq-border;
+  background: #ffffff;
+  font-weight: 700;
+  font-size: 14px;
+  color: $la-navy;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease, transform 100ms ease, box-shadow 160ms ease;
+
+  &:hover, &:focus-visible {
+    transform: translateY(-2px);
+    box-shadow: $evq-shadow;
+    outline: none;
+  }
+
+  &--correct {
+    color: $evq-accent;
+    border-color: rgba(42, 157, 143, 0.35);
+
+    &:hover, &:focus-visible {
+      background: $evq-accent-soft;
+      border-color: $evq-accent;
+    }
+  }
+
+  &--incorrect {
+    color: $evq-danger;
+    border-color: rgba(192, 57, 43, 0.35);
+
+    &:hover, &:focus-visible {
+      background: rgba(192, 57, 43, 0.06);
+      border-color: $evq-danger;
+    }
+  }
+
+  &--skip {
+    color: $evq-text-muted;
+
+    &:hover, &:focus-visible {
+      color: $la-navy;
+      border-color: $evq-border-strong;
+    }
+  }
+}
+
+.evq-runner__actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.evq-runner__wrap,
+.evq-runner__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 32px 0;
+  text-align: center;
+}
+
+// Report --------------------------------------------------------------
+
+.evq-report {
+  border-radius: $evq-radius;
+  border: 1px solid $evq-border;
+  border-bottom: 2px solid rgba($la-navy, 0.08);
+  box-shadow: $evq-shadow;
+  padding: clamp(24px, calc(20px + 1.2vw), 44px);
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  @include evq-hero-surface($accent-strength: 0.55);
+}
+
+.evq-report__header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+
+  .evq-report__eyebrow {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: $evq-accent;
+    font-weight: 700;
+  }
+  .evq-report__title {
+    margin: 0;
+    font-size: clamp(24px, calc(20px + 1vw), 34px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: $la-navy;
+    line-height: 1.15;
+  }
+}
+
+.evq-report__meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.evq-report__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 14px;
+  background: #ffffff;
+  border: 1px solid $evq-border;
+  border-radius: $evq-radius-pill;
+  font-size: 12px;
+  font-weight: 600;
+  color: $evq-text-muted;
+  letter-spacing: -0.005em;
+
+  &--confidence {
+    background: $evq-primary-soft;
+    color: $evq-primary;
+    border-color: rgba(40, 96, 201, 0.22);
+  }
+}
+
+.evq-report__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+// Cards on the report page: glass over a subtle gradient so the
+// numeric values (grid size, library, etc) read like KPI tiles
+// rather than form rows.
+.evq-card {
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(252, 254, 253, 0.85));
+  border-radius: $evq-radius-sm;
+  border: 1px solid $evq-border;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: box-shadow 160ms ease, transform 100ms ease;
+
+  &:hover {
+    box-shadow: $evq-shadow-sm;
+    transform: translateY(-1px);
+  }
+
+  &--wide {
+    grid-column: span 2;
+
+    @media (max-width: 700px) {
+      grid-column: auto;
+    }
+  }
+}
+
+.evq-card__label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: $evq-text-muted;
+  font-weight: 700;
+}
+
+.evq-card__value {
+  font-size: 20px;
+  font-weight: 800;
+  color: $la-navy;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+
+.evq-card__hint {
+  font-size: 12px;
+  color: $evq-text-muted;
+}
+
+.evq-card__chips {
+  list-style: none;
+  margin: 8px 0 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.evq-card__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: $evq-radius-pill;
+  background: $evq-accent-soft;
+  color: $evq-accent;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.evq-report__promote {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 20px;
+  background: rgba(242, 185, 90, 0.10);
+  border-left: 3px solid $brand-honey-bronze;
+  border-radius: $evq-radius-sm;
+}
+
+.evq-report__promote-title {
+  color: $la-navy;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.evq-report__promote-reasons {
+  font-size: 13px;
+  color: $evq-text-muted;
+}
+
+.evq-report__actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+// =====================================================================
+// Comprehensive Eval (Mode 3) — Phase 3 scaffold
+// =====================================================================
+// Mirrors the .evq-targeted__shell aesthetic so the SLP recognizes
+// it as the same eval flow, plus a prompt-hierarchy ladder unique
+// to the dynamic_assessment subtest.
+.evq-comprehensive {
+  display: block;
+}
+.evq-comp__shell {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: clamp(20px, calc(16px + 1.2vw), 36px);
+  background: linear-gradient(180deg, #ffffff 0%, rgba($la-navy, 0.025) 100%);
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: $evq-radius;
+  box-shadow: $evq-shadow;
+}
+.evq-comp__header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba($la-navy, 0.07);
+}
+.evq-comp__eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: rgba($la-navy, 0.55);
+}
+.evq-comp__title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: $la-navy;
+}
+.evq-comp__body {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.evq-comp__trial-counter {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba($la-navy, 0.06);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: rgba($la-navy, 0.65);
+}
+
+.evq-comp__da {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.evq-comp__da-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 24px;
+  background: linear-gradient(180deg, #ffffff 0%, rgba($la-navy, 0.03) 100%);
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 14px;
+  text-align: center;
+}
+.evq-comp__da-target {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: $la-navy;
+  line-height: 1.2;
+}
+.evq-comp__da-prompt {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: rgba($la-navy, 0.78);
+  line-height: 1.5;
+  max-width: 520px;
+}
+.evq-comp__da-level {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 16px;
+  background: linear-gradient(180deg, rgba($brand-verdigris, 0.05) 0%, rgba($brand-verdigris, 0.12) 100%);
+  border: 1px solid rgba($brand-verdigris, 0.25);
+  border-radius: 10px;
+}
+.evq-comp__da-level-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: $brand-verdigris-aa;
+}
+.evq-comp__da-level-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: $la-navy;
+}
+.evq-comp__da-level-index {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba($la-navy, 0.65);
+}
+.evq-comp__da-ladder {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+.evq-comp__da-rung {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba($la-navy, 0.04);
+  border: 1px solid rgba($la-navy, 0.08);
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba($la-navy, 0.65);
+  &.is-active {
+    background: rgba($brand-verdigris, 0.10);
+    border-color: rgba($brand-verdigris, 0.40);
+    color: $brand-verdigris-aa;
+  }
+}
+.evq-comp__da-rung-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba($la-navy, 0.12);
+  color: rgba($la-navy, 0.85);
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  .is-active & {
+    background: $brand-verdigris;
+    color: #fff;
+  }
+}
+.evq-comp__da-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.evq-comp__skip-link {
+  align-self: center;
+  font-size: 13px;
+  color: rgba($la-navy, 0.55);
+}
+
+// literacy_probe subtest — large printed-word card + binary
+// match/no-match outcome.
+.evq-comp__literacy {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.evq-comp__lit-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 36px 24px;
+  background: linear-gradient(180deg, #ffffff 0%, rgba($brand-dusty-denim, 0.06) 100%);
+  border: 1px solid rgba($brand-dusty-denim, 0.22);
+  border-radius: 14px;
+  text-align: center;
+}
+.evq-comp__lit-word {
+  font-size: 56px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: $brand-dusty-denim-aa;
+  line-height: 1.1;
+  font-family: 'Georgia', 'Charter', serif;
+}
+.evq-comp__lit-prompt {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: rgba($la-navy, 0.78);
+  line-height: 1.5;
+  max-width: 520px;
+}
+
+// SETT companion form — 3 stacked textareas (Student / Environment /
+// Task) with the same sunken-input aesthetic as the SLP-notes
+// field on the report card.
+.evq-comp__sett {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.evq-comp__sett-intro {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba($la-navy, 0.78);
+  line-height: 1.55;
+}
+.evq-comp__sett-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.evq-comp__sett-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: rgba($la-navy, 0.65);
+}
+.evq-comp__sett-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba($la-navy, 0.12);
+  border-radius: 10px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  color: $la-navy;
+  resize: vertical;
+  min-height: 70px;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+  &:focus,
+  &:focus-visible {
+    outline: none;
+    border-color: rgba($brand-verdigris, 0.45);
+    box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.15);
+  }
+}
+
+// AI narration subtest — large editable textarea + generate /
+// regenerate buttons. Empty state nudges the SLP to generate.
+.evq-comp__ai {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.evq-comp__ai-intro {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba($la-navy, 0.78);
+  line-height: 1.55;
+}
+.evq-comp__ai-textarea {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid rgba($la-navy, 0.12);
+  border-radius: 10px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  color: $la-navy;
+  resize: vertical;
+  min-height: 260px;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+  &:focus,
+  &:focus-visible {
+    outline: none;
+    border-color: rgba($brand-verdigris, 0.45);
+    box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.15);
+  }
+}
+.evq-comp__ai-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 24px;
+  background: rgba($la-navy, 0.03);
+  border: 1px dashed rgba($la-navy, 0.18);
+  border-radius: 10px;
+  font-size: 14px;
+  color: rgba($la-navy, 0.65);
+  text-align: center;
+}
+.evq-comp__ai-error {
+  margin: 0;
+  padding: 10px 14px;
+  background: rgba($brand-danger, 0.06);
+  border: 1px solid rgba($brand-danger, 0.25);
+  border-radius: 8px;
+  color: $brand-danger;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.evq-comp__placeholder,
+.evq-comp__wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 32px 24px;
+  background: rgba($la-navy, 0.03);
+  border: 1px dashed rgba($la-navy, 0.20);
+  border-radius: 14px;
+  text-align: center;
+  font-size: 15px;
+  color: rgba($la-navy, 0.78);
+}
+.evq-comp__wrap {
+  background: linear-gradient(180deg, rgba($brand-verdigris, 0.04) 0%, rgba($brand-verdigris, 0.10) 100%);
+  border-style: solid;
+  border-color: rgba($brand-verdigris, 0.22);
+}
+
+// =====================================================================
+// Saved tiered-eval summary — rendered on user.log when the log has
+// tiered_eval data (the new Quick Screen / Targeted shape). Mirrors
+// the live flow's eval-quick-report layout so an SLP returning to a
+// saved eval gets the same view they had during the live session.
+// =====================================================================
+.evq-saved {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  margin: 12px 0 28px;
+  padding: 24px;
+  background: linear-gradient(180deg, #ffffff 0%, rgba($la-navy, 0.025) 100%);
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: $evq-radius;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 4px 16px -6px rgba($la-navy, 0.10);
+}
+.evq-saved__header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.evq-saved__eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: rgba($la-navy, 0.55);
+}
+.evq-saved__title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: $la-navy;
+}
+.evq-saved__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.evq-saved__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba($la-navy, 0.06);
+  border: 1px solid rgba($la-navy, 0.12);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba($la-navy, 0.78);
+  &--confidence {
+    background: rgba($brand-verdigris, 0.10);
+    border-color: rgba($brand-verdigris, 0.30);
+    color: $brand-verdigris-aa;
+  }
+  &--soft {
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 600;
+    font-size: 13px;
+  }
+}
+.evq-saved__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: 12px;
+}
+.evq-saved__card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: 10px;
+}
+.evq-saved__card--wide {
+  grid-column: 1 / -1;
+}
+.evq-saved__card-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: rgba($la-navy, 0.55);
+}
+.evq-saved__card-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: $la-navy;
+  line-height: 1.2;
+}
+.evq-saved__card-hint {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba($la-navy, 0.65);
+}
+.evq-saved__chips {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.evq-saved__targeted {
+  padding: 18px 20px;
+  background: linear-gradient(180deg, #ffffff 0%, rgba($brand-verdigris, 0.04) 100%);
+  border: 1px solid rgba($brand-verdigris, 0.20);
+  border-radius: 12px;
+}
+.evq-saved__targeted-head {
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba($brand-verdigris, 0.18);
+}
+.evq-saved__targeted-eyebrow {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: $brand-verdigris-aa;
+  margin-bottom: 4px;
+}
+.evq-saved__targeted-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: $la-navy;
+}
+.evq-saved__targeted-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: 12px;
+}
+.evq-saved__targeted-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: 10px;
+}
+.evq-saved__targeted-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: rgba($la-navy, 0.55);
+}
+.evq-saved__targeted-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: $la-navy;
+  line-height: 1.2;
+}
+.evq-saved__targeted-hint {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba($la-navy, 0.65);
+}
+.evq-saved__targeted-picks {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.evq-saved__targeted-pick {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba($la-navy, 0.78);
+}
+.evq-saved__targeted-pick-count {
+  font-variant-numeric: tabular-nums;
+  color: $la-navy;
+}
+.evq-saved__targeted-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+.evq-saved__targeted-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba($la-navy, 0.78);
+}
+.evq-saved__targeted-bar-value {
+  font-variant-numeric: tabular-nums;
+  color: $la-navy;
+  font-weight: 800;
+}
+
+.evq-saved__notes {
+  padding: 14px 16px;
+  background: rgba($la-navy, 0.03);
+  border-left: 3px solid rgba($brand-verdigris, 0.45);
+  border-radius: 8px;
+}
+.evq-saved__notes-label {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: $brand-verdigris-aa;
+  margin-bottom: 4px;
+}
+.evq-saved__notes-body {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba($la-navy, 0.85);
+  white-space: pre-line;
+}
+
+// Targeted-mode addendum block — surfaces the per-subtest data the
+// fromTargeted recommendation engine computes. Only renders when
+// recommendation.eval_mode === 'targeted'.
+.evq-report__targeted {
+  margin: 8px 0 20px;
+  padding: 20px 22px;
+  background: linear-gradient(180deg, #ffffff 0%, rgba($brand-verdigris, 0.04) 100%);
+  border: 1px solid rgba($brand-verdigris, 0.20);
+  border-radius: 14px;
+}
+.evq-report__targeted-head {
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba($brand-verdigris, 0.18);
+}
+.evq-report__targeted-eyebrow {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: $brand-verdigris-aa;
+  margin-bottom: 4px;
+}
+.evq-report__targeted-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: $la-navy;
+}
+.evq-report__targeted-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: 12px;
+}
+.evq-report__targeted-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: 10px;
+}
+.evq-report__targeted-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: rgba($la-navy, 0.55);
+}
+.evq-report__targeted-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: $la-navy;
+  line-height: 1.2;
+}
+.evq-report__targeted-hint {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba($la-navy, 0.65);
+}
+.evq-report__targeted-picks {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.evq-report__targeted-pick {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba($la-navy, 0.78);
+}
+.evq-report__targeted-pick-count {
+  font-variant-numeric: tabular-nums;
+  color: $la-navy;
+}
+.evq-report__targeted-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+.evq-report__targeted-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba($la-navy, 0.78);
+}
+.evq-report__targeted-bar-value {
+  font-variant-numeric: tabular-nums;
+  color: $la-navy;
+  font-weight: 800;
+}
+
+// DAGG-style goals grid — surfaces IEP-ready goal templates across
+// Light's four communicative competencies.
+.evq-report__goals {
+  margin: 8px 0 20px;
+  padding: 20px 22px;
+  background: linear-gradient(180deg, #ffffff 0%, rgba($brand-dusty-denim, 0.04) 100%);
+  border: 1px solid rgba($brand-dusty-denim, 0.18);
+  border-radius: 14px;
+}
+.evq-report__goals-head {
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba($brand-dusty-denim, 0.18);
+}
+.evq-report__goals-eyebrow {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: $brand-dusty-denim-aa;
+  margin-bottom: 4px;
+}
+.evq-report__goals-title {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: $la-navy;
+}
+.evq-report__goals-lede {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba($la-navy, 0.72);
+  line-height: 1.5;
+}
+.evq-report__goals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: 14px;
+}
+.evq-report__goals-cat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: 10px;
+  &[data-category="linguistic"]  { border-color: rgba($brand-dusty-denim, 0.30); }
+  &[data-category="operational"] { border-color: rgba($brand-verdigris, 0.30); }
+  &[data-category="social"]      { border-color: rgba($brand-honey-bronze, 0.40); }
+  &[data-category="strategic"]   { border-color: rgba(232, 122, 111, 0.32); }
+}
+.evq-report__goals-cat-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: rgba($la-navy, 0.65);
+}
+.evq-report__goals-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.evq-report__goals-item {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: rgba($la-navy, 0.85);
+  padding-left: 12px;
+  position: relative;
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.65em;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba($la-navy, 0.35);
+  }
+}
+
+// Saved-summary AI-narrative callout — same vocabulary as the SLP
+// notes block but with verdigris left border so SLPs can tell at a
+// glance which block is which.
+.evq-saved__narrative {
+  padding: 14px 16px;
+  background: rgba($brand-verdigris, 0.04);
+  border-left: 3px solid rgba($brand-verdigris, 0.55);
+  border-radius: 8px;
+}
+
+// SLP quick-notes — optional free-text field above the action row.
+// Mirrors the report card's sunken aesthetic with a soft white
+// surface and navy hairline border.
+.evq-report__notes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 16px;
+}
+.evq-report__notes-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: rgba($la-navy, 0.55);
+}
+.evq-report__notes-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba($la-navy, 0.12);
+  border-radius: 10px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  color: $la-navy;
+  resize: vertical;
+  min-height: 70px;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+  &:focus,
+  &:focus-visible {
+    outline: none;
+    border-color: rgba($brand-verdigris, 0.45);
+    box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.15);
+  }
+}
+
+// Inline error surface for board-build failures.
+.evq-report__error {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  background: rgba($brand-danger, 0.06);
+  border: 1px solid rgba($brand-danger, 0.25);
+  border-radius: 8px;
+  color: $brand-danger;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+// =====================================================================
+// Item dispatcher (.evq-item) — Phase 1B
+// =====================================================================
+// Renders the in-app item presentation: big button, choice grid,
+// access grid, library compare, sequence, observe. Each kind has its
+// own variant within the same wrapper so the manual-override panel
+// at the bottom works regardless of kind.
+
+.evq-item {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: clamp(20px, calc(16px + 1.2vw), 36px);
+  border-radius: $evq-radius;
+  border: 1px solid $evq-border;
+  box-shadow:
+    0 14px 32px -18px rgba($la-navy, 0.22),
+    0 4px 8px -2px rgba($la-navy, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba(252, 254, 253, 0.65) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+// Prompt row — instruction text + small id chip on the right.
+.evq-item__prompt-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.evq-item__prompt {
+  margin: 0;
+  font-size: clamp(18px, calc(16px + 0.5vw), 22px);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: $la-navy;
+  line-height: 1.35;
+  flex: 1 1 auto;
+}
+
+.evq-item__id {
+  flex-shrink: 0;
+  font-family: ui-monospace, "SF Mono", "Menlo", monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: $evq-text-muted;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid $evq-border;
+  border-radius: $evq-radius-pill;
+  padding: 4px 10px;
+}
+
+.evq-item__hint {
+  margin: 6px 0 0;
+  text-align: center;
+  font-size: 13px;
+  color: $evq-text-muted;
+}
+
+// ── Cause-effect ──────────────────────────────────────────────────
+.evq-item__cause-effect {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 0;
+}
+
+.evq-item__big-button {
+  width: clamp(180px, calc(140px + 18vw), 280px);
+  height: clamp(180px, calc(140px + 18vw), 280px);
+  border-radius: 50%;
+  border: 4px solid #ffffff;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0) 50%),
+    linear-gradient(135deg, $brand-verdigris-aa, $brand-dusty-denim-aa);
+  color: #ffffff;
+  font-size: clamp(20px, calc(16px + 1vw), 28px);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  box-shadow:
+    0 24px 48px -16px rgba($brand-verdigris-aa, 0.45),
+    0 6px 16px -8px rgba($brand-dusty-denim-aa, 0.40),
+    inset 0 4px 0 rgba(255, 255, 255, 0.18);
+  transition: transform 120ms ease, box-shadow 200ms ease;
+
+  &:hover, &:focus-visible {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow:
+      0 28px 56px -16px rgba($brand-verdigris-aa, 0.55),
+      0 10px 22px -8px rgba($brand-dusty-denim-aa, 0.45),
+      inset 0 4px 0 rgba(255, 255, 255, 0.22);
+    outline: none;
+  }
+
+  &:active {
+    transform: translateY(2px) scale(0.98);
+    box-shadow:
+      0 8px 16px -8px rgba($brand-verdigris-aa, 0.4),
+      inset 0 -3px 0 rgba(0, 0, 0, 0.10);
+  }
+}
+
+.evq-item__big-button-label {
+  pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+// ── Choice grid (multi-choice + sequence reuse this) ──────────────
+.evq-item__choice-grid {
+  display: grid;
+  // Default: 2 columns. Variant classes below override for 3/4/6.
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+
+  &--cols-3 { grid-template-columns: repeat(3, 1fr); }
+  &--cols-4 { grid-template-columns: repeat(2, 1fr); }
+  &--cols-6 { grid-template-columns: repeat(3, 1fr); }
+  &--sequence { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+.evq-item__choice-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 96px;
+  padding: 18px 16px;
+  border-radius: $evq-radius-sm;
+  border: 1.5px solid rgba($la-navy, 0.14);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 251, 253, 0.78) 100%);
+  color: $la-navy;
+  font-size: clamp(16px, calc(14px + 0.4vw), 19px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  text-align: center;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 4px 12px -8px rgba($la-navy, 0.10);
+  transition: transform 120ms ease, box-shadow 200ms ease, border-color 160ms ease, background 160ms ease;
+
+  &:hover, &:focus-visible {
+    border-color: rgba($brand-dusty-denim-aa, 0.45);
+    transform: translateY(-2px);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.95),
+      0 12px 28px -12px rgba($brand-dusty-denim-aa, 0.32);
+    outline: none;
+  }
+
+  &:active {
+    transform: translateY(1px);
+    background:
+      linear-gradient(180deg, rgba(248, 251, 253, 0.95) 0%, rgba(240, 245, 250, 0.85) 100%);
+  }
+}
+
+.evq-item__choice-label { pointer-events: none; }
+
+// Tiles that carry an OpenSymbols image stack the symbol above the
+// label so pre-literate AAC users can recognize the option visually.
+.evq-item__choice-tile--with-symbol {
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 14px 16px;
+}
+.evq-item__choice-symbol,
+.evq-symbol {
+  pointer-events: none;
+  max-width: clamp(64px, 22vw, 110px);
+  max-height: clamp(64px, 22vw, 110px);
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+  filter: drop-shadow(0 1px 1px rgba($la-navy, 0.08));
+}
+.evq-symbol--mulberry { background: transparent; }
+
+// Per-slug overrides — some illustrations need extra horizontal room
+// because the artwork is wider than the standard square crop. Book
+// in particular is rendered open/spread, so we let it bleed wider.
+.evq-symbol--book {
+  max-width: calc(clamp(64px, 22vw, 110px) * 1.2);
+  width: calc(clamp(64px, 22vw, 110px) * 1.2);
+  height: auto;
+}
+.evq-symbol--plate {
+  max-width: calc(clamp(64px, 22vw, 110px) * 1.25);
+  width: calc(clamp(64px, 22vw, 110px) * 1.25);
+  height: auto;
+}
+
+// ── Access-snapshot grid ──────────────────────────────────────────
+.evq-item__access-grid {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: $evq-radius-sm;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid $evq-border;
+  // Cap the visual size so rows stay tappable but not absurd.
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.evq-item__access-cell {
+  aspect-ratio: 1;
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1.5px solid rgba($la-navy, 0.10);
+  background: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+  transition: background 140ms ease, border-color 140ms ease, transform 100ms ease, box-shadow 160ms ease;
+
+  &:hover, &:focus-visible {
+    border-color: rgba($brand-dusty-denim-aa, 0.45);
+    background: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px -8px rgba($la-navy, 0.20);
+    outline: none;
+  }
+
+  // Target cell — uses the same lightened-denim gradient as the
+  // active intake pills (Age band, Etiology, etc.), so the
+  // "highlighted target" reads as the same visual language as the
+  // selected-option state the SLP just saw on the intake page.
+  &--target {
+    // Solid fill using the lighter top-left stop only (was a 135deg
+    // gradient that darkened toward the bottom-right; cleaner as flat).
+    background: color.scale($brand-dusty-denim-aa, $lightness: 37%);
+    border-color: rgba($brand-dusty-denim-aa, 0.42);
+    color: #ffffff;
+    box-shadow:
+      0 8px 18px -8px rgba($brand-dusty-denim-aa, 0.42),
+      inset 0 1px 0 rgba(255, 255, 255, 0.40),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+
+    &:hover, &:focus-visible {
+      background: color.scale($brand-dusty-denim-aa, $lightness: 37%);
+      border-color: rgba($brand-dusty-denim-aa, 0.55);
+      transform: translateY(-2px);
+      box-shadow:
+        0 14px 26px -10px rgba($brand-dusty-denim-aa, 0.55),
+        inset 0 1px 0 rgba(255, 255, 255, 0.48),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+    }
+  }
+}
+
+// ── Library compare — 3-way bake-off layout ──────────────────────
+.evq-item__library-compare {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.evq-item__library-word {
+  font-size: clamp(22px, calc(18px + 0.6vw), 28px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: $la-navy;
+  margin: 0;
+}
+
+.evq-item__library-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(140px, 1fr));
+  gap: 16px;
+  width: 100%;
+  max-width: 640px;
+}
+// Legacy single-tile fallback when an item only has a `word` (no
+// library_options array). Center one tile at a reasonable size.
+.evq-item__library-row--single {
+  grid-template-columns: minmax(180px, 280px);
+  justify-content: center;
+}
+
+.evq-item__library-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  aspect-ratio: 1 / 1;
+  border-radius: $evq-radius;
+  border: 1.5px solid rgba($la-navy, 0.14);
+  background: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 8px 22px -12px rgba($la-navy, 0.18);
+  transition: transform 120ms ease, box-shadow 200ms ease, border-color 160ms ease;
+
+  &:hover, &:focus-visible {
+    transform: translateY(-2px);
+    border-color: rgba($brand-dusty-denim-aa, 0.4);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.95),
+      0 18px 36px -16px rgba($la-navy, 0.30);
+    outline: none;
+  }
+}
+
+.evq-item__library-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+// Legacy tag class — unused by the new 3-way layout but left for
+// any old templates that still reference it.
+.evq-item__library-tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: $evq-text-muted;
+  font-weight: 700;
+}
+
+// ── Sequence (syntax / sequencing) ────────────────────────────────
+.evq-item__sequence-status {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: $evq-radius-sm;
+  background: rgba($brand-verdigris-aa, 0.06);
+  border: 1px solid rgba($brand-verdigris-aa, 0.22);
+}
+
+.evq-item__sequence-progress {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: $evq-accent;
+  font-weight: 700;
+}
+
+.evq-item__sequence-buffer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.evq-item__sequence-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: $evq-radius-pill;
+  background: $evq-accent;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+// ── Observation card (manual scoring kinds) ───────────────────────
+.evq-item__observe {
+  padding: 24px;
+  border-radius: $evq-radius-sm;
+  background: rgba($brand-honey-bronze, 0.08);
+  border-left: 3px solid $brand-honey-bronze;
+}
+
+.evq-item__observe-message {
+  margin: 0;
+  font-size: 14px;
+  color: $la-navy;
+  line-height: 1.5;
+}
+
+// ── Manual override panel (always visible at bottom) ──────────────
+.evq-item__manual {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 18px;
+  border-top: 1px solid $evq-border;
+}
+
+.evq-item__manual-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: $evq-text-muted;
+  font-weight: 700;
+}
+
+.evq-item__manual-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.evq-item__manual-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: $evq-radius-pill;
+  border: 1.5px solid rgba($la-navy, 0.14);
+  background: rgba(255, 255, 255, 0.85);
+  color: $la-navy;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 100ms ease;
+
+  &:hover, &:focus-visible {
+    transform: translateY(-1px);
+    outline: none;
+  }
+
+  &--correct {
+    color: $evq-accent;
+    border-color: rgba(42, 157, 143, 0.35);
+    &:hover, &:focus-visible {
+      background: rgba(42, 157, 143, 0.10);
+      border-color: $evq-accent;
+    }
+  }
+  &--skip {
+    color: $evq-text-muted;
+    &:hover, &:focus-visible {
+      background: rgba($la-navy, 0.04);
+      border-color: $evq-border-strong;
+      color: $la-navy;
+    }
+  }
+  &--incorrect {
+    color: $evq-danger;
+    border-color: rgba(192, 57, 43, 0.35);
+    &:hover, &:focus-visible {
+      background: rgba(192, 57, 43, 0.08);
+      border-color: $evq-danger;
+    }
+  }
+}
+
+// ── Runner kind badge (auto-scored vs observation) ────────────────
+.evq-runner__meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.evq-runner__kind-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: $evq-radius-pill;
+  background: rgba($brand-honey-bronze, 0.10);
+  border: 1px solid rgba($brand-honey-bronze, 0.30);
+  color: color.adjust($brand-honey-bronze, $lightness: -25%);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+
+  &--auto {
+    background: rgba(42, 157, 143, 0.10);
+    border-color: rgba(42, 157, 143, 0.32);
+    color: $evq-accent;
+  }
+}
+
+.evq-runner__kind-badge-divider {
+  opacity: 0.55;
+  margin: 0 2px;
+}
+
+// =====================================================================
+// Targeted Eval (Mode 2) — Phase 2 scaffold
+// =====================================================================
+// Renders inside the same .evq__shell as Quick Screen. Hosts the
+// adaptive grid sweep and placeholder cards for the not-yet-built
+// subtests (3-way library bake-off, access co-trial, syntax probe).
+.evq-targeted {
+  display: block;
+}
+.evq-targeted__shell {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: clamp(20px, calc(16px + 1.2vw), 36px);
+  background: linear-gradient(180deg, #ffffff 0%, rgba($la-navy, 0.025) 100%);
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: $evq-radius;
+  box-shadow: $evq-shadow;
+}
+.evq-targeted__header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba($la-navy, 0.07);
+}
+.evq-targeted__eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: rgba($la-navy, 0.55);
+}
+.evq-targeted__title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: $la-navy;
+}
+.evq-targeted__body {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.evq-targeted__instructions {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: rgba($la-navy, 0.78);
+  line-height: 1.5;
+}
+
+// Adaptive grid sweep — large visible preview of the current grid
+// the SLP should show the communicator.
+.evq-targeted__grid-sweep {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.evq-targeted__grid-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 36px 24px;
+  background: linear-gradient(180deg, rgba($brand-verdigris, 0.04) 0%, rgba($brand-verdigris, 0.10) 100%);
+  border: 1px solid rgba($brand-verdigris, 0.22);
+  border-radius: 14px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+.evq-targeted__grid-label {
+  font-size: 64px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: $brand-verdigris-aa;
+  line-height: 1;
+}
+.evq-targeted__grid-capacity {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: rgba($la-navy, 0.65);
+}
+.evq-targeted__sweep-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.evq-targeted__sweep-history {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+.evq-targeted__sweep-history-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: rgba($la-navy, 0.04);
+  border: 1px solid rgba($la-navy, 0.10);
+  color: rgba($la-navy, 0.78);
+  &.is-correct {
+    background: rgba($brand-verdigris, 0.10);
+    border-color: rgba($brand-verdigris, 0.30);
+    color: $brand-verdigris-aa;
+  }
+  &.is-incorrect {
+    background: rgba($brand-danger, 0.08);
+    border-color: rgba($brand-danger, 0.25);
+    color: $brand-danger;
+  }
+}
+
+// library_3way subtest — 3 large library tiles per trial, SLP
+// taps the one the communicator preferred.
+.evq-targeted__library-3way {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  align-items: stretch;
+}
+.evq-targeted__trial-counter {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba($la-navy, 0.06);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: rgba($la-navy, 0.65);
+}
+.evq-targeted__library-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: 14px;
+}
+.evq-targeted__library-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 18px;
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, rgba($la-navy, 0.03) 100%);
+  color: $la-navy;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease, transform 0.06s ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 1px 2px rgba($la-navy, 0.04);
+  &:hover,
+  &:focus-visible {
+    border-color: rgba($brand-verdigris, 0.40);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      0 4px 12px rgba($brand-verdigris, 0.15);
+    outline: none;
+  }
+  &:active {
+    transform: scale(0.98);
+  }
+}
+.evq-targeted__library-tile-name {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba($la-navy, 0.55);
+}
+.evq-targeted__library-tile-word {
+  font-size: 28px;
+  font-weight: 800;
+  color: $la-navy;
+  letter-spacing: -0.01em;
+}
+.evq-targeted__skip-link {
+  align-self: center;
+  font-size: 13px;
+  color: rgba($la-navy, 0.55);
+}
+
+// access_co_trial subtest — two-step trial flow: method picker
+// then outcome (hit/miss) picker.
+.evq-targeted__access-cotrial {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  align-items: stretch;
+}
+.evq-targeted__access-target {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 36px 24px;
+  background: linear-gradient(180deg, rgba($brand-verdigris, 0.04) 0%, rgba($brand-verdigris, 0.10) 100%);
+  border: 1px solid rgba($brand-verdigris, 0.22);
+  border-radius: 14px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+// Touch-trial fast path — the target IS the button. Larger tap area
+// (no max-width; flex: 1 across the parent), pointer cursor, and a
+// soft hover/active state so the communicator gets visual feedback
+// that the surface is tappable.
+.evq-targeted__access-target--tappable {
+  cursor: pointer;
+  padding: 56px 32px;
+  border: 1.5px solid rgba($brand-verdigris, 0.32);
+  background: linear-gradient(180deg, rgba($brand-verdigris, 0.06) 0%, rgba($brand-verdigris, 0.16) 100%);
+  transition: transform 120ms ease, box-shadow 160ms ease, background 160ms ease, border-color 160ms ease;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+
+  &:hover, &:focus-visible {
+    border-color: rgba($brand-verdigris-aa, 0.55);
+    background: linear-gradient(180deg, rgba($brand-verdigris, 0.10) 0%, rgba($brand-verdigris, 0.22) 100%);
+    box-shadow:
+      0 12px 28px -12px rgba($brand-verdigris-aa, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    outline: none;
+  }
+  &:active {
+    transform: scale(0.99);
+  }
+}
+.evq-targeted__access-tappable-hint {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: rgba($la-navy, 0.50);
+  font-weight: 700;
+}
+.evq-targeted__access-word {
+  font-size: 48px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: $brand-verdigris-aa;
+  line-height: 1.1;
+}
+.evq-targeted__access-method-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba($la-navy, 0.08);
+  border: 1px solid rgba($la-navy, 0.14);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: $la-navy;
+}
+
+// syntax_probe subtest — receptive then expressive split per phrase.
+.evq-targeted__syntax-probe {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  align-items: stretch;
+}
+.evq-targeted__syntax-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.evq-targeted__syntax-phase-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  &[data-phase="receptive"] {
+    background: rgba($brand-dusty-denim, 0.12);
+    border: 1px solid rgba($brand-dusty-denim, 0.30);
+    color: $brand-dusty-denim-aa;
+  }
+  &[data-phase="expressive"] {
+    background: rgba($brand-honey-bronze, 0.16);
+    border: 1px solid rgba($brand-honey-bronze, 0.36);
+    color: rgba($la-navy, 0.85);
+  }
+}
+.evq-targeted__syntax-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 24px;
+  background: linear-gradient(180deg, #ffffff 0%, rgba($la-navy, 0.03) 100%);
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 14px;
+  text-align: center;
+}
+.evq-targeted__syntax-phrase {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: $la-navy;
+  line-height: 1.2;
+}
+.evq-targeted__syntax-prompt {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: rgba($la-navy, 0.78);
+  line-height: 1.5;
+  max-width: 480px;
+}
+
+// Placeholder card for subtests not yet built. Keeps the flow
+// usable end-to-end while the next iterations land.
+.evq-targeted__placeholder,
+.evq-targeted__wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 32px 24px;
+  background: rgba($la-navy, 0.03);
+  border: 1px dashed rgba($la-navy, 0.20);
+  border-radius: 14px;
+  text-align: center;
+  font-size: 15px;
+  color: rgba($la-navy, 0.78);
+}
+.evq-targeted__wrap {
+  background: linear-gradient(180deg, rgba($brand-verdigris, 0.04) 0%, rgba($brand-verdigris, 0.10) 100%);
+  border-style: solid;
+  border-color: rgba($brand-verdigris, 0.22);
+}
+
+// motor_map subtest — fixed grid the SLP taps to record where the
+// student pressed. Uses CSS Grid so the rows/cols inline style on the
+// container drives the layout; cells are square via aspect-ratio.
+.evq-targeted__motor-map {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+}
+.evq-targeted__motor-map-prompt {
+  color: rgba($la-navy, 0.72);
+  font-size: 14px;
+  margin: 0;
+}
+.evq-targeted__motor-map-grid {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  max-width: 560px;
+  align-self: center;
+}
+.evq-targeted__motor-map-cell {
+  aspect-ratio: 1 / 1;
+  border-radius: 10px;
+  border: 1px solid rgba($la-navy, 0.18);
+  background: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 80ms ease, background 80ms ease, border-color 80ms ease;
+  padding: 0;
+}
+.evq-targeted__motor-map-cell:hover {
+  background: rgba($brand-verdigris, 0.10);
+  border-color: rgba($brand-verdigris, 0.42);
+  transform: scale(1.03);
+}
+.evq-targeted__motor-map-cell--target {
+  background: linear-gradient(180deg, rgba($brand-verdigris, 0.18) 0%, rgba($brand-verdigris, 0.34) 100%);
+  border-color: rgba($brand-verdigris, 0.68);
+  box-shadow: 0 0 0 2px rgba($brand-verdigris, 0.18) inset;
+}
+.evq-targeted__motor-map-target-glyph {
+  color: rgba($brand-verdigris, 0.92);
+  font-size: 22px;
+  line-height: 1;
+}
+
+// heatmap card on the report cards (live + saved). Constrain to keep
+// the canvas a sensible size; `stats/eval-hits` renders 16:9 internally.
+.evq-report__targeted-card--motor-map,
+.evq-saved__targeted-card--motor-map {
+  grid-column: 1 / -1;
+}
+.evq-report__motor-map-heatmap,
+.evq-saved__motor-map-heatmap {
+  margin-top: 10px;
+  width: 100%;
+  max-width: 480px;
+}

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= t('parental_consent.page_title') %> — <%= (JsonApi::Json.current_domain['settings'] || {})['app_name'] || 'LingoLinq' %></title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; line-height: 1.5; color: #222; }
+    .box { max-width: 36rem; margin: 0 auto; padding: 1.5rem; border-radius: 8px; background: #f6f7fb; }
+    h1 { font-size: 1.25rem; margin-top: 0; }
+    p { margin: 0.75rem 0 0; }
+    a { color: #2563eb; }
+  </style>
+</head>
+<body>
+  <%= yield %>
+</body>
+</html>

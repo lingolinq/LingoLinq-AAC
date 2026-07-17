@@ -1,5 +1,6 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
+import actionLock from '../utils/action-lock';
 
 /**
  * Confirm Remove Goal Modal Component
@@ -14,6 +15,28 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+
     const modalService = this.get('modal');
     const template = 'modals/confirm-remove-goal';
     const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
@@ -35,18 +58,29 @@ export default Component.extend({
     },
     closing() {},
     confirm() {
-      this.set('status', { saving: true });
-      this.store.findRecord('unit', this.get('model.source.id')).then((unit) => {
-        unit.set('goal', { remove: true, auto_conclude: this.get('auto_conclude') });
-        unit.save().then(() => {
-          unit.set('goal', null);
-          this.get('modal').close({ confirmed: true });
+      return actionLock.run('remove-goal:' + this.get('model.source.id'), () => {
+        this.set('status', { saving: true });
+        return this.store.findRecord('unit', this.get('model.source.id')).then((unit) => {
+          unit.set('goal', { remove: true, auto_conclude: this.get('auto_conclude') });
+          return unit.save().then(() => {
+            unit.set('goal', null);
+            this.get('modal').close({ confirmed: true });
+          }, () => {
+            this.set('status', { error: true });
+          });
         }, () => {
           this.set('status', { error: true });
         });
-      }, () => {
-        this.set('status', { error: true });
-      });
+      }, {timeout: 10000});
     }
-  }
+  },
+
+  didInsertElement() {
+  this._super(...arguments);
+  var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
+},
+
 });

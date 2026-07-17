@@ -6,7 +6,7 @@ import { setup } from 'qunit-dom';
 import { start } from 'ember-qunit';
 import { isTesting } from '@ember/debug';
 
-QUnit.config.testTimeout = 60000;
+QUnit.config.testTimeout = 15000;
 
 // Skip deferred readiness in tests so the app boots immediately instead of waiting
 // for IndexedDB/lang/extras (which can hang in headless Chromium on WSL2).
@@ -52,5 +52,34 @@ QUnit.on('runEnd', function(runEnd) {
   }
 });
 
+// Explicit imports for new-style QUnit acceptance tests. The requirejs-based
+// auto-loader above misses modules due to AMD registration timing on this Ember
+// version; importing them here guarantees they're pulled into the bundle and
+// their `module()`/`test()` calls fire before `start()` below.
+import 'frontend/tests/acceptance/board-detail-empty-state-test';
+import 'frontend/tests/acceptance/lesson_expired_test';
+import 'frontend/tests/unit/controllers/board-index-word-prediction-locale-test';
+import 'frontend/tests/unit/controllers/copying-board-test';
+import 'frontend/tests/unit/controllers/user-board-detail-image-cache-test';
+import 'frontend/tests/unit/utils/board-detail-cache-test';
+import 'frontend/tests/unit/utils/board-prefetch-planner-test';
+import 'frontend/tests/unit/utils/loading-overlay-cache-test';
+import 'frontend/tests/unit/utils/persistence-json-payload-cache-test';
+import 'frontend/tests/unit/utils/raw-events-test';
+import 'frontend/tests/unit/models/board-reload-if-lite-test';
+import 'frontend/tests/unit/models/buttonset-cache-fallback-test';
+import 'frontend/tests/unit/components/share-board-guard-test';
+
 // loadTests: false — we already pre-loaded all test modules above
-start({ loadTests: false });
+// setupTestIsolationValidation: enable per-module once tests use ember-qunit setupTest
+// and drain async work in afterEach. Legacy jasmine db_wait/waitsFor modules fail
+// isolation checks today (~600ms false positives). Opt in via ?testIsolation=1 when debugging leaks.
+var _enableTestIsolation = false;
+if (typeof window !== 'undefined' && window.location && window.location.search) {
+  _enableTestIsolation = window.location.search.indexOf('testIsolation=1') >= 0;
+}
+start({
+  loadTests: false,
+  setupTestIsolationValidation: _enableTestIsolation,
+  testIsolationValidationDelay: 50
+});

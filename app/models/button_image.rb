@@ -1,4 +1,4 @@
-class ButtonImage < ActiveRecord::Base
+class ButtonImage < ApplicationRecord
   include Processable
   include Permissions
   include Uploadable
@@ -166,6 +166,21 @@ class ButtonImage < ActiveRecord::Base
     lib
   end
   
+  # Sanitize a stored image data: URL (including content-type spoofing).
+  def self.sanitize_stored_data_url(data_url)
+    payload = SvgSanitizer.decode_image_data_uri_payload(data_url)
+    return nil unless payload
+    return data_url unless data_url.to_s.match?(/\Adata:image\/svg\+xml/i) || SvgSanitizer.looks_like_svg?(payload)
+
+    result = SvgSanitizer.sanitize(payload)
+    return nil unless result[:ok]
+
+    base64 = data_url.to_s.match?(/;base64,/i)
+    return data_url if !result[:changed] && data_url.to_s.match?(/\Adata:image\/svg\+xml/i)
+
+    SvgSanitizer.encode_data_uri_payload(result[:bytes], base64: base64)
+  end
+
   def process_params(params, non_user_params)
     raise "user required as image author" unless self.user_id || non_user_params[:user] || non_user_params[:no_author]
     self.user ||= non_user_params[:user] if non_user_params[:user]
@@ -188,12 +203,28 @@ class ButtonImage < ActiveRecord::Base
       # Data URLs (word art, file upload, webcam) are not processed by process_url (http only).
       # Store in data column so JsonApi can return them before S3 upload completes.
       data_url = params['data_url'].presence || (params['url'] if params['url'].to_s.match(/^data:/))
+      # Security: a ButtonImage must be an image. Drop a data: URI whose own MIME
+      # isn't image/* (e.g. data:text/html — a stored-XSS payload were the bytes
+      # ever served / opened as a document) so it's never stored.
+      data_url = nil if data_url.to_s.match(/\Adata:/i) && !data_url.to_s.match(/\Adata:image\//i)
+      # Sanitize SVG data: URIs — strip scriptable content while keeping static symbols.
+      if data_url.present?
+        data_url = ButtonImage.sanitize_stored_data_url(data_url)
+      end
       if data_url.present?
         self.data = data_url
         self.settings['data_uri'] = data_url
       end
       process_url(params['url'], non_user_params) if params['url'] && params['url'].match(/^http/)
-      self.settings['content_type'] = params['content_type'] if params['content_type']
+      # Security: only ever store an image/* content type. Anything else
+      # (text/html, application/*, …) is coerced to image/png so a client-supplied
+      # type can't ride through to the S3 object's Content-Type and get served
+      # inline as a document. SVG passes (a legit symbol-library type); active
+      # content is stripped by SvgSanitizer on store and before S3 upload.
+      if params['content_type'].present?
+        ct = params['content_type'].to_s
+        self.settings['content_type'] = ct.match(/\Aimage\//i) ? ct : 'image/png'
+      end
       self.settings['width'] = params['width'].to_i if params['width']
       self.settings['height'] = params['height'].to_i if params['height']
       self.settings['hc'] = !!params['hc'] if params['hc']
@@ -218,29 +249,124 @@ class ButtonImage < ActiveRecord::Base
     true
   end
 
+  def library_url_for_skin
+    candidates = [
+      settings['library_url_for_skin'],
+      settings['library_skin_base_url'],
+      settings['source_url'],
+      settings['pre_variant_url'],
+      url
+    ]
+    (settings['library_alternates'] || {}).each_value do |alt|
+      candidates << alt['url'] if alt.is_a?(Hash)
+    end
+    candidates.compact.find { |u| u.to_s.match(/\/libraries\//) }
+  end
+
+  def preserve_source_image?
+    !!settings['preserve_source_image']
+  end
+
+  def needs_library_url_enrichment?
+    return false if preserve_source_image?
+    return false if library_url_for_skin
+    return false if settings['library_url_lookup_attempted']
+    !!(url.to_s.match(/amazonaws|lingolinq.*uploads/i))
+  end
+
+  # Re-resolve a plain S3 copy to the canonical OpenSymbols/library URL so
+  # check_for_variants and client skin_image_map can apply skin tones.
+  def ensure_library_url_for_skin!(label: nil, force: false)
+    return false if preserve_source_image? && !force
+    return true if library_url_for_skin && !force
+    return false if settings['library_url_lookup_attempted'] && !force
+
+    settings['library_url_lookup_attempted'] = true
+    settings['button_label'] ||= label if label.present?
+    changed = false
+    lib = image_library
+    search_label = settings['button_label'] || settings['search_term']
+    libraries = []
+    libraries << lib if lib && lib != 'unknown'
+    libraries << 'arasaac' if libraries.empty? && settings.dig('license', 'author_url').to_s.match(/arasaac/i)
+    libraries << 'opensymbols' if libraries.empty?
+
+    if search_label.present? && libraries.any?
+      libraries.uniq.each do |library|
+        image_data = (Uploader.find_images(search_label, library, 'en', user, nil, true) || [])[0]
+        next unless image_data && image_data['url'].to_s.match(/\/libraries\//)
+        settings['library_url_for_skin'] = Uploader.fronted_url(image_data['url'])
+        settings['external_id'] ||= image_data['external_id'] if image_data['external_id']
+        settings['library_alternates'] ||= {}
+        settings['library_alternates'][library] ||= {
+          'url' => settings['library_url_for_skin'],
+          'license' => image_data['license'],
+          'content_type' => image_data['content_type']
+        }
+        changed = true
+        break
+      end
+    end
+
+    if changed
+      check_for_variants(true)
+      save
+      return true
+    end
+    save if settings['library_url_lookup_attempted']
+    false
+  end
+
+  def skin_capable_url
+    if settings['library_skin_base_url']
+      url = Uploader.fronted_url(settings['library_skin_base_url'])
+      return url if url_skinnable?(url)
+    end
+    lib_url = library_url_for_skin
+    if lib_url
+      url = Uploader.fronted_url(lib_url)
+      return url if url_skinnable?(url)
+    end
+    nil
+  end
+
+  def url_skinnable?(url)
+    return false unless url
+    url.match(/\.varianted-skin\.\w+$/) ||
+      (url.match(/\/libraries\/twemoji\//) && url.match(/-var\w+UNI/))
+  end
+
   def check_for_variants(force=false)
     return false if self.settings['checked_for_variants'] && !force
-    if self.url && !self.url.match(/\.varianted-skin\./) && !self.url.match(/-var\w+UNI/)
-      if self.url.match(/\/libraries\/twemoji\//) && self.settings['external_id']
+    variant_target = library_url_for_skin || self.url
+    if variant_target && !variant_target.match(/\.varianted-skin\./) && !variant_target.match(/-var\w+UNI/)
+      if variant_target.match(/\/libraries\/twemoji\//) && self.settings['external_id']
         token = ENV['OPENSYMBOLS_TOKEN']
         url = "https://www.opensymbols.org/api/v2/symbols/twemoji/#{self.settings['external_id']}"
         res = Typhoeus.get(url + "?search_token=#{token}", headers: { 'Accept-Encoding' => 'application/json' }, timeout: 10)
         json = JSON.parse(res.body) rescue nil
-        if json && json['symbol'] && json['symbol']['image_url'] && json['symbol']['image_url'] != self.url
-          self.settings['pre_variant_url'] = self.url
-          self.url = json['symbol']['image_url']
+        if json && json['symbol'] && json['symbol']['image_url'] && json['symbol']['image_url'] != variant_target
+          self.settings['pre_variant_url'] ||= variant_target
+          if variant_target == self.url
+            self.url = json['symbol']['image_url']
+          else
+            self.settings['library_skin_base_url'] = json['symbol']['image_url']
+          end
           self.settings['checked_for_variants'] = true
           self.save
           return true
         end
-      elsif self.url.match(/\/libraries\//)
-        extension = (self.url.split(/\//)[-1] || '').split(/\./)[-1]
-        new_url = self.url + '.varianted-skin.' + extension
-        lookup_url = new_url
-        req = Typhoeus.head(URI.escape(new_url))
+      elsif variant_target.match(/\/libraries\//)
+        extension = (variant_target.split(/\//)[-1] || '').split(/\./)[-1]
+        new_url = variant_target + '.varianted-skin.' + extension
+        req = Typhoeus.head(URI.escape(new_url), timeout: 5)
         if req.success?
-          self.settings['pre_variant_url'] = self.url
-          self.url = new_url
+          self.settings['pre_variant_url'] ||= variant_target
+          if variant_target == self.url
+            self.url = new_url
+          else
+            self.settings['library_skin_base_url'] = new_url
+          end
           self.settings['checked_for_variants'] = true
           self.save
           return true
@@ -307,6 +433,12 @@ class ButtonImage < ActiveRecord::Base
     settings['protected'] = !!self.protected?
     settings.delete('library_alternates')
     used_library = 'original'
+    if preserve_source_image?
+      settings['used_library'] = 'original'
+      settings['url'] = self.best_url
+      settings['url'] = Uploadable.tokenize_protected_image_url(settings['url'], user)
+      return settings
+    end
     if self.settings['library_alternates']
       pref ||= user && ((user.settings || {})['preferences'] || {})['preferred_symbols']
       allowed_sources ||= user && user.enabled_protected_sources(true)
@@ -336,10 +468,7 @@ class ButtonImage < ActiveRecord::Base
       end
     end
     settings['used_library'] = used_library
-    token = user && user.user_token
-    if token && settings['url'] && settings['url'].match(/\/api\/v1\/users\/.+\/protected_image/)
-      settings['url'] = settings['url'] + (settings['url'].match(/\?/) ? '&' : '?') + "user_token=#{token}"
-    end
+    settings['url'] = Uploadable.tokenize_protected_image_url(settings['url'], user)
     settings
   end
 

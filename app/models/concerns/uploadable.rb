@@ -1,12 +1,25 @@
 require 'mime/types'
 require 'uri'
+require Rails.root.join('lib/svg_sanitizer').to_s
 
 module Uploadable
   extend ActiveSupport::Concern
 
+  # Worker/job argument: upload bytes from settings['data_uri'] instead of fetching a URL.
+  UPLOAD_FROM_STORED_DATA_URI = '__upload_stored_data_uri__'
+
   # Max size for data URIs stored in DB when S3 upload fails. Prevents DB bloat from large images.
   # 512KB is enough for typical button images (400x400) but blocks oversized photos.
   DATA_URI_STORE_MAX_BYTES = 512 * 1024
+
+  PROTECTED_IMAGE_URL_MATCHER = /\/api\/v1\/users\/.+\/protected_image/
+
+  # Shared by url_for and ButtonImage#settings_for so the protected_image
+  # token-minting logic (and any future changes to it) lives in one place.
+  def self.tokenize_protected_image_url(url, user)
+    return url unless user && url && url.match(PROTECTED_IMAGE_URL_MATCHER)
+    url + (url.match(/\?/) ? '&' : '?') + "user_token=#{user.protected_image_token}"
+  end
 
   def file_type 
     if self.is_a?(ButtonImage)
@@ -48,10 +61,7 @@ module Uploadable
   end
   
   def url_for(user)
-    token = user && user.user_token
-    return self.url if !token
-    return self.url unless self.url.match(/\/api\/v1\/users\/.+\/protected_image/)
-    self.url + (self.url.match(/\?/) ? '&' : '?') + "user_token=#{token}"
+    Uploadable.tokenize_protected_image_url(self.url, user)
   end
   
   def file_prefix
@@ -86,18 +96,35 @@ module Uploadable
   def check_for_pending
     self.settings ||= {}
     self.settings['pending'] = !!(!self.url || self.settings['pending_url'])
-    
+
+    remote_upload_possible = @remote_upload_possible
+    remote_upload_possible = false if requires_server_sanitized_upload?
+
     # If there's no client to handle remote upload, go ahead and unmark it as
     # pending and schedule a bg job to download server-side
-    if !@remote_upload_possible && self.settings['pending'] && self.settings['pending_url']
-      self.settings['pending'] = false
-      self.url = self.settings['pending_url']
-      @schedule_upload_to_remote = true
+    if !remote_upload_possible && self.settings['pending']
+      if self.settings['pending_url'].present?
+        self.settings['pending'] = false
+        self.url = self.settings['pending_url'].to_s
+        @upload_to_remote_arg = self.settings['pending_url'].to_s
+      elsif !self.url && self.settings['data_uri'].present? && requires_server_sanitized_upload?
+        self.settings['pending'] = false
+        @upload_to_remote_arg = UPLOAD_FROM_STORED_DATA_URI
+      end
     end
     # TODO: check if it's a protected image (i.e. lessonpix) and download a cached
     # copy according. Keep the link pointing to our API for permission checks,
     # but store somewhere and allow for redirects
     true
+  end
+
+  def requires_server_sanitized_upload?
+    return false unless file_type == 'images'
+    return true if SvgSanitizer.svg_content_type?(self.settings['content_type'])
+    return true if self.settings['data_uri'].to_s.match?(/\Adata:image\/svg\+xml/i)
+
+    stored = self.data if respond_to?(:data)
+    stored.to_s.match?(/\Adata:image\/svg\+xml/i)
   end
   
   def check_for_removable
@@ -132,9 +159,9 @@ module Uploadable
   end
     
   def upload_after_save
-    if @schedule_upload_to_remote
-      self.schedule(:upload_to_remote, self.settings['pending_url'])
-      @schedule_upload_to_remote = false
+    if @upload_to_remote_arg
+      self.schedule(:upload_to_remote, @upload_to_remote_arg)
+      @upload_to_remote_arg = nil
     end
     if self.url && Uploader.protected_remote_url?(self.url) && self.settings && !self.settings['cached_copy_url']
       if !self.settings['cached_copy_url']
@@ -158,7 +185,7 @@ module Uploadable
     if self.url && self.settings && self.settings['content_type'] && self.settings['content_type'].match(/image\/svg/) && !self.settings['rasterized']
       self.settings['rasterized'] = 'pending'
       self.settings['rasterized_at'] = Time.now.iso8601
-      res = Typhoeus.head(Uploader.sanitize_url(URI.escape("#{self.url}.raster.png")), followlocation: true)
+      res = SafeHttp.head(URI.escape("#{self.url}.raster.png"))
       # check if there's already a .raster.png for the image (i.e. on opensymbols)
       if res.success?
         self.settings['rasterized'] = 'from_url'
@@ -208,32 +235,49 @@ module Uploadable
     res  
   end
   
-  def upload_to_remote(url, rasterize=false)
+  def upload_to_remote(source, rasterize=false)
     raise "must have id first" unless self.id
     self.settings['pending_url'] = nil
-    url = self.settings['data_uri'] if url == 'data_uri'
+    url = resolve_upload_source(source)
+    unless url
+      record_upload_rejection(source, 'missing_upload_source')
+      return
+    end
     file = Tempfile.new(["stash", rasterize ? ".svg" : ""])
     file.binmode
     if url.match(/^data:/)
-      self.settings['content_type'] = url.split(/;/)[0].split(/:/)[1]
-      data = url.split(/,/)[1]
-      file.write(Base64.strict_decode64(data))
+      self.settings['content_type'] = SvgSanitizer.data_uri_content_type(url) || self.settings['content_type']
+      payload = decode_data_uri_body(url)
+      if payload.nil?
+        record_upload_rejection(url, 'invalid_data_uri')
+        return
+      end
+      if payload.bytesize > SvgSanitizer::MAX_BYTES
+        record_upload_rejection(url, 'too_large')
+        return
+      end
+      file.write(payload)
     else
       self.settings['source_url'] = url if !rasterize
-      res = Typhoeus.get(Uploader.sanitize_url(URI.escape(url)), followlocation: true)
-      if res.headers['Location']
-        redirect_url = res.headers['Location']
-        redirect_url = redirect_url.sub(/\?/, "%3F") if redirect_url.match(/lessonpix\.com/) && redirect_url.match(/\?.*\.png/)
-        res = Typhoeus.get(Uploader.sanitize_url(URI.escape(redirect_url)))
-      end
+      fetch_url = Uploader.sanitize_url(url) || url.to_s
+      res = SafeHttp.get(fetch_url)
       re = /^audio/
       re = /^image/ if file_type == 'images'
       re = /^video/ if file_type == 'videos'
       if res.success? && res.headers['Content-Type'].match(re)
-        self.settings['content_type'] = res.headers['Content-Type']
-        file.write(res.body)
+        body = res.body.to_s
+        if body.bytesize > SvgSanitizer::MAX_BYTES
+          record_upload_rejection(url, 'too_large')
+          return
+        end
+        if file_type == 'images' && SvgSanitizer.looks_like_svg?(body)
+          self.settings['content_type'] = 'image/svg+xml'
+        else
+          self.settings['content_type'] = res.headers['Content-Type']
+        end
+        file.write(body)
 
-        if file_type == 'images' && !self.settings['width']
+        if file_type == 'images' && !self.settings['width'] && !SvgSanitizer.svg_content_type?(self.settings['content_type'])
           identify_data = `identify -verbose #{file.path}`
           identify_data.split(/\n/).each do |line|
             pre, post = line.sub(/^\s+/, '').split(/:\s/, 2)
@@ -247,10 +291,12 @@ module Uploadable
           end
         end
       else
-        self.settings['errored_pending_url'] = url
-        self.save
+        record_upload_rejection(url, 'fetch_failed')
         return
       end
+    end
+    unless sanitize_stored_image_file!(file, url)
+      return
     end
     file.rewind
     if rasterize
@@ -270,7 +316,7 @@ module Uploadable
     post_params[:file] = file
 
     # upload to s3 from tempfile
-    res = Typhoeus.post(params[:upload_url], body: post_params)
+    res = Typhoeus.post(params[:post_url], body: post_params)
     if rasterize
       if res.success?
         self.settings['rasterized'] = 'from_filename'
@@ -300,6 +346,8 @@ module Uploadable
             self.settings['errored_pending_url'] = url
             Rails.logger.warn("S3 upload failed, data URI too large (#{url.bytesize} bytes > #{DATA_URI_STORE_MAX_BYTES}) for #{self.class.name} #{self.id}")
           end
+        elsif store_downloaded_file_fallback!(file, url)
+          Rails.logger.warn("S3 upload failed, stored downloaded #{file_type} locally for #{self.class.name} #{self.id}")
         else
           self.settings['errored_pending_url'] = url
         end
@@ -314,6 +362,181 @@ module Uploadable
     # TODO: remove font-family from svg's as a tag attribute, it causes problems with rendering
     `convert -background none -density 300 -resize 400x400 -gravity center -extent 400x400 #{path} #{path}.raster.png`
   end
+
+  def decode_data_uri_body(data_uri)
+    SvgSanitizer.decode_image_data_uri_payload(data_uri)
+  end
+
+  # When S3 is unavailable, keep imported symbol-library images usable by storing
+  # the already-downloaded bytes or retaining the public CDN URL.
+  def store_downloaded_file_fallback!(file, source_url)
+    # Only images can be stored as data_uri or trusted CDN URLs; sounds/videos need S3.
+    return false unless file_type == 'images'
+
+    file.rewind
+    byte_size = file.respond_to?(:size) ? file.size : File.size(file.path)
+    if byte_size > DATA_URI_STORE_MAX_BYTES
+      if importable_symbol_cdn_url?(source_url)
+        self.url = encode_source_url_for_fetch(source_url)
+        self.settings['pending'] = false
+        self.settings['pending_url'] = nil
+        self.settings['errored_pending_url'] = nil
+        return true
+      end
+      return false
+    end
+
+    body = file.read
+    return false if body.blank?
+
+    ct = self.settings['content_type'].presence || 'application/octet-stream'
+    data_uri = "data:#{ct};base64,#{Base64.strict_encode64(body)}"
+    self.data = data_uri if respond_to?(:data=)
+    self.settings['data_uri'] = data_uri
+    self.settings['pending'] = false
+    self.settings['pending_url'] = nil
+    self.settings['errored_pending_url'] = nil
+    true
+  end
+
+  def importable_symbol_cdn_url?(url)
+    str = url.to_s
+    return true if str.match?(%r{\Ahttps://d18vdu4p71yql0\.cloudfront\.net/})
+    return true if str.match?(%r{\Ahttps://dc5pvf6xvgi7y\.cloudfront\.net/})
+
+    cdn = ENV['OPENSYMBOLS_S3_CDN'].to_s
+    cdn.present? && str.start_with?(cdn)
+  end
+
+  def encode_source_url_for_fetch(url)
+    uri = Uploader.parse_http_uri(url.to_s)
+    return url.to_s unless uri
+
+    port_suffix = ''
+    if (uri.scheme == 'http' && uri.port != 80) || (uri.scheme == 'https' && uri.port != 443)
+      port_suffix = ":#{uri.port}"
+    end
+    "#{uri.scheme}://#{uri.host}#{port_suffix}#{uri.path}#{uri.query ? "?#{uri.query}" : ''}"
+  end
+
+  def resolve_upload_source(source)
+    if source == UPLOAD_FROM_STORED_DATA_URI
+      stored = self.settings['data_uri'].presence
+      stored ||= (respond_to?(:data) ? self.data : nil)
+      return stored if stored.to_s.match?(/\Adata:/)
+
+      nil
+    else
+      source.to_s.presence
+    end
+  end
+
+  def sanitize_stored_image_file!(file, source_url)
+    return true unless file_type == 'images'
+
+    file.rewind
+    body = file.read
+    file.rewind
+    svg = SvgSanitizer.svg_content_type?(self.settings['content_type']) || SvgSanitizer.looks_like_svg?(body)
+    return true unless svg
+
+    self.settings['content_type'] = 'image/svg+xml' if SvgSanitizer.looks_like_svg?(body)
+
+    result = SvgSanitizer.sanitize(body)
+    unless result[:ok]
+      record_upload_rejection(source_url, result[:error])
+      return false
+    end
+
+    if result[:changed]
+      Rails.logger.info("SvgSanitizer stripped active content from #{self.class.name} #{self.global_id}")
+    end
+
+    file.rewind
+    file.truncate(0)
+    file.write(result[:bytes])
+    file.rewind
+    true
+  end
+
+  def verify_stored_s3_upload!(s3_url)
+    return true unless file_type == 'images'
+
+    unless SvgSanitizer.svg_content_type?(self.settings['content_type'])
+      sample = fetch_uploaded_object_range(s3_url)
+      if sample && !sample.empty?
+        return true unless SvgSanitizer.looks_like_svg?(sample)
+      end
+    end
+
+    body = fetch_uploaded_object_body(s3_url)
+    return true if body.nil? || body.empty?
+    return true unless SvgSanitizer.looks_like_svg?(body)
+
+    result = SvgSanitizer.sanitize(body)
+    unless result[:ok]
+      Rails.logger.warn("Rejected stored SVG upload for #{self.class.name} #{self.global_id}: #{result[:error]}")
+      record_upload_rejection(s3_url, "svg_verification_failed:#{result[:error]}")
+      return false
+    end
+
+    self.settings['content_type'] = 'image/svg+xml'
+    return true unless result[:changed]
+
+    replace_stored_upload_body!(result[:bytes], 'image/svg+xml')
+  end
+
+  def fetch_uploaded_object_range(s3_url)
+    last_byte = SvgSanitizer::SNIFF_BYTES - 1
+    res = Typhoeus.get(s3_url, headers: { 'Range' => "bytes=0-#{last_byte}" })
+    return nil unless res.code == 206 || res.code == 200
+
+    res.body.to_s.b.byteslice(0, SvgSanitizer::SNIFF_BYTES)
+  end
+
+  def fetch_uploaded_object_body(s3_url)
+    res = Typhoeus.get(s3_url)
+    return nil unless res.success?
+
+    body = res.body.to_s
+    return nil if body.bytesize > SvgSanitizer::MAX_BYTES
+
+    body
+  end
+
+  def replace_stored_upload_body!(bytes, content_type)
+    file = Tempfile.new(['stash', '.svg'])
+    file.binmode
+    file.write(bytes)
+    file.rewind
+    params = remote_upload_params(false)
+    post_params = params[:upload_params]
+    post_params['Content-Type'] = content_type
+    post_params[:file] = file
+    res = Typhoeus.post(params[:post_url], body: post_params)
+    file.close
+    unless res.success?
+      Rails.logger.warn("Failed to replace sanitized SVG for #{self.class.name} #{self.global_id}")
+      return false
+    end
+    true
+  ensure
+    file.unlink if file
+  end
+
+  def record_upload_rejection(source_url, reason=nil)
+    safe_source = source_url.to_s.gsub(/[\r\n]/, '')[0, 500]
+    safe_reason = reason.to_s.gsub(/[\r\n]/, '')[0, 200]
+    self.settings['errored_pending_url'] = safe_source unless safe_source == UPLOAD_FROM_STORED_DATA_URI
+    self.settings['errored_pending_url'] ||= self.settings['data_uri']
+    Rails.logger.warn("Upload rejected for #{self.class.name} #{self.global_id}: #{safe_reason}")
+    save(validate: false)
+  rescue StandardError => e
+    Rails.logger.error("Upload rejection save failed for #{self.class.name} #{self.global_id}: #{e.class}: #{e.message}")
+  end
+
+  # Backward-compatible alias for callers/tests.
+  alias_method :reject_svg_upload, :record_upload_rejection
 
   module ClassMethods
     def assert_cached_copies(urls)
@@ -387,7 +610,7 @@ module Uploadable
       records.each do |record|
         # Retrieve the attributes for the source image
         url = record.is_a?(String) ? record : record.url
-        url = URI.decode(url) if url && url.match(/%20/)
+        url = URI::DEFAULT_PARSER.unescape(url) if url && url.match(/%20/)
         ref = self.cached_copy_identifiers(url)
         next unless ref
         if !record.is_a?(String) && record.settings['cached_copy_url']

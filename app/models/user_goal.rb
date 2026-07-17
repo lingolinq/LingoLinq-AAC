@@ -1,4 +1,4 @@
-class UserGoal < ActiveRecord::Base
+class UserGoal < ApplicationRecord
   include Processable
   include Permissions
   include Async
@@ -22,6 +22,7 @@ class UserGoal < ActiveRecord::Base
   add_permissions('view', 'comment') {|user| self.user && self.user.allows?(user, 'model') }
   add_permissions('view', ['read_profile']) {|user| self.user && self.user.allows?(user, 'edit') }
   add_permissions('view', 'comment', 'edit') {|user| self.user && self.user.allows?(user, 'edit') }
+  add_permissions('view', ['full', 'read_profile', 'basic_supervision']) {|user| self.user && self.user.allows?(user, 'set_goals') }
   add_permissions('view', 'comment', 'edit') {|user| self.unit_accessible?(user, true) }
   add_permissions('view', 'comment') {|user| self.unit_accessible?(user) }
   add_permissions('view', 'comment', 'edit') {|user| (self.global || self.template) && Organization.admin && Organization.admin.manager?(user) }
@@ -163,9 +164,13 @@ class UserGoal < ActiveRecord::Base
           stats[level][k]['sessions'] ||= 0
           stats[level][k]['sessions'] += 1
           stats[level][k]['positives'] ||= 0
-          stats[level][k]['positives'] += session.data['goal']['positives'] if session.data['goal'] && session.data['goal']['positives']
+          if session.data['goal'] && session.data['goal']['positives']
+            stats[level][k]['positives'] += session.data['goal']['positives'].to_i
+          end
           stats[level][k]['negatives'] ||= 0
-          stats[level][k]['negatives'] += session.data['goal']['negatives'] if session.data['goal'] && session.data['goal']['negatives']
+          if session.data['goal'] && session.data['goal']['negatives']
+            stats[level][k]['negatives'] += session.data['goal']['negatives'].to_i
+          end
           stats[level][k]['statuses'] ||= []
           stats[level][k]['statuses'] << session.data['goal']['status'] if session.data['goal'] && session.data['goal']['status']
         end
@@ -195,13 +200,17 @@ class UserGoal < ActiveRecord::Base
       elsif diff < 3.months
         mult = 1.5
       end
-      if session.data['goal']['status']
+      g = session.data && session.data['goal']
+      next unless g.is_a?(Hash)
+      if g['status']
         status_total += mult
-        status_tally += session.data['goal']['status'] * mult
+        status_tally += g['status'].to_f * mult
       end
-      if session.data['goal']['positives']
-        positive_total += (session.data['goal']['positives'] + session.data['goal']['negatives']) * mult
-        positive_tally += session.data['goal']['positives'] * mult
+      if g['positives']
+        pos = g['positives'].to_f
+        neg = (g['negatives'] || 0).to_f
+        positive_total += (pos + neg) * mult
+        positive_tally += pos * mult
       end
     end
     stats['last_session'] = last_session.iso8601 if last_session
@@ -379,10 +388,10 @@ class UserGoal < ActiveRecord::Base
     self.template = !!params['template'] if params['template'] != nil && non_user_params[:allow_global]
     self.template_header = !!params['template_header'] if params['template_header'] && self.template_header == nil && non_user_params[:allow_global]
     self.settings['badge_name']  = params['badge_name'] if params['badge_name']
-    if params['unit_id'] && self.settings['unit_id'] != params['unit_id']
-      self.template = true
+    if params['unit_id'].present? && self.settings['unit_id'] != params['unit_id']
       unit = OrganizationUnit.find_by_global_id(params['unit_id'])
       if unit && unit.allows?(non_user_params[:author], 'edit')
+        self.template = true
         self.settings['organization_unit_id'] = params['unit_id']
       end
     end
@@ -457,6 +466,15 @@ class UserGoal < ActiveRecord::Base
     if params['expires'] && !self.settings['template_id']
       self.advance_at = self.class.current_date_from_template(params['expires'])
     end
+    # Personal goals created from a community/library template keep settings['template_id'] for
+    # lineage but must not keep template: true — that flag marks reusable rows and hides the goal
+    # from GET /api/v1/goals?user_id=... (non-template listings). Skip when explicitly creating a
+    # global/template row with allow_global.
+    unless non_user_params[:allow_global] && ActiveModel::Type::Boolean.new.cast(params['template'])
+      if self.settings['template_id'].present? && !self.template_header && self.settings['organization_unit_id'].blank?
+        self.template = false
+      end
+    end
     if params['comment']
       self.settings['comments'] ||= []
       self.settings['last_comment_id'] ||= 0
@@ -478,12 +496,18 @@ class UserGoal < ActiveRecord::Base
       self.settings['comments'] << comment
     end
     
-    if params[:primary]
-      @set_as_primary = params[:primary]
-      @clear_primary = false
-    elsif self.primary && params[:primary] == false
-      @clear_primary = true
-      @set_as_primary = false
+    pri = params[:primary]
+    unless pri.nil?
+      if pri.to_s == 'if_available'
+        @set_as_primary = 'if_available'
+        @clear_primary = false
+      elsif self.primary && ActiveModel::Type::Boolean.new.cast(pri) == false
+        @clear_primary = true
+        @set_as_primary = false
+      elsif ActiveModel::Type::Boolean.new.cast(pri)
+        @set_as_primary = true
+        @clear_primary = false
+      end
     end
 #    self.primary = !!params[:primary] if params[:primary] != nil
     true

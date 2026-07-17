@@ -1,17 +1,37 @@
-class ContactMessage < ActiveRecord::Base
+class ContactMessage < ApplicationRecord
   include GlobalId
   include Processable
   include SecureSerialize
   include Async
   secure_serialize :settings
   include Replicate
+
+  has_one :beta_feedback_recording
+
+  BETA_FEEDBACK_ALLOWED_TYPES = %w[crash speak_mode boards editing sync account performance accessibility feature other].freeze
+  BETA_FEEDBACK_ALLOWED_SEVERITIES = %w[blocker major minor suggestion].freeze
+  BETA_FEEDBACK_ALLOWED_REACTIONS = %w[great okay frustrating].freeze
+  BETA_FEEDBACK_ALLOWED_PRIORITIES = %w[high medium low].freeze
+  BETA_FIELD_MAX_LENGTHS = {
+    'subject' => 500,
+    'name' => 255,
+    'steps_to_reproduce' => 10_000,
+    'expected_result' => 10_000,
+    'actual_result' => 10_000,
+    'general_feedback' => 20_000,
+    'workflow_context' => 10_000,
+    'device_context' => 2_000
+  }.freeze
   
   after_create :deliver_message
+  after_create :attach_beta_feedback_recording
   
   def deliver_message
     if @deliver_remotely
       @deliver_remotely = false
       self.schedule(:deliver_remotely)
+    elsif self.settings['recipient'].to_s == 'beta_feedback'
+      AdminMailer.schedule_delivery(:beta_feedback_sent, self.global_id)
     else
       AdminMailer.schedule_delivery(:message_sent, self.global_id)
     end
@@ -51,8 +71,137 @@ class ContactMessage < ActiveRecord::Base
       end
       @deliver_remotely = true
     end
+    if params['recipient'].to_s == 'beta_feedback'
+      ['feedback_type', 'severity', 'reaction', 'steps_to_reproduce', 'expected_result', 'actual_result', 'general_feedback', 'workflow_context', 'device_context'].each do |key|
+        self.settings[key] = process_string(params[key]) if params[key].present?
+      end
+      if ActiveModel::Type::Boolean.new.cast(params['recording_saved_locally'])
+        self.settings['recording_saved_locally'] = true
+        self.settings['recording_byte_size'] = params['recording_size'].to_i if params['recording_size'].present?
+      end
+      if ActiveModel::Type::Boolean.new.cast(params['recording_save_attempted'])
+        self.settings['recording_save_attempted'] = true
+      end
+      unless process_beta_feedback_screenshot(params['screenshot_data'])
+        return false
+      end
+      unless process_beta_feedback_recording(params)
+        return false
+      end
+      if self.settings['subject'].blank?
+        add_processing_error("Summary is required for beta feedback")
+        return false
+      end
+      if self.settings['email'].present?
+        email = self.settings['email'].to_s.strip
+        if email.length > 254 || !email.match?(URI::MailTo::EMAIL_REGEXP)
+          add_processing_error("Invalid email address")
+          return false
+        end
+      end
+      ft = self.settings['feedback_type'].to_s
+      unless BETA_FEEDBACK_ALLOWED_TYPES.include?(ft)
+        add_processing_error("Invalid feedback type")
+        return false
+      end
+      reaction = self.settings['reaction'].to_s
+      if reaction.present? && !BETA_FEEDBACK_ALLOWED_REACTIONS.include?(reaction)
+        add_processing_error("Invalid feedback reaction")
+        return false
+      end
+      sev = self.settings['severity'].to_s
+      unless BETA_FEEDBACK_ALLOWED_SEVERITIES.include?(sev)
+        add_processing_error("Invalid severity")
+        return false
+      end
+      BETA_FIELD_MAX_LENGTHS.each do |key, max|
+        next if self.settings[key].blank?
+        if self.settings[key].length > max
+          add_processing_error("One or more fields are too long")
+          return false
+        end
+      end
+      self.beta_subject = self.settings['subject']
+      self.beta_submitter_name = self.settings['name'].presence
+      self.beta_feedback_type = self.settings['feedback_type']
+      self.settings['request_virtual_meeting'] = ActiveModel::Type::Boolean.new.cast(params['request_virtual_meeting'])
+      self.beta_severity = self.settings['severity']
+      self.recipient = 'beta_feedback'
+    end
     true
   end
+
+  def process_beta_feedback_recording(params)
+    recording_id = params['recording_id'].presence
+    return true unless recording_id
+
+    unless ActiveModel::Type::Boolean.new.cast(params['recording_consent'])
+      add_processing_error("Recording consent is required")
+      return false
+    end
+
+    rec = BetaFeedbackRecording.find_confirmed(recording_id, params['recording_token'])
+    unless rec
+      add_processing_error("Invalid recording upload")
+      return false
+    end
+    if rec.contact_message_id.present?
+      add_processing_error("Recording upload was already used")
+      return false
+    end
+
+    @beta_feedback_recording = rec
+    self.settings['recording_id'] = rec.global_id
+    self.settings['recording_content_type'] = rec.content_type
+    self.settings['recording_byte_size'] = rec.byte_size
+    self.settings['recording_expires_at'] = rec.expires_at && rec.expires_at.utc.iso8601
+    self.settings['recording_consent'] = true
+    self.settings['recording_consent_accepted_at'] = params['recording_consent_accepted_at'].presence || Time.now.utc.iso8601
+    true
+  end
+  private :process_beta_feedback_recording
+
+  def attach_beta_feedback_recording
+    return true unless @beta_feedback_recording
+
+    @beta_feedback_recording.with_lock do
+      @beta_feedback_recording.reload
+
+      if @beta_feedback_recording.contact_message_id.present? && @beta_feedback_recording.contact_message_id != self.id
+        raise ActiveRecord::RecordNotSaved, "Recording upload was already used"
+      end
+
+      @beta_feedback_recording.attach_to!(self) unless @beta_feedback_recording.contact_message_id == self.id
+    end
+    true
+  end
+
+  def process_beta_feedback_screenshot(data)
+    return true if data.blank?
+    s = data.to_s.strip
+    m = s.match(/\Adata:(image\/(?:png|jpeg|jpg|gif|webp));base64,([\sA-Za-z0-9+\/]+=*)\z/i)
+    unless m
+      add_processing_error("Invalid screenshot format")
+      return false
+    end
+    raw_b64 = m[2].gsub(/\s/, '')
+    max_b64 = 2_200_000
+    if raw_b64.length > max_b64
+      add_processing_error("Screenshot too large (max about 1.5 MB)")
+      return false
+    end
+    ext = case m[1].downcase
+          when 'image/jpeg', 'image/jpg' then 'jpg'
+          when 'image/png' then 'png'
+          when 'image/gif' then 'gif'
+          when 'image/webp' then 'webp'
+          else 'png'
+          end
+    self.settings['screenshot_filename'] = "screenshot.#{ext}"
+    self.settings['screenshot_base64'] = raw_b64
+    true
+  end
+  private :process_beta_feedback_screenshot
   
   def deliver_remotely
     body = "<i>Source App: #{(JsonApi::Json.current_domain['settings'] || {})['app_name'] || "CoughDroop"}</i><br/>"

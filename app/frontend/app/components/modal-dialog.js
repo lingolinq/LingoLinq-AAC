@@ -7,25 +7,66 @@ import modal from '../utils/modal';
 import { observer } from '@ember/object';
 
 export default Component.extend({
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.onAnySelect = function(e) {
+      self.send('any_select', e);
+    };
+  },
   didRender: function() {
     if(!this || typeof this.get !== 'function' || this.isDestroyed || this.isDestroying) { return; }
+    if (this.get('standalone')) {
+      var el = this.get('element');
+      if (el && !this.isDestroyed && !this.isDestroying) {
+        var height = $(window).height() - 50;
+        $(el).find('.modal-content--standalone').css('maxHeight', height).css('overflow', 'auto');
+      }
+      return;
+    }
     this.stretch();
     if(!this.get('already_opened')) {
       this.set('already_opened', true);
+      // Capture the element that had focus before the modal opened so
+      // willDestroy can return focus to it on close (WCAG 2.1.2 / 2.4.3
+      // best practice — added 2026-04-11 per WCAG audit). We store it on
+      // the component instance, not via a service, since modal-dialog is
+      // already the natural single source of truth for modal lifecycle.
+      try {
+        var prevFocus = document.activeElement;
+        if (prevFocus && prevFocus !== document.body && typeof prevFocus.focus === 'function') {
+          this._previously_focused = prevFocus;
+        }
+      } catch(e) { }
       // Access closure action via get() - direct property access bypasses Ember's property system
       var opening = this.get('opening');
       if (opening && typeof opening === 'function') {
         opening();
       }
-      
-      // Accessibility: Focus first tabbable element or the modal itself
+
+      // Accessibility (ARIA APG dialog pattern): initial focus.
+      // A modal may OPT IN to "focus a static element first" by marking one with
+      // [data-autofocus] — e.g. read-first dialogs (terms agreement) focus their
+      // title so it's announced and the body isn't skipped, and Tab then walks to
+      // the controls. Otherwise fall back to the general default: focus the first
+      // tabbable element, or the modal container.
       runLater(() => {
         if (this.isDestroyed || this.isDestroying || !this.element) { return; }
-        const tabbable = $(this.element).find('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])').filter(':visible');
-        if (tabbable.length > 0) {
-          tabbable[0].focus();
+        const explicit = Array.prototype.slice.call(this.element.querySelectorAll('[data-autofocus]'))
+          .find((el) => el.getClientRects().length > 0);
+        if (explicit) {
+          if (explicit.getAttribute('tabindex') == null) { explicit.setAttribute('tabindex', '-1'); }
+          explicit.focus();
+          return;
+        }
+        const focusable = Array.prototype.slice.call(
+          this.element.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+        ).find((el) => el.getClientRects().length > 0);
+        if (focusable) {
+          focusable.focus();
         } else {
-          $(this.element).find('.modal-content').attr('tabindex', '-1').focus();
+          const content = this.element.querySelector('.modal-content');
+          if (content) { content.setAttribute('tabindex', '-1'); content.focus(); }
         }
       }, 100);
     }
@@ -117,6 +158,17 @@ export default Component.extend({
         }
       } catch(e) { }
     }
+    // Restore focus to the element that had it before the modal opened
+    // (WCAG 2.1.2 / 2.4.3 best practice — added 2026-04-11). Skip if the
+    // saved element is no longer in the DOM (e.g. its containing route
+    // unmounted while the modal was open).
+    try {
+      var prev = this._previously_focused;
+      if (prev && document.body.contains(prev) && typeof prev.focus === 'function') {
+        prev.focus();
+      }
+      this._previously_focused = null;
+    } catch(e) { }
     if(modal.component === this) {
       modal.component = null;
     }
@@ -138,7 +190,7 @@ export default Component.extend({
     }
     if(this.last_started_on_modal) {
       this.last_started_on_modal = false;
-      if(!ignore) {
+      if(!ignore && !this.get('uncloseable')) {
         this.send('close', event);
       }
     }
@@ -150,8 +202,9 @@ export default Component.extend({
     close: function(event) {
       if(!this || typeof this.get !== 'function') { return; }
       var isBackdropClick = event && event.target && $(event.target).hasClass('modal');
+      if (this.get('uncloseable') && isBackdropClick) { return; }
       var isExplicitButtonCall = event && (event.type === 'click' || event.type === 'keydown') && !isBackdropClick;
-      
+
       if(isBackdropClick) {
         try {
           event.preventDefault();

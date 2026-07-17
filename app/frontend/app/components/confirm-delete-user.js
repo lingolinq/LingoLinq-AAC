@@ -4,6 +4,7 @@ import { later as runLater } from '@ember/runloop';
 import i18n from '../utils/i18n';
 import session from '../utils/session';
 import modalUtil from '../utils/modal';
+import actionLock from '../utils/action-lock';
 
 /**
  * Confirm Delete User Modal Component
@@ -18,6 +19,28 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+
     const modalService = this.get('modal');
     const template = 'modals/confirm-delete-user';
     const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
@@ -46,22 +69,36 @@ export default Component.extend({
       if (user_name !== user.user_name) {
         this.set('error', i18n.t('wrong_user_name', "User name isn't correct"));
       } else {
-        this.persistence.ajax('/api/v1/users/' + user_name + '/flush/user', {
-          type: 'POST',
-          data: {
-            confirm_user_id: user.id,
-            user_name: user_name
-          }
-        }).then(() => {
-          this.get('modal').close();
-          modalUtil.success(i18n.t('user_to_be_deleted', "Your user account will be deleted within approximately the next 24 hours."), false, true);
-          runLater(function() {
-            session.invalidate();
-          }, 10000);
-        }, () => {
-          this.set('error', i18n.t('user_delete_failed', "User account delete failed unexpectedly"));
-        });
+        return actionLock.run('delete-user:' + user.id, () => {
+          this.set('deleting', true);
+          return this.persistence.ajax('/api/v1/users/' + user_name + '/flush/user', {
+            type: 'POST',
+            data: {
+              confirm_user_id: user.id,
+              user_name: user_name
+            }
+          }).then(() => {
+            this.set('deleting', false);
+            this.get('modal').close();
+            modalUtil.success(i18n.t('user_to_be_deleted', "Your user account will be deleted within approximately the next 24 hours."), false, true);
+            runLater(function() {
+              session.invalidate();
+            }, 10000);
+          }, () => {
+            this.set('deleting', false);
+            this.set('error', i18n.t('user_delete_failed', "User account delete failed unexpectedly"));
+          });
+        }, {timeout: 10000});
       }
     }
-  }
+  },
+
+  didInsertElement() {
+  this._super(...arguments);
+  var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
+},
+
 });

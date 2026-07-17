@@ -38,6 +38,7 @@ end
 task :clean_old_deleted_boards => :environment do
   User.schedule_for(:slow, :flush_old_versions)
   Worker.schedule(Flusher, :flush_resque_errors)
+  Worker.schedule_for(:slow, Flusher, :flush_leftovers)
   puts "Cleaning old deleted boards..."
   count = DeletedBoard.flush_old_records
   JobStash.flush_old_records
@@ -126,6 +127,7 @@ task "scheduler:dispatch" => :environment do
     run_task.call("clean_old_deleted_boards") do
       User.schedule_for(:slow, :flush_old_versions)
       Worker.schedule(Flusher, :flush_resque_errors)
+      Worker.schedule_for(:slow, Flusher, :flush_leftovers)
       count = DeletedBoard.flush_old_records
       JobStash.flush_old_records
       "#{count} deleted"
@@ -137,9 +139,29 @@ task "scheduler:dispatch" => :environment do
       "#{count} stale sessions purged"
     end
 
+    run_task.call("redact_old_ai_api_log_ips") do
+      count = AiApiLog.redact_old_ip_addresses!
+      "#{count} AI log IPs redacted"
+    end
+
+    run_task.call("purge_old_eu_ai_api_logs") do
+      count = AiApiLog.purge_old_eu_logs!
+      "#{count} EU AI logs purged (5-year retention)"
+    end
+
     run_task.call("expire_stale_supervisor_consent_requests") do
       count = SupervisorConsentExpirationWorker.perform
       "#{count} expired"
+    end
+
+    run_task.call("flush_expired_beta_feedback_recordings") do
+      count = BetaFeedbackRecording.flush_expired
+      "#{count} recordings deleted"
+    end
+
+    run_task.call("expire_licenses") do
+      count = License.expire_stale_licenses!
+      "#{count} licenses expired"
     end
   end
 

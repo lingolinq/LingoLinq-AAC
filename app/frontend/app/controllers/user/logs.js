@@ -8,11 +8,16 @@ import app_state from '../../utils/app_state';
 import EmberObject from '@ember/object';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
-import { reads } from '@ember/object/computed';
+import { alias, reads } from '@ember/object/computed';
 import LingoLinq from '../../app';
+import evaluation from '../../utils/eval';
 import { inject as service } from '@ember/service';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
+  router: service('router'),
   store: service(),
   queryParams: ['type', 'start', 'end', 'highlighted', 'device_id', 'location_id'],
   user: reads('model'),
@@ -56,21 +61,52 @@ export default Controller.extend({
   all_logs: computed('type', 'filtered_results', 'highlighted', function() {
     return !this.get('filtered_results') && (!this.get('type') || this.get('type') == 'all') && this.get('highlighted') != '1';
   }),
-  pending_eval: computed(function() {
+  pending_eval: computed('logs', 'model.id', function() {
     var user_id = this.get('model.id');
-    var assessment = app_state.get('last_assessment_for_' + user_id) || {};
+    var user_name = this.get('model.user_name');
+    var assessment = evaluation.last_assessment_from_memory(user_id, user_name) || {};
     var saved = false;
     var _this = this;
-    (_this.get('logs') || []).forEach(function(log) {
-      if(assessment.uid && log.get('eval.uid') == assessment.uid) {
+    var logs = _this.get('logs');
+    if (!Array.isArray(logs)) {
+      logs = [];
+    }
+    logs.forEach(function(log) {
+      var evalData = log.get('evaluation');
+      if (assessment.uid && evalData && evalData.uid == assessment.uid) {
         saved = true;
-        app_state.set('last_assessment_for_' + user_id, null);
+        evaluation.clear_last_assessment_memory(user_id, user_name);
       }
     });
-    if(!saved && assessment.uid) {
+    if (!saved && assessment.uid) {
       return assessment;
     }
   }),
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
     obl_export: function() {
       modal.open('download-log', {user: this.get('model')});
@@ -128,7 +164,7 @@ export default Controller.extend({
       this.set('logs', {loading: true});
 
       this.store.query('log', args).then(function(list) {
-        controller.set('logs', list.map(function(i) { return i; }));
+        controller.set('logs', list.slice());
         var meta = $.extend({}, list.meta);
         controller.set('meta', meta);
         // weird things happen if we try to observe meta.next_url, it stops
@@ -170,7 +206,7 @@ export default Controller.extend({
         if(this.get('location_id')) { args.location_id = this.get('location_id'); }
         var find = this.store.query('log', args);
         find.then(function(list) {
-          _this.set('logs', _this.get('logs').concat(list.map(function(i) { return i; })));
+          _this.set('logs', _this.get('logs').concat(list.slice()));
           var meta = $.extend({}, list.meta);
           _this.set('meta', meta);
           _this.set('more_available', !!meta.next_url);
@@ -195,7 +231,7 @@ export default Controller.extend({
       var user_id = _this.get('model.id');
       LingoLinq.Log.import(file, log_type, user_id).then(function(logs) {
         if(logs.length == 1) {
-          _this.transitionToRoute('user.log', _this.get('model.user_name'), logs[0]);
+          _this.router.transitionTo('user.log', _this.get('model.user_name'), logs[0]);
         } else {
           _this.send('refresh');
           modal.success(i18n.t('logs_imported', "Your logs have been imported!"));

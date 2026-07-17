@@ -1,0 +1,37 @@
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
+  <div class="modal-header md-modal-header">
+    <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3>
+      {{t "Download Log" key="download_log"}}
+    </h3>
+  </div>
+  <div class="modal-body md-modal-body">
+    {{#if this.model.user}}
+      <img src={{this.model.user.avatar_url_with_fallback}} style='width: 80px; height: 80px; float: left; margin: 0 10px 10px 0;' class='fit' >
+    {{else if this.model.log}}
+      <span class='glyphicon glyphicon-time' style='font-size: 60px; float: left; margin: 0 10px 10px 0;'></span>
+    {{/if}}
+    {{#if this.status.downloading}}
+      <p>{{t "Generating log file for download..." key="generating_log"}}</p>
+    {{else if this.status.url}}
+      <p>{{t "Download complete!" key="download_complete"}}</p>
+      <p>
+        <a href={{this.status.url}} target="_blank" class='btn btn-lg btn-primary' rel="noopener">Download {{this.status.file_name}}</a>
+      </p>
+    {{else if this.status.errored}}
+      <p>{{t "There was an error downloading the log file" key="error_downloading_log"}}</p>
+    {{else if this.model.user}}
+      <p>{{t "%app_name% will generate a file containing <b>a full history of the %{un}'s logs</b> as an <a href='https://www.openboardformat.org/docs' target='_blank' rel='noopener'>open board log file</a> which you can download and share with your team or upload into another system. If you have been using %app_name% for a long time then this could take a while. Would you like to continue?" un=this.model.user.user_name key="confirm_user_log_download"}}</p>
+      <button class='btn btn-primary' {{on "click" (this.ctrlAction "download")}}>{{t "Generate Download (.obl)" key="generate_download"}}</button>
+      <button class='btn btn-default' {{on "click" (this.ctrlAction "download" "obla")}}>{{t "Generate .obla" key="generate_obla"}}</button>
+    {{else}}
+      <p>{{t "Missing Log Information" key="missing_log_information"}}</p>
+    {{/if}}
+    <div style='clear: left;'></div>
+  </div>
+  <div class="modal-footer md-modal-footer">
+    <button {{on "click" (this.ctrlAction "close")}} class="btn btn-default">{{t "Cancel" key="cancel"}}</button>
+  </div>
+</ModalDialog>

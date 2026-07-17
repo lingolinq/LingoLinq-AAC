@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 220" width="400" height="220">
+  <defs>
+    <!-- Light teal (50%) - main wave layers -->
+    <linearGradient id="tealWave1" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#7DD3CF;stop-opacity:0.5"/>
+      <stop offset="100%" style="stop-color:#B8E6E3;stop-opacity:0.25"/>
+    </linearGradient>
+    <linearGradient id="tealWave2" x1="0%" y1="80%" x2="100%" y2="20%">
+      <stop offset="0%" style="stop-color:#B8E6E3;stop-opacity:0.45"/>
+      <stop offset="100%" style="stop-color:#E9F9F8;stop-opacity:0.2"/>
+    </linearGradient>
+    <linearGradient id="tealWave3" x1="0%" y1="60%" x2="100%" y2="40%">
+      <stop offset="0%" style="stop-color:#2CB7B0;stop-opacity:0.2"/>
+      <stop offset="100%" style="stop-color:#7DD3CF;stop-opacity:0.4"/>
+    </linearGradient>
+    <!-- Light blue (25%) -->
+    <linearGradient id="blueWave1" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#A8D4F0;stop-opacity:0.35"/>
+      <stop offset="100%" style="stop-color:#C5E4F7;stop-opacity:0.2"/>
+    </linearGradient>
+    <linearGradient id="blueWave2" x1="0%" y1="70%" x2="100%" y2="30%">
+      <stop offset="0%" style="stop-color:#7EB8E8;stop-opacity:0.25"/>
+      <stop offset="100%" style="stop-color:#A8D4F0;stop-opacity:0.15"/>
+    </linearGradient>
+    <!-- Yellow (25%) - journey / warmth -->
+    <linearGradient id="yellowWave1" x1="0%" y1="90%" x2="100%" y2="10%">
+      <stop offset="0%" style="stop-color:#FBF0C3;stop-opacity:0.4"/>
+      <stop offset="100%" style="stop-color:#F5E6A3;stop-opacity:0.25"/>
+    </linearGradient>
+    <linearGradient id="yellowWave2" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" style="stop-color:#F5E6A3;stop-opacity:0.2"/>
+      <stop offset="100%" style="stop-color:#FBF0C3;stop-opacity:0.35"/>
+    </linearGradient>
+  </defs>
+  <!-- Journey / path metaphor: layered flowing waves (top section - unchanged so positioning stays identical) -->
+  <path d="M0 100 Q50 60 100 75 T200 55 T300 70 T400 50 L400 220 L0 220 Z" fill="url(#tealWave3)"/>
+  <path d="M0 95 Q80 50 160 70 T320 45 T400 65 L400 220 L0 220 Z" fill="url(#tealWave1)"/>
+  <path d="M0 85 Q60 45 120 60 T240 40 T360 55 T400 45 L400 220 L0 220 Z" fill="url(#blueWave1)"/>
+  <path d="M0 90 Q100 55 200 65 T400 55 L400 220 L0 220 Z" fill="url(#yellowWave1)"/>
+  <path d="M0 75 Q70 35 140 50 T280 30 T400 48 L400 220 L0 220 Z" fill="url(#tealWave2)"/>
+  <path d="M0 70 Q90 40 180 52 T360 38 T400 42 L400 220 L0 220 Z" fill="url(#blueWave2)"/>
+  <path d="M0 65 Q80 30 160 45 T320 28 T400 40 L400 220 L0 220 Z" fill="url(#yellowWave2)"/>
+  <path d="M0 58 Q100 25 200 38 T400 32 L400 220 L0 220 Z" fill="url(#tealWave1)"/>
+  <!-- Extended waves below (revealed when image height is 100%) - same style, continues journey -->
+  <path d="M0 120 Q80 160 160 145 T320 165 T400 150 L400 220 L0 220 Z" fill="url(#tealWave3)"/>
+  <path d="M0 130 Q100 170 200 155 T400 175 L400 220 L0 220 Z" fill="url(#tealWave1)"/>
+  <path d="M0 140 Q60 180 140 165 T300 185 T400 170 L400 220 L0 220 Z" fill="url(#blueWave1)"/>
+  <path d="M0 150 Q90 190 180 175 T360 195 T400 185 L400 220 L0 220 Z" fill="url(#yellowWave1)"/>
+  <path d="M0 165 Q70 205 150 190 T350 210 T400 200 L400 220 L0 220 Z" fill="url(#tealWave2)"/>
+</svg>

@@ -1,5 +1,6 @@
 class UserMailer < ActionMailer::Base
   include General
+  include SystemEmailOverride
   helper MailerHelper
   default from: ENV['DEFAULT_EMAIL_FROM']
   layout 'email'
@@ -10,6 +11,22 @@ class UserMailer < ActionMailer::Base
     users.each do |user|
       user.update_setting('email_disabled', true)
     end
+  end
+
+  # Queues or immediately delivers parent-facing COPPA mailers. In development,
+  # set INLINE_PARENTAL_CONSENT_EMAIL=1 to bypass Resque (same as signup request).
+  def self.schedule_parent_consent_delivery(delivery_type, user_id)
+    if Rails.env.development? && inline_parental_consent_email?
+      deliver_message(delivery_type, user_id)
+      Rails.logger.info("[COPPA] #{delivery_type} delivered inline for user=#{user_id}")
+    else
+      schedule_delivery(delivery_type, user_id)
+      Rails.logger.info("[COPPA] #{delivery_type} queued for user=#{user_id} (start Resque priority worker, or set INLINE_PARENTAL_CONSENT_EMAIL=1 in development)")
+    end
+  end
+
+  def self.inline_parental_consent_email?
+    %w[1 true yes on].include?(ENV['INLINE_PARENTAL_CONSENT_EMAIL'].to_s.strip.downcase)
   end
 
   def new_user_registration(user_id)
@@ -265,6 +282,92 @@ class UserMailer < ActionMailer::Base
   def valet_password_used(user_id)
     @user = User.find_by_global_id(user_id)
     mail_message(@user, "Valet Login Used") if @user
+  end
+
+  # Sends the approval link to the parent/guardian address collected at signup (settings['coppa']['parent_email']),
+  # not the child's account email. Delivery is normally via UserMailer.schedule_delivery -> Resque.
+  def parental_consent_request(user_id)
+    @user = User.find_by_global_id(user_id)
+    c = (@user && @user.settings) ? @user.settings['coppa'] : nil
+    subject = SystemEmailI18n.resolve('user_mailer/parental_consent_request', 'parental_consent_mailer.subject', 'app_name' => app_name)
+
+    unless c.is_a?(Hash) && c['parent_email'].present? && c['parent_consent_token'].present?
+      Rails.logger.warn("Skipping parental_consent_request for user #{user_id}: missing COPPA parent_email or parent_consent_token")
+      message = mail(subject: subject)
+      message.perform_deliveries = false
+      return message
+    end
+
+    esc_tok = CGI.escape(c['parent_consent_token'].to_s)
+    @consent_url = "#{JsonApi::Json.current_host}/parental_consent/complete?user_id=#{@user.global_id}&token=#{esc_tok}"
+    # COPPA direct-notice: surface our privacy practices to the parent before they consent.
+    @privacy_url = "#{JsonApi::Json.current_host}/privacy"
+    @child_name = @user.settings['name']
+    @parent_email = c['parent_email']
+    from = JsonApi::Json.current_domain['settings']['admin_email']
+    opts = {to: @parent_email, subject: subject}
+    opts[:from] = from if !from.blank?
+    mail(opts)
+  end
+
+  # COPPA email-plus confirmatory message to the parent after they approve the child account.
+  def parental_consent_confirmation(user_id)
+    @user = User.find_by_global_id(user_id)
+    c = (@user && @user.settings) ? @user.settings['coppa'] : nil
+    subject = SystemEmailI18n.resolve('user_mailer/parental_consent_confirmation', 'parental_consent_confirmation_mailer.subject', 'app_name' => app_name)
+
+    unless c.is_a?(Hash) && c['parent_email'].present? && c['parent_consent_granted_at'].present? && c['parent_consent_revoke_token'].present?
+      Rails.logger.warn("Skipping parental_consent_confirmation for user #{user_id}: missing COPPA parent_email, grant timestamp, or revoke token")
+      message = mail(subject: subject)
+      message.perform_deliveries = false
+      return message
+    end
+
+    esc_tok = CGI.escape(c['parent_consent_revoke_token'].to_s)
+    @revoke_url = "#{JsonApi::Json.current_host}/parental_consent/revoke?user_id=#{@user.global_id}&token=#{esc_tok}"
+    @privacy_url = "#{JsonApi::Json.current_host}/privacy"
+    @contact_url = "#{JsonApi::Json.current_host}/contact"
+    @child_name = @user.settings['name']
+    @child_username = @user.display_user_name
+    @parent_email = c['parent_email']
+    @granted_at = begin
+      Time.iso8601(c['parent_consent_granted_at']).utc
+    rescue ArgumentError
+      nil
+    end
+    from = JsonApi::Json.current_domain['settings']['admin_email']
+    opts = {to: @parent_email, subject: subject}
+    opts[:from] = from if !from.blank?
+    mail(opts)
+  end
+
+  # Acknowledges to the parent that parental consent was withdrawn.
+  def parental_consent_revoked(user_id)
+    @user = User.find_by_global_id(user_id)
+    c = (@user && @user.settings) ? @user.settings['coppa'] : nil
+    subject = SystemEmailI18n.resolve('user_mailer/parental_consent_revoked', 'parental_consent_revoked_mailer.subject', 'app_name' => app_name)
+
+    unless c.is_a?(Hash) && c['parent_email'].present? && c['parent_consent_revoked_at'].present?
+      Rails.logger.warn("Skipping parental_consent_revoked for user #{user_id}: missing COPPA parent_email or revoke timestamp")
+      message = mail(subject: subject)
+      message.perform_deliveries = false
+      return message
+    end
+
+    @privacy_url = "#{JsonApi::Json.current_host}/privacy"
+    @contact_url = "#{JsonApi::Json.current_host}/contact"
+    @child_name = @user.settings['name']
+    @child_username = @user.display_user_name
+    @parent_email = c['parent_email']
+    @revoked_at = begin
+      Time.iso8601(c['parent_consent_revoked_at']).utc
+    rescue ArgumentError
+      nil
+    end
+    from = JsonApi::Json.current_domain['settings']['admin_email']
+    opts = {to: @parent_email, subject: subject}
+    opts[:from] = from if !from.blank?
+    mail(opts)
   end
 
 end

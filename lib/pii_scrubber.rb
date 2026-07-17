@@ -1,12 +1,40 @@
 # frozen_string_literal: true
 
 module PiiScrubber
+  # Common first-name gazetteer for the AI-egress path (redact_for_ai / scan_for_pii).
+  # Source: US Social Security Administration baby-name data (public domain), names
+  # given to at least 1,000 babies in a single year, 1880-present (~1,656 entries).
+  # This closes a real gap the account-holder blocklist cannot: a parent/SLP can type
+  # ANY name -- a child's, a sibling's, a classmate's -- into a free-text AI prompt
+  # (e.g. the board-generation topic field), and only the account holder's OWN name is
+  # ever in the blocklist. Deliberately biased toward over-matching: a common English
+  # word that is also a name (e.g. "Grace", "Hope", "Will") gets redacted even when used
+  # as an ordinary word, the same tradeoff already accepted for the SSN pattern above
+  # (see scrub_log_line's plausible_ssn_format? comment) -- catching an actual child's
+  # name outweighs occasionally over-redacting a common word in a short topic prompt.
+  COMMON_FIRST_NAMES = File.readlines(File.join(__dir__, 'data', 'common_first_names.txt'), chomp: true)
+                            .map(&:downcase).to_set.freeze
+
   # Patterns for detecting PII
-  EMAIL_PATTERN = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/
+  EMAIL_PATTERN = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/
   PHONE_PATTERN = /\b(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/
   SSN_PATTERN = /\b\d{3}-\d{2}-\d{4}\b/
   IP_PATTERN = /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/
   GLOBAL_ID_PATTERN = /\b\d+_\d+(_[a-zA-Z0-9]+)?\b/
+
+  # Log-line patterns (stricter or broader than AI-egress patterns where appropriate).
+  # Quoted local-part, dotted-domain, or single-label host (e.g. user@localhost).
+  LOG_EMAIL_PATTERN = /
+    (?:
+      "[^"]+"@[A-Za-z0-9][A-Za-z0-9.-]*\.[A-Za-z]{2,}
+      |
+      [A-Za-z0-9._%+-]+@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,}
+      |
+      [A-Za-z0-9._%+-]+@[A-Za-z][A-Za-z0-9-]*
+    )
+  \b/x
+  # Requires explicit phone separators so bare 10-digit epoch timestamps are not matched.
+  LOG_PHONE_PATTERN = /\b(?:\+?1[-.\s])?(?:\(\d{3}\)|\d{3})[-.\s]\d{3}[-.\s]\d{4}\b/
 
   # Hash keys that contain user-identifiable information
   IDENTITY_KEYS = %i[
@@ -228,8 +256,60 @@ module PiiScrubber
       scan_pattern(text, IP_PATTERN, :ip_address, findings)
       scan_pattern(text, GLOBAL_ID_PATTERN, :global_id, findings)
       scan_blocklist(text, findings)
+      # Structured patterns above can contain a name-shaped substring (e.g. "alice"
+      # inside "alice@example.com"); skip common-name matches already covered by one
+      # of those spans so a single email/phone/etc. is not double-reported.
+      occupied = structured_pattern_ranges(text)
+      scan_common_names(text, findings, occupied)
 
       findings.sort_by { |f| f[:position] }
+    end
+
+    # Defense-in-depth scrub for a single formatted log line. BACKSTOP ONLY --
+    # per-call-site log hygiene (log global_id not user_name, never log raw user
+    # content) is the primary control. Pattern classes scrubbed here:
+    #
+    #   - EMAIL (LOG_EMAIL_PATTERN): dotted-domain, single-label host
+    #     (user@localhost), and quoted-local-part ("user"@example.com).
+    #   - PHONE (LOG_PHONE_PATTERN): US-style numbers with required separators
+    #     (parens/dashes/dots/spaces). Bare 10-digit runs (epoch timestamps) are
+    #     deliberately skipped.
+    #   - SSN (SSN_PATTERN + plausible_ssn_format?): 3-2-4 dashed numerics that
+    #     pass SSA-invalid checks (not 000/666 area, not 00 group, not 0000 serial).
+    #     Still OVER-matches some order/part ids shaped like valid SSNs -- accepted
+    #     in a HIPAA-scoped sink where catching free-text SSNs outweighs masking ids.
+    #   - IP (IP_PATTERN): full IPv4 literals. Rack request logs are already
+    #     /24-masked upstream (rack_logger.rb); this catches leaks from other paths.
+    #
+    # Deliberately does NOT touch names/usernames/utterances/board-labels (no
+    # reliable regex; this is the app's real PHI and stays a call-site concern)
+    # or global_id (opaque, intentionally retained in some diagnostic warns).
+    #
+    # Scope: only lines emitted through config.log_formatter (PiiScrubbingFormatter
+    # on production Rails/Resque stdout). Third-party gems that write directly to
+    # stderr or bypass the formatter are out of scope.
+    #
+    # Wrapped in a rescue so a scrub failure fails open (returns the line) and can
+    # never break logging. Uses log_line_needs_scrub? for a cheap pre-check.
+    #
+    # @param text [String] a fully-formatted log line
+    # @return [String] the line with detectable PII redacted
+    def scrub_log_line(text)
+      return text unless text.is_a?(String)
+      return text unless log_line_needs_scrub?(text)
+
+      result = text
+      result = result.gsub(LOG_EMAIL_PATTERN, '[REDACTED_EMAIL]') if result.include?('@')
+      result = result.gsub(LOG_PHONE_PATTERN, '[REDACTED_PHONE]') if result.match?(LOG_PHONE_PATTERN)
+      if result.match?(SSN_PATTERN)
+        result = result.gsub(SSN_PATTERN) do |match|
+          plausible_ssn_format?(match) ? '[REDACTED_SSN]' : match
+        end
+      end
+      result = result.gsub(IP_PATTERN, '[REDACTED_IP]') if result.match?(IP_PATTERN)
+      result
+    rescue StandardError
+      text
     end
 
     # Configure a blocklist of names that should always be redacted.
@@ -256,6 +336,30 @@ module PiiScrubber
     end
 
     private
+
+    # Cheap gate before running log-line regex passes.
+    def log_line_needs_scrub?(text)
+      return true if text.include?('@')
+      return true if text.include?('-') && text.match?(SSN_PATTERN)
+      return true if text.match?(LOG_PHONE_PATTERN)
+      return true if text.match?(IP_PATTERN)
+
+      false
+    end
+
+    # SSA-invalid SSN components (000 area, 666 area, 00 group, 0000 serial).
+    # Does not eliminate all 3-2-4 false positives (e.g. order ids).
+    def plausible_ssn_format?(token)
+      parts = token.split('-')
+      return false unless parts.size == 3 && parts.all? { |p| p.match?(/\A\d+\z/) }
+
+      area, group, serial = parts.map(&:to_i)
+      return false if area.zero? || area == 666
+      return false if group.zero?
+      return false if serial.zero?
+
+      true
+    end
 
     # Deep copy a hash/array structure to avoid mutating the original
     def deep_copy(obj)
@@ -428,6 +532,7 @@ module PiiScrubber
       result = redact_pattern(result, IP_PATTERN, '[REDACTED_IP]', :ip_address, findings)
       result = redact_pattern(result, GLOBAL_ID_PATTERN, '[REDACTED_ID]', :global_id, findings)
       result = redact_blocklist_names(result, findings)
+      result = redact_common_names(result, findings)
 
       result
     end
@@ -519,6 +624,48 @@ module PiiScrubber
         end
       end
       result
+    end
+
+    # Character ranges already matched by a structured PII pattern (email, phone,
+    # ssn, ip, global_id), used to keep scan_common_names from double-reporting a
+    # name-shaped substring inside one of those (e.g. "alice" in "alice@example.com").
+    def structured_pattern_ranges(text)
+      [EMAIL_PATTERN, PHONE_PATTERN, SSN_PATTERN, IP_PATTERN, GLOBAL_ID_PATTERN].flat_map do |pattern|
+        text.to_enum(:scan, pattern).map { Regexp.last_match.begin(0)...Regexp.last_match.end(0) }
+      end
+    end
+
+    # Scan text against the common first-name gazetteer (any name, not just the
+    # account holder's own -- see COMMON_FIRST_NAMES comment for rationale).
+    # `occupied`: optional array of Ranges to skip (already-matched structured PII).
+    def scan_common_names(text, findings, occupied = [])
+      text.scan(/\b[A-Za-z]+\b/) do
+        match = Regexp.last_match
+        next unless COMMON_FIRST_NAMES.include?(match[0].downcase)
+        next if occupied.any? { |range| range.cover?(match.begin(0)) }
+
+        findings << {
+          type: :common_name,
+          value: redact_value_preview(match[0]),
+          position: match.begin(0)
+        }
+      end
+    end
+
+    # Redact common first-name matches from text, recording findings.
+    def redact_common_names(text, findings)
+      text.gsub(/\b[A-Za-z]+\b/) do |word|
+        if COMMON_FIRST_NAMES.include?(word.downcase)
+          findings << {
+            type: :common_name,
+            value: redact_value_preview(word),
+            position: Regexp.last_match.begin(0)
+          }
+          '[REDACTED_NAME]'
+        else
+          word
+        end
+      end
     end
 
     # Create a redacted preview of a PII value for logging purposes.

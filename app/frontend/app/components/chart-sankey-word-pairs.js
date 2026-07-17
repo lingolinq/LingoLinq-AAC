@@ -22,7 +22,7 @@ export default Component.extend({
 
     var list = data;
     if (list.get) {
-      list = list.toArray ? list.toArray() : list;
+      list = list.slice ? list.slice() : list;
     }
     var chartData = list.map(function(item) {
       var from = item.from || item.get && item.get('from');

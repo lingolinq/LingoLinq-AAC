@@ -1,0 +1,228 @@
+{{!-- "Edit Sidebar" — reuses the My Board Collection panel chrome
+      (md-board-collection__* header/search/section-card/list/row) so the two
+      surfaces read identically. Sections: items currently ON the sidebar (remove),
+      the user's own boards (Your Boards), and the categorized PUBLIC brand families
+      (adding one the user doesn't own copies it first — see the progress overlay).
+      Alert / Crisis Vocabulary always appear under Your Boards when not present. --}}
+<div class="md-board-collection__header">
+  <button type="button" class="md-board-collection__back" data-bd-action="close_sidebar_editor" {{on "click" (this.ctrlAction "back")}}>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <polyline points="15 18 9 12 15 6"/>
+    </svg>
+    <span>{{t "Back to Speak Mode" key="back_to_speak_mode"}}</span>
+  </button>
+  <div class="md-board-collection__title">{{t "Edit Sidebar" key="edit_sidebar"}}</div>
+  <div class="md-board-collection__search {{if this.search_active 'md-board-collection__search--active'}}">
+    <svg class="md-board-collection__search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="8"/>
+      <path d="m21 21-4.35-4.35"/>
+    </svg>
+    <input
+      type="text"
+      class="md-board-collection__search-input"
+      placeholder={{t "Search boards" key="board_collection_search_placeholder"}}
+      aria-label={{t "Search boards" key="board_collection_search_placeholder"}}
+      value={{this.search_query}}
+      {{on "input" (this.ctrlAction "update_search")}} />
+    {{#if this.search_active}}
+      <button type="button" class="md-board-collection__search-clear" {{on "click" (this.ctrlAction "clear_search")}} aria-label={{t "Clear search" key="clear_search"}}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    {{/if}}
+  </div>
+  <p class="md-sidebar-editor__hint">{{t "Drag and drop the boards below to change their order on your sidebar." key="sidebar_editor_reorder_hint"}}</p>
+</div>
+
+<div class="md-board-collection__body {{unless this.all_sections_loaded 'md-sidebar-editor__body--loading'}}">
+  {{!-- Hold all sections behind one loading message until My Boards AND every brand
+        family have resolved, so the rows (with their grid-size pills) appear fully
+        formed at once — no per-section pop-in / remove-add button shift as the
+        queries land one by one. --}}
+  {{#if this.all_sections_loaded}}
+  {{!-- Current sidebar items --}}
+  <section class="md-board-collection__section md-sidebar-editor__section--current">
+    <h3 class="md-board-collection__section-label"><span>{{t "On your sidebar" key="sidebar_editor_current"}}</span></h3>
+    {{#if this.current_items.length}}
+      <ul class="md-board-collection__list">
+        {{#each this.current_items as |item|}}
+          <li class="md-board-collection__row md-sidebar-editor__row md-sidebar-editor__row--current {{if item.is_hidden 'md-sidebar-editor__row--hidden'}} {{if (is_equal this.draggingIdx item.idx) 'md-sidebar-editor__row--dragging'}} {{if (is_equal this.dropTargetIdx item.idx) 'md-sidebar-editor__row--drop-target'}}" ondragover={{this.ctrlAction "row_drag_over" item}} ondragleave={{this.ctrlAction "row_drag_leave" item}} ondrop={{this.ctrlAction "row_drop" item}}>
+            {{#if item.reorderable}}
+              <span class="md-sidebar-editor__grip" draggable={{if this.reorder_enabled "true" "false"}} ondragstart={{this.ctrlAction "row_drag_start" item}} ondragend={{this.ctrlAction "row_drag_end"}} title={{t "Drag to reorder" key="sidebar_editor_drag_to_reorder"}} aria-hidden="true">
+                <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor" aria-hidden="true">
+                  <circle cx="2.5" cy="3" r="1.3"/><circle cx="7.5" cy="3" r="1.3"/>
+                  <circle cx="2.5" cy="8" r="1.3"/><circle cx="7.5" cy="8" r="1.3"/>
+                  <circle cx="2.5" cy="13" r="1.3"/><circle cx="7.5" cy="13" r="1.3"/>
+                </svg>
+              </span>
+            {{/if}}
+            <span class="md-sidebar-editor__display">
+              <img class="md-board-collection__item-icon" src={{item.image}} alt="" onerror="button_broken_image(this);">
+              <span class="md-board-collection__item-name">{{item.name}}</span>
+            </span>
+            {{#if item.reorderable}}
+              {{!-- Up/down reorder — keyboard + touch friendly companion to the drag
+                   handle (drag is mouse-only). --}}
+              <span class="md-sidebar-editor__reorder">
+                <button type="button" class="md-sidebar-editor__reorder-btn" disabled={{item.is_first}} {{on "click" (this.ctrlAction "move_up" item)}} aria-label={{t "Move up" key="sidebar_editor_move_up"}} title={{t "Move up" key="sidebar_editor_move_up"}}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+                </button>
+                <button type="button" class="md-sidebar-editor__reorder-btn" disabled={{item.is_last}} {{on "click" (this.ctrlAction "move_down" item)}} aria-label={{t "Move down" key="sidebar_editor_move_down"}} title={{t "Move down" key="sidebar_editor_move_down"}}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </span>
+            {{/if}}
+            {{#if item.protected}}
+              {{!-- Crisis Vocabulary can't be removed — status pill, no control. --}}
+              <span class="md-sidebar-editor__locked-pill" title={{t "Always on your sidebar — can't be removed" key="sidebar_editor_cannot_remove"}}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <span>{{t "Always on" key="sidebar_editor_always_on"}}</span>
+              </span>
+            {{else if item.toggleable}}
+              {{!-- Alert: visibility toggle. Eye = shown, eye-slash = hidden. --}}
+              <button type="button" class="md-sidebar-editor__action md-sidebar-editor__action--toggle {{unless item.visible 'md-sidebar-editor__action--off'}}" disabled={{is_equal this.busy_id item.id}} {{on "click" (this.ctrlAction "toggle_alert" item)}} aria-label={{if item.visible (t "Hide from sidebar" key="sidebar_editor_hide") (t "Show on sidebar" key="sidebar_editor_show")}} title={{if item.visible (t "Hide from sidebar" key="sidebar_editor_hide") (t "Show on sidebar" key="sidebar_editor_show")}}>
+                {{#if item.visible}}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                {{else}}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                  </svg>
+                {{/if}}
+              </button>
+            {{else if (is_equal this.confirm_remove_idx item.idx)}}
+              <span class="md-sidebar-editor__confirm">
+                <span class="md-sidebar-editor__confirm-q">{{t "Remove from sidebar?" key="sidebar_editor_remove_q"}}</span>
+                <button type="button" class="md-sidebar-editor__confirm-btn md-sidebar-editor__confirm-btn--danger" {{on "click" (this.ctrlAction "confirm_remove" item)}}>{{t "Remove" key="remove_word"}}</button>
+                <button type="button" class="md-sidebar-editor__confirm-btn" {{on "click" (this.ctrlAction "cancel_remove")}}>{{t "Cancel" key="cancel"}}</button>
+              </span>
+            {{else}}
+              <button type="button" class="md-sidebar-editor__action md-sidebar-editor__action--remove" disabled={{is_equal this.busy_id item.id}} {{on "click" (this.ctrlAction "request_remove" item)}} aria-label={{t "Remove from sidebar" key="sidebar_editor_remove"}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            {{/if}}
+          </li>
+        {{/each}}
+      </ul>
+    {{else}}
+      <p class="md-board-collection__empty">{{t "Your sidebar is empty." key="sidebar_editor_empty"}}</p>
+    {{/if}}
+  </section>
+
+  {{!-- Your Boards (owned + Alert/Crisis defaults) --}}
+  <section class="md-board-collection__section">
+    <h3 class="md-board-collection__section-label"><span>{{t "Your Boards" key="sidebar_editor_your_boards"}}</span><span class="md-board-collection__grid-size-label">{{t "Grid size" key="grid_size"}}</span></h3>
+    {{#if (is_equal this.my_boards_state.state "loaded")}}
+      {{#if this.your_boards.length}}
+        <ul class="md-board-collection__list">
+          {{#each this.your_boards as |board|}}
+            <li class="md-board-collection__row md-sidebar-editor__row">
+              <span class="md-sidebar-editor__display">
+                <img class="md-board-collection__item-icon" src={{board.image}} alt="" onerror="button_broken_image(this);">
+                <span class="md-board-collection__item-name">{{board.name}}</span>
+                {{#if board.rows}}
+                  <span class="md-board-collection__item-count md-board-collection__item-count--grid">{{board.rows}} x {{board.columns}}</span>
+                {{/if}}
+              </span>
+              {{#if (is_equal this.confirm_add_id board.id)}}
+                <span class="md-sidebar-editor__confirm">
+                  <span class="md-sidebar-editor__confirm-q">{{t "Add to sidebar?" key="sidebar_editor_add_q"}}</span>
+                  <button type="button" class="md-sidebar-editor__confirm-btn md-sidebar-editor__confirm-btn--primary" {{on "click" (this.ctrlAction "confirm_add" board)}}>{{t "Add" key="add_word"}}</button>
+                  <button type="button" class="md-sidebar-editor__confirm-btn" {{on "click" (this.ctrlAction "cancel_add")}}>{{t "Cancel" key="cancel"}}</button>
+                </span>
+              {{else}}
+                <button type="button" class="md-sidebar-editor__action md-sidebar-editor__action--add" disabled={{is_equal this.busy_id board.id}} {{on "click" (this.ctrlAction "request_add" board)}} aria-label={{t "Add to sidebar" key="sidebar_editor_add"}}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                </button>
+              {{/if}}
+            </li>
+          {{/each}}
+        </ul>
+      {{else}}
+        <p class="md-board-collection__empty">{{t "No more boards to add." key="sidebar_editor_none_to_add"}}</p>
+      {{/if}}
+    {{else if (is_equal this.my_boards_state.state "error")}}
+      <p class="md-board-collection__error">{{t "Couldn't load boards" key="boards_load_error"}}</p>
+    {{else}}
+      <p class="md-board-collection__loading">{{t "Loading boards…" key="loading_boards"}}</p>
+    {{/if}}
+  </section>
+
+  {{!-- Categorized public brand families (Quick Core, Sequoia, Vocal Flair,
+        CommuniKate). Hidden once a family resolves to zero boards. Adding one
+        copies it into the user's library first (see the progress overlay). --}}
+  {{#each this.ordered_brands as |brand|}}
+    {{#unless (and (is_equal brand.state "loaded") (is_equal brand.boards.length 0))}}
+      <section class="md-board-collection__section">
+        <h3 class="md-board-collection__section-label"><span>{{t brand.default_label key=brand.label_key}}</span><span class="md-board-collection__grid-size-label">{{t "Grid size" key="grid_size"}}</span></h3>
+        {{#if (is_equal brand.state "loaded")}}
+          <ul class="md-board-collection__list">
+            {{#each brand.boards as |board|}}
+              <li class="md-board-collection__row md-sidebar-editor__row">
+                <span class="md-sidebar-editor__display">
+                  <img class="md-board-collection__item-icon" src={{board.image}} alt="" onerror="button_broken_image(this);">
+                  <span class="md-board-collection__item-name">{{board.name}}</span>
+                  {{#if board.rows}}
+                    <span class="md-board-collection__item-count md-board-collection__item-count--grid">{{board.rows}} x {{board.columns}}</span>
+                  {{/if}}
+                </span>
+                {{#if (is_equal this.confirm_add_id board.id)}}
+                  <span class="md-sidebar-editor__confirm">
+                    <span class="md-sidebar-editor__confirm-q">{{t "Add to sidebar?" key="sidebar_editor_add_q"}}</span>
+                    <button type="button" class="md-sidebar-editor__confirm-btn md-sidebar-editor__confirm-btn--primary" {{on "click" (this.ctrlAction "confirm_add" board)}}>{{t "Add" key="add_word"}}</button>
+                    <button type="button" class="md-sidebar-editor__confirm-btn" {{on "click" (this.ctrlAction "cancel_add")}}>{{t "Cancel" key="cancel"}}</button>
+                  </span>
+                {{else}}
+                  <button type="button" class="md-sidebar-editor__action md-sidebar-editor__action--add" disabled={{is_equal this.busy_id board.id}} {{on "click" (this.ctrlAction "request_add" board)}} aria-label={{t "Add to sidebar" key="sidebar_editor_add"}}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <line x1="12" y1="5" x2="12" y2="19"/>
+                      <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                  </button>
+                {{/if}}
+              </li>
+            {{/each}}
+          </ul>
+        {{else if (is_equal brand.state "error")}}
+          <p class="md-board-collection__error">{{t "Couldn't load boards" key="boards_load_error"}}</p>
+        {{else}}
+          <p class="md-board-collection__loading">{{t "Loading boards…" key="loading_boards"}}</p>
+        {{/if}}
+      </section>
+    {{/unless}}
+  {{/each}}
+  {{else}}
+    <p class="md-board-collection__loading md-sidebar-editor__loading-all">{{t "Loading boards…" key="loading_boards"}}</p>
+  {{/if}}
+</div>
+
+{{!-- Copy-in-progress overlay — shown while a public board is copied into the
+      user's library before it joins the sidebar. Reuses the board-collection
+      "premium progress" chrome (the solid bar fills to signal work in flight). --}}
+{{#if this.adding}}
+  <div class="md-board-collection__loading-overlay" role="status" aria-live="polite" aria-busy="true">
+    <div class="ll-premium-progress__card md-board-collection__loading-card">
+      <h2 class="ll-premium-progress__title">{{t "Adding to your sidebar" key="sidebar_editor_adding"}}</h2>
+      {{#if this.adding_board_name}}
+        <p class="ll-premium-progress__sub">{{this.adding_board_name}}</p>
+      {{else}}
+        <p class="ll-premium-progress__sub">{{t "Loading boards and communication resources" key="loading_boards_and_resources"}}</p>
+      {{/if}}
+      <div class="ll-premium-progress__bar" aria-hidden="true"></div>
+    </div>
+  </div>
+{{/if}}

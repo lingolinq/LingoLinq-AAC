@@ -1,0 +1,228 @@
+name: PR + Issue Aging Digest
+
+# Daily digest of open PRs and issues bucketed by age. Posts to Google
+# Chat. Skips silently if every bucket is empty (don't be noisy).
+#
+# Excluded from buckets:
+#   - PRs/issues with the `wip` label
+#   - PRs authored by dependabot or renovate
+#   - PRs with the `draft` flag set
+#
+# REQUIRED REPO SECRETS:
+#   GOOGLE_CHAT_WEBHOOK_AUTOMATION  -- Google Chat webhook for routine ops notifications
+#
+# MANUAL TRIGGER:
+#   gh workflow run aging-digest.yml
+
+on:
+  schedule:
+    # Daily 08:30 America/Los_Angeles == 15:30 UTC during PDT,
+    # 16:30 UTC during PST. We pick 15:30 UTC; same trade-off as the
+    # weekly release workflow.
+    - cron: '30 15 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Build aging digest
+        id: build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          PRS_RAW=$(gh pr list --repo "$REPO" --state open --limit 200 \
+            --json number,title,url,author,createdAt,updatedAt,labels,isDraft)
+          ISSUES_RAW=$(gh issue list --repo "$REPO" --state open --limit 200 \
+            --json number,title,url,author,createdAt,updatedAt,labels)
+
+          # Filter PRs: drop drafts, dependabot/renovate, wip-labeled
+          PRS=$(echo "$PRS_RAW" | jq '[
+            .[] |
+            select(.isDraft != true) |
+            select(.author.login // "" | test("^(dependabot|renovate)") | not) |
+            select(any(.labels[].name; ascii_downcase == "wip") | not)
+          ]')
+
+          # Filter issues: drop wip-labeled
+          ISSUES=$(echo "$ISSUES_RAW" | jq '[
+            .[] |
+            select(any(.labels[].name; ascii_downcase == "wip") | not)
+          ]')
+
+          NOW_EPOCH=$(date -u +%s)
+
+          # Bucket by age in days since createdAt
+          bucket_jq='
+            def days_ago: ((($now | tonumber) - (fromdateiso8601)) / 86400 | floor);
+            map({
+              number, title, url,
+              author: (.author.login // "unknown"),
+              age_days: (.createdAt | days_ago),
+              updated_age_days: (.updatedAt | days_ago)
+            })
+            | sort_by(-.age_days)
+          '
+          PRS_AGED=$(echo "$PRS"    | jq --arg now "$NOW_EPOCH" "$bucket_jq")
+          ISS_AGED=$(echo "$ISSUES" | jq --arg now "$NOW_EPOCH" "$bucket_jq")
+
+          # Buckets
+          PR_GT14=$(echo "$PRS_AGED" | jq '[.[] | select(.age_days > 14)]')
+          PR_GT7=$( echo "$PRS_AGED" | jq '[.[] | select(.age_days > 7  and .age_days <= 14)]')
+          PR_GT3=$( echo "$PRS_AGED" | jq '[.[] | select(.age_days > 3  and .age_days <= 7)]')
+
+          IS_GT14=$(echo "$ISS_AGED" | jq '[.[] | select(.age_days > 14)]')
+          IS_GT7=$( echo "$ISS_AGED" | jq '[.[] | select(.age_days > 7  and .age_days <= 14)]')
+          IS_GT3=$( echo "$ISS_AGED" | jq '[.[] | select(.age_days > 3  and .age_days <= 7)]')
+
+          # Counts
+          PR14_N=$(echo "$PR_GT14" | jq 'length')
+          PR7_N=$( echo "$PR_GT7"  | jq 'length')
+          PR3_N=$( echo "$PR_GT3"  | jq 'length')
+          IS14_N=$(echo "$IS_GT14" | jq 'length')
+          IS7_N=$( echo "$IS_GT7"  | jq 'length')
+          IS3_N=$( echo "$IS_GT3"  | jq 'length')
+          TOTAL=$((PR14_N + PR7_N + PR3_N + IS14_N + IS7_N + IS3_N))
+
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          echo "pr14=$PR14_N" >> $GITHUB_OUTPUT
+          echo "pr7=$PR7_N"   >> $GITHUB_OUTPUT
+          echo "pr3=$PR3_N"   >> $GITHUB_OUTPUT
+          echo "is14=$IS14_N" >> $GITHUB_OUTPUT
+          echo "is7=$IS7_N"   >> $GITHUB_OUTPUT
+          echo "is3=$IS3_N"   >> $GITHUB_OUTPUT
+
+          # Build a Google Chat Card v2 payload
+          fmt_widgets () {
+            # $1 = JSON array of {number,title,url,author,age_days}
+            echo "$1" | jq -r '
+              if length == 0 then
+                "[{\"textParagraph\": {\"text\": \"<i>(none)</i>\"}}]"
+              else
+                ([.[] | {
+                  textParagraph: {
+                    text: ("<b>#\(.number)</b> <a href=\"\(.url)\">\(.title | gsub("[<>&]"; ""))</a><br><font color=\"#888888\">\(.age_days)d old · @\(.author)</font>")
+                  }
+                }] | tostring)
+              end
+            '
+          }
+
+          PR14_W=$(fmt_widgets "$PR_GT14")
+          PR7_W=$( fmt_widgets "$PR_GT7")
+          PR3_W=$( fmt_widgets "$PR_GT3")
+          IS14_W=$(fmt_widgets "$IS_GT14")
+          IS7_W=$( fmt_widgets "$IS_GT7")
+          IS3_W=$( fmt_widgets "$IS_GT3")
+
+          DATE=$(date -u +%Y-%m-%d)
+
+          # Compose card
+          cat > /tmp/card.json <<EOF
+          {
+            "cardsV2": [{
+              "cardId": "aging-digest-${DATE}",
+              "card": {
+                "header": {
+                  "title": "📋 PR + Issue Aging Digest",
+                  "subtitle": "${DATE} · ${TOTAL} stale items"
+                },
+                "sections": [
+                  {
+                    "header": "PRs > 14 days (${PR14_N})",
+                    "collapsible": true,
+                    "uncollapsibleWidgetsCount": 5,
+                    "widgets": ${PR14_W}
+                  },
+                  {
+                    "header": "PRs > 7 days (${PR7_N})",
+                    "collapsible": true,
+                    "uncollapsibleWidgetsCount": 5,
+                    "widgets": ${PR7_W}
+                  },
+                  {
+                    "header": "PRs > 3 days (${PR3_N})",
+                    "collapsible": true,
+                    "uncollapsibleWidgetsCount": 5,
+                    "widgets": ${PR3_W}
+                  },
+                  {
+                    "header": "Issues > 14 days (${IS14_N})",
+                    "collapsible": true,
+                    "uncollapsibleWidgetsCount": 5,
+                    "widgets": ${IS14_W}
+                  },
+                  {
+                    "header": "Issues > 7 days (${IS7_N})",
+                    "collapsible": true,
+                    "uncollapsibleWidgetsCount": 5,
+                    "widgets": ${IS7_W}
+                  },
+                  {
+                    "header": "Issues > 3 days (${IS3_N})",
+                    "collapsible": true,
+                    "uncollapsibleWidgetsCount": 5,
+                    "widgets": ${IS3_W}
+                  }
+                ]
+              }
+            }]
+          }
+          EOF
+
+      - name: Skip if all buckets empty
+        id: gate
+        run: |
+          if [ '${{ steps.build.outputs.total }}' = '0' ]; then
+            echo "::notice::No stale PRs or issues, skipping post"
+            echo "post=false" >> $GITHUB_OUTPUT
+          elif [ '${{ github.event_name }}' = 'workflow_dispatch' ]; then
+            echo "post=true" >> $GITHUB_OUTPUT
+          else
+            echo "post=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Post to Google Chat
+        if: steps.gate.outputs.post == 'true'
+        env:
+          WEBHOOK_URL: ${{ secrets.GOOGLE_CHAT_WEBHOOK_AUTOMATION }}
+        run: |
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "::warning::GOOGLE_CHAT_WEBHOOK_AUTOMATION not set, skipping post"
+            exit 0
+          fi
+          curl -fsS -X POST -H 'Content-Type: application/json' \
+            -d @/tmp/card.json "$WEBHOOK_URL" > /dev/null
+          echo "Aging digest posted"
+
+      - name: Notify Google Chat -- failed
+        if: failure()
+        env:
+          WEBHOOK_URL: ${{ secrets.GOOGLE_CHAT_WEBHOOK_AUTOMATION }}
+        run: |
+          if [ -z "$WEBHOOK_URL" ]; then exit 0; fi
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          BODY=$(jq -n --arg text "❌ *Aging digest workflow FAILED*"$'\n'"<${RUN_URL}|View run logs>" '{text: $text}')
+          curl -fsS -X POST -H 'Content-Type: application/json' -d "$BODY" "$WEBHOOK_URL" > /dev/null
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Aging Digest Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- PRs > 14d: ${{ steps.build.outputs.pr14 }}" >> $GITHUB_STEP_SUMMARY
+          echo "- PRs >  7d: ${{ steps.build.outputs.pr7 }}"  >> $GITHUB_STEP_SUMMARY
+          echo "- PRs >  3d: ${{ steps.build.outputs.pr3 }}"  >> $GITHUB_STEP_SUMMARY
+          echo "- Issues > 14d: ${{ steps.build.outputs.is14 }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Issues >  7d: ${{ steps.build.outputs.is7 }}"  >> $GITHUB_STEP_SUMMARY
+          echo "- Issues >  3d: ${{ steps.build.outputs.is3 }}"  >> $GITHUB_STEP_SUMMARY
+          echo "- Posted: ${{ steps.gate.outputs.post }}" >> $GITHUB_STEP_SUMMARY

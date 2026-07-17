@@ -76,14 +76,14 @@ export default Component.extend({
     { name: i18n.t('earned_by_buttons_per_week', "Earned by Buttons Hit Per Week"), id: 'buttons_per_week' },
     { name: i18n.t('earned_by_modeling_per_day', "Earned by Modeling Events Per Day"), id: 'modeling_per_day' },
     { name: i18n.t('earned_by_modeling_per_week', "Earned by Modeling Events Per Week"), id: 'modeling_per_week' },
-    { name: i18n.t('custom_tracking', "Custom or More Fine-Grained Tracking"), id: 'custom' },
+    { name: i18n.t('custom_tracking', "Custom tracking"), id: 'custom' },
   ],
   simple_assessment_types: [
     { name: i18n.t('select_simple_tracking_type', "[ How to Track for Mastery ]"), id: '' },
     { name: i18n.t('assess_by_words_per_day', "Track Watchwords Used Each Day"), id: 'words_per_day' },
     { name: i18n.t('assess_by_buttons_per_day', "Track Buttons Hit Each Day"), id: 'buttons_per_day' },
     { name: i18n.t('assess_by_modeling_per_day', "Track Modeling Events Each Day"), id: 'modeling_per_day' },
-    { name: i18n.t('custom_tracking', "Custom or More Fine-Grained Tracking"), id: 'custom' },
+    { name: i18n.t('custom_tracking', "Custom tracking"), id: 'custom' },
   ],
   tracking_types: [
     { name: i18n.t('select_tracking_type', "[ Select ]"), id: '' },
@@ -307,6 +307,31 @@ export default Component.extend({
   in_list: computed('index', function () {
     return this.get('index') !== undefined && this.get('index') !== null;
   }),
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
     change_image: function () {
       modal.open('badge-image', { badge: this.get('badge') });

@@ -1,9 +1,47 @@
-require 's3'
+require 'aws-sdk-s3'
 require 'accessible-books'
+require 'ipaddr'
+require_relative 'safe_http'
 
 module Uploader
   S3_EXPIRATION_TIME=60*60
   CONTENT_LENGTH_RANGE=200.megabytes.to_i
+
+  # Strip whitespace — a trailing space in .env breaks S3 (InvalidAccessKeyId on the literal key).
+  # Also accept standard AWS env names for local dev convenience.
+  def self.aws_access_key
+    (ENV['AWS_KEY'].presence || ENV['AWS_ACCESS_KEY_ID']).to_s.strip
+  end
+
+  def self.aws_secret_key
+    (ENV['AWS_SECRET'].presence || ENV['AWS_SECRET_ACCESS_KEY']).to_s.strip
+  end
+
+  def self.aws_credentials
+    Aws::Credentials.new(aws_access_key, aws_secret_key)
+  end
+
+  def self.s3_region
+    ENV['AWS_REGION'].presence || 'us-west-2'
+  end
+
+  def self.s3_client(config)
+    Aws::S3::Client.new(
+      region: s3_region,
+      credentials: Aws::Credentials.new(config[:access_key].to_s.strip, config[:secret].to_s.strip),
+      http_open_timeout: 3,
+      http_read_timeout: 3
+    )
+  end
+
+  def self.presigned_get_url(client, bucket, key, expires_in: S3_EXPIRATION_TIME)
+    Aws::S3::Presigner.new(client: client).presigned_url(
+      :get_object,
+      bucket: bucket,
+      key: key,
+      expires_in: expires_in
+    ).sub(/\Ahttp:/, 'https:')
+  end
   
   def self.remote_upload(remote_path, local_path, content_type, checksum=nil)
     # NOTE: if you specify checksum, you may get back a different
@@ -27,7 +65,7 @@ module Uploader
     post_params[:file] = File.open(local_path, 'rb')
 
     # upload to s3 from tempfile
-    res = Typhoeus.post(params[:upload_url], body: post_params)
+    res = Typhoeus.post(params[:post_url], body: post_params)
     if res.success?
       return {url: params[:upload_url] + remote_path, path: remote_path, uploaded: true}
     else
@@ -41,17 +79,46 @@ module Uploader
   end
 
   def self.sanitize_url(url)
-    uri = URI.parse(url) rescue nil
+    str = url.to_s
+    uri = parse_http_uri(str)
     return nil unless uri
-    return nil if !Rails.env.development? && (uri.host.match(/^127/) || uri.host.match(/localhost/) || uri.host.match(/^0/) || uri.host.to_s == uri.host.to_i.to_s)
+    # Only ever fetch over http(s) — reject file://, gopher://, ftp://, data:, etc.
+    # (also prevents a nil-host crash on schemeless/opaque URIs below).
+    return nil unless ['http', 'https'].include?(uri.scheme)
+    return nil if uri.host.to_s.strip.empty?
+    unless Rails.env.development?
+      return nil if uri.host.match(/^127/) || uri.host.match(/localhost/) || uri.host.match(/^0/) || uri.host.to_s == uri.host.to_i.to_s
+      # Block IP-literal hosts pointing at loopback / link-local / private space —
+      # the SSRF targets the string checks above miss: cloud metadata
+      # 169.254.169.254 (link-local), RFC1918 10.x / 172.16-31.x / 192.168.x
+      # (private), ::1, fe80::, fc00::, and carrier-grade NAT 100.64/10. Only
+      # applies to literal IPs; hostname DNS-to-internal and rebinding are blocked
+      # at fetch time by SafeHttp (resolve + CURLOPT_RESOLVE pin).
+      literal = (IPAddr.new(uri.host.sub(/^\[/, '').sub(/\]$/, '')) rescue nil)
+      return nil if literal && SafeHttp.blocked_address?(literal)
+    end
     port_suffix = ""
     port_suffix = ":#{uri.port}" if (uri.scheme == 'http' && uri.port != 80)
     "#{uri.scheme}://#{uri.host}#{port_suffix}#{uri.path}#{uri.query && "?#{uri.query}"}"
   end
 
+  # OpenSymbols/Mulberry URLs often include spaces (e.g. "lunch 2.svg").
+  def self.parse_http_uri(str)
+    URI.parse(str)
+  rescue URI::InvalidURIError
+    escaped = URI.escape(str) rescue nil
+    return nil if escaped.blank?
+
+    begin
+      URI.parse(escaped)
+    rescue URI::InvalidURIError
+      nil
+    end
+  end
+
   def self.invalidate_cdn(remote_path)
     remote_path = "/" + remote_path unless remote_path.match(/^\//)
-    cred = Aws::Credentials.new(ENV['AWS_KEY'], ENV['AWS_SECRET'])
+    cred = aws_credentials
     client = Aws::CloudFront::Client.new(
       region: ENV['UPLOADS_S3_CDN_REGION'],
       credentials: cred
@@ -77,47 +144,54 @@ module Uploader
   def self.check_existing_upload(remote_path, checksum=nil)
     return {found: false} unless remote_path
     config = remote_upload_config
-    return {found: false} unless config[:access_key] && config[:secret]
-    service = S3::Service.new(:access_key_id => config[:access_key], :secret_access_key => config[:secret], timeout: 3)    
-    if remote_path.match(/^\//)
-      remote_path = remote_path[1..-1]
-    end
-    bucket = service.buckets.find(config[:bucket_name])
-    object = bucket.objects.find(remote_path) rescue nil
-    if object
-      req = object.send(:object_request, :head, {})
-      return {found: true, mismatch: true} if checksum && req['etag'] && checksum != req['etag'].gsub(/\"/, '')
-      exp = ((req['x-amz-expiration'] || "").match(/expiry-date="([^"]+)"/) || [])[1]
+    return {found: false} unless config[:access_key] && config[:secret] && config[:bucket_name].present?
+    key = remote_path.to_s.sub(/\A\//, '')
+    begin
+      client = s3_client(config)
+      resp = client.head_object(bucket: config[:bucket_name], key: key)
+      raw_etag = resp.etag
+      etag = raw_etag.to_s.delete('"')
+      return {found: true, mismatch: true} if checksum && raw_etag && checksum != etag
+
+      exp_header = resp.expiration.to_s
+      exp = ((exp_header.match(/expiry-date="([^"]+)"/) || [])[1])
       exp = Time.parse(exp) rescue nil
       if exp && exp < 48.hours.from_now
         return {found: true, expired: true}
-      else
-        # Use full S3 URL when CDN not set; relative URLs cause app to intercept the request
-        url = if ENV['UPLOADS_S3_CDN'].present?
-          "#{ENV['UPLOADS_S3_CDN']}/#{remote_path}"
-        else
-          "#{config[:upload_url]}#{remote_path}"
-        end
-        return {found: true, url: url}
       end
+      # Use full S3 URL when CDN not set; relative URLs cause app to intercept the request
+      url = if ENV['UPLOADS_S3_CDN'].present?
+        "#{ENV['UPLOADS_S3_CDN']}/#{key}"
+      else
+        "#{config[:upload_url]}#{key}"
+      end
+      {found: true, url: url}
+    rescue Aws::S3::Errors::NotFound, Aws::S3::Errors::NoSuchKey
+      {found: false}
+    rescue Aws::S3::Errors::ServiceError => e
+      Rails.logger.warn("Uploader.check_existing_upload Aws::S3::Errors::ServiceError path=#{key} code=#{e.code} message=#{e.message}")
+      {found: false}
     end
-    return {found: false}
   end
 
   def self.remote_touch(path)
     config = remote_upload_config
-    return false unless config[:access_key] && config[:secret]
-    service = S3::Service.new(:access_key_id => config[:access_key], :secret_access_key => config[:secret], timeout: 3)    
-    bucket = service.buckets.find(config[:bucket_name])
-    if path && path.match(/^\//)
-      path = path[1..-1]
-    end
-    object = bucket.objects.find(path) rescue nil
-    return false unless object
-    copy_opts = { :key => path, :bucket => bucket }
+    return false unless config[:access_key] && config[:secret] && config[:bucket_name].present?
+    key = path.to_s.sub(/\A\//, '')
+    bucket_name = config[:bucket_name]
+    client = s3_client(config)
+    client.head_object(bucket: bucket_name, key: key)
+    copy_opts = {
+      bucket: bucket_name,
+      key: key,
+      copy_source: "#{bucket_name}/#{key}",
+      metadata_directive: 'COPY'
+    }
     copy_opts[:acl] = 'public-read' unless ENV['UPLOADS_S3_NO_ACL'].to_s.match(/\A(1|true|yes)\z/i)
-    res = object.copy(copy_opts) rescue nil
-    !!res
+    client.copy_object(copy_opts)
+    true
+  rescue Aws::S3::Errors::ServiceError, StandardError
+    false
   end
 
   def self.remote_remove_later(path, checksum)
@@ -157,11 +231,15 @@ module Uploader
     end
     if do_remove
       config = remote_upload_config
-      return nil unless config[:access_key] && config[:secret]
-      service = S3::Service.new(:access_key_id => config[:access_key], :secret_access_key => config[:secret], timeout: 3)
-      bucket = service.buckets.find(config[:bucket_name])
-      object = bucket.objects.find(remote_path) rescue nil
-      object.destroy if object
+      return nil unless config[:access_key] && config[:secret] && config[:bucket_name].present?
+      client = s3_client(config)
+      begin
+        client.head_object(bucket: config[:bucket_name], key: remote_path)
+      rescue Aws::S3::Errors::NotFound, Aws::S3::Errors::NoSuchKey
+        return nil
+      end
+      client.delete_object(bucket: config[:bucket_name], key: remote_path)
+      true
     else
       return false
     end
@@ -185,15 +263,13 @@ module Uploader
     remote_path = remote_path.sub(/^https:\/\/s3\.amazonaws\.com\/#{ENV['STATIC_S3_BUCKET']}\//, '')
 
     config = remote_upload_config
-    return nil unless config[:access_key] && config[:secret]
-    service = S3::Service.new(:access_key_id => config[:access_key], :secret_access_key => config[:secret], timeout: 3)
-    bucket = service.buckets.find(config[:static_bucket_name])
-    object = bucket.objects.find(remote_path) rescue nil
-    if object
-      object.temporary_url.sub(/^http:/, 'https:')
-    else
-      nil
-    end
+    return nil unless config[:access_key] && config[:secret] && config[:static_bucket_name].present?
+    bucket_name = config[:static_bucket_name]
+    client = s3_client(config)
+    client.head_object(bucket: bucket_name, key: remote_path)
+    presigned_get_url(client, bucket_name, remote_path)
+  rescue Aws::S3::Errors::NotFound, Aws::S3::Errors::NoSuchKey, Aws::S3::Errors::ServiceError
+    nil
   end
 
   # Presigned URL for uploads bucket (board downloads, etc). Works even when bucket blocks public access.
@@ -205,76 +281,142 @@ module Uploader
     remote_path = remote_path[1..-1] if remote_path.start_with?('/')
 
     config = remote_upload_config
-    return nil unless config[:access_key] && config[:secret] && config[:bucket_name]
-    service = S3::Service.new(:access_key_id => config[:access_key], :secret_access_key => config[:secret], timeout: 3)
-    bucket = service.buckets.find(config[:bucket_name])
-    object = bucket.objects.find(remote_path) rescue nil
-    if object
-      object.temporary_url.sub(/^http:/, 'https:')
-    else
-      nil
-    end
+    return nil unless config[:access_key] && config[:secret] && config[:bucket_name].present?
+    bucket_name = config[:bucket_name]
+    client = s3_client(config)
+    client.head_object(bucket: bucket_name, key: remote_path)
+    presigned_get_url(client, bucket_name, remote_path)
+  rescue Aws::S3::Errors::NotFound, Aws::S3::Errors::NoSuchKey, Aws::S3::Errors::ServiceError
+    nil
   end
-  
-  def self.remote_upload_params(remote_path, content_type)
+
+  # Rewrites an uploads-bucket URL to a presigned GET for server-internal HTTP
+  # fetches (extra_data reassembly, OBF export image embedding). The bucket
+  # blocks all public access, so an unsigned GET on the raw URL 403s. Unlike
+  # presigned_url_for_uploads there is no head_object existence check (the
+  # caller already tolerates fetch failure), and any non-bucket URL (CDN,
+  # external, data:) passes through untouched.
+  def self.signed_internal_url(url)
+    remote_path = nil
+    bucket = ENV['UPLOADS_S3_BUCKET']
+    if bucket.present? && url.present?
+      bucket_re = Regexp.escape(bucket)
+      if url.match(/^https:\/\/#{bucket_re}\.s3\.amazonaws\.com\//)
+        remote_path = url.sub(/^https:\/\/#{bucket_re}\.s3\.amazonaws\.com\//, '')
+      elsif url.match(/^https:\/\/s3\.amazonaws\.com\/#{bucket_re}\//)
+        remote_path = url.sub(/^https:\/\/s3\.amazonaws\.com\/#{bucket_re}\//, '')
+      end
+    end
+    # Unlike presigned_url_for_uploads, a leading slash is deliberately KEPT:
+    # legacy extra_data version-0 paths start with '/' (extra_data_remote_paths
+    # prepends it), the object was uploaded under that literal key, and the old
+    # unsigned double-slash URL resolved to the same slash-prefixed key.
+    return url unless remote_path.present?
+
     config = remote_upload_config
-    
-    res = {
+    return url unless config[:access_key] && config[:secret]
+    presigned_get_url(s3_client(config), bucket, remote_path)
+  rescue StandardError
+    # Graceful pass-through by design: callers (assert_extra_data, OBF
+    # save_image) tolerate a failed fetch but have no rescue around URL
+    # construction, so signing must never raise into them.
+    url
+  end
+
+  # SigV4-signed browser POST policy (via Aws::S3::PresignedPost). A hand-signed
+  # SigV2 policy (AWSAccessKeyId + HMAC-SHA1) can't satisfy buckets that require
+  # SSE-KMS ("Requests specifying Server Side Encryption with AWS KMS managed
+  # keys require AWS Signature Version 4") -- see LL-705b10bcd7.
+  def self.remote_upload_params(remote_path, content_type, max_bytes: CONTENT_LENGTH_RANGE, private_upload: false)
+    config = remote_upload_config
+    use_acl = !private_upload && !ENV['UPLOADS_S3_NO_ACL'].to_s.match(/\A(1|true|yes)\z/i)
+
+    post_options = {
+      key: remote_path,
+      content_type: content_type,
+      content_length_range: 1..max_bytes,
+      success_action_status: '200',
+      signature_expiration: S3_EXPIRATION_TIME.seconds.from_now
+    }
+    post_options[:acl] = 'public-read' if use_acl
+    # TODO: for pdfs, post_options[:content_disposition] = 'inline'
+
+    post = Aws::S3::PresignedPost.new(
+      Aws::Credentials.new(config[:access_key], config[:secret]),
+      s3_region,
+      config[:bucket_name],
+      post_options
+    )
+
+    {
+      # upload_url stays the static global-style endpoint (unchanged from the old
+      # SigV2 shape): every consumer that builds/matches a final object URL by
+      # concatenating upload_url + key (Uploader.remote_upload, uploadable.rb,
+      # media_object.rb, button_sound.rb, the *_controller.rb upload_success
+      # actions) -- and every helper that pattern-matches a stored self.url
+      # against it (valid_import_bundle_url?, removable_remote_url?, fronted_url,
+      # remote_remove) -- expects this exact global form, not a regional one.
+      # post_url is the actual SigV4 POST target: it MUST be the bucket's real
+      # regional endpoint, since the presigned policy's credential scope is
+      # bound to that region. Deliberately NOT relying on the global endpoint's
+      # cross-region 307 redirect for this (AWS's own guidance: many HTTP
+      # clients handle non-GET redirects incorrectly, and regions launched
+      # after 2019-03-20 get a hard 400 instead of a redirect at all).
+      # Known limitation: a browser tab with the frontend already loaded before
+      # this field was introduced will still POST to upload_url (global) with a
+      # region-bound signature, which can fail during the deploy window. Not
+      # fixed here: zero real users on any environment as of this writing
+      # (staging-only pre-MVP), and the failure is self-healing on next page
+      # load. Revisit before real users land on a rolling-deploy environment.
       :upload_url => config[:upload_url],
-      :upload_params => {
-        'AWSAccessKeyId' => config[:access_key]
-      }
+      :post_url => "#{post.url}/",
+      :upload_params => post.fields
     }
-    
-    conditions = [
-      {'key' => remote_path},
-      ['content-length-range', 1, (CONTENT_LENGTH_RANGE)],
-      {'bucket' => config[:bucket_name]},
-      {'success_action_status' => '200'},
-      {'content-type' => content_type}
-    ]
-    use_acl = !ENV['UPLOADS_S3_NO_ACL'].to_s.match(/\A(1|true|yes)\z/i)
-    conditions.insert(1, {'acl' => 'public-read'}) if use_acl
-
-    policy = {
-      'expiration' => (S3_EXPIRATION_TIME).seconds.from_now.utc.iso8601,
-      'conditions' => conditions
-    }
-    # TODO: for pdfs, policy['conditions'] << {'content-disposition' => 'inline'}
-
-    policy_encoded = Base64.encode64(policy.to_json).gsub(/\n/, '')
-    signature = Base64.encode64(
-      OpenSSL::HMAC.digest(
-        OpenSSL::Digest.new('sha1'), config[:secret], policy_encoded
-      )
-    ).gsub(/\n/, '')
-
-    upload_params = {
-       'key' => remote_path,
-       'policy' => policy_encoded,
-       'signature' => signature,
-       'Content-Type' => content_type,
-       'success_action_status' => '200'
-    }
-    upload_params['acl'] = 'public-read' if use_acl
-    res[:upload_params].merge!(upload_params)
-    res
   end
   
   def self.remote_upload_config
     @remote_upload_config ||= {
-      :upload_url => "https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/",
-      :access_key => ENV['AWS_KEY'],
-      :secret => ENV['AWS_SECRET'],
-      :bucket_name => ENV['UPLOADS_S3_BUCKET'],
-      :static_bucket_name => ENV['STATIC_S3_BUCKET']
+      :upload_url => "https://#{ENV['UPLOADS_S3_BUCKET'].to_s.strip}.s3.amazonaws.com/",
+      :access_key => aws_access_key,
+      :secret => aws_secret_key,
+      :bucket_name => ENV['UPLOADS_S3_BUCKET'].to_s.strip,
+      :static_bucket_name => ENV['STATIC_S3_BUCKET'].to_s.strip
     }
+  end
+
+  def self.remote_upload_exists?(url_or_path)
+    remote_path = url_or_path.to_s
+    remote_path = remote_path.sub(/^https:\/\/#{ENV['UPLOADS_S3_BUCKET']}\.s3\.amazonaws\.com\//, '')
+    remote_path = remote_path.sub(/^https:\/\/s3\.amazonaws\.com\/#{ENV['UPLOADS_S3_BUCKET']}\//, '')
+    remote_path = remote_path.sub(/^https?:\/\/[^\/]+\//, '') if remote_path.match?(/^https?:\/\//)
+    remote_path = remote_path[1..-1] if remote_path.start_with?('/')
+
+    config = remote_upload_config
+    return false unless config[:access_key] && config[:secret] && config[:bucket_name].present?
+
+    client = s3_client(config)
+    client.head_object(bucket: config[:bucket_name], key: remote_path)
+    true
+  rescue Aws::S3::Errors::NotFound, Aws::S3::Errors::NoSuchKey, Aws::S3::Errors::ServiceError
+    false
+  end
+
+  def self.remote_remove_upload_path(path)
+    remote_path = path.to_s.sub(/\A\//, '')
+    raise "scary delete, not a beta feedback recording path: #{remote_path}" unless remote_path.match(/\Abeta_feedback_recordings\/\d{4}\/\d{2}\/\d{2}\/[\w\-]+\.(webm|mp4)\z/)
+
+    config = remote_upload_config
+    return nil unless config[:access_key] && config[:secret] && config[:bucket_name].present?
+
+    client = s3_client(config)
+    client.delete_object(bucket: config[:bucket_name], key: remote_path)
+    true
   end
   
   def self.remote_zip(url, &block)
     result = []
     Progress.update_current_progress(0.1, :downloading_file)
-    response = Typhoeus.get(Uploader.sanitize_url(url))
+    response = SafeHttp.get(url)
     Progress.update_current_progress(0.2, :processing_file)
     file = Tempfile.new('stash')
     file.binmode
@@ -320,8 +462,9 @@ module Uploader
     Progress.update_current_progress(0.9, :uploading_file)
     url = (Uploader.remote_upload(remote_path, path, content_type) || {})[:url]
     raise "File not uploaded" unless url
-    File.unlink(path) if File.exist?(path)
     return url
+  ensure
+    File.unlink(path) if path && File.exist?(path)
   end
   
   def self.valid_remote_url?(url)
@@ -342,6 +485,35 @@ module Uploader
     res = url.match(/^https:\/\/#{ENV['UPLOADS_S3_BUCKET']}\.s3\.amazonaws\.com\//)
     res ||= url.match(/^https:\/\/s3\.amazonaws\.com\/#{ENV['UPLOADS_S3_BUCKET']}\//)
     !!res
+  end
+
+  # Remote path for a JSON bundle the user uploaded via from_json_bundle presign
+  # (imports/boards/{global_id}/bundle-*.json), or nil if the URL is not allowed.
+  def self.import_bundle_remote_path(user_global_id, url)
+    return nil if user_global_id.blank? || url.blank?
+
+    path = url.to_s
+    if ENV['UPLOADS_S3_BUCKET'].present?
+      bucket = Regexp.escape(ENV['UPLOADS_S3_BUCKET'].to_s.strip)
+      path = path.sub(%r{\Ahttps://#{bucket}\.s3\.amazonaws\.com/}, '')
+      path = path.sub(%r{\Ahttps://s3\.amazonaws\.com/#{bucket}/}, '')
+    end
+    if ENV['UPLOADS_S3_CDN'].present?
+      cdn = Regexp.escape(ENV['UPLOADS_S3_CDN'].to_s.sub(%r{/+\z}, ''))
+      path = path.sub(%r{\A#{cdn}/}, '')
+    end
+    path = path.sub(%r{\A/+}, '')
+
+    gid = Regexp.escape(user_global_id.to_s)
+    return path if path.match?(%r{\Aimports/boards/#{gid}/bundle-[\w-]+\.json\z}i)
+
+    nil
+  end
+
+  def self.valid_import_bundle_url?(url, user_global_id)
+    return false unless url.to_s.start_with?('https://')
+
+    import_bundle_remote_path(user_global_id, url).present?
   end
   
   def self.lessonpix_credentials(opts)
@@ -696,6 +868,14 @@ module Uploader
   end
   
   def self.find_resources(query, source, user)
+    if (source == 'tarheel' || source == 'tarheel_book') && !FeatureFlags.feature_enabled_for?('tarheel_reader', user)
+      # Tarheel Reader was acquired by Building Wings and moved to Monarch Reader
+      # (Sept 2024). The tarheelreader.org JSON endpoints now 301-redirect to a
+      # closed SPA, so live calls return HTML that fails to parse. Gated behind
+      # the 'tarheel_reader' feature flag (off by default) until a partnership
+      # or alternate book source is in place.
+      return []
+    end
     tarheel_prefix = "https://tarheelreader.org" #ENV['TARHEEL_PROXY'] || "https://images.weserv.nl/?url=tarheelreader.org"
     if source == 'tarheel'
       url = "https://tarheelreader.org/find/?search=#{CGI.escape(query)}&category=&reviewed=R&audience=E&language=en&page=1&json=1"

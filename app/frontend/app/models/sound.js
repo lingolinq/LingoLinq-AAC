@@ -1,6 +1,7 @@
 import { later as runLater } from '@ember/runloop';
 import RSVP from 'rsvp';
-import DS from 'ember-data';
+import { attr } from '@ember-data/model';
+import BaseModel from './base';
 import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import persistence from '../utils/persistence';
@@ -8,7 +9,7 @@ import contentGrabbers from '../utils/content_grabbers';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
-LingoLinq.Sound = DS.Model.extend({
+LingoLinq.Sound = BaseModel.extend({
   init() {
     this._super(...arguments);
     // Check transcription on initialization
@@ -19,26 +20,29 @@ LingoLinq.Sound = DS.Model.extend({
   onLicenseLoad: observer('license', function() {
     this.clean_license();
   }),
-  user_id: DS.attr('string'),
-  url: DS.attr('string'),
-  created: DS.attr('date'),
-  content_type: DS.attr('string'),
-  name: DS.attr('string'),
-  tags: DS.attr('raw'),
-  tag: DS.attr('string'),
-  transcription: DS.attr('string'),
-  duration: DS.attr('number'),
-  pending: DS.attr('boolean'),
-  protected: DS.attr('boolean'),
-  protected_source: DS.attr('string'),
-  license: DS.attr('raw'),
-  permissions: DS.attr('raw'),
-  file: DS.attr('boolean'),
-  untranscribable: DS.attr('boolean'),
+  user_id: attr('string'),
+  url: attr('string'),
+  created: attr('date'),
+  content_type: attr('string'),
+  name: attr('string'),
+  tags: attr('raw'),
+  tag: attr('string'),
+  transcription: attr('string'),
+  duration: attr('number'),
+  pending: attr('boolean'),
+  protected: attr('boolean'),
+  protected_source: attr('string'),
+  license: attr('raw'),
+  permissions: attr('raw'),
+  file: attr('boolean'),
+  untranscribable: attr('boolean'),
   search_string: computed('name', 'transcription', 'created', function() {
     return this.get('name') + " " + this.get('transcription') + " " + this.get('created');
   }),
   check_transcription: function() {
+    if (this.isDestroyed || this.isDestroying) {
+      return false;
+    }
     if(this.get('transcription')) {
       this.set('transcription_pending', false);
       return true;
@@ -63,16 +67,25 @@ LingoLinq.Sound = DS.Model.extend({
         }
         this.set('transcription_checks', attempts + 1);
         runLater(function() {
+          if (_this.isDestroyed || _this.isDestroying) {
+            return;
+          }
           if(persistence.get('online')) {
             _this.reload().then(function(res) {
               _this.check_transcription();
             }, function(err) {
               runLater(function() {
+                if (_this.isDestroyed || _this.isDestroying) {
+                  return;
+                }
                 _this.check_transcription();
               }, 2 * 60 * 1000);
             });
           } else {
             runLater(function() {
+              if (_this.isDestroyed || _this.isDestroying) {
+                return;
+              }
               _this.check_transcription();
             }, 2 * 60 * 1000);
           }
@@ -146,14 +159,13 @@ LingoLinq.Sound = DS.Model.extend({
     this.checkForDataURL().then(null, function() { });
   })
 });
-LingoLinq.Sound.reopenClass({
-  mimic_server_processing: function(record, hash) {
-    if(record.get('data_url')) {
-      hash.sound.url = record.get('data_url');
-      hash.sound.data_url = hash.sound.url;
-    }
-    return hash;
+
+LingoLinq.Sound.mimic_server_processing = function(record, hash) {
+  if(record.get('data_url')) {
+    hash.sound.url = record.get('data_url');
+    hash.sound.data_url = hash.sound.url;
   }
-});
+  return hash;
+};
 
 export default LingoLinq.Sound;

@@ -54,7 +54,6 @@ var obf = EmberObject.extend({
     board.set('extra_back',  hash['extra_back']);
     board.set('obf_type', hash['obf_type']);
     board.set('grid', hash['grid']);
-    
     board.set('id', id);
     board.set('name', hash['name'] || id);
     board.set('permissions', {view: true});
@@ -66,6 +65,7 @@ var obf = EmberObject.extend({
     board.set('background', {
       image: bg['image'] || bg['image_url'],
       image_exclusion: bg['ext_lingolinq_image_exclusion'],
+      eval_helper: bg['ext_lingolinq_eval_helper'],
       color: bg['color'],
       position: bg['position'],
       text: bg['text'],

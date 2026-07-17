@@ -7,7 +7,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 import EmberObject from '@ember/object';
 import LingoLinq from '../app';
 import { set as emberSet, get as emberGet } from '@ember/object';
-import { assign as emberAssign } from '@ember/polyfills';
 import { computed } from '@ember/object';
 import RSVP from 'rsvp';
 import templateHelpers, { registerTemplateHelpers } from './template_helpers';
@@ -55,7 +54,7 @@ var i18n = EmberObject.extend({
         }  
       }
     }
-    options = emberAssign({}, options);
+    options = Object.assign({}, options);
     if(key && localStorage.track_i18n == 'true') {
       var keys = JSON.parse(localStorage.i18n_keys || "[]")
       if(keys.indexOf(key) == -1) {
@@ -510,7 +509,21 @@ var i18n = EmberObject.extend({
   },
   key_string: function(keyCode) {
     var codes = this.get('keys');
-    return codes[keyCode];
+    if(codes[keyCode]) {
+      return codes[keyCode];
+    }
+    var code_names = {
+      Space: 'spacebar',
+      Enter: 'enter',
+      Escape: 'escape',
+      Tab: 'tab',
+      Backspace: 'backspace',
+      ArrowLeft: 'left',
+      ArrowRight: 'right',
+      ArrowUp: 'up',
+      ArrowDown: 'down'
+    };
+    return code_names[keyCode];
   },
   readable_language: function(locale) {
     var unknown = i18n.t('unknown_language', "Unknown Language");

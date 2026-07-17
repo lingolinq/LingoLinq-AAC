@@ -1,0 +1,63 @@
+#!/bin/bash
+set -e
+
+# Resque worker entrypoint for the Cloud Run worker pool (and local docker-compose).
+# This NEVER prepares or migrates the database -- only the web service may touch the
+# schema, and even there it is gated behind RUN_DB_PREPARE. In Cloud Run, migrations run
+# as a dedicated Job before any service deploys, so workers always boot against a ready DB.
+
+: "${QUEUES:=priority,default,slow}"
+: "${INTERVAL:=0.1}"
+: "${TERM_CHILD:=1}"
+
+# Graceful worker shutdown on SIGTERM (Cloud Run worker-pool replacement: deploy,
+# scale, or cutover). Tracker 4.W1.
+#
+# Cloud Run sends SIGTERM and then SIGKILL after a FIXED 10s grace period that is
+# NOT configurable for services, jobs, or worker pools (verified against the
+# Cloud Run container runtime contract; there is no gcloud flag for it). So the
+# entire graceful-shutdown budget must fit inside 10s.
+#
+# With TERM_CHILD set, Resque's new_kill_child (resque worker.rb) does, on TERM:
+#   1. wait RESQUE_PRE_SHUTDOWN_TIMEOUT seconds for the child to finish the
+#      in-flight job NATURALLY (no interruption), then
+#   2. send TERM to the child, which raises Resque::TermException in the job, then
+#   3. wait RESQUE_TERM_TIMEOUT seconds, then SIGKILL if still alive.
+# Worst case = PRE_SHUTDOWN + TERM_TIMEOUT = 4 + 3 = 7s. We deliberately keep ~3s
+# of headroom under the fixed 10s rather than maxing it out: the resque wait is a
+# sleep(0.1)+waitpid poll loop (drift), and in step 2 the child's requeue
+# (Resque.enqueue = an LPUSH to Memorystore over rediss:// TLS) must itself finish
+# inside RESQUE_TERM_TIMEOUT or the child is SIGKILLed mid-requeue and the job IS
+# lost. If the parent's total shutdown wall-clock ever exceeds 10s, Cloud Run
+# SIGKILLs the parent and any requeueing child dies with it. Re-measure the real
+# wall-clock under TLS Redis in the dress rehearsal (4.1/4.2) before raising these.
+#
+# When the job is interrupted DURING EXECUTION (step 2), it is re-enqueued, not
+# dropped: BoyBand::WorkerMethods#perform_at rescues Resque::TermException and
+# re-enqueues (Resque.enqueue), so it re-runs after a new instance comes up.
+# Caveats (NOT a blanket "no job is ever lost"):
+#   - SIGKILL (Cloud Run's hard kill at 10s, or a too-slow requeue) and any TERM
+#     that lands OUTSIDE perform_at's klass.send (between jobs, in the cache-clear
+#     ensure, or in resque framework code) bypass the rescue; resque records those
+#     as DirtyExit in the FAILED queue. Monitor the failed queue during cutover.
+#   - The requeue is blanket across all job classes. A non-idempotent long job
+#     (e.g. Webhook.notify_all_with_code, ~20 min, sends outbound webhooks per
+#     recipient) re-runs from the top on interrupt -> duplicate webhooks. The
+#     pre-shutdown grace does NOT help multi-minute jobs. Mitigation for cutover
+#     is operational: pause/drain such writers before the window (pre-cutover
+#     checklist); making the requeue selective (per-class idempotency) is a
+#     documented follow-up, tracked as a cutover decision.
+#   - An interrupted :slow job re-enqueues onto the DEFAULT queue (BoyBand's rescue
+#     uses `self` = Worker), so on re-run Worker.current_speed is :normal, not
+#     :slow; code that branches on current_speed == 'slow' (e.g.
+#     BoardDownstreamButtonSet.update_for) then fans out instead of recursing inline.
+#     The job still completes; the scheduling path differs. Follow-up with the above.
+#
+# Both values are overridable so the dress rehearsal can tune them to measured
+# job durations without a code change.
+: "${RESQUE_PRE_SHUTDOWN_TIMEOUT:=4}"
+: "${RESQUE_TERM_TIMEOUT:=3}"
+
+export QUEUES INTERVAL TERM_CHILD RESQUE_PRE_SHUTDOWN_TIMEOUT RESQUE_TERM_TIMEOUT
+
+exec bundle exec rake environment resque:work

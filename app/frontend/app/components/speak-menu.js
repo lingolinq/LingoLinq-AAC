@@ -1,4 +1,5 @@
 import Component from '@ember/component';
+import { getOwner } from '@ember/application';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { set as emberSet } from '@ember/object';
@@ -9,6 +10,7 @@ import modalUtil from '../utils/modal';
 import utterance from '../utils/utterance';
 import speecher from '../utils/speecher';
 import capabilities from '../utils/capabilities';
+import i18n from '../utils/i18n';
 
 /**
  * Speak Menu Modal Component
@@ -22,6 +24,34 @@ export default Component.extend({
   stashes: service('stashes'),
   app_state: alias('appState'),
   tagName: '',
+
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+
+    // Components cannot use inject.controller; owner lookup is the supported pattern.
+    this.set('applicationController', getOwner(this).lookup('controller:application'));
+  },
 
   sharing_allowed: computed(
     'appState.currentUser',
@@ -38,6 +68,72 @@ export default Component.extend({
     var res = utterance.contraction();
     return res || { clearback: 0, label: "don't" };
   }),
+
+  localeBoardModel: computed('appState.controller.model', 'applicationController.board.model', function() {
+    var c = this.get('appState.controller');
+    if (c && c.get && c.get('model')) {
+      var m = c.get('model');
+      var locs = m.get('readable_locales');
+      if (locs && locs.length) { return m; }
+    }
+    var app = this.get('applicationController');
+    if (app && app.get('board.model')) {
+      var bm = app.get('board.model');
+      if (bm && bm.get('readable_locales') && bm.get('readable_locales').length) {
+        return bm;
+      }
+    }
+    return null;
+  }),
+
+  showSpeakLocaleSection: computed(
+    'app_state.speak_mode_possible',
+    'app_state.currentBoardState.translatable',
+    'localeBoardModel',
+    function() {
+      var sm = this.get('app_state.speak_mode_possible');
+      var loc = this.get('app_state.currentBoardState.translatable') && this.get('localeBoardModel');
+      return !!(sm || loc);
+    }
+  ),
+
+  // Per-level color palette — keep in sync with
+  // controllers/user/board-detail.js#level_color_map and
+  // utils/button.js#level_badge_color so the same palette appears
+  // in every level UI surface.
+  level_color_map: computed(function() {
+    return {
+      '1':  '#0EA5E9',
+      '2':  '#3B82F6',
+      '3':  '#6366F1',
+      '4':  '#8B5CF6',
+      '5':  '#A855F7',
+      '6':  '#EC4899',
+      '7':  '#F43F5E',
+      '8':  '#F97316',
+      '9':  '#F59E0B',
+      '10': '#10B981'
+    };
+  }),
+  // 1-10 as strings so {{get level_color_map level}} works in the
+  // template lookup.
+  speak_level_options: computed(function() {
+    return ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+  }),
+  // Currently-active board level — read from stashes (the same
+  // source board/index.js#current_level reads from), falling back
+  // to the board's default_level, then 10.
+  current_speak_level: computed(
+    'stashes.board_level',
+    'app_state.currentBoardState.default_level',
+    function() {
+      var lvl = this.get('stashes.board_level');
+      if(lvl) { return String(lvl); }
+      var def = this.get('app_state.currentBoardState.default_level');
+      if(def) { return String(def); }
+      return '10';
+    }
+  ),
 
   actions: {
     opening() {
@@ -225,6 +321,87 @@ export default Component.extend({
     close() {
       modalUtil.set('speak_menu_last_closed', Date.now());
       this.get('modal').close();
+    },
+
+    set_board_locale(locale) {
+      this.get('applicationController').send('set_locale', locale);
+    },
+
+    speak_mode_toggle(decision) {
+      var app_state = this.get('app_state');
+      var exiting = app_state && app_state.get('speak_mode') && decision !== 'off';
+      this.get('modal').close();
+
+      if(exiting) {
+        var router = getOwner(this).lookup('service:router');
+        var routeName = (router && router.get('currentRouteName')) || '';
+        var onBoardDetail = routeName.indexOf('board-detail') !== -1;
+
+        if(onBoardDetail) {
+          // Board-detail: send exit_to_home to the board-detail
+          // controller — the SAME action the options-menu "Exit Speak
+          // Mode" uses. Ember resolves the nested controller under the
+          // SLASHED key; the dotted-only lookup returned undefined, so
+          // this Exit button silently no-op'd. Use the dotted||slashed
+          // fallback (matches voice-output.js / app-state.js).
+          var detailCtrl = getOwner(this).lookup('controller:user.board-detail') ||
+            getOwner(this).lookup('controller:user/board-detail');
+          if(detailCtrl) {
+            detailCtrl.send('exit_to_home');
+          } else {
+            // No board-detail controller resolvable — fall back to the
+            // classic exit so the button always works.
+            this.get('applicationController').send('toggleSpeakMode', decision);
+          }
+        } else {
+          // Board-alt: default toggleSpeakMode returns to normal mode
+          this.get('applicationController').send('toggleSpeakMode', decision);
+        }
+      } else {
+        this.get('applicationController').send('toggleSpeakMode', decision);
+      }
+    },
+
+    set_speak_mode_user(id, type) {
+      this.get('applicationController').send('setSpeakModeUser', id, type);
+      this.get('modal').close();
+    },
+
+    pick_speak_mode_user(type) {
+      this.get('applicationController').send('pickSpeakModeUser', type);
+      this.get('modal').close();
+    },
+
+    set_speak_level(level) {
+      // Mirror what set-as-home / add-to-sidebar / app-state do for
+      // changing the active board level: write to stashes.board_level.
+      // The board/index.js#current_level computed reads from there
+      // (preview_level || stashes.board_level || model.default_level || 10),
+      // so writing here flips the live render.
+      // Available to anyone in speak mode regardless of edit permission —
+      // levels are a viewing concern, not an editing one.
+      var n = parseInt(level, 10);
+      if(!n || n < 1 || n > 10) { return; }
+      this.stashes.persist('board_level', n);
+      // Notify so any board controller observing board_level reruns
+      // current_level and triggers a re-render of the grid.
+      var ctrl = this.get('app_state.controller');
+      if(ctrl && ctrl.notifyPropertyChange) {
+        ctrl.notifyPropertyChange('current_level');
+      }
     }
-  }
+  },
+
+  didInsertElement() {
+  this._super(...arguments);
+  var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
+    // Ember 5.12 modal migration: the service-based modal system does not
+    // auto-invoke opening() (this.onOpening is vestigial), so build modal state
+    // here on insert. Without this, opening() never runs. See assessment-settings.
+    self.send('opening');
+},
+
 });

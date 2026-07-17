@@ -5,6 +5,28 @@ import EmberObject from '@ember/object';
 import app_state from '../utils/app_state';
 
 export default Controller.extend({
+  /* Header loading indicator state — defaults true (showing spinner)
+     while the inner board-preview component fetches the board and
+     paints its canvas. The component fires `onLoadingChange(false)`
+     once the board record resolves; the modal hides the indicator. */
+  preview_loading: true,
+  /* Canvas image-load progress, shown as "N / total" in the loading overlay.
+     `preview_images_total` is 0 for text-only boards / before the canvas
+     reports, in which case the spinner shows the generic message. */
+  preview_images_loaded: 0,
+  preview_images_total: 0,
+  reset_preview_loading: observer('model_key', function() {
+    /* Reset to loading whenever the modal opens with a new key, so
+       reusing the same modal for a different board correctly
+       re-shows the indicator. */
+    if(this.get('model_key')) {
+      this.set('preview_loading', true);
+      /* Clear stale image counts so the reused modal doesn't flash the
+         previous board's progress before the new canvas reports. */
+      this.set('preview_images_loaded', 0);
+      this.set('preview_images_total', 0);
+    }
+  }),
   update_style_needed: observer('model.board.key', 'model.allow_style', 'model.board.style.options', function() {
     if(this.get('model.board.key')) {
       if(this.get('model.board.key') != this.get('model_key')) {
@@ -71,6 +93,13 @@ export default Controller.extend({
     }
   }),
   actions: {
+    set_preview_loading: function(value) {
+      this.set('preview_loading', !!value);
+    },
+    set_preview_progress: function(loaded, total) {
+      this.set('preview_images_loaded', loaded || 0);
+      this.set('preview_images_total', total || 0);
+    },
     close: function() {
       this.set('model_style', null);
       modal.close_board_preview();
@@ -90,6 +119,18 @@ export default Controller.extend({
       } else if(this.get('model.callback')) {
         this.get('model.callback')();
       }
+    },
+    remove: function() {
+      /* Touch-device parity for the tile's hover-only `.board_action`.
+         The callback is a closure bound in available-boards-section.hbs
+         that dispatches `remove_board(remove_type, board)` to the user
+         controller — same path the hover button takes. Close the
+         preview first so the subsequent confirm-delete-board /
+         confirm-remove-board modal opens on a clean stack. */
+      var ctx = this.get('model.remove');
+      if(!ctx || !ctx.callback) { return; }
+      this.send('close');
+      ctx.callback();
     }
   }
 });

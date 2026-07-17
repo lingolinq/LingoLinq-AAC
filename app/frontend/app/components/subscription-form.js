@@ -17,6 +17,24 @@ export default Component.extend({
   app_state: computed(function() {
     return this.appState;
   }),
+
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+  },
+
   didInsertElement: function() {
     if($(this.element).width() < 850) {
       $(this.element).addClass('skinny_subscription');
@@ -70,6 +88,9 @@ export default Component.extend({
     },
     show_alternative_pricing: function() {
       this.set('show_alternative_pricing', !this.get('show_alternative_pricing'));
+    },
+    openCloudExtras: function() {
+      modal.open('cloud-extras');
     },
     skip_subscription: function() {
       var role = this.get('subscription.user_type');

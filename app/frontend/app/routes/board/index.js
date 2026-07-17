@@ -43,20 +43,31 @@ export default Route.extend({
     if(model.get('valid_id') && !model.get('integration')) {
       model.load_button_set();
     }
-    _this.appState.set('currentBoardState', {
-      id: model.get('global_id') || model.get('id'),
-      key: model.get('key'),
-      parent_id: model.get('parent_board_id'),
-      name: model.get('name'),
-      has_fallbacks: model.get('has_fallbacks'),
-      extra_back: model.get('local_only') && model.get('extra_back'),
-      default_locale: model.get('locale'),
-      copy_version: model.get('copy_version'),
-      integration_name: model.get('integration') && model.get('integration_name'),
-      parent_key: model.get('parent_board_key'),
-      text_direction: i18n.text_direction(model.get('locale')),
-      translatable: (model.get('locales') || []).length > 1
-    });
+    // Only publish currentBoardState when we actually have a real loaded
+    // board. The route resolves with a synthetic "bad" record (id: 'bad')
+    // when a board fails to load — assigning that into currentBoardState
+    // would make .id truthy and trigger every "in-board" CSS / layout
+    // path (board-view body class, .speaking header, board-style identity
+    // button, inline beta feedback link, etc.) on top of the error.hbs
+    // outlet, breaking parity with the home page chrome.
+    if (model.get('valid_id')) {
+      _this.appState.set('currentBoardState', {
+        id: model.get('global_id') || model.get('id'),
+        key: model.get('key'),
+        parent_id: model.get('parent_board_id'),
+        name: model.get('name'),
+        has_fallbacks: model.get('has_fallbacks'),
+        extra_back: model.get('local_only') && model.get('extra_back'),
+        default_locale: model.get('locale'),
+        copy_version: model.get('copy_version'),
+        integration_name: model.get('integration') && model.get('integration_name'),
+        parent_key: model.get('parent_board_key'),
+        text_direction: i18n.text_direction(model.get('locale')),
+        translatable: (model.get('locales') || []).length > 1
+      });
+    } else {
+      _this.appState.set('currentBoardState', null);
+    }
     if (_this.appState.get('meta_home.unassigned') && _this.appState.get('meta_home.new_key') == model.get('key')) {
       var state = Object.assign({}, _this.appState.get('currentBoardState'));
       state.meta_home = _this.appState.get('meta_home.state');
@@ -245,7 +256,7 @@ export default Route.extend({
       if (this.get('board')) {
         this.get('board').prompt('clear');
       }
-      if (this.appState.get('edit_mode')) {
+      if (this.appState.get('edit_mode') && !this.appState.get('board_layout_mode')) {
         modal.warning(i18n.t('save_or_cancel_changes_first', "Save or cancel your changes before leaving this board!"));
         transition.abort();
       }
@@ -260,6 +271,15 @@ export default Route.extend({
         this.set('load_state.error', error);
       }
       this.get('controller').set('model', LingoLinq.store.createRecord('board', {}));
+      // Clear currentBoardState so error.hbs renders with the same
+      // chrome as the home page. If the model rejected (e.g. unknown
+      // OBF key, parent route rejection), setupController never ran,
+      // so currentBoardState would otherwise still point at whatever
+      // board was loaded before — which keeps `.speaking` on the
+      // header, `.board-view` on the body, the legacy nav_header
+      // (with inline beta-feedback link), and a compact identity
+      // button alive on top of the error page.
+      this.appState.set('currentBoardState', null);
     },
   },
   resetController: function(controller, isExiting) {

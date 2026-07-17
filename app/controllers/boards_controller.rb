@@ -22,7 +22,7 @@ class BoardsController < ApplicationController
   def about
     @meta_record = OpenStruct.new
     @meta_record.title = "About LingoLinq"
-    @meta_record.summary = "Why \"LingoLinq\"? Cough drops help you get back the voice you already had, but that maybe people couldn't hear so well. If you're new to the world of augmentative communication, just about every part of it feels intimidating."
+    @meta_record.summary = "Why \"LingoLinq\"? The name LingoLinq comes from linking language to the people who need it most. If you're new to the world of augmentative communication, just about every part of it feels intimidating."
     if !@domain_overrides['settings']['full_domain']
       @meta_record.title = "About #{@domain_overrides['settings']['app_name']}"
       @meta_record.summary = "A little information about the #{@domain_overrides['settings']['app_name']} AAC application"
@@ -33,9 +33,25 @@ class BoardsController < ApplicationController
     render :index
   end
   
-  def terms; end
-  
-  def privacy; end
+  def terms
+    @meta_record = OpenStruct.new
+    @meta_record.title = "Terms of Service - LingoLinq"
+    @meta_record.summary = "LingoLinq Terms of Service"
+    @meta_record.link = "#{request.protocol}#{request.host_with_port}/terms"
+    @meta_record.created = Time.parse("Jan 1 2014").iso8601
+    @meta_record.updated = Time.now.iso8601
+    render :index
+  end
+
+  def privacy
+    @meta_record = OpenStruct.new
+    @meta_record.title = "Privacy Policy - LingoLinq"
+    @meta_record.summary = "LingoLinq Privacy Policy"
+    @meta_record.link = "#{request.protocol}#{request.host_with_port}/privacy"
+    @meta_record.created = Time.parse("Jan 1 2014").iso8601
+    @meta_record.updated = Time.now.iso8601
+    render :index
+  end
   
   def utterance_redirect
     match = params['reply_code'].match(/^([0-9a-f]+)([A-Z]+)?$/)
@@ -81,11 +97,18 @@ class BoardsController < ApplicationController
 
   def lesson
     @lesson = Lesson.find_by_path(params['lesson_id'])
-    @lesson = nil unless @lesson.nonce == params['lesson_code']
-    @user = User.find_by_token(params['user_token'])
-    if !@user || !@lesson
-      return redirect_to '/404'
-    end
+    # Nil-safe guard (intentional in-scope hardening): a genuinely missing lesson must 404,
+    # not raise NoMethodError->500, when calling .nonce on a nil @lesson.
+    @lesson = nil unless @lesson && @lesson.nonce == params['lesson_code']
+    return redirect_to '/404' unless @lesson
+    # @user is intentionally unused below (render :index doesn't branch on it) — kept only so an
+    # accepted legacy permanent-token still logs [lesson_share_legacy_token] for LL-310b464be4
+    # sunset telemetry.
+    @user = User.find_by_lesson_share_token(params['user_token'])
+    # The lesson exists and its nonce matched, so boot the Ember app even when the share token is
+    # missing/expired/invalid, so routes/lesson.js can show the explanatory link-expired state
+    # (LL-90045bb29c follow-up). Do not distinguish expired-vs-invalid here to avoid a
+    # token-validity oracle (UX-05).
     render :index
     #render :lesson, :layout => false
   end

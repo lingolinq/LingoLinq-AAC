@@ -24,7 +24,7 @@ export default modal.ModalController.extend({
       this.set('model.devices', list);
     },
     update_device: function() {
-      var device = (this.get('model.devices') || []).findBy('renaming', true);
+      var device = (this.get('model.devices') || []).find(function(d) { return emberGet(d, 'renaming') === true; });
       if(device) {
         var user = this.get('model');
         user.rename_device(device.id, device.new_name);

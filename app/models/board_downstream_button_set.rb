@@ -1,4 +1,4 @@
-class BoardDownstreamButtonSet < ActiveRecord::Base
+class BoardDownstreamButtonSet < ApplicationRecord
   MAX_DEPTH = 10
   include Async
   include GlobalId
@@ -200,11 +200,12 @@ class BoardDownstreamButtonSet < ActiveRecord::Base
     @unviewable_ids = button_set.data['board_ids'].select{|id| !allowed_ids[id] }
     revision_match = full_set_revision && button_set_revision == full_set_revision
     if @unviewable_ids.blank? && revision_match && !button_set.data['source_id']
-      # Cache the CDN URL for 24 hours
+      # Cache the CDN URL for 10 minutes (was 24h -- reduced 2026-04-21 so a
+      # deleted S3 object doesn't pin users on a stale URL for a full day).
       if button_set.data['private_cdn_url']
         button_set.data['private_cdn_url_checked'] ||= Time.now.to_i
       end
-      if button_set.data['private_cdn_url'] && button_set.data['private_cdn_revision'] == button_set_revision && (button_set.data['private_cdn_url_checked'] || Time.now.to_i) > (24.hours.ago.to_i)
+      if button_set.data['private_cdn_url'] && button_set.data['private_cdn_revision'] == button_set_revision && (button_set.data['private_cdn_url_checked'] || Time.now.to_i) > (10.minutes.ago.to_i)
         return button_set.data['private_cdn_url']
       end
       private_path = button_set.extra_data_private_url
@@ -220,10 +221,18 @@ class BoardDownstreamButtonSet < ActiveRecord::Base
         button_set.data['private_cdn_revision'] = button_set_revision
         button_set.save
         return url
-      elsif button_set.data['buttons']
-        button_set.schedule_once(:detach_extra_data, 'force')
       else
-        BoardDownstreamButtonSet.schedule_once(:update_for, self.related_global_id(self.board_id))
+        if button_set.data['private_cdn_url']
+          button_set.data.delete('private_cdn_url')
+          button_set.data.delete('private_cdn_url_checked')
+          button_set.data.delete('private_cdn_revision')
+          button_set.save
+        end
+        if button_set.data['buttons']
+          button_set.schedule_once(:detach_extra_data, 'force')
+        else
+          BoardDownstreamButtonSet.schedule_once(:update_for, self.related_global_id(self.board_id))
+        end
       end
     end
 
@@ -346,7 +355,13 @@ class BoardDownstreamButtonSet < ActiveRecord::Base
           RemoteAction.create(path: "#{board_id}::#{user_id}", act_at: 5.minutes.from_now, action: 'upload_extra_data')
         elsif res && res[:path] && res[:path] != remote_path
           RemoteAction.where(path: res[:path], action: 'delete').delete_all
-          Uploader.remote_remove_later(remote_path, old_checksum)
+          # Skip scheduling deletion when remote_path already carries a
+          # /chksmXXXXX/ segment. On stable content the new upload resolves
+          # to the same chksm path, so the scheduled delete would wipe the
+          # just-uploaded object (observed in prod 2026-04-13..2026-04-20).
+          unless remote_path.to_s.match?(%r{/chksm[^/]+/})
+            Uploader.remote_remove_later(remote_path, old_checksum)
+          end
           button_set.data['remote_paths'][remote_hash]['path'] = res[:path]
           button_set.data['remote_paths'][remote_hash]['checksum'] = new_checksum
         elsif res && res[:path]
@@ -376,11 +391,21 @@ class BoardDownstreamButtonSet < ActiveRecord::Base
       if bs && bs.data['remote_paths']
         changed = false
         bs.data['remote_paths'].each do |hash, obj|
-          if obj['generated'] < timestamp && obj['path']
+          # Only flush entries that are stale per the requested timestamp AND
+          # also past their own `expires` window. `url_for` trusts entries
+          # until `expires` regardless of `generated`, so flushing a
+          # generated-old / expires-fresh entry deletes the S3 object out
+          # from under live users (observed in prod 2026-04-21..22 as an
+          # upload-then-delete race on board_copy hot path).
+          expires = obj['expires'] || 0
+          if obj['generated'] < timestamp && expires < Time.now.to_i && obj['path']
             changed = true
             path = obj['path']
-            # Uploader.invalidate_cdn(path)            
-            Uploader.remote_remove(path)
+            # Uploader.invalidate_cdn(path)
+            # Pass the stored checksum so remote_remove's safety check aborts
+            # if the current S3 version doesn't match what we think we're
+            # cleaning up. Belt-and-suspenders against the above race.
+            Uploader.remote_remove(path, obj['checksum'])
             bs.data['remote_paths'].delete(hash)
           end
         end
@@ -389,7 +414,7 @@ class BoardDownstreamButtonSet < ActiveRecord::Base
     end
   end
 
-  def self.update_for(board_id, immediate_update=false, traversed_ids=[])
+  def self.update_for(board_id, immediate_update=false, traversed_ids=[], retry_count=0)
     traversed_ids ||= []
     key = "traversed/button_set/#{board_id}"
     cached_traversed = (JSON.parse(RedisInit.default.get(key)) rescue nil) || []
@@ -397,6 +422,19 @@ class BoardDownstreamButtonSet < ActiveRecord::Base
     traversed_ids = (traversed_ids + cached_traversed).uniq
 
     board = Board.find_by_global_id(board_id)
+    if !board
+      # Deferred rebuilds are enqueued from Board#post_process, which runs in an
+      # after_save callback (before COMMIT). A :slow worker can dequeue this job
+      # before the creating transaction commits, so the board row isn't visible
+      # yet. Re-enqueue a bounded number of times instead of silently leaving the
+      # buttonset unbuilt; give up only if the board never appears (e.g. rolled back).
+      if retry_count < 5
+        BoardDownstreamButtonSet.schedule_for(:slow, :update_for, board_id, immediate_update, traversed_ids, retry_count + 1)
+      else
+        Rails.logger.warn("[BoardDownstreamButtonSet.update_for] board #{board_id} not found after #{retry_count} retries, giving up")
+      end
+      return
+    end
     return if board && traversed_ids.include?(board.global_id)
     board.track_downstream_boards! if board && (!board.settings || !board.settings['full_set_revision'])
     if board

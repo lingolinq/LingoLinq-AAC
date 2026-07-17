@@ -1,4 +1,6 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 import i18n from '../../utils/i18n';
 import Utils from '../../utils/misc';
 import persistence from '../../utils/persistence';
@@ -10,6 +12,10 @@ import capabilities from '../../utils/capabilities';
 import app_state from '../../utils/app_state';
 
 export default Controller.extend({
+  appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
+  router: service('router'),
   first_log: computed('model.logs.data', function() {
     return (this.get('model.logs.data') || [])[0];
   }),
@@ -33,7 +39,7 @@ export default Controller.extend({
     });
     var counts = this.get('log_stats.word_count') || [];
     counts.forEach(function(w) {
-      res.get('words_by_frequency').pushObject({text: w.word, count: w.cnt});
+      res.get('words_by_frequency').push({text: w.word, count: w.cnt});
     });
     return res;
   }),
@@ -58,7 +64,7 @@ export default Controller.extend({
       }
     }
     counts.forEach(function(w) {
-      res.get('words_by_frequency').pushObject({text: w.word, count: w.cnt});
+      res.get('words_by_frequency').push({text: w.word, count: w.cnt});
     });
     return res;
   }),
@@ -73,6 +79,31 @@ export default Controller.extend({
       return i18n.t('all_users_lower', "all users");
     }
   }),
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
     edit_unit: function(opt) {
       var _this = this;
@@ -108,13 +139,13 @@ export default Controller.extend({
       }
     },
     launch_lesson: function() {
-      if(this.get('model.lesson') && app_state.get('currentUser.user_token')) {
+      if(this.get('model.lesson') && app_state.get('currentUser.lesson_share_token')) {
         var lesson = this.get('model.lesson');
         var prefix = location.protocol + "//" + location.host;
         if(capabilities.installed_app && capabilities.api_host) {
           prefix = capabilities.api_host;
         }
-        window.open(prefix + '/lessons/' + lesson.id + '/' + lesson.lesson_code + '/' + app_state.get('currentUser.user_token'), '_blank');
+        window.open(prefix + '/lessons/' + lesson.id + '/' + lesson.lesson_code + '/' + app_state.get('currentUser.lesson_share_token'), '_blank');
       }
 
     },
@@ -122,7 +153,7 @@ export default Controller.extend({
       var _this = this;
       modal.open('confirm-delete-unit', {unit: _this.get('model')}).then(function(res) {
         if(res && res.deleted) {
-          _this.transitionToRoute('organization.rooms', _this.get('organization.id'));
+          _this.router.transitionTo('organization.rooms', _this.get('organization.id'));
         }
       });
     },

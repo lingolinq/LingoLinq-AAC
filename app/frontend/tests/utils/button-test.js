@@ -8,6 +8,7 @@ import {
   runs
 } from 'frontend/tests/helpers/jasmine';
 import { queryLog } from 'frontend/tests/helpers/ember_helper';
+import { persistenceTarget } from '../helpers/service-stub';
 import RSVP from 'rsvp';
 import Button from '../../utils/button';
 import app_state from '../../utils/app_state';
@@ -15,6 +16,37 @@ import persistence from '../../utils/persistence';
 import progress_tracker from '../../utils/progress_tracker';
 import LingoLinq from '../../app';
 import EmberObject from '@ember/object';
+
+function translationEntry(code, label, vocalization) {
+  return {
+    code: code,
+    locale: code,
+    label: label,
+    vocalization: vocalization,
+    inflections: undefined,
+    rules: undefined
+  };
+}
+
+function youtubeVideoExpectation(id, overrides) {
+  var origin = encodeURIComponent(location.origin);
+  var base = 'https://www.youtube.com/embed/' + id + '?rel=0&showinfo=0&enablejsapi=1&origin=' + origin;
+  return Object.assign({
+    end: '',
+    id: id,
+    popup: true,
+    start: '',
+    test_url: base + '&autoplay=0',
+    thumbnail_content_type: 'image/jpeg',
+    thumbnail_url: 'https://img.youtube.com/vi/' + id + '/hqdefault.jpg',
+    type: 'youtube',
+    url: base + '&autoplay=1&controls=0'
+  }, overrides || {});
+}
+
+function persistenceForTest() {
+  return persistenceTarget();
+}
 
 context('Button', function() {
   context("actions", function() {
@@ -33,6 +65,18 @@ context('Button', function() {
       expect(button.get('buttonAction')).toEqual('talk');
       expect(button.get('talkAction')).toEqual(true);
       expect(button.get('folderAction')).toEqual(false);
+    });
+
+    it("should treat disabled links as talk buttons", function() {
+      var button = Button.create({
+        load_board: {id: '1_2', key: 'example/linked'},
+        link_disabled: true
+      });
+      expect(button.get('buttonAction')).toEqual('talk');
+      expect(button.get('talkAction')).toEqual(true);
+      expect(button.get('folderAction')).toEqual(false);
+      button.set('link_disabled', false);
+      expect(button.get('buttonAction')).toEqual('folder');
     });
   });
 
@@ -54,8 +98,7 @@ context('Button', function() {
       var button = Button.create({
         label: "hat",
         background_color: "#fff",
-        chicken: true,
-        talkAction: 'ok'
+        chicken: true
       });
       expect(button.raw()).toEqual({label: 'hat', background_color: '#fff'});
     });
@@ -411,6 +454,76 @@ context('Button', function() {
         expect(b.get('local_image_url')).toEqual('http://www.example.com/pic.png');
       });
     });
+
+    it('should ignore stale findRecord results after image_id changes', function() {
+      var b = Button.create();
+      b.image_id = '1';
+      var deferred = RSVP.defer();
+      stub(LingoLinq.store, 'findRecord', function(type, id) {
+        if(type === 'image' && id === '1') {
+          return deferred.promise;
+        }
+        return RSVP.reject('unexpected lookup');
+      });
+
+      var oldImage = LingoLinq.store.push({ data: {
+        id: '1',
+        type: 'image',
+        attributes: { url: 'http://www.example.com/old.png' }
+      }});
+      var newImage = LingoLinq.store.push({ data: {
+        id: '2',
+        type: 'image',
+        attributes: { url: 'http://www.example.com/new.png' }
+      }});
+      stub(newImage, 'checkForDataURL', function() { return RSVP.resolve(newImage); });
+      stub(oldImage, 'checkForDataURL', function() { return RSVP.resolve(oldImage); });
+
+      var loaded = false;
+      b.load_image().then(function() {
+        loaded = true;
+      });
+
+      b.set('image', newImage);
+      b.set('local_image_url', 'http://www.example.com/new.png');
+      b.image_id = '2';
+      deferred.resolve(oldImage);
+
+      waitsFor(function() { return loaded; });
+      runs(function() {
+        expect(b.get('image.id')).toEqual('2');
+        expect(b.get('local_image_url')).toEqual('http://www.example.com/new.png');
+      });
+    });
+
+    it('should not reuse a stale button.image_url after image_id changes', function() {
+      var b = Button.create({
+        image_id: '2',
+        image_url: 'http://www.example.com/old.png',
+        board: EmberObject.create({
+          image_urls: {
+            1: 'http://www.example.com/old.png'
+          }
+        })
+      });
+      var assigned = LingoLinq.store.push({ data: {
+        id: '2',
+        type: 'image',
+        attributes: { url: 'http://www.example.com/new.png' }
+      }});
+      stub(assigned, 'checkForDataURL', function() { return RSVP.resolve(assigned); });
+      b.set('image', assigned);
+
+      var loaded = false;
+      b.load_image('local').then(function() {
+        loaded = true;
+      });
+      waitsFor(function() { return loaded; });
+      runs(function() {
+        expect(b.get('image.id')).toEqual('2');
+        expect(b.get('image.url')).toEqual('http://www.example.com/new.png');
+      });
+    });
   });
 
   context("load_sound", function() {
@@ -525,7 +638,7 @@ context('Button', function() {
       var done = false;
       b.image_id = 'asdf';
       b.image_url = 'http://www.example.com/pic.png';
-      persistence.url_cache = {'http://www.example.com/pic.png': 'file://something.png'};
+      persistenceForTest().url_cache = {'http://www.example.com/pic.png': 'file://something.png'};
       b.findContentLocally().then(function(res) {
         done = true;
       });
@@ -546,7 +659,7 @@ context('Button', function() {
       var done = false;
       b.image_id = 'asdf';
       b.image_url = 'http://www.example.com/pic.png';
-      persistence.url_cache = {};
+      persistenceForTest().url_cache = {};
       b.findContentLocally().then(function(res) {
         done = true;
       });
@@ -554,7 +667,7 @@ context('Button', function() {
       runs(function() {
         expect(image_load).toEqual(true);
         expect(sound_load).toEqual(false);
-        expect(b.get('local_image_url')).toEqual(undefined);
+        expect(b.get('local_image_url')).toEqual('http://www.example.com/pic.png');
       });
     });
 
@@ -567,7 +680,7 @@ context('Button', function() {
       var done = false;
       b.image_id = 'asdf';
       b.image_url = 'http://www.example.com/pic.png';
-      persistence.url_cache = {};
+      persistenceForTest().url_cache = {};
       b.findContentLocally().then(function(res) {
         done = true;
       });
@@ -575,7 +688,7 @@ context('Button', function() {
       runs(function() {
         expect(image_load).toEqual(true);
         expect(sound_load).toEqual(false);
-        expect(b.get('local_image_url')).toEqual(undefined);
+        expect(b.get('local_image_url')).toEqual('http://www.example.com/pic.png');
       });
     });
 
@@ -588,7 +701,7 @@ context('Button', function() {
       var done = false;
       b.sound_id = 'asdf';
       b.sound_url = 'http://www.example.com/pic.png';
-      persistence.url_cache = {'http://www.example.com/pic.png': 'file://something.png'};
+      persistenceForTest().url_cache = {'http://www.example.com/pic.png': 'file://something.png'};
       b.findContentLocally().then(function(res) {
         done = true;
       });
@@ -609,7 +722,7 @@ context('Button', function() {
       var done = false;
       b.sound_id = 'asdf';
       b.sound_url = 'http://www.example.com/pic.png';
-      persistence.url_cache = {};
+      persistenceForTest().url_cache = {};
       b.findContentLocally().then(function(res) {
         done = true;
       });
@@ -630,7 +743,7 @@ context('Button', function() {
       var done = false;
       b.sound_id = 'asdf';
       b.sound_url = 'http://www.example.com/pic.png';
-      persistence.url_cache = {};
+      persistenceForTest().url_cache = {};
       b.findContentLocally().then(function(res) {
         done = true;
       });
@@ -658,15 +771,16 @@ context('Button', function() {
     it('should return html', function() {
       var b = Button.create();
       var html = b.get('fast_html');
-      expect(!!html.string.match(/div/)).toEqual(true);
+      expect(!!html).toEqual(true);
+      expect(String(html)).toMatch(/div/);
     });
 
     it('should sanitize text appropriately', function() {
       var b = Button.create();
       b.set('label', "<script>alert('asdf');</script>");
       var html = b.get('fast_html');
-      expect(html.string.indexOf("<script>alert('asdf');</script>")).toEqual(-1);
-      expect(html.string.indexOf("&lt;script&gt;alert('asdf');&lt;/script&gt;")).toNotEqual(-1);
+      expect(String(html).indexOf("<script>alert('asdf');</script>")).toEqual(-1);
+      expect(String(html).indexOf("&lt;script&gt;alert('asdf');&lt;/script&gt;")).toNotEqual(-1);
     });
   });
 
@@ -685,13 +799,13 @@ context('Button', function() {
         }
       });
       expect(button.get('translations')).toEqual([
-        {code: 'en', locale: 'en', label: undefined, vocalization: undefined},
-        {code: 'es', locale: 'es', label: 'tac', vocalization: 'stac'}
+        translationEntry('en', undefined, undefined),
+        translationEntry('es', 'tac', 'stac')
       ]);
       button.set('label', 'cans');
       expect(button.get('translations')).toEqual([
-        {code: 'en', locale: 'en', label: 'cans', vocalization: undefined},
-        {code: 'es', locale: 'es', label: 'tac', vocalization: 'stac'}
+        translationEntry('en', 'cans', undefined),
+        translationEntry('es', 'tac', 'stac')
       ]);
     });
 
@@ -709,14 +823,14 @@ context('Button', function() {
         }
       });
       expect(button.get('translations')).toEqual([
-        {code: 'en', locale: 'en', label: undefined, vocalization: undefined},
-        {code: 'es', locale: 'es', label: 'tac', vocalization: 'stac'}
+        translationEntry('en', undefined, undefined),
+        translationEntry('es', 'tac', 'stac')
       ]);
       board.set('locale', 'es');
       button.set('vocalization', 'bleh');
       expect(button.get('translations')).toEqual([
-        {code: 'en', locale: 'en', label: 'cat', vocalization: undefined},
-        {code: 'es', locale: 'es', label: 'tac', vocalization: 'bleh'}
+        translationEntry('en', 'cat', undefined),
+        translationEntry('es', 'tac', 'bleh')
       ]);
     });
 
@@ -733,8 +847,8 @@ context('Button', function() {
         }
       });
       expect(b.get('translations')).toEqual([
-        {code: 'fr', locale: 'fr', label: 'cat', vocalization: 'cats'},
-        {code: 'es', locale: 'es', label: 'tac', vocalization: 'stac'}
+        translationEntry('fr', 'cat', 'cats'),
+        translationEntry('es', 'tac', 'stac')
       ]);
     });
   });
@@ -786,17 +900,7 @@ context('Button', function() {
     it('should recognize YouTube videos by url', function() {
       var b = Button.create();
       b.set('url', 'https://www.youtube.com/watch?v=fPDYj3IMkRI');
-      expect(b.get('video')).toEqual({
-        "end": "",
-        "id": "fPDYj3IMkRI",
-        "popup": true,
-        "start": "",
-        "test_url": "https://www.youtube.com/embed/fPDYj3IMkRI?rel=0&showinfo=0&enablejsapi=1&origin=http%3A%2F%2Flocalhost%3A3400&autoplay=0",
-        "thumbnail_content_type": "image/jpeg",
-        "thumbnail_url": "https://img.youtube.com/vi/fPDYj3IMkRI/hqdefault.jpg",
-        "type": "youtube",
-        "url": "https://www.youtube.com/embed/fPDYj3IMkRI?rel=0&showinfo=0&enablejsapi=1&origin=http%3A%2F%2Flocalhost%3A3400&autoplay=1&controls=0"
-       });
+      expect(b.get('video')).toEqual(youtubeVideoExpectation('fPDYj3IMkRI'));
     });
 
     it('should recognize custom books by url', function() {
@@ -819,33 +923,13 @@ context('Button', function() {
     it('should update between types correctly', function() {
       var b = Button.create();
       b.set('url', 'https://www.youtube.com/watch?v=fPDYj3IMkRI');
-      expect(b.get('video')).toEqual({
-        "end": "",
-        "id": "fPDYj3IMkRI",
-        "popup": true,
-        "start": "",
-        "test_url": "https://www.youtube.com/embed/fPDYj3IMkRI?rel=0&showinfo=0&enablejsapi=1&origin=http%3A%2F%2Flocalhost%3A3400&autoplay=0",
-        "thumbnail_content_type": "image/jpeg",
-        "thumbnail_url": "https://img.youtube.com/vi/fPDYj3IMkRI/hqdefault.jpg",
-        "type": "youtube",
-        "url": "https://www.youtube.com/embed/fPDYj3IMkRI?rel=0&showinfo=0&enablejsapi=1&origin=http%3A%2F%2Flocalhost%3A3400&autoplay=1&controls=0"
-      });
+      expect(b.get('video')).toEqual(youtubeVideoExpectation('fPDYj3IMkRI'));
       expect(b.get('book')).toEqual(null);
       b.set('video.start', '123');
       b.set('video.popup', false);
 
       b.set('url', 'https://www.youtube.com/watch?v=fPDYj3IMkRW');
-      expect(b.get('video')).toEqual({
-        "end": "",
-        "id": "fPDYj3IMkRW",
-        "popup": true,
-        "start": "",
-        "test_url": "https://www.youtube.com/embed/fPDYj3IMkRW?rel=0&showinfo=0&enablejsapi=1&origin=http%3A%2F%2Flocalhost%3A3400&autoplay=0",
-        "thumbnail_content_type": "image/jpeg",
-        "thumbnail_url": "https://img.youtube.com/vi/fPDYj3IMkRW/hqdefault.jpg",
-        "type": "youtube",
-        "url": "https://www.youtube.com/embed/fPDYj3IMkRW?rel=0&showinfo=0&enablejsapi=1&origin=http%3A%2F%2Flocalhost%3A3400&autoplay=1&controls=0"
-      });
+      expect(b.get('video')).toEqual(youtubeVideoExpectation('fPDYj3IMkRW'));
       expect(b.get('book')).toEqual(null);
 
       b.set('url', null);

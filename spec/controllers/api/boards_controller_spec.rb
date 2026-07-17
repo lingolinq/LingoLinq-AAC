@@ -6,6 +6,46 @@ describe Api::BoardsController, :type => :controller do
       get :index
       expect(response).to be_successful
     end
+
+    # Regression test for Scot #6 pre-merge finding (Med-High):
+    # `lib/json_api/board.rb:91` calls `board.parent_board` unconditionally
+    # in `build_json`. Without `boards.includes(:parent_board)` in the
+    # controller's query, each board in a paginated index response fires
+    # one extra SELECT. At default per_page=25 that's ~25 extra queries.
+    # This spec counts board-table SELECTs against a 4-query budget so
+    # the regression cannot silently re-land.
+    # See docs/task-management/2026-05-27-boards-index-n-plus-one.md.
+    it "should eager-load parent_board to avoid N+1 on index" do
+      u = User.create(:settings => {'public' => true})
+      parent = Board.create(:user => u, :public => true)
+      # 5 child boards each referencing parent_board — without the
+      # eager-load this would fire 5 extra SELECTs (one per child).
+      5.times do
+        Board.create(:user => u, :public => true, :parent_board_id => parent.id)
+      end
+
+      board_select_count = 0
+      callback = lambda do |*args|
+        payload = args.last
+        sql = (payload && payload[:sql]) || ''
+        name = (payload && payload[:name]) || ''
+        # Skip schema introspection + ActiveRecord's prepared-statement cache;
+        # they're noise. Count only real SELECTs against the boards table.
+        next if name =~ /SCHEMA|CACHE/
+        board_select_count += 1 if sql =~ /SELECT.*FROM\s+"boards"/i
+      end
+
+      ActiveSupport::Notifications.subscribed(callback, 'sql.active_record') do
+        get :index, :params => {:user_id => u.global_id, :public => true}
+      end
+
+      expect(response).to be_successful
+      # With the eager-load: 1 main query + 1 parent_board preload + ~1
+      # for the user/auth lookup = ~3. Threshold of 4 catches the regression
+      # (which would push the count to 6+) with one query of headroom for
+      # incidental variations across Rails versions.
+      expect(board_select_count).to be <= 4
+    end
     
     it "should filter by user_id" do
       u = User.create(:settings => {:public => true})
@@ -311,7 +351,41 @@ describe Api::BoardsController, :type => :controller do
       expect(json['board'].length).to eq(1)
       expect(json['board'][0]['id']).to eq(b2.global_id)
     end
-    
+
+    it "should not 500 on a private query search with allow_job (regression: LINGOLINQ-RAILS-J)" do
+      # The index relation eager-loads `includes(:board_content, :parent_board)`
+      # for the full serialization path. The allow_job branch builds the
+      # candidate id list with a partial `select('id, board_content_id')` that
+      # omits `parent_board_id`; the :parent_board preloader then raised
+      # ActiveModel::MissingAttributeError ("missing attribute 'parent_board_id'
+      # for Board"), 500ing the request. A child board exercises the
+      # parent_board association so the preloader has linkage to resolve.
+      token_user
+      parent = Board.create(:user => @user, :settings => {'name' => "prologue parent"})
+      child = Board.create(:user => @user, :parent_board => parent, :settings => {'name' => "prologue child"})
+      get :index, params: {:user_id => @user.global_id, :q => "pro", :allow_job => true}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      # allow_job offloads the heavy search to a background job and returns an
+      # empty board list with a progress handle in meta.
+      expect(json['board']).to eq([])
+      expect(json['meta']['progress']).to_not eq(nil)
+    end
+
+    it "should not 500 on a public query search scoped to a user_id (regression: LINGOLINQ-RAILS-J twin)" do
+      # The public+user_id branch builds its candidate id list with the same
+      # partial `select('id, board_content_id')` off the includes-carrying
+      # relation, so it had the identical MissingAttributeError defect as the
+      # allow_job branch. This covers the second `.except(:includes)` site.
+      token_user
+      @user.settings['public'] = true
+      @user.save
+      parent = Board.create(:user => @user, :public => true, :settings => {'name' => "prologue parent"})
+      child = Board.create(:user => @user, :public => true, :parent_board => parent, :settings => {'name' => "prologue child"})
+      get :index, params: {:user_id => @user.global_id, :public => true, :q => "pro"}
+      expect(response).to be_successful
+    end
+
     it "should allow sorting by popularity or home_popularity" do
       u = User.create(:settings => {:public => true})
       b = Board.create(:user => u, :public => true)
@@ -1268,6 +1342,97 @@ describe Api::BoardsController, :type => :controller do
       expect(json['board']['name']).to eq("cool board 2")
       expect(json['board']['grid']['order']).to eq([[1, nil, 2]])
     end
+
+    it "should reject non-object JSON body" do
+      token_user
+      request.headers['Content-Type'] = 'application/json'
+      post :create, params: {}, body: '[]'
+      expect(response).to have_http_status(:bad_request)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('JSON body must be an object')
+    end
+  end
+
+  describe "create (Art.50(2) marker persistence)" do
+    it "verifies and persists a valid AI-generated marker onto the saved board" do
+      token_user
+      marker = Art50Marker.build(provider: 'claude', model: 'claude-haiku-4-5-20251001')
+      request.headers['Content-Type'] = 'application/json'
+      post :create, params: {}, body: {board: {name: 'AI board', ai_generated: marker}}.to_json
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      board = Board.find_by_path(json['board']['id'])
+      # full signed marker is persisted server-side (verifiable on re-save)
+      expect(board.settings['ai_generated']).to eq(marker)
+      expect(Art50Marker.verify(board.settings['ai_generated'])).to eq(true)
+      # but the create response exposes only the non-secret provenance view
+      expect(json['board']['ai_generated']['marked']).to eq(true)
+      expect(json['board']['ai_generated']['provider']).to eq(marker['provider'])
+      expect(json['board']['ai_generated']).not_to have_key('signature')
+    end
+
+    it "verifies and persists a valid marker via the form-encoded param path (string 'true' + string values)" do
+      # The JSON-body path sends marked:true (boolean); the Rails form-param path arrives
+      # with every value stringified, so marked becomes "true". Art50Marker.verify accepts
+      # both. This exercises that path + indifferent-access key handling end to end.
+      token_user
+      marker = Art50Marker.build(provider: 'claude', model: 'claude-haiku-4-5-20251001')
+      post :create, params: {board: {name: 'AI board', ai_generated: marker}}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      board = Board.find_by_path(json['board']['id'])
+      expect(Art50Marker.verify(board.settings['ai_generated'])).to eq(true)
+    end
+
+    it "silently drops a forged marker but still saves the board" do
+      token_user
+      marker = Art50Marker.build(provider: 'claude', model: 'm')
+      forged = marker.merge('provider' => 'evil-corp')
+      request.headers['Content-Type'] = 'application/json'
+      post :create, params: {}, body: {board: {name: 'b', ai_generated: forged}}.to_json
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      board = Board.find_by_path(json['board']['id'])
+      expect(board.settings['ai_generated']).to be_nil
+    end
+  end
+
+  describe "generate_labels" do
+    it "should reject non-object JSON body" do
+      token_user
+      expect(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
+      request.headers['Content-Type'] = 'application/json'
+      post :generate_labels, params: {}, body: '[]'
+      expect(response).to have_http_status(:bad_request)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('JSON body must be an object')
+    end
+
+    it "should pass the authenticated user through to the generator" do
+      token_user
+      expect(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
+      captured = nil
+      allow(AiBoardGenerator).to receive(:generate_words) do |**kw|
+        captured = kw
+        { words: %w[apple banana carrot drink], name: 'Snacks', description: 'Snack words', error: nil }
+      end
+      request.headers['Content-Type'] = 'application/json'
+      post :generate_labels, params: {}, body: { prompt: 'snacks', rows: 2, columns: 2 }.to_json
+      expect(response).to be_successful
+      expect(captured[:user]).to be_present
+      expect(captured[:user].global_id).to eq(@user.global_id)
+    end
+
+    it "should return 403 and skip generation when AI is disabled for the org" do
+      token_user
+      expect(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_board_generation', anything).and_return(false)
+      expect(AiBoardGenerator).not_to receive(:generate_words)
+      request.headers['Content-Type'] = 'application/json'
+      post :generate_labels, params: {}, body: { prompt: 'snacks', rows: 2, columns: 2 }.to_json
+      expect(response).to have_http_status(:forbidden)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('Feature not available')
+    end
   end
   
   describe "update" do
@@ -1382,6 +1547,16 @@ describe Api::BoardsController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['board']['name']).to eq("cool board 2")
       expect(json['board']['grid']['order']).to eq([[1, nil, 2]])
+    end
+
+    it "should reject non-object JSON body" do
+      token_user
+      b = Board.create(:user => @user)
+      request.headers['Content-Type'] = 'application/json'
+      put :update, params: {:id => b.global_id}, body: '[]'
+      expect(response).to have_http_status(:bad_request)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('JSON body must be an object')
     end
     
     it "should support single-button updating" do
@@ -2005,6 +2180,34 @@ describe Api::BoardsController, :type => :controller do
       expect(json).to eq({'rename' => true, 'key' => "#{@user.user_name}/bacon"})
     end
 
+    it "should resolve an old key after rename for board detail lookups" do
+      token_user
+      b = Board.create(:user => @user)
+      old_key = b.key
+      post :rename, params: {:board_id => b.global_id, :old_key => old_key, :new_key => "#{@user.user_name}/bacon"}
+      expect(response).to be_successful
+
+      get :show, params: { id: old_key }
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['board']['id']).to eq(b.global_id)
+      expect(json['board']['key']).to eq("#{@user.user_name}/bacon")
+    end
+
+    it "should resolve an old key after rename for board detail tree lookups" do
+      token_user
+      b = Board.create(:user => @user)
+      old_key = b.key
+      post :rename, params: {:board_id => b.global_id, :old_key => old_key, :new_key => "#{@user.user_name}/bacon"}
+      expect(response).to be_successful
+
+      get :tree, params: { board_id: old_key }
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['root']['board']['id']).to eq(b.global_id)
+      expect(json['root']['board']['key']).to eq("#{@user.user_name}/bacon")
+    end
+
     it "should require the correct old_key" do
       token_user
       b = Board.create(:user => @user)
@@ -2057,7 +2260,7 @@ describe Api::BoardsController, :type => :controller do
     it "should schedule processing for url" do
       token_user
       p = Progress.create
-      expect(Progress).to receive(:schedule).with(Board, :import, @user.global_id, 'http://www.example.com/file.obf').and_return(p)
+      expect(Progress).to receive(:schedule).with(Board, :import, @user.global_id, 'http://www.example.com/file.obf', {}, for_user: @user).and_return(p)
       post :import, params: {:url => 'http://www.example.com/file.obf'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
@@ -2071,6 +2274,55 @@ describe Api::BoardsController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['remote_upload']).to_not eq(nil)
       expect(json['remote_upload']['upload_url']).to_not eq(nil)
+    end
+  end
+
+  describe "from_json_bundle" do
+    it "should require api token" do
+      post :from_json_bundle, params: { url: 'https://www.example.com/bundle.json' }
+      assert_missing_token
+    end
+
+    it "should require the paste_html_import feature flag" do
+      token_user
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('paste_html_import', @user).and_return(false)
+      post :from_json_bundle, params: { url: 'https://www.example.com/bundle.json' }
+      expect(response.status).to eq(403)
+    end
+
+    it "should reject bundle URLs outside the importer upload prefix" do
+      token_user
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('paste_html_import', @user).and_return(true)
+      post :from_json_bundle, params: { url: 'https://www.example.com/imports/boards/evil/bundle-abc.json' }
+      expect(response.status).to eq(400)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('invalid import bundle URL')
+    end
+
+    it "should report invalid URL when sanitization fails" do
+      token_user
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('paste_html_import', @user).and_return(true)
+      post :from_json_bundle, params: { url: 'file:///tmp/bundle.json' }
+      expect(response.status).to eq(400)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('invalid URL')
+    end
+
+    it "should schedule processing for a valid bundle upload URL" do
+      token_user
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('paste_html_import', @user).and_return(true)
+      uploads_bucket = ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'
+      url = "https://#{uploads_bucket}.s3.amazonaws.com/imports/boards/#{@user.global_id}/bundle-abc123.json"
+      p = Progress.create
+      expect(Progress).to receive(:schedule).with(Board, :import_json_bundle, @user.global_id, url, {}, for_user: @user).and_return(p)
+      post :from_json_bundle, params: { url: url }
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['progress']['id']).to eq(p.global_id)
     end
   end
   
@@ -2161,12 +2413,14 @@ describe Api::BoardsController, :type => :controller do
       post :unlink, params: {:board_id => b.global_id, :user_id => @user.global_id, :type => 'untag', :tag => 'bacon'}
       expect(response).to be_successful
       expect(e.reload.settings['board_tags']).to eq({
+        'bacon' => [],
         'cheddar' => ['a', 'b', b.global_id, 'c']
       })
 
       post :unlink, params: {:board_id => b.global_id, :user_id => @user.global_id, :type => 'untag', :tag => 'cheddar'}
       expect(response).to be_successful
       expect(e.reload.settings['board_tags']).to eq({
+        'bacon' => [],
         'cheddar' => ['a', 'b', 'c']
       })
 
@@ -2600,6 +2854,7 @@ describe Api::BoardsController, :type => :controller do
       json = assert_success_json
       expect(json['tagged']).to eq(true)
       expect(json['board_tags']).to eq(['bacon'])
+      expect(json['board_tag_map']).to eq({'bacon' => [b.global_id]})
       expect(@user.reload.user_extra.settings['board_tags']['bacon']).to eq([b.global_id])
     end
 
@@ -2632,13 +2887,15 @@ describe Api::BoardsController, :type => :controller do
       json = assert_success_json
       expect(json['tagged']).to eq(true)
       expect(json['board_tags']).to eq(['bacon'])
+      expect(json['board_tag_map']).to eq({'bacon' => [b.global_id]})
       expect(@user.reload.user_extra.settings['board_tags']['bacon']).to eq([b.global_id])
 
       post :tag, params: {board_id: b.global_id, tag: 'bacon', remove: true}
       json = assert_success_json
       expect(json['tagged']).to eq(true)
-      expect(json['board_tags']).to eq([])
-      expect(@user.reload.user_extra.settings['board_tags']['bacon']).to eq(nil)
+      expect(json['board_tags']).to eq(['bacon'])
+      expect(json['board_tag_map']).to eq({'bacon' => []})
+      expect(@user.reload.user_extra.settings['board_tags']['bacon']).to eq([])
     end
 
     it "should return a list of tags on success" do
@@ -2890,6 +3147,267 @@ describe Api::BoardsController, :type => :controller do
       expect(p.settings['method']).to eq('slice_locales')
       expect(p.settings['id']).to eq(b.id)
       expect(p.settings['arguments']).to eq([nil, ['a', 'b'], @user.global_id])
+    end
+  end
+
+  # Lite serialization for #tree and #bulk (RCA 2026-05-24, issue #286).
+  # These endpoints fan out as_json across up to MAX_TREE / MAX_BULK boards
+  # to warm the client prefetch cache. The full as_json path issues several
+  # unindexed per-board lookups (parent_board x2, find_copies_by, shared_users,
+  # per-image ButtonImage), which turned #tree into a Rack::Timeout source once
+  # PR #281 started firing it at every login. The :as_lite arg drops that
+  # enrichment so query count is O(1) in descendant count.
+
+  # Counts non-schema, non-transaction SQL queries fired while the block runs.
+  # Returned as an array so failures can print the offending statements.
+  def count_board_sql
+    queries = []
+    sub = ActiveSupport::Notifications.subscribe('sql.active_record') do |_name, _start, _finish, _id, payload|
+      sql = payload[:sql].to_s
+      label = payload[:name].to_s
+      next if label == 'SCHEMA' || label == 'TRANSACTION'
+      next if payload[:cached]
+      next if sql =~ /\A\s*(BEGIN|COMMIT|ROLLBACK|SAVEPOINT|RELEASE)/i
+      queries << sql
+    end
+    yield
+    queries
+  ensure
+    ActiveSupport::Notifications.unsubscribe(sub) if sub
+  end
+
+  # An owned board carrying one real image button. Image-bearing fixtures
+  # matter for the query-count specs: the kept-by-lite images_and_sounds_for
+  # call only touches the DB when a board actually has images, so empty grids
+  # would hide the surviving per-board cost and make a regression test
+  # meaningless.
+  def board_with_image(owner)
+    board = Board.create(user: owner)
+    img = ButtonImage.create(url: "http://example.com/#{SecureRandom.hex(4)}.png")
+    board.settings['buttons'] = [{ 'id' => 1, 'label' => 'x', 'image_id' => img.global_id }]
+    board.settings['grid'] = { 'rows' => 1, 'columns' => 1, 'order' => [[1]] }
+    board.instance_variable_set('@buttons_changed', true)
+    board.save
+    board.reload
+  end
+
+  # Builds a root with +count+ owned, image-bearing descendants and wires
+  # downstream_board_ids directly (the controller reads it straight from
+  # settings; no linking machinery needed).
+  def build_owned_tree(owner, count)
+    root = Board.create(user: owner)
+    children = Array.new(count) { board_with_image(owner) }
+    root.settings['downstream_board_ids'] = children.map(&:global_id)
+    root.save
+    root.reload
+    expect(root.settings['downstream_board_ids'].length).to eq(count) # guard: persisted
+    [root, children]
+  end
+
+  describe "#tree" do
+    it "returns the root plus permission-filtered descendants" do
+      token_user
+      root, children = build_owned_tree(@user, 3)
+      get :tree, params: { board_id: root.global_id }
+      json = assert_success_json
+      expect(json['root']['board']['id']).to eq(root.global_id)
+      expect(json['descendants'].map { |d| d['board']['id'] }.sort).to eq(children.map(&:global_id).sort)
+    end
+
+    it "404s when the board is missing" do
+      token_user
+      get :tree, params: { board_id: 'no/such-board' }
+      assert_error("Record not found", 404)
+    end
+
+    it "drops descendants the caller is not allowed to view" do
+      token_user
+      other = User.create
+      root = Board.create(user: @user)
+      mine = Board.create(user: @user)
+      theirs = Board.create(user: other) # private, not shared with @user
+      root.settings['downstream_board_ids'] = [mine.global_id, theirs.global_id]
+      root.save
+      get :tree, params: { board_id: root.global_id }
+      json = assert_success_json
+      ids = json['descendants'].map { |d| d['board']['id'] }
+      expect(ids).to include(mine.global_id)
+      expect(ids).to_not include(theirs.global_id)
+    end
+
+    it "caps the descendant list at MAX_TREE" do
+      token_user
+      root, children = build_owned_tree(@user, 3)
+      stub_const("Api::BoardsController::MAX_TREE", 2)
+      get :tree, params: { board_id: root.global_id }
+      json = assert_success_json
+      expect(json['descendants'].length).to eq(2)
+      expect(json['descendants'].map { |d| d['board']['id'] }).to eq(children.first(2).map(&:global_id))
+    end
+
+    it "omits the heavy per-board enrichment keys (lite serialization)" do
+      token_user
+      root = Board.create(user: @user)
+      child = Board.create(user: @user)
+      root.settings['downstream_board_ids'] = [child.global_id]
+      root.save
+      get :tree, params: { board_id: root.global_id }
+      json = assert_success_json
+      board = json['descendants'][0]['board']
+      # Skipped by :as_lite: parent linkage, copy info, share info.
+      expect(board).to_not have_key('parent_board_id')
+      expect(board).to_not have_key('parent_board_key')
+      expect(board).to_not have_key('copy')
+      expect(board).to_not have_key('copies')
+      expect(board).to_not have_key('original')
+      expect(board).to_not have_key('shared_users')
+      # Still present: the core identity the client cache needs.
+      expect(board['id']).to eq(child.global_id)
+      expect(board['key']).to eq(child.key)
+      expect(board).to have_key('permissions')
+    end
+
+    it "honors the deploy-free kill-switch to fall back to full serialization" do
+      token_user
+      root = Board.create(user: @user)
+      child = Board.create(user: @user)
+      root.settings['downstream_board_ids'] = [child.global_id]
+      root.save
+      # Stub the Setting rather than writing it: avoids leaking a Redis cache
+      # entry into sibling examples (Redis is not rolled back between specs).
+      allow(Setting).to receive(:get_cached).and_call_original
+      allow(Setting).to receive(:get_cached).with('tree_lite_serialization').and_return('false')
+      get :tree, params: { board_id: root.global_id }
+      json = assert_success_json
+      board = json['descendants'][0]['board']
+      # Full as_json path restored: the copy enrichment (skipped by lite) is
+      # present again, even when its count is zero.
+      expect(board).to have_key('copies')
+    end
+
+    it "does not run the per-board enrichment that caused the timeout" do
+      # Behavioral guard for remediation #1: lite must skip the unindexed
+      # per-board lookups (parent_board, find_copies_by, shared_users) and the
+      # per-image ButtonImage.find_by_global_id skin lookup. This is the real
+      # regression guard and does not depend on absolute query counts.
+      token_user
+      root, _children = build_owned_tree(@user, 3)
+      expect_any_instance_of(Board).to_not receive(:find_copies_by)
+      expect_any_instance_of(Board).to_not receive(:shared_users)
+      expect(ButtonImage).to_not receive(:find_by_global_id)
+      get :tree, params: { board_id: root.global_id }
+      assert_success_json
+    end
+
+    # NOTE: lite is NOT O(1). It removes the ~4-queries-per-board fan-out
+    # (parent_board x2 + find_copies_by + the delete/admin using_user_names
+    # block) but keeps images_and_sounds_for, which still issues ~1 query per
+    # image-bearing board (known_button_images). That residual is remediation
+    # #3 (request-scoped image cache), tracked separately in issue #286. This
+    # spec therefore asserts the per-descendant marginal cost is a small bounded
+    # constant, well under the pre-fix path, rather than claiming O(1).
+    it "keeps the per-descendant query cost to a small bounded constant" do
+      token_user
+      small_root, _small = build_owned_tree(@user, 3)
+      large_root, _large = build_owned_tree(@user, 18)
+
+      # Warm permission caches (Redis, not counted here) so the measurement
+      # reflects steady-state serialization, not cold-cache permission reads.
+      get :tree, params: { board_id: small_root.global_id }
+      get :tree, params: { board_id: large_root.global_id }
+
+      small_q = count_board_sql { get :tree, params: { board_id: small_root.global_id } }
+      large_q = count_board_sql { get :tree, params: { board_id: large_root.global_id } }
+
+      # 15 extra image-bearing descendants. Lite measures ~1 query/board, so
+      # a ceiling of 2/board (<= 30) passes lite while the pre-fix ~5/board
+      # fan-out (>= 75) blows past it. The previous empty-grid version masked
+      # the surviving images_and_sounds_for cost (adversary review, 2026-05-26).
+      delta = large_q.length - small_q.length
+      expect(delta).to(be <= 30, lambda {
+        "tree query count grew by #{delta} for 15 extra descendants " \
+        "(small=#{small_q.length}, large=#{large_q.length}); expected <= 30 " \
+        "(~2/board ceiling).\nlarge-tree SQL:\n#{large_q.join("\n")}"
+      })
+    end
+  end
+
+  describe "#bulk" do
+    it "returns the requested boards, permission-filtered" do
+      token_user
+      other = User.create
+      mine_a = Board.create(user: @user)
+      mine_b = Board.create(user: @user)
+      theirs = Board.create(user: other)
+      post :bulk, params: { keys: [mine_a.global_id, theirs.global_id, mine_b.global_id] }
+      json = assert_success_json
+      ids = json['boards'].map { |b| b['board']['id'] }
+      expect(ids).to match_array([mine_a.global_id, mine_b.global_id])
+      expect(ids).to_not include(theirs.global_id)
+    end
+
+    it "returns an empty list when no keys are given" do
+      token_user
+      post :bulk, params: { keys: [] }
+      json = assert_success_json
+      expect(json['boards']).to eq([])
+    end
+
+    it "caps the request at MAX_BULK keys" do
+      token_user
+      boards = Array.new(3) { Board.create(user: @user) }
+      stub_const("Api::BoardsController::MAX_BULK", 2)
+      post :bulk, params: { keys: boards.map(&:global_id) }
+      json = assert_success_json
+      expect(json['boards'].length).to eq(2)
+    end
+
+    it "uses the same lite serialization (no per-board copy/share enrichment)" do
+      token_user
+      board = Board.create(user: @user)
+      post :bulk, params: { keys: [board.global_id] }
+      json = assert_success_json
+      b = json['boards'][0]['board']
+      expect(b).to_not have_key('copies')
+      expect(b).to_not have_key('shared_users')
+      expect(b['id']).to eq(board.global_id)
+    end
+
+    it "does not run the per-board enrichment that caused the timeout" do
+      token_user
+      board = board_with_image(@user)
+      expect_any_instance_of(Board).to_not receive(:find_copies_by)
+      expect_any_instance_of(Board).to_not receive(:shared_users)
+      expect(ButtonImage).to_not receive(:find_by_global_id)
+      post :bulk, params: { keys: [board.global_id] }
+      assert_success_json
+    end
+
+    # NOTE: #bulk is inherently O(n) in keys: it resolves each key with its own
+    # Board.find_by_path, and lite still pays ~1 image query per image-bearing
+    # board (images_and_sounds_for, remediation #3). The guarantee under test is
+    # that as_json adds no heavy per-board fan-out on top of the unavoidable
+    # per-key lookup. The behavioral guard above is the precise check; this one
+    # bounds the marginal cost (~2/board) so a regression to the full path
+    # (~5/board on top of lookups) fails.
+    it "keeps the per-key query cost to a small bounded constant" do
+      token_user
+      small = Array.new(3) { board_with_image(@user) }
+      large = Array.new(18) { board_with_image(@user) }
+
+      post :bulk, params: { keys: small.map(&:global_id) }
+      post :bulk, params: { keys: large.map(&:global_id) }
+
+      small_q = count_board_sql { post :bulk, params: { keys: small.map(&:global_id) } }
+      large_q = count_board_sql { post :bulk, params: { keys: large.map(&:global_id) } }
+
+      delta = large_q.length - small_q.length
+      expect(delta).to(be <= 45, lambda {
+        "bulk query count grew by #{delta} for 15 extra keys " \
+        "(small=#{small_q.length}, large=#{large_q.length}); expected <= 45 " \
+        "(~3/key: one find_by_path + one image query + slack).\n" \
+        "large SQL:\n#{large_q.join("\n")}"
+      })
     end
   end
 end

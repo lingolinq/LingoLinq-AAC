@@ -1,4 +1,4 @@
-class LogSessionBoard < ActiveRecord::Base
+class LogSessionBoard < ApplicationRecord
   belongs_to :board
   belongs_to :log_session
   include Replicate

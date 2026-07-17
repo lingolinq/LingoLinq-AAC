@@ -59,6 +59,25 @@ Utils.max_appearance = function(list) {
   return max;
 };
 
+Utils.query_results_as_array = function(list) {
+  if (!list) {
+    return [];
+  }
+  if (typeof list.toArray === 'function') {
+    return list.toArray();
+  }
+  if (typeof list.slice === 'function') {
+    return list.slice();
+  }
+  if (Array.isArray(list)) {
+    return list.slice();
+  }
+  if (typeof list.map === 'function') {
+    return list.map(function(item) { return item; });
+  }
+  return [];
+};
+
 Utils.all_pages = function(type, initial_opts, partial_callback) {
   return new RSVP.Promise(function(resolve, reject) {
     var all_results = [];
@@ -90,7 +109,7 @@ Utils.all_pages = function(type, initial_opts, partial_callback) {
         var meta_check = persistenceService.meta;
         LingoLinq.store.query(type, opts).then(function(list) {
           var meta = meta_check(type, list);
-          all_results = all_results.concat(list.map(function(i) { return i; }));
+          all_results = all_results.concat(Utils.query_results_as_array(list));
           if(partial_callback) {
             partial_callback(all_results);
           }

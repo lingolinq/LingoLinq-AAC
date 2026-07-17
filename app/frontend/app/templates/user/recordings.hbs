@@ -1,11 +1,16 @@
 {{#if this.app_state.currentUser.modeling_only}}
-  {{modeling-only-notice}}
+  <ModelingOnlyNotice />
 {{else if this.model.permissions.supervise}}
-  <h2>{{t "User Recordings" key="user_recordings"}}</h2>
+<div class="md-recordings">
+  <div class="md-recordings__header">
+    <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" stroke="#2A9D8F"/><path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="#46505F"/><line x1="12" y1="19" x2="12" y2="23" stroke="#46505F"/><line x1="8" y1="23" x2="16" y2="23" stroke="#46505F"/></svg>
+    <h2 class="md-recordings__title">{{t "User Recordings" key="user_recordings"}}</h2>
+  </div>
+  <div class="md-recordings__card">
   {{#if this.recordings.loading}}
-    <p>{{t "Loading Recordings..." key="loading_recordings"}}</p>
+    <p class="md-recordings__loading">{{t "Loading Recordings..." key="loading_recordings"}}</p>
   {{else if this.recordings.error}}
-    <p>{{t "Error loading recordings" key="error_loading_recordings"}}</p>
+    <p class="md-recordings__loading">{{t "Error loading recordings" key="error_loading_recordings"}}</p>
   {{else if this.recordings}}
     <div class="table-responsive">
       <table class="table table-hover table-bordered">
@@ -20,7 +25,7 @@
           <tr>
             <td colspan="3">
               <div style='max-width: 300px;'>
-                <Input type="text" @value={{this.search_string}} class="form-control" placeholder="find recordings" />
+                <input value={{this.search_string}} type="text" class="form-control" placeholder="find recordings" {{on "input" (set-field this "search_string")}} />
               </div>
             </td>
           </tr>
@@ -34,7 +39,7 @@
                       {{#if sound.transcription}}
                         {{sound.transcription}}
                         {{#if this.model.permissions.edit}}
-                          <a href="#" {{action "edit_sound" sound}}>{{t "edit" key="edit_lower"}}</a>
+                          <a href="#" {{on "click" (this.ctrlAction "edit_sound" sound)}}>{{t "edit" key="edit_lower"}}</a>
                         {{/if}}
                       {{else if sound.transcription_pending}}
                         {{t "checking for transcription..." key="transcription_pending"}}
@@ -44,7 +49,7 @@
                     </div>
                   </td>
                   <td>
-                    <button class='btn btn-default btn' {{action "play_audio" sound}} style='margin-right: 5px; height: 40px;'>
+                    <button class='btn btn-default btn' {{on "click" (this.ctrlAction "play_audio" sound)}} style='margin-right: 5px; height: 40px;'>
                       {{#if sound.playing}}
                         <span class='glyphicon glyphicon-pause'></span>
                         <span class='sr-only'>{{t "pause" key="pause"}}</span>
@@ -62,8 +67,8 @@
                   <td style='width: 150px;'>
                     <a href={{sound.url}} class='btn btn-default' title={{t "download" key="download"}}><span class='glyphicon glyphicon-cloud-download'></span></a>
                     {{#if this.model.permissions.edit}}
-                      <button {{action "edit_sound" sound}} class='btn btn-default' title={{t "edit" key="edit_lower"}}><span class='glyphicon glyphicon-pencil'></span></button>
-                      <button {{action "delete_sound" sound}} class='btn btn-default' title={{t "delete" key="delete_lower"}}><span class='glyphicon glyphicon-trash'></span></button>
+                      <button {{on "click" (this.ctrlAction "edit_sound" sound)}} class='btn btn-default' title={{t "edit" key="edit_lower"}}><span class='glyphicon glyphicon-pencil'></span></button>
+                      <button {{on "click" (this.ctrlAction "delete_sound" sound)}} class='btn btn-default' title={{t "delete" key="delete_lower"}}><span class='glyphicon glyphicon-trash'></span></button>
                     {{/if}}
                   </td>
                 </tr>
@@ -79,9 +84,9 @@
     <p>{{t "No recordings available" key="no_recordings_available"}}</p>
   {{/if}}
 
-  <div>
-    <button class='btn btn-default' {{action "record_sound"}}>{{t "Record Message" key="record_message"}}</button>
-    <button class='btn btn-default' {{action "batch_recording"}}>{{t "Message Bank Phrases" key="record_message_bank_phrases"}}</button>
+  <div class="md-recordings__actions">
+    <button class='btn btn-default' {{on "click" (this.ctrlAction "record_sound")}}>{{t "Record Message" key="record_message"}}</button>
+    <button class='btn btn-default' {{on "click" (this.ctrlAction "batch_recording")}}>{{t "Message Bank Phrases" key="record_message_bank_phrases"}}</button>
     <span class="file_select_holder">
       <button type="button" class='btn btn-default'>
         {{#if this.upload_status.uploading}}
@@ -92,14 +97,19 @@
           {{t "Upload Recording(s)" key="upload_recordings"}}
         {{/if}}
       </button>
-      <input type="file" name="recording_upload" id="recording_upload">
+      <input type="file" name="recording_upload" id="recording_upload" tabindex="-1">
     </span>
     {{#if this.recordings.length}}
-      <button class='btn btn-default' {{action "download_recordings"}}>{{t "Download All Recordings" key="download_all_recordings"}}</button>
+      <button class='btn btn-default' {{on "click" (this.ctrlAction "download_recordings")}}>{{t "Download All Recordings" key="download_all_recordings"}}</button>
     {{/if}}
   </div>
+  </div>
+  <div class="md-recordings__back-row">
+    <LinkTo @route="user.account" @model={{this.model.user_name}} class="md-billing__back-btn">{{t "Back to Account" key="back_to_account"}}</LinkTo>
+  </div>
+</div>
 {{else if this.session.isAuthenticated}}
   <p>{{t "It looks like you don't have permission to access this information" key="not_authorized_for_access"}}</p>
 {{else}}
-  {{login-form left=true prompt=true return=true}}
+  <LoginForm @left={{true}} @prompt={{true}} @return={{true}} />
 {{/if}}

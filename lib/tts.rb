@@ -28,7 +28,8 @@ module Tts
       req = Typhoeus.post(
         'https://abair.ie/aac_irish',
         body: { text: text, voice: 'Ulster' },
-        timeout: 5
+        timeout: 5,
+        connecttimeout: 3
       )
       return nil unless req.success? && req.body.present?
       {
@@ -59,7 +60,9 @@ module Tts
           input: { text: text },
           voice: { languageCode: loc, name: voice['name'] }
         }.to_json,
-        headers: { 'Content-Type' => 'application/json' }
+        headers: { 'Content-Type' => 'application/json' },
+        timeout: 12,
+        connecttimeout: 5
       )
       data = JSON.parse(res.body) rescue nil
       return nil unless data && data['audioContent']
@@ -77,12 +80,16 @@ module Tts
         return JSON.parse(cache) rescue nil
       end
       req = Typhoeus.get(
-        "https://texttospeech.googleapis.com/v1beta1/voices?languageCode=#{CGI.escape(locale)}&key=#{ENV['GOOGLE_TTS_TOKEN']}"
+        "https://texttospeech.googleapis.com/v1beta1/voices?languageCode=#{CGI.escape(locale)}&key=#{ENV['GOOGLE_TTS_TOKEN']}",
+        timeout: 10,
+        connecttimeout: 5
       )
       json = JSON.parse(req.body) rescue nil
       if json && (!json['voices'] || json['voices'].length == 0)
         req = Typhoeus.get(
-          "https://texttospeech.googleapis.com/v1beta1/voices?languageCode=#{CGI.escape(locale.split(/-|_/)[0])}&key=#{ENV['GOOGLE_TTS_TOKEN']}"
+          "https://texttospeech.googleapis.com/v1beta1/voices?languageCode=#{CGI.escape(locale.split(/-|_/)[0])}&key=#{ENV['GOOGLE_TTS_TOKEN']}",
+          timeout: 10,
+          connecttimeout: 5
         )
         json = JSON.parse(req.body) rescue nil
       end

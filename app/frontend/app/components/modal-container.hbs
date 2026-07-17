@@ -1,0 +1,263 @@
+{{#if this.isOpen}}
+  {{! Render modal component based on current template }}
+  {{! For now, we support both component-based modals (converted) and template-based (via outlets) }}
+  {{! Component-based modals are rendered here, template-based modals still use outlets }}
+  {{#if (is-equal this.currentTemplate "about-lingolinq")}}
+    <AboutLingolinq />
+  {{else if (is-equal this.currentTemplate "support")}}
+    <Support />
+  {{else if (is-equal this.currentTemplate "intro")}}
+    <Intro />
+  {{else if (is-equal this.currentTemplate "terms-agree")}}
+    <TermsAgree />
+  {{else if (is-equal this.currentTemplate "confirm-update-app")}}
+    <ConfirmUpdateApp />
+  {{else if (is-equal this.currentTemplate "download-board")}}
+    <DownloadBoard />
+  {{else if (is-equal this.currentTemplate "share-board")}}
+    <ShareBoard />
+  {{else if (is-equal this.currentTemplate "set-as-home")}}
+    <SetAsHome />
+  {{else if (is-equal this.currentTemplate "copying-board")}}
+    <CopyingBoard />
+  {{else if (is-equal this.currentTemplate "confirm-edit-board")}}
+    <ConfirmEditBoard />
+  {{else if (is-equal this.currentTemplate "confirm-needs-copying")}}
+    <ConfirmNeedsCopying />
+  {{else if (is-equal this.currentTemplate "speak-mode-pin")}}
+    <SpeakModePin />
+  {{else if (is-equal this.currentTemplate "premium-required")}}
+    <PremiumRequired />
+  {{else if (is-equal this.currentTemplate "which-home")}}
+    <WhichHome />
+  {{else if (is-equal this.currentTemplate "force-logout")}}
+    <ForceLogout />
+  {{else if (is-equal this.currentTemplate "switch-languages")}}
+    <SwitchLanguages />
+  {{else if (is-equal this.currentTemplate "badge-awarded")}}
+    <BadgeAwarded />
+  {{else if (is-equal this.currentTemplate "badge-image")}}
+    <BadgeImage />
+  {{else if (is-equal this.currentTemplate "getting-started")}}
+    <GettingStarted />
+  {{else if (is-equal this.currentTemplate "cloud-extras")}}
+    <CloudExtras />
+  {{else if (is-equal this.currentTemplate "add-to-sidebar")}}
+    <AddToSidebar />
+  {{else if (is-equal this.currentTemplate "add-tool")}}
+    <AddTool />
+  {{else if (is-equal this.currentTemplate "copy-board")}}
+    <CopyBoard />
+  {{else if (is-equal this.currentTemplate "find-button")}}
+    <FindButton />
+  {{else if (is-equal this.currentTemplate "board-details")}}
+    <BoardDetails />
+  {{else if (is-equal this.currentTemplate "pin-settings")}}
+    <PinSettings />
+  {{else if (is-equal this.currentTemplate "speak-mode-intro")}}
+    <SpeakModeIntro />
+  {{else if (is-equal this.currentTemplate "button-stash")}}
+    <ButtonStash />
+  {{else if (is-equal this.currentTemplate "board-copies")}}
+    <BoardCopies />
+  {{else if (is-equal this.currentTemplate "switch-communicators")}}
+    <SwitchCommunicators />
+  {{else if (is-equal this.currentTemplate "record-note")}}
+    <RecordNote />
+  {{else if (is-equal this.currentTemplate "dashboard-supervisors-modal")}}
+    <DashboardSupervisorsModal />
+  {{else if (is-equal this.currentTemplate "sync-details")}}
+    <SyncDetails />
+  {{else if (is-equal this.currentTemplate "confirm-notify-user")}}
+    <ConfirmNotifyUser />
+  {{else if (is-equal this.currentTemplate "share-utterance")}}
+    <ShareUtterance />
+  {{else if (is-equal this.currentTemplate "share-email")}}
+    <ShareEmail />
+  {{else if (is-equal this.currentTemplate "edit-board-details")}}
+    <EditBoardDetails />
+  {{else if (is-equal this.currentTemplate "approve-board-share")}}
+    <ApproveBoardShare />
+  {{else if (is-equal this.currentTemplate "importing-recordings")}}
+    <ImportingRecordings />
+  {{else if (is-equal this.currentTemplate "importing-boards")}}
+    <ImportingBoards />
+  {{else if (is-equal this.currentTemplate "import-board-recipients")}}
+    <ImportBoardRecipients />
+  {{else if (is-equal this.currentTemplate "confirm-remove-board")}}
+    <ConfirmRemoveBoard />
+  {{else if (is-equal this.currentTemplate "modeling-intro")}}
+    <ModelingIntro />
+  {{else if (is-equal this.currentTemplate "confirm-external-app")}}
+    <ConfirmExternalApp />
+  {{else if (is-equal this.currentTemplate "confirm-external-link")}}
+    <ConfirmExternalLink />
+  {{else if (is-equal this.currentTemplate "download-log")}}
+    <DownloadLog />
+  {{else if (is-equal this.currentTemplate "add-app")}}
+    <AddApp />
+  {{else if (is-equal this.currentTemplate "confirm-delete-logs")}}
+    <ConfirmDeleteLogs />
+  {{else if (is-equal this.currentTemplate "inline-book")}}
+    <InlineBook />
+  {{else if (is-equal this.currentTemplate "swap-or-drop-button")}}
+    <SwapOrDropButton />
+  {{else if (is-equal this.currentTemplate "subscribe")}}
+    <Subscribe />
+  {{else if (is-equal this.currentTemplate "inline-video")}}
+    <InlineVideo />
+  {{else if (is-equal this.currentTemplate "device-settings")}}
+    <DeviceSettings />
+  {{else if (is-equal this.currentTemplate "translation-select")}}
+    <TranslationSelect />
+  {{else if (is-equal this.currentTemplate "swap-images")}}
+    <SwapImages />
+  {{else if (is-equal this.currentTemplate "quick-assessment")}}
+    <QuickAssessment />
+  {{else if (is-equal this.currentTemplate "add-supervisor")}}
+    <AddSupervisor />
+  {{else if (is-equal this.currentTemplate "new-user")}}
+    <NewUser />
+  {{else if (is-equal this.currentTemplate "word-data")}}
+    <WordData />
+  {{else if (is-equal this.currentTemplate "word-cloud")}}
+    <WordCloud />
+  {{else if (is-equal this.currentTemplate "new-goal")}}
+    <NewGoal />
+  {{else if (is-equal this.currentTemplate "button-suggestions")}}
+    <ButtonSuggestions />
+  {{else if (is-equal this.currentTemplate "batch-recording")}}
+    <BatchRecording />
+  {{else if (is-equal this.currentTemplate "button-settings")}}
+    <ButtonSettings />
+  {{else if (is-equal this.currentTemplate "enable-logging")}}
+    <EnableLogging />
+  {{else if (is-equal this.currentTemplate "sidebar-button-settings")}}
+    <SidebarButtonSettings />
+  {{else if (is-equal this.currentTemplate "premium-voices")}}
+    <PremiumVoices />
+  {{else if (is-equal this.currentTemplate "voice-output")}}
+    <VoiceOutput />
+  {{else if (is-equal this.currentTemplate "pick-avatar")}}
+    <PickAvatar />
+  {{else if (is-equal this.currentTemplate "modify-core-words")}}
+    <ModifyCoreWords />
+  {{else if (is-equal this.currentTemplate "button-set")}}
+    <ButtonSet />
+  {{else if (is-equal this.currentTemplate "board-stats")}}
+    <BoardStats />
+  {{else if (is-equal this.currentTemplate "rename-board")}}
+    <RenameBoard />
+  {{else if (is-equal this.currentTemplate "supervision-settings")}}
+    <SupervisionSettings />
+  {{else if (is-equal this.currentTemplate "new-board")}}
+    <NewBoard />
+  {{else if (is-equal this.currentTemplate "import-from-html")}}
+    <ImportFromHtml />
+  {{else if (is-equal this.currentTemplate "import-from-json-bundle")}}
+    <ImportFromJsonBundle />
+  {{else if (is-equal this.currentTemplate "generate-board")}}
+    <GenerateBoard />
+  {{else if (is-equal this.currentTemplate "confirm-delete-board")}}
+    <ConfirmDeleteBoard />
+  {{else if (is-equal this.currentTemplate "confirm-discard-changes")}}
+    <ConfirmDiscardChanges />
+  {{else if (is-equal this.currentTemplate "confirm-leave-edit")}}
+    <ConfirmLeaveEdit />
+  {{else if (is-equal this.currentTemplate "confirm-recolor-board")}}
+    <ConfirmRecolorBoard />
+  {{else if (is-equal this.currentTemplate "speak-menu")}}
+    <SpeakMenu />
+  {{else if (is-equal this.currentTemplate "modals/board-intro")}}
+    <BoardIntro />
+  {{else if (is-equal this.currentTemplate "modals/board-actions")}}
+    <BoardActions />
+  {{else if (is-equal this.currentTemplate "modals/start-codes")}}
+    <StartCodes />
+  {{else if (is-equal this.currentTemplate "modals/confirm-delete-user")}}
+    <ConfirmDeleteUser />
+  {{else if (is-equal this.currentTemplate "modals/confirm-remove-goal")}}
+    <ConfirmRemoveGoal />
+  {{else if (is-equal this.currentTemplate "modals/board-privacy")}}
+    <BoardPrivacy />
+  {{else if (is-equal this.currentTemplate "modals/gif")}}
+    <Gif />
+  {{else if (is-equal this.currentTemplate "modals/choose-locale")}}
+    <ChooseLocale />
+  {{else if (is-equal this.currentTemplate "new-board-folder")}}
+    <NewBoardFolder />
+  {{else if (is-equal this.currentTemplate "modals/tag-board")}}
+    <TagBoard />
+  {{else if (is-equal this.currentTemplate "modals/assign-lesson")}}
+    <AssignLesson />
+  {{else if (is-equal this.currentTemplate "modals/slice-locales")}}
+    <SliceLocales />
+  {{else if (is-equal this.currentTemplate "modals/confirm-org-action")}}
+    <ConfirmOrgAction />
+  {{else if (is-equal this.currentTemplate "modals/assessment-settings")}}
+    <AssessmentSettings />
+  {{else if (is-equal this.currentTemplate "modals/eval-jump")}}
+    <EvalJump />
+  {{else if (is-equal this.currentTemplate "modals/eval-status")}}
+    <EvalStatus />
+  {{else if (is-equal this.currentTemplate "modals/big-button")}}
+    <BigButton />
+  {{else if (is-equal this.currentTemplate "modals/external-device")}}
+    <ExternalDevice />
+  {{else if (is-equal this.currentTemplate "modals/extra-colors")}}
+    <ExtraColorsModal />
+  {{else if (is-equal this.currentTemplate "modals/timer")}}
+    <Timer />
+  {{else if (is-equal this.currentTemplate "modals/paint-level")}}
+    <PaintLevel />
+  {{else if (is-equal this.currentTemplate "modals/focus-words")}}
+    <FocusWords />
+  {{else if (is-equal this.currentTemplate "modals/remote-model")}}
+    <RemoteModel />
+  {{else if (is-equal this.currentTemplate "modals/modeling-ideas")}}
+    <ModelingIdeas />
+  {{else if (is-equal this.currentTemplate "modals/caseload-guide")}}
+    <CaseloadGuide />
+  {{else if (is-equal this.currentTemplate "modals/repairs")}}
+    <Repairs />
+  {{else if (is-equal this.currentTemplate "modals/inbox")}}
+    <Inbox />
+  {{else if (is-equal this.currentTemplate "modals/phrases")}}
+    <Phrases />
+  {{else if (is-equal this.currentTemplate "modals/masquerade")}}
+    <Masquerade />
+  {{else if (is-equal this.currentTemplate "modals/manual-log")}}
+    <ManualLog />
+  {{else if (is-equal this.currentTemplate "modals/importing-logs")}}
+    <ImportingLogs />
+  {{else if (is-equal this.currentTemplate "request-supervision")}}
+    <RequestSupervision />
+  {{else if (is-equal this.currentTemplate "modals/request-supervisee")}}
+    <RequestSupervisee />
+  {{else if (is-equal this.currentTemplate "modals/user-status")}}
+    <UserStatus />
+  {{else if (is-equal this.currentTemplate "modals/valet-mode")}}
+    <ValetMode />
+  {{else if (is-equal this.currentTemplate "modals/note-templates")}}
+    <NoteTemplates />
+  {{else if (is-equal this.currentTemplate "modals/message-unit")}}
+    <MessageUnit />
+  {{else if (is-equal this.currentTemplate "modals/profiles")}}
+    <Profiles />
+  {{else if (is-equal this.currentTemplate "modals/program-nfc")}}
+    <ProgramNfc />
+  {{else if (is-equal this.currentTemplate "modals/push_to_cloud")}}
+    <PushToCloud />
+  {{else if (is-equal this.currentTemplate "edit-unit")}}
+    <EditUnit />
+  {{else if (is-equal this.currentTemplate "save-snapshot")}}
+    <SaveSnapshot />
+  {{else if (is-equal this.currentTemplate "beta-feedback-modal")}}
+    <BetaFeedbackModal />
+  {{else if (is-equal this.currentTemplate "tour-board-picker")}}
+    <TourBoardPicker />
+  {{else}}
+    {{! Other modals still use outlet-based rendering during migration }}
+    {{! This will be expanded as more modals are converted to components }}
+  {{/if}}
+{{/if}}

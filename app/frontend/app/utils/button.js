@@ -13,14 +13,17 @@ import utterance from './utterance';
 import persistence from './persistence';
 import capabilities from './capabilities';
 import i18n from './i18n';
+import { pick_aac_color } from './parts_of_speech';
 import stashes from './_stashes';
 import progress_tracker from './progress_tracker';
 import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import rewriteBrokenSymbolUrl from './symbol-url';
 
 var clean_url = function(str) {
   str = str || "";
+  str = rewriteBrokenSymbolUrl(str);
   return str.replace(/"/g, "%22");
 };
 var dom = document.createElement('div');
@@ -35,6 +38,15 @@ var clean_text = function(str) {
 
 var Button = EmberObject.extend({
   init: function() {
+    // Wire the actual appState service onto the instance so computeds
+    // that depend on `appState.edit_mode` (e.g. display_as_hidden) can
+    // track reactive changes. The imported `app_state` module is a
+    // Proxy that delegates to `LingoLinq.appState`, but Ember's dep
+    // tracking won't see notifications through the Proxy — set the
+    // real service instance directly when available.
+    if(!this.appState) {
+      this.appState = (typeof window !== 'undefined' && window.LingoLinq && window.LingoLinq.appState) || app_state;
+    }
     this.updateAction();
     this.update_add_vocalization();
     this.add_classes();
@@ -55,6 +67,11 @@ var Button = EmberObject.extend({
     }
   },
   buttonAction: 'talk',
+  // Holds the integration sub-type string ('webhook' | 'render'). Kept
+  // separate from the `integrationAction`/`webhookAction` boolean computeds
+  // below: Ember 5 forbids `set()`-ing a computed without a setter, so the
+  // stored value and the derived booleans can no longer share one name.
+  integration_action_type: null,
   updateAction: observer(
     'load_board',
     'url',
@@ -64,14 +81,14 @@ var Button = EmberObject.extend({
     'book',
     'link_disabled',
     function() {
-      if(this.get('load_board')) {
+      if(this.get('load_board') && !this.get('link_disabled')) {
         this.set('buttonAction', 'folder');
       } else if(this.get('integration') != null) {
         this.set('buttonAction', 'integration');
         if(this.get('integration.action_type') == 'webhook') {
-          this.set('integrationAction', 'webhook');
+          this.set('integration_action_type', 'webhook');
         } else {
-          this.set('integrationAction', 'render');
+          this.set('integration_action_type', 'render');
         }
       } else if(this.get('url') != null) {
         this.set('buttonAction', 'link');
@@ -97,14 +114,14 @@ var Button = EmberObject.extend({
   folderAction: computed('buttonAction', function() {
     return this.get('buttonAction') == 'folder';
   }),
-  integrationAction: computed('buttonAction', 'integrationAction', function() {
-    return this.get('buttonAction') == 'integration' && this.get('integrationAction') == 'render';
+  integrationAction: computed('buttonAction', 'integration_action_type', function() {
+    return this.get('buttonAction') == 'integration' && this.get('integration_action_type') == 'render';
   }),
   integrationOrWebhookAction: computed('buttonAction', function() {
     return this.get('buttonAction') == 'integration';
   }),
-  webhookAction: computed('buttonAction', 'integrationAction', function() {
-    return this.get('buttonAction') == 'integration' && this.get('integrationAction') == 'webhook';
+  webhookAction: computed('buttonAction', 'integration_action_type', function() {
+    return this.get('buttonAction') == 'integration' && this.get('integration_action_type') == 'webhook';
   }),
   action_styling: computed(
     'buttonAction',
@@ -229,6 +246,18 @@ var Button = EmberObject.extend({
   empty_or_hidden: computed('empty', 'hidden', 'stashes.all_buttons_enabled', function() {
     return !!(this.get('empty') || (this.get('hidden') && !this.get('stashes.all_buttons_enabled')));
   }),
+  // Whether this button should receive the `--hidden` visual class
+  // outside of preview mode. In edit mode (without an active preview),
+  // buttons with `level_modifications` should NOT show as hidden —
+  // their `hidden` attribute reflects level-rule application, not
+  // author intent, and the author needs to see them in full CSS to
+  // edit. Speak mode and edit-mode-with-preview cases are handled at
+  // the template level (combining this with previewLevelsMode).
+  display_as_hidden: computed('hidden', 'level_modifications', 'appState.edit_mode', function() {
+    if(!this.get('hidden')) { return false; }
+    if(!this.get('appState.edit_mode')) { return true; }
+    return !this.get('level_modifications');
+  }),
   add_classes: observer(
     'background_color',
     'border_color',
@@ -285,6 +314,41 @@ var Button = EmberObject.extend({
       return str || null;
     }
   }),
+  // Lowest level number attached to this button (the "starts at"
+  // level). Used to color the level badge on the board grid in
+  // edit mode.
+  primary_level: computed('level_modifications', function() {
+    var mods = this.get('level_modifications') || {};
+    var levels = [];
+    for(var idx in mods) {
+      var n = parseInt(idx, 10);
+      if(n > 0) { levels.push(n); }
+    }
+    if(!levels.length) { return null; }
+    return Math.min.apply(null, levels);
+  }),
+  // Color for the badge — derived from primary_level. Mirrors the
+  // controller's level_color_map (controllers/user/board-detail.js)
+  // so panel pills and button badges agree on the palette. Modern
+  // Tailwind-inspired progression: cool blues at low levels, warm
+  // mids, emerald at level 10.
+  level_badge_color: computed('primary_level', function() {
+    var lvl = this.get('primary_level');
+    if(!lvl) { return null; }
+    var palette = {
+      1:  '#0EA5E9',
+      2:  '#3B82F6',
+      3:  '#6366F1',
+      4:  '#8B5CF6',
+      5:  '#A855F7',
+      6:  '#EC4899',
+      7:  '#F43F5E',
+      8:  '#F97316',
+      9:  '#F59E0B',
+      10: '#10B981'
+    };
+    return palette[lvl] || '#2A9D8F';
+  }),
   apply_level: function(level) {
     var mods = this.get('level_modifications') || {};
     var _this = this;
@@ -294,13 +358,20 @@ var Button = EmberObject.extend({
     keys.forEach(function(key) {
       if(mods[key]) {
         for(var attr in mods[key]) {
-          _this.set(attr, mods[key][attr]);
+          // Coerce string "true"/"false" rule values to real booleans
+          // (see Button.coerce_level_value). Without this, "false" is
+          // truthy and the level filter inverts.
+          _this.set(attr, Button.coerce_level_value(attr, mods[key][attr]));
         }
       }
     });
   },
   set_val(key, val) {
-    this.set(key, val);
+    // fast_html applies level rules through here; rule values can be the
+    // strings "true"/"false" (legacy/copied boards), so coerce the
+    // boolean-ish attributes — otherwise `hidden = "false"` is truthy
+    // and the classic browse grid hides buttons the level rule promotes.
+    this.set(key, Button.coerce_level_value(key, val));
   },
   fast_html: computed(
     'refresh_token',
@@ -323,34 +394,51 @@ var Button = EmberObject.extend({
     function() {
       var res = "";
       if(this.get('board.display_level') && this.get('level_modifications')) {
-        if(this.get('board.display_level') == this.get('board.default_level')) {
-        } else {
-          var mods = this.get('level_modifications');
-          var level = this.get('board.display_level');
-          if(mods.override) {
-            for(var key in mods.override) {
-              this.set_val(key, mods.override[key]);
+        /* SCOPED ONE-BRANCH CHANGE: previously, when display_level ==
+           board.default_level this whole block was a no-op (the level
+           rules were skipped). That left the board in a stale state —
+           notably board-alt normal mode, which renders via fast_html
+           and so never applied the previously-set level on load. The
+           apply logic below is byte-for-byte the SAME code that always
+           ran for non-default levels; running it at the default level
+           too is idempotent for an already-authored board (it sets
+           each attribute to exactly the value that level dictates) and
+           corrects the stale case. No other behavior changes: override
+           still wins, then pre, then levels 1..display_level. */
+        var mods = this.get('level_modifications');
+        var level = this.get('board.display_level');
+        if(mods.override) {
+          for(var key in mods.override) {
+            this.set_val(key, mods.override[key]);
+          }
+        }
+        if(mods.pre) {
+          for(var key in mods.pre) {
+            if(!mods.override || mods.override[key] === null || mods.override[key] === undefined) {
+              this.set_val(key, mods.pre[key]);
             }
           }
-          if(mods.pre) {
-            for(var key in mods.pre) {
+        }
+        for(var idx = 1; idx <= level; idx++) {
+          if(mods[idx]) {
+            for(var key in mods[idx]) {
               if(!mods.override || mods.override[key] === null || mods.override[key] === undefined) {
-                this.set_val(key, mods.pre[key]);
-              }
-            }
-          }
-          for(var idx = 1; idx <= level; idx++) {
-            if(mods[idx]) {
-              for(var key in mods[idx]) {
-                if(!mods.override || mods.override[key] === null || mods.override[key] === undefined) {
-                  this.set_val(key, mods[idx][key]);
-                }
+                this.set_val(key, mods[idx][key]);
               }
             }
           }
         }
       }
-      res = res + "<a href='#' style='" + this.get('computed_style') + "' class='" + this.get('computed_class') + "' data-id='" + this.get('id') + "' tabindex='0'>";
+      var btnInlineStyle = this.get('computed_style') + '';
+      var bg = this.get('background_color');
+      if(bg && window.tinycolor) {
+        var darkenedRing = window.tinycolor(bg).darken(20).toRgbString();
+        btnInlineStyle = btnInlineStyle + 'outline-color:' + darkenedRing + ';';
+        // Also drive the CSS variable that `.button`'s box-shadow inset
+        // ring reads — see comment in app.scss `.button` rule.
+        btnInlineStyle = btnInlineStyle + '--btn-ring-color:' + darkenedRing + ';';
+      }
+      res = res + "<a href='#' style='" + btnInlineStyle + "' class='" + this.get('computed_class') + "' data-id='" + this.get('id') + "' tabindex='0'>";
       if(this.get('pending')) {
         res = res + "<div class='pending'><img src='" + templateHelpers.path('images/spinner.gif') + "' draggable='false' /></div>";
       }
@@ -363,7 +451,8 @@ var Button = EmberObject.extend({
       var appState = this.appState || app_state;
       res = res + "<span style='" + this.get('image_holder_style') + "'>";
       if(!appState.get('currentUser.hide_symbols') && this.get('local_image_url') && !this.get('board.text_only') && !this.get('text_only')) {
-        res = res + "<img src=\"" + clean_url(this.get('local_image_url')) + "\" rel=\"" + clean_url(this.get('original_image_url') || this.get('image.url')) + "\" onerror='button_broken_image(this);' draggable='false' style='" + this.get('image_style') + "' class='symbol" + (this.get('hc_image') ? ' hc' : '') + "' />";
+        var symbol_alt = clean_text(this.get('label') || '').replace(/"/g, '&quot;');
+        res = res + "<img src=\"" + clean_url(this.get('local_image_url')) + "\" rel=\"" + clean_url(this.get('original_image_url') || this.get('image.url')) + "\" alt=\"" + symbol_alt + "\" onerror='button_broken_image(this);' draggable='false' style='" + this.get('image_style') + "' class='symbol" + (this.get('hc_image') ? ' hc' : '') + "' />";
       }
       res = res + "</span>";
       if(this.get('sound')) {
@@ -379,6 +468,17 @@ var Button = EmberObject.extend({
         if(fit.any_fit) {
           text_style = "style='font-size: " + fit.size + "px;'";
           holder_style = "style='position: absolute;'";
+        }
+      } else if(txt && this.get('positioning.width')) {
+        var pos = this.get('positioning');
+        var baseFontSize = pos.base_text_height || 18;
+        var estCharWidth = baseFontSize * 0.6;
+        var maxChars = Math.floor(pos.width / estCharWidth);
+        if(txt.length > maxChars && maxChars > 0) {
+          var scaledSize = Math.max(Math.floor(pos.width / (txt.length * 0.6)), 8);
+          if(scaledSize < baseFontSize) {
+            text_style = "style='font-size: " + scaledSize + "px;'";
+          }
         }
       }
       res = res + "<div class='" + button_class + "' " + holder_style + ">";
@@ -415,10 +515,11 @@ var Button = EmberObject.extend({
     'positioning.width',
     'positioning.left',
     'positioning.top',
+    'background_color',
     function() {
       var pos = this.get('positioning');
       if(!pos) { return htmlSafe(""); }
-      return Button.computed_style(pos);
+      return Button.computed_style(pos, this);
     }
   ),
   computed_class: computed('display_class', 'board.text_size', 'for_swap', function() {
@@ -450,12 +551,12 @@ var Button = EmberObject.extend({
   load_image: function(preference) {
     var _this = this;
     if(!_this.image_id) { return RSVP.resolve(); }
-    var image = LingoLinq.store.peekRecord('image', _this.image_id);
-    if(image && (!image.get('isLoaded') || !image.get('best_url'))) { image = null; }
-    if(preference == 'remote' && image && !image.get('permissions')) { image = null; }
-    _this.set('image', image);
-    if(image && image.get('hc')) { _this.set('hc_image', true); }
+    var requestedId = _this.image_id;
+    var stillCurrent = function() {
+      return String(_this.image_id) === String(requestedId);
+    };
     var check_image = function(image) {
+      if(!stillCurrent()) { return RSVP.resolve(image); }
       var best = image.get('best_url');
       if(best && (best.match(/^https?:\/\//) || best.match(/^data:/) || best.match(/^blob:/))) {
         _this.set('local_image_url', best);
@@ -463,6 +564,7 @@ var Button = EmberObject.extend({
       _this.set('original_image_url', image.get('url'));
       if(image.get('hc')) { _this.set('hc_image', true); }
       return image.checkForDataURL().then(function() {
+        if(!stillCurrent()) { return image; }
         var url = image.get('best_url');
         if(url && (url.match(/^https?:\/\//) || url.match(/^data:/) || url.match(/^blob:/))) {
           _this.set('local_image_url', url);
@@ -470,24 +572,49 @@ var Button = EmberObject.extend({
         return image;
       }, function() { return RSVP.resolve(image); });
     };
+    var image = LingoLinq.store.peekRecord('image', requestedId);
+    if(image && (!image.get('isLoaded') || !image.get('best_url'))) { image = null; }
+    if(preference == 'remote' && image && !image.get('permissions')) { image = null; }
+    var assigned = stillCurrent() ? _this.get('image') : null;
+    if(!image && assigned && assigned.get && String(assigned.get('id')) === String(requestedId)) {
+      var assignedUrl = assigned.get('url');
+      if(!assignedUrl) {
+        var boardUrls = _this.get('board.image_urls');
+        assignedUrl = (boardUrls && boardUrls[requestedId]) || _this.image_url;
+      }
+      if(assignedUrl) {
+        return check_image(assigned);
+      }
+    }
+    if(stillCurrent()) {
+      _this.set('image', image);
+      if(image && image.get('hc')) { _this.set('hc_image', true); }
+    }
     if(!image) {
       var image_urls = this.get('board.image_urls');
-      var hc = (_this.get('board.hc_image_ids') || {})[_this.image_id];
-      if(hc) { _this.set('hc_image', true); }
-      var url_val = (image_urls && image_urls[_this.image_id]) ? image_urls[_this.image_id] : _this.image_url;
+      var hc = (_this.get('board.hc_image_ids') || {})[requestedId];
+      if(hc && stillCurrent()) { _this.set('hc_image', true); }
+      var url_val = (image_urls && image_urls[requestedId]) ? image_urls[requestedId] : null;
+      if(!url_val && _this.image_url && preference != 'remote') {
+        // button.image_url can lag behind image_id after a symbol swap; only reuse it
+        // when the board has no image_urls map (legacy) or still maps this id to it.
+        if(!image_urls || !Object.keys(image_urls).length) {
+          url_val = _this.image_url;
+        }
+      }
       if(url_val && preference != 'remote') {
         var looks_like_url = (typeof url_val === 'string') && (url_val.match(/^https?:\/\//) || url_val.match(/^data:/));
         if(looks_like_url) {
-          var img = LingoLinq.store.peekRecord('image', _this.image_id);
+          var img = LingoLinq.store.peekRecord('image', requestedId);
           if(!img) {
             img = LingoLinq.store.createRecord('image', {
               url: url_val
             });
-            img.set('id', _this.image_id);
+            img.set('id', requestedId);
             img.set('incomplete', true);
             var alts = null;
             for(var key in image_urls) {
-              if(key.match(_this.image_id + '-')) {
+              if(key.match(requestedId + '-')) {
                 var lib = key.split(/-/).pop();
                 alts = alts || [];
                 alts.push({library: lib, url: image_urls[key]});
@@ -495,30 +622,32 @@ var Button = EmberObject.extend({
             }
             if(alts) { img.set('alternates', alts); }
           }
-          _this.set('image', img);
+          if(stillCurrent()) {
+            _this.set('image', img);
+          }
           return check_image(img);
         }
       }
       if(_this.get('no_lookups')) {
         return RSVP.reject('no image lookups');
+      } else if(preference == 'local') {
+        return RSVP.reject('no image lookups');
       } else {
-        if(!(_this.image_id || '').match(/^tmp/) && preference != 'remote') {
+        if(!String(requestedId || '').match(/^tmp/) && preference != 'remote') {
           console.warn("had to revert to image record lookup");
         }
-        var find = LingoLinq.store.findRecord('image', _this.image_id).then(function(image) {
+        return LingoLinq.store.findRecord('image', requestedId).then(function(image) {
+          if(!stillCurrent()) { return image; }
           _this.set('image', image);
           if(image.get('incomplete')) {
             image.reload().then(function() {
-              check_image(image);
+              if(stillCurrent()) {
+                check_image(image);
+              }
             }, function(err) { });
           }
           return check_image(image);
         });
-        if(preference == 'local') {
-          return RSVP.reject('no image lookups');
-        } else {
-          return find;
-        }
       }
     } else {
       if(!image.get('incomplete')) {
@@ -559,16 +688,13 @@ var Button = EmberObject.extend({
       }
       if(_this.get('no_lookups')) {
         return RSVP.reject('no sound lookups');
+      } else if(preference == 'local') {
+        return RSVP.reject('no sound lookups');
       } else {
-        var find = LingoLinq.store.findRecord('sound', _this.sound_id).then(function(sound) {
+        return LingoLinq.store.findRecord('sound', _this.sound_id).then(function(sound) {
           _this.set('sound', sound);
           return check_sound(sound);
         });
-        if(preference == 'local') {
-          return RSVP.reject('no sound lookups');
-        } else {
-          return find;
-        }
       }
     } else {
       return check_sound(sound);
@@ -655,8 +781,8 @@ var Button = EmberObject.extend({
         promises.push(RSVP.resolve());
       } else if(_this.image_id) {
         if(_this.image_url && (_this.image_url.match(/^https?:\/\//) || _this.image_url.match(/^data:/))) {
-          _this.set('local_image_url', _this.image_url);
-          _this.set('original_image_url', _this.image_url);
+          _this.set('local_image_url', rewriteBrokenSymbolUrl(_this.image_url));
+          _this.set('original_image_url', rewriteBrokenSymbolUrl(_this.image_url));
         }
         promises.push(_this.load_image('local'));
       }
@@ -684,33 +810,37 @@ var Button = EmberObject.extend({
       promises.forEach(function(p) { p.then(null, function() { }); });
     });
   }),
-  check_for_parts_of_speech: function() {
-    var appState = this.appState || app_state;
-    var persistenceService = this.persistence || persistence;
-    if(appState.get('edit_mode') && !this.get('empty') && this.get('label')) {
-      var text = this.get('vocalization') || this.get('label');
-      var _this = this;
-      persistenceService.ajax('/api/v1/search/parts_of_speech', {type: 'GET', data: {q: text}}).then(function(res) {
+  check_for_parts_of_speech: function(keyed_colors, prefetchedRes) {
+    var self = this;
+    if(!self || typeof self.get !== 'function') { return; }
+    var appState = self.appState || Button.get_app_state();
+    if(!appState || typeof appState.get !== 'function') { return; }
+    var persistenceService = self.persistence || persistence;
+    var colors = keyed_colors || LingoLinq.board_detail_keyed_colors || LingoLinq.keyed_colors;
+    if(appState.get('edit_mode') && !self.get('empty') && self.get('label')) {
+      var text = self.get('vocalization') || self.get('label');
+      var _this = self;
+      var apply = function(res) {
+        if(!_this || !_this.get) { return; }
+        if(!colors || !colors.forEach) { return; }
         if(!_this.get('background_color') && !_this.get('border_color') && res && res.types) {
-          var found = false;
           _this.set('parts_of_speech_matching_word', res.word);
-          res.types.forEach(function(type) {
-            if(!found) {
-              LingoLinq.keyed_colors.forEach(function(color) {
-                if(!found && color.types && color.types.indexOf(type) >= 0) {
-                  _this.set('background_color', color.fill);
-                  _this.set('border_color', color.border);
-                  _this.set('part_of_speech', type);
-                  _this.set('suggested_part_of_speech', type);
-                  boundClasses.add_rule(_this);
-                  boundClasses.add_classes(_this);
-                  found = true;
-                }
-              });
-            }
-          });
+          var picked = pick_aac_color(res.types, colors, res.word || text);
+          if(picked) {
+            _this.set('background_color', picked.color.fill);
+            _this.set('border_color', picked.color.border);
+            _this.set('part_of_speech', picked.type);
+            _this.set('suggested_part_of_speech', picked.type);
+            boundClasses.add_rule(_this);
+            boundClasses.add_classes(_this);
+          }
         }
-      }, function() { });
+      };
+      if(prefetchedRes) {
+        apply(prefetchedRes);
+        return;
+      }
+      persistenceService.ajax('/api/v1/search/parts_of_speech', {type: 'GET', data: {q: text}}).then(apply, function() { });
     }
   },
   raw: function() {
@@ -737,6 +867,25 @@ Button.attributes = ['label', 'background_color', 'border_color', 'image_id', 's
             'integration', 'video', 'book', 'part_of_speech', 'external_id', 'add_to_vocalization',
             'add_vocalization', 'text_only', 'no_skin',
             'home_lock', 'blocking_speech', 'level_modifications', 'inflections', 'ref_id', 'rules'];
+
+// Legacy/copied boards persist boolean level-rule values as the STRINGS
+// "true"/"false" instead of real booleans. Assigning `hidden = "false"`
+// is catastrophic — JS treats any non-empty string as truthy, so
+// `boundClasses.add_classes` stamps `hidden_button` (and the hidden-guard
+// in activate_button fires) on a button the level rule meant to SHOW.
+// board-detail's _make_btn already does this string-or-bool comparison,
+// which is why level filtering works there but not in the classic
+// (board/board-alt) renderers. This is the single source of truth for
+// which rule attributes are boolean-ish and how to coerce them; used by
+// Button.apply_level, Button.set_val, and board.js render_fast_html.
+Button.LEVEL_BOOL_ATTRS = ['hidden', 'link_disabled', 'add_to_vocalization', 'add_vocalization',
+            'home_lock', 'blocking_speech', 'hide_label', 'text_only', 'no_skin'];
+Button.coerce_level_value = function(attr, val) {
+  if(Button.LEVEL_BOOL_ATTRS.indexOf(attr) !== -1) {
+    return (val === true || val === 'true');
+  }
+  return val;
+};
 
 // Static service registry for use in static methods
 Button._services = {
@@ -787,7 +936,7 @@ Button.style = function(style) {
   return res;
 };
 
-Button.computed_style = function(pos) {
+Button.computed_style = function(pos, button) {
     var str = "";
     if(pos && pos.top !== undefined && pos.left !== undefined) {
       str = str + "position: absolute;";
@@ -799,6 +948,14 @@ Button.computed_style = function(pos) {
     }
     if(pos.height) {
       str = str + "height: " + Math.max(pos.height, 20) + "px;";
+    }
+    var bg = button && (button.get ? button.get('background_color') : button.background_color);
+    if(bg && window.tinycolor) {
+      var darkenedBorder = window.tinycolor(bg).darken(20).toRgbString();
+      str = str + "outline-color:" + darkenedBorder + ";";
+      // Also expose as a CSS variable so the `.button`'s box-shadow
+      // inset (which renders uniformly on all sides) picks it up.
+      str = str + "--btn-ring-color:" + darkenedBorder + ";";
     }
     return htmlSafe(str);
 };
@@ -891,11 +1048,16 @@ Button.action_styling = function(action, button) {
 };
 Button.image_holder_style = function(pos, text_only) {
   if(!pos || !pos.image_height) { return ""; }
-  return "margin-top: " + (text_only ? 0 : pos.image_top_margin) + "px; vertical-align: top; display: inline-block; width: " + pos.image_square + "px; height: " + pos.image_height + "px; line-height: " + pos.image_height + "px;";
+  // Text-only buttons: no symbol image — do not reserve the "image" band or the label sits below an
+  // empty ~70px-tall span and gets clipped by the short button (keyboard / eval open-keyboard steps).
+  if(text_only) {
+    return "display: block; width: 100%; height: 0; margin: 0; padding: 0; line-height: 0; overflow: hidden;";
+  }
+  return "margin-top: " + pos.image_top_margin + "px; vertical-align: top; display: inline-block; width: " + pos.image_width + "px; height: " + pos.image_height + "px; line-height: " + pos.image_height + "px;";
 };
 Button.image_style = function(pos) {
   if(!pos || !pos.image_height) { return ""; }
-  return "width: 100%; vertical-align: middle; max-height: " + pos.image_square + "px;";
+  return "width: 100%; height: 100%; object-fit: contain; vertical-align: middle;";
 };
 Button.clean_url = function(str) { return clean_url(str); };
 
@@ -906,7 +1068,7 @@ Button.button_styling = function(button, board, pos) {
     res.button_class = res.button_class + " " + board.get('text_size') + " ";
   }
   // TODO: sanitize all these for safety?
-  res.button_style = Button.computed_style(pos);
+  res.button_style = Button.computed_style(pos, button);
   var action = Button.action_styling(null, button);
   res.action_class = action.action_class; //"action_container talk"; // TODO
   res.action_image = action.action_image; //templateHelpers.path('images/folder.png'); // TODO
@@ -922,6 +1084,12 @@ Button.button_styling = function(button, board, pos) {
 
 Button.broken_image = function(image, skip_server_reattempt) {
   image.already_broken = image.already_broken || {};
+  var rewritten = rewriteBrokenSymbolUrl(image.src);
+  if(rewritten && rewritten !== image.src && !image.already_broken[image.src]) {
+    image.already_broken[image.src] = true;
+    image.src = rewritten;
+    return;
+  }
   if(image.already_broken[image.src]) { return; }
   if(capabilities.installed_app && image.src && image.src.match(/localhost/) && !skip_server_reattempt) {
     // Apparently the local server just returns a blank response
@@ -963,7 +1131,10 @@ Button.broken_image = function(image, skip_server_reattempt) {
   error_listen(image, null);
   if(image.src && image.src != fallback && !image.src.match(/^data/)) {
     var bad_src = image.src;
-    LingoLinq.track_error("bad image url: " + bad_src);
+    var has_fallback = !!original_fallback;
+    if(!has_fallback) {
+      LingoLinq.track_error("bad image url: " + bad_src);
+    }
     if(!image.getAttribute('rel-url')) {
       image.setAttribute('rel-url', image.src);
     }
@@ -980,9 +1151,13 @@ Button.broken_image = function(image, skip_server_reattempt) {
         }
       };
     } else {
-      LingoLinq.track_error("bad data uri or fallback: " + bad_src);
+      if(!has_fallback) {
+        LingoLinq.track_error("bad data uri or fallback: " + bad_src);
+      }
       original_error = function() {
-        LingoLinq.track_error("failed to retrieve image:" + fallback + " - " + image.src);
+        if(!has_fallback) {
+          LingoLinq.track_error("failed to retrieve image:" + fallback + " - " + image.src);
+        }
       };
     }
     error_listen(image, original_error);
@@ -1477,7 +1652,7 @@ Button.load_actions = function() {
     },
     {
       action: ':click',
-      description: i18n.t('toggle_shift', "Make a Click Sound"),
+      description: i18n.t('make_click_sound', "Make a Click Sound"),
       trigger: function() {
       }
     },
@@ -1543,11 +1718,18 @@ Button.load_actions = function() {
       action: ':plural',
       modifier: true,
       description: i18n.t('pluralize', "Make the word plural"),
-      types: ['noun'],
+      types: ['noun', 'verb'],
       alter: function(text, prior_text, prior_label, altered, addition) {
         // TODO: first check for inflection_overrides
-        altered.vocalization = i18n.pluralize(prior_text);
-        altered.label = i18n.pluralize(prior_label);
+        // On verb boards the "-s" modifier is third-person present (walks), not plural.
+        var pos = altered.part_of_speech || (addition && addition.part_of_speech);
+        if(pos == 'verb') {
+          altered.vocalization = i18n.tense(prior_text, {simple_present: true});
+          altered.label = i18n.tense(prior_label, {simple_present: true});
+        } else {
+          altered.vocalization = i18n.pluralize(prior_text);
+          altered.label = i18n.pluralize(prior_label);
+        }
         altered.in_progress = false;
       }
     },
@@ -1989,12 +2171,9 @@ Button.load_actions = function() {
         return i18n.t('say', "Say: ") + phrase;
       },
       trigger: function(match) {
-        if(app_state.get('speak_mode') && match) {
-          var phrase = match[1];
-          speecher.speak_text(phrase);
-          // TODO: this will be easier for people to find as a 
-          // button setting, yo
-        }    
+        if(match && match[1]) {
+          speecher.speak_text(match[1]);
+        }
       }
     },
   ];

@@ -108,12 +108,12 @@ describe Progress, :type => :model do
     it "should schedule a worker action for classes or objects" do
       p = Progress.schedule(User, :count)
       expect(Worker.scheduled_for?('priority', Progress, :perform_action, p.id)).to eq(true)
-      expect(p.settings).to eq({'class' => 'User', 'id' => nil, 'method' => 'count', 'arguments' => [], 'state' => 'pending'})
+      expect(p.settings).to eq({'class' => 'User', 'id' => nil, 'method' => 'count', 'arguments' => [], 'for_user_global_id' => nil, 'state' => 'pending'})
 
-      u = User.create      
+      u = User.create
       p = Progress.schedule(u, :touch, true, false)
       expect(Worker.scheduled_for?('priority', Progress, :perform_action, p.id)).to eq(true)
-      expect(p.settings).to eq({'class' => 'User', 'id' => u.id, 'method' => 'touch', 'arguments' => [true, false], 'state' => 'pending'})
+      expect(p.settings).to eq({'class' => 'User', 'id' => u.id, 'method' => 'touch', 'arguments' => [true, false], 'for_user_global_id' => nil, 'state' => 'pending'})
     end
   end
 
@@ -188,6 +188,14 @@ describe Progress, :type => :model do
   end
 
   describe "perform_action" do
+    it "no-ops when the progress record was deleted before the job runs" do
+      p = Progress.create(:settings => {'method' => 'count', 'class' => 'User'})
+      id = p.id
+      p.destroy
+      expect(Progress.find_by(:id => id)).to eq(nil)
+      expect { Progress.perform_action(id) }.not_to raise_error
+    end
+
     it "should set the progress record for the current pid" do
       p = Progress.create(:settings => {'method' => 'count', 'class' => 'User'})
       expect(User).to receive(:count) do |*args|

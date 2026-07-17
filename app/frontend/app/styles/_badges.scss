@@ -1,0 +1,226 @@
+// =============================================================================
+// Badges page (/:user/badges)
+// =============================================================================
+// Modern badge cards rendered inside the user workspace (.md-shell--user >
+// .md-workspace > .md-main--user). No shell wrapper here — the user layout
+// already provides the mesh background and panel. Tokens from _variables.scss;
+// card language mirrors the org/start-code tiles.
+
+@use "variables" as *;
+
+.md-badges {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.md-badges__hero {
+  margin-bottom: 24px;
+}
+
+.md-badges__title {
+  // override the global `h1/h2 { height: 60px; ... }` chrome
+  display: block;
+  height: auto;
+  margin: 0 0 6px;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--md-ink, $brand-blue-black);
+}
+
+.md-badges__sub {
+  margin: 0;
+  font-size: 15px;
+  color: var(--md-muted, $la-navy);
+}
+
+.md-badges__note,
+.md-badges__empty {
+  margin: 0;
+  font-size: 15px;
+  color: var(--md-muted, $la-navy);
+}
+
+// ── Badge card grid ──────────────────────────────────────────────────────────
+.md-badges__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 18px;
+}
+
+.md-badge {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 24px 18px 20px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba($la-navy, 0.08);
+  box-shadow: 0 2px 8px rgba($la-navy, 0.06);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.md-badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba($la-navy, 0.10);
+}
+
+.md-badge.is-earned {
+  border-color: rgba($brand-honey-bronze, 0.5);
+  background: linear-gradient(180deg, rgba(255, 249, 236, 0.92), rgba(255, 255, 255, 0.78));
+}
+
+// Highlight (star) toggle
+.md-badge__star {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid rgba($la-navy, 0.10);
+  background: rgba(255, 255, 255, 0.85);
+  color: $brand-slate-gray;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.md-badge__star svg {
+  width: 18px;
+  height: 18px;
+}
+
+.md-badge__star:hover {
+  background: #fff;
+  color: $brand-honey-bronze;
+}
+
+.md-badge__star.is-on {
+  color: $brand-honey-bronze;
+  border-color: rgba($brand-honey-bronze, 0.55);
+  background: rgba($brand-honey-bronze, 0.12);
+}
+
+// Badge image
+.md-badge__image-btn {
+  position: relative;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.md-badge__image {
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+}
+
+.md-badge:not(.is-earned) .md-badge__image {
+  opacity: 0.5;
+  filter: grayscale(0.45);
+}
+
+.md-badge__spark {
+  position: absolute;
+  top: -4px;
+  right: -8px;
+  font-size: 20px;
+  line-height: 1;
+  color: $brand-honey-bronze;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.md-badge__name {
+  margin: 4px 0 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--md-ink, $brand-blue-black);
+}
+
+.md-badge__name a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.md-badge__name a:hover {
+  color: $brand-dusty-denim-aa;
+  text-decoration: underline;
+}
+
+// Earned status / progress
+.md-badge__earned {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 700;
+  color: $brand-verdigris-aa;
+}
+
+.md-badge__earned svg {
+  width: 15px;
+  height: 15px;
+}
+
+.md-badge__progress {
+  width: 100%;
+  max-width: 150px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba($la-navy, 0.10);
+  overflow: hidden;
+}
+
+.md-badge__bar {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, $brand-dusty-denim, $brand-dusty-denim-aa);
+}
+
+.md-badge__level {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--md-muted, $la-navy);
+  opacity: 0.7;
+}
+
+.md-badge__hint {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--md-muted, $la-navy);
+}
+
+// ── Premium-required gate ────────────────────────────────────────────────────
+.md-badges__gate {
+  max-width: 640px;
+  padding: 28px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba($la-navy, 0.08);
+  box-shadow: 0 2px 8px rgba($la-navy, 0.06);
+}
+
+.md-badges__gate-text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--md-ink, $brand-blue-black);
+}
+
+.md-badges__gate-text a {
+  color: $brand-dusty-denim-aa;
+  font-weight: 600;
+}

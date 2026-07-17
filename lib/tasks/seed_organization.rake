@@ -1,7 +1,15 @@
 namespace :db do
   desc "Seed a sample organization with users and relationships"
   task seed_organization: :environment do
+    # seed_reporting_logs.rb provides build_reporting_events + word/heat-map data
+    # that the room/communicator report history reuses.
+    load Rails.root.join('lib', 'seed_reporting_logs.rb')
     load Rails.root.join('lib', 'seed_organization.rb')
+    room_names = if ENV['ROOM_NAMES']
+      ENV['ROOM_NAMES'].split(',').map(&:strip).reject(&:empty?)
+    else
+      ["Washington", "Adams", "Jefferson"]
+    end
     seed_organization(
       org_name: ENV['ORG_NAME'] || "Sample Organization",
       total_licenses: ENV['TOTAL_LICENSES']&.to_i || 50,
@@ -10,7 +18,14 @@ namespace :db do
       manager_count: ENV['MANAGER_COUNT']&.to_i || 2,
       supervisor_count: ENV['SUPERVISOR_COUNT']&.to_i || 5,
       user_count: ENV['USER_COUNT']&.to_i || 10,
-      eval_count: ENV['EVAL_COUNT']&.to_i || 3
+      eval_count: ENV['EVAL_COUNT']&.to_i || 3,
+      room_names: room_names,
+      # Clamp the loop-size knobs so a fat-fingered ENV value can't spin up an
+      # unbounded number of records on a shared DB.
+      students_per_room: (ENV['STUDENTS_PER_ROOM']&.to_i || 3).clamp(0, 50),
+      seed_reports: ENV['SEED_REPORTS'] != 'false',
+      report_weeks: (ENV['REPORT_WEEKS']&.to_i || 13).clamp(1, 52),
+      sessions_per_week: (ENV['SESSIONS_PER_WEEK']&.to_i || 2).clamp(1, 20)
     )
   end
 

@@ -1,0 +1,21 @@
+{{#if this.settings}}
+  <OpeningObserver @opening={{this.openingHandler}} @closing={{this.closingHandler}}>
+  <TouchListener @release={{this.selectReleaseHandler}}>
+    <div class="highlight" style={{this.highlightController.model.top_style}} {{on "click" this.closeHighlight}}>
+    </div>
+    <div class="highlight" style={{this.highlightController.model.left_style}} {{on "click" this.closeHighlight}}>
+    </div>
+    <div class="highlight" style={{this.highlightController.model.right_style}} {{on "click" this.closeHighlight}}>
+    </div>
+    <div class="highlight" style={{this.highlightController.model.bottom_style}} {{on "click" this.closeHighlight}}>
+    </div>
+    <div class={{this.highlightController.highlight_class}} style={{this.highlightController.model.highlight_style}} {{on "click" this.selectHighlight}}>
+    </div>
+    <div class={{this.highlightController.highlight_inner_class}} id='highlight_box' style={{this.highlightController.model.inner_highlight_style}} {{on "click" this.selectHighlight}}>
+      {{#if this.highlightController.model.icon_class}}
+        <span class={{this.highlightController.model.icon_class}} style={{this.highlightController.model.icon_style}}></span>
+      {{/if}}
+    </div>
+  </TouchListener>
+  </OpeningObserver>
+{{/if}}

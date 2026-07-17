@@ -6,6 +6,13 @@ describe Worker do
     Worker.flush_queues
     expect(Worker.scheduled?(User, :do_something, 2)).to eq(false)
   end
+
+  it "clears sizeof queue cache on flush so scheduled? is not fooled by stale counts" do
+    Resque.redis.setex("sizeof/default", 30, 501)
+    Worker.flush_queues
+    Worker.schedule(User, 'do_something', 3)
+    expect(Worker.scheduled?(User, :do_something, 3)).to eq(true)
+  end
   
   describe "perform" do
     it "should parse out Worker options and call the appropriate method" do
@@ -94,7 +101,80 @@ describe Worker do
       Worker.perform_at(:slow, 'User', 'count')
     end
   end
-  
+
+  describe "clear_request_thread_caches" do
+    after(:each) do
+      Thread.current[:board_content_cache] = nil
+      Thread.current[:word_inflection_cache] = nil
+      Thread.current[:bulk_copy_in_progress] = nil
+      PiiScrubber.reset_blocklist!
+    end
+
+    it "should clear all request-scoped thread caches" do
+      Thread.current[:board_content_cache] = {'a' => 1}
+      Thread.current[:word_inflection_cache] = {'b' => 2}
+      Thread.current[:bulk_copy_in_progress] = true
+      PiiScrubber.configure_blocklist(['Alice', 'Bob'])
+      expect(PiiScrubber.blocklist).to eq(['Alice', 'Bob'])
+      Worker.clear_request_thread_caches
+      expect(Thread.current[:board_content_cache]).to be_nil
+      expect(Thread.current[:word_inflection_cache]).to be_nil
+      expect(Thread.current[:bulk_copy_in_progress]).to be_nil
+      expect(PiiScrubber.blocklist).to eq([])
+      expect(Thread.current[:pii_scrubber_blocklist_pattern]).to be_nil
+    end
+
+    it "should clear caches after a normal job runs via Worker.perform" do
+      expect(User).to receive(:bacon) {
+        Thread.current[:board_content_cache] = {'x' => 1}
+        PiiScrubber.configure_blocklist(['Charlie'])
+      }
+      Thread.current[:word_inflection_cache] = {'y' => 2}
+      Worker.perform('User', 'bacon')
+      expect(Thread.current[:board_content_cache]).to be_nil
+      expect(Thread.current[:word_inflection_cache]).to be_nil
+      expect(PiiScrubber.blocklist).to eq([])
+    end
+
+    it "should clear caches after a slow-queue job runs via SlowWorker.perform" do
+      # Regression: slow jobs execute through SlowWorker.perform -> Worker.perform_at,
+      # bypassing Worker.perform, so the caches must be cleared on the slow path too
+      # or they leak across jobs in a long-lived worker process.
+      expect(User).to receive(:bacon) {
+        Thread.current[:board_content_cache] = {'x' => 1}
+        Thread.current[:bulk_copy_in_progress] = true
+        # Mirrors AiBoardGenerator / AiWordPredictor which configure the
+        # blocklist per-user before invoking the AI vendor. Without the slow-path
+        # clear, this blocklist would leak into the next job on the same worker
+        # and be silently applied to a different user's AiApiLog scrub via the
+        # before_validation hook in app/models/ai_api_log.rb:20-24.
+        PiiScrubber.configure_blocklist(['Dana'])
+      }
+      SlowWorker.perform('User', 'bacon')
+      expect(Thread.current[:board_content_cache]).to be_nil
+      expect(Thread.current[:bulk_copy_in_progress]).to be_nil
+      expect(PiiScrubber.blocklist).to eq([])
+    end
+
+    it "should clear caches after a slow-queue job runs through the full enqueue + process path" do
+      # End-to-end coverage: schedule onto the slow queue and let
+      # Worker.process_queues pop it (which invokes SlowWorker.perform with the
+      # chain-tracking arg suffix appended by boy_band). This exercises the
+      # actual production code path that an OOM-causing leak would travel,
+      # rather than the direct SlowWorker.perform invocation above. Catches
+      # regressions where the ensure block is moved or the enqueue/pop path
+      # adds a new layer that bypasses the cleared sites.
+      Worker.schedule_for('slow', User, :bacon)
+      expect(User).to receive(:bacon) {
+        Thread.current[:board_content_cache] = {'real-enqueue' => 1}
+        PiiScrubber.configure_blocklist(['Eve'])
+      }
+      Worker.process_queues
+      expect(Thread.current[:board_content_cache]).to be_nil
+      expect(PiiScrubber.blocklist).to eq([])
+    end
+  end
+
   describe "scheduled_actions" do
     it "should have list actions" do
       Worker.schedule(User, :something)

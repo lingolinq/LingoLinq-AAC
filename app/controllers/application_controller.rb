@@ -7,8 +7,18 @@ class ApplicationController < ActionController::Base
   before_action :load_domain
   before_action :set_paper_trail_whodunnit
   after_action :log_api_call
-  before_bugsnag_notify :add_user_info_to_bugsnag
-  
+  before_action :set_sentry_user
+  around_action :with_request_caching
+
+  # Clears request-scoped Thread.current caches after each request to prevent
+  # data leaking between requests on the same Puma thread.
+  # See: app/models/board_content.rb, app/models/word_data.rb
+  def with_request_caching
+    yield
+  ensure
+    Worker.clear_request_thread_caches
+  end
+
   def set_host
     Rails.logger.info("Request ID #{request.headers['X-Request-Id'] || request.headers['X-Request-ID'] || request.request_id} #{request.headers['X-Request-Start']} #{}")
     if request.headers['X-SILENCE-LOGGER']
@@ -25,16 +35,71 @@ class ApplicationController < ActionController::Base
     true
   end
 
+  # EU launch (GDPR Art. 8): per-request jurisdiction-aware parental-consent age,
+  # delivered to the anonymous registration UI via domain_settings. Returns {}
+  # unless the eu_consent_age feature is enabled, so with the flag OFF the
+  # injected domain_settings are byte-identical to today. Callers MUST merge this
+  # into a fresh copy of the settings hash (never mutate @domain_overrides, which
+  # is the cached per-host blob from JsonApi::Json.load_domain).
+  def coppa_consent_age_injection
+    return {} unless FeatureFlags.eu_consent_age_enabled?
+    { 'coppa_consent_age' => JsonApi::Json.coppa_consent_age(jurisdiction_signal_for_request) }
+  end
+  helper_method :coppa_consent_age_injection
+
+  # Best jurisdiction signal available for THIS request, using only signals that
+  # already exist (no IP geolocation). This is best-effort BROWSER-LOCALE
+  # detection: an explicit ?locale= param, then the Accept-Language header.
+  #
+  # Deliberately does NOT read a country/region/locale off @domain_overrides:
+  # host_settings carries no such key today (see Organization#process_params
+  # allowlist), so those reads would be dead and misrepresent the signal source.
+  # A region-less locale (bare 'pl') resolves to unknown and preserves the
+  # default age-13 gate. Wiring an AUTHORITATIVE org-configured EU-host country
+  # is a tracked follow-up and is required before eu_consent_age is relied on as
+  # a GDPR Art. 8 control (browser locale under-fires for EU users who send a
+  # bare language subtag).
+  def jurisdiction_signal_for_request
+    params[:locale].presence || request.headers['Accept-Language'].presence
+  end
+
   def log_api_call
     time = @time ? (Time.now - @time) : nil
     ApiCall.log(@token, @api_user, request, response, time)
     true
   end
   
-  def add_user_info_to_bugsnag(report)
-    report.user = {
-      id: GoSecure.sha512(request.remote_ip, 'user_ip')
-    }
+  # Hash the requester IP and attach to the Sentry scope as the synthetic
+  # user id so issues group per-requester without exposing raw IPs.
+  # CoppaSentryScrub redacts the event entirely if a logged-in user turns
+  # out to be COPPA-pending. The actual User reference for that consent
+  # check rides on RequestStore (NOT on the Sentry event itself), because
+  # Sentry.user_hash[:id] is the IP hash and won't resolve to a database id.
+  def set_sentry_user
+    return unless defined?(Sentry) && Sentry.respond_to?(:initialized?) && Sentry.initialized?
+    Sentry.set_user(id: GoSecure.sha512(request.remote_ip, 'user_ip'))
+    stash_coppa_sentry_user(coppa_sentry_subject_user)
+  rescue StandardError
+    nil
+  end
+
+  # Stash the User whose data might appear on a Sentry event. Call again
+  # from actions that resolve the authenticated user after before_action.
+  def stash_coppa_sentry_user(user)
+    CoppaSentryScrub.stash_request_user(user)
+  end
+
+  def coppa_sentry_subject_user
+    return @api_user if defined?(@api_user) && @api_user
+
+    if controller_path == 'parental_consents'
+      user_id = params[:user_id].presence || params['user_id']
+      return User.find_by_path(user_id) if user_id.present?
+    end
+
+    nil
+  rescue StandardError
+    nil
   end
   
   def check_api_token
@@ -178,12 +243,30 @@ class ApplicationController < ActionController::Base
   # Returns true if authorized. On failure, renders api_error(400, {...}) and returns false.
   # Callers must return after checking: "return unless allowed?(obj, 'permission')"
   def allowed?(obj, permission)
-    scopes = ['*']
-    if @api_user && @api_device_id
-      scopes = @api_user.permission_scopes || []
-    end
+    # Permissable grants an action only when (rule's allowed_scopes & relevant_scopes) is non-empty.
+    # Rules for supervision use ['full'] or ['full', 'basic_supervision'] — never the string '*'.
+    # Defaulting to ['*'] therefore blocked valid calls. Some devices (integrations / dev keys)
+    # omit permission_scopes and yield [] — treat blank like a normal browser session (full).
+    # Redis token cache can also store a lone '*' (legacy wildcard) which still does not intersect
+    # with 'full' in Permissable — normalize that to full as well. Preserve explicit 'none'.
+    scopes = api_permission_scopes
     if !obj || !obj.allows?(@api_user, permission, scopes)
-      res = {error: "Not authorized", unauthorized: true}
+      res = {
+        error: "Not authorized",
+        unauthorized: true,
+        permission: permission.to_s,
+        effective_scopes: scopes
+      }
+      if obj
+        res[:resource_class] = obj.class.name
+        res[:resource_id] = obj.respond_to?(:global_id) ? obj.global_id : obj.id
+      end
+      if scopes.include?('none')
+        res[:device_scopes_none] = true
+      end
+      if @api_user && @api_user.respond_to?(:valet_mode?) && @api_user.valet_mode?
+        res[:valet_blocked] = true
+      end
       if permission.instance_variable_get('@scope_rejected')
         res[:scope_limited] = true
         res[:scopes] = scopes
@@ -193,6 +276,10 @@ class ApplicationController < ActionController::Base
     else
       true
     end
+  end
+
+  def admin_support_actions_allowed?(user=@api_user)
+    user && Organization.admin_manager?(user) && !user.valet_mode?
   end
   
   def api_error(status_code, hash)
@@ -218,6 +305,16 @@ class ApplicationController < ActionController::Base
 
   def set_browser_token_header
     response.headers['BROWSER_TOKEN'] = GoSecure.browser_token
+  end
+
+  # Normalized token scopes for Permissable (same rules as +allowed?+).
+  def api_permission_scopes
+    scopes = ['full']
+    if @api_user && @api_device_id
+      raw = @api_user.permission_scopes || []
+      scopes = PermissionScopesNormalize.for_api(raw)
+    end
+    scopes
   end
 
   # X-INSTALLED-LINGOLINQ: client declares native app vs browser.
@@ -272,6 +369,17 @@ class ApplicationController < ActionController::Base
   def log_installed_client_signal(source)
     h = installed_app_header
     return if h.blank? && !params.key?('installed_app')
-    Rails.logger.info("[INSTALLED_HEADER] #{source} val=#{h.inspect} effective=#{installed_app_header_effective.inspect} params=#{params['installed_app'].inspect} installed_app=#{installed_app?} browser_client=#{browser_client?}")
+    h_log = h[0, 64]
+    raw_p = params['installed_app']
+    p_log = if raw_p.nil? || (raw_p.is_a?(String) && raw_p.empty?)
+      nil
+    elsif raw_p.is_a?(String)
+      raw_p[0, 64]
+    elsif raw_p.is_a?(ActionController::Parameters) || raw_p.is_a?(Hash)
+      '#<Hash>'
+    else
+      "#<#{raw_p.class.name}>"
+    end
+    Rails.logger.info("[INSTALLED_HEADER] #{source} val=#{h_log.inspect} effective=#{installed_app_header_effective.inspect} params=#{p_log.inspect} installed_app=#{installed_app?} browser_client=#{browser_client?}")
   end
 end

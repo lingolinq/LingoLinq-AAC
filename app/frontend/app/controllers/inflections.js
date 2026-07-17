@@ -7,9 +7,12 @@ import { set as emberSet, get as emberGet } from '@ember/object';
 import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
+import { A } from '@ember/array';
 
 var extra_types = ['NW', 'N', 'NE', 'W', 'E', 'SW', 'S', 'SE'];
 export default Controller.extend({
+  router: service('router'),
   abort_if_unauthorized: observer('session.isAuthenticated', 'app_state.currentUser', function() {
     if(!session.get('isAuthenticated')) {
       app_state.return_to_index();
@@ -37,7 +40,7 @@ export default Controller.extend({
       var words = data.map(function(r) { return r; });
       _this.set('antonyms', null);
       if(words[0].get('word') != _this.get('ref') || words[0].get('locale') != _this.get('locale')) {
-        _this.transitionToRoute('inflections', words[0].get('word'), words[0].get('locale'));
+        _this.router.transitionTo('inflections', words[0].get('word'), words[0].get('locale'));
       }
       var extras = [];
       if(words[0]) {
@@ -164,7 +167,7 @@ export default Controller.extend({
         }
       });
     });
-    return res;
+    return A(res);
   }),
   update_primary_on_single_word_type: observer(
     'word_types',
@@ -218,6 +221,31 @@ export default Controller.extend({
       return res;
     }
   ),
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
     save: function() {
       var _this = this;
@@ -268,7 +296,7 @@ export default Controller.extend({
             types.forEach(function(type) {
               emberSet(type, 'checked', false);
             });
-            _this.transitionToRoute('inflections', w.get('word'), w.get('locale'));
+            _this.router.transitionTo('inflections', w.get('word'), w.get('locale'));
           }
         });
       }, function(err) {

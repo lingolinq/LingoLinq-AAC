@@ -18,16 +18,42 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+
     const modalService = this.get('modal');
     const template = 'copy-board';
     const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
                     (modalService && modalService.settingsFor && modalService.settingsFor[template]) ||
                     this.get('model') || {};
     this.set('model', options);
+    this.runOpening();
   },
 
-  didInsertElement() {
-    this._super(...arguments);
+  runOpening() {
+    if (!this.get('model.board')) { return; }
+    if (this.get('_copyBoardInitialized')) { return; }
+    this.set('_copyBoardInitialized', true);
+    // This component is tagless, so initialize modal state without relying on didInsertElement.
     this.set('model.jump_home', true);
     this.set('model.keep_as_self', false);
     this.set('board_name', this.get('model.board.name'));
@@ -45,6 +71,7 @@ export default Component.extend({
     this.set('home_board', null);
     const user_name = this.get('model.selected_user_name');
     let supervisees = [];
+    this.set('model.known_supervisees', supervisees);
     if (this.get('appState').get('sessionUser.supervisees.length')) {
       let selected_user_id = null;
       this.get('appState').get('sessionUser.known_supervisees').forEach(function(supervisee) {
@@ -56,19 +83,28 @@ export default Component.extend({
         }
         supervisees.push(res);
       }.bind(this));
-      this.set('currently_selected_id', selected_user_id);
+      this.set('model.known_supervisees', supervisees);
+      // Default to "me" (self) when no specific supervisee was pre-selected, so
+      // the modal opens with a valid selection instead of a required-pick prompt.
+      this.set('currently_selected_id', selected_user_id != null ? selected_user_id : 'self');
     } else {
       this.set('currently_selected_id', 'self');
     }
-    this.set('model.known_supervisees', supervisees);
   },
+
+  runOpeningWhenBoardReady: observer('model.board', function() {
+    this.runOpening();
+  }),
 
   has_supervisees: computed('model.known_supervisees', 'appState.sessionUser.managed_orgs', function() {
     return this.get('model.known_supervisees.length') > 0 || this.get('appState.sessionUser.managed_orgs.length') > 0;
   }),
 
-  linked: computed('model.board.buttons', function() {
-    return (this.get('model.board.linked_boards') || []).length > 0;
+  linked: computed('model.board.buttons', 'model.board.downstream_boards', 'model.board.downstream_board_ids', 'model.original_board', function() {
+    return (this.get('model.board.linked_boards') || []).length > 0 ||
+      (this.get('model.board.downstream_boards') || 0) > 0 ||
+      (this.get('model.board.downstream_board_ids.length') || 0) > 0 ||
+      !!this.get('model.original_board');
   }),
 
   locales: computed(function() {
@@ -89,17 +125,17 @@ export default Component.extend({
   symbol_libraries: computed('current_user', function() {
     const u = this.get('current_user');
     const list = [];
-    list.push({ name: i18n.t('original_symbols', "Use the board's original symbols"), id: 'original' });
-    list.push({ name: i18n.t('use_opensymbols', 'Opensymbols.org free symbol libraries'), id: 'opensymbols' });
+    list.push({ name: i18n.t('original_symbols', "Default symbols"), id: 'original' });
+    list.push({ name: i18n.t('use_opensymbols', 'Opensymbols.org'), id: 'opensymbols' });
     if (u && (emberGet(u, 'extras_enabled') || emberGet(u, 'subscription.extras_enabled'))) {
       list.push({ name: i18n.t('use_lessonpix', 'LessonPix symbol library'), id: 'lessonpix' });
       list.push({ name: i18n.t('use_symbolstix', 'SymbolStix Symbols'), id: 'symbolstix' });
       list.push({ name: i18n.t('use_pcs', 'PCS Symbols by Tobii Dynavox'), id: 'pcs' });
     }
     list.push({ name: i18n.t('use_twemoji', 'Emoji icons (authored by Twitter)'), id: 'twemoji' });
-    list.push({ name: i18n.t('use_noun-project', 'The Noun Project black outlines'), id: 'noun-project' });
+    list.push({ name: i18n.t('use_noun-project', 'Noun Project black outlines'), id: 'noun-project' });
     list.push({ name: i18n.t('use_arasaac', 'ARASAAC free symbols'), id: 'arasaac' });
-    list.push({ name: i18n.t('use_tawasol', 'Tawasol symbol library'), id: 'tawasol' });
+    list.push({ name: i18n.t('use_tawasol', 'Tawasol'), id: 'tawasol' });
     return list;
   }),
 
@@ -128,9 +164,11 @@ export default Component.extend({
       });
       find_user.then(function(user) {
         const in_board_set = (user.get('stats.board_set_ids') || []).indexOf(_this.get('model.board.id')) >= 0;
+        if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
         _this.set('current_user', user);
         _this.set('symbol_library', user.get('preferences.preferred_symbols'));
         setTimeout(function() {
+          if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
           _this.set('symbol_library', user.get('preferences.preferred_symbols'));
         }, 100);
         _this.set('loading', false);
@@ -140,18 +178,18 @@ export default Component.extend({
           sidebar_keys.forEach(function(key) {
             if (!key) { return; }
             LingoLinq.store.findRecord('board', key).then(function(board) {
-              if (_this.get('current_user') === user) {
+              if (_this.get('current_user') === user && !_this.get('isDestroyed') && !_this.get('isDestroying')) {
                 if (board.get('key') === _this.get('model.board.key')) {
                   _this.set('sidebar_board', true);
                   const sidebar_ids = user.get('stats.sidebar_board_ids') || [];
-                  user.set('stats.sidebar_board_ids', sidebar_ids.concat([board.get('id')]).uniq());
+                  user.set('stats.sidebar_board_ids', [...new Set(sidebar_ids.concat([board.get('id')]))]);
                 }
               }
               LingoLinq.Buttonset.load_button_set(board.get('id')).then(function(bs) {
                 const board_ids = bs.board_ids_for(board.get('id'));
-                if (_this.get('current_user') === user) {
+                if (_this.get('current_user') === user && !_this.get('isDestroyed') && !_this.get('isDestroying')) {
                   const sidebar_ids = user.get('stats.sidebar_board_ids') || [];
-                  user.set('stats.sidebar_board_ids', sidebar_ids.concat(board_ids).uniq());
+                  user.set('stats.sidebar_board_ids', [...new Set(sidebar_ids.concat(board_ids))]);
                   if (board_ids.indexOf(_this.get('model.board.id')) >= 0) {
                     _this.set('in_sidebar_set', true);
                   }
@@ -162,6 +200,7 @@ export default Component.extend({
         }
         _this.set('home_board', user.get('preferences.home_board.id') === _this.get('model.board.id'));
       }, function() {
+        if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
         _this.set('loading', false);
         _this.set('error', true);
       });
@@ -178,7 +217,9 @@ export default Component.extend({
     close() {
       this.get('modal').close(false);
     },
-    opening() {},
+    opening() {
+      this.runOpening();
+    },
     closing() {},
     more_options() {
       this.set('show_more_options', !this.get('show_more_options'));
@@ -220,6 +261,7 @@ export default Component.extend({
       const lib = this.get('symbol_library') || 'original';
       this.get('modal').close({
         action: decision,
+        copy_board_source: this.get('model.board'),
         user: this.get('current_user'),
         shares: shares,
         board_name: name,
@@ -232,5 +274,14 @@ export default Component.extend({
         translate_locale: translate_locale
       });
     }
-  }
+  },
+
+  didInsertElement() {
+  this._super(...arguments);
+  var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
+},
+
 });

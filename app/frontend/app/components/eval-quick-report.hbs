@@ -1,0 +1,285 @@
+{{!-- Final report card with recommendation summary and next-step actions --}}
+<section class="evq-report" aria-labelledby="evq-report-title">
+  <header class="evq-report__header">
+    <span class="evq-report__eyebrow">{{t "Quick Screen complete" key="report_complete_eyebrow"}}</span>
+    <h2 id="evq-report-title" class="evq-report__title">
+      {{t "Recommended starting point" key="report_title"}}
+    </h2>
+    <div class="evq-report__meta">
+      <span class="evq-report__chip">{{this.durationLabel}}</span>
+      <span class="evq-report__chip evq-report__chip--confidence">
+        {{t "%{pct}% confidence" key="report_confidence" pct=this.confidencePct}}
+      </span>
+    </div>
+  </header>
+
+  <div class="evq-report__grid">
+    <article class="evq-card">
+      <span class="evq-card__label">{{t "Access method" key="report_access_method"}}</span>
+      <strong class="evq-card__value">{{this.recommendation.access_method}}</strong>
+      {{#if this.recommendation.access_secondary}}
+        <small class="evq-card__hint">{{t "Secondary: %{m}" key="report_access_secondary" m=this.recommendation.access_secondary}}</small>
+      {{/if}}
+    </article>
+
+    <article class="evq-card">
+      <span class="evq-card__label">{{t "Grid" key="report_grid"}}</span>
+      <strong class="evq-card__value">{{this.gridLabel}}</strong>
+    </article>
+
+    <article class="evq-card">
+      <span class="evq-card__label">{{t "Symbol library" key="report_library"}}</span>
+      <strong class="evq-card__value">
+        {{#if this.recommendation.library}}
+          {{this.recommendation.library}}
+        {{else}}
+          {{t "Not enough data yet" key="report_library_unknown"}}
+        {{/if}}
+      </strong>
+    </article>
+
+    <article class="evq-card">
+      <span class="evq-card__label">{{t "Communicator stage" key="report_stage"}}</span>
+      <strong class="evq-card__value">{{this.recommendation.communicator_stage}}</strong>
+      <small class="evq-card__hint">{{t "Communication Matrix scale (1–7)" key="report_stage_hint"}}</small>
+    </article>
+
+    <article class="evq-card evq-card--wide">
+      <span class="evq-card__label">{{t "Vocabulary" key="report_vocab"}}</span>
+      <strong class="evq-card__value">{{this.recommendation.vocab_recommendation.band}}</strong>
+      {{#if this.recommendation.vocab_recommendation.fringe_categories}}
+        <ul class="evq-card__chips">
+          {{#each this.recommendation.vocab_recommendation.fringe_categories as |cat|}}
+            <li class="evq-card__chip">{{cat}}</li>
+          {{/each}}
+        </ul>
+      {{/if}}
+    </article>
+  </div>
+
+  {{#if this.isTargetedReport}}
+    <section class="evq-report__targeted" aria-labelledby="evq-report-targeted-title">
+      <header class="evq-report__targeted-head">
+        <span class="evq-report__targeted-eyebrow">{{t "Feature-match detail" key="report_targeted_eyebrow"}}</span>
+        <h3 id="evq-report-targeted-title" class="evq-report__targeted-title">
+          {{t "Targeted subtests" key="report_targeted_title"}}
+        </h3>
+      </header>
+      <div class="evq-report__targeted-grid">
+        {{#if this.adaptiveGridReport}}
+          <article class="evq-report__targeted-card">
+            <span class="evq-report__targeted-label">{{t "Adaptive grid sweep" key="report_targeted_grid"}}</span>
+            <strong class="evq-report__targeted-value">
+              {{this.adaptiveGridReport.rows}} × {{this.adaptiveGridReport.cols}}
+            </strong>
+            <small class="evq-report__targeted-hint">
+              {{t "Converged in %{n} attempts" key="report_targeted_grid_hint" n=this.adaptiveGridReport.attempts}}
+            </small>
+          </article>
+        {{/if}}
+        {{#if this.library3wayReport}}
+          <article class="evq-report__targeted-card">
+            <span class="evq-report__targeted-label">{{t "Library bake-off" key="report_targeted_library"}}</span>
+            <strong class="evq-report__targeted-value">{{this.library3wayReport.winner}}</strong>
+            <ul class="evq-report__targeted-picks">
+              {{#each this.libraryPicksList as |row|}}
+                <li class="evq-report__targeted-pick">
+                  <span>{{row.id}}</span>
+                  <span class="evq-report__targeted-pick-count">{{row.count}}</span>
+                </li>
+              {{/each}}
+            </ul>
+          </article>
+        {{/if}}
+        {{#if this.accessCoTrialReport}}
+          <article class="evq-report__targeted-card">
+            <span class="evq-report__targeted-label">{{t "Access co-trial" key="report_targeted_access"}}</span>
+            <strong class="evq-report__targeted-value">{{this.accessCoTrialReport.method}}</strong>
+            <ul class="evq-report__targeted-picks">
+              {{#each this.accessSummaryList as |row|}}
+                <li class="evq-report__targeted-pick">
+                  <span>{{row.method}}</span>
+                  <span class="evq-report__targeted-pick-count">
+                    {{#if row.accuracy}}
+                      {{t "%{p}%" key="report_targeted_pct" p=row.accuracy}}
+                    {{else}}
+                      —
+                    {{/if}}
+                  </span>
+                </li>
+              {{/each}}
+            </ul>
+          </article>
+        {{/if}}
+        {{#if this.motorMapReport}}
+          <article class="evq-report__targeted-card evq-report__targeted-card--motor-map">
+            <span class="evq-report__targeted-label">{{t "Motor map" key="report_targeted_motor_map"}}</span>
+            <strong class="evq-report__targeted-value">
+              {{#if this.motorMapAccuracyPct}}
+                {{t "%{p}%% accurate" key="report_motor_map_pct" p=this.motorMapAccuracyPct}}
+              {{else}}
+                —
+              {{/if}}
+            </strong>
+            <small class="evq-report__targeted-hint">
+              {{t "%{h} of %{t} target cells" key="report_motor_map_hint" h=this.motorMapReport.total_correct t=this.motorMapReport.total_trials}}
+            </small>
+            <div class="evq-report__motor-map-heatmap">
+              <Stats::EvalHits @hits={{this.motorMapHits}} />
+            </div>
+          </article>
+        {{/if}}
+        {{#if this.syntaxProbeReport}}
+          <article class="evq-report__targeted-card">
+            <span class="evq-report__targeted-label">{{t "Syntax probe" key="report_targeted_syntax"}}</span>
+            <div class="evq-report__targeted-bars">
+              <div class="evq-report__targeted-bar">
+                <span class="evq-report__targeted-bar-label">{{t "Receptive" key="syntax_receptive"}}</span>
+                <span class="evq-report__targeted-bar-value">
+                  {{#if this.syntaxReceptivePct}}
+                    {{t "%{p}%" key="report_targeted_pct" p=this.syntaxReceptivePct}}
+                  {{else}}
+                    —
+                  {{/if}}
+                </span>
+              </div>
+              <div class="evq-report__targeted-bar">
+                <span class="evq-report__targeted-bar-label">{{t "Expressive" key="syntax_expressive"}}</span>
+                <span class="evq-report__targeted-bar-value">
+                  {{#if this.syntaxExpressivePct}}
+                    {{t "%{p}%" key="report_targeted_pct" p=this.syntaxExpressivePct}}
+                  {{else}}
+                    —
+                  {{/if}}
+                </span>
+              </div>
+            </div>
+          </article>
+        {{/if}}
+      </div>
+    </section>
+  {{/if}}
+
+  {{#if this.isComprehensiveReport}}
+    <section class="evq-report__targeted" aria-labelledby="evq-report-comprehensive-title">
+      <header class="evq-report__targeted-head">
+        <span class="evq-report__targeted-eyebrow">{{t "Comprehensive detail" key="report_comprehensive_eyebrow"}}</span>
+        <h3 id="evq-report-comprehensive-title" class="evq-report__targeted-title">
+          {{t "Dynamic assessment & SETT" key="report_comprehensive_title"}}
+        </h3>
+      </header>
+      <div class="evq-report__targeted-grid">
+        {{#if this.daSummary}}
+          <article class="evq-report__targeted-card">
+            <span class="evq-report__targeted-label">{{t "Dynamic assessment" key="report_comprehensive_da"}}</span>
+            <strong class="evq-report__targeted-value">
+              {{t "%{p}%% independent" key="report_comprehensive_da_independent" p=this.daSummary.independence_pct}}
+            </strong>
+            <small class="evq-report__targeted-hint">
+              {{t "Avg prompt level %{a} · %{s}%% supported · %{n}%% not yet" key="report_comprehensive_da_hint" a=this.daSummary.independence_avg s=this.daSummary.supported_pct n=this.daSummary.not_yet_pct}}
+            </small>
+          </article>
+        {{/if}}
+        {{#if this.literacySummary}}
+          <article class="evq-report__targeted-card">
+            <span class="evq-report__targeted-label">{{t "Literacy probe" key="report_comprehensive_literacy"}}</span>
+            <strong class="evq-report__targeted-value">
+              {{#if this.literacyAccuracyPct}}
+                {{t "%{p}%%" key="report_targeted_pct" p=this.literacyAccuracyPct}}
+              {{else}}
+                —
+              {{/if}}
+            </strong>
+            <small class="evq-report__targeted-hint">
+              {{t "%{h} of %{t} items" key="report_comprehensive_literacy_hint" h=this.literacySummary.hits t=this.literacySummary.trials}}
+            </small>
+          </article>
+        {{/if}}
+        {{#if this.comprehensiveSett}}
+          <article class="evq-report__targeted-card evq-report__targeted-card--sett">
+            <span class="evq-report__targeted-label">{{t "SETT framework" key="report_comprehensive_sett"}}</span>
+            {{#if this.comprehensiveSett.student}}
+              <small class="evq-report__targeted-hint"><strong>{{t "Student:" key="report_comprehensive_sett_student"}}</strong> {{this.comprehensiveSett.student}}</small>
+            {{/if}}
+            {{#if this.comprehensiveSett.environment}}
+              <small class="evq-report__targeted-hint"><strong>{{t "Environment:" key="report_comprehensive_sett_environment"}}</strong> {{this.comprehensiveSett.environment}}</small>
+            {{/if}}
+            {{#if this.comprehensiveSett.task}}
+              <small class="evq-report__targeted-hint"><strong>{{t "Task:" key="report_comprehensive_sett_task"}}</strong> {{this.comprehensiveSett.task}}</small>
+            {{/if}}
+          </article>
+        {{/if}}
+      </div>
+    </section>
+  {{/if}}
+
+  {{#if this.goalsGrid}}
+    <section class="evq-report__goals" aria-labelledby="evq-report-goals-title">
+      <header class="evq-report__goals-head">
+        <span class="evq-report__goals-eyebrow">{{t "Goals grid" key="report_goals_eyebrow"}}</span>
+        <h3 id="evq-report-goals-title" class="evq-report__goals-title">
+          {{t "DAGG-style IEP goal suggestions" key="report_goals_title"}}
+        </h3>
+        <p class="evq-report__goals-lede">
+          {{t "Derived from the recommendation across Light's four communicative competencies. Edit before pasting into an IEP." key="report_goals_lede"}}
+        </p>
+      </header>
+      <div class="evq-report__goals-grid">
+        {{#each this.goalsGrid as |bucket|}}
+          <article class="evq-report__goals-cat" data-category={{bucket.category}}>
+            <span class="evq-report__goals-cat-label">{{bucket.category}}</span>
+            <ul class="evq-report__goals-list">
+              {{#each bucket.goals as |g|}}
+                <li class="evq-report__goals-item">{{g.text}}</li>
+              {{/each}}
+            </ul>
+          </article>
+        {{/each}}
+      </div>
+    </section>
+  {{/if}}
+
+  {{#if this.shouldPromote}}
+    <aside class="evq-report__promote" role="note">
+      <strong class="evq-report__promote-title">{{t "Consider promoting to a Targeted Eval" key="report_promote_title"}}</strong>
+      <span class="evq-report__promote-reasons">{{this.promoteReasonsLabel}}</span>
+    </aside>
+  {{/if}}
+
+  {{!-- SLP quick-notes — short free-text field for the supporter
+       to capture any nuance not surfaced by the auto-recommendation.
+       Persists onto the session as slp_notes (saved alongside the
+       LogSession data shape). --}}
+  <div class="evq-report__notes">
+    <label for="evq-slp-notes" class="evq-report__notes-label">
+      {{t "SLP notes (optional)" key="report_slp_notes_label"}}
+    </label>
+    <textarea id="evq-slp-notes" class="evq-report__notes-input" rows="3" placeholder={{t "Behaviors observed, follow-up plan, or anything the auto-score missed…" key="report_slp_notes_placeholder"}} {{on "keyup" (this.ctrlActionEventValue "notesChanged" "value")}}>{{this.session.slpNotes}}</textarea>
+  </div>
+
+  {{#if this.buildError}}
+    <p class="evq-report__error" role="alert">{{this.buildError}}</p>
+  {{/if}}
+
+  <div class="evq-report__actions">
+    {{#if this.isTargetedReport}}
+      <button type="button" class="evq-btn evq-btn--ghost" {{on "click" (this.ctrlAction "promoteComprehensive")}}>
+        {{t "Promote to Comprehensive (15 min)" key="report_promote_comprehensive_button"}}
+      </button>
+    {{else}}
+      <button type="button" class="evq-btn evq-btn--ghost" {{on "click" (this.ctrlAction "promote")}}>
+        {{t "Promote to Targeted (10 min)" key="report_promote_button"}}
+      </button>
+    {{/if}}
+    <button type="button" class="evq-btn evq-btn--ghost" {{on "click" (this.ctrlAction "buildStarterBoard")}} disabled={{this.buildingBoard}}>
+      {{#if this.buildingBoard}}
+        {{t "Building board…" key="report_build_board_busy"}}
+      {{else}}
+        {{t "Build starter board" key="report_build_board"}}
+      {{/if}}
+    </button>
+    <button type="button" class="evq-btn evq-btn--primary" {{on "click" (this.ctrlAction "save")}}>
+      {{t "Save eval" key="report_save"}}
+    </button>
+  </div>
+</section>

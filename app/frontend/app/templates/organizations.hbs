@@ -1,0 +1,133 @@
+<div class="md-shell md-shell--org md-shell--org-directory">
+  <div class="md-workspace">
+    {{!-- Shared user-level pill-nav (Home / Organizations / Boards / Reports /
+         Extras / Account) — the Organizations pill renders as the active page here. --}}
+    <UserPillNav @active="organizations" @userName={{this.app_state.currentUser.user_name}} />
+    <header class="md-hero md-hero--dashboard">
+      <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "My Organizations" key="my_organizations"}}</span></h1>
+      <p class="md-hero__sub"><span class="md-hero__sub--from-right">{{t "Choose an organization to" key="choose_org_to_manage_pre"}} <em class="md-hero__gradient-text">{{t "manage or view..." key="choose_org_to_manage_em"}}</em></span></p>
+    </header>
+
+    <main class="md-main md-main--org">
+      {{#if this.all_orgs.length}}
+        <section class="md-org-section" aria-label={{t "Available Organizations" key="accessible_orgs"}}>
+          <div class="md-org-section-head">
+            <div>
+              <h3 class="md-org-section-title">{{t "Available Organizations" key="accessible_orgs"}}</h3>
+              <p class="md-org-section-desc">{{t "Select an organization before opening reports, people, rooms, or settings." key="select_org_before_managing"}}</p>
+            </div>
+          </div>
+          <div class="md-rooms__grid">
+            {{#each this.all_orgs as |org|}}
+              <LinkTo @route="organization" @model={{org.id}} class="md-room-card md-org-open-card" title={{org.name}}>
+                <span class="md-room-card__icon" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M10 22v-4h4v4"/><line x1="9" y1="6" x2="9" y2="6.01" stroke-width="2"/><line x1="15" y1="6" x2="15" y2="6.01" stroke-width="2"/><line x1="9" y1="10" x2="9" y2="10.01" stroke-width="2"/><line x1="15" y1="10" x2="15" y2="10.01" stroke-width="2"/></svg>
+                </span>
+                <span class="md-org-card__text">
+                  <span class="md-room-card__name">{{org.name}}</span>
+                  <span class="md-org-card__desc">
+                    {{#if org.admin}}
+                      {{t "site admin" key="site_admin_lower"}}
+                    {{else if (is_equal org.type "supervisor")}}
+                      {{t "supervisor access" key="supervisor_access"}}
+                    {{else}}
+                      {{t "manager access" key="manager_access"}}
+                    {{/if}}
+                  </span>
+                </span>
+                <span class="md-room-card__arrow" aria-hidden="true">&rarr;</span>
+              </LinkTo>
+            {{/each}}
+          </div>
+        </section>
+      {{else if this.orgs.loading}}
+        <div class="md-card__loading"><div class="md-spinner" aria-hidden="true"><svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="13" stroke="rgba(76,134,216,0.15)" stroke-width="3"/><path d="M16 3a13 13 0 0 1 13 13" stroke="#4C86D8" stroke-width="3" stroke-linecap="round"/></svg></div><p class="md-card__loading-text">{{t "Loading organizations..." key="loading_orgs"}}</p></div>
+      {{else}}
+        <section class="md-org-section" aria-label={{t "Organizations" key="organizations"}}>
+          <p class="md-muted">{{t "No organizations are available for this account." key="no_accessible_orgs"}}</p>
+        </section>
+      {{/if}}
+
+      {{#if this.has_admin_access}}
+        <section class="md-org-section" aria-label={{t "All Organizations" key="all_organizations"}}>
+          <div class="md-org-section-head">
+            <div>
+              <h3 class="md-org-section-title">{{t "All Organizations" key="all_organizations"}}</h3>
+              <p class="md-org-section-desc">{{t "Site admins can search, open, edit, or remove organizations here." key="site_admin_org_directory_desc"}}</p>
+            </div>
+            <div class="md-org-search-wrap">
+              <input value={{this.org_filter}} type="text" class="md-org-input" placeholder={{t "search orgs" key="search_orgs"}} {{on "input" (set-field this "org_filter")}} />
+            </div>
+          </div>
+
+          {{#if this.orgs.data}}
+            <div class="md-org-user-list">
+              {{#if this.has_org_filter}}
+                {{#each this.filtered_orgs as |org|}}
+                  <div class="md-org-user-row">
+                    <LinkTo @route="organization" @model={{org.id}} class="md-org-user-row__main">
+                      <span class="md-org-user-row__org-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                      </span>
+                      <span class="md-org-user-row__name">{{#if org.premium}}<strong>{{org.name}}</strong>{{else}}{{org.name}}{{/if}}</span>
+                    </LinkTo>
+                    <LinkTo @route="organization.settings" @model={{org.id}} class="md-org-user-row__edit" aria-label={{t "Edit" key="edit"}}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </LinkTo>
+                    {{#unless org.admin}}
+                      <button type="button" class="md-org-user-row__remove" {{on "click" (this.ctrlAction "remove_org" org)}} aria-label={{t "Delete" key="delete"}}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                      </button>
+                    {{/unless}}
+                  </div>
+                {{else}}
+                  <p class="md-muted">{{t "None found" key="none_found"}}</p>
+                {{/each}}
+              {{else}}
+                {{#each this.alphabetized_orgs as |letter|}}
+                  <div class="md-org-letter-group">
+                    <button type="button" class="md-org-letter-group__toggle" {{on "click" (this.ctrlAction "toggle_letter" letter)}}>
+                      <span class="md-org-letter-group__letter">{{letter.letter}}</span>
+                      <span class="md-muted">{{t "org" count=letter.orgs.length key="n_orgs"}}</span>
+                      <span class="md-org-letter-group__chevron {{if letter.expanded "is-open"}}" aria-hidden="true"></span>
+                    </button>
+                    {{#if letter.expanded}}
+                      {{#each letter.orgs as |org|}}
+                        <div class="md-org-user-row md-org-user-row--indented">
+                          <LinkTo @route="organization" @model={{org.id}} class="md-org-user-row__main">
+                            <span class="md-org-user-row__org-icon">
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            </span>
+                            <span class="md-org-user-row__name">{{#if org.premium}}<strong>{{org.name}}</strong>{{else}}{{org.name}}{{/if}}</span>
+                          </LinkTo>
+                          <LinkTo @route="organization.settings" @model={{org.id}} class="md-org-user-row__edit" aria-label={{t "Edit" key="edit"}}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                          </LinkTo>
+                          {{#unless org.admin}}
+                            <button type="button" class="md-org-user-row__remove" {{on "click" (this.ctrlAction "remove_org" org)}} aria-label={{t "Delete" key="delete"}}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                            </button>
+                          {{/unless}}
+                        </div>
+                      {{/each}}
+                    {{/if}}
+                  </div>
+                {{/each}}
+              {{/if}}
+            </div>
+          {{else if this.orgs.loading}}
+            <div class="md-card__loading"><div class="md-spinner" aria-hidden="true"><svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="13" stroke="rgba(76,134,216,0.15)" stroke-width="3"/><path d="M16 3a13 13 0 0 1 13 13" stroke="#4C86D8" stroke-width="3" stroke-linecap="round"/></svg></div><p class="md-card__loading-text">{{t "Loading organizations..." key="loading_orgs"}}</p></div>
+          {{else}}
+            <p class="md-muted">{{t "None found" key="none_found"}}</p>
+          {{/if}}
+
+          <div class="md-org-add-row">
+            <input value={{this.org_org_name}} placeholder={{t "org name" key="org_name_lower"}} class="md-org-input" {{on "input" (set-field this "org_org_name")}} />
+            <input value={{this.org_user_name}} placeholder={{t "admin user name" key="admin_user_name_lower"}} class="md-org-input" {{on "input" (set-field this "org_user_name")}} />
+            <button class="md-btn md-btn--primary md-btn--sm" {{on "click" (this.ctrlAction "add_org")}}>{{t "Add Organization" key="add_org"}}</button>
+          </div>
+        </section>
+      {{/if}}
+    </main>
+  </div>
+</div>

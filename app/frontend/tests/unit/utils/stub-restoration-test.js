@@ -1,5 +1,5 @@
 import { module, test } from 'qunit';
-import { stub } from 'frontend/tests/helpers/jasmine';
+import { stub, restoreStubs } from 'frontend/tests/helpers/jasmine';
 
 module('Unit | Utility | stub restoration protection', function () {
     test('it restores modified properties correctly', function (assert) {
@@ -9,16 +9,8 @@ module('Unit | Utility | stub restoration protection', function () {
         stub(obj, 'foo', 'stubbed');
         assert.equal(obj.foo, 'stubbed', 'Property should be stubbed');
 
-        // Stage 2: Restore
-        // We simulate the afterEach behavior here
-        stub.stubs.reverse().forEach(function (s) {
-            Object.defineProperty(s[0], s[1], {
-                value: s[2],
-                writable: true,
-                configurable: true
-            });
-        });
-        stub.stubs = []; // Reset for test isolation
+        // Stage 2: Restore (same path as global afterEach)
+        restoreStubs();
 
         assert.equal(obj.foo, 'original', 'Property should be restored to original value');
     });
@@ -31,15 +23,7 @@ module('Unit | Utility | stub restoration protection', function () {
 
         assert.equal(obj.bar, 'second-stub', 'Latest stub should win');
 
-        // Restore
-        stub.stubs.reverse().forEach(function (s) {
-            Object.defineProperty(s[0], s[1], {
-                value: s[2],
-                writable: true,
-                configurable: true
-            });
-        });
-        stub.stubs = [];
+        restoreStubs();
 
         assert.equal(obj.bar, 'base', 'All stubs should be cleared, returning to base');
     });

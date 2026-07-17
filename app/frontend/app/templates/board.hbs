@@ -20,13 +20,13 @@
     {{/if}}
     {{#unless this.session.isAuthenticated}}
       <div style="margin: 50px 15px;">
-        {{login-form left=true prompt=true return=true restore=false}}
+        <LoginForm @left={{true}} @prompt={{true}} @return={{true}} @restore={{false}} />
       </div>
     {{else}}
       {{#if this.model.retrying}}
         {{t "Trying again..." key="trying_again"}}
       {{else}}
-        <a href="#" {{action "re_transition"}}>{{t "Try Again" key="try_again"}}</a>
+        <a href="#" {{on "click" (this.ctrlAction "re_transition")}}>{{t "Try Again" key="try_again"}}</a>
       {{/if}}
     {{/unless}}
   </div>

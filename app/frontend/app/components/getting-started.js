@@ -1,6 +1,7 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
+import { htmlSafe } from '@ember/template';
 import modal from '../utils/modal';
 
 /**
@@ -14,67 +15,64 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+
     const modalService = this.get('modal');
     const template = 'getting-started';
-    const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
-                    (modalService && modalService.settingsFor && modalService.settingsFor[template]) ||
-                    this.get('model') || {};
+    let options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
+                  (modalService && modalService.settingsFor && modalService.settingsFor[template]) ||
+                  this.get('model') || {};
+    if (!options.progress || typeof options.progress !== 'object') {
+      options = Object.assign({}, options, { progress: options.progress || {} });
+    }
     this.set('model', options);
   },
 
-  intro_status_class: computed('model.progress.intro_watched', function() {
-    let res = 'glyphicon ';
-    if (this.get('model.progress.intro_watched')) {
-      res = res + 'glyphicon-ok ';
-    } else {
-      res = res + 'glyphicon-book ';
+  /** Current step (1–5) for stage label; same order as checklist */
+  currentStep: computed('model.progress', function() {
+    const order = ['intro_watched', 'home_board_set', 'app_added', 'preferences_edited', 'profile_edited'];
+    const progress = this.get('model.progress') || {};
+    if (progress.setup_done) { return 5; }
+    for (let i = 0; i < order.length; i++) {
+      if (!progress[order[i]]) { return i + 1; }
     }
-    return res;
+    return 5;
   }),
-  home_status_class: computed('model.progress.home_board_set', function() {
-    let res = 'glyphicon ';
-    if (this.get('model.progress.home_board_set')) {
-      res = res + 'glyphicon-ok ';
-    } else {
-      res = res + 'glyphicon-home ';
-    }
-    return res;
+
+  /** Percent complete (0–100) for header progress bar; same options as dashboard */
+  progressPercent: computed('model.progress', function() {
+    const options = ['intro_watched', 'home_board_set', 'app_added', 'preferences_edited', 'profile_edited'];
+    const progress = this.get('model.progress') || {};
+    if (progress.setup_done) { return 100; }
+    let done = 0;
+    options.forEach((opt) => {
+      if (progress[opt]) { done++; }
+    });
+    return options.length ? Math.round((done / options.length) * 100) : 0;
   }),
-  app_status_class: computed('model.progress.app_added', function() {
-    let res = 'glyphicon ';
-    if (this.get('model.progress.app_added')) {
-      res = res + 'glyphicon-ok ';
-    } else {
-      res = res + 'glyphicon-phone ';
-    }
-    return res;
-  }),
-  preferences_status_class: computed('model.progress.preferences_edited', function() {
-    let res = 'glyphicon ';
-    if (this.get('model.progress.preferences_edited')) {
-      res = res + 'glyphicon-ok ';
-    } else {
-      res = res + 'glyphicon-cog ';
-    }
-    return res;
-  }),
-  profile_status_class: computed('model.progress.profile_edited', function() {
-    let res = 'glyphicon ';
-    if (this.get('model.progress.profile_edited')) {
-      res = res + 'glyphicon-ok ';
-    } else {
-      res = res + 'glyphicon-user ';
-    }
-    return res;
-  }),
-  subscription_status_class: computed('model.progress.subscription_set', function() {
-    let res = 'glyphicon ';
-    if (this.get('model.progress.subscription_set')) {
-      res = res + 'glyphicon-ok ';
-    } else {
-      res = res + 'glyphicon-usd ';
-    }
-    return res;
+
+  progressPercentStyle: computed('progressPercent', function() {
+    return htmlSafe('width: ' + this.get('progressPercent') + '%;');
   }),
 
   actions: {
@@ -100,5 +98,14 @@ export default Component.extend({
       user.save().then(null, function() {});
       this.get('modal').close();
     }
-  }
+  },
+
+  didInsertElement() {
+  this._super(...arguments);
+  var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
+},
+
 });

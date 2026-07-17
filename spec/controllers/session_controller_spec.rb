@@ -135,6 +135,30 @@ describe SessionController, :type => :controller do
       expect(response).not_to be_successful
       expect(assigns[:error]).to eq('invalid_login')
     end
+
+    it "errors when COPPA parental consent is still pending" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      JsonApi::Json.load_domain('test.host')
+      u = User.process_new({
+        'user_name' => 'coppa_oauth_kid',
+        'name' => 'COPPA OAuth Kid',
+        'email' => 'child_coppa_oauth@example.com',
+        'password' => 'bacon',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_coppa_oauth@example.com'
+      }, {:pending => true})
+      expect(u).to be_persisted
+      expect(u.coppa_parental_consent_pending?).to eq(true)
+
+      key_with_stash
+      post :oauth_login, params: {:code => @code, :username => 'coppa_oauth_kid', :password => 'bacon'}
+      expect(response).not_to be_successful
+      expect(assigns[:error]).to eq('awaiting_parental_consent')
+      str = RedisInit.default.get("oauth_#{@code}")
+      json = JSON.parse(str)
+      expect(json['user_id']).to eq(nil)
+    end
     
     it "should redirect to redirect_uri for the developer on reject" do
       key_with_stash
@@ -528,6 +552,54 @@ describe SessionController, :type => :controller do
       expect(d).not_to eq(nil)
       expect(d.developer_key_id).to eq(0)
       expect(d.user).to eq(u)
+    end
+
+    it "rejects password token when COPPA parental consent is still pending" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      JsonApi::Json.load_domain('test.host')
+      token = GoSecure.browser_token
+      u = User.process_new({
+        'user_name' => 'coppa_login_kid',
+        'name' => 'COPPA Login Kid',
+        'email' => 'child_coppa_token@example.com',
+        'password' => 'seashell',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_coppa_token@example.com'
+      }, {:pending => true})
+      expect(u).to be_persisted
+      expect(u.coppa_parental_consent_pending?).to eq(true)
+
+      post :token, params: {:grant_type => 'password', :client_id => 'browser', :client_secret => token, :username => 'coppa_login_kid', :password => 'seashell'}
+      expect(response.status).to eq(400)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('awaiting parental consent')
+      expect(json['coppa_parental_consent_pending']).to eq(true)
+      expect(json['access_token']).to eq(nil)
+    end
+
+    it "rejects password token when COPPA parental consent was revoked" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      JsonApi::Json.load_domain('test.host')
+      token = GoSecure.browser_token
+      u = User.process_new({
+        'user_name' => 'coppa_revoked_kid',
+        'name' => 'COPPA Revoked Kid',
+        'email' => 'child_coppa_revoked@example.com',
+        'password' => 'seashell',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_coppa_revoked@example.com'
+      }, {:pending => true})
+      expect(u.grant_parental_consent!(u.settings['coppa']['parent_consent_token'])).to eq(true)
+      expect(u.revoke_parental_consent!(u.settings['coppa']['parent_consent_revoke_token'])).to eq(true)
+
+      post :token, params: {:grant_type => 'password', :client_id => 'browser', :client_secret => token, :username => 'coppa_revoked_kid', :password => 'seashell'}
+      expect(response.status).to eq(400)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('parental consent revoked')
+      expect(json['coppa_parental_consent_revoked']).to eq(true)
+      expect(json['access_token']).to eq(nil)
     end
     
 #     it "should not respect expired browser token" do
@@ -2138,6 +2210,397 @@ describe SessionController, :type => :controller do
       end
     end
 
+  end
+
+  describe "google auth" do
+    let(:google_profile) do
+      { sub: 'google-sub-abc', email: 'google@example.com', email_verified: true, name: 'Google User' }
+    end
+
+    before do
+      allow(GoogleOAuth).to receive(:enabled?).and_return(true)
+      allow(GoogleOAuth).to receive(:client_id).and_return('test-client-id')
+      allow(GoogleOAuth).to receive(:client_secret).and_return('test-secret')
+      # Open-auth examples exercise Google OAuth behavior. This branch enables
+      # landing_beta_closed by default; stub it off here and cover the gate below.
+      allow(FeatureFlags).to receive(:landing_beta_closed_enabled?).and_return(false)
+    end
+
+    it "redirects google_start home when landing_beta_closed is enabled" do
+      allow(FeatureFlags).to receive(:landing_beta_closed_enabled?).and_return(true)
+      expect(GoogleOAuth).not_to receive(:store_state)
+      get :google_start, params: { flow: 'login', device_id: 'my-device', return_origin: 'http://localhost:8184' }
+      expect(response).to redirect_to('http://test.host/')
+    end
+
+    it "rejects google_signup_complete when landing_beta_closed is enabled" do
+      allow(FeatureFlags).to receive(:landing_beta_closed_enabled?).and_return(true)
+      post :google_signup_complete, params: {
+        nonce: 'signup-nonce',
+        user_name: 'google_signup_user',
+        terms_agree: 'true'
+      }
+      expect(response.status).to eq(403)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('registration is not available during beta testing')
+      expect(json['landing_beta_closed']).to eq(true)
+    end
+
+    it "stores return_origin and redirects to Google on start" do
+      expect(GoogleOAuth).to receive(:store_state) do |_code, config|
+        expect(config['return_origin']).to eq('http://localhost:8184')
+        expect(config['flow']).to eq('login')
+      end
+      expect(GoogleOAuth).to receive(:authorization_url).and_return('https://accounts.google.com/o/oauth2/v2/auth?state=abc')
+      get :google_start, params: { flow: 'login', device_id: 'my-device', return_origin: 'http://localhost:8184' }
+      expect(response).to redirect_to('https://accounts.google.com/o/oauth2/v2/auth?state=abc')
+    end
+
+    it "finishes login when Google sub matches one linked user despite other email matches" do
+      linked = User.process_new({
+        'user_name' => 'linked_google_user',
+        'name' => 'Linked Google User',
+        'email' => 'google@example.com',
+        'password' => 'secret123',
+        'terms_agree' => true
+      }, { pending: true })
+      linked.link_google!(google_profile[:sub], email: google_profile[:email], name: google_profile[:name])
+      unlinked = User.process_new({
+        'user_name' => 'unlinked_email_match',
+        'name' => 'Unlinked Email Match',
+        'email' => 'google@example.com',
+        'password' => 'secret456',
+        'terms_agree' => true
+      }, { pending: true })
+      allow(GoogleOAuth).to receive(:fetch_state).and_return({
+        'flow' => 'login',
+        'device_id' => 'dev1',
+        'return_origin' => 'http://localhost:8184'
+      })
+      allow(GoogleOAuth).to receive(:clear_state)
+      allow(GoogleOAuth).to receive(:exchange_code).and_return({
+        'sub' => google_profile[:sub],
+        'email' => google_profile[:email],
+        'email_verified' => true,
+        'name' => google_profile[:name]
+      })
+      allow(User).to receive(:find_all_by_google_sub).with(google_profile[:sub]).and_return([linked])
+      allow(User).to receive(:users_by_verified_email).with(google_profile[:email]).and_return([linked, unlinked])
+      expect(GoogleOAuth).not_to receive(:store_link)
+      get :google_callback, params: { state: 'abc', code: 'xyz' }
+      expect(response.location).to match(%r{http://localhost:8184/login\?auth-})
+      expect(response.location).not_to include('google_link')
+    end
+
+    it "keeps register flow on signup_complete even when the Google account matches existing users" do
+      linked = User.process_new({
+        'user_name' => 'linked_register_google_user',
+        'name' => 'Linked Register Google User',
+        'email' => 'google@example.com',
+        'password' => 'secret123',
+        'terms_agree' => true
+      }, { pending: true })
+      linked.link_google!(google_profile[:sub], email: google_profile[:email], name: google_profile[:name])
+      email_match = User.process_new({
+        'user_name' => 'register_email_match',
+        'name' => 'Register Email Match',
+        'email' => 'google@example.com',
+        'password' => 'secret456',
+        'terms_agree' => true
+      }, { pending: true })
+      allow(GoogleOAuth).to receive(:fetch_state).and_return({
+        'flow' => 'register',
+        'device_id' => 'dev1',
+        'return_origin' => 'http://localhost:8184',
+        'registration_type' => 'teacher',
+        'user_name' => 'new_google_username',
+        'terms_agree' => true,
+        'product_improvement_opt_in' => true
+      })
+      allow(GoogleOAuth).to receive(:clear_state)
+      allow(GoogleOAuth).to receive(:exchange_code).and_return({
+        'sub' => google_profile[:sub],
+        'email' => google_profile[:email],
+        'email_verified' => true,
+        'name' => google_profile[:name]
+      })
+      expect(GoogleOAuth).to receive(:store_link) do |_nonce, link|
+        expect(link['mode']).to eq('signup_complete')
+        expect(link['user_name']).to eq('new_google_username')
+        expect(link['registration_type']).to eq('teacher')
+        expect(link['candidate_user_ids']).to eq([])
+      end
+
+      get :google_callback, params: { state: 'abc', code: 'xyz' }
+      expect(response.location).to match(%r{http://localhost:8184/register\?google_signup=})
+      expect(response.location).not_to include('/login?google_link=')
+    end
+
+    it "redirects zero-candidate login to manual_link on the frontend origin" do
+      allow(GoogleOAuth).to receive(:fetch_state).and_return({
+        'flow' => 'login',
+        'device_id' => 'dev1',
+        'return_origin' => 'http://localhost:8184'
+      })
+      allow(GoogleOAuth).to receive(:clear_state)
+      allow(GoogleOAuth).to receive(:exchange_code).and_return({
+        'sub' => google_profile[:sub],
+        'email' => google_profile[:email],
+        'email_verified' => true,
+        'name' => google_profile[:name]
+      })
+      allow(User).to receive(:find_by_google_sub).and_return(nil)
+      allow(User).to receive(:find_all_by_google_sub).and_return([])
+      allow(User).to receive(:users_by_verified_email).and_return([])
+      expect(GoogleOAuth).to receive(:store_link) do |_nonce, link|
+        expect(link['mode']).to eq('manual_link')
+        expect(link['email']).to eq('google@example.com')
+      end
+      get :google_callback, params: { state: 'abc', code: 'xyz' }
+      expect(response.location).to match(%r{http://localhost:8184/login\?google_link=})
+    end
+
+    it "returns stored candidates for email_match link sessions" do
+      link = {
+        'mode' => 'email_match',
+        'sub' => 'google-sub-email',
+        'email' => 'google@example.com',
+        'name' => 'Google User',
+        'candidate_user_ids' => ['1_2'],
+        'candidates' => [{'user_name' => 'matched_user', 'display_name' => 'Matched User', 'user_id' => '1_2'}],
+        'single_candidate' => true
+      }
+      allow(GoogleOAuth).to receive(:fetch_link).with('link-nonce').and_return(link)
+      get :google_link_candidates, params: { nonce: 'link-nonce' }
+      json = assert_success_json
+      expect(json['mode']).to eq('email_match')
+      expect(json['email']).to eq('google@example.com')
+      expect(json['candidates'].length).to eq(1)
+      expect(json['candidates'][0]['user_name']).to eq('matched_user')
+      expect(json['selected_user_name']).to eq('matched_user')
+    end
+
+    it "returns unlinked candidates and manual link option for account_select" do
+      link = {
+        'mode' => 'account_select',
+        'sub' => 'google-sub-multi',
+        'email' => 'google@example.com',
+        'name' => 'Google User',
+        'candidate_user_ids' => ['1_2', '1_3'],
+        'candidates' => [
+          {'user_name' => 'linked_one', 'display_name' => 'Linked One', 'user_id' => '1_2'},
+          {'user_name' => 'linked_two', 'display_name' => 'Linked Two', 'user_id' => '1_3'}
+        ],
+        'unlinked_candidate_user_ids' => ['1_4'],
+        'unlinked_candidates' => [
+          {'user_name' => 'unlinked_one', 'display_name' => 'Unlinked One', 'user_id' => '1_4'}
+        ],
+        'allow_manual_link' => true
+      }
+      allow(GoogleOAuth).to receive(:fetch_link).with('multi-nonce').and_return(link)
+      get :google_link_candidates, params: { nonce: 'multi-nonce' }
+      json = assert_success_json
+      expect(json['mode']).to eq('account_select')
+      expect(json['candidates'].length).to eq(2)
+      expect(json['unlinked_candidates'].length).to eq(1)
+      expect(json['unlinked_candidates'][0]['user_name']).to eq('unlinked_one')
+      expect(json['allow_manual_link']).to eq(true)
+    end
+
+    it "links a new account from account_select via manual link" do
+      linked = User.process_new({
+        'user_name' => 'linked_user',
+        'name' => 'Linked User',
+        'email' => 'google@example.com',
+        'password' => 'secret123',
+        'terms_agree' => true
+      }, { pending: true })
+      linked.link_google!('google-sub-multi', email: 'google@example.com', name: 'Google User')
+      new_user = User.process_new({
+        'user_name' => 'another_user',
+        'name' => 'Another User',
+        'email' => 'other@example.com',
+        'password' => 'secret456',
+        'terms_agree' => true
+      }, { pending: true })
+      link = {
+        'mode' => 'account_select',
+        'sub' => 'google-sub-multi',
+        'email' => 'google@example.com',
+        'name' => 'Google User',
+        'candidate_user_ids' => [linked.global_id],
+        'allow_manual_link' => true,
+        'flow' => 'login',
+        'device_id' => 'dev1',
+        'app' => false
+      }
+      allow(GoogleOAuth).to receive(:fetch_link).and_return(link)
+      expect(GoogleOAuth).to receive(:clear_link).with('multi-nonce')
+      post :google_link_complete, params: {
+        nonce: 'multi-nonce',
+        user_name: 'another_user',
+        password: 'secret456'
+      }
+      json = assert_success_json
+      expect(json['token']).not_to eq(nil)
+      expect(new_user.reload.google_linked?).to eq(true)
+    end
+
+    it "links manual_link accounts by username and password" do
+      u = User.process_new({
+        'user_name' => 'google_link_user',
+        'name' => 'Google Link User',
+        'email' => 'other@example.com',
+        'password' => 'secret123',
+        'terms_agree' => true
+      }, { pending: true })
+      link = {
+        'mode' => 'manual_link',
+        'sub' => 'google-sub-manual',
+        'email' => 'google@example.com',
+        'name' => 'Google User',
+        'flow' => 'login',
+        'device_id' => 'dev1',
+        'app' => false
+      }
+      allow(GoogleOAuth).to receive(:fetch_link).and_return(link)
+      expect(GoogleOAuth).to receive(:clear_link).with('nonce123')
+      post :google_link_complete, params: { nonce: 'nonce123', user_name: 'google_link_user', password: 'secret123' }
+      json = assert_success_json
+      expect(json['token']).not_to eq(nil)
+      expect(u.reload.google_linked?).to eq(true)
+    end
+
+    it "creates accounts from signup_complete with username and terms" do
+      link = {
+        'mode' => 'signup_complete',
+        'sub' => 'google-sub-signup',
+        'email' => 'signup@gmail.com',
+        'name' => 'Signup User',
+        'flow' => 'register',
+        'device_id' => 'dev1',
+        'app' => false,
+        'terms_agree' => true
+      }
+      allow(GoogleOAuth).to receive(:fetch_link).and_return(link)
+      expect(GoogleOAuth).to receive(:clear_link).with('signup-nonce')
+      post :google_signup_complete, params: {
+        nonce: 'signup-nonce',
+        user_name: 'google_signup_user',
+        registration_type: 'individual',
+        terms_agree: 'true'
+      }
+      json = assert_success_json
+      expect(json['token']).not_to eq(nil)
+      user = User.find_by(user_name: 'google_signup_user')
+      expect(user).not_to eq(nil)
+      expect(user.google_linked?).to eq(true)
+    end
+
+    it "creates accounts from signup_complete with the username stored before Google redirect" do
+      link = {
+        'mode' => 'signup_complete',
+        'sub' => 'google-sub-generated-signup',
+        'email' => 'generated-signup@gmail.com',
+        'name' => 'Generated Signup',
+        'flow' => 'register',
+        'device_id' => 'dev1',
+        'app' => false,
+        'user_name' => 'chosen_google_signup',
+        'registration_type' => 'teacher',
+        'terms_agree' => true,
+        'product_improvement_opt_in' => true
+      }
+      allow(GoogleOAuth).to receive(:fetch_link).and_return(link)
+      expect(GoogleOAuth).to receive(:clear_link).with('signup-generated-nonce')
+      post :google_signup_complete, params: {
+        nonce: 'signup-generated-nonce',
+        terms_agree: 'true'
+      }
+      json = assert_success_json
+      expect(json['token']).not_to eq(nil)
+      user = User.find_by(user_name: 'chosen_google_signup')
+      expect(user).not_to eq(nil)
+      expect(user.settings['preferences']['registration_type']).to eq('teacher')
+      expect(user.settings['preferences']['role']).to eq('supporter')
+      expect(user.settings['preferences']['cookies']).to eq(true)
+      expect(user.settings['preferences']['telemetry_opt_in']).to eq(true)
+      expect(user.settings['preferences']['comms_log_opt_in']).to eq(true)
+      expect(user.google_linked?).to eq(true)
+    end
+
+    it "requires a username for signup_complete" do
+      link = {
+        'mode' => 'signup_complete',
+        'sub' => 'google-sub-blank-username',
+        'email' => 'blank-google-signup@gmail.com',
+        'name' => 'Blank Google Signup',
+        'flow' => 'register',
+        'device_id' => 'dev1',
+        'app' => false,
+        'registration_type' => 'teacher',
+        'terms_agree' => true
+      }
+      allow(GoogleOAuth).to receive(:fetch_link).and_return(link)
+      post :google_signup_complete, params: {
+        nonce: 'signup-blank-username',
+        user_name: '',
+        terms_agree: 'true'
+      }
+      assert_error('username_required', 400)
+    end
+
+    it "requires terms for signup_complete" do
+      link = {
+        'mode' => 'signup_complete',
+        'sub' => 'google-sub-signup',
+        'email' => 'signup@gmail.com',
+        'name' => 'Signup User',
+        'flow' => 'register',
+        'device_id' => 'dev1',
+        'app' => false
+      }
+      allow(GoogleOAuth).to receive(:fetch_link).and_return(link)
+      post :google_signup_complete, params: {
+        nonce: 'signup-nonce',
+        user_name: 'google_signup_user2',
+        registration_type: 'individual',
+        terms_agree: 'false'
+      }
+      assert_error('terms_required', 400)
+    end
+
+    it "rejects signup_complete when OAuth start did not attest terms" do
+      link = {
+        'mode' => 'signup_complete',
+        'sub' => 'google-sub-signup',
+        'email' => 'signup@gmail.com',
+        'name' => 'Signup User',
+        'flow' => 'register',
+        'device_id' => 'dev1',
+        'app' => false,
+        'terms_agree' => false
+      }
+      allow(GoogleOAuth).to receive(:fetch_link).and_return(link)
+      post :google_signup_complete, params: {
+        nonce: 'signup-nonce',
+        user_name: 'google_signup_user3',
+        registration_type: 'individual',
+        terms_agree: 'true'
+      }
+      assert_error('terms_required', 400)
+    end
+
+    it "rejects register google_start without terms attestation" do
+      expect(GoogleOAuth).not_to receive(:store_state)
+      get :google_start, params: {
+        flow: 'register',
+        device_id: 'dev1',
+        return_origin: 'http://localhost:8184',
+        terms_agree: 'false'
+      }
+      expect(response).to redirect_to('http://localhost:8184/register?google_error=terms_required')
+    end
   end
 
 end

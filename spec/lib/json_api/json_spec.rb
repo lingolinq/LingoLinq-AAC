@@ -171,7 +171,40 @@ describe JsonApi::Json do
       host = JsonApi::Json.load_domain('bacon.com')
       expect(host).to_not eq(nil)
       expect(host['host']).to eq('bacon.com')
-      expect(host['settings']['company_name']).to eq('Someone')
+      expect(host['settings']['company_name']).to eq('Lingolinq')
+    end
+
+    it 'fills coppa_parental_consent from ENV when org host_settings omit it' do
+      orig = ENV['COPPA_PARENTAL_CONSENT']
+      ENV.delete('COPPA_PARENTAL_CONSENT')
+      begin
+        expect(Organization).to receive(:load_domains).and_return({'bacon.com' => {'app_name' => 'bacon'}})
+        host = JsonApi::Json.load_domain('bacon.com')
+        expect(host['settings']['coppa_parental_consent']).to eq(true)
+      ensure
+        if orig.nil?
+          ENV.delete('COPPA_PARENTAL_CONSENT')
+        else
+          ENV['COPPA_PARENTAL_CONSENT'] = orig
+        end
+      end
+    end
+
+    it 'disables coppa_parental_consent when COPPA_PARENTAL_CONSENT is explicitly off' do
+      orig = ENV['COPPA_PARENTAL_CONSENT']
+      ENV['COPPA_PARENTAL_CONSENT'] = 'false'
+      begin
+        expect(JsonApi::Json.coppa_parental_consent_from_env?).to eq(false)
+        expect(Organization).to receive(:load_domains).and_return({'bacon.com' => {'app_name' => 'bacon'}})
+        host = JsonApi::Json.load_domain('bacon.com')
+        expect(host['settings']['coppa_parental_consent']).to eq(false)
+      ensure
+        if orig.nil?
+          ENV.delete('COPPA_PARENTAL_CONSENT')
+        else
+          ENV['COPPA_PARENTAL_CONSENT'] = orig
+        end
+      end
     end
 
     it 'should fall back to the default domain settings' do
@@ -219,7 +252,7 @@ describe JsonApi::Json do
       default = JsonApi::Json.default_domain
       expect(default['css']).to eq(nil)
       expect(default['settings']['app_name']).to eq('LingoLinq')
-      expect(default['settings']['company_name']).to eq('Someone')
+      expect(default['settings']['company_name']).to eq('Lingolinq')
       expect(default['settings']['full_domain']).to eq(true)
     end
   end

@@ -1,5 +1,25 @@
-class Board < ActiveRecord::Base
-  DEFAULT_ICON = "https://opensymbols.s3.amazonaws.com/libraries/arasaac/board_3.png"
+# EU AI Act Article 50(2) marker verification. Required explicitly (not left to
+# Zeitwerk) for parity with app/cloners/board_cloner.rb and lib/json_api/board.rb,
+# so the persist path below stays deterministic even where lib/ autoload is skipped
+# (RESQUE_WORKER=='true'); require_relative loads it regardless of the autoloader.
+require_relative '../../lib/art50_marker'
+
+class Board < ApplicationRecord
+  DEFAULT_ICON = "/images/lingolinq-board-icon.png"
+  TRANSLATION_LANGUAGE_LABELS = {
+    'en' => "English",
+    'es' => "Spanish",
+    'fr' => "French",
+    'de' => "German",
+    'pl' => "Polish",
+    'pt' => "Portuguese",
+    'ru' => "Russian",
+    'uk' => "Ukrainian",
+    'ja' => "Japanese",
+    'zh' => "Chinese",
+    'ga' => "Irish",
+    'ar' => "Arabic"
+  }.freeze
   # When a board used as home/sidebar by more users than this, cleanup runs in a background job
   # to avoid blocking board destruction and request timeouts on popular public boards.
   HOME_SIDEBAR_CLEANUP_ASYNC_THRESHOLD = 25
@@ -30,10 +50,14 @@ class Board < ActiveRecord::Base
   before_save :require_key
   before_save :check_inflections
   before_save :check_content_overrides
+  before_save :process_client_supplied_images
   before_save :process_suggested_symbols
   before_save :process_suggested_sounds
+  after_commit :enqueue_suggested_sounds_if_deferred, on: %i[create update]
   after_save :post_process
   after_save :assert_shallow_mapping
+  after_commit :schedule_pending_privacy_update, on: :create
+  after_commit :schedule_pending_folder_cascades, on: %i[create update]
   after_destroy :flush_related_records
 #  replicated_model
  
@@ -255,10 +279,15 @@ class Board < ActiveRecord::Base
     end
   end
 
+  def self.translation_language_label(locale)
+    root = locale.to_s.split(/-|_/).first
+    TRANSLATION_LANGUAGE_LABELS[root] || root.to_s.capitalize
+  end
+
   def self.find_suggested(locale='en', limit=10)
     ids = nil
     if locale == 'en'
-      user = User.find_by_path('example')
+      user = SystemBoardSources.owner || User.find_by_path('lingolinq')
       ids = user && self.local_ids(user.settings['starred_board_ids'] || [])
     end
     if ids.blank?
@@ -620,13 +649,47 @@ class Board < ActiveRecord::Base
     end
   end
   
-  def self.import(user_id, url)
+  # Imports OBF/OBZ from remote +url+. When +extra+ includes +recipient_global_ids+,
+  # converts once for the first recipient (same order preserved by the caller), then
+  # clones the full bundle to each subsequent user via BoardSetCopier semantics.
+  def self.import(importer_global_id, url, extra = {})
+    importer = User.find_by_global_id(importer_global_id)
+    raise Progress::ProgressError, "invalid importer account" unless importer
+
+    recipient_ids_raw = []
+    extra = {} if extra.nil?
+    extra = extra.with_indifferent_access
+    if extra[:recipient_global_ids].present?
+      recipient_ids_raw = Array(extra[:recipient_global_ids]).flatten.map(&:presence).compact
+    end
+
+    by_gid = User.find_all_by_global_id(recipient_ids_raw).index_by(&:global_id)
+    recipient_users = recipient_ids_raw.filter_map { |gid| by_gid[gid] }
+    if recipient_users.empty?
+      recipient_users = [importer]
+    end
+
+    recipient_users.each do |u|
+      next if u.global_id == importer.global_id
+      unless importer.edit_permission_for?(u)
+        raise Progress::ProgressError, "not authorized to import boards for #{u.user_name}"
+      end
+    end
+
+    primary = recipient_users[0]
+    dup_targets = recipient_users[1..] || []
+
     boards = []
-    user = User.find_by_global_id(user_id)
     Progress.update_current_progress(0.05, :generating_boards)
     begin
-      Progress.as_percent(0.05, 0.9) do
-        boards = Converters::Utils.remote_to_boards(user, url)
+      if dup_targets.any?
+        Progress.as_percent(0.05, 0.45) do
+          boards = Converters::Utils.remote_to_boards(primary, url)
+        end
+      else
+        Progress.as_percent(0.05, 0.9) do
+          boards = Converters::Utils.remote_to_boards(primary, url)
+        end
       end
     rescue => e
       if e.message.match(/protected boards/)
@@ -639,7 +702,93 @@ class Board < ActiveRecord::Base
       board.settings['copy_id'] = boards[0].global_id
       board.save
     end
-    return boards.map{|b| JsonApi::Board.as_json(b, :permissions => user) }
+
+    if dup_targets.any?
+      root_old = boards[0].reload
+      dup_targets.each_with_index do |target_user, idx|
+        span = 0.45 / dup_targets.length.to_f
+        start_p = 0.45 + (idx * span)
+        end_p = 0.45 + ((idx + 1) * span)
+        Progress.as_percent(start_p, end_p) do
+          new_root = root_old.copy_for(target_user, copier: importer)
+          Board.copy_board_links_for(target_user,
+            starting_old_board: root_old,
+            starting_new_board: new_root,
+            authorized_user: importer,
+            copier: importer
+          )
+        end
+      end
+    end
+
+    boards.map { |b| JsonApi::Board.as_json(b, permissions: primary) }
+  end
+
+  # Imports a JSON bundle ({ root, boards: [{ key, data }] }) exported from
+  # CoughDrop/LingoLinq API responses. +source+ is an HTTPS URL, local path, or
+  # parsed Hash. See Converters::ApiJsonBundle.
+  def self.import_json_bundle(importer_global_id, source, extra = {})
+    importer = User.find_by_global_id(importer_global_id)
+    raise Progress::ProgressError, "invalid importer account" unless importer
+
+    recipient_ids_raw = []
+    extra = {} if extra.nil?
+    extra = extra.with_indifferent_access
+    if extra[:recipient_global_ids].present?
+      recipient_ids_raw = Array(extra[:recipient_global_ids]).flatten.map(&:presence).compact
+    end
+
+    by_gid = User.find_all_by_global_id(recipient_ids_raw).index_by(&:global_id)
+    recipient_users = recipient_ids_raw.filter_map { |gid| by_gid[gid] }
+    recipient_users = [importer] if recipient_users.empty?
+
+    recipient_users.each do |u|
+      next if u.global_id == importer.global_id
+      unless importer.edit_permission_for?(u)
+        raise Progress::ProgressError, "not authorized to import boards for #{u.user_name}"
+      end
+    end
+
+    primary = recipient_users[0]
+    dup_targets = recipient_users[1..] || []
+    bundle = Converters::ApiJsonBundle.load_bundle(source, allowed_importer_global_id: importer.global_id)
+    root_key = bundle['root']
+
+    boards = []
+    Progress.update_current_progress(0.05, :generating_boards)
+    begin
+      end_percent = dup_targets.any? ? 0.45 : 0.9
+      Progress.as_percent(0.05, end_percent) do
+        boards = Converters::ApiJsonBundle.import(bundle, primary)
+      end
+    rescue => e
+      if e.message.match(/protected boards/)
+        return {error: {message: "protected material cannot be imported", protected: true}}
+      else
+        raise e
+      end
+    end
+
+    if dup_targets.any?
+      root_old = boards.find { |b| root_key.present? && b.key == root_key } || boards[0]
+      root_old = root_old.reload
+      dup_targets.each_with_index do |target_user, idx|
+        span = 0.45 / dup_targets.length.to_f
+        start_p = 0.45 + (idx * span)
+        end_p = 0.45 + ((idx + 1) * span)
+        Progress.as_percent(start_p, end_p) do
+          new_root = root_old.copy_for(target_user, copier: importer)
+          Board.copy_board_links_for(target_user,
+            starting_old_board: root_old,
+            starting_new_board: new_root,
+            authorized_user: importer,
+            copier: importer
+          )
+        end
+      end
+    end
+
+    boards.map { |b| JsonApi::Board.as_json(b, permissions: primary) }
   end
   
   def generate_download(user_id, type, opts)
@@ -719,7 +868,7 @@ class Board < ActiveRecord::Base
     @edit_description = nil
 
     self.settings['buttons'] ||= []
-    self.buttons.each do |button|
+    buttons.each do |button|
       if button['load_board'] && button['load_board']['id'] && button['load_board']['id'] == self.related_global_id(self.parent_board_id) && @update_self_references == nil && !self.settings['self_references_updated']
         @update_self_references = true
       end
@@ -770,7 +919,7 @@ class Board < ActiveRecord::Base
     if grid['order'].length > grid['rows']
       grid['order'] = grid['order'].slice(0, grid['rows'])
     end
-    if grid['labels'] && self.buttons.length == 0
+    if grid['labels'] && buttons.length == 0
       self.populate_buttons_from_labels(grid.delete('labels'), grid.delete('labels_order'))
     end
     # If buttons exist but aren't placed in grid, auto-place them
@@ -1017,12 +1166,60 @@ class Board < ActiveRecord::Base
     puts "done"
   end
   
+  # After-commit hook: if process_buttons captured any folder-level
+  # cascade requests during this save, fire them now (post-commit so
+  # downstream walks see the fresh state). Runs synchronously — async
+  # via Resque was unreliable for testing because no worker is
+  # guaranteed to be running in dev. The cascade itself is bounded by
+  # downstream_board_ids count, which the upstream-downstream concern
+  # already keeps under control (capped at 500). For very deep trees
+  # we can revisit by re-enabling `Board.schedule_for(:slow, ...)`.
+  def schedule_pending_folder_cascades
+    pending = @pending_folder_cascades
+    @pending_folder_cascades = nil
+    return unless pending && pending.any?
+    # Aggregate IDs/keys of every board the cascade touched, then expose
+    # via @cascade_invalidations for the JSON serializer to surface in
+    # the save response. The client uses this to invalidate its
+    # boardDetailCache entries for those boards so a subsequent
+    # navigation refetches the post-cascade state.
+    invalidations = []
+    pending.each do |req|
+      root_id = req['root_board_id'] || req['root_board_key']
+      next unless root_id && req['level_modifications'].is_a?(Hash)
+      begin
+        touched = Board.cascade_level_to_downstream_boards(root_id, req['level_modifications'])
+        invalidations.concat(touched) if touched.is_a?(Array)
+      rescue => e
+        Rails.logger.warn("[Board.cascade_level] cascade failed for #{root_id}: #{e.message}")
+      end
+    end
+    @cascade_invalidations = invalidations if invalidations.any?
+  end
+
+  # A new board can already contain links to existing boards, but it has no id
+  # while process_params runs. Preserve a requested privacy cascade until the
+  # create commits so the async dispatcher receives an instance id.
+  def schedule_pending_privacy_update
+    pending = @pending_privacy_update
+    @pending_privacy_update = nil
+    return unless pending
+
+    schedule_for(
+      :priority,
+      :update_privacy,
+      pending['privacy_level'],
+      pending['author_global_id'],
+      []
+    )
+  end
+
   def post_process
     if @skip_post_process
       @skip_post_process = false
       return
     end
-    
+
     rev = (((self.settings || {})['revision_hashes'] || [])[-2] || [])[0] || current_revision
     notify('board_buttons_changed', {'revision' => rev, 'reason' => @buttons_changed}) if @buttons_changed && !@brand_new
     # Capture content_changed BEFORE map_images clears @buttons_changed
@@ -1061,37 +1258,61 @@ class Board < ActiveRecord::Base
     existing_buttonset = self.board_downstream_button_set
     is_new_board = was_brand_new || @brand_new || (!existing_buttonset && content_changed)
     
-    Rails.logger.info("[Board#post_process] Checking buttonset creation - content_changed: #{content_changed}, id: #{self.id}, @brand_new: #{@brand_new.inspect}, existing_buttonset: #{existing_buttonset ? existing_buttonset.global_id : 'none'}, is_new_board: #{is_new_board}")
+    Rails.logger.debug("[Board#post_process] Checking buttonset creation - content_changed: #{content_changed}, id: #{self.id}, @brand_new: #{@brand_new.inspect}, existing_buttonset: #{existing_buttonset ? existing_buttonset.global_id : 'none'}, is_new_board: #{is_new_board}")
     
     if self.id
+      # When a BoardSetCopier bulk copy is in progress, route buttonset creation to the
+      # :slow queue instead of running it inline per-board. Inline runs are O(N^2) across a
+      # large board set because each update_for traverses the full downstream graph.
+      # Toggle off via ASYNC_BUTTONSET_DURING_BULK_COPY=false for emergency rollback.
+      async_during_bulk_copy = Thread.current[:bulk_copy_in_progress] &&
+        ENV['ASYNC_BUTTONSET_DURING_BULK_COPY'].to_s.downcase != 'false'
+
+      # A brand-new board that is a copy of another board (or already references a
+      # downstream hierarchy) rebuilds the entire linked-board graph inline via the
+      # update_for below. The single-board copy path (POST /api/v1/boards ->
+      # Board.process_new) never sets Thread.current[:bulk_copy_in_progress] (only
+      # BoardSetCopier sets it), so without this the rebuild runs inline in the web
+      # request and can exceed the 15s Rack::Timeout, failing the copy with a 500.
+      # Route those to the :slow queue too. Toggle off via ASYNC_BUTTONSET_ON_COPY=false.
+      async_new_copy = is_new_board &&
+        (self.parent_board_id.present? || self.downstream_board_ids.any?) &&
+        ENV['ASYNC_BUTTONSET_ON_COPY'].to_s.downcase != 'false'
+
       # Always check if buttonset exists - create it if missing, update it if content changed
       if !existing_buttonset
-        # No buttonset exists - create it immediately (whether new board or not)
-        Rails.logger.info("[Board#post_process] Creating buttonset for board #{self.global_id} (no buttonset exists)")
-        begin
-          BoardDownstreamButtonSet.update_for(self.global_id, true)
-          # Reload to get the newly created buttonset
-          self.reload
-          buttonset = self.board_downstream_button_set
-          if buttonset
-            Rails.logger.info("[Board#post_process] Buttonset created successfully: #{buttonset.global_id}, persisted: #{buttonset.persisted?}, saved?: #{buttonset.persisted? && buttonset.id.present?}")
-            # Ensure it's actually saved
-            if buttonset.persisted? && buttonset.changed?
-              buttonset.save!
-              Rails.logger.info("[Board#post_process] Buttonset saved after creation")
-            end
-          else
-            Rails.logger.warn("[Board#post_process] Buttonset update_for returned but buttonset not found for board #{self.global_id}")
-          end
-        rescue => e
-          # If immediate update fails, schedule it instead
-          Rails.logger.warn("[Board#post_process] Failed to create buttonset immediately for board #{self.global_id}: #{e.class}: #{e.message}")
-          Rails.logger.warn("[Board#post_process] Backtrace: #{e.backtrace.first(5).join("\n")}")
+        if async_during_bulk_copy || async_new_copy
+          defer_reason = async_during_bulk_copy ? 'bulk copy in progress' : 'new copied board (avoiding inline rebuild timeout)'
+          Rails.logger.debug("[Board#post_process] Deferring buttonset creation to :slow queue for board #{self.global_id} (#{defer_reason})")
           BoardDownstreamButtonSet.schedule_for(:slow, :update_for, self.global_id, true)
+        else
+          # No buttonset exists - create it immediately (whether new board or not)
+          Rails.logger.debug("[Board#post_process] Creating buttonset for board #{self.global_id} (no buttonset exists)")
+          begin
+            BoardDownstreamButtonSet.update_for(self.global_id, true)
+            # Reload to get the newly created buttonset
+            self.reload
+            buttonset = self.board_downstream_button_set
+            if buttonset
+              Rails.logger.debug("[Board#post_process] Buttonset created successfully: #{buttonset.global_id}, persisted: #{buttonset.persisted?}, saved?: #{buttonset.persisted? && buttonset.id.present?}")
+              # Ensure it's actually saved
+              if buttonset.persisted? && buttonset.changed?
+                buttonset.save!
+                Rails.logger.info("[Board#post_process] Buttonset saved after creation")
+              end
+            else
+              Rails.logger.warn("[Board#post_process] Buttonset update_for returned but buttonset not found for board #{self.global_id}")
+            end
+          rescue => e
+            # If immediate update fails, schedule it instead
+            Rails.logger.warn("[Board#post_process] Failed to create buttonset immediately for board #{self.global_id}: #{e.class}: #{e.message}")
+            Rails.logger.warn("[Board#post_process] Backtrace: #{e.backtrace.first(5).join("\n")}")
+            BoardDownstreamButtonSet.schedule_for(:slow, :update_for, self.global_id, true)
+          end
         end
       elsif content_changed && (@buttons_changed || @button_links_changed || is_new_board)
         # Buttonset exists but content changed - update it
-        Rails.logger.info("[Board#post_process] Scheduling buttonset update for board #{self.global_id} (content changed)")
+        Rails.logger.debug("[Board#post_process] Scheduling buttonset update for board #{self.global_id} (content changed)")
         BoardDownstreamButtonSet.schedule_for(:slow, :update_for, self.global_id, false)
       else
         Rails.logger.info("[Board#post_process] Buttonset exists and no content changes - skipping update")
@@ -1129,12 +1350,66 @@ class Board < ActiveRecord::Base
     end
   end
 
-  def process_suggested_symbols
-    # Process buttons with suggest_symbol flag by fetching default symbols from OpenSymbols
-    return unless @buttons_changed == 'populated_from_labels'
-
+  def process_client_supplied_images
+    # When the client pre-builds buttons (e.g. create-board-new bakes in
+    # the symbol it previewed) it sends an `image_url` but no `image_id`.
+    # process_buttons strips image_url from the persisted hash (whitelist
+    # slice), so URLs are stashed in @client_supplied_image_urls first.
+    # process_suggested_symbols only runs for the populate-from-labels
+    # path, so those buttons would otherwise be saved with a bare URL
+    # and no ButtonImage — and the board renders no symbol (it resolves
+    # images via image_id). Turn each provided URL into a real
+    # ButtonImage here so the saved board shows what the user previewed.
     buttons = self.settings['buttons'] || []
-    suggested_buttons = buttons.select { |b| b['label'] && !b['image_id'] }
+    stashed_urls = @client_supplied_image_urls || {}
+    pending = buttons.select do |b|
+      b['image_id'].blank? && (b['image_url'].present? || stashed_urls[b['id'].to_s].present?)
+    end
+    return if pending.empty?
+
+    begin
+      pending.each do |button|
+        url = button['image_url'].presence || stashed_urls[button['id'].to_s]
+        next if url.blank?
+
+        bi = ButtonImage.process_new({
+          'url' => url,
+          'content_type' => 'image/png',
+          'public' => true,
+          'protected' => false
+        }, {:user => self.user})
+
+        if bi && bi.id
+          button['image_id'] = bi.global_id
+          # Let TTS-sound suggestion also run for these buttons, but
+          # never clobber the 'populated_from_labels' flag that
+          # process_suggested_symbols depends on (that path has no
+          # client image_url, so this loop won't run there anyway).
+          @buttons_changed = 'suggested_symbols_added' unless @buttons_changed == 'populated_from_labels'
+        end
+      end
+    rescue => e
+      Rails.logger.error "Failed to process client-supplied button images: #{e.message}"
+      # Don't raise - board creation should continue even if image
+      # processing fails.
+    ensure
+      @client_supplied_image_urls = nil
+    end
+  end
+
+  def process_suggested_symbols
+    # Process buttons with suggest_symbol flag by fetching default symbols from OpenSymbols.
+    # Primary path: labels-only create (populate_buttons_from_labels).
+    # Fallback: only for brand-new boards whose changed buttons still have no
+    # assigned images at all. If some client-supplied images were already
+    # processed, skip the fallback to avoid partial OpenSymbols lookups.
+    buttons = self.settings['buttons'] || []
+    from_labels = @buttons_changed == 'populated_from_labels'
+    has_existing_button_images = buttons.any? { |b| b['image_id'].present? }
+    from_new_baked = @brand_new && !!@buttons_changed && !from_labels && !has_existing_button_images
+    return unless from_labels || from_new_baked
+
+    suggested_buttons = buttons.select { |b| b['label'].present? && b['image_id'].blank? }
     return if suggested_buttons.empty?
 
     # Get user's preferred library. 'original' means "keep the board's
@@ -1200,6 +1475,52 @@ class Board < ActiveRecord::Base
     suggested_buttons = buttons.select { |b| b['label'] && !b['sound_id'] }
     return if suggested_buttons.empty?
 
+    # Google TTS is one HTTP call per button; large boards exceed Rack::Timeout during POST /boards#create.
+    # Defer to Progress + worker (same pattern as other long-running board work).
+    #
+    # Also defer when the record is not yet persisted: this is a before_save callback, so a brand-new
+    # board has no id. process_suggested_sounds_async reloads self (and writes board-scoped
+    # associations), which raises ActiveRecord::RecordNotFound ("Board ... id IS NULL") on a new
+    # record. The after_commit hook reruns it once the id exists. (Without GOOGLE_TTS_TOKEN this used
+    # to crash board creation entirely - e.g. db:seed on a fresh DB.)
+    if ENV['GOOGLE_TTS_TOKEN'].present? || !persisted?
+      @defer_suggested_sounds = true
+      return
+    end
+
+    # For non-Google providers updating an already-persisted board, generate suggested sounds inline
+    # so locales that do not require GOOGLE_TTS_TOKEN (for example Abair-backed locales) still receive
+    # auto-generated sounds during the save flow.
+    process_suggested_sounds_async
+  end
+
+  def enqueue_suggested_sounds_if_deferred
+    return unless @defer_suggested_sounds
+
+    @defer_suggested_sounds = false
+    return unless id
+
+    b = self.class.find_by(id: id)
+    return unless b
+
+    if ENV['GOOGLE_TTS_TOKEN'].present?
+      Progress.schedule(b, :process_suggested_sounds_async)
+    else
+      # Non-Google providers: run inline now that the record is persisted (reload succeeds). Wrapped by
+      # the rescue below so a sound-generation failure never rolls back the already-committed board.
+      b.process_suggested_sounds_async
+    end
+  rescue => e
+    Rails.logger.error "enqueue_suggested_sounds_if_deferred failed: #{e.class}: #{e.message}"
+  end
+
+  # Runs in a priority worker to attach generated ButtonSound records to label buttons.
+  def process_suggested_sounds_async
+    reload
+    buttons = self.settings['buttons'] || []
+    suggested_buttons = buttons.select { |b| b['label'] && !b['sound_id'] }
+    return if suggested_buttons.empty?
+
     locale = (self.settings['locale'] || 'en').to_s
     author = self.user
 
@@ -1219,16 +1540,17 @@ class Board < ActiveRecord::Base
         bs.settings['suggestion'] = true
         bs.settings['data_uri'] = "data:#{bs.settings['content_type']};base64,#{Base64.strict_encode64(audio[:body])}"
         bs.save
-        bs.upload_to_remote('data_uri')
+        bs.upload_to_remote(Uploadable::UPLOAD_FROM_STORED_DATA_URI)
         next unless bs.url.present?
 
         button['sound_id'] = bs.global_id
         @buttons_changed = 'suggested_sounds_added'
       rescue => e
         Rails.logger.error "Failed to process suggested sound for '#{text}': #{e.message}"
-        # Continue with other buttons
       end
     end
+
+    save! if @buttons_changed == 'suggested_sounds_added'
   end
 
   def restore_urls
@@ -1419,7 +1741,7 @@ class Board < ActiveRecord::Base
   end
 
   def buttons
-    res = BoardContent.load_content(self, 'buttons')
+    res = BoardContent.load_content(self, 'buttons') || []
     if @sub_id && @sub_global
       res.each do |button|
         if button['load_board']
@@ -1585,6 +1907,23 @@ class Board < ActiveRecord::Base
     self.settings['text_only'] = params['text_only'] if params['text_only'] != nil
     self.settings['dim_header'] = params['dim_header'] if params['dim_header'] != nil
     self.settings['small_header'] = params['small_header'] if params['small_header'] != nil
+    # EU AI Act Article 50(2): if the client supplied an AI-generation marker, persist
+    # it onto settings ONLY if it verifies as a genuine, server-signed marker. Client
+    # input is never trusted: a missing, malformed, or forged marker is silently dropped,
+    # leaving any existing valid marker intact (the assignment is guarded on `marker`);
+    # only a freshly verified marker replaces the stored one. Marking is unconditional
+    # (no feature flag); see lib/art50_marker.rb. verify never raises, but we still guard
+    # so a marker problem can never break a board save. Art50Marker is require_relative'd
+    # at the top of this file, so it is defined even on the Resque-worker path where lib/
+    # autoload is skipped.
+    if params['ai_generated']
+      begin
+        marker = Art50Marker.normalized(params['ai_generated'])
+        self.settings['ai_generated'] = marker if marker
+      rescue StandardError => e
+        Rails.logger.warn("Art50 marker verification skipped on save: #{e.class}")
+      end
+    end
     self.settings['never_edited'] = false if self.id
     button_params = params['buttons']
     button_params.instance_variable_set('@add_voc_error', non_user_params['add_voc_error']) if button_params
@@ -1624,8 +1963,19 @@ class Board < ActiveRecord::Base
       self.settings['grid'] = grid_val if grid_val.is_a?(Hash)
     end
     if params['visibility'] != nil && !self.unshareable?
-      if params['update_visibility_downstream']
-        self.schedule_for(:priority, :update_privacy, params['visibility'], (non_user_params[:updater] || ref_user).global_id, [])
+      # process_params runs before save. Defer a new board's cascade until
+      # after_commit so schedule_for captures its id; linked boards may already
+      # be present in the create payload and still need the requested update.
+      if params['update_visibility_downstream'] && !params['visibility'].blank?
+        author_global_id = (non_user_params[:updater] || ref_user).global_id
+        if self.id
+          self.schedule_for(:priority, :update_privacy, params['visibility'], author_global_id, [])
+        else
+          @pending_privacy_update = {
+            'privacy_level' => params['visibility'],
+            'author_global_id' => author_global_id
+          }
+        end
       end
       if params['visibility'] == 'public'
         if !self.public || self.settings['unlisted']
@@ -1845,6 +2195,11 @@ class Board < ActiveRecord::Base
     clear_cached("images_and_sounds_with_fallbacks")
     @edit_notes ||= []
     @check_for_parts_of_speech = true
+    # Pending folder level-cascade requests captured from the incoming
+    # buttons. Each entry tracks a folder whose level rule should
+    # propagate to every button in its downstream board tree. Fired as
+    # a background job after the current save commits.
+    pending_folder_cascades = []
     prior_buttons = self.buttons || []
     approved_link_ids = []
     new_link_ids = []
@@ -1860,8 +2215,27 @@ class Board < ActiveRecord::Base
       if add_voc_error && button['add_vocalization'] == false && !button['load_board']
         button.delete('add_vocalization')
       end
+      # Detect folder cascade intent BEFORE slicing the button hash —
+      # the slice below strips any field not on the whitelist, so we
+      # capture the cascade marker (plus the level rule + downstream
+      # root) here and queue the work for after save.
+      if button['cascade_level_to_subtree'] && button['load_board'] && button['level_modifications'].is_a?(Hash)
+        pending_folder_cascades << {
+          'root_board_id' => button['load_board']['id'],
+          'root_board_key' => button['load_board']['key'],
+          'level_modifications' => button['level_modifications']
+        }
+      end
+      # Stash preview URLs before the whitelist slice — create-board-new
+      # (AI or manual labels) sends image_url on buttons;
+      # process_client_supplied_images reads this map on before_save to
+      # create ButtonImage records.
+      if button['image_url'].present? && button['image_id'].blank?
+        @client_supplied_image_urls ||= {}
+        @client_supplied_image_urls[button['id'].to_s] = button['image_url']
+      end
       trans = button['translations'] || translations[button['id']] || translations[button['id'].to_s] || (BoardContent.load_content(self, 'translations') || {})[button['id'].to_s]
-      button = button.slice('id', 'hidden', 'link_disabled', 'image_id', 'sound_id', 'label', 'vocalization', 
+      button = button.slice('id', 'hidden', 'link_disabled', 'image_id', 'sound_id', 'label', 'vocalization',
             'background_color', 'border_color', 'load_board', 'hide_label', 'url', 'apps', 'text_only', 
             'integration', 'video', 'book', 'part_of_speech', 'suggested_part_of_speech', 'external_id', 
             'painted_part_of_speech', 'home_lock', 'meta_home', 'blocking_speech', 
@@ -1944,12 +2318,77 @@ class Board < ActiveRecord::Base
 
     if self.buttons.to_json != prior_buttons.to_json
       @edit_notes << "modified buttons"
-      @buttons_changed = 'buttons processed' 
+      @buttons_changed = 'buttons processed'
       @button_links_changed = true if new_link_ids.length > 0
     end
+    # Stash pending folder-level cascades for an after_save hook. We
+    # can't run them inline because the current save hasn't committed
+    # and `track_downstream_boards!` may not have refreshed yet.
+    @pending_folder_cascades = pending_folder_cascades if pending_folder_cascades && pending_folder_cascades.any?
     self.buttons
   end
-  
+
+  # Walks the downstream board tree starting at `root_board_id_or_key`
+  # and applies `level_modifications` to EVERY button in each board it
+  # visits. Each modified board is saved. Triggered as a background job
+  # after a folder is painted with a level rule on the parent board
+  # (client sets `cascade_level_to_subtree: true` on the folder's
+  # serialized form; process_buttons captures the intent into
+  # @pending_folder_cascades and schedules this method via after_save).
+  def self.cascade_level_to_downstream_boards(root_board_id_or_key, level_modifications)
+    root = Board.find_by_path(root_board_id_or_key)
+    return [] unless root
+    # Collect every board in the downstream tree (inclusive of the root).
+    # downstream_board_ids returns global_ids for the full transitive
+    # closure already maintained by upstream_downstream tracking.
+    ids = [root.global_id] + (root.settings['downstream_board_ids'] || [])
+    boards = Board.find_all_by_global_id(ids.uniq)
+    touched = []
+    boards.each do |board|
+      next unless board && board.buttons.is_a?(Array)
+      changed = false
+      # Capture the buttons array ONCE — for offloaded boards,
+      # `board.buttons` returns a fresh deep_dup each call, so mutating
+      # the first call's result and then re-fetching would discard the
+      # mutations.
+      buttons_dup = board.buttons
+      buttons_dup.each do |btn|
+        next unless btn.is_a?(Hash)
+        # Merge the cascading rule with any existing rule on the button.
+        # Existing pre/level entries are preserved unless overwritten
+        # by the cascading rule's same keys — semantics: "ensure these
+        # rule keys exist at minimum," not "replace whatever was here."
+        existing = btn['level_modifications']
+        merged = (existing || {}).deep_dup
+        level_modifications.each do |key, val|
+          if val.is_a?(Hash)
+            merged[key] = (merged[key] || {}).merge(val)
+          else
+            merged[key] = val
+          end
+        end
+        next if merged == existing
+        btn['level_modifications'] = merged
+        changed = true
+      end
+      if changed
+        board.settings['buttons'] = buttons_dup
+        # Skip the stale-record assertion: cascade writes are
+        # eventually-consistent — if a concurrent edit raced us, the
+        # last write wins, which is acceptable for a level-rule sync.
+        # Wrap in a rescue so one failed board doesn't abort the rest
+        # of the downstream walk.
+        begin
+          board.save
+          touched << { 'id' => board.global_id, 'key' => board.key }
+        rescue => e
+          Rails.logger.warn("[Board.cascade_level] save failed for #{board.global_id}: #{e.message}")
+        end
+      end
+    end
+    touched
+  end
+
   def icon_url_or_fallback
     fallback = DEFAULT_ICON
     self.settings['image_url'].blank? ? fallback : self.settings['image_url']
@@ -2089,7 +2528,8 @@ class Board < ActiveRecord::Base
     # if self.settings && self.settings['images_not_mapped']
       return @button_images if @button_images
       image_ids = self.grid_buttons.map{|b| b['image_id'] }.compact.uniq
-      @button_images = ButtonImage.find_all_by_global_id(image_ids)
+      images = ButtonImage.find_all_by_global_id(image_ids)
+      @button_images = images.sort_by { |i| image_ids.index(i.global_id) || image_ids.length }
     # else
     #   self.button_images
     # end
@@ -2100,7 +2540,8 @@ class Board < ActiveRecord::Base
   def known_button_sounds
     return @button_sounds if @button_sounds
     sound_ids = (self.grid_buttons || []).map { |b| b['sound_id'] }.compact.uniq
-    @button_sounds = ButtonSound.find_all_by_global_id(sound_ids)
+    sounds = ButtonSound.find_all_by_global_id(sound_ids)
+    @button_sounds = sounds.sort_by { |s| sound_ids.index(s.global_id) || sound_ids.length }
   end
 
   def import_translation(translated_copy, locale, overwrite=false)
@@ -2124,6 +2565,7 @@ class Board < ActiveRecord::Base
 
   def translate_set(translations, opts)
     allow_fallbacks = opts['allow_fallbacks']
+    force_update_default = opts['force_update_default']
     source_lang = opts['source']
     dest_lang = opts['dest']
     board_ids = opts['board_ids']
@@ -2139,7 +2581,13 @@ class Board < ActiveRecord::Base
     return {done: true, translated: false, reason: 'mismatched user'} if user_local_id != self.user_id
     raise "can't translate for a shallow clone" if @sub_id
     set_as_default_here = !!set_as_default
-    set_as_default_here = false if self.settings['locale'] == label_lang
+    # Default behavior: a same-locale re-translation skips reapplying
+    # the labels (set_as_default_here = false), preserving any prior
+    # button text. The Re-Translate flow in translation-select.js sets
+    # `force_update_default` to opt out of that short-circuit so the
+    # new translations overwrite the visible labels — that's the only
+    # reason a user clicks Re-Translate.
+    set_as_default_here = false if self.settings['locale'] == label_lang && !force_update_default
     if board_ids.blank? || board_ids.include?(self.global_id)
       self.settings['translations'] = BoardContent.load_content(self, 'translations') || {}
       self.settings['translations']['board_name'] ||= {}
@@ -2148,7 +2596,13 @@ class Board < ActiveRecord::Base
         self.settings['translations']['board_name'][dest_lang] = translations[self.settings['name']] if translations[self.settings['name']]
       end
       if self.settings['name'] && translations[self.settings['name']] && set_as_default_here
-        self.settings['name'] = translations[self.settings['name']]
+        translated_name = translations[self.settings['name']]
+        lang_label = self.class.translation_language_label(dest_lang)
+        if lang_label.present? && !translated_name.to_s.match(/\(\s*#{Regexp.escape(lang_label)}/i)
+          translated_name = "#{translated_name} (#{lang_label})"
+        end
+        self.settings['name'] = translated_name
+        self.settings['translations']['board_name'][dest_lang] = translated_name
       end
       self.settings['locale'] ||= source_lang
       self.settings['translations']['default'] ||= source_lang
@@ -2163,12 +2617,28 @@ class Board < ActiveRecord::Base
       buttons = self.buttons.map do |button|
         button = button.dup
         if button['label'] && translations[button['label']]
+          original_label = button['label']
+          original_vocalization = button['vocalization']
+          translated_label = translations[original_label]
           self.settings['translations'][button['id'].to_s] ||= {}
           self.settings['translations'][button['id'].to_s][source_lang] ||= {}
-          self.settings['translations'][button['id'].to_s][source_lang]['label'] ||= button['label']
+          self.settings['translations'][button['id'].to_s][source_lang]['label'] ||= original_label
           self.settings['translations'][button['id'].to_s][dest_lang] ||= {}
-          self.settings['translations'][button['id'].to_s][dest_lang]['label'] = translations[button['label']]
-          button['label'] = translations[button['label']] if set_as_default_here
+          self.settings['translations'][button['id'].to_s][dest_lang]['label'] = translated_label
+          if button['part_of_speech'].present?
+            self.settings['translations'][button['id'].to_s]['source_part_of_speech'] = button['part_of_speech']
+          end
+          # Mirror speak text when vocalization is unset or matches the source label
+          # so runtime TTS does not fall back to stale English vocalization.
+          if original_vocalization.blank? || original_vocalization == original_label
+            self.settings['translations'][button['id'].to_s][dest_lang]['vocalization'] = translated_label
+          end
+          if set_as_default_here
+            button['label'] = translated_label
+            if original_vocalization.blank? || original_vocalization == original_label
+              button['vocalization'] = translated_label
+            end
+          end
           @buttons_changed = 'translated'
         elsif allow_fallbacks && set_as_default_here
           fallback = ((self.settings['translations'][button['id'].to_s] || {})[dest_lang] || {})['label']
@@ -2253,6 +2723,10 @@ class Board < ActiveRecord::Base
         'user_key' => user_for_paper_trail,
         'user_local_id' => user_local_id,
         'allow_fallbacks' => allow_fallbacks,
+        # Propagate the same-locale override to downstream boards
+        # so a Re-Translate updates the entire selected set, not
+        # just the root.
+        'force_update_default' => force_update_default,
         'visited_board_ids' => visited_board_ids
       })
       visited_board_ids << brd.global_id
@@ -2385,7 +2859,9 @@ class Board < ActiveRecord::Base
           next button if button['label'] && button['label'].match(/LingoLinq/)
           old_bi = bis.detect{|i| i.global_id == button['image_id'] }
           # skip buttons that have manually-uploaded image
-          if old_bi && old_bi.url && old_bi.url.match(/lingolinq-usercontent/)
+          if old_bi && old_bi.preserve_source_image?
+            # JSON bundle / migration import — keep exported image
+          elsif old_bi && old_bi.url && old_bi.url.match(/lingolinq-usercontent/)
             # puts "SAFE PIC"
           elsif library.instance_variable_get('@skip_swapped') && (old_bi.image_library == library || (['arasaac', 'twemoji', 'noun-project', 'sclera', 'mulberry', 'tawasol'].include?(old_bi.image_library) && library == 'opensybmols'))
             # puts "ALREADY SWAPPED"
@@ -2549,6 +3025,37 @@ class Board < ActiveRecord::Base
       puts "  UPDATED"
     end
     missing
+  end
+
+  def schedule_skin_enrichment!
+    job = {
+      'id' => id,
+      'method' => 'enrich_button_images_for_skin_worker',
+      'arguments' => []
+    }
+    return if Worker.scheduled_for?(:slow, Board, :perform_action, job)
+    Worker.schedule_for(:slow, Board, :perform_action, job)
+  end
+
+  def enrich_button_images_for_skin_worker(force=false)
+    labels = (buttons || []).each_with_object({}) do |btn, h|
+      h[btn['image_id']] = btn['label'] if btn && btn['image_id']
+    end
+    changed = false
+    known_button_images.each do |bi|
+      next unless force || bi.needs_library_url_enrichment?
+      if bi.ensure_library_url_for_skin!(label: labels[bi.global_id], force: force)
+        changed = true
+      end
+    end
+    touch if changed
+    !!changed
+  end
+
+  def self.enrich_button_images_for_skin(board_id, force=false)
+    board = Board.find_by_path(board_id) || Board.find_by_global_id(board_id)
+    return false unless board
+    board.enrich_button_images_for_skin_worker(force)
   end
 
   def self.check_for_variants(board_id, force=false)

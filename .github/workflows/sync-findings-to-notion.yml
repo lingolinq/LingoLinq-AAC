@@ -1,0 +1,33 @@
+name: Sync findings register to Notion
+
+# Keeps the "LingoLinq Compliance Findings (LL)" Notion board in sync with the SSOT
+# (audit-reports/FINDINGS.json) whenever the register changes on staging. One-way:
+# register -> Notion. Only writes register-owned columns; human-owned columns
+# (Owner, Target date, Program notes, Needs Scot decision) are never touched.
+# The register is PII-free (code/path evidence) -- Tier 2 content, no identifiers.
+
+on:
+  push:
+    branches: [staging]
+    paths:
+      - 'audit-reports/FINDINGS.json'
+  workflow_dispatch: {}
+
+concurrency:
+  group: notion-findings-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4.3'
+          bundler-cache: false
+      - name: Sync register -> Notion board
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_FINDINGS_DB_ID: 1f8451c4a17b4f5b868878ac4386b805
+        run: ruby scripts/compliance-findings-notion-sync.rb --prune

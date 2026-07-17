@@ -8,20 +8,36 @@ import LingoLinq from '../app';
 import capabilities from '../utils/capabilities';
 import lingoLinqExtras from '../utils/extras';
 import i18n from '../utils/i18n';
+import evaluation from '../utils/eval';
 import modal from '../utils/modal';
 
 export default Service.extend({
   stashes: service('stashes'),
   persistence: service('persistence'),
   appState: service('app-state'),
+  router: service(),
 
   init() {
     this._super(...arguments);
     LingoLinq.session = this;
     if (typeof window !== 'undefined') {
-      window.LingoLinq = window.LingoLinq || {};
+      if (!window.LingoLinq || !window.LingoLinq.Lessons) {
+        window.LingoLinq = LingoLinq;
+      }
       window.LingoLinq.session = this;
     }
+    // Capture, once per boot, whether we just landed here from an INTENTIONAL
+    // logout (the flag is set by invalidate() right before its reload). Stashing
+    // it on the instance — rather than re-reading localStorage in restore() —
+    // means it survives BOTH restore() calls the application route fires per boot.
+    // restore() uses it to skip the "session lost" recovery, which would otherwise
+    // fire a SECOND full reload on a clean sign-out. One-shot: cleared immediately.
+    try {
+      if (typeof window !== 'undefined' && window.localStorage && window.localStorage.getItem('lingolinq_just_logged_out')) {
+        window.localStorage.removeItem('lingolinq_just_logged_out');
+        this._logout_landing = true;
+      }
+    } catch (e) { /* localStorage unavailable */ }
   },
 
   persist: function(data) {
@@ -84,7 +100,16 @@ export default Service.extend({
     }
     this.stashes.persist('prior_login', 'true');
     this.stashes.persist_object('just_logged_in', true, false);
-    return RSVP.all_wait(promises).then(null, function() { return RSVP.resolve(); });
+    return RSVP.all_wait(promises).then(function() {
+      if(_this.persistence && typeof _this.persistence.schedulePostLoginSyncIfNeeded === 'function') {
+        _this.persistence.schedulePostLoginSyncIfNeeded();
+      }
+    }, function() {
+      if(_this.persistence && typeof _this.persistence.schedulePostLoginSyncIfNeeded === 'function') {
+        _this.persistence.schedulePostLoginSyncIfNeeded();
+      }
+      return RSVP.resolve();
+    });
   },
 
   hashed_password: function(password) {
@@ -418,13 +443,6 @@ export default Service.extend({
   restore: function(force_check_for_token) {
     if(!this.stashes.get('enabled')) { return {}; }
     var _vb = (window.LingoLinq || {}).verboseDebug;
-    try {
-      var prior = sessionStorage.getItem('lingolinq_login_debug');
-      if(prior && _vb) {
-        var arr = JSON.parse(prior);
-        console.log('[LOGIN-DEBUG] Prior page log:', arr);
-      }
-    } catch (e) {}
     console.debug('LINGOLINQ: restoring session data');
     var store_data = this.stashes.get_object('auth_settings', true) || this.auth_settings_fallback() || {};
     var key = store_data.access_token || "none";
@@ -463,13 +481,22 @@ export default Service.extend({
         window.ga('send', 'event', 'authentication', 'user-id available');
       }
       this.set('as_user_id', store_data.as_user_id);
-    } else if(!store_data.access_token) {
+    } else if(!store_data.access_token && !this._logout_landing) {
+      // (Skipped on a clean logout landing — see `_logout_landing` set in init().
+      //  Re-running this "session lost" recovery there would force_logout/invalidate
+      //  again → a SECOND full reload, and show a bogus "session data has been lost"
+      //  error after an INTENTIONAL sign-out. A voluntary logout should land on the
+      //  login page in one navigation with no message; this branch is only for a
+      //  genuine mid-session token loss.)
       // This should not run until stashes.db_connect has completed, so stashes has its
       // best chance to be populated.
       var _this = this;
       var any_proof_of_existing_login = Object.keys(store_data).length > 0;
-      any_proof_of_existing_login = any_proof_of_existing_login || this.stashes.fs_user_name || (window.kvstash && window.kvstash.values && window.kvstash.user_name); 
+      any_proof_of_existing_login = any_proof_of_existing_login || this.stashes.fs_user_name || (window.kvstash && window.kvstash.values && window.kvstash.user_name);
       var do_it = function() {
+        if (_this.isDestroyed || _this.isDestroying) {
+          return;
+        }
         if(any_proof_of_existing_login) {
           _this.force_logout(i18n.t('session_lost', "Session data has been lost, please log back in"));
         } else {
@@ -480,7 +507,10 @@ export default Service.extend({
          do_it();
       } else {
         this.stashes.get_db_id(capabilities).then(function(obj) {
-          any_proof_of_existing_login = any_proof_of_existing_login || obj.db_id; 
+          if (_this.isDestroyed || _this.isDestroying) {
+            return;
+          }
+          any_proof_of_existing_login = any_proof_of_existing_login || obj.db_id;
           do_it();
         });
       }
@@ -558,14 +588,55 @@ export default Service.extend({
     }
   },
 
+  // SPA path eligibility predicate. Extracted as a method (not an inline
+  // expression) so plan 07 tests can stub it directly without flipping the
+  // global Ember.testing flag. SPEC R2, plan 05.
+  _invalidate_spa_eligible: function(full_invalidate) {
+    return !!full_invalidate &&
+           !!this.appState &&
+           !!this.appState.get('feature_flags.auth_spa_transition') &&
+           !capabilities.installed_app &&
+           !isTesting();
+  },
+
   invalidate: function(force) {
     var _this = this;
+    if (this.isDestroyed || this.isDestroying) {
+      return;
+    }
     var full_invalidate = force || !!(this.appState.get('currentUser') || this.stashes.get_object('auth_settings', true) || this.auth_settings_fallback());
     if(full_invalidate) {
+      // Purge any in-progress eval snapshot (partially-answered clinical data)
+      // BEFORE the transition/reload so it doesn't survive logout at rest on a
+      // shared device (the rest of IndexedDB survives sign-out by design; this
+      // transient assessment is different). Best-effort; issued early so the
+      // IndexedDB removes have the best chance to commit ahead of any reload.
+      try { evaluation.purge_for_logout(); } catch(e) { /* best-effort */ }
       if(window.navigator.splashscreen) {
         window.navigator.splashscreen.show();
       }
+      // Flag the bootstrap skeleton's progress card to show logout-
+      // appropriate copy ("Signing you out…" / "See you soon") instead
+      // of the default login copy ("Preparing your workspace…"). The
+      // flag survives the page reload that `reload('/')` triggers a
+      // few lines later, and is cleared by the skeleton's inline JS
+      // after the first read so subsequent navigations don't keep
+      // showing it.
+      try {
+        if(typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem('lingolinq_auth_intent', 'logging_out');
+          // One-shot signal read by session.init() on the next boot so restore()
+          // skips its "session lost" recovery (which would re-invalidate → a SECOND
+          // reload). Separate from `lingolinq_auth_intent` because the bootstrap
+          // clears that one before restore() runs.
+          window.localStorage.setItem('lingolinq_just_logged_out', '1');
+        }
+      } catch(e) { /* localStorage unavailable; skeleton falls back to default copy */ }
     }
+    // SPEC R2, R3, R4, R5, R6, R8. Plan 05.
+    // Flag is read once, here, before the async chain — avoids mid-flow flag flips.
+    var spaTransitionEnabled = _this._invalidate_spa_eligible(full_invalidate);
+
     this.stashes.flush().then(null, function() { return RSVP.resolve(); }).then(function() {
       _this.stashes.setup();
       var later = function(callback, delay) { callback(); };
@@ -573,9 +644,17 @@ export default Service.extend({
         later = runLater;
       }
 
-      // Give the session time to clear completely before reloading, otherwise they might
-      // not actually get logged out
+      // Give the session time to clear completely before navigating, otherwise the
+      // user might not actually get logged out.
       later(function() {
+        if (_this.isDestroyed || _this.isDestroying) {
+          return;
+        }
+        // STEP (a): Clear auth tokens FIRST. The index route's afterModel
+        // checks session.access_token and replaceWith('user.home', user_name)
+        // if it sees one. Clearing here ensures the SPA transitionTo('index')
+        // actually lands on the login form rather than redirecting to the
+        // dashboard. Same on the OFF/reload path — existing behavior.
         _this.set('isAuthenticated', false);
         _this.set('access_token', null);
         _this.set('user_name', null);
@@ -584,7 +663,80 @@ export default Service.extend({
         if(capabilities) {
           capabilities.access_token = null;
         }
+
         if(full_invalidate) {
+          if(spaTransitionEnabled) {
+            // SPA path: transition FIRST, then clean up state in the .then()
+            // success handler. This ordering prevents observer cascades on
+            // inconsistent state and prevents the dashboard's templates from
+            // reading destroyed Ember Data records.
+            try {
+              if(_this.router && typeof _this.router.transitionTo === 'function') {
+                var promise = _this.router.transitionTo('index');
+                if(promise && typeof promise.then === 'function') {
+                  promise.then(function() {
+                    // Transition complete — dashboard route is unmounted.
+                    // NOW it is safe to null user records and per-user appState.
+                    // SPEC R5 cleanup happens here, not before transition.
+                    try {
+                      if(_this.appState && typeof _this.appState.clear_user_state === 'function') {
+                        _this.appState.clear_user_state();
+                      }
+                      if(typeof LingoLinq !== 'undefined' && LingoLinq && LingoLinq.store && typeof LingoLinq.store.unloadAll === 'function') {
+                        LingoLinq.store.unloadAll();
+                      }
+                      if(_this.persistence && typeof _this.persistence.clear_user_state === 'function') {
+                        _this.persistence.clear_user_state();
+                      }
+                      // Forward-looking 3rd-party SDK reset block. No-op when
+                      // SDKs absent (the codebase has no Sentry today). Add
+                      // specific resets here as SDKs are added.
+                      if(typeof window !== 'undefined' && window.Sentry && typeof window.Sentry.setUser === 'function') {
+                        try { window.Sentry.setUser(null); } catch(e) { /* ignore */ }
+                      }
+                    } catch(err) {
+                      // Cleanup error after successful transition. Log but do
+                      // not reload — the user is already on the login form.
+                      console.warn('[session.invalidate] post-transition cleanup error', err);
+                    }
+                  }, function(err) {
+                    // Transition rejected — fall back to reload. The reload
+                    // accomplishes both navigation AND state cleanup by tearing
+                    // down the Ember instance. Do NOT call clear_user_state here.
+                    console.warn('[session.invalidate] SPA transition rejected, falling back to reload', err);
+                    later(function() { _this.reload('/'); });
+                  });
+                } else {
+                  // No thenable returned — defensive: assume success and clean
+                  // up synchronously. Templates may not have unmounted yet, so
+                  // this branch is best-effort. Should not happen in practice.
+                  try {
+                    if(_this.appState && typeof _this.appState.clear_user_state === 'function') {
+                      _this.appState.clear_user_state();
+                    }
+                    if(typeof LingoLinq !== 'undefined' && LingoLinq && LingoLinq.store && typeof LingoLinq.store.unloadAll === 'function') {
+                      LingoLinq.store.unloadAll();
+                    }
+                    if(_this.persistence && typeof _this.persistence.clear_user_state === 'function') {
+                      _this.persistence.clear_user_state();
+                    }
+                  } catch(err) {
+                    console.warn('[session.invalidate] post-transition cleanup error (no thenable)', err);
+                  }
+                }
+                // Successful transition fired (thenable or not) — DO NOT fall
+                // through to reload.
+                return;
+              }
+              // Router unavailable for some reason — fall through to reload.
+              console.warn('[session.invalidate] Router unavailable, falling back to reload');
+            } catch(err) {
+              console.warn('[session.invalidate] SPA transition threw, falling back to reload', err);
+            }
+            // Fall-through reload (catch block or router unavailable). Tokens
+            // already cleared at top of this `later`; the reload will tear
+            // down the Ember instance and discard any remaining state.
+          }
           later(function() {
             _this.reload('/');
           });

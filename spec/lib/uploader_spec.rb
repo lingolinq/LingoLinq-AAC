@@ -14,7 +14,8 @@ describe Uploader do
     it "should post the upload, including a file handle" do
       expect(Uploader).to receive(:remote_upload_params).with("bacon", "text/plaintext").and_return({
         :upload_params => {:a => 1, :b => 2},
-        :upload_url => "http://www.upload.com/"
+        :upload_url => "http://www.upload.com/",
+        :post_url => "http://www.upload.com/"
       })
       res = OpenStruct.new(:success? => true)
       f = Tempfile.new("stash")
@@ -31,7 +32,8 @@ describe Uploader do
     it "should return the url to the uploaded object if successful" do
       expect(Uploader).to receive(:remote_upload_params).with("bacon", "text/plaintext").and_return({
         :upload_params => {:a => 1, :b => 2},
-        :upload_url => "http://www.upload.com/"
+        :upload_url => "http://www.upload.com/",
+        :post_url => "http://www.upload.com/"
       })
       res = OpenStruct.new(:success? => true)
       f = Tempfile.new("stash")
@@ -43,7 +45,8 @@ describe Uploader do
     it "should return nil if upload unsuccessful" do
       expect(Uploader).to receive(:remote_upload_params).with("bacon", "text/plaintext").and_return({
         :upload_params => {:a => 1, :b => 2},
-        :upload_url => "http://www.upload.com/"
+        :upload_url => "http://www.upload.com/",
+        :post_url => "http://www.upload.com/"
       })
       res = OpenStruct.new(:success? => false, body: 'nothing')
       f = Tempfile.new("stash")
@@ -65,7 +68,8 @@ describe Uploader do
 
       expect(Uploader).to receive(:remote_upload_params).with("a/b/chksmchksu/c", "text/plaintext").and_return({
         :upload_params => {:a => 1, :b => 2},
-        :upload_url => "http://www.upload.com/"
+        :upload_url => "http://www.upload.com/",
+        :post_url => "http://www.upload.com/"
       })
       res = OpenStruct.new(:success? => true)
       f = Tempfile.new("stash")
@@ -85,7 +89,8 @@ describe Uploader do
 
       expect(Uploader).to receive(:remote_upload_params).with("a/chksmchksu/b", "text/plaintext").and_return({
         :upload_params => {:a => 1, :b => 2},
-        :upload_url => "http://www.upload.com/"
+        :upload_url => "http://www.upload.com/",
+        :post_url => "http://www.upload.com/"
       })
       res = OpenStruct.new(:success? => true)
       f = Tempfile.new("stash")
@@ -102,7 +107,8 @@ describe Uploader do
     it "should remove any pending delete remote actions" do
       expect(Uploader).to receive(:remote_upload_params).with("bacon", "text/plaintext").and_return({
         :upload_params => {:a => 1, :b => 2},
-        :upload_url => "http://www.upload.com/"
+        :upload_url => "http://www.upload.com/",
+        :post_url => "http://www.upload.com/"
       })
       res = OpenStruct.new(:success? => true)
       f = Tempfile.new("stash")
@@ -136,7 +142,8 @@ describe Uploader do
 
       expect(Uploader).to receive(:remote_upload_params).with("a/b/chksmchksu/c", "text/plaintext").and_return({
         :upload_params => {:a => 1, :b => 2},
-        :upload_url => "http://www.upload.com/"
+        :upload_url => "http://www.upload.com/",
+        :post_url => "http://www.upload.com/"
       })
       res = OpenStruct.new(:success? => true)
       f = Tempfile.new("stash")
@@ -157,11 +164,13 @@ describe Uploader do
     let(:upload_config) do
       { access_key: 'test_key', secret: 'test_secret', bucket_name: 'test-bucket', upload_url: 'https://example.com/' }
     end
+    let(:s3_client) { instance_double(Aws::S3::Client) }
 
     before do
       allow(Uploader).to receive(:remote_upload_config).and_return(upload_config)
       @orig_cdn = ENV['UPLOADS_S3_CDN']
       ENV['UPLOADS_S3_CDN'] = 'https://example.com'
+      allow(Aws::S3::Client).to receive(:new).and_return(s3_client)
     end
 
     after do
@@ -173,77 +182,62 @@ describe Uploader do
     end
 
     it "should return false if the object is not found" do
-      service = OpenStruct.new
-      bucket = OpenStruct.new
-      expect(S3::Service).to receive(:new).with(:access_key_id => 'test_key', :secret_access_key => 'test_secret', timeout: 3).and_return(service)
-      expect(service).to receive(:buckets).and_return(service)
-      expect(service).to receive(:find).with('test-bucket').and_return(bucket)
-      expect(bucket).to receive(:objects).and_return(bucket)
-      expect(bucket).to receive(:find).with("a/b/c").and_raise("nope")
+      expect(s3_client).to receive(:head_object).with(bucket: 'test-bucket', key: 'a/b/c').and_raise(Aws::S3::Errors::NotFound.new(nil, 'Not Found'))
       expect(Uploader.check_existing_upload("a/b/c")).to eq({found: false})
     end
 
     it "should strip the leading slash" do
-      service = OpenStruct.new
-      bucket = OpenStruct.new
-      expect(S3::Service).to receive(:new).with(:access_key_id => 'test_key', :secret_access_key => 'test_secret', timeout: 3).and_return(service)
-      expect(service).to receive(:buckets).and_return(service)
-      expect(service).to receive(:find).with('test-bucket').and_return(bucket)
-      expect(bucket).to  receive(:objects).and_return(bucket)
-      expect(bucket).to receive(:find).with("a/b/c").and_raise("nope")
+      expect(s3_client).to receive(:head_object).with(bucket: 'test-bucket', key: 'a/b/c').and_raise(Aws::S3::Errors::NotFound.new(nil, 'Not Found'))
       expect(Uploader.check_existing_upload("/a/b/c")).to eq({found: false})
     end
 
     it "should return the found record" do
-      service = OpenStruct.new
-      bucket = OpenStruct.new
-      expect(S3::Service).to receive(:new).with(:access_key_id => 'test_key', :secret_access_key => 'test_secret', timeout: 3).and_return(service)
-      expect(service).to receive(:buckets).and_return(service)
-      expect(service).to receive(:find).with('test-bucket').and_return(bucket)
-      expect(bucket).to  receive(:objects).and_return(bucket)
-      expect(bucket).to receive(:find).with("a/b/c").and_return(bucket)
-      expect(bucket).to receive(:object_request).with(:head, {}).and_return({'etag' => '', 'x-amz-expiration' => "expiry-date=\"#{7.days.from_now.iso8601}\""})
-
+      head = Aws::S3::Types::HeadObjectOutput.new(
+        etag: '""',
+        expiration: "expiry-date=\"#{7.days.from_now.iso8601}\""
+      )
+      expect(s3_client).to receive(:head_object).with(bucket: 'test-bucket', key: 'a/b/c').and_return(head)
       expect(Uploader.check_existing_upload("/a/b/c")).to eq({found: true, url: "https://example.com/a/b/c"})
     end
 
     it "should return expiration status" do
-      service = OpenStruct.new
-      bucket = OpenStruct.new
-      expect(S3::Service).to receive(:new).with(:access_key_id => 'test_key', :secret_access_key => 'test_secret', timeout: 3).and_return(service)
-      expect(service).to receive(:buckets).and_return(service)
-      expect(service).to receive(:find).with('test-bucket').and_return(bucket)
-      expect(bucket).to  receive(:objects).and_return(bucket)
-      expect(bucket).to receive(:find).with("a/b/c").and_return(bucket)
-      expect(bucket).to receive(:object_request).with(:head, {}).and_return({'etag' => '', 'x-amz-expiration' => "expiry-date=\"#{7.hours.from_now.iso8601}\""})
-
+      head = Aws::S3::Types::HeadObjectOutput.new(
+        etag: '""',
+        expiration: "expiry-date=\"#{7.hours.from_now.iso8601}\""
+      )
+      expect(s3_client).to receive(:head_object).with(bucket: 'test-bucket', key: 'a/b/c').and_return(head)
       expect(Uploader.check_existing_upload("/a/b/c")).to eq({found: true, expired: true})
     end
 
     it "should return mismatch status" do
-      service = OpenStruct.new
-      bucket = OpenStruct.new
-      expect(S3::Service).to receive(:new).with(:access_key_id => 'test_key', :secret_access_key => 'test_secret', timeout: 3).and_return(service)
-      expect(service).to receive(:buckets).and_return(service)
-      expect(service).to receive(:find).with('test-bucket').and_return(bucket)
-      expect(bucket).to  receive(:objects).and_return(bucket)
-      expect(bucket).to receive(:find).with("a/b/c").and_return(bucket)
-      expect(bucket).to receive(:object_request).with(:head, {}).and_return({'etag' => 'chksum2', 'x-amz-expiration' => "expiry-date=\"#{7.days.from_now.iso8601}\""})
-
+      head = Aws::S3::Types::HeadObjectOutput.new(
+        etag: 'chksum2',
+        expiration: "expiry-date=\"#{7.days.from_now.iso8601}\""
+      )
+      expect(s3_client).to receive(:head_object).with(bucket: 'test-bucket', key: 'a/b/c').and_return(head)
       expect(Uploader.check_existing_upload("/a/b/c", "chksum")).to eq({found: true, mismatch: true})
     end
 
     it "should return the found record if checksum matches" do
-      service = OpenStruct.new
-      bucket = OpenStruct.new
-      expect(S3::Service).to receive(:new).with(:access_key_id => 'test_key', :secret_access_key => 'test_secret', timeout: 3).and_return(service)
-      expect(service).to receive(:buckets).and_return(service)
-      expect(service).to receive(:find).with('test-bucket').and_return(bucket)
-      expect(bucket).to  receive(:objects).and_return(bucket)
-      expect(bucket).to receive(:find).with("a/b/c").and_return(bucket)
-      expect(bucket).to receive(:object_request).with(:head, {}).and_return({'etag' => 'chksum', 'x-amz-expiration' => "expiry-date=\"#{7.days.from_now.iso8601}\""})
+      head = Aws::S3::Types::HeadObjectOutput.new(
+        etag: 'chksum',
+        expiration: "expiry-date=\"#{7.days.from_now.iso8601}\""
+      )
+      expect(s3_client).to receive(:head_object).with(bucket: 'test-bucket', key: 'a/b/c').and_return(head)
+      expect(Uploader.check_existing_upload("/a/b/c", "chksum")).to eq({found: true, url: "https://example.com/a/b/c"})
+    end
 
-      expect(Uploader.check_existing_upload("/a/b/c")).to eq({found: true, url: "https://example.com/a/b/c"})
+    it "should return found false when S3 raises a service error (e.g. access denied)" do
+      err = Aws::S3::Errors::AccessDenied.new(nil, 'Access Denied')
+      expect(s3_client).to receive(:head_object).with(bucket: 'test-bucket', key: 'a/b/c').and_raise(err)
+      expect(Rails.logger).to receive(:warn).with(/Uploader\.check_existing_upload Aws::S3::Errors::ServiceError/)
+      expect(Uploader.check_existing_upload("/a/b/c")).to eq({found: false})
+    end
+
+    it "should return found false when bucket_name is blank" do
+      allow(Uploader).to receive(:remote_upload_config).and_return(upload_config.merge(bucket_name: nil))
+      expect(Aws::S3::Client).not_to receive(:new)
+      expect(Uploader.check_existing_upload("/a/b/c")).to eq({found: false})
     end
   end  
 
@@ -263,16 +257,33 @@ describe Uploader do
       allow(Uploader).to receive(:remote_upload_config).and_return(upload_config)
     end
 
-    it "should generate signed upload parameters" do
+    it "should generate a SigV4-signed upload policy (Aws::S3::PresignedPost)" do
       res = Uploader.remote_upload_params("downloads/file.png", "image/png")
-      expect(res[:upload_url]).to eq(Uploader.remote_upload_config[:upload_url])
+      # upload_url stays the canonical global-style endpoint -- every consumer that
+      # builds/matches a final object URL (valid_import_bundle_url?, removable_remote_url?,
+      # fronted_url, remote_remove, etc) depends on this exact form.
+      expect(res[:upload_url]).to eq(upload_config[:upload_url])
+      # post_url is the actual SigV4 POST target: the bucket's real regional endpoint,
+      # since the presigned policy's credential scope is bound to that region.
+      expect(res[:post_url]).to match(%r{\Ahttps://test-bucket\.s3[.\-][\w-]*\.amazonaws\.com/\z})
       expect(res[:upload_params]).not_to eq(nil)
-      expect(res[:upload_params]['AWSAccessKeyId']).not_to eq(nil)
+      expect(res[:upload_params]['AWSAccessKeyId']).to eq(nil)
+      expect(res[:upload_params]['signature']).to eq(nil)
       expect(res[:upload_params]['Content-Type']).to eq('image/png')
       expect(res[:upload_params]['key']).to eq('downloads/file.png')
       expect(res[:upload_params]['policy']).not_to eq(nil)
-      expect(res[:upload_params]['signature']).not_to eq(nil)
+      expect(res[:upload_params]['x-amz-algorithm']).to eq('AWS4-HMAC-SHA256')
+      expect(res[:upload_params]['x-amz-credential']).to start_with('test_key/')
+      expect(res[:upload_params]['x-amz-signature']).not_to eq(nil)
       expect(res[:upload_params]['success_action_status']).to eq('200')
+    end
+
+    it "should include acl unless private_upload or UPLOADS_S3_NO_ACL is set" do
+      res = Uploader.remote_upload_params("downloads/file.png", "image/png")
+      expect(res[:upload_params]['acl']).to eq('public-read')
+
+      res = Uploader.remote_upload_params("downloads/file.png", "image/png", private_upload: true)
+      expect(res[:upload_params]['acl']).to eq(nil)
     end
   end
 
@@ -280,63 +291,146 @@ describe Uploader do
     it "should return data from environment variables" do
       Uploader.instance_variable_set('@remote_upload_config', nil)
       expect(Uploader.remote_upload_config).to eq({
-        :upload_url => "https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/",
-        :access_key => ENV['AWS_KEY'],
-        :secret => ENV['AWS_SECRET'],
-        :bucket_name => ENV['UPLOADS_S3_BUCKET'],
-        :static_bucket_name => ENV['STATIC_S3_BUCKET']
+        :upload_url => "https://#{ENV['UPLOADS_S3_BUCKET'].to_s.strip}.s3.amazonaws.com/",
+        :access_key => Uploader.aws_access_key,
+        :secret => Uploader.aws_secret_key,
+        :bucket_name => ENV['UPLOADS_S3_BUCKET'].to_s.strip,
+        :static_bucket_name => ENV['STATIC_S3_BUCKET'].to_s.strip
       })
     end
   end
   
   describe "signed_download_url" do
+    let(:static_bucket) { 'spec-static-bucket' }
+    let(:remote_config) do
+      {
+        upload_url: 'https://spec-uploads.s3.amazonaws.com/',
+        access_key: 'test_key',
+        secret: 'test_secret',
+        bucket_name: 'spec-uploads',
+        static_bucket_name: static_bucket
+      }
+    end
+    let(:s3_client) { instance_double(Aws::S3::Client) }
+    let(:presigner) { instance_double(Aws::S3::Presigner) }
+
+    before do
+      @orig_static_s3_bucket = ENV['STATIC_S3_BUCKET']
+      ENV['STATIC_S3_BUCKET'] = static_bucket
+      Uploader.instance_variable_set('@remote_upload_config', nil)
+      allow(Uploader).to receive(:remote_upload_config).and_return(remote_config)
+      allow(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      allow(Aws::S3::Presigner).to receive(:new).with(client: s3_client).and_return(presigner)
+    end
+
+    after do
+      if @orig_static_s3_bucket.nil?
+        ENV.delete('STATIC_S3_BUCKET')
+      else
+        ENV['STATIC_S3_BUCKET'] = @orig_static_s3_bucket
+      end
+    end
+
     it "should return a signed url if the object is found" do
-      object = OpenStruct.new(:temporary_url => "asdfjkl")
-      objects = OpenStruct.new
-      expect(objects).to receive(:find).with('asdf').and_return(object)
-      bucket = OpenStruct.new(:objects => objects)
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).with(ENV['STATIC_S3_BUCKET']).and_return(bucket)
-      service = OpenStruct.new(:buckets => buckets)
-      expect(S3::Service).to receive(:new).and_return(service)
-      
+      expect(s3_client).to receive(:head_object).with(bucket: static_bucket, key: 'asdf').and_return(Aws::S3::Types::HeadObjectOutput.new)
+      expect(presigner).to receive(:presigned_url).with(
+        :get_object,
+        hash_including(bucket: static_bucket, key: 'asdf', expires_in: Uploader::S3_EXPIRATION_TIME)
+      ).and_return('asdfjkl')
       expect(Uploader.signed_download_url("asdf")).to eq("asdfjkl")
     end
-    
+
     it "should return nil if an object is not found" do
-      objects = OpenStruct.new
-      expect(objects).to receive(:find).with('asdf').and_return(nil)
-      bucket = OpenStruct.new(:objects => objects)
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).with(ENV['STATIC_S3_BUCKET']).and_return(bucket)
-      service = OpenStruct.new(:buckets => buckets)
-      expect(S3::Service).to receive(:new).and_return(service)
-      
+      expect(s3_client).to receive(:head_object).and_raise(Aws::S3::Errors::NotFound.new(nil, 'Not Found'))
       expect(Uploader.signed_download_url("asdf")).to eq(nil)
     end
-    
-    it "should return nil if the bucket is not found" do
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).with(ENV['STATIC_S3_BUCKET']).and_return(nil)
-      service = OpenStruct.new(:buckets => buckets)
-      expect(S3::Service).to receive(:new).and_return(service)
-      
+
+    it "should return nil if head_object raises a service error" do
+      expect(s3_client).to receive(:head_object).and_raise(Aws::S3::Errors::NoSuchBucket.new(nil, 'no bucket'))
       expect(Uploader.signed_download_url("asdf")).to eq(nil)
     end
-    
+
     it "should filter out the bucket host and protocol" do
-      object = OpenStruct.new(:temporary_url => "asdfjkl")
-      objects = OpenStruct.new
-      expect(objects).to receive(:find).with('asdf').and_return(object).exactly(3).times
-      bucket = OpenStruct.new(:objects => objects)
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).with(ENV['STATIC_S3_BUCKET']).and_return(bucket).exactly(3).times
-      service = OpenStruct.new(:buckets => buckets)
-      expect(S3::Service).to receive(:new).and_return(service).exactly(3).times
-      
+      expect(s3_client).to receive(:head_object).with(bucket: static_bucket, key: 'asdf').and_return(Aws::S3::Types::HeadObjectOutput.new).exactly(3).times
+      expect(presigner).to receive(:presigned_url).exactly(3).times.and_return('asdfjkl')
       expect(Uploader.signed_download_url("asdf")).to eq("asdfjkl")
-      expect(Uploader.signed_download_url("https://#{ENV['STATIC_S3_BUCKET']}.s3.amazonaws.com/asdf")).to eq("asdfjkl")
-      expect(Uploader.signed_download_url("https://#{ENV['STATIC_S3_BUCKET']}.s3.amazonaws.com/asdf")).to eq("asdfjkl")
+      expect(Uploader.signed_download_url("https://#{static_bucket}.s3.amazonaws.com/asdf")).to eq("asdfjkl")
+      expect(Uploader.signed_download_url("https://s3.amazonaws.com/#{static_bucket}/asdf")).to eq("asdfjkl")
+    end
+  end
+
+  describe "signed_internal_url" do
+    let(:uploads_bucket) { 'spec-uploads' }
+    let(:remote_config) do
+      {
+        upload_url: 'https://spec-uploads.s3.amazonaws.com/',
+        access_key: 'test_key',
+        secret: 'test_secret',
+        bucket_name: uploads_bucket
+      }
+    end
+    let(:s3_client) { instance_double(Aws::S3::Client) }
+    let(:presigner) { instance_double(Aws::S3::Presigner) }
+
+    before do
+      @orig_uploads_s3_bucket = ENV['UPLOADS_S3_BUCKET']
+      ENV['UPLOADS_S3_BUCKET'] = uploads_bucket
+      allow(Uploader).to receive(:remote_upload_config).and_return(remote_config)
+      allow(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      allow(Aws::S3::Presigner).to receive(:new).with(client: s3_client).and_return(presigner)
+    end
+
+    after do
+      if @orig_uploads_s3_bucket.nil?
+        ENV.delete('UPLOADS_S3_BUCKET')
+      else
+        ENV['UPLOADS_S3_BUCKET'] = @orig_uploads_s3_bucket
+      end
+    end
+
+    it "should presign virtual-hosted and path-style uploads-bucket urls without a head_object check" do
+      expect(s3_client).to_not receive(:head_object)
+      expect(presigner).to receive(:presigned_url).exactly(2).times.with(
+        :get_object,
+        hash_including(bucket: uploads_bucket, key: 'extras/foo.json')
+      ).and_return('signed-url')
+      expect(Uploader.signed_internal_url("https://#{uploads_bucket}.s3.amazonaws.com/extras/foo.json")).to eq('signed-url')
+      expect(Uploader.signed_internal_url("https://s3.amazonaws.com/#{uploads_bucket}/extras/foo.json")).to eq('signed-url')
+    end
+
+    it "should keep the leading slash for legacy version-0 extra_data double-slash urls" do
+      expect(s3_client).to_not receive(:head_object)
+      expect(presigner).to receive(:presigned_url).with(
+        :get_object,
+        hash_including(bucket: uploads_bucket, key: '/extras0/LogSession/1_1/nonce/data-x.json')
+      ).and_return('signed-url')
+      expect(Uploader.signed_internal_url("https://#{uploads_bucket}.s3.amazonaws.com//extras0/LogSession/1_1/nonce/data-x.json")).to eq('signed-url')
+    end
+
+    it "should pass through a bare bucket url with no key" do
+      expect(Aws::S3::Presigner).to_not receive(:new)
+      url = "https://#{uploads_bucket}.s3.amazonaws.com/"
+      expect(Uploader.signed_internal_url(url)).to eq(url)
+    end
+
+    it "should pass through non-bucket urls untouched" do
+      expect(Aws::S3::Presigner).to_not receive(:new)
+      expect(Uploader.signed_internal_url("https://example.com/pic.png")).to eq("https://example.com/pic.png")
+      expect(Uploader.signed_internal_url("https://cdn.example.com/extras/foo.json")).to eq("https://cdn.example.com/extras/foo.json")
+      expect(Uploader.signed_internal_url(nil)).to eq(nil)
+    end
+
+    it "should return the original url when credentials are missing or signing fails" do
+      allow(Uploader).to receive(:remote_upload_config).and_return({})
+      url = "https://#{uploads_bucket}.s3.amazonaws.com/extras/foo.json"
+      expect(Uploader.signed_internal_url(url)).to eq(url)
+    end
+
+    it "should return the original url when presigning raises unexpectedly" do
+      allow(presigner).to receive(:presigned_url).and_raise(Aws::Errors::MissingRegionError.new(nil, 'missing region'))
+      url = "https://#{uploads_bucket}.s3.amazonaws.com/extras/foo.json"
+      expect { Uploader.signed_internal_url(url) }.to_not raise_error
+      expect(Uploader.signed_internal_url(url)).to eq(url)
     end
   end
 
@@ -361,170 +455,207 @@ describe Uploader do
         ENV['OPENSYMBOLS_S3_BUCKET'] = orig_opensymbols
       end
     end
+  end
+
+  describe "valid_import_bundle_url?" do
+    it "allows only HTTPS bundle uploads under imports/boards/{global_id}/" do
+      uploads_bucket = ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'
+      orig_uploads = ENV['UPLOADS_S3_BUCKET']
+      orig_cdn = ENV['UPLOADS_S3_CDN']
+      ENV['UPLOADS_S3_BUCKET'] = uploads_bucket
+      ENV.delete('UPLOADS_S3_CDN')
+      gid = '1_42'
+      good = "https://#{uploads_bucket}.s3.amazonaws.com/imports/boards/#{gid}/bundle-abc123.json"
+      begin
+        expect(Uploader.valid_import_bundle_url?(good, gid)).to eq(true)
+        expect(Uploader.valid_import_bundle_url?(good, '1_99')).to eq(false)
+        expect(Uploader.valid_import_bundle_url?("https://#{uploads_bucket}.s3.amazonaws.com/imports/boards/#{gid}/upload-abc.json", gid)).to eq(false)
+        expect(Uploader.valid_import_bundle_url?("https://evil.com/imports/boards/#{gid}/bundle-abc.json", gid)).to eq(false)
+        expect(Uploader.valid_import_bundle_url?("http://#{uploads_bucket}.s3.amazonaws.com/imports/boards/#{gid}/bundle-abc.json", gid)).to eq(false)
+      ensure
+        ENV['UPLOADS_S3_BUCKET'] = orig_uploads
+        if orig_cdn.nil?
+          ENV.delete('UPLOADS_S3_CDN')
+        else
+          ENV['UPLOADS_S3_CDN'] = orig_cdn
+        end
+      end
+    end
+
+    it "accepts CDN-fronted bundle upload URLs" do
+      uploads_bucket = 'lingolinq-dev-uploads'
+      cdn = 'https://cdn.example.com'
+      orig_uploads = ENV['UPLOADS_S3_BUCKET']
+      orig_cdn = ENV['UPLOADS_S3_CDN']
+      ENV['UPLOADS_S3_BUCKET'] = uploads_bucket
+      ENV['UPLOADS_S3_CDN'] = cdn
+      gid = '1_42'
+      url = "#{cdn}/imports/boards/#{gid}/bundle-abc123.json"
+      begin
+        expect(Uploader.valid_import_bundle_url?(url, gid)).to eq(true)
+      ensure
+        ENV['UPLOADS_S3_BUCKET'] = orig_uploads
+        if orig_cdn.nil?
+          ENV.delete('UPLOADS_S3_CDN')
+        else
+          ENV['UPLOADS_S3_CDN'] = orig_cdn
+        end
+      end
+    end
   end  
 
   describe "remote_remove" do
+    let(:uploads_bucket) { 'spec-uploads-for-remote-remove' }
+    let(:remote_config) do
+      {
+        upload_url: "https://#{uploads_bucket}.s3.amazonaws.com/",
+        access_key: 'test_key',
+        secret: 'test_secret',
+        bucket_name: uploads_bucket,
+        static_bucket_name: 'spec-static'
+      }
+    end
+
+    before do
+      @orig_uploads_bucket = ENV['UPLOADS_S3_BUCKET']
+      @orig_uploads_cdn = ENV['UPLOADS_S3_CDN']
+      ENV['UPLOADS_S3_BUCKET'] = uploads_bucket
+      ENV.delete('UPLOADS_S3_CDN')
+      Uploader.instance_variable_set('@remote_upload_config', nil)
+      allow(Uploader).to receive(:remote_upload_config).and_return(remote_config)
+    end
+
+    after do
+      if @orig_uploads_bucket.nil?
+        ENV.delete('UPLOADS_S3_BUCKET')
+      else
+        ENV['UPLOADS_S3_BUCKET'] = @orig_uploads_bucket
+      end
+      if @orig_uploads_cdn.nil?
+        ENV.delete('UPLOADS_S3_CDN')
+      else
+        ENV['UPLOADS_S3_CDN'] = @orig_uploads_cdn
+      end
+    end
+
     it "should raise error on unexpected path" do
       expect{ Uploader.remote_remove("https://www.google.com/bacon") }.to raise_error("scary delete, not a path I'm comfortable deleting: https://www.google.com/bacon")
-      expect{ Uploader.remote_remove("https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/images/abcdefg/asdf/asdfasdf.asdf") }.to raise_error("scary delete, not a path I'm comfortable deleting: images/abcdefg/asdf/asdfasdf.asdf")
+      expect{ Uploader.remote_remove("https://#{uploads_bucket}.s3.amazonaws.com/images/abcdefg/asdf/asdfasdf.asdf") }.to raise_error("scary delete, not a path I'm comfortable deleting: images/abcdefg/asdf/asdfasdf.asdf")
     end
-    
+
     it "should remove the object if found" do
-      object = OpenStruct.new
-      expect(object).to receive(:destroy).and_return(true)
-      objects = OpenStruct.new
-      expect(objects).to receive(:find).with('images/abcdefg/asdf-asdf.asdf').and_return(object)
-      bucket = OpenStruct.new({
-        objects: objects
-      })
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).and_return(bucket)
-      service = OpenStruct.new({
-        buckets: buckets
-      })
-      expect(S3::Service).to receive(:new).and_return(service)
-      res = Uploader.remote_remove("https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf")
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:head_object).with(
+        bucket: uploads_bucket,
+        key: 'images/abcdefg/asdf-asdf.asdf'
+      ).and_return(Aws::S3::Types::HeadObjectOutput.new)
+      expect(s3_client).to receive(:delete_object).with(
+        bucket: uploads_bucket,
+        key: 'images/abcdefg/asdf-asdf.asdf'
+      ).and_return(true)
+      res = Uploader.remote_remove("https://#{uploads_bucket}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf")
       expect(res).to eq(true)
     end
-    
+
     it "should not error if the object is not found" do
-      objects = OpenStruct.new
-      expect(objects).to receive(:find).with('images/abcdefg/asdf-asdf.asdf').and_raise("not found")
-      bucket = OpenStruct.new({
-        objects: objects
-      })
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).and_return(bucket)
-      service = OpenStruct.new({
-        buckets: buckets
-      })
-      expect(S3::Service).to receive(:new).and_return(service)
-      res = Uploader.remote_remove("https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf")
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:head_object).and_raise(Aws::S3::Errors::NotFound.new(nil, 'Not Found'))
+      expect(s3_client).not_to receive(:delete_object)
+      res = Uploader.remote_remove("https://#{uploads_bucket}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf")
       expect(res).to eq(nil)
     end
-    
+
     it "should remove with a nil checksum" do
-      object = OpenStruct.new
-      expect(object).to receive(:destroy).and_return(true)
-      objects = OpenStruct.new
-      expect(objects).to receive(:find).with('images/abcdefg/asdf-asdf.asdf').and_return(object)
-      bucket = OpenStruct.new({
-        objects: objects
-      })
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).and_return(bucket)
-      service = OpenStruct.new({
-        buckets: buckets
-      })
-      expect(S3::Service).to receive(:new).and_return(service)
-      res = Uploader.remote_remove("https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf")
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:head_object).and_return(Aws::S3::Types::HeadObjectOutput.new)
+      expect(s3_client).to receive(:delete_object).and_return(true)
+      res = Uploader.remote_remove("https://#{uploads_bucket}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf")
       expect(res).to eq(true)
     end
 
     it "should not remove with a mismatched checksum" do
-      object = OpenStruct.new
-      expect(object).to receive(:object_request).with(:head, {}).and_return({
-        'etag' => "remote_checksum",
-        'x-amz-expiration' => "expiry-date=\"#{7.days.from_now.iso8601}\""
-      })
-      objects = OpenStruct.new
-      expect(objects).to receive(:find).with('images/abcdefg/asdf-asdf.asdf').and_return(object)
-      bucket = OpenStruct.new({
-        objects: objects
-      })
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).and_return(bucket)
-      service = OpenStruct.new({
-        buckets: buckets
-      })
-      expect(S3::Service).to receive(:new).and_return(service)
-      res = Uploader.remote_remove("https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf", "bad_chksum")
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      head = Aws::S3::Types::HeadObjectOutput.new(
+        etag: 'remote_checksum',
+        expiration: "expiry-date=\"#{7.days.from_now.iso8601}\""
+      )
+      expect(s3_client).to receive(:head_object).and_return(head)
+      expect(s3_client).not_to receive(:delete_object)
+      res = Uploader.remote_remove("https://#{uploads_bucket}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf", "bad_chksum")
       expect(res).to eq(false)
     end
 
     it "should not remove if checksum is passed and object is not found" do
-      objects = OpenStruct.new
-      expect(objects).to receive(:find).with('images/abcdefg/asdf-asdf.asdf').and_return(nil)
-      bucket = OpenStruct.new({
-        objects: objects
-      })
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).and_return(bucket)
-      service = OpenStruct.new({
-        buckets: buckets
-      })
-      expect(S3::Service).to receive(:new).and_return(service)
-      res = Uploader.remote_remove("https://#{ENV['UPLOADS_S3_BUCKET']}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf", "bad_chksum")
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:head_object).and_raise(Aws::S3::Errors::NotFound.new(nil, 'Not Found'))
+      expect(s3_client).not_to receive(:delete_object)
+      res = Uploader.remote_remove("https://#{uploads_bucket}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf", "bad_chksum")
       expect(res).to eq(false)
     end
   end
 
   describe 'remote_touch' do
+    let(:bucket) { 'spec-uploads-for-remote-touch' }
+    let(:key) { 'images/abcdefg/asdf-asdf.asdf' }
+    let(:remote_config) do
+      {
+        upload_url: "https://#{bucket}.s3.amazonaws.com/",
+        access_key: 'test_key',
+        secret: 'test_secret',
+        bucket_name: bucket,
+        static_bucket_name: 'spec-static'
+      }
+    end
+
+    before do
+      Uploader.instance_variable_set('@remote_upload_config', nil)
+      allow(Uploader).to receive(:remote_upload_config).and_return(remote_config)
+    end
+
     it 'should copy the path to the same location' do
-      object = OpenStruct.new
-      objects = OpenStruct.new
-      expect(objects).to receive(:find).with('images/abcdefg/asdf-asdf.asdf').and_return(object)
-      bucket = OpenStruct.new({
-        objects: objects
-      })
-      expect(object).to receive(:copy).with(hash_including(:key => 'images/abcdefg/asdf-asdf.asdf', :bucket => bucket)).and_return(true)
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).and_return(bucket)
-      service = OpenStruct.new({
-        buckets: buckets
-      })
-      expect(S3::Service).to receive(:new).and_return(service)
-      expect(Uploader.remote_touch('images/abcdefg/asdf-asdf.asdf')).to eq(true)
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:head_object).with(bucket: bucket, key: key).and_return(Aws::S3::Types::HeadObjectOutput.new)
+      expect(s3_client).to receive(:copy_object) do |opts|
+        expect(opts).to include(
+          bucket: bucket,
+          key: key,
+          copy_source: "#{bucket}/#{key}",
+          metadata_directive: 'COPY'
+        )
+        expect(opts[:acl]).to eq('public-read') unless ENV['UPLOADS_S3_NO_ACL'].to_s.match(/\A(1|true|yes)\z/i)
+      end.and_return(true)
+      expect(Uploader.remote_touch(key)).to eq(true)
     end
 
     it 'should return false on failed update' do
-      object = OpenStruct.new
-      objects = OpenStruct.new
-      expect(objects).to receive(:find).with('images/abcdefg/asdf-asdf.asdf').and_return(object)
-      bucket = OpenStruct.new({
-        objects: objects
-      })
-      expect(object).to receive(:copy).with(hash_including(:key => 'images/abcdefg/asdf-asdf.asdf', :bucket => bucket)).and_raise("bacon")
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).and_return(bucket)
-      service = OpenStruct.new({
-        buckets: buckets
-      })
-      expect(S3::Service).to receive(:new).and_return(service)
-      expect(Uploader.remote_touch('images/abcdefg/asdf-asdf.asdf')).to eq(false)
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:head_object).and_return(Aws::S3::Types::HeadObjectOutput.new)
+      expect(s3_client).to receive(:copy_object).and_raise(StandardError.new('bacon'))
+      expect(Uploader.remote_touch(key)).to eq(false)
     end
 
     it 'should return false on missing path' do
-      object = OpenStruct.new
-      objects = OpenStruct.new
-      expect(objects).to receive(:find).with('images/abcdefg/asdf-asdf.asdf').and_raise("nope")
-      bucket = OpenStruct.new({
-        objects: objects
-      })
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).and_return(bucket)
-      service = OpenStruct.new({
-        buckets: buckets
-      })
-      expect(S3::Service).to receive(:new).and_return(service)
-      expect(Uploader.remote_touch('images/abcdefg/asdf-asdf.asdf')).to eq(false)
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:head_object).and_raise(Aws::S3::Errors::NotFound.new(nil, 'Not Found'))
+      expect(Uploader.remote_touch(key)).to eq(false)
     end
 
     it 'should return true on success' do
-      object = OpenStruct.new
-      objects = OpenStruct.new
-      expect(objects).to receive(:find).with('images/abcdefg/asdf-asdf.asdf').and_return(object)
-      bucket = OpenStruct.new({
-        objects: objects
-      })
-      expect(object).to receive(:copy).with(hash_including(:key => 'images/abcdefg/asdf-asdf.asdf', :bucket => bucket)).and_return(true)
-      buckets = OpenStruct.new
-      expect(buckets).to receive(:find).and_return(bucket)
-      service = OpenStruct.new({
-        buckets: buckets
-      })
-      expect(S3::Service).to receive(:new).and_return(service)
-      expect(Uploader.remote_touch('images/abcdefg/asdf-asdf.asdf')).to eq(true)
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:head_object).and_return(Aws::S3::Types::HeadObjectOutput.new)
+      expect(s3_client).to receive(:copy_object).with(
+        hash_including(bucket: bucket, key: key, copy_source: "#{bucket}/#{key}")
+      ).and_return(true)
+      expect(Uploader.remote_touch(key)).to eq(true)
     end
   end
   
@@ -1542,7 +1673,7 @@ describe Uploader do
     it "should call the block with the loaded zip" do
       expect(OBF::Utils).to receive(:load_zip).and_yield({zipper: true})
       res = OpenStruct.new(body: 'abc')
-      expect(Typhoeus).to receive(:get).with('http://www.example.com/import.zip').and_return(res)
+      expect(SafeHttp).to receive(:get).with('http://www.example.com/import.zip').and_return(res)
       Uploader.remote_zip('http://www.example.com/import.zip') do |zipper|
         expect(zipper).to eq({zipper: true})
       end
@@ -1604,8 +1735,16 @@ describe Uploader do
       expect(Uploader.find_resources('bacon', 'whatever', nil)).to eq([])
       expect(Uploader.find_resources('bacon', nil, nil)).to eq([])
     end
-    
+
+    it 'should return [] for tarheel sources when tarheel_reader flag is off' do
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('tarheel_reader', nil).and_return(false)
+      expect(Typhoeus).not_to receive(:get)
+      expect(Uploader.find_resources('bacon', 'tarheel', nil)).to eq([])
+      expect(Uploader.find_resources('bacon-1', 'tarheel_book', nil)).to eq([])
+    end
+
     it 'should search for tarheel results' do
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('tarheel_reader', nil).and_return(true)
       expect(Typhoeus).to receive(:get).with("https://tarheelreader.org/find/?search=bacon&category=&reviewed=R&audience=E&language=en&page=1&json=1", {timeout: 5}).and_return(OpenStruct.new(body: {
         books: [
           {
@@ -1651,6 +1790,7 @@ describe Uploader do
     end
     
     it 'should return tarheel book pages' do
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('tarheel_reader', nil).and_return(true)
       expect(Typhoeus).to receive(:get).with("https://tarheelreader.org/book-as-json/?slug=bacon-1", {:followlocation=>true}).and_return(OpenStruct.new(headers: {}, body: {
         'slug' => 'bacon-1',
         'ID' => '12345',
@@ -1702,6 +1842,7 @@ describe Uploader do
     end
 
     it "should return custom book pages" do
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('tarheel_reader', nil).and_return(true)
       expect(Typhoeus).to receive(:get).with("http://www.example.com/book.json", {:followlocation=>true}).and_return(OpenStruct.new(headers: {}, body: {
         "book_url": "http://github.com/whitmer",
         "author": "Brian",
@@ -1810,6 +1951,33 @@ describe Uploader do
       expect(Uploader.sanitize_url("http://www.yahoo.com/?asdf=1")).to eq("http://www.yahoo.com/?asdf=1")
       expect(Uploader.sanitize_url("http://13.142.13.1512:12345/?asdf=1")).to eq("http://13.142.13.1512:12345/?asdf=1")
       expect(Uploader.sanitize_url("http://username:password@example.com")).to eq("http://example.com")
+    end
+
+    it 'should block IP-literal SSRF targets (cloud metadata, link-local, private ranges)' do
+      # Cloud metadata endpoint — the canonical SSRF target.
+      expect(Uploader.sanitize_url("http://169.254.169.254/latest/meta-data/iam/security-credentials/")).to eq(nil)
+      # Link-local + RFC1918 private ranges (not caught by the 127/0/localhost checks).
+      expect(Uploader.sanitize_url("http://169.254.1.1/")).to eq(nil)
+      expect(Uploader.sanitize_url("http://10.0.0.5/internal")).to eq(nil)
+      expect(Uploader.sanitize_url("http://172.16.4.4/")).to eq(nil)
+      expect(Uploader.sanitize_url("http://172.31.255.255/")).to eq(nil)
+      expect(Uploader.sanitize_url("http://192.168.1.1/admin")).to eq(nil)
+      expect(Uploader.sanitize_url("http://100.64.0.1/")).to eq(nil)
+      # IPv6 loopback / link-local / unique-local literals.
+      expect(Uploader.sanitize_url("http://[::1]/")).to eq(nil)
+      expect(Uploader.sanitize_url("http://[fe80::1]/")).to eq(nil)
+      expect(Uploader.sanitize_url("http://[fc00::1]/")).to eq(nil)
+      # Public addresses still pass (172.15/172.32 are OUTSIDE the 172.16-31 private block).
+      expect(Uploader.sanitize_url("http://8.8.8.8/asdf")).to eq("http://8.8.8.8/asdf")
+      expect(Uploader.sanitize_url("http://172.15.0.1/")).to eq("http://172.15.0.1/")
+      expect(Uploader.sanitize_url("http://172.32.0.1/")).to eq("http://172.32.0.1/")
+    end
+
+    it 'should only allow http(s) schemes' do
+      expect(Uploader.sanitize_url("file:///etc/passwd")).to eq(nil)
+      expect(Uploader.sanitize_url("gopher://127.0.0.1:6379/_SET")).to eq(nil)
+      expect(Uploader.sanitize_url("ftp://example.com/x")).to eq(nil)
+      expect(Uploader.sanitize_url("data:text/html,<script>alert(1)</script>")).to eq(nil)
     end
   end
 

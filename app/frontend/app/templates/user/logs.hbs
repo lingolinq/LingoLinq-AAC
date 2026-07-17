@@ -1,7 +1,10 @@
 {{#if this.app_state.currentUser.modeling_only}}
-  {{modeling-only-notice}}
+  <ModelingOnlyNotice />
 {{else if this.model.currently_premium_or_premium_supporter}}
-  <h2>
+<div class="md-logs">
+  <div class="md-logs__header">
+    <h2 class="md-logs__title">
+    <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 10px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#46505F"/><polyline points="14 2 14 8 20 8" stroke="#2A9D8F"/><line x1="16" y1="13" x2="8" y2="13" stroke="#46505F"/><line x1="16" y1="17" x2="8" y2="17" stroke="#46505F"/><polyline points="10 9 9 9 8 9" stroke="#46505F"/></svg>
     {{#if this.messages_only}}
       {{t "Messages about" key="messages_about"}} {{this.model.user_name}}
     {{else}}
@@ -9,13 +12,13 @@
     {{/if}}
     {{#if this.filtered_results}}
       {{t "(filtered)" key="filtered"}}
-      <span style='font-size: 12px; padding-left: 5px;'>
+      <span style='font-size: 14px; padding-left: 5px;'>
       <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type=this.type highlighted=null start="" end="" device_id="" location_id=""}}>
         {{t "clear filter" key="clear_filter"}}
       </LinkTo>
       </span>
     {{else}}
-      <span style='font-size: 12px; padding-left: 5px;'>
+      <span style='font-size: 14px; padding-left: 5px;'>
         {{#if this.all_logs}}
           <LinkTo @route="user.logs" @model={{this.model.user_name}} @query={{hash type="note" highlighted=null}}>{{t "Show Only Messages" key="show_only_messages"}}</LinkTo> 
           {{#if this.model.currently_premium}}
@@ -30,42 +33,40 @@
         {{/if}}
       </span>
     {{/if}}
-  {{#if this.messages_only}}
-  {{else if this.filtered_results}}
-  {{else if this.model.external_device}}
+  </h2>
+  </div>
+  {{#if this.model.external_device}}
     {{#if this.model.permissions.supervise}}
-      <div class='row big_buttons' style='margin-top: 20px;'>
-        <div class='col-sm-3 col-xs-6 big_button_holder'>
-          <button class='btn big_button btn-default lesser_button' {{action "generate"}} style='height: 100px;'>
-            Manual Log<br>Session
-          </button>
-        </div>
-        <div class='col-sm-3 col-xs-6 big_button_holder'>
-          <button class='btn big_button btn-default secondary_button' {{action "recordNote" "text"}} style='height: 100px;'>
-            New Note
-          </button>
-        </div>
+      <div class="md-logs__action-pills">
+        <button class="md-logs__action-pill" {{on "click" (this.ctrlAction "generate")}}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          {{t "Manual Log Session" key="manual_log_session"}}
+        </button>
+        <button class="md-logs__action-pill" {{on "click" (this.ctrlAction "recordNote" "text")}}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          {{t "New Note" key="new_note"}}
+        </button>
       </div>
     {{/if}}
   {{/if}}
-  </h2>
+  <div class="md-logs__card">
   {{#if this.logs.loading}}
-    <p>{{t "Loading..." key="loading..."}}</p>
+    <p class="md-logs__loading">{{t "Loading..." key="loading..."}}</p>
   {{else if this.logs.error}}
-    <p>{{t "Failed to load" key="failed_to_load"}}</p>
+    <p class="md-logs__loading">{{t "Failed to load" key="failed_to_load"}}</p>
   {{else if this.logs}}
     {{#if this.meta.logging_cutoffs}}
       <div class='alert alert-warning'>
-        {{t "NOTE: The results you are seeing are limited based on the user's preferences. You are currently only able to see results from the last " key="limited_logging_results"}}
+        {{t "NOTE: The results you are seeing are limited based on the user's settings. You are currently only able to see results from the last " key="limited_logging_results"}}
         {{seconds_ago this.logging_cutoff_seconds}}.
         {{#if this.model.permissions.delete}}
           {{#if this.model.has_logging_code}}
             {{t "If you know the logging access code, you may enter that to temporarily unlock full access to the user's logs." key="logging_code_for_full_access"}}
 
-            <form class="form-horizontal" {{action "update_logging_code" on="submit"}}>
+            <form class="form-horizontal" {{on "submit" (this.ctrlAction "update_logging_code")}}>
               <div class="form-group">
                 <div class="col-sm-2">
-                  <Input type="text" @value={{this.logging_code}} class="form-control" />
+                  <input value={{this.logging_code}} type="text" class="form-control" {{on "input" (set-field this "logging_code")}} />
                 </div>
                 <div class="col-sm-2">
                   <button class='btn btn-default'>{{t "Submit Code" key="submit_code"}}</button>
@@ -98,7 +99,7 @@
                   <span class="sr-only">{{t "journal" key="journal_lower"}}</span>
                 </LinkTo>
               </td>
-              <td style="font-size: 12px; width: 100%;">
+              <td style="font-size: 14px; width: 100%;">
                 {{t "Latest Evaluation" key="latest_pending"}}
               </td>
               {{#unless this.messages_only}}
@@ -120,14 +121,14 @@
       </table>
     </div>
     {{#if this.more_available}}
-      <button class="btn btn-default" {{action "more"}}>{{t "More" key="more"}}</button>
+      <button class="btn btn-default" {{on "click" (this.ctrlAction "more")}}>{{t "More" key="more"}}</button>
     {{/if}}
   {{else}}
     <p>{{t "No records currently available" key="no_logs_found"}}</p>
   {{/if}}
   {{#if this.all_logs}}
     <!-- TODO
-    <button class="btn btn-default" {{action "exportLogs"}}>{{t "Export Logs" key="export_logs"}}</button>
+    <button class="btn btn-default" {{on "click" (this.ctrlAction "exportLogs")}}>{{t "Export Logs" key="export_logs"}}</button>
     -->
     {{#if this.model.permissions.edit}}
       {{#if this.model.currently_premium_or_premium_supporter}}
@@ -137,12 +138,12 @@
           </button>
           <ul class="dropdown-menu" role="menu">
             {{#unless this.model.supporter_role}}
-              <li><a href="#" {{action "recordNote"}}><strong>{{t "New Note" key="new_note"}}</strong></a></li>
-              <li><a href="#" {{action "quick_assessment"}}>{{t "Quick Assessment" key="quick_assessment"}}</a></li>
+              <li><a href="#" {{on "click" (this.ctrlAction "recordNote")}}><strong>{{t "New Note" key="new_note"}}</strong></a></li>
+              <li><a href="#" {{on "click" (this.ctrlAction "quick_assessment")}}>{{t "Quick Assessment" key="quick_assessment"}}</a></li>
             {{/unless}}
-            <li><a href="#" {{action "generate"}}>{{t "Manually Add Session" key="manually_add_session"}}</a></li>
+            <li><a href="#" {{on "click" (this.ctrlAction "generate")}}>{{t "Manually Add Session" key="manually_add_session"}}</a></li>
             <li style='position: relative;'>
-              <a href="#" {{action "import_session"}}>
+              <a href="#" {{on "click" (this.ctrlAction "import_session")}}>
                 {{t "Import Session(s)" key="import_sessions"}}
               </a>
               <input type='file' style='opacity: 0; position: absolute; top: 0; left: 0; right: 0; bottom: 0; width: 100%; cursor: pointer;' id='log_upload'>
@@ -151,16 +152,21 @@
         </div>
       {{/if}}
     {{/if}}
-    <button type="button" {{action "obl_export"}} class='btn btn-default'>{{t "Download Log File" key="download_log_file"}}</button>
-    <button class="btn btn-default" {{action "clearLogs"}}>{{t "Clear All Logs" key="clear_all_logs"}}</button>
+    <button type="button" {{on "click" (this.ctrlAction "obl_export")}} class='btn btn-default'>{{t "Download Log File" key="download_log_file"}}</button>
+    <button class="btn btn-default md-logs__danger-btn" {{on "click" (this.ctrlAction "clearLogs")}}>{{t "Clear All Logs" key="clear_all_logs"}}</button>
   {{else}}
     {{#if this.messages_only}}
       {{#if this.model.permissions.edit}}
-        <button class='btn btn-small btn-default' {{action "recordNote" "text"}}>{{t "New Note" key="new_note"}}</button>
-        <button class='btn btn-small btn-default' {{action "quick_assessment"}}>{{t "Quick Assessment" key="quick_assessment"}}</button>
+        <button class='btn btn-small btn-default' {{on "click" (this.ctrlAction "recordNote" "text")}}>{{t "New Note" key="new_note"}}</button>
+        <button class='btn btn-small btn-default' {{on "click" (this.ctrlAction "quick_assessment")}}>{{t "Quick Assessment" key="quick_assessment"}}</button>
       {{/if}}
     {{/if}}
   {{/if}}
+  </div>
+  <div class="md-logs__back-row">
+    <LinkTo @route="user.account" @model={{this.model.user_name}} class="md-billing__back-btn">{{t "Back to Account" key="back_to_account"}}</LinkTo>
+  </div>
+</div>
 {{else if this.session.isAuthenticated}}
   <h2>{{t "Premium Membership Required" key="premium_required"}}</h2>
   <p>
@@ -173,5 +179,5 @@
     {{t "to support this good cause and to unlock this feature." key="purchase_subscription_3"}}
   </p>
 {{else}}
-  {{login-form left=true prompt=true return=true}}
+  <LoginForm @left={{true}} @prompt={{true}} @return={{true}} />
 {{/if}}

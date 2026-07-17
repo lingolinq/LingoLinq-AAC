@@ -1,3 +1,5 @@
+require_relative '../art50_marker'
+
 module JsonApi::Log
   extend JsonApi::Json
   
@@ -69,6 +71,33 @@ module JsonApi::Log
       json['profile'] = log.data['profile']
     elsif log.data['journal']
       json['journal'] = log.data['journal'].slice('vocalization', 'sentence', 'timestamp', 'id')
+    elsif log.data['eval_mode']
+      # New tiered eval data shape (Quick Screen / Targeted /
+      # Comprehensive). Surfaces the SLP-facing payload —
+      # recommendation, intake, item-bank profile, SLP notes,
+      # SETT framework, AI narrative — so the saved-log view can
+      # render the same summary the live flow shows on its report
+      # card.
+      json['tiered_eval'] = {
+        'eval_mode'         => log.data['eval_mode'],
+        'protocol_version'  => log.data['protocol_version'],
+        'intake'            => log.data['intake'],
+        'item_bank_profile' => log.data['item_bank_profile'],
+        'recommendation'    => log.data['recommendation'],
+        'slp_notes'         => log.data['slp_notes'],
+        'sett'              => log.data['sett'],
+        'ai_narrative'      => log.data['ai_narrative'],
+        # EU AI Act Article 50(2): non-secret provenance view of the eval-narration
+        # marker (marked/spec/provider/model), or nil when there is none (template
+        # draft, or a stored blob that fails re-verification). Re-verifies on every
+        # read via Art50Marker -- the raw stored blob is never trusted as-is, exactly
+        # like lib/json_api/board.rb -- so a forged or tampered ai_generated value in
+        # log.data can never read back as marked. Withholds signature + content_id,
+        # matching every other Art50Marker public-view call site.
+        'ai_generated'      => Art50Marker.public_view(log.data['ai_generated']),
+        'event_count'       => (log.data['events'] || []).length
+      }
+      json['duration'] = log.data['duration_s']
     elsif log.data['eval']
       json['evaluation'] = log.data['eval']
       json['duration'] = log.data['duration']
@@ -122,7 +151,10 @@ module JsonApi::Log
     if json['log']['type'] == 'assessment'
       json['log']['assessment'] = {}.merge(log.data['assessment'] || {})
       json['log']['assessment']['stats'] = log.data['stats']
-    elsif json['log']['type'] == 'eval'
+    elsif json['log']['type'] == 'eval' && json['log']['evaluation']
+      # Legacy singular data['eval'] shape only -- the tiered eval report shape
+      # (data['eval_mode'], surfaced above as json['log']['tiered_eval']) has no
+      # 'evaluation' key and carries its own stats-equivalent fields already.
       json['log']['evaluation']['stats'] = log.data['stats']
     elsif json['log']['type'] == 'profile'
       history = []

@@ -4,6 +4,7 @@ import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import buttonTracker from '../utils/raw_events';
 import capabilities from '../utils/capabilities';
+import i18n from '../utils/i18n';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
@@ -121,6 +122,17 @@ export default Component.extend({
       return null;
     }
   }),
+  tracking_error_message: computed('tracking_error', function() {
+    var err = this.get('tracking_error');
+    if(!err) { return null; }
+    if(err == 'load_failed' || err == 'unavailable') {
+      return i18n.t('eyegaze_tracker_unavailable', "The webcam eye tracker is not available. Refresh the page and try again.");
+    }
+    return i18n.t('eyegaze_tracking_failed', "Eye tracking could not start. Check that your camera is connected and that you allowed camera access.");
+  }),
+  webcam_source: computed('hardware', 'source', function() {
+    return this.get('hardware') == 'camera' || (this.get('source.eyegaze') && !this.get('hardware_type'));
+  }),
   has_coords: computed('event_x', 'event_y', function() {
     return this.get('event_x') >= 0 && this.get('event_y') >= 0;
   }),
@@ -167,10 +179,26 @@ export default Component.extend({
       mouse_listener: null
     });
 
+    var tracking_fail_listener = function(e) {
+      var reason = (e.detail || {}).reason || 'fail';
+      _this.set('tracking_error', reason);
+      _this.set('pending', false);
+    };
+    _this.set('tracking_fail_listener', tracking_fail_listener);
+    document.addEventListener('weblinger-tracking-fail', tracking_fail_listener);
+
+    var uses_weblinger_gaze = !_this.get('preferences.device.dwell_type') ||
+      _this.get('preferences.device.dwell_type') == 'eyegaze' ||
+      _this.get('preferences.device.dwell_type') == 'eyegaze_external';
     var head_pointer = _this.get('preferences.device.dwell_type') == 'head' && _this.get('preferences.device.dwell_head_pointer');
+    if(uses_weblinger_gaze || head_pointer) {
+      if(!window.weblinger && !capabilities.eye_gaze.available) {
+        _this.set('tracking_error', window.weblinger_load_failed ? 'load_failed' : 'unavailable');
+        _this.set('pending', false);
+      }
+    }
     if(!_this.get('preferences.device.dwell_type') || _this.get('preferences.device.dwell_type') == 'eyegaze' || _this.get('preferences.device.dwell_type') == 'eyegaze_external' || head_pointer) {
       var eye_listener = function(e) {
-        var ratio = window.devicePixelRatio || 1.0;
         e.screenX = (e.clientX + (window.screenInnerOffsetX || window.screenX));
         e.screenY = (e.clientY + (window.screenInnerOffsetY || window.screenY));
         _this.setProperties({
@@ -179,6 +207,7 @@ export default Component.extend({
           event_x: e.screenX,
           event_y: e.screenY,
           pending: false,
+          tracking_error: null,
           hardware: e.eyegaze_hardware,
           window_x: window.screenInnerOffsetX || window.screenX,
           window_y: window.screenInnerOffsetY || window.screenY,
@@ -251,7 +280,6 @@ export default Component.extend({
           var window_height = window.innerHeight;
           e.screenX = (e.clientX + (window.screenInnerOffsetX || window.screenX));
           e.screenY = (e.clientY + (window.screenInnerOffsetY || window.screenY));
-          console.log(e.screenX, e.screenY, e.clientX, e.clientY);
           var source = {gamepad: true};
           source[e.activation] = true;
           _this.setProperties({
@@ -332,6 +360,10 @@ export default Component.extend({
     }
   },
   willDestroyElement: function() {
+    if(this.get('tracking_fail_listener')) {
+      document.removeEventListener('weblinger-tracking-fail', this.get('tracking_fail_listener'));
+      this.set('tracking_fail_listener', null);
+    }
     capabilities.eye_gaze.calibrating_or_testing = false;
     capabilities.eye_gaze.stop_listening();
     capabilities.head_tracking.stop_listening();
@@ -369,6 +401,31 @@ export default Component.extend({
       this.set('expression_listener', null);
     }
   },
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
     advanced: function() {
       this.set('advanced', true);

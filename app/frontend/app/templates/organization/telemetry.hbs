@@ -1,0 +1,149 @@
+{{#if this.model.permissions.edit}}
+  <section class="md-org-section md-org-telemetry" aria-label={{t "Telemetry" key="telemetry"}}>
+    <div class="md-org-section-head">
+      <div>
+        <h3 class="md-org-section-title">{{t "Telemetry" key="telemetry"}}</h3>
+        <p class="md-org-section-desc">{{t "Review app usage, speak-board activations, and possible missed taps for beta testing." key="telemetry_org_desc"}}</p>
+      </div>
+      <button type="button" class="md-org-btn md-org-btn--outline" {{on "click" (this.ctrlAction "refresh")}}>{{t "Refresh" key="refresh"}}</button>
+    </div>
+
+    <div class="md-org-report-filters">
+      {{#if this.is_super_admin}}
+        <div class="md-org-report-field md-org-report-field--inline">
+          <label for="telemetry_scope" class="md-org-report-field__label">{{t "Scope:" key="scope_colon"}}</label>
+          <BoundSelect @select_class="md-org-report-select md-org-report-select--sm" @select_id="telemetry_scope" @content={{this.scope_options}} @selection={{this.scope}} @action={{mut this.scope}} />
+        </div>
+      {{/if}}
+      <div class="md-org-report-field md-org-report-field--inline">
+        <label for="telemetry_start_at" class="md-org-report-field__label">{{t "Start:" key="start_colon"}}</label>
+        <input type="date" value={{this.start_at}} id="telemetry_start_at" class="md-org-report-input" {{on "input" (set-field this "start_at")}} />
+      </div>
+      <div class="md-org-report-field md-org-report-field--inline">
+        <label for="telemetry_end_at" class="md-org-report-field__label">{{t "End:" key="end_colon"}}</label>
+        <input type="date" value={{this.end_at}} id="telemetry_end_at" class="md-org-report-input" {{on "input" (set-field this "end_at")}} />
+      </div>
+
+      {{#if (is-equal this.scope "organization")}}
+        <div class="md-org-report-field md-org-report-field--inline">
+          <label for="telemetry_user_filter" class="md-org-report-field__label">{{t "Communicator:" key="telemetry_communicator_filter"}}</label>
+          <BoundSelect @select_class="md-org-report-select md-org-report-select--sm" @select_id="telemetry_user_filter" @content={{this.user_filter_options}} @selection={{this.filter_user_id}} @action={{this.ctrlAction "set_filter_user"}} />
+        </div>
+
+        {{#if this.device_filter_options.length}}
+          <div class="md-org-report-field md-org-report-field--inline">
+            <label for="telemetry_device_filter" class="md-org-report-field__label">{{t "Device:" key="telemetry_device_filter"}}</label>
+            <BoundSelect @select_class="md-org-report-select md-org-report-select--sm" @select_id="telemetry_device_filter" @content={{this.device_filter_options}} @selection={{this.filter_device_id}} @action={{this.ctrlAction "set_filter_device"}} />
+          </div>
+        {{/if}}
+      {{/if}}
+    </div>
+
+    {{#if this.telemetry.loading}}
+      <div class="md-card__loading">
+        <div class="md-spinner" aria-hidden="true">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <circle cx="16" cy="16" r="13" stroke="rgba(76,134,216,0.15)" stroke-width="3"/>
+            <path d="M16 3a13 13 0 0 1 13 13" stroke="#4C86D8" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <p class="md-card__loading-text">{{t "Loading telemetry..." key="loading_telemetry"}}</p>
+      </div>
+    {{else if this.telemetry.error}}
+      <p class="md-org-error">{{this.telemetry.error}}</p>
+    {{else if this.telemetry}}
+      <div class="md-org-stats__grid md-org-telemetry__summary">
+        {{#each this.summary_cards as |card|}}
+          <div class="md-org-stat-card">
+            <div class="md-org-stat-card__head"><span class="md-org-stat-card__label">{{card.label}}</span></div>
+            <div class="md-org-stat-card__body"><span class="md-org-stat-card__value">{{card.value}}</span></div>
+          </div>
+        {{/each}}
+      </div>
+
+      {{#if this.show_zero_state_tips}}
+        <div class="md-org-telemetry__zero-hint" role="note">
+          <p class="md-org-telemetry__zero-hint-lead">{{t "If you expected data here, check the following:" key="telemetry_zero_hint_lead"}}</p>
+          <ul class="md-org-telemetry__zero-list">
+            <li>{{t "The date range includes when sessions were logged (the end date now counts the full calendar day)." key="telemetry_zero_hint_date_range"}}</li>
+            <li>{{t "Clinical sessions and the heat map only include approved communicators and eval accounts in this organization (not managers-only)." key="telemetry_zero_hint_org_roles"}}</li>
+            <li>{{t "Communicators with private logging enabled are excluded from session-based totals." key="telemetry_zero_hint_private_logging"}}</li>
+            <li>{{t "Telemetry event cards require the product telemetry beta flag and rows stored for this organization id." key="telemetry_zero_hint_product_flag"}}</li>
+          </ul>
+        </div>
+      {{/if}}
+
+      <div class="md-org-telemetry__grid">
+        <section class="md-org-telemetry-card" aria-label={{t "Top routes" key="top_routes"}}>
+          <h4 class="md-org-telemetry-card__title">{{t "Top routes" key="top_routes"}}</h4>
+          {{#if this.telemetry.routes.length}}
+            <div class="md-org-report-list">
+              {{#each this.telemetry.routes as |row|}}
+                <div class="md-org-report-row md-org-report-row--stat">
+                  <span class="md-org-report-row__stat-key">{{row.key}}</span>
+                  <span class="label label-default">{{row.value}}</span>
+                </div>
+              {{/each}}
+            </div>
+          {{else}}
+            <p class="md-muted">{{t "No route telemetry has been recorded yet." key="no_route_telemetry"}}</p>
+          {{/if}}
+        </section>
+
+        <section class="md-org-telemetry-card" aria-label={{t "Input methods" key="input_methods"}}>
+          <h4 class="md-org-telemetry-card__title">{{t "Input methods" key="input_methods"}}</h4>
+          {{#if this.telemetry.input_methods.length}}
+            <div class="md-org-report-list">
+              {{#each this.telemetry.input_methods as |row|}}
+                <div class="md-org-report-row md-org-report-row--stat">
+                  <span class="md-org-report-row__stat-key">{{row.key}}</span>
+                  <span class="label label-default">{{row.value}}</span>
+                </div>
+              {{/each}}
+            </div>
+          {{else}}
+            <p class="md-muted">{{t "No input method telemetry has been recorded yet." key="no_input_telemetry"}}</p>
+          {{/if}}
+        </section>
+      </div>
+
+      <p class="md-muted md-org-telemetry__heatmap-note">
+        {{t "Activation totals merge organization-wide communication logs (touch locations from logged sessions—the same underlying data as communicator stats) plus optional aggregated product telemetry. Match the date window to communicator reports." key="telemetry_heatmap_source_explainer"}}
+      </p>
+
+      <section class="md-org-telemetry-card md-org-telemetry-card--wide" aria-label={{t "Activation heat map" key="heat_map"}}>
+        <Stats::HeatMap @usage_stats={{this.heatmapStats}} />
+      </section>
+
+      {{#if this.telemetry.recent_sessions.length}}
+        <section class="md-org-telemetry-card md-org-telemetry-card--wide" aria-label={{t "Recent sessions" key="recent_sessions"}}>
+          <h4 class="md-org-telemetry-card__title">{{t "Recent sessions" key="recent_sessions"}}</h4>
+          <div class="md-org-report-list">
+            {{#each this.telemetry.recent_sessions as |item|}}
+              <div class="md-org-report-row">
+                <div class="md-org-report-row__main">
+                  {{#if item.user}}
+                    <LinkTo @route="user.log" @models={{array item.user.user_name item.id}} class="md-org-report-row__link">
+                      {{t "button" count=item.button_count key="button_count"}}
+                    </LinkTo>
+                    <span class="md-org-report-row__sep">-</span>
+                    <LinkTo @route="user" @model={{item.user.user_name}} class="md-org-report-row__user">
+                      {{item.user.user_name}}
+                    </LinkTo>
+                  {{else}}
+                    <span class="md-org-report-row__user">{{t "Unknown user" key="unknown_user"}}</span>
+                  {{/if}}
+                </div>
+                <span class="md-org-report-row__time" title={{date item.started_at}}>{{date_ago item.started_at}}</span>
+              </div>
+            {{/each}}
+          </div>
+        </section>
+      {{/if}}
+    {{else}}
+      <p class="md-muted">{{t "No telemetry has been recorded yet." key="no_telemetry_recorded"}}</p>
+    {{/if}}
+  </section>
+{{else}}
+  <p class="md-muted">{{t "Not authorized" key="not_authorized"}}</p>
+{{/if}}

@@ -8,7 +8,7 @@ import {
   runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
-import { db_wait } from 'frontend/tests/helpers/ember_helper';
+import { db_wait, appStateTarget } from 'frontend/tests/helpers/ember_helper';
 import capabilities from '../../utils/capabilities';
 import app_state from '../../utils/app_state';
 import scanner from '../../utils/scanner';
@@ -18,7 +18,18 @@ import LingoLinq from '../../app';
 describe("frame_listener", function() {
   var frame = null;
   var overlay = null;
+  function removeIntegrationFixtures() {
+    ['integration_frame', 'integration_overlay'].forEach(function(id) {
+      var nodes = document.querySelectorAll('#' + id);
+      for (var i = 0; i < nodes.length; i++) {
+        if (nodes[i].parentNode) {
+          nodes[i].parentNode.removeChild(nodes[i]);
+        }
+      }
+    });
+  }
   beforeEach(function() {
+    removeIntegrationFixtures();
     frame = document.createElement('div');
     frame.id = 'integration_frame';
     document.body.appendChild(frame);
@@ -30,14 +41,13 @@ describe("frame_listener", function() {
     overlay.style.width = '100px';
     overlay.style.height = '100px';
     overlay.style.position = 'absolute';
+    frame_listener.setup({ appState: appStateTarget() || app_state });
+    frame_listener.appState = appStateTarget() || app_state;
+    frame_listener.set('targets', []);
+    frame_listener.raw_listeners = {};
   });
   afterEach(function() {
-    if(frame && frame.parentNode) {
-      frame.parentNode.removeChild(frame);
-    }
-    if(overlay && overlay.parentNode) {
-      overlay.parentNode.removeChild(overlay);
-    }
+    removeIntegrationFixtures();
     frame_listener.raw_listeners = {};
     frame_listener.set('targets', []);
   });
@@ -300,9 +310,10 @@ describe("frame_listener", function() {
         label: 'hats',
         vocalization: 'hats',
         image: 'http://www.example.com/pic.png',
-        button_id: null,
-        board: {id: '1_1', key: 'hat/cat'},
         prevent_return: true,
+        button_id: null,
+        source: 'external',
+        board: {id: '1_1', key: 'hat/cat', parent_id: undefined},
         type: 'speak'
       });
     });

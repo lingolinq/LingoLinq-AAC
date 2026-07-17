@@ -25,10 +25,47 @@ export default Component.extend({
       this.set('error', i18n.t('subscribe_no_user', "No user was found"));
     }
   },
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
 
   actions: {
     close() {
       this.get('modal').close();
+    },
+    dismiss_subscribe_modal() {
+      const user = this.get('model.user');
+      if (user && !user.get('really_expired')) {
+        const role = this.get('model.subscription.user_type');
+        user.set('preferences.role', role);
+        const progress = user.get('preferences.progress') || {};
+        progress.skipped_subscribe_modal = true;
+        user.set('preferences.progress', progress);
+        user.save().then(null, function() {});
+      }
+      modal.close();
     },
     opening() {},
     closing() {},

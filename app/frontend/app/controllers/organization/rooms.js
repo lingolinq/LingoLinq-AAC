@@ -4,8 +4,11 @@ import Utils from '../../utils/misc';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default Controller.extend({
+  // Ember Data 5.x removed automatic `store` injection into controllers.
+  store: service('store'),
   refresh_units: function() {
     var _this = this;
     this.set('units', {loading: true});
@@ -27,6 +30,31 @@ export default Controller.extend({
     console.log("max session count", Math.max.apply(null, counts));
     return Math.max.apply(null, counts);
   }),
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
     add_unit: function() {
       var name = this.get('new_unit_name');

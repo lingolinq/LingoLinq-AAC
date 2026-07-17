@@ -1,0 +1,9 @@
+<ModalDialog @opening={{this.ctrlAction "opening"}} @closing={{this.ctrlAction "closing"}}>
+  <div class="modal-header md-modal-header">
+    <h3>{{t "Please Log Back In" key="please_log_back_in"}}</h3>
+  </div>
+  <div class="modal-body md-modal-body">
+    <h4>{{this.model.message}}</h4>
+    {{login-form wide=true return=true force_logout=true}}
+  </div>
+</ModalDialog>

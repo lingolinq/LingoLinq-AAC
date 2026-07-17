@@ -1,0 +1,33 @@
+{{#if this.loadError}}
+  <p role="alert">{{t "Could not load app defaults. Try again or sign in as an admin." key="system_settings_app_defaults_load_error"}}</p>
+{{else if this.loading}}
+  <p aria-live="polite">{{t "Loading..." key="loading"}}</p>
+{{else}}
+  <p class="la-system-settings__hint">{{t "Site-wide branding used in emails and across the app when an organization has not set its own values." key="system_settings_app_defaults_hint"}}</p>
+
+  <div class="la-system-settings__field">
+    <label for="app-defaults-app-name" class="la-system-settings__label-text">{{t "App Name" key="app_name_prompt"}}</label>
+    <input value={{this.settings.app_name}} class="form-control la-system-settings__input" id="app-defaults-app-name" {{on "input" (this.ctrlActionEventValueBound "updateField" "app_name" "value")}} {{on "input" (set-field this "settings.app_name")}} />
+  </div>
+  <div class="la-system-settings__field">
+    <label for="app-defaults-company-name" class="la-system-settings__label-text">{{t "Organization Name" key="company_name"}}</label>
+    <input value={{this.settings.company_name}} class="form-control la-system-settings__input" id="app-defaults-company-name" {{on "input" (this.ctrlActionEventValueBound "updateField" "company_name" "value")}} {{on "input" (set-field this "settings.company_name")}} />
+  </div>
+  <div class="la-system-settings__field">
+    <label for="app-defaults-support-url" class="la-system-settings__label-text">{{t "Customer Support URL" key="support_url"}}</label>
+    <input value={{this.settings.support_url}} class="form-control la-system-settings__input" id="app-defaults-support-url" {{on "input" (this.ctrlActionEventValueBound "updateField" "support_url" "value")}} {{on "input" (set-field this "settings.support_url")}} />
+  </div>
+  <div class="la-system-settings__field">
+    <label for="app-defaults-admin-email" class="la-system-settings__label-text">{{t "Admin Email" key="admin_email"}}</label>
+    <input value={{this.settings.admin_email}} class="form-control la-system-settings__input" id="app-defaults-admin-email" {{on "input" (this.ctrlActionEventValueBound "updateField" "admin_email" "value")}} {{on "input" (set-field this "settings.admin_email")}} />
+  </div>
+  <div class="la-system-settings__field">
+    <label for="app-defaults-email-signature" class="la-system-settings__label-text">{{t "Email signature" key="system_settings_email_signature"}}</label>
+    <input value={{this.settings.email_signature}} class="form-control la-system-settings__input" id="app-defaults-email-signature" {{on "input" (this.ctrlActionEventValueBound "updateField" "email_signature" "value")}} {{on "input" (set-field this "settings.email_signature")}} />
+    <p class="la-system-settings__hint">{{t "Leave blank to use \"The [company name] Team\"." key="system_settings_email_signature_hint"}}</p>
+  </div>
+
+  <div class="la-system-settings__actions">
+    <button type="button" class="btn btn-primary" disabled={{this.saving}} {{on "click" (this.ctrlAction "saveDefaults")}}>{{t "Save" key="save"}}</button>
+  </div>
+{{/if}}

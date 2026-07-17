@@ -1,25 +1,26 @@
-import DS from 'ember-data';
+import { attr } from '@ember-data/model';
+import BaseModel from './base';
 import LingoLinq from '../app';
 import speecher from '../utils/speecher';
 import persistence from '../utils/persistence';
 import Utils from '../utils/misc';
 import { computed } from '@ember/object';
 
-LingoLinq.Unit = DS.Model.extend({
-  settings: DS.attr('raw'),
-  organization_id: DS.attr('string'),
-  name: DS.attr('string'),
-  management_action: DS.attr('string'),
-  goal: DS.attr('raw'),
-  topics: DS.attr('raw'),
-  lesson: DS.attr('raw'),
-  prior_goals: DS.attr('raw'),
-  supervisors: DS.attr('raw'),
-  communicators: DS.attr('raw'),
-  permissions: DS.attr('raw'),
-  org_supervisor_profile: DS.attr('boolean'),
-  org_communicator_profile: DS.attr('boolean'),
-  org_profile: DS.attr('boolean'),
+LingoLinq.Unit = BaseModel.extend({
+  settings: attr('raw'),
+  organization_id: attr('string'),
+  name: attr('string'),
+  management_action: attr('string'),
+  goal: attr('raw'),
+  topics: attr('raw'),
+  lesson: attr('raw'),
+  prior_goals: attr('raw'),
+  supervisors: attr('raw'),
+  communicators: attr('raw'),
+  permissions: attr('raw'),
+  org_supervisor_profile: attr('boolean'),
+  org_communicator_profile: attr('boolean'),
+  org_profile: attr('boolean'),
   supervisor_count: computed('supervisors', function() {
     return (this.get('supervisors') || []).length;
   }),

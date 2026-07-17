@@ -4,7 +4,7 @@
       "type": "http",
       "url": "https://mcp.deepwiki.com/mcp",
       "metadata": {
-        "repository": "swahlquist/LingoLinq-AAC",
+        "repository": "lingolinq/LingoLinq-AAC",
         "description": "Semantic code search and architecture understanding for LingoLinq-AAC"
       }
     },
@@ -28,6 +28,14 @@
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "postgres-dev": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres@0.6.2", "postgresql:///lingolinq-development?host=/var/run/postgresql"],
+      "metadata": {
+        "description": "Development PostgreSQL access, scoped to this repo only. INTENDED read-only (every query is wrapped in BEGIN TRANSACTION READ ONLY, then rolled back) but this is NOT an enforced security boundary: a multi-statement query (e.g. `SELECT 1; COMMIT; DROP TABLE x;`) can issue COMMIT mid-string, ending the read-only transaction early, and run subsequent statements in autocommit mode before the wrapper's own ROLLBACK -- treat this server as write-capable for risk purposes until a real read-only Postgres role replaces the current connection (not yet done). Also NOTE: this npm package is marked deprecated/no-longer-supported upstream; treat as a candidate for replacement, not a long-term dependency. Before approving on first load, self-verify YOUR OWN local `lingolinq-development` DB holds no real student/patient rows -- Scot confirmed his was synthetic-only on 2026-06-14, but that confirmation is per-machine and does not carry over to any other checkout or clone. If your local DB is ever seeded from prod, do not approve it."
+      }
     }
   }
 }

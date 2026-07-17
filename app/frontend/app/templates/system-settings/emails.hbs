@@ -1,0 +1,57 @@
+{{#if this.loadError}}
+  <p role="alert">{{t "Could not load email templates. Try again or sign in as an admin." key="system_settings_emails_load_error"}}</p>
+{{else}}
+  <div class="la-system-settings__toolbar">
+    <label class="la-system-settings__search-label">
+      <span class="la-system-settings__label-text">{{t "Search" key="system_settings_search_label"}}</span>
+      <input type="search" value={{this.searchQuery}} class="form-control la-system-settings__search-input" autocomplete="off" placeholder={{t "Email name…" key="system_settings_emails_search_placeholder"}} {{on "input" (set-field this "searchQuery")}} />
+    </label>
+    <label class="la-system-settings__filter">
+      <span class="la-system-settings__label-text">{{t "Category" key="system_settings_category_label"}}</span>
+      <select class="form-control" {{on "change" (this.ctrlActionMut "categoryFilter" "value")}}>
+        {{#each this.categoryOptions as |opt|}}
+          <option value={{opt.id}} selected={{is-equal opt.id this.categoryFilter}}>{{opt.label}}</option>
+        {{/each}}
+      </select>
+    </label>
+  </div>
+
+  {{#if this.loading}}
+    <p class="la-system-settings__loading" aria-live="polite">{{t "Loading..." key="loading"}}</p>
+  {{else if this.filteredTemplates.length}}
+    <div class="la-system-settings__table-wrap">
+      <table class="table la-system-settings__table">
+        <thead>
+          <tr>
+            <th scope="col">{{t "Email" key="system_settings_col_email"}}</th>
+            <th scope="col">{{t "Category" key="system_settings_col_category"}}</th>
+            <th scope="col">{{t "Recipient" key="system_settings_col_recipient"}}</th>
+            <th scope="col">{{t "Status" key="system_settings_col_status"}}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each this.filteredTemplates as |tpl|}}
+            <tr>
+              <td>
+                <LinkTo @route="system-settings.email-edit" @model={{tpl.slug}} class="la-system-settings__link">
+                  {{tpl.name}}
+                </LinkTo>
+              </td>
+              <td>{{tpl.category}}</td>
+              <td>{{tpl.recipient_type}}</td>
+              <td>
+                {{#if tpl.is_customized}}
+                  <span class="label label-info">{{t "Customized" key="system_settings_customized"}}</span>
+                {{else}}
+                  <span class="label label-default">{{t "Default" key="system_settings_default"}}</span>
+                {{/if}}
+              </td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+  {{else}}
+    <p>{{t "No email templates match your filters." key="system_settings_emails_empty"}}</p>
+  {{/if}}
+{{/if}}

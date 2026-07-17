@@ -131,7 +131,7 @@ describe Api::UsersController, :type => :controller do
         "edit"=>false, 
         'edit_boards' => false,
         "manage_supervision"=>false, 
-        'set_goals' => false,
+        'set_goals' => true,
         "delete"=>false
       })
 
@@ -601,7 +601,29 @@ describe Api::UsersController, :type => :controller do
   end
   
   describe "create" do
+    # Open-registration examples exercise create behavior. This branch enables
+    # landing_beta_closed by default; stub it off here and cover the gate below.
+    before do
+      allow(FeatureFlags).to receive(:landing_beta_closed_enabled?).and_return(false)
+    end
+
+    it "rejects self-registration when landing_beta_closed is enabled" do
+      allow(FeatureFlags).to receive(:landing_beta_closed_enabled?).and_return(true)
+      post :create, params: {:user => {'name' => 'fred'}}
+      expect(response).not_to be_successful
+      expect(response.status).to eq(403)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq("registration is not available during beta testing")
+      expect(json['landing_beta_closed']).to eq(true)
+    end
+
     it "should not require api token" do
+      post :create, params: {:user => {'name' => 'fred'}}
+      expect(response).to be_successful
+    end
+
+    it "should provision default library boards on signup when enabled" do
+      expect(UserBoardProvisioner).to receive(:provision_for).and_return([])
       post :create, params: {:user => {'name' => 'fred'}}
       expect(response).to be_successful
     end
@@ -635,7 +657,7 @@ describe Api::UsersController, :type => :controller do
       user = json['user']
       expect(user).not_to eq(nil)
       expect(user['preferences']).not_to eq(nil)
-      expect(user['preferences']['auto_home_return']).to eq(true)
+      expect(user['preferences']['auto_home_return']).to eq(false)
       expect(user['preferences']['clear_on_vocalize']).to eq(true)
       expect(user['preferences']['logging']).to eq(false)
     end
@@ -655,9 +677,301 @@ describe Api::UsersController, :type => :controller do
       expect(response).to be_successful
     end
 
+    describe "user_creation audit trail" do
+      it "records a user_creation AuditEvent for plain self-registration" do
+        post :create, params: {:user => {'name' => 'fred'}}
+        json = assert_success_json
+        u = User.find_by_path(json['user']['id'])
+        ev = AuditEvent.where(:event_type => 'user_creation').where("user_key = ?", u.global_id).first
+        expect(ev).to be_present
+        expect(ev.data['author']).to eq(nil)
+        expect(ev.data['via_start_code']).to eq(false)
+        expect(ev.data['organization_id']).to eq(nil)
+      end
+
+      it "records the authoring organization when created via a valid start code" do
+        o = Organization.create
+        code = Organization.activation_code(o, {'user_type' => 'communicator'})
+        post :create, params: {:user => {'name' => 'fred', 'start_code' => code}}
+        json = assert_success_json
+        u = User.find_by_path(json['user']['id'])
+        ev = AuditEvent.where(:event_type => 'user_creation', :record_id => o.global_id).first
+        expect(ev).to be_present
+        expect(ev.user_key).to eq(u.global_id)
+        expect(ev.data['via_start_code']).to eq(true)
+        expect(ev.data['organization_id']).to eq(o.global_id)
+      end
+
+      it "records both school_authorization and user_creation for an org-authored minor" do
+        allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+        token_user
+        o = Organization.create(:settings => {'total_licenses' => 1})
+        o.add_manager(@user.user_name, true)
+        post :create, params: {:user => {
+          'name' => 'school_kid_both_events',
+          'email' => 'school_kid_both_events@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'authored_organization_id' => o.global_id,
+          'coppa_under_13' => true
+        }}
+        json = assert_success_json
+        u = User.find_by_path(json['user']['id'])
+        expect(AuditEvent.where(:event_type => 'school_authorization').where("user_key = ?", u.global_id).count).to eq(1)
+        expect(AuditEvent.where(:event_type => 'user_creation').where("user_key = ?", u.global_id).count).to eq(1)
+      end
+
+      it "does not orphan or 500 the account when the user_creation audit fails (fail-open)" do
+        allow(AuditEvent).to receive(:create!).and_call_original
+        expect(AuditEvent).to receive(:create!).with(hash_including(:event_type => 'user_creation')).and_raise(StandardError.new('boom'))
+        post :create, params: {:user => {'name' => 'audit_fail_plain'}}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        u = User.find_by_path(json['user']['id'])
+        expect(u).to be_present
+      end
+    end
+
+    describe "COPPA parental consent" do
+      before do
+        allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      end
+
+      it "creates a pending minor when authored_organization_id is blank string (Ember serializes empty attrs)" do
+        expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_request, anything).once
+        post :create, params: {:user => {
+          'name' => 'coppa_kid_blank_org',
+          'email' => 'kid_blank_org@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'authored_organization_id' => '',
+          'coppa_under_13' => true,
+          'parent_consent_email' => 'parent_blank_org@example.com'
+        }}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json['meta']['coppa_parental_consent_pending']).to eq(true)
+        u = User.find_by_path(json['user']['id'])
+        expect(u.coppa_parental_consent_pending?).to eq(true)
+      end
+
+      it "creates a pending minor without access token and emails the parent" do
+        expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_request, anything).once
+        expect(UserMailer).not_to receive(:schedule_delivery).with(:confirm_registration, anything)
+        expect(UserMailer).not_to receive(:schedule_delivery).with(:new_user_registration, anything)
+        expect(ExternalTracker).not_to receive(:track_new_user)
+        post :create, params: {:user => {
+          'name' => 'coppa_kid',
+          'email' => 'kid_coppa@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'coppa_under_13' => true,
+          'parent_consent_email' => 'parent_coppa@example.com'
+        }}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json['meta']['coppa_parental_consent_pending']).to eq(true)
+        expect(json['user']['coppa_parental_consent_pending']).to eq(true)
+        expect(json['meta']['access_token']).to eq(nil)
+        u = User.find_by_path(json['user']['id'])
+        expect(u.coppa_parental_consent_pending?).to eq(true)
+        d = Device.find_by(:user_id => u.id, :device_key => 'default', :developer_key_id => 0)
+        expect((d.settings['keys'] || []).length).to eq(0)
+      end
+
+      it "creates a pending minor when Ember sends dasherized attribute keys" do
+        expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_request, anything).once
+        post :create, params: {:user => {
+          'name' => 'coppa_kid_dash',
+          'email' => 'kid_dash@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'coppa-under-13' => true,
+          'parent-consent-email' => 'parent_dash@example.com'
+        }}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json['meta']['coppa_parental_consent_pending']).to eq(true)
+        u = User.find_by_path(json['user']['id'])
+        expect(u.coppa_parental_consent_pending?).to eq(true)
+      end
+
+      it "creates a pending minor when Ember sends camelCase attribute keys" do
+        expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_request, anything).once
+        post :create, params: {:user => {
+          'name' => 'coppa_kid_camel',
+          'email' => 'kid_camel@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'coppaUnder13' => true,
+          'parentConsentEmail' => 'parent_camel@example.com'
+        }}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json['meta']['coppa_parental_consent_pending']).to eq(true)
+        u = User.find_by_path(json['user']['id'])
+        expect(u.coppa_parental_consent_pending?).to eq(true)
+      end
+
+      it "rejects under-13 without parent email" do
+        post :create, params: {:user => {
+          'name' => 'coppa_kid2',
+          'email' => 'kid2@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'coppa_under_13' => true
+        }}
+        expect(response).not_to be_successful
+        json = JSON.parse(response.body)
+        expect(json['errors']).to include('parent consent email required for under-13 registration')
+      end
+
+      it "rejects parent email matching account email" do
+        post :create, params: {:user => {
+          'name' => 'coppa_kid3',
+          'email' => 'same@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'coppa_under_13' => true,
+          'parent_consent_email' => 'same@example.com'
+        }}
+        expect(response).not_to be_successful
+        json = JSON.parse(response.body)
+        expect(json['errors']).to include('parent consent email must be different from the account email')
+      end
+
+      it "blocks confirm_registration until parent consents" do
+        post :create, params: {:user => {
+          'name' => 'coppa_kid4',
+          'email' => 'kid4@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'coppa_under_13' => true,
+          'parent_consent_email' => 'parent4@example.com'
+        }}
+        expect(response).to be_successful
+        u = User.find_by_path(JSON.parse(response.body)['user']['id'])
+        code = u.registration_code
+        post :confirm_registration, params: {:user_id => u.global_id, :code => code}
+        expect(response.status).to eq(400)
+        body = JSON.parse(response.body)
+        expect(body['coppa_parental_consent_pending']).to eq(true)
+      end
+
+      it "treats a present-but-invalid authored_organization_id as NO authorization (COPPA still applies)" do
+        # Regression: a non-blank but invalid org id must NOT skip the COPPA gate.
+        # Under-13 with a bogus org id and no parent email must be rejected, proving
+        # the gate ran despite the non-blank authored_organization_id.
+        post :create, params: {:user => {
+          'name' => 'coppa_kid_bogus_org',
+          'email' => 'kid_bogus_org@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'authored_organization_id' => 'invalid_org_999',
+          'coppa_under_13' => true
+        }}
+        expect(response).not_to be_successful
+        json = JSON.parse(response.body)
+        expect(json['errors']).to include('parent consent email required for under-13 registration')
+      end
+
+      it "treats an unauthorized author's authored_organization_id as NO authorization (COPPA still applies)" do
+        token_user
+        o = Organization.create(:settings => {'total_licenses' => 1})
+        # @user is NOT a manager of o, so the claimed authorization is invalid.
+        post :create, params: {:user => {
+          'name' => 'coppa_kid_unauth_org',
+          'email' => 'kid_unauth_org@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'authored_organization_id' => o.global_id,
+          'coppa_under_13' => true
+        }}
+        expect(response).not_to be_successful
+        json = JSON.parse(response.body)
+        expect(json['errors']).to include('parent consent email required for under-13 registration')
+      end
+
+      it "skips COPPA and records an auditable school_authorization for a valid org-authored minor" do
+        token_user
+        o = Organization.create(:settings => {'total_licenses' => 1})
+        o.add_manager(@user.user_name, true)
+        post :create, params: {:user => {
+          'name' => 'school_kid',
+          'email' => 'school_kid@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'authored_organization_id' => o.global_id,
+          'coppa_under_13' => true
+        }}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json['meta']['coppa_parental_consent_pending']).to be_falsey
+        u = User.find_by_path(json['user']['id'])
+        expect(u.coppa_parental_consent_pending?).to eq(false)
+        sa = u.settings['school_authorization']
+        expect(sa).to be_a(Hash)
+        expect(sa['basis']).to eq('school_official')
+        expect(sa['organization_id']).to eq(o.global_id)
+        expect(sa['authorized_by']).to eq(@user.global_id)
+        ev = AuditEvent.where(:event_type => 'school_authorization', :record_id => sa['record_id']).first
+        expect(ev).to be_present
+        expect(ev.user_key).to eq(u.global_id)
+        expect(ev.data['organization_id']).to eq(o.global_id)
+      end
+
+      it "currently allows an assistant-level manager to author a minor (Phase 1 will decide if a full manager should be required)" do
+        # Documents the preserved authoring scope: 'edit' is satisfied by assistant
+        # managers (add_manager(..., false)), not only full managers. This is the
+        # pre-existing behavior; tightening to full-manager-only is a Phase 1 decision.
+        token_user
+        o = Organization.create(:settings => {'total_licenses' => 1})
+        o.add_manager(@user.user_name, false)
+        post :create, params: {:user => {
+          'name' => 'assistant_authored_kid',
+          'email' => 'assistant_kid@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'authored_organization_id' => o.global_id,
+          'coppa_under_13' => true
+        }}
+        expect(response).to be_successful
+        u = User.find_by_path(JSON.parse(response.body)['user']['id'])
+        expect(u.coppa_parental_consent_pending?).to eq(false)
+        expect(u.settings['school_authorization']['basis']).to eq('school_official')
+      end
+
+      it "does not orphan or 500 the child account when the school_authorization audit fails (fail-open)" do
+        token_user
+        o = Organization.create(:settings => {'total_licenses' => 1})
+        o.add_manager(@user.user_name, true)
+        allow(AuditEvent).to receive(:create!).and_call_original
+        expect(AuditEvent).to receive(:create!).with(hash_including(:event_type => 'school_authorization')).and_raise(StandardError.new('boom'))
+        post :create, params: {:user => {
+          'name' => 'audit_fail_kid',
+          'email' => 'audit_fail_kid@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'authored_organization_id' => o.global_id,
+          'coppa_under_13' => true
+        }}
+        expect(response).to be_successful
+        u = User.find_by_path(JSON.parse(response.body)['user']['id'])
+        expect(u).to be_present
+        expect(u.settings['school_authorization']['basis']).to eq('school_official')
+      end
+    end
+
     it "should error on invalid start code" do
       post :create, params: {:user => {'name' => 'fred', 'start_code' => 'asdf'}}
       assert_error('invalid start code')
+    end
+
+    it "ignores blank start code (optional field may submit empty string)" do
+      post :create, params: {:user => {'name' => 'reg_blank_start_code', 'start_code' => ''}}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['user']['id']).to be_present
     end
 
     it "should allow adding a start code" do
@@ -712,6 +1026,26 @@ describe Api::UsersController, :type => :controller do
       expect(b2).to eq(b)
       expect(u.settings['preferences']['home_board']['key']).to_not eq(b.key)
       expect(b2.instance_variable_get('@sub_id')).to eq(u.global_id)
+    end
+
+    it "should omit beta_program_access when org disables default for start code registrations" do
+      o = Organization.create
+      o.settings['default_beta_program_access'] = false
+      o.save!
+      code = Organization.activation_code(o, {'user_type' => 'communicator'})
+      post :create, params: {:user => {'name' => 'fred_no_beta', 'start_code' => code}}
+      json = assert_success_json
+      u = User.find_by_path(json['user']['id'])
+      expect(u.settings['preferences']['beta_program_access']).to eq(false)
+      expect(json['user']['preferences']['beta_program_access']).to eq(false)
+    end
+
+    it "should default beta_program_access to true for registrations without a start code" do
+      post :create, params: {:user => {'name' => 'fred_beta_default'}}
+      json = assert_success_json
+      u = User.find_by_path(json['user']['id'])
+      expect(u.settings['preferences']['beta_program_access']).to eq(true)
+      expect(json['user']['preferences']['beta_program_access']).to eq(true)
     end
     
     it "should throttle or captcha or something to prevent abuse"
@@ -1241,89 +1575,246 @@ describe Api::UsersController, :type => :controller do
       expect(response).to be_successful
     end
     
-    it "should throttle token creation and emailing" do
+    it "should not email a throttled user but should still return a uniform response" do
       u = User.create
       10.times{|i| u.generate_password_reset }
       u.save
       expect(UserMailer).not_to receive(:schedule_delivery)
       post :forgot_password, params: {:key => u.user_name}
-      expect(response).not_to be_successful
+      expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['email_sent']).to eq(false)
-      expect(json['users']).to eq(0)
-      expect(json['message']).to eq('The user matching that name or email has had too many password resets. Please wait at least three hours and try again.')
+      expect(json).to eq({'email_sent' => true})
     end
-    
-    it "should return message when no users found" do
+
+    it "should not email for an unknown username but should still return a uniform response" do
+      expect(UserMailer).not_to receive(:schedule_delivery)
       post :forgot_password, params: {:key => 'shoelace'}
-      expect(response).not_to be_successful
+      expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['email_sent']).to eq(false)
-      expect(json['users']).to eq(0)
-      expect(json['message']).to eq('No users found with that name or email.')
+      expect(json).to eq({'email_sent' => true})
     end
-    
-    
+
+    it "should not leak account existence (identical response for real and bogus keys)" do
+      u = User.create(:settings => {'email' => 'bob@example.com'})
+      post :forgot_password, params: {:key => u.user_name}
+      real = JSON.parse(response.body)
+      real_status = response.status
+      post :forgot_password, params: {:key => 'definitely-not-a-user'}
+      bogus = JSON.parse(response.body)
+      expect(response.status).to eq(real_status)
+      expect(bogus).to eq(real)
+      expect(real).to eq({'email_sent' => true})
+    end
+
     it "should schedule a message delivery when non-throttled user is found" do
       u = User.create(:settings => {'email' => 'bob@example.com'})
       expect(UserMailer).to receive(:schedule_delivery)
       post :forgot_password, params: {:key => u.user_name}
       expect(response).to be_successful
     end
-    
+
     it "should return a success message when no users found but an email address provided" do
       post :forgot_password, params: {:key => 'shoelace@example.com'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['email_sent']).to eq(true)
     end
-    
+
     it "should schedule a message delivery when no user found by an email address provided" do
       expect(UserMailer).to receive(:schedule_delivery).with(:login_no_user, 'shoelace@example.com')
       post :forgot_password, params: {:key => 'shoelace@example.com'}
       expect(response).to be_successful
     end
 
-    it "should not include disabled emails" do
+    it "should not email disabled accounts but should still return a uniform response" do
       u = User.create(:settings => {'email' => 'bob@example.com', 'email_disabled' => true})
       expect(UserMailer).not_to receive(:schedule_delivery)
       post :forgot_password, params: {:key => u.user_name}
-      expect(response).not_to be_successful
-      json = JSON.parse(response.body)
-      expect(json['email_sent']).to eq(false)
-      expect(json['users']).to eq(0)
-      expect(json['message']).to eq('The email address for that account has been manually disabled.')
-    end
-    
-    it "should include possibly-multiple users for the given email address" do
-      u = User.create(:settings => {'email' => 'bob@example.com'})
-      post :forgot_password, params: {:key => u.user_name}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['email_sent']).to eq(true)
-      expect(json['users']).to eq(1)
-      
+      expect(json).to eq({'email_sent' => true})
+    end
+
+    it "should email all matching users for the given email address" do
+      u = User.create(:settings => {'email' => 'bob@example.com'})
       u2 = User.create(:settings => {'email' => 'bob@example.com'})
+      expect(UserMailer).to receive(:schedule_delivery) do |template, ids|
+        expect(template).to eq(:forgot_password)
+        expect(ids.sort).to eq([u.global_id, u2.global_id].sort)
+      end
       post :forgot_password, params: {:key => 'bob@example.com'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['email_sent']).to eq(true)
-      expect(json['users']).to eq(2)
+      expect(json).to eq({'email_sent' => true})
     end
-    it "should provide helpful message if some user accounts but not others were throttled" do
+
+    it "should still email non-throttled users when some accounts are throttled" do
       u = User.create(:settings => {'email' => 'bob@example.com'})
       u2 = User.create(:settings => {'email' => 'bob@example.com'})
       10.times{|i| u.generate_password_reset }
       u.save
-      expect(UserMailer).to receive(:schedule_delivery)
+      expect(UserMailer).to receive(:schedule_delivery) do |template, ids|
+        expect(template).to eq(:forgot_password)
+        expect(ids).to eq([u2.global_id])
+      end
       post :forgot_password, params: {:key => 'bob@example.com'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['email_sent']).to eq(true)
-      expect(json['users']).to eq(2)
-      expect(json['message']).to eq("One or more of the users matching that name or email have had too many password resets, so those links weren't emailed to you. Please wait at least three hours and try again.")
+      expect(json).to eq({'email_sent' => true})
     end
-  end  
+  end
+
+  describe 'resend_parental_consent' do
+    before do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+    end
+
+    it 'does not require an API access token and queues parental consent email' do
+      token = GoSecure.browser_token
+      u = User.process_new({
+        'user_name' => 'coppa_resend_kid',
+        'name' => 'COPPA Resend Kid',
+        'email' => 'child_resend@example.com',
+        'password' => 'seashell',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_resend@example.com'
+      }, {:pending => true})
+      expect(u).to be_persisted
+      expect(u.coppa_parental_consent_pending?).to eq(true)
+      RedisInit.default.del("parental_consent_resend:#{u.global_id}")
+      expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_request, u.global_id).once
+      post :resend_parental_consent, params: {
+        :client_id => 'browser',
+        :client_secret => token,
+        :username => 'coppa_resend_kid',
+        :password => 'seashell'
+      }
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['sent']).to eq(true)
+    end
+
+    it 'returns 400 for invalid password' do
+      token = GoSecure.browser_token
+      u = User.process_new({
+        'user_name' => 'coppa_resend_badpw',
+        'name' => 'COPPA Bad PW',
+        'email' => 'child_badpw@example.com',
+        'password' => 'seashell',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_badpw@example.com'
+      }, {:pending => true})
+      RedisInit.default.del("parental_consent_resend:#{u.global_id}")
+      post :resend_parental_consent, params: {
+        :client_id => 'browser',
+        :client_secret => token,
+        :username => 'coppa_resend_badpw',
+        :password => 'notthepassword'
+      }
+      expect(response.status).to eq(400)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('Invalid authentication attempt')
+    end
+
+    it 'returns 400 when parental consent is not pending' do
+      token = GoSecure.browser_token
+      u = User.new(:user_name => 'coppa_resend_adult')
+      u.generate_password('seashell')
+      u.save!
+      RedisInit.default.del("parental_consent_resend:#{u.global_id}")
+      post :resend_parental_consent, params: {
+        :client_id => 'browser',
+        :client_secret => token,
+        :username => 'coppa_resend_adult',
+        :password => 'seashell'
+      }
+      expect(response.status).to eq(400)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('Invalid authentication attempt')
+    end
+
+    it 'returns 429 with retry_after_seconds when throttled' do
+      token = GoSecure.browser_token
+      u = User.process_new({
+        'user_name' => 'coppa_resend_throttle',
+        'name' => 'COPPA Throttle',
+        'email' => 'child_throttle@example.com',
+        'password' => 'seashell',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_throttle@example.com'
+      }, {:pending => true})
+      RedisInit.default.del("parental_consent_resend:#{u.global_id}")
+      expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_request, u.global_id).once
+      post :resend_parental_consent, params: {
+        :client_id => 'browser',
+        :client_secret => token,
+        :username => 'coppa_resend_throttle',
+        :password => 'seashell'
+      }
+      expect(response).to be_successful
+      expect(UserMailer).not_to receive(:schedule_delivery)
+      post :resend_parental_consent, params: {
+        :client_id => 'browser',
+        :client_secret => token,
+        :username => 'coppa_resend_throttle',
+        :password => 'seashell'
+      }
+      expect(response.status).to eq(429)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('parental_consent_resend_throttled')
+      expect(json['retry_after_seconds'].to_i).to be > 0
+    end
+
+    it 'returns 400 when COPPA consent flow is disabled' do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(false)
+      token = GoSecure.browser_token
+      u = User.process_new({
+        'user_name' => 'coppa_resend_disabled',
+        'name' => 'COPPA Disabled',
+        'email' => 'child_dis@example.com',
+        'password' => 'seashell',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_dis@example.com'
+      }, {:pending => true})
+      RedisInit.default.del("parental_consent_resend:#{u.global_id}")
+      post :resend_parental_consent, params: {
+        :client_id => 'browser',
+        :client_secret => token,
+        :username => 'coppa_resend_disabled',
+        :password => 'seashell'
+      }
+      expect(response.status).to eq(400)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('Invalid authentication attempt')
+    end
+
+    it 'returns 400 for invalid browser token' do
+      token = GoSecure.browser_token
+      u = User.process_new({
+        'user_name' => 'coppa_resend_badtok',
+        'name' => 'COPPA Bad Token',
+        'email' => 'child_badtok@example.com',
+        'password' => 'seashell',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_badtok@example.com'
+      }, {:pending => true})
+      RedisInit.default.del("parental_consent_resend:#{u.global_id}")
+      post :resend_parental_consent, params: {
+        :client_id => 'browser',
+        :client_secret => 'not-a-browser-token',
+        :username => 'coppa_resend_badtok',
+        :password => 'seashell'
+      }
+      expect(response.status).to eq(400)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('Invalid authentication attempt')
+    end
+  end
 
   describe "password_reset" do
     it "should not require api token" do
@@ -1395,8 +1886,19 @@ describe Api::UsersController, :type => :controller do
       expect(progress.settings['method']).to eq('flush_user_logs')
       expect(progress.settings['arguments']).to eq([@user.global_id, @user.user_name])
     end
+
+    it "should log an audit event when scheduling a log flush" do
+      token_user
+      AuditEvent.delete_all
+      post :flush_logs, params: {:user_id => @user.global_id, :confirm_user_id => @user.global_id, :user_name => @user.user_name}
+      expect(response).to be_successful
+      ev = AuditEvent.all.to_a.find { |e| e.data['type'] == 'user_logs_flush_scheduled' }
+      expect(ev).to_not eq(nil)
+      expect(ev.user_key).to eq(@user.global_id)
+      expect(ev.data['user_id']).to eq(@user.global_id)
+    end
   end
-  
+
   describe "flush_user" do
     it "should require api token" do
       post :flush_user, params: {:user_id => 1}
@@ -1435,6 +1937,17 @@ describe Api::UsersController, :type => :controller do
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json).to eq({'flushed' => 'pending'})
+    end
+
+    it "should log an audit event when scheduling account deletion" do
+      token_user
+      AuditEvent.delete_all
+      post :flush_user, params: {:user_id => @user.global_id, :confirm_user_id => @user.global_id, :user_name => @user.user_name}
+      expect(response).to be_successful
+      ev = AuditEvent.all.to_a.find { |e| e.data['type'] == 'user_deletion_scheduled' }
+      expect(ev).to_not eq(nil)
+      expect(ev.user_key).to eq(@user.global_id)
+      expect(ev.data['user_id']).to eq(@user.global_id)
     end
   end
 
@@ -1544,7 +2057,7 @@ describe Api::UsersController, :type => :controller do
     it "should schedule token processing" do
       token_user
       p = Progress.create
-      expect(Progress).to receive(:schedule).with(@user, :process_subscription_token, {'code' => 'abc'}, 'monthly_6', nil).and_return(p)
+      expect(Progress).to receive(:schedule).with(@user, :process_subscription_token, {'code' => 'abc'}, 'monthly_6', nil, for_user: @user).and_return(p)
       post :subscribe, params: {:user_id => @user.global_id, :token => {'code' => 'abc'}, :type => 'monthly_6'}
       expect(response.successful?).to eq(true)
       json = JSON.parse(response.body)
@@ -1554,7 +2067,7 @@ describe Api::UsersController, :type => :controller do
     it "should allow redeeming a gift purchase" do
       token_user
       p = Progress.create
-      expect(Progress).to receive(:schedule).with(@user, :redeem_gift_token, 'abc').and_return(p)
+      expect(Progress).to receive(:schedule).with(@user, :redeem_gift_token, 'abc', for_user: @user).and_return(p)
       post :subscribe, params: {:user_id => @user.global_id, :token => {'code' => 'abc'}, :type => 'gift_code'}
       expect(response.successful?).to eq(true)
       json = JSON.parse(response.body)
@@ -1730,7 +2243,7 @@ describe Api::UsersController, :type => :controller do
     it "should allow updating a subscription with no api token, but a confirmation code" do
       @user = User.create
       p = Progress.create
-      expect(Progress).to receive(:schedule).with(@user, :process_subscription_token, {'code' => 'abc'}, 'monthly_6', nil).and_return(p)
+      expect(Progress).to receive(:schedule).with(@user, :process_subscription_token, {'code' => 'abc'}, 'monthly_6', nil, for_user: nil).and_return(p)
       post :subscribe, params: {:user_id => @user.global_id, :confirmation => @user.registration_code, :token => {'code' => 'abc'}, :type => 'monthly_6'}
       expect(response.successful?).to eq(true)
       json = JSON.parse(response.body)
@@ -1766,7 +2279,7 @@ describe Api::UsersController, :type => :controller do
     it "should schedule token processing" do
       token_user
       p = Progress.create
-      expect(Progress).to receive(:schedule).with(@user, :process_subscription_token, 'token', 'unsubscribe').and_return(p)
+      expect(Progress).to receive(:schedule).with(@user, :process_subscription_token, 'token', 'unsubscribe', for_user: @user).and_return(p)
       delete :unsubscribe, params: {:user_id => @user.global_id}
       expect(response.successful?).to eq(true)
       json = JSON.parse(response.body)
@@ -2351,11 +2864,23 @@ describe Api::UsersController, :type => :controller do
       expect(LogSession.find_by(user_id: @user.id, log_type: 'daily_use')).to eq(nil)
     end
 
-    it "should not allow a supervisor without admin_support_actions to check another user's daily use" do
-      token_user
-      u = User.create
-      User.link_supervisor_to_user(@user, u)
-      get :daily_use, params: {:user_id => u.global_id}
+    it "should not allow a supervisor with supervise access to check a supervisee's daily use" do
+      sup = User.create
+      comm = User.create
+      dev = Device.create(:user => sup, :developer_key_id => 0, :device_key => 'daily_use_sup')
+      request.headers['Authorization'] = "Bearer #{dev.tokens[0]}"
+      User.link_supervisor_to_user(sup, comm, nil, true)
+      get :daily_use, params: {:user_id => comm.global_id}
+      assert_unauthorized
+    end
+
+    it "should not allow a modeling-only supervisor to check another user's daily use" do
+      sup = User.create
+      comm = User.create
+      dev = Device.create(:user => sup, :developer_key_id => 0, :device_key => 'daily_use_mod')
+      request.headers['Authorization'] = "Bearer #{dev.tokens[0]}"
+      User.link_supervisor_to_user(sup, comm, nil, 'modeling_only')
+      get :daily_use, params: {:user_id => comm.global_id}
       assert_unauthorized
     end
 
@@ -2373,6 +2898,29 @@ describe Api::UsersController, :type => :controller do
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['log']).to_not eq(nil)
+    end
+
+    it "should log an admin-support audit event for a cross-user daily_use read" do
+      token_user
+      o = Organization.create(:admin => true)
+      o.add_manager(@user.user_name, true)
+      u = User.create
+      AuditEvent.delete_all
+      get :daily_use, params: {:user_id => u.global_id}
+      expect(response).to be_successful
+      ev = AuditEvent.all.to_a.find { |e| e.data['type'] == 'admin_support_daily_use_read' }
+      expect(ev).to_not eq(nil)
+      expect(ev.user_key).to eq(@user.global_id)
+      expect(ev.data['user_id']).to eq(u.global_id)
+    end
+
+    it "should not log an admin-support audit event for a self daily_use read" do
+      token_user
+      AuditEvent.delete_all
+      get :daily_use, params: {:user_id => @user.global_id}
+      expect(response).to be_successful
+      ev = AuditEvent.all.to_a.find { |e| e.data['type'] == 'admin_support_daily_use_read' }
+      expect(ev).to eq(nil)
     end
 
     it 'should return data if available' do
@@ -2424,6 +2972,20 @@ describe Api::UsersController, :type => :controller do
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['userversion']).to eq([])
+    end
+
+    it 'should log an admin-support audit event for a cross-user history read' do
+      token_user
+      o = Organization.create(:admin => true)
+      o.add_manager(@user.user_name, true)
+      u = User.create
+      AuditEvent.delete_all
+      get 'history', :params => {'user_id' => u.global_id}
+      expect(response).to be_successful
+      ev = AuditEvent.all.to_a.find { |e| e.data['type'] == 'admin_support_history_read' }
+      expect(ev).to_not eq(nil)
+      expect(ev.user_key).to eq(@user.global_id)
+      expect(ev.data['user_id']).to eq(u.global_id)
     end
   end
   
@@ -2639,8 +3201,28 @@ describe Api::UsersController, :type => :controller do
       expect(response).to be_redirect
       expect(response.location).to eq('http://www.example.com/pic.png')
     end
+
+    it 'should accept the newer expiring protected_image_token format' do
+      u = User.create
+      bi = ButtonImage.create(user: u, url: 'lingolinq://protected_image/lessonpix/12345', settings: {'cached_copy_url' => 'http://www.example.com/pic.png'})
+      expect(Uploader).to receive(:lessonpix_credentials).with(u).and_return({})
+      get 'protected_image', params: {'user_id' => u.global_id, 'user_token' => u.protected_image_token, 'library' => 'lessonpix', 'image_id' => '12345'}
+      expect(response).to be_redirect
+      expect(response.location).to eq('http://www.example.com/pic.png')
+    end
+
+    it 'should reject an expired protected_image_token and fall back to the anonymous path' do
+      now = Time.utc(2026, 7, 5, 12, 0, 0)
+      allow(Time).to receive(:now).and_return(now)
+      u = User.create
+      token = u.protected_image_token(1.day)
+      allow(Time).to receive(:now).and_return(now + 2.days)
+      get 'protected_image', params: {'user_id' => u.global_id, 'user_token' => token, 'library' => 'whatever', 'image_id' => '123'}
+      expect(response).to be_redirect
+      expect(response.location).to eq('http://test.host/images/square.svg')
+    end
   end
-  
+
   describe "word_map" do
     it "should require an api token" do
       get 'word_map', params: {'user_id' => 'asdf'}
@@ -3337,7 +3919,7 @@ describe Api::UsersController, :type => :controller do
       json = assert_success_json
       expect(json['progress']).to_not eq(nil)
       p = Progress.find_by_path(json['progress']['id'])
-      expect(p.settings).to eq({'class' => 'User', 'id' => @user.id, 'method' => 'reset_eval', 'state' => 'pending', 'arguments' => [@user.devices[0].global_id, {'email' => nil, 'home_board_key' => nil, 'password' => nil, 'symbol_library' => nil}]})
+      expect(p.settings).to eq({'class' => 'User', 'id' => @user.id, 'method' => 'reset_eval', 'state' => 'pending', 'arguments' => [@user.devices[0].global_id, {'email' => nil, 'home_board_key' => nil, 'password' => nil, 'symbol_library' => nil}], 'for_user_global_id' => @user.global_id})
     end
   end
 
@@ -3548,5 +4130,27 @@ describe Api::UsersController, :type => :controller do
     end
   end
 
+  describe "ensure_board_tag" do
+    it "should require a valid token" do
+      post :ensure_board_tag, params: {user_id: '1_1', tag: 'MyFolder'}
+      assert_missing_token
+    end
+
+    it "should create an empty folder tag" do
+      token_user
+      post :ensure_board_tag, params: {user_id: @user.global_id, tag: 'MyFolder'}
+      json = assert_success_json
+      expect(json['ok']).to eq(true)
+      expect(json['board_tags']).to eq(['MyFolder'])
+      expect(json['board_tag_map']).to eq({'MyFolder' => []})
+      expect(@user.reload.user_extra.settings['board_tags']['MyFolder']).to eq([])
+    end
+
+    it "should reject blank tag" do
+      token_user
+      post :ensure_board_tag, params: {user_id: @user.global_id, tag: '  '}
+      expect(response).not_to be_successful
+    end
+  end
 
 end

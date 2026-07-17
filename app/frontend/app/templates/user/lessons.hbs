@@ -1,4 +1,16 @@
 {{#if this.session.isAuthenticated}}
+  {{#if this.show_org_trainings_admin}}
+    <div class="alert alert-info" style="margin-bottom: 1.25rem;">
+      <p style="margin-bottom: 0.75rem;">{{t "As an organization manager, you can add trainings, assign them to staff, and track completion from your organization's trainings page." key="org_manager_trainings_cta"}}</p>
+      <ul class="list-unstyled" style="margin-bottom: 0;">
+        {{#each this.app_state.sessionUser.managed_orgs as |org|}}
+          <li style="margin-bottom: 0.35rem;">
+            <LinkTo @route="organization.lessons" @model={{org.id}}>{{org.name}} — {{t "Trainings" key="trainings"}}</LinkTo>
+          </li>
+        {{/each}}
+      </ul>
+    </div>
+  {{/if}}
   <h2>
     {{t "Current Trainings" key="current_trainings"}}
   </h2>
@@ -19,9 +31,9 @@
         </span>
         <div style='float: right;'>
           {{#if lesson.completed}}
-            <button class='btn btn-sm btn-default' {{action "launch" lesson}}>{{t "Re-Take" key="re_take"}}</button>
+            <button class='btn btn-sm btn-default' {{on "click" (this.ctrlAction "launch" lesson)}}>{{t "Re-Take" key="re_take"}}</button>
           {{else}}
-            <button class={{if lesson.required "btn btn-primary" "btn btn-default"}} {{action "launch" lesson}}>{{t "Start Training" key="start_training"}}</button>
+            <button class={{if lesson.required "btn btn-primary" "btn btn-default"}} {{on "click" (this.ctrlAction "launch" lesson)}}>{{t "Start Training" key="start_training"}}</button>
           {{/if}}
         </div>
         <div class='details'>
@@ -45,5 +57,5 @@
     {{t "Organization managers can define continuing education trainings for your benefit and improvement. When trainings have been added they will appear on a user's dashboard and here on their list of trainings. Each training can be launched, and then rated once completed to provide feedback and to track usage. Organizations can use these trainings to help everyone develop the skills and knowledge that can help them best support AAC users." key="user_trainings_explainer"}}
   {{/if}}
 {{else}}
-  {{login-form left=true prompt=true return=true}}
+  <LoginForm @left={{true}} @prompt={{true}} @return={{true}} />
 {{/if}}

@@ -26,6 +26,10 @@ def create_user(user_name, password, options = {})
   user = User.find_by(user_name: user_name)
   if user
     puts "Found existing user: #{user_name}. Updating password..."
+    if options[:is_admin]
+      user.settings ||= {}
+      user.settings['admin'] = true
+    end
   else
     puts "Creating new user: #{user_name}..."
     user = User.process_new({
@@ -35,7 +39,8 @@ def create_user(user_name, password, options = {})
       public: false,
       password: password
     }, {
-      is_admin: options[:is_admin] || false
+      # User#process_params reads non_user_params['admin'] (not is_admin)
+      admin: options[:is_admin] || false
     })
   end
   
@@ -79,27 +84,24 @@ nyc = create_user('NYC_test', default_password, {
   email: 'nyc_test@example.com' 
 })
 
-# Find or create a Demo School District organization
-# Note: settings is encrypted (secure_serialize), so we cannot query by JSON/ILIKE; iterate in batches.
-demo_org = nil
-Organization.find_each do |o|
-  if o.settings && o.settings['name']&.match?(/Demo School District/i)
-    demo_org = o
-    break
-  end
-end
-
-unless demo_org
-  puts "Creating 'Demo School District' organization..."
-  demo_org = Organization.create(
-    admin: false,
-    settings: {
-      'name' => 'Demo School District',
-      'total_licenses' => 50,
-      'org_access' => true
-    }
-  )
-end
+# Reuse the singleton non-admin organization if it already exists.
+demo_org = Organization.find_by(admin: false) || Organization.new
+puts(demo_org.new_record? ? "Creating 'Demo School District' organization..." : "Reusing existing non-admin organization...")
+demo_org.admin = false
+demo_org.settings = {
+  'name' => 'Demo School District',
+  'total_licenses' => 50,
+  'total_eval_licenses' => 5,
+  'total_supervisor_licenses' => 10,
+  'include_extras' => true,
+  'org_access' => true,
+  'public' => false,
+  'support_target' => {
+    'email' => 'support@demoschooldistrict.org',
+    'name' => 'Demo School District'
+  }
+}
+demo_org.save!
 
 # Link NYC_test to demo org as manager (administrator)
 unless demo_org.managers.include?(nyc)
@@ -108,7 +110,9 @@ unless demo_org.managers.include?(nyc)
 end
 
 # Also add as supervisor so they can manage students
-demo_org.add_supervisor(nyc.user_name, false, true)
-puts "Added NYC_test as supervisor to Demo School District"
+unless demo_org.supervisor?(nyc)
+  demo_org.add_supervisor(nyc.user_name, false, true)
+  puts "Added NYC_test as supervisor to Demo School District"
+end
 
 puts "\nDONE: Sample users generated successfully."

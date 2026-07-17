@@ -3,6 +3,7 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import modal from '../utils/modal';
 import persistence from '../utils/persistence';
+import actionLock from '../utils/action-lock';
 
 /**
  * Confirm Remove Board modal (Phase 2).
@@ -13,6 +14,28 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+
     const modalService = this.get('modal');
     const template = 'confirm-remove-board';
     const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
@@ -23,6 +46,10 @@ export default Component.extend({
 
   didInsertElement() {
     this._super(...arguments);
+    var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
     this.set('loading', false);
     this.set('error', false);
   },
@@ -53,25 +80,27 @@ export default Component.extend({
       const board = this.get('model.board');
       const user = this.get('model.user');
       const _this = this;
-      _this.set('loading', true);
       _this.set('error', false);
-      persistence.ajax('/api/v1/boards/unlink', {
-        type: 'POST',
-        data: {
-          board_id: board.get('id'),
-          user_id: user.get('id'),
-          tag: this.get('model.tag'),
-          type: this.get('model.action')
-        }
-      }).then(function() {
-        _this.set('loading', false);
-        _this.set('error', false);
-        board.set('removed', true);
-        modal.close({ update: true });
-      }, function() {
-        _this.set('loading', false);
-        _this.set('error', true);
-      });
+      return actionLock.run('remove-board:' + this.get('model.action') + ':' + board.get('id'), function() {
+        _this.set('loading', true);
+        return persistence.ajax('/api/v1/boards/unlink', {
+          type: 'POST',
+          data: {
+            board_id: board.get('id'),
+            user_id: user.get('id'),
+            tag: _this.get('model.tag'),
+            type: _this.get('model.action')
+          }
+        }).then(function() {
+          _this.set('loading', false);
+          _this.set('error', false);
+          board.set('removed', true);
+          modal.close({ update: true });
+        }, function() {
+          _this.set('loading', false);
+          _this.set('error', true);
+        });
+      }, {timeout: 10000});
     }
   }
 });

@@ -1,0 +1,32 @@
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
+  <div class="modal-header md-modal-header">
+    <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3>{{t "Delete User Forever" key="delete_user"}}</h3>
+  </div>
+  <div class="modal-body md-modal-body">
+    <div class="form-horizontal">
+      <div class="form-group">
+        <div class="col-sm-8 col-sm-offset-3">
+          <p class="form-control-static">
+            {{t "Are you sure you want to delete this user? This will remove all user information, user boards, usage history, etc. and cannot be undone. To confirm, please enter your user name below." key="confirm_user_name_for_delete_user"}}
+          </p>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="user_name" class="col-sm-3 control-label">{{t "User Name" key="user_name"}}</label>
+        <div class="col-sm-5">
+          <input value={{this.user_name}} class="form-control" id="user_name" placeholder="user_name" {{on "input" (set-field this "user_name")}} />
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer md-modal-footer">
+    <button class='btn btn-primary btn-lg' {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
+    <button class='btn btn-default btn-lg' {{on "click" (this.ctrlAction "delete_user")}} disabled={{this.deleting}}>{{t "Delete User Account" key="delete_user_account"}}</button>
+    {{#if this.error}}
+      <p class='text-danger'>{{this.error}}</p>
+    {{/if}}
+  </div>
+</ModalDialog>

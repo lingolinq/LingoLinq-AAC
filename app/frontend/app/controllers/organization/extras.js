@@ -1,10 +1,15 @@
 import Controller from '@ember/controller';
+import { inject as service } from '@ember/service';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
 import { computed } from '@ember/object';
 
 export default Controller.extend({
+  router: service('router'),
+  // Ember Data 5.x removed the automatic `store` injection into controllers;
+  // inject it explicitly (used by load_gifts / add_gift).
+  store: service('store'),
   refresh_lists: function() {
     this.load_blocked_emails();
     this.load_gifts();
@@ -45,9 +50,34 @@ export default Controller.extend({
     res[this.get('gift_type')] = true;
     return res;
   }),
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
     start_code_lookup: function() {
-      this.transitionToRoute('start_codes', this.get('start_code'));
+      this.router.transitionTo('start_codes', this.get('start_code'));
     },
     word_data_import: function() {
       var url = this.get('word_data_url');
@@ -55,7 +85,7 @@ export default Controller.extend({
         persistence.ajax('/api/v1/organizations/' + this.get('model.id') + '/extra_action', {
           type: 'POST',
           data: {
-            extra_action: 'import_word_data',
+            extra_action: 'word_data_import',
             url: url
           }
         }).then(function(res) {
@@ -100,7 +130,7 @@ export default Controller.extend({
     },
     find_code: function() {
       var code = this.get('code_lookup');
-      this.transitionToRoute('bulk_purchase', code);
+      this.router.transitionTo('bulk_purchase', code);
     },
     add_gift: function(type) {
       var gift = this.store.createRecord('gift');

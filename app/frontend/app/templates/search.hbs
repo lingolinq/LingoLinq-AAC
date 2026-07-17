@@ -1,100 +1,162 @@
-<div class="row">
-  <div class="col-sm-12">
-    <form class="form-inline">
-      <div class="form-group">
-      <Input @type="text" @value={{this.searchString}} @enter={{action "searchBoards"}} class="form-control" placeholder="Search Boards" />
-      </div>
-      <div class="form-group thin_select" style='width: 80px;'>
-        {{bound-select select_class="form-control" content=this.locales selection=this.locale action=(action (mut this.locale)) }}
-      </div>
-      <div class="form-group">
-        <button class="btn btn-default" {{action "searchBoards"}}>{{t "Go" key="go"}}</button>
-      </div>
-      <div class="form-group" style="padding-left: 20px;">
-        {{#if this.app_state.currentUser}}
-          <button class="btn btn-default" {{action "newBoard"}}>{{t "Create a New Board" key="create_a_new_board"}}</button>
-          <LinkTo @route="home-boards" class="btn btn-default">
-              {{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}
-          </LinkTo>
-        {{/if}}
-      </div>
-    </form>
+{{!-- Find Boards — reformatted as a mirror of the board-detail "My Board
+     Collection" two-pane view: a static board PREVIEW on the left, the
+     collection-style board panel on the right. No speak-mode top bar. --}}
+<div class="ub-find-board-page ub-boards-page ub-search-page">
+
+  {{!-- Restored page header + subheader (keeps the la-hero-title-from-left
+       entrance movement) with the find-a-board search + language filter back
+       in their original location/styling, above the two-pane panel. --}}
+  <div class="la-section-header ub-boards-page__page-header ub-search-page__header ub-find-board__page-header">
+    <div class="la-hero-title-wrap">
+      {{!-- Title slides in from the LEFT, subtitle from the RIGHT — same paired
+           movement as the home-page hero (md-hero__title / md-hero__sub). --}}
+      <h1 class="la-hero-title">{{t "Search for " key="search_for_boards_prefix"}}<span class="ub-search-page__title-boards">{{t "Boards" key="boards"}}</span></h1>
+      <p class="ub-find-board__subtitle"><span class="ub-search-page__title-boards ub-search-page__title-boards--note">{{t "(Page-Sets & Vocabularies)" key="page_sets_and_vocabularies"}}</span></p>
+    </div>
+    <div class="ub-search-page__form-wrap">
+      <form class="ub-search-page__form" {{on "submit" (this.ctrlAction "searchBoards")}}>
+        <div class="ub-search-page__form-row">
+          {{!-- Partial "< Home" pill-nav, seated to the left of the search box. --}}
+          <nav class="md-pillnav ub-find-board__homenav" aria-label={{t "Find Boards navigation" key="find_boards_nav"}}>
+            <LinkTo @route="index" class="md-pillnav__pill">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right: 4px;"><polyline points="15 18 9 12 15 6"/></svg>
+              {{t "Home" key="home"}}
+            </LinkTo>
+          </nav>
+          <SearchBoardJump
+            @query={{this.searchString}}
+            @onQueryChange={{mut this.searchString}}
+            @sections={{this.jump_sections}}
+            @onSelect={{this.ctrlAction "select_preview_board"}} />
+          <div class="ub-search-page__locale-wrap">
+            {{modern-select class="ub-search-page__locale-select" selectId="search_page_locale" content=this.locales selection=this.locale action=(mut this.locale) placeholder=(t "[Choose a Language]" key="choose_locale") ariaLabel=(t "Language" key="locale")}}
+          </div>
+          {{#if this.has_active_filter}}
+            {{!-- Clear the active search filter — shown only while a filter is applied. --}}
+            <button type="button" class="ub-search-page__clear-filter" {{on "click" (this.ctrlAction "clear_filter")}}>
+              <svg class="ub-search-page__clear-filter-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+              {{t "Clear filter" key="clear_filter"}}
+            </button>
+          {{/if}}
+        </div>
+      </form>
+    </div>
   </div>
-</div>
-<div class="row" style="margin-top: 15px;">
-  <div class={{if this.app_state.currentUser "col-sm-8" "col-sm-12"}}>
-    <h2>{{t "Online Results" key="online_results"}}</h2>
-    {{#if this.online_results}}
-      {{#if this.online_results.loading}}
-        <p>{{t "Loading..." key="loading"}}</p>
-      {{else if this.online_results.results}}
-        <div class="row">
-          {{#each this.online_results.results as |board|}}
-            {{#if board.key}}
-              <div class={{if this.app_state.currentUser "col-md-3 col-sm-4 col-xs-4 simple_board_holder" "col-sm-2 col-xs-4 simple_board_holder"}}>
-                {{board-icon board=board localized=true flag_home=true}}
-              </div>
-            {{/if}}
-          {{/each}}
+
+  <div class="ub-find-board">
+
+  {{!-- ── LEFT: board preview (static, non-interactive, rendered per the
+        user's folder/font prefs via board-detail-grid) ──────────────── --}}
+  <div class="ub-find-board__preview">
+    {{#if this.preview_board}}
+      {{#if this.preview_loading}}
+        <div class="ub-find-board__preview-state">
+          <p class="ub-boards-page__loading">{{t "Loading board…" key="loading_board"}}</p>
+        </div>
+      {{else if this.preview_error}}
+        <div class="ub-find-board__preview-state">
+          <p>{{t "Couldn't load a preview for this board." key="board_preview_error"}}</p>
         </div>
       {{else}}
-        {{#if (persistence-online)}}
-          <p>{{t "None found" key="none_found"}}</p>
-        {{else}}
-          <p>{{t "Not online, connect to the Internet to see results" key="not_online_connect"}}</p>
-        {{/if}}
+        <div class="ub-find-board__preview-header">
+          <img class="ub-find-board__preview-icon" src={{this.preview_board.icon_url_with_fallback}} alt="" />
+          <div class="ub-find-board__preview-titles">
+            <h2 class="ub-find-board__preview-name">{{this.preview_board.name}}</h2>
+            {{#if this.preview_board.grid.rows}}
+              <span class="ub-find-board__preview-grid-size">{{this.preview_board.grid.rows}} x {{this.preview_board.grid.columns}}</span>
+            {{/if}}
+          </div>
+          {{#if this.preview_board.key}}
+            <button type="button" class="md-btn md-btn--primary md-btn--pill ub-find-board__preview-open" {{on "click" (this.ctrlAction "select_jump_board" this.preview_board)}}>{{t "Open Board" key="open_board"}} <span aria-hidden="true">→</span></button>
+          {{/if}}
+        </div>
+        <div class="ub-find-board__preview-grid-wrap">
+          {{!-- Reuse the SAME renderer as the board-preview modal (board-preview-canvas):
+               self-contained canvas that draws the exact grid + button images and waits
+               on image loads itself — no board-detail controller coupling. --}}
+          <BoardPreviewCanvas @board={{this.preview_board}} @locale={{this.locale}} @show_links={{true}} @size="modal" @dark_mode={{false}} />
+        </div>
       {{/if}}
+    {{else}}
+      {{!-- Polished empty state — top-aligned card with an outline --}}
+      <div class="ub-find-board__preview-empty">
+        <div class="ub-find-board__preview-empty-card">
+          <div class="ub-find-board__preview-empty-icon" aria-hidden="true">
+            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2.5"/>
+              <line x1="3" y1="9" x2="21" y2="9"/>
+              <line x1="9" y1="21" x2="9" y2="9"/>
+            </svg>
+          </div>
+          <h2 class="ub-find-board__preview-empty-title">{{t "Select a board to preview" key="select_board_to_preview"}}</h2>
+          <p class="ub-find-board__preview-empty-sub">{{t "Pick a board from the list to see its buttons here." key="select_board_to_preview_sub"}}</p>
+        </div>
+      </div>
     {{/if}}
   </div>
-  {{#if this.app_state.currentUser}}
-    <div class="col-sm-4">
-      {{#if (persistence-online)}}
-        <h2>{{t "My Boards" key="my_boards"}}</h2>
-        {{#if this.personal_results}}
-          {{#if this.personal_results.loading}}
-            <p>{{t "Loading..." key="loading"}}</p>
-          {{else if this.personal_results.results}}
-            <div class="row">
-              {{#each this.personal_results.results as |board|}}
-                {{#if board.key}}
-                  <div class="col-md-4 col-sm-6 col-xs-4 simple_board_holder">
-                    {{board-icon board=board localized=true flag_home=true}}
-                  </div>
-                {{/if}}
-              {{/each}}
-            </div>
-            <LinkTo @route="user.index" @model={{this.app_state.currentUser.user_name}}>{{t "See All My Boards" key="see_all_my_boards"}}</LinkTo>
-          {{else}}
-            {{#if (persistence-online)}}
-              <p>{{t "None found" key="none_found"}}</p>
-              <LinkTo @route="user.index" @model={{this.app_state.currentUser.user_name}}>{{t "See All My Boards" key="see_all_my_boards"}}</LinkTo>
-            {{else}}
-              <p>{{t "Not online, connect to the Internet to see results" key="not_online_connect"}}</p>
-            {{/if}}
-          {{/if}}
-        {{/if}}
-      {{else}}
-        {{#unless this.local_results.impossible}}
-          <h2>{{t "Local Results" key="local_results"}}</h2>
-          {{#if this.local_results}}
-            {{#if this.local_results.loading}}
-              <p>{{t "Loading..." key="loading"}}</p>
-            {{else if this.local_results.results}}
-              <div class="row">
-                {{#each this.local_results.results as |board|}}
-                  {{#if board.key}}
-                    <div class="col-md-4 col-sm-6 col-xs-4 simple_board_holder">
-                      {{board-icon board=board}}
-                    </div>
-                  {{/if}}
-                {{/each}}
-              </div>
-            {{else}}
-              <p>{{t "None found" key="none_found"}}</p>
-            {{/if}}
-          {{/if}}
-        {{/unless}}
+
+  {{!-- ── RIGHT: collection-style board panel ──────────────────────── --}}
+  <div class="ub-find-board__panel md-board-collection">
+    <div class="md-board-collection__header">
+      {{#if this.app_state.currentUser}}
+        <button type="button" class="md-btn md-btn--primary md-btn--pill ub-find-board__create" {{on "click" (this.ctrlAction "newBoard")}}>{{t "Create a New Board" key="create_a_new_board"}} <span aria-hidden="true">→</span></button>
       {{/if}}
     </div>
-  {{/if}}
-</div>
+
+    <div class="md-board-collection__body">
+      {{!-- My Boards (logged in) --}}
+      {{#if this.app_state.currentUser}}
+        {{#if this.filtered_my_boards.length}}
+          <section class="md-board-collection__section">
+            <h3 class="md-board-collection__section-label"><span>{{t "My Boards" key="my_boards"}}</span><span class="md-board-collection__grid-size-label">{{t "Grid size" key="grid_size"}}</span></h3>
+            <ul class="md-board-collection__list">
+              {{#each this.filtered_my_boards as |board|}}
+                {{#if board.key}}
+                  <li class="md-board-collection__row">
+                    <button type="button" class="md-board-collection__item {{if (is_equal board.key this.preview_board.key) 'md-board-collection__item--selected'}}" {{on "click" (this.ctrlAction "select_preview_board" board)}}>
+                      <img class="md-board-collection__item-icon" src={{board.icon_url_with_fallback}} alt="" />
+                      <span class="md-board-collection__item-name">{{board.name}}</span>
+                      {{#if (board-language-label board)}}<span class="md-board-collection__item-lang">{{board-language-label board}}</span>{{/if}}
+                      {{#if board.grid.rows}}<span class="md-board-collection__item-count md-board-collection__item-count--grid" aria-label={{t "%{rows} by %{columns} grid" rows=board.grid.rows columns=board.grid.columns key="board_collection_grid_size"}}>{{board.grid.rows}} x {{board.grid.columns}}</span>{{/if}}
+                    </button>
+                  </li>
+                {{/if}}
+              {{/each}}
+            </ul>
+          </section>
+        {{/if}}
+      {{/if}}
+
+      {{!-- Boards (Page-Sets & Vocabularies) — online results grouped by brand --}}
+      {{#if this.online_results.loading}}
+        <p class="md-board-collection__loading">{{t "Loading boards…" key="loading_boards"}}</p>
+      {{else}}
+        {{#each this.filtered_online_groups as |group|}}
+          <section class="md-board-collection__section">
+            <h3 class="md-board-collection__section-label"><span>{{t group.default_label key=group.label_key}}</span><span class="md-board-collection__grid-size-label">{{t "Grid size" key="grid_size"}}</span></h3>
+            <ul class="md-board-collection__list">
+              {{#each group.boards as |board|}}
+                {{#if board.key}}
+                  <li class="md-board-collection__row">
+                    <button type="button" class="md-board-collection__item {{if (is_equal board.key this.preview_board.key) 'md-board-collection__item--selected'}}" {{on "click" (this.ctrlAction "select_preview_board" board)}}>
+                      <img class="md-board-collection__item-icon" src={{board.icon_url_with_fallback}} alt="" />
+                      <span class="md-board-collection__item-name">{{board.name}}</span>
+                      {{#if (board-language-label board)}}<span class="md-board-collection__item-lang">{{board-language-label board}}</span>{{/if}}
+                      {{#if board.grid.rows}}<span class="md-board-collection__item-count md-board-collection__item-count--grid" aria-label={{t "%{rows} by %{columns} grid" rows=board.grid.rows columns=board.grid.columns key="board_collection_grid_size"}}>{{board.grid.rows}} x {{board.grid.columns}}</span>{{/if}}
+                    </button>
+                  </li>
+                {{/if}}
+              {{/each}}
+            </ul>
+          </section>
+        {{else}}
+          <p class="md-board-collection__empty">{{t "Search above to find boards, or filter your own." key="find_board_empty_hint"}}</p>
+        {{/each}}
+      {{/if}}
+    </div>
+  </div>
+  </div>{{!-- /.ub-find-board --}}
+</div>{{!-- /.ub-find-board-page --}}

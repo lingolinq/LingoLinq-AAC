@@ -2,10 +2,26 @@ import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { observer, computed } from '@ember/object';
+import { A } from '@ember/array';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import RSVP from 'rsvp';
 import stashes from '../utils/_stashes';
+
+function goalSaveErrorKeyFromRejection(err) {
+  const xhr = err && (err.fakeXHR || err.jqXHR);
+  let json = xhr && xhr.responseJSON;
+  if (!json && err && err.errors && err.errors[0]) {
+    json = err.errors[0];
+  }
+  if (json && json.device_scopes_none) {
+    return 'device_scopes_none';
+  }
+  if (json && json.valet_blocked) {
+    return 'valet_blocked';
+  }
+  return 'generic';
+}
 
 /**
  * New Goal modal (Phase 2).
@@ -17,6 +33,28 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+
     const modalService = this.get('modal');
     const template = 'new-goal';
     const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
@@ -27,11 +65,15 @@ export default Component.extend({
 
   didInsertElement() {
     this._super(...arguments);
+    var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
     this.set('goal', this.get('model.goal') || this.get('store').createRecord('goal'));
     if (!this.get('goal.id') && window.moment) {
       this.set('goal.expires', window.moment().add(2, 'month').format('YYYY-MM-DD'));
     }
-    this.set('error', false);
+    this.set('save_error_key', null);
     this.set('saving', false);
     this.set('browse_goals', false);
     this.set('selected_goal', null);
@@ -45,6 +87,9 @@ export default Component.extend({
       this.set('model.users', null);
     }
     if (this.get('model.users')) {
+      // Ember 5.12: wrap in A() so single_user's `model.users.@each.add_goal`
+      // dependency tracks the in-place checkbox mutations (@checked=user.add_goal).
+      this.set('model.users', A(this.get('model.users')));
       this.get('model.users').forEach(function(u) {
         emberSet(u, 'not_premium', !emberGet(u, 'premium') && !emberGet(u, 'currently_premium'));
       });
@@ -151,11 +196,42 @@ export default Component.extend({
     const _this = this;
     _this.set('goals', { loading: true });
     this.get('store').query('goal', { template_header: true }).then(function(data) {
-      _this.set('goals', data.map(function(i) { return i; }));
+      _this.set('goals', data.slice());
       _this.set('goals.meta', data.meta);
     }, function() {
       _this.set('goals', { error: true });
     });
+  },
+
+  /**
+   * Attributes for createRecord copies of `goal`. Uses serialize() instead of deprecated
+   * Model#toJSON(). Keeps expires as yyyy-MM-dd for the API without assigning a Date to the
+   * bound date field (type date requires yyyy-MM-dd).
+   */
+  serializedGoalAttributesForNewSave(goal) {
+    const raw =
+      goal && typeof goal.serialize === 'function'
+        ? goal.serialize({ includeId: false })
+        : {};
+    const attrs =
+      raw && typeof raw === 'object' && raw.goal && typeof raw.goal === 'object'
+        ? Object.assign({}, raw.goal)
+        : Object.assign({}, raw);
+    if (attrs.id === null || attrs.id === undefined) {
+      delete attrs.id;
+    }
+    // Never send admin template_header from this modal; serialize() can pick it up from the
+    // store after browsing community goals and would trigger Organization admin checks on create.
+    delete attrs.template_header;
+    delete attrs.template;
+    const exp = goal.get('expires');
+    if (exp && window.moment) {
+      const m = window.moment(exp);
+      if (m.isValid()) {
+        attrs.expires = m.format('YYYY-MM-DD');
+      }
+    }
+    return attrs;
   },
 
   actions: {
@@ -171,11 +247,10 @@ export default Component.extend({
       const _this = this;
       let goal = this.get('goal');
       let users = [];
-      if (this.get('model.user')) {
-        users = [this.get('model.user')];
-      }
       if (this.get('model.users')) {
         users = this.get('model.users').filter(function(u) { return emberGet(u, 'add_goal'); });
+      } else if (this.get('model.user')) {
+        users = [this.get('model.user')];
       }
       if (this.get('selected_goal')) {
         goal = this.get('store').createRecord('goal');
@@ -233,29 +308,41 @@ export default Component.extend({
         }
       }
       goal.set('active', true);
-      if (goal.get('expires')) {
-        goal.set('expires', window.moment(goal.get('expires'))._d);
-      }
+      const goalAttrs = _this.serializedGoalAttributesForNewSave(goal);
       stashes.track_daily_event('goals');
       const promises = [];
+      const savedRecords = [];
       users.forEach(function(u) {
-        const g = _this.get('store').createRecord('goal', goal.toJSON());
+        const g = _this.get('store').createRecord('goal', goalAttrs);
         g.set('user_id', emberGet(u, 'id'));
-        promises.push(g.save());
+        promises.push(
+          g.save().then(function(rec) {
+            savedRecords.push(rec);
+            return rec;
+          })
+        );
       });
       if (_this.get('model.unit')) {
         goal.set('unit_id', _this.get('model.unit.id'));
-        promises.push(goal.save());
+        promises.push(
+          goal.save().then(function(rec) {
+            savedRecords.push(rec);
+            return rec;
+          })
+        );
       }
-      goal.set('user_id', this.get('model.user.id'));
+      if (this.get('model.user')) {
+        goal.set('user_id', this.get('model.user.id'));
+      }
       _this.set('saving', true);
-      _this.set('error', false);
+      _this.set('save_error_key', null);
       RSVP.all_wait(promises).then(function() {
         _this.set('saving', false);
-        modal.close(goal);
-      }, function() {
+        const toClose = savedRecords[savedRecords.length - 1] || goal;
+        modal.close(toClose);
+      }, function(err) {
         _this.set('saving', false);
-        _this.set('error', true);
+        _this.set('save_error_key', goalSaveErrorKeyFromRejection(err));
       });
     },
     video_ready(id) {
@@ -304,7 +391,7 @@ export default Component.extend({
           offset: this.get('goals.meta.next_offset')
         }).then(function(list) {
           let goals = _this.get('goals') || [];
-          goals = goals.concat(list.map(function(i) { return i; }));
+          goals = goals.concat(list.slice());
           _this.set('goals', goals);
           _this.set('goals.meta', list.meta);
           _this.set('goals.loading', false);

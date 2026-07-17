@@ -13,6 +13,243 @@
 
     {{content-for "head"}}
 
+    <script>
+      // Patch addEventListener before ANY library loads so touch events are
+      // never passive. Chrome defaults touch listeners to passive which
+      // prevents preventDefault() and causes console warnings during drag.
+      (function() {
+        var orig = EventTarget.prototype.addEventListener;
+        var touch = {touchstart:1,touchmove:1,touchend:1,touchcancel:1};
+        EventTarget.prototype.addEventListener = function(t, fn, opts) {
+          if(touch[t]) {
+            if(typeof opts === 'boolean') opts = {capture:opts, passive:false};
+            else opts = Object.assign({}, opts||{}, {passive:false});
+          }
+          return orig.call(this, t, fn, opts);
+        };
+      })();
+    </script>
+
+    <link rel="icon" href="{{rootURL}}images/LL_Logo_Light_Muted.png?v=5" type="image/png" />
+    <link rel="apple-touch-icon" href="{{rootURL}}images/LL_Logo_Light_Muted.png?v=5" />
+
+    <!-- Preload the Focused View "Let's Communicate" hero image during initial
+         page load. Its card is display:none until the Focused View layout is
+         active, so the browser would otherwise only fetch + decode it the moment
+         the card appears (making the image reveal top-down). Preloading fetches
+         the bytes up front so it paints instantly, paired with decoding="sync"
+         on the img. NOTE: index.html only processes ember-cli tokens like
+         {{rootURL}} — use HTML comments here, NOT {{!-- --}} (which leaks as text). -->
+    <link rel="preload" as="image" href="{{rootURL}}images/speak-circle-simple-dark.webp" type="image/webp" fetchpriority="high" />
+
+    <!-- Preload the My Caseload card illustration. Unlike the Speak hero above
+         (an eager <img>), this one is only a CSS background-image (the big-icon
+         .md-card--caseload variant in app.scss -> images/caseload-light.png), so
+         the browser would otherwise fetch it lazily the instant the card first
+         paints and it pops in. Preloading puts the bytes in cache up front so it
+         paints with the card. -->
+    <link rel="preload" as="image" href="{{rootURL}}images/caseload-light.png" type="image/png" fetchpriority="high" />
+
+    <!-- Preload the guided-tour welcome-card map illustrations. These are CSS
+         background-images on the tour's welcome step (.md-tour__step--welcome
+         .shepherd-text in app.scss: tour-map-dark.png for Focused View,
+         tour-map-light.png for Gentle View), shared by all three opening tours
+         (home, board-picker, board-detail edit). Shepherd injects the popover
+         into <body> only at tour-start, so the browser would otherwise fetch the
+         background the instant the card paints — the card flashes blank, then the
+         map pops in. Preloading puts the bytes in cache up front so it paints with
+         the card. Both variants are preloaded because index.html is static and
+         can't branch on the user's dashboard_layout; each is small (~30-40KB).
+         (A CSS background can't take decoding="sync" like the <img> hero above,
+         so the preload fetch is the whole fix — decode of a 120px PNG is trivial.) -->
+    <link rel="preload" as="image" href="{{rootURL}}images/tour-map-dark.png" type="image/png" />
+    <link rel="preload" as="image" href="{{rootURL}}images/tour-map-light.png" type="image/png" />
+
+    <style>
+      /* Bootstrap skeleton — painted before vendor.css / frontend.css load
+         and before Ember boots. Identical visual to the Rails-served
+         skeleton in app/views/boards/index.html.erb. */
+      #loading_box {
+        position: fixed;
+        inset: 0;
+        z-index: 1;
+        background: linear-gradient(180deg, #F8F9FA 0%, #F0F4F8 100%);
+        color: #1B365D;
+        font-family: 'Lexend', 'Atkinson Hyperlegible', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        opacity: 1;
+        transition: opacity 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
+      }
+      #loading_box.is-fading { opacity: 0; pointer-events: none; }
+      /* Logout context — uses the EXACT compiled values from landing-alt:
+         page gradient is white → white → #F5F5F3 (first two stones
+         clamp at L>100% per Sass color.adjust); glows use the same
+         rgba/opacity as `.la-hero-card-inner::before/after` (0.12 and
+         0.09 — NOT scaled up, just positioned relative to viewport). */
+      #loading_box.is-logout-context {
+        background:
+          radial-gradient(circle 420px at 75% 20%, rgba(242, 185, 90, 0.12) 0%, transparent 55%),
+          radial-gradient(circle 360px at 25% 75%, rgba(78, 205, 196, 0.09) 0%, transparent 55%),
+          linear-gradient(180deg, #FFFFFF 0%, #FFFFFF 50%, #F5F5F3 100%);
+      }
+      #loading_box.is-logout-context .ll-skel-navbar,
+      #loading_box.is-logout-context .ll-skel-pillnav,
+      #loading_box.is-logout-context .ll-skel-hero,
+      #loading_box.is-logout-context .ll-skel-grid {
+        display: none;
+      }
+      .ll-skel-navbar {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 16px; padding: 14px 28px;
+        background: #fff;
+        border-bottom: 1px solid rgba(17, 26, 46, 0.06);
+        flex-shrink: 0;
+      }
+      .ll-skel-navbar__logo img { height: 28px; width: auto; opacity: 0.95; }
+      .ll-skel-navbar__icons { display: flex; gap: 10px; }
+      .ll-skel-chip { width: 32px; height: 32px; border-radius: 50%; background: rgba(27, 54, 93, 0.06); position: relative; overflow: hidden; }
+      .ll-skel-pillnav {
+        display: flex; justify-content: center; gap: 6px;
+        padding: 24px 22px 8px; flex-wrap: wrap;
+      }
+      .ll-skel-pillnav__pill { height: 38px; min-width: 96px; border-radius: 999px; background: rgba(27, 54, 93, 0.06); position: relative; overflow: hidden; }
+      .ll-skel-pillnav__pill--active { background: #1B365D; }
+      .ll-skel-hero { padding: 16px 24px 24px; text-align: center; max-width: 720px; margin: 0 auto; width: 100%; }
+      .ll-skel-line { height: 14px; border-radius: 8px; background: rgba(27, 54, 93, 0.07); position: relative; overflow: hidden; margin: 0 auto 10px; }
+      .ll-skel-line--xl   { height: 32px; width: 65%; border-radius: 10px; }
+      .ll-skel-line--md   { width: 45%; }
+      .ll-skel-line--title { width: 50%; height: 18px; margin: 0 0 8px; border-radius: 6px; }
+      .ll-skel-line--card-sub { width: 75%; height: 11px; margin: 0; border-radius: 6px; opacity: 0.7; }
+      .ll-skel-grid {
+        flex: 1;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+        padding: 0 24px 28px;
+        max-width: 1200px;
+        width: 100%;
+        margin: 0 auto;
+        align-content: start;
+      }
+      @media (max-width: 720px) {
+        .ll-skel-grid { grid-template-columns: 1fr; gap: 14px; }
+      }
+      .ll-skel-card {
+        display: flex; flex-direction: column; gap: 16px;
+        padding: 24px 24px 26px;
+        min-height: 200px;
+        border-radius: 28px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(240, 244, 248, 0.94));
+        border: 1px solid rgba(17, 26, 46, 0.06);
+        border-bottom: 2px solid rgba(27, 54, 93, 0.08);
+        box-shadow: 0 8px 28px rgba(27, 54, 93, 0.06), 0 1px 3px rgba(27, 54, 93, 0.04);
+        position: relative; overflow: hidden;
+      }
+      .ll-skel-card__head { display: flex; align-items: flex-start; gap: 16px; }
+      .ll-skel-card__icon { width: 52px; height: 52px; border-radius: 16px; background: rgba(76, 134, 216, 0.10); flex-shrink: 0; position: relative; overflow: hidden; }
+      .ll-skel-card__titles { flex: 1; min-width: 0; padding-top: 4px; }
+      .ll-skel-card__cta { margin-top: auto; align-self: flex-end; height: 42px; min-width: 160px; border-radius: 999px; background: rgba(76, 134, 216, 0.18); position: relative; overflow: hidden; }
+      .ll-skel-card--boards .ll-skel-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 4px; }
+      .ll-skel-tile { aspect-ratio: 1; border-radius: 14px; background: rgba(27, 54, 93, 0.05); position: relative; overflow: hidden; }
+      .ll-skel-shimmer::after {
+        content: ""; position: absolute; inset: 0;
+        background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.55) 50%, transparent 70%);
+        transform: translateX(-100%);
+        animation: ll-skel-shimmer 1.8s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
+      }
+      @keyframes ll-skel-shimmer {
+        0%   { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+      }
+      .ll-skel-card:nth-child(1) .ll-skel-shimmer::after,
+      .ll-skel-card:nth-child(1).ll-skel-shimmer::after { animation-delay: 0s; }
+      .ll-skel-card:nth-child(2) .ll-skel-shimmer::after,
+      .ll-skel-card:nth-child(2).ll-skel-shimmer::after { animation-delay: 0.12s; }
+      .ll-skel-card:nth-child(3) .ll-skel-shimmer::after,
+      .ll-skel-card:nth-child(3).ll-skel-shimmer::after { animation-delay: 0.24s; }
+      .ll-skel-card:nth-child(4) .ll-skel-shimmer::after,
+      .ll-skel-card:nth-child(4).ll-skel-shimmer::after { animation-delay: 0.36s; }
+      @media (prefers-reduced-motion: reduce) {
+        .ll-skel-shimmer::after { animation: none; opacity: 0.5; }
+      }
+      /* Premium progress card */
+      .ll-skel-progress {
+        position: fixed;
+        left: 50%; top: 50%;
+        transform: translate(-50%, -50%);
+        width: calc(100% - 32px);
+        max-width: 480px;
+        padding: 36px 40px 32px;
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.78);
+        backdrop-filter: blur(20px) saturate(140%);
+        -webkit-backdrop-filter: blur(20px) saturate(140%);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        box-shadow:
+          0 1px 3px rgba(15, 23, 42, 0.04),
+          0 12px 32px rgba(15, 23, 42, 0.10),
+          0 32px 64px rgba(15, 23, 42, 0.08);
+        z-index: 2;
+        text-align: center;
+      }
+      .ll-skel-progress__title {
+        margin: 0 0 8px;
+        font-family: 'Lexend', 'Atkinson Hyperlegible', system-ui, sans-serif;
+        font-size: 19px; font-weight: 500; letter-spacing: 0.005em;
+        color: #1B365D; line-height: 1.3;
+        transition: opacity 0.3s ease;
+      }
+      .ll-skel-progress__sub {
+        margin: 0 0 22px;
+        font-family: 'Lexend', 'Atkinson Hyperlegible', system-ui, sans-serif;
+        font-size: 14px; font-weight: 400; letter-spacing: 0.01em;
+        color: rgba(27, 54, 93, 0.65); line-height: 1.5;
+        transition: opacity 0.3s ease;
+      }
+      .ll-skel-progress__bar {
+        position: relative;
+        width: 100%; height: 4px;
+        border-radius: 999px;
+        background: rgba(27, 54, 93, 0.08);
+        overflow: hidden;
+      }
+      .ll-skel-progress__bar::after {
+        content: ""; position: absolute; inset: 0;
+        border-radius: 999px;
+        background: linear-gradient(90deg, rgba(42, 157, 143, 0) 0%, #2A9D8F 25%, #4C86D8 75%, rgba(76, 134, 216, 0) 100%);
+        transform: translateX(-100%);
+        animation: ll-skel-progress-sweep 2.2s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
+      }
+      @keyframes ll-skel-progress-sweep {
+        0%   { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .ll-skel-progress__bar::after { animation: none; transform: translateX(0); opacity: 0.6; }
+      }
+      #loading_message {
+        position: fixed; left: 50%; bottom: 24px;
+        transform: translateX(-50%);
+        display: none;
+        max-width: calc(100% - 32px);
+        padding: 10px 18px;
+        border-radius: 999px;
+        background: rgba(27, 54, 93, 0.92);
+        color: #fff;
+        font-size: 13px; font-weight: 500; line-height: 1.4;
+        box-shadow: 0 8px 24px rgba(27, 54, 93, 0.22);
+        text-align: center;
+        z-index: 3;
+      }
+      #loading_message a { color: #ffd089; text-decoration: underline; }
+    </style>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lexend:wght@400;500;600;700&family=Maitree:wght@400;500;600;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+
     <!-- Chart.js + Sankey plugin: load before vendor to avoid concatenation conflicts (Identifier 's' / define).
          SRI omitted: jsDelivr on-demand minification for Chart.js 4.x produces variable output, making integrity hashes unreliable. -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"
@@ -23,30 +260,261 @@
     <!-- Load globals (MAPS_KEY, etc.) from Rails; proxied in dev when using foreman -->
     <script src="/assets/globals.js"></script>
 
+    <!-- Webcam eye/head tracking (weblinger). Also in application.html.erb for Rails-served pages. -->
+    <script>
+      window.weblinger_load_status = 'loading';
+      window.weblingerScriptLoaded = function() {
+        if(window.weblinger) {
+          window.weblinger_load_status = 'ready';
+          window.dispatchEvent(new CustomEvent('weblinger-script-load'));
+        }
+      };
+      window.weblingerScriptFailed = function() {
+        if(!window.weblinger) {
+          window.weblinger_load_failed = true;
+          window.weblinger_load_status = 'failed';
+          window.dispatchEvent(new CustomEvent('weblinger-script-load-failed'));
+        }
+      };
+      window.weblingerLoadFallback = function() {
+        var script = document.createElement('script');
+        script.src = 'https://app.covidspeak.org/weblinger.js/weblinger.js';
+        script.async = true;
+        script.onload = window.weblingerScriptLoaded;
+        script.onerror = window.weblingerScriptFailed;
+        document.head.appendChild(script);
+      };
+    </script>
+    <script src="/weblinger/weblinger.js" async onload="weblingerScriptLoaded()" onerror="weblingerLoadFallback()"></script>
+
     <link rel="stylesheet" href="{{rootURL}}assets/vendor.css">
     <link rel="stylesheet" href="{{rootURL}}assets/frontend.css">
 
     {{content-for "head-footer"}}
   </head>
   <body>
+    <!-- Bootstrap skeleton — identical to the Rails-served skeleton in
+         app/views/boards/index.html.erb. Same `#loading_box` id so the
+         hide path in app-state.js:586 handles both. Stays on top until
+         either (a) the boot-overlay-hide instance initializer fires
+         after the first routeDidChange, or (b) app-state.js removes it
+         post-init, or (c) the 12s safety timeout fires. -->
+    <div id="loading_box" role="status" aria-live="polite" aria-busy="true">
+      <div class="ll-skel-navbar" aria-hidden="true">
+        <div class="ll-skel-navbar__logo">
+          <img src="{{rootURL}}images/LL_Logo_Line_Bright.png" alt=""/>
+        </div>
+        <div class="ll-skel-navbar__icons">
+          <div class="ll-skel-chip ll-skel-shimmer"></div>
+          <div class="ll-skel-chip ll-skel-shimmer"></div>
+          <div class="ll-skel-chip ll-skel-shimmer"></div>
+        </div>
+      </div>
+      <nav class="ll-skel-pillnav" aria-hidden="true">
+        <div class="ll-skel-pillnav__pill ll-skel-pillnav__pill--active"></div>
+        <div class="ll-skel-pillnav__pill ll-skel-shimmer"></div>
+        <div class="ll-skel-pillnav__pill ll-skel-shimmer"></div>
+        <div class="ll-skel-pillnav__pill ll-skel-shimmer"></div>
+      </nav>
+      <div class="ll-skel-hero" aria-hidden="true">
+        <div class="ll-skel-line ll-skel-line--xl ll-skel-shimmer"></div>
+        <div class="ll-skel-line ll-skel-line--md ll-skel-shimmer"></div>
+      </div>
+      <div class="ll-skel-grid" aria-hidden="true">
+        <!-- Caseload card -->
+        <div class="ll-skel-card">
+          <div class="ll-skel-card__head">
+            <div class="ll-skel-card__icon ll-skel-shimmer"></div>
+            <div class="ll-skel-card__titles">
+              <div class="ll-skel-line ll-skel-line--title ll-skel-shimmer"></div>
+              <div class="ll-skel-line ll-skel-line--card-sub ll-skel-shimmer"></div>
+            </div>
+          </div>
+          <div class="ll-skel-card__cta ll-skel-shimmer"></div>
+        </div>
+        <!-- Speak Mode card -->
+        <div class="ll-skel-card">
+          <div class="ll-skel-card__head">
+            <div class="ll-skel-card__icon ll-skel-shimmer"></div>
+            <div class="ll-skel-card__titles">
+              <div class="ll-skel-line ll-skel-line--title ll-skel-shimmer"></div>
+              <div class="ll-skel-line ll-skel-line--card-sub ll-skel-shimmer"></div>
+            </div>
+          </div>
+          <div class="ll-skel-card__cta ll-skel-shimmer"></div>
+        </div>
+        <!-- Boards card with tile strip -->
+        <div class="ll-skel-card ll-skel-card--boards">
+          <div class="ll-skel-card__head">
+            <div class="ll-skel-card__icon ll-skel-shimmer"></div>
+            <div class="ll-skel-card__titles">
+              <div class="ll-skel-line ll-skel-line--title ll-skel-shimmer"></div>
+              <div class="ll-skel-line ll-skel-line--card-sub ll-skel-shimmer"></div>
+            </div>
+          </div>
+          <div class="ll-skel-tiles">
+            <div class="ll-skel-tile ll-skel-shimmer"></div>
+            <div class="ll-skel-tile ll-skel-shimmer"></div>
+            <div class="ll-skel-tile ll-skel-shimmer"></div>
+          </div>
+          <div class="ll-skel-card__cta ll-skel-shimmer"></div>
+        </div>
+        <!-- Extras card -->
+        <div class="ll-skel-card">
+          <div class="ll-skel-card__head">
+            <div class="ll-skel-card__icon ll-skel-shimmer"></div>
+            <div class="ll-skel-card__titles">
+              <div class="ll-skel-line ll-skel-line--title ll-skel-shimmer"></div>
+              <div class="ll-skel-line ll-skel-line--card-sub ll-skel-shimmer"></div>
+            </div>
+          </div>
+          <div class="ll-skel-card__cta ll-skel-shimmer"></div>
+        </div>
+      </div>
+      <!-- Premium progress card -->
+      <div class="ll-skel-progress" role="status" aria-live="polite" aria-busy="true">
+        <h2 id="ll-skel-progress-title" class="ll-skel-progress__title">Preparing your workspace</h2>
+        <p id="ll-skel-progress-sub" class="ll-skel-progress__sub">Loading boards and communication resources</p>
+        <div class="ll-skel-progress__bar" aria-hidden="true"></div>
+      </div>
+      <span id="loading_message"></span>
+    </div>
+    <script>
+      // Context-aware progress card copy + 3s slow-load swap.
+      // `lingolinq_auth_intent` flag is set by session.invalidate() right
+      // before reload — when present, the card shows logout-appropriate
+      // copy instead of the login copy. Flag is cleared after first read.
+      (function() {
+        var t = document.getElementById('ll-skel-progress-title');
+        var s = document.getElementById('ll-skel-progress-sub');
+        var loggingOut = false;
+        try {
+          if (window.localStorage && window.localStorage.getItem('lingolinq_auth_intent') === 'logging_out') {
+            loggingOut = true;
+            window.localStorage.removeItem('lingolinq_auth_intent');
+          }
+        } catch (e) {}
+
+        if (loggingOut) {
+          if (t) { t.textContent = 'Signing you out…'; }
+          if (s) { s.textContent = 'See you soon'; }
+          var box = document.getElementById('loading_box');
+          if (box) { box.classList.add('is-logout-context'); }
+        } else {
+          setTimeout(function() {
+            if (t) { t.textContent = 'Still working…'; }
+            if (s) { s.textContent = 'Large board sets can take a little longer to prepare.'; }
+          }, 3000);
+        }
+      })();
+    </script>
+    <script>
+      (function () {
+        var SAFETY_MS = 12000;
+        var FADE_MS = 400;
+        var hidden = false;
+        // Drop the legacy `lingolinq_auth_pending` localStorage flag if
+        // it's lying around from a previous login. The skeleton is the
+        // canonical first-paint visual now — no message swap required.
+        try {
+          if (window.localStorage) { window.localStorage.removeItem('lingolinq_auth_pending'); }
+        } catch (e) {}
+        function remove() {
+          var el = document.getElementById('loading_box');
+          if (el && el.parentNode) { el.parentNode.removeChild(el); }
+        }
+        // Exposed for the `boot-overlay-hide` instance initializer (called
+        // after the first routeDidChange + 150ms). Adds `.is-fading` for
+        // the CSS cross-fade transition, then yanks the element after the
+        // fade completes. Idempotent — repeat calls are no-ops.
+        window.LingoLinqHideBootOverlay = function () {
+          if (hidden) { return; }
+          hidden = true;
+          var el = document.getElementById('loading_box');
+          if (!el) { return; }
+          el.classList.add('is-fading');
+          setTimeout(remove, FADE_MS);
+        };
+        // Safety net: never trap the user behind the skeleton if the
+        // initializer's ready signal never fires (offline boot, JS error
+        // in initializer, etc.).
+        setTimeout(function () { window.LingoLinqHideBootOverlay(); }, SAFETY_MS);
+      })();
+    </script>
     <!-- Ember mounts here. config has rootElement: '#ember-application-root'. App template renders #within_ember > header + #content (main outlet). Do not add wrappers inside this div or change its id, or app styles (#content, #within_ember, etc.) may not apply. -->
     <div id="ember-application-root">{{content-for "body"}}</div>
+
+    <!-- AAC symbol white-matte removal: knocks out near-pure-white pixels
+         (imported PNG mattes) via alpha only — symbol RGB stays intact, unlike
+         mix-blend-mode multiply which tints art with the button color. -->
+
+    <svg aria-hidden="true" focusable="false" width="0" height="0" style="position:absolute;overflow:hidden">
+      <defs>
+        <filter id="ll-symbol-white-matte" color-interpolation-filters="sRGB">
+          <feColorMatrix in="SourceGraphic" type="matrix" result="matteMask" values="
+            1 0 0 0 0
+            0 1 0 0 0
+            0 0 1 0 0
+            -1 -1 -1 0 3"/>
+          <feComponentTransfer in="matteMask" result="alphaMask">
+            <feFuncA type="linear" slope="8" intercept="-0.96"/>
+          </feComponentTransfer>
+          <feComposite in="SourceGraphic" in2="alphaMask" operator="in"/>
+        </filter>
+        <!-- AAC symbol backing (Colored mode). These symbols carry their OWN baked
+             white halo/background; the old matte filter knocked it out (causing the
+             card color to bleed through). This filter instead PRESERVES that white
+             but RECOLORS it to a subtle off-white (#f0ebdf) so symbols read softer
+             on colored cards, then backs any semi-transparent edges with the same
+             off-white. The feComponentTransfer tables are ~identity below 0.9 and
+             pull only near-white toward the cream target per channel
+             (R 240/255≈0.941, G 235/255≈0.922, B 223/255≈0.875), so colored art is
+             essentially untouched and alpha is preserved (transparent stays
+             transparent). CAVEAT: this tints ALL near-white pixels, so genuinely
+             white parts of the ARTWORK (milk, highlights) also go cream — subtle,
+             but it can't tell background-white from art-white. -->
+        <filter id="ll-symbol-white-backing" color-interpolation-filters="sRGB" x="0%" y="0%" width="100%" height="100%">
+          <feComponentTransfer in="SourceGraphic" result="tinted">
+            <feFuncR type="table" tableValues="0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 0.941"/>
+            <feFuncG type="table" tableValues="0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 0.922"/>
+            <feFuncB type="table" tableValues="0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 0.875"/>
+          </feComponentTransfer>
+          <feFlood flood-color="#f0ebdf" result="creamFill"/>
+          <feComposite in="creamFill" in2="SourceAlpha" operator="in" result="creamBacking"/>
+          <feMerge>
+            <feMergeNode in="creamBacking"/>
+            <feMergeNode in="tinted"/>
+          </feMerge>
+        </filter>
+      </defs>
+    </svg>
 
     <script src="{{rootURL}}assets/vendor.js"></script>
     <script src="{{rootURL}}assets/frontend.js"></script>
 
-    <!-- When served by Ember dev server (not Rails), inject domain_settings so layout matches production -->
+    <!-- When served by Ember dev server (not Rails), stub domain_settings then merge from Rails (proxy) so .env COPPA_* matches backend. -->
     <script>
-      if (typeof window.domain_settings === 'undefined') {
-        window.domain_settings = {
-          app_name: 'LingoLinq',
-          company_name: 'Someone',
-          logo_url: '/images/logo-big.png',
-          full_domain: true,
-          support_url: 'https://lingolinq.zendesk.com',
-          domain: window.location.host || 'localhost'
-        };
-      }
+      (function () {
+        if (typeof window.domain_settings === 'undefined') {
+          window.domain_settings = {
+            app_name: 'LingoLinq',
+            company_name: 'Lingolinq',
+            logo_url: '/images/LL_Logo_Line_Bright.png',
+            full_domain: true,
+            support_url: 'https://lingolinq.zendesk.com',
+            domain: window.location.host || 'localhost'
+          };
+        }
+        fetch('/api/v1/domain_settings', { credentials: 'same-origin' })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data && data.settings && typeof data.settings === 'object') {
+              Object.assign(window.domain_settings, data.settings);
+              window.dispatchEvent(new Event('lingolinq-domain-settings-sync'));
+            }
+          })
+          .catch(function () { /* keep stub; e.g. backend not up yet */ });
+      })();
     </script>
 
     {{content-for "body-footer"}}

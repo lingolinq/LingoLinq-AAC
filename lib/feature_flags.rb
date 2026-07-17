@@ -1,17 +1,46 @@
 module FeatureFlags
   # TODO: remove unused feature flags after like December 2019
-  AVAILABLE_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 
-              'canvas_render', 'snapshots', 'enable_all_buttons', 
+  # NOTE: 'customize_menu' is currently registered in BOTH lists below —
+  # it ships ON for everyone temporarily during the current testing
+  # window (per Scot #1 review + Traci's direction 2026-05-27). When
+  # testing is complete and we move to the canonical "off by default,
+  # beta opt-in per user" pattern, REMOVE 'customize_menu' from
+  # ENABLED_FRONTEND_FEATURES (keeping it in AVAILABLE_FRONTEND_FEATURES)
+  # so it switches to a per-user-flag. See:
+  # app/frontend/app/templates/user/board-detail.hbs ({{#if … customize_menu}})
+  # app/frontend/app/controllers/user/board-detail.js set_speak_menu_item_hidden
+  AVAILABLE_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar',
+              'canvas_render', 'snapshots', 'enable_all_buttons',
               'video_recording', 'goals', 'app_connections', 'translation', 'geo_sidebar',
               'modeling', 'edit_before_copying', 'core_reports', 'lessonpix',
               'audio_recordings', 'fast_render', 'badge_progress', 'board_levels', 'premium_symbols',
               'find_multiple_buttons', 'new_speak_menu', 'native_keyboard', 'inflections_overlay',
-              'app_store_purchases', 'emergency_boards', 'evaluations', 'swipe_pages', 
+              'app_store_purchases', 'emergency_boards', 'evaluations', 'swipe_pages',
               'app_store_monthly_purchases', 'ios_head_tracking', 'vertical_ios_head_tracking',
               'auto_inflections', 'remote_modeling', 'focus_word_highlighting', 'profiles',
               'skin_tones', 'lessons', 'other_menu', 'shallow_clones', 'ai_board_generation',
               'ai_word_prediction', 'ai_board_suggestions', 'ai_symbol_search',
-              'ai_compliance_logging', 'supervisor_consent_flow']
+              'ai_compliance_logging', 'supervisor_consent_flow', 'product_telemetry',
+              'telemetry_admin_panel',
+              'tarheel_reader', 'auth_spa_transition', 'google_sso', 'quick_screen_eval',
+              'comprehensive_eval_ai', 'multi_user_board_import', 'customize_menu',
+              'home_tour', 'paste_html_import', 'catalog_board_prefetch',
+              'background_board_prefetch',
+              'portrait_orientation_overlay', 'signup_default_library_boards',
+              'english_first_board_generation', 'signup_spanish_library_boards',
+              'dashboard_drag_layout', 'boards_page_owner_dedup', 'edit_sidebar',
+              'sentence_bar_editing',
+              # EU launch (GDPR Art. 8): make the registration parental-consent
+              # age gate jurisdiction-aware (EU under-16 vs default under-13).
+              # AVAILABLE-only => OFF for everyone by default; with it OFF the
+              # registration flow is identical to today. Add to
+              # ENABLED_FRONTEND_FEATURES to activate (see eu_consent_age_enabled?).
+              'eu_consent_age',
+              # Landing-page beta publish: hide Sign In / Register, block auth
+              # routes + self-registration API, show "In beta testing" badge.
+              # ENABLED on feat/lingolinq-landing-page-beta only; remove from
+              # ENABLED (or drop gates) when opening public auth again.
+              'landing_beta_closed']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',
@@ -20,7 +49,17 @@ module FeatureFlags
               'find_multiple_buttons', 'new_speak_menu', 'swipe_pages', 'inflections_overlay',
               'ios_head_tracking', 'emergency_boards', 'evaluations',
               'vertical_ios_head_tracking', 'remote_modeling', 'auto_inflections', 'focus_word_highlighting',
-              'skin_tones', 'lessons', 'profiles', 'other_menu', 'ai_board_generation']
+              'skin_tones', 'lessons', 'profiles', 'other_menu', 'ai_board_generation',
+              'google_sso', 'quick_screen_eval', 'multi_user_board_import',
+              'customize_menu', # TEMPORARY: forced ON for everyone during testing. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON (see the rollout policy above AVAILABLE_FRONTEND_FEATURES).
+              'home_tour', # TEMPORARY (spike — 2026-05-27): ON for everyone so Traci can validate the Shepherd.js home-page tour in the browser. REMOVE from this list before merging the spike out of traci/styling/styling-updates — the canonical state is AVAILABLE-only (beta opt-in per user).
+              'portrait_orientation_overlay', # TEMPORARY (2026-05-29): forced ON for everyone to validate the ≤640px landscape-orientation overlay + immersive tool consolidation in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'background_board_prefetch',
+              'signup_default_library_boards', 'english_first_board_generation',
+              'dashboard_drag_layout', # TEMPORARY (2026-06-09): forced ON for everyone pre-production to validate the Getting Started drag-to-swap home layout. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'edit_sidebar', # TEMPORARY (2026-06-25): forced ON for everyone so Traci can validate the speak-mode "Edit Sidebar" panel in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'sentence_bar_editing', # TEMPORARY (2026-06-27): forced ON for everyone to validate the speak-bar active-edit controls (remove + reorder chips) in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'landing_beta_closed'] # TEMPORARY: ON for feat/lingolinq-landing-page-beta publish (closed Sign In/Register). Remove from ENABLED before opening public auth.
   DISABLED_CANARY_FEATURES = []
   FEATURE_DATES = {
     'word_suggestion_images' => 'Jan 21, 2017',
@@ -42,18 +81,29 @@ module FeatureFlags
     'ai_board_suggestions' => 'Feb 21, 2026',
     'ai_symbol_search' => 'Feb 21, 2026',
     'ai_compliance_logging' => 'Feb 21, 2026',
-    'supervisor_consent_flow' => 'Mar 22, 2026'
+    'supervisor_consent_flow' => 'Mar 22, 2026',
+    'tarheel_reader' => 'Apr 14, 2026',
+    'auth_spa_transition' => 'Apr 25, 2026',
+    'google_sso' => 'May 18, 2026',
+    'quick_screen_eval' => 'May 9, 2026',
+    'comprehensive_eval_ai' => 'May 12, 2026',
+    'multi_user_board_import' => 'May 15, 2026',
+    'landing_beta_closed' => 'Jul 14, 2026'
   }
   AI_FEATURES = %w[ai_board_generation ai_word_prediction ai_board_suggestions
-                   ai_symbol_search ai_compliance_logging].freeze
+                   ai_symbol_search ai_compliance_logging comprehensive_eval_ai].freeze
   def self.frontend_flags_for(user)
     flags = {}
+    enabled_list = SystemFeatureSettings.effective_enabled_for(user)
+    canary_list = SystemFeatureSettings.canary_enabled_features
+    beta_list = SystemFeatureSettings.beta_opt_in_features
+    user_flags = user && user.settings && user.settings['feature_flags']
     AVAILABLE_FRONTEND_FEATURES.each do |feature|
-      if ENABLED_FRONTEND_FEATURES.include?(feature)
+      if enabled_list.include?(feature)
         flags[feature] = true
-      elsif user && user.settings && user.settings['feature_flags'] && user.settings['feature_flags'][feature]
+      elsif user_flags && user_flags[feature] && beta_list.include?(feature)
         flags[feature] = true
-      elsif user && user.settings && user.settings['feature_flags'] && user.settings['feature_flags']['canary'] && !DISABLED_CANARY_FEATURES.include?(feature)
+      elsif user_flags && user_flags['canary'] && canary_list.include?(feature)
         flags[feature] = true
       end
     end
@@ -72,6 +122,34 @@ module FeatureFlags
     !!flags[feature]
   end
 
+  # Kill-switch for LL-90045bb29c option (b): whether User#lesson_share_token MINTS the new
+  # expiring token (default) or reverts to the legacy permanent user_token. Accept points
+  # (User.find_by_lesson_share_token) always accept BOTH formats, so this only controls what
+  # NEW lesson/board share URLs embed, never what resolves. Default is ON (the hardening);
+  # set EXPIRING_LESSON_SHARE_TOKENS=off (or 0/false/no) in the environment to revert
+  # construction to the legacy token in one switch, no code deploy.
+  def self.expiring_lesson_share_tokens_enabled?(_user = nil)
+    return false if ENV['EXPIRING_LESSON_SHARE_TOKENS'].to_s =~ /^(0|false|no|off)$/i
+    true
+  end
+
+  # Server-side gate for copying default vocab boards into new user libraries.
+  def self.signup_default_library_boards_enabled?(_user = nil)
+    return true if ENV['SIGNUP_DEFAULT_LIBRARY_BOARDS'].to_s =~ /^(1|true|yes)$/i
+    list = _user ? SystemFeatureSettings.effective_enabled_for(_user) : SystemFeatureSettings.default_enabled_features
+    list.include?('signup_default_library_boards')
+  end
+
+  def self.signup_spanish_library_boards_enabled?(user = nil)
+    return true if ENV['SIGNUP_SPANISH_LIBRARY_BOARDS'].to_s =~ /^(1|true|yes)$/i
+    list = user ? SystemFeatureSettings.effective_enabled_for(user) : SystemFeatureSettings.default_enabled_features
+    return false unless list.include?('signup_spanish_library_boards')
+    return true unless user
+    prefs = user.settings && user.settings['preferences']
+    locale = (prefs && prefs['locale']) || (user.settings && user.settings['locale'])
+    locale.to_s.match?(/^es/i)
+  end
+
   # Check if AI features are allowed for a user's organization.
   # Organizations can opt out of all AI processing (required for FERPA/HIPAA compliance).
   def self.ai_enabled_for?(user)
@@ -88,5 +166,43 @@ module FeatureFlags
     return false unless AI_FEATURES.include?(feature)
     return false unless ai_enabled_for?(user)
     feature_enabled_for?(feature, user)
+  end
+
+  # EU launch (GDPR Art. 8): whether the jurisdiction-aware registration
+  # consent-age gate is globally active. Mirrors how anonymous registration
+  # reads flags (window.enabled_frontend_features = ENABLED_FRONTEND_FEATURES),
+  # since there is no user yet at signup. OFF by default (AVAILABLE-only) so the
+  # registration flow stays identical to today until deliberately enabled.
+  #
+  # DEPENDENCY: EU-16 only actually GATES when the host also has
+  # coppa_parental_consent enabled (JsonApi::Json.coppa_parental_consent_enabled?).
+  # With this flag ON but that OFF, the register UI collects a parent email but
+  # the backend does not gate -- a cosmetic prompt. Enable BOTH together on an
+  # EU host. (And note the age gate itself trusts a client boolean; server-side
+  # enforcement is a separate hardening item, see the PR/plan.)
+  def self.eu_consent_age_enabled?
+    ENABLED_FRONTEND_FEATURES.include?('eu_consent_age')
+  end
+
+  # Landing-page beta publish: Sign In / Register closed for anonymous visitors.
+  # Mirrors eu_consent_age_enabled? — anonymous pages only see ENABLED.
+  def self.landing_beta_closed_enabled?
+    ENABLED_FRONTEND_FEATURES.include?('landing_beta_closed')
+  end
+
+  # COPPA Final Rule (16 CFR 312.5) hard-gate. Default ON.
+  # Set COPPA_AI_HARD_GATE=false in env for emergency rollback only.
+  def self.coppa_ai_hard_gate_enabled?
+    ENV['COPPA_AI_HARD_GATE'].to_s.downcase != 'false'
+  end
+
+  # Returns true when AI calls must be blocked for this user because COPPA
+  # parental consent is still pending. Used by every AI call site as a
+  # short-circuit before PiiScrubber and any provider request.
+  def self.coppa_blocks_ai_for?(user)
+    return false unless coppa_ai_hard_gate_enabled?
+    return false unless user
+    return false unless user.respond_to?(:coppa_parental_consent_blocks_access?)
+    user.coppa_parental_consent_blocks_access?
   end
 end

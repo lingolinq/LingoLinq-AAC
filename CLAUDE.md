@@ -7,6 +7,36 @@ alwaysApply: true
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## RULE #0 — CHECK THIS FIRST, EVERY SINGLE TIME, BEFORE TOUCHING CODE
+
+**Scope:** this rule applies to **every** code change — additions, modifications, refactors, fixes, deletions, and styling/markup edits alike. "Fix" below is shorthand for any change. The rule takes precedence over everything else in this document.
+
+1. **Diagnose before fixing — never guess.** Identify the actual root cause and **verify it with evidence** (read the real code paths end to end, inspect the real data, reproduce or trace the failing behavior). Do not propose or apply a fix based on a plausible-sounding theory. If you cannot verify the cause, say so and keep investigating — do not ship a guess.
+2. **Be thorough.** Trace the full path the bug actually travels, including shared code, both the working and broken variants, and the data the code operates on. A fix that addresses a symptom without explaining why the verified root cause produces it is not acceptable.
+3. **Never break existing, working functionality.** Preserve all current behavior. If a fix risks regressing anything that works today, stop and flag it rather than proceeding. Do not "fix" one thing by degrading another.
+4. **If diagnosis is incomplete, do not apply a change.** Report what was verified, what wasn't, and the next investigation step. An honest "not yet diagnosed" beats a confident wrong fix.
+5. **If an attempted correction does not fix the problem, suspect the attempt itself first.** Before trying again, thoroughly re-evaluate whether the change was made on the wrong element, component, route/page, or layer. If it was, **revert the incorrect change** before doing anything else -- do not leave wrong edits stacked in place. Only then re-diagnose (per rules 1-4) and fix the real problem. Never pile a second guess on top of an unreverted first guess.
+6. **Keep the code modular and organized — never write spaghetti.** Each change should live in the smallest sensible unit (component, helper, service, partial, mixin) with a single, clear responsibility. Reuse existing primitives instead of duplicating logic; extract a shared unit when the same idea appears in two places. Name things for what they are, group related code together, and don't bolt new behavior onto an already-overloaded file or function just because it's convenient. If a change would tangle responsibilities, stop and propose the split first.
+7. **When changing a styling rule, edit the original — do not stack a new one on top.** Locate the existing selector that governs the element (in `app.scss` or the relevant partial) and modify it in place so each component has one authoritative rule. Do not introduce a new selector with higher specificity, an override block at the bottom of the file, or an `!important` patch just to win the cascade. Only add a new rule when the element genuinely has no existing style; if uncertain whether a rule already exists, search first.
+8. **Track every researched task in a markdown log; distill durable lessons to a shared learnings doc.** As soon as a task requires research (diagnosis, multi-file exploration, multiple iterations), create `docs/task-management/YYYY-MM-DD-<kebab-task-name>.md` and use it as a live working log: goal, hypotheses, attempts, what worked, what failed, evidence (file:line), decisions. Update it as you go, not at the end. **Before** starting a task, skim `docs/task-management/LEARNINGS.md` for prior findings that apply. **On** successful completion, distill any durable patterns — root-cause patterns, reusable techniques, codebase gotchas — into that same `LEARNINGS.md` so future tasks benefit. Skip the per-task file only for truly trivial edits (one-line/typo) that need no investigation.
+
+## Branching (mandatory before ANY code change)
+
+Before you make any edit in this repo, you MUST be on a properly-named branch — but **do not create a new branch** when the user is already working on one for the same task or PR.
+
+1. **Branch from `staging`, not `main`.** PRs target `staging` first; release PRs from `staging` to `main` are a separate operation. Create a new branch only when starting **new** work or when currently on `main` / `staging`.
+2. **Stay on the active feature branch** when the user (or conversation) is already on a properly named branch and the request is part of that work — e.g. CI failures on their PR, review feedback, follow-up fixes, or “fix this on my branch.” Commit directly on that branch. Do **not** check out `staging`, spawn a separate `fix/…` branch, and merge back unless the user explicitly asks for a split PR or a clean branch off `staging`.
+3. **Branch name format:** use the **developer** doing the work, not a fixed name. Two conventions both work:
+   - `<type>/<developer>-<kebab-case-description>` — e.g. `fix/melissa-persistence-bg-parse-json`, `feat/melissa-signup-default-library-boards`
+   - `<developer>/<type>/<kebab-case-description>` — e.g. `melissa/fix/sidebar-actions`, `traci/styling/styling-updates`
+   - `<type>` is one of: `fix`, `feat`, `chore`, `docs`, `perf`, `refactor`, `test`, `compliance`, `security`. The type prefix is REQUIRED in the `<type>/…` form.
+   - `<developer>` is a short lowercase handle: `melissa`, `scot`, `traci`, `dominic`, etc.
+   - Use kebab-case for the description (lowercase, hyphens between words).
+4. **Never edit on `main` or `staging` directly.** If you find yourself on one of those branches, `git checkout staging && git pull && git checkout -b <type>/<developer>-<description>` (or `<developer>/<type>/<description>`) first.
+5. Date suffixes like `-2026-05-08` are only for time-bound recovery/release branches, not regular feature work.
+
+If you produced a branch name without a type prefix (e.g. `melissa-sidebar`), rename it before opening a PR: `git branch -m fix/melissa-sidebar`.
+
 ## Project Overview
 
 LingoLinq (formerly LingoLinq) is an open-source web-based AAC (Augmentative and Alternative Communication) application. It consists of a Rails backend and an Ember.js frontend, both contained in this monorepo. The system is deployed as a web app and packaged for mobile (iOS/Android) and desktop apps.
@@ -16,7 +46,7 @@ Key characteristics:
 - Multi-device sync with automatic conflict resolution
 - Supervisor/user permission model for therapy teams
 - Uses Open Board Format (OBF) for board import/export
-- Deployed on Heroku with background job processing via Resque
+- Deployed on Render (lingolinq-prod, lingolinq-staging, lingolinq-dev) with background job processing via Resque
 
 ## Development considerations
 LingoLinq-AAC supports multiple locales, so when developing anything on the frontend, whether
@@ -50,8 +80,6 @@ bin/fresh_start
 # Or manually:
 # Development with all processes (recommended)
 foreman start
-# or
-heroku local
 
 # Stop all running processes
 bin/kill_all
@@ -77,12 +105,17 @@ bundle exec rspec spec/models/user_spec.rb:42
 
 **Console access:**
 ```bash
-# Local console (includes audit safeguards)
-bin/heroku_console
-
-# Production console (on Heroku)
-bin/heroku_console  # Not just 'rails console'
+# Audited console wrapper (platform-agnostic; run from any app shell)
+bin/audit_console
 ```
+
+> Note: this script was previously named `bin/heroku_console`. It no longer
+> invokes the Heroku CLI; it sets `USER_KEY` and `exec`s `bundle exec rails
+> console`, so it works from the Render Shell tab, a Cloud Run exec shell, or a
+> local checkout. `USER_KEY` provides self-asserted PaperTrail write-attribution
+> only (see the Security section); the wrapper does NOT currently record a
+> per-session `AuditEvent` (the Reline-bypassed Readline hook is non-operative),
+> a gap tracked under open finding LL-7f7372e3eb.
 
 **Scheduled tasks (run periodically in production):**
 ```bash
@@ -102,7 +135,7 @@ rake clean_old_deleted_boards          # daily
 ```bash
 cd app/frontend
 npm install
-bower install
+# bower install (Deprecated: dependencies moved to npm/vendor)
 ```
 
 **Running:**
@@ -188,7 +221,16 @@ rake extras:desktop
 
 ### Frontend Architecture
 
-**Framework:** Ember.js 3.28 with Ember Data for models
+**Framework:** Ember.js **5.12** with Ember Data 5.3 for models (ember-cli 5.12).
+
+**Ember version history:** The app originally shipped on **Ember 3.28**, then was upgraded to
+**4.12** (PR #437) and finally to **5.12** (PR #490) — the current version. When touching frontend
+code, target 5.12 APIs. Note that the 5.12 upgrade set `EXTEND_PROTOTYPES: false`
+(`config/environment.js`), so Ember array/string prototype extensions (`.pushObject`, `.sortBy`,
+`.mapBy`, `.uniq`, `.compact`, etc.) are **not** available on native arrays/strings — call them only
+on an `A()`-wrapped array (`import { A } from '@ember/array'`) or an Ember-Data collection, or use
+native JS equivalents. Deprecation-audit status is tracked in
+`docs/task-management/2026-07-14-ember-5-12-full-deprecation-audit.md`.
 
 **jQuery removal:** Work to remove jQuery has been done on the develop branch. `jquery-integration` is disabled in `config/optional-features.json` to avoid `Component.reopen` deprecation from @ember/jquery. The app uses jQuery (`$`) for DOM manipulation where needed but does not use `this.$()` on components. When making changes, prefer native DOM APIs or Ember patterns over jQuery where practical.
 
@@ -259,7 +301,7 @@ rake extras:desktop
 
 **Functionality and styling:**
 - Do NOT remove or change functionality when refactoring.
-- Preserve existing class names used for styling unless there is a clear need to change them—if so, prompt the user first.
+- Preserve existing class names used for styling unless there is a clear need to change them - if so, prompt the user first.
 
 **Internationalization:**
 - NEVER add raw text strings to user-facing code
@@ -267,6 +309,10 @@ rake extras:desktop
 - Controllers/JS: `i18n.t('translation_key', "default text")`
 - Translation files: `public/locales/*.json`
 - Generation script: `i18n_generator.rb`
+
+**CSS / SCSS:**
+- Mixed-unit math (e.g. `px + vw`, `rem + vw`) inside `clamp()` MUST be wrapped in `calc()` - SassC cannot evaluate mixed units at compile time
+- CSS compression is disabled in production (`config.assets.css_compressor = nil`) - do NOT re-enable `:sass` compression (see `docs/CSS_SCSS_GUIDELINES.md`)
 
 **Platform-Specific Code:**
 - Extract platform-specific code or wrap in `capabilities` library
@@ -285,7 +331,7 @@ New user-facing features MUST be added behind a feature flag (`lib/feature_flags
 
 - Avoid OWASP Top 10 vulnerabilities (XSS, SQL injection, command injection, etc.)
 - User data is privacy-regulated - use `secure_serialize` concern for sensitive fields
-- Console access audited via `AuditEvent` model (use `bin/heroku_console`, not `rails console`)
+- Console access: use `bin/audit_console` (sets `USER_KEY` so console record-writes are attributed to you via PaperTrail, and works from the Render Shell tab, a Cloud Run exec shell, or locally), not a bare `rails console`. NOTE: `USER_KEY` is self-asserted free text, not derived from an authenticated principal, so the attributed actor is spoofable and the wrapper is opt-in (a bare `rails console` bypasses it with no attribution). The per-session `AuditEvent` logging this is meant to feed is also currently non-operative on the Ruby 3.4 / Reline stack (Readline hook bypassed; `ARGV_COMMAND` undefined at boot so the un-keyed-console refusal never fires). All three gaps are tracked as open finding LL-7f7372e3eb
 - Protected IDs require nonce to prevent snooping
 
 ## Environment Setup
@@ -371,35 +417,48 @@ See docs/CODE_INVESTIGATION.md for detailed debugging guidance on common problem
 
 ## Audit Orchestration System
 
-This repo includes a full audit orchestration system for continuous code quality, compliance, and MVP readiness assessment.
+This repo includes an audit orchestration system for continuous code quality, compliance, and
+security-posture assessment. As of the Audit/Compliance Modernization (Phase 2, 2026-06), it
+lives in the supported Claude Code layout under `.claude/` and is driven by the findings
+register. The legacy top-level `skills/`, `subagents/`, and `workflows/` dirs were removed in
+Phase 2; their content was migrated into the `.claude/` layout below.
 
-### Directory Layout
-| Directory | Purpose |
-|-----------|---------|
-| `skills/` | 7 structured audit skills (checklists + output schemas) |
-| `subagents/` | 7 isolated audit worker prompts for Claude Code Task tool |
-| `workflows/` | Orchestration runbooks (full-audit pipeline, team coordination) |
-| `audit-reports/` | Generated audit output (JSON + markdown) |
-| `.claude/skills/` | Claude Code native skills (a11y, compliance, deploy, ember) |
+### Directory Layout (current)
+| Path | Purpose |
+|------|---------|
+| `.claude/agents/*-auditor.md` | Read-only domain finder agents (privacy, infra, api, dependency, accessibility) |
+| `.claude/skills/<domain>-audit/SKILL.md` | Per-domain checklists with the register schema embedded |
+| `.claude/skills/audit-run/SKILL.md` | `/audit-run` orchestrator (replaces `workflows/full-audit.md`) |
+| `.claude/hooks/audit-readonly-guard.sh` | PreToolUse write-blocker wired into each finder |
+| `audit-reports/FINDINGS.json` + `FINDINGS.md` | The findings register: single source of truth |
+| `scripts/citation-check.rb` | Mechanical evidence validator (snippet exists at SHA) |
+| `scripts/audit-merge.rb` | Deterministic register reconciler (never auto-closes) |
 
 ### Running a Full Audit
-1. Read `workflows/full-audit.md`
-2. Follow its orchestration steps (launches 6 parallel subagents)
-3. Results land in `audit-reports/` and sync to Notion
+1. Invoke `/audit-run` (user-only skill). It stamps the audited SHA, fans out the five
+   read-only finders in parallel, reconciles results into `audit-reports/FINDINGS.json` via
+   `scripts/audit-merge.rb`, runs the `adversary` agent as verifier, and validates with
+   `scripts/citation-check.rb`.
+2. Headline is the count of open **Critical/High** findings, NOT a 0-100 score.
+3. Only Scot closes a finding, downgrades severity, or accepts risk.
 
-### Skills Reference
-| Skill | Path | Purpose |
-|-------|------|---------|
-| Full-Stack Auditor | `skills/full-stack-auditor/SKILL.md` | Master orchestrator + MVP scoring |
-| GDPR/FERPA Compliance | `skills/gdpr-ferpa-compliance/SKILL.md` | Privacy & compliance |
-| Ember Stabilization | `skills/ember-stabilization/SKILL.md` | Ember 3.12->3.28 migration |
-| Rails Upgrade | `skills/rails-upgrade/SKILL.md` | Rails upgrade readiness |
-| API Contract Verification | `skills/api-contract-verification/SKILL.md` | Ember<->Rails contract checks |
-| SOC2 Auditor | `skills/soc2-auditor/SKILL.md` | SOC2-style security posture |
-| Notion Sync | `skills/notion-sync/SKILL.md` | Push results to Notion via MCP |
+### Finder Agents
+| Agent | Domain | Skill loaded |
+|-------|--------|--------------|
+| `privacy-auditor` | GDPR/FERPA/COPPA/HIPAA privacy | `gdpr-ferpa-audit` |
+| `infra-auditor` | SOC2-style security + infrastructure | `soc2-security-audit` |
+| `api-auditor` | Ember<->Rails API contract | `api-contract-audit` |
+| `dependency-auditor` | Dependency freshness + CVEs | `dependency-audit` |
+| `accessibility-auditor` | WCAG 2.1 AA / EN 301 549 (static markup/SCSS) | `accessibility-audit` |
+
+Retired from the fan-out: `ember-stabilization` and `rails-upgrade` (migration-era, shipped)
+and the `mvp-readiness` 0-100 score (replaced by open Critical/High counts).
 
 ### Audit Rules
-- NEVER modify code during audits — read-only until "apply fixes" is explicitly said
-- Always show diffs before proposing changes
-- Subagents scan only their declared domain
-- All findings include file paths and line numbers where possible
+- Finders are read-only by construction: `tools: Read, Grep, Glob, Bash` (no Edit/Write) plus a
+  PreToolUse hook that blocks mutating Bash. They report; they never fix.
+- The register (`audit-reports/FINDINGS.json`) is the single source of truth. `audit-merge.rb`
+  only ever ADDS findings or marks them `open`; it never closes or downgrades.
+- No student/patient data ever appears in findings; evidence snippets are code only.
+- Compliance content is **Tier 2**: the register is PII-free (code evidence only), so any approved reviewer is permitted; the data-bearing-path guard (`codex-review-guard.sh`), not a Claude-only rule, is the boundary.
+- All findings include file paths and line numbers, anchored to the audited commit SHA.

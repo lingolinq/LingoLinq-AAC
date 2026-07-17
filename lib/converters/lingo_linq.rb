@@ -3,6 +3,19 @@ require 'obf'
 module Converters::LingoLinq
   EXT_PARAMS = ['link_disabled', 'add_to_vocalization', 'add_vocalization', 'hide_label', 'home_lock', 'blocking_speech', 'part_of_speech', 'external_id', 'video', 'book']
 
+  # OpenBoards / CoughDrop-origin OBF/OBZ files namespace their extension
+  # attributes as ext_coughdrop_*, while LingoLinq exports use ext_lingolinq_*.
+  # LingoLinq is a CoughDrop fork, so accept either namespace on import. Without
+  # this, button settings like hide_label and add_vocalization (and board-level
+  # settings/background) are silently dropped from upstream boards. Prefers the
+  # ext_lingolinq_* value when both are present.
+  def self.ext_attr(obj, param)
+    return nil unless obj
+    val = obj["ext_lingolinq_#{param}"]
+    val = obj["ext_coughdrop_#{param}"] if val.nil?
+    val
+  end
+
   def self.to_obf(board, dest_path, path_hash=nil)
     json = nil
     Progress.as_percent(0, 0.1) do
@@ -28,12 +41,15 @@ module Converters::LingoLinq
     end
     res['description_html'] = board.settings['description'] || "built with LingoLinq"
     res['license'] = OBF::Utils.parse_license(board.settings['license'])
+    # Load translations once and reuse below in the buttons loop. Previously this method
+    # called BoardContent.load_content(board, 'translations') twice per board.
+    all_translations = nil
     if !opts || !opts['simple']
-      trans = BoardContent.load_content(board, 'translations')
-      if trans
-        res['default_locale'] = trans['default']
-        res['label_locale'] = trans['current_label']
-        res['vocalization_locale'] = trans['current_vocalization']
+      all_translations = BoardContent.load_content(board, 'translations')
+      if all_translations
+        res['default_locale'] = all_translations['default']
+        res['label_locale'] = all_translations['current_label']
+        res['vocalization_locale'] = all_translations['current_vocalization']
       end
       bg = BoardContent.load_content(board, 'background')
       if bg
@@ -71,6 +87,11 @@ module Converters::LingoLinq
     button_count = (board.buttons || []).length
     locs = ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se']
     which_skinner = ButtonImage.which_skinner(opts && opts['user'] && opts['user'].settings && opts['user'].settings['preferences']['skin'])
+    # Pre-build id-keyed lookups so the per-button loop is O(1) instead of O(N) per access.
+    # known_button_images / known_button_sounds is an Array; using detect inside a loop
+    # with B buttons made the body of to_external O(B*I) per board.
+    known_images_by_id = (board.known_button_images || []).each_with_object({}) { |i, h| h[i.global_id] = i }
+    known_sounds_by_id = (board.known_button_sounds || []).each_with_object({}) { |s, h| h[s.global_id] = s }
     Progress.update_current_progress(0.3, "externalizing board #{board.global_id}")
     Progress.as_percent(0.3, 1.0) do
       (board.buttons || []).each_with_index do |original_button, idx|
@@ -87,12 +108,13 @@ module Converters::LingoLinq
         }
         button['ext_lingolinq_rules'] = original_button['rules'] if original_button['rules']
         if !opts || !opts['simple']
+          all_translations ||= {}
           inflection_defaults = nil
           trans = {}
-          (BoardContent.load_content(board, 'translations') || {}).each do |loc, hash|
+          all_translations.each do |loc, hash|
             next unless hash && hash.is_a?(Hash)
-            if hash[original_button['id']]
-              trans[loc] = hash[original_button['id']]
+            if hash[original_button['id'].to_s] || hash[original_button['id']]
+              trans[loc] = hash[original_button['id'].to_s] || hash[original_button['id']]
             end
           end
           trans[board.settings['locale']] ||= original_button if original_button['inflections']
@@ -165,7 +187,7 @@ module Converters::LingoLinq
           end
         end
         if original_button['image_id']
-          image = board.known_button_images.detect{|i| i.global_id == original_button['image_id'] }
+          image = known_images_by_id[original_button['image_id']]
           if image
             image_settings = image.settings_for(opts['user'], nil, nil)
             
@@ -232,7 +254,7 @@ module Converters::LingoLinq
         end
         if !opts || !opts['simple']
           if original_button['sound_id']
-            sound_record = board.known_button_sounds.detect{|i| i.global_id == original_button['sound_id'] }
+            sound_record = known_sounds_by_id[original_button['sound_id']]
             if sound_record
               duration = sound_record.settings['duration']
               duration = 1 if !duration.is_a?(Numeric) || duration <= 0
@@ -290,10 +312,11 @@ module Converters::LingoLinq
     raise "user required" unless opts['user']
     raise "missing id" unless obj['id']
     protected_sources = opts['user'] ? opts['user'].enabled_protected_sources(true) : []
-    if obj['ext_lingolinq_settings'] && obj['ext_lingolinq_settings']['protected'] && obj['ext_lingolinq_settings']['key']
+    guard_settings = Converters::LingoLinq.ext_attr(obj, 'settings') || {}
+    if guard_settings['protected'] && guard_settings['key']
       importer = opts['user']
-      board_owner_id = obj['ext_lingolinq_settings']['protected_user_id']
-      user_name = obj['ext_lingolinq_settings']['key'].split(/\//)[0]
+      board_owner_id = guard_settings['protected_user_id']
+      user_name = guard_settings['key'].split(/\//)[0]
       # Allow import if: (1) key says same user, (2) importer is board owner, or
       # (3) importer has edit permission on the board owner (supervisor/manager)
       board_owner = board_owner_id && User.find_by_global_id(board_owner_id)
@@ -304,11 +327,12 @@ module Converters::LingoLinq
     end
 
     hashes = {}
-    hashes['images_hash_ids'] = obj['buttons'].map{|b| b && b['image_id'] }.compact
-    hashes['sounds_hash_ids'] = obj['buttons'].map{|b| b && b['sound_id'] }.compact
+    hashes['images_hash_ids'] = obj['buttons'].map { |b| b && b['image_id'] }.compact.map(&:to_s)
+    hashes['sounds_hash_ids'] = obj['buttons'].map { |b| b && b['sound_id'] }.compact.map(&:to_s)
     [['images_hash', ButtonImage], ['sounds_hash', ButtonSound]].each do |list, klass|
       (obj[list] || {}).each do |id, item|
-        next unless hashes["#{list}_ids"].include?(item['id'])
+        item_id = item['id'].to_s
+        next unless hashes["#{list}_ids"].include?(item_id)
         record = Converters::Utils.find_by_data_url(item['data_url'])
         protected_val =
           if item.key?('ext_lingolinq_protected')
@@ -329,7 +353,7 @@ module Converters::LingoLinq
         end
         if record
           obj[list][item['id']]['id'] = record.global_id
-          hashes[item['id']] = record.global_id
+          hashes[item_id] = record.global_id
         elsif item['data']
           record = klass.create(:user => opts['user'])
           item['ref_url'] = item['data']
@@ -337,7 +361,7 @@ module Converters::LingoLinq
           record = klass.create(:user => opts['user'])
           item['ref_url'] = item['ext_lingolinq_unskinned_url'] || item['url']
         end
-        if record && !hashes[item['id']]
+        if record && !hashes[item_id]
           data_uri = item.delete('data') || item['ref_url']
           item.delete('url')
 
@@ -354,10 +378,15 @@ module Converters::LingoLinq
 
           record.process(item)
 
+          if opts['json_bundle_import'] && klass == ButtonImage
+            record.settings['preserve_source_image'] = true
+            record.save
+          end
+
           if item['ref_url']
             record.upload_to_remote(item['ref_url']) if item['ref_url']
           end
-          hashes[item['id']] = record.global_id
+          hashes[item_id] = record.global_id
           obj[list][item['id']]['id'] = record.global_id
         end
       end
@@ -367,7 +396,7 @@ module Converters::LingoLinq
     non_user_params = {'user' => opts['user']}
     params['name'] = obj['name']
     params['description'] = obj['description_html']
-    params['image_url'] = obj['ext_lingolinq_image_url'] || obj['image_url']
+    params['image_url'] = Converters::LingoLinq.ext_attr(obj, 'image_url') || obj['image_url']
     params['license'] = OBF::Utils.parse_license(obj['license'])
     params['locale'] = obj['locale'] || 'en'
 
@@ -402,15 +431,19 @@ module Converters::LingoLinq
         new_button['vocalization'] = button['vocalization']
       end
       if button['image_id']
-        new_button['image_id'] = hashes[button['image_id']]
+        mapped_image_id = hashes[button['image_id'].to_s]
+        new_button['image_id'] = mapped_image_id if mapped_image_id
       end
       if button['sound_id']
-        new_button['sound_id'] = hashes[button['sound_id']]
+        mapped_sound_id = hashes[button['sound_id'].to_s]
+        new_button['sound_id'] = mapped_sound_id if mapped_sound_id
       end
       EXT_PARAMS.each do |param|
-        if button["ext_lingolinq_#{param}"]
-          new_button[param] = button["ext_lingolinq_#{param}"]
-        end
+        val = Converters::LingoLinq.ext_attr(button, param)
+        # Set on presence, not truthiness, so an explicit boolean false
+        # (e.g. hide_label: false) is preserved rather than dropped to the
+        # LingoLinq default. Several EXT_PARAMS are booleans.
+        new_button[param] = val unless val.nil?
       end
 
       if button['translations']
@@ -425,7 +458,8 @@ module Converters::LingoLinq
           end
           ref['label'] ||= hash['label'] if hash['label']
           ref['vocalization'] ||= hash['vocalization'] if hash['vocalization']
-          ref['rules'] ||= hash['ext_lingolinq_rules'] if hash['ext_lingolinq_rules']
+          trans_rules = Converters::LingoLinq.ext_attr(hash, 'rules')
+          ref['rules'] ||= trans_rules if trans_rules
           (hash['inflections'] || {}).each do |key, str|
             if str == 'ext_lingolinq_defaults'
             elsif loc_hash[key] && !(hash['inflections']['ext_lingolinq_defaults'] || []).include?(key)
@@ -437,10 +471,14 @@ module Converters::LingoLinq
       end
 
       if button['load_board']
-        if opts['boards'] && opts['boards'][button['load_board']['id']]
-          new_button['load_board'] = opts['boards'][button['load_board']['id']]
+        load_board = button['load_board']
+        target_id = load_board['id'].to_s
+        mapped = opts['boards'] && opts['boards'][target_id]
+        mapped ||= opts['boards_by_key'] && load_board['key'] && opts['boards_by_key'][load_board['key']]
+        if mapped
+          new_button['load_board'] = mapped
         else
-          link = Board.find_by_path(button['load_board']['key'] || button['load_board']['id'])
+          link = Board.find_by_path(load_board['key'] || load_board['id'])
           if link
             new_button['load_board'] = {
               'id' => link.global_id,
@@ -449,8 +487,9 @@ module Converters::LingoLinq
           end
         end
       elsif button['url']
-        if button['ext_lingolinq_apps']
-          new_button['apps'] = button['ext_lingolinq_apps']
+        ext_apps = Converters::LingoLinq.ext_attr(button, 'apps')
+        if ext_apps
+          new_button['apps'] = ext_apps
         else
           new_button['url'] = button['url']
         end
@@ -458,18 +497,20 @@ module Converters::LingoLinq
       new_button
     end
     params['grid'] = obj['grid']
-    params['public'] = !(obj['ext_lingolinq_settings'] && obj['ext_lingolinq_settings']['private'])
-    params['home_board'] = (obj['ext_lingolinq_settings'] || {})['home_board'] || false
-    params['categories'] = (obj['ext_lingolinq_settings'] || {})['categories'] || []
-    params['word_suggestions'] = obj['ext_lingolinq_settings'] && obj['ext_lingolinq_settings']['word_suggestions']
-    params['text_only'] = (obj['ext_lingolinq_settings'] || {})['text_only'] || false
-    params['hide_empty'] = (obj['ext_lingolinq_settings'] || {})['hide_empty'] || false
+    ext_settings = Converters::LingoLinq.ext_attr(obj, 'settings') || {}
+    params['public'] = !ext_settings['private']
+    params['home_board'] = ext_settings['home_board'] || false
+    params['categories'] = ext_settings['categories'] || []
+    params['word_suggestions'] = ext_settings['word_suggestions']
+    params['text_only'] = ext_settings['text_only'] || false
+    params['hide_empty'] = ext_settings['hide_empty'] || false
 
-    if obj['ext_lingolinq_background'] || obj['background']
-      params['background'] = obj['ext_lingolinq_background'] || obj['background']
+    ext_background = Converters::LingoLinq.ext_attr(obj, 'background')
+    if ext_background || obj['background']
+      params['background'] = ext_background || obj['background']
     end
 
-    non_user_params[:key] = (obj['ext_lingolinq_settings'] && obj['ext_lingolinq_settings']['key'] && obj['ext_lingolinq_settings']['key'].split(/\//)[-1])
+    non_user_params[:key] = (ext_settings['key'] && ext_settings['key'].split(/\//)[-1])
     board = nil
     if opts['boards'] && opts['boards'][obj['id']]
       board = Board.find_by_path(opts['boards'][obj['id']]['id']) || Board.find_by_path(opts['boards'][obj['id']]['key'])
@@ -496,10 +537,13 @@ module Converters::LingoLinq
   end
   
   def self.to_external_nested(board, opts)
+    started = Time.now
     boards = []
     images = []
     sounds = []
-    
+    seen_image_ids = {}
+    seen_sound_ids = {}
+
     board.track_downstream_boards!
     Progress.update_current_progress(0.1, 'tracked downstreams')
 
@@ -510,6 +554,7 @@ module Converters::LingoLinq
         lookup_boards << b
       end
     end
+    Rails.logger.info("[export_perf] to_external_nested processing #{lookup_boards.length} boards rooted at #{board.global_id}")
 
     incr = (1.0 / lookup_boards.length.to_f) * 0.9
     tally = 0.1
@@ -517,20 +562,31 @@ module Converters::LingoLinq
       if b
         Progress.as_percent(tally, tally + incr) do
           res = to_external(b, opts)
-          images += res['images']
+          res['images'].each do |img|
+            unless seen_image_ids[img['id']]
+              images << img
+              seen_image_ids[img['id']] = true
+            end
+          end
           res.delete('images')
-          sounds += res['sounds']
+          res['sounds'].each do |snd|
+            unless seen_sound_ids[snd['id']]
+              sounds << snd
+              seen_sound_ids[snd['id']] = true
+            end
+          end
           res.delete('sounds')
           boards << res
         end
         tally += incr
       end
     end
-      
+
+    Rails.logger.info("[export_perf] to_external_nested took #{(Time.now - started).round(2)}s for #{lookup_boards.length} boards rooted at #{board.global_id}, #{images.length} images, #{sounds.length} sounds")
     return {
       'boards' => boards,
-      'images' => images.uniq,
-      'sounds' => sounds.uniq
+      'images' => images,
+      'sounds' => sounds
     }
   end
   
@@ -544,11 +600,13 @@ module Converters::LingoLinq
     
     # pre-load all the boards so they already exist when we go to look for them as links
     content['boards'].each do |obj|
-      if opts['boards'] && opts['boards'][obj['id']]
-        board = Board.find_by_path(opts['boards'][obj['id']]['id']) || Board.find_by_path(opts['boards'][obj['id']]['key'])
+      board_id = obj['id'].to_s
+      if opts['boards'] && opts['boards'][board_id]
+        board = Board.find_by_path(opts['boards'][board_id]['id']) || Board.find_by_path(opts['boards'][board_id]['key'])
       else
         non_user_params = {'user' => opts['user']}
-        non_user_params[:key] = (obj['ext_lingolinq_settings'] && obj['ext_lingolinq_settings']['key'] && obj['ext_lingolinq_settings']['key'].split(/\//)[-1])
+        preload_settings = Converters::LingoLinq.ext_attr(obj, 'settings') || {}
+        non_user_params[:key] = (preload_settings['key'] && preload_settings['key'].split(/\//)[-1])
         params = {}
         params['name'] = obj['name']
         board = Board.process_new(params, non_user_params)
@@ -556,10 +614,15 @@ module Converters::LingoLinq
       if board
         board.reload
         opts['boards'] ||= {}
-        opts['boards'][obj['id']] = {
+        opts['boards'][board_id] = {
           'id' => board.global_id,
           'key' => board.key
         }
+        source_key = obj['ext_lingolinq_settings'] && obj['ext_lingolinq_settings']['key']
+        if source_key.present?
+          opts['boards_by_key'] ||= {}
+          opts['boards_by_key'][source_key] = opts['boards'][board_id]
+        end
       end
     end
     

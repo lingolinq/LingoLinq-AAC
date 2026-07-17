@@ -168,6 +168,9 @@ var utterance = EmberObject.extend({
           }
           // append to previous
           var altered = _this.modify_button(last, button);
+          if(altered.raw_index == null) {
+            altered.raw_index = last.raw_index != null ? last.raw_index : button.raw_index;
+          }
           added = true;
           last_append = plusses[plusses.length - 1];
           buttonList.push(altered);
@@ -185,6 +188,9 @@ var utterance = EmberObject.extend({
             var action = LingoLinq.find_special_action(text);
             if(action && (action.modifier || action.completion) && !added) {
               var altered = _this.modify_button(last || {}, button);
+              if(altered.raw_index == null) {
+                altered.raw_index = (last || {}).raw_index != null ? last.raw_index : button.raw_index;
+              }
               added = true;                           
               buttonList.push(altered);
             } else if(last) {
@@ -238,6 +244,9 @@ var utterance = EmberObject.extend({
         hint = EmberObject.create({label: utterance.get('hint_button.label'), image: utterance.get('hint_button.image_url'), ghost: true});
       }
       buttonList.forEach(function(button, idx) {
+        if(button.raw_index == null) {
+          button.raw_index = idx;
+        }
         var visualButton = EmberObject.create(button);
         visualButtonList.push(visualButton);
         // Use cached images/sounds if available
@@ -435,7 +444,7 @@ var utterance = EmberObject.extend({
   process_inline_content: function(text, inline_actions) {
     var content = [];
     var loc = 0;
-    inline_actions.sortBy('index').forEach(function(action) {
+    inline_actions.slice().sort(function(a, b) { var x = emberGet(a, 'index'), y = emberGet(b, 'index'); return x < y ? -1 : (x > y ? 1 : 0); }).forEach(function(action) {
       var pre = text.slice(loc, action.index);
       if(pre && !pre.match(/^\s*$/)) {
         content.push({text: pre});
@@ -575,23 +584,13 @@ var utterance = EmberObject.extend({
         // if one is found
         var last_word = app_state.get('button_list')[app_state.get('button_list').length - 1];
         if(last_word && last_word.label) {
-          word_suggestions.lookup({
-            word_in_progress: last_word.label,
-            board_ids: [app_state.get('currentUser.preferences.home_board.id'), stashes.get('temporary_root_board_state.id')]
-          }).then(function(result) {
-            var word = result.find(function(w) { return w.word == last_word.label; });
-            if(word && word.image) { 
-              emberSet(b, 'suggestion_image', word.image); 
-              emberSet(b, 'suggestion_image_license', word.image_license);
-              word.image_update = function(url) {
-                emberSet(b, 'suggestion_image', url);
-                emberSet(b, 'suggestion_image_license', word.image_license);
-                runLater(function() {
-                  utterance.set_button_list();
-                })
-              };
-            }
-          });
+          var lookup_ids = word_suggestions.lookup_board_ids(app_state, stashes, [app_state.get('currentBoardState.id')]);
+          word_suggestions.attach_image_for_label(last_word.label, lookup_ids, function(url) {
+            emberSet(b, 'suggestion_image', url);
+            runLater(function() {
+              utterance.set_button_list();
+            });
+          }, { appState: app_state, stashes: stashes });
         }
       }
     }
@@ -626,7 +625,7 @@ var utterance = EmberObject.extend({
     var possibly_capitalize = function(b, prior) {
       var prior = prior || {};
       var prior_text = prior.vocalization || prior.label || "";
-      var prior_rendered = rendered_list.find(function(b) { return b.raw_index == prior.raw_index || (b.modifications || []).find(function(m) { return m.raw_index == prior.raw_index; }); });
+      var prior_rendered = (rendered_list || []).find(function(b) { return b.raw_index == prior.raw_index || (b.modifications || []).find(function(m) { return m.raw_index == prior.raw_index; }); });
       if(prior_rendered) { prior_text = prior_rendered.vocalization || prior_rendered.label || prior_text; }
       var do_capitalize = false;
       if(!prior_text) {
@@ -676,14 +675,16 @@ var utterance = EmberObject.extend({
           raw_index = button.modifications[button.modifications.length - 1].raw_index || (raw_index + button.modifications.length);
         }
         possibly_capitalize(b, list[raw_index]);
-        list.insertAt(raw_index + 1, b);
+        var nextList = (list || []).slice();
+        nextList.splice(raw_index + 1, 0, b);
+        this.set('rawButtonList', nextList);
       }
       if(!b.specialty_with_modifiers) {
         appState.set('insertion.index', Math.min(list.length - 1, idx + 1));
       }
     } else {
       possibly_capitalize(b, list[list.length - 1]);
-      list.pushObject(b);
+      this.set('rawButtonList', (list || []).concat([b]));
     }
     appState.set('shift', null);
     this.set('list_vocalized', false);
@@ -799,17 +800,32 @@ var utterance = EmberObject.extend({
     return u.map(function(b) { return b.vocalization || b.label; }).join(" ");
   },
   silent_speak_button: function(button) {
+    var _this = this;
     var selector = '#speak_mode';
-    var opts = {html: true};
+    // Render the popover body as a prebuilt DOM node (set on `_this._popover_dom`
+    // below), NOT as an HTML string. Bootstrap 3.4.1 Popover.setContent takes the
+    // `.append()` branch for non-string content, so the node is inserted as-is and
+    // nothing is ever parsed as HTML. This keeps the body XSS-safe by construction
+    // (button text goes through `.innerText`, images through `img.src`) instead of
+    // depending on the EOL sanitizer. Any future `title`/`content` STRING passed to
+    // a tooltip/popover here must be app-controlled and pre-escaped.
+    var opts = {
+      html: true,
+      sanitize: true, // defense-in-depth for the title path / future string content; never disable
+      content: function() { return _this._popover_dom || ''; }
+    };
     var timeout = 2000;
     if(app_state.get('speak_mode')) {
       opts.container = 'body';
       opts.placement = 'bottom';
       selector = '#home_button';
     }
-    if(!$(selector).attr('data-popover')) {
-      $(selector).attr('data-popover', true).popover(opts);
-    }
+    // Initialize idempotently: bootstrap no-ops `.popover(opts)` when this element already
+    // has an instance, and re-creates it with these hardened opts after a `popover('destroy')`
+    // (app-state.js fires that on leaving a board). The previous `data-popover` attr guard
+    // could survive a destroy and skip re-init, so `.popover('show')` would rebuild a bare
+    // default popover with no `content` fn -- an empty bubble.
+    $(selector).popover(opts);
     runCancel(this._popoverHide);
     var div = document.createElement('div');
     div.innerText = "\"" + (button.vocalization || button.label) + "\"";
@@ -838,7 +854,11 @@ var utterance = EmberObject.extend({
       img.src = button.avatar_url;
       div.prepend(img);
     }
-    $(selector).attr('data-content', div.innerHTML).popover('show');
+    // Hand bootstrap the actual DOM node (consumed by the `content` fn above), not a
+    // `data-content` HTML string. Do NOT set the `data-content` attr: Popover.getContent
+    // reads that attr first and would re-introduce the string (.html()) path.
+    _this._popover_dom = div;
+    $(selector).popover('show');
 
     this._popoverHide = runLater(this, function() {
       $(selector).popover('hide');
@@ -917,17 +937,22 @@ var utterance = EmberObject.extend({
               raw_index = button.modifications[button.modifications.length - 1].raw_index || (raw_index + button.modifications.length);
               move_index = false;
             }
-            list.removeAt(raw_index);
+            var nextList = (list || []).slice();
+            nextList.splice(raw_index, 1);
+            this.set('rawButtonList', nextList);
+            list = nextList;
           }
           if(move_index) {
             appState.set('insertion.index', Math.max(-1, idx - 1));
           }
         } else {
-          var popped = list.popObject();
+          var nextList = (list || []).slice();
+          var popped = nextList.length ? nextList.pop() : undefined;
           if(popped && popped.pre_substitution) {
-            popped.pre_substitution[popped.pre_substitution.length - 1].auto_substitute = false
-            list.pushObjects(popped.pre_substitution);
+            popped.pre_substitution[popped.pre_substitution.length - 1].auto_substitute = false;
+            nextList = nextList.concat(popped.pre_substitution);
           }
+          this.set('rawButtonList', nextList);
         }
       }
     } else {
@@ -939,6 +964,166 @@ var utterance = EmberObject.extend({
     });
     app_state.refresh_suggestions();
     this.set('list_vocalized', false);
+  },
+  // ----- Active-edit support (board-detail speak bar) -----
+  // Partition rawButtonList (the source of truth) into one CONTIGUOUS block per
+  // VISUAL chip, so a single chip can be removed or reordered while the spoken /
+  // logged utterance stays perfectly in sync. set_button_list walks rawButtonList
+  // in order, assigns `raw_index`, and merges modifiers (inflections, spelled
+  // letters) into the prior visual button — so each chip owns the contiguous raw
+  // range [raw_index(i) .. raw_index(i+1)). Returns {visual, blocks} or null when
+  // the indices are unusable (missing / out-of-range / non-increasing), in which
+  // case callers must no-op rather than risk corrupting the utterance.
+  visual_raw_blocks: function() {
+    var appState = this.appState || app_state;
+    var visual = (appState.get('button_list') || []).filter(function(b) {
+      return b && !emberGet(b, 'ghost') && !emberGet(b, 'hint');
+    });
+    var raw = this.get('rawButtonList') || [];
+    if(!visual.length || !raw.length) { return null; }
+    // Grammar "condense" rules drop entries from the VISUAL list while leaving
+    // them in rawButtonList, so a chip's block would absorb an orphaned raw
+    // entry the monotonic check below can't see. Bail (the edit no-ops rather
+    // than corrupting the utterance).
+    if(raw.some(function(b) { return b && emberGet(b, 'condense_items'); })) { return null; }
+    var bounds = [];
+    for(var i = 0; i < visual.length; i++) {
+      var ri = emberGet(visual[i], 'raw_index');
+      if(ri == null || ri < 0 || ri >= raw.length) { return null; }
+      if(i > 0 && ri <= bounds[i - 1]) { return null; }
+      bounds.push(ri);
+    }
+    // The first chip must own rawButtonList[0]; a non-zero start means leading
+    // raw entries belong to no chip (e.g. a condensed-away first word).
+    if(bounds[0] !== 0) { return null; }
+    var blocks = [];
+    for(var k = 0; k < visual.length; k++) {
+      var start = bounds[k];
+      var end = (k + 1 < visual.length) ? bounds[k + 1] : raw.length;
+      blocks.push(raw.slice(start, end));
+    }
+    return { visual: visual, blocks: blocks };
+  },
+  // Remove the visual chip at `visual_index` (its whole raw block) from the
+  // utterance. rawButtonList stays authoritative; set_button_list recomputes the
+  // visual + spoken sentence. Returns true on success.
+  remove_button: function(visual_index, opts) {
+    opts = opts || {};
+    var appState = this.appState || app_state;
+    var parts = this.visual_raw_blocks();
+    if(!parts || visual_index < 0 || visual_index >= parts.blocks.length) { return false; }
+    appState.set('shift', null);
+    appState.set('inflection_shift', null);
+    appState.set('insertion', null);
+    var newRaw = [];
+    parts.blocks.forEach(function(block, idx) {
+      if(idx !== visual_index) { newRaw = newRaw.concat(block); }
+    });
+    this.set('rawButtonList', newRaw);
+    if(!opts.skip_logging) {
+      stashes.log({ action: 'backspace', button_triggered: opts.button_triggered });
+    }
+    app_state.refresh_suggestions();
+    this.set('list_vocalized', false);
+    return true;
+  },
+  // Reset shared cursor/shift state + re-set rawButtonList, the common tail of
+  // every block-level edit below. set_button_list recomputes the visual+spoken
+  // sentence; reordering invalidates the insertion cursor.
+  _commit_raw: function(blocks) {
+    var appState = this.appState || app_state;
+    appState.set('shift', null);
+    appState.set('inflection_shift', null);
+    appState.set('insertion', null);
+    var newRaw = [];
+    blocks.forEach(function(block) { newRaw = newRaw.concat(block); });
+    this.set('rawButtonList', newRaw);
+    app_state.refresh_suggestions();
+    this.set('list_vocalized', false);
+  },
+  // Move the visual chip from index `from` to index `to` (drag-to-reorder).
+  move_to_index: function(from, to) {
+    var parts = this.visual_raw_blocks();
+    if(!parts) { return false; }
+    var n = parts.blocks.length;
+    if(from < 0 || from >= n || to < 0 || to >= n || from === to) { return false; }
+    var blocks = parts.blocks.slice();
+    var moved = blocks.splice(from, 1)[0];
+    blocks.splice(to, 0, moved);
+    this._commit_raw(blocks);
+    return true;
+  },
+  // Move the visual chip at `visual_index` by `direction` (-1 left / +1 right).
+  // Thin wrapper over move_to_index for the ‹ › arrow controls.
+  move_button: function(visual_index, direction) {
+    return this.move_to_index(visual_index, visual_index + direction);
+  },
+  // Swap the positions of two visual chips (the swap-mode chip↔chip target).
+  swap_buttons: function(index_a, index_b) {
+    var parts = this.visual_raw_blocks();
+    if(!parts) { return false; }
+    var n = parts.blocks.length;
+    if(index_a < 0 || index_b < 0 || index_a >= n || index_b >= n || index_a === index_b) { return false; }
+    var blocks = parts.blocks.slice();
+    var tmp = blocks[index_a];
+    blocks[index_a] = blocks[index_b];
+    blocks[index_b] = tmp;
+    this._commit_raw(blocks);
+    return true;
+  },
+  // Replace the visual chip at `visual_index` with a raw entry built directly
+  // from a board (editManager) button. SYNCHRONOUS + deterministic on purpose:
+  // the normal activate pipeline (application.js#activateButton) adds the word a
+  // runloop tick LATER (it waits on findContentLocally / a 300ms fallback), so
+  // doing the swap right after it would run on stale state — leaving the old chip
+  // in place and the new word inserted after it. Building the entry here mirrors
+  // the obj add_button receives; the image is refined asynchronously via the
+  // board button's loader (same as add_button). No speech — this is an edit.
+  replace_button: function(visual_index, board_button) {
+    var _this = this;
+    if(!board_button || !board_button.get) { return false; }
+    var parts = this.visual_raw_blocks();
+    if(!parts || visual_index < 0 || visual_index >= parts.blocks.length) { return false; }
+    var label = board_button.get('label');
+    var vocalization = board_button.get('vocalization');
+    // Specialty buttons (modifiers / inline actions / completions) need the full
+    // add_button pipeline to interpret their tokens — a hand-built raw entry
+    // would leave the literal token in the list. Refuse to replace with one.
+    if((vocalization || label || '').toString().match(/&&|:[a-zA-Z]|(^|\s)\+/)) { return false; }
+    var entry = {
+      label: label,
+      vocalization: vocalization,
+      image: board_button.get('image_url') || board_button.get('image') || board_button.get('original_image_url'),
+      button_id: board_button.get('id'),
+      part_of_speech: board_button.get('part_of_speech'),
+      sound: board_button.get('sound'),
+      type: 'speak'
+    };
+    // Capitalize when replacing the sentence-leading chip (add_button would).
+    if(visual_index === 0) {
+      if(entry.label) { entry.label = _this.capitalize(entry.label); }
+      if(entry.vocalization) { entry.vocalization = _this.capitalize(entry.vocalization); }
+    }
+    var blocks = [];
+    parts.blocks.forEach(function(block, idx) {
+      blocks.push(idx === visual_index ? [entry] : block);
+    });
+    this._commit_raw(blocks);
+    // Refine the image to the best local URL the same way add_button does — but
+    // only if we're still alive AND the entry is still in the list (the user may
+    // have cleared/edited again before the async resolved).
+    if(board_button.load_image) {
+      board_button.load_image('local').then(function(image) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if((_this.get('rawButtonList') || []).indexOf(entry) === -1) { return; }
+        image = image || board_button.get('image');
+        if(image && image.get) {
+          emberSet(entry, 'image', image.get('best_url'));
+          _this.set_button_list();
+        }
+      }, function() {});
+    }
+    return true;
   },
   set_and_say_buttons: function(buttons) {
     this.set('rawButtonList', buttons);
@@ -1016,7 +1201,6 @@ var utterance = EmberObject.extend({
         this.remember_utterance(prior_list);
       }
       runLater(function() {
-        debugger
         utterance.set('rawButtonList', new_list);
       });
     }

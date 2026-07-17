@@ -23,6 +23,28 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+
     const modalService = this.get('modal');
     const template = 'batch-recording';
     const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
@@ -33,6 +55,10 @@ export default Component.extend({
 
   didInsertElement() {
     this._super(...arguments);
+    var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
     const supervisees = [];
     this.set('phrase', null);
     this.set('category', null);
@@ -163,7 +189,7 @@ export default Component.extend({
           });
           sounds.forEach(function(s) {
             if (s.get('transcription') && (s.get('tags') || []).indexOf(rep.id + ':' + cat.id) !== -1) {
-              cat.phrases.pushObject({
+              cat.phrases.push({
                 id: s.get('id'),
                 text: s.get('transcription'),
                 custom: true,
@@ -248,9 +274,17 @@ export default Component.extend({
     }
   },
 
+  _return_to_details: function() {
+    var board = this.get('model.board');
+    if(board) {
+      runLater(function() { modal.open('board-details', { board: board }); }, 200);
+    }
+  },
+
   actions: {
     close() {
       this.get('modal').close();
+      this._return_to_details();
     },
     opening() {},
     closing() {},
@@ -342,7 +376,7 @@ export default Component.extend({
     add_phrase(confirm) {
       if (confirm) {
         if (this.get('custom_phrase.text')) {
-          this.get('category.phrases').pushObject({
+          this.get('category.phrases').push({
             id: (new Date()).getTime() + ':' + Math.random(),
             text: this.get('custom_phrase.text'),
             custom: true,

@@ -22,6 +22,28 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+
     const modalService = this.get('modal');
     const template = 'modals/eval-status';
     const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
@@ -59,8 +81,8 @@ export default Component.extend({
   symbol_libraries: computed('user', function() {
     const u = this.get('user');
     const list = [
-      { name: i18n.t('original_symbols', "Use the board's original symbols"), id: 'original' },
-      { name: i18n.t('use_opensymbols', "Opensymbols.org free symbol libraries"), id: 'opensymbols' }
+      { name: i18n.t('original_symbols', "Default symbols"), id: 'original' },
+      { name: i18n.t('use_opensymbols', "Opensymbols.org"), id: 'opensymbols' }
     ];
     if (u && (emberGet(u, 'extras_enabled') || emberGet(u, 'subscription.extras_enabled'))) {
       list.push({ name: i18n.t('use_lessonpix', "LessonPix symbol library"), id: 'lessonpix' });
@@ -68,9 +90,9 @@ export default Component.extend({
       list.push({ name: i18n.t('use_pcs', "PCS Symbols by Tobii Dynavox"), id: 'pcs' });
     }
     list.push({ name: i18n.t('use_twemoji', "Emoji icons (authored by Twitter)"), id: 'twemoji' });
-    list.push({ name: i18n.t('use_noun-project', "The Noun Project black outlines"), id: 'noun-project' });
+    list.push({ name: i18n.t('use_noun-project', "Noun Project black outlines"), id: 'noun-project' });
     list.push({ name: i18n.t('use_arasaac', "ARASAAC free symbols"), id: 'arasaac' });
-    list.push({ name: i18n.t('use_tawasol', "Tawasol symbol library"), id: 'tawasol' });
+    list.push({ name: i18n.t('use_tawasol', "Tawasol"), id: 'tawasol' });
     return list;
   }),
 
@@ -202,5 +224,18 @@ export default Component.extend({
         _this.set('status', { extend_error: true });
       });
     }
-  }
+  },
+
+  didInsertElement() {
+  this._super(...arguments);
+  var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
+    // Ember 5.12 modal migration: the service-based modal system does not
+    // auto-invoke opening() (this.onOpening is vestigial), so build modal state
+    // here on insert. Without this, opening() never runs. See assessment-settings.
+    self.send('opening');
+},
+
 });

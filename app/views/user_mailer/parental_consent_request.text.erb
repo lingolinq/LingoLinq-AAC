@@ -1,0 +1,15 @@
+<%= mailer_t('parental_consent_mailer.greeting') %>
+
+<%= mailer_t('parental_consent_mailer.intro', app_name: app_name) %>
+
+<%= mailer_t('parental_consent_mailer.action_prompt') %>
+
+<%= @consent_url %>
+
+<%= mailer_t('parental_consent_mailer.privacy_notice') %>
+
+<%= @privacy_url %>
+
+<%= mailer_t('parental_consent_mailer.footer') %>
+
+<%= email_signature %>

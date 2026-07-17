@@ -1,0 +1,90 @@
+<p>
+  {{#if @notification.push_message}}
+    <LinkTo @route="user" @model={{@notification.user_name}}>
+      {{@notification.user_name}}
+    </LinkTo>
+    {{t " - new note by %{user_name}" key="user_new_message" user_name=@notification.author_user_name}}
+    <span style="color: #888; font-size: 14px; white-space: nowrap; overflow: hidden; display: block;">
+      <span title={{date @notification.occurred_at}}>
+        {{date_ago @notification.occurred_at}}
+      </span>
+      {{t " - " key="dash"}}
+      {{@notification.text}}
+    </span>
+  {{else if @notification.utterance_shared}}
+    <LinkTo @route="user" @model={{@notification.sharer_user_name}}>
+      {{@notification.sharer_user_name}}
+    </LinkTo>
+    {{t "said to you, " key="said" }}
+    <LinkTo @route="utterance" @model={{@notification.id}}>
+      {{@notification.text}}
+    </LinkTo>
+    <span style="color: #888; font-size: 14px; white-space: nowrap; overflow: hidden; display: block;">
+      <span title={{date @notification.occurred_at}}>
+        {{date_ago @notification.occurred_at}}
+      </span>
+    </span>
+  {{else if @notification.home_board_changed}}
+    <LinkTo @route="user" @model={{@notification.user_name}}>
+      {{@notification.user_name}}
+    </LinkTo>
+    {{t " - home board was changed" key="home_board_changed"}}
+    <span style="color: #888; font-size: 14px; white-space: nowrap; overflow: hidden; display: block;">
+      <span title={{date @notification.occurred_at}}>
+        {{date_ago @notification.occurred_at}}
+      </span>
+      <LinkTo @route="board" @model={{@notification.key}}>
+        {{@notification.key}}
+      </LinkTo>
+    </span>
+  {{else if @notification.org_removed}}
+    {{t "You have been removed as a %{role} for the organization %{org_name}" key="removed_from_org" role=@notification.user_type org_name=@notification.org_name}}
+    <span style="color: #888; font-size: 14px; white-space: nowrap; overflow: hidden; display: block;">
+      <span title={{date @notification.occurred_at}}>
+        {{date_ago @notification.occurred_at}}
+      </span>
+    </span>
+  {{else if @notification.badge_awarded}}
+    <LinkTo @route="user" @model={{@notification.user_name}}>
+      {{@notification.user_name}}
+    </LinkTo>
+    {{t " - new badge," key="new_badge_awarded"}}
+    <LinkTo @route="user.badges" @model={{@notification.user_name}}>{{@notification.badge_name}}</LinkTo>
+
+    <span style="color: #888; font-size: 14px; white-space: nowrap; overflow: hidden; display: block;">
+      <span title={{date @notification.occurred_at}}>
+        {{date_ago @notification.occurred_at}}
+      </span>
+      {{t " - " key="dash"}}
+      {{t "level %{level}" key="level_n_lower" level=@notification.badge_level}}
+    </span>
+  {{else if @notification.board_buttons_changed}}
+    <LinkTo @route="board" @model={{@notification.key}}>
+      {{@notification.name}}
+    </LinkTo>
+    {{t " - board was modified" key="board_contents_changed"}}
+    <span style='font-size: 14px;'>
+      <LinkTo @route="board.history" @model={{@notification.key}}>{{t "history" key="history"}}</LinkTo>
+    </span>
+    <span style="color: #888; font-size: 14px; white-space: nowrap; overflow: hidden; display: block;">
+      <span title={{date @notification.occurred_at}}>
+        {{date_ago @notification.occurred_at}}
+      </span>
+      {{#if this.app_state.currentUser.supporter_role}}
+        {{t " - " key="dash"}}
+        {{t "used by" key="used_by"}}
+        {{#if @notification.for_user}}
+          <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}}>{{t "you" key="you"}}</LinkTo>{{#if @notification.for_supervisees}}{{t ", " key="comma_space"}}{{/if}}
+        {{/if}}
+        {{#if @notification.for_supervisees}}
+          {{#each @notification.for_supervisees as |supervisee index|}}
+            {{#if index}}{{t ", " key="comma_space"}}{{/if}}
+            <LinkTo @route="user" @model={{supervisee}}>
+              {{supervisee}}
+            </LinkTo>
+          {{/each}}
+        {{/if}}
+      {{/if}}
+    </span>
+  {{/if}}
+</p>

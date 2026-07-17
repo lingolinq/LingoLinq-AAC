@@ -1,5 +1,19 @@
-{{#opening-observer done_opening=(action "draw_charts")}}
-{{#if this.model.note_type}}
+<OpeningObserver @done_opening={{this.ctrlAction "draw_charts"}}>
+{{#if this.model.tiered_eval_type}}
+  {{!-- New tiered-eval shape (Quick Screen / Targeted Eval) — render
+       the saved recommendation + targeted_report block via a
+       dedicated component that mirrors the live flow's report card. --}}
+  <h2>
+    {{#if this.model.tiered_eval_is_comprehensive}}
+      {{t "Comprehensive Eval Details" key="comprehensive_eval_details"}}
+    {{else if this.model.tiered_eval_is_targeted}}
+      {{t "Targeted Eval Details" key="targeted_eval_details"}}
+    {{else}}
+      {{t "Quick Screen Details" key="quick_screen_details"}}
+    {{/if}}
+  </h2>
+  <EvalSavedSummary @log={{this.model}} />
+{{else if this.model.note_type}}
   <h2>{{t "Message Details" key="message_summary"}}</h2>
 {{else if this.model.assessment_type}}
   <h2>{{t "Assessment Details" key="assessment_details"}}</h2>
@@ -16,6 +30,7 @@
 {{/if}}
 <div class='visible-print-block' style='margin-top: -10px; margin-bottom: 10px;'>{{this.user.name}} - {{this.user.user_name}}</div>
 {{#if this.processed_assessment}}
+  <div class="md-eval-report">
   {{#if this.processed_assessment.date}}
     <div class="row" style='page-break-inside: avoid;'>
       <div class="col-sm-3 col-xs-6">
@@ -81,7 +96,7 @@
           <div class="panel-heading">{{t "Mastered Buttons" key="mastered_buttons"}}</div>
           <div class="panel-body">
             {{#if this.processed_assessment.button_width}}
-              <a href="#" {{action "mastery_preview"}}>
+              <a href="#" {{on "click" (this.ctrlAction "mastery_preview")}}>
                 {{#if this.processed_assessment.approximate}}~{{/if}}{{this.processed_assessment.button_width}}" x {{this.processed_assessment.button_height}}"
               </a>
             {{else}}
@@ -105,7 +120,7 @@
       </div>
     </div>
     {{#if this.mastery_preview}}
-      {{stats/mastery-preview assessment=this.processed_assessment}}
+      <Stats::MasteryPreview @assessment={{this.processed_assessment}} />
     {{/if}}
     <div style='page-break-inside: avoid;'>
       {{#if this.processed_assessment.accommodations}}
@@ -123,7 +138,7 @@
       <h3>{{t "Grid Activations" key="activation_map"}}</h3>
       <div class='row'>
         <div class='col-xs-8'>
-          {{stats/eval-hits hits=this.processed_assessment.hit_locations}}
+          <Stats::EvalHits @hits={{this.processed_assessment.hit_locations}} />
         </div>
         <div class='col-xs-4'>
           <div style='line-height: 30px; margin-bottom: 10px;'>
@@ -132,7 +147,7 @@
             <span style='display: inline-block; width: 20px; height: 20px; vertical-align: middle; border: 2px solid rgba(0, 0, 255, 0.7); border-radius: 20px;'></span> - {{t "hit here with full-size grid" key="hit_here_with_full_grid"}}<br>
             <span style='display: inline-block; width: 20px; height: 20px; vertical-align: middle; border: 2px solid rgba(150, 150, 0, 0.7); border-radius: 20px'></span> - {{t "hit here with visual prompt" key="hit_here_with_partial_grid"}}<br>
           </div>
-          <span class='text-muted' style='font-size: 12px; font-style: italic;'>{{t "look for areas without any blue circles where the communicator wasn't able to reach, or for dark red areas where the communicator chose other (incorrect) options multiple times" key="key_hint"}}</span>
+          <span class='text-muted' style='font-size: 14px; font-style: italic;'>{{t "look for areas without any blue circles where the communicator wasn't able to reach, or for dark red areas where the communicator chose other (incorrect) options multiple times" key="key_hint"}}</span>
         </div>
       </div>
     </div>
@@ -146,13 +161,13 @@
             </div>
           {{/if}}
         </h3>
-        {{stats/trial-bar sizes=this.processed_assessment.button_sizes}}
+        <Stats::TrialBar @sizes={{this.processed_assessment.button_sizes}} />
       </div>
     {{/if}}
     {{#if this.processed_assessment.field_sizes}}
       <div  style='page-break-inside: avoid;'>
         <h3>{{t "Field Sizes for basic target-finding" key="field_sizes"}}</h3>
-        {{stats/trial-bar sizes=this.processed_assessment.field_sizes}}
+        <Stats::TrialBar @sizes={{this.processed_assessment.field_sizes}} />
       </div>
     {{/if}}
     {{#if this.processed_assessment.access_settings}}
@@ -202,7 +217,7 @@
                 <td style='padding-left: 20px;'>
                   {{result.name}}
                   {{#if result.fail}}
-                    <div style='font-style: italic; font-size: 12px;'>{{t "stopped early from errors" key="stopped_early"}}</div>
+                    <div style='font-style: italic; font-size: 14px;'>{{t "stopped early from errors" key="stopped_early"}}</div>
                   {{/if}}
                 </td>
                 <td>{{#if result.accuracy_class}}{{result.pct}}%{{/if}}</td>
@@ -223,7 +238,7 @@
             </div>
 
         </h3>
-        {{stats/trial-bar sizes=this.processed_assessment.symbol_libraries}}
+        <Stats::TrialBar @sizes={{this.processed_assessment.symbol_libraries}} />
       </div>
     {{/if}}
 
@@ -286,8 +301,9 @@
   {{else}}
     <p>{{t "No data found for this evaluation" key="no_data_for_evaluation"}}</p>
   {{/if}}
+  </div>
 {{else if this.model.profile_type}}
-  <UserProfileLog @processedProfile={{this.processed_profile}} @expectedProfile={{this.expected_profile}} @model={{this.model}} @repeatProfile={{action "repeat_profile"}} />
+  <UserProfileLog @processedProfile={{this.processed_profile}} @expectedProfile={{this.expected_profile}} @model={{this.model}} @repeatProfile={{this.ctrlAction "repeat_profile"}} />
 {{else}}
   {{#if this.model.imported}}
     {{t "NOTE: This log entry was imported from an outside source" key="data_imported"}}
@@ -493,21 +509,21 @@
                 </td>
                 <td style="text-align: right;">
                   {{#if event.highlighted}}
-                    <button {{action "highlight" event.id false}} class='btn btn-warning btn-sm' style='margin: -8px -5px -6px 5px; width: 35px;' >
+                    <button {{on "click" (this.ctrlAction "highlight" event.id false)}} class='btn btn-warning btn-sm' style='margin: -8px -5px -6px 5px; width: 35px;' >
                       <span class='glyphicon glyphicon-star'></span>
                     </button>
                   {{else}}
-                    <button {{action "highlight" event.id true}} class='btn btn-default btn-sm' style='margin: -8px -5px -6px 5px; width: 35px;' >
+                    <button {{on "click" (this.ctrlAction "highlight" event.id true)}} class='btn btn-default btn-sm' style='margin: -8px -5px -6px 5px; width: 35px;' >
                       <span class='glyphicon glyphicon-star-empty'></span>
                     </button>
                   {{/if}}
                   {{#if event.note_count}}
-                    <button {{action "toggle_notes" event.id}} class='btn btn-primary btn-sm' style="margin: -8px 0 -6px 5px; width: 35px; font-weight: bold;">
+                    <button {{on "click" (this.ctrlAction "toggle_notes" event.id)}} class='btn btn-primary btn-sm' style="margin: -8px 0 -6px 5px; width: 35px; font-weight: bold;">
                       {{event.note_count}}
                       <span class='sr-only'>{{t "add comment" key="add_comment_lower"}}</span>
                     </button>
                   {{else}}
-                    <button {{action "toggle_notes" event.id "add"}} class='btn btn-default btn-sm' style="opacity: 0.8; margin: -8px 0 -6px 5px; width: 35px;">
+                    <button {{on "click" (this.ctrlAction "toggle_notes" event.id "add")}} class='btn btn-default btn-sm' style="opacity: 0.8; margin: -8px 0 -6px 5px; width: 35px;">
                       <span class='glyphicon glyphicon-comment'></span>
                       <span class='sr-only'>{{t "add comment" key="add_comment_lower"}}</span>
                     </button>
@@ -526,7 +542,7 @@
                         {{note.note}}
                       </div>
                     {{/each}}
-                    <form class="form-inline" style="margin-top: 15px;" {{action "add_note" event.id}}>
+                    <form class="form-inline" style="margin-top: 15px;" {{on "click" (this.ctrlAction "add_note" event.id)}}>
                       <div class="form-group">
                         <input type="text" class="form-control input-sm" data-event_id={{event.id}} placeholder="note text">
                       </div>
@@ -547,7 +563,7 @@
   <div class="row" style="margin-bottom: 20px;">
     {{#if this.model.geo}}
       <div class="col-sm-8">
-        {{map-with-markers action="marker_link_select"}}
+        <MapWithMarkers @action="marker_link_select" />
       </div>
     {{/if}}
     <div class="col-sm-4">
@@ -593,15 +609,18 @@
 {{/if}}
 <div class='hide_print'>
   {{#if this.model.session_type}}
-    <button type="button" {{action "obl_export"}} class='btn btn-default'>{{t "Download Log File" key="download_log_file"}}</button>
-    <button type="button" {{action "lam_export"}} class='btn btn-default'>{{t "View LAM Report" key="export_as_lam"}}</button>
+    <button type="button" {{on "click" (this.ctrlAction "obl_export")}} class='btn btn-default'>{{t "Download Log File" key="download_log_file"}}</button>
+    <button type="button" {{on "click" (this.ctrlAction "lam_export")}} class='btn btn-default'>{{t "View LAM Report" key="export_as_lam"}}</button>
   {{/if}}
   {{#if this.processed_assessment.resumable}}
     {{#if this.same_author}}
-      <button type='button' {{action "resume"}} class='btn btn-default'>{{t "Resume Evaluation" key="resume_eval"}}</button>
+      <button type='button' {{on "click" (this.ctrlAction "resume")}} class='btn btn-default'>{{t "Resume Evaluation" key="resume_eval"}}</button>
     {{/if}}
   {{/if}}
-  <button type="button" {{action "print"}} class='btn btn-default'>{{t "Print" key="print"}}</button>
+  <button type="button" {{on "click" (this.ctrlAction "print")}} class='btn btn-default'>{{t "Print" key="print"}}</button>
+  {{#if this.model.tiered_eval_type}}
+    <button type="button" {{on "click" (this.ctrlAction "eval_pdf_export")}} class='btn btn-default'>{{t "Download PDF" key="download_eval_pdf"}}</button>
+  {{/if}}
   {{#if this.model.previous_log_id}}
     <LinkTo @route="user.log" @models={{array this.user.user_name this.model.previous_log_id}} class="btn btn-default">
       <span class="glyphicon glyphicon-arrow-left"></span>
@@ -610,7 +629,7 @@
   {{/if}}
   {{#if this.model.note_type}}
     {{#if this.user.permissions.supervise}}
-      <button class='btn btn-default' {{action "reply" "text"}}>{{t "Reply" key="reply"}}</button>
+      <button class='btn btn-default' {{on "click" (this.ctrlAction "reply" "text")}}>{{t "Reply" key="reply"}}</button>
     {{/if}}
   {{/if}}
   {{#if this.model.next_log_id}}
@@ -620,4 +639,4 @@
     </LinkTo>
   {{/if}}
 </div>
-{{/opening-observer}}
+</OpeningObserver>

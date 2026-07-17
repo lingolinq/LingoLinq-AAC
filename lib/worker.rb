@@ -2,6 +2,35 @@ module Worker
   @queue = :default
   extend BoyBand::WorkerMethods
 
+  # Clears request-scoped Thread.current caches after each background job
+  # so cached data doesn't persist across jobs in the same worker process.
+  # See: app/models/board_content.rb, app/models/word_data.rb
+  def self.perform(*args)
+    super
+  ensure
+    clear_request_thread_caches
+  end
+
+  # Single source of truth for the request/job-scoped Thread.current caches
+  # populated during execution (see app/models/board_content.rb,
+  # app/models/word_data.rb, lib/pii_scrubber.rb). Called from Worker.perform,
+  # SlowWorker.perform, and ApplicationController so the slow queue and the web
+  # path stay in sync. Add any new request-scoped cache key here only, so the
+  # clear sites cannot drift apart again. Teardown-only; do not call mid-job
+  # because nested callers may still need the state.
+  def self.clear_request_thread_caches
+    Thread.current[:board_content_cache] = nil
+    Thread.current[:word_inflection_cache] = nil
+    Thread.current[:bulk_copy_in_progress] = nil
+    # PiiScrubber blocklist is per-user (configured by AiBoardGenerator,
+    # AiWordPredictor) and lives in Thread.current; clearing it here prevents
+    # User A's blocklist from being applied to User B's AiApiLog scrub on the
+    # same Resque/Puma thread. AiApiLog#scrub_summary_columns invokes
+    # PiiScrubber.redact_for_ai without re-configuring, so a stale blocklist
+    # silently persists into another user's records. FERPA/HIPAA-relevant.
+    PiiScrubber.reset_blocklist! if defined?(PiiScrubber)
+  end
+
   def self.method_stats(queue='default')
     list = Worker.scheduled_actions(queue); list.length
     methods = {}
@@ -130,6 +159,19 @@ module Worker
     end
     count.times do |i|
       Resque::Failure.remove(0)
+    end
+  end
+
+  # boy_band's flush_queues empties Resque lists but leaves sizeof/{queue} cache
+  # entries behind. scheduled_for? trusts that cache and returns false when it
+  # still reads >500 even though the queue was just flushed — flaky scheduled? in
+  # specs and any code that flushes then immediately checks scheduling.
+  def self.flush_queues
+    super
+    return unless Resque.redis
+
+    Resque.queues.each do |key|
+      Resque.redis.del("sizeof/#{key}")
     end
   end
 end

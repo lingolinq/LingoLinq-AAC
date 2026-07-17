@@ -13,7 +13,7 @@ module ExternalTracker
     user = User.find_by_path(user_id)
     return false unless user && user.external_email_allowed? && user.supporter_registration?
     return false if user.cookies_opted_out?
-    return false unless ENV['HUBSPOT_TOKEN']
+    return false unless ENV['HUBSPOT_ACCESS_TOKEN']
     return false unless user.settings && user.settings['email']
 
     d = user.devices[0]
@@ -25,15 +25,17 @@ module ExternalTracker
         res = Typhoeus.get(url, timeout: 5)
         location = JSON.parse(res.body)
       rescue => e
+        Rails.logger.warn("ExternalTracker: iplocate lookup failed for user #{user.global_id}: #{e.class}: #{e.message}")
       end
     end
     email = user.settings['email']
-    city = nil
-    state = nil
-    if location && (location['country_code'] == 'USA' || location['country_code'] == 'US')
-      city = location['city']
-      state = location['subdivision']
-    end
+    # Capture geolocation for every country, not just the US. iplocate returns
+    # city / subdivision (region/state/province) / country globally, so non-US
+    # trials (largely GDPR-region prospects) now get city + region populated too.
+    # country lets HubSpot still tell US leads apart from international ones.
+    city = location && location['city']
+    state = location && location['subdivision']
+    country = location && location['country']
 
 
     acct = "Communicator Account"
@@ -70,10 +72,25 @@ module ExternalTracker
         {property: 'username', value: user.user_name},
         # {property: 'hs_language', value: 'en'},
         {property: 'state', value: state},
+        {property: 'country', value: country},
         {property: 'account_type', value: acct},
         {property: 'hs_legal_basis', value: 'Legitimate interest – prospect/lead'}
       ]
     }
+    # Marketing attribution captured at signup (see User#process: settings['referrer']
+    # is document.referrer, the "source"; settings['ad_referrer'] is the ?ref= URL
+    # param, the "ad key"). Sent to LingoLinq custom HubSpot contact properties.
+    # referrer is truncated to scheme+host before egress so a referring URL that
+    # happens to carry PII in its path/query (e.g. a webmail or tokenized link)
+    # does not leave the platform; the attribution signal (origin) is preserved.
+    source = referrer_origin(user.settings['referrer'])
+    if source.present?
+      json[:properties] << {property: 'lingolinq_referrer', value: source}
+    end
+    ad_key = ad_key_clean(user.settings['ad_referrer'])
+    if ad_key.present?
+      json[:properties] << {property: 'lingolinq_ad_referrer', value: ad_key}
+    end
     if user && (user.settings['activations'] || []).length > 0
       json[:properties] << {
         property: 'lingolinq_start_code', value: user.settings['activations'].map{|a| a['code'] }.compact[-1]
@@ -81,13 +98,45 @@ module ExternalTracker
     end
   
     url = "https://api.hubapi.com/contacts/v1/contact/"
-    res = Typhoeus.post(url, {body: json.to_json, headers: {
-      'Content-Type' => 'application/json',
-      'Authorization' => "Bearer #{ENV['HUBSPOT_TOKEN']}"
-      }})
-    # if res.code > 299
-    #   puts res.body
-    # end
+    begin
+      res = Typhoeus.post(url, {body: json.to_json, headers: {
+        'Content-Type' => 'application/json',
+        'Authorization' => "Bearer #{ENV['HUBSPOT_ACCESS_TOKEN']}"
+        }})
+    rescue => e
+      Rails.logger.error("ExternalTracker: HubSpot POST raised for user #{user.global_id}: #{e.class}: #{e.message}")
+      return nil
+    end
+    if res.code.to_i >= 300
+      Rails.logger.error("ExternalTracker: HubSpot contact sync failed for user #{user.global_id}: status=#{res.code}")
+    end
     res.code
+  end
+
+  # Reduce a referring URL to just its scheme+host (origin) so any PII in the
+  # path, query string, or userinfo is dropped before the value is sent to
+  # HubSpot. Restricted to http(s) with a present host; returns nil for blank,
+  # non-web, hostless, or unparseable values so the caller drops it rather than
+  # leaking or polluting attribution with a non-origin string.
+  def self.referrer_origin(referrer)
+    return nil if referrer.blank?
+    begin
+      uri = URI.parse(referrer.to_s)
+      return nil unless ['http', 'https'].include?(uri.scheme) && uri.host.present?
+      "#{uri.scheme}://#{uri.host}"
+    rescue URI::Error
+      nil
+    end
+  end
+
+  # The ad key comes straight from the ?ref= URL param (app.js), so it is fully
+  # attacker-controllable and unbounded. Only let through a short campaign-token
+  # shape (letters/digits/._-); anything else (URLs, PII, CSV/formula-injection
+  # payloads, oversized blobs) is dropped rather than egressed to HubSpot.
+  def self.ad_key_clean(ad_referrer)
+    return nil if ad_referrer.blank?
+    value = ad_referrer.to_s
+    return nil unless value.match?(/\A[A-Za-z0-9._\-]{1,64}\z/)
+    value
   end
 end

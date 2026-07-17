@@ -1,6 +1,6 @@
-{{#modal-dialog desired_width=800 action=(action "close") opening=(action "opening") closing=(action "closing")}}
+<ModalDialog @desired_width={{800}} @action={{this.ctrlAction "close"}} @opening={{this.ctrlAction "opening"}} @closing={{this.ctrlAction "closing"}}>
   <div class="modal-header">
-    <button type="button" class="close" {{action "close"}}>&times;</button>
+    <button type="button" class="close" {{on "click" (this.ctrlAction "close")}}>&times;</button>
     <h3>{{t "Getting Started with %app_name%" key="getting_started_with_app"}}</h3>
   </div>
   <div class="modal-body">
@@ -61,7 +61,7 @@
           </div>
           <div class="col-sm-4">
             <p>{{t "Now let's move on to how to get started using %app_name%!" key="dashboard_1"}}</p>
-            <p>{{t "When you first log in to %app_name%, you'll start on the dashboard. Here you can see notifications, access your profile and preferences, and browse through the available home boards." key="dashboard_2"}}</p>
+            <p>{{t "When you first log in to %app_name%, you'll start on the dashboard. Here you can see notifications, access your profile and settings, and browse through the available home boards." key="dashboard_2"}}</p>
           </div>
         </div>
       {{else if this.pages.page_6}}
@@ -103,7 +103,7 @@
             <img src={{path "walkthrough/speak_mode_exiting.gif"}} alt={{t "%app_name% Exiting Speak Mode" key="app_exiting_speak_mode"}} rel={{path "walkthrough/fallback.gif"}} onerror="this.src=this.getAttribute('rel');" >
           </div>
           <div class="col-sm-4">
-            <p>{{t "You can exit out of Speak Mode by hitting the user menu in the top right corner. If you're worried about a user accidentally exiting Speak Mode on their own, you can set up a PIN in the user's preferences." key="speak_mode_3"}}</p>
+            <p>{{t "You can exit out of Speak Mode by hitting the user menu in the top right corner. If you're worried about a user accidentally exiting Speak Mode on their own, you can set up a PIN in the user's settings." key="speak_mode_3"}}</p>
           </div>
         </div>
       {{else if this.pages.page_10}}
@@ -153,7 +153,7 @@
         <div class="row">
           <div class="col-sm-8 pic">
             <div class='list-group'>
-              <a class='list-group-item' href="#" {{action "video"}}>{{t "Intro Video: Getting Started with %app_name%" key="getting_started_video"}}</a>
+              <a class='list-group-item' href="#" {{on "click" (this.ctrlAction "video")}}>{{t "Intro Video: Getting Started with %app_name%" key="getting_started_video"}}</a>
               {{#if this.app_state.domain_settings.youtube_url}}
                 <a class='list-group-item' href={{this.app_state.domain_settings.youtube_url}} target="_blank" rel="noopener">{{t "%app_name% YouTube Channel, with Walkthroughs" key="youtube_channel"}}</a>
               {{/if}}
@@ -174,21 +174,21 @@
   </div>
   <div class="modal-footer">
     <div style='float: left;'>
-      <button class='btn btn-lg btn-default' {{action "close" }}>{{t "Close" key="close"}}</button>
+      <button class='btn btn-lg btn-default' {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</button>
     </div>
     <div style='float: right;'>
       {{#if this.pages.first_page}}
-        <button class='btn btn-lg btn-default' {{action "video"}}>
+        <button class='btn btn-lg btn-default' {{on "click" (this.ctrlAction "video")}}>
           <span class='glyphicon glyphicon-play'></span>
           {{t "Watch the Video" key="intro_video_instead"}}
         </button>
       {{else}}
-        <button class='btn btn-lg btn-default' {{action "previous" }}>
+        <button class='btn btn-lg btn-default' {{on "click" (this.ctrlAction "previous")}}>
           <span class='glyphicon glyphicon-chevron-left'></span>
           {{t "Back" key="back"}}
         </button>
       {{/if}}
-      <button class='btn btn-lg btn-default' {{action "next" }} style={{safe-style (if this.pages.last_page "visibility: hidden;" "")}}>
+      <button class='btn btn-lg btn-default' {{on "click" (this.ctrlAction "next")}} style={{safe-style (if this.pages.last_page "visibility: hidden;" "")}}>
         {{t "Next" key="next"}}
         <span class='glyphicon glyphicon-chevron-right'></span>
       </button>
@@ -196,6 +196,6 @@
     <div style="clear: both;"></div>
   </div>
 
-{{/modal-dialog}}
+</ModalDialog>
 
 

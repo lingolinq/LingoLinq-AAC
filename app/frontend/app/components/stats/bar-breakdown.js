@@ -1,6 +1,6 @@
 import Component from '@ember/component';
 import { htmlSafe } from '@ember/template';
-import { computed } from '@ember/object';
+import { computed, get as emberGet } from '@ember/object';
 import LingoLinq from '../../app';
 import image from '../../models/image';
 
@@ -57,13 +57,13 @@ export default Component.extend({
     }
     list.forEach(function(item) {
       var color = colors[color_index % colors.length];
-      item.style = htmlSafe('width: ' + Math.round(item.score / max * 100) + '%; border: 2px solid ' + color[0] + '; background: ' + color[1] + '; height: 40px; border-radius: 5px; color: #fff; font-size: 12px; padding-left: 3px;');
+      item.style = htmlSafe('width: ' + Math.round(item.score / max * 100) + '%; border: 2px solid ' + color[0] + '; background: ' + color[1] + '; height: 40px; border-radius: 5px; color: #fff; font-size: 14px; padding-left: 3px;');
       if(item.score > 0) {
         item.style = htmlSafe(item.style + 'min-width: 15px;');
       }
       color_index++;
     });
-    return list.sortBy('index').reverse();
+    return list.slice().sort(function(a, b) { var x = emberGet(a, 'index'), y = emberGet(b, 'index'); return x > y ? -1 : (x < y ? 1 : 0); });
   }),
   actions: {
   }

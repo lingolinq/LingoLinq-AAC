@@ -17,6 +17,28 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+
     this.set('html', '');
     this.set('name', '');
     this.set('status', null);
@@ -65,7 +87,14 @@ export default Component.extend({
           modalUtil.close(true);
           editManager.auto_edit(board.id);
           _this.appState.set('referenced_board', { id: board.id, key: board.key });
-          _this.get('router').transitionTo('board', board.key);
+          var parts = (board.key || '').split('/');
+          // Debounced "Preparing your Board" mask for the post-import board load.
+          _this.appState.arm_board_load_overlay(_this.get('router'));
+          if (parts.length >= 2) {
+            _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+          } else {
+            _this.get('router').transitionTo('board', board.key);
+          }
         } else {
           _this.set('status', {
             error: (res && res.error) || i18n.t('import_failed', "Import failed")
@@ -84,5 +113,12 @@ export default Component.extend({
         _this.set('status', { error: msg });
       });
     }
-  }
+  },
+
+  didInsertElement() {
+    this._super(...arguments);
+    var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+  },
 });

@@ -1,28 +1,51 @@
 {{#if this.app_state.currentUser.modeling_only}}
-  {{modeling-only-notice}}
+  <ModelingOnlyNotice />
 {{else if this.model.currently_premium}}
-  <h2>{{t "Communication Goals" key="communication_goals"}}</h2>
-
-  {{#if this.goals.loading}}
-    {{t "Loading goals..." key="loading_goals"}}
-  {{else if this.goals.error}}
-    {{t "Goals failed to load" key="goals_failed_to_load"}}
-  {{else}}
-    {{#if this.primary_goal}}
+<div class="md-goals">
+  <div class="md-goals__header">
+    <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18" stroke="#46505F"/><path d="M18 9l-5 5-2-2-4 4" stroke="#2A9D8F"/></svg>
+    <h2 class="md-goals__title">{{t "Communication Goals" key="communication_goals"}}</h2>
+  </div>
+  {{!-- Goals page top-nav: sits just below the page divider, outside
+       the goals card so the actions feel like page-level navigation
+       rather than a row tucked inside the goal list. --}}
+  <div class='md-goal-nav-actions'>
+    {{#unless (is-equal this.model.permissions.set_goals false)}}
+      <button {{on "click" (this.ctrlAction "add_goal")}} class='md-btn md-goal-nav-action'>
+        <svg class='md-goal-nav-action__icon' width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="22" x2="5" y2="4" stroke="#46505F"/><path d="M5 5h11l-2 4 2 4H5" stroke="#2A9D8F"/><line x1="18" y1="17" x2="22" y2="17" stroke="#2A9D8F"/><line x1="20" y1="15" x2="20" y2="19" stroke="#2A9D8F"/></svg>
+        <span>{{t "Set a New Goal" key="set_a_new_goal"}}</span>
+      </button>
+      <button {{on "click" (this.ctrlAction "find_goal")}} class='md-btn md-goal-nav-action'>
+        <svg class='md-goal-nav-action__icon' width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="#46505F"/><line x1="16.2" y1="16.2" x2="21" y2="21" stroke="#46505F"/><path d="M7 11a4 4 0 0 1 4-4" stroke="#2A9D8F"/></svg>
+        <span>{{t "Browse Community Goals" key="browse_community_goals"}}</span>
+      </button>
+    {{/unless}}
+    <LinkTo @route="user.badges" @model={{this.model.user_name}} class="md-btn md-goal-nav-action">
+      <svg class='md-goal-nav-action__icon' width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="6" stroke="#46505F"/><path d="M8.5 13l-1.8 8 5.3-3 5.3 3-1.8-8" stroke="#46505F"/><path d="M9.5 9l2 2 3.5-3.5" stroke="#2A9D8F"/></svg>
+      <span>{{t "See User Badges" key="see_user_badges"}}</span>
+    </LinkTo>
+  </div>
+  {{!-- Primary Goal — sits OUTSIDE the goals card so the clinical
+       priority feels like its own page-level section (sunken tray),
+       not a row inside the goal list. Only renders once goals data
+       has loaded and a primary_goal is set. --}}
+  {{#if this.primary_goal}}
+    <section class='md-goal-primary-section'>
+      <h3 class='md-goal-primary-section__title'>{{t "Primary Goal" key="primary_goal"}}</h3>
       {{#let this.primary_goal as |goal|}}
         <div class='well goal sparkle_list_item'>
           {{#if this.badges_loaded}}
             <div style='float: left; width: 50px; height: 65px; overflow: hidden; margin-right: 10px; font-size: 40px; text-align: center; line-height: 20px;'>
               {{#if goal.current_badge}}
-                {{# if goal.current_badge.earned}}
+                {{#if goal.current_badge.earned}}
                   <span style='display: inline-block; position: relative;'>
                     <img src={{goal.current_badge.image_url}} style='width: 50px; max-height: 50px;'>
-                    <div class='sparkle' style='font-size: 10px;'>&#10022;</div>
+                    <div class='sparkle' style='font-size: 14px;'>&#10022;</div>
                   </span>
                 {{else}}
                   <img src={{goal.current_badge.image_url}} style='width: 50px; max-height: 50px;'>
                   <div class="progress" style="border: 1px solid #aaa;margin: 0 auto 5px; height: 10px;">
-                    <div class="progress-bar" role="progressbar" aria-value={{goal.current_badge.progress_out_of_100}} aria-valuemin="0" aria-valuemax="100" style={{goal.current_badge.progress_style}}>
+                    <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" style={{goal.current_badge.progress_style}}>
                       <span class="sr-only">
                         {{t "%{pct}% Complete" key="percent_complete" pct=goal.current_badge.progress_out_of_100}}
                       </span>
@@ -32,7 +55,7 @@
               {{else if goal.badge_image_url}}
                 <img src={{goal.badge_image_url}} style='width: 50px; max-height: 50px; opacity: 0.8;' >
               {{else}}
-                <span class='glyphicon glyphicon-flag' style='margin-top: 10px;'></span>
+                <svg class='md-goal-flag-icon' width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="3.5" width="1.6" height="18.5" rx="0.8" fill="#1F2A44"/><rect x="4.2" y="3.8" width="0.45" height="18" rx="0.22" fill="#5A6A85" opacity="0.85"/><circle cx="4.8" cy="2.8" r="1.15" fill="#1F2A44"/><circle cx="4.5" cy="2.5" r="0.35" fill="#FFFFFF" opacity="0.5"/><path d="M5.6 5.6 Q 11.5 4.3, 17.9 5.6 L 16.1 9 L 17.9 12.6 Q 11.5 13.9, 5.6 12.6 Z" fill="#1F2A44" opacity="0.18"/><path d="M5.6 4.1 Q 11.5 2.8, 17.9 4.1 L 16.1 7.5 L 17.9 11.1 Q 11.5 12.4, 5.6 11.1 Z" fill="#2A9D8F" stroke="#1F2A44" stroke-width="0.7" stroke-linejoin="round"/><path d="M5.6 4.1 Q 11.5 2.8, 17.9 4.1" stroke="#FFFFFF" stroke-width="0.5" opacity="0.55" fill="none" stroke-linecap="round"/><path d="M11.7 3.4 L 11.4 11.6" stroke="#1F2A44" stroke-width="0.35" opacity="0.22" fill="none" stroke-linecap="round"/></svg>
               {{/if}}
             </div>
           {{/if}}
@@ -42,30 +65,11 @@
           {{#if goal.template}}
             {{t "(template)" key="template_paren"}}
           {{/if}}
-          {{#if this.model.permissions.edit}}
-            <div style='float: right;'>
-              {{#if goal.active}}
-                <span style='margin-right: 15px;'>
-                  <button {{action "new_note" goal}} class='btn btn-lg btn-default' title={{t "new note" key="new_note_lower"}}><span class='glyphicon glyphicon-file'></span><span class='sr-only'>{{t "new note" key="new_note_lower"}}</span></button>
-                  <button {{action "quick_assessment" goal}} class='btn btn-lg btn-default' title={{t "quick assessment" key="quick_assessment_lower"}}><span class='glyphicon glyphicon-list-alt'></span><span class='sr-only'>{{t "quick assessment" key="quick_assessment_lower"}}</span></button>
-                </span>
-                {{#if goal.primary}}
-                  <button {{action "update" goal "primary" "off"}} class='btn btn-lg btn-default' title={{t "make secondary goal" key="make_secondary_goal"}}><span class='glyphicon glyphicon-hand-down'></span><span class='sr-only'>{{t "make secondary goal" key="make_secondary_goal"}}</span></button>
-                {{else}}
-                  <button {{action "update" goal "primary" "on"}} class='btn btn-lg btn-default' title={{t "make primary goal" key="make_primary_goal"}}><span class='glyphicon glyphicon-hand-up'></span><span class='sr-only'>{{t "make primary goal" key="make_primary_goal"}}</span></button>
-                {{/if}}
-                <button {{action "delete" goal}} class='btn btn-lg btn-default' title={{t "retire goal" key="retire_goal_lower"}}><span class='glyphicon glyphicon-ok'></span><span class='sr-only'>{{t "retire goal" key="retire_goal_lower"}}</span></button>
-              {{else}}
-                <button {{action "update" goal "active" "on"}} class='btn btn-lg btn-default' title={{t "restore goal" key="restore_goal"}}><span class='glyphicon glyphicon-arrow-up'></span><span class='sr-only'>{{t "restore goal" key="restore_goal"}}</span></button>
-                <button {{action "delete" goal}} class='btn btn-lg btn-default' title={{t "delete goal" key="delete_goal_lower"}}><span class='glyphicon glyphicon-trash'></span><span class='sr-only'>{{t "delete goal" key="delete_goal_lower"}}</span></button>
-              {{/if}}
-            </div>
-          {{/if}}
           <div class='details'>
             {{#if goal.active}}
-              {{date_ago goal.started}}
+              <span class='md-goal-time-pill'>{{date_ago goal.started}}</span>
             {{else}}
-              {{date_ago goal.ended}}
+              <span class='md-goal-time-pill'>{{date_ago goal.ended}}</span>
             {{/if}}
             <span style='margin-left: 10px;'>
               {{#if goal.advance}}
@@ -77,19 +81,95 @@
               {{/if}}
             </span>
           </div>
-          <div class='description text-muted'>
-            {{goal.description}}
-          </div>
+          {{#if this.model.permissions.edit}}
+            <div class='md-goal-actions'>
+              {{#if goal.active}}
+                <span class='md-goal-actions__group'>
+                  <button {{on "click" (this.ctrlAction "new_note" goal)}} class='md-goal-action md-goal-action--note' title={{t "New Note" key="new_note"}}><span class='md-goal-action__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9" stroke="#46505F"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4z" stroke="#46505F"/><path d="M15 5l3 3" stroke="#2A9D8F"/></svg></span><span class='md-goal-action__label'>{{t "New Note" key="new_note"}}</span></button>
+                  <button {{on "click" (this.ctrlAction "quick_assessment" goal)}} class='md-goal-action md-goal-action--assess' title={{t "Quick Assessment" key="quick_assessment"}}><span class='md-goal-action__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4.5h6a1 1 0 0 1 1 1V6h2.5a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19.5v-12A1.5 1.5 0 0 1 5.5 6H8v-.5a1 1 0 0 1 1-1z" stroke="#46505F"/><path d="M9 12.5l2.4 2.4L15.5 10" stroke="#2A9D8F" stroke-width="1.8"/></svg></span><span class='md-goal-action__label'>{{t "Quick Assessment" key="quick_assessment"}}</span></button>
+                </span>
+                {{#if goal.primary}}
+                  <button {{on "click" (this.ctrlAction "update" goal "primary" "off")}} class='md-goal-action md-goal-action--prio' title={{t "Make Secondary" key="make_secondary"}}><span class='md-goal-action__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h12a.5.5 0 0 1 .5.5v17l-6.5-4.5L5.5 21V4a.5.5 0 0 1 .5-.5z" stroke="#46505F"/><path d="M9 10l2.5 2.5L15 9" stroke="#2A9D8F" stroke-width="1.8"/></svg></span><span class='md-goal-action__label'>{{t "Make Secondary" key="make_secondary"}}</span></button>
+                {{else}}
+                  <button {{on "click" (this.ctrlAction "update" goal "primary" "on")}} class='md-goal-action md-goal-action--prio' title={{t "Make Primary" key="make_primary"}}><span class='md-goal-action__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.3 5.9.9-4.2 4.1 1 5.8-5.3-2.8-5.3 2.8 1-5.8-4.2-4.1 5.9-.9z" fill="#2A9D8F" fill-opacity="0.18" stroke="#46505F"/><polyline points="9.5 11.5 11.5 13.5 14.5 9.5" stroke="#2A9D8F" stroke-width="1.8"/></svg></span><span class='md-goal-action__label'>{{t "Make Primary" key="make_primary"}}</span></button>
+                {{/if}}
+                <button {{on "click" (this.ctrlAction "delete" goal)}} class='md-goal-action md-goal-action--retire' title={{t "Retire Goal" key="retire_goal"}}><span class='md-goal-action__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0z" stroke="#46505F"/><path d="M8 6.5H6a2 2 0 0 0 0 4h2.4" stroke="#46505F"/><path d="M16 6.5h2a2 2 0 0 1 0 4h-2.4" stroke="#46505F"/><line x1="12" y1="13" x2="12" y2="17" stroke="#46505F"/><line x1="9" y1="20" x2="15" y2="20" stroke="#2A9D8F" stroke-width="1.8"/><line x1="10.5" y1="17" x2="13.5" y2="17" stroke="#46505F"/></svg></span><span class='md-goal-action__label'>{{t "Retire Goal" key="retire_goal"}}</span></button>
+              {{else}}
+                <button {{on "click" (this.ctrlAction "update" goal "active" "on")}} class='md-goal-action md-goal-action--restore' title={{t "Restore Goal" key="restore_goal_caps"}}><span class='md-goal-action__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3.18-6.88" stroke="#46505F"/><polyline points="21 4 21 9 16 9" stroke="#2A9D8F" stroke-width="1.8"/></svg></span><span class='md-goal-action__label'>{{t "Restore Goal" key="restore_goal_caps"}}</span></button>
+                <button {{on "click" (this.ctrlAction "delete" goal)}} class='md-goal-action md-goal-action--delete' title={{t "Delete Goal" key="delete_goal"}}><span class='md-goal-action__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5h16" stroke="#46505F"/><path d="M9 6.5V5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5v1.5" stroke="#46505F"/><path d="M6 6.5l.9 12.7a1.5 1.5 0 0 0 1.5 1.4h7.2a1.5 1.5 0 0 0 1.5-1.4l.9-12.7" stroke="#46505F"/><line x1="10.5" y1="11" x2="10.5" y2="17" stroke="#2A9D8F" stroke-width="1.8"/><line x1="13.5" y1="11" x2="13.5" y2="17" stroke="#2A9D8F" stroke-width="1.8"/></svg></span><span class='md-goal-action__label'>{{t "Delete Goal" key="delete_goal"}}</span></button>
+              {{/if}}
+            </div>
+          {{/if}}
+          <details class='md-goal-coaching'>
+            <summary class='md-goal-coaching__head'>
+              <div class='md-goal-coaching__head-text'>
+                <span class='md-goal-coaching__eyebrow'>{{t "Coaching strategies" key="coaching_strategies"}}</span>
+                <p class='md-goal-coaching__lead'>{{t "Evidence-based partner strategies to help reach this goal." key="coaching_lead"}}</p>
+              </div>
+              <span class='md-goal-coaching__chevron' aria-hidden='true'><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+            </summary>
+            <ul class='md-goal-coaching__list'>
+              <li class='md-goal-coaching__item'>
+                <span class='md-goal-coaching__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" stroke="#46505F"/><line x1="3" y1="9" x2="21" y2="9" stroke="#46505F"/><line x1="9" y1="9" x2="9" y2="20" stroke="#46505F"/><line x1="15" y1="9" x2="15" y2="20" stroke="#46505F"/><line x1="3" y1="14.5" x2="21" y2="14.5" stroke="#46505F"/><rect x="10" y="10.5" width="4" height="2.5" rx="0.5" fill="#2A9D8F" stroke="none"/></svg></span>
+                <div class='md-goal-coaching__body'>
+                  <strong>{{t "Model on the device" key="coaching_model_title"}}</strong>
+                  <p>{{t "Tap target words on the AAC system while you speak — show, don't ask. This is Aided Language Stimulation, the gold-standard AAC modeling strategy." key="coaching_model_body"}}</p>
+                </div>
+              </li>
+              <li class='md-goal-coaching__item'>
+                <span class='md-goal-coaching__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" stroke="#46505F"/><polyline points="12 7 12 12 15.5 14" stroke="#2A9D8F"/></svg></span>
+                <div class='md-goal-coaching__body'>
+                  <strong>{{t "Wait at least 10 seconds" key="coaching_wait_title"}}</strong>
+                  <p>{{t "After modeling, pause silently for 10+ seconds. AAC users often need extra processing time to plan and execute their response." key="coaching_wait_body"}}</p>
+                </div>
+              </li>
+              <li class='md-goal-coaching__item'>
+                <span class='md-goal-coaching__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15 6.5" stroke="#46505F"/><path d="M3 12a9 9 0 0 1 15-6.5" stroke="#46505F"/><polyline points="18 2 18 6 14 6" stroke="#2A9D8F"/><polyline points="6 22 6 18 10 18" stroke="#2A9D8F"/></svg></span>
+                <div class='md-goal-coaching__body'>
+                  <strong>{{t "Embed in daily routines" key="coaching_routines_title"}}</strong>
+                  <p>{{t "Build the target into snack time, transitions, play, and getting ready — natural moments where the word is the most useful one in the room." key="coaching_routines_body"}}</p>
+                </div>
+              </li>
+              <li class='md-goal-coaching__item'>
+                <span class='md-goal-coaching__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3" stroke="#46505F"/><path d="M3 20a6 6 0 0 1 12 0" stroke="#46505F"/><circle cx="17" cy="6" r="2" stroke="#2A9D8F"/><path d="M17 12a4 4 0 0 1 4 4" stroke="#2A9D8F"/></svg></span>
+                <div class='md-goal-coaching__body'>
+                  <strong>{{t "Generalize across partners and places" key="coaching_generalize_title"}}</strong>
+                  <p>{{t "Make sure the skill shows up with different communication partners, in different settings, across different activities — not just in therapy." key="coaching_generalize_body"}}</p>
+                </div>
+              </li>
+              <li class='md-goal-coaching__item'>
+                <span class='md-goal-coaching__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21l-7-7a4 4 0 0 1 5.5-5.8L12 9.5l1.5-1.3A4 4 0 0 1 19 14z" stroke="#46505F"/><path d="M9 11l2 2 4-4" stroke="#2A9D8F"/></svg></span>
+                <div class='md-goal-coaching__body'>
+                  <strong>{{t "Reinforce effort, not perfection" key="coaching_celebrate_title"}}</strong>
+                  <p>{{t "Recognize every attempt. Log sessions with Quick Assessment so growth is visible over time, not measured by a single moment." key="coaching_celebrate_body"}}</p>
+                </div>
+              </li>
+            </ul>
+            {{#if goal.description}}
+              <div class='md-goal-coaching__note'>
+                <span class='md-goal-coaching__note-label'>{{t "Therapist note" key="coaching_therapist_note"}}</span>
+                <p>{{goal.description}}</p>
+              </div>
+            {{/if}}
+          </details>
         </div>
       {{/let}}
-    {{else if this.any_goal}}
+    </section>
+  {{/if}}
+  <div class="md-goals__card">
+  {{#if this.goals.loading}}
+    <p class="md-goals__loading">{{t "Loading goals..." key="loading_goals"}}</p>
+  {{else if this.goals.error}}
+    <p class="md-goals__loading">{{t "Goals failed to load" key="goals_failed_to_load"}}</p>
+  {{else}}
+    {{#unless this.primary_goal}}
+    {{#if this.any_goal}}
       <p>{{t "No primary goal set" key="no_primary_goal_set"}}</p>
     {{else}}
       <div style='max-width: 600px;'>
-        <p>{{t "Goals are a way to help the communicator and their support team keep their current strategies top of mind. They can be general like \"Remember to use core words!\" or specific like \"Use greetings when entering a new setting\". Remember, these can be goals for the communicator (\"Answer questions with yes or no\"), <strong>or</strong> for the support team around the communicator (\"Use a prompting hierarchy\")." key="goals_explainer1"}}</p>
-        <p>{{t "Goals can be tracked for each communicator using assessments, or when making notes on a user's logs. These status updates are then used to show a general report of how the goal is progessing over time." key="goals_explainer2"}}</p>
-        <p>{{t "You can start using goals at any time by creating a goal for a communicator. Then use notes and assessments to track progress toward the goal over time. Users can have multiple goals, but only one \"primary\" goal at a time." key="goals_explainer_3"}}</p>
-        <p>{{t "For more information on choosing good goals, <a href='https://praacticalaac.org/praactical/how-i-do-it-writing-iep-goals-for-students-who-use-aac-with-lauren-enders/' target='_blank' rel='noopener'>please check out</a> these <a href='https://praacticalaac.org/praactical/praactical-goals-that-matter/' target='_blank' rel='noopener'>great resources</a> from PrAACtical AAC." key="goals_explainer_4"}}</p>
+        <p>{{t "Goals keep strategies top of mind for communicators and their support teams — whether it's a communicator goal like \"Answer questions with yes or no\" or a team goal like \"Use a prompting hierarchy.\"" key="goals_explainer1"}}</p>
+        <p>{{t "Track progress through notes and assessments, and view how each goal develops over time. Users can have multiple goals, but only one primary goal at a time." key="goals_explainer2"}}</p>
+        <p>{{t "For tips on choosing effective goals, explore these <a href='https://praacticalaac.org/praactical/how-i-do-it-writing-iep-goals-for-students-who-use-aac-with-lauren-enders/' target='_blank' rel='noopener'>helpful resources</a> from <a href='https://praacticalaac.org/praactical/praactical-goals-that-matter/' target='_blank' rel='noopener'>PrAACtical AAC</a>." key="goals_explainer_4"}}</p>
       </div>
       <!--
       things we could programmatically track:
@@ -108,12 +188,7 @@
       - link to report on goals within reports summary email
       -->
     {{/if}}
-    {{#if this.model.permissions.edit}}
-      <button {{action "add_goal"}} class='btn btn-default'>{{t "Set a New Goal" key="set_a_new_goal"}}</button>
-      <button {{action "find_goal"}} class='btn btn-default'>{{t "Browse Community Goals" key="browse_community_goals"}}</button>
-    {{/if}}
-    <LinkTo @route="user.badges" @model={{this.model.user_name}} class="btn btn-default">{{t "See User Badges" key="see_user_badges"}}</LinkTo>
-
+    {{/unless}}
     {{#if this.any_goal}}
       <h3>{{t "Secondary Goals" key="secondary_goals"}}</h3>
       {{#if this.secondary_goals}}
@@ -122,15 +197,15 @@
             {{#if this.badges_loaded}}
               <div style='float: left; width: 50px; height: 65px; overflow: hidden; margin-right: 10px; font-size: 40px; text-align: center; line-height: 20px;'>
                 {{#if goal.current_badge}}
-                  {{# if goal.current_badge.earned}}
+                  {{#if goal.current_badge.earned}}
                     <span style='display: inline-block; position: relative;'>
                       <img src={{goal.current_badge.image_url}} style='width: 50px; max-height: 50px;'>
-                      <div class='sparkle' style='font-size: 10px;'>&#10022;</div>
+                      <div class='sparkle' style='font-size: 14px;'>&#10022;</div>
                     </span>
                   {{else}}
                     <img src={{goal.current_badge.image_url}} style='width: 50px; max-height: 50px;'>
                     <div class="progress" style="border: 1px solid #aaa;margin: 0 auto 5px; height: 10px;">
-                      <div class="progress-bar" role="progressbar" aria-value={{goal.current_badge.progress_out_of_100}} aria-valuemin="0" aria-valuemax="100" style={{goal.current_badge.progress_style}}>
+                      <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" style={{goal.current_badge.progress_style}}>
                         <span class="sr-only">
                           {{t "%{pct}% Complete" key="percent_complete" pct=goal.current_badge.progress_out_of_100}}
                         </span>
@@ -140,7 +215,7 @@
                 {{else if goal.badge_image_url}}
                   <img src={{goal.badge_image_url}} style='width: 50px; max-height: 50px; opacity: 0.8;' >
                 {{else}}
-                  <span class='glyphicon glyphicon-flag' style='margin-top: 10px;'></span>
+                  <svg class='md-goal-flag-icon' width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="3.5" width="1.6" height="18.5" rx="0.8" fill="#1F2A44"/><rect x="4.2" y="3.8" width="0.45" height="18" rx="0.22" fill="#5A6A85" opacity="0.85"/><circle cx="4.8" cy="2.8" r="1.15" fill="#1F2A44"/><circle cx="4.5" cy="2.5" r="0.35" fill="#FFFFFF" opacity="0.5"/><path d="M5.6 5.6 Q 11.5 4.3, 17.9 5.6 L 16.1 9 L 17.9 12.6 Q 11.5 13.9, 5.6 12.6 Z" fill="#1F2A44" opacity="0.18"/><path d="M5.6 4.1 Q 11.5 2.8, 17.9 4.1 L 16.1 7.5 L 17.9 11.1 Q 11.5 12.4, 5.6 11.1 Z" fill="#4C86D8" stroke="#1F2A44" stroke-width="0.7" stroke-linejoin="round"/><path d="M5.6 4.1 Q 11.5 2.8, 17.9 4.1" stroke="#FFFFFF" stroke-width="0.5" opacity="0.55" fill="none" stroke-linecap="round"/><path d="M11.7 3.4 L 11.4 11.6" stroke="#1F2A44" stroke-width="0.35" opacity="0.22" fill="none" stroke-linecap="round"/></svg>
                 {{/if}}
               </div>
             {{/if}}
@@ -150,30 +225,11 @@
             {{#if goal.template}}
               {{t "(template)" key="template_paren"}}
             {{/if}}
-            {{#if this.model.permissions.edit}}
-              <div style='float: right;'>
-                {{#if goal.active}}
-                  <span style='margin-right: 15px;'>
-                    <button {{action "new_note" goal}} class='btn btn-lg btn-default' title={{t "new note" key="new_note_lower"}}><span class='glyphicon glyphicon-file'></span><span class='sr-only'>{{t "new note" key="new_note_lower"}}</span></button>
-                    <button {{action "quick_assessment" goal}} class='btn btn-lg btn-default' title={{t "quick assessment" key="quick_assessment_lower"}}><span class='glyphicon glyphicon-list-alt'></span><span class='sr-only'>{{t "quick assessment" key="quick_assessment_lower"}}</span></button>
-                  </span>
-                  {{#if goal.primary}}
-                    <button {{action "update" goal "primary" "off"}} class='btn btn-lg btn-default' title={{t "make secondary goal" key="make_secondary_goal"}}><span class='glyphicon glyphicon-hand-down'></span><span class='sr-only'>{{t "make secondary goal" key="make_secondary_goal"}}</span></button>
-                  {{else}}
-                    <button {{action "update" goal "primary" "on"}} class='btn btn-lg btn-default' title={{t "make primary goal" key="make_primary_goal"}}><span class='glyphicon glyphicon-hand-up'></span><span class='sr-only'>{{t "make primary goal" key="make_primary_goal"}}</span></button>
-                  {{/if}}
-                  <button {{action "delete" goal}} class='btn btn-lg btn-default' title={{t "retire goal" key="retire_goal_lower"}}><span class='glyphicon glyphicon-ok'></span><span class='sr-only'>{{t "retire goal" key="retire_goal_lower"}}</span></button>
-                {{else}}
-                  <button {{action "update" goal "active" "on"}} class='btn btn-lg btn-default' title={{t "restore goal" key="restore_goal"}}><span class='glyphicon glyphicon-arrow-up'></span><span class='sr-only'>{{t "restore goal" key="restore_goal"}}</span></button>
-                  <button {{action "delete" goal}} class='btn btn-lg btn-default' title={{t "delete goal" key="delete_goal_lower"}}><span class='glyphicon glyphicon-trash'></span><span class='sr-only'>{{t "delete goal" key="delete_goal_lower"}}</span></button>
-                {{/if}}
-              </div>
-            {{/if}}
             <div class='details'>
               {{#if goal.active}}
-                {{date_ago goal.started}}
+                <span class='md-goal-time-pill'>{{date_ago goal.started}}</span>
               {{else}}
-                {{date_ago goal.ended}}
+                <span class='md-goal-time-pill'>{{date_ago goal.ended}}</span>
               {{/if}}
               <span style='margin-left: 10px;'>
                 {{#if goal.advance}}
@@ -185,94 +241,157 @@
                 {{/if}}
               </span>
             </div>
-            <div class='description text-muted'>
-              {{goal.description}}
-            </div>
+            {{#if this.model.permissions.edit}}
+              <div class='md-goal-actions'>
+                {{#if goal.active}}
+                  <span class='md-goal-actions__group'>
+                    <button {{on "click" (this.ctrlAction "new_note" goal)}} class='md-goal-action md-goal-action--note' title={{t "New Note" key="new_note"}}><span class='md-goal-action__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9" stroke="#46505F"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4z" stroke="#46505F"/><path d="M15 5l3 3" stroke="#2A9D8F"/></svg></span><span class='md-goal-action__label'>{{t "New Note" key="new_note"}}</span></button>
+                    <button {{on "click" (this.ctrlAction "quick_assessment" goal)}} class='md-goal-action md-goal-action--assess' title={{t "Quick Assessment" key="quick_assessment"}}><span class='md-goal-action__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4.5h6a1 1 0 0 1 1 1V6h2.5a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19.5v-12A1.5 1.5 0 0 1 5.5 6H8v-.5a1 1 0 0 1 1-1z" stroke="#46505F"/><path d="M9 12.5l2.4 2.4L15.5 10" stroke="#2A9D8F" stroke-width="1.8"/></svg></span><span class='md-goal-action__label'>{{t "Quick Assessment" key="quick_assessment"}}</span></button>
+                  </span>
+                  {{#if goal.primary}}
+                    <button {{on "click" (this.ctrlAction "update" goal "primary" "off")}} class='md-goal-action md-goal-action--prio' title={{t "Make Secondary" key="make_secondary"}}><span class='md-goal-action__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h12a.5.5 0 0 1 .5.5v17l-6.5-4.5L5.5 21V4a.5.5 0 0 1 .5-.5z" stroke="#46505F"/><path d="M9 10l2.5 2.5L15 9" stroke="#2A9D8F" stroke-width="1.8"/></svg></span><span class='md-goal-action__label'>{{t "Make Secondary" key="make_secondary"}}</span></button>
+                  {{else}}
+                    <button {{on "click" (this.ctrlAction "update" goal "primary" "on")}} class='md-goal-action md-goal-action--prio' title={{t "Make Primary" key="make_primary"}}><span class='md-goal-action__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.3 5.9.9-4.2 4.1 1 5.8-5.3-2.8-5.3 2.8 1-5.8-4.2-4.1 5.9-.9z" fill="#2A9D8F" fill-opacity="0.18" stroke="#46505F"/><polyline points="9.5 11.5 11.5 13.5 14.5 9.5" stroke="#2A9D8F" stroke-width="1.8"/></svg></span><span class='md-goal-action__label'>{{t "Make Primary" key="make_primary"}}</span></button>
+                  {{/if}}
+                  <button {{on "click" (this.ctrlAction "delete" goal)}} class='md-goal-action md-goal-action--retire' title={{t "Retire Goal" key="retire_goal"}}><span class='md-goal-action__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0z" stroke="#46505F"/><path d="M8 6.5H6a2 2 0 0 0 0 4h2.4" stroke="#46505F"/><path d="M16 6.5h2a2 2 0 0 1 0 4h-2.4" stroke="#46505F"/><line x1="12" y1="13" x2="12" y2="17" stroke="#46505F"/><line x1="9" y1="20" x2="15" y2="20" stroke="#2A9D8F" stroke-width="1.8"/><line x1="10.5" y1="17" x2="13.5" y2="17" stroke="#46505F"/></svg></span><span class='md-goal-action__label'>{{t "Retire Goal" key="retire_goal"}}</span></button>
+                {{else}}
+                  <button {{on "click" (this.ctrlAction "update" goal "active" "on")}} class='md-goal-action md-goal-action--restore' title={{t "Restore Goal" key="restore_goal_caps"}}><span class='md-goal-action__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3.18-6.88" stroke="#46505F"/><polyline points="21 4 21 9 16 9" stroke="#2A9D8F" stroke-width="1.8"/></svg></span><span class='md-goal-action__label'>{{t "Restore Goal" key="restore_goal_caps"}}</span></button>
+                  <button {{on "click" (this.ctrlAction "delete" goal)}} class='md-goal-action md-goal-action--delete' title={{t "Delete Goal" key="delete_goal"}}><span class='md-goal-action__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5h16" stroke="#46505F"/><path d="M9 6.5V5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5v1.5" stroke="#46505F"/><path d="M6 6.5l.9 12.7a1.5 1.5 0 0 0 1.5 1.4h7.2a1.5 1.5 0 0 0 1.5-1.4l.9-12.7" stroke="#46505F"/><line x1="10.5" y1="11" x2="10.5" y2="17" stroke="#2A9D8F" stroke-width="1.8"/><line x1="13.5" y1="11" x2="13.5" y2="17" stroke="#2A9D8F" stroke-width="1.8"/></svg></span><span class='md-goal-action__label'>{{t "Delete Goal" key="delete_goal"}}</span></button>
+                {{/if}}
+              </div>
+            {{/if}}
+            <details class='md-goal-coaching'>
+              <summary class='md-goal-coaching__head'>
+                <div class='md-goal-coaching__head-text'>
+                  <span class='md-goal-coaching__eyebrow'>{{t "Coaching strategies" key="coaching_strategies"}}</span>
+                  <p class='md-goal-coaching__lead'>{{t "Evidence-based partner strategies to help reach this goal." key="coaching_lead"}}</p>
+                </div>
+                <span class='md-goal-coaching__chevron' aria-hidden='true'><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+              </summary>
+              <ul class='md-goal-coaching__list'>
+                <li class='md-goal-coaching__item'>
+                  <span class='md-goal-coaching__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" stroke="#46505F"/><line x1="3" y1="9" x2="21" y2="9" stroke="#46505F"/><line x1="9" y1="9" x2="9" y2="20" stroke="#46505F"/><line x1="15" y1="9" x2="15" y2="20" stroke="#46505F"/><line x1="3" y1="14.5" x2="21" y2="14.5" stroke="#46505F"/><rect x="10" y="10.5" width="4" height="2.5" rx="0.5" fill="#2A9D8F" stroke="none"/></svg></span>
+                  <div class='md-goal-coaching__body'>
+                    <strong>{{t "Model on the device" key="coaching_model_title"}}</strong>
+                    <p>{{t "Tap target words on the AAC system while you speak — show, don't ask. This is Aided Language Stimulation, the gold-standard AAC modeling strategy." key="coaching_model_body"}}</p>
+                  </div>
+                </li>
+                <li class='md-goal-coaching__item'>
+                  <span class='md-goal-coaching__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" stroke="#46505F"/><polyline points="12 7 12 12 15.5 14" stroke="#2A9D8F"/></svg></span>
+                  <div class='md-goal-coaching__body'>
+                    <strong>{{t "Wait at least 10 seconds" key="coaching_wait_title"}}</strong>
+                    <p>{{t "After modeling, pause silently for 10+ seconds. AAC users often need extra processing time to plan and execute their response." key="coaching_wait_body"}}</p>
+                  </div>
+                </li>
+                <li class='md-goal-coaching__item'>
+                  <span class='md-goal-coaching__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15 6.5" stroke="#46505F"/><path d="M3 12a9 9 0 0 1 15-6.5" stroke="#46505F"/><polyline points="18 2 18 6 14 6" stroke="#2A9D8F"/><polyline points="6 22 6 18 10 18" stroke="#2A9D8F"/></svg></span>
+                  <div class='md-goal-coaching__body'>
+                    <strong>{{t "Embed in daily routines" key="coaching_routines_title"}}</strong>
+                    <p>{{t "Build the target into snack time, transitions, play, and getting ready — natural moments where the word is the most useful one in the room." key="coaching_routines_body"}}</p>
+                  </div>
+                </li>
+                <li class='md-goal-coaching__item'>
+                  <span class='md-goal-coaching__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3" stroke="#46505F"/><path d="M3 20a6 6 0 0 1 12 0" stroke="#46505F"/><circle cx="17" cy="6" r="2" stroke="#2A9D8F"/><path d="M17 12a4 4 0 0 1 4 4" stroke="#2A9D8F"/></svg></span>
+                  <div class='md-goal-coaching__body'>
+                    <strong>{{t "Generalize across partners and places" key="coaching_generalize_title"}}</strong>
+                    <p>{{t "Make sure the skill shows up with different communication partners, in different settings, across different activities — not just in therapy." key="coaching_generalize_body"}}</p>
+                  </div>
+                </li>
+                <li class='md-goal-coaching__item'>
+                  <span class='md-goal-coaching__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21l-7-7a4 4 0 0 1 5.5-5.8L12 9.5l1.5-1.3A4 4 0 0 1 19 14z" stroke="#46505F"/><path d="M9 11l2 2 4-4" stroke="#2A9D8F"/></svg></span>
+                  <div class='md-goal-coaching__body'>
+                    <strong>{{t "Reinforce effort, not perfection" key="coaching_celebrate_title"}}</strong>
+                    <p>{{t "Recognize every attempt. Log sessions with Quick Assessment so growth is visible over time, not measured by a single moment." key="coaching_celebrate_body"}}</p>
+                  </div>
+                </li>
+              </ul>
+              {{#if goal.description}}
+                <div class='md-goal-coaching__note'>
+                  <span class='md-goal-coaching__note-label'>{{t "Therapist note" key="coaching_therapist_note"}}</span>
+                  <p>{{goal.description}}</p>
+                </div>
+              {{/if}}
+            </details>
           </div>
         {{/each}}
       {{else}}
         {{t "None Set" key="none_set"}}
       {{/if}}
-      <h3>{{t "Past Goals" key="past_goals"}}</h3>
-      {{#if this.past_goals}}
-        {{#each this.past_goals as |goal|}}
-          <div class='well goal sparkle_list_item'>
-            {{#if this.badges_loaded}}
-              <div style='float: left; width: 50px; height: 65px; overflow: hidden; margin-right: 10px; font-size: 40px; text-align: center; line-height: 20px;'>
-                {{#if goal.current_badge}}
-                  {{# if goal.current_badge.earned}}
-                    <span style='display: inline-block; position: relative;'>
-                      <img src={{goal.current_badge.image_url}} style='width: 50px; max-height: 50px;'>
-                      <div class='sparkle' style='font-size: 10px;'>&#10022;</div>
-                    </span>
-                  {{else}}
-                    <img src={{goal.current_badge.image_url}} style='width: 50px; max-height: 50px;'>
-                    <div class="progress" style="border: 1px solid #aaa;margin: 0 auto 5px; height: 10px;">
-                      <div class="progress-bar" role="progressbar" aria-value={{goal.current_badge.progress_out_of_100}} aria-valuemin="0" aria-valuemax="100" style={{goal.current_badge.progress_style}}>
-                        <span class="sr-only">
-                          {{t "%{pct}% Complete" key="percent_complete" pct=goal.current_badge.progress_out_of_100}}
-                        </span>
-                      </div>
-                    </div>
-                  {{/if}}
-                {{else if goal.badge_image_url}}
-                  <img src={{goal.badge_image_url}} style='width: 50px; max-height: 50px; opacity: 0.8;' >
-                {{else}}
-                  <span class='glyphicon glyphicon-flag' style='margin-top: 10px;'></span>
-                {{/if}}
-              </div>
-            {{/if}}
-            <LinkTo @route="user.goal" @models={{array this.model.user_name goal.id}} class="summary">
-              {{goal.summary}}
-            </LinkTo>
-            {{#if goal.template}}
-              {{t "(template)" key="template_paren"}}
-            {{/if}}
-            {{#if this.model.permissions.edit}}
-              <div style='float: right;'>
-                {{#if goal.active}}
-                  <span style='margin-right: 15px;'>
-                    <button {{action "new_note" goal}} class='btn btn-lg btn-default' title={{t "new note" key="new_note_lower"}}><span class='glyphicon glyphicon-file'></span><span class='sr-only'>{{t "new note" key="new_note_lower"}}</span></button>
-                    <button {{action "quick_assessment" goal}} class='btn btn-lg btn-default' title={{t "quick assessment" key="quick_assessment_lower"}}><span class='glyphicon glyphicon-list-alt'></span><span class='sr-only'>{{t "quick assessment" key="quick_assessment_lower"}}</span></button>
-                  </span>
-                  {{#if goal.primary}}
-                    <button {{action "update" goal "primary" "off"}} class='btn btn-lg btn-default' title={{t "make secondary goal" key="make_secondary_goal"}}><span class='glyphicon glyphicon-hand-down'></span><span class='sr-only'>{{t "make secondary goal" key="make_secondary_goal"}}</span></button>
-                  {{else}}
-                    <button {{action "update" goal "primary" "on"}} class='btn btn-lg btn-default' title={{t "make primary goal" key="make_primary_goal"}}><span class='glyphicon glyphicon-hand-up'></span><span class='sr-only'>{{t "make primary goal" key="make_primary_goal"}}</span></button>
-                  {{/if}}
-                  <button {{action "delete" goal}} class='btn btn-lg btn-default' title={{t "retire goal" key="retire_goal_lower"}}><span class='glyphicon glyphicon-ok'></span><span class='sr-only'>{{t "retire goal" key="retire_goal_lower"}}</span></button>
-                {{else}}
-                  <button {{action "update" goal "active" "on"}} class='btn btn-lg btn-default' title={{t "restore goal" key="restore_goal"}}><span class='glyphicon glyphicon-arrow-up'></span><span class='sr-only'>{{t "restore goal" key="restore_goal"}}</span></button>
-                  <button {{action "delete" goal}} class='btn btn-lg btn-default' title={{t "delete goal" key="delete_goal_lower"}}><span class='glyphicon glyphicon-trash'></span><span class='sr-only'>{{t "delete goal" key="delete_goal_lower"}}</span></button>
-                {{/if}}
-              </div>
-            {{/if}}
-            <div class='details'>
-              {{#if goal.active}}
-                {{date_ago goal.started}}
-              {{else}}
-                {{date_ago goal.ended}}
-              {{/if}}
-              <span style='margin-left: 10px;'>
-                {{#if goal.advance}}
-                  {{t "advances" key="advances_in"}}
-                  {{date_ago goal.advance "day"}}
-                {{else if goal.expires}}
-                  {{t "concludes" key="concludes_in"}}
-                  {{date_ago goal.expires "day"}}
-                {{/if}}
-              </span>
-            </div>
-            <div class='description text-muted'>
-              {{goal.description}}
-            </div>
-          </div>
-        {{/each}}
-      {{else}}
-        {{t "No past goals" key="no_past_goals"}}
-      {{/if}}
     {{/if}}
   {{/if}}
+  </div>
+  {{!-- Past Goals — pulled out of the main goals card into their
+       own section below so retired goals feel like archival history,
+       not part of the active goal list. --}}
+  {{#if this.past_goals}}
+    <section class='md-goals__past-section'>
+      <h3 class='md-goals__past-title'>{{t "Past Goals" key="past_goals"}}</h3>
+      {{#each this.past_goals as |goal|}}
+        <div class='well goal sparkle_list_item'>
+          {{#if this.badges_loaded}}
+            <div style='float: left; width: 50px; height: 65px; overflow: hidden; margin-right: 10px; font-size: 40px; text-align: center; line-height: 20px;'>
+              {{#if goal.current_badge}}
+                {{#if goal.current_badge.earned}}
+                  <span style='display: inline-block; position: relative;'>
+                    <img src={{goal.current_badge.image_url}} style='width: 50px; max-height: 50px;'>
+                    <div class='sparkle' style='font-size: 14px;'>&#10022;</div>
+                  </span>
+                {{else}}
+                  <img src={{goal.current_badge.image_url}} style='width: 50px; max-height: 50px;'>
+                  <div class="progress" style="border: 1px solid #aaa;margin: 0 auto 5px; height: 10px;">
+                    <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" style={{goal.current_badge.progress_style}}>
+                      <span class="sr-only">
+                        {{t "%{pct}% Complete" key="percent_complete" pct=goal.current_badge.progress_out_of_100}}
+                      </span>
+                    </div>
+                  </div>
+                {{/if}}
+              {{else if goal.badge_image_url}}
+                <img src={{goal.badge_image_url}} style='width: 50px; max-height: 50px; opacity: 0.8;' >
+              {{else}}
+                <svg class='md-goal-flag-icon' width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="3.5" width="1.6" height="18.5" rx="0.8" fill="#1F2A44"/><rect x="4.2" y="3.8" width="0.45" height="18" rx="0.22" fill="#5A6A85" opacity="0.85"/><circle cx="4.8" cy="2.8" r="1.15" fill="#1F2A44"/><circle cx="4.5" cy="2.5" r="0.35" fill="#FFFFFF" opacity="0.5"/><path d="M5.6 5.6 Q 11.5 4.3, 17.9 5.6 L 16.1 9 L 17.9 12.6 Q 11.5 13.9, 5.6 12.6 Z" fill="#1F2A44" opacity="0.18"/><path d="M5.6 4.1 Q 11.5 2.8, 17.9 4.1 L 16.1 7.5 L 17.9 11.1 Q 11.5 12.4, 5.6 11.1 Z" fill="#4C86D8" stroke="#1F2A44" stroke-width="0.7" stroke-linejoin="round"/><path d="M5.6 4.1 Q 11.5 2.8, 17.9 4.1" stroke="#FFFFFF" stroke-width="0.5" opacity="0.55" fill="none" stroke-linecap="round"/><path d="M11.7 3.4 L 11.4 11.6" stroke="#1F2A44" stroke-width="0.35" opacity="0.22" fill="none" stroke-linecap="round"/></svg>
+              {{/if}}
+            </div>
+          {{/if}}
+          <LinkTo @route="user.goal" @models={{array this.model.user_name goal.id}} class="summary">
+            {{goal.summary}}
+          </LinkTo>
+          {{#if goal.template}}
+            {{t "(template)" key="template_paren"}}
+          {{/if}}
+          <div class='details'>
+            {{#if goal.active}}
+              <span class='md-goal-time-pill'>{{date_ago goal.started}}</span>
+            {{else}}
+              <span class='md-goal-time-pill'>{{date_ago goal.ended}}</span>
+            {{/if}}
+            <span style='margin-left: 10px;'>
+              {{#if goal.advance}}
+                {{t "advances" key="advances_in"}}
+                {{date_ago goal.advance "day"}}
+              {{else if goal.expires}}
+                {{t "concludes" key="concludes_in"}}
+                {{date_ago goal.expires "day"}}
+              {{/if}}
+            </span>
+          </div>
+          <div class='description text-muted'>
+            {{goal.description}}
+          </div>
+          {{#if this.model.permissions.edit}}
+            <div class='md-goal-actions'>
+              <button {{on "click" (this.ctrlAction "update" goal "active" "on")}} class='md-goal-action md-goal-action--restore' title={{t "Restore Goal" key="restore_goal_caps"}}><span class='md-goal-action__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3.18-6.88" stroke="#46505F"/><polyline points="21 4 21 9 16 9" stroke="#2A9D8F" stroke-width="1.8"/></svg></span><span class='md-goal-action__label'>{{t "Restore Goal" key="restore_goal_caps"}}</span></button>
+              <button {{on "click" (this.ctrlAction "delete" goal)}} class='md-goal-action md-goal-action--delete' title={{t "Delete Goal" key="delete_goal"}}><span class='md-goal-action__icon' aria-hidden='true'><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5h16" stroke="#46505F"/><path d="M9 6.5V5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5v1.5" stroke="#46505F"/><path d="M6 6.5l.9 12.7a1.5 1.5 0 0 0 1.5 1.4h7.2a1.5 1.5 0 0 0 1.5-1.4l.9-12.7" stroke="#46505F"/><line x1="10.5" y1="11" x2="10.5" y2="17" stroke="#2A9D8F" stroke-width="1.8"/><line x1="13.5" y1="11" x2="13.5" y2="17" stroke="#2A9D8F" stroke-width="1.8"/></svg></span><span class='md-goal-action__label'>{{t "Delete Goal" key="delete_goal"}}</span></button>
+            </div>
+          {{/if}}
+        </div>
+      {{/each}}
+    </section>
+  {{/if}}
+  <div class="md-goals__back-row">
+    <LinkTo @route="user.account" @model={{this.model.user_name}} class="md-billing__back-btn">{{t "Back to Account" key="back_to_account"}}</LinkTo>
+  </div>
+</div>
 {{else if this.session.isAuthenticated}}
   <h2>{{t "Premium Membership Required" key="premium_required"}}</h2>
   <p>
@@ -285,5 +404,5 @@
     {{t "to support this good cause and to unlock this feature." key="purchase_subscription_3"}}
   </p>
 {{else}}
-  {{login-form left=true prompt=true return=true}}
+  <LoginForm @left={{true}} @prompt={{true}} @return={{true}} />
 {{/if}}

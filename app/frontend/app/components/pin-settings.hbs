@@ -1,0 +1,58 @@
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
+  <div class="modal-header md-modal-header">
+    <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3>{{t "Speak Mode PIN" key="speak_mode_pin"}}</h3>
+  </div>
+  <div class="modal-body md-modal-body">
+    <p class="md-pin-settings__intro">{{t "Require a PIN to exit Speak Mode, so a communicator can't leave Speak Mode without it. Changes here save automatically." key="pin_settings_intro"}}</p>
+
+    <label class="la-edit-board-checkbox md-pin-settings__checkbox">
+      <input type="checkbox" checked={{this.require_speak_mode_pin}} class="la-edit-board-check" id="require_speak_mode_pin" {{on "change" (set-field this "require_speak_mode_pin" "checkbox")}} />
+      <span>{{t "Require a PIN when exiting Speak Mode" key='require_speak_mode_pin'}}</span>
+    </label>
+
+    {{!-- Only shown where the Edit-Sidebar feature exists (its only gate). --}}
+    {{#if this.appState.feature_flags.edit_sidebar}}
+      <label class="la-edit-board-checkbox md-pin-settings__checkbox">
+        <input type="checkbox" checked={{this.require_sidebar_edit_pin}} class="la-edit-board-check" id="require_sidebar_edit_pin" {{on "change" (set-field this "require_sidebar_edit_pin" "checkbox")}} />
+        <span>{{t "Require a PIN to edit the Sidebar" key='require_sidebar_edit_pin'}}</span>
+      </label>
+    {{/if}}
+
+    {{#if (or this.require_speak_mode_pin this.require_sidebar_edit_pin)}}
+      <div class="form-group md-pin-settings__group">
+        <label for="speak_mode_pin">{{t "Speak Mode PIN" key='speak_mode_pin'}}</label>
+        <div class="md-pin-settings__input-wrap">
+          <input value={{this.pin_value}} class="form-control md-pin-settings__input" id="speak_mode_pin" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder={{t "4-digit" key="pin_placeholder_4_digit"}} {{on "change" (this.ctrlAction "save_pin")}} {{on "input" (set-field this "pin_value")}} />
+          {{#if this.pin_value}}
+            <button type="button" class="md-pin-settings__clear" aria-label={{t "Clear PIN" key="pin_clear"}} title={{t "Clear PIN" key="pin_clear"}} {{on "click" (this.ctrlAction "clear_pin")}}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              <span class="md-pin-settings__clear-label">{{t "Clear" key="clear"}}</span>
+            </button>
+          {{/if}}
+        </div>
+        {{#if this.pin_incomplete}}
+          <p class="text-danger md-pin-settings__warning">{{t "Enter a 4-digit PIN." key='pin_incomplete_warning'}}</p>
+        {{/if}}
+      </div>
+
+      <label class="la-edit-board-checkbox md-pin-settings__checkbox">
+        <input type="checkbox" checked={{this.hide_pin_hint}} class="la-edit-board-check" id="hide_pin_hint" {{on "change" (set-field this "hide_pin_hint" "checkbox")}} />
+        <span>{{t "Hide the option to reveal a forgotten PIN when exiting" key='hide_pin_reveal_option'}}</span>
+      </label>
+      {{#if this.hide_pin_hint}}
+        <p class='text-danger' style='margin-top: 10px;'>{{t "NOTE: With the reveal option hidden, you won't be able to exit Speak Mode unless you remember the PIN, or can look it up on a different device." key='hidden_pin_reveal_warning'}}</p>
+      {{/if}}
+    {{/if}}
+  </div>
+  <div class="modal-footer md-modal-footer">
+    {{!-- Cancel is always enabled — the clear exit when Done is disabled (a PIN
+         gate on but the PIN isn't a valid 4-digit value). Done is disabled in that
+         state so a gate can't be confirmed with no usable PIN; both close via the
+         same action, which reconciles any incomplete entry (see close()). --}}
+    <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
+    <button type="button" class="btn btn-primary md-modal-btn md-modal-btn--primary" disabled={{this.pin_incomplete}} {{on "click" (this.ctrlAction "close")}}>{{t "Done" key="done"}}</button>
+  </div>
+</ModalDialog>

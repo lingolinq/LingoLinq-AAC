@@ -3,7 +3,6 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import LingoLinq from '../app';
 import BoardHierarchy from '../utils/board_hierarchy';
-import modalUtil from '../utils/modal';
 import app_state from '../utils/app_state';
 import persistence from '../utils/persistence';
 import progress_tracker from '../utils/progress_tracker';
@@ -20,6 +19,28 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+
     const modalService = this.get('modal');
     const template = 'modals/board-privacy';
     const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
@@ -37,6 +58,10 @@ export default Component.extend({
 
   actions: {
     close() {
+      /* Close to the page the user started on — don't reopen the
+         board-details info modal. Users reach Change Privacy via
+         Board Actions from the board-detail edit page, so reopening
+         board-details landed them on a modal they never opened. */
       this.get('modal').close();
     },
     opening() {
@@ -88,6 +113,9 @@ export default Component.extend({
             _this.get('model.board').reload(true).then(function() {
               app_state.set('board_reload_key', Math.random() + '-' + (new Date()).getTime());
               _this.get('modal').close();
+              /* Intentionally no _return_to_details() reopen — the
+                 user lands on the underlying page with no modals
+                 stacked behind. */
             }, function() {});
           }
         });
@@ -95,5 +123,18 @@ export default Component.extend({
         _this.set('status', { error: true });
       });
     }
-  }
+  },
+
+  didInsertElement() {
+  this._super(...arguments);
+  var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
+    // Ember 5.12 modal migration: the service-based modal system does not
+    // auto-invoke opening() (this.onOpening is vestigial), so build modal state
+    // here on insert. Without this, opening() never runs. See assessment-settings.
+    self.send('opening');
+},
+
 });

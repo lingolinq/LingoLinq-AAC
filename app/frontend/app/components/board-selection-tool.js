@@ -11,6 +11,7 @@ import { htmlSafe } from '@ember/template';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
 
 var shuffle = function (array) {
   var array = [].concat(array);
@@ -23,6 +24,21 @@ var shuffle = function (array) {
 
 export default Component.extend({
   appState: service('app-state'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
+  triggerExternalAction: function(primaryName, fallbackName) {
+    var args = Array.prototype.slice.call(arguments, 2);
+    var action = this.get(primaryName) || this.get(fallbackName);
+    if (action && typeof action === 'function') {
+      return action.apply(null, args);
+    }
+
+    var actionName = typeof action === 'string' ? action : (fallbackName || primaryName);
+    var target = this.get('targetObject');
+    if (actionName && target && typeof target.send === 'function') {
+      return target.send.apply(target, [actionName].concat(args));
+    }
+  },
   willInsertElement: function () {
     this.load_boards();
     this.set('current_index', null);
@@ -37,6 +53,9 @@ export default Component.extend({
     this.set('board_style', null);
     this.set('app_state', this.appState);
     this.set('skip_note', false);
+    this.set('status', { loading: true });
+    this.set('_boards_loading', true);
+    this.set('boards', null);
   },
   didInsertElement: function () {
     this.size_element();
@@ -116,37 +135,43 @@ export default Component.extend({
   load_boards: function () {
     var _this = this;
     _this.set('status', { loading: true });
+    _this.set('_boards_loading', true);
     _this.set('boards', null);
     var canvas = _this.element.getElementsByTagName('canvas')[0];
     if(canvas) { canvas.style.display = 'none'; }
-    LingoLinq.store.query('board', {public: true, starred: true, user_id: _this.appState.get('currentUser.id') || 'self', per_page: 20, category: 'layouts'}).then(function(data) {
-      var res = data.map(function(b) { return b; });
-      if(res && res.length > 0) {
+    var userId = _this.appState.get('currentUser.id') || 'self';
+    LingoLinq.store.query('board', { public: true, starred: true, user_id: userId, per_page: 20, category: 'layouts' }).then(function(data) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      var res = (data || []).map(function(b) { return b; });
+      if (res && res.length > 0) {
         _this.set('boards', res);
         _this.set('status', null);
-      } else {
-        _this.set('status', {error: true});
-        // Check both camelCase (loadError) and snake_case (load_error) for compatibility
-        var loadError = _this.get('loadError') || _this.get('load_error');
-        if (loadError && typeof loadError === 'function') {
-          loadError();
-        } else if (loadError && typeof loadError === 'string') {
-          _this.sendAction(loadError);
+        _this.set('_boards_loading', false);
+        return;
+      }
+      return LingoLinq.store.query('board', { public: true, sort: 'home_popularity', per_page: 20, category: 'layouts' }).then(function(pub) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        var list = (pub || []).map(function(b) { return b; });
+        if (list && list.length > 0) {
+          _this.set('boards', list);
+          _this.set('status', null);
+          _this.set('_boards_loading', false);
         } else {
-          _this.sendAction('load_error');
+          _this.set('status', { error: true });
+          _this.set('_boards_loading', false);
+          _this.triggerExternalAction('loadError', 'load_error');
         }
-      }
+      }, function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('status', { error: true });
+        _this.set('_boards_loading', false);
+        _this.triggerExternalAction('loadError', 'load_error');
+      });
     }, function(err) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
       _this.set('status', {error: true});
-      // Check both camelCase (loadError) and snake_case (load_error) for compatibility
-      var loadError = _this.get('loadError') || _this.get('load_error');
-      if (loadError && typeof loadError === 'function') {
-        loadError();
-      } else if (loadError && typeof loadError === 'string') {
-        _this.sendAction(loadError);
-      } else {
-        _this.sendAction('load_error');
-      }
+      _this.set('_boards_loading', false);
+      _this.triggerExternalAction('loadError', 'load_error');
     });
   },
   check_update_scroll: observer('base_level', function () {
@@ -216,6 +241,31 @@ export default Component.extend({
     });
     return styles;
   }),
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
     next: function () {
       if (this.get('level_select')) {
@@ -330,17 +380,7 @@ export default Component.extend({
         if (selectHandler && typeof selectHandler === 'function') {
           selectHandler(_this.get('current_board'));
         } else {
-          var selectAction = _this.get('select');
-          if (selectAction && typeof selectAction === 'string') {
-            _this.sendAction(selectAction, _this.get('current_board'));
-          } else {
-            var fn = _this.get('select');
-            if (typeof fn === 'function') {
-              fn(_this.get('current_board'));
-            } else {
-              _this.sendAction('select', _this.get('current_board'));
-            }
-          }
+          _this.triggerExternalAction('select', 'select', _this.get('current_board'));
         }
       } else {
         _this.set('current_level', _this.get('base_level'));

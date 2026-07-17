@@ -429,6 +429,12 @@ var speecher = EmberObject.extend({
     // }
     // return 1.0;
   },
+  use_capturable_speech: function() {
+    return typeof window !== 'undefined' &&
+      window.LingoLinqBetaFeedbackRecordingActive &&
+      window.cloud_speak &&
+      navigator.onLine;
+  },
   speak_id: 0,
   speak_text: function(text, collection_id, opts) {
     opts = opts || {};
@@ -588,17 +594,22 @@ var speecher = EmberObject.extend({
       }
       // If none found, return a temporary voice from the cloud_locales list
       if(!voice && persistenceService && typeof persistenceService.get === 'function' && persistenceService.get('online')) {
-        var remote = cloud_locales.find(function(loc) { return loc.toLowerCase().replace(/-/, '_') == locale; });
+        var remote = cloud_locales.find(function(loc) {
+          var remote_locale = loc.split(/:/)[0].toLowerCase();
+          return remote_locale.replace(/-/, '_') == locale || remote_locale.replace(/_/, '-') == locale;
+        });
         remote = remote || cloud_locales.find(function(loc) { return loc.split(/-|_/)[0] == mapped_lang; });
         if(remote) {
-          var parts = remote.split(/:/)[0]
-          var loc = i18n.locales[parts[0].replace(/-/, '_')] || i18n.other_locales[parts[0].replace(/-/, '_')] || i18n.locales[parts[0].split(/-|_/)[0]];
-          if(parts[1].match(/f/) && loc) {
+          var parts = remote.split(/:/);
+          var remoteLocale = parts[0];
+          var remoteGenders = parts[1] || '';
+          var loc = i18n.locales[remoteLocale.replace(/-/, '_')] || i18n.other_locales[remoteLocale.replace(/-/, '_')] || i18n.locales[remoteLocale.split(/-|_/)[0]];
+          if(remoteGenders.match(/f/) && loc) {
             voice = {
               name: loc + i18n.t('female_internet_required', " Female *Internet Required*"),
-              lang: parts[0],
+              lang: remoteLocale,
               remote_voice: true,
-              voiceURI: "remote:" + parts[0] + ":female"
+              voiceURI: "remote:" + remoteLocale + ":female"
             };
           }
         }
@@ -701,6 +712,7 @@ var speecher = EmberObject.extend({
           }
         }
         var handle_callback = function() {
+          if(utterance.handled) { return; }
           utterance.handled = true;
           if(callback) { callback(); }
         };
@@ -711,6 +723,10 @@ var speecher = EmberObject.extend({
           });
           utterance.addEventListener('error', function() {
             console.log("errored");
+            if(utterance._cancelled) {
+              handle_callback();
+              return;
+            }
             if(!utterance._fallback_retried && utterance.voice) {
               utterance._fallback_retried = true;
               utterance.voice = null;
@@ -748,6 +764,10 @@ var speecher = EmberObject.extend({
         } else {
           utterance.onend = handle_callback;
           utterance.onerror = function() {
+            if(utterance._cancelled) {
+              handle_callback();
+              return;
+            }
             if(!utterance._fallback_retried && utterance.voice) {
               utterance._fallback_retried = true;
               utterance.voice = null;
@@ -804,6 +824,7 @@ var speecher = EmberObject.extend({
         // 4 times the estimated duration, go ahead and assume there was a problem and mark completion
         runLater(function() {
           if(!utterance.handled) {
+            utterance._cancelled = true;
             speecher.scope.speechSynthesis.cancel();
             if(window.cloud_speak) { window.cloud_speak.stop(); }
             handle_callback();
@@ -811,7 +832,10 @@ var speecher = EmberObject.extend({
         }, extra_delay + (1000 * Math.ceil(text.length / 15) * 4 / (utterance.rate || 1.0)));
       };
 
-      if(voice && voice.voiceURI && voice.voiceURI.match(/^extra:/)) {
+      if(speecher.use_capturable_speech()) {
+        utterance.cloud_lang = (voice && voice.lang) || current_locale || navigator.language;
+        speak_utterance();
+      } else if(voice && voice.voiceURI && voice.voiceURI.match(/^extra:/)) {
         var voice_id = voice.voiceURI.replace(/^extra:/, '');
         runLater(function() {
           capabilities.tts.speak_text(text, {
@@ -976,6 +1000,10 @@ var speecher = EmberObject.extend({
         });
       });
       return find.then(null, function(err) {
+        // Local cache is optional for UI feedback sounds; keep the CDN URL for playback.
+        if(speecher[attr] && LingoLinq.remote_url(speecher[attr])) {
+          return RSVP.resolve(true);
+        }
         console.log(err);
         return RSVP.reject(err);
       });
@@ -1209,6 +1237,11 @@ var speecher = EmberObject.extend({
   speak_audio: function(url, type, collection_id, opts) {
     opts = opts || {};
     var _this = this;
+    // Deduplicate rapid repeat of the same sound (mirrors speak_text guard)
+    var now = Date.now();
+    if(url && this.last_spoken_audio_url === url && (now - (this.last_spoken_audio_time || 0)) < 1000) {
+      return;
+    }
     var already_in_collection = collection_id && this.speaking_from_collection == collection_id;
     if(this.speaking_from_collection && !collection_id) {
       // lets the user start building their next sentence without interrupting the current one
@@ -1220,6 +1253,9 @@ var speecher = EmberObject.extend({
     } else if(this.speaking_from_collection && opts.prevent_repeat && opts.prevent_any) {
       return;
     }
+    // Only record the dedup state once we know the call will proceed with playback
+    this.last_spoken_audio_url = url;
+    this.last_spoken_audio_time = now;
     if(opts.interrupt !== false && type != 'background') {
       this.speaking = true;
       this.speaking_from_collection = collection_id;
@@ -1298,6 +1334,11 @@ var speecher = EmberObject.extend({
       }
       this.speaking_from_collection = false;
       if(type === 'all') { this.speaks = []; }
+      // cancel() fires 'error' on the interrupted utterance; without this, the error
+      // handler retries speak() and the user hears the old word again (double speak).
+      if(speecher.last_utterance) {
+        speecher.last_utterance._cancelled = true;
+      }
       speecher.scope.speechSynthesis.cancel();
       if(window.cloud_speak) { window.cloud_speak.stop(); }
       if(capabilities.system == 'iOS' && window.TTS && window.TTS.stop) {

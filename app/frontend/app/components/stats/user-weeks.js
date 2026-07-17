@@ -13,6 +13,7 @@ export default Component.extend({
   },
   draw: function() {
     var $elem = $(this.get('element'));
+    // `title` is app-controlled stats data; do not enable html:true or pass untrusted strings (bootstrap 3 EOL, LL-d1ea8659c3).
     $elem.find(".week,.profile_box").tooltip({container: 'body'});
   },
   communicators_with_stats: computed(
@@ -295,6 +296,31 @@ export default Component.extend({
   notable: computed('user_type', 'org', function() {
     return this.get('org.premium') && this.get('user_type') == 'communicator';
   }),
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+  },
+
   actions: {
     note: function(user) {
       var _this = this;

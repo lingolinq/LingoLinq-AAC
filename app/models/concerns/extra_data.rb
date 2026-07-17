@@ -94,7 +94,14 @@ module ExtraData
       return :throttled
     elsif res && res[:path] && (res[:path] != old_path || res[:path] != path || res[:uploaded])
       RemoteAction.where(path: res[:path], action: 'delete').delete_all
-      Uploader.remote_remove_later(old_path, old_checksum) if old_path && res[:path] != old_path && res[:uploaded]
+      # Skip scheduling deletion when old_path already carries a
+      # /chksmXXXXX/ segment -- see BoardDownstreamButtonSet.generate_for
+      # for the full rationale. A new upload with the same first-5 checksum
+      # resolves to the same chksm path, so the scheduled delete would wipe
+      # the just-uploaded object.
+      if old_path && res[:path] != old_path && res[:uploaded] && !old_path.to_s.match?(%r{/chksm[^/]+/})
+        Uploader.remote_remove_later(old_path, old_checksum)
+      end
       self.data["extra_data_#{type}_path"] = res[:path]
       self.data["extra_data_#{type}_checksum"] = new_checksum
       if type == 'private'
@@ -201,7 +208,9 @@ module ExtraData
       self.data[self.extra_data_attribute] = @cached_extra_data
     end
     if url && !self.data[self.extra_data_attribute]
-      req = Typhoeus.get(url, timeout: 3)
+      # The uploads bucket blocks public access; an unsigned GET on the raw
+      # bucket URL 403s, so sign it (non-bucket URLs pass through unchanged)
+      req = Typhoeus.get(Uploader.signed_internal_url(url), timeout: 3)
       data = self.decrypted_json(req.body) rescue nil
       self.data[self.extra_data_attribute] = data
     end

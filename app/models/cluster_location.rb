@@ -4,7 +4,7 @@ require 'ipaddr'
 # https://developers.google.com/places/documentation/search
 # https://developers.google.com/maps/documentation/geocoding/#ReverseGeocoding
 
-class ClusterLocation < ActiveRecord::Base
+class ClusterLocation < ApplicationRecord
   include GlobalId
   include Permissions
   include Async
@@ -88,7 +88,7 @@ include Replicate
       schedule_once(:generate_stats, true)
       return true
     end
-    Rails.logger.info("generating stats for #{self.global_id}")
+    Rails.logger.debug("generating stats for #{self.global_id}")
     self.generate_defaults
     
     sessions = []
@@ -108,7 +108,7 @@ include Replicate
     total_boards = 0
     geos = []
     self.data['session_ids'] ||= []
-    Rails.logger.info("finding batches #{self.global_id}")
+    Rails.logger.debug("finding batches #{self.global_id}")
     
     self.data['total_utterances'] ||= 0
     self.data['total_buttons'] ||= 0
@@ -116,7 +116,7 @@ include Replicate
     self.data['total_sessions'] ||= 0
 
     sessions.select('id, created_at').find_in_batches(batch_size: 500).with_index do |batch, idx|
-      Rails.logger.info("batch set #{idx} #{self.global_id}")
+      Rails.logger.debug("batch set #{idx} #{self.global_id}")
       batch.each do |session|
         if session.created_at > Date.parse('Dec 10, 2020')
           session.reload
@@ -149,7 +149,7 @@ include Replicate
         end
       end
     end
-    Rails.logger.info("calculating geo #{self.global_id}")
+    Rails.logger.debug("calculating geo #{self.global_id}")
     if self.geo? && !geos.blank?
       if self.data['geo']
         (self.data['total_sessions'] || 5).times do 
@@ -159,7 +159,7 @@ include Replicate
       self.data['geo'] = ClusterLocation.median_geo(geos)
       self.data['location_suggestion'] = name_suggestions[0]
     end
-    Rails.logger.info("saving #{self.global_id}")
+    Rails.logger.debug("saving #{self.global_id}")
     self.save
   end
   
@@ -227,7 +227,7 @@ include Replicate
     # otherwise schedule a call to clusterize
     # iterate through user's ip clusters, add or create
     if session && session.user_id
-      Rails.logger.info("checking clusters for #{session.user_id}")
+      Rails.logger.debug("checking clusters for #{session.user_id}")
       clusters = ClusterLocation.where(:user_id => session.user_id)
       Rails.logger.info('adding to geo cluster')
       found_ip = add_to_geo_cluster(session, clusters) if session.data['geo']
@@ -274,7 +274,7 @@ include Replicate
   def self.clusterize_geos(user_id)
     user = User.find_by_global_id(user_id)
     return unless user
-    Rails.logger.info("clusterizing geos for #{user_id}")
+    Rails.logger.debug("clusterizing geos for #{user_id}")
     non_geos = []
     user.log_sessions.where(:geo_cluster_id => nil).where(['started_at > ?', clusterize_cutoff]).find_in_batches(batch_size: 30) do |batch|
       non_geos += batch.select{|s| s.data['geo'] }
@@ -323,7 +323,7 @@ include Replicate
   def self.clusterize_ips(user_id)
     user = User.find_by_global_id(user_id)
     return unless user
-    Rails.logger.info("clusterizing ips for #{user_id}")
+    Rails.logger.debug("clusterizing ips for #{user_id}")
     # ip addresses just cluster based on exact match. Easy peasy.
     ips = {}
     non_ips = []

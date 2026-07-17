@@ -14,6 +14,28 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+
     const modalService = this.get('modal');
     const template = 'share-board';
     const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor(template)) ||
@@ -27,6 +49,20 @@ export default Component.extend({
     this.set('error_confirming_public_board', false);
   },
 
+  didInsertElement() {
+    this._super(...arguments);
+    var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
+    // If this board was first materialized from a #tree/#bulk lite prefetch,
+    // shared_users is absent and the "Shared with" list renders empty, which
+    // an editor misreads as "shared with nobody" (issue #293). Refetch so the
+    // list reflects the real sharing state before the editor acts on it.
+    const board = this.get('board');
+    if (board && board.reload_if_lite) { board.reload_if_lite(); }
+  },
+
   supervisee_share: computed('share_user_name', 'appState.currentUser.known_supervisees', function() {
     const un = this.get('share_user_name');
     return un && (this.get('appState').get('currentUser.known_supervisees') || []).find(function(s) { return s.user_name === un; });
@@ -37,6 +73,23 @@ export default Component.extend({
     return !(un && (this.get('appState').get('currentUser.known_supervisees') || []).find(function(s) { return s.user_name === un && s.edit_permission; }));
   }),
 
+  // Block the set+save actions (share_with_user, unshare, make_public) while a
+  // lite-refetch is in flight (issue #293). The refetch (board.reload_if_lite)
+  // can resolve concurrently with a set + save on the same record, so we make
+  // the editor wait out the reload window rather than risk an overlapping
+  // request silently dropping their change. This narrows the overlap window to
+  // near-zero; it is a poll on reloading_detail, not a hard lock, so a tiny
+  // residual window between reload() resolving and Ember Data flushing the
+  // payload remains. The template also disables the buttons while
+  // reloading_detail is set; this is the defensive backstop.
+  sharing_locked() {
+    if (this.get('board.reloading_detail')) {
+      modal.notice(i18n.t('share_details_still_loading', "Still loading sharing details, please try again in a moment."));
+      return true;
+    }
+    return false;
+  },
+
   actions: {
     close() {
       this.get('modal').close();
@@ -44,6 +97,7 @@ export default Component.extend({
     opening() {},
     closing() {},
     share_with_user() {
+      if (this.sharing_locked()) { return; }
       const user_name = this.get('share_user_name');
       const include_downstream = this.get('share_include_downstream');
       const allow_editing = this.get('share_allow_editing');
@@ -61,6 +115,7 @@ export default Component.extend({
       });
     },
     unshare(id) {
+      if (this.sharing_locked()) { return; }
       const board = this.get('board');
       board.set('sharing_key', 'remove-' + id);
       board.save().then(function() {}, function() {
@@ -69,6 +124,7 @@ export default Component.extend({
     },
     make_public(action) {
       if (action === 'confirm') {
+        if (this.sharing_locked()) { return; }
         const board = this.get('board');
         board.set('visibility', 'public');
         board.set('public', true);

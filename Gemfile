@@ -29,15 +29,29 @@ gem 'benchmark'
 gem 'mutex_m'
 gem 'matrix'
 
-gem 'concurrent-ruby', '~> 1.3'
+# CVE-2026-54904/54905/54906; bundler-audit minimum
+gem 'concurrent-ruby', '>= 1.3.7'
+# CVE-2026-54463/54464/54465, GHSA-2x63-gw47-w4mm; bundler-audit minimum (transitive via actioncable)
+gem 'websocket-driver', '>= 0.8.2'
 
 # Rails 7.2 with Ruby 3.4 support (Phase 3: final upgrade)
 # 7.2.3.1+ addresses Active Storage proxy DoS (GHSA-p9fm-f462-ggrg / CVE-2026-33658)
 gem 'rails', '>= 7.2.3.1', '< 7.3'
 # CVE-2026-33210 (format string); bundler-audit advisory minimum
 gem 'json', '>= 2.19.2'
-# GHSA-46fp-8f5p-pf2m (allowed_uri?); rails-html-sanitizer 1.7.0 depends on loofah ~> 2.25; ensure >= 2.25.1
-gem 'loofah', '>= 2.25.1'
+# oj is a faster JSON parser/generator (5-10x faster than stdlib json).
+# Used via Oj.mimic_JSON in config/initializers/oj.rb to transparently
+# replace the JSON module across the app, including Rails internals.
+# CVE-2026-54500/54502/54592; bundler-audit minimum
+gem 'oj', '>= 3.17.3'
+# Loofah URI/SVG advisories (bundler-audit); rails-html-sanitizer 1.7.1+ needs loofah ~> 2.25
+gem 'loofah', '>= 2.25.2'
+# rails-html-sanitizer XSS advisory (bundler-audit); transitive via actionview/actionpack
+gem 'rails-html-sanitizer', '>= 1.7.1'
+# GHSA-6jxj-px6v-747w et al.; bundler-audit minimum (transitive via loofah, rails-dom-testing)
+gem 'crass', '>= 1.0.7'
+# ERB @_init deserialization guard bypass (def_module/def_method/def_class); pulled transitively, pin patched 6.x
+gem 'erb', '>= 6.0.4'
 gem 'pg', '~> 1.5'
 gem 'sass-rails', '~> 6.0'
 gem 'sprockets-rails', '~> 3.5'
@@ -50,23 +64,24 @@ gem 'aws-sdk-sns', '~> 1'
 gem 'aws-sdk-ses', '~> 1'
 gem 'aws-sdk-elastictranscoder', '~> 1'
 gem 'aws-sdk-cloudfront', '~> 1'
-# TODO: Replace with aws-sdk-s3 (s3 gem is unmaintained); lib/uploader.rb uses S3::Service
-gem 's3'
+gem 'aws-sdk-s3', '~> 1'
 gem 'http-2'
 gem 'resque', '~> 3.0'
-gem 'puma'
+gem 'puma', '~> 7.2', '>= 7.2.1' # >= 7.2.1 clears CVE-2026-47736 / CVE-2026-47737 (PROXY protocol v1 parser)
 gem 'paper_trail', '~> 15.0'
 gem 'geokit'
 gem 'obf'
-# OBF uses Zip::File::CREATE, which was removed in rubyzip 3.x
+# OBF uses Zip::File::CREATE (rubyzip) for reading ZIPs.
+# zip_kit handles all ZIP writing (streaming, flat memory).
 gem 'rubyzip', '~> 2.3'
+gem 'zip_kit', '~> 6.3'
 gem 'accessible-books'
-gem 'bugsnag'
+gem 'sentry-ruby'
+gem 'sentry-rails'
 gem 'stripe'
 # Rack 3.x for Sinatra 4 CVE fixes (CVE-2024-21510, CVE-2025-61921)
 gem 'rack', '>= 3.0'
 gem 'rack-attack'
-gem 'newrelic_rpm'
 gem 'rack-timeout'
 gem 'pg_search'
 gem 'silencer'
@@ -74,8 +89,13 @@ gem 'go_secure'
 gem 'permissable-coughdrop' # TODO: Republish as permissable-lingolinq
 gem 'boy_band'
 gem 'ttfunk', '1.7'
-gem 'ruby-saml'
+gem 'ruby-saml', '>= 1.18.0' # CVE-2025-25291/25292 SAML auth-bypass floor; lockfile already resolves 1.18.1 (LL-6f1977944f)
 gem 'rotp'
+gem 'googleauth', '~> 1.11'
+# CVE-2026-54297; bundler-audit minimum (transitive via googleauth, stripe, etc.)
+gem 'faraday', '>= 2.14.3'
+
+gem 'clowne', '~> 1.4' # Declarative model cloning DSL for board copy optimization
 
 gem 'sinatra', '~> 4.2'
 gem 'sanitize'

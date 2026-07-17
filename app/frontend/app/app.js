@@ -5,15 +5,13 @@ import { later as RunLater } from '@ember/runloop';
 import Route from '@ember/routing/route';
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
-import DS from 'ember-data';
-import Resolver from 'ember-resolver';
+import Resolver from 'ember-resolver/index';
 import loadInitializers from 'ember-load-initializers';
 import config from './config/environment';
 import capabilities from './utils/capabilities';
 import i18n from './utils/i18n';
 import persistence from './utils/persistence';
 import lingoLinqExtras from './utils/extras';
-import { computed } from '@ember/object';
 
 window.onerror = function(msg, url, line, col, obj) {
   // Enhanced debugging for persistence service errors (both null and undefined)
@@ -23,6 +21,13 @@ window.onerror = function(msg, url, line, col, obj) {
   LingoLinq.track_error(msg + " (" + url + "-" + line + ":" + col + ")", false);
 };
 setOnerror(function(err) {
+  // Suppress Ember Data assertion when the server deduplicates an image/sound
+  // and returns an ID that already exists in the store. This is expected behavior
+  // during board saves — the record data is identical, just the ID was already assigned.
+  if(err && err.message && err.message.indexOf('has already been used with another record') !== -1) {
+    console.warn('[Ember Data] Suppressed duplicate record ID assertion:', err.message);
+    return;
+  }
   // Enhanced debugging for unrecoverable render errors
   if(err && (err.message && err.message.indexOf('unrecoverable error') !== -1 || err.message && err.message.indexOf('Attempted to rerender') !== -1)) {
     console.error('[RENDER ERROR DEBUG] ========== UNRECOVERABLE RENDER ERROR ==========');
@@ -192,54 +197,21 @@ if(capabilities.wait_for_deviceready) {
 
 loadInitializers(LingoLinq, config.modulePrefix);
 
-DS.Model.reopen({
-  reload: function(ignore_local) {
-    if(ignore_local === false) {
-      persistence.force_reload = null;
-    } else {
-      persistence.force_reload = this._internalModel.modelName + "_" + this.get('id');
-    }
-    return this._super();
-  },
-  retrieved: DS.attr('number'),
-  fresh: computed('retrieved', 'app_state.refresh_stamp', function() {
-    var retrieved = this.get('retrieved');
-    var now = (new Date()).getTime();
-    return (now - retrieved) < (5 * 60 * 1000);
-  }),
-  really_fresh: computed('retrieved', 'app_state.short_refresh_stamp', function() {
-    var retrieved = this.get('retrieved');
-    var now = (new Date()).getTime();
-    return (now - retrieved) < (30 * 1000);
-  }),
-  save: function() {
-    // TODO: this causes a difficult constraint, because you need to use the result of the
-    // promise instead of the original record you were saving in any results, just in case
-    // the record object changed. It's not ideal, but we have to do something because DS gets
-    // mad now if the server returns a different id, and we use a temporary id when persisted
-    // locally.
-    if(this.id && this.id.match(/^tmp[_/]/) && persistence.get('online')) {
-      var tmp_id = this.id;
-      var tmp_key = this.get('key');
-      var type = this._internalModel.modelName;
-      var attrs = this._internalModel._attributes;
-      var rec = this.store.createRecord(type, attrs);
-      rec.tmp_key = tmp_key;
-      return rec.save().then(function(result) {
-        return persistence.remove(type, {}, tmp_id).then(function() {
-          return RSVP.resolve(result);
-        }, function() {
-          return RSVP.reject({error: "failed to remove temporary record"});
-        });
-      });
-    }
-    return this._super();
-  }
-});
-
 Route.reopen({
+  // Loading and error substates (e.g. `index_loading`) often have no
+  // controller. `controllerFor` throws an assertion in that case. Guarding
+  // both call sites lets those substates activate cleanly — visible only
+  // under SPA route transitions where the substate's lifecycle completes
+  // (under full page reload, the browser tore down Ember before this fired).
+  _safe_controller_for_self: function() {
+    try {
+      return this.controllerFor(this.routeName);
+    } catch (e) {
+      return null;
+    }
+  },
   update_title_if_present: function() {
-    var controller = this.controllerFor(this.routeName);
+    var controller = this._safe_controller_for_self();
     var title = this.get('title') || (controller && controller.get('title'));
     if(title) {
       LingoLinq.controller.updateTitle(title.toString());
@@ -247,7 +219,7 @@ Route.reopen({
   },
   activate: function() {
     this.update_title_if_present();
-    var controller = this.controllerFor(this.routeName);
+    var controller = this._safe_controller_for_self();
     if(controller) {
       controller.addObserver('title', this, function() {
         this.update_title_if_present();
@@ -285,15 +257,41 @@ LingoLinq.board_categories = [
   {name: i18n.t('phrase_based', "Phrase-Based"), id: 'phrases'},
   {name: i18n.t('keyboards', "Keyboards"), id: 'keyboards'},
 ];
+// Five simplified registration types + an empty placeholder. The IDs are
+// load-bearing: external_tracker.rb maps them to HubSpot Account Type
+// categories, user.rb#supporter_registration? gates FERPA/COPPA/GDPR
+// tracking on anything-not-communicator-or-unspecified, and the
+// backend now also maps these IDs to preferences.role on first save
+// (communicator → 'communicator'; therapist/parent/teacher/other →
+// 'supporter'). DO NOT change the IDs without updating those mappings.
+//
+// Two values removed from the user-facing dropdown:
+// - The duplicate "A parent and communicator" row (also id='communicator')
+// - 'eval' (evaluation/assessment device — typically org-administered,
+//   not self-registered). Both values remain valid backend-side for
+//   org workflows and historical user records.
 LingoLinq.registrationTypes = [
-  {name: i18n.t('pick_type', "[ this login is mainly for ]"), id: ''},
-  {name: i18n.t('registration_type_communicator', "A communicator"), id: 'communicator'},
-  {name: i18n.t('registration_type_parent_communicator', "A parent and communicator"), id: 'communicator'},
-  {name: i18n.t('registration_type_slp', "A therapist"), id: 'therapist'},
-  {name: i18n.t('registration_type_parent', "A supervising parent"), id: 'parent'},
-  {name: i18n.t('registration_type_eval', "An evaluation/assessment device"), id: 'eval'},
-  {name: i18n.t('registration_type_teacher', "A teacher"), id: 'teacher'},
-  {name: i18n.t('registration_type_other', "An aide, caregiver or other supporter"), id: 'other'}
+  {name: i18n.t('pick_type', "- Choose your Role -"), id: ''},
+  {name: i18n.t('registration_type_communicator', "Communicator (AAC user)"), id: 'communicator'},
+  {name: i18n.t('registration_type_slp', "Therapist / SLP"), id: 'therapist'},
+  {name: i18n.t('registration_type_parent', "Parent Supporter"), id: 'parent'},
+  {name: i18n.t('registration_type_teacher', "Teacher / Educator"), id: 'teacher'},
+  {name: i18n.t('registration_type_other', "Other Supporter"), id: 'other'}
+];
+// Two-tier registration role: a simple top-level choice (Communicator vs
+// Supporter), then a supporter sub-type. The STORED registration_type stays one
+// of communicator/therapist/parent/teacher/other (see user.rb role mapping) —
+// 'supporter' is only the UI grouping, never persisted as the registration_type.
+LingoLinq.roleCategories = [
+  {name: i18n.t('pick_type', "- Choose your Role -"), id: ''},
+  {name: i18n.t('registration_type_communicator', "Communicator (AAC user)"), id: 'communicator'},
+  {name: i18n.t('registration_role_supporter', "Supporter"), id: 'supporter'}
+];
+LingoLinq.supporterTypes = [
+  {name: i18n.t('supporter_type_therapist', "Therapist"), id: 'therapist'},
+  {name: i18n.t('supporter_type_parent', "Parent"), id: 'parent'},
+  {name: i18n.t('supporter_type_teacher', "Teacher"), id: 'teacher'},
+  {name: i18n.t('supporter_type_other', "Other"), id: 'other'}
 ];
 LingoLinq.user_statuses = [
   {id: 'unchecked', label: i18n.t('unknown_nothing', "Unknown/Nothing"), on: true},
@@ -311,6 +309,12 @@ LingoLinq.user_statuses = [
   {id: 'calendar'},
   {id: 'apple'},
   {id: 'blackboard'},
+  // Derived (not manually settable) status for the supervisor home's "Communicators
+  // Need Attention" card: a communicator who hasn't set a home board. No `on` flag, so
+  // it stays out of the status pickers (which require s.on && s.label); the label is
+  // here only so the attention card can render a human reason. Kept last so it never
+  // shifts the indices the status-breakdown chart reads.
+  {id: 'no-home-board', label: i18n.t('no_home_board_status', "No home board set")},
 ];
 LingoLinq.access_methods = {
   touch: 'hand-up',
@@ -376,6 +380,132 @@ LingoLinq.keyed_colors = [
   {fill: 'rgb(115, 204, 255)', color: i18n.t('bluish', "Bluish"), hint: i18n.t('other_lower', "other"), types: []},
   {fill: "#000", color: i18n.t('black', "Black"), hint: i18n.t('contrast_lower', "contrast"), types: []}
 ];
+// Board-detail palette — the SINGLE SOURCE OF TRUTH for these colors is
+// styles/_variables.scss (the $fitzgerald-* SCSS variables). Those vars
+// drive the rendered cell backgrounds via the .md-board-detail-symbol-card--<pos>
+// rules at compile time, and are also emitted as --fitzgerald-* CSS
+// custom properties on :root so this JS palette can read them at runtime.
+//
+// Edit a Fitzgerald color in ONE place (_variables.scss); the rendered
+// live cards, the create-board-new preview, the part-of-speech color
+// legend, and any other JS lookups all update on rebuild.
+//
+// Lazy getter caches the built array on first access since
+// getComputedStyle is non-trivial and pos_class lookups happen often.
+// Call LingoLinq.refresh_fitzgerald_colors() to invalidate the cache.
+// Fallbacks (used when document isn't yet available — e.g. tests, SSR)
+// mirror the SCSS variable defaults so behavior matches.
+(function() {
+  var _bd_cache = null;
+  var FALLBACKS = {
+    'pronoun-yellow':    '#FAFAAA',
+    'verb-green':        '#C0E8C8',
+    'adjective-blue':    '#B9D0F6',
+    'noun-orange':       '#FDCF98',
+    'social-pink':       '#E8B5DC',
+    'negation-red':      '#F5A0A0',
+    'question-purple':   '#D0B8E8',
+    'preposition-pink':  '#F5DCEA',
+    'adverb-brown':      '#D4B896',
+    'determiner-gray':   '#DCDCDC',
+    'conjunction-white': '#FFFFFF',
+    'other-blue':        '#73CCFF',
+    'contrast-black':    '#000000'
+  };
+  function readVar(suffix) {
+    if(typeof document === 'undefined' || !document.documentElement) {
+      return FALLBACKS[suffix];
+    }
+    var v = getComputedStyle(document.documentElement).getPropertyValue('--fitzgerald-' + suffix);
+    return (v && v.trim()) || FALLBACKS[suffix];
+  }
+  // 20%-darker variant of the fill, matching the legacy LingoLinq
+  // convention used by board_detail and bound_classes for inline
+  // outline-color on rendered cards. Falls back to the fill when
+  // tinycolor isn't loaded yet.
+  function darken20(fill) {
+    if(typeof window === 'undefined' || !window.tinycolor) { return fill; }
+    return window.tinycolor(fill).darken(20).toRgbString();
+  }
+  function entry(pos_class, fill_suffix, color_label, color_default, hint_label, hint_default, types, opts) {
+    var fill = readVar(fill_suffix);
+    var ent = {
+      pos_class: pos_class,
+      fill: fill,
+      border: (opts && opts.border) || darken20(fill),
+      color: i18n.t(color_label, color_default),
+      types: types
+    };
+    if(hint_label) { ent.hint = i18n.t(hint_label, hint_default); }
+    return ent;
+  }
+  function build() {
+    return [
+      entry('pronoun',     'pronoun-yellow',    'yellow', "Yellow",  'people',            "people",        ['pronoun']),
+      entry('verb',        'verb-green',        'green',  "Green",   'actions_lower',     "actions",       ['verb']),
+      entry('adjective',   'adjective-blue',    'blue',   "Blue",    'describing_words',  "describing",    ['adjective']),
+      entry('noun',        'noun-orange',       'orange', "Orange",  'nouns',             "nouns",         ['noun', 'nominative']),
+      entry('social',      'social-pink',       'pink',   "Pink",    'social_words',      "social words",  ['social', 'social_phrase']),
+      entry('negation',    'negation-red',      'red',    "Red",     'negations',         "negations",     ['negation', 'expletive', 'interjection']),
+      entry('question',    'question-purple',   'purple', "Purple",  'questions',         "questions",     ['question']),
+      entry('preposition', 'preposition-pink',  'rose',   "Rose",    'prepositions',      "prepositions",  ['preposition']),
+      entry('adverb',      'adverb-brown',      'brown',  "Brown",   'adverbs',           "adverbs",       ['adverb']),
+      entry('determiner',  'determiner-gray',   'gray',   "Gray",    'determiners',       "determiners",   ['article', 'determiner']),
+      // White card uses a fixed light-gray border rather than darken(white) which yields gray.
+      entry('conjunction', 'conjunction-white', 'white',  "White",   null,                null,            ['conjunction', 'number'], {border: '#ccc'}),
+      entry('other',       'other-blue',        'bluish', "Bluish",  'other_lower',       "other",         []),
+      entry('contrast',    'contrast-black',    'black',  "Black",   'contrast_lower',    "contrast",      [])
+    ];
+  }
+  Object.defineProperty(LingoLinq, 'board_detail_keyed_colors', {
+    get: function() {
+      if(!_bd_cache) { _bd_cache = build(); }
+      return _bd_cache;
+    },
+    configurable: true
+  });
+  LingoLinq.refresh_fitzgerald_colors = function() {
+    _bd_cache = null;
+  };
+
+  // Toggle the .fitzgerald-soft class on <html> based on the user's
+  // symbol_background preference. Applying at the document level
+  // (rather than the grid) means :root has the override — so
+  // getComputedStyle() reads the muted CSS custom property values, and
+  // inline styles built from LingoLinq.board_detail_keyed_colors
+  // (preview cells, button auto-coloring) get the muted hues too.
+  // Pass the symbol_background id ('clear' | 'clear_soft' | 'white' |
+  // 'black') — anything other than 'clear_soft' clears the class.
+  // Defensively also strips a legacy 'fitzgerald-faded' class in case
+  // an older session still has it on the element.
+  LingoLinq.set_fitzgerald_scope = function(symbol_background_id) {
+    if(typeof document === 'undefined' || !document.documentElement) { return; }
+    var cl = document.documentElement.classList;
+    cl.remove('fitzgerald-soft');
+    cl.remove('fitzgerald-faded');
+    if(symbol_background_id === 'clear_soft') { cl.add('fitzgerald-soft'); }
+    _bd_cache = null;
+  };
+
+  // Mirror the user's dashboard_layout pref onto <body> via the
+  // `.ll-layout-focused` class so the Focused View styling overlay can be
+  // scoped app-wide (every page), not just the dashboard. Gentle View is the
+  // untouched baseline (no class) AND the default. Applying at <body> means every
+  // page's chrome and content can opt in via `body.ll-layout-focused .foo`
+  // selectors. The class is present ONLY when the layout is explicitly 'focused';
+  // an unset pref or any legacy/invalid value resolves to the 'gentle' default,
+  // matching the dashboard's effectiveLayout. Driven by sync_layout_scope in
+  // app-state.js.
+  LingoLinq.set_layout_scope = function(layout) {
+    if(typeof document === 'undefined' || !document.body) { return; }
+    // NOTE (security review false-positive — "CSS injection via layout pref"): no
+    // injection vector. The class name is the LITERAL 'll-layout-focused'; `layout`
+    // only flips the boolean. A compromised/garbage dashboard_layout pref can at most
+    // turn the FIXED overlay class on (only an exact 'focused' → focused overlay),
+    // never inject an attacker-chosen class name.
+    document.body.classList.toggle('ll-layout-focused', layout === 'focused');
+  };
+})();
 LingoLinq.extra_keyed_colors = [
   {border: '#0069e7', fill: '#9fceef', label: 'adj1'},
   {border: '#0069e7', fill: '#e0edf9', label: 'adj2'},
@@ -514,17 +644,22 @@ LingoLinq.avatarUrls = [
 ];
 LingoLinq.Lessons = {
   track: function(url) {
-    return new RSVP.Promise(function(resolve, reject) {
+    return new RSVP.Promise(function(resolve) {
       var lesson = LingoLinq.Lessons.assert_lesson();
       lesson.restart(url);
+      resolve(lesson);
     });
   },
   assert_lesson: function() {
-    LingoLinq.Lessons.lesson = LingoLinq.Lessons.lesson || EmberObject.extend({
-      restart: function(url) {
-        this.set('state', null);
-      }
-    }).create();
+    var existing = LingoLinq.Lessons.lesson;
+    if (!existing || typeof existing.restart !== 'function') {
+      LingoLinq.Lessons.lesson = EmberObject.extend({
+        restart: function(url) {
+          this.set('state', null);
+        }
+      }).create();
+    }
+    return LingoLinq.Lessons.lesson;
   }
 };
 LingoLinq.Videos = {
@@ -840,8 +975,8 @@ LingoLinq.Visualizations = {
   }
 };
 
-LingoLinq.boxPad = 17;
-LingoLinq.borderPad = 5;
+LingoLinq.boxPad = 8;
+LingoLinq.borderPad = 4;
 LingoLinq.labelHeight = 15;
 LingoLinq.customEvents = customEvents;
 LingoLinq.expired = function() {

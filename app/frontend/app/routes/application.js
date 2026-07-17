@@ -1,5 +1,6 @@
 import Route from '@ember/routing/route';
 import { later as runLater } from '@ember/runloop';
+import RSVP from 'rsvp';
 import speecher from '../utils/speecher';
 import modal from '../utils/modal';
 import capabilities from '../utils/capabilities';
@@ -40,6 +41,28 @@ export default Route.extend({
   appState: service('app-state'),
   stashes: service('stashes'),
   persistence: service('persistence'),
+  telemetry: service('telemetry'),
+  beforeModel: function() {
+    if(typeof window === 'undefined') { return; }
+    var path = window.location.pathname;
+    if(path.indexOf('/parental_consent/') === 0) {
+      // COPPA email links must hit Rails, not the Ember SPA (see server/index.js proxy).
+      if(window.location.port === '8184') {
+        var qs = window.location.search || '';
+        window.location.replace(window.location.protocol + '//' + window.location.hostname + ':5000' + path + qs);
+        return new RSVP.Promise(function() { /* wait for full-page navigation */ });
+      }
+      return;
+    }
+    if(path !== '/auth' && path.indexOf('/auth/') !== 0) { return; }
+    // OAuth paths must be handled by Rails, not the Ember SPA. If the app
+    // booted here, the /auth proxy did not run — fall back to Rails on :5000.
+    if(window.location.port === '8184') {
+      var qs = window.location.search || '';
+      window.location.replace(window.location.protocol + '//' + window.location.hostname + ':5000' + path + qs);
+      return new RSVP.Promise(function() { /* wait for full-page navigation */ });
+    }
+  },
   activate: function() {
     var session = this.get('session');
     if(session && typeof session.restore === 'function') {
@@ -97,12 +120,20 @@ export default Route.extend({
         return res;
       };
       params_list(transition.to);
+      var toRoute = transition.to;
+      var fromRoute = transition.from;
+      var leafRouteName = function(routeInfo) {
+        if (!routeInfo || !routeInfo.name) { return (routeInfo && routeInfo.name) || null; }
+        var leaf = routeInfo;
+        while (leaf && leaf.child) { leaf = leaf.child; }
+        return leaf ? leaf.name : routeInfo.name;
+      };
       _this.appState.global_transition({
         aborted: transition.isAborted,
         source: transition,
-        from_route: (transition.from || {}).name,
+        from_route: leafRouteName(fromRoute) || (fromRoute && fromRoute.name),
         from_params: params_list(transition.from),
-        to_route: (transition.to || {}).name,
+        to_route: leafRouteName(toRoute) || (toRoute && toRoute.name),
         to_params: params_list(transition.to),
       });
       // let { to: toRouteInfo, from: fromRouteInfo } = transition;
@@ -116,24 +147,31 @@ export default Route.extend({
       // console.log(`To ParamNames: ${toRouteInfo.paramNames.join(', ')}`);
     });
 
-    this.router.on('routeDidChange', transition => {
-      // let { to: toRouteInfo, from: fromRouteInfo } = transition;
-      // console.log(`Transitioned from -> ${fromRouteInfo.name}`);
-      // console.log(`From QPs: ${JSON.stringify(fromRouteInfo.queryParams)}`);
-      // console.log(`From Params: ${JSON.stringify(fromRouteInfo.params)}`);
-      // console.log(`From ParamNames: ${fromRouteInfo.paramNames.join(', ')}`);
-      // console.log(`to -> ${toRouteInfo.name}`);
-      // console.log(`To QPs: ${JSON.stringify(toRouteInfo.queryParams)}`);
-      // console.log(`To Params: ${JSON.stringify(toRouteInfo.params)}`);
-      // console.log(`To ParamNames: ${toRouteInfo.paramNames.join(', ')}`);
-    });    
   },
   actions: {
     willTransition: function(transition) {
 //      this.appState.global_transition(transition);
     },
+    error: function(error, transition) {
+      // Application-level error handler. When any route's model rejects
+      // and bubbles up to here, error.hbs renders in the application
+      // outlet. Clear board / speak state so the error chrome (header,
+      // body classes, navbar variant) matches the home page rather than
+      // inheriting "in-board" state from whatever loaded before.
+      this.appState.set('currentBoardState', null);
+      // Returning true (the default) lets Ember continue to render the
+      // error template / fallback. We just want to side-effect first.
+      return true;
+    },
     didTransition: function() {
       this.appState.finish_global_transition();
+      this.telemetry.trackRoute(this.router.currentRouteName);
+      if (!this.appState.get('skip_scroll_to_top')) {
+        window.scrollTo(0, 0);
+        var content = document.getElementById('content');
+        if (content) { content.scrollTop = 0; }
+      }
+      this.appState.set('skip_scroll_to_top', false);
       runLater(function() {
         speecher.load_beep().then(null, function() { });
       }, 100);
@@ -148,7 +186,7 @@ export default Route.extend({
     newBoard: function() {
       var _this = this;
       this.appState.check_for_needing_purchase().then(function() {
-        modal.open('new-board');
+        _this.router.transitionTo('create-board-new');
       });
     },
     pickWhichHome: function() {

@@ -1,5 +1,7 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
+import { alias } from '@ember/object/computed';
+import { A } from '@ember/array';
 import { later as runLater } from '@ember/runloop';
 import i18n from '../../utils/i18n';
 import app_state from '../../utils/app_state';
@@ -17,21 +19,220 @@ import { computed } from '@ember/object';
 import { htmlSafe } from '@ember/template';
 import editManager from '../../utils/edit_manager';
 
+var sidebarActionCodeTemplates = {
+  ':timer': ':timer(30s)',
+  ':say': ':say(Hello)',
+  ':volume': ':volume(up)',
+  ':inflection': ':inflection(noun)',
+  ':app': ':app(com.example.app)'
+};
+
+function buildSidebarActionPickerOptions() {
+  if(!LingoLinq.special_actions) { Button.load_actions(); }
+  var options = [{name: i18n.t('sidebar_action_picker_prompt', "Choose an action..."), id: '', disabled: true}];
+  var simple = [];
+  var parameterized = [];
+  var seen = {};
+  (LingoLinq.special_actions || []).forEach(function(act) {
+    if(act.completion || act.modifier || act.inline) { return; }
+    var template = sidebarActionCodeTemplates[act.action];
+    var code = template || (!act.match && act.action);
+    if(!code || seen[code]) { return; }
+    seen[code] = true;
+    var label = act.description || code;
+    var item = {id: code, name: code + ' — ' + label};
+    if(template || act.match) {
+      parameterized.push(item);
+    } else {
+      simple.push(item);
+    }
+  });
+  var byCode = function(a, b) {
+    if(a.id < b.id) { return -1; }
+    if(a.id > b.id) { return 1; }
+    return 0;
+  };
+  simple.sort(byCode);
+  parameterized.sort(byCode);
+  if(simple.length > 0) {
+    options.push({divider: true, label: i18n.t('sidebar_actions_simple', "Actions")});
+    options = options.concat(simple);
+  }
+  if(parameterized.length > 0) {
+    options.push({divider: true, label: i18n.t('sidebar_actions_parameterized', "Actions with settings (edit values before adding)")});
+    options = options.concat(parameterized);
+  }
+  return options;
+}
+
+function sidebarBoardIdentity(board) {
+  if(board && (board.alert || (board.special && board.alert))) {
+    return 'alert';
+  }
+  return board && board.key;
+}
+
+function defaultActiveSidebarBoards(defaults) {
+  defaults = defaults || (window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.default_active_sidebar_boards) || [];
+  if(defaults.length) { return defaults.slice(); }
+  var inactive = {'mbaud12/senner-baud-greetings': true};
+  return (window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.default_sidebar_boards || []).filter(function(b) {
+    return !inactive[b.key];
+  });
+}
+
+function sidebarAutoAddKeys(defaults) {
+  return (defaults || []).filter(function(board) {
+    return board && board.key && board.key.split('/').pop() === 'crisis-vocabulary';
+  }).map(function(board) {
+    return board.key;
+  });
+}
+
+function mergeMissingDefaultSidebarBoards(stored, defaults) {
+  defaults = defaults || (window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.default_sidebar_boards) || [];
+  if(!stored || stored.length === 0) {
+    return defaultActiveSidebarBoards(defaults);
+  }
+  var storedById = {};
+  stored.forEach(function(b) {
+    var id = sidebarBoardIdentity(b);
+    if(id) { storedById[id] = b; }
+  });
+  var storedIds = Object.keys(storedById);
+  var defaultIds = defaults.map(sidebarBoardIdentity);
+  if(!storedIds.some(function(id) { return defaultIds.indexOf(id) !== -1; })) {
+    return stored.slice();
+  }
+  var autoAddKeys = sidebarAutoAddKeys(defaults);
+  var missingAutoAdd = autoAddKeys.filter(function(key) { return storedIds.indexOf(key) === -1; });
+  if(missingAutoAdd.length === 0) {
+    return stored.slice();
+  }
+  var result = [];
+  defaults.forEach(function(defaultItem) {
+    var id = sidebarBoardIdentity(defaultItem);
+    var key = defaultItem.key;
+    if(storedById[id]) {
+      result.push(storedById[id]);
+    } else if(key && missingAutoAdd.indexOf(key) !== -1) {
+      result.push(defaultItem);
+    }
+  });
+  stored.forEach(function(b) {
+    var id = sidebarBoardIdentity(b);
+    if(defaultIds.indexOf(id) === -1 && result.indexOf(b) === -1) {
+      result.push(b);
+    }
+  });
+  return result;
+}
+
 export default Controller.extend({
+  appState: service('app-state'),
+  // Ember Data 5.x removed automatic `store` injection into controllers.
+  store: service('store'),
+  // Alias for template compatibility (template uses this.app_state)
+  app_state: alias('appState'),
   router: service('router'),
+
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+    this.onSavePreferences = function(event) {
+      if (event && event.preventDefault) { event.preventDefault(); }
+      self.send('savePreferences');
+    };
+  },
+
+  notification_frequency_options: [
+    {name: i18n.t('no_notifications', "Don't Email Me Communicator Reports"), id: ''},
+    {name: i18n.t('weekly_notifications', "Email Me Weekly Communicator Reports"), id: '1_week'},
+    {name: i18n.t('bi_weekly_reports', "Email Me Communicator Reports Every Two Weeks"), id: '2_weeks'},
+    {name: i18n.t('monthly_reports', "Email Me Monthly Communicator Reports"), id: '1_month'}
+  ],
+  goal_notification_options: [
+    {name: i18n.t('email_goal_completion', "Email Me When Goals are Completed or Badges are Earned"), id: 'enabled'},
+    {name: i18n.t('dont_email_goal_completion', "Don't Email Me When Goals are Completed or Badges are Earned"), id: 'disabled'}
+  ],
+  allow_shares_options: [
+    {name: i18n.t('email_shares', "Email"), id: 'email'},
+    {name: i18n.t('text_shares', "Text Message"), id: 'text'},
+    {name: i18n.t('app_shares', "In-App Notification"), id: 'app'}
+  ],
   setup: function() {
     var str = JSON.stringify(this.get('model.preferences'));
     this.set('pending_preferences', JSON.parse(str));
     this.set('original_preferences', JSON.parse(str));
+    // Word prediction is ON-by-default only for NEW users (assigned server-side
+    // at registration, user.rb generate_defaults / new_record?). Existing users
+    // with a null value are OFF — the speak page and the toggle treat null as off
+    // (=== true) — so DON'T seed word_suggestions here; let the checkbox render
+    // unchecked for them so the form matches the actual (off) behavior and isn't
+    // falsely marked dirty. The position selector still needs a value to render,
+    // so seed side_rail for it only.
+    if(!this.get('pending_preferences.word_suggestion_position')) {
+      this.set('pending_preferences.word_suggestion_position', 'side_rail');
+      this.set('original_preferences.word_suggestion_position', 'side_rail');
+    }
     this.set('phrase_categories_string', (this.get('pending_preferences.phrase_categories') || []).join(', '));
     this.set('advanced', true);
     this.set('skip_save_on_transition', false);
     var _this = this;
-    setTimeout(function() {
-      if(window.weblinger) {
-        _this.set('weblinger_enabled', true);
-      }
-    }, 1000);
+    _this.set('weblinger_enabled', !!window.weblinger);
+    _this.set('weblinger_load_state', capabilities.weblinger_load_status());
+    _this._weblinger_load_listener = function() {
+      _this.set('weblinger_enabled', !!window.weblinger);
+      _this.set('weblinger_load_state', capabilities.weblinger_load_status());
+      _this.check_calibration();
+    };
+    _this._weblinger_fail_listener = function() {
+      _this.set('weblinger_load_state', capabilities.weblinger_load_status());
+    };
+    document.addEventListener('weblinger-script-load', _this._weblinger_load_listener);
+    document.addEventListener('weblinger-script-load-failed', _this._weblinger_fail_listener);
+    document.addEventListener('weblinger-tracking-fail', _this._weblinger_fail_listener);
+    if(!window.weblinger && !window.weblinger_load_failed) {
+      _this._weblinger_load_poll = setInterval(function() {
+        if(window.weblinger || window.weblinger_load_failed) {
+          clearInterval(_this._weblinger_load_poll);
+          _this._weblinger_load_poll = null;
+          _this.set('weblinger_enabled', !!window.weblinger);
+          _this.set('weblinger_load_state', capabilities.weblinger_load_status());
+          if(window.weblinger) {
+            _this.check_calibration();
+          }
+        }
+      }, 250);
+      runLater(function() {
+        if(_this._weblinger_load_poll && !window.weblinger && !window.weblinger_load_failed) {
+          clearInterval(_this._weblinger_load_poll);
+          _this._weblinger_load_poll = null;
+          window.weblinger_load_status = 'unavailable';
+          _this.set('weblinger_load_state', 'unavailable');
+        }
+      }, 15000);
+    }
+
+    // If arriving from the Voice & Output modal's "More options" link,
+    // auto-expand the Voice Settings section and scroll to it.
+    if(app_state.get('open_voice_settings')) {
+      app_state.set('open_voice_settings', false);
+      this.set('auto_open_voice', true);
+      runLater(function() {
+        var el = document.getElementById('voice-settings-box');
+        if(el) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      }, 300);
+    } else {
+      this.set('auto_open_voice', false);
+    }
   },
   speecher: speecher,
   buttonSpacingList: [
@@ -66,6 +267,12 @@ export default Controller.extend({
     {name: i18n.t('show_grid', "Show Grid Lines"), id: "grid"},
     {name: i18n.t('show_dim', "Show as Dimmed Out"), id: "hint"},
     {name: i18n.t('hide_complete', "Hide Completely"), id: "hide"}
+  ],
+  // Where word prediction renders in board-detail speak mode.
+  wordPredictionPositionList: [
+    {name: i18n.t('word_prediction_pos_auto', "Best fit for the screen"), id: "auto"},
+    {name: i18n.t('word_prediction_pos_speak_bar', "Inside the speak bar"), id: "speak_bar"},
+    {name: i18n.t('word_prediction_pos_side_rail', "To the right of the board"), id: "side_rail"}
   ],
   dimLevelList: [
     {name: i18n.t('default_dimmed', "Default Dimmed"), id: "default_dim"},
@@ -118,14 +325,14 @@ export default Controller.extend({
       image_urls: [option.image_url]
     };
     if(parts[0] == 'mix_only' || parts[0] == 'mix_prefer') {
-      res.options = [
+      res.options = A([
         {label: i18n.t('default_skin_tones', "Original Skin Tone"), id: 'default', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-varxxxUNI.svg'},
         {label: i18n.t('dark_skin_tone', "Dark Skin Tone"), id: 'dark', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3ff.svg'},
         {label: i18n.t('medium_dark_skin_tone', "Medium-Dark Skin Tone"), id: 'medium_dark', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fe.svg'},
         {label: i18n.t('medium_skin_tone', "Medium Skin Tone"), id: 'medium', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fd.svg'},
         {label: i18n.t('medium_light_skin_tone', "Medium-Light Skin Tone"), id: 'medium_light', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fc.svg'},
         {label: i18n.t('light_skin_tone', "Light Skin Tone"), id: 'light', image_url: 'https://d18vdu4p71yql0.cloudfront.net/libraries/twemoji/1f469-1f3fb.svg'},
-      ];
+      ]);
       if(parts[2]) {
         var rules = parts[2].split(/-/).pop();
         for(var idx = 0; idx < 6; idx++) {
@@ -155,24 +362,46 @@ export default Controller.extend({
   cant_change_private_logging: computed('limited_logging', 'model.permissions.delete', function() {
     return !this.get('model.permissions.delete');
   }),
+  // Don't hate on me, Comic Sans is not my fave, but it's the only web safe font I could find
+  // that had the handwritten "a", which could be important for emergent readers.
   buttonStyleList: [
-    {name: i18n.t('default_font', "Default Font"), id: "default"},
-    {name: i18n.t('default_font_caps', "Default Font, All Uppercase"), id: "default_caps"},
-    {name: i18n.t('default_font_small', "Default Font, All Lowercase"), id: "default_small"},
-    // Don't hate on me, Comic Sans is not my fave, but it's the only web safe font I could find
-    // that had the handwritten "a", which could be important for emergent readers.
-    {name: i18n.t('arial', "Arial"), id: "arial"},
-    {name: i18n.t('arial_caps', "Arial, All Uppercase"), id: "arial_caps"},
-    {name: i18n.t('arial_small', "Arial, All Lowercase"), id: "arial_small"},
-    {name: i18n.t('comic_sans', "Comic Sans"), id: "comic_sans"},
-    {name: i18n.t('comic_sans_caps', "Comic Sans, All Uppercase"), id: "comic_sans_caps"},
-    {name: i18n.t('comic_sans_small', "Comic Sans, All Lowercase"), id: "comic_sans_small"},
-    {name: i18n.t('open_dyslexic', "OpenDyslexic"), id: "open_dyslexic"},
-    {name: i18n.t('open_dyslexic_caps', "OpenDyslexic, All Uppercase"), id: "open_dyslexic_caps"},
-    {name: i18n.t('open_dyslexic_small', "OpenDyslexic, All Lowercase"), id: "open_dyslexic_small"},
-    {name: i18n.t('architects_daughter', "Architect's Daughter"), id: "architects_daughter"},
-    {name: i18n.t('architects_daughter_caps', "Architect's Daughter, All Uppercase"), id: "architects_daughter_caps"},
-    {name: i18n.t('architects_daughter_small', "Architect's Daughter, All Lowercase"), id: "architects_daughter_small"},
+    {name: i18n.t('architects_daughter',       "Architect's Daughter"),                   id: "architects_daughter"},
+    {name: i18n.t('architects_daughter_small', "Architect's Daughter, All Lowercase"),    id: "architects_daughter_small"},
+    {name: i18n.t('architects_daughter_caps',  "Architect's Daughter, All Uppercase"),    id: "architects_daughter_caps"},
+    {name: i18n.t('arial',                     "Arial"),                                  id: "arial"},
+    {name: i18n.t('arial_small',               "Arial, All Lowercase"),                   id: "arial_small"},
+    {name: i18n.t('arial_caps',                "Arial, All Uppercase"),                   id: "arial_caps"},
+    {name: i18n.t('comic_sans',                "Comic Sans"),                             id: "comic_sans"},
+    {name: i18n.t('comic_sans_small',          "Comic Sans, All Lowercase"),              id: "comic_sans_small"},
+    {name: i18n.t('comic_sans_caps',           "Comic Sans, All Uppercase"),              id: "comic_sans_caps"},
+    {name: i18n.t('default_font',              "Default Font"),                           id: "default"},
+    {name: i18n.t('default_font_small',        "Default Font, All Lowercase"),            id: "default_small"},
+    {name: i18n.t('default_font_caps',         "Default Font, All Uppercase"),            id: "default_caps"},
+    {name: i18n.t('open_dyslexic',             "OpenDyslexic"),                           id: "open_dyslexic"},
+    {name: i18n.t('open_dyslexic_small',       "OpenDyslexic, All Lowercase"),            id: "open_dyslexic_small"},
+    {name: i18n.t('open_dyslexic_caps',        "OpenDyslexic, All Uppercase"),            id: "open_dyslexic_caps"},
+    {divider: true, label: i18n.t('system_fonts_group', "System Fonts")},
+    {name: i18n.t('font_brush_script',    "Brush Script MT"),    id: "brush_script"},
+    {name: i18n.t('font_calibri',         "Calibri"),            id: "calibri"},
+    {name: i18n.t('font_cambria',         "Cambria"),            id: "cambria"},
+    {name: i18n.t('font_chalkboard',      "Chalkboard SE"),      id: "chalkboard"},
+    {name: i18n.t('font_consolas',        "Consolas"),           id: "consolas"},
+    {name: i18n.t('font_courier_new',     "Courier New"),        id: "courier_new"},
+    {name: i18n.t('font_garamond',        "Garamond"),           id: "garamond"},
+    {name: i18n.t('font_georgia',         "Georgia"),            id: "georgia"},
+    {name: i18n.t('font_helvetica',       "Helvetica"),          id: "helvetica"},
+    {name: i18n.t('font_impact',          "Impact"),             id: "impact"},
+    {name: i18n.t('font_lucida_sans',     "Lucida Sans"),        id: "lucida_sans"},
+    {name: i18n.t('font_marker_felt',     "Marker Felt"),        id: "marker_felt"},
+    {name: i18n.t('font_monaco',          "Monaco"),             id: "monaco"},
+    {name: i18n.t('font_optima',          "Optima"),             id: "optima"},
+    {name: i18n.t('font_palatino',        "Palatino"),           id: "palatino"},
+    {name: i18n.t('font_segoe_ui',        "Segoe UI"),           id: "segoe_ui"},
+    {name: i18n.t('font_snell_roundhand', "Snell Roundhand"),    id: "snell_roundhand"},
+    {name: i18n.t('font_tahoma',          "Tahoma"),             id: "tahoma"},
+    {name: i18n.t('font_times_new_roman', "Times New Roman"),    id: "times_new_roman"},
+    {name: i18n.t('font_trebuchet',       "Trebuchet MS"),       id: "trebuchet"},
+    {name: i18n.t('font_verdana',         "Verdana"),            id: "verdana"}
   ],
   audioOutputList: [
     {name: i18n.t('default_audio', "Play on Default Audio"), id: "default"},
@@ -234,17 +463,17 @@ export default Controller.extend({
   ],
   symbolsList: computed(function() {
     var list = [
-      {name: i18n.t('original_symbols', "Use the board's original symbols"), id: 'original'},
-      {name: i18n.t('use_opensymbols', "Opensymbols.org free symbol libraries"), id: 'opensymbols'},
+      {name: i18n.t('original_symbols', "Default symbols"), id: 'original'},
+      {name: i18n.t('use_opensymbols', "Opensymbols.org"), id: 'opensymbols'},
 
       {name: i18n.t('use_lessonpix', "LessonPix symbol library"), id: 'lessonpix'},
       {name: i18n.t('use_symbolstix', "SymbolStix Symbols"), id: 'symbolstix'},
       {name: i18n.t('use_pcs', "PCS Symbols by Tobii Dynavox"), id: 'pcs'},
 
       {name: i18n.t('use_twemoji', "Emoji icons (authored by Twitter)"), id: 'twemoji'},
-      {name: i18n.t('use_noun-project', "The Noun Project black outlines"), id: 'noun-project'},
+      {name: i18n.t('use_noun-project', "Noun Project black outlines"), id: 'noun-project'},
       {name: i18n.t('use_arasaac', "ARASAAC free symbols"), id: 'arasaac'},
-      {name: i18n.t('use_tawasol', "Tawasol symbol library"), id: 'tawasol'},
+      {name: i18n.t('use_tawasol', "Tawasol"), id: 'tawasol'},
     ];
     return list;
   }),
@@ -372,8 +601,7 @@ export default Controller.extend({
     {name: i18n.t('next', "Next"), id: "next"}
   ],
   vocalizationHeightList: [
-    {name: i18n.t('tiny_50', "Tiny (50px)"), id: "tiny"},
-    {name: i18n.t('small_70', "Small (70px)"), id: "small"},
+    {name: i18n.t('small_90', "Small (90px)"), id: "small"},
     {name: i18n.t('medium_100', "Medium (100px)"), id: "medium"},
     {name: i18n.t('large_150', "Large (150px)"), id: "large"},
     {name: i18n.t('huge_200', "Huge (200px)"), id: "huge"}
@@ -385,10 +613,12 @@ export default Controller.extend({
     return capabilities.system == 'iOS' && capabilities.installed_app;
   }),
   raw_core_word_list: computed('core_lists.for_user', function() {
+    var list = this.get('core_lists.for_user') || [];
     var div = document.createElement('div');
-    (this.get('core_lists.for_user') || []).each(function(w) {
+    var arr = list.slice ? list.slice() : (Array.isArray(list) ? list : []);
+    arr.forEach(function(w) {
       var span = document.createElement('span');
-      span.innerText = w;
+      span.innerText = w + ' ';
       div.appendChild(span);
     });
     return htmlSafe(div.innerHTML);
@@ -401,6 +631,21 @@ export default Controller.extend({
       this.set('pending_preferences.device.auto_sync', this.get('model.auto_sync'));
     }
   }),
+  teardownWeblingerListeners: function() {
+    if(this._weblinger_load_poll) {
+      clearInterval(this._weblinger_load_poll);
+      this._weblinger_load_poll = null;
+    }
+    if(this._weblinger_load_listener) {
+      document.removeEventListener('weblinger-script-load', this._weblinger_load_listener);
+      this._weblinger_load_listener = null;
+    }
+    if(this._weblinger_fail_listener) {
+      document.removeEventListener('weblinger-script-load-failed', this._weblinger_fail_listener);
+      document.removeEventListener('weblinger-tracking-fail', this._weblinger_fail_listener);
+      this._weblinger_fail_listener = null;
+    }
+  },
   check_calibration: function() {
     var _this = this;
     capabilities.eye_gaze.calibratable(function(res) {
@@ -533,6 +778,33 @@ export default Controller.extend({
   fullscreen_capable: computed(function() {
     return capabilities.fullscreen_capable();
   }),
+  weblinger_load_state: 'loading',
+  weblinger_status_message: computed('weblinger_load_state', 'weblinger_enabled', function() {
+    var state = this.get('weblinger_load_state');
+    if(state == 'ready' || this.get('weblinger_enabled')) {
+      return i18n.t('weblinger_ready', "Webcam eye tracker is available.");
+    }
+    if(state == 'failed') {
+      return i18n.t('weblinger_load_failed', "The webcam eye tracker library failed to load. Try refreshing the page or check your network connection.");
+    }
+    if(state == 'unavailable') {
+      return i18n.t('weblinger_unavailable', "The webcam eye tracker library is not available in this browser.");
+    }
+    return i18n.t('weblinger_loading', "Loading webcam eye tracker...");
+  }),
+  weblinger_unavailable_for_eyegaze: computed(
+    'weblinger_load_state',
+    'weblinger_enabled',
+    'pending_preferences.device.dwell',
+    'pending_preferences.device.dwell_type',
+    function() {
+      return this.get('pending_preferences.device.dwell') &&
+        (this.get('pending_preferences.device.dwell_type') == 'eyegaze') &&
+        !this.get('weblinger_enabled') &&
+        !capabilities.eye_gaze.available &&
+        (this.get('weblinger_load_state') == 'failed' || this.get('weblinger_load_state') == 'unavailable');
+    }
+  ),
   eyegaze_capable: computed('weblinger_enabled', function() {
     return capabilities.eye_gaze.available || window.weblinger;
   }),
@@ -613,14 +885,18 @@ export default Controller.extend({
       _this.set('pending_preferences.device.voice.voice_uri', val);
     });
   },
-  active_sidebar_options: computed('pending_preferences.sidebar_boards', function() {
-    var res = this.get('pending_preferences.sidebar_boards');
-    if(!res || res.length === 0) {
-     res = [].concat((window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.default_sidebar_boards) || []);
+  active_sidebar_options: computed(
+    'pending_preferences.sidebar_boards',
+    function() {
+      var defaults = (window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.default_sidebar_boards) || [];
+      var res = mergeMissingDefaultSidebarBoards(
+        this.get('pending_preferences.sidebar_boards'),
+        defaults
+      );
+      res.forEach(function(b, idx) { b.idx = idx; });
+      return res;
     }
-    res.forEach(function(b, idx) { b.idx = idx; });
-    return res;
-  }),
+  ),
   set_limited_logging: observer('model.has_logging_code', 'pending_preferences.logging_cutoff', 'pending_preferences.private_logging', function() {
     if(this.get('model.has_logging_code') || ((this.get('pending_preferences.logging_cutoff') || 'none') != 'none') || this.get('pending_preferences.private_logging')) {
       this.set('limited_logging', true);
@@ -662,6 +938,9 @@ export default Controller.extend({
       return (this.get('disabled_sidebar_options') || []).length > 0 || (this.get('pending_preferences.prior_sidebar_boards') || []).length > 0;
     }
   ),
+  sidebar_action_picker_options: computed(function() {
+    return buildSidebarActionPickerOptions();
+  }),
   logging_changed: observer('pending_preferences.logging', function() {
     if(this.get('pending_preferences.logging')) {
       if(this.get('logging_set') === false) {
@@ -731,6 +1010,9 @@ export default Controller.extend({
   }),
   actions: {
     plus_minus: function(direction, attribute) {
+      if(attribute && attribute.indexOf('this.') === 0) {
+        attribute = attribute.replace(/^this\./, '');
+      }
       var default_value = 1.0;
       var step = 0.1;
       var max = 10;
@@ -842,6 +1124,16 @@ export default Controller.extend({
       }
       this.set('pending_preferences.substitutions', editManager.parse_rules(this.get('substitution_string')));
       this.set('phrase_categories_string', (this.get('pending_preferences.phrase_categories') || []).join(', '));
+
+      // Persist the sidebar list the user sees (active options), not a stale raw pref.
+      var activeSidebar = (this.get('active_sidebar_options') || []).map(function(b) {
+        var item = {};
+        Object.keys(b).forEach(function(k) {
+          if(k !== 'idx') { item[k] = b[k]; }
+        });
+        return item;
+      });
+      this.set('pending_preferences.sidebar_boards', activeSidebar);
 
       var _this = this;
       ['debounce', 'device.dwell_release_distance', 'device.scanning_next_keycode', 'device.scanning_prev_keycode', 'device.scanning_region_columns', 'device.scanning_region_rows', 'device.scanning_select_keycode', 'device.scanning_interval'].forEach(function(key) {
@@ -961,7 +1253,9 @@ export default Controller.extend({
         var post = active.slice(button.idx + 1);
         var prior = [].concat(this.get('pending_preferences.prior_sidebar_boards') || []);
         prior.push(button);
-        prior = prior.uniq(function(o) { return o.special ? (o.alert + "_" + o.action + "_" + o.arg) : o.key; });
+        // Ember's arg-less uniq() ignored the key fn even under 4.12 (prototype
+        // extensions), so this has always deduped by identity — preserve that.
+        prior = [...new Set(prior)];
         this.set('pending_preferences.prior_sidebar_boards', prior);
         this.set('pending_preferences.sidebar_boards', pre.concat(post));
       } else if(direction == 'restore') {
@@ -1002,9 +1296,11 @@ export default Controller.extend({
       this.set('pending_preferences.requested_phrase_changes', list);
     },
     calibrate: function() {
+      var _this = this;
       capabilities.eye_gaze.calibratable(function(res) {
         if(res) {
           capabilities.eye_gaze.calibrate();
+          _this.set('testing_dwell', true);
         } else {
           modal.error(i18n.t('cannot_calibrate', "Eye gaze cannot be calibrated at this time"));
         }
@@ -1025,9 +1321,15 @@ export default Controller.extend({
     edit_sidebar: function() {
       this.set('editing_sidebar', true);
     },
+    pick_sidebar_action_code: function(code) {
+      if(!code) { return; }
+      this.set('new_sidebar_board', code);
+    },
     add_sidebar_board: function(key) {
       var _this = this;
       _this.set('add_sidebar_board_error', null);
+      if(!key) { return; }
+      key = String(key).trim();
       var add_board = function(opts) {
         var boards = [].concat(_this.get('pending_preferences.sidebar_boards') || []);
         boards.unshift(opts);
@@ -1048,20 +1350,20 @@ export default Controller.extend({
       } else if(key.match(/^:\w+/)) {
         var action = key.match(/^[^\(]+/)[0];
         var arg = null;
-        if(action) {
-          var arg = key.slice(action.length + 1, key.length - 1);
+        if(key.indexOf('(') !== -1) {
+          if(key.charAt(action.length) !== '(' || key.charAt(key.length - 1) !== ')') {
+            _this.set('add_sidebar_board_error', i18n.t('bad_sidebar_board_key', "Unrecognized value, please enter a board key or action code"));
+            return;
+          }
+          arg = key.slice(action.length + 1, key.length - 1);
         }
         var image_url = "https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/touch_437_g.svg";
         var special = LingoLinq.find_special_action(key);
-        if(special && !special.completion && !special.modifier && !special.inline) {
-          add_board({
-            name: action.slice(1),
-            special: true,
-            image: image_url,
-            action: action
-          });
-          image_url = "https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/Gear-46ef6dda86.svg";
-        } else if(action == ':app') {
+        if(action == ':app') {
+          if(!arg) {
+            _this.set('add_sidebar_board_error', i18n.t('bad_sidebar_board_key', "Unrecognized value, please enter a board key or action code"));
+            return;
+          }
           var app_name = 'app';
           if(arg.match(/eyetech/)) {
             app_name = 'eyetech';
@@ -1074,9 +1376,18 @@ export default Controller.extend({
             action: action,
             arg: arg
           });
+        } else if(special && !special.completion && !special.modifier && !special.inline) {
+          add_board({
+            name: action.slice(1),
+            special: true,
+            image: image_url,
+            action: key
+          });
+        } else {
+          _this.set('add_sidebar_board_error', i18n.t('bad_sidebar_board_key', "Unrecognized value, please enter a board key or action code"));
         }
       } else {
-        _this.set('add_sidebar_board_error', i18n.t('bad_sidebar_board_key', "Unrecogonized value, please enter a board key or action code"));
+        _this.set('add_sidebar_board_error', i18n.t('bad_sidebar_board_key', "Unrecognized value, please enter a board key or action code"));
       }
 
     }

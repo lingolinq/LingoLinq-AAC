@@ -230,7 +230,7 @@ describe Api::SoundsController, :type => :controller do
     it "should schedule processing for url" do
       token_user
       p = Progress.create
-      expect(Progress).to receive(:schedule).with(ButtonSound, :import_for, @user.global_id, 'http://www.example.com/sound.zip').and_return(p)
+      expect(Progress).to receive(:schedule).with(ButtonSound, :import_for, @user.global_id, 'http://www.example.com/sound.zip', for_user: @user).and_return(p)
       post :import, params: {:url => 'http://www.example.com/sound.zip'}
       expect(response).to be_successful
       json = JSON.parse(response.body)

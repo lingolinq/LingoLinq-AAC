@@ -64,8 +64,8 @@ export default modal.ModalController.extend({
   symbol_libraries: computed('current_user', function() {
     var u = this.get('current_user');
     var list = [];
-    list.push({name: i18n.t('original_symbols', "Use the board's original symbols"), id: 'original'});
-    list.push({name: i18n.t('use_opensymbols', "Opensymbols.org free symbol libraries"), id: 'opensymbols'});
+    list.push({name: i18n.t('original_symbols', "Default symbols"), id: 'original'});
+    list.push({name: i18n.t('use_opensymbols', "Opensymbols.org"), id: 'opensymbols'});
 
     if(u && (emberGet(u, 'extras_enabled') || emberGet(u, 'subscription.extras_enabled'))) {
       list.push({name: i18n.t('use_lessonpix', "LessonPix symbol library"), id: 'lessonpix'});
@@ -74,9 +74,9 @@ export default modal.ModalController.extend({
     }
 
     list.push({name: i18n.t('use_twemoji', "Emoji icons (authored by Twitter)"), id: 'twemoji'});
-    list.push({name: i18n.t('use_noun-project', "The Noun Project black outlines"), id: 'noun-project'});
+    list.push({name: i18n.t('use_noun-project', "Noun Project black outlines"), id: 'noun-project'});
     list.push({name: i18n.t('use_arasaac', "ARASAAC free symbols"), id: 'arasaac'});
-    list.push({name: i18n.t('use_tawasol', "Tawasol symbol library"), id: 'tawasol'});
+    list.push({name: i18n.t('use_tawasol', "Tawasol"), id: 'tawasol'});
     return list;
   }),
   user_board: observer('currently_selected_id', 'model.known_supervisees', function() {
@@ -126,14 +126,14 @@ export default modal.ModalController.extend({
                 if(board.get('key') == _this.get('model.board.key')) {
                   _this.set('sidebar_board', true);
                   var sidebar_ids = user.get('stats.sidebar_board_ids') || [];
-                  user.set('stats.sidebar_board_ids', sidebar_ids.concat([board.get('id')]).uniq());
+                  user.set('stats.sidebar_board_ids', [...new Set(sidebar_ids.concat([board.get('id')]))]);
                 }
               }
               LingoLinq.Buttonset.load_button_set(board.get('id')).then(function(bs) {
                 var board_ids = bs.board_ids_for(board.get('id'));
                 if(_this.get('current_user') == user) {
                   var sidebar_ids = user.get('stats.sidebar_board_ids') || [];
-                  user.set('stats.sidebar_board_ids', sidebar_ids.concat(board_ids).uniq());
+                  user.set('stats.sidebar_board_ids', [...new Set(sidebar_ids.concat(board_ids))]);
                   if(board_ids.indexOf(_this.get('model.board.id')) >= 0) {
                     _this.set('in_sidebar_set', true);
                   }

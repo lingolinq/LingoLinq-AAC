@@ -4,7 +4,8 @@ import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import $ from 'jquery';
 import RSVP from 'rsvp';
-import DS from 'ember-data';
+import { attr } from '@ember-data/model';
+import BaseModel from './base';
 import LingoLinq from '../app';
 import LingoLinqImage from '../models/image';
 import i18n from '../utils/i18n';
@@ -19,17 +20,23 @@ import { computed } from '@ember/object';
 
 var button_set_cache = {};
 
-LingoLinq.Buttonset = DS.Model.extend({
+LingoLinq.Buttonset = BaseModel.extend({
   persistence: service('persistence'),
   stashes: service('stashes'),
   appState: service('app-state'),
-  key: DS.attr('string'),
-  root_url: DS.attr('string'),
-  buttons: DS.attr('raw'),
-  remote_enabled: DS.attr('boolean'),
-  name: DS.attr('string'),
-  full_set_revision: DS.attr('string'),
-  encryption_settings: DS.attr('raw'),
+  /** When loaded by board key, API id is global_id; serializer stores it here (see application serializer). */
+  _actual_id: attr('string'),
+  /** Global board id for comparisons with button.board_id and app state (see Board#global_id). */
+  global_id: computed('id', '_actual_id', function() {
+    return this.get('_actual_id') || this.get('id');
+  }),
+  key: attr('string'),
+  root_url: attr('string'),
+  buttons: attr('raw'),
+  remote_enabled: attr('boolean'),
+  name: attr('string'),
+  full_set_revision: attr('string'),
+  encryption_settings: attr('raw'),
   board_ids: computed('buttons', function() {
     return this.board_ids_for(null);
   }),
@@ -84,8 +91,62 @@ LingoLinq.Buttonset = DS.Model.extend({
     // and retrieves the button list for that set. Will
     // error if the button set needs to be generated first.
     var bs = this;
-    var board_id = bs.get('id');
-    return new RSVP.Promise(function(resolve, reject) {
+    var board_id = bs.get('global_id');
+    // Serialize concurrent load_buttons on the same record (e.g. board-detail background
+    // load_button_set() without force racing copy-modal load_button_set(true,...)).
+    // Overlapping RSVP chains shared one model and could strand resolve/reject (infinite "Loading…").
+    var prev = bs.__loadButtonsSerialTail || RSVP.resolve();
+    // Safety timeout: if a previous call hung (e.g. server failure or stuck promise),
+    // don't stall new ones forever. We'll wait at most this many ms for the tail. On timeout
+    // we clear the stranded chain so the next call doesn't immediately time out again, and
+    // emit telemetry so we can observe how often this fires in production.
+    // Override LingoLinq.Buttonset.SERIAL_TAIL_TIMEOUT_MS in tests to keep them fast.
+    var SERIAL_TAIL_TIMEOUT_MS = (LingoLinq.Buttonset && LingoLinq.Buttonset.SERIAL_TAIL_TIMEOUT_MS) || 30000;
+    var wait = new RSVP.Promise(function(resolve) {
+      var done = false;
+      var timeoutId = null;
+      var settle = function() {
+        if(done) { return; }
+        done = true;
+        if(timeoutId !== null) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        resolve();
+      };
+      prev.then(settle, settle);
+      timeoutId = setTimeout(function() {
+        if(done) { return; }
+        try { LingoLinq.track_error('buttonset serial tail timed out for board ' + board_id); } catch(e) { }
+        // Only clear the tail if it is still the hung previous promise; by the time the
+        // timeout fires the tail has already been advanced to this call's wait.then(work)
+        // chain, so an unconditional null here would drop the current active serialization.
+        if(bs.__loadButtonsSerialTail === prev) {
+          bs.__loadButtonsSerialTail = null;
+        }
+        settle();
+      }, SERIAL_TAIL_TIMEOUT_MS);
+    });
+    var start_work = function() {
+    // Tracks the active progress_tracker track id (if regenerate is called) so that
+    // every settlement path (resolve, reject, master timeout) can untrack and stop
+    // the 2.5s polling loop. Without this the poller leaks: track() returns an id,
+    // but the previous code discarded it, so on timeout the promise rejected while
+    // the poll continued forever.
+    var active_track_id = null;
+    var untrack_active = function() {
+      if(active_track_id) {
+        try { progress_tracker.untrack(active_track_id); } catch(e) { }
+        active_track_id = null;
+      }
+    };
+    // Stalled `started` threshold. If the Resque worker dies mid-flight (SIGKILL/OOM/
+    // redeploy) while the Progress record is at status='started', the record never
+    // advances. The poller keeps returning `started` and without this branch the
+    // wrapping promise hangs until the 60s master timeout fires. 45s is generous for
+    // legitimate large-board generation while still firing before the master timeout.
+    var STARTED_STALL_MS = (LingoLinq.Buttonset && LingoLinq.Buttonset.STARTED_STALL_MS) || 45000;
+    var work = new RSVP.Promise(function(resolve, reject) {
       var hash_mismatch = bs.get('buttons_loaded_hash') && bs.get('full_set_revision') != bs.get('buttons_loaded_hash');
       if(hash_mismatch) { force = true; }
       if(bs.get('root_url') && (!bs.get('buttons_loaded') || hash_mismatch || (force && !bs.get('buttons_force_loaded')))) {
@@ -98,83 +159,222 @@ LingoLinq.Buttonset = DS.Model.extend({
               return RSVP.resolve(data.url);
             } else {
               return new RSVP.Promise(function(gen_res, gen_rej) {
-                progress_tracker.track(data.progress, function(event) {
-                  if(event.status == 'errored') {
-                    gen_rej({error: 'error while generating button set'});
-                  } else if(event.status == 'finished') {
-                    gen_res(event.result.url);
+                try {
+                  if(!data.progress || !data.progress.status_url) {
+                    gen_rej({error: 'generate response missing progress'});
+                    return;
                   }
-                });  
+                  var started_seen_at = null;
+                  var settle_gen_res = function(u) {
+                    untrack_active();
+                    gen_res(u);
+                  };
+                  var settle_gen_rej = function(err) {
+                    untrack_active();
+                    gen_rej(err);
+                  };
+                  active_track_id = progress_tracker.track(data.progress, function(event) {
+                    try {
+                      if(event.status == 'errored') {
+                        settle_gen_rej({error: 'error while generating button set'});
+                      } else if(event.status == 'finished' || event.finished_at) {
+                        var r = event && event.result;
+                        if(typeof r === 'string') {
+                          try { r = JSON.parse(r) || {}; } catch(e) { }
+                        }
+                        var u = r && (r.url || r['url']);
+                        if(u) {
+                          settle_gen_res(u);
+                        } else {
+                          settle_gen_rej({error: 'progress finished without button set url', result: r});
+                        }
+                      } else if(event.status == 'started' || event.status == 'pending') {
+                        if(started_seen_at === null) {
+                          started_seen_at = Date.now();
+                        } else if(Date.now() - started_seen_at > STARTED_STALL_MS) {
+                          try { LingoLinq.track_error('buttonset progress stalled at ' + event.status + ' for board ' + board_id); } catch(e) { }
+                          settle_gen_rej({error: 'generation_stalled', board_id: board_id, status: event.status});
+                        }
+                      }
+                    } catch(e) {
+                      settle_gen_rej({error: 'exception handling button set progress', details: e});
+                    }
+                  });
+                } catch(e) {
+                  gen_rej({error: 'exception setting up progress track', details: e});
+                }
               });
             }
           });
         };
         var process_buttons = function(buttons) {
-          if(buttons && buttons.find) {
-            bs.set('buttons_loaded', true);
-            if(force) { bs.set('buttons_force_loaded', true); }
-            bs.set('buttons_loaded_hash', bs.get('full_set_revision'));
-            bs.set('buttons', buttons);
-            if(!buttons.find(function(b) { return b.board_id == board_id; })) {
-              regenerate();
-            } else if(!buttons.find(function(b) { return b.board_id == board_id && b.depth == 0; })) {
-              bs.set('buttons', bs.redepth(board_id));
+          try {
+            if(buttons && buttons.buttons && buttons.buttons.find) {
+              buttons = buttons.buttons;
             }
-          } else if(buttons && !buttons.find) {
-            if(!bs.get('buttons') || bs.get('buttons.length') == 0) {
-              bs.set('buttons', []);
-              regenerate();
+            if(buttons && buttons.find) {
+              bs.set('buttons_loaded', true);
+              if(force) { bs.set('buttons_force_loaded', true); }
+              bs.set('buttons_loaded_hash', bs.get('full_set_revision'));
+              bs.set('buttons', buttons);
+              if(!buttons.find(function(b) { return b.board_id == board_id; })) {
+                return regenerate(true).then(function(url) {
+                  bs.set('root_url', url);
+                  return bs.persistence.store_json(url, null, bs.get('encryption_settings')).then(function(res) {
+                    bs.set('buttons_loaded_hash', bs.get('full_set_revision'));
+                    bs.set('buttons', res);
+                    if(res && res.find && !res.find(function(b) { return b.board_id == board_id && b.depth == 0; })) {
+                      bs.set('buttons', bs.redepth(board_id));
+                    }
+                    resolve(bs);
+                  }, function(err) {
+                    return bs.persistence.remote_json(url, bs.get('encryption_settings')).then(function(res) {
+                      bs.set('buttons_loaded_hash', bs.get('full_set_revision'));
+                      bs.set('buttons', res);
+                      if(res && res.find && !res.find(function(b) { return b.board_id == board_id && b.depth == 0; })) {
+                        bs.set('buttons', bs.redepth(board_id));
+                      }
+                      resolve(bs);
+                    }, function() {
+                      reject({error: 'not a valid buttonset result', details: err});
+                    });
+                  });
+                }, function(err) {
+                  reject({error: 'not a valid buttonset result', details: err});
+                });
+              } else if(!buttons.find(function(b) { return b.board_id == board_id && b.depth == 0; })) {
+                bs.set('buttons', bs.redepth(board_id));
+              }
+            } else if(buttons && !buttons.find) {
+              if(!bs.get('buttons') || bs.get('buttons.length') == 0) {
+                bs.set('buttons', []);
+                return regenerate(true).then(function(url) {
+                  bs.set('root_url', url);
+                  return bs.persistence.store_json(url, null, bs.get('encryption_settings')).then(function(res) {
+                    bs.set('buttons_loaded_hash', bs.get('full_set_revision'));
+                    bs.set('buttons', res);
+                    resolve(bs);
+                  }, function(err) {
+                    reject({error: "not a valid buttonset result"});
+                  });
+                }, function(err) {
+                  reject({error: "not a valid buttonset result"});
+                });
+              } else {
+                LingoLinq.track_error("buttons has no find ", buttons);
+                return reject({error: "not a valid buttonset result"});
+              }
             }
-            LingoLinq.track_error("buttons has no find ", buttons);
-            return reject({error: "not a valid buttonset result"});
+            resolve(bs);
+          } catch(e) {
+            reject({error: "exception in process_buttons", details: e});
           }
-          resolve(bs);
         };
         var store_anyway = function(already_tried_local) {
-          bs.persistence.store_json(bs.get('root_url'), null, bs.get('encryption_settings')).then(function(res) {
-            process_buttons(res);
+          return bs.persistence.store_json(bs.get('root_url'), null, bs.get('encryption_settings')).then(function(res) {
+            return process_buttons(res);
           }, function(err) {
+            var remote_fallback = function() {
+              return bs.persistence.remote_json(bs.get('root_url'), bs.get('encryption_settings')).then(function(buttons) {
+                return process_buttons(buttons);
+              }, function() {
+                reject(err);
+              });
+            };
             var fallback = function() {
               if(already_tried_local) {
-                reject(err);
+                remote_fallback();
               } else {
                 // Something local is better than nothing,
                 // even if we suspect it is out of date
                 bs.persistence.find_json(bs.get('root_url')).then(function(buttons) {
-                  process_buttons(buttons);
+                  return process_buttons(buttons);
                 }, function() {
-                  reject(err);
+                  remote_fallback();
                 });
               }  
             };
-            // Try re-generating before giving up
-            regenerate(true).then(function(url) {
-              bs.set('root_url', url)
-              bs.persistence.store_json(url, null, bs.get('encryption_settings')).then(function(res) {
-                process_buttons(res);
+            try {
+              // Try re-generating before giving up
+              regenerate(true).then(function(url) {
+                bs.set('root_url', url);
+                return bs.persistence.store_json(url, null, bs.get('encryption_settings')).then(function(res) {
+                  return process_buttons(res);
+                }, function(err) {
+                  fallback();
+                });
               }, function(err) {
-                fallback();
+                if(err && err.error === 'generation_stalled') {
+                  reject(err);
+                } else {
+                  fallback();
+                }
               });
-            }, function(err) {
+            } catch(e) {
               fallback();
-            });
+            }
           });
         };
         if(force) {
-          store_anyway(false);          
+          store_anyway(false);
         } else {
           bs.persistence.find_json(bs.get('root_url')).then(function(buttons) {
-            process_buttons(buttons);
+            return process_buttons(buttons);
           }, function() {
             store_anyway(true);
           });
         }
-      } else if(bs.get('buttons')) {
+      } else if(bs.get('buttons') && bs.get('buttons').length) {
         resolve(bs);
+      } else if(bs.get('remote_enabled') && board_id) {
+        LingoLinq.Buttonset.load_button_set(board_id, true, bs.get('full_set_revision'), true).then(function(loaded_bs) {
+          resolve(loaded_bs);
+        }, function(err) {
+          reject({error: 'root url not available', details: err});
+        });
       } else {
         reject({error: 'root url not available'});
       }
     });
+    // Master timeout on the work promise itself. The serial-tail timeout above only
+    // unblocks the queue when a PREVIOUS work promise hangs; it does not bound the
+    // current work. If the server-side buttonset generate job never reports back via
+    // progress_tracker (job died mid-flight, Redis state poisoned, etc.) the inner
+    // RSVP.Promise above will sit pending forever. Wrap it so callers (e.g. copy modal)
+    // see a clean rejection instead of an indefinite "loading" state.
+    // Override LingoLinq.Buttonset.WORK_TIMEOUT_MS in tests to keep them fast.
+    var WORK_TIMEOUT_MS = (LingoLinq.Buttonset && LingoLinq.Buttonset.WORK_TIMEOUT_MS) || 60000;
+    var work_with_timeout = new RSVP.Promise(function(resolve, reject) {
+      var done = false;
+      var timeoutId = null;
+      var settle_resolve = function(v) {
+        if(done) { return; }
+        done = true;
+        if(timeoutId !== null) { clearTimeout(timeoutId); timeoutId = null; }
+        untrack_active();
+        resolve(v);
+      };
+      var settle_reject = function(e) {
+        if(done) { return; }
+        done = true;
+        if(timeoutId !== null) { clearTimeout(timeoutId); timeoutId = null; }
+        untrack_active();
+        reject(e);
+      };
+      work.then(settle_resolve, settle_reject);
+      timeoutId = setTimeout(function() {
+        if(done) { return; }
+        var current_buttons = bs.get('buttons') || [];
+        var buttons_count = current_buttons.length || 0;
+        try { LingoLinq.track_error('buttonset load_buttons work timed out for board ' + board_id + ' (buttons.length=' + buttons_count + ')'); } catch(e) { }
+        settle_reject({error: 'buttonset load timed out', board_id: board_id, buttons_count: buttons_count});
+      }, WORK_TIMEOUT_MS);
+    });
+    return work_with_timeout;
+    };
+    var queued_work = wait.then(start_work, start_work);
+    bs.__loadButtonsSerialTail = queued_work;
+    return queued_work;
   },
   redepth: function(from_board_id) {
     var buttons = this.get('buttons') || [];
@@ -270,7 +470,7 @@ LingoLinq.Buttonset = DS.Model.extend({
     button_sets.forEach(function(bs, idx) {
       var button_set_buttons = bs.get('buttons');
       if(bs == _this) {
-        button_set_buttons = _this.redepth(bs.get('id'));
+        button_set_buttons = _this.redepth(bs.get('global_id'));
       }
       (button_set_buttons || []).forEach(function(button) {
         if(button && locale && button.locale && button.locale.split(/-|_/)[0] != locale.split(/-|_/)[0]) {
@@ -429,12 +629,12 @@ LingoLinq.Buttonset = DS.Model.extend({
     });
 
     var sort_results = button_sweep.then(function() {
-      partial_matches = partial_matches.sort(function(a, b) { 
+      partial_matches = partial_matches.sort(function(a, b) {
         if(a.total_edit_distance == b.total_edit_distance) {
           return a.button.depth - b.button.depth;
         }
-        return a.total_edit_distance - b.total_edit_distance; 
-      });  
+        return a.total_edit_distance - b.total_edit_distance;
+      });
       console.log("SRCH: sorted partial", partial_matches);
     });
 
@@ -471,8 +671,10 @@ LingoLinq.Buttonset = DS.Model.extend({
               var dup = $.extend({}, combo);
               dup.steps = [].concat(dup.steps);
               var pre_id = (dup.steps[dup.steps.length - 1] || {}).board_id || from_board_id;
-              // remember to expect auto-home if enabled for user and a prior button exists
-              if(dup.steps.length > 0 && user && user.get('preferences.auto_home_return')) { pre_id = combo.current_sticky_board_id; }
+              // remember to expect auto-home if enabled for user and a prior button exists.
+              // Only override when we actually have a sticky board — otherwise pre_id becomes
+              // undefined and button_steps silently drops every combo built on the current board.
+              if(dup.steps.length > 0 && user && user.get('preferences.auto_home_return') && combo.current_sticky_board_id) { pre_id = combo.current_sticky_board_id; }
               var button_steps = _this.button_steps(pre_id, starter.button.board_id, board_map, home_board_id, combo.current_sticky_board_id);
               if(button_steps) {
                 var btn = $.extend({}, starter.button);
@@ -575,13 +777,13 @@ LingoLinq.Buttonset = DS.Model.extend({
         combo.steps.forEach(function(step) {
           var button = step.button;
           if(button) {
-            var image = images.findBy('id', button.image_id);
+            var image = images.find(function(img) { return img.get('id') === button.image_id; });
             if(image) {
               button.image = image.get('best_url');
             }
             emberSet(button, 'image', emberGet(button, 'image') || templateHelpers.path('images/blank.gif'));
             if(emberGet(button, 'image') && LingoLinqImage.personalize_url) {
-              emberSet(button, 'image', LingoLinqImage.personalize_url(button.image, _this.appState.get('currentUser.user_token'), _this.appState.get('referenced_user.preferences.skin'), button.no_skin));
+              emberSet(button, 'image', LingoLinqImage.personalize_url(button.image, _this.appState.get('currentUser.protected_image_token'), _this.appState.get('referenced_user.preferences.skin'), button.no_skin));
             }
             emberSet(button, 'on_same_board', emberGet(button, 'steps') === 0);
   
@@ -615,7 +817,7 @@ LingoLinq.Buttonset = DS.Model.extend({
     var buttons = res.all_buttons || [];
     var map = res.map;
     var full = (words || []).join(' ').toLowerCase();
-    if(from_board_id && from_board_id != _this.get('id')) {
+    if(from_board_id && from_board_id != _this.get('global_id')) {
       // re-depthify all the buttons based on the starting board
       buttons = _this.redepth(from_board_id);
     }
@@ -686,7 +888,7 @@ LingoLinq.Buttonset = DS.Model.extend({
           }
         }
       });
-      return resolve(list.sortBy('loc'));
+      return resolve(list.slice().sort(function(a, b) { var x = emberGet(a, 'loc'), y = emberGet(b, 'loc'); return x < y ? -1 : (x > y ? 1 : 0); }));
     });
 
     var downs = {};
@@ -808,7 +1010,7 @@ LingoLinq.Buttonset = DS.Model.extend({
       var re = new RegExp("\\b" + str, 'i');
       var all_buttons_enabled = _this.stashes.get('all_buttons_enabled');
       var buttons = _this.get('buttons') || [];
-      if(from_board_id && from_board_id != _this.get('id')) {
+      if(from_board_id && from_board_id != _this.get('global_id')) {
         // re-depthify all the buttons based on the starting board
         buttons = _this.redepth(from_board_id);
       }
@@ -884,32 +1086,42 @@ LingoLinq.Buttonset = DS.Model.extend({
         var root_button_set_lookups = [];
         var button_sets = [];
 
-        var lookup = function(key, home_lock) {
-          var button_set = key && (button_set_cache[key] || LingoLinq.store.peekRecord('buttonset', key));
-          if(button_set) {
-            button_set.set('home_lock_set', home_lock);
-            button_sets.push(button_set);
-            button_set_cache[key] = button_set;
+        var lookup = function(key, home_lock, is_home) {
+          if(!key) { return; }
+          var button_set = button_set_cache[key];
+          if(button_set && button_set.isDestroyed) {
+            delete button_set_cache[key];
+            button_set = null;
+          }
+          if(!button_set) {
+            button_set = LingoLinq.store.peekRecord('buttonset', key);
+          }
+          var add_button_set = function(bs) {
+            bs.set('home_lock_set', home_lock);
+            button_sets.push({button_set: bs, is_home: !!is_home});
+            button_set_cache[key] = bs;
+          };
+          if(button_set && !button_set.isDestroyed) {
+            add_button_set(button_set);
           } else if(key) {
             console.log("extra load!");
-            root_button_set_lookups.push(LingoLinq.Buttonset.load_button_set(key).then(function(button_set) {
-              button_set.set('home_lock_set', home_lock);
-              button_sets.push(button_set);
-              button_set_cache[key] = button_set;
+            root_button_set_lookups.push(LingoLinq.Buttonset.load_button_set(key).then(function(loaded) {
+              add_button_set(loaded);
             }, function() { return RSVP.resolve(); }));
           }
         };
         if(home_board_id) {
-          lookup(home_board_id);
+          lookup(home_board_id, undefined, true);
         }
         (_this.appState.get('sidebar_boards') || []).forEach(function(brd) {
-          lookup(brd.id, brd.home_lock);
+          lookup(brd.id, brd.home_lock, false);
         });
         console.log("waiting on", root_button_set_lookups.length);
         RSVP.all_wait(root_button_set_lookups).then(function() {
-          button_sets = Utils.uniq(button_sets, function(b) { return b.get('id'); });
-          button_sets.forEach(function(button_set, idx) {
-            var is_home = (idx === 0);
+          button_sets = Utils.uniq(button_sets, function(entry) { return entry.button_set.get('id'); });
+          button_sets.forEach(function(entry) {
+            var button_set = entry.button_set;
+            var is_home = entry.is_home;
             if(button_set) {
               var promise = button_set.find_buttons(str).then(function(buttons) {
                 buttons.forEach(function(button) {
@@ -920,7 +1132,7 @@ LingoLinq.Buttonset = DS.Model.extend({
                     'pre': is_home ? 'home' : 'sidebar',
                     'board_id': is_home ? 'home' : 'sidebar',
                     'board_key': is_home ? 'home' : 'sidebar',
-                    'linked_board_id': button_set.get('id'),
+                    'linked_board_id': button_set.get('global_id'),
                     'linked_board_key': button_set.get('key'),
                     'home_lock': button_set.get('home_lock_set'),
                     'label': is_home ? i18n.t('home', "Home") : i18n.t('sidebar_board', "Sidebar, %{board_name}", {hash: {board_name: button_set.get('name')}})
@@ -948,11 +1160,11 @@ LingoLinq.Buttonset = DS.Model.extend({
 
     var sort_results = other_buttons.then(function() {
       matching_buttons = matching_buttons.sort(function(a, b) {
-        var a_depth = a.current_depth ? 1 : 0;
-        var b_depth = b.current_depth ? 1 : 0;
-        if(a_depth > b_depth) {
+        var a_on_board = a.on_this_board ? 0 : 1;
+        var b_on_board = b.on_this_board ? 0 : 1;
+        if(a_on_board > b_on_board) {
           return 1;
-        } else if(a_depth < b_depth) {
+        } else if(a_on_board < b_on_board) {
           return -1;
         } else {
           if(a.match_level > b.match_level) {
@@ -965,7 +1177,7 @@ LingoLinq.Buttonset = DS.Model.extend({
             } else if(a.label.toLowerCase() < b.label.toLowerCase()) {
               return -1;
             } else {
-              return (a.current_depth || 0) - (b.current_depth || 0);
+              return ((a.pre_buttons || []).length) - ((b.pre_buttons || []).length);
             }
           }
         }
@@ -990,9 +1202,9 @@ LingoLinq.Buttonset = DS.Model.extend({
 
 LingoLinq.Buttonset.fix_image = function(button, images) {
   if(button.image && LingoLinqImage.personalize_url) {
-    button.image = LingoLinqImage.personalize_url(button.image, app_state.get('currentUser.user_token'), app_state.get('referenced_user.preferences.skin'), button.no_skin);
+    button.image = LingoLinqImage.personalize_url(button.image, app_state.get('currentUser.protected_image_token'), app_state.get('referenced_user.preferences.skin'), button.no_skin);
   }
-  var image = images.findBy('id', button.image_id);
+  var image = images.find(function(img) { return img.get('id') === button.image_id; });
   if(image) {
     button.image = image.get('best_url');
     button.image_license = image.get('license');
@@ -1014,9 +1226,12 @@ LingoLinq.Buttonset.fix_image = function(button, images) {
   }
   return RSVP.resolve();
 };
-LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision) {
+LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision, skipEmberRecordReload) {
   // use promises to make this call idempotent
+  if(!id) { return RSVP.reject({error: 'missing button set id'}); }
+  id = id.toString();
   LingoLinq.Buttonset.pending_promises = LingoLinq.Buttonset.pending_promises || {};
+  if(force) { delete LingoLinq.Buttonset.pending_promises[id]; }
   var promise = LingoLinq.Buttonset.pending_promises[id];
   if(promise) { return promise; }
   if(id && (id.match(/^b/) || id.match(/^i/))) {
@@ -1024,9 +1239,15 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision) {
   }
 
   var button_sets = LingoLinq.store.peekAll('buttonset');
-  var found = LingoLinq.store.peekRecord('buttonset', id) || button_sets.find(function(bs) { return bs.get('key') == id; });
+  // peekAll can surface empty/unmaterialized records (e.g. during prefetch/
+  // word-prediction warming), so guard each entry — same defense already used at
+  // board.js#load_button_set and word_suggestions#button_sets_for_board_ids.
+  var found = LingoLinq.store.peekRecord('buttonset', id) || button_sets.find(function(bs) {
+    return bs && bs.get && bs.get('key') == id;
+  });
   if(!found) {
     button_sets.forEach(function(bs) {
+      if(!bs || !bs.get) { return; }
       // TODO: check board keys in addition to board ids
       if((bs.get('board_ids') || []).indexOf(id) != -1 || bs.get('key') == id) {
         if(bs.get('fresh') || !found) {
@@ -1035,12 +1256,13 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision) {
       }
     });
   }
-  if(found) {
+  if(found && !force) {
     var board = LingoLinq.store.peekRecord('board', found.get('id'));
     if(!board || board.get('full_set_revision') == found.get('full_set_revision')) {
-      if(found.get('buttons') || found.get('root_url')) {
-        found.load_buttons(force); 
-        return RSVP.resolve(found);
+      if((found.get('buttons') && found.get('buttons').length) || found.get('root_url')) {
+        // Must return load_buttons' promise — resolving found immediately races callers
+        // (e.g. board.load_button_set skipEmberRecordReload) that chain another load_buttons.
+        return found.load_buttons(force).then(function() { return found; });
       }
     }
   }
@@ -1055,10 +1277,16 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision) {
             var reload = RSVP.resolve();
             if(!button_set.get('root_url') || button_set.get('root_url') != url) {
               force = true;
-              reload = button_set.reload().then(null, function() { return RSVP.resolve(); });
-              button_set.set('root_url', url);
+              if(!skipEmberRecordReload) {
+                reload = button_set.reload().then(null, function() { return RSVP.resolve(); });
+              }
             }
             reload.then(function() {
+              // Apply after reload: API payloads for remote buttonsets omit inline buttons
+              // and may not include root_url until url_for catches up; generate already has the URL.
+              if(url && (!button_set.get('root_url') || button_set.get('root_url') != url)) {
+                button_set.set('root_url', url);
+              }
               button_set.load_buttons(true).then(function() {
                 resolve(button_set);
               }, function(err) {
@@ -1071,12 +1299,27 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision) {
         };
         if(data.exists && data.url) {
           found_url(data.url); 
+        } else if(!data.progress || !data.progress.status_url) {
+          reject({error: 'generate response missing progress'});
         } else {
           progress_tracker.track(data.progress, function(event) {
-            if(event.status == 'errored') {
-              reject({error: 'error while generating button set'});
-            } else if(event.status == 'finished') {
-              found_url(event.result.url);
+            try {
+              if(event.status == 'errored') {
+                reject({error: 'error while generating button set'});
+              } else if(event.status == 'finished' || event.finished_at) {
+                var res = event.result;
+                if(typeof res === 'string') {
+                  try { res = JSON.parse(res) || {}; } catch(e) { }
+                }
+                var resultUrl = res && (res.url || res['url']);
+                if(resultUrl) {
+                  found_url(resultUrl);
+                } else {
+                  reject({error: 'progress finished without button set url', result: res});
+                }
+              }
+            } catch(e) {
+              reject({error: "exception tracking progress", details: e});
             }
           });  
         }
@@ -1092,16 +1335,20 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision) {
     var wrong_revision = full_set_revision && button_set.get('full_set_revision') != full_set_revision;
     // try to reload before checking for root_url 
     // to ensure we have the freshest result
-    if(persistence.get('online') && (!button_set.get('fresh') || force || wrong_revision)) {
+    if(!skipEmberRecordReload && persistence.get('online') && (!button_set.get('fresh') || force || wrong_revision)) {
       reload = button_set.reload().then(null, function(err) {
         return RSVP.resolve(button_set) 
       });
     }
+    var prior_root_url = button_set.get('root_url');
     return reload.then(function(button_set) {
+      if(prior_root_url && !button_set.get('root_url')) {
+        button_set.set('root_url', prior_root_url);
+      }
       if(!button_set.get('root_url') && button_set.get('remote_enabled')) {
         // if root_url not available for the user, try to build one
         return generate(id);
-      } else if(button_set.get('buttons') || button_set.get('root_url')) {
+      } else if((button_set.get('buttons') && button_set.get('buttons').length) || button_set.get('root_url')) {
         // otherwise you should be good to go
         return button_set.load_buttons(force);
       } else {
@@ -1137,8 +1384,7 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision) {
     if(isNotFound && errorId && errorId.match(/^\d/)) {
       return generate(errorId);
     } else if(found) {
-      found.load_buttons(force); 
-      return RSVP.resolve(found); 
+      return found.load_buttons(force).then(function() { return found; });
     } else {
       return RSVP.reject(err);
     }
@@ -1151,6 +1397,10 @@ LingoLinq.Buttonset.load_button_set = function(id, force, full_set_revision) {
     }
   }, 30000);
   return res;
+};
+
+LingoLinq.Buttonset.clear_button_set_cache = function() {
+  button_set_cache = {};
 };
 
 export default LingoLinq.Buttonset;

@@ -74,7 +74,23 @@ describe Api::CallbacksController, :type => :controller do
       expect(json).to eq({'error' => 'unrecognized callback', 'status' => 400})
     end
     
+    it "should reject an inauthentic transcoding event" do
+      v = OpenStruct.new
+      expect(Aws::SNS::MessageVerifier).to receive(:new).and_return(v)
+      expect(v).to receive(:authentic?).and_return(false)
+      expect(Transcoder).to_not receive(:handle_event)
+      request.headers['x-amz-sns-message-type'] = 'Notification'
+      request.headers['x-amz-sns-topic-arn'] = 'fried:audio_conversion_events:chicken'
+      post 'callback', body: {a: '1'}.to_json
+      expect(response).to_not be_successful
+      json = JSON.parse(response.body)
+      expect(json).to eq({'error' => 'inauthentic message', 'status' => 401})
+    end
+
     it "should error on unhandled transcoding event" do
+      v = OpenStruct.new
+      expect(Aws::SNS::MessageVerifier).to receive(:new).and_return(v)
+      expect(v).to receive(:authentic?).and_return(true)
       request.headers['x-amz-sns-message-type'] = 'Notification'
       request.headers['x-amz-sns-topic-arn'] = 'fried:audio_conversion_events:chicken'
       expect(Transcoder).to receive(:handle_event){|params|
@@ -85,8 +101,11 @@ describe Api::CallbacksController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json).to eq({'error' => 'event not handled', 'status' => 400})
     end
-    
+
     it "should succeed on handled transcoding event" do
+      v = OpenStruct.new
+      expect(Aws::SNS::MessageVerifier).to receive(:new).and_return(v)
+      expect(v).to receive(:authentic?).and_return(true)
       request.headers['x-amz-sns-message-type'] = 'Notification'
       request.headers['x-amz-sns-topic-arn'] = 'fried:audio_conversion_events:chicken'
       expect(Transcoder).to receive(:handle_event){|params|
@@ -105,7 +124,12 @@ describe Api::CallbacksController, :type => :controller do
       bs = ButtonSound.create(:user => u, :settings => {
         'full_filename' => 'sounds/4/3/0-something.wav'
       })
-      prefix = bs.file_path + bs.file_prefix + "v" + Time.now.to_i.to_s
+      # The prefix embeds Time.now.to_i captured inside schedule_transcoding (media_object.rb).
+      # Read it back from the scheduled job rather than recomputing Time.now here, which flakes
+      # when a second ticks over between ButtonSound.create and this line.
+      action = Worker.scheduled_actions.detect { |a| a['args'][0..2] == ['Transcoder', 'convert_audio', bs.global_id] }
+      expect(action).to_not eq(nil)
+      prefix = action['args'][3]
       expect(Worker.scheduled?(Transcoder, :convert_audio, bs.global_id, prefix, "abcdefg")).to eq(true)
       config = OpenStruct.new
       expect(bs.settings['transcoding_attempted']).to eq(true)
@@ -135,6 +159,9 @@ describe Api::CallbacksController, :type => :controller do
 
       Worker.process_queues
 
+      v = OpenStruct.new
+      expect(Aws::SNS::MessageVerifier).to receive(:new).and_return(v)
+      expect(v).to receive(:authentic?).and_return(true)
       request.headers['x-amz-sns-message-type'] = 'Notification'
       request.headers['x-amz-sns-topic-arn'] = 'fried:audio_conversion_events:chicken'
       post 'callback', body: {'Message' => {

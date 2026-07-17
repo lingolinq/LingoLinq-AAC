@@ -1,0 +1,22 @@
+{
+  "when": ["do you", "can I", "will you", "is it", "are we", "did you"],
+  "what": ["do you", "is it", "can I", "are we", "should we", "happened"],
+  "where": ["is it", "are we", "do we", "can I", "should we", "did you"],
+  "why": ["did you", "are we", "is it", "do we", "can I", "should we"],
+  "how": ["do you", "can I", "are we", "is it", "should we"],
+  "can": ["I", "you", "we", "we do", "I have", "I go"],
+  "could": ["I", "you", "we", "we go"],
+  "will": ["you", "we", "it", "I", "you help", "you do"],
+  "do": ["you", "we", "I", "it"],
+  "did": ["you", "we", "I", "it"],
+  "is": ["it", "this", "that", "there"],
+  "are": ["you", "we", "they", "there"],
+  "i need": ["help", "a break", "water", "to go", "to rest", "to eat"],
+  "i want": ["to", "more", "help", "that", "this", "a"],
+  "i": ["want", "need", "like", "feel", "can", "will"],
+  "you": ["can", "want", "need", "are", "will"],
+  "we": ["can", "need", "should", "will", "are"],
+  "good": ["morning", "night", "job", "idea"],
+  "good morning": ["i", "we", "how", "what"],
+  "good night": ["i", "love you", "see you", "sleep well"]
+}

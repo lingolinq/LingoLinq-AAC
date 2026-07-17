@@ -1,5 +1,8 @@
+require_relative '../method_tracer'
+require_relative '../art50_marker'
+
 module JsonApi::Board
-  extend ::NewRelic::Agent::MethodTracer
+  extend MethodTracer
   extend JsonApi::Json
   
   TYPE_KEY = 'board'
@@ -19,6 +22,12 @@ module JsonApi::Board
     ['name', 'prefix', 'description', 'image_url', 'stars', 'forks', 'word_suggestions', 'locale', 'home_board', 'categories', 'dim_header', 'small_header'].each do |key|
       json[key] = board.settings[key]
     end
+    # EU AI Act Article 50(2): expose the marking as a non-secret provenance view
+    # (spec/provider/model/generated_at + marked), verified server-side. The signature and
+    # content_id are withheld -- clients cannot verify the server-secret HMAC and content_id
+    # links to an internal AiApiLog row, so exposing them would only enable a bearer-token
+    # transplant. Returns nil (unmarked) for a board with no valid marker. See Art50Marker.
+    json['ai_generated'] = Art50Marker.public_view(board.settings['ai_generated'])
     json['sort_score'] = ((board.popularity || -1) + 1) * (board.any_upstream ? 1 : 2)
 
     list = [board.settings['locale'] || 'en']
@@ -80,16 +89,31 @@ module JsonApi::Board
     json['immediately_upstream_boards'] = (board.settings['immediately_upstream_board_ids'] || []).length
     json['current_library'] = board.current_library(false)
     json['user_name'] = board.cached_user_name
-    self.trace_execution_scoped(['json/board/parent_board']) do
-      parent_board = nil
-      if defined?(Octopus)
-        conn = (Octopus.config[Rails.env] || {}).keys.sample
-        parent_board = board.using(conn).parent_board if conn
-      else
-        parent_board = board.parent_board
+    # Lite serialization (:as_lite, used by #tree and #bulk prefetch) skips
+    # the parent_board association load. It's an unindexed per-board lookup
+    # that becomes an N+1 across a MAX_TREE-node tree (RCA 2026-05-24, issue
+    # #286). Prefetch is only a cache warm; the full per-board endpoint
+    # refills parent linkage when the user actually navigates into a board.
+    # CONTRACT (issue #293): the non-lite path below ALWAYS sets
+    # json['parent_board_id'] (to null when there is no parent). The Ember
+    # client (Board#reload_if_lite) keys on parent_board_id === undefined to
+    # detect a lite-sourced record and trigger a refetch in the share/details
+    # modals. Do not make this key conditional on having a parent, or the
+    # client can no longer distinguish "lite, not yet loaded" from "fully
+    # loaded, genuinely no parent" and will either refetch on every modal open
+    # or miss the refetch entirely.
+    unless args[:as_lite]
+      self.trace_execution_scoped(['json/board/parent_board']) do
+        parent_board = nil
+        if defined?(Octopus)
+          conn = (Octopus.config[Rails.env] || {}).keys.sample
+          parent_board = board.using(conn).parent_board if conn
+        else
+          parent_board = board.parent_board
+        end
+        json['parent_board_id'] = parent_board && parent_board.global_id
+        json['parent_board_key'] = parent_board && parent_board.key
       end
-      json['parent_board_id'] = parent_board && parent_board.global_id
-      json['parent_board_key'] = parent_board && parent_board.key
     end
     json['link'] = "#{JsonApi::Json.current_host}/#{board.key}"
     
@@ -100,7 +124,11 @@ module JsonApi::Board
       end      
     end
     
-    if json['permissions'] && json['permissions']['edit']
+    # Lite skips the edit-scoped enrichment: copy_key (a find_by_path
+    # query), non_author_starred?, and shared_users. None are needed to
+    # warm a prefetch cache entry, and shared_users in particular is a
+    # per-board fan-out (RCA 2026-05-24, issue #286).
+    if !args[:as_lite] && json['permissions'] && json['permissions']['edit']
       if board.settings['copy_id']
         copy = Board.find_by_path(board.settings['copy_id'])
         if copy
@@ -115,7 +143,10 @@ module JsonApi::Board
         end
       end
     end
-    if (json['permissions'] && json['permissions']['delete']) || (args[:permissions] && args[:permissions].allows?(args[:permissions], 'admin_support_actions'))
+    # Lite skips the delete/admin-scoped using_user_names block: it issues
+    # a UserBoardConnection + User query per board (another N+1 over a tree)
+    # and surfaces support-only metadata the prefetch never reads.
+    if !args[:as_lite] && ((json['permissions'] && json['permissions']['delete']) || (args[:permissions] && args[:permissions].allows?(args[:permissions], 'admin_support_actions')))
       json['downstream_board_ids'] = board.downstream_board_ids
       if args[:permissions] && args[:permissions].respond_to?(:settings)
         # TODO: sharding
@@ -137,6 +168,14 @@ module JsonApi::Board
       json['board']['protected_settings'] = board.settings['protected'] || {}
       json['board']['protected_settings']['copyable'] = true if board.copyable_if_authorized?(args[:permissions])
     end
+    # If this save fired a folder-level cascade, surface the touched
+    # boards so the client can invalidate its boardDetailCache entries
+    # for them. Otherwise the 5-min cache TTL would serve pre-cascade
+    # data when the user next navigates into a downstream board.
+    cascade_invalidations = board.instance_variable_get(:@cascade_invalidations)
+    if cascade_invalidations && cascade_invalidations.is_a?(Array) && cascade_invalidations.any?
+      json['board']['cascade_invalidations'] = cascade_invalidations
+    end
     self.trace_execution_scoped(['json/board/images_and_sounds']) do
       hash = board.images_and_sounds_for(args[:permissions])
       unless json['board'] && json['board']['simple_refs']
@@ -147,14 +186,37 @@ module JsonApi::Board
       json['board']['image_urls'] = board.settings['image_urls'] || {}
       json['board']['hc_image_ids'] = {}
       json['board']['sound_urls'] = board.settings['sound_urls'] || {}
-      hash['images'].each{|i| 
-        json['board']['image_urls'][i['id']] = i['url'] 
+      schedule_skin_enrichment = false
+      hash['images'].each{|i|
+        # Lite skips the per-image ButtonImage.find_by_global_id skin lookup
+        # (the dominant N+1: one query per image per board across the tree,
+        # RCA 2026-05-24, issue #286). image_urls is still populated below
+        # from the already-resolved hash url, so prefetched thumbnails render;
+        # they just fall back to the base url instead of a skin-capable one
+        # until the full per-board fetch enriches them.
+        if i['id'] && !args[:as_lite]
+          bi = ButtonImage.find_by_global_id(i['id']) rescue nil
+          if bi
+            skin_url = bi.skin_capable_url
+            if skin_url && skin_url != i['url']
+              i['skin_url'] = skin_url
+            end
+            schedule_skin_enrichment = true if bi.needs_library_url_enrichment?
+          end
+        end
+        # For simple_refs (tree/bulk) the images[] wrapper is omitted for
+        # payload size — expose skin-capable library URLs via image_urls so
+        # the client skin_image_map can rewrite .varianted-skin → .variant-{tone}.
+        json['board']['image_urls'][i['id']] = i['skin_url'].presence || i['url']
         (i['alternates'] || []).each do |alternate|
           json['board']['image_urls']["#{i['id']}-#{alternate['library']}"] = alternate['url'] unless alternate['library'] == 'unknown'
         end
         json['board']['hc_image_ids'][i['id']] = true if i['hc']
         json['board']['has_fallbacks'] = true if i['fallback']
       }
+      if schedule_skin_enrichment
+        board.schedule_skin_enrichment!
+      end
       hash['sounds'].each{|i| 
         json['board']['sound_urls'][i['id']] = i['url'] 
         json['board']['has_fallbacks'] = true if i['fallback']
@@ -169,7 +231,11 @@ module JsonApi::Board
         #   'id' => board.global_id(true),
         #   'key' => board.key(true),
         # }
-      else
+      # Lite skips find_copies_by (board.rb:620, a per-board query with a
+      # board_content join and a limit-15 sort) and copies.count. This is
+      # one of the heaviest per-descendant calls in the tree fan-out
+      # (RCA 2026-05-24, issue #286).
+      elsif !args[:as_lite]
         self.trace_execution_scoped(['json/board/copy_check']) do
           # TODO: if the user has access to a shallow clone, include that as the first result
           copies = board.find_copies_by(args[:permissions])
@@ -184,13 +250,17 @@ module JsonApi::Board
           json['board']['copies'] = copies.count
         end
       end
-      self.trace_execution_scoped(['json/board/parent_board_check']) do
-        parent = board.parent_board
-        if parent
-          json['board']['original'] = {
-            'id' => parent.global_id,
-            'key' => parent.key
-          }
+      # Lite skips the second parent_board association load (build_json
+      # already skips the first). Both are unindexed per-board lookups.
+      unless args[:as_lite]
+        self.trace_execution_scoped(['json/board/parent_board_check']) do
+          parent = board.parent_board
+          if parent
+            json['board']['original'] = {
+              'id' => parent.global_id,
+              'key' => parent.key
+            }
+          end
         end
       end
     end

@@ -1,0 +1,111 @@
+# Shared surface for the admin "schema explorer" endpoints
+# (Api::DatabaseSchemaController and Api::DatabaseContentsController). Both the
+# schema (metadata) view and the contents (row) view must expose the exact same
+# tables and columns, so the allowlist, the column-stripping rules, and the
+# authorization gate all live here as the single source of truth. Widening any
+# of these affects both endpoints at once.
+module Api::SchemaExplorer
+  extend ActiveSupport::Concern
+
+  DEFAULT_LIMIT = 50
+  MAX_LIMIT = 500
+
+  # Deny-by-default allowlist for the admin schema explorer. Only the tables
+  # listed here may be browsed; every other table returns 404. Each entry maps a
+  # table to its ActiveRecord model so rows are read through the model layer
+  # (never via raw `SELECT *`), and the model's secure_serialize column is
+  # stripped from the response automatically (see #exposable_columns).
+  #
+  # Tables that hold regulated PII/PHI in non-encrypted columns (users,
+  # log_sessions, contact_messages, devices, ...) or plaintext credentials
+  # (developer_keys) are deliberately omitted. board_locales is also omitted:
+  # it is a search/tsvector table whose search_string and tsv_search_string are
+  # a plaintext, denormalized copy of board content (button labels), so it
+  # carries the same FERPA/HIPAA data that secure_serialize protects with no
+  # admin-browse value. Widen this map only after a privacy review of every
+  # non-encrypted column the candidate table would surface.
+  ALLOWED_MODELS = {
+    'organizations'          => 'Organization',
+    'boards'                 => 'Board',
+    'licenses'               => 'License',
+    'library_caches'         => 'LibraryCache',
+    'word_data'              => 'WordData',
+    'weekly_stats_summaries' => 'WeeklyStatsSummary'
+  }.freeze
+
+  # Plaintext columns stripped in addition to each model's secure_serialize
+  # column. These hold credentials or identifying data that is not encrypted at
+  # rest, so the model layer would otherwise surface them:
+  # - organizations.external_auth_key/shortcut: SAML SSO auth hashes.
+  # - boards.search_string: denormalized board content (button labels), which is
+  #   AAC user vocabulary (FERPA/HIPAA), even though boards.settings is encrypted.
+  # - licenses.metadata/external_reference: metadata is now secure_serialize'd
+  #   (encrypted, LL-740bcb10fa) but is still stripped here for defense in depth;
+  #   external_reference is a PO/Stripe id that stays plaintext (go_secure allows
+  #   only one secure column per model) and must be stripped explicitly.
+  SENSITIVE_COLUMNS = {
+    'organizations' => ['external_auth_key', 'external_auth_shortcut'],
+    'boards'        => ['search_string'],
+    'licenses'      => ['metadata', 'external_reference']
+  }.freeze
+
+  private
+
+  def allowed_model(table)
+    return nil if table.blank?
+    class_name = ALLOWED_MODELS[table]
+    return nil unless class_name
+    # A misconfigured allowlist entry should 404, never raise a 500.
+    class_name.safe_constantize
+  end
+
+  # Columns safe to surface: every DB column minus the model's secure_serialize
+  # column (the encrypted blob) and any explicitly denied plaintext columns.
+  # This is what guarantees encrypted/sensitive data never reaches the response,
+  # even if a new secure column is later added to an allowlisted model.
+  def exposable_columns(model)
+    stripped = []
+    if model.respond_to?(:secure_column) && model.secure_column
+      stripped << model.secure_column.to_s
+    end
+    stripped += (SENSITIVE_COLUMNS[model.table_name] || [])
+    model.column_names - stripped
+  end
+
+  # Gate for both explorer endpoints. Global admins always pass; everyone else
+  # must clear admin_support_actions_allowed? (an admin-org manager who is not in
+  # valet/eval mode), the tightened check introduced on staging in #334. We defer
+  # to that ApplicationController helper rather than the older
+  # allows?(user, 'admin_support_actions') call so both endpoints share one
+  # authorization definition that stays in lockstep with the rest of the app.
+  #
+  # Authorize the ACTING identity, not the account being viewed. Under admin
+  # masquerade (?as_user_id=...), ApplicationController reassigns @api_user to the
+  # impersonated account and stashes the real actor in @true_user. Evaluating the
+  # gate against (@true_user || @api_user) -- the same precedence audit_user_key
+  # uses to attribute the disclosure -- stops a lower-privileged user from
+  # reaching this admin-only endpoint by masquerading as a privileged target, and
+  # keeps the authorization decision booked to the same person as the audit trail.
+  def require_schema_explorer_access
+    actor = @true_user || @api_user
+    return if actor&.admin?
+    return if admin_support_actions_allowed?(actor)
+
+    api_error 403, {error: 'Not authorized'}
+  end
+
+  # The identity a disclosure is booked to, for FERPA/HIPAA accounting-of-
+  # disclosures. Under admin masquerade (?as_user_id=...), ApplicationController
+  # reassigns @api_user to the impersonated user and stashes the real admin in
+  # @true_user, so the disclosure must be attributed to the admin who actually
+  # performed the read, not the account they were viewing as.
+  def audit_user_key
+    (@true_user || @api_user)&.global_id || 'unknown'
+  end
+
+  # The impersonated (effective) user when masquerading, else nil. Recorded
+  # alongside audit_user_key so the trail shows both who acted and as whom.
+  def audit_acting_as
+    @api_user&.global_id if @true_user
+  end
+end

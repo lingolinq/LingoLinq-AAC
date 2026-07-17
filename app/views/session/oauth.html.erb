@@ -80,6 +80,18 @@
                   approval failed, please try logging in
                 </div>
               </div>
+            <% elsif @error == 'parental_consent_revoked' %>
+              <div class='form-group' id='invalid_attempt'>
+                <div class='alert alert-danger'>
+                  <%= t('parental_consent.oauth_login_revoked') %>
+                </div>
+              </div>
+            <% elsif @error == 'awaiting_parental_consent' %>
+              <div class='form-group' id='invalid_attempt'>
+                <div class='alert alert-danger'>
+                  <%= t('parental_consent.oauth_login_blocked') %>
+                </div>
+              </div>
             <% end %>
             <div class='form-group'>
               <button class='btn btn-primary btn-lg ' type='submit'>Login & Approve</button>

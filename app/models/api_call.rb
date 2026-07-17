@@ -1,4 +1,4 @@
-class ApiCall < ActiveRecord::Base
+class ApiCall < ApplicationRecord
   include SecureSerialize
   # raise "replicate should be a separate sub-class"
   include Replicate

@@ -1,4 +1,3 @@
-import DS from 'ember-data';
 import RSVP from 'rsvp';
 import EmberObject from '@ember/object';
 import {
@@ -11,13 +10,25 @@ import {
   runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
-import { queryLog } from 'frontend/tests/helpers/ember_helper';
+import { queryLog, asStoreRecordArray } from 'frontend/tests/helpers/ember_helper';
+import { persistenceTarget } from 'frontend/tests/helpers/persistence-stub';
 import LingoLinq from '../../app';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
 import Button from '../../utils/button';
 
 describe('Board', function() {
+  function stubButtonset(attrs) {
+    attrs = attrs || {};
+    if (!attrs.buttons) {
+      attrs.buttons = [{ id: 1 }];
+    }
+    var bs = EmberObject.create(attrs);
+    stub(bs, 'load_buttons', function() { return RSVP.resolve(bs); });
+    stub(bs, 'redepth', function() { return bs.get('buttons'); });
+    return bs;
+  }
+
   describe("icon_url_with_fallback", function() {
     it("should not error on null image_url", function() {
       var board = LingoLinq.store.createRecord('board', {});
@@ -31,6 +42,13 @@ describe('Board', function() {
     it("should return fallback url if image_url is empty", function() {
       var board = LingoLinq.store.createRecord('board', {});
       expect(board.get('icon_url_with_fallback')).toEqual(board.fallback_image_url);
+    });
+    it("rewrites removed OpenSymbols arasaac/no_2.png in image_url", function() {
+      var board = LingoLinq.store.createRecord('board', {
+        image_url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/no_2.png'
+      });
+      board.set('persistence', EmberObject.create({ online: true, get: function(key) { return this[key]; } }));
+      expect(board.get('icon_url_with_fallback')).toEqual('https://opensymbols.s3.amazonaws.com/libraries/arasaac/no.png');
     });
     it("should automatically check for locally-stored data-uri on load");
   });
@@ -206,7 +224,7 @@ describe('Board', function() {
     it("should not vomit on API call failure", function() {
       var called = false;
       var text = null;
-      stub(modal, 'flash', function(message) {
+      stub(modal, 'warning', function(message) {
         called = true;
         text = message;
       });
@@ -401,7 +419,7 @@ describe('Board', function() {
         {id: 4}
       ]);
       var call_args = [];
-      persistence.primed = true;
+      persistenceTarget().primed = true;
       stub(persistence, 'push_records', function(type, ids) {
         if(type == 'image') {
           LingoLinq.store.push({data: {type: 'image', id: 'a', attributes: {id: 'a', url: 'http://www.example.com/pic.png'}}});
@@ -449,46 +467,41 @@ describe('Board', function() {
   describe("load_button_set", function() {
     it('should return the set value if already set', function() {
       var b = LingoLinq.store.createRecord('board');
-      b.set('button_set', 'asdf');
+      var bs = stubButtonset();
+      b.set('button_set', bs);
       var res = null;
       b.load_button_set().then(function(r) { res = r; });
       waitsFor(function() { return res; });
       runs(function() {
-        expect(res).toEqual('asdf');
+        expect(res).toEqual(bs);
       });
     });
 
     it('should return the peeked value if found', function() {
       var b = LingoLinq.store.createRecord('board');
       b.set('id', '1234');
+      var bs = stubButtonset();
       stub(LingoLinq.store, 'peekRecord', function(type, id) {
         if(type == 'buttonset' && id == '1234') {
-          return 'asdf';
+          return bs;
         }
       });
       var res = null;
       b.load_button_set().then(function(r) { res = r; });
       waitsFor(function() { return res; });
       runs(function() {
-        expect(res).toEqual('asdf');
+        expect(res).toEqual(bs);
       });
     });
 
     it('should return the peeked value for a linked board if found', function() {
       var b = LingoLinq.store.createRecord('board');
       b.set('id', '1234');
-      var bs1 = EmberObject.create({board_ids: ['1234'], fresh: true});
-      var bs2 = EmberObject.create({board_ids: ['2345'], fresh: true});
+      var bs1 = stubButtonset({ board_ids: ['1234'], fresh: true });
+      var bs2 = stubButtonset({ board_ids: ['2345'], fresh: true });
       stub(LingoLinq.store, 'peekAll', function(type) {
         if(type == 'buttonset') {
-          return {
-            map: function(cb) {
-              return [
-                bs1,
-                bs2
-              ];
-            }
-          };
+          return asStoreRecordArray([bs1, bs2]);
         }
       });
       var res = null;
@@ -502,18 +515,11 @@ describe('Board', function() {
     it('should not return the peeked value for a linked board if it is not fresh', function() {
       var b = LingoLinq.store.createRecord('board');
       b.set('id', '1234');
-      var bs1 = EmberObject.create({board_ids: ['1234'], fresh: false});
-      var bs2 = EmberObject.create({board_ids: ['2345', '1234'], fresh: true});
+      var bs1 = stubButtonset({ board_ids: ['1234'], fresh: false });
+      var bs2 = stubButtonset({ board_ids: ['2345', '1234'], fresh: true });
       stub(LingoLinq.store, 'peekAll', function(type) {
         if(type == 'buttonset') {
-          return {
-            map: function(cb) {
-              return [
-                bs1,
-                bs2
-              ];
-            }
-          };
+          return asStoreRecordArray([bs1, bs2]);
         }
       });
       var res = null;
@@ -527,11 +533,14 @@ describe('Board', function() {
     it('should try to find the record if not found other ways', function() {
       var b = LingoLinq.store.createRecord('board');
       b.set('id', '1234');
-      var bs1 = EmberObject.create({board_ids: ['1234'], fresh: true});
+      var bs1 = stubButtonset({ board_ids: ['1234'], fresh: true });
       stub(LingoLinq.store, 'findRecord', function(type, id) {
         if(type == 'buttonset' && id == '1234') {
           return RSVP.resolve(bs1);
         }
+      });
+      stub(LingoLinq.Buttonset, 'load_button_set', function() {
+        return RSVP.resolve(bs1);
       });
       var res = null;
       b.load_button_set().then(function(r) { res = r; });
@@ -544,8 +553,8 @@ describe('Board', function() {
     it('should reload the record if found but not fresh', function() {
       var b = LingoLinq.store.createRecord('board');
       b.set('id', '1234');
-      b.set('fresh', true);
-      var bs1 = EmberObject.create({board_ids: ['1234'], fresh: false});
+      b.set('retrieved', (new Date()).getTime());
+      var bs1 = stubButtonset({ board_ids: ['1234'], fresh: false });
       var reloaded = false;
       stub(bs1, 'reload', function() { reloaded = true; return RSVP.resolve(bs1); });
       stub(LingoLinq.store, 'findRecord', function(type, id) {
@@ -562,23 +571,47 @@ describe('Board', function() {
       });
     });
 
+    it('should not reload again when load_button_set already loaded remote buttons', function() {
+      var b = LingoLinq.store.createRecord('board');
+      b.set('id', '1234');
+      b.set('retrieved', (new Date()).getTime());
+      var bs1 = LingoLinq.store.createRecord('buttonset', {
+        id: '1234',
+        buttons_loaded: true,
+        buttons: [{label: 'hello', depth: 0, board_id: '1234'}]
+      });
+      var reloaded = false;
+      stub(bs1, 'reload', function() { reloaded = true; return RSVP.resolve(bs1); });
+      var load_buttons_calls = 0;
+      stub(bs1, 'load_buttons', function() {
+        load_buttons_calls++;
+        return RSVP.resolve(bs1);
+      });
+      stub(LingoLinq.Buttonset, 'load_button_set', function() {
+        return RSVP.resolve(bs1);
+      });
+      var res = null;
+      b.load_button_set(true).then(function(r) { res = r; });
+      waitsFor(function() { return res; });
+      runs(function() {
+        expect(res).toEqual(bs1);
+        expect(reloaded).toEqual(false);
+        expect(load_buttons_calls).toEqual(0);
+      });
+    });
+
     it('should reload if force is called, regardless of other factors', function() {
       var b = LingoLinq.store.createRecord('board');
       b.set('id', '1234');
-      b.set('button_set', 'asdf');
+      var bs = stubButtonset();
+      b.set('button_set', bs);
       stub(LingoLinq.store, 'peekRecord', function(type, id) {
-        return 'asdf';
+        return null;
       });
-      var bs1 = EmberObject.create({board_ids: ['1234'], fresh: false});
+      var bs1 = stubButtonset({ board_ids: ['1234'], fresh: false });
       stub(LingoLinq.store, 'peekAll', function(type) {
         if(type == 'buttonset') {
-          return {
-            map: function(cb) {
-              return [
-                bs1
-              ];
-            }
-          };
+          return asStoreRecordArray([bs1]);
         }
       });
       var reloaded = false;
@@ -624,21 +657,31 @@ describe('Board', function() {
     });
 
     it('should return true if not protected but content is protected', function() {
+      var grid = { order: [[1]] };
       var b = LingoLinq.store.createRecord('board');
       expect(b.get('protected_material')).toEqual(false);
-      b.set('local_images_with_license', [
-        EmberObject.create({protected: false})
-      ]);
+      b.set('grid', grid);
+      b.set('buttons', [{ id: 1, image_id: 'img1', depth: 0, board_id: '1' }]);
+      LingoLinq.store.push({
+        data: { type: 'image', id: 'img1', attributes: { id: 'img1', protected: false, license: { type: 'private' } } }
+      });
       expect(b.get('protected_material')).toEqual(false);
-      b.set('local_images_with_license', [
-        EmberObject.create({protected: true})
-      ]);
-      expect(b.get('protected_material')).toEqual(true);
-      b.set('local_sounds_with_license', [
-        EmberObject.create({protected: true})
-      ]);
-      b.set('local_images_with_license', []);
-      expect(b.get('protected_material')).toEqual(true);
+
+      var protectedBoard = LingoLinq.store.createRecord('board');
+      protectedBoard.set('grid', grid);
+      protectedBoard.set('buttons', [{ id: 1, image_id: 'img2', depth: 0, board_id: '1' }]);
+      LingoLinq.store.push({
+        data: { type: 'image', id: 'img2', attributes: { id: 'img2', protected: true, license: { type: 'private' } } }
+      });
+      expect(protectedBoard.get('protected_material')).toEqual(true);
+
+      var soundBoard = LingoLinq.store.createRecord('board');
+      soundBoard.set('grid', grid);
+      soundBoard.set('buttons', [{ id: 1, sound_id: 'snd1', depth: 0, board_id: '1' }]);
+      LingoLinq.store.push({
+        data: { type: 'sound', id: 'snd1', attributes: { id: 'snd1', protected: true, license: { type: 'private' } } }
+      });
+      expect(soundBoard.get('protected_material')).toEqual(true);
     });
   });
 
@@ -646,12 +689,12 @@ describe('Board', function() {
     it('should return the correct value', function() {
       var b = LingoLinq.store.createRecord('board');
       expect(b.get('valid_id')).toEqual(false);
-      b.set('id', '1234');
-      expect(b.get('valid_id')).toEqual(true);
-      b.set('id', '1_123');
-      expect(b.get('valid_id')).toEqual(true);
-      b.set('id', 'bad');
-      expect(b.get('valid_id')).toEqual(false);
+      var withNumericId = LingoLinq.store.createRecord('board', { id: '1234' });
+      expect(withNumericId.get('valid_id')).toEqual(true);
+      var withShardId = LingoLinq.store.createRecord('board', { id: '1_123' });
+      expect(withShardId.get('valid_id')).toEqual(true);
+      var withBadId = LingoLinq.store.createRecord('board', { id: 'bad' });
+      expect(withBadId.get('valid_id')).toEqual(false);
     });
   });
 
@@ -709,6 +752,24 @@ describe('Board', function() {
       ]);
     });
 
+    it('should preserve keyboard control vocalizations', function() {
+      var b = LingoLinq.store.createRecord('board', { locale: 'en' });
+      b.set('buttons', [
+        {id: 'a', label: 'a', vocalization: '+a'},
+        {id: 'space', label: 'space', vocalization: ':space'},
+        {id: 'shift', label: 'shift', vocalization: ':shift'}
+      ]);
+      b.set('translations', {
+        current_label: 'en',
+        current_vocalization: 'en'
+      });
+
+      var buttons = b.translated_buttons('en', 'en');
+      expect(buttons[0].vocalization).toEqual('+a');
+      expect(buttons[1].vocalization).toEqual(':space');
+      expect(buttons[2].vocalization).toEqual(':shift');
+    });
+
     it('should return translated for the specified locales', function() {
       var b = LingoLinq.store.createRecord('board');
       expect(b.translated_buttons()).toEqual([]);
@@ -741,6 +802,42 @@ describe('Board', function() {
       ]);
     });
 
+    it('should resolve button ids and locale roots when translating', function() {
+      var b = LingoLinq.store.createRecord('board', { locale: 'en' });
+      b.set('buttons', [{ id: 1, label: 'hat', vocalization: 'hat' }]);
+      b.set('translations', {
+        current_label: 'en',
+        current_vocalization: 'en',
+        '1': {
+          'es': {
+            label: 'sombrero',
+            vocalization: 'sombrero'
+          }
+        }
+      });
+      expect(b.translated_buttons('es', 'es')).toEqual([
+        { id: 1, label: 'sombrero', vocalization: 'sombrero' }
+      ]);
+    });
+
+    it('should apply stored translations when live buttons lag the board locale', function() {
+      var b = LingoLinq.store.createRecord('board', { locale: 'es' });
+      b.set('buttons', [{ id: 1, label: 'hat', vocalization: 'hat' }]);
+      b.set('translations', {
+        current_label: 'es',
+        current_vocalization: 'es',
+        '1': {
+          'es': {
+            label: 'sombrero',
+            vocalization: 'sombrero'
+          }
+        }
+      });
+      expect(b.translated_buttons('es', 'es')).toEqual([
+        { id: 1, label: 'sombrero', vocalization: 'sombrero' }
+      ]);
+    });
+
     it('should return the original list if already in the right locales', function() {
       var b = LingoLinq.store.createRecord('board');
       expect(b.translated_buttons()).toEqual([]);
@@ -750,12 +847,12 @@ describe('Board', function() {
         current_vocalization: 'en',
         '1': {
           'en': {
-            label: 'has'
+            label: 'hat'
           }
         },
         '2': {
           'en': {
-            label: 'cat'
+            label: 'car'
           }
         }
       });

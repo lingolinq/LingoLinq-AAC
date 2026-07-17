@@ -1,5 +1,6 @@
 import EmberObject from '@ember/object';
 import { set as emberSet, get as emberGet } from '@ember/object';
+import { A as emberArray } from '@ember/array';
 import { later as runLater, schedule as runSchedule } from '@ember/runloop';
 import $ from 'jquery';
 import RSVP from 'rsvp';
@@ -17,24 +18,34 @@ import i18n from './i18n';
 import { observer } from '@ember/object';
 import utterance from './utterance';
 
+/** True when fast_html can be shown ({{#if board.fast_html.html}}). Ember SafeString is truthy in JS even when empty. */
+export function fastHtmlHasRenderableContent(fast) {
+  if(!fast || fast.html == null) { return false; }
+  var s = typeof fast.html.toString === 'function' ? fast.html.toString() : String(fast.html);
+  return s.length > 0;
+}
+
 var editManager = EmberObject.extend({
   _services: {},
   get appState() {
-    return this._services.appState || window.appState || (window.LingoLinq && window.LingoLinq.appState);
+    return (this._services && (this._services.appState || this._services.app_state)) || window.appState || (window.LingoLinq && window.LingoLinq.appState);
   },
   set appState(val) {
+    this._services = this._services || {};
     this._services.appState = val;
   },
   get persistence() {
-    return this._services.persistence || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
+    return (this._services && this._services.persistence) || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
   },
   set persistence(val) {
+    this._services = this._services || {};
     this._services.persistence = val;
   },
   get stashes() {
-    return this._services.stashes || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
+    return (this._services && this._services.stashes) || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
   },
   set stashes(val) {
+    this._services = this._services || {};
     this._services.stashes = val;
   },
 
@@ -101,9 +112,12 @@ var editManager = EmberObject.extend({
           return true;
         }
       }
-      if(this.appState.get('speak_mode') && this.appState.get('referenced_user.preferences.inflections_overlay')) {
+      var routeName = this.appState.get('current_route') || '';
+      var boardDetailCommunicate = routeName.indexOf('board-detail') !== -1 && this.controller && !this.controller.get('edit_mode');
+      var inflectionsUser = this.appState.get('speak_mode') ? this.appState.get('referenced_user') : this.appState.get('currentUser');
+      if((this.appState.get('speak_mode') || boardDetailCommunicate) && inflectionsUser && inflectionsUser.get('preferences.inflections_overlay')) {
         if(opts.button_id) {
-          // INFLECTIONS OVERLAY: Long-press in Speak Mode shows inflection options.
+          // INFLECTIONS OVERLAY: Long-press in Speak Mode (or board-detail communicate surface) shows inflection options.
           // grid_for() builds the 3x3 grid (nw,n,ne, w,c,e, sw,s,se) from button inflections.
           // overlay_grid() creates #overlay_container and appends to document.body.
           // TODO: scanning will require a reset, and looking for this
@@ -430,7 +444,7 @@ var editManager = EmberObject.extend({
       // TO BE verb overrides
       var overrides = [];
       if(rules.fallback_list) {
-        overrides.push({lookback: [{words: ["i"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["i"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
           inflections["is"] = {type:'override', label: "am"};
           inflections["are"] = {type:'override', label: "am"};
           inflections["does"] = {type:'override', label: "do"};
@@ -439,10 +453,10 @@ var editManager = EmberObject.extend({
           inflections["no"] = {type:'override', label: "don't"};
           inflections["not"] = {type:'override', label: "am not"};
         }});
-        overrides.push({lookback: [{words: ["feel", "feels", "felt", "feeling"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{type: 'pronoun'}, {type: 'adverb', optional: true}, {words: ["feel", "feels", "felt", "feeling"]}], callback: function(inflections) {
           inflections["like"] = {type:'override', label: "like"};
         }});
-        overrides.push({lookback: [{words: ["you", "we", "they"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["you", "we", "they"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
           inflections["is"] = {type:'override', label: "are"};
           inflections["am"] = {type:'override', label: "are"};
           inflections["was"] = {type:'override', label: "were"};
@@ -451,39 +465,40 @@ var editManager = EmberObject.extend({
           inflections["no"] = {type:'override', label: "don't"};
           inflections["not"] = {type:'override', label: "aren't"};
         }});
-        overrides.push({lookback: [{words: ["those", "these"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["those", "these"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
           inflections["is"] = {type:'override', label: "are"};
           inflections["am"] = {type:'override', label: "are"};
           inflections["was"] = {type:'override', label: "were"};
           inflections["no"] = {type:'override', label: "don't"};
           inflections["not"] = {type:'override', label: "aren't"};
         }});
-        overrides.push({lookback: [{words: ["he", "she"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["he", "she"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
           inflections["am"] = {type:'override', label: "is"};
           inflections["is"] = {type:'override', label: "is"};
           inflections["were"] = {type:'override', label: "was"};
           inflections["no"] = {type:'override', label: "doesn't"};
           inflections["not"] = {type:'override', label: "isn't"};
+          inflections["done"] = {type:'override', label: "does"};
         }});
-        overrides.push({lookback: [{words: ["can", "will", "could", "should", "would", "may", "might", "must", "shall"]}, {words: ["it", "that", "this", "he", "she", "they", "i", "we"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["can", "will", "could", "should", "would", "may", "might", "must", "shall"]}, {words: ["it", "that", "this", "he", "she", "they", "i", "we"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
           inflections["am"] = {type:'override', label: "be"};
           inflections["is"] = {type:'override', label: "be"};
         }});
-        overrides.push({lookback: [{words: ["it", "that", "this"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["it", "that", "this"]}, {type: 'adverb', optional: true}], callback: function(inflections) {
           inflections["am"] = {type:'override', label: "is"};
           inflections["is"] = {type:'override', label: "is"};
           inflections["were"] = {type:'override', label: "was"};
           inflections["no"] = {type:'override', label: "doesn't"};
           inflections["not"] = {type:'override', label: "isn't"};
         }});
-        overrides.push({lookback: [{words: ["what"]}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["what"]}], callback: function(inflections) {
           inflections["happen"] = {type:'override', label: "happened"};
         }});
-        overrides.push({lookback: [{words: ["will", "won't", "can", "can't", "do", "don't"]}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["will", "won't", "can", "can't", "do", "don't"]}], callback: function(inflections) {
           inflections["am"] = {type:'override', label: "be"};
           inflections["is"] = {type:'override', label: "be"};
         }});
-        overrides.push({lookback: [{words: ["is", "are", "am", "be"]}, {words: ["she", "he", "i", "they", "we"], optional: true}], callback: function(inflections) {
+        overrides.push({type: 'override', lookback: [{words: ["is", "are", "am", "be"]}, {words: ["she", "he", "i", "they", "we", "you"], optional: true}], callback: function(inflections) {
           inflections["I"] = {type:'override', label: "my"};
           inflections["done"] = {type:'override', label: "done"};
         }});
@@ -625,6 +640,13 @@ var editManager = EmberObject.extend({
           }
           if(updated_button) {
             updated_button.condense_items = infl.condense_items;
+            // Keep speak text aligned with inflected label when vocalization
+            // was not manually set to something different.
+            var base_voc = button.vocalization;
+            var base_label = button.original_label || button.label;
+            if(!base_voc || base_voc === base_label) {
+              updated_button.vocalization = updated_button.label;
+            }
           }
         });
       }
@@ -663,7 +685,7 @@ var editManager = EmberObject.extend({
     var voc_locale = this.appState.get('vocalization_locale') || navigator.language;
     var lab_locale = this.appState.get('label_locale') || navigator.language;
     var base_label = button.original_label || button.label;
-    var trans = (this.appState.controller.get('board.model.translations') || {})[button_id];
+    var trans = (board.get('translations') || {})[button_id];
     var voc = (trans || {})[voc_locale] || (trans || {})[voc_locale.split(/-|_/)[0]];
     var lab = (trans || {})[lab_locale] || (trans || {})[lab_locale.split(/-|_/)[0]];
     var locs = ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'];
@@ -679,7 +701,8 @@ var editManager = EmberObject.extend({
       if(button.inflection_defaults) {
         base_label = button.inflection_defaults['base'] || button.inflection_defaults['c'] || button.inflection_defaults['src'] || button.label;
       }
-      var for_current_locale = !voc_locale || !this.appState.controller.get('model.board.locale') || (voc_locale == lab_locale && voc_locale == this.appState.controller.get('model.board.locale'));
+      var board_locale = board.get('locale');
+      var for_current_locale = !voc_locale || !board_locale || (voc_locale == lab_locale && voc_locale == board_locale);
       for(var idx = 0; idx < 8; idx++) {
         var trans_voc = voc && (voc.inflections || [])[idx];
         if(!ignore_defaults && !trans_voc && voc) {
@@ -955,9 +978,18 @@ var editManager = EmberObject.extend({
       var pad = 5;
       var div = document.createElement('div');
       div.id = 'overlay_container';
-      div.setAttribute('class', document.getElementsByClassName('board')[0].getAttribute('class'));
+      var boardEl = document.getElementsByClassName('board')[0];
+      div.setAttribute('class', (boardEl && boardEl.getAttribute('class')) || 'board speak overlay');
+      // Remove board-detail-only layout classes so #overlay_container keeps float/block layout
+      // (copying md-board-detail-grid would switch it to CSS grid and break overlay rows/buttons).
+      ['md-board-detail-grid'].forEach(function(cls) { div.classList.remove(cls); });
       div.classList.add('overlay');
       div.classList.add('board');
+      // raw_events.find_selectable_under_event requires .advanced_selection on the region so
+      // touch_release runs button_select → overlay_button.select_callback. Board-detail's
+      // grid intentionally omits advanced_selection (Ember actions for taps), so the copied
+      // class list may lack it — always set on the overlay.
+      div.classList.add('advanced_selection');
       div.style.left = (far_left - pad) + 'px';
       div.style.width = (far_right - far_left + (pad * 2)) + 'px';
       div.style.top = (far_top - pad) + 'px';
@@ -1115,7 +1147,7 @@ var editManager = EmberObject.extend({
       var neg_ids = [0];
       this.controller.get('ordered_buttons').forEach(function(row) {
         row.forEach(function(btn) {
-          var num_id = parseInt(btn.get('id'), 10) || 0;
+          var num_id = parseInt(emberGet(btn, 'id'), 10) || 0;
           if(num_id < 0 && isFinite(num_id)) {
             neg_ids.push(num_id);
           }
@@ -1153,7 +1185,7 @@ var editManager = EmberObject.extend({
     } else if(details && this.lastChange && details.mode == 'paint' && details.paint_id == this.lastChange.paint_id) {
       // don't add to state if it's the same paint as the previous edit.
     } else {
-      this.get('history').pushObject(this.clone_state());
+      this.set('history', (this.get('history') || []).concat([this.clone_state()]));
     }
     this.lastChange = details;
   },
@@ -1165,15 +1197,35 @@ var editManager = EmberObject.extend({
     for(var idx = 0; idx < oldState.length; idx++) {
       var arr = [];
       for(var jdx = 0; jdx < oldState[idx].length; jdx++) {
-        var raw = oldState[idx][jdx].raw();
-        raw.local_image_url = oldState[idx][jdx].get('local_image_url');
-        raw.local_sound_url = oldState[idx][jdx].get('local_sound_url');
+        var btn = oldState[idx][jdx];
+        var raw;
+        if(btn.raw && typeof btn.raw === 'function') {
+          raw = btn.raw();
+        } else if(btn.getProperties && typeof btn.getProperties === 'function') {
+          raw = btn.getProperties('id', 'label', 'vocalization', 'image_id', 'sound_id', 'background_color', 'border_color', 'part_of_speech', 'suggested_part_of_speech', 'painted_part_of_speech', 'hidden', 'link_disabled', 'load_board', 'url', 'apps', 'empty', 'text_only', 'level', 'home_lock');
+        } else {
+          raw = {};
+          for(var key in btn) {
+            if(btn.hasOwnProperty && btn.hasOwnProperty(key) && typeof btn[key] !== 'function') {
+              raw[key] = btn[key];
+            }
+          }
+        }
+        raw.local_image_url = (btn.get && typeof btn.get === 'function') ? btn.get('local_image_url') : btn.local_image_url;
+        raw.local_sound_url = (btn.get && typeof btn.get === 'function') ? btn.get('local_sound_url') : btn.local_sound_url;
+        raw.image_url = (btn.get && typeof btn.get === 'function') ? btn.get('image_url') : btn.image_url;
         // Ensure pending_image and pending_sound are false so the pending computed property works correctly
         raw.pending_image = false;
         raw.pending_sound = false;
+        // board-detail speak grid adds this plain bool; Button defines it as a
+        // computed — passing it into create clobbers the computed (Ember 3.28+).
+        delete raw.display_as_hidden;
         var b = editManager.Button.create(raw, {board: board});
         if(b.get('board') != board || (b.get('pending_image') || b.get('pending_sound'))) { alert('blech!'); }
-        b.set('id', oldState[idx][jdx].get('id'));
+        b.set('id', (btn.get && typeof btn.get === 'function') ? btn.get('id') : btn.id);
+        // Explicitly preserve empty/image_url — Button.create may not retain them from raw
+        if(raw.empty) { b.set('empty', true); }
+        if(raw.image_url) { b.set('image_url', raw.image_url); }
         arr.push(b);
       }
       clone_state.push(arr);
@@ -1182,34 +1234,40 @@ var editManager = EmberObject.extend({
   },
   undo: function() {
     if(!this.controller) { return; }
-    var lastState = this.get('history').popObject();
+    var history = (this.get('history') || []).slice();
+    var lastState = history.pop();
     if(lastState) {
+      this.set('history', history);
       var currentState = this.clone_state();
-      this.get('future').pushObject(currentState);
+      this.set('future', (this.get('future') || []).concat([currentState]));
       this.controller.set('ordered_buttons', lastState);
       this.update_color_key_id();
     }
   },
   redo: function() {
     if(!this.controller) { return; }
-    var state = this.get('future').popObject();
+    var future = (this.get('future') || []).slice();
+    var state = future.pop();
     if(state) {
+      this.set('future', future);
       var currentState = this.clone_state();
-      this.get('history').pushObject(currentState);
+      this.set('history', (this.get('history') || []).concat([currentState]));
       this.controller.set('ordered_buttons', state);
       this.update_color_key_id();
     }
   },
   bogus_id_counter: 0,
-  fake_button: function() {
+  fake_button: function(board) {
     var button = editManager.Button.create({
       empty: true,
       label: '',
       id: --this.bogus_id_counter
     });
     var controller = this.controller;
-    var board = controller.get('model');
-    button.set('board', board);
+    board = board || (controller && controller.get && controller.get('model'));
+    if(board) {
+      button.set('board', board);
+    }
     return button;
   },
   modify_size: function(type, action, index) {
@@ -1264,6 +1322,7 @@ var editManager = EmberObject.extend({
     if(!this.controller || !this.controller.get) { return []; }
     var ob = this.controller.get('ordered_buttons') || [];
     var res = null;
+    var board = this.controller.get('model');
     for(var idx = 0; idx < ob.length; idx++) {
       for(var jdx = 0; jdx < ob[idx].length; jdx++) {
         if(!res) {
@@ -1272,10 +1331,24 @@ var editManager = EmberObject.extend({
           } else if(id == 'empty' && ob[idx][jdx].empty) {
             res = ob[idx][jdx];
           }
+          // board-detail (and similar) may use plain objects for display; Button methods are required
+          if(res && typeof res.load_image !== 'function') {
+            // Strip plain-object fields that collide with Button computeds.
+            // Object.assign passes every own property into Button.create,
+            // and Ember 3.28 treats setting a key that has a `computed`
+            // on the class as a clobber-and-replace — the computed is
+            // permanently swapped out for the static plain-object value.
+            // `display_as_hidden` is the board-detail-specific plain-bool
+            // mirror; the Button class has its own computed of the same
+            // name. Strip before create so the computed survives.
+            var raw_props = Object.assign({}, res);
+            delete raw_props.display_as_hidden;
+            res = editManager.Button.create(raw_props, {board: board});
+            ob[idx][jdx] = res;
+          }
         }
       }
     }
-    var board = this.controller.get('model');
     var buttons = board.contextualized_buttons(editManager.get_app_state().get('label_locale'), editManager.get_app_state().get('vocalization_locale'), editManager.get_stashes().get('working_vocalization'), false, editManager.get_app_state().get('inflection_shift'));
     if(res) {
       var trans_button = buttons.find(function(b) { return b.id == id; });
@@ -1285,14 +1358,14 @@ var editManager = EmberObject.extend({
       if(trans_button && !emberGet(res, 'user_modified')) {
         // TODO: code smell, nobody is ever going
         // to remember that this code exists
-        res.set('label', trans_button.label);
-        res.set('original_label', res.get('label'));
-        res.set('vocalization', trans_button.vocalization);
-        res.set('tweaked', true);
+        emberSet(res, 'label', trans_button.label);
+        emberSet(res, 'original_label', emberGet(res, 'label'));
+        emberSet(res, 'vocalization', trans_button.vocalization);
+        emberSet(res, 'tweaked', true);
       }
       if(trans_button && trans_button.condense_items) {
-        res.set('condense_items', trans_button.condense_items);
-        res.set('tweaked', true);
+        emberSet(res, 'condense_items', trans_button.condense_items);
+        emberSet(res, 'tweaked', true);
       }
       return res;
     }
@@ -1312,25 +1385,33 @@ var editManager = EmberObject.extend({
     }
     opts.label = '';
     opts.image = null;
+    opts.image_url = null;
     opts.local_image_url = null;
     opts.local_sound_url = null;
-    opts.image_style = null;
     this.change_button(id, opts);
   },
   change_button: function(id, options) {
-    this.save_state({
-      button_id: id,
-      changes: Object.keys(options)
-    });
+    try {
+      this.save_state({
+        button_id: id,
+        changes: Object.keys(options)
+      });
+    } catch(e) {
+      console.warn('edit_manager: save_state failed during change_button', e);
+    }
     var button = this.find_button(id);
     if(button) {
+      var deferImageId = !!(options.image && Object.prototype.hasOwnProperty.call(options, 'image_id'));
+      var pickedDisplayUrl = options._picked_display_url || null;
       if(options.image) {
         emberSet(button, 'local_image_url', null);
+        emberSet(button, 'image_url', null);
         // Do not call load_image() when we are supplying the image: it would use the
         // current (old) image_id and later overwrite button.image when its promise
         // resolves, hiding the new image on the board.
       } else if(options.image === null) {
         emberSet(button, 'local_image_url', null);
+        emberSet(button, 'image_url', null);
       }
       if(options.sound) {
         emberSet(button, 'local_sound_url', null);
@@ -1339,6 +1420,8 @@ var editManager = EmberObject.extend({
         emberSet(button, 'local_sound_url', null);
       }
       for(var key in options) {
+        if(deferImageId && key === 'image_id') { continue; }
+        if(key === '_picked_display_url') { continue; }
         emberSet(button, key, options[key]);
       }
       // Sync changes to board.buttons so contextualized_buttons/fast_html see them immediately
@@ -1352,8 +1435,9 @@ var editManager = EmberObject.extend({
           return typeof v.get !== 'function'; // exclude Ember models
         };
         for(var bi = 0; bi < boardButtons.length; bi++) {
-          if(boardButtons[bi] && boardButtons[bi].id == id) {
+          if(boardButtons[bi] && String(boardButtons[bi].id) === String(id)) {
             for(var key in options) {
+              if(key === '_picked_display_url') { continue; }
               if(rawAttrs.indexOf(key) >= 0 && isSerializable(options[key])) {
                 boardButtons[bi][key] = options[key];
               }
@@ -1367,11 +1451,30 @@ var editManager = EmberObject.extend({
         }
       }
       if(options.image && button.get('image')) {
-        emberSet(button, 'original_image_url', button.get('image.url'));
+        emberSet(button, 'original_image_url', button.get('image.url') || pickedDisplayUrl);
+        var sourceUrl = button.get('image.url') || pickedDisplayUrl;
         var best = button.get('image.best_url');
-        if(best && (best.match(/^https?:\/\//) || best.match(/^data:/) || best.match(/^blob:/))) {
-          emberSet(button, 'local_image_url', best);
+        // Prefer the picked/saved source URL when best_url still points at a stale
+        // processed upload for the same image id (see debug logs: savedUrl
+        // updates to OpenSymbols but displayUrl stays on old S3 SVG).
+        var displayUrl = pickedDisplayUrl || best;
+        if(!pickedDisplayUrl && sourceUrl && sourceUrl.match(/^https?:\/\//) && best && sourceUrl !== best &&
+           best.match(/lingolinq.*uploads|s3\.amazonaws\.com.*\/images\//)) {
+          displayUrl = sourceUrl;
         }
+        if(!displayUrl && sourceUrl) {
+          displayUrl = sourceUrl;
+        }
+        if(displayUrl && (displayUrl.match(/^https?:\/\//) || displayUrl.match(/^data:/) || displayUrl.match(/^blob:/))) {
+          emberSet(button, 'local_image_url', displayUrl);
+          // board-detail-grid renders btn.image_url, not local_image_url
+          emberSet(button, 'image_url', displayUrl);
+        }
+      }
+      // Apply image_id after URLs so findContentLocally does not reuse a stale
+      // button.image_url from the previous symbol when the id changes.
+      if(deferImageId) {
+        emberSet(button, 'image_id', options.image_id);
       }
       if(options.sound && button.get('sound')) {
         emberSet(button, 'local_sound_url', button.get('sound.best_url'));
@@ -1402,7 +1505,7 @@ var editManager = EmberObject.extend({
       button.stashed_at = (new Date()).getTime();
     }
     if(button && list[list.length - 1] != button) {
-      list.pushObject(button);
+      list.push(button);
     }
     editManager.get_stashes().persist('stashed_buttons', list);
   },
@@ -1467,7 +1570,8 @@ var editManager = EmberObject.extend({
     buttona.set('for_swap', false);
     buttonb.set('for_swap', false);
     this.swapId = null;
-    this.controller.set('ordered_buttons', ob);
+    // Create a new array reference so Ember detects the change and re-renders
+    this.controller.set('ordered_buttons', ob.map(function(row) { return [].concat(row); }));
     this.update_color_key_id();
     this.controller.redraw_if_needed();
   },
@@ -1514,7 +1618,7 @@ var editManager = EmberObject.extend({
     });
 
     return update_buttons.then(function(board) {
-      this.update_color_key_id();
+      _this.update_color_key_id();
       return RSVP.resolve({visible: board.button_visible(new_id), button: button});
     });
   },
@@ -1583,14 +1687,65 @@ var editManager = EmberObject.extend({
     if(this.controller) {
       this.controller.set('preview_levels_mode', false);
       this.controller.set('preview_level', null);
-      this.apply_preview_level(10);
+      // Reset every button. Tagged buttons get apply_level(10) which
+      // surfaces them at full vocab. Untagged buttons restore their
+      // original hidden state from the stash we set on preview entry,
+      // so we don't leave them with hidden=true from the preview-level
+      // mutation below.
+      (this.controller.get('ordered_buttons') || []).forEach(function(row) {
+        row.forEach(function(button) {
+          if(button && typeof button.apply_level === 'function') {
+            button.apply_level(10);
+            var mods = button.get('level_modifications');
+            var untagged = !mods || Object.keys(mods).length === 0;
+            if(untagged && button._preview_original_hidden !== undefined) {
+              button.set('hidden', button._preview_original_hidden);
+            }
+            delete button._preview_original_hidden;
+          }
+        });
+      });
+      this.update_color_key_id();
     }
   },
   apply_preview_level: function(level) {
     if(this.controller) {
       (this.controller.get('ordered_buttons') || []).forEach(function(row) {
         row.forEach(function(button) {
-          button.apply_level(level);
+          if(button && typeof button.apply_level === 'function') {
+            // Stash original hidden once so clear_preview_levels can
+            // restore untagged buttons we're about to gray out.
+            if(button._preview_original_hidden === undefined) {
+              button._preview_original_hidden = button.get('hidden');
+            }
+            button.apply_level(level);
+            var mods = button.get('level_modifications');
+            var untagged = !mods || Object.keys(mods).length === 0;
+            if(untagged) {
+              // Untagged: gray out at any preview level below 10;
+              // restore original at level 10 (= full vocab).
+              if(level < 10) {
+                button.set('hidden', true);
+              } else {
+                button.set('hidden', button._preview_original_hidden);
+              }
+            } else {
+              // Tagged: a button is visible at preview level N if it
+              // has ANY level rule for a level ≤ N. This is robust to
+              // data variations (level rules sometimes have just the
+              // key with an empty {} body, sometimes a `hidden:false`
+              // value, sometimes other attribute overrides). The
+              // presence of the key itself signals "promoted at this
+              // level". This intentionally ignores `mods.override`,
+              // so prior eye-slash hides on tagged buttons don't
+              // override the preview's level filter.
+              var has_promoting_rule = false;
+              for(var lvl_check = 1; lvl_check <= level; lvl_check++) {
+                if(mods[lvl_check]) { has_promoting_rule = true; break; }
+              }
+              button.set('hidden', !has_promoting_rule);
+            }
+          }
         });
       });
       this.update_color_key_id();
@@ -1615,7 +1770,16 @@ var editManager = EmberObject.extend({
       Button.set_attribute(button, 'background_color', this.paint_mode.fill);
     }
     if(this.paint_mode.hidden != null) {
-      Button.set_attribute(button, 'hidden', this.paint_mode.hidden);
+      // Hidden Tool (paint hide / reveal) operates on the plain
+      // `hidden` attribute ONLY. Do NOT route through
+      // Button.set_attribute here: that helper stamps
+      // level_modifications.override.hidden whenever the button
+      // already carries a level rule (every CommuniKate button does),
+      // which surfaces a "*" level badge — not the intended behavior
+      // for the Hidden Tool. The Button Levels system is untouched;
+      // this is a direct author-intent set, matching how the
+      // reveal/reveal-all paths already set `hidden`.
+      emberSet(button, 'hidden', this.paint_mode.hidden);
     }
     if(this.paint_mode.close_link != null) {
       Button.set_attribute(button, 'link_disabled', this.paint_mode.close_link);
@@ -1637,6 +1801,31 @@ var editManager = EmberObject.extend({
         // TODO: controller/boards/index#button_levels wasn't picking up this
         // change automatically, had to add explicit notification, not sure why
         editManager.controller.set('levels_change', true);
+        // Folder cascade: if this button links to a sub-board, mark it so
+        // the save payload signals the backend to propagate the same
+        // level_modifications to every button in the downstream board
+        // tree (recursively). Non-folder buttons don't carry the marker.
+        // emberGet on Ember Button reads load_board; plain objects fall
+        // back to the property. We stamp the marker as a non-persisted
+        // hint that process_for_saving promotes into JSON via
+        // `cascade_level_to_subtree: true`.
+        var is_folder = !!(emberGet(button, 'load_board') || (button.load_board));
+        if(is_folder) {
+          button._pending_cascade_level = true;
+        }
+        // Re-evaluate `hidden` against the current preview level so the
+        // newly-painted button surfaces in full CSS immediately. Before
+        // this paint, the button was untagged and apply_preview_level
+        // had set hidden=true (gray) for level<10. The new rule promotes
+        // it at `level`; if preview ≥ level, the button should now be
+        // visible. Also clear the stash so clear_preview_levels won't
+        // restore the stale gray-out value if preview is exited.
+        var pv_lvl = editManager.controller.get('preview_level');
+        if(pv_lvl && editManager.controller.get('preview_levels_mode')) {
+          var painted_n = parseInt(level, 10);
+          emberSet(button, 'hidden', !(painted_n <= pv_lvl));
+        }
+        button._preview_original_hidden = false;
       } else if(this.paint_mode.level == 'link_disabled' && this.paint_mode.attribute) {
         mods.pre.link_disabled = true;
         for(var idx in mods) {
@@ -1668,6 +1857,13 @@ var editManager = EmberObject.extend({
     if(!controller) { if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (no controller)'); } return; }
     var appState = this.appState || (typeof window !== 'undefined' && window.appState) || (typeof window !== 'undefined' && window.LingoLinq && window.LingoLinq.appState);
     if(!appState || (typeof appState.get !== 'function')) { if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (no appState)'); } return; }
+    // Ember 5 throws a hard assertion when a computed (edit_mode/speak_mode below)
+    // is read on a destroyed object. A leaked post-teardown callback (e.g. the
+    // app-state on_user_change observer or a scheduled runloop task) can reach
+    // here after the app-state service is torn down; the throw then re-enters the
+    // window.onerror chain and wedges the test runner. Nothing is displayable on a
+    // destroyed app-state anyway, so bail. (3.28 returned undefined here silently.)
+    if(appState.isDestroyed || appState.isDestroying) { if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (destroyed appState)'); } return; }
     var stashes = this.stashes;
     if(appState.get('edit_mode') && controller.get('ordered_buttons')) {
       LingoLinq.log.track('will not redraw while in edit mode');
@@ -1677,6 +1873,25 @@ var editManager = EmberObject.extend({
     if(!board) {
       if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (no board)'); }
       if (this.controller === controller) { this.controller = null; }
+      return;
+    }
+    var applyBoardDetailFocusDim = function() {
+      if(!controller || !controller.get) { return; }
+      if(controller.get('is_board_detail') && typeof controller._apply_focus_dim_to_ordered_buttons === 'function') {
+        controller._apply_focus_dim_to_ordered_buttons();
+      }
+    };
+    var is_board_detail = !!(controller.get && controller.get('is_board_detail'));
+    // Board-detail builds its own plain-object grid in speak mode (_build_from_raw /
+    // boardDetailCache). The classic path below recreates every cell as Button.create
+    // on each utterance update — redundant load_image work and console noise with no
+    // visible change. Edit mode still uses board-detail's Ember-button grid rebuild.
+    if(appState.get('speak_mode') && is_board_detail && !appState.get('edit_mode')) {
+      if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (board-detail speak mode)'); }
+      applyBoardDetailFocusDim();
+      if(typeof appState.refresh_suggestions === 'function') {
+        appState.refresh_suggestions();
+      }
       return;
     }
     var board_level = controller.get('current_level') || editManager.get_stashes().get('board_level') || 10;
@@ -1741,10 +1956,10 @@ var editManager = EmberObject.extend({
 
     var p = this.persistence || (typeof window !== 'undefined' && window.persistence);
     var need_everything_local = appState.get('speak_mode') || !p || typeof p.get !== 'function' || !p.get('online');
-    if(appState.get('speak_mode')) {
+    if(appState.get('speak_mode') && !is_board_detail) {
       if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying speak_mode path', { hasFastHtml: !!board.get('fast_html') }); }
       controller.update_button_symbol_class();
-      if(!ignore_fast_html && board.get('fast_html') 
+      if(!ignore_fast_html && board.get('fast_html') && fastHtmlHasRenderableContent(board.get('fast_html'))
             && board.get('fast_html.width') == controller.get('width') 
             && board.get('fast_html.height') == controller.get('height') 
             && board.get('current_revision') == board.get('fast_html.revision') 
@@ -1758,6 +1973,7 @@ var editManager = EmberObject.extend({
         LingoLinq.log.track('already have fast render');
         if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (already have fast render)'); }
         resume_scanning();
+        applyBoardDetailFocusDim();
         return;
       } else {
         board.set('fast_html', null);
@@ -1779,7 +1995,7 @@ var editManager = EmberObject.extend({
           button_symbol_class: controller.get('button_symbol_class')
         });
 
-        if(fast && fast.html) {
+        if(fastHtmlHasRenderableContent(fast)) {
           // var prior = JSON.stringify(board.get('fast_html'));
           // if(prior && prior != JSON.stringify(fast)) {
             board.set_fast_html(fast);
@@ -1787,6 +2003,7 @@ var editManager = EmberObject.extend({
           // TODO: this repeats too many times
           if (_vb) { console.log('[BOARD-DEBUG] edit_manager.process_for_displaying early return (fast_html set)'); }
           resume_scanning();
+          applyBoardDetailFocusDim();
           return;
         }
       }
@@ -1842,7 +2059,7 @@ var editManager = EmberObject.extend({
               button = editManager.Button.create(buttons[kdx], more_args);
             }
           }
-          button = button || _this.fake_button();
+          button = button || _this.fake_button(board);
           if(!button.everything_local() && need_everything_local) {
             allButtonsReady = false;
             pending_buttons.push(button);
@@ -1853,7 +2070,14 @@ var editManager = EmberObject.extend({
       }
       if(!allButtonsReady) {
         LingoLinq.log.track('need to wait for buttons');
-        board.set('pending_buttons', pending_buttons);
+        // Ember 5 (EXTEND_PROTOTYPES:false): a native array is NOT observable, so
+        // board.set_all_ready's `pending_buttons.[]` / `.@each.content_status`
+        // observer would never fire → all_ready stays false → ordered_buttons stays
+        // null → "Grid not defined". Wrap in A() so the array stays observable and
+        // all_ready flips once the button images finish loading. (Regular boards
+        // usually skip this path with cached images; the eval's symbol-library
+        // images always hit it, which is why the eval broke on the 5.12 upgrade.)
+        board.set('pending_buttons', emberArray(pending_buttons));
         board.addObserver('all_ready', function() {
           if(!controller.get('ordered_buttons')) {
             if(controller.get('model.id') == result.board_id) {
@@ -1862,6 +2086,7 @@ var editManager = EmberObject.extend({
               LingoLinq.log.track('redrawing if needed');
               controller.redraw_if_needed();
               LingoLinq.log.track('done redrawing if needed');
+              applyBoardDetailFocusDim();
               resume_scanning();  
             }
           }
@@ -1873,6 +2098,7 @@ var editManager = EmberObject.extend({
         LingoLinq.log.track('redrawing if needed');
         controller.redraw_if_needed();
         LingoLinq.log.track('done redrawing if needed');
+        applyBoardDetailFocusDim();
         resume_scanning();
         for(var idx = 0; idx < result.length; idx++) {
           for(var jdx = 0; jdx < result[idx].length; jdx++) {
@@ -1987,6 +2213,16 @@ var editManager = EmberObject.extend({
             }
           }
           newButton.level_modifications = emberGet(currentButton, 'level_modifications');
+          // Folder cascade marker — set by paint_button when a folder-
+          // typed button receives a level rule. Tells the backend to
+          // propagate the same level_modifications to every button in
+          // the downstream board tree (recursively). Cleared from the
+          // in-memory button after serializing so subsequent saves
+          // don't re-fire the cascade if no further changes happened.
+          if(currentButton._pending_cascade_level) {
+            newButton.cascade_level_to_subtree = true;
+            currentButton._pending_cascade_level = false;
+          }
           newButton.home_lock = !!emberGet(currentButton, 'home_lock');
           newButton.meta_home = !!(newButton.home_lock && emberGet(currentButton, 'meta_home'));
           newButton.hide_label = !!emberGet(currentButton, 'hide_label');
@@ -2086,6 +2322,7 @@ var editManager = EmberObject.extend({
     if(lookup > (now - (15 * 60 * 1000) && !(editManager.get_stashes().get('last_image_library') || "").match(/required/))) {
       library = editManager.get_stashes().get('last_image_library');
     }
+    var posColorItems = [];
     ids.forEach(function(id) {
       var board_id = _this.controller.get('model.id');
       var button = _this.find_button(id);
@@ -2095,11 +2332,12 @@ var editManager = EmberObject.extend({
         button.set('pending_image', true);
         // Don't set pending directly - it's a computed property based on pending_image/pending_sound
       }
-      // Always add colors when button has label but no colors - regardless of image.
-      // Previously we only called this when !button.image, which meant buttons with
-      // images (e.g. from backend process_suggested_symbols) never got part-of-speech colors.
+      // Batch part-of-speech lookups below — per-button GETs hit Rack::Attack (429) on large boards.
       if(button && button.label && !button.get('background_color') && !button.get('border_color')) {
-        button.check_for_parts_of_speech();
+        var posText = (button.get('vocalization') || button.get('label') || '').trim();
+        if(posText) {
+          posColorItems.push({ id: id, text: posText });
+        }
       }
       if(needs_check) {
         var locale = _this.controller.get('model.locale') || 'en';
@@ -2189,6 +2427,42 @@ var editManager = EmberObject.extend({
         });
       }
     });
+    if(posColorItems.length > 0) {
+      var keyedColors = editManager.get_keyed_colors();
+      var uniqueTexts = [];
+      var seenText = {};
+      posColorItems.forEach(function(item) {
+        if(!seenText[item.text]) {
+          seenText[item.text] = true;
+          uniqueTexts.push(item.text);
+        }
+      });
+      var fetchPosBatches = function(start, acc) {
+        acc = acc || {};
+        var chunk = uniqueTexts.slice(start, start + 100);
+        if(chunk.length === 0) {
+          return RSVP.resolve(acc);
+        }
+        return editManager.get_persistence().ajax('/api/v1/search/batch_parts_of_speech', {
+          type: 'GET',
+          data: { words: chunk.join(',') }
+        }).then(function(res) {
+          Object.assign(acc, (res && res.results) || {});
+          return fetchPosBatches(start + 100, acc);
+        }, function() {
+          return fetchPosBatches(start + 100, acc);
+        });
+      };
+      fetchPosBatches(0, {}).then(function(results) {
+        posColorItems.forEach(function(item) {
+          var btn = _this.find_button(item.id);
+          var data = results[item.text];
+          if(btn && data) {
+            btn.check_for_parts_of_speech(keyedColors, data);
+          }
+        });
+      }, function() { });
+    }
   },
   lucky_symbol: function(id) {
     if(!this.controller || !editManager.get_app_state().get('edit_mode')) {
@@ -2234,6 +2508,7 @@ var editManager = EmberObject.extend({
   copy_board: function(old_board, decision, user, make_public, swap_library, new_owner, disconnect) {
     return new RSVP.Promise(function(resolve, reject) {
       var ids_to_copy = old_board.get('downstream_board_ids_to_copy') || [];
+      var expand_selected_ids = old_board.get('expand_selected_board_ids_to_copy');
       var prefix = old_board.get('copy_prefix');
       var level = user.get('copy_level');
       user.set('copy_level', null);
@@ -2347,6 +2622,7 @@ var editManager = EmberObject.extend({
               new_default_locale: old_board.get('default_locale') || old_board.get('locale'),
               swap_library: swap_library,
               ids_to_copy: ids_to_copy.join(','),
+              expand_selected_board_ids: expand_selected_ids,
               new_owner: new_owner,
               disconnect: disconnect,
               copy_prefix: prefix,
@@ -2354,12 +2630,16 @@ var editManager = EmberObject.extend({
             }
           }).then(function(data) {
             progress_tracker.track(data.progress, function(event) {
-              if(event.status == 'finished') {
+              if(event.status == 'finished' || event.finished_at) {
                 runLater(function() {
                   user.reload();
                   editManager.get_app_state().refresh_session_user();
                 }, 100);
-                done_callback(event.result);
+                var res = event.result;
+                if(typeof res === 'string') {
+                  try { res = JSON.parse(res) || {}; } catch(e) { }
+                }
+                done_callback(res);
               } else if(event.status == 'errored') {
                 if(event.result) {
                   reject(i18n.t('re_linking_failed_custom', "Board re-linking failed: ") + event.result);
@@ -2382,7 +2662,7 @@ var editManager = EmberObject.extend({
             progress_tracker.track(res.progress, function(event) {
               if(event.status == 'errored') {
                 reject(i18n.t('swap_imaged_failed2', "Swapping images for new board failed unexpectedly"));
-              } else if(event.status == 'finished') {
+              } else if(event.status == 'finished' || event.finished_at) {
                 board.reload(true).then(function() {
                   editManager.get_app_state().set('board_reload_key', Math.random() + "-" + (new Date()).getTime());
                   done_callback();
@@ -2486,13 +2766,29 @@ editManager.get_persistence = function() {
   return editManager._services.persistence || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
 };
 
+editManager.get_keyed_colors = function() {
+  // Use board-detail colors when the active controller is the board-detail page
+  if(editManager.controller && editManager.controller.constructor &&
+     editManager.controller.constructor.toString().match(/board-detail/)) {
+    return window.LingoLinq.board_detail_keyed_colors || window.LingoLinq.keyed_colors;
+  }
+  // Check for a board_detail_route flag set by the board-detail controller
+  if(editManager.controller && editManager.controller.get && editManager.controller.get('is_board_detail')) {
+    return window.LingoLinq.board_detail_keyed_colors || window.LingoLinq.keyed_colors;
+  }
+  return window.LingoLinq.keyed_colors;
+};
+
 editManager.get_stashes = function() {
   return editManager._services.stashes || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
 };
 
 // Service registration method
 editManager.register_services = function(appStateService, persistenceService, stashesService) {
-  if(appStateService) { editManager._services.app_state = appStateService; }
+  if(appStateService) {
+    editManager._services.app_state = appStateService;
+    editManager._services.appState = appStateService;
+  }
   if(persistenceService) { editManager._services.persistence = persistenceService; }
   if(stashesService) { editManager._services.stashes = stashesService; }
 };

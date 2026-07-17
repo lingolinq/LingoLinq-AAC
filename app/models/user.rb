@@ -1,4 +1,4 @@
-class User < ActiveRecord::Base
+class User < ApplicationRecord
   include Processable
   include Permissions
   include Passwords
@@ -12,13 +12,30 @@ class User < ActiveRecord::Base
   include Subscription
   include BoardCaching
   include Renaming
+  include GoogleAuthentication
   has_many :log_sessions
   has_many :boards
   has_many :devices
   has_many :user_integrations
   has_many :supervisor_relationships_as_supervisor, class_name: 'SupervisorRelationship', foreign_key: :supervisor_user_id
   has_many :supervisor_relationships_as_communicator, class_name: 'SupervisorRelationship', foreign_key: :communicator_user_id
+  has_many :licenses
   has_one :user_extra
+
+  # Version stamp recorded with a user's captured privacy-consent at signup.
+  # Keep in sync with the "Last Updated" date in the Privacy Policy
+  # (app/frontend/app/templates/privacy.hbs). Bump when a material change
+  # requires users to re-consent.
+  PRIVACY_POLICY_VERSION = '2026-07-09'
+
+  def current_sponsor
+    Organization.find_by(id: self.managing_organization_id)
+  end
+
+  def in_trial?
+    managing_organization_id.nil? && expires_at && expires_at > Time.now
+  end
+
   before_save :generate_defaults
   after_save :track_boards
   after_save :notify_of_changes
@@ -39,7 +56,7 @@ class User < ActiveRecord::Base
   add_permissions('view_existence', 'view_detailed', 'model', 'supervise', 'edit', 'edit_boards', 'manage_supervision', 'delete', 'view_deleted_boards', 'link_auth') {|user| user.id == self.id && !user.valet_mode? }
   add_permissions('view_existence', 'view_detailed', 'view_word_map', 'model', ['modeling']) {|user| user.id == self.id && user.valet_mode? }
   add_permissions('view_existence', 'view_detailed', ['*']) { self.settings && self.settings['public'] == true }
-  add_permissions('set_goals', ['basic_supervision']) {|user| user.id == self.id && !user.valet_mode? }
+  add_permissions('set_goals', ['basic_supervision', 'read_profile']) {|user| user.id == self.id && !user.valet_mode? }
 
   add_permissions('edit', 'manage_supervision', 'view_deleted_boards') {|user| user.edit_permission_for?(self, true) && !user.valet_mode? }
   add_permissions('edit', 'edit_boards', 'manage_supervision', 'view_deleted_boards') {|user| user.edit_permission_for?(self, false) && !user.valet_mode? }
@@ -47,6 +64,14 @@ class User < ActiveRecord::Base
   add_permissions('view_existence', 'view_detailed', 'model', 'supervise', 'view_deleted_boards', 'set_goals') {|user| user.supervisor_for?(self) && !user.modeling_only_for?(self) && !user.valet_mode? }
   add_permissions('view_detailed', 'model', ['basic_supervision']) {|user| user.supervisor_for?(self) && !user.valet_mode? }
   add_permissions('view_detailed', 'view_deleted_boards', 'model', 'set_goals', ['basic_supervision']) {|user| user.supervisor_for?(self) && !user.modeling_only_for?(self) && !user.valet_mode? }
+  # Billing-only modeling supporters (subscription lapsed) could lose set_goals even though they
+  # still supervise and model; per-link "modeling only" supervision still must not set goals.
+  add_permissions('set_goals', ['full', 'basic_supervision']) {|user|
+    next false unless user.supervisor_for?(self) && !user.valet_mode?
+    next false if user.modeling_only_for?(self) && !user.modeling_only?
+
+    true
+  }
   add_permissions('view_word_map', ['*']) {|user| user.supervisor_for?(self) && !user.valet_mode? }
   add_permissions('manage_supervision', 'support_actions', 'link_auth') {|user| Organization.manager_for?(user, self) && !user.valet_mode? }
   add_permissions('view_existence', 'view_detailed', 'model', 'supervise', 'view_deleted_boards', 'set_goals', 'link_auth') {|user| Organization.manager_for?(user, self, true) && !user.valet_mode? }
@@ -348,7 +373,387 @@ class User < ActiveRecord::Base
     end
     self.settings['registration_code']
   end
-  
+
+  def coppa_parental_consent_pending?
+    c = self.settings && self.settings['coppa']
+    return false unless c.is_a?(Hash)
+    return false if c['parent_consent_granted_at'].present?
+    !!c['pending_parent_consent']
+  end
+
+  def coppa_parental_consent_revoked?
+    c = self.settings && self.settings['coppa']
+    return false unless c.is_a?(Hash)
+    c['parent_consent_revoked_at'].present?
+  end
+
+  def coppa_parental_consent_active?
+    c = self.settings && self.settings['coppa']
+    return false unless c.is_a?(Hash)
+    c['parent_consent_granted_at'].present? && c['parent_consent_revoked_at'].blank?
+  end
+
+  def coppa_parental_consent_blocks_access?
+    coppa_parental_consent_pending? || coppa_parental_consent_revoked?
+  end
+
+  # Validates the grant link token from the parental consent request email.
+  # Retained after grant so idempotent revisits require the same secret as the first click.
+  def valid_parent_consent_grant_link_token?(token)
+    parent_consent_link_token_valid?(token, 'parent_consent_token')
+  end
+
+  # Validates the revoke link token from the parental consent confirmation email.
+  def valid_parent_consent_revoke_link_token?(token)
+    parent_consent_link_token_valid?(token, 'parent_consent_revoke_token')
+  end
+
+  def parent_consent_link_token_valid?(token, settings_key)
+    return false if token.blank?
+    c = self.settings && self.settings['coppa']
+    return false unless c.is_a?(Hash)
+    stored = c[settings_key].to_s
+    return false if stored.blank?
+    tok = token.to_s
+    return false if stored.bytesize != tok.bytesize
+    ActiveSupport::SecurityUtils.secure_compare(stored, tok)
+  end
+
+  # Parent completes email link with token. Returns true when consent is newly
+  # recorded. Mirrors grant_ai_consent! (COPPA 16 CFR 312.5 record-keeping): the
+  # settings write, the Privacy Policy acknowledgment, User#save! and an immutable
+  # AuditEvent all run inside one `with_lock(requires_new: true)` (SELECT FOR
+  # UPDATE + SAVEPOINT). Two consequences that a fail-open, post-save audit could
+  # not give: an audit-insert failure rolls back the consent grant, so the parent
+  # can simply retry the same link rather than being left consented-without-a-record; and concurrent token requests against
+  # the same user are serialized, so the second reloads, sees the committed grant
+  # and no-ops instead of double-granting/double-logging. `ip:`/`user_agent:` come
+  # from the request so the immutable record identifies where and with what the
+  # parent completed consent.
+  def grant_parental_consent!(token, ip: nil, user_agent: nil)
+    return false if token.blank?
+    res = false
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      c = self.settings['coppa']
+      next unless c.is_a?(Hash)
+      next if c['parent_consent_granted_at'].present?
+      next unless c['pending_parent_consent']
+      stored = c['parent_consent_token'].to_s
+      tok = token.to_s
+      next if stored.blank?
+      next if stored.bytesize != tok.bytesize
+      next unless ActiveSupport::SecurityUtils.secure_compare(stored, tok)
+      exp = c['parent_consent_expires_at']
+      if exp.present?
+        begin
+          next if Time.iso8601(exp) < Time.now.utc
+        rescue ArgumentError
+          next
+        end
+      end
+      granted_at = Time.now.utc.iso8601
+      record_id = SecureRandom.uuid
+      c['parent_consent_granted_at'] = granted_at
+      c['parent_consent_revoke_token'] = GoSecure.nonce('parent_consent_revoke')
+      c.delete('parent_consent_expires_at')
+      c.delete('pending_parent_consent')
+      self.settings['coppa'] = c
+      # Record the parent's Privacy Policy acknowledgment (on the child's behalf)
+      # at the moment they complete the token flow; deferred from the child's
+      # signup (see process_params).
+      self.settings['privacy_policy_acknowledged'] = {
+        'acknowledged_at' => granted_at,
+        'policy_version' => PRIVACY_POLICY_VERSION,
+        'acknowledged_by' => 'parent'
+      }
+      self.save!
+      # Immutable, tamper-evident grant record independent of the mutable
+      # settings['coppa'] blob. Captures the exact persisted grant timestamp,
+      # the acknowledged policy version, and request provenance.
+      AuditEvent.create!(
+        user_key: self.global_id,
+        data: {
+          'type' => 'parental_consent_grant',
+          'method' => 'email_token_link',
+          'ip' => ip,
+          'user_agent' => user_agent,
+          'privacy_policy_version' => PRIVACY_POLICY_VERSION,
+          'granted_at' => granted_at,
+          'record_id' => record_id
+        },
+        event_type: 'parental_consent_grant',
+        record_id: record_id
+      )
+      res = true
+    end
+    devices.each(&:invalidate_cached_keys) if res
+    res
+  end
+
+  # Parent completes the revoke link from the confirmation email. Returns true when
+  # consent is newly revoked. Mirrors grant_parental_consent!: settings write and
+  # immutable AuditEvent run atomically inside with_lock(requires_new: true).
+  def revoke_parental_consent!(token, ip: nil, user_agent: nil)
+    return false if token.blank?
+    res = false
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      c = self.settings['coppa']
+      next unless c.is_a?(Hash)
+      next if c['parent_consent_revoked_at'].present?
+      next unless c['parent_consent_granted_at'].present?
+      stored = c['parent_consent_revoke_token'].to_s
+      tok = token.to_s
+      next if stored.blank?
+      next if stored.bytesize != tok.bytesize
+      next unless ActiveSupport::SecurityUtils.secure_compare(stored, tok)
+      revoked_at = Time.now.utc.iso8601
+      granted_at = c['parent_consent_granted_at']
+      record_id = SecureRandom.uuid
+      c['parent_consent_revoked_at'] = revoked_at
+      self.settings['coppa'] = c
+      self.save!
+      AuditEvent.create!(
+        user_key: self.global_id,
+        data: {
+          'type' => 'parental_consent_revoke',
+          'method' => 'email_token_link',
+          'ip' => ip,
+          'user_agent' => user_agent,
+          'granted_at' => granted_at,
+          'revoked_at' => revoked_at,
+          'record_id' => record_id
+        },
+        event_type: 'parental_consent_revoke',
+        record_id: record_id
+      )
+      res = true
+    end
+    devices.each(&:invalidate_cached_keys) if res
+    res
+  end
+
+  # AI data-sharing consent (COPPA Item 1b). Returns true only when an unrevoked
+  # consent record exists at the queried disclosures_version. Per D-03: missing
+  # settings['ai_consent'] is treated as "not granted", no migration needed.
+  #
+  # `disclosures_version:` DEFAULTS to LingoLinq::AiConsentDisclosures::CURRENT_VERSION
+  # (VPC Phase 2). D-03 originally made this kwarg required with NO default,
+  # specifically because no canonical version source existed yet: an omitted
+  # kwarg with some accidental implicit value (e.g. nil) would silently return
+  # false, and Phase 4 would misread that as "the gate correctly fired" rather
+  # than "the caller forgot to pass a version" (see the original rationale
+  # preserved below). Phase 2 supplies that canonical source, which removes
+  # the failure mode D-03 was guarding against: the implicit value is no
+  # longer arbitrary, it is the exact version every caller SHOULD be checking
+  # against in the common case. A caller that needs to check a specific
+  # (e.g. stale) version still passes disclosures_version: explicitly; no
+  # caller should ever hardcode a literal version number.
+  #
+  # Original D-03 rationale, still true for why *some* explicit default was
+  # required rather than silently defaulting to nil/0: "callers that forget
+  # the kwarg get ArgumentError at boot/test time rather than a silent false
+  # (which Phase 4 would interpret as 'guard fired, AI suppressed for an
+  # actually-consented user')." Defaulting to CURRENT_VERSION resolves this
+  # the same way ArgumentError did (no silent wrong answer), while also being
+  # useful.
+  def ai_consent_granted?(disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION)
+    c = self.settings && self.settings['ai_consent']
+    return false unless c.is_a?(Hash)
+    return false if c['granted_at'].blank?
+    return false if c['revoked_at'].present?
+    return false if c['disclosures_version'].blank?
+    return false unless c['disclosures_version'] == disclosures_version
+    true
+  end
+
+  # Sources accepted by grant_ai_consent!. Anything else raises ArgumentError so
+  # Phase 3 controllers cannot silently widen the surface by passing an arbitrary
+  # value pulled from params. New sources must be added here explicitly.
+  AI_CONSENT_SOURCES = %w[email_link in_app admin_backfill].freeze
+
+  # Sources accepted by revoke_ai_consent!. Kept separate from grant sources
+  # because the valid actors for revocation (parent, admin, automated system)
+  # differ from the valid acquisition channels for a grant. Same anti-poisoning
+  # rationale: a controller passing an arbitrary `source` param cannot dirty the
+  # audit taxonomy.
+  AI_CONSENT_REVOKE_SOURCES = %w[parent admin system].freeze
+
+  # Records a parent-granted AI data-sharing consent at the given disclosures_version.
+  # Idempotent on same-version re-call (returns false). Does NOT silently grant on
+  # stale-version re-call (returns false; Phase 3 controller surfaces re-prompt UX) -
+  # this holds even after a revoke, so an outdated grant link cannot reactivate
+  # consent at a superseded version.
+  #
+  # Precondition: the user must be persisted. `with_lock` calls `reload(lock: true)`
+  # internally and will raise ActiveRecord::RecordNotFound on a User.new.
+  #
+  # The body runs inside `with_lock(requires_new: true)` (SELECT FOR UPDATE on the
+  # user row, wrapping a SAVEPOINT-backed nested transaction). User#save! and
+  # AuditEvent.create! both run under that transaction, so a failure in the audit
+  # insert rolls back the consent write - even when the caller wraps this in its
+  # own outer transaction and rescues the AR error. The `requires_new: true` is
+  # load-bearing for that guarantee: without it, Rails would join the outer
+  # transaction and a rescued audit failure would leave the consent write
+  # committed. The pessimistic lock also serializes concurrent grant/revoke
+  # against the same user. D-04 / D-05.
+  #
+  # Raises ArgumentError on `invalid_source` (source not in AI_CONSENT_SOURCES),
+  # `invalid_granted_by` (blank granted_by), `invalid_disclosures_version` (nil,
+  # non-numeric, or < 1), `invalid_granted_by_user_id` (malformed granted_by_user_id),
+  # and `self_grant_forbidden` (granted_by_user_id resolves to self.global_id). These
+  # are stable machine tokens, not English prose - Phase 3 owns user-facing copy.
+  #
+  # `granted_by_user_id:` must be a global_id ("1_42") or bare numeric db id;
+  # bare ids are normalized to global_id form before the self-grant check.
+  def grant_ai_consent!(disclosures_version:, granted_by:, source:, ip: nil, user_agent: nil, granted_by_user_id: nil)
+    raise ArgumentError, 'invalid_source' unless AI_CONSENT_SOURCES.include?(source)
+    # A parent-consent record without a grantor identity is not auditable. Reject
+    # blank granted_by before granted_at is written. Machine token; Phase 3 owns copy.
+    raise ArgumentError, 'invalid_granted_by' if granted_by.blank?
+    # Coerce to a positive Integer up front: a nil/garbage disclosures_version would
+    # otherwise write a granted_at row that ai_consent_granted? can never honor (and
+    # that a later valid grant can't repair), and a string version would make the
+    # stale-version check lexicographic. Raises 'invalid_disclosures_version'.
+    disclosures_version = ai_consent_normalize_version!(disclosures_version)
+    if granted_by_user_id.present?
+      granted_by_user_id = normalize_ai_consent_granted_by_user_id!(granted_by_user_id)
+      raise ArgumentError, 'self_grant_forbidden' if granted_by_user_id == self.global_id
+    end
+
+    res = false
+    prior_disclosures_version = nil
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      c = self.settings['ai_consent']
+      c = {} unless c.is_a?(Hash)
+      # Idempotency / version contract against any prior consent record (D-04):
+      #   - stale (older) version:  no-op, return false. Applies whether or not the
+      #                             prior consent is currently revoked: following an
+      #                             outdated grant link must never reactivate consent
+      #                             against superseded disclosures. (Issue #1)
+      #   - same version, active:   no-op, return false (already granted). A same-version
+      #                             grant AFTER a revoke legitimately reactivates, so this
+      #                             no-op is gated on the consent still being active.
+      #   - newer version, active:  fall through; record the upgrade, preserve record_id,
+      #                             capture the prior version in the audit payload so audit
+      #                             queries can distinguish first-grant from upgrade events.
+      #   - any version after a revoke (>= prior): fall through and reactivate.
+      # Coerce a stored string version so the comparison stays numeric, not lexicographic.
+      # disclosures_version is already a positive Integer (coerced above).
+      prior_version = c['disclosures_version']
+      prior_version = Integer(prior_version) if prior_version.is_a?(String) && prior_version.strip.match?(/\A\d+\z/)
+      has_prior = c['granted_at'].present? && prior_version.is_a?(Integer)
+      active    = has_prior && c['revoked_at'].blank?
+      if has_prior
+        next if disclosures_version < prior_version
+        next if active && disclosures_version == prior_version
+        prior_disclosures_version = prior_version if active && disclosures_version > prior_version
+      end
+      # RFC-4122 UUID (122 bits); not GoSecure.nonce, which had low entropy under bulk backfill.
+      c['record_id'] = SecureRandom.uuid if c['record_id'].blank?
+      c['granted_at'] = Time.now.utc.iso8601
+      c['granted_by'] = granted_by
+      c['granted_by_user_id'] = granted_by_user_id
+      c['disclosures_version'] = disclosures_version
+      c['source'] = source
+      c['ip'] = ip
+      c['user_agent'] = user_agent
+      c.delete('pending_token')
+      c.delete('pending_token_expires_at')
+      c.delete('revoked_at')
+      c.delete('revoked_by')
+      c.delete('revoked_reason')
+      self.settings['ai_consent'] = c
+      self.save!
+      AuditEvent.create!(
+        user_key: self.global_id,
+        data: {
+          'type' => 'ai_consent_grant',
+          'disclosures_version' => disclosures_version,
+          'prior_disclosures_version' => prior_disclosures_version,
+          'granted_by' => granted_by,
+          'source' => source,
+          'record_id' => c['record_id']
+        },
+        event_type: 'ai_consent_grant',
+        record_id: c['record_id']
+      )
+      res = true
+    end
+    res
+  end
+
+  # Revokes the current AI data-sharing consent. Idempotent on already-revoked
+  # (returns false). Mirrors grant_ai_consent!: runs inside `with_lock(requires_new:
+  # true)` so the User update and AuditEvent insert are atomic - including under
+  # an outer transaction that rescues the AR error - and concurrent grant/revoke
+  # against the same user are serialized. D-05.
+  #
+  # Raises ArgumentError 'invalid_source' if source is not in
+  # AI_CONSENT_REVOKE_SOURCES (parent / admin / system). Phase 3 controllers
+  # cannot poison the revocation audit taxonomy by passing arbitrary params.
+  def revoke_ai_consent!(revoked_by: nil, reason: nil, source: 'parent')
+    raise ArgumentError, 'invalid_source' unless AI_CONSENT_REVOKE_SOURCES.include?(source)
+    res = false
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      c = self.settings['ai_consent']
+      next unless c.is_a?(Hash)
+      next if c['granted_at'].blank?
+      next if c['revoked_at'].present?
+      c['revoked_at'] = Time.now.utc.iso8601
+      c['revoked_by'] = revoked_by
+      c['revoked_reason'] = reason
+      self.settings['ai_consent'] = c
+      self.save!
+      AuditEvent.create!(
+        user_key: self.global_id,
+        data: {
+          'type' => 'ai_consent_revoke',
+          'disclosures_version' => c['disclosures_version'],
+          'source' => source,
+          # Who revoked and why must live in the immutable audit trail, not only in
+          # settings: the settings copy is DELETED on the next re-grant, so without
+          # these the trail permanently loses the revocation actor and reason.
+          'revoked_by' => revoked_by,
+          'revoked_reason' => reason,
+          'record_id' => c['record_id']
+        },
+        event_type: 'ai_consent_revoke',
+        record_id: c['record_id']
+      )
+      res = true
+    end
+    res
+  end
+
+  # Coerces disclosures_version to a positive Integer so version comparisons are
+  # numeric (not lexicographic) and a nil/garbage value can never write a consent
+  # row that ai_consent_granted? can't honor. Accepts an Integer or an all-digit
+  # String; rejects nil, blank, non-numeric, and < 1 with 'invalid_disclosures_version'.
+  def ai_consent_normalize_version!(raw)
+    ok = raw.is_a?(Integer) || (raw.is_a?(String) && raw.strip.match?(/\A\d+\z/))
+    raise ArgumentError, 'invalid_disclosures_version' unless ok
+    v = Integer(raw.is_a?(String) ? raw.strip : raw)
+    raise ArgumentError, 'invalid_disclosures_version' if v < 1
+    v
+  end
+
+  # Coerces granted_by_user_id to shard-prefixed global_id ("1_42") so the
+  # self-grant guard cannot be bypassed with a bare ActiveRecord id.
+  def normalize_ai_consent_granted_by_user_id!(raw)
+    str = raw.to_s.strip
+    if str.match?(/\A\d+_\d+/)
+      str
+    elsif str.match?(/\A\d+\z/)
+      related_global_id(str.to_i)
+    else
+      raise ArgumentError, 'invalid_granted_by_user_id'
+    end
+  end
+
   def anonymized_identifier(str=nil)
     str ||= ""
     self.settings ||= {}
@@ -377,7 +782,11 @@ class User < ActiveRecord::Base
       },
       'any_user' => {
         'activation_location' => 'end',
-        'auto_home_return' => true,
+        # Default to staying in-place after a button activation so the user
+        # can compose a multi-chip sentence inside a sub-folder without the
+        # board navigating back to home after every tap. Communicators
+        # using the classic auto-home flow can opt in via their preferences.
+        'auto_home_return' => false,
         'vocalize_buttons' => true,
         'external_links' => 'confirm_custom',
         'clear_on_vocalize' => true,
@@ -385,25 +794,67 @@ class User < ActiveRecord::Base
         'board_jump_delay' => 500,
         'battery_sounds' => true,
         'default_sidebar_boards' => default_sidebar_boards,
+        'default_active_sidebar_boards' => default_active_sidebar_boards,
         'blank_status' => false,
-        'preferred_symbols' => 'original',
+        'preferred_symbols' => 'opensymbols',
         'word_suggestion_images' => true,
+        # NOTE: word_suggestions / word_suggestion_position are intentionally NOT
+        # in this unconditional bucket — they default ON only for NEW users (set
+        # in generate_defaults under `new_record?`), so existing users who never
+        # set word prediction are never silently enabled.
         'hidden_buttons' => 'grid',
+        # Folder display style for sub-folder buttons: 'default' (plain folder
+        # face), 'tab_labels', or 'colored_corner'. Assigned at registration so
+        # the value is authoritative server-side; the client no longer supplies
+        # a fallback default for it.
+        'folder_display_style' => 'default',
         'symbol_background' => 'clear',
         'utterance_interruptions' => true,
         'click_buttons' => true,
         'auto_capitalize' => true,
-        'prefer_native_keyboard' => false
+        'prefer_native_keyboard' => false,
+        # Which board UI the user sees when opening a board: the
+        # 'modern' panelled experience (board-detail) or the 'classic'
+        # full-device grid (board-alt). Both render the same board
+        # content — this is purely a visual/UX shell preference.
+        # Default 'modern' to surface the newer, feature-richer UI.
+        'board_view_style' => 'modern',
+        # Home-page dashboard arrangement: 'gentle' (default) or 'focused'.
+        # Chosen during the Dashboard Design flow; drives the md-grid--layout-*
+        # modifier on the dashboard grid.
+        # NOTE (adversarial-review false positive — "client/server default mismatch"):
+        # this server default is 'gentle', matching the frontend default
+        # (dashboard/authenticated-view.js#effectiveLayout). They are aligned; new users
+        # get 'gentle' from both sides. (sanitize_dashboard_preferences! below also coerces
+        # any out-of-range stored value back to a known variant.)
+        'dashboard_layout' => 'gentle',
+        # Per-section visibility for the home dashboard cards, e.g.
+        # {'boards' => true, 'extras' => false}. Chosen during the Getting
+        # Started flow. A missing key (or true) means visible, so sections
+        # default to shown; only keys explicitly set to false are hidden.
+        'dashboard_sections' => {},
+        # Per-section grid POSITION for the home dashboard cards, e.g.
+        # {'speak' => 'org', 'org' => 'speak'} — each card maps to the home-slot
+        # it occupies (default identity). Chosen by dragging-to-swap in the
+        # Getting Started preview. A missing key means the card sits in its own
+        # slot, so arrangements default to the canonical layout.
+        'dashboard_positions' => {},
+        # Boards hero placement (drag-to-move it), e.g. {'side' => 'right'} or
+        # {'raised' => true}. Empty/absent => Boards in its default left, lower
+        # position. Drives a structural mirror / vertical-shift of the home grid.
+        'dashboard_boards' => {}
       },
       'authenticated_user' => {
         'long_press_edit' => false,
         'require_speak_mode_pin' => false,
+        'require_sidebar_edit_pin' => false,
         'logging' => false,
         'geo_logging' => false,
         'role' => 'communicator',
         'auto_open_speak_mode' => true,
         'share_notifications' => 'email',
-        'cookies' => true
+        'cookies' => true,
+        'beta_program_access' => true
       }
     }
   end
@@ -449,6 +900,13 @@ class User < ActiveRecord::Base
     end
     if !FeatureFlags.user_created_after?(self, 'symbol_background')
       self.settings['preferences']['symbol_background'] = 'white' if self.settings['preferences']['symbol_background'] == nil
+    end
+    # Word prediction defaults ON for NEW users only (set once at registration,
+    # never backfilled) so existing users who never set it stay OFF. The client
+    # gates display on `word_suggestions === true`, so a nil value reads as off.
+    if self.new_record?
+      self.settings['preferences']['word_suggestions'] = true if self.settings['preferences']['word_suggestions'] == nil
+      self.settings['preferences']['word_suggestion_position'] = 'side_rail' if self.settings['preferences']['word_suggestion_position'] == nil
     end
     if !FeatureFlags.user_created_after?(self, 'battery_sounds')
       self.settings['preferences']['battery_sounds'] = true if self.settings['preferences']['battery_sounds'] == nil
@@ -830,7 +1288,7 @@ class User < ActiveRecord::Base
   PREFERENCE_PARAMS = ['sidebar', 'auto_home_return', 'vocalize_buttons', 
       'sharing', 'button_spacing', 'quick_sidebar', 'disable_quick_sidebar', 
       'lock_quick_sidebar', 'clear_on_vocalize', 'logging', 'geo_logging', 
-      'require_speak_mode_pin', 'speak_mode_pin', 'activation_minimum',
+      'require_speak_mode_pin', 'speak_mode_pin', 'require_sidebar_edit_pin', 'activation_minimum',
       'activation_location', 'activation_cutoff', 'activation_on_start', 
       'confirm_external_links', 'external_links', 'long_press_edit', 'scanning', 'scanning_interval',
       'scanning_mode', 'scanning_select_keycode', 'scanning_next_keycode', 
@@ -840,10 +1298,10 @@ class User < ActiveRecord::Base
       'board_background', 'vocalization_height', 'role', 'auto_open_speak_mode',
       'canvas_render', 'blank_status', 'share_notifications', 'notification_frequency',
       'skip_supervisee_sync', 'sync_refresh_interval', 'multi_touch_modeling',
-      'goal_notifications', 'word_suggestion_images', 'hidden_buttons',
-      'speak_on_speak_mode', 'ever_synced', 'folder_icons', 'allow_log_reports', 'allow_log_publishing', 
+      'goal_notifications', 'word_suggestion_images', 'word_suggestions', 'word_suggestion_position', 'hidden_buttons',
+      'speak_on_speak_mode', 'ever_synced', 'folder_icons', 'folder_display_style', 'allow_log_reports', 'allow_log_publishing',
       'symbol_background', 'disable_button_help', 'click_buttons', 'prevent_hide_buttons',
-      'new_index', 'debounce', 'cookies', 'preferred_symbols', 'tag_ids', 'vibrate_buttons',
+      'new_index', 'debounce', 'cookies', 'telemetry_opt_in', 'comms_log_opt_in', 'preferred_symbols', 'tag_ids', 'vibrate_buttons',
       'highlighted_buttons', 'never_delete', 'dim_header', 'inflections_overlay',
       'highlight_popup_text', 'phrase_categories', 'high_contrast', 'swipe_pages',
       'hide_pin_hint', 'battery_sounds', 'auto_inflections', 'private_logging',
@@ -853,9 +1311,22 @@ class User < ActiveRecord::Base
       'prevent_button_interruptions', 'utterance_interruptions', 'prevent_utterance_repeat',
       'recent_cleared_phrases', 'clear_vocalization_history', 'clear_vocalization_history_count', 
       'clear_vocalization_history_minutes', 'speak_mode_edit', 'skin', 'hide_gif',
-      'extra_colors', 'sync_starred_boards'
+      'extra_colors', 'sync_starred_boards', 'board_view_style', 'beta_program_access',
+      'dashboard_layout', 'dashboard_sections', 'dashboard_order', 'dashboard_positions', 'dashboard_boards',
+      # Board light/dark viewing preference (boolean; true => dark). Persisted so
+      # the board-detail dark toggle and the create-board-new preview share one
+      # remembered choice across sessions. Unset => each surface applies its own
+      # default (board-detail dark, create-board-new light).
+      'board_dark_mode'
     ]
-  CONFIRMATION_PREFERENCE_PARAMS = ['logging', 'private_logging', 'geo_logging', 'allow_log_reports', 
+  # Known home-dashboard section keys — the SINGLE source of truth lives in the
+  # frontend (app/frontend/app/utils/dashboard_sections.js: HOME_SECTIONS keys +
+  # the 'hero' non-grid toggle). Duplicated here so the server can validate the
+  # user-supplied dashboard_* preferences on write (Ruby can't import the JS).
+  # Keep in sync if a section key is added/removed there.
+  DASHBOARD_SECTION_KEYS = ['boards', 'speak', 'extras', 'caseload', 'rooms', 'attention', 'org',
+      'account', 'createboard', 'reports', 'editdashboard', 'hero']
+  CONFIRMATION_PREFERENCE_PARAMS = ['logging', 'private_logging', 'geo_logging', 'allow_log_reports',
       'allow_log_publishing', 'cookies', 'never_delete', 'logging_cutoff', 'logging_permissions', 'logging_code']
   RESEARCH_PREFERENCE_PARAMS = ['research_primary_use', 'research_age', 'research_experience_level']
   PROGRESS_PARAMS = ['setup_done', 'intro_watched', 'profile_edited', 'preferences_edited', 
@@ -863,12 +1334,35 @@ class User < ActiveRecord::Base
       'modeling_intro_done', 'modeling_ideas_viewed', 'modeling_ideas_target_words_reviewed',
       'board_intros']
   def process_params(params, non_user_params)
+    # Defensive guard: `settings['admin']` may only be set via
+    # non_user_params['admin'] (see ~line 1485 below). Strip any
+    # client-supplied `admin` flag before any other processing so it
+    # can NEVER be smuggled through if a future controller path
+    # passes user params unfiltered. Belt-and-suspenders against
+    # privilege-escalation regressions — admin assignment must stay
+    # an out-of-band action (console or Admin-org manager membership).
+    params.delete('admin') if params.respond_to?(:delete)
+    params.delete(:admin)  if params.respond_to?(:delete)
     self.settings ||= {}
     ['name', 'description', 'details_url', 'location', 'cell_phone'].each do |arg|
       self.settings[arg] = process_string(params[arg]) if params[arg]
     end
-    if params['terms_agree']
+    # Use process_boolean (true / '1' / 'true' only) rather than a bare
+    # truthiness check: in Ruby the string 'false' is truthy, so `if
+    # params['terms_agree']` would record consent for an API request that
+    # explicitly declined. Consent must be recorded only on an affirmative.
+    if process_boolean(params['terms_agree'])
       self.settings['terms_agreed'] = Time.now.to_i
+      # The signup consent checkbox covers BOTH the Terms of Use and the
+      # Privacy Policy (see register.hbs), so capture an explicit, versioned
+      # record that the user acknowledged the Privacy Policy, alongside the
+      # terms timestamp. For under-13 signups this record is removed in the
+      # COPPA block below and re-stamped by the *parent* in
+      # grant_parental_consent!, since a child cannot acknowledge on its own.
+      self.settings['privacy_policy_acknowledged'] = {
+        'acknowledged_at' => Time.now.utc.iso8601,
+        'policy_version' => PRIVACY_POLICY_VERSION
+      }
     end
     if params['avatar_url'] && (params['avatar_url'].match(/^http/) || params['avatar_url'] == 'fallback')
       if self.settings['avatar_url'] && self.settings['avatar_url'] != 'fallback'
@@ -896,14 +1390,84 @@ class User < ActiveRecord::Base
       end
       self.settings['email'] = process_string(new_email)
     end
+    # Determine up front whether this is a VALID organization-authored creation (a
+    # school/district manager creating a managed user under the FERPA school-official
+    # exception). The COPPA parental-consent gate is skipped ONLY for a validated org
+    # authorization. Previously the skip keyed on the raw authored_organization_id
+    # param being non-blank while the org/author validation ran later (see below), so
+    # a present-but-invalid or unauthorized org id bypassed the COPPA gate AND recorded
+    # nothing. Compute the validated result once and reuse it for both decisions.
+    org_authorized = false
+    authoring_org = nil
+    if !self.id && params['authored_organization_id'].present?
+      authoring_org = Organization.find_by_global_id(params['authored_organization_id'])
+      # NOTE: 'edit' is satisfied by assistant-level managers, not only full managers
+      # (Organization adds 'edit' for assistant? at organization.rb:43; 'manage' is the
+      # full-manager-only level at :44). This preserves the pre-existing authoring scope.
+      # Whether the school-official exception should be restricted to full managers, and
+      # gated on a signed-contract/DPA flag, is the Phase 1 decision (see
+      # outputs/plans/2026-06-19-org-coppa-bypass-fix-scope.md); do not silently change
+      # the scope here. Any code path that sets settings['school_authorization'] below
+      # must also emit the school_authorization AuditEvent (today the only creator path
+      # is api/users#create, which does).
+      if authoring_org && non_user_params[:author] && authoring_org.allows?(non_user_params[:author], 'edit')
+        org_authorized = true
+      end
+    end
+    # Use !org_authorized (not authored_organization_id.blank?) so an empty string OR a
+    # present-but-invalid/unauthorized org id both fall through to the COPPA gate.
+    if !self.id && JsonApi::Json.coppa_parental_consent_enabled? && !org_authorized
+      # Ember may send snake_case, dasherized, or camelCase JSON keys depending on serializer/version.
+      minor_flag = params['coppa_under_13'] || params['coppa-under-13'] || params['coppaUnder13']
+      wants_minor = [true, 'true', '1', 1].include?(minor_flag)
+      if wants_minor
+        parent = (
+          params['parent_consent_email'] ||
+          params['parent-consent-email'] ||
+          params['parentConsentEmail'] ||
+          ''
+        ).to_s.strip
+        child_email = (self.settings['email'] || '').to_s.strip.downcase
+        if parent.blank?
+          add_processing_error('parent consent email required for under-13 registration')
+          return false
+        end
+        if parent !~ URI::MailTo::EMAIL_REGEXP
+          add_processing_error('invalid parent consent email format')
+          return false
+        end
+        if parent.downcase == child_email
+          add_processing_error('parent consent email must be different from the account email')
+          return false
+        end
+        self.settings['coppa'] = {
+          'pending_parent_consent' => true,
+          'parent_email' => process_string(parent),
+          'parent_consent_token' => GoSecure.nonce('parent_consent'),
+          'parent_consent_expires_at' => 14.days.from_now.utc.iso8601
+        }
+        # COPPA: a child cannot acknowledge the Privacy Policy on its own. Drop
+        # any signup-time acknowledgment stamped above; it is recorded by the
+        # parent in grant_parental_consent! once they complete the token flow.
+        self.settings.delete('privacy_policy_acknowledged')
+      end
+    end
     self.settings['referrer'] ||= params['referrer'] if params['referrer']
     self.settings['ad_referrer'] ||= params['ad_referrer'] if params['ad_referrer']
-    if params['authored_organization_id'] && !self.id
-      org = Organization.find_by_global_id(params['authored_organization_id'])
-      if org && non_user_params[:author] && org.allows?(non_user_params[:author], 'edit')
-        self.settings['authored_organization_id'] = org.global_id
-        self.settings['pending'] = false
-      end
+    if org_authorized
+      self.settings['authored_organization_id'] = authoring_org.global_id
+      self.settings['pending'] = false
+      # Record the school-authorization basis explicitly so the school-official
+      # exception is auditable (who authorized it, when, and on what basis) instead
+      # of silently skipping COPPA with no record. The matching immutable AuditEvent
+      # is emitted post-save in api/users#create (no global_id exists yet here).
+      self.settings['school_authorization'] = {
+        'basis' => 'school_official',
+        'organization_id' => authoring_org.global_id,
+        'authorized_by' => (non_user_params[:author] && non_user_params[:author].global_id),
+        'authorized_at' => Time.now.utc.iso8601,
+        'record_id' => SecureRandom.uuid
+      }
     end
     if params['last_message_read']
       last_message_read = params['last_message_read'].to_i
@@ -936,12 +1500,22 @@ class User < ActiveRecord::Base
       end
       params.delete('valet_login')
     end
-    if params['valet_login']
-      self.set_valet_password(params['valet_password'])
-      self.settings['valet_long_term'] = process_boolean(params['valet_long_term']) if params['valet_long_term'] != nil
-      self.settings['valet_prevent_disable'] = process_boolean(params['valet_prevent_disable']) if params['valet_prevent_disable'] != nil
-    elsif params['valet_login'] == false
-      self.set_valet_password(false)
+    # Coerce valet_login through process_boolean. The client serializes this
+    # boolean attribute as a STRING ('true'/'false'), and a bare `if
+    # params['valet_login']` treats the non-empty string 'false' as truthy --
+    # which wrongly ENABLED valet mode (assert_valet_mode! + a random valet
+    # password) on every profile save. With valet mode on, the subsequent
+    # valid_password? check compares the user's real password against the valet
+    # secret, so self-service password changes always failed with "incorrect
+    # current password". Only an explicitly-absent (nil) value is a no-op.
+    unless params['valet_login'].nil?
+      if process_boolean(params['valet_login'])
+        self.set_valet_password(params['valet_password'])
+        self.settings['valet_long_term'] = process_boolean(params['valet_long_term']) if params['valet_long_term'] != nil
+        self.settings['valet_prevent_disable'] = process_boolean(params['valet_prevent_disable']) if params['valet_prevent_disable'] != nil
+      else
+        self.set_valet_password(false)
+      end
     end
     if params['preferences']
       CONFIRMATION_PREFERENCE_PARAMS.each do |key|
@@ -972,8 +1546,54 @@ class User < ActiveRecord::Base
     end
     inflections_were_set = self.settings['preferences']['activation_location'] == 'swipe' || self.settings['preferences']['inflections_overlay']
     params['preferences'].delete('logging_code') if params['preferences'] && params['preferences'] == ''
+    # Beta program access is staff-controlled only (console or admin API); never self-service via prefs API.
+    if params['preferences'] && !(non_user_params['updater'] && non_user_params['updater'].admin?)
+      params['preferences'].delete('beta_program_access')
+    end
     PREFERENCE_PARAMS.each do |attr|
-      self.settings['preferences'][attr] = params['preferences'][attr] if params['preferences'] && params['preferences'][attr] != nil
+      if params['preferences'] && params['preferences'][attr] != nil
+        val = params['preferences'][attr]
+        # Form-encoded requests send booleans as strings ("true"/"false").
+        # Convert them back to actual booleans.
+        val = true if val == 'true'
+        val = false if val == 'false'
+        self.settings['preferences'][attr] = val
+      end
+    end
+    # The dashboard_* preferences are stored verbatim above but drive the home
+    # grid's computed inline styles and CSS class names, so coerce each to a safe
+    # shape against the known section-key whitelist. Invalid values are dropped so
+    # they fall back to client defaults (matching the frontend's own fallback),
+    # rather than persisting arbitrary client-supplied JSON.
+    sanitize_dashboard_preferences! if params['preferences']
+    # On INITIAL registration only, derive preferences.role from the
+    # picked registration_type so the canonical app-wide gate
+    # (preferences.role == 'supporter' → frontend `supporter_role`)
+    # actually reflects what the user told us at signup. Without this
+    # mapping the role defaults to 'communicator' for everyone
+    # regardless of pick — a real product gap because supporters
+    # then run in communicator-shaped UI until they manually flip
+    # Account View in /<user>/preferences.
+    #
+    # Gated on `new_record?` so users who later switch their Account
+    # View aren't overwritten back on subsequent edits to other
+    # preferences (e.g. updating their cookies setting).
+    #
+    # Values not in either list (`eval`, `manually-added-org-user`,
+    # `individual`, etc.) leave preferences.role at its default
+    # ('communicator' — set in User.preference_defaults['authenticated_user']).
+    # Rationale: those values describe non-self-service or
+    # device-account contexts where the role is configured later
+    # by an admin or the per-device override.
+    if self.new_record? && self.settings['preferences'] &&
+       self.settings['preferences']['registration_type'].present?
+      rt = self.settings['preferences']['registration_type']
+      if rt == 'communicator'
+        self.settings['preferences']['role'] = 'communicator'
+      elsif ['therapist', 'parent', 'teacher', 'other',
+             'manually-added-supervisor'].include?(rt)
+        self.settings['preferences']['role'] = 'supporter'
+      end
     end
     if params['preferences'] && !params['preferences']['cookies'].nil?
       self.settings['preferences']['cookies'] = process_boolean(params['preferences']['cookies'])
@@ -1019,6 +1639,13 @@ class User < ActiveRecord::Base
     end
     if params['offline_actions']
       params['offline_actions'].each do |action|
+        # Defensive: the client-built offline_actions queue is meant to be an array
+        # of hashes, but a corrupt/stale entry (e.g. an array) would make the
+        # action['action'] read below raise "no implicit conversion of String into
+        # Integer" and 500 the whole update — which then never clears the queue, so
+        # the bad entry re-sends and fails on every save (a stuck poison-pill). Skip
+        # anything that isn't a hash so one malformed entry can't wedge saves.
+        next unless action.is_a?(Hash)
         if action['action'] == 'add_vocalization'
           self.settings['vocalizations'] ||= []
           action['id'] = nil if self.settings['vocalizations'].find{|v| v['id'] == action['id'] }
@@ -1164,13 +1791,13 @@ class User < ActiveRecord::Base
               if timestamp > 0 && Time.at(timestamp) <= 6.hours.ago
                 Rails.logger.debug("Expired supervisee_code skipped for user #{self.global_id}")
               else
-                Rails.logger.warn("Supervisee link failed for user #{self.global_id} with code: #{params['supervisee_code']} (user may not exist or lack premium)")
+                Rails.logger.warn("Supervisee link failed for user #{self.global_id} (code invalid, or target user may not exist or lack premium)")
               end
             rescue => e
-              Rails.logger.warn("Invalid supervisee_code format for user #{self.global_id}: #{params['supervisee_code']}")
+              Rails.logger.warn("Invalid supervisee_code format for user #{self.global_id}")
             end
           else
-            Rails.logger.warn("Invalid supervisee_code format for user #{self.global_id}: #{params['supervisee_code']}")
+            Rails.logger.warn("Invalid supervisee_code format for user #{self.global_id}")
           end
           # Don't fail the update - just skip the supervisee linking
         end
@@ -1190,7 +1817,7 @@ class User < ActiveRecord::Base
         unless self.process_supervisor_key(params['supervisor_key'])
           # Processing failed - log but don't block the update
           # This is likely a stale key from a previous session or deleted user
-          Rails.logger.warn("Supervisor key processing failed for user #{self.global_id} with key: #{params['supervisor_key']}")
+          Rails.logger.warn("Supervisor key processing failed for user #{self.global_id} (key invalid, or references a deleted/ineligible user)")
           # Don't fail the update - just skip the supervisor key processing
         end
       rescue => e
@@ -1205,6 +1832,10 @@ class User < ActiveRecord::Base
     if params['password'] && params['password'] != ""
       if !self.settings['password'] || valid_password?(params['old_password']) || non_user_params[:allow_password_change]
         @password_changed = !!self.settings['password']
+        # Remember whether this was a self-service change (old password verified)
+        # vs. a forced change without the old password (admin reset / forgot-password
+        # token). Recorded in the audit trail by notify_of_changes (LL-747bb0e02d).
+        @password_change_self_service = @password_changed && !non_user_params[:allow_password_change]
         self.generate_password(params['password'])
       else
         add_processing_error("incorrect current password")
@@ -1221,6 +1852,76 @@ class User < ActiveRecord::Base
       self.settings['display_user_name'] = new_user_name
     end
     true
+  end
+
+  # Coerce the user-supplied home-dashboard preferences into safe shapes. These
+  # five prefs drive the home grid's computed inline `grid-template-*` styles and
+  # CSS class names (see app/frontend/app/utils/dashboard_sections.js and
+  # components/dashboard/authenticated-view.js), so we constrain them to the known
+  # section-key whitelist on write. Unknown/garbage values are dropped, which
+  # makes the client fall back to its defaults — matching the frontend's own
+  # fallback behavior — instead of persisting arbitrary client JSON.
+  def sanitize_dashboard_preferences!
+    prefs = self.settings['preferences']
+    return unless prefs.is_a?(Hash)
+    valid_keys = DASHBOARD_SECTION_KEYS
+
+    # dashboard_layout: a single known variant, else fall back to default.
+    if prefs.has_key?('dashboard_layout') && !['gentle', 'focused'].include?(prefs['dashboard_layout'])
+      prefs.delete('dashboard_layout')
+    end
+
+    # dashboard_sections: { known_key => boolean }.
+    if prefs.has_key?('dashboard_sections')
+      src = prefs['dashboard_sections']
+      if src.is_a?(Hash)
+        clean = {}
+        src.each do |k, v|
+          next unless valid_keys.include?(k)
+          clean[k] = (v == true || v == 'true')
+        end
+        prefs['dashboard_sections'] = clean
+      else
+        prefs.delete('dashboard_sections')
+      end
+    end
+
+    # dashboard_order: ordered array of known keys, de-duplicated.
+    if prefs.has_key?('dashboard_order')
+      src = prefs['dashboard_order']
+      if src.is_a?(Array)
+        prefs['dashboard_order'] = src.select { |k| valid_keys.include?(k) }.uniq
+      else
+        prefs.delete('dashboard_order')
+      end
+    end
+
+    # dashboard_positions: { known_key => known_key }.
+    if prefs.has_key?('dashboard_positions')
+      src = prefs['dashboard_positions']
+      if src.is_a?(Hash)
+        clean = {}
+        src.each do |k, v|
+          clean[k] = v if valid_keys.include?(k) && valid_keys.include?(v)
+        end
+        prefs['dashboard_positions'] = clean
+      else
+        prefs.delete('dashboard_positions')
+      end
+    end
+
+    # dashboard_boards: only { 'side' => <string>, 'raised' => <boolean> }.
+    if prefs.has_key?('dashboard_boards')
+      src = prefs['dashboard_boards']
+      if src.is_a?(Hash)
+        clean = {}
+        clean['side'] = src['side'].to_s if src['side'].is_a?(String)
+        clean['raised'] = (src['raised'] == true || src['raised'] == 'true') if src.has_key?('raised')
+        prefs['dashboard_boards'] = clean
+      else
+        prefs.delete('dashboard_boards')
+      end
+    end
   end
 
   def private_logging?
@@ -1328,6 +2029,21 @@ class User < ActiveRecord::Base
   def display_user_name
     (self.settings && self.settings['display_user_name']) || self.user_name
   end
+
+  def obfuscated_name
+    name = display_user_name
+    return name if name.length < 3
+    
+    parts = name.split(/\s+/)
+    if parts.length > 1
+      # "John Doe" -> "J. Doe" or "John D."
+      # Let's do "John D."
+      "#{parts[0]} #{parts[-1][0]}."
+    else
+      # "johndoe" -> "j...e"
+      "#{name[0]}...#{name[-1]}"
+    end
+  end
   
   def process_device(device, non_user_params)
     device_key = (non_user_params['device'] && non_user_params['device'].unique_device_key) || 'default'    
@@ -1369,14 +2085,52 @@ class User < ActiveRecord::Base
       end
 
       self.settings['preferences']['devices'][device_key] ||= {}
+      # Form-encoded requests send booleans as strings ("true"/"false").
+      # Convert them back to actual booleans so the frontend (where "false"
+      # is truthy in JavaScript) reads the correct value.
       device.each do |key, val|
-#         if self.settings['preferences']['devices']['default'][key] == device[key]
-#           self.settings['preferences']['devices'][device_key].delete(key)
-#         else
+          val = true if val == 'true'
+          val = false if val == 'false'
           self.settings['preferences']['devices'][device_key][key] = val
-#         end
+      end
+      # When no specific device was provided (supervisor editing another user),
+      # propagate device preferences to all existing device keys so the value
+      # is found regardless of which device the user reads from
+      if !non_user_params['device']
+        self.settings['preferences']['devices'].each do |existing_key, hash|
+          next if existing_key == device_key
+          device.each do |key, val|
+            next if key == 'name' || key == 'id' || key == 'long_token'
+            val = true if val == 'true'
+            val = false if val == 'false'
+            self.settings['preferences']['devices'][existing_key][key] = val
+          end
+        end
       end
     end
+  end
+
+  def copy_board_to_library(library_board, updater_id, symbol_library=nil)
+    original = library_board && Board.find_by_path(library_board['id'])
+    updater = User.find_by_path(updater_id)
+    return false unless original && updater
+
+    existing = self.boards.where(parent_board: original).order('id DESC').first
+    if existing && ((existing.settings['swapped_library'] || 'original') == (symbol_library || 'original'))
+      return true
+    end
+
+    new_board = original.copy_for(self, copier: updater)
+    self.copy_board_links(
+      old_board_id: original.global_id,
+      new_board_id: new_board.global_id,
+      ids_to_copy: [],
+      auth_user: updater,
+      user_for_paper_trail: "user:#{updater.global_id}",
+      copier_id: updater.global_id,
+      swap_library: symbol_library
+    )
+    true
   end
 
   def copy_to_home_board(home_board, updater_id, symbol_library)
@@ -1536,10 +2290,14 @@ class User < ActiveRecord::Base
           allowed = true
         end
         if record && allowed
+          stored_key = board['key']
+          if stored_key && stored_key.split('/').last == SystemBoardSources::CRISIS_VOCABULARY_SLUG
+            stored_key = SystemBoardSources.board_key(SystemBoardSources::CRISIS_VOCABULARY_SLUG)
+          end
           brd = {
             'name' => board['name'] || record.settings['name'] || 'Board',
-            'key' => board['key'],
-            'image' => board['image'] || record.settings['image_url'] || 'https://opensymbols.s3.amazonaws.com//libraries/arasaac/board_3.png',
+            'key' => stored_key,
+            'image' => board['image'] || record.settings['image_url'] || '/images/lingolinq-board-icon.png',
             'home_lock' => !!board['home_lock']
           }
           brd['locale'] = board['locale'] || record.settings['locale']
@@ -1610,7 +2368,15 @@ class User < ActiveRecord::Base
       self.settings['sidebar_changed'] = true
       self.settings['preferences'].delete('sidebar_boards')
     else
-      result = result.uniq{|b| b['special'] ? (b['alert'].to_s + "_" + b['action'].to_s + "_" + b['arg'].to_s) : b['key'] }
+      result = result.uniq do |b|
+        if b['special']
+          b['alert'].to_s + "_" + b['action'].to_s + "_" + b['arg'].to_s
+        elsif b['key'] && b['key'].split('/').last == SystemBoardSources::CRISIS_VOCABULARY_SLUG
+          SystemBoardSources::CRISIS_VOCABULARY_SLUG
+        else
+          b['key']
+        end
+      end
       pre_json = self.settings['preferences']['sidebar_boards'].to_json
       self.settings['sidebar_changed'] = true if pre_json != result.to_json
       self.settings['preferences']['sidebar_boards'] = result
@@ -1621,9 +2387,163 @@ class User < ActiveRecord::Base
   end
   
   def sidebar_boards
-    res = (self.settings && self.settings['preferences'] && self.settings['preferences']['sidebar_boards']) || []
-    res = User.default_sidebar_boards if res.length == 0
-    res
+    stored = (self.settings && self.settings['preferences'] && self.settings['preferences']['sidebar_boards']) || []
+    if stored.empty?
+      return User.resolve_sidebar_boards_for(self, User.default_active_sidebar_boards)
+    end
+
+    User.resolve_sidebar_boards_for(self, User.merge_missing_default_sidebar_boards(stored))
+  end
+
+  def self.sidebar_system_keys
+    [SystemBoardSources.board_key('keyboard')].freeze
+  end
+
+  def self.resolve_sidebar_boards_for(user, boards)
+    entries = boards || []
+    system_keys = []
+    entries.each do |entry|
+      next unless entry.is_a?(Hash)
+      next if entry['alert'] || (entry['special'] && entry['alert'])
+      key = entry['key']
+      next unless key
+      next if sidebar_system_keys.include?(key)
+      system_keys << key
+    end
+
+    system_boards_by_key = {}
+    if system_keys.any?
+      Board.find_all_by_path(system_keys.uniq).each do |board|
+        system_boards_by_key[board.key] = board
+      end
+    end
+
+    copies_by_parent_id = {}
+    parent_ids = system_boards_by_key.values.map(&:id).compact
+    if parent_ids.any?
+      user.boards.where(parent_board_id: parent_ids).order('parent_board_id ASC, id DESC').each do |copy|
+        copies_by_parent_id[copy.parent_board_id] ||= copy
+      end
+    end
+
+    resolved = entries.map { |entry| resolve_sidebar_entry(user, entry, system_boards_by_key, copies_by_parent_id) }
+    dedupe_resolved_sidebar_boards(resolved)
+  end
+
+  def self.dedupe_resolved_sidebar_boards(boards)
+    seen = {}
+    boards.each_with_object([]) do |entry, result|
+      identity = resolved_sidebar_board_identity(entry)
+      next if identity && seen[identity]
+      seen[identity] = true if identity
+      result << entry
+    end
+  end
+
+  # Identity for deduping sidebar entries after resolve_sidebar_entry has run.
+  # Stored system keys and user copy keys can both resolve to the same final key.
+  def self.resolved_sidebar_board_identity(entry)
+    return nil unless entry.is_a?(Hash)
+    if entry['special']
+      entry['alert'].to_s + "_" + entry['action'].to_s + "_" + entry['arg'].to_s
+    else
+      entry['key']
+    end
+  end
+
+  def self.sidebar_board_slug(entry)
+    return nil unless entry.is_a?(Hash) && entry['key']
+    entry['key'].split('/').last
+  end
+
+  def self.sidebar_stored_key_present?(stored, key)
+    return false unless key
+    slug = key.split('/').last
+    (stored || []).any? do |entry|
+      next false unless entry.is_a?(Hash)
+      entry['key'] == key || (
+        slug == SystemBoardSources::CRISIS_VOCABULARY_SLUG &&
+        sidebar_board_slug(entry) == slug
+      )
+    end
+  end
+
+  # Default sidebar entries reference public system boards. Resolve to the user's
+  # owned copy when one exists (parent_board lineage), except keyboard which stays
+  # on the shared system board.
+  def self.resolve_sidebar_entry(user, entry, system_boards_by_key = nil, copies_by_parent_id = nil)
+    return entry unless entry.is_a?(Hash)
+    return entry if entry['alert'] || (entry['special'] && entry['alert'])
+
+    key = entry['key']
+    return entry unless key
+    return entry if sidebar_system_keys.include?(key)
+
+    system_board = if system_boards_by_key
+      system_boards_by_key[key]
+    else
+      Board.find_by_path(key)
+    end
+    return entry unless system_board
+
+    # Stored key already references this user's board — do not swap to a lineage copy.
+    return entry if system_board.user_id == user.id
+
+    copy = if copies_by_parent_id
+      copies_by_parent_id[system_board.id]
+    else
+      user.boards.where(parent_board_id: system_board.id).order('id DESC').first
+    end
+    return entry unless copy
+
+    resolved = entry.merge(
+      'key' => copy.key,
+      'name' => copy.settings['name'] || entry['name']
+    )
+    resolved['image'] = copy.settings['image_url'] if copy.settings['image_url'].present?
+    resolved
+  end
+
+  def self.sidebar_board_identity(board)
+    return 'alert' if board.is_a?(Hash) && (board['alert'] || (board['special'] && board['alert']))
+    board.is_a?(Hash) ? board['key'] : board
+  end
+
+  # Inject newly-added default sidebar entries (e.g. crisis-vocabulary) into an
+  # older saved list without re-adding boards the user removed — and WITHOUT
+  # reordering. The stored order IS the user's chosen sidebar order (drag / up-down
+  # reorder in the Edit Sidebar panel), so it must be preserved on every load; only
+  # still-missing auto-add defaults are appended.
+  def self.merge_missing_default_sidebar_boards(stored)
+    return default_active_sidebar_boards if stored.blank?
+
+    defaults = default_sidebar_boards
+    stored_ids = stored.map { |b| sidebar_board_identity(b) }.compact
+    default_ids = defaults.map { |b| sidebar_board_identity(b) }
+
+    return stored unless stored_ids.any? { |id| default_ids.include?(id) }
+
+    missing_auto_add = sidebar_auto_add_keys.reject { |key| sidebar_stored_key_present?(stored, key) }
+    return stored if missing_auto_add.empty?
+
+    result = stored.dup
+    defaults.each do |default_item|
+      key = default_item['key']
+      result << default_item if key && missing_auto_add.include?(key)
+    end
+    result
+  end
+
+  def self.sidebar_auto_add_keys
+    [SystemBoardSources.board_key(SystemBoardSources::CRISIS_VOCABULARY_SLUG)]
+  end
+
+  def self.inactive_by_default_sidebar_keys
+    ['mbaud12/senner-baud-greetings']
+  end
+
+  def self.default_active_sidebar_boards
+    default_sidebar_boards.reject { |b| inactive_by_default_sidebar_keys.include?(b['key']) }
   end
   
   def admin?
@@ -1632,10 +2552,11 @@ class User < ActiveRecord::Base
   
   def self.default_sidebar_boards
     [
-      {'name' => "Yes/No", 'key' => 'example/yesno', 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/yes_2.png', 'home_lock' => false},
-      {'name' => "Inflections", 'key' => 'example/inflections', 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/verb.png', 'home_lock' => false},
-      {'name' => "Keyboard", 'key' => 'example/keyboard', 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/noun-project/Computer%20Keyboard-19d40c3f5a.svg', 'home_lock' => false},
+      {'name' => "Yes/No", 'key' => 'lingolinq/yesno', 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/yes_2.png', 'home_lock' => false},
+      {'name' => "Inflections", 'key' => SystemBoardSources.board_key('inflections'), 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/verb.png', 'home_lock' => false},
+      {'name' => "Keyboard", 'key' => SystemBoardSources.board_key('keyboard'), 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/noun-project/Computer%20Keyboard-19d40c3f5a.svg', 'home_lock' => false},
       {'name' => 'Social', 'key' => 'mbaud12/senner-baud-greetings', 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/greet_2.png', 'home_lock' => false},
+      {'name' => "Crisis Vocabulary", 'key' => SystemBoardSources.board_key(SystemBoardSources::CRISIS_VOCABULARY_SLUG), 'image' => 'https://cdn-icons-png.flaticon.com/512/7373/7373323.png', 'home_lock' => false},
       {'name' => "Alert", 'special' => true, 'alert' => true, 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/to%20sound.png'}
     ]
   end
@@ -1643,7 +2564,18 @@ class User < ActiveRecord::Base
   def notify_of_changes
     if @password_changed
       UserMailer.schedule_delivery(:password_changed, self.global_id)
+      # Record an immutable audit trail entry for every password change, including
+      # admin-initiated / token resets (LL-747bb0e02d). log_command is best-effort
+      # (it rescues and never raises), so a failed audit insert can never break the
+      # password change or alter the existing mailer behavior. No password material
+      # or PII is stored - only the change type and self-service flag; user_key is
+      # the opaque global_id.
+      AuditEvent.log_command(self.global_id, {
+        'type' => 'password_changed',
+        'self_service' => !!@password_change_self_service
+      })
       @password_changed = false
+      @password_change_self_service = false
     end
     if @email_changed
       # TODO: should have confirmation flow for new email address
@@ -1887,6 +2819,7 @@ class User < ActiveRecord::Base
     starting_new_board_id = opts[:new_board_id]
     ids_to_copy = opts[:ids_to_copy] || []
     make_public = opts[:make_public] || false
+    expand_selected_board_ids = opts[:expand_selected_board_ids] == true || opts[:expand_selected_board_ids].to_s == 'true' || opts[:expand_selected_board_ids].to_s == '1'
     whodunnit = opts[:user_for_paper_trail] || nil
     swap_library = opts[:swap_library]
 
@@ -1907,6 +2840,7 @@ class User < ActiveRecord::Base
       :new_default_locale => opts[:new_default_locale],
       :copy_prefix => opts[:copy_prefix],
       :valid_ids => valid_ids, 
+      :expand_selected_board_ids => expand_selected_board_ids,
       :copier => User.find_by_path(opts[:copier_id]),
       :make_public => make_public, 
       :new_owner => opts[:new_owner],
@@ -1959,10 +2893,85 @@ class User < ActiveRecord::Base
     user_id, hash = token.split(/-/)
     return nil unless user_id && hash
     verifier = GoSecure.sha512("#{user_id}-", 'user_token verifier')[0, 30]
-    return nil unless hash == verifier
+    # Constant-time compare so a timing side-channel can't be used to recover the
+    # verifier byte-by-byte (LL-90045bb29c). Same pattern as find_by_protected_image_token
+    # below; secure_compare returns false on a length mismatch, so behavior is unchanged.
+    return nil unless ActiveSupport::SecurityUtils.secure_compare(hash, verifier)
     User.find_by_global_id(user_id)
   end
-    
+
+  # Unlike user_token above, this is a purpose-scoped, time-limited credential for
+  # protected_image only: bounds how long a leaked URL (query-string tokens land in
+  # access logs, browser history, and Referer headers) stays valid. The default outlasts
+  # the 12-day CDN cache-control window protected_image already sets on successful
+  # redirects, so it won't expire while a synced board is still relying on the cached copy.
+  PROTECTED_IMAGE_TOKEN_LIFESPAN = 30.days
+
+  def protected_image_token(lifespan=PROTECTED_IMAGE_TOKEN_LIFESPAN)
+    expires_at = (Time.now + lifespan).to_i
+    sig = GoSecure.sha512("#{self.global_id}-#{expires_at}", 'protected_image_token verifier')[0, 30]
+    "#{self.global_id}-#{expires_at}-#{sig}"
+  end
+
+  # Accepts the newer expiring protected_image_token format (3 hyphen-separated parts)
+  # or falls back to the legacy permanent user_token format (2 parts), so image URLs
+  # embedded in boards cached client-side before this format existed keep resolving.
+  # The legacy branch is logged (not just silently accepted) because it's the residual
+  # of LL-310b464be4 this PR intentionally leaves open: sunsetting it needs evidence of
+  # how often it's still hit, not a guess.
+  def self.find_by_protected_image_token(token)
+    return nil unless token
+    parts = token.to_s.split(/-/)
+    unless parts.length == 3
+      user = find_by_token(token)
+      Rails.logger.info("[protected_image_legacy_token] accepted permanent-format token for #{user.global_id}") if user
+      return user
+    end
+    user_id, expires_at, sig = parts
+    return nil unless expires_at.match?(/\A\d+\z/)
+    verifier = GoSecure.sha512("#{user_id}-#{expires_at}", 'protected_image_token verifier')[0, 30]
+    return nil unless ActiveSupport::SecurityUtils.secure_compare(sig, verifier)
+    return nil if expires_at.to_i < Time.now.to_i
+    User.find_by_global_id(user_id)
+  end
+
+  # Purpose-scoped, expiring credential for lesson/board SHARE links (LL-90045bb29c option (b)).
+  # Replaces the permanent user_token that was embedded in navigable /lessons/... URLs, where it
+  # leaked into browser history, access logs, and Referer headers as a non-revocable bearer
+  # credential. Same expiring-HMAC design as protected_image_token above, with its own verifier
+  # purpose string. The MINT is gated by a kill-switch (FeatureFlags.expiring_lesson_share_tokens_enabled?)
+  # so ops can revert construction to the legacy permanent token in one switch; the finder accepts
+  # both formats regardless, so flipping the switch either way never breaks an already-issued link.
+  LESSON_SHARE_TOKEN_LIFESPAN = 30.days
+
+  def lesson_share_token(lifespan=LESSON_SHARE_TOKEN_LIFESPAN)
+    return user_token unless FeatureFlags.expiring_lesson_share_tokens_enabled?(self)
+    expires_at = (Time.now + lifespan).to_i
+    sig = GoSecure.sha512("#{self.global_id}-#{expires_at}", 'lesson_share_token verifier')[0, 30]
+    "#{self.global_id}-#{expires_at}-#{sig}"
+  end
+
+  # Accepts the expiring lesson_share_token format (3 hyphen-separated parts) or falls back to the
+  # legacy permanent user_token format (2 parts), so lesson/board share URLs created before this
+  # format existed keep resolving. The legacy branch is logged (not silently accepted) so the
+  # residual permanent-token exposure can be measured before it is sunset (tracked under
+  # LL-90045bb29c option (c) / LL-310b464be4).
+  def self.find_by_lesson_share_token(token)
+    return nil unless token
+    parts = token.to_s.split(/-/)
+    unless parts.length == 3
+      user = find_by_token(token)
+      Rails.logger.info("[lesson_share_legacy_token] accepted permanent-format token for #{user.global_id}") if user
+      return user
+    end
+    user_id, expires_at, sig = parts
+    return nil unless expires_at.match?(/\A\d+\z/)
+    verifier = GoSecure.sha512("#{user_id}-#{expires_at}", 'lesson_share_token verifier')[0, 30]
+    return nil unless ActiveSupport::SecurityUtils.secure_compare(sig, verifier)
+    return nil if expires_at.to_i < Time.now.to_i
+    User.find_by_global_id(user_id)
+  end
+
   def notify_on(attributes, notification_type)
     # TODO: ...
   end

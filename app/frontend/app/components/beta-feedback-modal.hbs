@@ -1,0 +1,5 @@
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
+  <div class="beta-feedback-modal-wrap">
+    <BetaFeedbackPanel @isDrawer={{true}} @onSubmitSuccess={{this.onSubmitSuccess}} @onCancel={{this.onCancel}} @onClose={{this.onClose}} />
+  </div>
+</ModalDialog>

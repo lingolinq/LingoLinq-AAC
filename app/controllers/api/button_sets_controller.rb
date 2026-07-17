@@ -1,5 +1,7 @@
+require_relative '../../../lib/method_tracer'
+
 class Api::ButtonSetsController < ApplicationController
-  extend ::NewRelic::Agent::MethodTracer
+  extend MethodTracer
   before_action :require_api_token, :except => [:show]
   
   def index
@@ -78,13 +80,16 @@ class Api::ButtonSetsController < ApplicationController
         rescue => e
           Rails.logger.error "SYNC DEBUG ERROR: #{e.message}"
           Rails.logger.error e.backtrace.join("\n")
-          render json: {error: e.message, backtrace: e.backtrace}, status: 500
+          # The backtrace is already in the server log above; never return it to
+          # the client. Standardize on the {error: message} shape the rest of the
+          # API uses so this debug path stops leaking internal paths/gem versions.
+          render json: {error: e.message}, status: 500
           return # Stop execution here for sync mode
         end
       end
 
       # Default Async Behavior (Restored)
-      progress = Progress.schedule(BoardDownstreamButtonSet, :generate_for, board.global_id, user_id)
+      progress = Progress.schedule(BoardDownstreamButtonSet, :generate_for, board.global_id, user_id, for_user: @api_user)
       render json: JsonApi::Progress.as_json(progress, :wrapper => true).to_json
     end
   end

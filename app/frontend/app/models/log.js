@@ -1,7 +1,8 @@
 import EmberObject from '@ember/object';
 import { inject as service } from '@ember/service';
 import { set as emberSet, get as emberGet } from '@ember/object';
-import DS from 'ember-data';
+import { attr } from '@ember-data/model';
+import BaseModel from './base';
 import LingoLinq from '../app';
 import { htmlSafe } from '@ember/template';
 import { computed, observer } from '@ember/object';
@@ -11,50 +12,51 @@ import i18n from '../utils/i18n';
 import RSVP from 'rsvp';
 import persistence from '../utils/persistence';
 
-LingoLinq.Log = DS.Model.extend({
+LingoLinq.Log = BaseModel.extend({
   persistence: service('persistence'),
-  type: DS.attr('string'),
-  message_type: DS.attr('boolean'),
-  events: DS.attr('raw'),
-  note: DS.attr('raw'),
-  device: DS.attr('raw'),
-  author: DS.attr('raw'),
-  daily_use: DS.attr('raw'),
-  user: DS.attr('raw'),
-  imported: DS.attr('boolean'),
-  started_at: DS.attr('date'),
-  ended_at: DS.attr('date'),
-  summary: DS.attr('string'),
-  time_id: DS.attr('number'),
-  button_count: DS.attr('number'),
-  utterance_count: DS.attr('number'),
-  utterance_word_count: DS.attr('number'),
-  duration: DS.attr('number'),
-  user_id: DS.attr('string'),
-  timestamp: DS.attr('number'),
-  assessment: DS.attr('raw'),
-  highlighted: DS.attr('boolean'),
-  highlight_summary: DS.attr('string'),
-  notify: DS.attr('string'),
-  next_log_id: DS.attr('string'),
-  previous_log_id: DS.attr('string'),
-  geo: DS.attr('raw'),
-  readable_ip_address: DS.attr('string'),
-  ip_cluster_id: DS.attr('string'),
-  geo_cluster_id: DS.attr('string'),
-  video_id: DS.attr('string'),
-  goal_id: DS.attr('string'),
-  goal_status: DS.attr('string'),
-  goal: DS.attr('raw'),
-  journal: DS.attr('raw'),
-  profile: DS.attr('raw'),
-  guid: DS.attr('string'),
-  video: DS.attr('raw'),
-  evaluation: DS.attr('raw'),
-  nonce: DS.attr('string'),
-  encryption_settings: DS.attr('raw'),
-  data_url: DS.attr('string'),
-  event_note_count: DS.attr('number'),
+  type: attr('string'),
+  message_type: attr('boolean'),
+  events: attr('raw'),
+  note: attr('raw'),
+  device: attr('raw'),
+  author: attr('raw'),
+  daily_use: attr('raw'),
+  user: attr('raw'),
+  imported: attr('boolean'),
+  started_at: attr('date'),
+  ended_at: attr('date'),
+  summary: attr('string'),
+  time_id: attr('number'),
+  button_count: attr('number'),
+  utterance_count: attr('number'),
+  utterance_word_count: attr('number'),
+  duration: attr('number'),
+  user_id: attr('string'),
+  timestamp: attr('number'),
+  assessment: attr('raw'),
+  highlighted: attr('boolean'),
+  highlight_summary: attr('string'),
+  notify: attr('string'),
+  next_log_id: attr('string'),
+  previous_log_id: attr('string'),
+  geo: attr('raw'),
+  readable_ip_address: attr('string'),
+  ip_cluster_id: attr('string'),
+  geo_cluster_id: attr('string'),
+  video_id: attr('string'),
+  goal_id: attr('string'),
+  goal_status: attr('string'),
+  goal: attr('raw'),
+  journal: attr('raw'),
+  profile: attr('raw'),
+  guid: attr('string'),
+  video: attr('raw'),
+  evaluation: attr('raw'),
+  tiered_eval: attr('raw'),
+  nonce: attr('string'),
+  encryption_settings: attr('raw'),
+  data_url: attr('string'),
+  event_note_count: attr('number'),
   minutes: computed('duration', function() {
     return Math.round((this.get('duration') || 0) / 60);
   }),
@@ -78,6 +80,18 @@ LingoLinq.Log = DS.Model.extend({
   }),
   eval_type: computed('type', function() {
     return this.get('type') == 'eval';
+  }),
+  // New tiered eval payload (Quick Screen / Targeted). Distinct
+  // from `evaluation` which carries the legacy eval shape.
+  tiered_eval_type: computed('tiered_eval', function() {
+    var t = this.get('tiered_eval');
+    return !!(t && t.eval_mode);
+  }),
+  tiered_eval_is_targeted: computed('tiered_eval.eval_mode', function() {
+    return this.get('tiered_eval.eval_mode') === 'targeted';
+  }),
+  tiered_eval_is_comprehensive: computed('tiered_eval.eval_mode', function() {
+    return this.get('tiered_eval.eval_mode') === 'comprehensive';
   }),
   goal_status_class: computed('goal.status', function() {
     var status = this.get('goal.status');
@@ -115,7 +129,7 @@ LingoLinq.Log = DS.Model.extend({
   processed_events: computed('events', 'toggled_event_ids', function() {
     var result = [];
     var last_ts = null;
-    var max_id = Math.max.apply(null, (this.get('events') || []).mapBy('id').compact()) || 0;
+    var max_id = Math.max.apply(null, (this.get('events') || []).map(function(o) { return emberGet(o, 'id'); }).filter(function(x) { return x != null; })) || 0;
     if(max_id < 0) { max_id = 0; }
     var shown_ids = this.get('toggled_event_ids') || [];
     (this.get('events') || []).forEach(function(event, idx) {
@@ -243,7 +257,7 @@ LingoLinq.Log = DS.Model.extend({
     events.forEach(function(event) {
       if(event.id == event_id) {
         event['notes'] = event['notes'] || [];
-        var max_id = Math.max.apply(null, event['notes'].mapBy('id').compact()) || 0;
+        var max_id = Math.max.apply(null, event['notes'].map(function(o) { return emberGet(o, 'id'); }).filter(function(x) { return x != null; })) || 0;
         if(max_id < 0) { max_id = 0; }
         event['notes'].push({
           id: ++max_id,

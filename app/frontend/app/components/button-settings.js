@@ -27,6 +27,15 @@ export default Component.extend({
   contentGrabbers: service('content-grabbers'),
   tagName: '',
 
+  // True only in the Modern (board-detail) view. The relocated Color/Stash/Word
+  // Data nav actions route through editManager's controller, which only defines
+  // those actions in board-detail; in Classic (board-alt) board/index lacks
+  // open_color_picker (would throw) and its word_data expects an id. Classic
+  // never had these items, so gate them on Modern.
+  is_modern: computed('appState.currentUser.preferences.board_view_style', function() {
+    return this.get('appState.currentUser.preferences.board_view_style') !== 'classic';
+  }),
+
   init() {
     this._super(...arguments);
     const modalService = this.get('modal');
@@ -35,10 +44,32 @@ export default Component.extend({
                     (modalService && modalService.settingsFor && modalService.settingsFor[template]) ||
                     this.get('model') || {};
     this.set('model', options);
+    var self = this;
+    this.set('ctrlAction', function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    });
+    this.set('onNothing', function(event) {
+      if (event && event.preventDefault) { event.preventDefault(); }
+      self.send('nothing');
+    });
+    this.set('ctrlActionEventValue', function(actionName, targetProp) {
+      return function(event) {
+        var value = event && event.target ? event.target[targetProp] : undefined;
+        self.send(actionName, value);
+      };
+    });
   },
 
   didInsertElement() {
     this._super(...arguments);
+    var self = this;
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
     var opts = this.get('model');
     var button = opts && opts.button;
     if (!button) { return; }
@@ -51,6 +82,7 @@ export default Component.extend({
     this.set('model', button);
     button.set('translations_hash', this.get('board').translations_for_button(button.id));
     this.set('handle_updates', true);
+    this.set('fresh_picture_url', null);
     contentGrabbers.setup(button, this);
     var _this = this;
 
@@ -218,6 +250,9 @@ export default Component.extend({
 
   willDestroyElement() {
     this._super(...arguments);
+    this.onClose = null;
+    this.onOpening = null;
+    this.onClosing = null;
     if (this.get('model') && this.get('model.id')) {
       this._runClosing();
     }
@@ -807,6 +842,22 @@ export default Component.extend({
       this.set('model.hide_label', !!checked);
       editManager.change_button(this.get('model.id'), { hide_label: !!checked });
     },
+    // Quick actions (left nav, below Extras) relocated from the removed per-button
+    // edit menu. Each closes THIS modal, then (on the next runloop, so the close
+    // settles before the color picker / word-data modal opens) runs the matching
+    // board-detail action for the CURRENT button via editManager's controller —
+    // self-contained, so it also works after in-modal button navigation.
+    _run_button_action: function(action_name) {
+      var button = this.get('model');
+      modal.close();
+      runLater(null, function() {
+        var ctrl = editManager.get('controller');
+        if(ctrl && button) { ctrl.send(action_name, button); }
+      }, 0);
+    },
+    color_button: function() { this.send('_run_button_action', 'open_color_picker'); },
+    stash_this_button: function() { this.send('_run_button_action', 'stash_button'); },
+    word_data_this_button: function() { this.send('_run_button_action', 'word_data'); },
     updateModelPartOfSpeech(value) { this.set('model.part_of_speech', value); },
     updateImageLibrary(value) { this.set('image_library', value); },
     updateSkinPreference(value) { this.set('skin_preference', value); },
@@ -916,8 +967,16 @@ export default Component.extend({
       this.set('state', state);
     },
     clear_button: function() {
+      var _this = this;
+      _this.set('show_clear_confirm', true);
+    },
+    confirm_clear_button: function() {
       editManager.clear_button(this.get('model.id'));
+      this.set('show_clear_confirm', false);
       this.get('modal').close(true);
+    },
+    cancel_clear_button: function() {
+      this.set('show_clear_confirm', false);
     },
     clear_override: function(attr) {
       var button = this.get('model');
@@ -1135,6 +1194,21 @@ export default Component.extend({
         this.send('clear_sound');
         this.send('clear_sound_work');
         this.set('model.sound_id', null);
+      }
+      // Sync color values from DOM inputs (minicolors jQuery plugin may bypass Ember bindings)
+      var fillEl = document.getElementById('fill');
+      var borderEl = document.getElementById('border');
+      if(fillEl && fillEl.value) {
+        this.set('model.background_color', fillEl.value);
+      }
+      if(borderEl && borderEl.value) {
+        this.set('model.border_color', borderEl.value);
+      }
+      if(this.get('model.id')) {
+        editManager.change_button(this.get('model.id'), {
+          background_color: this.get('model.background_color'),
+          border_color: this.get('model.border_color')
+        });
       }
       this.get('contentGrabbers').save_pending().then(function() {
         if(_this && !_this.isDestroyed && !_this.isDestroying) { _this.get('modal').close(); }

@@ -109,9 +109,9 @@ describe BoardCaching, :type => :model do
       Worker.process_queues
       Worker.process_queues
       RemoteAction.process_all
-      expect(u2.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
-      expect(u3.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
-      expect(u1.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
+      expect(u2.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id].sort)
+      expect(u3.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id].sort)
+      expect(u1.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id].sort)
     end
 
     # if someone downstream-edit-shares a board with me, and someone else on the team creates a new board and links to it, I should see it
@@ -128,9 +128,9 @@ describe BoardCaching, :type => :model do
       RedisInit.permissions.keys.each{|k| RedisInit.permissions.del(k) }
       Worker.process_queues
       Worker.process_queues
-      expect(u2.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
-      expect(u3.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
-      expect(u1.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
+      expect(u2.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id].sort)
+      expect(u3.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id].sort)
+      expect(u1.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id].sort)
     end
 
     # if someone shares a board with me and creates a private sub-board, I shouldn't see it
@@ -150,7 +150,7 @@ describe BoardCaching, :type => :model do
       Worker.process_queues
       Worker.process_queues
       Worker.process_queues
-      expect(u2.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
+      expect(u2.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id].sort)
       expect(u1.reload.private_viewable_board_ids.sort).to eq([b.global_id])
     end
 
@@ -173,8 +173,8 @@ describe BoardCaching, :type => :model do
       Worker.process_queues
       Worker.process_queues
       Worker.process_queues
-      expect(u2.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
-      expect(u1.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
+      expect(u2.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id].sort)
+      expect(u1.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id].sort)
     end
 
     # if someone downstream-shares a board with me and one of the board's downstream-co-authors creates a private sub-board, I should see it
@@ -202,9 +202,9 @@ describe BoardCaching, :type => :model do
       expect(RemoteAction.where(action: 'update_available_boards', path: u3.global_id).count).to be >= 1
       RemoteAction.process_all
       Worker.process_queues
-      expect(u2.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
-      expect(u3.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
-      expect(u1.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
+      expect(u2.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id].sort)
+      expect(u3.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id].sort)
+      expect(u1.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id].sort)
     end
 
     # if someone downstream-shares a board with me and one of the board's downstream-co-authors creates a public board, it shouldn't bother updating
@@ -268,9 +268,9 @@ describe BoardCaching, :type => :model do
       Worker.process_queues
       # Explicitly run update_available_boards - RemoteAction schedules to slow queue
       [u1, u2, u3].each { |usr| usr.reload.update_available_boards }
-      expect(u2.reload.private_viewable_board_ids.sort).to eq([b.global_id, b3.global_id])
-      expect(u3.reload.private_viewable_board_ids.sort).to eq([b.global_id, b3.global_id])
-      expect(u1.reload.private_viewable_board_ids.sort).to eq([b.global_id, b3.global_id])
+      expect(u2.reload.private_viewable_board_ids.sort).to eq([b.global_id, b3.global_id].sort)
+      expect(u3.reload.private_viewable_board_ids.sort).to eq([b.global_id, b3.global_id].sort)
+      expect(u1.reload.private_viewable_board_ids.sort).to eq([b.global_id, b3.global_id].sort)
     end
   
     # if I create a board downstream of a downstream-co-authored board (me not the author) that links
@@ -300,12 +300,12 @@ describe BoardCaching, :type => :model do
       Worker.process_queues
       Worker.process_queues
       RemoteAction.process_all
-      expect(u2.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
-      expect(u3.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
-      expect(u1.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
-      expect(u2.reload.private_editable_board_ids.sort).to eq([b.global_id, b2.global_id])
-      expect(u3.reload.private_editable_board_ids.sort).to eq([b.global_id, b2.global_id])
-      expect(u1.reload.private_editable_board_ids.sort).to eq([b.global_id, b2.global_id])
+      expect(u2.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id].sort)
+      expect(u3.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id].sort)
+      expect(u1.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id].sort)
+      expect(u2.reload.private_editable_board_ids.sort).to eq([b.global_id, b2.global_id].sort)
+      expect(u3.reload.private_editable_board_ids.sort).to eq([b.global_id, b2.global_id].sort)
+      expect(u1.reload.private_editable_board_ids.sort).to eq([b.global_id, b2.global_id].sort)
     end
 
     # if me and someone else supervise each other, we shouldn't get caught in a loop on update
@@ -462,7 +462,7 @@ describe BoardCaching, :type => :model do
       RemoteAction.process_all
       Worker.process_queues
       
-      expect(u1.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
+      expect(u1.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id].sort)
     end
 
     # if a co-authored board gets a link to a private board by one of the authors, it should update
@@ -491,9 +491,9 @@ describe BoardCaching, :type => :model do
       Worker.process_queues
       Worker.process_queues
       [u1, u2, u3].each { |usr| usr.reload.update_available_boards }
-      expect(u2.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
-      expect(u3.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
-      expect(u1.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id])
+      expect(u2.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id].sort)
+      expect(u3.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id].sort)
+      expect(u1.reload.private_viewable_board_ids.sort).to eq([b.global_id, b2.global_id].sort)
     end
 
     # if an editable supervisee creates a board I should see it

@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, staging ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, develop, staging ]
 
 jobs:
   rspec:
@@ -74,11 +74,12 @@ jobs:
         with:
           node-version: 20
 
-      - name: Cache node_modules
+      - name: Cache node_modules and Puppeteer Chrome
         uses: actions/cache@v4
         with:
           path: |
             app/frontend/node_modules
+            ~/.cache/puppeteer
           key: ${{ runner.os }}-node20-${{ hashFiles('app/frontend/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node20-
@@ -87,17 +88,67 @@ jobs:
         working-directory: app/frontend
         run: npm install
 
+      # Template lint gate: fails on any NEW ember-template-lint violation (incl.
+      # no-implicit-this bare-property refs that crash render in Ember 5.x).
+      # Pre-existing violations are grandfathered in .lint-todo (suppressed until
+      # their per-entry error date); this only blocks newly-introduced ones.
+      - name: Lint Ember templates
+        working-directory: app/frontend
+        run: npm run lint:hbs
+
+      # Puppeteer downloads Chrome under ~/.cache/puppeteer, not inside node_modules.
+      # Restoring only node_modules leaves executablePath() pointing at a missing binary.
+      - name: Ensure Puppeteer Chrome is present
+        working-directory: app/frontend
+        run: npx puppeteer browsers install chrome
+
       - name: Build Ember app
         working-directory: app/frontend
         run: npx ember build
 
       - name: Run Ember tests (Chrome Headless)
         working-directory: app/frontend
+        # A healthy full run finishes in ~34 min. Cap the step so a wedged
+        # runner (e.g. testem's iframe channel corrupted by a post-teardown
+        # stack overflow) fails fast instead of burning the 6h Actions ceiling.
+        timeout-minutes: 50
         run: npx ember test
+
+  # Blocking gate for the audit/compliance system's own generated artifacts. These
+  # are deterministic, stdlib-only render checks (no gems, no network, no git
+  # history) that fail ONLY if a generated markdown drifts from its JSON source of
+  # truth - so making them blocking is low-friction and keeps the register's
+  # human-readable mirrors honest. (citation-check.rb is intentionally NOT gated
+  # here: a repo-wide blocking citation check is a broader policy decision.)
+  audit-artifacts-integrity:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+
+      - name: Verify compliance calendar render matches JSON
+        run: ruby scripts/compliance-calendar-render.rb --check
+
+      - name: Verify Notion compliance page matches register
+        run: ruby scripts/compliance-notion-publish.rb --check
+
+      - name: Verify document register render + git content hashes + bundle completeness
+        run: ruby scripts/document-register-render.rb --check
+
+      - name: Verify compliance publication status report
+        run: ruby scripts/compliance-publication-status.rb --check
+
+      - name: Verify capability ledger (currentEvidence resolves at HEAD; negativeEvidence scoping)
+        run: ruby scripts/capability-check.rb --check
 
   security-scan:
     runs-on: ubuntu-latest
-    continue-on-error: true
 
     steps:
       - name: Checkout repository
@@ -140,9 +191,13 @@ jobs:
           npm audit --audit-level=high || true
         continue-on-error: true
 
+  # Blocking gate. Unlike the advisory Brakeman/npm steps above, a leaked secret
+  # MUST fail CI. To stay safe as a required check we scan only the secrets a PR /
+  # push actually INTRODUCES (the commit delta), never the full history: one
+  # historical false positive must not block every future merge. Pair this with
+  # the staging branch-protection required-status-checks list so it gates merge.
   secret-detection:
     runs-on: ubuntu-latest
-    continue-on-error: true
 
     steps:
       - name: Checkout repository
@@ -150,7 +205,27 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run gitleaks (CLI - no license required)
+      - name: Download gitleaks (CLI - no license required)
         run: |
-          curl -sSfL https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_$(curl -s https://api.github.com/repos/gitleaks/gitleaks/releases/latest | grep tag_name | cut -d '"' -f 4 | sed 's/v//')_linux_x64.tar.gz | tar -xz gitleaks
-          ./gitleaks detect --source . --log-opts="--all" --exit-code 1 || true
+          GITLEAKS_DOWNLOAD_URL="$(curl -sSfL \
+            --retry 3 \
+            --retry-delay 2 \
+            --retry-all-errors \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ github.token }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/gitleaks/gitleaks/releases/latest | python3 -c "import json, sys; release=json.load(sys.stdin); print(next(asset['browser_download_url'] for asset in release['assets'] if asset['name'].endswith('_linux_x64.tar.gz')))")"
+          curl -sSfL --retry 3 --retry-delay 2 --retry-all-errors "$GITLEAKS_DOWNLOAD_URL" | tar -xz gitleaks
+
+      - name: Scan for newly-introduced secrets (blocking)
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            RANGE="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          elif [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            RANGE="${{ github.event.before }}..${{ github.sha }}"
+          else
+            RANGE="${{ github.sha }}~1..${{ github.sha }}"
+          fi
+          echo "Scanning commit range for secrets: $RANGE"
+          # --redact keeps any matched secret value out of the public CI log.
+          ./gitleaks detect --source . --log-opts="$RANGE" --redact --exit-code 1

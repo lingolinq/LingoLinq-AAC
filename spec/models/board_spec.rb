@@ -972,6 +972,8 @@ describe Board, :type => :model do
       u = User.create
       User.purchase_extras({'premium_symbols' => true, 'user_id' => u.global_id})
       u.reload
+      u.settings['preferences']['preferred_symbols'] = 'original'
+      u.save!
       b = Board.create(user: u)
       b.settings['buttons'] = [{'sound_id' => 'asdf'}]
       expect(b).to receive(:get_cached).with("images_and_sounds_for/#{u.cache_key}").and_return(nil)
@@ -997,6 +999,8 @@ describe Board, :type => :model do
       u = User.create
       User.purchase_extras({'premium_symbols' => true, 'user_id' => u.global_id})
       u.reload
+      u.settings['preferences']['preferred_symbols'] = 'original'
+      u.save!
       b = Board.create(user: u)
       b.settings['buttons'] = [{'sound_id' => 'asdf'}]
       expect(b).to receive(:get_cached).with("images_and_sounds_for/#{u.cache_key}").and_return(nil)
@@ -1023,6 +1027,8 @@ describe Board, :type => :model do
       u = User.create
       User.purchase_extras({'premium_symbols' => true, 'user_id' => u.global_id})
       u.reload
+      u.settings['preferences']['preferred_symbols'] = 'original'
+      u.save!
       b = Board.create(user: u)
       b.settings['buttons'] = [{'sound_id' => 'asdf'}]
       b.save
@@ -1050,6 +1056,8 @@ describe Board, :type => :model do
       u = User.create
       User.purchase_extras({'premium_symbols' => true, 'user_id' => u.global_id})
       u.reload
+      u.settings['preferences']['preferred_symbols'] = 'original'
+      u.save!
       b = Board.create(user: u)
       bi1 = ButtonImage.create(user: u, board: b, settings: {'protected' => true, 'protected_source' => 'pcs'}, url: 'http://www.example.com')
       bi2 = ButtonImage.create(user: u, board: b, settings: {'protected' => true, 'protected_source' => 'abs'}, url: 'http://www.example.com')
@@ -1087,6 +1095,8 @@ describe Board, :type => :model do
       User.purchase_extras({'premium_symbols' => true, 'user_id' => u2.global_id})
       u.reload
       u2.reload
+      u.settings['preferences']['preferred_symbols'] = 'original'
+      u.save!
 
       b = Board.create(user: u)
       expect(b).to receive(:get_cached).with("images_and_sounds_for/#{u.cache_key}").and_return(nil)
@@ -1205,6 +1215,92 @@ describe Board, :type => :model do
       expect(b.buttons[9]).to eq({'id' => 13, 'label' => "t", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
       expect(b.buttons[10]).to eq({'id' => 14, 'label' => "q", 'suggest_symbol' => true, 'hidden' => false, 'hide_label' => false})
       expect(b.settings['grid']['order']).to eq([[5, 7, 9, 11], [6, 8, 10, 12]])
+    end
+  end
+
+  describe "process_client_supplied_images" do
+    it "assigns image_id from client-supplied image_url (manual or AI create-board-new)" do
+      u = User.create
+      allow(OpenSymbols).to receive(:defaults).and_return({})
+      image_url = 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/dog.png'
+      board = Board.process_new({
+        'name' => 'Preview symbols',
+        'grid' => {
+          'rows' => 1,
+          'columns' => 2,
+          'order' => [[1, 2]]
+        },
+        'buttons' => [
+          {'id' => 1, 'label' => 'dog', 'image_url' => image_url, 'hidden' => false, 'hide_label' => false},
+          {'id' => 2, 'label' => 'cat', 'hidden' => false, 'hide_label' => false}
+        ]
+      }, {:user => u})
+      expect(board).to be_persisted
+      dog = board.settings['buttons'].find { |b| b['label'] == 'dog' }
+      cat = board.settings['buttons'].find { |b| b['label'] == 'cat' }
+      expect(dog['image_id']).to be_present
+      expect(dog['image_url']).to be_blank
+      expect(cat['image_id']).to be_blank
+      bi = ButtonImage.find_by_global_id(dog['image_id'])
+      expect(bi.url).to eq(image_url)
+    end
+
+    it "assigns image_id from labels-only grid (legacy new-board / manual labels path)" do
+      u = User.create
+      allow(OpenSymbols).to receive(:defaults).and_return({
+        'hello' => {
+          'image_url' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/hello.png',
+          'id' => 'hello-1',
+          'license' => 'CC BY-NC-SA',
+          'license_url' => 'http://example.com/license',
+          'source_url' => 'http://example.com/source',
+          'author' => 'ARASAAC',
+          'author_url' => 'http://example.com/author'
+        }
+      })
+      board = Board.process_new({
+        'name' => 'Manual labels board',
+        'grid' => {
+          'rows' => 1,
+          'columns' => 1,
+          'labels' => 'hello',
+          'labels_order' => 'rows'
+        }
+      }, {:user => u})
+      expect(board).to be_persisted
+      hello = board.settings['buttons'].find { |b| b['label'] == 'hello' }
+      expect(hello['image_id']).to be_present
+    end
+  end
+
+  describe "process_suggested_symbols fallback for new baked boards" do
+    it "assigns symbols when new board has labels but no client image_url" do
+      u = User.create
+      allow(OpenSymbols).to receive(:defaults).and_return({
+        'apple' => {
+          'image_url' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/apple.png',
+          'id' => 'apple-1',
+          'license' => 'CC BY-NC-SA',
+          'license_url' => 'http://example.com/license',
+          'source_url' => 'http://example.com/source',
+          'author' => 'ARASAAC',
+          'author_url' => 'http://example.com/author'
+        }
+      })
+      board = Board.process_new({
+        'name' => 'POS colors only',
+        'grid' => {
+          'rows' => 1,
+          'columns' => 1,
+          'order' => [[1]]
+        },
+        'buttons' => [
+          {'id' => 1, 'label' => 'apple', 'background_color' => 'rgb(255, 204, 170)', 'hidden' => false, 'hide_label' => false}
+        ]
+      }, {:user => u})
+      expect(board).to be_persisted
+      apple = board.settings['buttons'].find { |b| b['label'] == 'apple' }
+      expect(apple['image_id']).to be_present
     end
   end
   
@@ -1671,6 +1767,47 @@ describe Board, :type => :model do
       expect { b.process_params({}, {}) }.to_not raise_error
     end
     
+    it "defers update_privacy for an unsaved board until the create commits" do
+      u = User.create
+      downstream = Board.create(:user => u)
+      b = Board.new(:user => u)
+      expect(b.id).to eq(nil)
+      allow(b).to receive(:schedule_for)
+      b.process_params({
+        'buttons' => [
+          {'id' => 1, 'label' => 'linked', 'load_board' => {'id' => downstream.global_id, 'key' => downstream.key}}
+        ],
+        'visibility' => 'public',
+        'update_visibility_downstream' => true
+      }, {:user => u})
+      expect(b).not_to have_received(:schedule_for).with(:priority, :update_privacy, any_args)
+
+      b.save!
+      # Transactional fixtures roll the test transaction back, so after_commit
+      # callbacks never fire on their own — run them explicitly to exercise the
+      # deferred schedule_pending_privacy_update (after_commit on: :create).
+      b.run_callbacks(:commit)
+
+      expect(b.settings['immediately_downstream_board_ids']).to include(downstream.global_id)
+      expect(b).to have_received(:schedule_for).with(:priority, :update_privacy, 'public', u.global_id, [])
+    end
+
+    it "does not schedule update_privacy when visibility is blank" do
+      u = User.create
+      b = Board.create(:user => u)
+      allow(b).to receive(:schedule_for)
+      b.process_params({'visibility' => '', 'update_visibility_downstream' => true}, {:user => u})
+      expect(b).not_to have_received(:schedule_for).with(:priority, :update_privacy, any_args)
+    end
+
+    it "schedules update_privacy on a saved board with real visibility + downstream flag" do
+      u = User.create
+      b = Board.create(:user => u)
+      allow(b).to receive(:schedule_for)
+      b.process_params({'visibility' => 'public', 'update_visibility_downstream' => true}, {:user => u})
+      expect(b).to have_received(:schedule_for).with(:priority, :update_privacy, 'public', anything, [])
+    end
+
     it "should ignore non-sent parameters" do
       u = User.create
       b = Board.new(:user => u)
@@ -2213,6 +2350,74 @@ describe Board, :type => :model do
   end
   
   describe "post_process" do
+    context "buttonset creation for new copied boards" do
+      it "defers buttonset creation to the :slow queue for a brand-new copied board instead of rebuilding it inline" do
+        u = User.create
+        parent = Board.create(:user => u)
+        Worker.process_queues
+        b = Board.new(:user => u)
+        b.parent_board_id = parent.id
+        b.settings = {'name' => "copied board", 'buttons' => []}
+        # The crux of the fix: a new copy must NOT rebuild the downstream button set
+        # inline in the request (that inline traversal is what exceeded the 15s
+        # Rack::Timeout and failed the copy with a 500). It must defer to :slow.
+        expect(BoardDownstreamButtonSet).not_to receive(:update_for)
+        expect(BoardDownstreamButtonSet).to receive(:schedule_for).with(:slow, :update_for, kind_of(String), true).at_least(:once)
+        b.save
+      end
+
+      it "still builds the buttonset inline for a brand-new board with no downstream hierarchy" do
+        u = User.create
+        b = Board.new(:user => u)
+        b.settings = {'name' => "standalone board", 'buttons' => []}
+        # A from-scratch board with no links is cheap; keep the immediate inline build.
+        expect(BoardDownstreamButtonSet).to receive(:update_for).with(kind_of(String), true)
+        expect(BoardDownstreamButtonSet).not_to receive(:schedule_for).with(:slow, :update_for, anything, true)
+        b.save
+      end
+
+      it "builds the buttonset inline for a copy when ASYNC_BUTTONSET_ON_COPY is disabled (kill switch)" do
+        ENV['ASYNC_BUTTONSET_ON_COPY'] = 'false'
+        u = User.create
+        parent = Board.create(:user => u)
+        b = Board.new(:user => u)
+        b.parent_board_id = parent.id
+        b.settings = {'name' => "copied board", 'buttons' => []}
+        expect(BoardDownstreamButtonSet).to receive(:update_for).with(kind_of(String), true)
+        b.save
+      ensure
+        ENV.delete('ASYNC_BUTTONSET_ON_COPY')
+      end
+
+      it "defers when a brand-new board already references a downstream hierarchy even without a parent_board_id" do
+        u = User.create
+        b = Board.new(:user => u)
+        b.settings = {'name' => "links out", 'buttons' => []}
+        # Exercise the downstream_board_ids branch of the guard (not the parent_board_id one).
+        allow(b).to receive(:downstream_board_ids).and_return(['1_999'])
+        expect(b.parent_board_id).to be_nil
+        expect(BoardDownstreamButtonSet).not_to receive(:update_for)
+        expect(BoardDownstreamButtonSet).to receive(:schedule_for).with(:slow, :update_for, kind_of(String), true).at_least(:once)
+        b.save
+      end
+
+      it "builds the buttonset on the :slow queue after a deferred copy is processed (not left missing)" do
+        u = User.create
+        parent = Board.create(:user => u)
+        b = Board.new(:user => u)
+        b.parent_board_id = parent.id
+        b.settings = {'name' => "copied board", 'buttons' => [{'id' => 1, 'label' => "hi"}]}
+        b.save
+        # Deferred, so nothing was built inline in the request.
+        b.reload
+        expect(b.board_downstream_button_set).to eq(nil)
+        # The worker drains the :slow queue and the buttonset gets built (no permanent gap).
+        Worker.process_queues
+        b.reload
+        expect(b.board_downstream_button_set).not_to eq(nil)
+      end
+    end
+
     it "should search for a better default icon if the default icon is being used" do
       u = User.create
       b = Board.create(:user => u)
@@ -2853,6 +3058,34 @@ describe Board, :type => :model do
       expect(b2.reload.settings['copy_id']).to eq(b.global_id)
     end
 
+    it "duplicates the imported set for additional authorized users" do
+      importer = User.create(user_name: 'importer')
+      primary = User.create(user_name: 'primary')
+      recipient = User.create(user_name: 'recipient')
+      User.link_supervisor_to_user(importer, primary, nil, true)
+      User.link_supervisor_to_user(importer, recipient, nil, true)
+      root = Board.create(user: primary)
+      child = Board.create(user: primary)
+      boards = [root, child]
+
+      allow(User).to receive(:find_by_global_id).and_call_original
+      allow(User).to receive(:find_by_global_id).with(importer.global_id).and_return(importer)
+      allow(User).to receive(:find_all_by_global_id).and_call_original
+      allow(User).to receive(:find_all_by_global_id).with([primary.global_id, recipient.global_id]).and_return([primary, recipient])
+
+      expect(Converters::Utils).to receive(:remote_to_boards).with(primary, 'http://www.example.com/board.obz').and_return(boards)
+      new_root = Board.create(user: recipient)
+      allow(root).to receive(:reload).and_return(root)
+      expect(root).to receive(:copy_for).with(recipient, copier: importer).and_return(new_root)
+
+      expect(Board).to receive(:copy_board_links_for).with(
+        recipient,
+        hash_including(starting_old_board: root, starting_new_board: new_root, copier: importer, authorized_user: importer)
+      ).and_return({})
+
+      Board.import(importer.global_id, 'http://www.example.com/board.obz', {'recipient_global_ids' => [primary.global_id, recipient.global_id]})
+    end
+
     it "should return error hash for protected boards" do
       u = User.create
       b = Board.create(:user => u)
@@ -2862,6 +3095,44 @@ describe Board, :type => :model do
       res = Board.import(u.global_id, 'http://www.example.com/board.obf')
       expect(res).to eq({:error => {:message=>"protected material cannot be imported", :protected=>true}})
       expect(Board.last).to eq(b2)
+    end
+  end
+
+  describe "import_json_bundle" do
+    it "rejects remote bundle URLs outside the importer upload prefix" do
+      importer = User.create
+      expect {
+        Board.import_json_bundle(importer.global_id, 'https://www.example.com/imports/boards/evil/bundle-abc.json')
+      }.to raise_error(Progress::ProgressError, /invalid import bundle URL/)
+    end
+
+    it "requires edit permission when importing for another user" do
+      importer = User.create(user_name: 'importer')
+      recipient = User.create(user_name: 'recipient')
+      bundle = {
+        'root' => 'source/root-board',
+        'boards' => [
+          {
+            'key' => 'source/root-board',
+            'data' => {
+              'board' => {
+                'id' => '1_100_root',
+                'key' => 'source/root-board',
+                'name' => 'Root',
+                'locale' => 'en',
+                'buttons' => [],
+                'grid' => { 'rows' => 1, 'columns' => 1, 'order' => [[nil]] }
+              },
+              'images' => [],
+              'sounds' => []
+            }
+          }
+        ]
+      }
+
+      expect {
+        Board.import_json_bundle(importer.global_id, bundle, { 'recipient_global_ids' => [recipient.global_id] })
+      }.to raise_error(Progress::ProgressError, /not authorized/)
     end
   end
   
@@ -3246,13 +3517,34 @@ describe Board, :type => :model do
         'board_name' => {'en' => 'radish'},
         '1' => {
           'en' => {'label' => 'hat'},
-          'es' => {'label' => 'sat'}
+          'es' => {'label' => 'sat', 'vocalization' => 'sat'}
         },
         '2' => {
           'en' => {'label' => 'cat'},
-          'es' => {'label' => 'rat'}
+          'es' => {'label' => 'rat', 'vocalization' => 'rat'}
         }
       })
+    end
+
+    it "mirrors translated label into vocalization when vocalization was unset" do
+      u = User.create
+      b = Board.create(:user => u)
+      b.settings['buttons'] = [
+        {'id' => 1, 'label' => 'hat'},
+        {'id' => 2, 'label' => 'cat', 'vocalization' => 'kitten'}
+      ]
+      b.save
+      b.translate_set({'hat' => 'sombrero', 'cat' => 'gato', 'kitten' => 'gatito'}, {
+        'source' => 'en',
+        'dest' => 'es',
+        'board_ids' => [b.global_id],
+        'default' => true
+      })
+      expect(b.settings['buttons'][0]['label']).to eq('sombrero')
+      expect(b.settings['buttons'][0]['vocalization']).to eq('sombrero')
+      expect(b.settings['buttons'][1]['label']).to eq('gato')
+      expect(b.settings['buttons'][1]['vocalization']).to eq('gatito')
+      expect(b.settings['translations']['1']['es']['vocalization']).to eq('sombrero')
     end
     
     it "should keep translations after multiple iterations" do
@@ -3277,11 +3569,11 @@ describe Board, :type => :model do
         'board_name' => {},
         '1' => {
           'en' => {'label' => 'hat'},
-          'es' => {'label' => 'sat'}
+          'es' => {'label' => 'sat', 'vocalization' => 'sat'}
         },
         '2' => {
           'en' => {'label' => 'cat'},
-          'es' => {'label' => 'rat'}
+          'es' => {'label' => 'rat', 'vocalization' => 'rat'}
         }
       })
       
@@ -3300,13 +3592,13 @@ describe Board, :type => :model do
         "board_name" => {},
         '1' => {
           'en' => {'label' => 'hat'},
-          'es' => {'label' => 'sat'},
-          'fr' => {'label' => 'yat'}
+          'es' => {'label' => 'sat', 'vocalization' => 'sat'},
+          'fr' => {'label' => 'yat', 'vocalization' => 'yat'}
         },
         '2' => {
           'en' => {'label' => 'cat'},
-          'es' => {'label' => 'rat'},
-          'fr' => {'label' => 'eat'}
+          'es' => {'label' => 'rat', 'vocalization' => 'rat'},
+          'fr' => {'label' => 'eat', 'vocalization' => 'eat'}
         }
       })
     end
@@ -3335,11 +3627,11 @@ describe Board, :type => :model do
         'board_name' => {'en' => 'my board', 'es' => 'boardiness'},
         '1' => {
           'en' => {'label' => 'hat'},
-          'es' => {'label' => 'sat'}
+          'es' => {'label' => 'sat', 'vocalization' => 'sat'}
         },
         '2' => {
           'en' => {'label' => 'cat'},
-          'es' => {'label' => 'rat'}
+          'es' => {'label' => 'rat', 'vocalization' => 'rat'}
         }
       })
     end
@@ -3457,7 +3749,8 @@ describe Board, :type => :model do
             'label' => 'hat'
           },
           'es' => {
-            'label' => 'sat'
+            'label' => 'sat',
+            'vocalization' => 'sat'
           }
         },
         '2' => {
@@ -3465,7 +3758,8 @@ describe Board, :type => :model do
             'label' => 'cat'
           },
           'es' => {
-            'label' => 'rat'
+            'label' => 'rat',
+            'vocalization' => 'rat'
           }
         }
       })
@@ -4656,6 +4950,8 @@ describe Board, :type => :model do
 
     it "should use existing image if they haven't been deleted" do
       u = User.create
+      u.settings['preferences']['preferred_symbols'] = 'original'
+      u.save!
       b = Board.create(user: u)
       bi1 = ButtonImage.create(user: u, board: b, settings: {}, url: 'http://www.example.com/pic1.png')
       b.settings['buttons'] = [
@@ -4676,6 +4972,8 @@ describe Board, :type => :model do
 
     it "should restore images if they have been deleted" do
       u = User.create
+      u.settings['preferences']['preferred_symbols'] = 'original'
+      u.save!
       b = Board.create(user: u)
       bi1 = ButtonImage.create(user: u, board: b, settings: {}, url: 'http://www.example.com/pic1.png')
       b.settings['buttons'] = [
