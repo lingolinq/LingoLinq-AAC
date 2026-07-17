@@ -267,7 +267,7 @@
               </div>
             {{/if}}
             <div class="form-group">
-              <textarea class="form-control" placeholder={{t "Enter a custom list of focus words" key="enter_custom_focus_words_placeholder"}} {{on "input" (set-field this "words")}}>{{this.words}}</textarea>
+              <textarea aria-label={{t "Enter a custom list of focus words" key="enter_custom_focus_words_placeholder"}} class="form-control" placeholder={{t "Enter a custom list of focus words" key="enter_custom_focus_words_placeholder"}} {{on "input" (set-field this "words")}}>{{this.words}}</textarea>
             </div>
           </div>
           {{#if this.model.user}}

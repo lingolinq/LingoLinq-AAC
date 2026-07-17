@@ -48,7 +48,7 @@
         <div class="md-translate-row md-translate-row--board">
           <div class="md-translate-row__source">{{this.model.board.name}}</div>
           <div class="md-translate-row__target">
-            <input value={{this.model.board.translated_name}} type="text" class="md-translate-input" placeholder={{t "translation" key="translation_placeholder"}} {{on "input" (set-field this "model.board.translated_name")}} />
+            <input aria-label={{t "translation" key="translation_placeholder"}} value={{this.model.board.translated_name}} type="text" class="md-translate-input" placeholder={{t "translation" key="translation_placeholder"}} {{on "input" (set-field this "model.board.translated_name")}} />
           </div>
         </div>
       {{/if}}
@@ -64,7 +64,7 @@
               {{/if}}
             </div>
             <div class="md-translate-row__target">
-              <Input type="text" @value={{button.translation}} class="md-translate-input" placeholder={{t "translation" key="translation_placeholder"}} />
+              <Input aria-label={{t "translation" key="translation_placeholder"}} type="text" @value={{button.translation}} class="md-translate-input" placeholder={{t "translation" key="translation_placeholder"}} />
             </div>
             {{#if button.secondary_translation}}
               <div class="md-translate-row__source">
@@ -76,7 +76,7 @@
                 {{/if}}
               </div>
               <div class="md-translate-row__target">
-                <Input type="text" @value={{button.secondary_translation}} class="md-translate-input" placeholder={{t "translation" key="translation_placeholder"}} />
+                <Input aria-label={{t "translation" key="translation_placeholder"}} type="text" @value={{button.secondary_translation}} class="md-translate-input" placeholder={{t "translation" key="translation_placeholder"}} />
               </div>
             {{/if}}
           {{else}}

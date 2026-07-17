@@ -2,8 +2,7 @@ add|ember-template-lint|require-input-label|52|12|52|12|43c1260fc33f0129f14750bd
 add|ember-template-lint|require-input-label|59|12|59|12|bd40ce4d5cf36b913b626882032536a3cbf88231|1784246400000|1786838400000|1789430400000|app/components/add-supervisor.hbs
 add|ember-template-lint|require-input-label|62|12|62|12|73e0f4ec9ea994c4ced4268757d741859e97ac36|1784246400000|1786838400000|1789430400000|app/components/add-supervisor.hbs
 add|ember-template-lint|no-builtin-form-components|37|16|37|16|2056d4baf4aeb2037b7aec5d8bfc709e3eb839b3|1784246400000|1786838400000|1789430400000|app/components/add-tool.hbs
-add|ember-template-lint|no-builtin-form-components|18|16|18|16|d8acc458dcef58555d4258210db11c747e642fe7|1784246400000|1786838400000|1789430400000|app/components/app-navbar-authenticated-inner.hbs
-add|ember-template-lint|require-input-label|18|16|18|16|d8acc458dcef58555d4258210db11c747e642fe7|1784246400000|1786838400000|1789430400000|app/components/app-navbar-authenticated-inner.hbs
+add|ember-template-lint|no-builtin-form-components|18|16|18|16|8af1d3f9f08f60c6d91be29f6e02b0007ca4ddb9|1784246400000|1786838400000|1789430400000|app/components/app-navbar-authenticated-inner.hbs
 add|ember-template-lint|require-input-label|20|6|20|6|629f8aae1865cea66019e26c1895b52048887ee2|1784246400000|1786838400000|1789430400000|app/components/assessment-settings.hbs
 add|ember-template-lint|require-input-label|67|12|67|12|bd065d0efa2be28fd67a2177d59349ab426c80ba|1784246400000|1786838400000|1789430400000|app/components/assessment-settings.hbs
 add|ember-template-lint|require-input-label|83|6|83|6|50d6ffcf929429c7c130cf9be5ec406143b88713|1784246400000|1786838400000|1789430400000|app/components/assessment-settings.hbs
@@ -50,13 +49,10 @@ add|ember-template-lint|require-presentational-children|92|8|92|8|48b949e2db48b3
 add|ember-template-lint|require-presentational-children|110|4|110|4|7546ff9a6db13cd0b769936c09d45ffe1d13d105|1784246400000|1786838400000|1789430400000|app/components/board-icon.hbs
 add|ember-template-lint|require-presentational-children|112|4|112|4|cedef311c4a0d812a9f7ee96423c3818c53ca1a0|1784246400000|1786838400000|1789430400000|app/components/board-icon.hbs
 add|ember-template-lint|no-builtin-form-components|154|12|154|12|9a6a118fe6066116c9343d0e7518e41835d49f40|1784246400000|1786838400000|1789430400000|app/components/board-picker.hbs
-add|ember-template-lint|builtin-component-arguments|67|21|67|21|dcd29033f889c6c5d3052c1b6d84a0cd020cfb55|1784246400000|1786838400000|1789430400000|app/components/button-set.hbs
-add|ember-template-lint|builtin-component-arguments|79|23|79|23|dcd29033f889c6c5d3052c1b6d84a0cd020cfb55|1784246400000|1786838400000|1789430400000|app/components/button-set.hbs
-add|ember-template-lint|no-builtin-form-components|67|14|67|14|942cdf9872bd487aea0a40fe0daf5e898a1fc178|1784246400000|1786838400000|1789430400000|app/components/button-set.hbs
-add|ember-template-lint|no-builtin-form-components|79|16|79|16|37efb3dff68e4be61f26232833e515eec6d265c4|1784246400000|1786838400000|1789430400000|app/components/button-set.hbs
-add|ember-template-lint|require-input-label|51|12|51|12|0d0944db28397b9bd6d2bd92b90fa7bf385655ae|1784246400000|1786838400000|1789430400000|app/components/button-set.hbs
-add|ember-template-lint|require-input-label|67|14|67|14|942cdf9872bd487aea0a40fe0daf5e898a1fc178|1784246400000|1786838400000|1789430400000|app/components/button-set.hbs
-add|ember-template-lint|require-input-label|79|16|79|16|37efb3dff68e4be61f26232833e515eec6d265c4|1784246400000|1786838400000|1789430400000|app/components/button-set.hbs
+add|ember-template-lint|builtin-component-arguments|67|82|67|82|dcd29033f889c6c5d3052c1b6d84a0cd020cfb55|1784246400000|1786838400000|1789430400000|app/components/button-set.hbs
+add|ember-template-lint|builtin-component-arguments|79|84|79|84|dcd29033f889c6c5d3052c1b6d84a0cd020cfb55|1784246400000|1786838400000|1789430400000|app/components/button-set.hbs
+add|ember-template-lint|no-builtin-form-components|67|14|67|14|8c76d3ffe519cba2623e8e5096d8c1789bb108fa|1784246400000|1786838400000|1789430400000|app/components/button-set.hbs
+add|ember-template-lint|no-builtin-form-components|79|16|79|16|6ec277c82def3fb793b5479e076cc3c7e1db84c7|1784246400000|1786838400000|1789430400000|app/components/button-set.hbs
 add|ember-template-lint|no-builtin-form-components|178|8|178|8|2931f78991e1bd8ad2317474a9d9dfdee1668d62|1784246400000|1786838400000|1789430400000|app/components/button-settings.hbs
 add|ember-template-lint|no-builtin-form-components|398|10|398|10|e11114c55882c6685a936e05772d6f4d65ad921d|1784246400000|1786838400000|1789430400000|app/components/button-settings.hbs
 add|ember-template-lint|no-builtin-form-components|654|18|654|18|80f074c124b193189a3ee72b09954e2fb2418756|1784246400000|1786838400000|1789430400000|app/components/button-settings.hbs
@@ -185,7 +181,6 @@ add|ember-template-lint|no-curly-component-invocation|9|6|9|6|78dfa6eaa0b22b2798
 add|ember-template-lint|no-builtin-form-components|130|18|130|18|c4252faf93cc2853ff6b132b144c8b8be85eae42|1784246400000|1786838400000|1789430400000|app/components/focus-words.hbs
 add|ember-template-lint|no-potential-path-strings|169|65|169|65|85d6137f252955bb09a4e6cbbea5f2123fb66d43|1784246400000|1786838400000|1789430400000|app/components/focus-words.hbs
 add|ember-template-lint|no-potential-path-strings|210|57|210|57|85d6137f252955bb09a4e6cbbea5f2123fb66d43|1784246400000|1786838400000|1789430400000|app/components/focus-words.hbs
-add|ember-template-lint|require-input-label|270|14|270|14|b917fba7b95cd5cf484a8eceecef60f9322effdd|1784246400000|1786838400000|1789430400000|app/components/focus-words.hbs
 add|ember-template-lint|no-curly-component-invocation|7|4|7|4|ccdfc13ca7aba8e08ffe2ad2c626064c2917e10d|1784246400000|1786838400000|1789430400000|app/components/force-logout.hbs
 add|ember-template-lint|no-curly-component-invocation|73|10|73|10|992d3f20292583edbd381d6da8dd27cf4e5ad328|1784246400000|1786838400000|1789430400000|app/components/generate-board.hbs
 add|ember-template-lint|no-curly-component-invocation|121|10|121|10|450b6975e20b2a52bd427dc689179230a517de7c|1784246400000|1786838400000|1789430400000|app/components/generate-board.hbs
@@ -313,7 +308,7 @@ add|ember-template-lint|require-input-label|104|24|104|24|6eb1e01d3fa2840105f283
 add|ember-template-lint|require-input-label|312|22|312|22|8df334b4feb17d0220e8095dc7f5f9be269d1b4d|1784246400000|1786838400000|1789430400000|app/components/supervision-settings.hbs
 add|ember-template-lint|no-curly-component-invocation|19|10|19|10|af94939c6f379dea71cedec128bfcd60cd9e6976|1784246400000|1786838400000|1789430400000|app/components/tag-board.hbs
 add|ember-template-lint|require-input-label|88|14|88|14|76d27abc60f5e43d9ffaf7294c05a0b4ebcb7b26|1784246400000|1786838400000|1789430400000|app/components/word-data.hbs
-add|ember-template-lint|no-builtin-form-components|721|18|721|18|9232f9b9564d545dfad0e096c441bcc833a8a67e|1784246400000|1786838400000|1789430400000|app/templates/application.hbs
+add|ember-template-lint|no-builtin-form-components|721|18|721|18|5368f9fd37c0ef5bd0cf081333252d57144cba59|1784246400000|1786838400000|1789430400000|app/templates/application.hbs
 add|ember-template-lint|no-empty-headings|289|4|289|4|cbb8bafac2cfe4241c16c71b93b52f8d258c6c1a|1784246400000|1786838400000|1789430400000|app/templates/application.hbs
 add|ember-template-lint|no-nested-interactive|135|18|135|18|787bf1ffb83bedb9dd8f23a5f6f5843a08c40bad|1784246400000|1786838400000|1789430400000|app/templates/application.hbs
 add|ember-template-lint|no-potential-path-strings|285|225|285|225|f2cb2739122e7265c279d058f1e69a4b313f05eb|1784246400000|1786838400000|1789430400000|app/templates/application.hbs
@@ -332,7 +327,6 @@ add|ember-template-lint|require-context-role|869|21|869|21|0be75355d0dd43dafc600
 add|ember-template-lint|require-context-role|870|24|870|24|0be75355d0dd43dafc60091285ba906c43350d19|1784246400000|1786838400000|1789430400000|app/templates/application.hbs
 add|ember-template-lint|require-context-role|898|17|898|17|0be75355d0dd43dafc60091285ba906c43350d19|1784246400000|1786838400000|1789430400000|app/templates/application.hbs
 add|ember-template-lint|require-context-role|901|17|901|17|0be75355d0dd43dafc60091285ba906c43350d19|1784246400000|1786838400000|1789430400000|app/templates/application.hbs
-add|ember-template-lint|require-input-label|721|18|721|18|9232f9b9564d545dfad0e096c441bcc833a8a67e|1784246400000|1786838400000|1789430400000|app/templates/application.hbs
 add|ember-template-lint|require-presentational-children|136|20|136|20|cc604d37ce3080ac2b299fe52ad95b99d1463098|1784246400000|1786838400000|1789430400000|app/templates/application.hbs
 add|ember-template-lint|require-input-label|41|12|41|12|e661b6f329df1d443b8b47c13c0e5137e52bacd6|1784246400000|1786838400000|1789430400000|app/templates/beta-welcome-message.hbs
 add|ember-template-lint|no-builtin-form-components|65|10|65|10|f7abfeb946c727d9f2c92ff7f14dcad9ff4821e0|1784246400000|1786838400000|1789430400000|app/templates/brief.hbs
@@ -369,9 +363,6 @@ add|ember-template-lint|no-potential-path-strings|124|166|124|166|40479700e65b78
 add|ember-template-lint|no-potential-path-strings|135|154|135|154|40479700e65b7841d8472e546aa4c1d64a7fa20a|1784246400000|1786838400000|1789430400000|app/templates/intro.hbs
 add|ember-template-lint|no-potential-path-strings|145|165|145|165|40479700e65b7841d8472e546aa4c1d64a7fa20a|1784246400000|1786838400000|1789430400000|app/templates/intro.hbs
 add|ember-template-lint|require-input-label|12|12|12|12|8a7045e7357fb2319b37a375beda7f6554961d91|1784246400000|1786838400000|1789430400000|app/templates/new-sound.hbs
-add|ember-template-lint|require-input-label|59|14|59|14|a937f5ed4576cfd1945e1f8870d4d6e2a39b9a8e|1784246400000|1786838400000|1789430400000|app/templates/organizations.hbs
-add|ember-template-lint|require-input-label|125|12|125|12|1c3b20795c0e974c224852267d180c70dd3a31cd|1784246400000|1786838400000|1789430400000|app/templates/organizations.hbs
-add|ember-template-lint|require-input-label|126|12|126|12|7c74f38eaf300955bb874ff67893029bb600a70e|1784246400000|1786838400000|1789430400000|app/templates/organizations.hbs
 add|ember-template-lint|no-builtin-form-components|80|18|80|18|4017d79091c75d3511ca2c9e1d1307a4a5995c56|1784246400000|1786838400000|1789430400000|app/templates/profile.hbs
 add|ember-template-lint|no-builtin-form-components|82|18|82|18|b45ee2a711153523284efdab3b461a296c06f652|1784246400000|1786838400000|1789430400000|app/templates/profile.hbs
 add|ember-template-lint|no-builtin-form-components|103|20|103|20|871b55bdec2f2856a57cb2924de54c6d9f427205|1784246400000|1786838400000|1789430400000|app/templates/profile.hbs
@@ -433,7 +424,6 @@ add|ember-template-lint|require-context-role|59|32|59|32|ed44381a11756e7d8eb13ea
 add|ember-template-lint|require-context-role|61|32|61|32|ed44381a11756e7d8eb13ea55c2de1c83023ffcd|1784246400000|1786838400000|1789430400000|app/components/dashboard/authenticated-view.hbs
 add|ember-template-lint|require-context-role|63|32|63|32|ed44381a11756e7d8eb13ea55c2de1c83023ffcd|1784246400000|1786838400000|1789430400000|app/components/dashboard/authenticated-view.hbs
 add|ember-template-lint|require-context-role|65|87|65|87|ed44381a11756e7d8eb13ea55c2de1c83023ffcd|1784246400000|1786838400000|1789430400000|app/components/dashboard/authenticated-view.hbs
-add|ember-template-lint|require-input-label|706|8|706|8|9c3222a230133470da65545002463be9d27385a3|1784246400000|1786838400000|1789430400000|app/components/dashboard/authenticated-view.hbs
 add|ember-template-lint|require-presentational-children|52|247|52|247|5487e2f6e0486e2770533b1e3bd936080add8767|1784246400000|1786838400000|1789430400000|app/components/dashboard/authenticated-view.hbs
 add|ember-template-lint|require-presentational-children|52|448|52|448|36650248fcf46ebbe2a58f9011e048b869b55b64|1784246400000|1786838400000|1789430400000|app/components/dashboard/authenticated-view.hbs
 add|ember-template-lint|require-presentational-children|52|478|52|478|af9e6f036eebeb2330e94b7ceb825335ba0fea59|1784246400000|1786838400000|1789430400000|app/components/dashboard/authenticated-view.hbs

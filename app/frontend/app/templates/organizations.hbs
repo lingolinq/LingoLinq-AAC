@@ -56,7 +56,7 @@
               <p class="md-org-section-desc">{{t "Site admins can search, open, edit, or remove organizations here." key="site_admin_org_directory_desc"}}</p>
             </div>
             <div class="md-org-search-wrap">
-              <input value={{this.org_filter}} type="text" class="md-org-input" placeholder={{t "search orgs" key="search_orgs"}} {{on "input" (set-field this "org_filter")}} />
+              <input aria-label={{t "search orgs" key="search_orgs"}} value={{this.org_filter}} type="text" class="md-org-input" placeholder={{t "search orgs" key="search_orgs"}} {{on "input" (set-field this "org_filter")}} />
             </div>
           </div>
 
@@ -122,8 +122,8 @@
           {{/if}}
 
           <div class="md-org-add-row">
-            <input value={{this.org_org_name}} placeholder={{t "org name" key="org_name_lower"}} class="md-org-input" {{on "input" (set-field this "org_org_name")}} />
-            <input value={{this.org_user_name}} placeholder={{t "admin user name" key="admin_user_name_lower"}} class="md-org-input" {{on "input" (set-field this "org_user_name")}} />
+            <input aria-label={{t "org name" key="org_name_lower"}} value={{this.org_org_name}} placeholder={{t "org name" key="org_name_lower"}} class="md-org-input" {{on "input" (set-field this "org_org_name")}} />
+            <input aria-label={{t "admin user name" key="admin_user_name_lower"}} value={{this.org_user_name}} placeholder={{t "admin user name" key="admin_user_name_lower"}} class="md-org-input" {{on "input" (set-field this "org_user_name")}} />
             <button class="md-btn md-btn--primary md-btn--sm" {{on "click" (this.ctrlAction "add_org")}}>{{t "Add Organization" key="add_org"}}</button>
           </div>
         </section>
