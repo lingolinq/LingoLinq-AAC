@@ -14,6 +14,9 @@ Return exactly one of:
 - `NEEDS_HUMAN` -- the issue is a product-judgment call, not a code defect.
   Use this instead of guessing when the right answer depends on intent you
   cannot verify from the repo alone.
+  Also use `NEEDS_HUMAN` with category `live_state` when the GitHub runner or
+  Codex sandbox prevents required read-only inspection commands from running.
+  Do not present runner/tooling failures as PR code defects.
 
 ## Injected live state
 
