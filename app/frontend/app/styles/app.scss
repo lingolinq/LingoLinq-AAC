@@ -31761,7 +31761,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 
 /* Section anchoring: light gray band so flow is white (hero) → light gray (features) → parallax → white (CTA) */
 #la-features {
-  margin-top: $aac-spacing-48;
+  /* No margin-top: the section sits directly under the spotlight and supplies its own
+     top spacing via padding-top. (.la-section sets no margin, so this resolves to 0.) */
   padding-top: $aac-spacing-32;
   background: transparent;
   border: none;
