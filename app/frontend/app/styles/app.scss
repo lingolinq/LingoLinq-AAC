@@ -33834,7 +33834,9 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   background-image: url('/images/aac-user.jpg');
 }
 .la-devices-spotlight__image {
-  background-image: url('/images/landing-devices.png');
+  /* JPEG for the same reason as aac-user.jpg: it's a photo, so PNG only reached
+     ~1.9MB vs ~230KB at q85 with no visible loss in the symbol grids. */
+  background-image: url('/images/landing-devices.jpg');
 }
 
 /* Desktop (>1024px): let both spotlight images render at full height using their
@@ -33866,7 +33868,11 @@ body.md-ds-active .app-navbar__beta-feedback-link {
        on the image's own corners.
        margin-top: -48px cancels the parent flex gap ($aac-spacing-48), so the
        image sits flush against the paragraph above. */
-    aspect-ratio: 1000 / 667;
+    /* Must track landing-devices.jpg's natural size (1726x911). It previously read
+       1000/667 (1.50) against a 1727x911 (1.90) image, so `contain` letterboxed it
+       and the radius rounded the empty strips -- the exact failure the note above
+       warns about. */
+    aspect-ratio: 1726 / 911;
     min-height: 0;
     width: 78.125%;
     margin: -48px auto 0;
@@ -33979,7 +33985,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
      to `contain` and pinning the container's aspect-ratio to match
      the image lets the full mockup render without clipping. */
   .la-devices-spotlight__image {
-    aspect-ratio: 1000 / 667;
+    /* Tracks landing-devices.jpg's natural size (1726x911); see the desktop rule. */
+    aspect-ratio: 1726 / 911;
     min-height: 0;
     background-size: contain;
   }
