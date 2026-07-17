@@ -33051,7 +33051,10 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 }
 
 .la-section-subtitle {
-  font-size: $aac-font-size-base * 1.404;
+  /* Matches the spotlight/plan body copy (.la-plan-subtitle) so the two subtitles
+     read at the same size. That rule has no responsive override, so the
+     max-width: $aac-breakpoint-md override for this class was dropped too. */
+  font-size: $aac-font-size-base * 1.1;
   font-weight: 400;
   color: rgba($indigo, 0.9);
   max-width: 558.72px; /* 698.4px × 0.8 */
@@ -39170,9 +39173,9 @@ a.la-footer-bottom-a11y-wcag {
     font-size: 26px;
   }
 
-  .la-section-subtitle {
-    font-size: $aac-font-size-base;
-  }
+  /* No .la-section-subtitle font-size override here on purpose: it now tracks
+     .la-plan-subtitle (the spotlight/plan body), which is a single size at every
+     width. Shrinking it here would re-introduce the mismatch below $aac-breakpoint-md. */
 
   // Footer: single column
   .la-footer-inner {
