@@ -76,14 +76,14 @@ export default Component.extend({
     { name: i18n.t('earned_by_buttons_per_week', "Earned by Buttons Hit Per Week"), id: 'buttons_per_week' },
     { name: i18n.t('earned_by_modeling_per_day', "Earned by Modeling Events Per Day"), id: 'modeling_per_day' },
     { name: i18n.t('earned_by_modeling_per_week', "Earned by Modeling Events Per Week"), id: 'modeling_per_week' },
-    { name: i18n.t('custom_tracking', "Custom or More Fine-Grained Tracking"), id: 'custom' },
+    { name: i18n.t('custom_tracking', "Custom tracking"), id: 'custom' },
   ],
   simple_assessment_types: [
     { name: i18n.t('select_simple_tracking_type', "[ How to Track for Mastery ]"), id: '' },
     { name: i18n.t('assess_by_words_per_day', "Track Watchwords Used Each Day"), id: 'words_per_day' },
     { name: i18n.t('assess_by_buttons_per_day', "Track Buttons Hit Each Day"), id: 'buttons_per_day' },
     { name: i18n.t('assess_by_modeling_per_day', "Track Modeling Events Each Day"), id: 'modeling_per_day' },
-    { name: i18n.t('custom_tracking', "Custom or More Fine-Grained Tracking"), id: 'custom' },
+    { name: i18n.t('custom_tracking', "Custom tracking"), id: 'custom' },
   ],
   tracking_types: [
     { name: i18n.t('select_tracking_type', "[ Select ]"), id: '' },

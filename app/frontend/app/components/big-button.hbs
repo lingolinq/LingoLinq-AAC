@@ -1,4 +1,4 @@
-{{#modal-dialog desired_width=850 action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @desired_width={{850}} @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="modal-body advanced_selection modal_targets" style='padding-top: 5px; padding-bottom: 5px;'>
     <div class='cursor_holder' style={{if this.flipped "transform: rotate(180deg);"}}>
       <div class='cursor_navigation repair_buttons'>
@@ -48,4 +48,4 @@
       </div>
     </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="la-translate-board-wrap">
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
@@ -33,7 +33,7 @@
           {{else if this.hierarchy.error}}
             <span class="la-translate-board-error">{{t "There was an error trying to retrieve linked boards" key="error_getting_linked_boards"}}</span>
           {{else}}
-            {{board-hierarchy hierarchy=this.hierarchy selectable=true}}
+            <BoardHierarchy @hierarchy={{this.hierarchy}} @selectable={{true}} />
           {{/if}}
         </div>
       </div>
@@ -41,13 +41,13 @@
 
     <div class="la-translate-board-section">
       <label class="la-translate-board-label" for="translate_locale">{{t "Language" key="language"}}</label>
-      {{bound-select select_class="la-translate-board-select" select_id="translate_locale" content=this.locales selection=this.translate_locale action=(this.ctrlAction "updateTranslateLocale") searchable=true search_placeholder=(t "Search languages..." key="search_languages") }}
+      <BoundSelect @select_class="la-translate-board-select" @select_id="translate_locale" @content={{this.locales}} @selection={{this.translate_locale}} @action={{this.ctrlAction "updateTranslateLocale"}} @searchable={{true}} @search_placeholder={{t "Search languages..." key="search_languages"}} />
     </div>
 
     {{#unless this.cannot_translate}}
       <div class="la-translate-board-section">
         <label class="la-translate-board-checkbox">
-          <Input @type="checkbox" @checked={{this.default_language}} class="la-translate-board-check" />
+          <input type="checkbox" checked={{this.default_language}} class="la-translate-board-check" {{on "change" (set-field this "default_language" "checkbox")}} />
           <span>{{t "Switch to this as the Default Language" key="set_as_default_language"}}</span>
         </label>
       </div>
@@ -111,4 +111,4 @@
     <a href="#" class="la-translate-board-cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</a>
   </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

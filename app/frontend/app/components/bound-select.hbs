@@ -13,13 +13,7 @@
     <ul class="bound-select__list" role="listbox" {{on "click" (this.ctrlAction "stopPropagation")}} {{on "keydown" (this.ctrlAction "list_keydown")}}>
       {{#if this.searchable}}
         <li class="bound-select__search" role="presentation">
-          <Input
-            @type="text"
-            @value={{this.searchQuery}}
-            class="bound-select__search-input"
-            placeholder={{this.search_placeholder}}
-            aria-label={{this.search_placeholder}}
-          />
+          <input type="text" value={{this.searchQuery}} class="bound-select__search-input" placeholder={{this.search_placeholder}} aria-label={{this.search_placeholder}} {{on "input" (set-field this "searchQuery")}} />
         </li>
       {{/if}}
       {{#if this.renderContent.length}}
@@ -45,7 +39,7 @@
              Shown when renderContent is empty (e.g. the user has no
              supervisees + no managed orgs, so the "For" picker on the
              assessment-settings modal has nothing to offer). --}}
-        <li class="bound-select__empty" role="presentation" aria-disabled="true">
+        <li class="bound-select__empty" role="presentation">
           <span class="bound-select__empty-icon" aria-hidden="true">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"/>

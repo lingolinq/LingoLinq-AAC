@@ -170,12 +170,12 @@
           {{#if this.weekly_stats.error}}
             <p class="md-muted">{{t "There was a problem loading this report" key="problem_loading_report"}}</p>
           {{else}}
-            {{stats/sessions-per-week weekly_stats=this.weekly_stats}}
+            <Stats::SessionsPerWeek @weekly_stats={{this.weekly_stats}} />
           {{/if}}
         </div>
         <div class="md-org-charts__item">
           {{#if this.model.total_users}}
-            {{stats/recent-sessions total=this.model.total_users recent=this.user_counts.recent_session_user_count}}
+            <Stats::RecentSessions @total={{this.model.total_users}} @recent={{this.user_counts.recent_session_user_count}} />
           {{else}}
             <div class="md-org-chart-empty">
               <svg class="md-org-chart-empty__icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 13l3-3 3 3 5-5"/></svg>
@@ -191,7 +191,7 @@
         <div class="md-org-charts__item">
           <h3 class="md-org-section-title">{{t "Recently-Modeled Words" key="recently_modeled_words"}}</h3>
           {{#if this.combined_models.words_by_frequency.length}}
-            {{stats/word-cloud stats=this.combined_models tiny=true zoom=1}}
+            <Stats::WordCloud @stats={{this.combined_models}} @tiny={{true}} @zoom={{1}} />
           {{else}}
             <p class="md-muted">{{t "No modeled words to report" key="no_modeled_words_to_report"}}</p>
           {{/if}}
@@ -199,7 +199,7 @@
         <div class="md-org-charts__item">
           <h3 class="md-org-section-title">{{t "Recent Words" key="recent_words"}}</h3>
           {{#if this.user_counts.word_counts.length}}
-            {{stats/word-cloud stats=this.words short=true zoom=1}}
+            <Stats::WordCloud @stats={{this.words}} @short={{true}} @zoom={{1}} />
           {{else}}
             <p class="md-muted">{{t "No recent words to report" key="no_recent_words_to_report"}}</p>
           {{/if}}
@@ -214,7 +214,7 @@
         <div class="md-org-charts md-org-charts--goals">
           <div class="md-org-charts__item">
             {{#if this.model.total_users}}
-              {{stats/recent-goals total=this.model.total_users goal_set=this.user_counts.goal_set tracked=this.user_counts.goal_recently_logged}}
+              <Stats::RecentGoals @total={{this.model.total_users}} @goal_set={{this.user_counts.goal_set}} @tracked={{this.user_counts.goal_recently_logged}} />
             {{else}}
               <div class="md-org-chart-empty">
                 <svg class="md-org-chart-empty__icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4"/></svg>
@@ -265,23 +265,23 @@
           <div class="md-org-charts md-org-charts--stats">
             <div class="md-org-charts__item">
               <h4 class="md-org-chart-label">{{t "Access Methods" key="access_methods"}}</h4>
-              {{stats/bar-breakdown hash=this.report.stats.access_methods org_id=this.model.id order="access"}}
+              <Stats::BarBreakdown @hash={{this.report.stats.access_methods}} @org_id={{this.model.id}} @order="access" />
             </div>
             <div class="md-org-charts__item">
               <h4 class="md-org-chart-label">{{t "Communicator Status" key="communicator_status"}}</h4>
-              {{stats/bar-breakdown hash=this.report.stats.statuses org_id=this.model.id order="status"}}
+              <Stats::BarBreakdown @hash={{this.report.stats.statuses}} @org_id={{this.model.id}} @order="status" />
             </div>
             <div class="md-org-charts__item">
               <h4 class="md-org-chart-label">{{t "Devices" key="devices"}}</h4>
-              {{stats/bar-breakdown hash=this.report.stats.devices org_id=this.model.id order="device"}}
+              <Stats::BarBreakdown @hash={{this.report.stats.devices}} @org_id={{this.model.id}} @order="device" />
             </div>
             <div class="md-org-charts__item">
               <h4 class="md-org-chart-label">{{t "Vocabularies" key="vocabularies"}}</h4>
-              {{stats/bar-breakdown hash=this.report.stats.vocabs org_id=this.model.id order="vocab"}}
+              <Stats::BarBreakdown @hash={{this.report.stats.vocabs}} @org_id={{this.model.id}} @order="vocab" />
             </div>
             <div class="md-org-charts__item">
               <h4 class="md-org-chart-label">{{t "Grid Sizes" key="grid_sizes"}}</h4>
-              {{stats/bar-breakdown hash=this.report.stats.sizes org_id=this.model.id order="size"}}
+              <Stats::BarBreakdown @hash={{this.report.stats.sizes}} @org_id={{this.model.id}} @order="size" />
             </div>
           </div>
         {{else}}

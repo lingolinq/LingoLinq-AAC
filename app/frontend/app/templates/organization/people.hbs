@@ -48,7 +48,7 @@
         <p class="md-muted">{{t "None found" key="none_found"}}</p>
       {{/if}}
       <div class="md-org-add-row">
-        <Input @value={{this.manager_user_name}} placeholder="user name" class="md-org-input" />
+        <input value={{this.manager_user_name}} placeholder="user name" class="md-org-input" {{on "input" (set-field this "manager_user_name")}} />
         <button class="md-btn md-btn--primary md-btn--sm" {{on "click" (this.ctrlAction "management_action" "add_manager")}}>{{t "Add Manager" key="add_manager"}}</button>
         <button class="md-btn md-btn--primary md-btn--sm" {{on "click" (this.ctrlAction "management_action" "add_assistant")}}>{{t "Add Assistant" key="add_assistant"}}</button>
         <a href="#" class="md-org-add-row__link" {{on "click" (this.ctrlAction "new_user" "add_manager")}}>{{t "New User" key="new_user"}}</a>
@@ -101,7 +101,7 @@
         <p class="md-muted">{{t "None found" key="none_found"}}</p>
       {{/if}}
       <div class="md-org-add-row">
-        <Input @value={{this.supervisor_user_name}} placeholder="user name" class="md-org-input" />
+        <input value={{this.supervisor_user_name}} placeholder="user name" class="md-org-input" {{on "input" (set-field this "supervisor_user_name")}} />
         <button disabled={{this.no_supervisor_licenses}} class="md-btn md-btn--primary md-btn--sm" {{on "click" (this.ctrlAction "management_action" "add_premium_supervisor")}}>{{t "Add Premium Supervisor" key="add_premium_supervisor"}}</button>
         <button class="md-btn md-btn--primary md-btn--sm" {{on "click" (this.ctrlAction "management_action" "add_supervisor")}}>{{t "Add Supervisor" key="add_supervisor"}}</button>
         <a href="#" class="md-org-add-row__link" {{on "click" (this.ctrlAction "new_user" "add_supervisor")}}>{{t "New User" key="new_user"}}</a>
@@ -153,7 +153,7 @@
         <p class="md-muted">{{t "None found" key="none_found"}}</p>
       {{/if}}
       <div class="md-org-add-row">
-        <Input @value={{this.user_user_name}} placeholder="user name" class="md-org-input" />
+        <input value={{this.user_user_name}} placeholder="user name" class="md-org-input" {{on "input" (set-field this "user_user_name")}} />
         <button disabled={{this.no_licenses}} class="md-btn md-btn--primary md-btn--sm" {{on "click" (this.ctrlAction "management_action" "add_user")}}>{{t "Add Sponsored User" key="add_sponsored_user"}}</button>
         <button class="md-btn md-btn--primary md-btn--sm" {{on "click" (this.ctrlAction "management_action" "add_unsponsored_user")}}>{{t "Add Unsponsored User" key="add_unsponsored_user"}}</button>
         <a href="#" class="md-org-add-row__link" {{on "click" (this.ctrlAction "new_user" "add_user")}}>{{t "New User" key="new_user"}}</a>
@@ -199,7 +199,7 @@
         <p class="md-muted">{{t "None found" key="none_found"}}</p>
       {{/if}}
       <div class="md-org-add-row">
-        <Input @value={{this.eval_user_name}} placeholder="user name" class="md-org-input" />
+        <input value={{this.eval_user_name}} placeholder="user name" class="md-org-input" {{on "input" (set-field this "eval_user_name")}} />
         <button disabled={{this.no_eval_licenses}} class="md-btn md-btn--primary md-btn--sm" {{on "click" (this.ctrlAction "management_action" "add_eval")}}>{{t "Add Eval Account" key="add_eval"}}</button>
         {{#unless this.no_eval_licenses}}
           <a href="#" class="md-org-add-row__link" {{on "click" (this.ctrlAction "new_user" "add_eval")}}>{{t "New Eval Account" key="new_eval"}}</a>
@@ -240,7 +240,7 @@
         <p class="md-muted">{{t "None found" key="none_found"}}</p>
       {{/if}}
       <div class="md-org-add-row">
-        <Input @value={{this.extras_user_name}} placeholder="user name" class="md-org-input" />
+        <input value={{this.extras_user_name}} placeholder="user name" class="md-org-input" {{on "input" (set-field this "extras_user_name")}} />
         <button disabled={{this.no_extras}} class="md-btn md-btn--primary md-btn--sm" {{on "click" (this.ctrlAction "management_action" "add_extras" this.extras_user_name)}}>{{t "Add Premium Symbols" key="add_extras"}}</button>
       </div>
     </section>

@@ -114,7 +114,7 @@
               <p>{{t "Canceling subscription..." key="canceling"}}</p>
             {{else}}
               <p>{{t "We are sorry to see you go! Are you sure you want to cancel your subscription? This will remove your access to premium features in %app_name% like reports and logging." key="confirm_cancel_subscription"}}</p>
-              <p style='display: block; max-width: 500px;'><Input @type="text" @value={{this.cancel_reason}} class="form-control" placeholder="Can you share your reason for canceling?" /></p>
+              <p style='display: block; max-width: 500px;'><input type="text" value={{this.cancel_reason}} class="form-control" placeholder="Can you share your reason for canceling?" {{on "input" (set-field this "cancel_reason")}} /></p>
               <button type="button" class="btn btn-primary" {{on "click" (this.ctrlAction "cancel_subscription" true)}}>{{t "Cancel Subscription" key="cancel_subscription"}}</button>
               <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "reset")}}>{{t "Never Mind" key="never_mind"}}</button>
             {{/if}}
@@ -123,7 +123,7 @@
           <div style="margin-top: 20px;">
             <h3>{{t "Cancel Subscription" key="cancel_subscription"}}</h3>
             <p>{{t "You'll need to log in before you can cancel your subscription" key="login_before_canceling"}}</p>
-            {{login-form left=true return=true}}
+            <LoginForm @left={{true}} @return={{true}} />
           </div>
         {{/if}}
       {{/if}}
@@ -203,7 +203,7 @@
                 <p>{{t "Canceling subscription..." key="canceling"}}</p>
               {{else}}
                 <p>{{t "We are sorry to see you go! Are you sure you want to cancel your subscription? This will remove your access to premium features in %app_name% like reports and logging." key="confirm_cancel_subscription"}}</p>
-                <p style='display: block; max-width: 500px;'><Input @type="text" @value={{this.cancel_reason}} class="form-control" placeholder="Can you share your reason for canceling?" /></p>
+                <p style='display: block; max-width: 500px;'><input type="text" value={{this.cancel_reason}} class="form-control" placeholder="Can you share your reason for canceling?" {{on "input" (set-field this "cancel_reason")}} /></p>
                 <button type="button" class="btn btn-primary" {{on "click" (this.ctrlAction "cancel_subscription" true)}}>{{t "Cancel Subscription" key="cancel_subscription"}}</button>
                 <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "reset")}}>{{t "Never Mind" key="never_mind"}}</button>
               {{/if}}
@@ -213,7 +213,7 @@
               <h3>{{t "Cancel Subscription" key="cancel_subscription"}}</h3>
               <p>{{t "You'll need to log in before you can cancel your subscription" key="login_before_canceling"}}</p>
               <div style="margin-left: 15px;">
-                {{login-form left=true return=true}}
+                <LoginForm @left={{true}} @return={{true}} />
               </div>
             </div>
           {{/if}}
@@ -235,7 +235,7 @@
               </div>
             </div>
           {{/if}}
-          {{subscription-form user=this.model subscription=this.subscription subscription_error="subscription_error" subscription_success="subscription_success"}}
+          <SubscriptionForm @user={{this.model}} @subscription={{this.subscription}} @subscription_error="subscription_error" @subscription_success="subscription_success" />
         {{/if}}
       {{/unless}}
     {{/if}}
@@ -253,5 +253,5 @@
   {{#if this.subscription.error}}
     <p>{{t "There was an error loading billing details" key="error_loading_subscription_details"}}</p>
   {{/if}}
-  {{login-form left=true prompt=true return=true}}
+  <LoginForm @left={{true}} @prompt={{true}} @return={{true}} />
 {{/if}}

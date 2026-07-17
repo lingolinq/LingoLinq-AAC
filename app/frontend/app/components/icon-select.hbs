@@ -1,5 +1,5 @@
 <!-- TODO: i18n for placeholders based on element id -->
-<Input @value={{this.selection}} class="form-control" id="image_url" placeholder="pick from the list below or paste a URL" />
+<input value={{this.selection}} class="form-control" id="image_url" placeholder="pick from the list below or paste a URL" {{on "input" (set-field this "selection")}} />
 <div class="icon-select__preview {{if this.selection_preview "icon-select__preview--filled" "icon-select__preview--empty"}}">
   {{#if this.selection_preview}}
     <img class="icon-select__preview-img" src={{this.selection_preview}} {{on "click" (this.ctrlAction "pick" this.selection_preview)}} alt="current image">

@@ -1,17 +1,17 @@
 <div id="within_ember" class="{{this.background_class}} {{if this.app_state.index_or_landing_view "index-or-landing-view"}} {{if (is-equal this.app_state.current_route "speech") "speech-route"}} {{if (is-equal this.app_state.current_route "landing-alt") "landing-alt-route"}} {{if (is-equal this.app_state.current_route "pricing") "pricing-route"}} {{if (is-equal this.app_state.current_route "features") "features-route"}} {{if this.showBentoPageWithFooter "bento-page-with-footer"}} {{if (and this.app_state.index_or_landing_view this.app_state.darkMode) "bento-dark-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.midDayMode) "bento-midday-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.defaultMode) "bento-default-mode-active"}} {{if this.on_board_alt "board-alt-view"}} {{if this.on_board "board-view"}} {{if this.on_board_detail "board-detail-view"}} {{if this.app_state.focus_words "focus-words-active"}} {{if this.app_state.edit_mode "edit-mode-active"}} {{if this.app_state.beta_program_access "beta-program-access"}}" style={{if this.speak_mode_needing_hammer_js "touch-action: auto;" }}>
 <div id="audio"></div>
-{{app-loading-overlay}}
-{{app-toast}}
+<AppLoadingOverlay />
+<AppToast />
 <header class="{{this.header_class}} {{if this.useAppNavbarInHeader "header-index-with-dark-toggle"}} {{unless this.isSessionAuthenticated "header--unauthenticated"}} {{if this.hide_header "header--hidden"}}">
   <div id="inner_header">
   {{#if this.useAppNavbarInHeader}}
-    {{app-navbar onSupport=this.support}}
+    <AppNavbar @onSupport={{this.support}} />
   {{else}}
   {{#if (and this.app_state.speak_mode this.app_state.currentBoardState.id)}}
     <span id="speak" class="{{if this.app_state.eval_mode "md-eval-header"}}">
       <span class="speak-header__home-col">
       <span class="speak-header__home-marker">
-        {{#triple-click-listener triple_click="meta_home_click"}}
+        <TripleClickListener @triple_click="meta_home_click">
           {{#if this.app_state.eval_mode}}
             {{!-- Eval-mode home button — uses the same modern outline-house
                  icon as the board-detail sentence bar (mirrors that visual
@@ -51,7 +51,7 @@
               {{/unless}}
             </button>
           {{/if}}
-        {{/triple-click-listener}}
+        </TripleClickListener>
       </span>
         {{#if this.show_eval_pause}}
           {{!-- In-place Pause/Resume for a running eval. Its own control stacked
@@ -110,7 +110,7 @@
           {{#unless this.app_state.button_list}}
             {{#if this.app_state.embedded}}
               <div style='float: left; margin: 5px; opacity: 0.7;'>
-                {{app-logo size="xs" imgAlt="LingoLinq"}}
+                <AppLogo @size="xs" @imgAlt="LingoLinq" />
                 {{t "Powered by %app_name%" key="powered_by_app"}}
               </div>
             {{else if this.app_state.currentUser.preferences.blank_status}}
@@ -151,7 +151,7 @@
             {{/if}}
           {{/unless}}
           {{#let this.app_state.button_list as |button_list|}}
-            {{button-list buttonList=button_list}}
+            <ButtonList @buttonList={{button_list}} />
           {{/let}}
         </a>
         {{#unless this.app_state.eval_mode}}
@@ -221,9 +221,9 @@
               {{else if this.app_state.user_badge}}
                 <span class='notification'>
                   {{#if this.app_state.user_badge.earned}}
-                    {{badge-earned badge=this.app_state.user_badge inline=true}}
+                    <BadgeEarned @badge={{this.app_state.user_badge}} @inline={{true}} />
                   {{else}}
-                    {{badge-progress badge=this.app_state.user_badge inline=true}}
+                    <BadgeProgress @badge={{this.app_state.user_badge}} @inline={{true}} />
                   {{/if}}
                 </span>
               {{else if this.app_state.speak_mode_modeling_ideas.timeout}}
@@ -239,7 +239,7 @@
         <span class="sr-only">{{t "backspace" key="backspace_lower"}}</span>
         <img src={{path "images/delete.svg"}}>
       </button>
-      {{#triple-click-listener triple_click="toggle_modeling"}}
+      <TripleClickListener @triple_click="toggle_modeling">
         <button class="btn btn-default access" id="clear_button" type="button" {{on "click" (this.ctrlAction "clear")}} style='position: relative;'>
           <span class="sr-only">{{t "clear" key="clear_lower"}}</span>
           {{#if this.app_state.eval_mode}}
@@ -261,7 +261,7 @@
             </div>
           {{/if}}
         </button>
-      {{/triple-click-listener}}
+      </TripleClickListener>
     </span>
   {{else}}
     <span id="nav_header" class={{this.app_state.nav_header_class}}>
@@ -740,11 +740,7 @@
               <LinkTo @route="about" class="la-topbar-link" role="menuitem">{{t "About" key='fsa_nav_about'}}</LinkTo>
             </div>
             <div class="la-topbar-right header-unauth-right">
-              {{#if this.app_state.feature_flags.landing_beta_closed}}
-                <span class="la-section-eyebrow-badge app-navbar__beta-badge">{{t "In beta testing" key="landing_beta_testing_badge"}}</span>
-              {{else}}
-                <LinkTo @route="register" class="la-topbar-cta">{{t "Try Free" key='fsa_try_free'}}</LinkTo>
-              {{/if}}
+              <LinkTo @route="register" class="la-topbar-cta">{{t "Try Free" key='fsa_try_free'}}</LinkTo>
               <button class="la-topbar-hamburger" type="button" aria-label={{t "Open menu" key='fsa_open_menu'}} {{on "click" this.toggleLandingNav}}>
                 <span class="la-topbar-hamburger__bar"></span>
                 <span class="la-topbar-hamburger__bar"></span>
@@ -755,15 +751,10 @@
               <LinkTo @route="features" class="la-mobile-drawer__link">{{t "Features" key='fsa_nav_features'}}</LinkTo>
               {{!-- <LinkTo @route="pricing" class="la-mobile-drawer__link" {{on "click" this.closeLandingNav}}>{{t "Pricing" key='fsa_nav_pricing'}}</LinkTo> --}}
               <LinkTo @route="about" class="la-mobile-drawer__link" {{on "click" this.closeLandingNav}}>{{t "About" key='fsa_nav_about'}}</LinkTo>
-              {{#unless this.app_state.feature_flags.landing_beta_closed}}
-                <div class="la-mobile-drawer__divider"></div>
-                <LinkTo @route="login" class="la-mobile-drawer__link" {{on "click" this.closeLandingNav}}>{{t "Sign In" key='login'}}</LinkTo>
-                <LinkTo @route="register" class="la-mobile-drawer__link" {{on "click" this.closeLandingNav}}>{{t "Register" key='register'}}</LinkTo>
-                <LinkTo @route="register" class="la-mobile-drawer__cta" {{on "click" this.closeLandingNav}}>{{t "Try Free" key='fsa_try_free'}} →</LinkTo>
-              {{else}}
-                <div class="la-mobile-drawer__divider"></div>
-                <span class="la-section-eyebrow-badge app-navbar__beta-badge app-navbar__beta-badge--drawer">{{t "In beta testing" key="landing_beta_testing_badge"}}</span>
-              {{/unless}}
+              <div class="la-mobile-drawer__divider"></div>
+              <LinkTo @route="login" class="la-mobile-drawer__link" {{on "click" this.closeLandingNav}}>{{t "Sign In" key='login'}}</LinkTo>
+              <LinkTo @route="register" class="la-mobile-drawer__link" {{on "click" this.closeLandingNav}}>{{t "Register" key='register'}}</LinkTo>
+              <LinkTo @route="register" class="la-mobile-drawer__cta" {{on "click" this.closeLandingNav}}>{{t "Try Free" key='fsa_try_free'}} →</LinkTo>
             </LaMobileDrawer>
           {{/unless}}
         {{/unless}}
@@ -1279,21 +1270,15 @@
                 <li><a href="#" {{on "click" (this.ctrlAction "invalidateSession")}}>{{t "Sign Out" key="logout"}}</a></li>
               {{/unless}}
             {{else}}
-              {{#unless this.app_state.feature_flags.landing_beta_closed}}
-                <li role="presentation">
-                  <LinkTo @route="login">{{t "Sign In" key="login"}}</LinkTo>
-                </li>
-                {{#unless this.app_state.no_linky}}
-                  {{#if this.app_state.domain_settings.full_domain}}
-                    <li role="presentation">
-                      <LinkTo @route="register">{{t "Register" key="register"}}</LinkTo>
-                    </li>
-                  {{/if}}
-                {{/unless}}
-              {{else}}
-                <li role="presentation" class="app-navbar__beta-badge-item">
-                  <span class="la-section-eyebrow-badge app-navbar__beta-badge">{{t "In beta testing" key="landing_beta_testing_badge"}}</span>
-                </li>
+              <li role="presentation">
+                <LinkTo @route="login">{{t "Sign In" key="login"}}</LinkTo>
+              </li>
+              {{#unless this.app_state.no_linky}}
+                {{#if this.app_state.domain_settings.full_domain}}
+                  <li role="presentation">
+                    <LinkTo @route="register">{{t "Register" key="register"}}</LinkTo>
+                  </li>
+                {{/if}}
               {{/unless}}
               {{#if this.app_state.feature_flags.emergency_boards}}              
                 <li role="presentation">
@@ -1452,10 +1437,7 @@
       </ul>
       {{else}}
       {{#unless this.useAppNavbarInHeader}}
-      {{#if this.app_state.feature_flags.landing_beta_closed}}
-      <span class="la-section-eyebrow-badge app-navbar__beta-badge">{{t "In beta testing" key="landing_beta_testing_badge"}}</span>
-      {{else}}
-      <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id="identity_button" href="#" data-toggle="dropdown" aria-label={{t "Sign In" key="login"}} aria-haspopup="true">
+      <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id="identity_button" href="#" data-toggle="dropdown" aria-label={{t "Sign In" key="login"}}>
         {{t "Sign In" key="login"}}
         <span class="caret"></span>
       </a>
@@ -1472,7 +1454,6 @@
           <LinkTo @route="register">{{t "Register" key="register"}}</LinkTo>
         </li>
       </ul>
-      {{/if}}
       {{/unless}}
       {{/if}}
     </span>
@@ -1492,7 +1473,7 @@
     {{/if}}
     <div id="beta-feedback-top-drawer" class="beta-feedback-drawer {{if (or this.app_state.speak_mode this.app_state.edit_mode this.on_board_detail) "beta-feedback-drawer--speak"}} {{if this.betaFeedbackDrawerOpen "beta-feedback-drawer--open" "beta-feedback-drawer--hidden"}}" role="region" aria-label={{t "Beta feedback" key="beta_feedback_nav"}} aria-hidden={{if this.betaFeedbackDrawerOpen "false" "true"}} inert={{unless this.betaFeedbackDrawerOpen true}}>
       <aside class="beta-feedback-drawer__panel">
-        {{beta-feedback-panel isDrawer=true onSubmitSuccess=this.onCloseBetaFeedbackDrawer onCancel=this.onCloseBetaFeedbackDrawer onClose=this.onCloseBetaFeedbackDrawer}}
+        <BetaFeedbackPanel @isDrawer={{true}} @onSubmitSuccess={{this.onCloseBetaFeedbackDrawer}} @onCancel={{this.onCloseBetaFeedbackDrawer}} @onClose={{this.onCloseBetaFeedbackDrawer}} />
       </aside>
     </div>
   {{/if}}
@@ -1581,20 +1562,20 @@
     {{/if}}
   </div>
 {{else}}
-  {{sidebar-tease}}
+  <SidebarTease />
 {{/if}}
 
-{{modal-container}}
+<ModalContainer />
 <HighlightOutlet />
 <HighlightOutlet @secondary={{true}} />
 {{#if this.modalService.boardPreview}}
-  {{board-preview-overlay}}
+  <BoardPreviewOverlay />
 {{/if}}
 <FlashOutlet />
 {{! Page footer: show on index/dashboard/setup and when not viewing a board (setup_footer no longer used; setup uses same page footer as other pages) }}
 {{#if this.footer}}
-  {{page-footer support=this.support language=this.language}}
+  <PageFooter @support={{this.support}} @language={{this.language}} />
 {{/if}}
 
 </div>
-{{button-tracker}}
+<ButtonTracker />

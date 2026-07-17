@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="la-focus-words-modal-wrap">
   <div class="modal-header md-modal-header">
     <span class="la-modal-header-label">
@@ -121,7 +121,7 @@
             {{#if this.reuse_or_existing}}
               <span style='width: 240px; display: inline-block;'>
                 <span style='display: inline-block; width: 100%; vertical-align: middle;'>
-                  <Input id="find_source" @value={{this.title}} placeholder="Word List Name" class="form-control inline select_on_click" />
+                  <input value={{this.title}} id="find_source" placeholder="Word List Name" class="form-control inline select_on_click" {{on "input" (set-field this "title")}} />
                 </span>
               </span>
             {{else}}
@@ -138,7 +138,7 @@
               {{/if}}
             {{/if}}
             {{#if this.speech.ready}}
-              {{speech-listener content=(this.ctrlAction "speech_content") error=(this.ctrlAction "speech_error") stop=(this.ctrlAction "speech_stop") speech=this.speech}}
+              <SpeechListener @content={{this.ctrlAction "speech_content"}} @error={{this.ctrlAction "speech_error"}} @stop={{this.ctrlAction "speech_stop"}} @speech={{this.speech}} />
             {{else if this.speech.engine}}
               {{#unless this.search_or_browse}}
                 <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "record")}}>
@@ -247,11 +247,11 @@
                 {{/if}}
                 <div class="form-group">
                   <label for="focus_words_ai_prompt">{{t "Description" key="ai_focus_words_description_label"}}</label>
-                  <Textarea id="focus_words_ai_prompt" @value={{this.ai_prompt}} class="form-control" rows="2" placeholder={{t "e.g. The Grinch, kindergarten morning circle, fractions lesson" key="ai_focus_words_description_placeholder"}} />
+                  <textarea id="focus_words_ai_prompt" class="form-control" rows="2" placeholder={{t "e.g. The Grinch, kindergarten morning circle, fractions lesson" key="ai_focus_words_description_placeholder"}} {{on "input" (set-field this "ai_prompt")}}>{{this.ai_prompt}}</textarea>
                 </div>
                 <div class="form-group">
                   <label for="focus_words_ai_count">{{t "Number of words" key="ai_focus_words_count_label"}}</label>
-                  <Input id="focus_words_ai_count" @type="number" @value={{this.ai_word_count}} min="5" max="50" class="form-control" />
+                  <input type="number" value={{this.ai_word_count}} id="focus_words_ai_count" min="5" max="50" class="form-control" {{on "input" (set-field this "ai_word_count")}} />
                 </div>
                 <button type="button"
                         class="btn btn-primary nb-ai-generate__btn"
@@ -267,13 +267,13 @@
               </div>
             {{/if}}
             <div class="form-group">
-              <Textarea @value={{this.words}} class="form-control" placeholder={{t "Enter a custom list of focus words" key="enter_custom_focus_words_placeholder"}} />
+              <textarea class="form-control" placeholder={{t "Enter a custom list of focus words" key="enter_custom_focus_words_placeholder"}} {{on "input" (set-field this "words")}}>{{this.words}}</textarea>
             </div>
           </div>
           {{#if this.model.user}}
             <div class="col-sm-12" style='margin-top: 4px;'>
               <label style='display: flex; align-items: center; gap: 10px; border: 1px solid #ccc; border-radius: 20px; padding: 6px 14px; cursor: pointer; width: fit-content; font-weight: normal; margin-bottom: 0;'>
-                <Input type="checkbox" @checked={{this.reuse}} style='margin: 0; width: 16px; height: 16px; cursor: pointer;' />
+                <input value={{this.reuse}} type="checkbox" style='margin: 0; width: 16px; height: 16px; cursor: pointer;' {{on "input" (set-field this "reuse")}} />
                 <span>{{t "Save for Re-Use" key="save_for_reuse"}}{{#if this.model.user.user_name}} {{t "(%{user_name})" user_name=this.model.user.user_name key="paren_user_name"}}{{/if}}</span>
               </label>
             </div>
@@ -292,4 +292,4 @@
     <a href="#" class="btn btn-default btn-lg" title={{t "Close this window without applying focus words." key='focus_words_modal_close_tooltip'}} {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</a>
   </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

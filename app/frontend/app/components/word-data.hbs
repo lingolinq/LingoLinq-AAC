@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="la-support-modal-wrap la-word-data-modal-wrap">
     <div class="la-modal-header">
       <span class="la-modal-header-label">{{t "Word Data For \"%{word}\"" word=this.model.word key="word_data_for_word"}}</span>
@@ -11,7 +11,7 @@
         {{#if this.model.button}}
           <dt>{{t "Button" key="button"}}</dt>
           <dd>
-            {{button-preview button=this.model.button}}
+            <ButtonPreview @button={{this.model.button}} />
           </dd>
         {{/if}}
         <dt>{{t "Part of speech:" key="common_part_of_speech"}}</dt>
@@ -85,7 +85,7 @@
               <p class="form-control-static">{{t "New Suggestion:" key="new_suggestion_colon"}}</p>
             </div>
             <div class="col-sm-5">
-              <Input @type="text" @value={{this.sentence}} class="form-control la-contact-input" />
+              <input type="text" value={{this.sentence}} class="form-control la-contact-input" {{on "input" (set-field this "sentence")}} />
             </div>
             <div class="col-sm-4">
               <button type="button" class="la-btn la-btn--primary" {{on "click" (this.ctrlAction "add_sentence")}} disabled={{this.sentence_state.loading}}>
@@ -109,4 +109,4 @@
       </div>
     </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

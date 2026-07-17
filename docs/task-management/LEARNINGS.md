@@ -79,7 +79,6 @@ file (see [README.md](README.md)).
 - [Pattern: Speak+light surface overrides shadow speak+light from the base — delete the override, don't fork it](#pattern-speaklight-surface-overrides-shadow-speaklight-from-the-base--delete-the-override-dont-fork-it)
 - [Pattern: Bidirectional view-switch overlay — extract to a util and parameterize, don't inline a second copy](#pattern-bidirectional-view-switch-overlay--extract-to-a-util-and-parameterize-dont-inline-a-second-copy)
 - [Gotcha: persistence-sync Jasmine harness — wait for `sync_boards` tail / `syncSettled`, not only the `sync()` promise](#gotcha-persistence-sync-jasmine-harness--wait-for-sync_boards-tail--syncsettled-not-only-the-sync-promise)
-- [Pattern: landing beta closed auth — ENABLED flag for anonymous publish](#pattern-landing-beta-closed-auth--enabled-flag-for-anonymous-publish)
 - [Pattern: Board-card click navigation has TWO surfaces — board-icon `pick_board` default branch + board-preview `visit`; everything else delegates](#pattern-board-card-click-navigation-has-two-surfaces--board-icon-pick_board-default-branch--board-preview-visit-everything-else-delegates)
 - [Pattern: Signup default library boards — copy via Progress, not copy_to_home_board](#pattern-signup-default-library-boards--copy-via-progress-not-copy_to_home_board)
 - [Pattern: beta seed baseline belongs to `lingolinq`, demo analytics are opt-in](#pattern-beta-seed-baseline-belongs-to-lingolinq-demo-analytics-are-opt-in)
@@ -3289,7 +3288,7 @@ pinned/clipped by the `#content` scrollport). Paint the mesh on the fixed full-v
 `#within_ember`.** `footer` (controllers/application.js) is true for any non-board route,
 so most app pages ARE `:has(.page-footer)` and can use this.
 
-**Evidence:** task log `2026-05-31-register-login-fullheight-bg.md`; board-picker instance in `2026-06-12-board-picker-bg-and-tabs.md`.
+**Evidence:** task log `2026-05-31-register-login-fullheight-bg.md`; board-picker instance in `2026-06-12-board-picker-bg-and-tabs.md`. SEARCH-PAGE instance (2026-07-15): /search is top-level (no `.index.with_user`), bg was on `.ub-find-board-page` wrapper → short. Fixed the same way: bento gradient on `#within_ember:has(.page-footer):has(.ub-find-board-page)` + transparent `#content:has(.ub-find-board-page)` + transparent wrapper. See `2026-07-15-search-my-boards-empty-self-userid.md`.
 
 ---
 
@@ -6462,10 +6461,133 @@ the cheap fallback to confirm controller/route syntax.
 - **`arr.uniq(fn)` was already identity-dedup:** Ember's `uniq()` takes NO arg — a passed key fn was silently ignored even under 4.12 (prototype extensions). So `[...new Set(arr)]` (identity) *preserves* behavior; a keyed dedupe (`uniqBy`-style) is a behavior CHANGE, not a migration fix. Don't "fix" the latent intent during a migration.
 - **`.compact()` ≠ `.filter(Boolean)`:** compact drops only `null`/`undefined`; use `.filter(x => x != null)` to keep `0`/`''`.
 
+## English i18n renders the INLINE `{{t "default"}}`, not en.json-only edits
+**Context:** goal-form restyle — changed several strings (Title-Case headings, "Enable badge rewards", "Custom tracking", removing a comma) by editing ONLY `public/locales/en.json`. They did NOT show in English; the user still saw the old inline text.
+**Why:** `app/frontend/app/utils/i18n.js:50` resolves `langs[preferred][key] || langs[fallback][key]` and, when that misses (or the browser's cached locale predates your edit), falls back to the literal string passed to `{{t "inline default" key='k'}}`. In practice the **inline default is the source of truth for English**; en.json is consumed for OTHER locales (generated FROM the inline defaults by `i18n_generator.rb`).
+**Fix:** change BOTH the inline default in the `.hbs`/`.js` AND the en.json value, together — same pattern that worked for the landing-alt copy. Editing en.json alone is silently ineffective for English. Quick check: if a copy change isn't showing after reload, grep the template for the `{{t "..." key='k'}}` and update the inline string too. (2026-07-13)
+
+## Modernizing a form that embeds a shared Bootstrap-grid component (badge-settings)
+**Context:** the goal editor embeds `badge-settings` (used by 4 badge editors), built entirely on Bootstrap `.form-horizontal` + `.col-sm-*`.
+**Gotchas:**
+- Dropping `form-horizontal` from the wrapping `<form>` collapses the component's grid into a scattered mess — keep the class (the component was designed for it) even on an otherwise-modern form; your own fields use their own classes and are unaffected.
+- To flatten the grid cleanly, scope overrides to the form: `[class*="col-sm-"] { float:none; width:auto; margin-left:0 }` (kills offsets) and make `.form-group` a `display:flex; flex-wrap:wrap`. Align rows with a fixed label column via `[class*="col-sm-"]:has(.form-control-static) { flex: 0 0 210px }`.
+- `overflow:hidden` on the editor card (added to clip a header bg) **clips open `bound-select` popups** — round the header's own corners instead and drop the card overflow; `bound-select` is a custom `<div>`, not a native `<select>`, so target `.bound-select`/`.bound-select__list` for width.
+- Restructuring the component's template modernizes ALL its consumers at once — preserve every action/conditional/`bound-select`, keep the complex conditional rows verbatim, and lint for block balance. (2026-07-13)
 ## Gotcha: persistence-sync Jasmine harness — wait for `sync_boards` tail / `syncSettled`, not only the `sync()` promise
 
 Recurring Ember CI flakes (timeout / async-work-not-finished) in `persistence-sync-test.js` often look like PR regressions but are harness races: `persistence.sync()` can resolve while real board traversal (`enableRealSyncBoards` / `sync_boards`) and remap/tail work are still running. Passing siblings already use `primeBoardRevisionsSyncHarness(function(){ tailDone = true; })` and wait `done && tailDone`; tests that call the harness with no callback and wait only on `done` assert/cleanup early. Post-`sync()` fixed `later(..., 50)` plus immediate `cancelSyncTailWork()` has the same shape for temp-id rewrite. Prefer `waitForSyncDoneAndSettled(done)` (`done && syncSettled()`) plus the board-sync completion callback, and only cancel tail work after permanent IDs are visible. See `docs/task-management/2026-07-13-ember-ci-persistence-sync-harness-wait.md`. (2026-07-13)
 
-## Pattern: landing beta closed auth — ENABLED flag for anonymous publish
+## Gotcha: `EXTEND_PROTOTYPES: false` (set by the 5.12 upgrade) — Ember array/string methods on NATIVE receivers throw
 
-For a publishable landing with Sign In/Register closed, put `landing_beta_closed` in both `AVAILABLE_FRONTEND_FEATURES` and `ENABLED_FRONTEND_FEATURES`. Anonymous visitors only see `window.enabled_frontend_features` (= ENABLED), so AVAILABLE-only would leave CTAs visible. Gate UI with `feature_flags.landing_beta_closed`, redirect `/login` + `/register`, and hard-block `Api::UsersController#create` / Google signup via `FeatureFlags.landing_beta_closed_enabled?`. Branch: `feat/lingolinq-landing-page-beta`. Local log: `docs/task-management/2026-07-14-landing-page-beta-closed-auth.md`. (2026-07-14)
+The Ember 5.12 upgrade (PR #490) changed `config/environment.js` `EXTEND_PROTOTYPES: {…}` → **`false`**. So Ember's array/string prototype extensions (`.pushObject`, `.sortBy`, `.mapBy`, `.filterBy`, `.uniq`, `.compact`, `.toArray`, `.camelize`, etc.) are **not installed on native `Array`/`String`** — calling them on a plain `[]`/`''` is `undefined` → `TypeError`, not a deprecation. They work ONLY on an `A()`-wrapped array (`import { A } from '@ember/array'`) or an Ember-Data collection (`ManyArray`/`RecordArray`). Consequences when auditing:
+1. The `deprecate-array-prototype-extensions` warning (until 6.0) **cannot fire here** — the extension path isn't installed. Don't chase it as a live deprecation.
+2. Grep hits for these methods split into: **safe** (`A(...)`-wrapped, ED collection, or guarded by `typeof x.method === 'function'`) vs **broken** (native receiver). Only the native-receiver ones are real bugs — and they're outright `TypeError`s, so check reachability.
+3. When fixing a real native-receiver site, wrap the receiver in `A()` (matches existing repo precedent, e.g. `components/modeling-ideas.js:78 A(follow_ups).sortBy`) or convert to native JS. `A(x).uniq()`/`.sortBy()` return a **native** array, so a following `.compact()`/`.uniq()` must be native (`.filter(v => v != null)`) — don't chain another Ember-array method onto the result.
+
+**Corollary — dead legacy modal controllers.** Many `controllers/modals/*.js` were "Converted … to component" during the modal-system migration: the live path is now `components/modal-container.js`'s `convertedModals` list → the `components/` version; `templates/modals/*.hbs` no longer exists. Same-named `controllers/modals/X.js` are orphaned and never instantiated, so any breakage in them (e.g. native-array `TypeError`s the upgrade missed) never executes. Before "fixing" a modal controller, confirm it isn't a converted-to-component corpse — check `convertedModals` and whether a `components/X.hbs` exists. See `docs/task-management/2026-07-14-ember-5-12-full-deprecation-audit.md`. (2026-07-14)
+
+## Gotcha: the board-detail view has THREE distinct "sidebars" — confirm which before styling
+
+`templates/user/board-detail.hbs` renders three different things a user might call "the sidebar":
+1. **`.md-board-detail-sidebar`** — the left NAV column (`<aside aria-label="Board navigation">`,
+   Communicate / Clinical / Settings). Left grid track of `.md-board-detail-layout`
+   (`grid-template-columns: 194px 1fr 194px`). Shown `{{#unless model.integration}}`; `display:none`
+   in EDIT mode.
+2. **`.md-board-detail-right-panel`** — the RIGHT grid column (3rd 194px track).
+3. **`.md-board-detail-inline-sidebar`** — a thin (`width:100px`) quick-nav strip of board
+   thumbnails, a FLEX child of `.md-board-detail-grid-sidebar-wrap`. Renders only when
+   `inlineSidebarOpen` (the `quick_sidebar` preference) is true, `{{#unless edit_mode}}`.
+
+"Reduce/hide the sidebar" is ambiguous across these — **ask or inspect which element** before
+editing; don't assume the left nav. Styling the wrong one produces correct-looking CSS that
+"does nothing" on screen. Also note the layout difference that dictates the hide technique: the
+3-col grid is AUTO-FLOW (no grid-template-areas), so `display:none` on a grid-child sidebar
+mis-slots the board into the vacated track — collapse the track instead; but the inline sidebar is
+a plain flex child, so `display:none` reflows cleanly. To hide "temporarily without changing the
+user's preference," key the CSS off the transient state class (`.md-shell--board-collection` =
+`board_collection_open`), never the persisted `--collapsed` / `quick_sidebar` state. See
+`docs/task-management/2026-07-14-board-collection-lang-column-narrow.md` Change 5. (2026-07-14)
+
+### Board `user_id` query param resolves via `find_by_path` — pass the real global id, never `'self'`
+`boards_controller#index` resolves the `user_id` query param with
+`User.find_by_path(user_id)`, which routes a non-digit string to
+`find_by(user_name: ...)` and only routes a digit-leading global id (`1_1`) to
+`find_by_global_id`. There is no user named `self`, so `?user_id=self` returns nil
+→ `exists?` 404s → the owned-boards query comes back empty. The literal `'self'`
+DOES work for `store.findRecord('user', 'self')` (persistence.js special-cases it),
+but NOT for the boards index `user_id` param. To load a user's owned boards, pass
+`app_state.get('currentUser.id')` (what the working `board-collection` drawer does),
+not `'self'`. A `.length`-gated section will silently vanish when this is wrong;
+an always-empty "None found" state can hide the same bug for years.
+See `docs/task-management/2026-07-15-search-my-boards-empty-self-userid.md`. (2026-07-15)
+
+### A generic preventDefault-and-drop action wrapper silently breaks `<input>` handlers
+Some components (e.g. `search-board-jump.js`) define a `ctrlAction(name)` helper
+that wraps click actions: it calls `event.preventDefault()` and then POPS the DOM
+event off the args before `send()`. That's correct for buttons, but any handler
+that needs the event — `input` (reads `event.target.value`), `keydown` (reads
+`event.key`) — receives `undefined` and silently no-ops (a text field that won't
+accept typing). Bind input/keydown to dedicated event-preserving closures
+(`this.handleInput = e => self.send('update_query', e)`), NOT the click wrapper.
+See `docs/task-management/2026-07-15-search-my-boards-empty-self-userid.md`. (2026-07-15)
+
+### Overriding a compound-class `!important` base (e.g. `.md-btn--primary`) needs ≥ its specificity
+`.md-btn--primary.md-btn--pill` sets `background`/`border-color`/`color` with
+`!important` at specificity (0,2,0). A page-scoped override like
+`.ub-find-board__create` (0,1,0) that ALSO uses `!important` still LOSES —
+`!important` vs `!important` is resolved by specificity, and source order is
+irrelevant when specificity differs (a `@use`d partial emitting before app.scss
+does not matter here). The override silently applies nothing (button keeps the
+pale base wash). Fix: include the base's classes so the override matches/exceeds
+it — `.ub-find-board__create.md-btn--primary.md-btn--pill` (0,3,0), and the
+`:hover`/`:focus-visible` variants likewise (0,3,1) to beat the base's (0,2,1).
+See `docs/task-management/2026-07-15-search-my-boards-empty-self-userid.md`. (2026-07-15)
+
+### A canvas sized from a parent measurement re-renders wrong on route re-entry
+`board-preview-canvas` sets its dimensions from the parent's measured height
+(`getBoundingClientRect().height − 96`). That measurement is only reliable once
+the layout has settled. When the rendering trigger is a singleton controller
+property that survives navigation (e.g. `preview_board`, never reset on route
+exit), the component re-inserts on route RE-ENTRY and measures a still-transitional
+(short) parent → the element caps to a wide-short strip and the board letterboxes
+tiny. First visit hides the bug because the user only triggers render after layout.
+Fix pattern: a `ResizeObserver` on the PARENT (not the self-sized element) that
+re-renders when the container settles — deterministic, no rAF/setTimeout guessing,
+and it also fixes window-resize sizing. Guard with a <2px no-op check to prevent
+loops. See `docs/task-management/2026-07-15-search-my-boards-empty-self-userid.md`. (2026-07-15)
+
+### Modernizing a Bootstrap input+dropdown combobox → native <datalist>
+When replacing a Bootstrap `input + .btn-group.dropdown` "type-or-pick" control
+in a modal, a native `<input list="x"> + <datalist id="x">` preserves BOTH free
+text and preset suggestions with zero JS and no bootstrap — the cleanest modern
+swap. Caveat: selecting a datalist option only updates the bound input value, so
+any SIDE EFFECT the old dropdown action performed (e.g. external-device's
+`set_vocab` also auto-filled Vocab Size from the preset's `buttons`) is lost —
+re-apply it via an `{{on "change" ...}}` handler that re-matches the value
+against the option list. Modern modal field classes already exist:
+`md-modal-field` / `md-modal-label` / `md-modal-input` / `md-modal-select` /
+`md-modal-hint` / `md-modal-btn(--primary/--cancel/--secondary)`; add
+`md-modal-segment`/`__option(--active)` for a two-choice toggle (replaces
+`.btn-group`). (2026-07-15)
+
+### `<datalist>` + `{{#each ... as |option|}}` — never name the block param `option`
+Rendering `<option value={{option.name}}>` where `option` is ALSO the each block
+param shadows the native `<option>` HTML element. Glimmer flags it
+`no-shadowed-elements` ("Ambiguous element used") and throws an UNRECOVERABLE
+render error at runtime — the whole app then spams "Attempted to rerender, but
+the Ember application has had an unrecoverable error occur during render." The
+page that hosts the component may still paint (the error fires when the
+shadowing template actually renders — e.g. when a modal opens), which makes it
+look unrelated. Fix: rename the block param (`as |opt|` → `<option value=
+{{opt.name}}>`). Catch these fast with `npx ember-template-lint <file.hbs>`
+before blaming data/JS. (2026-07-15)
+
+### Ember 4.x/5.x removed implicit-`this` fallback → bare `{{prop}}` throws an UNRECOVERABLE render error
+A bare property reference in a classic `.hbs` template — `{{board-icon board=home_board_pref}}` or `{{home_board_pref}}` where `home_board_pref` is a CONTROLLER/component property (not `this.`, not `@arg`, not a block param) — worked in Ember 3.28 via the implicit-`this` fallback. Ember 4.x/5.x REMOVED that fallback, so the bare word is now resolved as a HELPER, isn't found, and throws:
+`Attempted to resolve a helper in a strict mode template, but that value was not in scope: <name>`
+This is an UNRECOVERABLE render error — Ember then halts and every nav link changes the URL but can't re-render, so the whole app looks frozen/dead (looks like "navigation is broken," but it's a render throw).
+LATENT + dangerous: it only fires when the specific branch that contains the bare ref actually renders. So a page can work for years until a data state (or an unrelated edit that changes which `{{else if}}` branch renders) reaches that line. Example: `marcus_williams_slp` never rendered the `home_board_pref` line because they hit the External AAC branch first; removing that branch dropped them into it and exposed the upgrade bug.
+Fix: add `this.` (`board=this.home_board_pref`). To find these BEFORE they ship, the `no-implicit-this` template-lint rule catches them — it is NOT enabled in this app's `.template-lintrc.js`, which is why they slip through. Diagnose a frozen app by getting the RED console error (Pause on Caught Exceptions, or filter to errors) — the "Attempted to rerender" spam is downstream noise. See account-page fix 2026-07-15 (`templates/user/index.hbs:149`). (2026-07-15)
+
+### Scanning for implicit-`this` bugs: ember-template-lint is UNRELIABLE on large legacy templates — cross-check with grep
+`no-implicit-this` IS enabled in this repo (`.template-lintrc.js` extends 'recommended') but is NOT enforced by `ember serve`, so violations ship. Worse: when scanning for them, ember-template-lint SILENTLY MISSES the violation in several large legacy route templates (`templates/user/index.hbs`, `templates/user/preferences.hbs`, `templates/trends.hbs`) — it flags the exact same `arg=bare_prop` line in a small temp file but reports 0 for these files (not a cache/ignore/inline-disable issue; unexplained scope-tracking miss on big files). So do NOT trust a green ember-template-lint run as proof there are no implicit-this bugs. Cross-check with grep for the property-shaped patterns: bare `{{snake_case}}` mustaches, `arg=snake_case` values, and `{{#if/each/let snake_case}}` — then rule out block params (`{{#each x as |name|}}`, `{{#let x as |name|}}`), helper INVOCATIONS with args (`{{date_ago x}}`, `{{is_equal a b}}`), component invocations (`{{subscribe}}`, `{{masquerade}}` = real components), and i18n interpolation param names (`board_key=this....`). The 2026-07-15 sweep found 6 real bugs across 3 files (home_board_pref ×1, *_keycode_string ×4, elem_style ×1) that the linter missed entirely. (2026-07-15)

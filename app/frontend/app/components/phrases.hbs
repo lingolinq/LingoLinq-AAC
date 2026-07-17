@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="la-phrases-modal-wrap">
     <div class="la-modal-header">
       <div class="la-modal-header-icon la-modal-header-icon--phrases" aria-hidden="true">
@@ -74,7 +74,7 @@
       {{/if}}
       {{#unless this.recent_category}}
         <div class="la-phrases-add-row">
-          <Input type="text" @value={{this.sentence}} class="la-phrases-input" placeholder="Enter a new phrase to add to the list" />
+          <input value={{this.sentence}} type="text" class="la-phrases-input" placeholder="Enter a new phrase to add to the list" {{on "input" (set-field this "sentence")}} />
           <button class="la-phrases-add-btn" {{on "click" (this.ctrlAction "add")}}>
             {{#if this.journaling}}
               {{t "Save Entry" key="save_entry"}}
@@ -89,4 +89,4 @@
       <button type="button" class="la-phrases-close-btn" {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</button>
     </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

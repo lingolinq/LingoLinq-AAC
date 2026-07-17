@@ -11,7 +11,7 @@
     <li class="usage-checklist__item">{{t "Measures progress toward communication goals — giving your whole team clear, actionable insight." key="logging_check_3"}}</li>
   </ul>
   {{#if this.setup.setup_user}}
-    <p style='margin-top: 20px;'><button class='btn btn-default btn-lg' {{on "click" (this.ctrlAction "set_preference" "logging" true target)}}>
+    <p style='margin-top: 20px;'><button class='btn btn-default btn-lg' {{on "click" (this.ctrlAction "set_preference" "logging" true this.target)}}>
       {{#if this.setup.setup_user.preferences.logging}}
         {{t "Logging is Enabled" key="logging_is_enabled"}}
       {{else}}

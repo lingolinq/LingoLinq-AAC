@@ -65,7 +65,7 @@
         <p>{{t "None found" key="none_found"}}</p>
       {{/unless}}
     {{/if}}
-    {{#if this.appState.feature_flags.supervisor_consent_flow}}{{pending-consent-requests user=this.model}}{{/if}}
+    {{#if this.appState.feature_flags.supervisor_consent_flow}}<PendingConsentRequests @user={{this.model}} />{{/if}}
     {{#if this.model.permissions.manage_supervision}}
       {{#if this.model.permissions.delete}}
         <button type='button' class='md-btn md-btn--primary' {{on "click" (this.ctrlAction "add_supervisor")}}>{{t "Add Supervisor" key="add_supervisor"}}</button>
@@ -182,7 +182,7 @@
     {{/if}}
   </div>
 {{else}}
-  {{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+  <ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -267,7 +267,7 @@
       <p class="md-modal-hint">{{t "None found" key="none_found"}}</p>
     {{/if}}
 
-    {{#if this.appState.feature_flags.supervisor_consent_flow}}{{pending-consent-requests user=this.model}}{{/if}}
+    {{#if this.appState.feature_flags.supervisor_consent_flow}}<PendingConsentRequests @user={{this.model}} />{{/if}}
 
     {{#if this.model.permissions.manage_supervision}}
       <div class="md-modal-field" style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -393,5 +393,5 @@
   <div class="modal-footer md-modal-footer">
     <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</button>
   </div>
-  {{/modal-dialog}}
+  </ModalDialog>
 {{/if}}

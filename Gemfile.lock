@@ -615,7 +615,7 @@ DEPENDENCIES
   permissable-coughdrop
   pg (~> 1.5)
   pg_search
-  puma (~> 7.2)
+  puma (~> 7.2, >= 7.2.1)
   rack (>= 3.0)
   rack-attack
   rack-cors

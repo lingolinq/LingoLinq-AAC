@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="modal-header">
     <button type="button" class="close" {{on "click" (this.ctrlAction "close")}}>&times;</button>
     <div style='float: right; position: relative; margin-right: 15px;'>
@@ -28,4 +28,4 @@
       {{/if}}
     </button>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

@@ -1,5 +1,5 @@
-{{#opening-observer opening=this.onOpening closing=this.onClosing}}
-{{#touch-listener release=this.onSelectRelease}}
+<OpeningObserver @opening={{this.onOpening}} @closing={{this.onClosing}}>
+<TouchListener @release={{this.onSelectRelease}}>
   <div class="highlight" style={{this.model.top_style}} {{on "click" (this.ctrlAction "close")}}>
   </div>
   <div class="highlight" style={{this.model.left_style}} {{on "click" (this.ctrlAction "close")}}>
@@ -15,5 +15,5 @@
       <span class={{this.model.icon_class}} style={{this.model.icon_style}}></span>
     {{/if}}
   </div>
-{{/touch-listener}}
-{{/opening-observer}}
+</TouchListener>
+</OpeningObserver>

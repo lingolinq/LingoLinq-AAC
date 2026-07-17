@@ -16,7 +16,7 @@
       <div class="speak-bar__button-list-wrap">
         <a href='#' tabindex="0" id="button_list" class={{this.button_list_class}} {{on "select" (this.ctrlAction "vocalize")}} data-placement="bottom" data-trigger="manual">
           {{#let this.app_state.button_list as |button_list|}}
-            {{button-list buttonList=button_list}}
+            <ButtonList @buttonList={{button_list}} />
           {{/let}}
         </a>
         <button class="btn btn-default" {{on "click" (this.ctrlAction "speakOptions")}} id="speak_options"><span class="sr-only">{{t "speak options" key="speak_options"}}</span><span class="glyphicon glyphicon-chevron-down"></span></button>
@@ -412,7 +412,7 @@
     {{/if}}
   </div>
 {{else}}
-  {{sidebar-tease}}
+  <SidebarTease />
 {{/if}}
 
   <footer>

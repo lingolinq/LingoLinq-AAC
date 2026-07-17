@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="la-assign-lesson-modal-wrap">
     <div class="la-modal-header">
       <div class="la-modal-header-icon la-modal-header-icon--lesson" aria-hidden="true">
@@ -25,25 +25,25 @@
         <div class="form-group">
           <label class="control-label col-sm-3" for="assign-lesson-title">{{t "Title" key="title"}}</label>
           <div class="col-sm-6">
-            <Input id="assign-lesson-title" type="text" @value={{this.lesson.title}} class="form-control" />
+            <input value={{this.lesson.title}} id="assign-lesson-title" type="text" class="form-control" {{on "input" (set-field this "lesson.title")}} />
           </div>
         </div>
         <div class="form-group">
           <label class="control-label col-sm-3" for="assign-lesson-url">{{t "Lesson URL" key="lesson_url"}}</label>
           <div class="col-sm-9">
-            <Input id="assign-lesson-url" type="text" @value={{this.lesson.original_url}} class="form-control" placeholder="https://" />
+            <input value={{this.lesson.original_url}} id="assign-lesson-url" type="text" class="form-control" placeholder="https://" {{on "input" (set-field this "lesson.original_url")}} />
           </div>
         </div>
         <div class="form-group">
           <label class="control-label col-sm-3" for="assign-lesson-instructions">{{t "Instructions" key="instructions"}}</label>
           <div class="col-sm-9">
-            <Textarea id="assign-lesson-instructions" @value={{this.lesson.description}} class="form-control" placeholder="additional instructions" rows={{2}} />
+            <textarea id="assign-lesson-instructions" class="form-control" placeholder="additional instructions" rows={{2}} {{on "input" (set-field this "lesson.description")}}>{{this.lesson.description}}</textarea>
           </div>
         </div>
         <div class="form-group">
           <label class="control-label col-sm-3" for="assign-lesson-time-est">{{t "Time Estimate" key="time_estimate"}}</label>
           <div class="col-sm-2">
-            <Input id="assign-lesson-time-est" type="text" @value={{this.lesson.time_estimate}} class="form-control" placeholder="##" />
+            <input value={{this.lesson.time_estimate}} id="assign-lesson-time-est" type="text" class="form-control" placeholder="##" {{on "input" (set-field this "lesson.time_estimate")}} />
           </div>
           <div class="col-sm-2"><p class="form-control-static">{{t "minutes" key="minutes"}}</p></div>
         </div>
@@ -51,28 +51,28 @@
           <div class="form-group">
             <label class="control-label col-sm-3">{{t "Target Users" key="target_users"}}</label>
             <div class="col-sm-9">
-              {{bound-select select_class="form-control" content=this.target_types selection=this.target_type action=(mut this.target_type) }}
+              <BoundSelect @select_class="form-control" @content={{this.target_types}} @selection={{this.target_type}} @action={{mut this.target_type}} />
             </div>
           </div>
         {{else if this.model.unit}}
           <div class="form-group">
             <label class="control-label col-sm-3">{{t "Target Users" key="target_users"}}</label>
             <div class="col-sm-9">
-              {{bound-select select_class="form-control" content=this.target_types selection=this.target_type action=(mut this.target_type) }}
+              <BoundSelect @select_class="form-control" @content={{this.target_types}} @selection={{this.target_type}} @action={{mut this.target_type}} />
             </div>
           </div>
         {{/if}}
         <div class="form-group">
           <label class="control-label col-sm-3">{{t "Required" key="required"}}</label>
           <div class="col-sm-9">
-            {{bound-select select_class="form-control" select_id="required" content=this.required_options selection=this.required_option action=(mut this.required_option) }}
+            <BoundSelect @select_class="form-control" @select_id="required" @content={{this.required_options}} @selection={{this.required_option}} @action={{mut this.required_option}} />
           </div>
         </div>
         {{#if (is-equal this.required_option "required")}}
           <div class="form-group">
             <label class="control-label col-sm-3" for="assign-lesson-due">{{t "Due By" key="due_by"}}</label>
             <div class="col-sm-6">
-              <Input id="assign-lesson-due" type="date" @value={{this.lesson.due_at}} class="form-control" />
+              <input value={{this.lesson.due_at}} id="assign-lesson-due" type="date" class="form-control" {{on "input" (set-field this "lesson.due_at")}} />
               <div class="la-assign-lesson-hint">{{t "leave blank for no due date" key="blank_for_no_due"}}</div>
             </div>
             <div class="col-sm-2">
@@ -85,7 +85,7 @@
           <div class="col-sm-9">
             <div class="checkbox big_checkbox la-assign-lesson-allow-past-check" role="group" aria-labelledby="assign-lesson-allow-past-label">
               <label>
-                <Input @type="checkbox" @checked={{this.allow_past}} id="assign-lesson-allow-past" />
+                <input type="checkbox" checked={{this.allow_past}} id="assign-lesson-allow-past" {{on "change" (set-field this "allow_past" "checkbox")}} />
                 {{t "don't require users to re-take the lesson if they already have" key="dont_require_retaking"}}
               </label>
             </div>
@@ -97,7 +97,7 @@
               <p class="form-control-static">{{t "in the last" key="in_the_last"}}</p>
             </div>
             <div class="col-sm-2">
-              <Input type="text" @value={{this.lesson.past_cutoff}} class="form-control" placeholder="##" />
+              <input value={{this.lesson.past_cutoff}} type="text" class="form-control" placeholder="##" {{on "input" (set-field this "lesson.past_cutoff")}} />
             </div>
             <div class="col-sm-2">
               <p class="form-control-static">{{t "months" key="months_lower"}}</p>
@@ -119,4 +119,4 @@
       <button type="button" class="la-record-note-cancel-btn" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
     </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

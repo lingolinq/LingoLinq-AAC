@@ -66,7 +66,7 @@
             <form class="form-horizontal" {{on "submit" (this.ctrlAction "update_logging_code")}}>
               <div class="form-group">
                 <div class="col-sm-2">
-                  <Input type="text" @value={{this.logging_code}} class="form-control" />
+                  <input value={{this.logging_code}} type="text" class="form-control" {{on "input" (set-field this "logging_code")}} />
                 </div>
                 <div class="col-sm-2">
                   <button class='btn btn-default'>{{t "Submit Code" key="submit_code"}}</button>
@@ -179,5 +179,5 @@
     {{t "to support this good cause and to unlock this feature." key="purchase_subscription_3"}}
   </p>
 {{else}}
-  {{login-form left=true prompt=true return=true}}
+  <LoginForm @left={{true}} @prompt={{true}} @return={{true}} />
 {{/if}}

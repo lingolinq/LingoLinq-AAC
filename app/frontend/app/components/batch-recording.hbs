@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="la-batch-recording-wrap">
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
@@ -16,7 +16,7 @@
     {{#if this.appState.currentUser.supervisees}}
       <div class="la-batch-recording-section">
         <label class="la-batch-recording-label">{{t "Recording For" key="recording_for"}}</label>
-        {{user-select select_id="for_user_id" selection=this.for_user_id action=(this.ctrlAction "updateForUserId") }}
+        <UserSelect @select_id="for_user_id" @selection={{this.for_user_id}} @action={{this.ctrlAction "updateForUserId"}} />
       </div>
     {{/if}}
     {{#if this.model.user}}
@@ -107,7 +107,7 @@
     {{else}}
       <div class="la-batch-recording-section">
         <p>{{t "Select the user to record audio for" key="select_recording_user"}}</p>
-        {{user-select select_id="for_user_id" buttons=true selection=this.for_user_id action=(this.ctrlAction "updateForUserId") }}
+        <UserSelect @select_id="for_user_id" @buttons={{true}} @selection={{this.for_user_id}} @action={{this.ctrlAction "updateForUserId"}} />
       </div>
     {{/if}}
   </div>
@@ -115,4 +115,4 @@
     <a href="#" class="la-batch-recording-close" {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</a>
   </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

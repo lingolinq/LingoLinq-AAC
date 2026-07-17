@@ -1,4 +1,4 @@
-{{#modal-dialog desired_width=800 action=(this.ctrlAction "close") opening=(this.ctrlAction "opening") closing=(this.ctrlAction "closing")}}
+<ModalDialog @desired_width={{800}} @action={{this.ctrlAction "close"}} @opening={{this.ctrlAction "opening"}} @closing={{this.ctrlAction "closing"}}>
   <div class="modal-header">
     <button type="button" class="close" {{on "click" (this.ctrlAction "close")}}>&times;</button>
     <h3>{{t "Getting Started with %app_name%" key="getting_started_with_app"}}</h3>
@@ -196,6 +196,6 @@
     <div style="clear: both;"></div>
   </div>
 
-{{/modal-dialog}}
+</ModalDialog>
 
 

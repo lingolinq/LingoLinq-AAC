@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="modal-header md-modal-header md-record-note-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -15,7 +15,7 @@
       {{#if this.goal_options}}
         <div class="md-modal-field">
           <label for="goal_options" class="md-modal-label">{{t "Topic" key="topic"}}</label>
-          {{bound-select select_class="form-control md-record-note-select" select_id="goal_options" content=this.goal_options selection=this.goal_id action=(this.ctrlAction "updateGoalId")}}
+          <BoundSelect @select_class="form-control md-record-note-select" @select_id="goal_options" @content={{this.goal_options}} @selection={{this.goal_id}} @action={{this.ctrlAction "updateGoalId"}} />
         </div>
         {{#if this.goal_id}}
           <div class="md-modal-field">
@@ -63,22 +63,22 @@
       {{#if this.text_note}}
         <div class="md-modal-field">
           <label for="note" class="md-modal-label">{{t "Note" key="note"}}</label>
-          <Textarea @value={{this.note}} class="form-control md-record-note-textarea" id="note" rows={{this.note_rows}} />
+          <textarea class="form-control md-record-note-textarea" id="note" rows={{this.note_rows}} {{on "input" (set-field this "note")}}>{{this.note}}</textarea>
         </div>
         {{#if this.model.external_device}}
           <div class="md-modal-field">
             <label for="log" class="md-modal-label">{{t "Log Events" key="log_events"}}</label>
-            <Textarea @value={{this.log}} class="form-control md-record-note-textarea" id="log" rows="4" placeholder="(optional) one word/button per line, record the sequence of words/buttons selected by this user with respect to the target objective" />
+            <textarea class="form-control md-record-note-textarea" id="log" rows="4" placeholder="(optional) one word/button per line, record the sequence of words/buttons selected by this user with respect to the target objective" {{on "input" (set-field this "log")}}>{{this.log}}</textarea>
           </div>
         {{/if}}
       {{else}}
         <div class="md-modal-field">
           <span class="md-modal-label">{{t "Video" key="video"}}</span>
-          {{video-recorder user=this.model video_ready=(this.ctrlAction "video_ready") video_pending=(this.ctrlAction "video_pending") video_not_ready=(this.ctrlAction "video_not_ready")}}
+          <VideoRecorder @user={{this.model}} @video_ready={{this.ctrlAction "video_ready"}} @video_pending={{this.ctrlAction "video_pending"}} @video_not_ready={{this.ctrlAction "video_not_ready"}} />
         </div>
         <div class="md-modal-field">
           <label for="note" class="md-modal-label">{{t "Note" key="note"}}</label>
-          <Textarea @value={{this.note}} class="form-control md-record-note-textarea" id="note" rows="1" />
+          <textarea class="form-control md-record-note-textarea" id="note" rows="1" {{on "input" (set-field this "note")}}>{{this.note}}</textarea>
         </div>
       {{/if}}
 
@@ -94,13 +94,13 @@
 
       <div class="md-modal-field">
         <label class="md-modal-check {{if this.notify "is-selected"}}" for="notify_others">
-          <Input @checked={{this.notify}} @type="checkbox" id="notify_others" class="md-modal-check__input" />
+          <input type="checkbox" checked={{this.notify}} id="notify_others" class="md-modal-check__input" {{on "change" (set-field this "notify" "checkbox")}} />
           <span class="md-modal-check__label">{{t "Notify others of this message" key="notify_others"}}</span>
         </label>
       </div>
       <div class="md-modal-field">
         <label class="md-modal-check {{if this.notify_user "is-selected"}}" for="alert_user">
-          <Input @checked={{this.notify_user}} @type="checkbox" id="alert_user" class="md-modal-check__input" />
+          <input type="checkbox" checked={{this.notify_user}} id="alert_user" class="md-modal-check__input" {{on "change" (set-field this "notify_user" "checkbox")}} />
           <span class="md-modal-check__label">{{t "Send an alert to the communicator about this message" key="alert_user"}}</span>
         </label>
       </div>
@@ -114,4 +114,4 @@
       <button type="button" disabled={{this.no_video_ready}} {{on "click" (this.ctrlAction "saveNote" "video")}} class="md-modal-btn md-modal-btn--primary">{{t "Save Note" key="save_note"}}</button>
     {{/if}}
   </div>
-{{/modal-dialog}}
+</ModalDialog>

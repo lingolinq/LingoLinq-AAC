@@ -1,0 +1,295 @@
+// Search / Find Boards page styles — carved out of app.scss (route/controller/
+// template are all "search"). @use'd from app.scss. Rules that override base
+// .ub-boards-page / .la-section-header rules win by SPECIFICITY (compound
+// selectors), not source order, so emission-before-app.scss is fine.
+@use "variables" as *;
+
+/* ============================================================================
+   Find Boards page (search route) — board-detail "My Board Collection" two-pane
+   mirror: static board PREVIEW on the left, collection-style board PANEL on the
+   right. No speak-mode top bar. Reuses the .md-board-collection__* row styles.
+   ============================================================================ */
+/* Mirror the original .search-page layout model: a flex child that fills the app
+   content area with the same margin-top: 5rem that pushed the header down. (Using
+   a fixed 100dvh height instead had ridden the header up under the navbar.) */
+/* `.ub-find-board-page.ub-boards-page` (0,2,0) beats the base `.ub-boards-page`
+   (0,1,0) on max-width/margin, so this wins by SPECIFICITY (not source order) —
+   which lets this file be a proper @use module emitted before app.scss's rules. */
+.ub-find-board-page.ub-boards-page {
+  margin-top: 0; /* flush under #inner_header (only the global #content padding offsets it) */
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+  box-sizing: border-box;
+  /* Transparent: the bento gradient is painted on the full-viewport
+     #within_ember:has(.ub-find-board-page) (app.scss) so it fills the ENTIRE
+     page height. Painting it here only reached content height, leaving a bare
+     strip below (LEARNINGS "auth-page bg not full height"). */
+  background: transparent;
+}
+/* Restored page header — compact vertical footprint so the two-pane below keeps
+   room, but the la-hero-title / eyebrow keep their entrance movement + styling. */
+/* `.la-section-header` compound (0,2,0) beats the base `.la-section-header`
+   (0,1,0) padding, so this wins by specificity (order-independent → @use-safe).
+   Keeps la-section-header's `margin: 0 auto` centring. */
+.ub-find-board__page-header.la-section-header {
+  flex: 0 0 auto;
+  padding: 10px 16px 6px;
+  margin: 0 auto;
+}
+/* Drop "(Page-Sets & Vocabularies)" onto its own row beneath "Search for Boards",
+   and paint it the dark-slate-gray brand color (override the base gradient text-fill). */
+/* High specificity (0,4,0) to beat the base gradient rule
+   `.ub-search-page .ub-search-page__header .ub-search-page__title-boards` (0,3,0),
+   which otherwise keeps -webkit-text-fill-color: transparent (the gradient clip).
+   padding-bottom (not margin) spaces it off the search row without collapsing
+   through the <h1>. */
+/* Tighten the title↔subtitle spacing (no negative-margin hacks): zero the h1's
+   bottom margin AND pull the line boxes in with a tight line-height. */
+/* Center the title block on the page. The base `.la-hero-title-wrap` is
+   `max-width: 590px` with NO auto margins, so it pins to the left of the 640px
+   `.la-section-header` and drags both lines off the page center — center the
+   wrap so the h1 + subtitle sit on the header's (and page's) center axis. */
+.ub-find-board__page-header .la-hero-title-wrap {
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+.ub-find-board__page-header .la-hero-title {
+  margin-bottom: 0;
+  line-height: 1.05;
+  padding-top: 20px; /* breathing room above the hero title */
+}
+.ub-find-board__page-header .ub-find-board__subtitle {
+  margin: 0;
+  line-height: 1.05;
+}
+.ub-find-board-page .ub-find-board__page-header .ub-search-page__title-boards.ub-search-page__title-boards--note {
+  display: inline-block;
+  /* Cancel the 0.25em left padding inherited from `.ub-search-page__title-boards`
+     (meant to space "Boards" off "Search for" in the h1). On this standalone
+     inline-block subtitle that padding sits inside the centered box and nudges
+     the text off the h1's center axis. */
+  padding-left: 0;
+  background: none;
+  -webkit-text-fill-color: $brand-charcoal-dark;
+  color: $brand-charcoal-dark;
+  /* Subtitle slides in from the RIGHT (same as the home hero md-hero__sub--from-right). */
+  opacity: 0;
+  animation: md-hero-from-right 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.5s forwards;
+}
+/* Space the subtitle off the search row via the form-wrap's top margin (a direct
+   child of the header) — padding on the note span sat inside the <h1> and didn't
+   push the form below it. Keeps the wrap's `margin: 0 auto` centering. */
+.ub-find-board-page .ub-find-board__page-header .ub-search-page__form-wrap {
+  margin-top: 30px; /* more space between the subheader and the search row below */
+  max-width: 820px; /* wider than the base 640px so the "Find a board…" search is roomier */
+}
+/* Partial "< Home" pill-nav in the header — reuse the md-pillnav pill look but
+   shrink the container from the full-width bar to a compact, centered chip
+   (the header's text-align:center centers the inline-flex nav). */
+.ub-find-board__homenav.md-pillnav {
+  max-width: none !important;
+  width: auto !important;
+  margin: 0 !important;
+  display: inline-flex !important;
+  flex: 0 0 auto;
+  align-self: center; /* seat it beside the search input in the form row */
+  /* Drop the pillnav "slim bar" chrome — only the slate-blue pill should show. */
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 0 !important;
+}
+/* Slate-blue brand-color gradient pill (override the pillnav's transparent bg). */
+.ub-find-board__homenav .md-pillnav__pill,
+.ub-find-board__homenav .md-pillnav__pill:hover,
+.ub-find-board__homenav .md-pillnav__pill:focus {
+  background: linear-gradient(135deg, $brand-slate-blue, $brand-charcoal-blue) !important;
+  color: #fff !important;
+}
+.ub-find-board__homenav .md-pillnav__pill svg { color: #fff; }
+/* Clear-filter affordance — icon + "Clear filter" label seated to the RIGHT of
+   the language field in the filter row. Rendered only while a search query is
+   active (this.has_active_filter). A quiet text button that tints on hover. */
+.ub-search-page__clear-filter {
+  flex: 0 0 auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  background: transparent;
+  color: $brand-slate-blue;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  border-radius: 999px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.ub-search-page__clear-filter:hover,
+.ub-search-page__clear-filter:focus-visible {
+  background: rgba($brand-slate-blue, 0.12);
+  color: $brand-charcoal-dark;
+  outline: none;
+}
+.ub-search-page__clear-filter-icon { flex-shrink: 0; }
+.ub-find-board {
+  display: grid;
+  grid-template-columns: 380px minmax(0, 1fr); /* panel (left) | preview (right) */
+  gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-width: 100%;
+  padding: 4px 16px 16px;
+  box-sizing: border-box;
+}
+.ub-find-board__panel { order: 1; }   /* left */
+.ub-find-board__preview { order: 2; } /* right */
+
+/* ── Left: board preview pane ── */
+.ub-find-board__preview {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  background: rgba($la-navy, 0.03);
+  border: 1px solid rgba($la-navy, 0.07);
+  overflow: hidden;
+}
+.ub-find-board__preview-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba($la-navy, 0.08);
+  background: rgba(255, 255, 255, 0.6);
+}
+.ub-find-board__preview-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: rgba($la-navy, 0.06);
+}
+.ub-find-board__preview-titles { flex: 1 1 auto; min-width: 0; }
+.ub-find-board__preview-name {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: $brand-charcoal-dark;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ub-find-board__preview-grid-size { font-size: 12px; color: rgba($la-navy, 0.6); font-weight: 600; }
+.ub-find-board__preview-open { flex-shrink: 0; }
+.ub-find-board__preview-grid-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+  position: relative;
+}
+
+/* Empty / loading / error states */
+.ub-find-board__preview-empty,
+.ub-find-board__preview-state {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: rgba($la-navy, 0.6);
+}
+/* Loading / error states: vertically centred, but pulled to the RIGHT edge of the
+   preview so the "Loading board…" message sits just left of the board that was
+   clicked in the panel, rather than lost in the middle of the empty pane. */
+.ub-find-board__preview-state {
+  justify-content: center;
+  align-items: flex-start;
+  gap: 10px;
+  text-align: left;
+  padding: 32px 40px;
+}
+/* Empty state: TOP-aligned in the pane, message inside an outlined card. */
+.ub-find-board__preview-empty {
+  justify-content: flex-start;
+  padding: 28px 24px;
+}
+.ub-find-board__preview-empty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  padding: 30px 34px;
+  max-width: 440px;
+  width: 100%;
+  border: 1px solid rgba($la-navy, 0.14);
+  border-radius: 16px;
+  /* Double-outline effect: the border is the inner line; an offset outline draws a
+     second, lighter line just outside it with a small gap between. */
+  outline: 2px solid rgba($la-navy, 0.10);
+  outline-offset: 5px;
+  background: transparent; /* no fill — the empty state should read as empty */
+}
+.ub-find-board__preview-empty-icon { color: rgba($la-navy, 0.28); margin-bottom: 4px; }
+.ub-find-board__preview-empty-title { margin: 0; font-size: 20px; font-weight: 700; color: rgba($la-navy, 0.75); }
+.ub-find-board__preview-empty-sub { margin: 0; font-size: 14px; color: rgba($la-navy, 0.55); max-width: 320px; }
+
+/* ── Right: collection-style board panel ── */
+.ub-find-board__panel {
+  min-height: 0;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.08);
+  box-shadow: 0 4px 16px rgba($la-navy, 0.08);
+  overflow: hidden;
+}
+.ub-find-board__panel .md-board-collection__header { padding: 14px 14px 10px; }
+.ub-find-board__panel .md-board-collection__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.ub-find-board__search-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.ub-find-board__search-row > *:first-child { flex: 1 1 auto; min-width: 0; }
+.ub-find-board__locale-wrap { flex: 0 0 auto; min-width: 120px; }
+.ub-find-board__create { width: 100%; margin-top: 10px; justify-content: center; }
+
+/* Primary action buttons (Create a New Board, Open Board): keep the shared
+   .md-btn--primary.md-btn--pill look untouched (the original lighter wash, text,
+   and blur all inherit from the base) — only swap the base's light hairline for
+   a small dark outline so the buttons read with a bit more definition against
+   the pale panel.
+   SPECIFICITY: the base rule is (0,2,0) with !important; !important vs
+   !important is decided by specificity, so this override MUST include both
+   button classes to win. The :hover/:focus-visible selectors are listed too
+   ((0,4,0)) so the base :hover ((0,3,0), which resets border-color) can't drop
+   the dark outline on hover. */
+.ub-find-board__create.md-btn--primary.md-btn--pill,
+.ub-find-board__preview-open.md-btn--primary.md-btn--pill,
+.ub-find-board__create.md-btn--primary.md-btn--pill:hover,
+.ub-find-board__preview-open.md-btn--primary.md-btn--pill:hover,
+.ub-find-board__create.md-btn--primary.md-btn--pill:focus-visible,
+.ub-find-board__preview-open.md-btn--primary.md-btn--pill:focus-visible {
+  border: 1px solid rgba($la-navy, 0.40) !important;
+}
+
+/* Selected row highlight (mirrors the collection hover tint) */
+.md-board-collection__item--selected {
+  background: rgba($la-navy, 0.10);
+  color: $la-navy;
+}
+
+/* ≤900px: stack the two panes (panel first, preview below) */
+@media (max-width: 900px) {
+  .ub-find-board {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(320px, 1fr);
+  }
+}
