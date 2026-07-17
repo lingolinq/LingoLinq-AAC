@@ -39,7 +39,8 @@
     ],
     "sourceEnum": [
       "audit-run",
-      "pr-review"
+      "pr-review",
+      "manual"
     ],
     "governance": "Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition (accepted/fixed/dismissed-false-positive/wontfix). closureEvidence.attestation and disposition.decidedBy stay empty until Scot signs. Findings are added mechanically (scripts/audit-merge.rb from /audit-run, scripts/promote-finding.rb from PR-time reviews) and only ever land as status 'open' with disposition 'untriaged'; the adding scripts never close, downgrade, or triage. No student/patient data ever appears here; evidence snippets are code only and any PII/secret-bearing finding is refused at promotion, never redacted-in.",
     "disposition": "Optional per-finding triage state, orthogonal to status. status answers 'does the issue still exist in code' (lifecycle, citation-validated); disposition answers 'what did we decide to do about it' (untriaged/accepted/fixed/dismissed-false-positive/wontfix). A finding with no disposition object is treated as untriaged. Set only by Scot.",
@@ -3845,6 +3846,90 @@
         "promotedDate": "2026-07-09"
       },
       "notes": "Surfaced 2026-07-09 during the PR #561 program-overview review (Codex senior-dev re-review pass), code-verified by direct trace at staging tip c595f6304. Not wording-only: TTS is a real external egress path for user utterance text that bypasses the LLM PII scrubber and reaches providers not fully captured in the subprocessor register (Abair undisclosed and DPA-less; Google TTS flow unrowed). Disposition left untriaged for Scot. Filed on branch scot/compliance/tts-undisclosed-subprocessor."
+    },
+    {
+      "id": "LL-caaf8e20ec",
+      "ruleKey": "seeded-admin-credential-weak-prod",
+      "title": "lingolinq_admin site-admin account carries a simple, memorable seeded password (deliberate for pre-cutover hands-on testing); must be rotated, disabled, or replaced with a break-glass admin procedure before the GCP environment is customer-facing",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "runtime",
+        "source": "GCP cutover two-gate decision (2026-07-16), Gate 2 (customer-facing/onboarding). db/seeds.rb sets the lingolinq_admin account from the SEED_ADMIN_PASSWORD env via the seed_password helper (dev default is weak). The live prod/rehearsal account was given a deliberately simple, memorable value for multi-device hands-on testing before cutover (Scot's call, 2026-07-03), acceptable only because the current prod DB holds no real user data (PR #483, project_prod_no_real_users). It has NOT been rotated. lingolinq_admin is a live site-admin on the live prod app path, which is why this is tracked as operational security rather than ordinary housekeeping.",
+        "snippet": "db/seeds.rb: seeds user_name 'lingolinq_admin' via seed_password('SEED_ADMIN_PASSWORD', <dev-default>) with a lifetime subscription and site-admin rights; live prod value is a simple memorable one set for testing (value deliberately kept out of every repo file).",
+        "sha": ""
+      },
+      "firstSeen": "2026-07-16",
+      "lastSeen": "2026-07-16",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Before onboarding any real district/clinic to the GCP environment: (1) rotate lingolinq_admin to a strong secret stored ONLY in 1Password 'LingoLinq Prod' (never write the value into any repo file), OR (2) disable/delete the account, OR (3) replace the standing shared admin with an explicit break-glass admin procedure (short-lived, audited elevation). Not a DNS-cut blocker; blocks treating the environment as customer-ready.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": null,
+        "reviewer": "gcp-cutover-two-gate-decision",
+        "promotedDate": "2026-07-16"
+      },
+      "notes": "Promoted 2026-07-16 from the GCP cutover two-gate decision note (~/ai-company-brain/outputs/docs/2026-07-16-gcp-cutover-two-gate-decision.md), Gate 2. Manual promotion (medium severity is below promote-finding.rb's Critical/High threshold, so it was hand-added as status open / disposition untriaged). Only Scot triages/closes."
+    },
+    {
+      "id": "LL-2c47df5d21",
+      "ruleKey": "ses-gmail-deliverability-unconfirmed-prod",
+      "title": "SES accepts prod mail but end-to-end delivery to the operator's personal Gmail address is unconfirmed; SPF/DKIM/DMARC/inbox-placement follow-up needed before relying on that address for production alerts or transactional confirmation",
+      "severity": "low",
+      "confidence": "medium",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "runtime",
+        "source": "GCP cutover two-gate decision (2026-07-16), Gate 2 (customer-facing/onboarding). Through the ActionMailer :ses adapter on Cloud Run (config/environments/production.rb sets delivery_method = :ses; config/initializers/amazon_ses.rb wires Aws::Rails.add_action_mailer_delivery_method(:ses, ...)), SES returned real MessageIds for both recipients; the beta Workspace alias was confirmed delivered, but the operator's personal Gmail address was confirmed NOT delivered (inbox/spam/trash checked) on 2026-07-04. SES acceptance is proven; external-Gmail inbox placement for the operator address is not. Not a security defect and not an app bug so far.",
+        "snippet": "config/environments/production.rb: config.action_mailer.delivery_method = :ses ; config/initializers/amazon_ses.rb: Aws::Rails.add_action_mailer_delivery_method(:ses, ...)",
+        "sha": ""
+      },
+      "firstSeen": "2026-07-16",
+      "lastSeen": "2026-07-16",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Operational readiness follow-up: verify the sending domain's SPF, DKIM (SES CNAMEs in Cloudflare), and DMARC alignment; send a test to a Google Workspace mailbox and inspect Gmail postmaster tools / message headers to isolate whether the non-delivery is DMARC/alignment or spam-filtering; if reputation/filtering, warm the domain or route operator alerts to a confirmed-delivering channel. Do not rely on that address for production alerts or transactional confirmation until inbox placement is proven.",
+        "timeframe": "90d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": null,
+        "reviewer": "gcp-cutover-two-gate-decision",
+        "promotedDate": "2026-07-16"
+      },
+      "notes": "Promoted 2026-07-16 from the GCP cutover two-gate decision note, Gate 2. Operational readiness (not security). Narrow scope: SES accepts mail and the beta alias delivers; only external-Gmail inbox placement for the operator address is unconfirmed. Not a DNS-cut blocker. Manual promotion (low severity, below promote-finding.rb's threshold). Only Scot triages/closes."
     }
   ]
 }
