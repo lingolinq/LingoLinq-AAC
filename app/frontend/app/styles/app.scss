@@ -33960,8 +33960,12 @@ body.md-ds-active .app-navbar__beta-feedback-link {
      aspect-ratio to match the image lets the full classroom photo
      render without clipping. */
   .la-slp-spotlight__image {
-    background-image: url('/images/landing-classroom.png');
-    aspect-ratio: 850 / 638;
+    background-image: url('/images/landing-classroom.jpg');
+    /* Tracks landing-classroom.jpg's natural size (1535x1024). It previously read
+       850/638 (1.33) against a 1535x1024 (1.50) image, so `contain` letterboxed it
+       and the radius rounded the empty strips -- the same mismatch that was wrong on
+       the devices image. */
+    aspect-ratio: 1535 / 1024;
     min-height: 0;
     background-size: contain;
   }
