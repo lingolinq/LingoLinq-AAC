@@ -45,7 +45,7 @@
            score "is this symbol clear?" with a visual instead of text-only. --}}
       <div class="evq-item__library-row evq-item__library-row--single">
         <button type="button" class="evq-item__library-tile" {{on "click" (this.ctrlAction "libraryCompareTap")}}>
-          {{eval-symbol slug=this.item.word size=120}}
+          <EvalSymbol @slug={{this.item.word}} @size={{120}} />
         </button>
       </div>
     {{/if}}
@@ -68,7 +68,7 @@
     {{#each this.decoratedOptions as |opt|}}
       <button type="button" class="evq-item__choice-tile {{if opt.symbol_slug 'evq-item__choice-tile--with-symbol'}}" {{on "click" (this.ctrlAction "pickOption" opt)}}>
         {{#if opt.symbol_slug}}
-          {{eval-symbol slug=opt.symbol_slug size=80}}
+          <EvalSymbol @slug={{opt.symbol_slug}} @size={{80}} />
         {{/if}}
         <span class="evq-item__choice-label">{{opt.label}}</span>
       </button>
@@ -85,7 +85,7 @@
     {{#each this.decoratedOptions as |opt|}}
       <button type="button" class="evq-item__choice-tile {{if opt.symbol_slug 'evq-item__choice-tile--with-symbol'}}" {{on "click" (this.ctrlAction "pickOption" opt)}}>
         {{#if opt.symbol_slug}}
-          {{eval-symbol slug=opt.symbol_slug size=90}}
+          <EvalSymbol @slug={{opt.symbol_slug}} @size={{90}} />
         {{/if}}
         <span class="evq-item__choice-label">{{opt.label}}</span>
       </button>

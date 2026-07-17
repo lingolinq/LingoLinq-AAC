@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -16,7 +16,7 @@
 
     {{#if this.multiple_users}}
       <p class="md-modal-message">{{t "For which user would you like to set <b>%{board_key}</b> as the new home board?" key="which_user_set_as_home" board_key=this.model.board.key}}</p>
-      {{user-select select_id="currently_selected_id" buttons=true selection=this.currently_selected_id action=(this.ctrlAction "updateCurrentlySelectedId") }}
+      <UserSelect @select_id="currently_selected_id" @buttons={{true}} @selection={{this.currently_selected_id}} @action={{this.ctrlAction "updateCurrentlySelectedId"}} />
     {{/if}}
     {{#if this.owned_by_user}}
       {{#unless this.multiple_users}}
@@ -29,7 +29,7 @@
     <div class="md-modal-field">
       <label class="md-modal-label" for="symbol_library">{{t "Preferred Symbols" key="preferred_symbols"}}</label>
       <p class="md-modal-hint">{{t "Select the symbol library to display for the user's new copy:" key="symbol_library_explainer"}}</p>
-      {{bound-select select_class="md-modal-select" select_id="symbol_library" content=this.symbol_libraries selection=this.symbol_library action=(this.ctrlAction "updateSymbolLibrary") }}
+      <BoundSelect @select_class="md-modal-select" @select_id="symbol_library" @content={{this.symbol_libraries}} @selection={{this.symbol_library}} @action={{this.ctrlAction "updateSymbolLibrary"}} />
     </div>
 
     {{#if this.model.board.levels}}
@@ -37,7 +37,7 @@
         <div class="md-modal-field">
           <label class="md-modal-label" for="board_level">{{t "Communication Level" key="communication_level"}}</label>
           <p class="md-modal-hint">{{t "This board supports multiple display levels. You can set it to a starting level that makes sense for the communicator. Don't worry, it's easy to change later." key="board_level_explainer"}}</p>
-          {{bound-select select_class="md-modal-select" select_id="board_level" content=this.board_levels selection=this.board_level action=(this.ctrlAction "updateBoardLevel") }}
+          <BoundSelect @select_class="md-modal-select" @select_id="board_level" @content={{this.board_levels}} @selection={{this.board_level}} @action={{this.ctrlAction "updateBoardLevel"}} />
         </div>
       {{/if}}
     {{/if}}
@@ -73,4 +73,4 @@
       <p class="md-modal-status md-modal-status--info">{{t "Copying boards..." key="copying_boards"}}</p>
     {{/if}}
   </div>
-{{/modal-dialog}}
+</ModalDialog>

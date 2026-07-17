@@ -1876,7 +1876,7 @@
       "frameworks": [
         "WCAG"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/views/layouts/application.html.erb",
@@ -1892,16 +1892,16 @@
         "timeframe": "30 days"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "5f7d7cd990ce79ed64b35182d47bab2eafc632b0",
+        "verifierNote": "Verified 2026-07-13: app/views/layouts/application.html.erb:2 now sets lang from I18n.locale while preserving the conditional schema attributes. Remediated in #601.",
+        "attestation": "Scot Wahlquist 2026-07-13: attested verified-closed; remediated in #601, code-verified 2026-07-13."
       },
       "notes": "Surfaced by accessibility finder on 2026-06-16. WCAG 3.1.1 (EN 301 549 9.3.1). The Rails-served application layout opens <html> with only a conditional itemscope/itemtype and never sets lang, so AT cannot determine the page language for server-rendered pages (marketing/SEO, parental-consent shares). The Ember SPA shell index.html does set lang. parental_consent.html.erb already sets lang=\"en\"; application.html.erb and email.html.erb do not. | adversary: confirmed (2026-06-16): the <html> tag has no lang in either ERB branch; no <body lang>, meta http-equiv, or JS documentElement.lang assignment exists anywhere. This is the default Rails layout (boards#index, crawler/meta pages, parental-consent meta), so it renders real user-facing/SEO content. parental_consent.html.erb sets lang; email.html.erb does not. Note: once the SPA boots it inherits no lang from this <html> either.",
       "disposition": {
-        "state": "accepted",
+        "state": "fixed",
         "decidedBy": "Scot Wahlquist",
         "decidedDate": "2026-06-23",
-        "rationale": "Valid WCAG accessibility defect; to be remediated in a batched frontend accessibility pass (also builds evidence toward the ACR/VPAT)."
+        "rationale": "Valid WCAG accessibility defect; to be remediated in a batched frontend accessibility pass (also builds evidence toward the ACR/VPAT). Fixed in #601."
       }
     },
     {
@@ -2125,7 +2125,7 @@
       "frameworks": [
         "SOC2"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/frontend/package-lock.json",
@@ -2141,16 +2141,16 @@
         "timeframe": "60d"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "256b99d92bb8a64e0eccc3081ca508a7e7c084f9",
+        "verifierNote": "Verified 2026-07-13: the package.json overrides block now forces braces to ^3.0.3 (app/frontend/package.json:104 at staging bad6e78db), clearing CVE-2024-4068 across the npm dependency tree independently of the Ember 3.28 toolchain. Remediated in #577.",
+        "attestation": "Scot Wahlquist 2026-07-13: attested verified-closed; remediated in #577, code-verified 2026-07-13."
       },
       "notes": "Surfaced by dependency finder on 2026-06-16. CVE-2024-4068 (GHSA-brh3-cv2h-8fj9); ReDoS via malicious glob input; affects braces < 3.0.3. Dev toolchain dep only - not shipped to browsers. Ember 3.28 pin does NOT block a braces override. | adversary: confirmed. Root node_modules/braces resolves 2.3.2 (package-lock.json:8316); fixed >=3.0.3. Seven other nested copies already 3.0.3. dev-only dep, no package.json override masks it.",
       "disposition": {
-        "state": "accepted",
+        "state": "fixed",
         "decidedBy": "Scot Wahlquist",
         "decidedDate": "2026-06-23",
-        "rationale": "Accepted: dev-only or transitive dependency entangled with the Ember 3.28 toolchain modernization; to be addressed as part of that upgrade. Not shipped to end users."
+        "rationale": "Accepted: dev-only or transitive dependency entangled with the Ember 3.28 toolchain modernization; to be addressed as part of that upgrade. Not shipped to end users. Superseded by #577, which added a braces >= 3.0.3 npm override independent of the Ember 3.28 upgrade; fixed."
       }
     },
     {
@@ -2561,7 +2561,7 @@
         "FERPA",
         "HIPAA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "Gemfile.lock",
@@ -2577,16 +2577,16 @@
         "timeframe": "60d"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "256b99d92bb8a64e0eccc3081ca508a7e7c084f9",
+        "verifierNote": "Verified 2026-07-13: Gemfile line 90 now declares an explicit ruby-saml floor of >= 1.18.0 (staging bad6e78db), above the CVE-2025-25291 / CVE-2025-25292 fix version 1.17.0; lockfile resolves 1.18.1. Remediated in #577.",
+        "attestation": "Scot Wahlquist 2026-07-13: attested verified-closed; remediated in #577, code-verified 2026-07-13."
       },
       "notes": "Surfaced by dependency finder on 2026-06-18. CVE-2025-25291 / CVE-2025-25292: XML signature wrapping via REXML in ruby-saml < 1.17.0 allowing auth bypass. Locked 1.18.1 is safe; the finding is the absent Gemfile floor on a security-sensitive auth library used in school environments.\n\nadversary (2026-06-18): CONFIRMED but over-rated. Facts hold (Gemfile:84 bare, lock pins safe 1.18.1). Real defense-in-depth on an auth boundary, but lockfile already pins a safe version and CI installs from lock. RECOMMEND Scot downgrade MEDIUM->LOW; one-line fix `gem 'ruby-saml', '>= 1.18.0'`.",
       "disposition": {
-        "state": "accepted",
+        "state": "fixed",
         "decidedBy": "Scot Wahlquist",
         "decidedDate": "2026-06-23",
-        "rationale": "Accepted: add an explicit dependency version floor so a future bundle/lock update cannot resolve back to a pre-fix version (lockfile is already on a safe version)."
+        "rationale": "Accepted: add an explicit dependency version floor so a future bundle/lock update cannot resolve back to a pre-fix version (lockfile is already on a safe version). Fixed in #577 (explicit ruby-saml >= 1.18.0 Gemfile floor)."
       }
     },
     {
@@ -2635,7 +2635,7 @@
       "frameworks": [
         "SOC2"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "Gemfile",
@@ -2651,16 +2651,16 @@
         "timeframe": "90d"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "5f7d7cd990ce79ed64b35182d47bab2eafc632b0",
+        "verifierNote": "Verified 2026-07-13: Gemfile:68 now requires puma >= 7.2.1 while preserving the existing CVE comment. Remediated in #601.",
+        "attestation": "Scot Wahlquist 2026-07-13: attested verified-closed; remediated in #601, code-verified 2026-07-13."
       },
       "notes": "Surfaced by dependency finder on 2026-06-18. CVE-2026-47736 / CVE-2026-47737 are PROXY protocol v1 parser issues fixed in puma 7.2.1. The Gemfile comment acknowledges this but the ~> 7.2 constraint technically permits 7.2.0. Current lockfile resolves 7.2.1 (safe). Constraint-tightening only; no current vulnerability exposure.\n\nadversary (2026-06-18): CONFIRMED but config-gated. CVE-2026-47736/47737 real, fixed in 7.2.1; lock pins 7.2.1 (safe). Gemfile:62 already carries an inline comment documenting the floor. Both CVEs only bite with non-default `set_remote_address proxy_protocol: :v1`, which is not enabled (Render terminates TLS normally) -> real-world exploitability ~nil. RECOMMEND Scot treat as informational; optional tighten to `'~> 7.2', '>= 7.2.1'`.",
       "disposition": {
-        "state": "accepted",
+        "state": "fixed",
         "decidedBy": "Scot Wahlquist",
         "decidedDate": "2026-06-23",
-        "rationale": "Accepted: add an explicit dependency version floor so a future bundle/lock update cannot resolve back to a pre-fix version (lockfile is already on a safe version)."
+        "rationale": "Accepted: add an explicit dependency version floor so a future bundle/lock update cannot resolve back to a pre-fix version (lockfile is already on a safe version). Fixed in #601."
       }
     },
     {
@@ -2783,7 +2783,7 @@
       "frameworks": [
         "SOC2"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": ".github/workflows/sync-render-secrets.yml",
@@ -2799,16 +2799,16 @@
         "timeframe": "60d"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "ed726cf08a10e167bab49f5b5c27ba6200e06cbf",
+        "verifierNote": "Verified 2026-07-13: sync-render-secrets.yml now declares a least-privilege top-level permissions block (permissions: contents: read) at lines 25-26 (staging bad6e78db), so the repo's most privileged workflow no longer inherits a write-scoped GITHUB_TOKEN. Remediated in #578.",
+        "attestation": "Scot Wahlquist 2026-07-13: attested verified-closed; remediated in #578, code-verified 2026-07-13."
       },
       "notes": "Surfaced by infra finder on 2026-06-19. Net-new CC6/CC8 least-privilege finding; surfaced by infra finder 2026-06-19. Anchored to the workflow file at auditedSha (the `on:` key is the structural location where a top-level `permissions:` block is absent). Secondary observation (low confidence, not a separate finding): scripts/sync-render-env.js maskValue() prints first4...last4 of each secret value into NEW/CHANGED diff lines, which the workflow writes to the GitHub step summary; values ARE masked, but a partial reveal of production secrets lands in a step summary visible to repo collaborators; consider masking fully for the persisted summary. Not raised as a standalone finding because the masking control exists and the reveal is partial. | adversary: confirmed (grep over sync-render-secrets.yml returns 0 permissions blocks while four sibling workflows declare them). Whether the repo default token is literally read-write is an Actions org setting not readable from git; LOW already accounts for that.",
       "disposition": {
-        "state": "accepted",
+        "state": "fixed",
         "decidedBy": "Scot Wahlquist",
         "decidedDate": "2026-06-23",
-        "rationale": "Accepted: CI / security-pipeline hardening; to be remediated."
+        "rationale": "Accepted: CI / security-pipeline hardening; to be remediated. Fixed in #578 (least-privilege permissions: contents: read block)."
       }
     },
     {

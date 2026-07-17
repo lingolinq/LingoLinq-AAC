@@ -2,7 +2,7 @@
   {{#if this.available_reports}}
     <div class="md-org-report-controls">
       <div class="md-org-report-field">
-        {{bound-select select_class="md-org-report-select" select_id="report_type" content=this.available_reports selection=this.current_report action=(mut this.current_report) }}
+        <BoundSelect @select_class="md-org-report-select" @select_id="report_type" @content={{this.available_reports}} @selection={{this.current_report}} @action={{mut this.current_report}} />
       </div>
       {{#if this.custom_report}}
         <span class="md-org-report-custom-label">{{this.custom_report}}</span>
@@ -30,19 +30,19 @@
         <div class="md-org-report-filters">
           <div class="md-org-report-field md-org-report-field--inline">
             <label for="report_per_page" class="md-org-report-field__label">{{t "Per page:" key="per_page_colon"}}</label>
-            {{bound-select select_class="md-org-report-select md-org-report-select--sm" select_id="report_per_page" content=this.per_page_options selection=this.per_page action=(mut this.per_page) }}
+            <BoundSelect @select_class="md-org-report-select md-org-report-select--sm" @select_id="report_per_page" @content={{this.per_page_options}} @selection={{this.per_page}} @action={{mut this.per_page}} />
           </div>
           <div class="md-org-report-field md-org-report-field--inline">
             <label for="report_sort_by" class="md-org-report-field__label">{{t "Sort:" key="sort_colon"}}</label>
             {{#if this.show_sort_by}}
-              {{bound-select select_class="md-org-report-select md-org-report-select--sm" select_id="report_sort_by" content=this.sort_by_options selection=this.sort_by action=(mut this.sort_by) }}
+              <BoundSelect @select_class="md-org-report-select md-org-report-select--sm" @select_id="report_sort_by" @content={{this.sort_by_options}} @selection={{this.sort_by}} @action={{mut this.sort_by}} />
             {{/if}}
-            {{bound-select select_class="md-org-report-select md-org-report-select--sm" select_id="report_sort_order" content=this.sort_order_options selection=this.sort_order action=(mut this.sort_order) }}
+            <BoundSelect @select_class="md-org-report-select md-org-report-select--sm" @select_id="report_sort_order" @content={{this.sort_order_options}} @selection={{this.sort_order}} @action={{mut this.sort_order}} />
           </div>
           {{#if this.show_filter}}
             <div class="md-org-report-field md-org-report-field--inline">
               <label for="report_filter" class="md-org-report-field__label">{{t "Filter:" key="filter_colon"}}</label>
-              <Input id="report_filter" @type="text" @value={{this.filter}} class="md-org-report-input" placeholder={{t "Search..." key="search_ellipsis"}} />
+              <input type="text" value={{this.filter}} id="report_filter" class="md-org-report-input" placeholder={{t "Search..." key="search_ellipsis"}} {{on "input" (set-field this "filter")}} />
             </div>
           {{/if}}
         </div>

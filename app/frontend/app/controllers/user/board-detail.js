@@ -2114,8 +2114,10 @@ export default Controller.extend(prefClasses, {
   pd_license: computed('model.license.type', function() {
     return this.get('model.license.type') == 'public domain';
   }),
-  has_info_icons: computed('model.public', 'cc_license', 'pd_license', function() {
-    return !this.get('model.public') || this.get('cc_license') || this.get('pd_license');
+  has_info_icons: computed(function() {
+    // A privacy pill (Public or Private) always renders now, so the info-icons
+    // wrapper is always populated; license icons are additive.
+    return true;
   }),
 
   // No-ops: board-detail uses CSS grid, not computed height or canvas
@@ -2967,21 +2969,6 @@ export default Controller.extend(prefClasses, {
 
   folder_colored_corner: computed('folder_display_style', function() {
     return this.get('folder_display_style') === 'colored_corner';
-  }),
-
-  // While the My Board Collection drawer is PREVIEWING (open) and the board on
-  // display is a dense 60 / 84 / 112-cell grid, force the COLORED-CORNER folder
-  // style regardless of the user's saved folder preference — those large grids
-  // render the tab-label / colored-face styles too cramped to read at preview
-  // density. Only the args passed to <BoardDetailGrid> are overridden (see
-  // board-detail.hbs); the saved preference is left untouched. Recomputes as the
-  // user taps board-to-board (model.grid changes on each transition).
-  _collection_preview_force_corner: computed('board_collection_open', 'model.grid.rows', 'model.grid.columns', function() {
-    if(!this.get('board_collection_open')) { return false; }
-    var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
-    var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
-    var total = rows * cols;
-    return total === 60 || total === 84 || total === 112;
   }),
 
   // Map of speak-menu item id → true for items the user has hidden.

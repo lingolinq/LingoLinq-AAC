@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing uncloseable="true"}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}} @uncloseable="true">
   <div class="la-support-modal-wrap la-terms-agree-modal-wrap">
     <div class="la-modal-header">
       {{!-- Initial focus lands here (data-autofocus, per modal-dialog.js) so the
@@ -31,4 +31,4 @@
       </div>
     </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

@@ -221,7 +221,16 @@ rake extras:desktop
 
 ### Frontend Architecture
 
-**Framework:** Ember.js 3.28 with Ember Data for models
+**Framework:** Ember.js **5.12** with Ember Data 5.3 for models (ember-cli 5.12).
+
+**Ember version history:** The app originally shipped on **Ember 3.28**, then was upgraded to
+**4.12** (PR #437) and finally to **5.12** (PR #490) — the current version. When touching frontend
+code, target 5.12 APIs. Note that the 5.12 upgrade set `EXTEND_PROTOTYPES: false`
+(`config/environment.js`), so Ember array/string prototype extensions (`.pushObject`, `.sortBy`,
+`.mapBy`, `.uniq`, `.compact`, etc.) are **not** available on native arrays/strings — call them only
+on an `A()`-wrapped array (`import { A } from '@ember/array'`) or an Ember-Data collection, or use
+native JS equivalents. Deprecation-audit status is tracked in
+`docs/task-management/2026-07-14-ember-5-12-full-deprecation-audit.md`.
 
 **jQuery removal:** Work to remove jQuery has been done on the develop branch. `jquery-integration` is disabled in `config/optional-features.json` to avoid `Component.reopen` deprecation from @ember/jquery. The app uses jQuery (`$`) for DOM manipulation where needed but does not use `this.$()` on components. When making changes, prefer native DOM APIs or Ember patterns over jQuery where practical.
 

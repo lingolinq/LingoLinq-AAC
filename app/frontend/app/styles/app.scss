@@ -8,6 +8,8 @@
 @use "caseload";
 @use "modern_pages";
 @use "badges";
+@use "goals";
+@use "search";
 
 // All design-token variables ($brand-*, $color-*, $aac-*, $la-*, $cat-*,
 // $nav_*, $page-footer-*, $ll-bento-*) live in _variables.scss above.
@@ -670,6 +672,28 @@ html, body {
     radial-gradient(900px 500px at 80% 55%, rgba($brand-verdigris, 0.14), transparent 45%),
     radial-gradient(800px 400px at 25% 65%, rgba($brand-dusty-denim, 0.10), transparent 50%),
     linear-gradient(180deg, #{color.adjust($brand-stone-100, $lightness: 10%)} 0%, #{color.adjust($brand-stone-200, $lightness: 10%)} 50%, #{color.adjust($brand-stone-300, $lightness: 10%)} 100%);
+}
+
+/* Search / Find Boards page: same recurring "short background" bug as
+   login/register/board-picker — /search is a top-level route, so its #content is
+   NOT `.index.with_user` and never gets the fill-painted bento gradient (line
+   ~579). Painting the gradient on the inner `.ub-find-board-page` wrapper only
+   reached content height, leaving a bare strip below. FIX (per LEARNINGS
+   "auth-page bg not full height"): paint the SAME bento gradient the home page
+   uses (line ~579) on the fixed full-viewport #within_ember so it fills the
+   entire page height behind the (transparent) #content + wrapper. Compound
+   `:has()` (1,2,0) out-specifies the `:has(.page-footer)` transparent reset. */
+#within_ember:has(.page-footer):has(.ub-find-board-page) {
+  background: linear-gradient(to bottom,
+    rgba(126, 184, 224, 0.25) 0%,
+    rgba(212, 168, 75, 0.12) 50%,
+    rgba(61, 122, 92, 0.14) 100%);
+}
+/* Keep this page's #content transparent so the full-viewport mesh above shows
+   through the whole height (mirrors the login/register #content reset). Scoped
+   to the search page; padding/flex are left to the existing #content rules. */
+#within_ember:has(.page-footer) #content:has(.ub-find-board-page) {
+  background: transparent;
 }
 
 /* Full-screen onboarding: hide the app footer bar on the beta pages. Use
@@ -29319,7 +29343,7 @@ header #identity #identity_button.btn::after {
 }
 
 .la-hero-trust-line {
-  margin-top: 24px;
+  margin-top: 0;
   margin-bottom: 14px;
   padding-top: 18px;
   border-top: 1px solid rgba(255, 255, 255, 0.11);
@@ -30924,6 +30948,14 @@ body.md-ds-active .app-navbar__beta-feedback-link {
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
     color: $brand-charcoal-dark;
   }
+}
+
+/* AI-sparkle SVG (AI-driven badge) — sized like the ☁/$ glyphs, inherits their
+   charcoal color via fill:currentColor so it sits consistently in the circle. */
+.la-hero-badge-icon__svg {
+  width: 1.25em;
+  height: 1.25em;
+  display: block;
 }
 
 /* 90% Lower Cost icon: copy cloud-based icon bg and icon color */
@@ -40182,6 +40214,7 @@ a.la-footer-bottom-a11y-wcag {
   .ub-search-jump__trigger-label {
     flex: 1 1 auto;
     min-width: 0;
+    padding-left: 14px; /* extra breathing room between the search icon and the "Find a board…" text */
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -40225,6 +40258,12 @@ a.la-footer-bottom-a11y-wcag {
        collapse it. */
     .md-board-collection__search {
       margin-top: 0;
+    }
+    /* Match the trigger's helper-text indent — push the live input's
+       "Find a board…" placeholder off the search icon. Scoped to this panel
+       so the shared speak-mode drawer field is untouched. */
+    .md-board-collection__search-input {
+      padding-left: 8px;
     }
   }
   .ub-search-page__locale-wrap {
@@ -44483,7 +44522,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 /* ---------- User page (My Account) hero and summary ---------- */
 .md-hero--user {
-  position: relative;
+  /* !important to beat the shared `.md-hero { position: static !important }`
+     (app.scss ~42670) — this card MUST be the positioning context so the absolute
+     AAC chip (.md-hero--user__aac) anchors to the card's bottom-right, not the page. */
+  position: relative !important;
   padding: 36px 24px 32px !important;
   width: 100%;
   margin-left: auto;
@@ -44491,7 +44533,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: flex;
   align-items: center;
   gap: 28px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(248, 250, 252, 0.95));
+  /* !important so this actually paints — the shared `.md-hero { background:
+     transparent !important }` (app.scss ~42675) was overriding it, leaving the
+     card fully transparent (it only looked light because the page behind is).
+     Alpha bumped up so the card reads as a solid, ~15%-less-transparent surface. */
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.90)) !important;
   border: 1px solid var(--md-line);
   border-bottom: 2px solid rgba($la-navy, 0.08);
   border-radius: var(--md-r-lg, 22px);
@@ -44534,6 +44580,67 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-hero--user__body {
   flex: 1 1 auto;
   min-width: 0;
+}
+/* Current AAC solution — an action chip pinned to the hero card's bottom-right.
+   Shows the app/device the user currently uses; opens the Current AAC Solution
+   modal. Absolute so it doesn't disturb the avatar+body flex row. */
+.md-hero--user__aac {
+  position: absolute;
+  right: 24px;
+  bottom: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 280px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba($la-navy, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 2px 6px rgba($la-navy, 0.08);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
+}
+.md-hero--user__aac:hover {
+  background: #fff;
+  box-shadow: 0 4px 12px rgba($la-navy, 0.14);
+  transform: translateY(-1px);
+}
+.md-hero--user__aac-icon {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: linear-gradient(135deg, rgba($brand-slate-blue, 0.16), rgba($brand-charcoal-blue, 0.10));
+  color: $brand-charcoal-blue;
+}
+.md-hero--user__aac-icon img { width: 30px; height: 30px; object-fit: contain; border-radius: 6px; }
+.md-hero--user__aac-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.md-hero--user__aac-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba($la-navy, 0.5);
+}
+.md-hero--user__aac-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: $la-navy;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (min-width: 1025px) {
+  /* Match the hero's wider side padding at this width. */
+  .md-hero--user__aac { right: 88px; }
+}
+@media (max-width: 768px) {
+  /* Column layout — flow the chip below the content instead of overlapping. */
+  .md-hero--user__aac { position: static; margin: 14px auto 0; }
 }
 /* 1024px and smaller (but still in the row layout, above the 768px mobile-column
    breakpoint): center the avatar + text group horizontally within the card. The body
@@ -61267,6 +61374,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     flex: 1 1 100% !important;
   }
   .ub-boards-page__boards-summary-new-btn--in-tabs-row {
+    /* Back into flow at phone width so it stacks below the <select>
+       (desktop pins it absolutely to page-center the tabs). */
+    position: static !important;
     flex: 1 1 100% !important;
     margin-top: 8px !important;
   }
@@ -62754,13 +62864,18 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
       linear-gradient(135deg, rgba(44, 183, 176, 0.18), rgba(91, 141, 239, 0.15))
     );
   }
-  /* In-tabs-row positional modifier — lifts the button 1rem off the
-     layered divider beneath the tabs so it doesn't sit directly on
-     the gradient hairline. The parent .tabs-row uses
-     align-items: flex-end so without this nudge the button's
-     bottom edge would touch the divider. */
+  /* In-tabs-row positional modifier — pulled OUT of the flex flow and
+     pinned to the row's right edge so the tab strip (.tabs--boards,
+     flex: 1 1 auto + justify-content: center) spans the full row width and
+     its pills center on the PAGE rather than only within the space left of
+     this button. `bottom: 1rem` keeps the original 1rem lift off the layered
+     divider (the ::after hairline at the row's bottom). The tabs-row is
+     position: relative, so this anchors to it. Reset to static ≤640px, where
+     the button stacks below the mobile <select>. */
   &__boards-summary-new-btn--in-tabs-row {
-    margin-bottom: 1rem;
+    position: absolute;
+    right: 0;
+    bottom: 1rem;
   }
   &__boards-summary-body {
     /* Matches the folders body's top padding + layered divider so
@@ -69359,12 +69474,14 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    control. Scoped to the metadata row so the pill style elsewhere
    on the page is unaffected. */
 .md-board-detail-header__meta .md-board-detail-header__info-icon--private,
+.md-board-detail-header__meta .md-board-detail-header__info-icon--public,
 .md-board-detail-header__meta .md-board-detail-header__info-icon--lock {
   height: 22px;
   padding: 0 8px;
   font-size: 14px;
 }
 .md-board-detail-header__meta .md-board-detail-header__info-icon--private svg,
+.md-board-detail-header__meta .md-board-detail-header__info-icon--public svg,
 .md-board-detail-header__meta .md-board-detail-header__info-icon--lock svg {
   width: 13px;
   height: 13px;
@@ -69548,6 +69665,18 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail-header__info-icon--private svg line {
   stroke: currentColor;
 }
+/* Public pill — same soft metadata chip as --private, in a blue tint
+   (dusty-denim) so the open/globe indicator reads as the counterpart to
+   the private verdigris. Structural sizing/shape/hover come from the
+   shared .info-icon / meta-context / --clickable rules. */
+.md-board-detail-header__info-icon--public {
+  background: rgba($la-navy, 0.05);
+  border: 1px solid rgba($la-navy, 0.04);
+  color: $brand-dusty-denim;
+}
+.md-board-detail-header__info-icon--public svg {
+  stroke: $brand-dusty-denim;
+}
 /* Dark-mode pinning: the broader `--private { color: white }` rule
    below would otherwise override the verdigris text + strokes set
    above. Re-asserts the verdigris on text + eye shape, with a
@@ -69575,7 +69704,8 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    and explicitly set the SVG stroke so currentColor inheritance can't
    be overridden by any descendant rule. */
 .md-board-detail--dark .md-board-detail-header__info-icon--lock,
-.md-board-detail--dark .md-board-detail-header__info-icon--private {
+.md-board-detail--dark .md-board-detail-header__info-icon--private,
+.md-board-detail--dark .md-board-detail-header__info-icon--public {
   /* Per user spec — softer metadata pill in dark mode:
      bg .10 → .08, hairline white border at .05. */
   background: rgba(255, 255, 255, 0.08);
@@ -69583,7 +69713,8 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   color: rgba(255, 255, 255, 0.92);
 }
 .md-board-detail--dark .md-board-detail-header__info-icon--lock svg,
-.md-board-detail--dark .md-board-detail-header__info-icon--private svg {
+.md-board-detail--dark .md-board-detail-header__info-icon--private svg,
+.md-board-detail--dark .md-board-detail-header__info-icon--public svg {
   stroke: rgba(255, 255, 255, 0.92);
 }
 /* Clickable variant — when the user has edit permission, the private
@@ -71488,6 +71619,14 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   overflow: hidden;
   margin-left: 6px;
 }
+/* When the My Board Collection drawer is open, temporarily hide the inline sidebar
+   (any screen width/height). This is a VISUAL hide only — the sidebar is rendered by
+   the user's `inlineSidebarOpen` / quick_sidebar preference, which we do NOT touch, so
+   it reappears when the drawer closes (if they had it expanded). It's a flex child, so
+   display:none lets the board reflow to fill the space — no gap. */
+.md-shell--board-collection .md-board-detail-inline-sidebar {
+  display: none;
+}
 /* Absolute scroll layer filling the shell — keeps the content from growing the
    flex row (which would push the sidebar below the grid). */
 .md-board-detail-inline-sidebar__scroll {
@@ -72253,6 +72392,12 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    left edge for the floating-drawer feel that matches the rest of
    the modern design language. The shared `.md-board-detail-actions-backdrop`
    (z-index 99, full-viewport position: fixed) already sits beneath. */
+/* Single source of truth for the pinned Board Collection drawer width, so the
+   panel and the layout push it reserves stay identical at every breakpoint.
+   Override this ONE variable per breakpoint (see ≤1024px below) and both track it. */
+.md-shell--board-collection {
+  --md-collection-drawer-w: 380px;
+}
 .md-board-detail-actions-menu--collection {
   position: fixed;
   top: 0;
@@ -72260,7 +72405,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   bottom: 0;
   height: 100vh;
   max-height: 100vh;
-  width: 380px;
+  width: var(--md-collection-drawer-w, 380px);
   max-width: calc(100vw - 24px);
   padding: 0;
   display: flex;
@@ -72280,7 +72425,15 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    stays interactive. Push the layout left by the drawer width so the whole
    grid remains visible (no overlay) while the user browses board-to-board. */
 .md-shell--board-collection.md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-layout {
-  padding-right: 388px; /* drawer width (380) + 8px gap */
+  padding-right: var(--md-collection-drawer-w, 380px); /* == drawer width, exactly */
+}
+/* ≤1024px: narrow the pinned Board Collection drawer by 60px (380 → 320). Only the
+   variable changes — the panel width and the layout push both read it, so they stay
+   equal automatically at this (and any future) breakpoint. */
+@media (max-width: 1024px) {
+  .md-shell--board-collection {
+    --md-collection-drawer-w: 320px;
+  }
 }
 .md-board-collection {
   display: flex;
@@ -72976,6 +73129,19 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   font-size: 0.85rem;
   font-weight: 600;
   color: rgba($la-navy, 0.65);
+}
+/* ≤1024px: hide the language field entirely — it crowds the board name at this
+   width, so drop it and let the name (.md-board-collection__item-name, flex: 1 1 auto)
+   reclaim the full width. The grid-size pill keeps a shared min-width so it still
+   reads as a tidy, consistent column. */
+@media (max-width: 1024px) {
+  .md-board-collection__item-lang {
+    display: none;
+  }
+  .md-board-collection__item-count {
+    min-width: 54px;
+    text-align: center;
+  }
 }
 /* Home-board indicator. Mirrors the Glyphicon-home pattern from
    `app/components/board-icon.hbs` so the user's home board
@@ -80337,6 +80503,11 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   flex-direction: column;
   min-height: 0;
 }
+/* 20% de-saturation on the rendered preview board buttons — applies wherever the
+   board-preview-canvas is used (the board-preview modal AND the Find Boards preview). */
+.board-preview-canvas__el {
+  filter: saturate(0.8);
+}
 /* Action buttons sit in a row DIRECTLY BELOW the preview canvas (inside the
    right-hand canvas column, to the right of the board-detail info). The row is
    RIGHT-ALIGNED so the primary CTA and its neighbours (Board Actions / Back)
@@ -81743,6 +81914,48 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   outline: none;
   border-color: $brand-verdigris;
   box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.12);
+}
+/* Segmented two-choice control (e.g. Primary Solution: app vs. Something Else) —
+   modern replacement for the Bootstrap `.btn-group` toggle. A pill container with
+   equal-width options; the active one gets the slate-blue brand fill. */
+.md-modal-segment {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba($la-navy, 0.05);
+  border: 1px solid rgba($la-navy, 0.10);
+}
+.md-modal-segment__option {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 11px 14px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 600;
+  color: $la-navy;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background 0.14s ease, color 0.14s ease, box-shadow 0.14s ease;
+}
+.md-modal-segment__option:hover { background: rgba($la-navy, 0.06); }
+.md-modal-segment__option--active,
+.md-modal-segment__option--active:hover {
+  background: linear-gradient(135deg, $brand-slate-blue, $brand-charcoal-blue);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba($brand-charcoal-blue, 0.28);
+}
+/* Read-only value line (e.g. the current home board key). */
+.md-modal-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: $la-navy;
+  margin: 0 0 10px;
+  word-break: break-word;
 }
 /* Style any Bootstrap form-control inside modern modals to match the
    md-modal-input / md-modal-select look (e.g. user-select component

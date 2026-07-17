@@ -1,6 +1,6 @@
 <div class="la-wrapper la-wrapper--about">
   <div class="app-shell">
-    <main class="la-main" role="main">
+    <main class="la-main">
 
       {{!-- ── Hero Intro (same styling as pricing page top) ── --}}
       <section id="about-hero" class="la-section">
@@ -30,9 +30,7 @@
             <h3>{{t "Get Started" key="about_get_started"}}</h3>
             <p>{{t "Start with our free tier. No credit card, no hardware, no commitment." key="landing_cta_subtitle_intro"}} <strong>{{t "Just communication tools that work." key="landing_cta_subtitle_closer"}}</strong></p>
             <div class="la-about-hero-actions">
-              {{#unless this.app_state.feature_flags.landing_beta_closed}}
-                <LinkTo @route="register" class="la-btn la-btn--primary">{{t "Try LingoLinq Free" key="landing_try_free"}} &rarr;</LinkTo>
-              {{/unless}}
+              <LinkTo @route="register" class="la-btn la-btn--primary">{{t "Try LingoLinq Free" key="landing_try_free"}} &rarr;</LinkTo>
               <LinkTo @route="contact" class="la-btn la-btn--ghost">{{t "Contact Us" key="contact_us"}}</LinkTo>
             </div>
           </div>
@@ -135,13 +133,11 @@
       <section class="la-cta-section">
         <div class="la-cta-inner">
           <span class="la-section-eyebrow-badge">{{t "Ready to start?" key="fsa_ready_to_start"}}</span>
-          <h2 class="la-cta-headline">{{t "Give every communicator" key="landing_cta_title_1"}} <em>{{t "a voice" key="landing_cta_title_2"}}</em></h2>
+          <h2 class="la-cta-headline">{{t "Give every person" key="landing_cta_title_1"}} <em>{{t "a voice" key="landing_cta_title_2"}}</em></h2>
           <hr class="la-about-hero-separator" aria-hidden="true">
           <p class="la-cta-description">{{t "Start with our free tier. No credit card, no hardware, no commitment." key="landing_cta_subtitle_intro"}} <strong class="la-challenge-cta">{{t "Just communication tools that work." key="landing_cta_subtitle_closer"}}</strong></p>
           <div class="la-cta-buttons">
-            {{#unless this.app_state.feature_flags.landing_beta_closed}}
-              <LinkTo @route="register" class="la-btn la-btn--primary la-btn--lg">{{t "Start Free Today" key="landing_cta_start"}} &rarr;</LinkTo>
-            {{/unless}}
+            <LinkTo @route="register" class="la-btn la-btn--primary la-btn--lg">{{t "Start Free Today" key="landing_cta_start"}} &rarr;</LinkTo>
             <LinkTo @route="contact" class="la-btn la-btn--ghost">{{t "Contact Us" key="contact_us"}}</LinkTo>
           </div>
         </div>

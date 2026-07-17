@@ -1,6 +1,6 @@
 <div class="la-wrapper la-wrapper--pricing la-wrapper--support">
   <div class="app-shell">
-    <main class="la-main" role="main">
+    <main class="la-main">
       <div class="md-workspace md-workspace--support">
         <section class="la-section la-beta-feedback-admin" aria-labelledby="beta-feedback-admin-heading">
           <div class="la-section-header la-beta-feedback-admin__header">
@@ -17,7 +17,7 @@
                   <div class="la-beta-feedback-admin__toolbar">
                     <label class="la-beta-feedback-admin__search-label">
                       <span class="la-beta-feedback-admin__label-text">{{t "Search" key="beta_feedback_admin_search_label"}}</span>
-                      <Input @type="search" @value={{this.searchQuery}} class="form-control la-beta-feedback-admin__search-input" autocomplete="off" placeholder={{t "Summary, name, category, severity…" key="beta_feedback_admin_search_placeholder"}} />
+                      <input type="search" value={{this.searchQuery}} class="form-control la-beta-feedback-admin__search-input" autocomplete="off" placeholder={{t "Summary, name, category, severity…" key="beta_feedback_admin_search_placeholder"}} {{on "input" (set-field this "searchQuery")}} />
                     </label>
                     <div class="la-beta-feedback-admin__filters">
                       <label class="la-beta-feedback-admin__filter">

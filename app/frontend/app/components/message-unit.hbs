@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -37,14 +37,14 @@
         <div class="form-group">
           <label for="note" class="col-sm-2 control-label">{{t "Note" key="note"}}</label>
           <div class="col-sm-10">
-            <Textarea @value={{this.note}} class="form-control" id="note" rows="4" />
+            <textarea class="form-control" id="note" rows="4" {{on "input" (set-field this "note")}}>{{this.note}}</textarea>
           </div>
         </div>
         <div class="form-group">
           <div class="col-sm-10 col-sm-offset-2">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.notify_user}} />
+                <input type="checkbox" checked={{this.notify_user}} {{on "change" (set-field this "notify_user" "checkbox")}} />
                 {{t "Send an alert to communicators about this message" key="alert_users"}}
               </label>
             </div>
@@ -54,7 +54,7 @@
           <div class="col-sm-10 col-sm-offset-2">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.include_footer}} />
+                <input type="checkbox" checked={{this.include_footer}} {{on "change" (set-field this "include_footer" "checkbox")}} />
                 {{t "Include status-check links at the end of the message" key="include_footer"}}
               </label>
             </div>
@@ -72,20 +72,20 @@
         <div class="form-group">
           <label for="video" class="col-sm-2 control-label">{{t "Video" key="video"}}</label>
           <div class="col-sm-10">
-            {{video-recorder user=this.appState.sessionUser video_ready=(this.ctrlAction "video_ready") video_pending=(this.ctrlAction "video_pending") video_not_ready=(this.ctrlAction "video_not_ready")}}
+            <VideoRecorder @user={{this.appState.sessionUser}} @video_ready={{this.ctrlAction "video_ready"}} @video_pending={{this.ctrlAction "video_pending"}} @video_not_ready={{this.ctrlAction "video_not_ready"}} />
           </div>
         </div>
         <div class="form-group">
           <label for="note" class="col-sm-2 control-label">{{t "Note" key="note"}}</label>
           <div class="col-sm-10">
-            <Textarea @value={{this.note}} class="form-control" id="note" rows="2" />
+            <textarea class="form-control" id="note" rows="2" {{on "input" (set-field this "note")}}>{{this.note}}</textarea>
           </div>
         </div>
         <div class="form-group">
           <div class="col-sm-10 col-sm-offset-2">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.notify_user}} />
+                <input type="checkbox" checked={{this.notify_user}} {{on "change" (set-field this "notify_user" "checkbox")}} />
                 {{t "Send an alert to communicators about this message" key="alert_users"}}
               </label>
             </div>
@@ -95,7 +95,7 @@
           <div class="col-sm-10 col-sm-offset-2">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.include_footer}} />
+                <input type="checkbox" checked={{this.include_footer}} {{on "change" (set-field this "include_footer" "checkbox")}} />
                 {{t "Include status-check links at the end of the message" key="include_footer"}}
               </label>
             </div>
@@ -113,4 +113,4 @@
     </form>
     <div style="clear: left;"></div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

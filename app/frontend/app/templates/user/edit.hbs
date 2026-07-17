@@ -7,29 +7,29 @@
   <form class="form-horizontal md-edit-profile__form md-preferences__form" {{on "submit" this.onSaveProfile}}>
 
   {{!-- Section: Personal Information --}}
-  {{#preference-box title="Personal Information" glyph='glyphicon glyphicon-user' title_key='profile_section_personal' open=true}}
+  <PreferenceBox @title="Personal Information" @glyph="glyphicon glyphicon-user" @title_key="profile_section_personal" @open={{true}}>
     <div class="form-group">
       <label for="name" class="col-sm-3 control-label">{{t "Name" key="name"}}</label>
       <div class="col-sm-5">
-        <Input @value={{this.model.name}} class="form-control" id="name" placeholder="Full Name" autocomplete="name" />
+        <input value={{this.model.name}} class="form-control" id="name" placeholder="Full Name" autocomplete="name" {{on "input" (set-field this "model.name")}} />
       </div>
     </div>
     <div class="form-group">
       <label for="email" class="col-sm-3 control-label">{{t "Email" key="email"}}</label>
       <div class="col-sm-5">
-        <Input @type="email" @value={{this.model.email}} class="form-control" id="email" placeholder="" autocomplete="email" inputmode="email" />
+        <input type="email" value={{this.model.email}} class="form-control" id="email" placeholder="" autocomplete="email" inputmode="email" {{on "input" (set-field this "model.email")}} />
       </div>
     </div>
     <div class="form-group">
       <label for="cell_phone" class="col-sm-3 control-label">{{t "Cell Phone" key="cell_phone"}}</label>
       <div class="col-sm-5">
-        <Input @type="tel" @value={{this.model.cell_phone}} class="form-control" id="cell_phone" placeholder="optional, for alerts" autocomplete="tel" inputmode="tel" />
+        <input type="tel" value={{this.model.cell_phone}} class="form-control" id="cell_phone" placeholder="optional, for alerts" autocomplete="tel" inputmode="tel" {{on "input" (set-field this "model.cell_phone")}} />
       </div>
     </div>
-  {{/preference-box}}
+  </PreferenceBox>
 
   {{!-- Section: Account & Security --}}
-  {{#preference-box title="Account & Security" glyph='glyphicon glyphicon-lock' title_key='profile_section_security' open=true}}
+  <PreferenceBox @title="Account & Security" @glyph="glyphicon glyphicon-lock" @title_key="profile_section_security" @open={{true}}>
     <div class="form-group">
       <span class="col-sm-3 control-label">{{t "Username" key="username"}}</span>
       <div class="col-sm-5">
@@ -41,7 +41,7 @@
     <div class="form-group">
       <span class="col-sm-3 control-label">{{t "Login Role" key="login_is_for"}}</span>
       <div class="col-sm-5">
-        {{modern-select selectId="registration_type" content=this.registration_types selection=this.model.preferences.registration_type action=this.onRegistrationTypeChange }}
+        <ModernSelect @selectId="registration_type" @content={{this.registration_types}} @selection={{this.model.preferences.registration_type}} @action={{this.onRegistrationTypeChange}} />
       </div>
     </div>
     {{#unless this.change_password}}
@@ -76,10 +76,10 @@
           {{else if this.status_2fa.uri}}
             <p style='max-width: 300px;'>{{t "To complete two-factor authentication setup, scan the code into your authentication app and enter the generated code to confirm:" key="confirm_2fa_code"}}</p>
             <div style='width: 300px'>
-            {{qr-code text=this.status_2fa.uri size=300}}
+            <QrCode @text={{this.status_2fa.uri}} @size={{300}} />
             </div>
             <span style='display: inline-block; width: 200px;'>
-              <Input type="number" class="form-control" @value={{this.code_2fa}} placeholder="# # # # # #" autocomplete="one-time-code" />
+              <input value={{this.code_2fa}} type="number" class="form-control" placeholder="# # # # # #" autocomplete="one-time-code" {{on "input" (set-field this "code_2fa")}} />
             </span>
             {{#if this.status_2fa.error}}
               <p class='text-danger'>{{t "Invalid code, please check again" key="invalid_code_please_try_again"}}</p>
@@ -111,26 +111,26 @@
         </div>
       </div>
     {{/if}}
-  {{/preference-box}}
+  </PreferenceBox>
 
   {{!-- Section: Profile & Visibility --}}
-  {{#preference-box title="Profile & Visibility" glyph='glyphicon glyphicon-edit' title_key='profile_section_visibility' open=true}}
+  <PreferenceBox @title="Profile & Visibility" @glyph="glyphicon glyphicon-edit" @title_key="profile_section_visibility" @open={{true}}>
     <div class="form-group">
       <label for="description" class="col-sm-3 control-label">{{t "Short Bio" key="one_liner"}}</label>
       <div class="col-sm-5">
-        <Input @value={{this.model.description}} class="form-control" id="description" placeholder="a short bio" autocomplete="off" />
+        <input value={{this.model.description}} class="form-control" id="description" placeholder="a short bio" autocomplete="off" {{on "input" (set-field this "model.description")}} />
       </div>
     </div>
     <div class="form-group">
       <label for="url" class="col-sm-3 control-label">{{t "URL" key="url"}}</label>
       <div class="col-sm-5">
-        <Input @type="url" @value={{this.model.details_url}} class="form-control" id="url" placeholder="https://" autocomplete="url" inputmode="url" />
+        <input type="url" value={{this.model.details_url}} class="form-control" id="url" placeholder="https://" autocomplete="url" inputmode="url" {{on "input" (set-field this "model.details_url")}} />
       </div>
     </div>
     <div class="form-group">
       <label for="location" class="col-sm-3 control-label">{{t "Location" key="location"}}</label>
       <div class="col-sm-5">
-        <Input @value={{this.model.location}} class="form-control" id="location" placeholder="City, State, Whatever" autocomplete="off" />
+        <input value={{this.model.location}} class="form-control" id="location" placeholder="City, State, Whatever" autocomplete="off" {{on "input" (set-field this "model.location")}} />
       </div>
     </div>
     <div class="form-group">
@@ -146,7 +146,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.model.public}} id="public" />
+            <input type="checkbox" checked={{this.model.public}} id="public" {{on "change" (set-field this "model.public" "checkbox")}} />
             {{t "Anyone can see my profile" key="anyone_can_see_profile"}}
             <br><em>{{t "(your email and cell will stay private)" key="email_stays_private"}}</em>
           </label>
@@ -165,7 +165,7 @@
         </p>
       </div>
     </div>
-  {{/preference-box}}
+  </PreferenceBox>
 
   {{#if this.app_state.feature_flags.new_speak_menu}}
     <div class='form-group'>
@@ -211,10 +211,10 @@
       </div>
       {{#if this.model.permissions.edit}}
         <div class='col-sm-3 col-sm-offset-3'>
-          <Input type="text" class="form-control" @value={{this.contact_name}} placeholder="Contact Name" />
+          <input value={{this.contact_name}} type="text" class="form-control" placeholder="Contact Name" {{on "input" (set-field this "contact_name")}} />
         </div>
         <div class='col-sm-2'>
-          <Input type="text" class="form-control" @value={{this.contact_contact}} placeholder="email or cell #" />
+          <input value={{this.contact_contact}} type="text" class="form-control" placeholder="email or cell #" {{on "input" (set-field this "contact_contact")}} />
           <span style="font-size: 14px; color: #888;">+country prefix for non-US</span>
         </div>
         <div class='col-sm-3'>
@@ -232,7 +232,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.allow_external_device}} id="third_party" />
+            <input type="checkbox" checked={{this.allow_external_device}} id="third_party" {{on "change" (set-field this "allow_external_device" "checkbox")}} />
             {{t "This user uses a third-party app instead of %app_name% to communicate" key="user_third_party_app"}}
           </label>
         </div>
@@ -242,7 +242,7 @@
       <div class="form-group">
         <label for="device_type" class="col-sm-3 control-label">{{t "App/Device" key="app_device"}}</label>
         <div class="col-sm-4">
-          <Input @value={{this.external_device}} class="form-control" id="device_type" placeholder="third-party app or device name" />
+          <input value={{this.external_device}} class="form-control" id="device_type" placeholder="third-party app or device name" {{on "input" (set-field this "external_device")}} />
         </div>
         <div class="col-sm-1" style='margin-left: -35px;'>
           <div class='btn-group dropdown'>
@@ -261,7 +261,7 @@
         <div class="form-group">
           <label for="vocabulary_type" class="col-sm-3 control-label">{{t "Vocabulary" key="vocabulary"}}</label>
           <div class="col-sm-4">
-            <Input @value={{this.external_vocab}} class="form-control" id="vocabulary_type" placeholder="vocabulary used" />
+            <input value={{this.external_vocab}} class="form-control" id="vocabulary_type" placeholder="vocabulary used" {{on "input" (set-field this "external_vocab")}} />
           </div>
           <div class="col-sm-1" style='margin-left: -35px;'>
             <div class='btn-group dropdown' style='max-height: 183px;'>
@@ -279,7 +279,7 @@
         <div class="form-group">
           <label for="vocab_size" class="col-sm-3 control-label">{{t "Vocab Size" key="vocab_size"}}</label>
           <div class="col-sm-2">
-            <Input type="number" @value={{this.external_vocab_size}} class="form-control" id="vocab_size" placeholder="###" />
+            <input value={{this.external_vocab_size}} type="number" class="form-control" id="vocab_size" placeholder="###" {{on "input" (set-field this "external_vocab_size")}} />
           </div>
           <div class='col-sm-3'>
             <p class='form-control-static'>{{t "average buttons per board" key="average_buttons_per_view"}}</p>
@@ -289,20 +289,20 @@
       <div class="form-group">
         <span class="col-sm-4 control-label">{{t "Access Method" key="access_method"}}</span>
         <div class="col-sm-6">
-          {{modern-select selectId="external_access_method" content=this.access_methods selection=this.external_access_method action=this.onExternalAccessMethodChange }}
+          <ModernSelect @selectId="external_access_method" @content={{this.access_methods}} @selection={{this.external_access_method}} @action={{this.onExternalAccessMethodChange}} />
         </div>
       </div>
     {{/if}}
   {{/if}}
   {{#if this.model.supporter_role}}
     {{#if this.model.permissions.delete}}
-      {{#preference-box title="Shared Access" glyph='glyphicon glyphicon-share' title_key='profile_section_shared_access' open=true}}
+      <PreferenceBox @title="Shared Access" @glyph="glyphicon glyphicon-share" @title_key="profile_section_shared_access" @open={{true}}>
       <div class="form-group">
         <label for="valet_login" class="col-sm-3 control-label">{{t "Classroom Login" key="classroom_login"}}</label>
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.model.valet_login}} id="valet_login" />
+              <input type="checkbox" checked={{this.model.valet_login}} id="valet_login" {{on "change" (set-field this "model.valet_login" "checkbox")}} />
               <p>{{t "Classroom login can be used in a classroom setting to allow speak-mode-only access on multiple devices at the same time in the same classroom" key="valet_as_classroom2"}}</p>
             </label>
           </div>
@@ -328,9 +328,9 @@
           <label class="col-sm-3 control-label" for='valet_password'>{{t "Classroom Password" key="classroom_password"}}</label>
           <div class="col-sm-3">
             {{#if this.model.valet_password_set}}
-              <Input @type="password" @value={{this.model.valet_password}} class="form-control" id="valet_password" placeholder="enter to change" autocomplete="new-password" />
+              <input type="password" value={{this.model.valet_password}} class="form-control" id="valet_password" placeholder="enter to change" autocomplete="new-password" {{on "input" (set-field this "model.valet_password")}} />
             {{else}}
-              <Input @type="password" @value={{this.model.valet_password}} class="form-control" id="valet_password" placeholder="required" autocomplete="new-password" />
+              <input type="password" value={{this.model.valet_password}} class="form-control" id="valet_password" placeholder="required" autocomplete="new-password" {{on "input" (set-field this "model.valet_password")}} />
             {{/if}}
           </div>
           <div class="col-sm-2">
@@ -338,17 +338,17 @@
           </div>
         </div>
       {{/if}}
-      {{/preference-box}}
+      </PreferenceBox>
     {{/if}}
   {{else}}
     {{#if this.model.permissions.delete}}
-      {{#preference-box title="Shared Access" glyph='glyphicon glyphicon-share' title_key='profile_section_shared_access' open=true}}
+      <PreferenceBox @title="Shared Access" @glyph="glyphicon glyphicon-share" @title_key="profile_section_shared_access" @open={{true}}>
       <div class="form-group">
         <label for="valet_login" class="col-sm-3 control-label">{{t "Valet/Classroom Login" key="valet_login"}}</label>
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.model.valet_login}} id="valet_login" />
+              <input type="checkbox" checked={{this.model.valet_login}} id="valet_login" {{on "change" (set-field this "model.valet_login" "checkbox")}} />
               {{t "Enable Valet/Classroom Login" key="enable_valet_login_label"}}
               <ul class="md-edit-profile__feature-list">
                 <li>{{t "Modeling-only access for shared devices" key="valet_feature_modeling"}}</li>
@@ -382,9 +382,9 @@
           <label class="col-sm-3 control-label" for='valet_password'>{{t "Valet Password" key="valet_password"}}</label>
           <div class="col-sm-3">
             {{#if this.model.valet_password_set}}
-              <Input @type="password" @value={{this.model.valet_password}} class="form-control" id="valet_password" placeholder="enter to change" autocomplete="new-password" />
+              <input type="password" value={{this.model.valet_password}} class="form-control" id="valet_password" placeholder="enter to change" autocomplete="new-password" {{on "input" (set-field this "model.valet_password")}} />
             {{else}}
-              <Input @type="password" @value={{this.model.valet_password}} class="form-control" id="valet_password" placeholder="required" autocomplete="new-password" />
+              <input type="password" value={{this.model.valet_password}} class="form-control" id="valet_password" placeholder="required" autocomplete="new-password" {{on "input" (set-field this "model.valet_password")}} />
             {{/if}}
           </div>
           <div class="col-sm-2">
@@ -397,7 +397,7 @@
           <div class="col-sm-5">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.model.valet_long_term}} id="valet_long_term" />
+                <input type="checkbox" checked={{this.model.valet_long_term}} id="valet_long_term" {{on "change" (set-field this "model.valet_long_term" "checkbox")}} />
                 {{t "Allow valet logins to last longer than 24 hours" key="allow_valet_long_term"}}
               </label>
             </div>
@@ -408,7 +408,7 @@
           <div class="col-sm-5">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.model.valet_prevent_disable}} id="valet_prevent_disable" />
+                <input type="checkbox" checked={{this.model.valet_prevent_disable}} id="valet_prevent_disable" {{on "change" (set-field this "model.valet_prevent_disable" "checkbox")}} />
                 {{t "Don't require re-authorization after a valet login is used" key="valet_prevent_disable"}}
               </label>
             </div>
@@ -416,11 +416,11 @@
         </div>
 
       {{/if}}
-      {{/preference-box}}
+      </PreferenceBox>
     {{/if}}
   {{/if}}
   {{#if this.tools}}
-    {{#preference-box title="Installed Tools" glyph='glyphicon glyphicon-wrench' title_key='installed_tools' open=true}}
+    <PreferenceBox @title="Installed Tools" @glyph="glyphicon glyphicon-wrench" @title_key="installed_tools" @open={{true}}>
       <div class="form-group">
         <div class="col-sm-8">
           {{#each this.tools as |tool|}}
@@ -434,7 +434,7 @@
           {{/unless}}
         </div>
       </div>
-    {{/preference-box}}
+    </PreferenceBox>
   {{/if}}
   <div class="md-edit-profile__actions">
     <button type="submit" class="btn btn-primary">{{t "Save Profile" key="save_profile"}}</button>
@@ -443,7 +443,7 @@
   </form>
 
   <hr class="md-edit-profile__divider" aria-hidden="true">
-  {{#preference-box title="Integrations" glyph='glyphicon glyphicon-link' title_key='integrations_heading'}}
+  <PreferenceBox @title="Integrations" @glyph="glyphicon glyphicon-link" @title_key="integrations_heading">
     <div class="md-edit-profile__integrations-row">
       <button class='md-edit-profile__integration-btn' {{on "click" (this.ctrlAction "browse_tools" "lessonpix")}}>
         <img src='https://s3.amazonaws.com/lingolinq/icons/lessonpix.png' class="md-edit-profile__integration-icon">
@@ -568,7 +568,7 @@
     {{else}}
       <div style="padding: 0 20px 12px;"><a href="#" class='md-edit-profile__integration-btn' {{on "click" (this.ctrlAction "manage_connections")}}>{{t "Manage Tools and Connections" key="manage_connections"}}</a></div>
     {{/if}}
-  {{/preference-box}}
+  </PreferenceBox>
   {{#if this.model.permissions.delete}}
     <div class="md-edit-profile__delete-row">
       <a href="#" class="md-edit-profile__delete-btn" {{on "click" (this.ctrlAction "delete_user")}}>{{t "Delete My Account" key="delete_my_account"}}</a>
@@ -578,5 +578,5 @@
 {{else if this.session.isAuthenticated}}
   <p>{{t "It appears you don't have permission to access this user's information" key="not_allowed_user_long"}}</p>
 {{else}}
-  {{login-form left=true prompt=true return=true}}
+  <LoginForm @left={{true}} @prompt={{true}} @return={{true}} />
 {{/if}}

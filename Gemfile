@@ -65,7 +65,7 @@ gem 'aws-sdk-cloudfront', '~> 1'
 gem 'aws-sdk-s3', '~> 1'
 gem 'http-2'
 gem 'resque', '~> 3.0'
-gem 'puma', '~> 7.2' # >= 7.2.1 clears CVE-2026-47736 / CVE-2026-47737 (PROXY protocol v1 parser)
+gem 'puma', '~> 7.2', '>= 7.2.1' # >= 7.2.1 clears CVE-2026-47736 / CVE-2026-47737 (PROXY protocol v1 parser)
 gem 'paper_trail', '~> 15.0'
 gem 'geokit'
 gem 'obf'
