@@ -33870,8 +33870,10 @@ body.md-ds-active .app-navbar__beta-feedback-link {
        strips top/bottom, and the 16px border-radius clips invisible space
        instead of the image. With matching aspect-ratio, the radius is visible
        on the image's own corners.
-       margin-top: -48px cancels the parent flex gap ($aac-spacing-48), so the
-       image sits flush against the paragraph above. */
+       margin-top previously used -48px to cancel the parent flex gap
+       ($aac-spacing-48) and sit flush against the paragraph, which left no breathing
+       room under the body copy. It now matches the SLP image's treatment: +16px on
+       top of the 48px parent gap = ~64px visible. */
     /* Must track landing-devices.jpg's natural size (1726x911). It previously read
        1000/667 (1.50) against a 1727x911 (1.90) image, so `contain` letterboxed it
        and the radius rounded the empty strips -- the exact failure the note above
@@ -33879,7 +33881,7 @@ body.md-ds-active .app-navbar__beta-feedback-link {
     aspect-ratio: 1726 / 911;
     min-height: 0;
     width: 78.125%;
-    margin: -48px auto 0;
+    margin: 16px auto 0;
     background-size: contain;
     border-radius: 16px;
   }
