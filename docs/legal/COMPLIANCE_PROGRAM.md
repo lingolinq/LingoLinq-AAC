@@ -192,13 +192,15 @@ is **planned**, not yet built; it appears here so the consent architecture is on
   the 2025 COPPA Rule is satisfied by this document being embedded in (not merely linked from) the
   privacy notice; embedding is an open task.
 - **Subprocessors.** The Article 28 / 45 CFR 164.502(e) register is `docs/legal/SUBPROCESSORS.md`,
-  with a 30-day customer change-notice commitment. AWS BAA signed 2026-02-07. The active AI vendors (Anthropic,
-  Google) receive only pseudonymized (scrubbed) prompts via `lib/pii_scrubber.rb` and are
+  with a 30-day customer change-notice commitment. AWS BAA signed 2026-02-07. Anthropic is the
+  active AI vendor receiving pseudonymized (scrubbed) prompts via `lib/pii_scrubber.rb` and is
   classified as receiving pseudonymized personal data, not anonymous or de-identified data
   (direct identifiers removed by design, but still personal data under GDPR/UK-GDPR). OpenAI is
-  contracted but has no active data flow as of 2026-07-06 (see the register, row 3). Render BAA
-  is pending; no new hospital tenants requiring a hosting-provider BAA are onboarded until it
-  executes.
+  contracted but has no active data flow as of 2026-07-06 (see the register, row 3). Google Gemini
+  is retained in the register as a disabled historical row: the runtime path was disabled
+  2026-07-09, and no active code path sends data to Gemini as of the 2026-07-12 register
+  correction. Render BAA is pending; no new hospital tenants requiring a hosting-provider BAA are
+  onboarded until it executes.
 - **AI egress.** No directly identifying student or patient data is sent to external models by
   design; scrubbing removes known direct identifiers and is a strong safeguard, not an absolute
   guarantee (see the register's section 5.1). Zero data retention, where a vendor offers it, is
