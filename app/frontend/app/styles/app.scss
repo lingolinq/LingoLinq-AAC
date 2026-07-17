@@ -73894,6 +73894,27 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     flex: 0 0 auto !important;
     align-content: start;
   }
+
+  /* Demo speak-only pins the page and re-caps the grid with max-height:100% +
+     overflow:hidden (see .demo-board-page--speak-only rules). That defeats
+     square-collapse: aspect-ratio cards stay column-tall while 1fr rows
+     compress, so buttons paint over the row above. Clear the fill trap and
+     let <main> scroll — same escape hatch as board-detail speak. */
+  .demo-board-page--speak-only:has(.md-board-detail-grid--shape-square) .demo-board-page__main {
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  .demo-board-page--speak-only:has(.md-board-detail-grid--shape-square) .demo-board-page__board {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+  .demo-board-page--speak-only:has(.md-board-detail-grid--shape-square) .demo-board-page__board > .ember-view {
+    flex: 0 0 auto;
+    max-height: none;
+  }
+  .demo-board-page--speak-only .demo-board-page__board .md-board-detail-grid.md-board-detail-grid--shape-square {
+    max-height: none;
+  }
 }
 
 .md-board-detail-symbol-card {
