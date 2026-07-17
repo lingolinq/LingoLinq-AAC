@@ -26,7 +26,7 @@
             <p class="la-hero-subtitle">
               {{t "LingoLinq is an AI-powered AAC platform that gives every person a voice." key='landing_hero_subtitle_line1'}} {{t "It combines personalized symbol boards with adaptive AI that learns each communicator's unique needs, making the right words instantly accessible on any device—online or offline." key='landing_hero_subtitle_how'}}
             </p>
-            <p class="la-hero-trust-line">{{t "Built with the people who use it every day" key='landing_hero_trust_line'}}</p>
+            <p class="la-hero-trust-line">{{t "Thoughtfully designed with continuous user feedback" key='landing_hero_trust_line'}}</p>
             <div class="la-hero-section la-hero-badges-section">
               <div class="la-hero-badges">
                 <div class="la-hero-badge">
@@ -128,7 +128,9 @@
       <section id="la-features" class="la-section">
         <div class="la-section-header">
           <span class="la-section-eyebrow-badge">{{t "Built for schools & therapists" key='fsa_slp_spotlight_eyebrow'}}</span>
-          <h2 class="la-section-title">{{t "Built for how schools" key='landing_features_title_1'}}<br><em>{{t "actually" key='landing_features_title_em'}}</em> {{t "work" key='landing_features_title_2'}}</h2>
+          {{!-- Distinct keys from the /features page, which still renders
+                "Built for how schools actually work" from landing_features_title_*. --}}
+          <h2 class="la-section-title">{{t "Built with people who use it" key='landing_alt_features_title_1'}}<br><em>{{t "every day" key='landing_alt_features_title_em'}}</em></h2>
           <p class="la-section-subtitle">{{t "Traditional AAC tools weren't designed for modern classrooms. We built LingoLinq from the ground up for the cloud era." key='landing_features_subtitle'}}</p>
         </div>
         <div class="la-feature-grid">
