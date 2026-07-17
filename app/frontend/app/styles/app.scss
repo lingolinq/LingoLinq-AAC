@@ -33828,21 +33828,28 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   border-radius: 16px;
 }
 .la-slp-spotlight__image {
-  background-image: url('/images/landing-instructor.png');
+  /* aac-user.jpg (1536x1024). JPEG, not PNG: it's a photograph, so PNG only
+     compressed to ~1.9MB while q85 JPEG is ~200KB at the same visual quality.
+     Kept landing-instructor.png in public/images for later use. */
+  background-image: url('/images/aac-user.jpg');
 }
 .la-devices-spotlight__image {
   background-image: url('/images/landing-devices.png');
 }
 
-/* Desktop (>1024px): swap the SLP image to landing-classroom.png and let
-   both spotlight images render at full height using their natural aspect
-   ratios (image dimensions: classroom 850×638, devices 1000×667). */
+/* Desktop (>1024px): let both spotlight images render at full height using their
+   natural aspect ratios (image dimensions: aac-user 1536×1024, devices 1000×667). */
 @media (min-width: 1025px) {
   .la-slp-spotlight__image {
-    background-image: url('/images/landing-instructor.png');
-    aspect-ratio: 1535 / 1024;
+    background-image: url('/images/aac-user.jpg');
+    /* aspect-ratio matches aac-user.jpg's natural 1536x1024 (3:2), so the div is
+       exactly the image's shape and `background-size: cover` (inherited) fills it
+       edge-to-edge. That's what makes the radius below clip the IMAGE's own corners
+       rather than empty letterbox strips — same reasoning as the devices image. */
+    aspect-ratio: 1536 / 1024;
     min-height: 0;
-    border-radius: 0;
+    /* Rounded corners, matching the base rule and the devices spotlight. */
+    border-radius: 16px;
     /* "Built for schools" image: 62.5% width (25% bigger than prior 50%), centered.
        margin-top: 16px adds breathing room under the paragraph (parent gap 48px
        + 16px = ~64px visible). */
