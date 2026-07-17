@@ -1,7 +1,8 @@
 # Ember 3.28 → 5.12 Known Issues Knowledge Base
 
 **App context:** ember-source/cli `~5.12.0`, ember-data `~5.3.8` (umbrella package,
-legacy mode), Node 20, `EXTEND_PROTOTYPES: false`, `jquery-integration: false`.
+legacy mode), Node 22 (bumped from 20 on 2026-07-16 after empirical verification
+below), `EXTEND_PROTOTYPES: false`, `jquery-integration: false`.
 **Last researched:** 2026-07-16 (three parallel web-research agents: framework /
 ember-data / build+addons; refresh prompts in the appendix). Entries marked
 `(unverified)` need a source read or runtime probe before being cited as register
@@ -373,7 +374,8 @@ special-LTS + 5.x update blog posts; emberjs/data #5638 #7192 #8684 #8791.
   declares `engines: node >= 18`; CI-tested = Node **18 + 20**. Node 22 enters the
   matrix at ember-cli **6.2**; Node 24 at **6.7** (6.7 also drops Node 18). Node
   support drops on the LTS schedule WITHOUT an ember-cli major (Node 16 died mid-5.x
-  at 5.3.0). This repo's `.nvmrc` = 20 ✅. (An externally-circulated map
+  at 5.3.0). This repo moved `.nvmrc` 20 → 22 on 2026-07-16 (empirical verification
+  below; Node 22 LTS maintenance runs to 2027-04). (An externally-circulated map
   "Node 18→Ember 3.12 / 20→3.16 / 22→4.4 / 24→5.3" is WRONG — discard it.)
 - **Official vs realistic Node support.** "Supported" in the matrix means *in
   ember-cli's CI*, nothing more: the toolchain is almost entirely pure JS, the app's
@@ -397,10 +399,12 @@ special-LTS + 5.x update blog posts; emberjs/data #5638 #7192 #8684 #8791.
   Node, upgrading the `indexeddbshim` chain, or dropping the websql path (it serves
   Node-side IndexedDB shimming — check whether the frontend's dbman/SQLite path even
   uses it in the packaged apps before investing).
-- **Where Node is pinned in this repo (update together):** `/.nvmrc` +
-  `app/frontend/.nvmrc` (20), `app/frontend/package.json` `engines: >= 20`,
-  `.github/workflows/ci.yml:75` + `:177` (`node-version: 20`), plus Render/packaging
-  images (`bin/ember-server` resolves via nvm).
+- **Where Node is pinned in this repo (update together — all bumped to 22 on
+  2026-07-16):** `/.nvmrc` + `app/frontend/.nvmrc`, `app/frontend/package.json`
+  `engines: >= 22`, `.github/workflows/ci.yml:75` + `:177`, `Dockerfile:4`
+  (`node:22-bullseye`, tag existence verified on Docker Hub) + `Dockerfile:43`
+  (`setup_22.x`; the `npm@10` pin retained), `bin/ember-server` (nvm install/use/which
+  22). Render builds follow `.nvmrc` via `bin/render-build.sh`.
 - **OpenSSL 3 md4 crash** (`error:0308010C` / `ERR_OSSL_EVP_UNSUPPORTED`): webpack 4
   remnants (ember-auto-import v1 era). `NODE_OPTIONS=--openssl-legacy-provider` in CI
   is the tell. Fix: auto-import ^2 + webpack ^5; remove the stopgap.
