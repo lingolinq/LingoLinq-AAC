@@ -33887,6 +33887,12 @@ body.md-ds-active .app-navbar__beta-feedback-link {
      so the card blends into the page. Scoped to the desktop copy. */
   .la-slp-spotlight .la-slp-spotlight__card.la-parallax-card-outer {
     margin-top: 0;
+    /* margin-bottom: 0 removes the dead band under the image. The base
+       `.la-slp-spotlight .la-parallax-card-outer` rule applies margin-bottom: 5rem,
+       and since the section has padding the margin can't collapse through it — so
+       that 80px renders INSIDE the section's content box, between the image and the
+       section's own padding. Same reason the devices card zeroes it below. */
+    margin-bottom: 0;
     background: transparent;
     border: none;
     box-shadow: none;
