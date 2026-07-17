@@ -52,8 +52,7 @@ export default Component.extend({
     'appState.currentBoardState.id',
     function() {
       // Hide while a board is actively rendered in speak OR edit mode (the
-      // board-detail chrome crowds the navbar tab there, and application.hbs
-      // shows the bottom-center drawer tab instead). When a board route
+      // board-detail chrome crowds the navbar tab there). When a board route
       // fails to load, currentBoardState.id is null even though the mode may
       // still be set — in that case the board header is suppressed (see
       // application.hbs) and the drawer tab should show, matching home-page
@@ -61,8 +60,11 @@ export default Component.extend({
       // board-detail is decoupled from the global speak_mode flag (it renders
       // through its own controller state, so appState.speak_mode stays false
       // there); without an explicit board-detail check the navbar tab would
-      // wrongly show at the top. application.hbs renders the bottom-center
-      // --speak drawer tab on board-detail, so suppress the navbar tab here.
+      // wrongly show at the top.
+      // NOTE: application.hbs used to render a floating "--speak" drawer tab in
+      // these modes, which is why this tab stands down. That tab has been removed
+      // and application.showBetaFeedbackDrawer now returns false on board-detail,
+      // so there is deliberately NO beta-feedback drawer over a board at all.
       if(this.get('application.on_board_detail')) { return false; }
       return this.get('isAuthenticated') &&
         this.get('application.showBetaFeedbackDrawer') &&

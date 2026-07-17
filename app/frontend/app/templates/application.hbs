@@ -1463,15 +1463,14 @@
   </div>
 </header>
 {{#if (or this.app_state.currentUser this.app_state.sessionUser)}}
+  {{!-- The floating "--speak" drawer tab that sat over a board (speak mode, edit mode
+       and the board-detail route) has been removed, so there is no beta-feedback
+       drawer over a board any more. What remains renders only on ordinary pages and is
+       opened by app-navbar's own "--navbar" tab / nav menu. See
+       showBetaFeedbackDrawer in controllers/application.js for how each mode is
+       excluded. --}}
   {{#if this.showBetaFeedbackDrawer}}
-    {{#if (or this.app_state.speak_mode this.app_state.edit_mode this.on_board_detail)}}
-      <button type="button" class="beta-feedback-drawer-tab beta-feedback-drawer-tab--speak {{if this.betaFeedbackDrawerOpen "beta-feedback-drawer-tab--open"}}" {{on "click" this.onToggleBetaFeedbackDrawer}} aria-expanded={{if this.betaFeedbackDrawerOpen "true" "false"}} aria-controls="beta-feedback-top-drawer">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span>{{t "Beta feedback" key="beta_feedback_nav"}}</span>
-        <svg class="beta-feedback-drawer-tab__caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-      </button>
-    {{/if}}
-    <div id="beta-feedback-top-drawer" class="beta-feedback-drawer {{if (or this.app_state.speak_mode this.app_state.edit_mode this.on_board_detail) "beta-feedback-drawer--speak"}} {{if this.betaFeedbackDrawerOpen "beta-feedback-drawer--open" "beta-feedback-drawer--hidden"}}" role="region" aria-label={{t "Beta feedback" key="beta_feedback_nav"}} aria-hidden={{if this.betaFeedbackDrawerOpen "false" "true"}} inert={{unless this.betaFeedbackDrawerOpen true}}>
+    <div id="beta-feedback-top-drawer" class="beta-feedback-drawer {{if this.betaFeedbackDrawerOpen "beta-feedback-drawer--open" "beta-feedback-drawer--hidden"}}" role="region" aria-label={{t "Beta feedback" key="beta_feedback_nav"}} aria-hidden={{if this.betaFeedbackDrawerOpen "false" "true"}} inert={{unless this.betaFeedbackDrawerOpen true}}>
       <aside class="beta-feedback-drawer__panel">
         <BetaFeedbackPanel @isDrawer={{true}} @onSubmitSuccess={{this.onCloseBetaFeedbackDrawer}} @onCancel={{this.onCloseBetaFeedbackDrawer}} @onClose={{this.onCloseBetaFeedbackDrawer}} />
       </aside>

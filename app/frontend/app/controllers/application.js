@@ -88,8 +88,21 @@ export default Controller.extend({
     return route === 'demo.speak';
   }),
 
-  showBetaFeedbackDrawer: computed('hide_header', 'appState.speak_mode', function() {
-    return !this.get('hide_header') || this.appState.get('speak_mode');
+  /** Gates the beta-feedback drawer. The floating "--speak" tab that opened it over a
+   *  board was removed, so the drawer now only renders where app-navbar's own
+   *  "--navbar" tab can reach it.
+   *  - The old `|| speak_mode` existed solely to force the drawer on so that
+   *    "--speak" tab had something to open; without the tab it would be unreachable
+   *    markup, so it's gone. `!hide_header` already excludes a rendered board while
+   *    still allowing the drawer when a board route FAILS (header un-suppressed) --
+   *    the fallback app-navbar's showBetaFeedbackDrawerTab depends on.
+   *  - board-detail needs an explicit check: it renders through its own controller
+   *    state, so appState.speak_mode stays false there and hide_header doesn't catch
+   *    it. app-navbar also suppresses its tab on that route, so the drawer would have
+   *    no way to open. */
+  showBetaFeedbackDrawer: computed('hide_header', 'on_board_detail', function() {
+    if (this.get('on_board_detail')) { return false; }
+    return !this.get('hide_header');
   }),
 
   /** Show page footer when not viewing a board (so layout with fixed header/footer applies). Hidden visually via CSS when unauthenticated; kept in DOM so :has(.page-footer) layout still applies for top navbar. */
@@ -212,9 +225,6 @@ export default Controller.extend({
     };
     this.onCloseBetaFeedbackDrawer = () => {
       self.send('closeBetaFeedbackDrawer');
-    };
-    this.onToggleBetaFeedbackDrawer = () => {
-      self.send('toggleBetaFeedbackDrawer');
     };
 
     var _this = this;
@@ -614,6 +624,9 @@ export default Controller.extend({
         this.get('router').transitionTo('beta-feedback');
       }
     },
+    /** Still used by app-navbar's own "--navbar" drawer tab (app-navbar.js sends this
+     *  action directly). Only the application template's floating "--speak" tab was
+     *  removed, along with its onToggleBetaFeedbackDrawer closure. */
     toggleBetaFeedbackDrawer: function() {
       if (this.get('appState.currentUser') || this.get('appState.sessionUser')) {
         this.toggleProperty('betaFeedbackDrawerOpen');
