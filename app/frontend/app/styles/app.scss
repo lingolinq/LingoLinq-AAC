@@ -31773,7 +31773,6 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 #about-hero .la-section-header .la-section-eyebrow-badge,
 #la-plan .la-section-eyebrow-badge,
 #la-slp-spotlight .la-section-eyebrow-badge,
-#la-slp-spotlight-desktop .la-section-eyebrow-badge,
 #la-devices-spotlight .la-section-eyebrow-badge,
 #la-devices-spotlight-desktop .la-section-eyebrow-badge,
 #la-testimonial .la-section-eyebrow-badge,
@@ -33758,7 +33757,10 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 /* Mirror the parallax-zone card-frame styling onto the desktop spotlight
    copies that live OUTSIDE the parallax zone, so they share the identical
    gray frame, rounding, shadow, and inner background. */
-.la-spotlight-desktop .la-parallax-card-outer {
+.la-spotlight-desktop .la-parallax-card-outer,
+/* The SLP spotlight sits above Features, OUTSIDE the parallax zone, at every width,
+   so it needs the same frame mirrored onto it (it can't inherit the zone-scoped rule). */
+.la-slp-spotlight .la-parallax-card-outer {
   margin-top: 5rem;
   margin-bottom: 5rem;
   background: transparent;
@@ -33766,7 +33768,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   border-radius: 20px;
   box-shadow: 0 2px 16px rgba(0, 0, 0, 0.04);
 }
-.la-spotlight-desktop .la-parallax-card-inner {
+.la-spotlight-desktop .la-parallax-card-inner,
+.la-slp-spotlight .la-parallax-card-inner {
   background: #F7F9FA;
 }
 
@@ -33778,14 +33781,15 @@ body.md-ds-active .app-navbar__beta-feedback-link {
      • Outside the parallax zone (desktop placement, IDs with -desktop)
    The .la-spotlight-desktop class flips the visibility logic for the desktop
    copies, so on each viewport exactly one of the two copies is shown. */
-.la-slp-spotlight,
+/* Only the DEVICES spotlight is still rendered twice (mobile copy inside the parallax
+   zone, desktop copy outside it). The SLP spotlight is now a single section above
+   Features at all widths, so it is NOT hidden here. */
 .la-devices-spotlight { display: none; }
 
 /* Desktop versions: hidden by default at all widths via the rule above; this
    block re-shows them only above 1024px and ensures the mobile mirrors stay
    hidden in that range. */
 @media (min-width: 1025px) {
-  #la-slp-spotlight-desktop,
   #la-devices-spotlight-desktop { display: block; }
 }
 @media (max-width: 1024px) {
@@ -33907,7 +33911,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 }
 
 @media (max-width: 1024px) {
-  .la-slp-spotlight,
+  /* .la-slp-spotlight is no longer display:none by default (single copy, all widths),
+     so only the devices mobile mirror needs re-showing here. */
   .la-devices-spotlight { display: block; }
   .la-parallax-zone {
     background-image: none !important;
