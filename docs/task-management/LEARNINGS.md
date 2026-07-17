@@ -79,6 +79,8 @@ file (see [README.md](README.md)).
 - [Pattern: Speak+light surface overrides shadow speak+light from the base — delete the override, don't fork it](#pattern-speaklight-surface-overrides-shadow-speaklight-from-the-base--delete-the-override-dont-fork-it)
 - [Pattern: Bidirectional view-switch overlay — extract to a util and parameterize, don't inline a second copy](#pattern-bidirectional-view-switch-overlay--extract-to-a-util-and-parameterize-dont-inline-a-second-copy)
 - [Gotcha: persistence-sync Jasmine harness — wait for `sync_boards` tail / `syncSettled`, not only the `sync()` promise](#gotcha-persistence-sync-jasmine-harness--wait-for-sync_boards-tail--syncsettled-not-only-the-sync-promise)
+- [Pattern: landing beta closed auth — ENABLED flag for anonymous publish](#pattern-landing-beta-closed-auth--enabled-flag-for-anonymous-publish)
+- [Gotcha: content/styling merges can silently re-open gated landing auth CTAs](#gotcha-contentstyling-merges-can-silently-re-open-gated-landing-auth-ctas)
 - [Pattern: Board-card click navigation has TWO surfaces — board-icon `pick_board` default branch + board-preview `visit`; everything else delegates](#pattern-board-card-click-navigation-has-two-surfaces--board-icon-pick_board-default-branch--board-preview-visit-everything-else-delegates)
 - [Pattern: Signup default library boards — copy via Progress, not copy_to_home_board](#pattern-signup-default-library-boards--copy-via-progress-not-copy_to_home_board)
 - [Pattern: beta seed baseline belongs to `lingolinq`, demo analytics are opt-in](#pattern-beta-seed-baseline-belongs-to-lingolinq-demo-analytics-are-opt-in)
@@ -6476,6 +6478,14 @@ the cheap fallback to confirm controller/route syntax.
 ## Gotcha: persistence-sync Jasmine harness — wait for `sync_boards` tail / `syncSettled`, not only the `sync()` promise
 
 Recurring Ember CI flakes (timeout / async-work-not-finished) in `persistence-sync-test.js` often look like PR regressions but are harness races: `persistence.sync()` can resolve while real board traversal (`enableRealSyncBoards` / `sync_boards`) and remap/tail work are still running. Passing siblings already use `primeBoardRevisionsSyncHarness(function(){ tailDone = true; })` and wait `done && tailDone`; tests that call the harness with no callback and wait only on `done` assert/cleanup early. Post-`sync()` fixed `later(..., 50)` plus immediate `cancelSyncTailWork()` has the same shape for temp-id rewrite. Prefer `waitForSyncDoneAndSettled(done)` (`done && syncSettled()`) plus the board-sync completion callback, and only cancel tail work after permanent IDs are visible. See `docs/task-management/2026-07-13-ember-ci-persistence-sync-harness-wait.md`. (2026-07-13)
+
+## Pattern: landing beta closed auth — ENABLED flag for anonymous publish
+
+For a publishable landing with Sign In/Register closed, put `landing_beta_closed` in both `AVAILABLE_FRONTEND_FEATURES` and `ENABLED_FRONTEND_FEATURES`. Anonymous visitors only see `window.enabled_frontend_features` (= ENABLED), so AVAILABLE-only would leave CTAs visible. Gate UI with `feature_flags.landing_beta_closed`, redirect `/login` + `/register`, and hard-block `Api::UsersController#create` / Google signup via `FeatureFlags.landing_beta_closed_enabled?`. Branch: `feat/lingolinq-landing-page-beta`. Local log: `docs/task-management/2026-07-14-landing-page-beta-closed-auth.md`. (2026-07-14)
+
+## Gotcha: content/styling merges can silently re-open gated landing auth CTAs
+
+Merging a content/styling branch into `feat/lingolinq-landing-page-beta` can keep `landing_beta_closed` in `feature_flags.rb` and keep backend/route redirects, while still overwriting the `{{#unless feature_flags.landing_beta_closed}}` wrappers in high-churn templates (`landing-alt-page.hbs`, `application.hbs`, `about.hbs`). After such a merge, grep those files for `landing_beta_closed` and for ungated `@route="register"` / Sign In CTAs before publishing. See `docs/task-management/2026-07-17-restore-landing-beta-closed-ctas.md`. (2026-07-17)
 
 ## Gotcha: `EXTEND_PROTOTYPES: false` (set by the 5.12 upgrade) — Ember array/string methods on NATIVE receivers throw
 
