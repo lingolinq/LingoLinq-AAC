@@ -33052,10 +33052,11 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 }
 
 .la-section-subtitle {
-  /* Matches the spotlight/plan body copy (.la-plan-subtitle) so the two subtitles
-     read at the same size. That rule has no responsive override, so the
-     max-width: $aac-breakpoint-md override for this class was dropped too. */
-  font-size: $aac-font-size-base * 1.1;
+  /* Landing-alt body copy tracks .la-hero-subtitle's fluid size (see the
+     .la-wrapper--landing .la-plan-subtitle rule, which keeps the spotlight/plan
+     bodies identical to this). clamp() min/max are the hero's; the ≤640px floor
+     lives with that rule. This class is landing-alt-only, so it's set in place. */
+  font-size: clamp(1.25rem, calc(0.65rem + 1.38vw), 1.755rem);
   font-weight: 400;
   color: rgba($indigo, 0.9);
   max-width: 558.72px; /* 698.4px × 0.8 */
@@ -34067,6 +34068,25 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   line-height: 1.8;
   letter-spacing: 0.005em;
   margin: 0;
+}
+
+/* Landing-alt body copy reads at the same size as .la-hero-subtitle, scaling with the
+   viewport exactly as it does (same clamp min/max, same ≤640px floor).
+   Scoped to .la-wrapper--landing on purpose: .la-plan-subtitle is SHARED with
+   about.hbs, which is not part of this change. It covers the plan + SLP + devices
+   bodies together, preserving the "all three subtitles scale identically" intent noted
+   on the spotlight rules (those override layout only, never font-size).
+   .la-section-subtitle carries the same clamp at its own definition. */
+.la-wrapper--landing .la-plan-subtitle {
+  font-size: clamp(1.25rem, calc(0.65rem + 1.38vw), 1.755rem);
+}
+/* Floor at 15px on small screens so it stays legible where the clamp would go smaller
+   — mirrors the .la-hero-subtitle rule. */
+@media (max-width: $aac-breakpoint-sm) {
+  .la-wrapper--landing .la-plan-subtitle,
+  .la-wrapper--landing .la-section-subtitle {
+    font-size: 15px;
+  }
 }
 
 .la-plan-grid {

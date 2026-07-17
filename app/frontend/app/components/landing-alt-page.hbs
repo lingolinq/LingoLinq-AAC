@@ -3,7 +3,11 @@
   Modern layout in the speech-page app-shell style.
 ============================================================================= --}}
 
-<div class="la-wrapper {{if (is-equal this.activeFont "atkinson") "la-font--atkinson"}} {{if (is-equal this.activeFont "lexend") "la-font--lexend"}}">
+{{!-- la-wrapper--landing scopes landing-alt-only styling. Every other .la-wrapper page
+     carries its own modifier (--about, --pricing, ...); this one had none, so shared
+     classes like .la-plan-subtitle (also used by about.hbs) had no way to be tuned here
+     without leaking onto those pages. --}}
+<div class="la-wrapper la-wrapper--landing {{if (is-equal this.activeFont "atkinson") "la-font--atkinson"}} {{if (is-equal this.activeFont "lexend") "la-font--lexend"}}">
   <div class="app-shell">
     {{!-- ======== MAIN CONTENT ======== --}}
     <main class="la-main" id="la-main">
