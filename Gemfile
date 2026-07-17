@@ -44,8 +44,10 @@ gem 'json', '>= 2.19.2'
 # replace the JSON module across the app, including Rails internals.
 # CVE-2026-54500/54502/54592; bundler-audit minimum
 gem 'oj', '>= 3.17.3'
-# GHSA-46fp-8f5p-pf2m (allowed_uri?); rails-html-sanitizer 1.7.0 depends on loofah ~> 2.25; ensure >= 2.25.1
-gem 'loofah', '>= 2.25.1'
+# Loofah URI/SVG advisories (bundler-audit); rails-html-sanitizer 1.7.1+ needs loofah ~> 2.25
+gem 'loofah', '>= 2.25.2'
+# rails-html-sanitizer XSS advisory (bundler-audit); transitive via actionview/actionpack
+gem 'rails-html-sanitizer', '>= 1.7.1'
 # GHSA-6jxj-px6v-747w et al.; bundler-audit minimum (transitive via loofah, rails-dom-testing)
 gem 'crass', '>= 1.0.7'
 # ERB @_init deserialization guard bypass (def_module/def_method/def_class); pulled transitively, pin patched 6.x
