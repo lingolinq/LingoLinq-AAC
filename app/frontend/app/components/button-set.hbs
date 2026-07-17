@@ -64,7 +64,7 @@
               {{/if}}
             </div>
             <div class="md-translate-row__target">
-              <Input aria-label={{t "translation" key="translation_placeholder"}} type="text" @value={{button.translation}} class="md-translate-input" placeholder={{t "translation" key="translation_placeholder"}} />
+              <input aria-label={{t "translation" key="translation_placeholder"}} type="text" value={{button.translation}} class="md-translate-input" placeholder={{t "translation" key="translation_placeholder"}}  {{on "input" (set-field button "translation")}}/>
             </div>
             {{#if button.secondary_translation}}
               <div class="md-translate-row__source">
@@ -76,7 +76,7 @@
                 {{/if}}
               </div>
               <div class="md-translate-row__target">
-                <Input aria-label={{t "translation" key="translation_placeholder"}} type="text" @value={{button.secondary_translation}} class="md-translate-input" placeholder={{t "translation" key="translation_placeholder"}} />
+                <input aria-label={{t "translation" key="translation_placeholder"}} type="text" value={{button.secondary_translation}} class="md-translate-input" placeholder={{t "translation" key="translation_placeholder"}}  {{on "input" (set-field button "secondary_translation")}}/>
               </div>
             {{/if}}
           {{else}}

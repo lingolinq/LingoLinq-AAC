@@ -6623,3 +6623,82 @@ failure mode.
 **Before running `ruby i18n_generator.rb --generate`, always diff the key set** (regenerate, then
 compare against every key actually referenced in source) instead of trusting its "0 missing" output.
 See §2.10 of the pre-merge checklist for the grep.
+
+## Gotcha: ember-template-lint rewrites `.lint-todo` on a PLAIN run, and line shifts orphan unrelated violations
+
+Two independent traps in the same tool; both cost real diagnosis time on 2026-07-16.
+
+**1. A plain `ember-template-lint .` auto-cleans resolved todos** — it silently rewrites the
+*tracked* `.lint-todo`. You do not need `--update-todo` to mutate it. Confirmed by
+`git diff -- app/frontend/.lint-todo` showing `17 insertions, 0 deletions`, i.e. every `remove|`
+line came from my own read-only-looking lint runs. **Use `--no-clean-todo` for any check you intend
+to be read-only.**
+
+**2. Todo↔violation matching survives line shifts only sometimes, and the failure lands somewhere
+else entirely.** Inserting 2 lines at `button-settings.hbs:794` shifted `<form>`s at 1016/1162/1230
+to 1018/1164/1232 (those still matched), but orphaned the violation at line **369** — 400 lines
+*above* the edit, in a rule (`no-duplicate-landmark-elements`) unrelated to the change. Symptom is
+self-contradictory: a hard error at 369 *plus* `invalid-todo-violation-rule` claiming that same
+todo "passes". Do not hand-patch `remove|` lines; **re-baseline the file**:
+`rm .lint-todo && npx ember-template-lint . --update-todo` (→ clean adds / 0 removes).
+
+**Diagnostic discipline this forces:** when the tool under test mutates its own baseline, an A/B
+experiment against the working tree is worthless — I twice "proved" the error was pre-existing
+using a `.lint-todo` the linter had already corrupted. The only sound test is against a pristine
+`git show HEAD:<path>` copy of **both** the source and the baseline. Restore from HEAD before
+concluding "not mine".
+
+## Pattern: fix `require-input-label` by wiring the EXISTING label with `{{unique-id}}` — not by promoting the placeholder
+
+The obvious fix (`aria-label` derived from `placeholder`) is wrong for a large subset, for two reasons.
+
+**Many flagged inputs already have a visible label that just isn't associated** — it declares
+`for="code"` with no element carrying that id, or has no `for` at all. Wiring it beats an aria-label
+on every axis: zero new i18n keys, no visible text change, and it restores click-label-to-focus.
+Check this bucket *first*.
+
+**Placeholders are often hints, formats, or examples — not names.** `"(optional)"`, `"HH:MMam/pm"`,
+`"email@example.com"`, `"YYYY-MM-DD"` become useless accessible names ("(optional), edit text").
+Every one of those four turned out to sit beside a real label anyway.
+
+Wire with Ember 5.12's built-in `{{unique-id}}` (in `BUILTIN_HELPERS`; no addon needed):
+```hbs
+{{#let (unique-id) as |id|}}
+  <label for={{id}}>{{t "Code" key="code"}}</label>
+  <input id={{id}} …>
+{{/let}}
+```
+Static ids are a latent bug in any component rendered more than once — `pick-license.hbs:21` still
+carries a prior dev's comment: *"Ember is now barfing if I add more than one element with the same
+id, so changed to refid for now"*. But **grep JS before replacing an existing static id**: some are
+load-bearing (`button-settings.js:1199` `getElementById('fill')`/`('border')`,
+`start-codes.js:171` `querySelector('#qr_code img')`). Ember *property* names (`this.set('home_board', …)`)
+are false hits — match on DOM lookups only.
+
+**Analyzer caution:** a proximity walk up the ancestor chain invents false pairings — it matched a
+*"Contact Name"* field to an unrelated `"Name"` label 4 levels up, and a search box to a
+`"Show Ideas For:"` label in a different section. Only trust a pair when the field group contains
+exactly ONE label and ONE control; eyeball the rest.
+
+## Pattern: order-dependent dictionary matching — exact matches must beat predictive/fuzzy ones
+
+`utterance.contraction()` (frontend) walked a single `for...in` over the contractions dictionary,
+mixing two kinds of match in one loop and short-circuiting on the first (`if(!res)`):
+- **exact:** last two words equal a key (`"it is"` → `it's`)
+- **predictive:** last one word equals a key's first word (after `is`, offer `"is not"` → `isn't`)
+
+Because `for...in` iterates in insertion order and the dict lists `"is not"` before `"it is"`, the
+*predictive* branch of the earlier entry fired before the *exact* entry was ever reached — so
+"it is" produced `isn't`. The bug is invisible until two dictionary entries share a leading word AND
+the fuzzy one is listed first; changing dict order would mask or move it, which is exactly why it's
+fragile.
+
+**Rule:** when a lookup has both an exact and a fuzzy/predictive tier, run them as **separate passes
+— all exact matches first, fuzzy only if none matched** — never as one order-dependent loop. Don't
+let iteration order decide precedence.
+
+**Testing note:** this lived in a plain util (`utterance.js`), not a component, so it was unit-testable
+via the existing `setRawButtons([...])` harness in `tests/utils/utterance-test.js` — no rendering, no
+hang. Util-level logic bugs found during UI verification should get a util test (regression guard +
+proof the preserved branch still works), since the app's component-rendering tests hang (see the
+field-wrapper note in the template-lint working log).

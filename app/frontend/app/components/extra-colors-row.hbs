@@ -6,13 +6,13 @@
     </div>
   </div>
   <div class='col-sm-3'>
-    <Input class='form-control' @value={{@row.label}} placeholder="label" />
+    <input class='form-control' value={{@row.label}} placeholder="label"  {{on "input" (set-field @row "label")}}/>
   </div>
   <div class='col-sm-3'>
-    <Input class='form-control' @value={{@row.border}} placeholder="border color" />
+    <input class='form-control' value={{@row.border}} placeholder="border color"  {{on "input" (set-field @row "border")}}/>
   </div>
   <div class='col-sm-3'>
-    <Input class='form-control' @value={{@row.fill}} placeholder="fill color" />
+    <input class='form-control' value={{@row.fill}} placeholder="fill color"  {{on "input" (set-field @row "fill")}}/>
   </div>
   <div class='col-sm-1'>
     <button class='btn btn-default' {{on "click" (this.ctrlAction "remove" @row)}}><span class='glyphicon glyphicon-remove'></span></button>

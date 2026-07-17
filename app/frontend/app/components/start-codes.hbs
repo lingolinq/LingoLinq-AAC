@@ -114,8 +114,10 @@
         </h4>
         <form class="md-sc-form" {{on "submit" (this.ctrlAction "generate")}}>
           <div class="md-org-settings-field">
-            <label for="code" class="md-org-settings-field__label">{{t "Code" key="code"}}</label>
-            <input value={{this.code}} class="md-org-settings-input" type="text" placeholder="(optional)" {{on "input" (set-field this "code")}} />
+            {{#let (unique-id) as |codeId|}}
+              <label for={{codeId}} class="md-org-settings-field__label">{{t "Code" key="code"}}</label>
+              <input id={{codeId}} value={{this.code}} class="md-org-settings-input" type="text" placeholder="(optional)" {{on "input" (set-field this "code")}} />
+            {{/let}}
             {{#if this.invalid_code}}
               <span class="md-org-settings-field__hint md-org-settings-field__hint--warn">{{t "codes must be 7+ characters long and start with a letter" key="codes_must_start_with_letter"}}</span>
             {{/if}}
@@ -152,13 +154,17 @@
           </div>
           {{#if this.model.org}}
             <div class="md-org-settings-field">
-              <label for="supervisor" class="md-org-settings-field__label">{{t "Supervisor" key="supervisor"}}</label>
-              <input value={{this.supervisors}} class="md-org-settings-input" type="text" placeholder="(optional supervisor user names, comma-separated)" {{on "input" (set-field this "supervisors")}} />
+              {{#let (unique-id) as |supervisorId|}}
+                <label for={{supervisorId}} class="md-org-settings-field__label">{{t "Supervisor" key="supervisor"}}</label>
+                <input id={{supervisorId}} value={{this.supervisors}} class="md-org-settings-input" type="text" placeholder="(optional supervisor user names, comma-separated)" {{on "input" (set-field this "supervisors")}} />
+              {{/let}}
             </div>
           {{/if}}
           <div class="md-org-settings-field">
-            <label for="home_board" class="md-org-settings-field__label">{{t "Home Board" key="home_board"}}</label>
-            <input value={{this.home_board_key}} class="md-org-settings-input" type="text" placeholder="(optional board key to copy)" {{on "input" (set-field this "home_board_key")}} />
+            {{#let (unique-id) as |homeBoardId|}}
+              <label for={{homeBoardId}} class="md-org-settings-field__label">{{t "Home Board" key="home_board"}}</label>
+              <input id={{homeBoardId}} value={{this.home_board_key}} class="md-org-settings-input" type="text" placeholder="(optional board key to copy)" {{on "input" (set-field this "home_board_key")}} />
+            {{/let}}
             {{#if this.home_board_key}}
               <label class="md-org-settings-toggle" style="margin-top: 8px;">
                 <input value={{this.shallow_clone}} id="shallow_clone" type="checkbox" class="md-org-settings-toggle__input" {{on "input" (set-field this "shallow_clone")}} />

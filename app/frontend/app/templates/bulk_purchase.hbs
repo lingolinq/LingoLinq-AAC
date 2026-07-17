@@ -181,10 +181,12 @@
           {{/if}}
           <div class="form-group">
             <div class="col-sm-9" style="padding-top: 30px;">
-              <label>{{t "Your Email" key="your_email"}}</label><br>
+              {{#let (unique-id) as |emailId|}}
+              <label for={{emailId}}>{{t "Your Email" key="your_email"}}</label><br>
               <span style="display: inline-block; width: 300px;">
-                <input type="text" value={{this.subscription.email}} class="form-control input-lg" placeholder="email@example.com" {{on "input" (set-field this "subscription.email")}} />
+                <input id={{emailId}} type="text" value={{this.subscription.email}} class="form-control input-lg" placeholder="email@example.com" {{on "input" (set-field this "subscription.email")}} />
               </span>
+              {{/let}}
             </div>
           </div>
           <div class="form-group">

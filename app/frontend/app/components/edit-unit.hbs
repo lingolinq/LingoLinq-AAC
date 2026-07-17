@@ -28,8 +28,8 @@
         <div class="col-sm-8">
           {{#each this.model.unit.topics as |row|}}
             <div class='row' style='margin-top: 5px;'>
-              <div class='col-sm-5'><Input @value={{row.title}} class="form-control" placeholder="topic" /></div>
-              <div class='col-sm-6'><Input @value={{row.url}} class="form-control" placeholder="https://" /></div>
+              <div class='col-sm-5'><input value={{row.title}} class="form-control" placeholder="topic"  {{on "input" (set-field row "title")}}/></div>
+              <div class='col-sm-6'><input value={{row.url}} class="form-control" placeholder="https://"  {{on "input" (set-field row "url")}}/></div>
               <div class='col-sm-1'><a href='#' {{on "click" (this.ctrlAction "remove_curriculum_row" row)}}><span class='glyphicon glyphicon-remove'></span></a></div>
             </div>
           {{/each}}

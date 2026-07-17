@@ -24,16 +24,16 @@
         {{#each this.styled_colors as |row|}}
           <div class="la-colors-modal-row">
             <div class="la-colors-modal-col la-colors-modal-col--label">
-              <Input type="text" class="la-colors-input" @value={{row.label}} placeholder="Brief Label" />
+              <input type="text" class="la-colors-input" value={{row.label}} placeholder="Brief Label"  {{on "input" (set-field row "label")}}/>
             </div>
             <div class="la-colors-modal-col la-colors-modal-col--preview">
               <div class="la-colors-preview" style={{row.style}}></div>
             </div>
             <div class="la-colors-modal-col la-colors-modal-col--color">
-              <Input type="text" class="la-colors-input" @value={{row.border}} placeholder="#ABC123" />
+              <input type="text" class="la-colors-input" value={{row.border}} placeholder="#ABC123"  {{on "input" (set-field row "border")}}/>
             </div>
             <div class="la-colors-modal-col la-colors-modal-col--color">
-              <Input type="text" class="la-colors-input" @value={{row.fill}} placeholder="#FED987" />
+              <input type="text" class="la-colors-input" value={{row.fill}} placeholder="#FED987"  {{on "input" (set-field row "fill")}}/>
             </div>
             <div class="la-colors-modal-col la-colors-modal-col--action">
               <button type="button" class="la-colors-remove" {{on "click" (this.ctrlAction "remove" row)}} aria-label={{t "Remove" key="remove"}}>

@@ -51,8 +51,10 @@
             <input value={{this.model.license.author_name}} class="la-edit-board-input" id="author" placeholder="Name" {{on "input" (set-field this "model.license.author_name")}} />
           </div>
           <div class="la-edit-board-field la-edit-board-field--half">
-            <label class="la-edit-board-label">{{t "Author URL" key="author_url"}}</label>
-            <input value={{this.model.license.author_url}} class="la-edit-board-input" placeholder="Author URL" {{on "input" (set-field this "model.license.author_url")}} />
+            {{#let (unique-id) as |authorUrlId|}}
+              <label for={{authorUrlId}} class="la-edit-board-label">{{t "Author URL" key="author_url"}}</label>
+              <input id={{authorUrlId}} value={{this.model.license.author_url}} class="la-edit-board-input" placeholder="Author URL" {{on "input" (set-field this "model.license.author_url")}} />
+            {{/let}}
           </div>
         </div>
       {{/if}}
@@ -85,7 +87,7 @@
           <p class="la-edit-board-hint">{{t "Select any categories that this home board may fit well into." key="select_categories"}}</p>
           {{#each this.board_categories as |category|}}
             <label class="la-edit-board-checkbox" {{on "click" (this.ctrlAction "toggle_category" category this.preventDefault)}}>
-              <Input @type="checkbox" @checked={{category.selected}} class="la-edit-board-check" />
+              <input type="checkbox" checked={{category.selected}} class="la-edit-board-check"  {{on "change" (set-field category "selected" "checkbox")}}/>
               <span>{{category.name}}</span>
             </label>
           {{/each}}
@@ -186,8 +188,8 @@
               {{/unless}}
               {{#each this.model.intro.sections as |section|}}
                 <div class="la-edit-board-intro-section">
-                  <Textarea @value={{section.description}} class="la-edit-board-input la-edit-board-textarea" placeholder="Explanation, notes, etc." />
-                  <Input @type="text" @value={{section.prompt}} class="la-edit-board-input" placeholder="optional button sequence to find" />
+                  <textarea class="la-edit-board-input la-edit-board-textarea" placeholder="Explanation, notes, etc."  {{on "input" (set-field section "description")}}>{{section.description}}</textarea>
+                  <input type="text" value={{section.prompt}} class="la-edit-board-input" placeholder="optional button sequence to find"  {{on "input" (set-field section "prompt")}}/>
                   <button class='la-edit-board-remove-btn' {{on "click" (this.ctrlAction "delete_board_intro_section" section)}}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>

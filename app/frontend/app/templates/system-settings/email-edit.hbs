@@ -35,11 +35,11 @@
           <p class="la-system-settings__hint">{{t "Placeholders:" key="system_settings_email_placeholders"}} {{#each block.placeholders as |ph|}}<code>{{concat "%{" ph "}"}}</code> {{/each}}</p>
         {{/if}}
         {{#if (is-equal block.key "parental_consent_mailer.footer")}}
-          <Textarea @value={{block.value}} class="form-control la-system-settings__textarea" rows="4" id="system-email-i18n-{{block.key}}" {{on "input" (this.ctrlActionEventValueBound "updateI18nBlock" block "value")}} />
+          <textarea class="form-control la-system-settings__textarea" rows="4" id="system-email-i18n-{{block.key}}" {{on "input" (this.ctrlActionEventValueBound "updateI18nBlock" block "value")}} >{{block.value}}</textarea>
         {{else if (is-equal block.key "parental_consent_mailer.intro")}}
-          <Textarea @value={{block.value}} class="form-control la-system-settings__textarea" rows="4" id="system-email-i18n-{{block.key}}" {{on "input" (this.ctrlActionEventValueBound "updateI18nBlock" block "value")}} />
+          <textarea class="form-control la-system-settings__textarea" rows="4" id="system-email-i18n-{{block.key}}" {{on "input" (this.ctrlActionEventValueBound "updateI18nBlock" block "value")}} >{{block.value}}</textarea>
         {{else}}
-          <Input @value={{block.value}} class="form-control la-system-settings__input" id="system-email-i18n-{{block.key}}" {{on "input" (this.ctrlActionEventValueBound "updateI18nBlock" block "value")}} />
+          <input value={{block.value}} class="form-control la-system-settings__input" id="system-email-i18n-{{block.key}}" {{on "input" (this.ctrlActionEventValueBound "updateI18nBlock" block "value")}} />
         {{/if}}
       </div>
     {{/each}}

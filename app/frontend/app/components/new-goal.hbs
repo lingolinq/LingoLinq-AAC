@@ -225,7 +225,7 @@
                 {{#each this.model.users as |user|}}
                   <li>
                     <label class="md-modal-check md-modal-check--user {{if user.not_premium "is-not-premium"}} {{if user.add_goal "is-selected"}}">
-                      <Input @type="checkbox" @checked={{user.add_goal}} disabled={{user.not_premium}} class="md-modal-check__input" />
+                      <input type="checkbox" checked={{user.add_goal}} disabled={{user.not_premium}} class="md-modal-check__input"  {{on "change" (set-field user "add_goal" "checkbox")}}/>
                       <img src={{user.avatar_url}} class="md-modal-user-list__avatar" alt="">
                       <span class="md-modal-check__label">{{user.user_name}}</span>
                     </label>

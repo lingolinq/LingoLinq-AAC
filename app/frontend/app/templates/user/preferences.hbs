@@ -177,7 +177,7 @@
                 <div>
                   <div class='checkbox big_checkbox'>
                     <label>
-                      <Input @type="checkbox" @checked={{option.checked}} />
+                      <input type="checkbox" checked={{option.checked}}  {{on "change" (set-field option "checked" "checkbox")}}/>
                       <img src={{option.image_url}} style='width: 30px; height: 30px;'>
                       {{option.label}}
                     </label>
@@ -536,7 +536,7 @@
               </div>
             {{else}}
               <div class='col-sm-2 col-sm-offset-3'>
-                <input type="text" value={{this.logging_code_check}} class="form-control" placeholder="Log PIN" {{on "input" (set-field this "logging_code_check")}} />
+                <input id="logging_PIN" type="text" value={{this.logging_code_check}} class="form-control" placeholder="Log PIN" {{on "input" (set-field this "logging_code_check")}} />
               </div>
               <div class='col-sm-2'>
                 <button type='button' {{on "click" (this.ctrlAction 'check_logging_code')}} disabled={{this.pin_status.checking}} class='btn btn-default'>

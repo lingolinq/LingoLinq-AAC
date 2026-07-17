@@ -2017,7 +2017,7 @@
                           aria-label={{btn.label}}>
                           {{#if btn.image}}
                             <span class="md-board-detail-phrase-builder__sentence-chip-img">
-                              <img src={{btn.image}} alt="" draggable="false" onerror="this.style.display='none'">
+                              <img src={{btn.image}} alt="" draggable="false" {{hide-on-error "display"}}>
                             </span>
                           {{/if}}
                           <span class="md-board-detail-phrase-builder__sentence-chip-label">{{btn.label}}</span>

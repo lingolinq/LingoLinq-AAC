@@ -651,11 +651,11 @@
                   <p class='text-muted'>{{field.info}}</p>
                 {{/if}}
                 {{#if field.string}}
-                  <Input @value={{field.value}} class="form-control" id={{field.name}} placeholder={{field.placeholder}} />
+                  <input value={{field.value}} class="form-control" id={{field.name}} placeholder={{field.placeholder}}  {{on "input" (set-field field "value")}}/>
                 {{else if field.boolean}}
                   <div class="checkbox big_checkbox">
                     <label>
-                      <Input @checked={{field.value}} @type="checkbox" />
+                      <input checked={{field.value}} type="checkbox"  {{on "change" (set-field field "value" "checkbox")}}/>
                     </label>
                   </div>
                 {{else if field.preferred_languages}}
@@ -664,7 +664,7 @@
                   {{#if field.field_type_key.is_locale}}
                     <div class="row">
                       <div class="col-sm-9">
-                        <Input @value={{field.value}} class="form-control" id={{field.name}} placeholder={{field.placeholder}} />
+                        <input value={{field.value}} class="form-control" id={{field.name}} placeholder={{field.placeholder}}  {{on "input" (set-field field "value")}}/>
                       </div>
                       <div class="col-sm-3">
                         <BoundSelect @select_class="form-control" @select_id="pref_langs_for_locale" @content={{field.locales}} @selection={{field.locale}} @action={{this.ctrlAction "updateIntegrationFieldLocale" field}} @optionValuePath="content.code" @optionLabelPath="content.label" />
@@ -791,11 +791,13 @@
     </div>
   {{else if this.model.keyCommandAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Command" key="command"}}</label>
+      {{#let (unique-id) as |keyCommandId|}}
+      <label for={{keyCommandId}} class="col-sm-2 control-label">{{t "Command" key="command"}}</label>
       <div class="col-sm-10">
-        <input value={{this.model.key_command}} class="form-control" placeholder="ex: CMD+W" {{on "input" (set-field this "model.key_command")}} />
+        <input id={{keyCommandId}} value={{this.model.key_command}} class="form-control" placeholder="ex: CMD+W" {{on "input" (set-field this "model.key_command")}} />
         <p class='text-muted'>{{t "Use modifier keys like CMD/CTRL/ALT/SHIFT. Multiple keys can be chained with +." key="key_command_hint"}}</p>
       </div>
+      {{/let}}
     </div>
   {{else if this.model.toggleAction}}
     <div class="form-group">
@@ -1171,13 +1173,13 @@
     <div class="form-group">
       <label for={{locale.label_id}} class="col-sm-4 control-label">{{t "Label" key="label"}}</label>
       <div class="col-sm-8">
-        <Input @value={{locale.label}} class="form-control" id={{locale.label_id}} />
+        <input value={{locale.label}} class="form-control" id={{locale.label_id}}  {{on "input" (set-field locale "label")}}/>
       </div>
     </div>
     <div class="form-group">
       <label for={{locale.vocalization_id}} class="col-sm-4 control-label">{{t "Speech" key="speech"}}</label>
       <div class="col-sm-8">
-        <Input @value={{locale.vocalization}} class="form-control" id={{locale.vocalization_id}} placeholder="matches label if empty" />
+        <input value={{locale.vocalization}} class="form-control" id={{locale.vocalization_id}} placeholder="matches label if empty"  {{on "input" (set-field locale "vocalization")}}/>
       </div>
     </div>
     {{#if this.appState.feature_flags.inflections_overlay}}
@@ -1189,34 +1191,34 @@
         <div class='col-sm-10 col-sm-offset-2'>
           <div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              <Input class="form-control" @value={{locale.inflections_hash.nw}} placeholder={{locale.inflections_suggestions.nw}} />
+              <input class="form-control" value={{locale.inflections_hash.nw}} placeholder={{locale.inflections_suggestions.nw}}  {{on "input" (set-field locale "inflections_hash.nw")}}/>
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              <Input class="form-control" @value={{locale.inflections_hash.n}} placeholder={{locale.inflections_suggestions.n}} />
+              <input class="form-control" value={{locale.inflections_hash.n}} placeholder={{locale.inflections_suggestions.n}}  {{on "input" (set-field locale "inflections_hash.n")}}/>
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              <Input class="form-control" @value={{locale.inflections_hash.ne}} placeholder={{locale.inflections_suggestions.ne}} />
+              <input class="form-control" value={{locale.inflections_hash.ne}} placeholder={{locale.inflections_suggestions.ne}}  {{on "input" (set-field locale "inflections_hash.ne")}}/>
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              <Input class="form-control" @value={{locale.inflections_hash.w}} placeholder={{locale.inflections_suggestions.w}} />
+              <input class="form-control" value={{locale.inflections_hash.w}} placeholder={{locale.inflections_suggestions.w}}  {{on "input" (set-field locale "inflections_hash.w")}}/>
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px; text-align: center; overflow: hidden;'>
               {{locale.label}}
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              <Input class="form-control" @value={{locale.inflections_hash.e}} placeholder={{locale.inflections_suggestions.e}} />
+              <input class="form-control" value={{locale.inflections_hash.e}} placeholder={{locale.inflections_suggestions.e}}  {{on "input" (set-field locale "inflections_hash.e")}}/>
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              <Input class="form-control" @value={{locale.inflections_hash.sw}} placeholder={{locale.inflections_suggestions.sw}} />
+              <input class="form-control" value={{locale.inflections_hash.sw}} placeholder={{locale.inflections_suggestions.sw}}  {{on "input" (set-field locale "inflections_hash.sw")}}/>
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              <Input class="form-control" @value={{locale.inflections_hash.s}} placeholder={{locale.inflections_suggestions.s}} />
+              <input class="form-control" value={{locale.inflections_hash.s}} placeholder={{locale.inflections_suggestions.s}}  {{on "input" (set-field locale "inflections_hash.s")}}/>
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              <Input class="form-control" @value={{locale.inflections_hash.se}} placeholder={{locale.inflections_suggestions.se}} />
+              <input class="form-control" value={{locale.inflections_hash.se}} placeholder={{locale.inflections_suggestions.se}}  {{on "input" (set-field locale "inflections_hash.se")}}/>
             </div>
             <div>
-              <Textarea @value={{locale.rules_string}} class="form-control" placeholder={{this.inflection_overrides_placeholder}} />
+              <textarea class="form-control" placeholder={{this.inflection_overrides_placeholder}}  {{on "input" (set-field locale "rules_string")}}>{{locale.rules_string}}</textarea>
             </div>
           </div>
         </div>

@@ -94,12 +94,14 @@
         {{/if}}
       </div>
       <div class='form-group'>
-        <label for='string_list' class='col-sm-2 col-sm-offset-2'>
+        {{#let (unique-id) as |stringListId|}}
+        <label for={{stringListId}} class='col-sm-2 col-sm-offset-2'>
           <p class='form-control-static'>{{t "list of %{types}:" types=this.watchlist_type_plural key="list_of_watchlist_types"}}</p>
         </label>
         <div class='col-sm-6'>
-          <input value={{this.badge.string_list}} class="form-control" placeholder="comma-separated list" {{on "input" (set-field this "badge.string_list")}} />
+          <input id={{stringListId}} value={{this.badge.string_list}} class="form-control" placeholder="comma-separated list" {{on "input" (set-field this "badge.string_list")}} />
         </div>
+        {{/let}}
       </div>
       <div class='form-group'>
         <div class='col-sm-3 col-sm-offset-2'>

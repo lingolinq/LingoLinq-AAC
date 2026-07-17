@@ -37,18 +37,22 @@
         {{/if}}
         <div class="form-group">
           <div class="col-sm-9" style="padding-top: 30px;">
-            <label>{{t "Your Name" key="your_name"}}</label><br>
+            {{#let (unique-id) as |nameId|}}
+            <label for={{nameId}}>{{t "Your Name" key="your_name"}}</label><br>
             <span style="display: inline-block; width: 300px;">
-              <input type="text" value={{this.subscription.name}} class="form-control input-lg" placeholder="Purchaser's Name" {{on "input" (set-field this "subscription.name")}} />
+              <input id={{nameId}} type="text" value={{this.subscription.name}} class="form-control input-lg" placeholder="Purchaser's Name" {{on "input" (set-field this "subscription.name")}} />
             </span>
+            {{/let}}
           </div>
         </div>
         <div class="form-group">
           <div class="col-sm-9" style="padding-top: 30px;">
-            <label>{{t "Your Email" key="your_email"}}</label><br>
+            {{#let (unique-id) as |emailId|}}
+            <label for={{emailId}}>{{t "Your Email" key="your_email"}}</label><br>
             <span style="display: inline-block; width: 300px;">
-              <input type="text" value={{this.subscription.email}} class="form-control input-lg" placeholder="email@example.com" {{on "input" (set-field this "subscription.email")}} />
+              <input id={{emailId}} type="text" value={{this.subscription.email}} class="form-control input-lg" placeholder="email@example.com" {{on "input" (set-field this "subscription.email")}} />
             </span>
+            {{/let}}
           </div>
         </div>
         <div class="form-group">

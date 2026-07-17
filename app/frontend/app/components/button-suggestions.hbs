@@ -101,7 +101,7 @@
               <div class="la-board-ideas-item {{if item.image 'la-board-ideas-item--with-image'}}">
                 {{#if item.image}}
                   <div class="la-board-ideas-item-image">
-                    <img src={{item.safe_image}} rel={{item.image}} onerror="this.src = this.getAttribute('rel');" alt="">
+                    <img src={{item.safe_image}} rel={{item.image}} {{image-fallback-to-rel}} alt="">
                   </div>
                 {{/if}}
                 <span class="la-board-ideas-item-text {{if item.used 'la-board-ideas-item-text--used'}}">

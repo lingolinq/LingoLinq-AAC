@@ -282,7 +282,7 @@
     {{#if this.app_state.currentUser.single_org.image_url}}
       {{#if this.showBentoStyleHeader}}
         {{#unless (is-equal this.app_state.current_route "landing")}}
-          <img style="position: absolute; top: 50px; left: 19px; width: 50px; height: 50px; border-radius: 50px; object-fit: contain; object-position: center;" src={{this.app_state.currentUser.single_org.image_url}} onerror="this.style.display='none';">
+          <img style="position: absolute; top: 50px; left: 19px; width: 50px; height: 50px; border-radius: 50px; object-fit: contain; object-position: center;" src={{this.app_state.currentUser.single_org.image_url}} {{hide-on-error "display"}}>
         {{/unless}}
       {{/if}}
     {{/if}}

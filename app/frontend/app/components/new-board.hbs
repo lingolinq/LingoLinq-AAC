@@ -340,7 +340,7 @@
                   <p class="nb-field__hint">{{t "Select any categories that this home board may fit well into." key="select_categories"}}</p>
                   {{#each this.board_categories as |category|}}
                     <label class="nb-checkbox">
-                      <Input @type="checkbox" @checked={{category.selected}} />
+                      <input type="checkbox" checked={{category.selected}}  {{on "change" (set-field category "selected" "checkbox")}}/>
                       <span>{{category.name}}</span>
                     </label>
                   {{/each}}

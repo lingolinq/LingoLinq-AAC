@@ -166,7 +166,7 @@
                       <div style='margin-bottom: 5px;'>
                         <span style={{if this.browse.category.saved "display: inline-block; width: calc(100% - 100px);" "display: inline-block; width: 100%;"}}>
                           <button class='btn btn-default list-group-item-warning' {{on "click" (this.ctrlAction "pick_set" item)}} style='width: 100%; text-align: left;'>
-                            <img src={{item.image_url}} onerror="this.style.visibility='hidden';" style='width: 50px; height: 50px; margin-right: 5px; float: left;'>
+                            <img src={{item.image_url}} {{hide-on-error}} style='width: 50px; height: 50px; margin-right: 5px; float: left;'>
                             <span style='font-size: 14px; font-weight: bold; display: block; overflow: hidden;'>
                               {{item.title}}
                               {{#if item.author}}{{t "by" key="by"}} {{item.author}}{{/if}}
@@ -207,7 +207,7 @@
               <div class='row'>
                 {{#each this.search.results as |item|}}
                   <button class='btn btn-default list-group-item-success' {{on "click" (this.ctrlAction "pick_set" item)}} style='width: 100%; margin-bottom: 5px; text-align: left;'>
-                    <img src={{item.image_url}} onerror="this.style.visibility='hidden';" style='width: 50px; height: 50px; margin-right: 5px; float: left;'>
+                    <img src={{item.image_url}} {{hide-on-error}} style='width: 50px; height: 50px; margin-right: 5px; float: left;'>
                     <span style='font-size: 14px; font-weight: bold; display: block; overflow: hidden;'>
                       {{item.title}}
                       {{#if item.author}}{{t "by" key="by"}} {{item.author}}{{/if}}

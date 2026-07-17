@@ -17,7 +17,8 @@
                This previously showed 5 buttons plus a "More" toggle that swapped in a
                second punctuation submenu (which duplicated , ? ! and hid contraction/
                quote/colon behind an extra click). The submenu is gone; its three unique
-               buttons live here now. --}}
+               buttons live here now. The dynamic contraction button is placed LAST (far
+               right) so the fixed marks stay in a stable, predictable order. --}}
           <div class="md-speak-menu__row md-speak-menu__row--7">
             <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_period_button'>
               <span class="md-speak-menu__punctuation">.</span>
@@ -31,14 +32,14 @@
             <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_exclamation_button'>
               <span class="md-speak-menu__punctuation">!</span>
             </div>
-            <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_contraction_button'>
-              <span class="md-speak-menu__punctuation md-speak-menu__punctuation--sm">{{this.contraction.label}}</span>
-            </div>
             <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_quote_button'>
               <span class="md-speak-menu__punctuation">"</span>
             </div>
             <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_colon_button'>
               <span class="md-speak-menu__punctuation">:</span>
+            </div>
+            <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_contraction_button'>
+              <span class="md-speak-menu__punctuation md-speak-menu__punctuation--sm">{{this.contraction.label}}</span>
             </div>
           </div>
         </ButtonListener>
