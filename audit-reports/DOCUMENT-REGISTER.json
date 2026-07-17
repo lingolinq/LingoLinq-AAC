@@ -202,7 +202,7 @@
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-06"
       },
-      "contentHash": "ec7280763097565c1e5f48b8e6ef81fa56ee5474b6f51e59a53721aa8743e32b",
+      "contentHash": "8f12c929bf6c9bd1b4e786708fbe37d0f373bdad567266b33a7475585f3efa7f",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-9b299a785b"
@@ -257,7 +257,7 @@
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-16"
       },
-      "contentHash": "1bda3ccb223683a299dab2ba73a04dc235a1bc57ab4749a43599095805e70ceb",
+      "contentHash": "83e981659f64afe06929bc48a53dd702de2d365ae575fd3f1843e686c7252c57",
       "bundles": [
         "school-dpa-package"
       ],
@@ -377,7 +377,7 @@
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-06"
       },
-      "contentHash": "3247ec39db4fc5372540512dd4dcf439d409fd29d13107601f6a7a4f1d92babd",
+      "contentHash": "2a88a1333597d8feff36e6a7ec698b8a2d46acb865309fa304043b84be7063cc",
       "bundles": [
         "school-dpa-package"
       ],
@@ -532,7 +532,7 @@
     },
     {
       "title": "Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record",
-      "description": "In-repo acceptance record for the GCP Cloud Data Processing Addendum and HIPAA Business Associate Addendum (both accepted 2026-07-12) and the Standard Contractual Clauses (EU GDPR / UK GDPR / Swiss FDPA, certified 2026-07-14) on project lingolinq-prod, accepted by scot@lingolinq.com. Google issues no countersigned PDF; the console acceptance record is the authoritative evidence (Drive companion doc + screenshots mirrored). Infrastructure BAA (Cloud Run / Cloud SQL / Memorystore / Vertex AI under Google terms); does NOT cover the Anthropic AI-egress path, and Vertex AI is in scope of the BAA but not a live inference path (disabled 2026-07-09, PR #570).",
+      "description": "In-repo acceptance record for the GCP Cloud Data Processing Addendum and HIPAA Business Associate Addendum (both accepted 2026-07-12) and the Standard Contractual Clauses (EU GDPR / UK GDPR / Swiss FDPA, certified 2026-07-14) on project lingolinq-prod, accepted by scot@lingolinq.com. Google issues no countersigned PDF; the console acceptance record is the authoritative evidence (Drive companion doc + screenshots mirrored). Infrastructure BAA covering products on Google's HIPAA Covered Products list (Cloud Run / Cloud SQL / Memorystore); does NOT cover the Anthropic AI-egress path, and does not extend to Vertex AI as a whole (any future Vertex/Gemini inference path needs per-product covered-service verification; the fallback was disabled 2026-07-09, PR #570).",
       "type": "evidence",
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
@@ -548,7 +548,7 @@
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-16"
       },
-      "contentHash": "e7742f2934b3a0b6f57a96114b8eeab4ec694a948e5133e0e026d97875001945",
+      "contentHash": "baeeaaba6316c5b9d59ab24580e1a7019c1e8cbfc258ddbc1a3d19b72166b528",
       "bundles": [],
       "mirrors": [
         {

@@ -36,14 +36,27 @@ from the AWS BAA, which has a countersigned PDF (`docs/legal/AWS_BAA_2026-02.pdf
 
 ## Scope Boundary
 
-- **Infrastructure BAA.** Covers Google Cloud infrastructure and HIPAA-eligible services in use or
-  planned: Cloud Run, Cloud SQL, Memorystore, and Google's Vertex AI service under Google's terms.
+- **Infrastructure BAA.** Covers the Google Cloud infrastructure and HIPAA-eligible services in use
+  or planned for hosting: Cloud Run, Cloud SQL, and Memorystore. Google's HIPAA BAA extends only to
+  the products on Google's published Covered Products list, so any future Vertex AI or Gemini
+  inference path requires per-product covered-service verification before it may carry PHI or child
+  data (Vertex AI is not covered as a whole; only specific products such as Vertex AI Workbench are
+  listed as covered).
 - **Does NOT cover the Anthropic model-provider egress path** (the runtime AI features). That path
   has no BAA and is governed by the PiiScrubber and the no-identifiable-data policy; its HIPAA
   posture is provisional pending CEO review (see `AI_GOVERNANCE_MEMO.md`).
-- **Vertex AI is in scope of this BAA but is NOT a live inference path today.** The Gemini/Vertex
-  runtime fallback was disabled 2026-07-09 (PR #570); no AI inference reaches Google today. Runtime
-  inference is Anthropic-only.
+- **No Google inference path is live today, and BAA coverage of any future one is unverified.** The
+  Gemini/Vertex runtime fallback was disabled 2026-07-09 (PR #570); no AI inference reaches Google
+  today, and runtime inference is Anthropic-only. If a Vertex AI or Gemini inference path is ever
+  reactivated, confirm the specific product is a Google HIPAA Covered Service before any PHI or
+  child data flows to it.
+
+> **Correction (2026-07-16):** An earlier version of this record listed Vertex AI among the
+> services covered by the infrastructure BAA and stated Vertex AI was "in scope." Google's HIPAA
+> BAA covers only products on its published Covered Products list, which does not include Vertex AI
+> as a whole (only specific products such as Vertex AI Workbench). The scope language above was
+> narrowed accordingly. This correction post-dates the 2026-07-16 attestation and is flagged for
+> re-attestation.
 
 ## Subprocessor Status
 

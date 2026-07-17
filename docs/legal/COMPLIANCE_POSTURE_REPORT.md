@@ -137,8 +137,10 @@ and email staying on AWS. Two compliance-relevant items are in flight:
   at rest, access controls, minimum necessary; private VPC additionally). Recorded in-repo at
   `docs/legal/GCP_BAA_ACCEPTED.md`; evidence in Drive "Compliance Audits" / "Google Cloud Platform
   - Accepted Compliance Agreements (captured 2026-07-14)". This is an infrastructure BAA (Cloud
-  Run, Cloud SQL, Memorystore, and Google's Vertex AI service under Google's terms); it does not
-  extend to the Anthropic model-provider egress path. Add Google as an active subprocessor in
+  Run, Cloud SQL, Memorystore) covering only products on Google's HIPAA Covered Products list; it
+  does not extend to Vertex AI as a whole or to the Anthropic model-provider egress path. Any future
+  Vertex AI or Gemini inference path requires per-product covered-service verification before PHI or
+  child data. Add Google as an active subprocessor in
   `docs/legal/SUBPROCESSORS.md` at cutover, when Google compute begins carrying production data;
   until then it remains a planned subprocessor.
 
