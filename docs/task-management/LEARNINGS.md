@@ -6604,3 +6604,6 @@ Fix: add `this.` (`board=this.home_board_pref`). To find these BEFORE they ship,
 
 ### PRs into stale `develop` re-scan years of history — gitleaks FPs that staging already absorbed
 A fast-forward PR from a current tip into ancient `develop` makes `secret-detection` scan every introducing commit in `develop..head`. Findings that are already on `staging` (0 leaks for `staging..head`) reappear as blockers. Fix durable FPs with narrow `.gitleaks.toml` regex allowlists (same pattern as `pin_placeholder_4_digit`); do not weaken rules broadly. Separately, keep `loofah` / `rails-html-sanitizer` Gemfile floors in lockstep with bundler-audit (`>= 2.25.2` / `>= 1.7.1` as of 2026-07-17). (2026-07-17)
+
+### `landing_beta_closed` breaks open-registration specs unless stubbed
+When `landing_beta_closed` is in `ENABLED_FRONTEND_FEATURES`, `UsersController#create` / Google signup short-circuit with 403 (and `google_start` redirects home). Specs that exercise open registration must `allow(FeatureFlags).to receive(:landing_beta_closed_enabled?).and_return(false)` in the describe `before`, plus dedicated examples that assert the closed gate. (2026-07-17)

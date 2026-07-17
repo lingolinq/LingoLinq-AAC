@@ -2221,6 +2221,29 @@ describe SessionController, :type => :controller do
       allow(GoogleOAuth).to receive(:enabled?).and_return(true)
       allow(GoogleOAuth).to receive(:client_id).and_return('test-client-id')
       allow(GoogleOAuth).to receive(:client_secret).and_return('test-secret')
+      # Open-auth examples exercise Google OAuth behavior. This branch enables
+      # landing_beta_closed by default; stub it off here and cover the gate below.
+      allow(FeatureFlags).to receive(:landing_beta_closed_enabled?).and_return(false)
+    end
+
+    it "redirects google_start home when landing_beta_closed is enabled" do
+      allow(FeatureFlags).to receive(:landing_beta_closed_enabled?).and_return(true)
+      expect(GoogleOAuth).not_to receive(:store_state)
+      get :google_start, params: { flow: 'login', device_id: 'my-device', return_origin: 'http://localhost:8184' }
+      expect(response).to redirect_to('http://test.host/')
+    end
+
+    it "rejects google_signup_complete when landing_beta_closed is enabled" do
+      allow(FeatureFlags).to receive(:landing_beta_closed_enabled?).and_return(true)
+      post :google_signup_complete, params: {
+        nonce: 'signup-nonce',
+        user_name: 'google_signup_user',
+        terms_agree: 'true'
+      }
+      expect(response.status).to eq(403)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('registration is not available during beta testing')
+      expect(json['landing_beta_closed']).to eq(true)
     end
 
     it "stores return_origin and redirects to Google on start" do

@@ -601,6 +601,22 @@ describe Api::UsersController, :type => :controller do
   end
   
   describe "create" do
+    # Open-registration examples exercise create behavior. This branch enables
+    # landing_beta_closed by default; stub it off here and cover the gate below.
+    before do
+      allow(FeatureFlags).to receive(:landing_beta_closed_enabled?).and_return(false)
+    end
+
+    it "rejects self-registration when landing_beta_closed is enabled" do
+      allow(FeatureFlags).to receive(:landing_beta_closed_enabled?).and_return(true)
+      post :create, params: {:user => {'name' => 'fred'}}
+      expect(response).not_to be_successful
+      expect(response.status).to eq(403)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq("registration is not available during beta testing")
+      expect(json['landing_beta_closed']).to eq(true)
+    end
+
     it "should not require api token" do
       post :create, params: {:user => {'name' => 'fred'}}
       expect(response).to be_successful
