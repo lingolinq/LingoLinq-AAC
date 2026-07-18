@@ -606,7 +606,7 @@ DEPENDENCIES
   http-2
   irb
   json (>= 2.19.2)
-  loofah (>= 2.25.1)
+  loofah (>= 2.25.2)
   matrix
   mutex_m
   obf
@@ -623,6 +623,7 @@ DEPENDENCIES
   rack-timeout
   rails (>= 7.2.3.1, < 7.3)
   rails-controller-testing
+  rails-html-sanitizer (>= 1.7.1)
   resque (~> 3.0)
   rotp
   rspec-rails
