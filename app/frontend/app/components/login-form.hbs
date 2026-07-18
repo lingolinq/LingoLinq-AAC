@@ -183,13 +183,13 @@
         {{#if this.googleLinkNeedsUsernameField}}
           <div class="form-group">
             <label for="google_link_user_name">{{t "Username" key="username"}}</label>
-            {{lowercase-text-field id="google_link_user_name" class="form-control input-lg touchy" value=this.google_link_selected_user_name placeholder="username" autocomplete="username"}}
+            <LowercaseTextField @id="google_link_user_name" @class="form-control input-lg touchy" @value={{this.google_link_selected_user_name}} @onChange={{set-value this "google_link_selected_user_name"}} @placeholder="username" @autocomplete="username" />
           </div>
         {{/if}}
         {{#if this.googleLinkNeedsPassword}}
           <div class="form-group">
             <label for="google_link_password">{{t "Please enter the password for this account to link your account with Google. You only need to enter it once to link." key="google_link_password_prompt"}}</label>
-            {{password-field id="google_link_password" class="form-control input-lg touchy" value=this.google_link_password autocomplete="current-password"}}
+            <PasswordField @id="google_link_password" @class="form-control input-lg touchy" @value={{this.google_link_password}} @onChange={{set-value this "google_link_password"}} @autocomplete="current-password" />
           </div>
         {{/if}}
         {{#if this.google_link_error}}
@@ -263,11 +263,11 @@
         {{/unless}}
         <div class="form-group">
           <label for="identification">{{t "Username" key="username"}}</label>
-          {{lowercase-text-field id="identification" class="form-control input-lg touchy" value=this.identification placeholder="username" autocomplete="username"}}
+          <LowercaseTextField @id="identification" @class="form-control input-lg touchy" @value={{this.identification}} @onChange={{set-value this "identification"}} @placeholder="username" @autocomplete="username" />
         </div>
         <div class="form-group">
           <label for="password">{{t "Password" key="password"}}</label>
-          {{password-field id="password" class="form-control input-lg touchy" value=this.password placeholder="password" autocomplete="current-password"}}
+          <PasswordField @id="password" @class="form-control input-lg touchy" @value={{this.password}} @onChange={{set-value this "password"}} @placeholder="password" @autocomplete="current-password" />
         </div>
         {{#unless this.browserless}}
           <div class="form-group" style='display: none;'>

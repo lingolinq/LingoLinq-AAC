@@ -200,7 +200,7 @@
                       </div>
                     </div>
                   {{/if}}
-                  {{label-chips value=this.model.grid.labels onChange=(this.ctrlAction "setLabels") inputId="new_board_labels" placeholder=(t "Type a word and press Enter, or paste a list" key="labels_chip_placeholder_short")}}
+                  <LabelChips @value={{this.model.grid.labels}} @onChange={{this.ctrlAction "setLabels"}} @inputId="new_board_labels" @placeholder={{t "Type a word and press Enter, or paste a list" key="labels_chip_placeholder_short"}} />
                 </div>
               </div>
             </div>
@@ -287,7 +287,7 @@
           <p class="nb-section__hint">{{t "Pick who can see this board." key="new_board_section_appearance_hint"}}</p>
           <div class="nb-section__body">
             <div class="nb-field new-board-field--visibility">
-              {{modern-select class="new-board-visibility-select" selectId="new_board_visibility" content=this.public_options selection=this.model.visibility action=(this.ctrlAction "setVisibility") ariaLabel=(t "Visibility" key="visibility")}}
+              <ModernSelect @class="new-board-visibility-select" @selectId="new_board_visibility" @content={{this.public_options}} @selection={{this.model.visibility}} @action={{this.ctrlAction "setVisibility"}} @ariaLabel={{t "Visibility" key="visibility"}} />
             </div>
           </div>
         </section>
@@ -311,11 +311,11 @@
               </div>
               <div class="nb-field new-board-field--license">
                 <label for="license" class="nb-field__label">{{t "License" key="license"}}</label>
-                {{modern-select class="new-board-select--modern" selectId="license" content=this.license_options selection=this.model.license.type action=(this.ctrlAction "setLicenseType") ariaLabel=(t "License" key="license")}}
+                <ModernSelect @class="new-board-select--modern" @selectId="license" @content={{this.license_options}} @selection={{this.model.license.type}} @action={{this.ctrlAction "setLicenseType"}} @ariaLabel={{t "License" key="license"}} />
               </div>
               <div class="nb-field new-board-field--locale">
                 <label for="locale" class="nb-field__label">{{t "Language" key="locale"}}</label>
-                {{modern-select class="new-board-select--modern" selectId="locale" content=this.locales selection=this.model.locale action=(this.ctrlAction "setLocale") ariaLabel=(t "Language" key="locale")}}
+                <ModernSelect @class="new-board-select--modern" @selectId="locale" @content={{this.locales}} @selection={{this.model.locale}} @action={{this.ctrlAction "setLocale"}} @ariaLabel={{t "Language" key="locale"}} />
               </div>
               {{#if this.attributable_license_type}}
                 <div class="nb-field nb-field--row">

@@ -29,7 +29,7 @@
             @sections={{this.jump_sections}}
             @onSelect={{this.ctrlAction "select_preview_board"}} />
           <div class="ub-search-page__locale-wrap">
-            {{modern-select class="ub-search-page__locale-select" selectId="search_page_locale" content=this.locales selection=this.locale action=(mut this.locale) placeholder=(t "[Choose a Language]" key="choose_locale") ariaLabel=(t "Language" key="locale")}}
+            <ModernSelect @class="ub-search-page__locale-select" @selectId="search_page_locale" @content={{this.locales}} @selection={{this.locale}} @action={{mut this.locale}} @placeholder={{t "[Choose a Language]" key="choose_locale"}} @ariaLabel={{t "Language" key="locale"}} />
           </div>
           {{#if this.has_active_filter}}
             {{!-- Clear the active search filter — shown only while a filter is applied. --}}

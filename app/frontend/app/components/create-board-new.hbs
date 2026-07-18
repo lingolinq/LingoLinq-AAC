@@ -298,7 +298,7 @@
                     </div>
                   </div>
                   <div class="new-board-for-collapse {{if this.creating_for_someone_else 'new-board-for-collapse--open'}} {{if this.for_user_needs_attention 'new-board-for-collapse--needs-attention'}}" aria-hidden={{unless this.creating_for_someone_else "true" "false"}}>
-                    {{modern-select class="new-board-select--modern new-board-for-select" selectId="new_board_for_user" content=this.user_options selection=this.for_user_id action=(this.ctrlAction "setForUserId") ariaLabel=(t "Who is this board for?" key="for_user_aria") placeholder=(t "Select who this board is for" key="select_who_for")}}
+                    <ModernSelect @class="new-board-select--modern new-board-for-select" @selectId="new_board_for_user" @content={{this.user_options}} @selection={{this.for_user_id}} @action={{this.ctrlAction "setForUserId"}} @ariaLabel={{t "Who is this board for?" key="for_user_aria"}} @placeholder={{t "Select who this board is for" key="select_who_for"}} />
                   </div>
                 </div>
               {{/if}}
@@ -455,7 +455,7 @@
                       </div>
                     </div>
                   {{/if}}
-                  {{label-chips value=this.model.grid.labels onChange=(this.ctrlAction "setLabels") inputId="new_board_labels" showChips=false colors=this.chip_label_colors placeholder=(t "Type a word or group of words and press Enter · paste a list · import a csv file" key="labels_chip_placeholder_import")}}
+                  <LabelChips @value={{this.model.grid.labels}} @onChange={{this.ctrlAction "setLabels"}} @inputId="new_board_labels" @showChips={{false}} @colors={{this.chip_label_colors}} @placeholder={{t "Type a word or group of words and press Enter · paste a list · import a csv file" key="labels_chip_placeholder_import"}} />
                   {{#if this.label_count}}
                     <div class="nb-labels-disclosure">
                       <button type="button" class="nb-link nb-labels-disclosure__toggle" aria-expanded={{if this.labels_list_open "true" "false"}} {{on "click" (this.ctrlAction "toggleLabelsList")}}>
@@ -468,7 +468,7 @@
                       </button>
                       {{#if this.labels_list_open}}
                         <div class="nb-labels-disclosure__list">
-                          {{label-chips value=this.model.grid.labels onChange=(this.ctrlAction "setLabels") showInput=false colors=this.chip_label_colors}}
+                          <LabelChips @value={{this.model.grid.labels}} @onChange={{this.ctrlAction "setLabels"}} @showInput={{false}} @colors={{this.chip_label_colors}} />
                         </div>
                       {{/if}}
                     </div>
@@ -1358,7 +1358,7 @@
                 {{#if this.appState.feature_flags.english_first_board_generation}}
                   <p class="nb-field__hint">{{t "Boards are created in English first for accurate symbol colors. You can translate after saving." key="english_first_board_hint"}}</p>
                 {{else}}
-                  {{modern-select class="new-board-select--modern" selectId="locale" content=this.locales selection=this.model.locale action=(this.ctrlAction "setLocale") ariaLabel=(t "Language" key="locale")}}
+                  <ModernSelect @class="new-board-select--modern" @selectId="locale" @content={{this.locales}} @selection={{this.model.locale}} @action={{this.ctrlAction "setLocale"}} @ariaLabel={{t "Language" key="locale"}} />
                 {{/if}}
               </div>
               <div class="nb-field new-board-field--icon nb-icon-disclosure {{if this.icon_picker_open 'nb-icon-disclosure--open'}}">

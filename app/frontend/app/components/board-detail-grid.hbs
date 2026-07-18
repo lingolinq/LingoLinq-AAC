@@ -31,7 +31,7 @@
         <div class="md-folder-back" aria-hidden={{unless this.editMode "true"}}>
           <div class="md-folder-tab" tabindex="-1" {{on "click" (this.invokeAttr "selectButton" btn)}}>
             {{#if this.editMode}}
-              {{label-field value=btn.label class="md-folder-tab__label-input" placeholder="enter label" aria-label=(concat (t "Folder label" key="board_detail_folder_label_aria") " " btn.id)}}
+              <LabelField @value={{btn.label}} class="md-folder-tab__label-input" placeholder="enter label" aria-label={{concat (t "Folder label" key="board_detail_folder_label_aria") " " btn.id}} />
             {{else}}
               <span class="md-folder-tab__label" aria-label={{btn.label}}>{{btn.label}}</span>
             {{/if}}
@@ -155,7 +155,7 @@
                  the input field reappears so the label can be edited
                  in place like other buttons. --}}
             {{#if (or btn.label btn.image_id btn.image_url btn.vocalization)}}
-              {{label-field value=btn.label class="md-board-detail-symbol-card__label-input" placeholder="enter label" aria-label=(concat (t "Button label" key="board_detail_button_label_aria") " " btn.id)}}
+              <LabelField @value={{btn.label}} class="md-board-detail-symbol-card__label-input" placeholder="enter label" aria-label={{concat (t "Button label" key="board_detail_button_label_aria") " " btn.id}} />
             {{/if}}
           {{else}}
             <span class="md-board-detail-symbol-card__label" style={{if btn.text_color (safe-style (concat "color:" btn.text_color))}}>{{btn.label}}</span>

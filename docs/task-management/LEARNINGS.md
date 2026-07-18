@@ -6702,3 +6702,34 @@ via the existing `setRawButtons([...])` harness in `tests/utils/utterance-test.j
 hang. Util-level logic bugs found during UI verification should get a util test (regression guard +
 proof the preserved branch still works), since the app's component-rendering tests hang (see the
 field-wrapper note in the template-lint working log).
+
+## Pattern: DDAU without {{mut}} — the set-value helper; and Glimmer components are untestable here
+
+Migrating curly component invocations to angle-bracket (`no-curly-component-invocation`) breaks any
+component that relied on curly's implicit TWO-WAY `value=` binding (password-field, key-code-text-field,
+lowercase-text-field, login-form fields, …). The fix is DDAU, and the idiomatic 5.12 way — WITHOUT the
+discouraged `{{mut}}` — is a one-way `@value` in + an `@onChange` callback out:
+
+    <FieldWrapper @value={{this.x}} @onChange={{set-value this "x"}} />
+
+`app/helpers/set-value.js` returns a setter closure `(v) => set(target, path, v)` — the companion to
+`set-field` (which reads the value off a DOM event; set-value takes the value directly). The child
+component calls `this.onChange?.(newValue)` (Glimmer) or `this.emitChange` (classic) on input/change.
+
+**Two component-authoring rules learned:**
+1. **A component that has (or needs) a unit test must stay a CLASSIC `@ember/component`.** `@glimmer/component`
+   (1.1.2 here) CANNOT be instantiated outside a rendering context — `new X(owner, {})` and
+   `factoryFor('component:x').create()` both throw "You must pass both the owner and args to super()",
+   and rendering tests hang in this app (see the field-wrapper note in the template-lint log). So a
+   Glimmer component's actions/getters are untestable here. DDAU works in classic too: define a bound
+   closure in `init` (`this.emitChange = (e) => self.onChange?.(e.target.value)`) and wire it with
+   `{{on "input" this.emitChange}}` — a plain closure survives `{{on}}` where a classic METHOD would
+   lose `this` (see [[the password-field ctrlAction regression]]).
+2. **A component that writes through a service, not a caller property, needs NO @onChange.** label-field
+   writes label edits through `editManager.change_button()`, so its `@value` is input-only — converting
+   it required only the invocation change, not a DDAU callback.
+
+**Verifying a DDAU conversion:** the native input always *shows* what you type (browser draws it), so a
+broken write-back is invisible while typing — it only surfaces on submit/save/use. Test the submit path,
+not the typing. login+register validate password-field/lowercase-text-field + the shared set-value
+mechanism in one action; label-field needs a board-label edit (its editManager path is separate).

@@ -21,9 +21,9 @@
         <li class="md-getting-started-modal__item {{if this.model.progress.intro_watched "md-getting-started-modal__item--done"}}">
           <span class="md-getting-started-modal__icon" aria-hidden="true">
             {{#if this.model.progress.intro_watched}}
-              {{getting-started-icon name="check"}}
+              <GettingStartedIcon @name="check" />
             {{else}}
-              {{getting-started-icon name="learn"}}
+              <GettingStartedIcon @name="learn" />
             {{/if}}
           </span>
           <div class="md-getting-started-modal__item-content">
@@ -42,9 +42,9 @@
         <li class="md-getting-started-modal__item {{if this.model.progress.home_board_set "md-getting-started-modal__item--done"}}">
           <span class="md-getting-started-modal__icon" aria-hidden="true">
             {{#if this.model.progress.home_board_set}}
-              {{getting-started-icon name="check"}}
+              <GettingStartedIcon @name="check" />
             {{else}}
-              {{getting-started-icon name="home"}}
+              <GettingStartedIcon @name="home" />
             {{/if}}
           </span>
           <div class="md-getting-started-modal__item-content">
@@ -63,9 +63,9 @@
         <li class="md-getting-started-modal__item {{if this.model.progress.app_added "md-getting-started-modal__item--done"}}">
           <span class="md-getting-started-modal__icon" aria-hidden="true">
             {{#if this.model.progress.app_added}}
-              {{getting-started-icon name="check"}}
+              <GettingStartedIcon @name="check" />
             {{else}}
-              {{getting-started-icon name="device"}}
+              <GettingStartedIcon @name="device" />
             {{/if}}
           </span>
           <div class="md-getting-started-modal__item-content">
@@ -84,9 +84,9 @@
         <li class="md-getting-started-modal__item {{if this.model.progress.preferences_edited "md-getting-started-modal__item--done"}}">
           <span class="md-getting-started-modal__icon" aria-hidden="true">
             {{#if this.model.progress.preferences_edited}}
-              {{getting-started-icon name="check"}}
+              <GettingStartedIcon @name="check" />
             {{else}}
-              {{getting-started-icon name="preferences"}}
+              <GettingStartedIcon @name="preferences" />
             {{/if}}
           </span>
           <div class="md-getting-started-modal__item-content">
@@ -105,9 +105,9 @@
         <li class="md-getting-started-modal__item {{if this.model.progress.profile_edited "md-getting-started-modal__item--done"}}">
           <span class="md-getting-started-modal__icon" aria-hidden="true">
             {{#if this.model.progress.profile_edited}}
-              {{getting-started-icon name="check"}}
+              <GettingStartedIcon @name="check" />
             {{else}}
-              {{getting-started-icon name="profile"}}
+              <GettingStartedIcon @name="profile" />
             {{/if}}
           </span>
           <div class="md-getting-started-modal__item-content">
@@ -127,9 +127,9 @@
           <li class="md-getting-started-modal__item {{if this.model.progress.subscription_set "md-getting-started-modal__item--done"}}">
             <span class="md-getting-started-modal__icon" aria-hidden="true">
               {{#if this.model.progress.subscription_set}}
-                {{getting-started-icon name="check"}}
+                <GettingStartedIcon @name="check" />
               {{else}}
-                {{getting-started-icon name="subscription"}}
+                <GettingStartedIcon @name="subscription" />
               {{/if}}
             </span>
             <div class="md-getting-started-modal__item-content">

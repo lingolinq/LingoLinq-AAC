@@ -239,7 +239,7 @@
             </div>
             <div class="form-group">
               <label for="password_under_13">{{t "Password" key="password"}}</label>
-              {{password-field id="password_under_13" class="form-control" value=this.model.password placeholder=(t "at least 6 characters" key="at_least_6_characters") autocomplete="new-password"}}
+              <PasswordField @id="password_under_13" @class="form-control" @value={{this.model.password}} @onChange={{set-value this "model.password"}} @placeholder={{t "at least 6 characters" key="at_least_6_characters"}} @autocomplete="new-password" />
               {{#if this.shortPassword}}
                 <span class='text-danger'>{{t "password must be at least 6 characters" key="min_password_lower"}}</span>
               {{/if}}
@@ -381,7 +381,7 @@
             </div>
             <div class="form-group">
               <label for="password_email_step">{{t "Password" key="password"}}</label>
-              {{password-field id="password_email_step" class="form-control" value=this.model.password placeholder=(t "at least 6 characters" key="at_least_6_characters") autocomplete="new-password"}}
+              <PasswordField @id="password_email_step" @class="form-control" @value={{this.model.password}} @onChange={{set-value this "model.password"}} @placeholder={{t "at least 6 characters" key="at_least_6_characters"}} @autocomplete="new-password" />
               {{#if this.shortPassword}}
                 <span class='text-danger'>{{t "password must be at least 6 characters" key="min_password_lower"}}</span>
               {{/if}}

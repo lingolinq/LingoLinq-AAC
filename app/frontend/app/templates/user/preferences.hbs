@@ -1498,7 +1498,7 @@
             <div class="col-sm-5">
               <div style='display: flex; align-items: center; gap: 10px;'>
                 <div style='width: 60px;'>
-                  {{key-code-text-field id='scanning_select_keycode' class='form-control' value=this.pending_preferences.device.scanning_select_keycode action=(mut this.pending_preferences.device.scanning_select_keycode) placeholder='press a key'}}
+                  <KeyCodeTextField @id='scanning_select_keycode' @class='form-control' @value={{this.pending_preferences.device.scanning_select_keycode}} @onChange={{set-value this "pending_preferences.device.scanning_select_keycode"}} @placeholder='press a key' />
                 </div>
                 <span class='form-control-static' style='color: var(--md-muted);'>{{this.select_keycode_string}}</span>
               </div>
@@ -1510,7 +1510,7 @@
               <div class="col-sm-5">
                 <div style='display: flex; align-items: center; gap: 10px;'>
                   <div style='width: 60px;'>
-                    {{key-code-text-field id='scanning_next_keycode' class='form-control' value=this.pending_preferences.device.scanning_next_keycode placeholder='press a key'}}
+                    <KeyCodeTextField @id='scanning_next_keycode' @class='form-control' @value={{this.pending_preferences.device.scanning_next_keycode}} @onChange={{set-value this "pending_preferences.device.scanning_next_keycode"}} @placeholder='press a key' />
                   </div>
                   <span class='form-control-static' style='color: var(--md-muted);'>{{this.next_keycode_string}}</span>
                 </div>
@@ -1521,7 +1521,7 @@
               <div class="col-sm-5">
                 <div style='display: flex; align-items: center; gap: 10px;'>
                   <div style='width: 60px;'>
-                    {{key-code-text-field id='scanning_prev_keycode' class='form-control' value=this.pending_preferences.device.scanning_prev_keycode placeholder='press a key'}}
+                    <KeyCodeTextField @id='scanning_prev_keycode' @class='form-control' @value={{this.pending_preferences.device.scanning_prev_keycode}} @onChange={{set-value this "pending_preferences.device.scanning_prev_keycode"}} @placeholder='press a key' />
                   </div>
                   <span class='form-control-static' style='color: var(--md-muted);'>{{this.prev_keycode_string}}</span>
                 </div>
@@ -1533,7 +1533,7 @@
             <div class="col-sm-5">
               <div style='display: flex; align-items: center; gap: 10px;'>
                 <div style='width: 60px;'>
-                  {{key-code-text-field id='scanning_cancel_keycode' class='form-control' value=this.pending_preferences.device.scanning_cancel_keycode placeholder='press a key'}}
+                  <KeyCodeTextField @id='scanning_cancel_keycode' @class='form-control' @value={{this.pending_preferences.device.scanning_cancel_keycode}} @onChange={{set-value this "pending_preferences.device.scanning_cancel_keycode"}} @placeholder='press a key' />
                 </div>
                 <span class='form-control-static' style='color: var(--md-muted);'>{{this.cancel_keycode_string}}</span>
               </div>
@@ -1607,7 +1607,7 @@
           {{/if}}
           {{#if this.testing_dwell}}
             <div class="col-sm-5 col-sm-offset-3">
-              {{dwell-tracker user=this.model preferences=this.pending_preferences type=this.pending_preferences.device.dwell_type}}
+              <DwellTracker @user={{this.model}} @preferences={{this.pending_preferences}} @type={{this.pending_preferences.device.dwell_type}} />
             </div>
           {{/if}}
         </div>
@@ -1712,7 +1712,7 @@
             <label for="scanning_select_keycode" class="col-sm-3 control-label">{{t "Dwell \"Select\" Key" key='dwell_select_keycode'}}</label>
             <div class="col-sm-5">
               <label style="width: 50px;">
-                {{key-code-text-field id='scanning_select_keycode' class='form-control' value=this.pending_preferences.device.scanning_select_keycode action=(mut this.pending_preferences.device.scanning_select_keycode) placeholder='hit any key'}}
+                <KeyCodeTextField @id='scanning_select_keycode' @class='form-control' @value={{this.pending_preferences.device.scanning_select_keycode}} @onChange={{set-value this "pending_preferences.device.scanning_select_keycode"}} @placeholder='hit any key' />
               </label>
               &nbsp;{{this.select_keycode_string}}
             </div>
