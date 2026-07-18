@@ -267,19 +267,13 @@ var modal = EmberObject.extend({
   },
   highlight: function($elems, options) {
     var defer = RSVP.defer();
-    // This may just be necessary for UIWebKit, but
-    // iOS is still struggling sometimes with find-a-button
-    runLater(function() {
+    // Measure the target element and size the overlay masks around it. Extracted so
+    // it can be re-run after the board's layout settles (see the re-measure below).
+    var reposition = function(settings) {
+      if(!settings) { return; }
       var rect = scanner.measure($elems);
-      var minX = rect.left, minY = rect.top, maxX = rect.left + rect.width, maxY = rect.top + rect.height;
-      var do_stretch = true;
-      if(do_stretch) {
-        minX = minX - 10;
-        minY = minY - 10;
-        maxX = maxX + 10;
-        maxY = maxY + 10;
-      }
-      var settings = modal.highlight_settings || EmberObject.create();
+      var minX = rect.left - 10, minY = rect.top - 10;
+      var maxX = rect.left + rect.width + 10, maxY = rect.top + rect.height + 10;
       settings.setProperties({
         left: Math.floor(minX),
         top: Math.floor(minY),
@@ -287,6 +281,12 @@ var modal = EmberObject.extend({
         height: Math.ceil(maxY - minY),
         bottom: Math.floor(maxY),
       });
+    };
+    // This may just be necessary for UIWebKit, but
+    // iOS is still struggling sometimes with find-a-button
+    runLater(function() {
+      var settings = modal.highlight_settings || EmberObject.create();
+      reposition(settings);
 
       options = options || {};
       settings.set('overlay', options.overlay);
@@ -331,6 +331,14 @@ var modal = EmberObject.extend({
         var modelKey = template === 'highlight-secondary' ? 'highlight2Model' : 'highlightModel';
         service.set(modelKey, settings);
       }
+      // A freshly-navigated board settles its layout AFTER first paint
+      // (board/index.js computeHeight runs via runLater + a ResizeObserver), moving
+      // the target button out from under the overlay measured at +100ms. Re-measure
+      // once the layout has settled so the highlight tracks the button to its final
+      // spot — fixes the find-a-button last-step highlight shifting off the word.
+      // The compute_styles observer only fires on change, so this is a no-op when
+      // the button hasn't moved.
+      runLater(function() { reposition(settings); }, 400);
     }, 100);
     return defer.promise;
   },

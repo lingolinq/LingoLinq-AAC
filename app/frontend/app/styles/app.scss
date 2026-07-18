@@ -3930,8 +3930,12 @@ footer a:hover,
 .highlight {
   background: rgba(0, 0, 0, 0.35);
 }
-/* Scanning highlight box — modern high-contrast border */
+/* Scanning highlight box — modern high-contrast border. It sits ON TOP of the
+   highlighted button, so it must stay transparent: the base `.highlight` rule sets
+   a 0.35 black background (for the dimming masks), which would otherwise tint the
+   target button dark and hard to see. Only the border + glow should show here. */
 .highlight.box {
+  background: transparent;
   border: 5px solid $brand-verdigris;
   border-radius: 12px;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
