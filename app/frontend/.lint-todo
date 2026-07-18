@@ -24,9 +24,7 @@ add|ember-template-lint|require-input-label|244|10|244|10|636c6e0096f45d2689e69b
 add|ember-template-lint|require-input-label|260|12|260|12|5ed43bdbf6fce4f5ebb6a002c8231c3f033fcb3a|1784332800000|1786924800000|1789516800000|app/components/badge-settings.hbs
 add|ember-template-lint|require-input-label|262|12|262|12|f61f1a4be1dbdbeab307b7bcf4c5ba31bcedfdcc|1784332800000|1786924800000|1789516800000|app/components/badge-settings.hbs
 add|ember-template-lint|require-input-label|276|75|276|75|e5be8643d05dd291315059ab2e40d6cb930e13d1|1784332800000|1786924800000|1789516800000|app/components/badge-settings.hbs
-add|ember-template-lint|no-builtin-form-components|59|14|59|14|a455f6de136596723969c279f7cd848cb3391648|1784332800000|1786924800000|1789516800000|app/components/batch-recording.hbs
-add|ember-template-lint|no-curly-component-invocation|24|8|24|8|c43c03dafad33a3f33f4feab1f491e3f8cfe8e90|1784332800000|1786924800000|1789516800000|app/components/batch-recording.hbs
-add|ember-template-lint|no-curly-component-invocation|35|8|35|8|382c218d87149ad90009202d2cc1f6c6b52488ac|1784332800000|1786924800000|1789516800000|app/components/batch-recording.hbs
+add|ember-template-lint|no-builtin-form-components|62|14|62|14|a455f6de136596723969c279f7cd848cb3391648|1784332800000|1786924800000|1789516800000|app/components/batch-recording.hbs
 add|ember-template-lint|require-presentational-children|82|18|82|18|1cbf02a24b06f3a347ec2ba10398066f4af571a8|1784332800000|1786924800000|1789516800000|app/components/beta-feedback-form.hbs
 add|ember-template-lint|require-presentational-children|82|164|82|164|729ac438a6f710e9fa7c4cb37c3dbba2784ba2f5|1784332800000|1786924800000|1789516800000|app/components/beta-feedback-form.hbs
 add|ember-template-lint|require-input-label|59|14|59|14|2ea9f01c66a7893b5e2fff56bf7d84ef4b54c149|1784332800000|1786924800000|1789516800000|app/components/board-folders-section.hbs
@@ -101,7 +99,6 @@ add|ember-template-lint|require-presentational-children|1129|42|1129|42|cb4f067c
 add|ember-template-lint|require-presentational-children|1129|207|1129|207|729ac438a6f710e9fa7c4cb37c3dbba2784ba2f5|1784332800000|1786924800000|1789516800000|app/components/create-board-new.hbs
 add|ember-template-lint|require-presentational-children|1172|44|1172|44|cb4f067cb70338b30dd694f114b044d0179de27b|1784332800000|1786924800000|1789516800000|app/components/create-board-new.hbs
 add|ember-template-lint|require-presentational-children|1172|209|1172|209|729ac438a6f710e9fa7c4cb37c3dbba2784ba2f5|1784332800000|1786924800000|1789516800000|app/components/create-board-new.hbs
-add|ember-template-lint|no-curly-component-invocation|25|20|25|20|efa6447b889a79a3b90cc590c4568872d84d362a|1784332800000|1786924800000|1789516800000|app/components/device-settings.hbs
 add|ember-template-lint|require-input-label|162|14|162|14|19dec86e9da668c03f8ed323fd1214d17974e2bd|1784332800000|1786924800000|1789516800000|app/components/edit-board-details.hbs
 add|ember-template-lint|require-input-label|191|18|191|18|adcf5e897cef801d3f0ac73e014afdec5ad9b9fb|1784332800000|1786924800000|1789516800000|app/components/edit-board-details.hbs
 add|ember-template-lint|require-input-label|192|18|192|18|0b7fad57e9a7c5114717962d53ef047974f0c03c|1784332800000|1786924800000|1789516800000|app/components/edit-board-details.hbs
@@ -129,7 +126,6 @@ add|ember-template-lint|require-input-label|36|14|36|14|31a8bd06a38d634958e3cfd3
 add|ember-template-lint|require-input-label|9|4|9|4|645e9ff8b6b70e8fba408d52516ec7a230dbba43|1784332800000|1786924800000|1789516800000|app/components/extra-colors-row.hbs
 add|ember-template-lint|require-input-label|12|4|12|4|ff4a255184cafe8007399bcb81c572df41ed1fe2|1784332800000|1786924800000|1789516800000|app/components/extra-colors-row.hbs
 add|ember-template-lint|require-input-label|15|4|15|4|fb6521f6a8f69c45475fcf81b71aa6700531b08d|1784332800000|1786924800000|1789516800000|app/components/extra-colors-row.hbs
-add|ember-template-lint|no-curly-component-invocation|9|6|9|6|78dfa6eaa0b22b279808c1388429927f5a5147ab|1784332800000|1786924800000|1789516800000|app/components/find-button.hbs
 add|ember-template-lint|no-builtin-form-components|130|18|130|18|c4252faf93cc2853ff6b132b144c8b8be85eae42|1784332800000|1786924800000|1789516800000|app/components/focus-words.hbs
 add|ember-template-lint|require-input-label|12|6|12|6|7635cd9ffb4f4395359c54cfc04260a6b057c1b1|1784332800000|1786924800000|1789516800000|app/components/gif.hbs
 add|ember-template-lint|require-input-label|10|10|10|10|1053aed5fb2cb703fb8117866af63e219a12123a|1784332800000|1786924800000|1789516800000|app/components/label-chips.hbs
@@ -158,7 +154,6 @@ add|ember-template-lint|require-input-label|43|12|43|12|b47a4cfe01867c32d6e80f12
 add|ember-template-lint|require-input-label|119|12|119|12|d5a447c84ab31bbc9e31ef5ec867a65807f8624a|1784332800000|1786924800000|1789516800000|app/components/repairs.hbs
 add|ember-template-lint|require-input-label|121|12|121|12|f9a23dc24456bf87cbfe7c35a3a6b37411025e6c|1784332800000|1786924800000|1789516800000|app/components/repairs.hbs
 add|ember-template-lint|no-pointer-down-event-binding|21|7|21|7|883cd36677ea29648a7f170fa857ebb284d5776f|1784332800000|1786924800000|1789516800000|app/components/sentence-bar-chip.hbs
-add|ember-template-lint|no-curly-component-invocation|43|12|43|12|0972b730b521bd5808e65ea1f3e2d0c5e53ffb5b|1784332800000|1786924800000|1789516800000|app/components/share-board.hbs
 add|ember-template-lint|require-input-label|101|20|101|20|0c05d8a53e87eb5030702572b6f001729f43bf12|1784332800000|1786924800000|1789516800000|app/components/sidebar-button-settings.hbs
 add|ember-template-lint|require-input-label|105|20|105|20|70d2c9c6e750ee1a59cef118e0a41ddbbdde0b34|1784332800000|1786924800000|1789516800000|app/components/sidebar-button-settings.hbs
 add|ember-template-lint|require-presentational-children|55|16|55|16|1c1ec795083619bcdb80f011e7e7dea319341847|1784332800000|1786924800000|1789516800000|app/components/speak-menu.hbs
@@ -317,7 +312,6 @@ add|ember-template-lint|require-presentational-children|65|413|65|413|8f78204430
 add|ember-template-lint|require-input-label|57|10|57|10|7efe19f86213d09ac7eadcbf9879f506e4c52b27|1784332800000|1786924800000|1789516800000|app/components/stats/data-filter.hbs
 add|ember-template-lint|require-input-label|61|10|61|10|02fb69e8f62257f19413af7d7c046d345c05a619|1784332800000|1786924800000|1789516800000|app/components/stats/data-filter.hbs
 add|ember-template-lint|require-input-label|17|41|17|41|749248ac9ceda7e0521811daf24de3b0a5fa5d22|1784332800000|1786924800000|1789516800000|app/templates/board/history.hbs
-add|ember-template-lint|no-curly-component-invocation|161|14|161|14|8247a9641149b772ff84b171d69c84683d7602ee|1784332800000|1786924800000|1789516800000|app/templates/board/index.hbs
 add|ember-template-lint|require-input-label|21|10|21|10|4790c1d9ea2442b58dffee68600727efeebe6d6f|1784332800000|1786924800000|1789516800000|app/templates/organization/extras.hbs
 add|ember-template-lint|require-input-label|28|10|28|10|62fd23fd863aead27d73b865c679d27801d7535c|1784332800000|1786924800000|1789516800000|app/templates/organization/extras.hbs
 add|ember-template-lint|require-input-label|34|10|34|10|81d465177d842c9fe002d1ba86cdce0bf0c2ecfe|1784332800000|1786924800000|1789516800000|app/templates/organization/extras.hbs
@@ -425,6 +419,5 @@ add|ember-template-lint|require-input-label|1050|12|1050|12|9b9cdf5bd06cb1d299c5
 add|ember-template-lint|require-input-label|28|16|28|16|d600c3b928e9235acea1bbf1581b20d4de921e9b|1784332800000|1786924800000|1789516800000|app/templates/user/recordings.hbs
 add|ember-template-lint|require-input-label|117|59|117|59|eb51e557da9a310ce21484f7be63ef69a0d96c9c|1784332800000|1786924800000|1789516800000|app/templates/user/subscription.hbs
 add|ember-template-lint|require-input-label|206|61|206|61|eb51e557da9a310ce21484f7be63ef69a0d96c9c|1784332800000|1786924800000|1789516800000|app/templates/user/subscription.hbs
-add|ember-template-lint|no-curly-component-invocation|151|14|151|14|8247a9641149b772ff84b171d69c84683d7602ee|1784332800000|1786924800000|1789516800000|app/templates/user/board-alt/index.hbs
 add|ember-template-lint|require-presentational-children|30|10|30|10|eb54f543abd65a373a2451168782ff68189e6b9b|1784332800000|1786924800000|1789516800000|app/templates/user/board-alt/index.hbs
 add|ember-template-lint|require-presentational-children|32|12|32|12|7cc74976c4b238d35a4d0735b6fe2640f75083d9|1784332800000|1786924800000|1789516800000|app/templates/user/board-alt/index.hbs

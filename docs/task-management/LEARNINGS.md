@@ -6733,3 +6733,24 @@ component calls `this.onChange?.(newValue)` (Glimmer) or `this.emitChange` (clas
 broken write-back is invisible while typing — it only surfaces on submit/save/use. Test the submit path,
 not the typing. login+register validate password-field/lowercase-text-field + the shared set-value
 mechanism in one action; label-field needs a board-label edit (its editManager path is separate).
+
+## Gotcha: store.push does NOT overwrite a dirty attr('raw') in EmberData 5.3 — use set()
+
+find-button's search returned zero results after the 5.12 upgrade. Traced via console diagnostics
+(input→onChange→searchString→observer→search all fire correctly): the buttonset being searched had
+`get('buttons').length === 0` even though the local walk collected 2043 buttons. Root cause:
+find-button builds a local buttonset (`_buildLocalButtonSet`) and does
+`store.push({data:{type:'buttonset', id, attributes:{buttons: all_buttons}}})` — but under EmberData
+5.3, `store.push` will NOT overwrite an attribute that was previously locally `set()` (dirty). A prior
+`bs.set('buttons', [])` left `buttons` dirty-empty, so the push silently no-op'd on that attribute.
+**Fix:** after the push, `record.set('buttons', all_buttons)` — mirroring the server-load path
+(`BoardDownstreamButtonSet.load_buttons` uses `bs.set('buttons', buttons)`, which is why server-loaded
+sets always had buttons and locally-built ones didn't). Rule: to populate an attr('raw') on a record
+that may already exist dirty, use `.set()`, not `store.push`.
+
+Companion 5.12 breakage in the same feature: the search box was `{{focus-input value=this.x}}` on the
+DEPRECATED @ember/legacy-built-in-components TextField, whose two-way `value=` binding stopped updating
+in 5.12 — so `searchString` never changed and the observer never fired. Replacing focus-input with a
+Glimmer component + native input + DDAU (@value/@onChange via set-value) fixed that half. A feature can
+have MULTIPLE independent 5.12 breakages stacked; fixing one reveals the next. Diagnose each layer with
+targeted console logs before concluding.

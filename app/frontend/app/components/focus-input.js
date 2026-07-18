@@ -1,34 +1,28 @@
-import capabilities from '../utils/capabilities';
-import { TextField } from '@ember/legacy-built-in-components';
-import $ from 'jquery';
+import Component from '@glimmer/component';
+import { action } from '@ember/object';
 
-export default TextField.extend({
-  // `aria-label` is not in TextField's default attributeBindings, so an aria-label
-  // passed to a focus-input would set a property but never reach the DOM. Bind it here
-  // (concatenated with the inherited bindings) so callers can give the input an
-  // accessible name. Only renders when an aria-label is actually provided.
-  attributeBindings: ['aria-label'],
-  didInsertElement() {
-    this._super(...arguments);
-    if (!capabilities.mobile || this.get('force')) {
-      this.element.classList.add('auto_focus');
-      $(this.element).focus().select();
-    }
-  },
-  focusOut: function () {
-    if (this.action) {
-      this.action();
-    }
-  },
-  keyDown: function (event) {
-    if (event.keyCode == 13 || event.code == "Enter") {
+// A text input that auto-focuses + selects its text on insert (see the
+// autofocus-select modifier). One-way @value in, @onChange out (DDAU).
+// Optional @onEnter / @onFocusOut callbacks; Enter always prevents default +
+// stops propagation (so it never submits an enclosing form), matching the
+// original. Replaces the deprecated @ember/legacy-built-in-components TextField.
+export default class FocusInputComponent extends Component {
+  @action
+  handleInput(event) {
+    this.args.onChange?.(event.target.value);
+  }
+
+  @action
+  handleKeyDown(event) {
+    if (event.keyCode == 13 || event.code == 'Enter') {
       event.preventDefault();
       event.stopPropagation();
-      if (this.get('select')) {
-        if (this.select) {
-          this.select();
-        }
-      }
+      this.args.onEnter?.();
     }
   }
-});
+
+  @action
+  handleFocusOut() {
+    this.args.onFocusOut?.();
+  }
+}
