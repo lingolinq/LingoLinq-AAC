@@ -527,6 +527,57 @@ describe PiiScrubber do
       expect(result[:findings].map { |f| f[:type] }).to include(:common_name)
     end
 
+    context "surname and honorific hardening (free-typed third-party names)" do
+      before { PiiScrubber.reset_blocklist! }
+
+      it "redacts a surname following a common first name" do
+        result = PiiScrubber.redact_for_ai("SLP notes: met with Sarah Johnson today")
+        expect(result[:payload]).not_to include('Sarah')
+        expect(result[:payload]).not_to include('Johnson')
+        expect(result[:payload]).to include('[REDACTED_NAME] [REDACTED_NAME]')
+        expect(result[:findings].map { |f| f[:type] }).to include(:person_name)
+      end
+
+      it "redacts a surname following an honorific and keeps the honorific" do
+        result = PiiScrubber.redact_for_ai("referred by Dr. Smith for evaluation")
+        expect(result[:payload]).to include('Dr. [REDACTED_NAME]')
+        expect(result[:payload]).not_to include('Smith')
+      end
+
+      it "handles Mr./Mrs./Prof. honorifics" do
+        expect(PiiScrubber.redact_for_ai("spoke to Mrs. Green")[:payload]).to include('Mrs. [REDACTED_NAME]')
+        expect(PiiScrubber.redact_for_ai("Mr. Anderson called")[:payload]).to include('Mr. [REDACTED_NAME]')
+        expect(PiiScrubber.redact_for_ai("per Prof. Williams")[:payload]).not_to include('Williams')
+      end
+
+      it "redacts all third-party names in a combined clinical note" do
+        result = PiiScrubber.redact_for_ai("met with Sarah Johnson, Dr. Smith, and Mrs. Green about grid access")
+        %w[Sarah Johnson Smith Green].each do |name|
+          expect(result[:payload]).not_to include(name)
+        end
+      end
+
+      it "redacts a third-party surname even when the first name is a blocklisted account holder" do
+        PiiScrubber.configure_blocklist(['Sarah', 'Johnson'])
+        result = PiiScrubber.redact_for_ai("Sarah Johnson met Mrs. Green")
+        %w[Sarah Johnson Green].each { |name| expect(result[:payload]).not_to include(name) }
+      end
+
+      it "still redacts a standalone common first name (single token)" do
+        result = PiiScrubber.redact_for_ai("Sarah was independent at 80%")
+        expect(result[:payload]).not_to include('Sarah')
+        expect(result[:payload].scan('[REDACTED_NAME]').size).to eq(1)
+      end
+
+      it "does not over-redact place names or neutral capitalized phrases" do
+        ['board about Salt Lake City Utah', 'board about Fox in Sox'].each do |phrase|
+          result = PiiScrubber.redact_for_ai(phrase)
+          expect(result[:payload]).to eq(phrase), "unexpectedly redacted: #{result[:payload].inspect}"
+          expect(result[:pii_found]).to eq(false)
+        end
+      end
+    end
+
     it "should not flag ordinary neutral topic prompts as containing PII" do
       %w[
         Generate\ a\ board\ about\ the\ zoo
