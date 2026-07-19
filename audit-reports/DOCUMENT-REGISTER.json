@@ -287,7 +287,7 @@
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-14"
       },
-      "contentHash": "75a7eb3e21ab73856ff2b90287a5d537e08d17e78be65ec0bed6556457f10ad7",
+      "contentHash": "6d2f363a052a15aa24955a51234abc0def1a3bbd691e1a1bdb91129046dfe5ce",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
@@ -561,7 +561,7 @@
     },
     {
       "title": "Anthropic HIPAA-Ready BAA Acceptance Record",
-      "description": "In-repo acceptance record for the Anthropic HIPAA-Ready Business Associate Agreement (2026-05-06 document revision), executed and HIPAA readiness enabled 2026-07-18 on the runtime-dedicated LingoLinq, LLC Anthropic API org by Scot Wahlquist. Covers the direct Anthropic runtime AI egress path (word prediction, board generation, eval-narrative drafting): PHI permitted on the Messages API only, in-scope models only (Haiku 4.5 / Opus 4.7 / Sonnet), no ZDR required; excluded features (Files/Batch/Skills/Code-Exec/Computer-Use/Web-Fetch) blocked org-wide. Verified live (Messages API 200, Files API 400). Distinct from the AWS and GCP infrastructure BAAs. The eval-narration seam stays gated on the licensed-clinician condition (separate security PR) before it may carry PHI. Executed-agreement PDFs mirrored to Drive 'Compliance Audits'.",
+      "description": "In-repo acceptance record for the Anthropic HIPAA-Ready Business Associate Agreement (2026-05-06 document revision), executed and HIPAA readiness enabled 2026-07-18 on the runtime-dedicated LingoLinq, LLC Anthropic API org by Scot Wahlquist. Covers the direct Anthropic runtime AI egress path (word prediction, board generation, eval-narrative drafting): PHI permitted on the Messages API only, in-scope models only (Haiku 4.5 / Opus 4.7 / Sonnet), no ZDR required; excluded features (Files/Batch/Skills/Code-Exec/Computer-Use/Web-Fetch) blocked org-wide. Verified live (Messages API 200, Files API 400). Distinct from the AWS and GCP infrastructure BAAs. All four runtime seams are in-scope under the BAA; the eval-narration seam is classified (Scot 2026-07-19) as an assistive-technology access assessment, NOT a HIPAA Healthcare Activity, so no licensed-clinician gate applies (see FINDINGS.json LL-3a1c317a88). Executed-agreement PDFs mirrored to Drive 'Compliance Audits'.",
       "type": "evidence",
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",

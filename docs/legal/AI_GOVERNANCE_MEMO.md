@@ -25,11 +25,17 @@
 > LingoLinq, LLC Anthropic API org (executed and verified live 2026-07-18; see
 > `docs/legal/ANTHROPIC_BAA_ACCEPTED.md`). PHI is now permitted to Anthropic over the Messages API
 > under BAA terms (in-scope models only, no excluded features, no ZDR required), with the PiiScrubber
-> retained as defense-in-depth. This does not by itself clear the eval-narration seam: that seam is a
-> "Healthcare Activity" whose licensed-clinician condition is not yet enforced, so it must stay on the
-> deterministic local template for PHI orgs until a separate security PR lands. This addendum records
-> the fact; the memo body below still reflects the pre-BAA posture and requires CEO re-attestation to
-> update in full.
+> retained as defense-in-depth. The eval-narration seam was reviewed against Anthropic's
+> Healthcare-Activity conditions and classified (Scot, 2026-07-19) as an assistive-technology access /
+> feature-match assessment (find-the-target tasks at shrinking grid sizes producing a hit/miss access
+> recommendation), NOT a HIPAA "Healthcare Activity" - it does not diagnose, treat, or produce
+> charting/billing/coding/claims. Anthropic Healthcare-Activity condition (iii) (licensed-clinician
+> restriction) therefore does not apply, and there is no licensed-clinician gate on this path (see
+> `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` and audit-reports/FINDINGS.json LL-3a1c317a88). The applicable
+> controls (Messages-API-only, PII scrub + student-name drop + etiology minimization, the
+> EVAL_NARRATOR_MODEL allowlist, COPPA gate, opt-in, org opt-out) ship in the eval-narrator
+> runtime-gates security PR. This addendum records the fact; the memo body below still reflects the
+> pre-BAA posture and requires CEO re-attestation to update in full.
 
 ## 1. Purpose
 
