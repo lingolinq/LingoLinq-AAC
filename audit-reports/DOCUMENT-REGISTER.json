@@ -202,7 +202,7 @@
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-06"
       },
-      "contentHash": "8f12c929bf6c9bd1b4e786708fbe37d0f373bdad567266b33a7475585f3efa7f",
+      "contentHash": "9b8e61fcf74a3ab0f4ca0df55512f400c9ab03126785d62f94de03d15d68bec5",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-9b299a785b"
@@ -287,7 +287,7 @@
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-14"
       },
-      "contentHash": "3bc97c8693637dea77183e6126e8443256c1a47abdc4279d9b58cb142b6f78fb",
+      "contentHash": "75a7eb3e21ab73856ff2b90287a5d537e08d17e78be65ec0bed6556457f10ad7",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
@@ -377,7 +377,7 @@
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-06"
       },
-      "contentHash": "2a88a1333597d8feff36e6a7ec698b8a2d46acb865309fa304043b84be7063cc",
+      "contentHash": "be708092ded93b19a5f93564a75fe37b73d75676afa009565c399c8b90dec3ff",
       "bundles": [
         "school-dpa-package"
       ],
@@ -548,7 +548,7 @@
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-16"
       },
-      "contentHash": "baeeaaba6316c5b9d59ab24580e1a7019c1e8cbfc258ddbc1a3d19b72166b528",
+      "contentHash": "d142ea3d7a91faefba07bc617c222d33b3de8b12c342d5a584e373776d582a95",
       "bundles": [],
       "mirrors": [
         {
@@ -558,6 +558,39 @@
       ],
       "notes": "Parity with the AWS acceptance record (docs/legal/AWS_BAA_ACCEPTED.md). Companion Drive doc plus console screenshots ('Google Cloud Console Agreements 07-14-2026') are the source evidence, mirrored here. Referenced by docs/legal/SUBPROCESSORS.md section 5.7, COMPLIANCE.md section 4, and docs/legal/COMPLIANCE_POSTURE_REPORT.md. Approved and attested by Scot Wahlquist 2026-07-16 per explicit instruction; git contentHash is computed and CI-verified.",
       "id": "DOC-5b14b08908"
+    },
+    {
+      "title": "Anthropic HIPAA-Ready BAA Acceptance Record",
+      "description": "In-repo acceptance record for the Anthropic HIPAA-Ready Business Associate Agreement (2026-05-06 document revision), executed and HIPAA readiness enabled 2026-07-18 on the runtime-dedicated LingoLinq, LLC Anthropic API org by Scot Wahlquist. Covers the direct Anthropic runtime AI egress path (word prediction, board generation, eval-narrative drafting): PHI permitted on the Messages API only, in-scope models only (Haiku 4.5 / Opus 4.7 / Sonnet), no ZDR required; excluded features (Files/Batch/Skills/Code-Exec/Computer-Use/Web-Fetch) blocked org-wide. Verified live (Messages API 200, Files API 400). Distinct from the AWS and GCP infrastructure BAAs. The eval-narration seam stays gated on the licensed-clinician condition (separate security PR) before it may carry PHI. Executed-agreement PDFs mirrored to Drive 'Compliance Audits'.",
+      "type": "evidence",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/ANTHROPIC_BAA_ACCEPTED.md",
+      "status": "approved",
+      "frameworks": [
+        "HIPAA",
+        "GDPR"
+      ],
+      "lastReviewed": "2026-07-18",
+      "nextReviewDue": "2027-07-18",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-07-18"
+      },
+      "bundles": [],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://drive.google.com/file/d/1sL3di9GRP4hlids-baZDT26n3SKjzwD5/view"
+        },
+        {
+          "system": "drive",
+          "location": "https://drive.google.com/file/d/1QQV-PrgsNtnQZtwa2BJ0bf1qrOG54Upr/view"
+        }
+      ],
+      "notes": "Parity with the AWS (docs/legal/AWS_BAA_ACCEPTED.md) and GCP (docs/legal/GCP_BAA_ACCEPTED.md) acceptance records. Model-provider BAA for the Anthropic runtime egress path; supersedes the prior 'no model-provider BAA / provisional pending CEO review' posture in COMPLIANCE.md, SUBPROCESSORS.md row 4, GCP_BAA_ACCEPTED.md, and AI_GOVERNANCE_MEMO.md (all reconciled in the same PR). Live enablement verified 2026-07-18 (Messages API 200; Files API 400 'not available for HIPAA-regulated organizations without Zero Data Retention'). Attested by Scot Wahlquist 2026-07-18 per explicit confirmation; git contentHash computed and CI-verified. The broader AI_GOVERNANCE_MEMO body carries a dated addendum and is flagged for separate CEO re-attestation.",
+      "id": "DOC-ab3a8c3ed4",
+      "contentHash": "edf88b42db261ec075bf64bf46dc3e08cfa1a16738ff0bea7812377abf31d3b6"
     },
     {
       "title": "AWS BAA Acceptance Record",

@@ -18,6 +18,18 @@
 > ratified two-tier AI data-routing policy). Re-attested 2026-07-13. Operative reference: NIST AI RMF plus the Generative AI Profile
 > (NIST AI 600-1). ISO 42001 certification is not yet a small-vendor expectation and is out of
 > scope for now.
+>
+> **ADDENDUM 2026-07-18 (posture change; flagged for re-attestation).** Since the last attestation,
+> the Anthropic runtime egress path moved from "no model-provider BAA / provisional pending CEO
+> review" to a **signed HIPAA-Ready BAA with HIPAA readiness enabled** on the runtime-dedicated
+> LingoLinq, LLC Anthropic API org (executed and verified live 2026-07-18; see
+> `docs/legal/ANTHROPIC_BAA_ACCEPTED.md`). PHI is now permitted to Anthropic over the Messages API
+> under BAA terms (in-scope models only, no excluded features, no ZDR required), with the PiiScrubber
+> retained as defense-in-depth. This does not by itself clear the eval-narration seam: that seam is a
+> "Healthcare Activity" whose licensed-clinician condition is not yet enforced, so it must stay on the
+> deterministic local template for PHI orgs until a separate security PR lands. This addendum records
+> the fact; the memo body below still reflects the pre-BAA posture and requires CEO re-attestation to
+> update in full.
 
 ## 1. Purpose
 
