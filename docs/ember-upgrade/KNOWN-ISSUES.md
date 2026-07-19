@@ -485,9 +485,22 @@ special-LTS + 5.x update blog posts; emberjs/data #5638 #7192 #8684 #8791.
 - Residual greps: `this.get(` 500 files / `this.set(` 387 / observers 152 /
   `.extend(`+Mixin 666 / jQuery imports 95 / `Ember.` globals 6 / `{{partial` 0 —
   ALL category-E legal at 5.12; hunt behavior, not style.
-- `{{action` matches 4 files: `templates/register.hbs:32,340,351` = live `{{action}}`
-  MODIFIER usages (D23, LOW); `create-board-new.js:2088`, `board-detail-grid.hbs:45`,
-  `button-settings.hbs:14` = comments (non-findings).
+- `{{action` matches 4 files: `templates/register.hbs:32,356,367` (lines shifted by
+  staging #616; originally 32,340,351) = live `{{action}}` MODIFIER usages (D23, LOW);
+  `create-board-new.js:2088`, `board-detail-grid.hbs:45`, `button-settings.hbs:14` =
+  comments (non-findings).
+- **New breakage patterns from staging fix #621 (2026-07-16), now audit Class 11:**
+  (a) `<Textarea @value>`/`<Input @value>` bound to a get-only computed → crash on
+  keystroke (`Cannot read properties of undefined (reading 'call')`); fix = writable
+  computed with an edit cache. (b) `<Input type="checkbox">` without `@type=` renders
+  as a TEXT field silently. (c) event-helper wrappers that pop the event before `send`
+  break `stopPropagation` → clicks bubble into `modal-dialog`, selects look dead
+  (`bound-select`, fixed to match `modern-select`). Full stories: LEARNINGS.md
+  2026-07-16 entries + `docs/task-management/2026-07-16-org-home-board-key-lines.md`.
+- Staging #616 (EU AI consent) added a new modal `components/eu-ai-parental-consent.js`
+  — its `didInsertElement` binds `onOpening` (Class-4 shape) but `opening()` is empty,
+  so verified benign (2026-07-19). New surface for the next audit sweep:
+  `ai_feature_gate.js`, rewritten `controllers/register.js`, `serializers/user.js`.
 - `locationType` clean (B15 verified non-finding): environment.js:8 `'history'`,
   `:41` `'none'` (tests), router.js:19/21 `'hash'`/`'history'` by capability.
 - Twin/duplicate modules (fix BOTH; one twin may be dead): `utils/persistence.js` ↔

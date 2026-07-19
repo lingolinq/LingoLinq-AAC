@@ -144,6 +144,23 @@ pipeline, `optional-features.json` flag consequences, deprecation-workflow confi
 Node-engine mismatches. (Node 20 is supported by ember-cli 5.12.) Checklist +
 version-band table: KNOWN-ISSUES.md §Build.
 
+### Class 11 — Two-way template binds to non-settable / mis-typed targets
+Surfaced by staging fix #621 (2026-07-16, LEARNINGS entries). Two shapes:
+- **`<Textarea @value={{this.x}}>` / `<Input @value={{this.x}}>` where `x` is a
+  GET-ONLY computed** → every keystroke calls the missing setter →
+  `Cannot read properties of undefined (reading 'call')` crash. Detect: for each
+  `@value=`/`@checked=` bind in templates, resolve the target; a `computed(` with a
+  single function (no `{get, set}` object) and no writable cache is a finding.
+- **`<Input type="checkbox">` (HTML attr) instead of `@type="checkbox"` (component
+  arg)** → renders as a TEXT FIELD silently. Detect:
+  `grep -rn '<Input [^>]*type="' app/frontend/app --include=*.hbs` and flag `type=`
+  without `@`. (Native `<input type=...>` elements are fine — only the `<Input>`
+  component is affected.)
+Also from the same fix: event-helper wrappers that `preventDefault` then drop the
+event before `send` never let handlers `stopPropagation` — clicks bubble into
+`modal-dialog` and controls look dead (see `bound-select` history; compare against
+`modern-select` as the reference pattern).
+
 ### Class 10 — Test harness gaps
 Tests passing while the app is broken: missing waiters, `Ember.testing` remnants,
 legacy `moduleFor*`, DOM helpers, `settled()` misuse. Also: absence of tests over the
@@ -201,4 +218,5 @@ manual UI verification.
 ```
 ruleKey prefixes by class: `arr-ext-*` (1), `each-stale-*` (2), `tpl-thisx-*` (3),
 `modal-opening-*` (4), `removed-api-*` (5), `ed-store-inject-*` (6), `ed-*` (7),
-`async-observer-*` (8), `build-*` (9), `test-gap-*` (10), `runtime-*` (crawler).
+`async-observer-*` (8), `build-*` (9), `test-gap-*` (10), `twoway-bind-*` (11),
+`runtime-*` (crawler).

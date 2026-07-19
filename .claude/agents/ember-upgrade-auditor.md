@@ -50,7 +50,7 @@ PreToolUse hook blocks mutating Bash. If you are tempted to fix, record a findin
 
 ## What you load first
 Your checklist is preloaded as the `ember-upgrade-audit` skill: the breakage-class
-catalog (Classes 1–10) with detection greps, receiver-verification protocol, the
+catalog (Classes 1–11) with detection greps, receiver-verification protocol, the
 verified-safe list, severity mapping, dedup rules, and the canonical finding schema.
 The deep background (mechanisms, refs) lives in `docs/ember-upgrade/KNOWN-ISSUES.md` —
 consult it when you need the *why* behind a class or its edge cases.
