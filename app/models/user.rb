@@ -955,6 +955,89 @@ class User < ApplicationRecord
     res
   end
 
+  # EU AI Act Article 50(1) TRANSPARENCY disclosure-shown state (B3, VPC Phase 4).
+  # Mirrors ai_consent_granted? exactly, swapping settings['ai_consent'] for
+  # settings['ai_transparency'] and "granted" semantics for "shown". The kwarg is
+  # named `disclosures_version:` to MATCH ai_consent_granted?'s clone target so a
+  # caller reusing the ai_consent call shape cannot hit an ArgumentError footgun.
+  #
+  # Semantically DISTINCT from ai_consent: this records that the Article 50
+  # transparency NOTICE was displayed, NOT that AI data-sharing consent was granted.
+  # It is versioned against Article50Disclosures::CURRENT_VERSION (its OWN version
+  # source, not the ai_consent one, PN-02) so an Art.50 copy change re-prompts
+  # without forcing an ai_consent re-consent. Defaults to false for a nil/missing
+  # key: nothing flips shown=true until the Phase 3/5 modal acknowledge ships, so in
+  # production every AiApiLog row carries article_50_disclosure_shown=false until then.
+  def article_50_disclosure_shown?(disclosures_version: LingoLinq::Article50Disclosures::CURRENT_VERSION)
+    c = self.settings && self.settings['ai_transparency']
+    return false unless c.is_a?(Hash)
+    return false if c['shown_at'].blank?
+    return false if c['disclosures_version'].blank?
+    return false unless c['disclosures_version'] == disclosures_version
+    true
+  end
+
+  # Sources accepted by mark_article_50_disclosure_shown!. Anything else raises
+  # ArgumentError, mirroring AI_CONSENT_SOURCES: a Phase 3/5 controller cannot widen
+  # the audit source surface by passing an arbitrary value pulled from params.
+  ARTICLE_50_DISCLOSURE_SOURCES = %w[modal_ack admin_backfill].freeze
+
+  # Records that the Article 50(1) transparency disclosure was SHOWN at the given
+  # version. Clones grant_ai_consent!'s structure: runs inside
+  # with_lock(requires_new: true) so the settings write and the single AuditEvent
+  # insert are atomic (a failed audit rolls back the settings write) and concurrent
+  # writes to the same user are serialized. Idempotent on a same-version re-call
+  # (returns false, fires NO second AuditEvent). A version BUMP (newer version) falls
+  # through and re-records, giving re-prompt semantics.
+  #
+  # record_id uses SecureRandom.uuid (RFC-4122, 122 bits), matching the SHIPPED
+  # grant_ai_consent! code -- NOT GoSecure.nonce, which had low entropy under bulk
+  # backfill. Raises ArgumentError 'invalid_source' for a non-allowlisted source.
+  #
+  # WRITE TRIGGER: the Phase 3/5 modal acknowledge is the writer. Phase 4 ships this
+  # API only; nothing calls it in production yet, so article_50_disclosure_shown?
+  # stays false on every row until the modal ships (that is expected -- the plumbing
+  # is the deliverable).
+  def mark_article_50_disclosure_shown!(disclosures_version:, source:, ip: nil, user_agent: nil)
+    raise ArgumentError, 'invalid_source' unless ARTICLE_50_DISCLOSURE_SOURCES.include?(source)
+    disclosures_version = ai_consent_normalize_version!(disclosures_version)
+    res = false
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      c = self.settings['ai_transparency']
+      c = {} unless c.is_a?(Hash)
+      prior_version = c['disclosures_version']
+      prior_version = Integer(prior_version) if prior_version.is_a?(String) && prior_version.strip.match?(/\A\d+\z/)
+      # Same-version re-call is a no-op (already shown at this version). A newer
+      # version falls through and re-records (re-prompt). An older version cannot
+      # regress an already-shown newer disclosure.
+      if c['shown_at'].present? && prior_version.is_a?(Integer)
+        next if disclosures_version <= prior_version
+      end
+      c['record_id'] = SecureRandom.uuid if c['record_id'].blank?
+      c['shown_at'] = Time.now.utc.iso8601
+      c['disclosures_version'] = disclosures_version
+      c['source'] = source
+      c['ip'] = ip
+      c['user_agent'] = user_agent
+      self.settings['ai_transparency'] = c
+      self.save!
+      AuditEvent.create!(
+        user_key: self.global_id,
+        data: {
+          'type' => 'article_50_disclosure_shown',
+          'disclosures_version' => disclosures_version,
+          'source' => source,
+          'record_id' => c['record_id']
+        },
+        event_type: 'article_50_disclosure_shown',
+        record_id: c['record_id']
+      )
+      res = true
+    end
+    res
+  end
+
   # Coerces disclosures_version to a positive Integer so version comparisons are
   # numeric (not lexicographic) and a nil/garbage value can never write a consent
   # row that ai_consent_granted? can't honor. Accepts an Integer or an all-digit
