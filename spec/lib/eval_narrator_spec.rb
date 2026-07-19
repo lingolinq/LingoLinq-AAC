@@ -62,10 +62,16 @@ describe EvalNarrator do
     end
 
     describe '.allowed_model?' do
-      it 'accepts the in-scope Claude families (Haiku / Sonnet / Opus)' do
-        expect(described_class.allowed_model?('claude-haiku-4-5-20251001')).to eq(true)
+      it 'accepts only the exact vetted in-scope model IDs' do
         expect(described_class.allowed_model?('claude-opus-4-7')).to eq(true)
-        expect(described_class.allowed_model?('claude-sonnet-4-6')).to eq(true)
+        expect(described_class.allowed_model?('claude-haiku-4-5-20251001')).to eq(true)
+      end
+
+      it 'refuses an unknown / future id even within an in-scope family (exact-ID, not prefix)' do
+        expect(described_class.allowed_model?('claude-opus-4-8-experimental')).to eq(false)
+        expect(described_class.allowed_model?('claude-opus-5')).to eq(false)
+        expect(described_class.allowed_model?('claude-haiku-4-5')).to eq(false)
+        expect(described_class.allowed_model?('claude-sonnet-4-6')).to eq(false)
       end
 
       it 'rejects Covered Models (Fable / Mythos), unknown, and non-string ids' do

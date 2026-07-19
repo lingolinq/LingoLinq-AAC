@@ -45,32 +45,41 @@ module EvalNarrator
   class NarrationError < StandardError; end
 
   # Runtime model allowlist (Tier 1 compliance control). EVAL_NARRATOR_MODEL is
-  # env-overridable; pin it to the in-scope Claude families so a misconfigured
-  # deploy can never egress PHI to a mandatory-retention "Covered Model" (Fable 5
-  # / Mythos 5, ZDR-excluded per CLAUDE.md) or to any unknown / non-Claude model.
-  # Validated at boot (config/initializers/eval_narrator_model_allowlist.rb) and
-  # again here at call time; both checks fail closed. See
-  # docs/legal/ANTHROPIC_BAA_ACCEPTED.md.
+  # env-overridable; pin it to an EXACT set of vetted, in-scope Claude model IDs
+  # so a misconfigured, future, or otherwise unrecognized model ID can never
+  # egress eval data. This is deliberately an exact-ID allowlist, NOT a family
+  # prefix: a prefix check (e.g. "starts with claude-opus") would silently accept
+  # a future model in that family that might carry mandatory retention. Adding a
+  # model is a deliberate vetting step (edit ALLOWED_MODELS below). Fable 5 /
+  # Mythos 5 (ZDR-excluded Covered Models per CLAUDE.md) and every unrecognized
+  # id are refused by construction. Enforced best-effort at boot
+  # (config/initializers/eval_narrator_model_allowlist.rb) and authoritatively,
+  # fail-closed, at call time. See docs/legal/ANTHROPIC_BAA_ACCEPTED.md.
   DEFAULT_MODEL = 'claude-opus-4-7'.freeze
-  ALLOWED_MODEL_PREFIXES = %w[claude-haiku claude-sonnet claude-opus].freeze
+  # Exact, vetted in-scope runtime model IDs (the current Tier 1 runtime
+  # inventory). Extend ONLY after confirming a model is HIPAA-eligible and is not
+  # a mandatory-retention Covered Model.
+  ALLOWED_MODELS = %w[
+    claude-opus-4-7
+    claude-haiku-4-5-20251001
+  ].freeze
 
-  # True only when `model` is one of the in-scope Claude families (Haiku /
-  # Sonnet / Opus). Explicitly excludes Fable / Mythos and any non-Claude or
-  # unknown model id.
+  # True only when `model` is one of the exact vetted in-scope model IDs. Any
+  # unrecognized id (including a future model in an in-scope family) is refused.
   def self.allowed_model?(model)
-    model.is_a?(String) && ALLOWED_MODEL_PREFIXES.any? { |prefix| model.start_with?(prefix) }
+    model.is_a?(String) && ALLOWED_MODELS.include?(model)
   end
 
   # Resolves EVAL_NARRATOR_MODEL (or the default) and refuses anything outside
   # the allowlist. Raising here fails closed: draft_narrative's rescue falls back
-  # to the deterministic no-egress template rather than sending PHI to a
+  # to the deterministic no-egress template rather than sending eval data to a
   # disallowed model.
   def self.resolved_model
     model = ENV['EVAL_NARRATOR_MODEL']
     model = DEFAULT_MODEL if model.nil? || model.empty?
     unless allowed_model?(model)
-      raise NarrationError, "EVAL_NARRATOR_MODEL #{model.inspect} is not an in-scope Claude model " \
-        "(allowed families: #{ALLOWED_MODEL_PREFIXES.join(', ')}); refusing to egress eval data"
+      raise NarrationError, "EVAL_NARRATOR_MODEL #{model.inspect} is not a vetted in-scope Claude model " \
+        "(allowed: #{ALLOWED_MODELS.join(', ')}); refusing to egress eval data"
     end
     model
   end

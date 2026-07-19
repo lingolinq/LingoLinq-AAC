@@ -1,30 +1,38 @@
 # frozen_string_literal: true
 
-# Boot-time, fail-closed validation of the EVAL_NARRATOR_MODEL override.
+# Best-effort boot-time validation of the EVAL_NARRATOR_MODEL override.
 #
-# Pairs with EvalNarrator.resolved_model (the call-time check). This stops a
-# deploy from even starting if the eval-narration model has been pointed at a
-# mandatory-retention "Covered Model" (Fable 5 / Mythos 5, which are ZDR-excluded
-# per CLAUDE.md) or at any model outside the in-scope Claude families. Eval
-# narration is a HIPAA "Healthcare Activity" on the Anthropic HIPAA-Ready path
-# (docs/legal/ANTHROPIC_BAA_ACCEPTED.md); a misconfigured model here would egress
-# PHI-adjacent eval data to a non-covered model, so failing closed at boot is the
-# intended behavior.
+# The AUTHORITATIVE, fail-closed enforcement lives at call time in
+# EvalNarrator.resolved_model, which refuses to egress to any model outside the
+# exact ALLOWED_MODELS allowlist (falling back to the deterministic no-egress
+# template). This boot check is a best-effort early warning: when EvalNarrator
+# can be loaded here, a bad EVAL_NARRATOR_MODEL fails the boot so a misconfigured
+# deploy is caught immediately instead of silently degrading to the template on
+# every eval. When EvalNarrator cannot be loaded in this boot context (e.g. the
+# Resque worker path where lib/ autoload is skipped), boot is allowed and the
+# call-time check remains the guarantee. It is therefore NOT a hard boot-time
+# guarantee on its own; it is boot-time best-effort plus call-time fail-closed.
+#
+# Eval narration egresses scrubbed eval data on the Anthropic HIPAA-Ready path
+# (docs/legal/ANTHROPIC_BAA_ACCEPTED.md); the model must stay a vetted in-scope
+# Claude model. The override must never point at a mandatory-retention Covered
+# Model (Fable/Mythos, ZDR-excluded per CLAUDE.md) or any unrecognized model.
 override = ENV['EVAL_NARRATOR_MODEL']
 if override && !override.empty?
+  validatable = true
   allowed =
     begin
       EvalNarrator.allowed_model?(override)
     rescue NameError
-      # EvalNarrator not loadable in this boot context (e.g. the Resque worker
-      # path where lib/ autoload is skipped). The call-time resolved_model check
-      # still gates egress, so do not block boot here.
+      # EvalNarrator not loadable in this boot context; defer entirely to the
+      # call-time resolved_model check, which is fail-closed.
+      validatable = false
       true
     end
 
-  unless allowed
-    raise "EVAL_NARRATOR_MODEL=#{override.inspect} is not an in-scope Claude model " \
-      "(allowed families: #{EvalNarrator::ALLOWED_MODEL_PREFIXES.join(', ')}). Refusing to boot: " \
-      "this override must never point at a Covered Model (Fable/Mythos) or an unknown model."
+  if validatable && !allowed
+    raise "EVAL_NARRATOR_MODEL=#{override.inspect} is not a vetted in-scope Claude model " \
+      "(allowed: #{EvalNarrator::ALLOWED_MODELS.join(', ')}). Refusing to boot: this override must " \
+      "never point at a Covered Model (Fable/Mythos) or an unrecognized model."
   end
 end
