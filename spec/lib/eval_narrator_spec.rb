@@ -345,4 +345,65 @@ describe EvalNarrator do
       expect(failed_log.ai_generated_content_id).to be_nil
     end
   end
+
+  describe '.draft_narrative Article 50 jurisdiction + disclosure stamping' do
+    around(:each) do |example|
+      old = ENV['ANTHROPIC_API_KEY']
+      ENV['ANTHROPIC_API_KEY'] = 'test-anthropic-key'
+      example.run
+    ensure
+      ENV['ANTHROPIC_API_KEY'] = old
+    end
+
+    before do
+      allow(described_class).to receive(:anthropic_configured?).and_return(true)
+      allow(described_class).to receive(:call_anthropic).and_return(anthropic_response('Drafted narrative.'))
+      allow(AiApiLog).to receive(:log_ai_call)
+      allow(FeatureFlags).to receive(:coppa_blocks_ai_for?).and_return(false)
+      allow(FeatureFlags).to receive(:eu_under16_blocks_ai_for?).and_return(false)
+      allow(FeatureFlags).to receive(:ai_enabled_for?).and_return(true)
+    end
+
+    def eu_student
+      u = User.create
+      u.settings ||= {}
+      u.settings['preferences'] = { 'jurisdiction' => 'FR' }
+      u.save
+      u
+    end
+
+    def non_eu_student
+      u = User.create
+      u.settings ||= {}
+      u.settings['preferences'] = { 'jurisdiction' => 'US' }
+      u.save
+      u
+    end
+
+    it "stamps jurisdiction 'EU' + article_50_disclosure_shown false for a confirmed EU student" do
+      described_class.draft_narrative(payload, user: eu_student)
+
+      expect(AiApiLog).to have_received(:log_ai_call).with(hash_including(
+        jurisdiction: 'EU', article_50_disclosure_shown: false
+      ))
+    end
+
+    it "leaves jurisdiction nil for a non-EU/unknown student (D-01 retention fail-safe)" do
+      described_class.draft_narrative(payload, user: non_eu_student)
+
+      expect(AiApiLog).to have_received(:log_ai_call).with(hash_including(
+        jurisdiction: nil, article_50_disclosure_shown: false
+      ))
+    end
+
+    # PN-01 (MODULE level): proves the WRAPPER threads the `user` it is GIVEN into the sink.
+    # A non-EU clinician is never passed into EvalNarrator, so it cannot influence this layer.
+    # The controller-level regression (spec/controllers/api/eval_sessions_controller_spec.rb)
+    # is the layer that proves the CONTROLLER selects the student subject, not the caller.
+    it "threads the given student user into the stamp (the wrapper follows its `user` argument)" do
+      described_class.draft_narrative(payload, user: eu_student)
+
+      expect(AiApiLog).to have_received(:log_ai_call).with(hash_including(jurisdiction: 'EU'))
+    end
+  end
 end
