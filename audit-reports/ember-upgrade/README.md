@@ -10,7 +10,7 @@ findings from `scripts/ember-route-crawl.mjs`.
 | File | What |
 |------|------|
 | `FINDINGS-EMBER.json` | The register (single source of truth for status) |
-| `FINDINGS-EMBER.md` | Rendered view — regenerate with `ruby scripts/citation-check.rb --render audit-reports/ember-upgrade/FINDINGS-EMBER.json`; never hand-edit |
+| `FINDINGS.md` | Rendered view (the renderer always writes a sibling named FINDINGS.md) — regenerate with `ruby scripts/citation-check.rb --render audit-reports/ember-upgrade/FINDINGS-EMBER.json`; never hand-edit |
 | `run-log/runs.jsonl` | One JSONL line per `/ember-audit-run` (committed) |
 | `crawl/` | Raw runtime-crawl outputs (gitignored except summaries the run promotes) |
 
