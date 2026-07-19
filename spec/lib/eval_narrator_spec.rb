@@ -97,7 +97,7 @@ describe EvalNarrator do
       it 'raises (fails closed) on a disallowed override' do
         ENV['EVAL_NARRATOR_MODEL'] = 'claude-fable-5'
         expect { described_class.resolved_model }
-          .to raise_error(EvalNarrator::NarrationError, /not an in-scope Claude model/)
+          .to raise_error(EvalNarrator::NarrationError, /not a vetted in-scope Claude model/)
       end
     end
 
