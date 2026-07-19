@@ -49,6 +49,89 @@ describe EvalNarrator do
     end
   end
 
+  describe 'EVAL_NARRATOR_MODEL allowlist' do
+    around(:each) do |example|
+      old = ENV['EVAL_NARRATOR_MODEL']
+      example.run
+    ensure
+      if old.nil?
+        ENV.delete('EVAL_NARRATOR_MODEL')
+      else
+        ENV['EVAL_NARRATOR_MODEL'] = old
+      end
+    end
+
+    describe '.allowed_model?' do
+      it 'accepts the in-scope Claude families (Haiku / Sonnet / Opus)' do
+        expect(described_class.allowed_model?('claude-haiku-4-5-20251001')).to eq(true)
+        expect(described_class.allowed_model?('claude-opus-4-7')).to eq(true)
+        expect(described_class.allowed_model?('claude-sonnet-4-6')).to eq(true)
+      end
+
+      it 'rejects Covered Models (Fable / Mythos), unknown, and non-string ids' do
+        expect(described_class.allowed_model?('claude-fable-5')).to eq(false)
+        expect(described_class.allowed_model?('claude-mythos-5')).to eq(false)
+        expect(described_class.allowed_model?('gpt-5.5')).to eq(false)
+        expect(described_class.allowed_model?('')).to eq(false)
+        expect(described_class.allowed_model?(nil)).to eq(false)
+      end
+    end
+
+    describe '.resolved_model' do
+      it 'defaults to the in-scope Opus model when unset' do
+        ENV.delete('EVAL_NARRATOR_MODEL')
+        expect(described_class.resolved_model).to eq(EvalNarrator::DEFAULT_MODEL)
+      end
+
+      it 'returns an allowed override unchanged' do
+        ENV['EVAL_NARRATOR_MODEL'] = 'claude-haiku-4-5-20251001'
+        expect(described_class.resolved_model).to eq('claude-haiku-4-5-20251001')
+      end
+
+      it 'raises (fails closed) on a disallowed override' do
+        ENV['EVAL_NARRATOR_MODEL'] = 'claude-fable-5'
+        expect { described_class.resolved_model }
+          .to raise_error(EvalNarrator::NarrationError, /not an in-scope Claude model/)
+      end
+    end
+
+    it 'falls back to the deterministic template (no egress) when the override is disallowed' do
+      ENV['EVAL_NARRATOR_MODEL'] = 'claude-fable-5'
+      u = User.new(settings: {})
+      allow(FeatureFlags).to receive(:coppa_blocks_ai_for?).with(u).and_return(false)
+      allow(FeatureFlags).to receive(:ai_enabled_for?).with(u).and_return(true)
+      allow(described_class).to receive(:anthropic_configured?).and_return(true)
+      allow(described_class).to receive(:call_anthropic)
+      allow(AiApiLog).to receive(:log_ai_call)
+      out = described_class.draft_narrative(payload, user: u)
+      expect(described_class).not_to have_received(:call_anthropic)
+      expect(out['narrative']).to include('Evaluation Summary')
+      expect(out['ai_generated']).to be_nil
+    end
+  end
+
+  describe '.payload_for_prompt data minimization' do
+    it 'drops the intake etiology (medical cause) from the egress payload' do
+      out = described_class.payload_for_prompt(
+        'eval_mode' => 'comprehensive',
+        'intake' => { 'age_band' => '6-12', 'etiology' => 'cerebral palsy', 'suspected_access' => 'touch' }
+      )
+      expect(out['intake']).to include('age_band' => '6-12', 'suspected_access' => 'touch')
+      expect(out['intake']).not_to have_key('etiology')
+    end
+
+    it 'drops the etiology under any key casing' do
+      out = described_class.payload_for_prompt('intake' => { 'Etiology' => 'ALS', 'age_band' => '13-18' })
+      expect(out['intake'].keys.map(&:downcase)).not_to include('etiology')
+      expect(out['intake']).to include('age_band' => '13-18')
+    end
+
+    it 'still drops the free-text student name from sett' do
+      out = described_class.payload_for_prompt('sett' => { 'student' => 'Janie Doe', 'environment' => 'classroom' })
+      expect(out['sett']).to eq('environment' => 'classroom')
+    end
+  end
+
   describe '.draft_narrative gating' do
     before do
       allow(described_class).to receive(:anthropic_configured?).and_return(true)
