@@ -144,4 +144,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_54 documents tracked. 49 stale review item(s). 23 Drive refresh item(s). 4 Notion hash item(s)._
+_55 documents tracked. 49 stale review item(s). 23 Drive refresh item(s). 4 Notion hash item(s)._

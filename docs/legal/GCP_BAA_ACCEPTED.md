@@ -42,9 +42,12 @@ from the AWS BAA, which has a countersigned PDF (`docs/legal/AWS_BAA_2026-02.pdf
   inference path requires per-product covered-service verification before it may carry PHI or child
   data (Vertex AI is not covered as a whole; only specific products such as Vertex AI Workbench are
   listed as covered).
-- **Does NOT cover the Anthropic model-provider egress path** (the runtime AI features). That path
-  has no BAA and is governed by the PiiScrubber and the no-identifiable-data policy; its HIPAA
-  posture is provisional pending CEO review (see `AI_GOVERNANCE_MEMO.md`).
+- **Does NOT cover the Anthropic model-provider egress path** (the runtime AI features). This GCP
+  infrastructure BAA never extended to Anthropic; that path is now covered by **Anthropic's own
+  HIPAA-Ready BAA**, executed and enabled 2026-07-18 on the runtime-dedicated LingoLinq, LLC API org
+  (see `ANTHROPIC_BAA_ACCEPTED.md`), with the PiiScrubber and no-identifiable-data policy retained as
+  defense-in-depth. (The earlier "no BAA / provisional pending CEO review" language here is
+  superseded by that record.)
 - **No Google inference path is live today, and BAA coverage of any future one is unverified.** The
   Gemini/Vertex runtime fallback was disabled 2026-07-09 (PR #570); no AI inference reaches Google
   today, and runtime inference is Anthropic-only. If a Vertex AI or Gemini inference path is ever
