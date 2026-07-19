@@ -202,7 +202,7 @@
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-06"
       },
-      "contentHash": "9b8e61fcf74a3ab0f4ca0df55512f400c9ab03126785d62f94de03d15d68bec5",
+      "contentHash": "c9b9dbf83b4b4b266a531cf5e06a52db0a6dc476536e6e1c62121605f0849cf8",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-9b299a785b"
@@ -377,7 +377,7 @@
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-06"
       },
-      "contentHash": "be708092ded93b19a5f93564a75fe37b73d75676afa009565c399c8b90dec3ff",
+      "contentHash": "a47334f5ac69b3dea809a4c1147c171974f5f21f8157e6bd15abcd21b632000b",
       "bundles": [
         "school-dpa-package"
       ],
@@ -590,7 +590,7 @@
       ],
       "notes": "Parity with the AWS (docs/legal/AWS_BAA_ACCEPTED.md) and GCP (docs/legal/GCP_BAA_ACCEPTED.md) acceptance records. Model-provider BAA for the Anthropic runtime egress path; supersedes the prior 'no model-provider BAA / provisional pending CEO review' posture in COMPLIANCE.md, SUBPROCESSORS.md row 4, GCP_BAA_ACCEPTED.md, and AI_GOVERNANCE_MEMO.md (all reconciled in the same PR). Live enablement verified 2026-07-18 (Messages API 200; Files API 400 'not available for HIPAA-regulated organizations without Zero Data Retention'). Attested by Scot Wahlquist 2026-07-18 per explicit confirmation; git contentHash computed and CI-verified. The broader AI_GOVERNANCE_MEMO body carries a dated addendum and is flagged for separate CEO re-attestation.",
       "id": "DOC-ab3a8c3ed4",
-      "contentHash": "edf88b42db261ec075bf64bf46dc3e08cfa1a16738ff0bea7812377abf31d3b6"
+      "contentHash": "5adbe44783d9d74797498415714bb0c84c81dc943ffcd7911ac4284624f9b0d4"
     },
     {
       "title": "AWS BAA Acceptance Record",
@@ -667,7 +667,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "2e914743457aee352590adfbcd32ba416865ba4efdf8b1d81b9a448139553cf2",
+      "contentHash": "7d3b8b9c233a52a7a174ea86f6f7f6f07a0f06dd12318df9b1f0d823e4d49bae",
       "bundles": [],
       "mirrors": [
         {

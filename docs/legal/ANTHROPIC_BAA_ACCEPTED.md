@@ -71,28 +71,42 @@ plus the executed BAA and the "HIPAA-Ready Offering Implementation Guide" (2026-
   single `ANTHROPIC_API_KEY`, a per-service mismatch would be invisible from code; the live 400
   probe above confirms the key currently deployed is the HIPAA-regulated org key.
 
-## Open Conditions Before PHI Flows (from the 2026-07-18 eligible-services scope review)
+## Runtime seam classification (all four seams are in-scope under the BAA)
 
 Transport is HIPAA-compliant in code today (Messages API only, in-scope models, no excluded
-features), and three of the four seams (word prediction, board generation, offline dictionary) are
-ordinary in-scope uses or carry no PHI. The **evaluation-narration** seam (`lib/eval_narrator.rb`) is
-a permissible "Healthcare Activity" (charting/documentation support) but triggers Anthropic's three
-mandatory conditions. **PHI must not flow through eval narration until these are met:**
+features). All four runtime seams are ordinary in-scope uses or carry no PHI, so runtime AI can run
+under the executed BAA:
 
-1. **Licensed-clinician gating (BLOCKER).** The narrate endpoint currently gates on
-   `allowed?(user,'supervise')` (`eval_sessions_controller.rb:60`) plus the `comprehensive_eval_ai`
-   flag - neither establishes SLP/clinician licensure. A verified-clinician gate (or a contractual
-   attestation that all `comprehensive_eval_ai` users are licensed) is required. Tracked as a
-   separate security PR (eval-narrator runtime gates).
-2. **Model allowlist (WARNING).** `EVAL_NARRATOR_MODEL` is env-overridable with no boot-time
-   allowlist; pin it to {Haiku, Sonnet, Opus} and refuse Fable/Mythos. Same security PR.
-3. **`slp_notes` free-text NER (WARNING).** Third-party names free-typed into `slp_notes` egress
-   unscrubbed; add NER redaction or a structured-notes affordance.
-4. **Accuracy-testing (condition i) and legal-compliance (condition ii) artifacts** for the
-   eval-narration use case do not yet exist; produce and store both under `docs/legal/`.
+- **Word prediction, board generation, offline dictionary** - ordinary in-scope uses or no PHI.
+- **Evaluation narration (`lib/eval_narrator.rb`) - NOT a HIPAA "Healthcare Activity" (adjudicated by
+  Scot Wahlquist, 2026-07-19).** The LingoLinq eval is an assistive-technology **access /
+  feature-match assessment**: the AAC user completes find-the-target tasks at progressively smaller
+  grid sizes, producing a hit/miss heat map that shows which areas of a board they can physically and
+  visually access, which yields a recommended board size and layout. The AI narrative summarizes
+  those access findings and the board-layout recommendation. It does **not** diagnose, treat, or
+  produce medical charting / billing / coding / claims, so it is not one of Anthropic's enumerated
+  Healthcare Activities and Anthropic Healthcare-Activity condition (iii) (restrict use to licensed
+  clinicians) **does not apply.** There is therefore intentionally **no licensed-clinician gate** on
+  this path. This corrects the conservative "Healthcare Activity" reading in the 2026-07-18
+  eligible-services scope review, which pre-dated the domain classification.
 
-Until condition 1 lands, eval narration for PHI orgs stays on the deterministic no-egress local
-template (`draft_via_template`), which is the current default.
+**Controls that DO apply to eval narration and are enforced** (defense-in-depth on top of the BAA):
+Messages-API-only transport on the HIPAA-Ready org key; PII scrub + structural student-name drop +
+`etiology` (medical-cause) minimization before egress; the `EVAL_NARRATOR_MODEL` boot + call-time
+allowlist pinning the model to in-scope Claude families and refusing Covered Models (both in the
+security PR, eval-narrator runtime gates); the COPPA parental-consent gate; explicit per-request
+opt-in; and the org-level AI opt-out. Eval narration also defaults to a deterministic no-egress local
+template unless the caller explicitly opts in.
+
+**Residual item (tracked, not a blocker):** free-typed third-party names in `slp_notes` are not
+NER-scrubbed (`lib/eval_narrator.rb`); the structural student-name drop handles the primary subject.
+Add NER redaction or a structured-notes affordance as a follow-up.
+
+The classification is recorded at the call site (`lib/eval_narrator.rb` module header) and in the
+audit register (`audit-reports/FINDINGS.json`, ruleKey `eval-narration-healthcare-activity-classification`,
+disposition set by Scot) so the quarterly audit does not re-flag the absent licensed-clinician gate.
+If eval narration is ever repositioned as diagnosis, treatment, or auto-finalized clinical
+documentation, this classification must be reopened with Scot before PHI flows under that use.
 
 ## Supersedes
 
@@ -119,7 +133,10 @@ readiness is irreversible, this org must remain runtime-dedicated (no dev/toolin
 
 ---
 
-**Status:** BAA executed, HIPAA readiness enabled and verified live. Transport compliant in code.
-PHI-flow gate open on the eval-narration licensed-clinician condition (separate security PR). See
+**Status:** BAA executed, HIPAA readiness enabled and verified live. Transport compliant in code; all
+four runtime seams are in-scope under the BAA. Eval narration is classified as an assistive-technology
+access assessment, not a Healthcare Activity (Scot 2026-07-19), so no licensed-clinician gate applies;
+the model allowlist + etiology minimization ship in the eval-narrator runtime-gates security PR. See
 `COMPLIANCE.md` section 4, `docs/legal/SUBPROCESSORS.md` row 4, and the 2026-07-18 eligible-services
-scope review for how this is reflected in the posture.
+scope review (superseded on the eval-narration classification by this record) for how this is
+reflected in the posture.
