@@ -159,7 +159,7 @@
               </div>
             {{/if}}
             <div class="la-edit-board-field-row">
-              <input value={{this.model.background.position}} class="la-edit-board-input" placeholder="image positioning" {{on "input" (set-field this "model.background.position")}} />
+              <input value={{this.model.background.position}} class="la-edit-board-input" placeholder="image positioning" aria-label={{t "Image positioning" key="image_positioning"}} {{on "input" (set-field this "model.background.position")}} />
               <div class="la-edit-board-dropdown">
                 <button class="la-edit-board-dropdown-btn" data-toggle="dropdown">{{t "choose" key="choose"}} <svg width="10" height="6" viewBox="0 0 12 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 1.5 6 6.5 11 1.5"/></svg></button>
                 <ul class="dropdown-menu">
@@ -188,8 +188,8 @@
               {{/unless}}
               {{#each this.model.intro.sections as |section|}}
                 <div class="la-edit-board-intro-section">
-                  <textarea class="la-edit-board-input la-edit-board-textarea" placeholder="Explanation, notes, etc."  {{on "input" (set-field section "description")}}>{{section.description}}</textarea>
-                  <input type="text" value={{section.prompt}} class="la-edit-board-input" placeholder="optional button sequence to find"  {{on "input" (set-field section "prompt")}}/>
+                  <textarea class="la-edit-board-input la-edit-board-textarea" placeholder="Explanation, notes, etc." aria-label={{t "Board intro explanation" key="board_intro_explanation"}} {{on "input" (set-field section "description")}}>{{section.description}}</textarea>
+                  <input type="text" value={{section.prompt}} class="la-edit-board-input" placeholder="optional button sequence to find" aria-label={{t "Button sequence to find" key="button_sequence_to_find"}} {{on "input" (set-field section "prompt")}}/>
                   <button class='la-edit-board-remove-btn' {{on "click" (this.ctrlAction "delete_board_intro_section" section)}}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>

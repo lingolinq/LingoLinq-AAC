@@ -98,11 +98,11 @@
               <div class="col-sm-10" style='margin-bottom: 5px;'>
                 <div>
                   <span style='display: inline-block; width: 30%;'>
-                    <input type="time" value={{this.start}} class="form-control" placeholder="HH:MMam/pm" {{on "input" (set-field this "start")}} />
+                    <input type="time" value={{this.start}} class="form-control" placeholder="HH:MMam/pm" aria-label={{t "Start time" key="start_time"}} {{on "input" (set-field this "start")}} />
                   </span>
                   to
                   <span style='display: inline-block; width: 30%;'>
-                    <input type="time" value={{this.end}} class="form-control" placeholder="HH:MMam/pm" {{on "input" (set-field this "end")}} />
+                    <input type="time" value={{this.end}} class="form-control" placeholder="HH:MMam/pm" aria-label={{t "End time" key="end_time"}} {{on "input" (set-field this "end")}} />
                   </span>
                   <span style='display: inline-block; width: 10%;'>
                     <button type="button" {{on "click" (this.ctrlAction "add_time")}} class='btn btn-default'>{{t "Add" key="add"}}</button>

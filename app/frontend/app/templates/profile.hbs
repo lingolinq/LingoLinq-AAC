@@ -77,9 +77,9 @@
             {{#if question.answer_type.text}}
               <div style={{if question.manual_selection "min-height: 75px; height: calc(100% - 59px);" "min-height: 75px; height: 100%;"}}>
                 {{#if question.answer_type.extra}}
-                  <textarea placeholder={{question.answer_type.hint}} class="text_response"  {{on "input" (set-field question "text_response")}}>{{question.text_response}}</textarea>
+                  <textarea placeholder={{question.answer_type.hint}} aria-label={{question.label}} class="text_response"  {{on "input" (set-field question "text_response")}}>{{question.text_response}}</textarea>
                 {{else}}
-                  <textarea placeholder={{question.answer_type.hint}} class="text_response expected"  {{on "input" (set-field question "text_response")}}>{{question.text_response}}</textarea>
+                  <textarea placeholder={{question.answer_type.hint}} aria-label={{question.label}} class="text_response expected"  {{on "input" (set-field question "text_response")}}>{{question.text_response}}</textarea>
                 {{/if}}
               </div>
             {{else}}

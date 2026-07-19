@@ -76,7 +76,7 @@
             {{#unless this.model.lesson_name}}
               <div class="form-group">
                 <div class="col-sm-8 col-sm-offset-2">
-                  <input value={{this.confirmed}} class="form-control" placeholder="..." {{on "input" (set-field this "confirmed")}} />
+                  <input value={{this.confirmed}} class="form-control" placeholder="..." aria-label={{t "Please type \"confirmed\" to confirm." key="type_confirmed"}} {{on "input" (set-field this "confirmed")}} />
                 </div>
               </div>
             {{/unless}}

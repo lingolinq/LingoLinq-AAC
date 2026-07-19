@@ -116,9 +116,9 @@
       <div class='col-sm-12'>
         <div style='display: inline-block; width: 515px; vertical-align: middle;'>
           {{#if this.has_selection}}
-            <input value={{this.insertion}} class="form-control input-lg" type="text" placeholder="Replacement text for this word or phrase" {{on "input" (set-field this "insertion")}} />
+            <input value={{this.insertion}} class="form-control input-lg" type="text" placeholder="Replacement text for this word or phrase" aria-label={{t "Replacement text for this word or phrase" key="replacement_text"}} {{on "input" (set-field this "insertion")}} />
           {{else}}
-            <input value={{this.insertion}} class="form-control input-lg" type="text" placeholder="Text to insert at cursor" {{on "input" (set-field this "insertion")}} />
+            <input value={{this.insertion}} class="form-control input-lg" type="text" placeholder="Text to insert at cursor" aria-label={{t "Text to insert at cursor" key="text_to_insert_at_cursor"}} {{on "input" (set-field this "insertion")}} />
           {{/if}}
         </div>
         <div style='display: inline-block; width: 120px;'>

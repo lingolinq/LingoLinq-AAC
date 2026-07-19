@@ -79,7 +79,7 @@
             <QrCode @text={{this.status_2fa.uri}} @size={{300}} />
             </div>
             <span style='display: inline-block; width: 200px;'>
-              <input value={{this.code_2fa}} type="number" class="form-control" placeholder="# # # # # #" autocomplete="one-time-code" {{on "input" (set-field this "code_2fa")}} />
+              <input value={{this.code_2fa}} type="number" class="form-control" placeholder="# # # # # #" aria-label={{t "Two-factor authentication code" key="two_factor_code"}} autocomplete="one-time-code" {{on "input" (set-field this "code_2fa")}} />
             </span>
             {{#if this.status_2fa.error}}
               <p class='text-danger'>{{t "Invalid code, please check again" key="invalid_code_please_try_again"}}</p>
@@ -211,10 +211,10 @@
       </div>
       {{#if this.model.permissions.edit}}
         <div class='col-sm-3 col-sm-offset-3'>
-          <input value={{this.contact_name}} type="text" class="form-control" placeholder="Contact Name" {{on "input" (set-field this "contact_name")}} />
+          <input value={{this.contact_name}} type="text" class="form-control" placeholder="Contact Name" aria-label={{t "Contact Name" key="contact_name"}} {{on "input" (set-field this "contact_name")}} />
         </div>
         <div class='col-sm-2'>
-          <input value={{this.contact_contact}} type="text" class="form-control" placeholder="email or cell #" {{on "input" (set-field this "contact_contact")}} />
+          <input value={{this.contact_contact}} type="text" class="form-control" placeholder="email or cell #" aria-label={{t "Contact email or phone number" key="contact_email_or_phone"}} {{on "input" (set-field this "contact_contact")}} />
           <span style="font-size: 14px; color: #888;">+country prefix for non-US</span>
         </div>
         <div class='col-sm-3'>

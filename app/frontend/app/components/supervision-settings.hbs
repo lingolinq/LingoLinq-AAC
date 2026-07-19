@@ -101,7 +101,7 @@
                     {{t "Alias" key="alias"}}
                     {{#if org.aliasable}}
                       <div style='display: inline-block; width: 200px;'>
-                        <input type="text" class="form-control" value={{org.external_auth_alias}} placeholder="external login id or email"  {{on "input" (set-field org "external_auth_alias")}}/>
+                        <input type="text" class="form-control" value={{org.external_auth_alias}} placeholder="external login id or email" aria-label={{t "Alias" key="alias"}} {{on "input" (set-field org "external_auth_alias")}}/>
                       </div>
                       <button type='submit' disabled={{org.alias_state.updating}} class='btn btn-default'>
                         {{#if org.alias_state.updating}}
@@ -309,7 +309,7 @@
                   <form {{on "submit" (this.ctrlAction "update_alias" org)}} style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                     <span>{{t "Alias" key="alias"}}</span>
                     {{#if org.aliasable}}
-                      <input type="text" class="md-modal-input" style="width: 200px;" value={{org.external_auth_alias}} placeholder="external login id or email"  {{on "input" (set-field org "external_auth_alias")}}/>
+                      <input type="text" class="md-modal-input" style="width: 200px;" value={{org.external_auth_alias}} placeholder="external login id or email" aria-label={{t "Alias" key="alias"}} {{on "input" (set-field org "external_auth_alias")}}/>
                       <button type="submit" disabled={{org.alias_state.updating}} class="btn md-modal-btn md-modal-btn--cancel">
                         {{#if org.alias_state.updating}}
                           {{t "updating..." key="updating_ellipsis"}}

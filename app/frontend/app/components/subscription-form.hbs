@@ -187,7 +187,7 @@
                   <button class='btn btn-primary btn-sm'>{{t "I have a gift/discount code" key="have_a_gift_code"}}</button>
                   <div style='margin-top: 5px; text-align: center;'>
                     <span style="display: inline-block; width: 100px; margin-left: 5px;">
-                      <input value={{this.subscription.gift_code}} type="text" class="form-control input-lg" placeholder="CODE" {{on "input" (set-field this "subscription.gift_code")}} />
+                      <input value={{this.subscription.gift_code}} type="text" class="form-control input-lg" placeholder="CODE" aria-label={{t "Gift or discount code" key="gift_or_discount_code"}} {{on "input" (set-field this "subscription.gift_code")}} />
                     </span>
                     <button type="button" {{on "click" (this.ctrlAction "check_gift")}} style='display: inline-block; width: 100px; margin-top: -4px;' class='btn btn-lg btn-default'>
                       {{#if this.subscription.gift_status.checking}}

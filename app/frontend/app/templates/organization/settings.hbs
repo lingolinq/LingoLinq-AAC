@@ -139,7 +139,7 @@
         </label>
         {{#if this.allow_support_target}}
           <div class="md-org-settings-field__nested">
-            <input value={{this.support_email}} class="md-org-settings-input" placeholder="email address" {{on "input" (set-field this "support_email")}} />
+            <input value={{this.support_email}} class="md-org-settings-input" placeholder="email address" aria-label={{t "Support email address" key="support_email_address"}} {{on "input" (set-field this "support_email")}} />
           </div>
         {{/if}}
       </div>

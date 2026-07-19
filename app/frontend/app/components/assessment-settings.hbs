@@ -89,7 +89,7 @@
       {{/let}}
     </div>
     <div class="md-modal-field">
-      <textarea class="md-modal-input" placeholder="additional notes" rows={{4}} {{on "input" (set-field this "settings.notes")}}>{{this.settings.notes}}</textarea>
+      <textarea class="md-modal-input" placeholder="additional notes" aria-label={{t "Additional notes" key="additional_notes"}} rows={{4}} {{on "input" (set-field this "settings.notes")}}>{{this.settings.notes}}</textarea>
     </div>
   </div>
   <div class="modal-footer md-modal-footer">

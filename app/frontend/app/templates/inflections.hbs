@@ -273,10 +273,10 @@
         {{#each this.extra_inflections as |extra|}}
           <div class="form-group">
             <div class="col-sm-3">
-              <input value={{extra.type}} class="form-control" placeholder="N, S, E, W, etc."  {{on "input" (set-field extra "type")}}/>
+              <input value={{extra.type}} class="form-control" placeholder="N, S, E, W, etc." aria-label={{t "Directions" key="directions"}} {{on "input" (set-field extra "type")}}/>
             </div>
             <div class="col-sm-7">
-              <input value={{extra.value}} class="form-control" placeholder="inflection"  {{on "input" (set-field extra "value")}}/>
+              <input value={{extra.value}} class="form-control" placeholder="inflection" aria-label={{t "Inflection" key="inflection"}} {{on "input" (set-field extra "value")}}/>
             </div>
           </div>
         {{/each}}

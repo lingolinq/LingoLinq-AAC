@@ -1,7 +1,7 @@
 <li class="recursive-board__item {{if @board.selected "selected"}}">
   <div class="recursive-board__row">
     {{#if @selectable}}
-      <input type="checkbox" checked={{@board.selected}} disabled={{@board.disabled}} class="recursive-board__check"  {{on "change" (set-field @board "selected" "checkbox")}}/>
+      <input type="checkbox" checked={{@board.selected}} disabled={{@board.disabled}} class="recursive-board__check" aria-label={{@board.key}} {{on "change" (set-field @board "selected" "checkbox")}}/>
     {{/if}}
     {{!-- Indent the CONTENT (not the checkbox) by depth, so every checkbox
          stays in one left-aligned column while the labels show hierarchy. --}}

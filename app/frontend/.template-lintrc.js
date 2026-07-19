@@ -78,6 +78,17 @@ module.exports = {
         'text', 'tspan', 'title', 'desc', 'stop', 'linearGradient', 'radialGradient',
       ],
     },
+    // Replaced by require-input-accessible-name -- NOT disabled to silence a defect; the
+    // replacement is STRICTLY STRICTER. The built-in counts a bare `id` as an accessible
+    // name and errors unless exactly one of {id, aria-label, aria-labelledby} is present.
+    // That produced 22 false positives (correct aria-labelledby + an id read as "multiple
+    // labels", fixable only by deleting ids that JS/CSS depend on) AND hid 45 genuinely
+    // unlabeled controls that passed on an unreferenced `id` alone. The logic is identical
+    // in ember-template-lint 6.1.0 and 7.9.3, and the rule's only config option is
+    // `labelTags`, so neither upgrading nor configuring fixes it. See the rule file and
+    // docs/task-management/2026-07-15-template-lint-convention-migration.md.
+    'require-input-label': false,
+    'require-input-accessible-name': 'error',
     // Disabled deliberately -- NOT to silence a defect. This rule is satisfied only by a
     // <track kind="captions"> containing the words being said. Our media is user-recorded
     // speech/sounds and app sound effects; the 9 <video>s have no transcription field at all,

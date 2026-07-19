@@ -229,7 +229,7 @@
         <p>{{t "Please enter the confirmation code provided by your two-factor authentication app:" key="enter_2fa_code"}}</p>
       {{/if}}
       <div class="form-group">
-        <input type="number" value={{this.code_2fa}} class="form-control" placeholder="# # # # # #" style="text-align: center;" {{on "input" (set-field this "code_2fa")}} />
+        <input type="number" value={{this.code_2fa}} class="form-control" placeholder="# # # # # #" aria-label={{t "Two-factor authentication code" key="two_factor_code"}} style="text-align: center;" {{on "input" (set-field this "code_2fa")}} />
       </div>
       <button {{on "click" this.onConfirm2fa}} disabled={{this.status_2fa.loading}} class='login-btn' style='width: 100%;'>
         <div style='font-size: 20px;'>

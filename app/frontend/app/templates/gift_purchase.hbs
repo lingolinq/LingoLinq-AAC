@@ -100,7 +100,7 @@
                 <div style="float: left; width: 250px;">
                   <div class="input-group input-group-lg">
                     <span class="input-group-addon">$</span>
-                   <input type="text" value={{this.subscription.subscription_custom_amount}} class="form-control small-placeholder" placeholder="multiple of $50 at least $150" {{on "input" (set-field this "subscription.subscription_custom_amount")}} />
+                   <input type="text" value={{this.subscription.subscription_custom_amount}} class="form-control small-placeholder" placeholder="multiple of $50 at least $150" aria-label={{t "Gift amount in dollars" key="gift_amount_in_dollars"}} {{on "input" (set-field this "subscription.subscription_custom_amount")}} />
                   </div>
                 </div>
               {{/if}}

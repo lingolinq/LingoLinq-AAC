@@ -22,7 +22,7 @@
       </div>
       <div class="la-modify-core-list-area">
         {{#if this.editing}}
-          <textarea class="la-modify-core-textarea" placeholder="Type or paste in a list of words, either separated by commas or one per line" rows={{6}} {{on "input" (set-field this "word_lines")}}>{{this.word_lines}}</textarea>
+          <textarea class="la-modify-core-textarea" placeholder="Type or paste in a list of words, either separated by commas or one per line" aria-label={{t "Word list" key="word_list"}} rows={{6}} {{on "input" (set-field this "word_lines")}}>{{this.word_lines}}</textarea>
         {{else}}
           <div class="la-modify-core-words-preview">{{this.raw_words_list}}</div>
         {{/if}}

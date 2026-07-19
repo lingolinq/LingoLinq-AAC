@@ -62,7 +62,7 @@
       {{#if (persistence-online)}}
         <form style="display: inline-block; padding-left: 10px;">
           <div style="float: left; margin-right: 4px; width: 150px;">
-          <Input @type="text" @value={{this.searchString}} @enter={{this.ctrlAction "searchBoards"}} class="form-control" placeholder="Search Boards" />
+          <Input @type="text" @value={{this.searchString}} @enter={{this.ctrlAction "searchBoards"}} class="form-control" placeholder="Search Boards" aria-label={{t "Search Boards" key="search_boards"}} />
           </div>
           <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "searchBoards")}}>{{t "Go" key="go"}}</button>
           <div style="clear: left;"></div>

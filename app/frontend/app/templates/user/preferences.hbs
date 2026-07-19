@@ -581,7 +581,7 @@
                 {{#if this.cant_change_private_logging}}
                 {{else}}
                   <div>
-                    <input type="text" value={{this.pending_preferences.logging_code}} class="form-control" placeholder="Set/Change a Log PIN" {{on "input" (set-field this "pending_preferences.logging_code")}} />
+                    <input type="text" value={{this.pending_preferences.logging_code}} class="form-control" placeholder="Set/Change a Log PIN" aria-label={{t "Set/Change a Log PIN" key="set_change_log_pin"}} {{on "input" (set-field this "pending_preferences.logging_code")}} />
                   </div>
                   {{#if this.pending_preferences.logging_code}}
                     <div class='text-danger'>{{t "NOTE: Remember this code! Once it has been set it can only be changed by remembering the current code, or by contacting technical support." key='logging_code_had_to_recover'}}</div>
@@ -1015,7 +1015,7 @@
               {{t "Automatically substitute common contractions" key='substitute_contractions'}}
             </label>
           </div>
-          <textarea class="form-control" placeholder="additional substitutions, one per line (stop break=I need to take a break)" {{on "input" (set-field this "substitution_string")}}>{{this.substitution_string}}</textarea>
+          <textarea class="form-control" placeholder="additional substitutions, one per line (stop break=I need to take a break)" aria-label={{t "Additional substitutions" key="additional_substitutions"}} {{on "input" (set-field this "substitution_string")}}>{{this.substitution_string}}</textarea>
         </div>
       </div>
       {{#if this.core_lists.for_user}}
@@ -1037,7 +1037,7 @@
               {{/if}}
             </div>
             <div style='display: flex; gap: 10px; margin-top: 12px;'>
-              <input type="text" value={{this.new_phrase}} class="form-control" placeholder="request additional phrase" {{on "input" (set-field this "new_phrase")}} />
+              <input type="text" value={{this.new_phrase}} class="form-control" placeholder="request additional phrase" aria-label={{t "Requested phrase" key="requested_phrase"}} {{on "input" (set-field this "new_phrase")}} />
               <button type='button' class='btn btn-default' style='white-space: nowrap;' {{on "click" (this.ctrlAction 'add_phrase')}}>{{t "Add" key='add'}}</button>
             </div>
           </div>

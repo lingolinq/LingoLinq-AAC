@@ -54,11 +54,11 @@
         {{/if}}
         <span class="md-stats-filter__dates">
         <div class="form-group">
-          <input type="date" value={{this.usage_stats.start_date_field}} class="form-control" {{on "input" (set-field this "usage_stats.start_date_field")}} />
+          <input type="date" value={{this.usage_stats.start_date_field}} class="form-control" aria-label={{t "Start date" key="start_date"}} {{on "input" (set-field this "usage_stats.start_date_field")}} />
         </div>
           <span class="md-stats-filter__to">{{t "to" key="to"}}</span>
         <div class="form-group">
-          <input type="date" value={{this.usage_stats.end_date_field}} class="form-control" {{on "input" (set-field this "usage_stats.end_date_field")}} />
+          <input type="date" value={{this.usage_stats.end_date_field}} class="form-control" aria-label={{t "End date" key="end_date"}} {{on "input" (set-field this "usage_stats.end_date_field")}} />
         </div>
         </span>
         <button type="button" {{on "click" (this.ctrlAction "applyCustomFilter")}} class="md-btn md-btn--primary md-stats-filter__apply">{{t "Apply" key="apply_report"}}</button>

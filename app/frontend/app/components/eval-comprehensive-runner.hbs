@@ -108,7 +108,7 @@
             {{t "Generate a draft SLP narrative from the evaluation data. The AI summarizes the recommendation, dynamic-assessment results, and SETT framework into IEP-ready prose — you review and edit before saving." key="comp_ai_intro"}}
           </p>
           {{#if this.aiNarrative}}
-            <textarea class="evq-comp__ai-textarea" rows="14" {{on "keyup" (this.ctrlActionEventValue "editAiNarrative" "value")}}>{{this.aiNarrative}}</textarea>
+            <textarea class="evq-comp__ai-textarea" rows="14" aria-label={{t "AI narrative draft" key="ai_narrative_draft"}} {{on "keyup" (this.ctrlActionEventValue "editAiNarrative" "value")}}>{{this.aiNarrative}}</textarea>
           {{else}}
             <div class="evq-comp__ai-empty">
               <p>{{t "No narrative drafted yet. Click below to generate." key="comp_ai_empty_state"}}</p>
