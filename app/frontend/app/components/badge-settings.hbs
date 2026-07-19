@@ -113,7 +113,7 @@
           </div>
         </div>
         <div class={{if this.in_list "col-sm-1" "col-sm-2"}}>
-          <input value={{this.badge.watch_type_minimum}} class="form-control" placeholder="#" {{on "input" (set-field this "badge.watch_type_minimum")}} />
+          <input value={{this.badge.watch_type_minimum}} class="form-control" placeholder="#" aria-label={{t "Minimum uses" key="badge_minimum_uses"}} {{on "input" (set-field this "badge.watch_type_minimum")}} />
         </div>
         <div class='col-sm-3'>
           <p class='form-control-static'>{{t "times per %{unit_type}" unit_type=this.unit_type key="from_the_type_list"}}</p>
@@ -129,7 +129,7 @@
           </div>
         </div>
         <div class={{if this.in_list "col-sm-1" "col-sm-2"}}>
-          <input value={{this.badge.watch_total}} class="form-control" placeholder="#" {{on "input" (set-field this "badge.watch_total")}} />
+          <input value={{this.badge.watch_total}} class="form-control" placeholder="#" aria-label={{t "Total required" key="badge_total_required"}} {{on "input" (set-field this "badge.watch_total")}} />
         </div>
         <div class='col-sm-3'>
           <p class='form-control-static'>{{t "of any %{types} from the list" types=this.watchlist_type_plural key="type_from_the_list"}}</p>
@@ -145,7 +145,7 @@
           </div>
         </div>
         <div class={{if this.in_list "col-sm-1" "col-sm-2"}}>
-          <input value={{this.badge.watch_type_count}} class="form-control" placeholder="#" {{on "input" (set-field this "badge.watch_type_count")}} />
+          <input value={{this.badge.watch_type_count}} class="form-control" placeholder="#" aria-label={{t "Different types required" key="badge_different_types"}} {{on "input" (set-field this "badge.watch_type_count")}} />
         </div>
         <div class='col-sm-3'>
           <p class='form-control-static'>
@@ -165,7 +165,7 @@
             </div>
           </div>
           <div class='col-sm-1'>
-            <input value={{this.badge.watch_type_interval_count}} class="form-control" placeholder="#" {{on "input" (set-field this "badge.watch_type_interval_count")}} />
+            <input value={{this.badge.watch_type_interval_count}} class="form-control" placeholder="#" aria-label={{t "Different types per interval" key="badge_different_types_interval"}} {{on "input" (set-field this "badge.watch_type_interval_count")}} />
           </div>
           <div class='col-sm-2'>
             <p class='form-control-static'>{{t "different %{types} used" types=this.watchlist_type_plural key="different_types_used"}}</p>
@@ -187,7 +187,7 @@
           </p>
         </div>
         <div class={{if this.in_list "col-sm-1" "col-sm-2"}}>
-          <input value={{this.badge.instance_count}} class="form-control" placeholder="#" {{on "input" (set-field this "badge.instance_count")}} />
+          <input value={{this.badge.instance_count}} class="form-control" placeholder="#" aria-label={{t "Daily minimum" key="badge_daily_minimum"}} {{on "input" (set-field this "badge.instance_count")}} />
         </div>
         <div class={{if this.in_list "col-sm-3" "col-sm-4"}}>
           <BoundSelect @select_class="form-control" @content={{this.instance_metric_list}} @selection={{this.badge.instance_metric}} @action={{mut this.badge.instance_metric}} />
@@ -210,21 +210,21 @@
           </div>
           {{#if this.badge.for_consecutive_units}}
             <div class='col-sm-1'>
-              <input value={{this.badge.consecutive_units}} class="form-control" placeholder="#" {{on "input" (set-field this "badge.consecutive_units")}} />
+              <input value={{this.badge.consecutive_units}} class="form-control" placeholder="#" aria-label={{t "Consecutive units required" key="badge_consecutive_units"}} {{on "input" (set-field this "badge.consecutive_units")}} />
             </div>
             <div class='col-sm-2'>
               <p class='form-control-static'>{{this.unit_type_plural}}</p>
             </div>
           {{else if this.badge.for_matching_units}}
             <div class='col-sm-1'>
-              <input value={{this.badge.matching_units}} class="form-control" placeholder="#" {{on "input" (set-field this "badge.matching_units")}} />
+              <input value={{this.badge.matching_units}} class="form-control" placeholder="#" aria-label={{t "Matching units required" key="badge_matching_units"}} {{on "input" (set-field this "badge.matching_units")}} />
             </div>
             <div class='col-sm-2'>
               <p class='form-control-static'>{{this.unit_type_plural}}</p>
             </div>
           {{else if this.badge.for_matching_instances}}
             <div class='col-sm-1'>
-              <input value={{this.badge.matching_instances}} class="form-control" placeholder="#" {{on "input" (set-field this "badge.matching_instances")}} />
+              <input value={{this.badge.matching_instances}} class="form-control" placeholder="#" aria-label={{t "Matching events required" key="badge_matching_events"}} {{on "input" (set-field this "badge.matching_instances")}} />
             </div>
             <div class='col-sm-2'>
               <p class='form-control-static'>{{this.event_type_plural}}</p>
@@ -241,7 +241,7 @@
         <p class='form-control-static'>{{t "list of words:" key="list_of_words"}}</p>
       </label>
       <div class='col-sm-5'>
-          <input value={{this.badge.string_list}} class="form-control" placeholder="list, of, words" {{on "input" (set-field this "badge.string_list")}} />
+          <input value={{this.badge.string_list}} id="string_list" class="form-control" placeholder="list, of, words" {{on "input" (set-field this "badge.string_list")}} />
       </div>
     {{/if}}
     <div class='col-sm-10 col-sm-offset-2'>
@@ -257,9 +257,9 @@
         {{/if}}
         <span style='display: inline-block; width: 50px; margin: 0 5px;'>
           {{#if this.simple_word_badge}}
-            <input value={{this.badge.watch_total}} class="form-control" placeholder="#" {{on "input" (set-field this "badge.watch_total")}} />
+            <input value={{this.badge.watch_total}} class="form-control" placeholder="#" aria-label={{t "Total required" key="badge_total_required"}} {{on "input" (set-field this "badge.watch_total")}} />
           {{else}}
-            <input value={{this.badge.instance_count}} class="form-control" placeholder="#" {{on "input" (set-field this "badge.instance_count")}} />
+            <input value={{this.badge.instance_count}} class="form-control" placeholder="#" aria-label={{t "Daily minimum" key="badge_daily_minimum"}} {{on "input" (set-field this "badge.instance_count")}} />
           {{/if}}
         </span>
         {{#if this.simple_word_badge}}
@@ -273,7 +273,7 @@
         {{/if}}
         {{#if this.in_list}}
           {{t "for" key="for_lower"}}
-          <span style='display: inline-block; width: 50px; margin: 0 5px;'><input value={{this.badge.consecutive_units}} class="form-control" placeholder="#" {{on "input" (set-field this "badge.consecutive_units")}} /></span>
+          <span style='display: inline-block; width: 50px; margin: 0 5px;'><input value={{this.badge.consecutive_units}} class="form-control" placeholder="#" aria-label={{t "Consecutive units required" key="badge_consecutive_units"}} {{on "input" (set-field this "badge.consecutive_units")}} /></span>
           {{this.simple_badge_unit}} {{t "in a row" key="in_a_row"}}
         {{else}}
           {{t "each day" key="each_day"}}

@@ -1047,7 +1047,7 @@
         <label for="phrase_categories" class="col-sm-3 control-label">{{t "Saved Phrase Types" key='saved_phrase_types'}}</label>
         <div class="col-sm-5">
           <div style='margin-bottom: 12px;'>
-            <input type="text" value={{this.phrase_categories_string}} class="form-control" placeholder="list, of, phrase, categories" {{on "input" (set-field this "phrase_categories_string")}} />
+            <input type="text" id="phrase_categories" value={{this.phrase_categories_string}} class="form-control" placeholder="list, of, phrase, categories" {{on "input" (set-field this "phrase_categories_string")}} />
           </div>
           <p class='form-control-static' style='margin-bottom: 14px;'><em>{{t "%app_name% has \"Quick\" and \"Journal\" categories by default, but you can list more categories to add here." key='phrase_categories_explainer'}}</em></p>
           <div style='margin-top: 12px;'>

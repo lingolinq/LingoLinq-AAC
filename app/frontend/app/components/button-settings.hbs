@@ -1071,7 +1071,7 @@
       <div class="form-group">
         <div class="col-sm-2 control-label">{{t "Name" key="name"}}</div>
         <div class='col-sm-10'>
-          <input type="text" value={{this.sound_preview.name}} class="form-control" {{on "input" (set-field this "sound_preview.name")}} />
+          <input type="text" value={{this.sound_preview.name}} aria-label={{t "Sound name" key="sound_name"}} class="form-control" {{on "input" (set-field this "sound_preview.name")}} />
         </div>
       </div>
     </div>
@@ -1191,34 +1191,34 @@
         <div class='col-sm-10 col-sm-offset-2'>
           <div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              <input class="form-control" value={{locale.inflections_hash.nw}} placeholder={{locale.inflections_suggestions.nw}}  {{on "input" (set-field locale "inflections_hash.nw")}}/>
+              <input class="form-control" value={{locale.inflections_hash.nw}} placeholder={{locale.inflections_suggestions.nw}} aria-label={{t "Inflection, top left" key="inflection_top_left"}}  {{on "input" (set-field locale "inflections_hash.nw")}}/>
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              <input class="form-control" value={{locale.inflections_hash.n}} placeholder={{locale.inflections_suggestions.n}}  {{on "input" (set-field locale "inflections_hash.n")}}/>
+              <input class="form-control" value={{locale.inflections_hash.n}} placeholder={{locale.inflections_suggestions.n}} aria-label={{t "Inflection, top" key="inflection_top"}}  {{on "input" (set-field locale "inflections_hash.n")}}/>
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              <input class="form-control" value={{locale.inflections_hash.ne}} placeholder={{locale.inflections_suggestions.ne}}  {{on "input" (set-field locale "inflections_hash.ne")}}/>
+              <input class="form-control" value={{locale.inflections_hash.ne}} placeholder={{locale.inflections_suggestions.ne}} aria-label={{t "Inflection, top right" key="inflection_top_right"}}  {{on "input" (set-field locale "inflections_hash.ne")}}/>
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              <input class="form-control" value={{locale.inflections_hash.w}} placeholder={{locale.inflections_suggestions.w}}  {{on "input" (set-field locale "inflections_hash.w")}}/>
+              <input class="form-control" value={{locale.inflections_hash.w}} placeholder={{locale.inflections_suggestions.w}} aria-label={{t "Inflection, left" key="inflection_left"}}  {{on "input" (set-field locale "inflections_hash.w")}}/>
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px; text-align: center; overflow: hidden;'>
               {{locale.label}}
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              <input class="form-control" value={{locale.inflections_hash.e}} placeholder={{locale.inflections_suggestions.e}}  {{on "input" (set-field locale "inflections_hash.e")}}/>
+              <input class="form-control" value={{locale.inflections_hash.e}} placeholder={{locale.inflections_suggestions.e}} aria-label={{t "Inflection, right" key="inflection_right"}}  {{on "input" (set-field locale "inflections_hash.e")}}/>
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              <input class="form-control" value={{locale.inflections_hash.sw}} placeholder={{locale.inflections_suggestions.sw}}  {{on "input" (set-field locale "inflections_hash.sw")}}/>
+              <input class="form-control" value={{locale.inflections_hash.sw}} placeholder={{locale.inflections_suggestions.sw}} aria-label={{t "Inflection, bottom left" key="inflection_bottom_left"}}  {{on "input" (set-field locale "inflections_hash.sw")}}/>
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              <input class="form-control" value={{locale.inflections_hash.s}} placeholder={{locale.inflections_suggestions.s}}  {{on "input" (set-field locale "inflections_hash.s")}}/>
+              <input class="form-control" value={{locale.inflections_hash.s}} placeholder={{locale.inflections_suggestions.s}} aria-label={{t "Inflection, bottom" key="inflection_bottom"}}  {{on "input" (set-field locale "inflections_hash.s")}}/>
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              <input class="form-control" value={{locale.inflections_hash.se}} placeholder={{locale.inflections_suggestions.se}}  {{on "input" (set-field locale "inflections_hash.se")}}/>
+              <input class="form-control" value={{locale.inflections_hash.se}} placeholder={{locale.inflections_suggestions.se}} aria-label={{t "Inflection, bottom right" key="inflection_bottom_right"}}  {{on "input" (set-field locale "inflections_hash.se")}}/>
             </div>
             <div>
-              <textarea class="form-control" placeholder={{this.inflection_overrides_placeholder}}  {{on "input" (set-field locale "rules_string")}}>{{locale.rules_string}}</textarea>
+              <textarea class="form-control" placeholder={{this.inflection_overrides_placeholder}} aria-label={{t "Inflection overrides" key="inflection_overrides"}}  {{on "input" (set-field locale "rules_string")}}>{{locale.rules_string}}</textarea>
             </div>
           </div>
         </div>
@@ -1300,7 +1300,7 @@
           <p class='form-control-static'>{{t "Level Settings" key="level_settings"}}</p>
         </div>
         <div class='col-sm-10'>
-          <textarea class="form-control" placeholder="level override configuration" {{on "input" (set-field this "model.level_json")}}>{{this.model.level_json}}</textarea>
+          <textarea class="form-control" placeholder="level override configuration" aria-label={{t "Level override configuration" key="level_override_configuration"}} {{on "input" (set-field this "model.level_json")}}>{{this.model.level_json}}</textarea>
         </div>
       </div>
     {{/if}}
@@ -1314,34 +1314,34 @@
               <p>{{t "See the \"Language\" section for per-language inflections" key="see_language_for_inflections"}}</p>
             {{else}}
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                <input value={{this.inflections_hash.nw}} class="form-control" placeholder={{this.inflections_suggestions.nw}} {{on "input" (set-field this "inflections_hash.nw")}} />
+                <input value={{this.inflections_hash.nw}} class="form-control" placeholder={{this.inflections_suggestions.nw}} aria-label={{t "Inflection, top left" key="inflection_top_left"}} {{on "input" (set-field this "inflections_hash.nw")}} />
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                <input value={{this.inflections_hash.n}} class="form-control" placeholder={{this.inflections_suggestions.n}} {{on "input" (set-field this "inflections_hash.n")}} />
+                <input value={{this.inflections_hash.n}} class="form-control" placeholder={{this.inflections_suggestions.n}} aria-label={{t "Inflection, top" key="inflection_top"}} {{on "input" (set-field this "inflections_hash.n")}} />
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                <input value={{this.inflections_hash.ne}} class="form-control" placeholder={{this.inflections_suggestions.ne}} {{on "input" (set-field this "inflections_hash.ne")}} />
+                <input value={{this.inflections_hash.ne}} class="form-control" placeholder={{this.inflections_suggestions.ne}} aria-label={{t "Inflection, top right" key="inflection_top_right"}} {{on "input" (set-field this "inflections_hash.ne")}} />
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                <input value={{this.inflections_hash.w}} class="form-control" placeholder={{this.inflections_suggestions.w}} {{on "input" (set-field this "inflections_hash.w")}} />
+                <input value={{this.inflections_hash.w}} class="form-control" placeholder={{this.inflections_suggestions.w}} aria-label={{t "Inflection, left" key="inflection_left"}} {{on "input" (set-field this "inflections_hash.w")}} />
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px; text-align: center; overflow: hidden;'>
                 {{this.model.label}}
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                <input value={{this.inflections_hash.e}} class="form-control" placeholder={{this.inflections_suggestions.e}} {{on "input" (set-field this "inflections_hash.e")}} />
+                <input value={{this.inflections_hash.e}} class="form-control" placeholder={{this.inflections_suggestions.e}} aria-label={{t "Inflection, right" key="inflection_right"}} {{on "input" (set-field this "inflections_hash.e")}} />
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                <input value={{this.inflections_hash.sw}} class="form-control" placeholder={{this.inflections_suggestions.sw}} {{on "input" (set-field this "inflections_hash.sw")}} />
+                <input value={{this.inflections_hash.sw}} class="form-control" placeholder={{this.inflections_suggestions.sw}} aria-label={{t "Inflection, bottom left" key="inflection_bottom_left"}} {{on "input" (set-field this "inflections_hash.sw")}} />
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                <input value={{this.inflections_hash.s}} class="form-control" placeholder={{this.inflections_suggestions.s}} {{on "input" (set-field this "inflections_hash.s")}} />
+                <input value={{this.inflections_hash.s}} class="form-control" placeholder={{this.inflections_suggestions.s}} aria-label={{t "Inflection, bottom" key="inflection_bottom"}} {{on "input" (set-field this "inflections_hash.s")}} />
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                <input value={{this.inflections_hash.se}} class="form-control" placeholder={{this.inflections_suggestions.se}} {{on "input" (set-field this "inflections_hash.se")}} />
+                <input value={{this.inflections_hash.se}} class="form-control" placeholder={{this.inflections_suggestions.se}} aria-label={{t "Inflection, bottom right" key="inflection_bottom_right"}} {{on "input" (set-field this "inflections_hash.se")}} />
               </div>
               <div>
-                <textarea class="form-control" placeholder={{this.inflection_overrides_placeholder}} {{on "input" (set-field this "rules_string")}}>{{this.rules_string}}</textarea>
+                <textarea class="form-control" placeholder={{this.inflection_overrides_placeholder}} aria-label={{t "Inflection overrides" key="inflection_overrides"}} {{on "input" (set-field this "rules_string")}}>{{this.rules_string}}</textarea>
               </div>
             {{/if}}
           </div>
