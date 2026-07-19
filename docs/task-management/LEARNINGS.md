@@ -924,6 +924,146 @@ wrapper that truncates is the bug.
 
 ---
 
+## Pattern: `current_mode` is the ONE source for speak/edit/default — and child-route exits must restore the parent's invariant
+
+**The model:** there is no settable `speak_mode`. All three flags derive from a
+single persisted stash, `stashes.current_mode` (`services/app-state.js:3033-3060`):
+`speak_mode = current_mode=='speak' && currentBoardState`,
+`edit_mode = current_mode=='edit' && …`, `default_mode = current_mode=='default' || …`.
+So "put them back in speak mode" == `stashes.persist('current_mode','speak')`,
+and any change flips TWO flags (speak on, default off).
+
+**The invariant:** the board-detail route declares *"board-detail operates as
+speak mode"* and forces `current_mode='speak'` on entry, recording
+`_was_not_speak_mode` so it can restore `'default'` when you leave
+(`routes/user/board-detail.js:453-457, 496-500`).
+
+**The trap:** `board-detail.edit` is a CHILD route (`router.js:159-161`). Exiting
+the child back to the parent does NOT re-run the parent's `setupController`, so
+the parent cannot re-assert its invariant. The child's `resetController` is the
+only thing that can — and if it restores anything other than `'speak'`, the user
+is stranded ON board-detail with `speak_mode` false. That silently disables the
+whole speak surface (logging, scanning, sidebar, speak chrome) and was the
+upstream cause of the dead ⋮ toggle (see the dual-dispatch entry below).
+**Rule: when a child route mutates a mode/state the parent asserts on entry, the
+child's resetController must restore it — the parent gets no second chance.**
+
+**The second half — `last_speak_mode` asymmetry.** The speak_mode observer skips
+its TEARDOWN when the transition target is 'edit' (`app-state.js:2865-2866`) so a
+session survives the round-trip, but it used to still record
+`last_speak_mode = false` (`:2911`). That made the trip back out of edit look
+like a FRESH activation, re-running the once-per-activation block (`:2733`) on
+every edit exit: speaks "here we go", re-shows logging toast / voice + volume
+warnings / intro + goal modals, and calls `set_history([])` (`:2750`) — wiping
+board history and breaking the back button. Fix was symmetric: skip the
+`last_speak_mode` write while `current_mode=='edit'` too.
+**Rule: if you skip teardown for a transition, you must also skip the
+"last state" bookkeeping for it, or the return trip re-fires first-entry effects.**
+
+**Gotcha when auditing this area:** `current_mode` is PERSISTED, and
+`routes/index.js:101` auto-jumps into speak mode on next login when it reads
+`'speak'`; `routes/index.js:136` / `routes/bento.js:58` only ever downgrade
+`'edit'`, never `'speak'`. Also `res.reload(!speak_mode)`
+(`routes/board/index.js:30`) suppresses server reload in speak mode, which works
+against the edit route's cache invalidation — verify freshly-saved edits appear.
+
+**First seen in:** [2026-07-18-actions-toggle-dead-after-edit.md](./2026-07-18-actions-toggle-dead-after-edit.md)
+
+---
+
+## Pattern: dual-dispatch (raw_events fallback + Ember `{{on}}`) double-fires and net-cancels TOGGLE actions
+
+**Surface:** board-detail chrome. Clicks reach the controller by TWO routes —
+Ember's `{{on "click"}}` and the `raw_events.js` fallback
+(`resolveBoardDetailChromeAction` → `controller.send`), which exists because
+Ember 5 `{{on}}` misses SYNTHETIC clicks (dwell/eye-gaze/touch).
+`defer_board_detail_chrome_click_to_ember` is the dedup that decides which one
+wins. When that dedup mis-fires, BOTH run.
+
+**Symptom:** a toggle button looks dead — no menu, no flash, no console error.
+Non-toggle chrome (e.g. `go_home`) looks fine because double-dispatching an
+IDEMPOTENT action is invisible. Only a toggle net-cancels
+(`false→true→false`), so a toggle is the canary for this whole bug class.
+
+**Root cause found (2026-07-18):** the dedup bailed whenever neither
+`speak_mode` nor `edit_mode` was set. Leaving edit mode lands on board-detail
+with BOTH false, so raw_events stopped deferring and dispatched the action
+itself — while Ember's `{{on "click"}}` still fired for the same interaction.
+
+**The load-bearing detail — `preventDefault()` on `mouseup` does NOT cancel the
+follow-up `click`.** raw_events suppresses at the pointer-release, so with a
+MOUSE the native click still reaches `{{on}}` → two calls. With TOUCH,
+`preventDefault()` on `touchend` DOES suppress the synthetic click → one call →
+works. That mouse/touch asymmetry is the real explanation for symptoms that
+look like timing ghosts.
+
+**Beware the DevTools red herring:** the bug "healed whenever DevTools opened,"
+which reads as a throttling/render-flush issue. It was not — DevTools was
+putting the interaction on the TOUCH path. Do not chase resize/focus/rAF
+theories until you have confirmed the event TYPE (`mouseup` vs `touchend`).
+
+**Diagnostic technique when opening DevTools changes the behavior:** the console
+can't observe the broken state. Instrument the code to push records into a
+global buffer (`window.__td`), reproduce with DevTools CLOSED, then open
+DevTools and read the buffer. Log at EVERY dispatch point (the Ember action AND
+the raw_events `send`) so the call COUNT per interaction is visible — the count
+is what distinguishes double-fire from no-fire.
+
+**Fix:** defer to Ember for real mouse clicks in every mode; let raw_events take
+over only where `{{on}}` genuinely misses events (non-'click' sources, touch
+releases, co-located classic components like `.md-board-collection`). See
+`defer_board_detail_chrome_click_to_ember` (`raw_events.js:2694`).
+
+**First seen in:** [2026-07-18-actions-toggle-dead-after-edit.md](./2026-07-18-actions-toggle-dead-after-edit.md)
+
+---
+
+## Pattern: the Ember-5 migration `ctrlAction` click wrapper kills HTML5 drag
+
+**Surface:** any component that forwards native `ondragstart` /
+`ondragover` / `ondrop` through the hand-rolled `ctrlAction` closure
+introduced during the Ember 4→5 migration to replace classic
+`{{action}}` closure-actions. First hit: `sidebar-editor` (the
+board-detail "Edit Sidebar" reorder drag).
+
+**Symptom:** drag does nothing — no drag ghost, no reorder. The UI hints
+(`draggable="true"`, grip cursor) look right, but the item never lifts.
+
+**Root cause:** `ctrlAction` is built for CLICK handlers. For ANY event
+with `.preventDefault` + (`.type` || `.target`) — which every DOM event
+has — it (1) calls `event.preventDefault()` and (2) pops the event off
+the args before `send`. Both are fatal to native drag:
+- `preventDefault()` on a live `dragstart` **cancels the drag before it
+  starts** (spec behavior) — nothing lifts, no dragover/drop ever fire.
+- popping the event starves `row_drag_start` of the `dataTransfer` it
+  needs to call `setData` (Firefox refuses to drag without a payload).
+
+This is a migration artifact: the drag handlers were wired to the same
+wrapper as the click handlers, and the click-correct preventDefault+pop
+is drag-wrong.
+
+**Fix:** give drag its own forwarder that passes the RAW event through
+untouched (no preventDefault, no pop) — `dragAction` in
+`sidebar-editor.js`. The drag actions already call `preventDefault`
+themselves in exactly the right places (to cancel a non-reorderable
+drag, and to allow a drop on `dragover`/`drop`) — never on a live
+`dragstart`. Rule of thumb: do NOT preventDefault `dragstart`; DO
+preventDefault `dragover`+`drop` (inside the action, guarded).
+
+**Evidence:** `sidebar-editor.js` `ctrlAction` (init) preventDefaults +
+pops; `row_drag_start` (~line 479) reads `event.dataTransfer`;
+`dragAction` (init) is the raw-event forwarder; handlers rewired in
+`sidebar-editor.hbs:51,53`.
+
+**Related:** the "walk the chain, the first wrapper that truncates is the
+bug" diagnostic above — same class (a forwarder mangling the event), one
+layer worse (it also cancels via preventDefault, so the visual hint
+doesn't even appear).
+
+**First seen in:** [2026-07-18-sidebar-editor-drag-drop.md](./2026-07-18-sidebar-editor-drag-drop.md)
+
+---
+
 ## Pattern: Custom-JS drag works on desktop but not in touch emulation — root cause is `touch-action`, not the JS
 
 **Surface:** any custom pointer-tracking drag system that listens to

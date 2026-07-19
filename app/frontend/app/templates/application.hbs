@@ -133,7 +133,7 @@
                 {{/if}}
                 {{#if this.show_board_intro}}
                   <div role="button" tabindex="0" data-bd-action="board_intro" data-bd-controller="app" {{on "click" (this.ctrlAction "board_intro")}} class='extra-btn' style='position: absolute; top: 3px; bottom: 3px; border: 1px solid #ccc;  background: #eee; margin-top: 0; margin-bottom: 0; border-radius: 5px; padding: 5px 10px; max-height: 75px; cursor: pointer;'>
-                    <img src={{path "images/learn.png"}} style='height: 100%; max-height: 50px;'>
+                    <img src={{path "images/learn.png"}} alt="" style='height: 100%; max-height: 50px;'>
                     {{t "Intro" key="intro"}}
                   </div>
                 {{else if this.app_state.eye_gaze_state}}

@@ -48,9 +48,9 @@
     {{#if this.current_items.length}}
       <ul class="md-board-collection__list">
         {{#each this.current_items as |item|}}
-          <li class="md-board-collection__row md-sidebar-editor__row md-sidebar-editor__row--current {{if item.is_hidden 'md-sidebar-editor__row--hidden'}} {{if (is_equal this.draggingIdx item.idx) 'md-sidebar-editor__row--dragging'}} {{if (is_equal this.dropTargetIdx item.idx) 'md-sidebar-editor__row--drop-target'}}" ondragover={{this.ctrlAction "row_drag_over" item}} ondragleave={{this.ctrlAction "row_drag_leave" item}} ondrop={{this.ctrlAction "row_drop" item}}>
+          <li class="md-board-collection__row md-sidebar-editor__row md-sidebar-editor__row--current {{if item.is_hidden 'md-sidebar-editor__row--hidden'}} {{if (is_equal this.draggingIdx item.idx) 'md-sidebar-editor__row--dragging'}} {{if (is_equal this.dropTargetIdx item.idx) 'md-sidebar-editor__row--drop-target'}}" ondragover={{this.dragAction "row_drag_over" item}} ondragleave={{this.dragAction "row_drag_leave" item}} ondrop={{this.dragAction "row_drop" item}}>
             {{#if item.reorderable}}
-              <span class="md-sidebar-editor__grip" draggable={{if this.reorder_enabled "true" "false"}} ondragstart={{this.ctrlAction "row_drag_start" item}} ondragend={{this.ctrlAction "row_drag_end"}} title={{t "Drag to reorder" key="sidebar_editor_drag_to_reorder"}} aria-hidden="true">
+              <span class="md-sidebar-editor__grip" draggable={{if this.reorder_enabled "true" "false"}} ondragstart={{this.dragAction "row_drag_start" item}} ondragend={{this.dragAction "row_drag_end"}} title={{t "Drag to reorder" key="sidebar_editor_drag_to_reorder"}} aria-hidden="true">
                 <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor" aria-hidden="true">
                   <circle cx="2.5" cy="3" r="1.3"/><circle cx="7.5" cy="3" r="1.3"/>
                   <circle cx="2.5" cy="8" r="1.3"/><circle cx="7.5" cy="8" r="1.3"/>

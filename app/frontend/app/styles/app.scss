@@ -66309,6 +66309,17 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 }
 .md-shell.md-shell--board-detail:not(.md-shell--board-detail-edit) {
   padding-top: 2px !important;
+  /* SPEAK mode: flatten the atmospheric shell gradient (defined on
+     .md-shell--board-detail below) to the SAME flat surface as
+     .md-board-detail-main (color.adjust($surface-200, -15%), line ~66802).
+     The main's 8px top padding exposes a band of the main's flat gray at the
+     very top; with the shell behind/around it kept as the bluish gradient
+     (this rule's 2px top strip + the side grid columns), that gray band met
+     the gradient and read as a color seam. Matching the shell to the main
+     removes the seam — the top band and the surround are now one surface.
+     The 0,4,0 selector out-specifies the 0,1,0 gradient rule regardless of
+     source order; EDIT mode is excluded so it keeps its atmospheric page bg. */
+  background: color.adjust($surface-200, $lightness: -15%);
 }
 /* Layer 1: Background — same as authenticated-view home page.
    Halo alphas bumped ~30% over the prior version to strengthen the
@@ -66339,8 +66350,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 }
 .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-layout {
   /* No left/right padding in speak mode — the board grid runs edge to edge
-     (removes the purple page-background strip on the sides). Top/bottom keep 2px. */
-  padding: 2px 0;
+     (removes the purple page-background strip on the sides). Top is flush with the
+     shell so the board/sentence bar reaches the top; keep 2px at the bottom. */
+  padding: 0 0 2px;
   /* 100dvh (dynamic viewport height) tracks the actual visible area on mobile
      — Android Chrome's URL bar eats into the viewport but isn't reflected in
      100vh. dvh keeps the layout flush to the visible bottom so the button grid
@@ -66352,6 +66364,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    — the layout's own side padding + grid gap are 0 (above), so this is the single
    source of the side inset. Adjust this value to tune the left/right spacing. */
 .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-main {
+  padding-top: 8px;
   padding-left: 12px;
   padding-right: 12px;
 }
@@ -71853,20 +71866,28 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail-inline-sidebar__name {
   display: block;
   text-align: center;
-  word-break: break-word;
+  /* Truncate a too-long label to a single line with an ellipsis rather than
+     wrapping (e.g. "Inflections" on a narrow sidebar). The block is width-
+     constrained by the full-width .__item button, so ellipsis applies. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 15px;
 }
 /* Wider viewports (>1024px): a 125px sidebar. At <=1024px it stays at the
    base 100px width (and 70px at <=768px). */
 @media (min-width: 1025px) {
   .md-board-detail-inline-sidebar {
-    width: 125px;
+    width: 112px;
   }
 }
-/* Narrow viewports (<=1024px): shrink the inline sidebar's board
-   thumbnails/labels so they don't crowd the grid. The sidebar width is the base
-   100px here. The pin control is left alone so it keeps its 44px touch target. */
+/* Narrow viewports (<=1024px): narrow the inline sidebar to 80px and shrink its
+   board thumbnails/labels so they don't crowd the grid. The pin control is left
+   alone so it keeps its 44px touch target. */
 @media (max-width: 1024px) {
+  .md-board-detail-inline-sidebar {
+    width: 80px;
+  }
   .md-board-detail-inline-sidebar__item {
     padding: 7px 4px;
     font-size: 12px;

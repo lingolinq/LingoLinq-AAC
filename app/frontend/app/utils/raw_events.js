@@ -2694,7 +2694,23 @@ var buttonTracker = EmberObject.extend({
   defer_board_detail_chrome_click_to_ember: function(elem, source) {
     if(source !== 'click') { return false; }
     if(!buttonTracker.appState) { return false; }
-    if(!buttonTracker.appState.get('speak_mode') && !buttonTracker.appState.get('edit_mode')) { return false; }
+    /* NOTE: this used to also bail when neither speak_mode nor edit_mode was
+       set, on the assumption that Ember's {{on "click"}} only needed deferring
+       to inside those modes. That assumption is wrong and caused a real bug:
+       leaving edit mode lands on board-detail with BOTH flags false, so this
+       returned false, raw_events stopped deferring and dispatched the chrome
+       action ITSELF -- while Ember's own {{on "click"}} still fired for the
+       same interaction. The suppression here lands on `mouseup`, which does
+       NOT cancel the browser's follow-up `click`, so the action ran TWICE.
+       Idempotent actions (go_home) hid it; a TOGGLE net-cancelled, which is
+       why the options menu (⋮) appeared dead after an edit round-trip.
+       Verified by instrumenting both dispatch points: one click produced
+       RAW-DISPATCH + two EMBER-ACTION calls (was_open false->true->false).
+       A real mouse click is handled fine by {{on}} in every mode, so defer to
+       it here. raw_events still takes over exactly where {{on}} genuinely
+       misses events: non-'click' sources (dwell/eye-gaze, bailed above),
+       touch releases (bailed below), and co-located classic components like
+       .md-board-collection (bailed below). */
     if(!elem || !elem.dom) { return false; }
     if(buttonTracker.board_detail_grid_target(elem)) { return false; }
     if(!elem.dom.closest || !elem.dom.closest('.board-detail-view')) { return false; }

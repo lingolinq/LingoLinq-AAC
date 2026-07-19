@@ -58,6 +58,26 @@ module.exports = {
     // Enforce no-implicit-this to catch bare-property render crashes (Ember 5.x),
     // while allow-listing real curly component invocations so they are not flagged.
     'no-implicit-this': { allow: existingComponentNames() },
+    // require-presentational-children flags any semantic descendant inside an element with a
+    // "children-presentational" role (button/option/radio/switch/checkbox). Our custom ARIA
+    // widgets render decorative INLINE SVG icons and small <img> icons inside them, which the rule
+    // treats as semantic. But an icon in an interactive element is fine: an SVG/img is either
+    // decorative (alt="" / aria-hidden) or it provides the control's accessible name (a valid
+    // icon-button pattern). The rule can't tell -- it only recognizes per-element role="presentation"
+    // (not alt="" / aria-hidden), and adding role="presentation" to an <img> just trips
+    // no-redundant-role instead. additionalNonSemanticTags is the rule's intended escape hatch:
+    // treat SVG element tags and <img> as the graphics they are. This is NOT a blanket disable --
+    // a genuinely interactive/semantic descendant (an <a>, <input>, or a nested <button>) inside
+    // such a role is still caught and must be fixed (see the 2 nested <button>s still flagged in
+    // board-icon.hbs, a deliberate tile-with-actions tradeoff).
+    'require-presentational-children': {
+      additionalNonSemanticTags: [
+        'img',
+        'svg', 'g', 'defs', 'use', 'symbol', 'marker', 'mask', 'clipPath', 'pattern',
+        'path', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'rect',
+        'text', 'tspan', 'title', 'desc', 'stop', 'linearGradient', 'radialGradient',
+      ],
+    },
     // Disabled deliberately -- NOT to silence a defect. This rule is satisfied only by a
     // <track kind="captions"> containing the words being said. Our media is user-recorded
     // speech/sounds and app sound effects; the 9 <video>s have no transcription field at all,

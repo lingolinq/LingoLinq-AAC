@@ -600,5 +600,21 @@ export default Component.extend({
         self.send.apply(self, [actionName].concat(bound));
       };
     };
+    // dragAction: event forwarder for the HTML5 drag/drop handlers ONLY.
+    // ctrlAction (above) is built for CLICK handlers: it preventDefaults the
+    // event AND pops it off the args before dispatch. Both are FATAL to native
+    // drag — preventDefault() on `dragstart` CANCELS the drag before it begins,
+    // and popping the event starves row_drag_start of the `dataTransfer` it needs
+    // to set the payload (Firefox won't drag at all without setData). So drag
+    // gets its own forwarder that passes the RAW event through untouched. The
+    // drag actions (row_drag_start/over/drop) each call preventDefault
+    // themselves, exactly where it's correct (to cancel a non-reorderable drag,
+    // and to allow a drop on dragover/drop) — never on a live dragstart.
+    this.dragAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        self.send.apply(self, [actionName].concat(bound).concat([event]));
+      };
+    };
   }
 });
