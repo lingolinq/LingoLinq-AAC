@@ -50,10 +50,13 @@ onboarded. Gate 1 can be scheduled with open Gate-2 items; the two do not block 
 
 **Open items - YELLOW (all Gate 2; none is a DNS-cut blocker):**
 
-- **SES deliverability to the operator's personal Gmail:** SES accepted the send and manual inbox
-  receipt was confirmed, but the SPF/DKIM/DMARC `Authentication-Results` headers were not captured.
-  Accepted for Gate 1 (Scot, 2026-07-19); capture headers before customer-facing launch. Tracked as
-  a Gate-2 register finding (promotion pending in PR #624; not yet on `staging`).
+- **SES mail authentication residuals:** SES accepted the send and manual inbox receipt was
+  confirmed, so *delivery* is settled (`LL-42a24ee911`, verified-closed). Two residuals that
+  delivery did not establish remain open: the SPF/DKIM/DMARC `Authentication-Results` headers have
+  never been captured on a delivered prod message, and no custom `MAIL FROM` domain is configured,
+  so SPF is unaligned under DMARC and DKIM is the sole passing alignment mechanism. Accepted for
+  Gate 1 (Scot, 2026-07-19); resolve both before customer-facing launch. Tracked as Gate-2 register
+  finding `LL-abd6c88733` (promotion pending in PR #641; not yet on `staging`).
 - **Seeded `lingolinq_admin` weak test credential:** rotate/replace with a break-glass admin
   procedure before Gate 2. Tracked as a Gate-2 register finding (promotion pending in PR #624; not
   yet on `staging`).
