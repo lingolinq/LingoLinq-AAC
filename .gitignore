@@ -164,3 +164,8 @@ docs/CI_TEST_FAILURES_ANALYSIS.md
 
 # Playwright MCP session scratch
 .playwright-mcp/
+
+# Frontend scratchpad: local-only analysis/tooling scratch (one-off audit
+# scripts, test-run logs, pre-merge file snapshots). Nothing here is part of
+# the build; keep it out of the repo the same way per-task working logs are.
+app/frontend/scratchpad/
