@@ -39,8 +39,9 @@ export function needsAcknowledgement(appState) {
  * genuine resolution -- a bumped modal resolving with {replaced: true} is not
  * an acknowledgement (T-03-03-02) and must never let the gated action proceed,
  * so the returned promise is deliberately left pending in that case rather than
- * resolved or rejected. Never passes inactivity_timeout (03-UI-SPEC.md 6.6):
- * this modal must not self-dismiss without recording an acknowledgement.
+ * resolved or rejected. The modal.open() options object below never includes
+ * an auto-close-after-inactivity setting (03-UI-SPEC.md 6.6): this modal must
+ * not self-dismiss without recording an acknowledgement.
  */
 export function presentBlockingGate(appState) {
   if (!needsAcknowledgement(appState)) {
