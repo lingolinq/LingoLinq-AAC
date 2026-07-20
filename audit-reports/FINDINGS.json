@@ -39,7 +39,8 @@
     ],
     "sourceEnum": [
       "audit-run",
-      "pr-review"
+      "pr-review",
+      "manual"
     ],
     "governance": "Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition (accepted/fixed/dismissed-false-positive/wontfix). closureEvidence.attestation and disposition.decidedBy stay empty until Scot signs. Findings are added mechanically (scripts/audit-merge.rb from /audit-run, scripts/promote-finding.rb from PR-time reviews) and only ever land as status 'open' with disposition 'untriaged'; the adding scripts never close, downgrade, or triage. No student/patient data ever appears here; evidence snippets are code only and any PII/secret-bearing finding is refused at promotion, never redacted-in.",
     "disposition": "Optional per-finding triage state, orthogonal to status. status answers 'does the issue still exist in code' (lifecycle, citation-validated); disposition answers 'what did we decide to do about it' (untriaged/accepted/fixed/dismissed-false-positive/wontfix). A finding with no disposition object is treated as untriaged. Set only by Scot.",
@@ -3875,6 +3876,48 @@
         "rationale": "The LingoLinq eval is an assistive-technology access / feature-match assessment (find-the-target tasks at progressively smaller grid sizes to a hit/miss heat map to a recommended board size and layout). The AI narrative summarizes access findings and the layout recommendation; it does not diagnose, treat, or produce charting/billing/coding/claims, so it is not one of Anthropic's enumerated Healthcare Activities and condition (iii) does not apply. Retained controls: Messages-API-only on the HIPAA-Ready org key, PII scrub + structural student-name drop + etiology minimization before egress, the EVAL_NARRATOR_MODEL allowlist, the COPPA gate, explicit per-request opt-in, and the org AI opt-out. See docs/legal/ANTHROPIC_BAA_ACCEPTED.md and the lib/eval_narrator.rb module header. Do not re-flag the absent licensed-clinician gate without first reopening this classification with Scot."
       },
       "notes": "Adjudicated 2026-07-19 by Scot Wahlquist; a reasoned classification, not a detection error. Corrects the conservative 'Healthcare Activity' reading in the 2026-07-18 eligible-services scope review (docs/task-management/2026-07-18-anthropic-baa-eligible-services-scope.md). The EVAL_NARRATOR_MODEL allowlist + etiology minimization shipped in the eval-narrator runtime-gates security PR (#632); this classification is recorded in the Anthropic-BAA compliance PR (#631). Evidence anchor is the supervise-permission gate the auditor cited as insufficient for licensure, kept as the anchor for the dismissed recommendation."
+    },
+    {
+      "id": "LL-caaf8e20ec",
+      "ruleKey": "seeded-admin-credential-weak-prod",
+      "title": "lingolinq_admin site-admin account carries a simple, memorable seeded password (deliberate for pre-cutover hands-on testing); must be rotated, disabled, or replaced with a break-glass admin procedure before the GCP environment is customer-facing",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "runtime",
+        "source": "GCP cutover two-gate decision (2026-07-16), Gate 2 (customer-facing/onboarding). db/seeds.rb sets the lingolinq_admin account from the SEED_ADMIN_PASSWORD env via the seed_password helper (dev default is weak). The live prod/rehearsal account was given a deliberately simple, memorable value for multi-device hands-on testing before cutover (Scot's call, 2026-07-03), acceptable only because the current prod DB holds no real user data (PR #483, project_prod_no_real_users). It has NOT been rotated. lingolinq_admin is a live site-admin on the live prod app path, which is why this is tracked as operational security rather than ordinary housekeeping.",
+        "snippet": "db/seeds.rb: seeds user_name 'lingolinq_admin' via seed_password('SEED_ADMIN_PASSWORD', <dev-default>) with a lifetime subscription and site-admin rights; live prod value is a simple memorable one set for testing (value deliberately kept out of every repo file).",
+        "sha": ""
+      },
+      "firstSeen": "2026-07-16",
+      "lastSeen": "2026-07-16",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Before onboarding any real district/clinic to the GCP environment: (1) rotate lingolinq_admin to a strong secret stored ONLY in 1Password 'LingoLinq Prod' (never write the value into any repo file), OR (2) disable/delete the account, OR (3) replace the standing shared admin with an explicit break-glass admin procedure (short-lived, audited elevation). Not a DNS-cut blocker; blocks treating the environment as customer-ready.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": null,
+        "reviewer": "gcp-cutover-two-gate-decision",
+        "promotedDate": "2026-07-16"
+      },
+      "notes": "Promoted 2026-07-16 from the GCP cutover two-gate decision note (~/ai-company-brain/outputs/docs/2026-07-16-gcp-cutover-two-gate-decision.md), Gate 2. Manual promotion (medium severity is below promote-finding.rb's Critical/High threshold, so it was hand-added as status open / disposition untriaged). Only Scot triages/closes."
     }
   ]
 }
