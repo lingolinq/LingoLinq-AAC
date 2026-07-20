@@ -638,6 +638,10 @@ LingoLinq.User = BaseModel.extend({
     var res = [];
     var _this = this;
     boards.forEach(function(board) {
+      // Hidden entries remain in preferences (so the server's auto-add pass sees
+      // them as present and doesn't restore them) but are not shown on the
+      // sidebar. Set from the Edit Sidebar panel's show/hide toggle.
+      if(board.hidden) { return; }
       var board_object = EmberObject.create(board);
       // "Crisis Vocabulary" wraps awkwardly in the narrow sidebar — show the short
       // "Crisis" label there (the editor reads raw prefs, so it keeps the full name).
