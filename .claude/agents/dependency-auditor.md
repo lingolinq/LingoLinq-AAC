@@ -31,7 +31,7 @@ modify anything: you have no Edit/Write tools, and the PreToolUse hook blocks al
 ## Hard constraints
 - **Read-only.** Reporting only. Do NOT run installers, updaters, or `bundle exec rake` tasks.
 - **Node 22 / Ember 5.12 are the current pins.** (Ember 3.28 -> 5.12 shipped in #490,
-  2026-07-08; Node 20 -> 22 in #636.) Never recommend jumping Ember majors as a "fix":
+  2026-07-08; Node 20 -> 22 in #643.) Never recommend jumping Ember majors as a "fix":
   5.x -> 6.x is a separate migration effort, and Node 24 is gated behind it (ember-cli
   adds Node 24 at 6.7). Flag CVEs and EOL risk, but frame upgrade recommendations within
   those constraints.
