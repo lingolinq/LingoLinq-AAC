@@ -86,6 +86,9 @@ bin/forgecrm-mcp
 # machine-specific). Only the per-run summary (runs.jsonl) and the README are tracked.
 /audit-reports/run-log/examined-*.jsonl
 /audit-reports/run-log/logger-errors.jsonl
+# Ember upgrade audit: raw runtime-crawl artifacts are local; the run promotes
+# summaries into FINDINGS-EMBER.json (audit-reports/ember-upgrade/README.md)
+/audit-reports/ember-upgrade/crawl/
 
 # Python bytecode
 __pycache__/

@@ -405,14 +405,14 @@ steps, listed.
 **Required services:**
 - PostgreSQL (database)
 - Redis (background jobs, caching)
-- Node.js 20 (managed via nvm)
+- Node.js 22 (managed via nvm)
 - Ruby 3.4.3
 - ImageMagick (`convert`, `identify`, `montage`)
 - Ghostscript (`gs`)
 
 **Node Version Management:**
-- Both `/.nvmrc` and `app/frontend/.nvmrc` specify Node 20
-- `bin/ember-server` uses nvm to ensure Node 20 for the frontend dev server
+- Both `/.nvmrc` and `app/frontend/.nvmrc` specify Node 22
+- `bin/ember-server` uses nvm to ensure Node 22 for the frontend dev server
 
 **Environment variables:**
 - Copy `.env.example` to `.env`
@@ -519,6 +519,18 @@ Phase 2; their content was migrated into the `.claude/` layout below.
 
 Retired from the fan-out: `ember-stabilization` and `rails-upgrade` (migration-era, shipped)
 and the `mvp-readiness` 0-100 score (replaced by open Critical/High counts).
+
+### Ember Upgrade Audit (separate register, same machinery)
+The Ember 3.28 → 5.12 upgrade shipped under-migrated (see `docs/ember-5.12-migration-findings.md`);
+`/ember-audit-run` (`.claude/skills/ember-audit-run/SKILL.md`) hunts residual upgrade
+regressions. It fans out the read-only `ember-upgrade-auditor` finder across seven codebase
+slices (checklist: `.claude/skills/ember-upgrade-audit/SKILL.md`; knowledge base:
+`docs/ember-upgrade/KNOWN-ISSUES.md`), optionally ingests a Playwright runtime crawl
+(`scripts/ember-route-crawl.mjs`), and reconciles into
+`audit-reports/ember-upgrade/FINDINGS-EMBER.json` — a **separate register** from the
+compliance one (engineering findings must not pollute the compliance Critical/High headline)
+using the same `audit-merge.rb`/`citation-check.rb` machinery and the same governance
+(only Scot closes/downgrades/accepts).
 
 ### Audit Rules
 - Finders are read-only by construction: `tools: Read, Grep, Glob, Bash` (no Edit/Write) plus a

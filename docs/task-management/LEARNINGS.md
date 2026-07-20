@@ -137,6 +137,8 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Pattern: `.md-board-collection__*` is a light-base panel reusable on any page; dark theme is ancestor-scoped](#pattern-md-board-collection-is-a-light-base-panel-reusable-on-any-page-dark-theme-is-ancestor-scoped)
 - [Pattern: a new user preference is a 3-touch change — whitelist + default + dirty-bit save](#pattern-a-new-user-preference-is-a-3-touch-change--whitelist--default--dirty-bit-save)
 - [Pattern: "order-dependent" spec failures on global counts are often orphaned committed rows in the test DB](#pattern-order-dependent-spec-failures-on-global-counts-are-often-orphaned-committed-rows-in-the-test-db)
+- [Gotcha: ember-data 5.3 relationship/store arrays are NOT EmberArrays — `firstObject` on a hasMany is silent undefined](#gotcha-ember-data-53-relationshipstore-arrays-are-not-emberarrays--firstobject-on-a-hasmany-is-silent-undefined)
+- [Pattern: reuse the audit-register machinery for non-compliance domains via a separate register file](#pattern-reuse-the-audit-register-machinery-for-non-compliance-domains-via-a-separate-register-file)
 
 ## Pattern: a new user preference is a 3-touch change — whitelist + default + dirty-bit save
 
@@ -6930,3 +6932,32 @@ Org Settings → Home Boards bound `<Textarea @value={{this.home_board_key_lines
 ## Pattern: EU AI under-16 consent is a third blob, not COPPA signup
 
 EU under-16 AI enablement (`settings['eu_ai_parental_consent']`) is separate from COPPA account activation (`settings['coppa']`) and AI VPC data-sharing (`settings['ai_consent']`). Mirror COPPA token/`with_lock`/`AuditEvent` patterns for grant/revoke, but the complete controller must NOT mint devices or welcome emails — those are account-activation side effects. Persist country via `LingoLinq::Jurisdiction.trusted_country` (ISO alpha-2 only) and always recompute `eu_under_16` server-side from country + under_16; ignore client `eu_under_16`. Prefer-gate AI through `FeatureFlags.ai_feature_enabled_for?` (COPPA + EU + prefs) and keep thin call-site eu/coppa checks for defense in depth. Store allowlisted `requested_features` on request; apply them onto `settings['preferences']` inside the same `grant_eu_ai_parental_consent!` lock that records grant; on revoke force `EU_AI_PREF_KEYS` off. Prefs UI opens a modal (not an inline form) via `gate_ai_enable` → `modal.open('eu-ai-parental-consent')`. **Do not raise signup `coppaConsentAge` to 16 for EU** — that reused COPPA account-activation parent email for Art. 8; product intent is account create without parent email, AI consent only after login. Register keeps literal under-13 for `coppa_under_13`; `_classifyUnder16` + country drive `eu_under_16`. Register product-improvement force-off must set `model.preferences` (the signup user record), not assume `controller.user` exists. See `docs/task-management/2026-07-14-eu-ai-prefs-parental-consent.md`. (2026-07-14; registration decoupling 2026-07-15)
+
+## Gotcha: ember-data 5.3 relationship/store arrays are NOT EmberArrays — `firstObject` on a hasMany is silent undefined
+
+Verified against the emberjs/data v5.3.8 source: `ManyArray` and `RecordArray`
+(`peekAll`/`findAll`/`query` results) are native Proxies exposing only native array
+methods — `.sortBy`/`.pushObject`/`.filterBy` throw and `firstObject`/`lastObject`
+return `undefined` silently (blank UI, no console error), including in templates.
+`A()`-wrapping ED arrays is also unsupported, and `peekAll`-style results refuse
+in-place mutation (`.sort()`/`.push()` assert) — copy with `.slice()` first. So the
+Class-1 receiver rule is: ONLY `A()`-wrapped plain arrays are safe receivers for Ember
+array methods; native arrays AND ED arrays are findings. Async `belongsTo` is the one
+proxy that survives (chained `.get('user.x')` still works — don't over-flag it). The
+unresolved async-hasMany proxy keeps only `length/links/meta/forEach/then/reload`.
+Full per-receiver table + 70-entry known-issues KB: `docs/ember-upgrade/KNOWN-ISSUES.md`
+(built 2026-07-16; hunted by the `/ember-audit-run` orchestrator into the register
+`audit-reports/ember-upgrade/FINDINGS-EMBER.json`). (2026-07-16)
+
+## Pattern: reuse the audit-register machinery for non-compliance domains via a separate register file
+
+`scripts/audit-merge.rb` and `scripts/citation-check.rb` are register-path
+parameterized, so a new audit domain (e.g. the Ember upgrade) gets deterministic ids,
+dedup, regression flagging, PII refusal, and rendered markdown by pointing `--register`
+at its own file (`audit-reports/ember-upgrade/FINDINGS-EMBER.json`) — without polluting
+the compliance headline in `audit-reports/FINDINGS.json`. Two gotchas: the merge
+REFUSES findings containing dotted-quad tokens (IP scrubber — never write 4-part
+version strings) or `NNN_NNN` underscore-digit tokens (global_id scrubber — avoid
+numeric literals like `100_000` in snippets); and runtime findings (no file anchor)
+id-anchor on `ruleKey` with `evidence.source`, exempt from the snippet-at-SHA citation
+gate. (2026-07-16)
