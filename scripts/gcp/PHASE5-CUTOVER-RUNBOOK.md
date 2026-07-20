@@ -56,10 +56,9 @@ onboarded. Gate 1 can be scheduled with open Gate-2 items; the two do not block 
   never been captured on a delivered prod message, and no custom `MAIL FROM` domain is configured,
   so SPF is unaligned under DMARC and DKIM is the sole passing alignment mechanism. Accepted for
   Gate 1 (Scot, 2026-07-19); resolve both before customer-facing launch. Tracked as Gate-2 register
-  finding `LL-abd6c88733` (promotion pending in PR #641; not yet on `staging`).
+  finding `LL-abd6c88733`.
 - **Seeded `lingolinq_admin` weak test credential:** rotate/replace with a break-glass admin
-  procedure before Gate 2. Tracked as a Gate-2 register finding (promotion pending in PR #624; not
-  yet on `staging`).
+  procedure before Gate 2. Tracked as Gate-2 register finding `LL-caaf8e20ec`.
 - **Test residue:** rehearsal left fake note logs on the current GCP DB, and `Api::LogsController`
   has no `destroy` action (so `DELETE /api/v1/logs/...` is a no-op). Benign under no-real-users;
   either console-clean or confirm the migrate Job reseeds the DB at the flip before Gate 2.
