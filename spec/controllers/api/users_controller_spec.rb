@@ -4137,4 +4137,80 @@ describe Api::UsersController, :type => :controller do
     end
   end
 
+  describe "article_50_disclosure_ack" do
+    after(:each) { AuditEvent.delete_all }
+
+    it "should require a valid token" do
+      post :article_50_disclosure_ack, params: {user_id: '1_1'}
+      assert_missing_token
+    end
+
+    it "records the acknowledgement and returns the recorded version" do
+      token_user
+      post :article_50_disclosure_ack, params: {user_id: @user.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['article_50_disclosure_shown']).to eq(true)
+      expect(json['disclosures_version']).to eq(LingoLinq::Article50Disclosures::CURRENT_VERSION)
+
+      @user.reload
+      expect(@user.article_50_disclosure_shown?).to eq(true)
+      events = AuditEvent.where(user_key: @user.global_id, event_type: 'article_50_disclosure_shown')
+      expect(events.count).to eq(1)
+      expect(events.first.data['source']).to eq('modal_ack')
+    end
+
+    it "is idempotent on a second identical POST (no second AuditEvent)" do
+      token_user
+      post :article_50_disclosure_ack, params: {user_id: @user.global_id}
+      expect(response).to be_successful
+
+      post :article_50_disclosure_ack, params: {user_id: @user.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['article_50_disclosure_shown']).to eq(true)
+
+      events = AuditEvent.where(user_key: @user.global_id, event_type: 'article_50_disclosure_shown')
+      expect(events.count).to eq(1)
+    end
+
+    it "rejects a caller without edit permission on the target user and writes nothing" do
+      u = User.create
+      token_user
+      post :article_50_disclosure_ack, params: {user_id: u.global_id, access_token: @device.tokens[0], check_token: true}
+      assert_unauthorized
+      expect(u.reload.article_50_disclosure_shown?).to eq(false)
+      expect(AuditEvent.where(user_key: u.global_id, event_type: 'article_50_disclosure_shown').count).to eq(0)
+    end
+
+    it "ignores a client-supplied source and always records modal_ack" do
+      token_user
+      post :article_50_disclosure_ack, params: {user_id: @user.global_id, source: 'admin_backfill'}
+      expect(response).to be_successful
+      @user.reload
+      expect(@user.settings['ai_transparency']['source']).to eq('modal_ack')
+    end
+
+    it "ignores a client-supplied disclosures_version and always records the current version" do
+      token_user
+      post :article_50_disclosure_ack, params: {user_id: @user.global_id, disclosures_version: 999}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['disclosures_version']).to eq(LingoLinq::Article50Disclosures::CURRENT_VERSION)
+      @user.reload
+      expect(@user.settings['ai_transparency']['disclosures_version']).to eq(LingoLinq::Article50Disclosures::CURRENT_VERSION)
+    end
+
+    it "persists the request ip and user agent" do
+      token_user
+      request.env['REMOTE_ADDR'] = '203.0.113.5'
+      request.env['HTTP_USER_AGENT'] = 'RSpec Test Agent'
+      post :article_50_disclosure_ack, params: {user_id: @user.global_id}
+      expect(response).to be_successful
+      @user.reload
+      expect(@user.settings['ai_transparency']['ip']).to eq('203.0.113.5')
+      expect(@user.settings['ai_transparency']['user_agent']).to eq('RSpec Test Agent')
+    end
+  end
+
 end

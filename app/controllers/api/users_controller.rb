@@ -860,6 +860,34 @@ class Api::UsersController < ApplicationController
     }
   end
 
+  # Records that the EU AI Act Article 50(1) transparency disclosure was shown to and
+  # acknowledged by the caller. Requires API token + edit permission on the target user.
+  # Per D-06 (Phase 3 CONTEXT), both `source` and `disclosures_version` are server-side
+  # constants -- params['source'] / params['disclosures_version'] are intentionally never
+  # referenced here, so a client cannot widen ARTICLE_50_DISCLOSURE_SOURCES or backdate/
+  # forge the recorded version. mark_article_50_disclosure_shown! itself is idempotent
+  # (same-version re-call is a no-op) and audited (one AuditEvent), so a repeat POST (e.g.
+  # a double-click) is still a 200 rather than surfacing as an error to the modal.
+  def article_50_disclosure_ack
+    user = User.find_by_path(params['user_id'])
+    return unless exists?(user, params['user_id'])
+    return unless allowed?(user, 'edit')
+    begin
+      user.mark_article_50_disclosure_shown!(
+        disclosures_version: LingoLinq::Article50Disclosures::CURRENT_VERSION,
+        source: 'modal_ack',
+        ip: request.remote_ip,
+        user_agent: request.user_agent
+      )
+    rescue ArgumentError => e
+      return api_error 400, {error: e.message}
+    end
+    render json: {
+      article_50_disclosure_shown: true,
+      disclosures_version: LingoLinq::Article50Disclosures::CURRENT_VERSION
+    }
+  end
+
   def password_reset
     user = User.find_by_path(params['user_id'])
     if user && reset_token = user.reset_token_for_code(params['code'])

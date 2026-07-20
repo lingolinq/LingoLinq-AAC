@@ -243,6 +243,7 @@ LingoLinq::Application.routes.draw do
       post '2fa' => 'users#update_2fa'
       get 'external_nonce/:nonce_id' => 'users#external_nonce'
       post 'eu_ai_parental_consent' => 'users#request_eu_ai_parental_consent'
+      post 'article_50_disclosure_ack' => 'users#article_50_disclosure_ack'
     end
     
     resources :images do
