@@ -22,6 +22,13 @@ preservation).
 > hard constraints (no DNS, no Cloud Armor enforce, no ingress lockdown, no Render/SES changes)
 > stay in force until explicitly lifted.
 
+> **Finding references in this runbook.** `audit-reports/FINDINGS.json` is the single source of
+> truth for the status of any `LL-*` finding. Notes below are dated, historical, and may cite a
+> finding ID for context, but **a status word written here is not authoritative and may have
+> drifted** since it was typed. Never treat a gate as satisfied - or unsatisfied - on the basis of
+> a status restated in this document; resolve the ID against the register. When editing this file,
+> prefer citing the ID alone over restating its status.
+
 ## Gate 1 (operational) vs Gate 2 (customer-facing) readiness
 
 The cutover is gated in two independent stages. **Gate 1** is operational/infra readiness under the
@@ -909,12 +916,15 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       adapter level (credentials/region/delivery-method wiring); it used a generic
       `ActionMailer::Base.mail(...)` call rather than a concrete mailer class (`UserMailer` etc.),
       so full mailer-class representativeness is still untested, and per-message delivery-event
-      evidence explaining the Gmail gap still doesn't exist. The box stays unchecked;
-      `LL-42a24ee911` stays `open`.
+      evidence explaining the Gmail gap still doesn't exist. The box stays unchecked. The finding
+      this note originally tracked (`LL-42a24ee911`) covered only whether a diagnostic send
+      ARRIVED; the residuals described here are now tracked as `LL-abd6c88733`. Current status for
+      both is authoritative in `audit-reports/FINDINGS.json`.
 - [ ] **New findings from this session's Resque investigation, root-caused and cleared - separate
       gate from 0a, do NOT treat as satisfied just because the 0a Resque smoke-test box above gets
-      checked.** Three findings now in the register (`audit-reports/FINDINGS.json`), all status
-      `open`: `LL-a95e9c5f7c` (lingolinq-worker's 512Mi memory limit causes continuous OOM kills of
+      checked.** Three findings are tracked in the register (`audit-reports/FINDINGS.json`), which
+      is authoritative for their current status - this gate is NOT satisfied by a status value
+      restated here: `LL-a95e9c5f7c` (lingolinq-worker's 512Mi memory limit causes continuous OOM kills of
       forked `ButtonImage`/`BoardDownstreamButtonSet` job processes - 832 SIGKILL/SIGSEGV failures,
       see above), `LL-705b10bcd7` (S3 SigV4/KMS-SSE misconfiguration on `BoardDownstreamButtonSet`
       - 58 failures, see above), and `LL-5954bcbbe6` (pre-existing: 16 `ButtonImage` failures from a
