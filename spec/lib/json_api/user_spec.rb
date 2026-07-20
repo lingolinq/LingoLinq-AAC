@@ -895,5 +895,42 @@ describe JsonApi::User do
         expect(json['can_set_goals']).to eq(true)
       end
     end
+
+    describe "article_50_disclosure fields" do
+      it "requires disclosure and has not shown it for a user with no jurisdiction signal (:unknown)" do
+        u = User.create(settings: {'preferences' => {'locale' => 'en'}})
+        json = JsonApi::User.build_json(u)
+        expect(json['article_50_disclosure_required']).to eq(true)
+        expect(json['article_50_disclosure_shown']).to eq(false)
+      end
+
+      it "does not require disclosure for an authoritative non-EU user" do
+        u = User.create(settings: {'preferences' => {'jurisdiction' => 'US', 'locale' => 'en'}})
+        json = JsonApi::User.build_json(u)
+        expect(json['article_50_disclosure_required']).to eq(false)
+      end
+
+      it "reflects article_50_disclosure_shown true after mark_article_50_disclosure_shown!" do
+        u = User.create(settings: {'preferences' => {'locale' => 'en'}})
+        u.mark_article_50_disclosure_shown!(
+          disclosures_version: LingoLinq::Article50Disclosures::CURRENT_VERSION,
+          source: 'modal_ack'
+        )
+        u.reload
+        json = JsonApi::User.build_json(u)
+        expect(json['article_50_disclosure_shown']).to eq(true)
+      ensure
+        AuditEvent.delete_all
+      end
+
+      it "always emits both keys as booleans, never nil or absent" do
+        u = User.create(settings: {'preferences' => {'locale' => 'en'}})
+        json = JsonApi::User.build_json(u)
+        expect(json.key?('article_50_disclosure_required')).to eq(true)
+        expect(json.key?('article_50_disclosure_shown')).to eq(true)
+        expect([true, false]).to be_include(json['article_50_disclosure_required'])
+        expect([true, false]).to be_include(json['article_50_disclosure_shown'])
+      end
+    end
   end
 end

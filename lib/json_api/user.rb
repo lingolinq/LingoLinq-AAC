@@ -494,6 +494,12 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
     json['eu_under_16'] = true if user.eu_under_16?
     json['eu_ai_parental_consent_pending'] = true if user.eu_ai_parental_consent_pending?
     json['eu_ai_parental_consent_active'] = true if user.eu_ai_parental_consent_active?
+    # EU AI Act Article 50(1) disclosure gate + acknowledgement state (Phase 3, F1/F2).
+    # Assigned UNCONDITIONALLY (unlike the neighbouring '= true if' flags above): the
+    # frontend gate must distinguish "not required" (false) from "field absent because
+    # this serialization path was not taken" (D-04, 03-02-PLAN Task 2).
+    json['article_50_disclosure_required'] = EuJurisdiction.disclosure_required?(user)
+    json['article_50_disclosure_shown'] = user.article_50_disclosure_shown?
     # Prefill Resend modal after reload (edit only; account holder entered this address).
     if user.eu_ai_parental_consent_pending? && json['permissions'] && json['permissions']['edit']
       pe = user.settings.dig('eu_ai_parental_consent', 'parent_email')
