@@ -245,17 +245,17 @@
                  style={{this.preview_style}}
                  role="grid"
                  aria-label={{t "Board preview" key="board_preview"}}
-                 {{on "dragover" (this.ctrlAction "previewDragOver")}}
-                 {{on "drop" (this.ctrlAction "previewDrop")}}>
+                 {{on "dragover" (this.eventAction "previewDragOver")}}
+                 {{on "drop" (this.eventAction "previewDrop")}}>
               {{#each this.preview_grid as |row|}}
                 {{#each row as |cell|}}
                   <div class="new-board-preview__cell {{if cell.empty "new-board-preview__cell--empty"}} {{if cell.editing "new-board-preview__cell--editing"}}"
                        role="gridcell"
                        draggable={{if (or cell.empty cell.editing) "false" "true"}}
-                       {{on "dragstart" (this.ctrlAction "cellDragStart" cell.row cell.col)}}
-                       {{on "dragover" (this.ctrlAction "cellDragOver")}}
-                       {{on "drop" (this.ctrlAction "cellDrop" cell.row cell.col)}}
-                       {{on "dragend" (this.ctrlAction "cellDragEnd")}}>
+                       {{on "dragstart" (this.eventAction "cellDragStart" cell.row cell.col)}}
+                       {{on "dragover" (this.eventAction "cellDragOver")}}
+                       {{on "drop" (this.eventAction "cellDrop" cell.row cell.col)}}
+                       {{on "dragend" (this.eventAction "cellDragEnd")}}>
                     {{#if cell.editing}}
                       <input type="text"
                              id={{concat "new-board-cell-edit-" cell.idx}}
@@ -263,7 +263,7 @@
                              value={{this._editValue}}
                              aria-label={{t "Edit label" key="edit_cell_label"}}
                              {{on "input" (this.ctrlActionEventValue "cellEditChanged" "value")}}
-                             {{on "keydown" (this.ctrlAction "cellEditKeydown")}}
+                             {{on "keydown" (this.eventAction "cellEditKeydown")}}
                              {{on "blur" (this.ctrlAction "commitCellEdit")}} />
                     {{else if cell.empty}}
                       <span class="new-board-preview__label">{{cell.label}}</span>

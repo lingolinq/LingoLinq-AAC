@@ -582,7 +582,7 @@
             autocomplete="off"
             placeholder={{t "Filter boards..." key="filter_results"}}
             value={{this.boardsCtrl.filterString}}
-            {{on "input" (this.ctrlAction "updateFilterString")}}
+            {{on "input" (this.eventAction "updateFilterString")}}
           />
           {{#if this.boardsCtrl.filterString}}
             <button type="button" class="ub-boards-page__filter-clear" {{on "click" (this.ctrlAction "clearFilter")}} aria-label={{t "Clear filter" key="clear_filter"}}>

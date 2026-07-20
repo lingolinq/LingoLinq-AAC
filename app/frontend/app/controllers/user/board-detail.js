@@ -29,6 +29,7 @@ import boardDetailCache from '../../utils/board_detail_cache';
 import { pick_aac_type, pick_aac_color } from '../../utils/parts_of_speech';
 import prefClasses from '../../mixins/pref-classes';
 import LingoLinq from '../../app';
+import buildEventAction from '../../utils/event_action';
 
 // Catalog of speak-mode options-menu entries the user can show/hide
 // via the "Customize Menu" preference (right panel → Board Settings).
@@ -497,6 +498,10 @@ export default Controller.extend(prefClasses, {
         _this.send.apply(_this, [actionName].concat(args));
       };
     };
+    // For `input` bindings: the handler reads event.target.value, which the
+    // generic ctrlAction above discards (5.12 upgrade #490), so the search
+    // box never filtered. ctrlAction is unchanged for clicks.
+    _this.eventAction = buildEventAction(_this);
     _this.ctrlActionNoBubble = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function(event) {

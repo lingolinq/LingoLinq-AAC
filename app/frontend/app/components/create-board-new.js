@@ -12,6 +12,7 @@ import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import editManager from '../utils/edit_manager';
 import contentGrabbers from '../utils/content_grabbers';
+import buildEventAction from '../utils/event_action';
 import persistence from '../utils/persistence';
 import speecher from '../utils/speecher';
 import { pick_aac_color } from '../utils/parts_of_speech';
@@ -194,6 +195,12 @@ export default Component.extend({
         self.send.apply(self, [actionName].concat(args));
       };
     };
+    // For keydown/drag/drop bindings, whose handlers need the raw event and
+    // do their own preventDefault (cellEditKeydown reads event.key;
+    // cellDragOver/cellDrop read event.dataTransfer and stopPropagation so the
+    // global file-drop handler doesn't steal the drag). ctrlAction above stays
+    // as-is for the ~100 click bindings that rely on it swallowing the event.
+    this.eventAction = buildEventAction(this);
     this.ctrlActionNoBubble = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function(event) {

@@ -334,7 +334,7 @@
               placeholder={{t "Search" key="search_short"}}
               aria-label={{t "Search buttons" key="search_buttons_aria"}}
               value={{this.board_search_string}}
-              {{on "input" (this.ctrlAction "update_board_search")}}
+              {{on "input" (this.eventAction "update_board_search")}}
             />
             {{#if this.board_search_string}}
               <button type="button" class="md-board-edit-panel__search-clear" data-bd-action="clear_board_search" {{on "click" (this.ctrlAction "clear_board_search")}} aria-label={{t "Clear filter" key="clear_filter"}}>
@@ -913,7 +913,7 @@
             (handled by board-detail controller) so this is purely a mouse
             convenience — hide it from AT. --}}
           <div class="md-board-detail-actions-backdrop" data-bd-action="toggle_options_menu" {{on "click" (this.ctrlAction "toggle_options_menu")}} aria-hidden="true"></div>
-          <div class="md-board-detail-actions-menu" role="menu" {{on "keydown" (this.ctrlAction "options_menu_keydown")}}>
+          <div class="md-board-detail-actions-menu" role="menu" {{on "keydown" (this.eventAction "options_menu_keydown")}}>
             {{#unless this.edit_mode}}
               {{!-- Edit Board — pulled out of the BOARD section per
                    design request and floated above all other items as
@@ -1575,9 +1575,9 @@
                     placeholder={{t "Add a description for this board..." key="board_detail_description_placeholder"}}
                     rows="3"
                     aria-label={{t "Board description" key="board_detail_description_label"}}
-                    {{on "focus" (this.ctrlAction "auto_resize_description")}}
-                    {{on "input" (this.ctrlAction "auto_resize_description")}}
-                    {{on "blur" (this.ctrlAction "auto_resize_description_blur")}}
+                    {{on "focus" (this.eventAction "auto_resize_description")}}
+                    {{on "input" (this.eventAction "auto_resize_description")}}
+                    {{on "blur" (this.eventAction "auto_resize_description_blur")}}
                   />
                 </div>
               {{else}}

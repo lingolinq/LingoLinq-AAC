@@ -23,7 +23,7 @@
       placeholder={{t "Search boards" key="board_collection_search_placeholder"}}
       aria-label={{t "Search boards" key="board_collection_search_placeholder"}}
       value={{this.search_query}}
-      {{on "input" (this.ctrlAction "update_search")}} />
+      {{on "input" (this.eventAction "update_search")}} />
     {{#if this.search_active}}
       <button type="button" class="md-board-collection__search-clear" {{on "click" (this.ctrlAction "clear_search")}} aria-label={{t "Clear search" key="clear_search"}}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

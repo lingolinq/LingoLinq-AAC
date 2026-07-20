@@ -9,6 +9,7 @@ import editManager from '../utils/edit_manager';
 import { findExistingUserCopy } from '../utils/board-copy';
 import { filterRootBoards, dedupeByName, boardsPagePreferUserNames } from '../utils/board-roots';
 import { filterBrandRoots, BRAND_FAMILIES } from '../utils/board-brands';
+import buildEventAction from '../utils/event_action';
 
 /* Inline "Edit Sidebar" panel for the board-detail speak-mode sidebar. Reuses the
    My Board Collection panel chrome (the `md-board-collection` root layout + all the
@@ -592,6 +593,10 @@ export default Component.extend({
         self.send.apply(self, [actionName].concat(args));
       };
     };
+    // For `input` bindings: the handler reads event.target.value, which the
+    // generic ctrlAction above discards (5.12 upgrade #490), so the search
+    // box never filtered. ctrlAction is unchanged for clicks.
+    this.eventAction = buildEventAction(this);
     this.ctrlActionNoBubble = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function(event) {

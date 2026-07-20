@@ -5,6 +5,7 @@ import { inject as service } from '@ember/service';
 import modalUtil from '../utils/modal';
 import editManager from '../utils/edit_manager';
 import i18n from '../utils/i18n';
+import buildEventAction from '../utils/event_action';
 
 /**
  * Import a linked board set from a JSON bundle (CoughDrop/LingoLinq API export).
@@ -32,6 +33,10 @@ export default Component.extend({
         self.send.apply(self, [actionName].concat(args));
       };
     };
+    // For keydown/drag bindings whose handlers need the raw event and do
+    // their own preventDefault (5.12 upgrade #490 dropped it). ctrlAction
+    // above is unchanged for clicks.
+    this.eventAction = buildEventAction(this);
     this.ctrlActionNoBubble = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function(event) {
