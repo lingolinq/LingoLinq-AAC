@@ -62,10 +62,16 @@ module CoppaSentryScrub
     first_exception_type(event).to_s.start_with?('ActiveSupport::Cache::')
   end
 
+  # L1 hardening: the docs at the top of #before_send_event read
+  #   Sentry.with_scope { |scope| scope.set_tags(keep_cache_error: true) }
+  # but Sentry's set_tags happily accepts string-valued tags too, and
+  # some callers stringify on their own. Coerce the value so any of
+  # true / 'true' / 'True' (with either key flavor) trips the escape hatch.
   def keep_cache_error_tag?(event)
     return false unless event.respond_to?(:tags) && event.tags
     tags = event.tags
-    tags[:keep_cache_error] == true || tags['keep_cache_error'] == true
+    raw = tags[:keep_cache_error] || tags['keep_cache_error']
+    raw == true || raw.to_s.casecmp('true').zero?
   end
 
   # Sentry::Event#exception returns a Sentry::ExceptionInterface whose
@@ -96,11 +102,20 @@ module CoppaSentryScrub
     nil
   end
 
+  # Fail closed for COPPA: if coppa_parental_consent_pending? raises
+  # (corrupt settings blob, decryption failure, lookup timeout), treat the
+  # user as a child and scrub. Better to scrub an adult's event on a broken
+  # record than to leak a child's on one.
+  #
+  # nil user still returns false: an anonymous / unauthenticated request is
+  # not a known child, and scrubbing all anonymous traffic would blind us to
+  # the most common failure modes (login, SAML, public board pages). Only
+  # the raising path is fail-closed.
   def child_user?(user)
     return false unless user
     user.respond_to?(:coppa_parental_consent_pending?) && user.coppa_parental_consent_pending?
   rescue StandardError
-    false
+    true
   end
 
   # Resolve the User for the active request so the COPPA branch can decide
@@ -255,11 +270,16 @@ module CoppaSentryScrub
   # TransactionEvent ALSO carries the transaction name and span descriptions
   # which the existing scrubber does not touch. Simpler+safer: drop the entire
   # transaction event for COPPA-pending users. Adults keep full traces.
+  # Fail closed for COPPA (pairs with child_user? above): if the inner lookup
+  # chain raises (Sentry SDK regression, RequestStore gone, User query
+  # timeout), drop the transaction event rather than ship a potentially-child
+  # trace carrying URL global_ids and a stable per-IP fingerprint. Adults lose
+  # performance visibility only on these rare exception paths.
   TRANSACTION_FILTER = lambda do |event, _hint|
     user = CoppaSentryScrub.lookup_user(CoppaSentryScrub.event_user(event))
     CoppaSentryScrub.child_user?(user) ? nil : event
   rescue StandardError
-    event
+    nil
   end
 end
 
