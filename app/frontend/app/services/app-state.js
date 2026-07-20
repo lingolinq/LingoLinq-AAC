@@ -3527,7 +3527,11 @@ export default Service.extend({
       return res;
     }
   ),
-  current_sidebar_boards: computed('referenced_user.sidebar_boards_with_fallback', function() {
+  // NOTE: the dependent key must be the PLURAL `sidebar_boards_with_fallbacks`
+  // (models/user.js). It was singular, so this computed watched a property that
+  // does not exist and cached its first value forever — hiding/showing or
+  // reordering a sidebar board never reached the live speak-mode sidebar.
+  current_sidebar_boards: computed('referenced_user.sidebar_boards_with_fallbacks', function() {
     var res = this.get('referenced_user.sidebar_boards_with_fallbacks');
     return res;
   }),
@@ -3539,7 +3543,7 @@ export default Service.extend({
     'currentUser',
     'currentUser.sidebar_boards_with_fallbacks',
     'referenced_speak_mode_user',
-    'referenced_speak_mode_user.sidebar_boards_with_fallback',
+    'referenced_speak_mode_user.sidebar_boards_with_fallbacks',
     function() {
       // Guard: ensure this is valid before accessing it
       if(!this || typeof this.get !== 'function') {
