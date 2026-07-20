@@ -131,6 +131,42 @@ describe AiWordPredictor do
     end
   end
 
+  describe "Article 50 jurisdiction + disclosure stamping" do
+    before do
+      allow(described_class).to receive(:call_anthropic).and_return(anthropic_response('play, go, eat, help'))
+      allow(FeatureFlags).to receive(:coppa_blocks_ai_for?).and_return(false)
+      allow(FeatureFlags).to receive(:eu_under16_blocks_ai_for?).and_return(false)
+    end
+
+    it "stamps jurisdiction 'EU' + article_50_disclosure_shown false for a confirmed EU user" do
+      eu_user = User.new(settings: { 'preferences' => { 'jurisdiction' => 'FR' } })
+
+      described_class.predict(sentence: 'I want to', user: eu_user)
+
+      expect(AiApiLog).to have_received(:log_ai_call).with(hash_including(
+        jurisdiction: 'EU', article_50_disclosure_shown: false
+      ))
+    end
+
+    it "leaves jurisdiction nil for a non-EU user (D-01 retention fail-safe)" do
+      non_eu_user = User.new(settings: { 'preferences' => { 'jurisdiction' => 'US' } })
+
+      described_class.predict(sentence: 'I want to', user: non_eu_user)
+
+      expect(AiApiLog).to have_received(:log_ai_call).with(hash_including(
+        jurisdiction: nil, article_50_disclosure_shown: false
+      ))
+    end
+
+    it "leaves jurisdiction nil for an :unknown user (NOT 'EU' -- the load-bearing D-01 case)" do
+      unknown_user = User.new(settings: { 'preferences' => { 'locale' => 'en' } })
+
+      described_class.predict(sentence: 'I want to', user: unknown_user)
+
+      expect(AiApiLog).to have_received(:log_ai_call).with(hash_including(jurisdiction: nil))
+    end
+  end
+
   describe ".predict_from_tokens" do
     it "delegates to predict with joined tokens" do
       expect(described_class).to receive(:predict).with(hash_including(
