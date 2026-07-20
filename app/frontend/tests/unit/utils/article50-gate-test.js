@@ -56,30 +56,30 @@ module('Unit | Utility | article50 gate', function(hooks) {
     test('returns false when the article_50_disclosure feature flag is off, regardless of other inputs', function(assert) {
       var user = makeUser({article_50_disclosure_required: true, article_50_disclosure_shown: false});
       var appState = makeAppState(false, user);
-      assert.strictEqual(needsAcknowledgement(appState), false);
+      assert.false(needsAcknowledgement(appState));
     });
 
     test('returns false when the flag is on but there is no current user', function(assert) {
       var appState = makeAppState(true, null);
-      assert.strictEqual(needsAcknowledgement(appState), false);
+      assert.false(needsAcknowledgement(appState));
     });
 
     test('returns false when the flag is on but article_50_disclosure_required is false', function(assert) {
       var user = makeUser({article_50_disclosure_required: false, article_50_disclosure_shown: false});
       var appState = makeAppState(true, user);
-      assert.strictEqual(needsAcknowledgement(appState), false);
+      assert.false(needsAcknowledgement(appState));
     });
 
     test('returns false when the flag is on but article_50_disclosure_shown is already true', function(assert) {
       var user = makeUser({article_50_disclosure_required: true, article_50_disclosure_shown: true});
       var appState = makeAppState(true, user);
-      assert.strictEqual(needsAcknowledgement(appState), false);
+      assert.false(needsAcknowledgement(appState));
     });
 
     test('returns true only when the flag is on, required is true and shown is false', function(assert) {
       var user = makeUser({article_50_disclosure_required: true, article_50_disclosure_shown: false});
       var appState = makeAppState(true, user);
-      assert.strictEqual(needsAcknowledgement(appState), true);
+      assert.true(needsAcknowledgement(appState));
     });
   });
 
@@ -91,7 +91,7 @@ module('Unit | Utility | article50 gate', function(hooks) {
       var user = makeUser({article_50_disclosure_shown: true});
       var appState = makeAppState(true, user);
       presentBlockingGate(appState).then(function() {
-        assert.strictEqual(openCalled, false);
+        assert.false(openCalled);
         done();
       });
     });
@@ -107,7 +107,7 @@ module('Unit | Utility | article50 gate', function(hooks) {
       var appState = makeAppState(true, user);
       presentBlockingGate(appState).then(function(result) {
         assert.deepEqual(openArgs[0], 'ai-disclosure');
-        assert.strictEqual(openArgs[1].scannable, true);
+        assert.true(openArgs[1].scannable);
         assert.strictEqual(openArgs[1].inactivity_timeout, undefined);
         assert.deepEqual(result, {ok: true});
         done();
@@ -126,7 +126,7 @@ module('Unit | Utility | article50 gate', function(hooks) {
         resolved = true;
       });
       setTimeout(function() {
-        assert.strictEqual(resolved, false);
+        assert.false(resolved);
         done();
       }, 50);
     });
@@ -142,7 +142,7 @@ module('Unit | Utility | article50 gate', function(hooks) {
       var user = makeUser({really_fresh: true, article_50_disclosure_required: true, article_50_disclosure_shown: false});
       maybeShowSessionEntryGate(user);
       assert.deepEqual(openArgs[0], 'ai-disclosure');
-      assert.strictEqual(openArgs[1].scannable, true);
+      assert.true(openArgs[1].scannable);
     });
 
     test('no-ops on a stale (not really_fresh) model', function(assert) {
@@ -150,7 +150,7 @@ module('Unit | Utility | article50 gate', function(hooks) {
       modal.open = function() { openCalled = true; return RSVP.resolve(); };
       var user = makeUser({really_fresh: false, article_50_disclosure_required: true, article_50_disclosure_shown: false});
       maybeShowSessionEntryGate(user);
-      assert.strictEqual(openCalled, false);
+      assert.false(openCalled);
     });
   });
 
@@ -160,7 +160,7 @@ module('Unit | Utility | article50 gate', function(hooks) {
       modal.open = function() { openCalled = true; return RSVP.resolve(); };
       var user = makeUser({really_fresh: true, article_50_disclosure_required: true, article_50_disclosure_shown: false});
       onlyIfGenuinelyResolved(null, user);
-      assert.strictEqual(openCalled, true);
+      assert.true(openCalled);
     });
 
     test('calls maybeShowSessionEntryGate when result.replaced is not truthy', function(assert) {
@@ -168,7 +168,7 @@ module('Unit | Utility | article50 gate', function(hooks) {
       modal.open = function() { openCalled = true; return RSVP.resolve(); };
       var user = makeUser({really_fresh: true, article_50_disclosure_required: true, article_50_disclosure_shown: false});
       onlyIfGenuinelyResolved({ok: true}, user);
-      assert.strictEqual(openCalled, true);
+      assert.true(openCalled);
     });
 
     test('does NOT call maybeShowSessionEntryGate when result.replaced is truthy', function(assert) {
@@ -176,7 +176,7 @@ module('Unit | Utility | article50 gate', function(hooks) {
       modal.open = function() { openCalled = true; return RSVP.resolve(); };
       var user = makeUser({really_fresh: true, article_50_disclosure_required: true, article_50_disclosure_shown: false});
       onlyIfGenuinelyResolved({replaced: true}, user);
-      assert.strictEqual(openCalled, false);
+      assert.false(openCalled);
     });
   });
 });
