@@ -4493,6 +4493,109 @@ describe User, :type => :model do
     end
   end
 
+  describe '#article_50_disclosure_shown? / #mark_article_50_disclosure_shown!' do
+    # AuditEvent.create! fires inside the writer under with_lock(requires_new: true)
+    # and commits outside the per-example fixture transaction, so rows leak across
+    # examples and break the AuditEvent.count baselines. Scope the clean to this block.
+    before(:each) { AuditEvent.delete_all }
+
+    it 'reader defaults to false for a newly created user with no ai_transparency key' do
+      u = User.create
+      expect(u.settings).to be_a(Hash)
+      expect(u.article_50_disclosure_shown?(disclosures_version: 1)).to eq(false)
+    end
+
+    it 'reader returns false when settings hash exists but ai_transparency key is absent' do
+      u = User.create
+      u.settings = {}
+      expect(u.article_50_disclosure_shown?(disclosures_version: 1)).to eq(false)
+    end
+
+    it 'defaults disclosures_version: to LingoLinq::Article50Disclosures::CURRENT_VERSION (PN-02, its OWN source)' do
+      expect(LingoLinq::Article50Disclosures::CURRENT_VERSION).to eq(1)
+      u = User.create
+      u.mark_article_50_disclosure_shown!(disclosures_version: 1, source: 'modal_ack')
+      u.reload
+      expect(u.article_50_disclosure_shown?).to eq(true)
+    end
+
+    it 'reader returns true after the writer marks it at the same version' do
+      u = User.create
+      u.mark_article_50_disclosure_shown!(disclosures_version: 1, source: 'modal_ack')
+      u.reload
+      expect(u.article_50_disclosure_shown?(disclosures_version: 1)).to eq(true)
+    end
+
+    it 'reader returns false when queried at a bumped version (re-prompt semantics)' do
+      u = User.create
+      u.mark_article_50_disclosure_shown!(disclosures_version: 1, source: 'modal_ack')
+      u.reload
+      expect(u.article_50_disclosure_shown?(disclosures_version: 2)).to eq(false)
+    end
+
+    it 'writer sets shown_at, disclosures_version, source, and a UUID-shaped record_id' do
+      u = User.create
+      res = u.mark_article_50_disclosure_shown!(disclosures_version: 1, source: 'modal_ack')
+      expect(res).to be_truthy
+      u.reload
+      c = u.settings['ai_transparency']
+      expect(c).to be_a(Hash)
+      expect(c['shown_at']).to be_present
+      expect(c['disclosures_version']).to eq(1)
+      expect(c['source']).to eq('modal_ack')
+      # Assert the record_id CONTRACT (UUID shape), not the generator.
+      expect(c['record_id']).to match(/\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/)
+    end
+
+    it "fires exactly one AuditEvent with event_type 'article_50_disclosure_shown' and the expected payload" do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      expect(AuditEvent.count).to eq(0)
+      res = u.mark_article_50_disclosure_shown!(disclosures_version: 1, source: 'modal_ack')
+      expect(res).to be_truthy
+      expect(AuditEvent.count).to eq(1)
+      ae = AuditEvent.last
+      expect(ae.event_type).to eq('article_50_disclosure_shown')
+      expect(ae.data['type']).to eq('article_50_disclosure_shown')
+      expect(ae.data['disclosures_version']).to eq(1)
+      expect(ae.data['source']).to eq('modal_ack')
+      expect(ae.data['record_id']).to be_present
+      u.reload
+      expect(ae.data['record_id']).to eq(u.settings['ai_transparency']['record_id'])
+    end
+
+    it 'is idempotent on same-version re-call: returns false and fires no second AuditEvent' do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      u.mark_article_50_disclosure_shown!(disclosures_version: 1, source: 'modal_ack')
+      expect(AuditEvent.count).to eq(1)
+      pre_count = AuditEvent.count
+      res = u.mark_article_50_disclosure_shown!(disclosures_version: 1, source: 'modal_ack')
+      expect(res).to eq(false)
+      expect(AuditEvent.count - pre_count).to eq(0)
+    end
+
+    it 'preserves record_id across a version bump re-record' do
+      u = User.create
+      u.mark_article_50_disclosure_shown!(disclosures_version: 1, source: 'modal_ack')
+      u.reload
+      original_record_id = u.settings['ai_transparency']['record_id']
+      expect(original_record_id).to be_present
+      res = u.mark_article_50_disclosure_shown!(disclosures_version: 2, source: 'modal_ack')
+      expect(res).to be_truthy
+      u.reload
+      expect(u.settings['ai_transparency']['disclosures_version']).to eq(2)
+      expect(u.settings['ai_transparency']['record_id']).to eq(original_record_id)
+    end
+
+    it 'raises ArgumentError invalid_source for a non-allowlisted source' do
+      u = User.create
+      expect {
+        u.mark_article_50_disclosure_shown!(disclosures_version: 1, source: 'sneaky')
+      }.to raise_error(ArgumentError, 'invalid_source')
+    end
+  end
+
   describe '#grant_ai_consent!' do
     before(:each) { AuditEvent.delete_all }  # see #ai_consent_granted? note above
 

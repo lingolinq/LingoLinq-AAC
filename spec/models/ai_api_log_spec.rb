@@ -546,6 +546,48 @@ describe AiApiLog, :type => :model do
       expect(count).to eq(2)
       expect(AiApiLog.where(jurisdiction: 'EU')).to be_empty
     end
+
+    it "un-inert: purges a HELPER-stamped EU row but keeps a nil-jurisdiction :unknown row (A50-STAMP-01, D-01)" do
+      # Build the data subjects the way EuJurisdiction resolves them (preferences.jurisdiction).
+      eu_user = User.create
+      eu_user.settings ||= {}
+      eu_user.settings['preferences'] = { 'jurisdiction' => 'FR' }
+      eu_user.save
+      unknown_user = User.create
+      unknown_user.settings ||= {}
+      unknown_user.settings['preferences'] = { 'locale' => 'en' }
+      unknown_user.save
+
+      # Drive both rows through the RESOLVER path (EuJurisdiction.retention_stamp) into the
+      # sink -- NOT a bare jurisdiction: 'EU' literal. This is the "un-inert" proof: before
+      # Phase 4 no real call ever wrote this column, so purge_old_eu_logs! matched zero rows.
+      eu_row = AiApiLog.log_ai_call(
+        provider: 'claude', model: 'claude-haiku-4-5-20251001', type: 'word_prediction',
+        user: eu_user, jurisdiction: EuJurisdiction.retention_stamp(eu_user)
+      )
+      unknown_row = AiApiLog.log_ai_call(
+        provider: 'claude', model: 'claude-haiku-4-5-20251001', type: 'word_prediction',
+        user: unknown_user, jurisdiction: EuJurisdiction.retention_stamp(unknown_user)
+      )
+
+      # The resolver wrote the values -- confirm the persisted rows before purging.
+      expect(eu_row.reload.jurisdiction).to eq('EU')
+      expect(unknown_row.reload.jurisdiction).to be_nil
+
+      # Backdate both past the 5-year window.
+      eu_row.update_column(:created_at, 6.years.ago)
+      unknown_row.update_column(:created_at, 6.years.ago)
+
+      count = AiApiLog.purge_old_eu_logs!
+
+      # The helper-stamped EU row IS matched (previously inert); the :unknown row survives --
+      # D-01 retention fail-safe: an unsure, potentially HIPAA-covered row is never purged
+      # inside the 45 CFR 164.316(b)(2) six-year floor.
+      expect(count).to eq(1)
+      expect(AiApiLog.where(id: eu_row.id)).to be_empty
+      expect(unknown_row.reload).to be_present
+      expect(unknown_row.jurisdiction).to be_nil
+    end
   end
 
   describe "Article 50 fields via log_ai_call" do
