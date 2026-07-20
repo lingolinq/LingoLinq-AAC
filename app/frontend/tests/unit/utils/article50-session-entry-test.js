@@ -11,7 +11,7 @@ import {
 // routes/bento.js#setupController. They exercise the real, shared
 // article50_gate helpers the same way those routes call them -- as pure
 // branch logic with stubs -- rather than standing up a full route/model
-// integration test (which the plan explicitly says not to attempt).
+// integration harness (out of scope per the plan).
 
 function makeUser(overrides) {
   var attrs = Object.assign({

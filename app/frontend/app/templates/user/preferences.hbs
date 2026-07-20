@@ -272,6 +272,28 @@
         {{/if}}
       </div>
     </div>
+    {{#if this.model.article_50_disclosure_required}}
+      <div class="form-group">
+        <label class="col-sm-3 control-label">{{t "AI Transparency Notice" key='ai_disclosure_pref_label'}}</label>
+        <div class="col-sm-9">
+          {{#if this.model.article_50_disclosure_shown}}
+            <p class="form-control-static">
+              {{t "Acknowledged." key='ai_disclosure_pref_status_acknowledged'}}
+            </p>
+            <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "review_article_50_disclosure")}}>
+              {{t "View Notice Again" key='ai_disclosure_pref_view_again'}}
+            </button>
+          {{else}}
+            <p class="form-control-static">
+              {{t "Not yet acknowledged. AI word suggestions are using the standard, non-AI fallback until you review this." key='ai_disclosure_pref_status_unacknowledged'}}
+            </p>
+            <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "review_article_50_disclosure")}}>
+              {{t "Review Notice" key='ai_disclosure_pref_review_button'}}
+            </button>
+          {{/if}}
+        </div>
+      </div>
+    {{/if}}
     <div class="form-group">
       <label for="word_suggestions" class="col-sm-3 control-label">{{t "Word Prediction" key='word_prediction'}}</label>
       <div class="col-sm-5">
