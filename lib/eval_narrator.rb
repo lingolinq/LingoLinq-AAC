@@ -3,6 +3,7 @@ require_relative 'pii_scrubber'
 # Art50Marker is require_relative'd (not autoloaded) so it is defined even on the
 # Resque-worker path where lib/ autoload is skipped, matching lib/ai_board_generator.rb.
 require_relative 'art50_marker'
+require_relative 'lingo_linq/article50_call_context'
 
 module EvalNarrator
   # Drafts an SLP-readable narrative for a Comprehensive Eval. Takes
@@ -291,6 +292,11 @@ module EvalNarrator
                        pii_detected: false, pii_findings: [], success: true, error_message: nil,
                        ai_content_marked: false, ai_generated_content_id: nil)
     return unless defined?(AiApiLog)
+    # EU AI Act Article 50: resolve the jurisdiction + disclosure-shown call context from the
+    # in-scope data-subject `user` (the supervised STUDENT, D-02) via the ONE shared helper
+    # (ENF-01). The helper owns the guarded reads + scrubbed logged fallback, so it never
+    # raises into this wrapper.
+    art50_ctx = LingoLinq::Article50CallContext.for(user)
     AiApiLog.log_ai_call(
       provider: 'claude',
       model: model,
@@ -307,7 +313,9 @@ module EvalNarrator
       error_message: error_message,
       feature_flag: 'comprehensive_eval_ai',
       ai_content_marked: ai_content_marked,
-      ai_generated_content_id: ai_generated_content_id
+      ai_generated_content_id: ai_generated_content_id,
+      jurisdiction: art50_ctx[:jurisdiction],
+      article_50_disclosure_shown: art50_ctx[:article_50_disclosure_shown]
     )
   rescue StandardError => e
     Rails.logger.warn "EvalNarrator: failed to log AI API call: #{e.message}" if defined?(Rails)

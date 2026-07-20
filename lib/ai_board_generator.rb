@@ -4,6 +4,7 @@ require 'anthropic'
 require 'set'
 require_relative 'pii_scrubber'
 require_relative 'art50_marker'
+require_relative 'lingo_linq/article50_call_context'
 
 module AiBoardGenerator
   # Default model for board generation — Haiku is fast and cheap for structured output
@@ -642,6 +643,10 @@ module AiBoardGenerator
       # unredacted (request_summary is already scrubbed upstream). nil passes through untouched
       # for the API-error paths that log no response body.
       safe_response_summary = response_summary.nil? ? nil : PiiScrubber.redact_for_ai(response_summary)[:payload]
+      # EU AI Act Article 50: resolve the jurisdiction + disclosure-shown call context from
+      # the in-scope data-subject `user` via the ONE shared helper (ENF-01). The helper owns
+      # the guarded reads + scrubbed logged fallback, so it never raises into this wrapper.
+      art50_ctx = LingoLinq::Article50CallContext.for(user)
       AiApiLog.log_ai_call(
         provider: provider,
         model: model,
@@ -660,7 +665,9 @@ module AiBoardGenerator
         # EU AI Act Article 50(2): record that the output was machine-readable marked
         # and link this audit row to the marked content via its content_id.
         ai_content_marked: ai_content_marked,
-        ai_generated_content_id: ai_generated_content_id
+        ai_generated_content_id: ai_generated_content_id,
+        jurisdiction: art50_ctx[:jurisdiction],
+        article_50_disclosure_shown: art50_ctx[:article_50_disclosure_shown]
       )
     rescue StandardError => e
       Rails.logger.warn "AiBoardGenerator: failed to log AI API call: #{e.message}"

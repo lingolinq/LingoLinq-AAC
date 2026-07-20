@@ -1,6 +1,6 @@
 # LingoLinq AAC AI Governance Memo
 
-> **ATTESTED 2026-06-19; RE-ATTESTED 2026-07-13 by Scot Wahlquist, CEO.** Phase 3 deliverable. This memo documents how
+> **ATTESTED 2026-06-19; RE-ATTESTED 2026-07-19 by Scot Wahlquist, CEO.** Phase 3 deliverable. This memo documents how
 > LingoLinq uses AI models, the controls that keep identifiable data out of external models, and
 > the EU AI Act classification analysis. It is a living document; model ids and code citations are
 > point-in-time and were re-verified against live code on 2026-06-19 prior to original attestation
@@ -15,7 +15,7 @@
 > Draft date: 2026-06-13. Refreshed 2026-06-18 (eval narration added to the inventory after
 > #411/#412/#413; DeepSeek-on-compliance-surface discrepancy flagged in section 4). Re-verified
 > and attested 2026-06-19. Refreshed 2026-07-12 (section 4.1 discrepancy resolved via Scot's
-> ratified two-tier AI data-routing policy). Re-attested 2026-07-13. Operative reference: NIST AI RMF plus the Generative AI Profile
+> ratified two-tier AI data-routing policy). Re-attested 2026-07-13. Refreshed 2026-07-18/19 (Anthropic HIPAA-Ready BAA recorded; section 3 HIPAA conclusion for the model-call path updated to BAA-covered; eval narration classified NOT a Healthcare Activity; model inventory updated). Re-attested 2026-07-19. Operative reference: NIST AI RMF plus the Generative AI Profile
 > (NIST AI 600-1). ISO 42001 certification is not yet a small-vendor expectation and is out of
 > scope for now.
 >
@@ -33,9 +33,9 @@
 > restriction) therefore does not apply, and there is no licensed-clinician gate on this path (see
 > `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` and audit-reports/FINDINGS.json LL-3a1c317a88). The applicable
 > controls (Messages-API-only, PII scrub + student-name drop + etiology minimization, the
-> EVAL_NARRATOR_MODEL allowlist, COPPA gate, opt-in, org opt-out) ship in the eval-narrator
-> runtime-gates security PR. This addendum records the fact; the memo body below still reflects the
-> pre-BAA posture and requires CEO re-attestation to update in full.
+> EVAL_NARRATOR_MODEL exact-ID allowlist, COPPA gate, opt-in, org opt-out) shipped in the
+> eval-narrator runtime-gates security PR (#632, merged 2026-07-19). The memo body below has been
+> updated to this posture and re-attested 2026-07-19 (see section 8, 2026-07-19 amendment).
 
 ## 1. Purpose
 
@@ -54,7 +54,7 @@ Verified against code at draft time. Re-verify before publishing.
 |---|---|---|---|---|
 | Word/phrase prediction (runtime) | Claude Haiku 4.5 (`claude-haiku-4-5-20251001`) only -- Gemini fallback disabled 2026-07-09 | `lib/ai_word_predictor.rb` | Yes, but **scrubbed first** | Every sentence passes `PiiScrubber.redact_for_ai` before the call (line 55); each call logged to `AiApiLog`. Feature-flag gated, COPPA hard block for under-13. `ANTHROPIC_API_KEY` is now required; there is no automatic fallback provider. |
 | Offline prediction dictionary generation | Claude Haiku 4.5 only -- Gemini fallback disabled 2026-07-09 | `lib/ai_prediction_generator.rb` | No | Offline batch job; sends only static word lists, never user sentences or identifiers. |
-| Comprehensive eval narration (runtime, product) | Claude Opus 4.7 (`claude-opus-4-7` default, `EVAL_NARRATOR_MODEL` override), Anthropic | `lib/eval_narrator.rb`, `app/controllers/api/eval_sessions_controller.rb` | Yes, but **scrubbed first** | `PiiScrubber.redact_for_ai` on the payload before egress; every call logged to `AiApiLog`; COPPA hard block (`FeatureFlags.coppa_blocks_ai_for?`) for under-13; external narration is opt-in and the egress payload is bound to the server-resolved user (client-asserted student name dropped); org opt-out via the `comprehensive_eval_ai` feature flag. Residual consent-binding gap tracked as LL-11db0dc848. Brought under governance by #411/#412; three findings verified-closed in #413. |
+| Comprehensive eval narration (runtime, product) | Claude Opus 4.7 (`claude-opus-4-7` default; `EVAL_NARRATOR_MODEL` override **pinned to an exact-ID allowlist**), Anthropic under the HIPAA-Ready BAA (2026-07-18) | `lib/eval_narrator.rb`, `app/controllers/api/eval_sessions_controller.rb` | Yes, but **scrubbed first** | `PiiScrubber.redact_for_ai` on the payload before egress, plus a structural student-name drop and **`etiology` (medical-cause) minimization**; model pinned to an exact-ID allowlist (`ALLOWED_MODELS`, refuses Covered/unknown models); every call logged to `AiApiLog`; COPPA hard block (`FeatureFlags.coppa_blocks_ai_for?`) for under-13; external narration is opt-in and the egress payload is bound to the server-resolved user; org opt-out via the `comprehensive_eval_ai` feature flag. **Classified NOT a HIPAA Healthcare Activity** (assistive-technology access assessment; Scot 2026-07-19; register LL-3a1c317a88), so no licensed-clinician gate applies. Residual consent-binding gap tracked as LL-11db0dc848. Brought under governance by #411/#412 (#413), BAA + gates by #631/#632. |
 | Developer code review (internal tooling, not product) | Opus 4.8 (Claude); DeepSeek-V3.2 via OpenRouter (secondary) | dev workflow (`/review-pr`, codex) | No | Sanitized diffs only; no student or patient data. OpenRouter has no BAA and runs ZDR; the PiiScrubber-equivalent here is the no-PHI-in-diffs rule. PII-free compliance *documents* (the audit register: status/severity/IDs, code/path evidence) are **Tier 2** and may be reviewed; the boundary is data-bearing content (fixtures/seeds/cassettes/etc.), enforced by `codex-review-guard.sh`, not the compliance-surface label. See section 4.1 (resolved 2026-07-12). |
 
 Notes:
@@ -71,13 +71,15 @@ Notes:
   against Anthropic's own Privacy Center: [Data retention practices for Mythos-class models](https://privacy.claude.com/en/articles/15425996-data-retention-practices-for-mythos-class-models)).
   The Covered Models designated as of this writing are Fable 5 and Mythos 5, but the category is
   defined by Anthropic and expands whenever Anthropic designates a new one, so this control is
-  written against the category, not the two current names. It applies specifically to the
-  `EVAL_NARRATOR_MODEL` override in `lib/eval_narrator.rb:102` (default `claude-opus-4-7`,
-  env-overridable) and to any other model-override env var: none may ever be pointed at any
-  Anthropic Covered Model, current or future-designated. Before repointing any model-override
-  env var at a new Anthropic model, confirm it is not a Covered Model against the Privacy Center
-  page above. The current runtime AI inventory (Claude Haiku 4.5, Claude Opus 4.7) is unaffected
-  and remains ZDR-eligible.
+  written against the category, not the two current names. The `EVAL_NARRATOR_MODEL` override in
+  `lib/eval_narrator.rb` (default `claude-opus-4-7`) is now **pinned to an exact-ID allowlist**
+  (`EvalNarrator::ALLOWED_MODELS`, enforced fail-closed at call time and best-effort at boot; #632),
+  so it structurally refuses any Covered Model or unrecognized id rather than relying on policy
+  alone. For any **other** model-override env var, none may ever be pointed at an Anthropic Covered
+  Model, current or future-designated; confirm against the Privacy Center page above before
+  repointing. The current runtime AI inventory (Claude Haiku 4.5, Claude Opus 4.7) is unaffected: it
+  is now covered by the Anthropic HIPAA-Ready BAA (2026-07-18), under which the Messages API is
+  HIPAA-eligible with no ZDR required.
 
 ### 2.1 COPPA and under-13 AI training disclosure
 
@@ -103,18 +105,28 @@ The governing rule is simple and enforced in code, not just in policy:
 
 - **`lib/pii_scrubber.rb`** redacts identity keys and applies a blocklist before any external
   model call. The runtime predictor invokes it on the user sentence prior to the API request.
-- **Pseudonymization (the scrubber) is a risk-reduction control, not a HIPAA safe harbor -- and
-  no signed BAA currently covers the model-provider egress path.** The scrubber removes direct
-  identifiers before the call, but the result is **pseudonymized, not de-identified**: it does
-  not meet HIPAA Safe Harbor (removal of all 18 identifier categories) or Expert Determination,
-  and under GDPR/UK-GDPR pseudonymized data is still personal data. The AWS BAA on file
-  (2026-02) covers AWS infrastructure (S3, KMS, RDS) -- it does **not** extend to Anthropic or
-  Google as model providers, and neither currently has a signed BAA with LingoLinq (see
-  `docs/legal/AI_DATA_SHARING_CONSENT.md` section 2). For hospital/PHI data, the scrubber is
-  therefore the only technical control on the model-call path today; a defensible HIPAA position
-  for that path requires either a signed BAA with the actual model provider receiving the call,
-  or no hospital/PHI egress to that provider at all. This is a real open gap, not fully closed
-  by the scrubber alone.
+- **The Anthropic runtime egress path is now covered by a signed BAA (executed 2026-07-18); the
+  scrubber is defense-in-depth on top of it, not the sole control.** Anthropic's HIPAA-Ready BAA
+  was executed and HIPAA readiness enabled on the runtime-dedicated LingoLinq, LLC Anthropic API
+  org (verified live: Messages API 200, Files API 400; see `docs/legal/ANTHROPIC_BAA_ACCEPTED.md`).
+  All three product AI seams (word prediction, board generation, eval narration) call only the
+  Messages API on that org's key, which is HIPAA-eligible with no ZDR required, so the model
+  provider receiving the call is now a signed Business Associate. This **closes the prior open gap**
+  (previously recorded here as "no signed BAA covers the model-provider egress path / the scrubber
+  is the only control"): the HIPAA legal basis for the Anthropic path now rests on the BAA, and the
+  PiiScrubber becomes a data-minimization control layered on top.
+- **The scrubber remains necessary even with the BAA, but for a different reason.** It is
+  **pseudonymization, not de-identification**: it removes known direct identifiers before the call,
+  but the result does not meet HIPAA Safe Harbor (all 18 identifier categories) or Expert
+  Determination, and under GDPR/UK-GDPR pseudonymized data is still personal data. So the scrubber
+  is retained as the GDPR data-minimization control and defense-in-depth, not as the HIPAA legal
+  basis (which is now the BAA).
+- **Coverage boundaries.** The AWS BAA on file (2026-02) covers AWS **infrastructure** (S3, KMS,
+  RDS), not model-provider egress; the Google Cloud BAA (2026-07-12) likewise covers Google
+  **infrastructure**, not a model-provider egress path. **Google (Gemini) as a model provider has
+  no BAA**, but its runtime fallback was disabled 2026-07-09 (no AI inference reaches Google today);
+  if it is ever reactivated, a covered-service / BAA check is required first (see section 7,
+  `rev-gemini-baa-annual`). No un-BAA'd model-provider egress path is live.
 - **`AiApiLog`** records external model calls for audit. **`AuditEvent`** records privileged
   console access.
 
@@ -267,15 +279,18 @@ Tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`,
 - [ ] `rev-gemini-baa-annual` (Google Gemini API data-handling terms/BAA) is now a
       **reactivation gate** rather than a live runtime item: the Gemini fallback was disabled
       2026-07-09. Resolve before any future PR re-enables `GEMINI_API_KEY` fallback.
-- [ ] **New, raised by Codex review of PR #579:** no signed BAA currently covers the Anthropic
-      or Google model-provider egress path (the AWS BAA on file covers infrastructure only).
-      Decide whether to pursue a BAA with Anthropic, restrict hospital/PHI accounts from the AI
-      features entirely, or accept the scrubber-only risk-reduction posture as sufficient --
-      Scot's call, do not self-resolve.
+- [x] **RESOLVED 2026-07-18 (raised by Codex review of PR #579):** the Anthropic model-provider
+      egress path now has a signed BAA. Anthropic's HIPAA-Ready BAA was executed and HIPAA readiness
+      enabled on the runtime-dedicated LingoLinq, LLC org 2026-07-18, verified live (Messages API
+      200, Files API 400); see `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` and the updated section 3.
+      Google (Gemini) as a model provider still has no BAA, but its runtime fallback is disabled and
+      that residual is held by the `rev-gemini-baa-annual` reactivation gate above. Covered by
+      Scot's 2026-07-19 re-attestation in section 8.
 - [ ] Per-feature data-flow documentation for each of the AI-gated features (feature flags
       enumerate the surface; the data-flow docs are the gap).
-- [ ] Vendor terms on file for every model provider in the inventory (Anthropic, Google,
-      OpenRouter), with renewal tracking.
+- [ ] Vendor terms on file for every model provider in the inventory, with renewal tracking:
+      Anthropic HIPAA-Ready BAA on file (2026-07-18); OpenRouter is terms-only / ZDR (Tier 2 dev
+      reviewer, no BAA); Google (Gemini) model-provider terms still pending (runtime path disabled).
 - [x] Finalize the Article 50 applicability decision before 2026-08-02: DECIDED 2026-07-13, now
       stated in section 5.2 (board gen / focus words / eval narration in scope + marked + on
       prod; word prediction out of scope via the assistive-function carve-out; 50(3)/50(4) N/A;
@@ -299,7 +314,7 @@ Tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`,
 | Reviewed by | adversary agent |
 | Attested by | **Scot Wahlquist, CEO** |
 | Original attestation date | **2026-06-19** |
-| Latest re-attestation date | **2026-07-14** |
+| Latest re-attestation date | **2026-07-19** |
 
 _Phase 3 deliverable of the Audit/Compliance System Modernization (plan section 6, sections 1.3
 and 1.8). Model ids and code citations were re-verified against live code on 2026-06-19 prior to
@@ -346,3 +361,22 @@ _Re-attested 2026-07-13 by Scot Wahlquist, CEO: covers the 2026-07-11 HIPAA-basi
 section 3 and the 2026-07-12 DeepSeek-vs-compliance-surface resolution in section 4.1. The original
 2026-06-19 attestation remains the Phase 3 baseline; this re-attestation accepts the post-baseline
 corrections and resolves the pending markers above._
+
+_Amended 2026-07-18/19, re-attested 2026-07-19 by Scot Wahlquist, CEO: **substantive full-body
+update recording the executed Anthropic HIPAA-Ready BAA and the eval-narration classification.**
+(1) Section 3's HIPAA conclusion for the model-call path is **reversed** from the 2026-07-11 "no
+signed BAA covers the model-provider egress path / scrubber-only open gap" to **BAA-covered**:
+Anthropic's HIPAA-Ready BAA was executed and HIPAA readiness enabled on the runtime-dedicated
+LingoLinq, LLC Anthropic API org on 2026-07-18, verified live (Messages API 200; Files API 400,
+"not available for HIPAA-regulated organizations without Zero Data Retention"); see
+`docs/legal/ANTHROPIC_BAA_ACCEPTED.md`. The PiiScrubber is reframed as the GDPR data-minimization /
+defense-in-depth control rather than the HIPAA legal basis, which now rests on the BAA. The section
+7 open item raised by Codex on PR #579 ("no signed BAA covers the Anthropic egress path") is marked
+resolved. (2) Eval narration is classified **NOT a HIPAA Healthcare Activity** (an
+assistive-technology access / feature-match assessment; register `LL-3a1c317a88`), so no
+licensed-clinician gate applies; the `EVAL_NARRATOR_MODEL` exact-ID allowlist and `etiology` egress
+minimization shipped in #632. The model inventory (section 2) and its Covered-Model note were
+updated accordingly. This is a **substantive** change to the attested HIPAA analysis; per section 6
+(AI drafts and flags, humans attest and accept risk), Scot reviewed and re-attested it on
+2026-07-19. Code, BAA, and classification citations were verified against `origin/staging` (PRs
+#631 and #632 merged 2026-07-19) and the live Anthropic API._
