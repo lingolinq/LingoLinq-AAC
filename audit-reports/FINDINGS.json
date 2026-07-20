@@ -3918,48 +3918,6 @@
         "promotedDate": "2026-07-16"
       },
       "notes": "Promoted 2026-07-16 from the GCP cutover two-gate decision note (~/ai-company-brain/outputs/docs/2026-07-16-gcp-cutover-two-gate-decision.md), Gate 2. Manual promotion (medium severity is below promote-finding.rb's Critical/High threshold, so it was hand-added as status open / disposition untriaged). Only Scot triages/closes."
-    },
-    {
-      "id": "LL-2c47df5d21",
-      "ruleKey": "ses-gmail-deliverability-unconfirmed-prod",
-      "title": "SES accepts prod mail but end-to-end delivery to the operator's personal Gmail address is unconfirmed; SPF/DKIM/DMARC/inbox-placement follow-up needed before relying on that address for production alerts or transactional confirmation",
-      "severity": "low",
-      "confidence": "medium",
-      "frameworks": [
-        "SOC2"
-      ],
-      "status": "open",
-      "evidence": {
-        "type": "runtime",
-        "source": "GCP cutover two-gate decision (2026-07-16), Gate 2 (customer-facing/onboarding). Through the ActionMailer :ses adapter on Cloud Run (config/environments/production.rb sets delivery_method = :ses; config/initializers/amazon_ses.rb wires Aws::Rails.add_action_mailer_delivery_method(:ses, ...)), SES returned real MessageIds for both recipients; the beta Workspace alias was confirmed delivered, but the operator's personal Gmail address was confirmed NOT delivered (inbox/spam/trash checked) on 2026-07-04. SES acceptance is proven; external-Gmail inbox placement for the operator address is not. Not a security defect and not an app bug so far.",
-        "snippet": "config/environments/production.rb: config.action_mailer.delivery_method = :ses ; config/initializers/amazon_ses.rb: Aws::Rails.add_action_mailer_delivery_method(:ses, ...)",
-        "sha": ""
-      },
-      "firstSeen": "2026-07-16",
-      "lastSeen": "2026-07-16",
-      "owner": "unassigned",
-      "remediation": {
-        "options": "Operational readiness follow-up: verify the sending domain's SPF, DKIM (SES CNAMEs in Cloudflare), and DMARC alignment; send a test to a Google Workspace mailbox and inspect Gmail postmaster tools / message headers to isolate whether the non-delivery is DMARC/alignment or spam-filtering; if reputation/filtering, warm the domain or route operator alerts to a confirmed-delivering channel. Do not rely on that address for production alerts or transactional confirmation until inbox placement is proven.",
-        "timeframe": "90d"
-      },
-      "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
-      },
-      "disposition": {
-        "state": "untriaged",
-        "decidedBy": "",
-        "decidedDate": "",
-        "rationale": ""
-      },
-      "source": {
-        "kind": "manual",
-        "pr": null,
-        "reviewer": "gcp-cutover-two-gate-decision",
-        "promotedDate": "2026-07-16"
-      },
-      "notes": "Promoted 2026-07-16 from the GCP cutover two-gate decision note, Gate 2. Operational readiness (not security). Narrow scope: SES accepts mail and the beta alias delivers; only external-Gmail inbox placement for the operator address is unconfirmed. Not a DNS-cut blocker. Manual promotion (low severity, below promote-finding.rb's threshold). Only Scot triages/closes."
     }
   ]
 }
