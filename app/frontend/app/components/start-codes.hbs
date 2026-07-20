@@ -130,7 +130,7 @@
             <div class="md-org-settings-field">
               <label class="md-org-settings-field__label">{{t "Sponsored" key="sponsored"}}</label>
               <label class="md-org-settings-toggle">
-                <input value={{this.premium}} id="premium" type="checkbox" class="md-org-settings-toggle__input" {{on "input" (set-field this "premium")}} />
+                <input checked={{this.premium}} id="premium" type="checkbox" class="md-org-settings-toggle__input" {{on "change" (set-field this "premium" "checkbox")}} />
                 <span class="md-org-settings-toggle__label">{{t "Sponsor any users who use this start code" key="sponsors_users_with_start_code"}}</span>
               </label>
             </div>
@@ -138,7 +138,7 @@
               <div class="md-org-settings-field">
                 <label class="md-org-settings-field__label">{{t "Premium Symbols" key="premium_symbols"}}</label>
                 <label class="md-org-settings-toggle">
-                  <input value={{this.premium_symbols}} id="premium_symbols" type="checkbox" class="md-org-settings-toggle__input" {{on "input" (set-field this "premium_symbols")}} />
+                  <input checked={{this.premium_symbols}} id="premium_symbols" type="checkbox" class="md-org-settings-toggle__input" {{on "change" (set-field this "premium_symbols" "checkbox")}} />
                   <span class="md-org-settings-toggle__label">{{t "Add premium symbols to users" key="add_premium_symbols_to_users"}}</span>
                 </label>
               </div>
@@ -167,7 +167,7 @@
             {{/let}}
             {{#if this.home_board_key}}
               <label class="md-org-settings-toggle" style="margin-top: 8px;">
-                <input value={{this.shallow_clone}} id="shallow_clone" type="checkbox" class="md-org-settings-toggle__input" {{on "input" (set-field this "shallow_clone")}} />
+                <input checked={{this.shallow_clone}} id="shallow_clone" type="checkbox" class="md-org-settings-toggle__input" {{on "change" (set-field this "shallow_clone" "checkbox")}} />
                 <span class="md-org-settings-toggle__label">{{t "Apply shallow clones" key="apply_shallow_clones"}}</span>
               </label>
             {{/if}}

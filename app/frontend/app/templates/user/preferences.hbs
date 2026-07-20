@@ -211,6 +211,94 @@
       </div>
     </div>
   </PreferenceBox>
+  <PreferenceBox @title="AI Features" @glyph="glyphicon glyphicon-flash" @title_key="ai_features">
+    <span style='display: none;'>{{t "AI Features" key='ai_features'}}</span>
+    {{#if this.euAiConsentRequired}}
+      <div class="form-group">
+        <div class="col-sm-9 col-sm-offset-3">
+          <p class="form-control-static">
+            {{t "Parental consent is required before AI features can be enabled for this account. Turning a feature on will open a dialog to email a parent or guardian." key="eu_ai_parental_consent_required_notice"}}
+          </p>
+          {{#if this.model.eu_ai_parental_consent_pending}}
+            <p class="form-control-static">
+              {{t "Waiting for a parent or guardian to approve AI features. The features you selected will turn on automatically after they approve." key="eu_ai_parental_consent_pending_notice"}}
+            </p>
+            {{#if this.euAiConsentSendSuccess}}
+              <p class="form-control-static text-success">
+                {{t "Consent email sent. Waiting for parent approval." key="eu_ai_parental_consent_send_success"}}
+              </p>
+            {{/if}}
+            <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "resend_eu_ai_parental_consent")}}>
+              {{t "Resend consent email" key="resend_eu_ai_parental_consent"}}
+            </button>
+          {{/if}}
+        </div>
+      </div>
+    {{/if}}
+    <div class="form-group">
+      <label for="ai_features_enabled" class="col-sm-3 control-label">{{t "AI Features" key='ai_features_master'}}</label>
+      <div class="col-sm-5">
+        <div class="checkbox big_checkbox">
+          <label>
+            <input type="checkbox" checked={{this.pending_preferences.ai_features_enabled}} id="ai_features_enabled" {{on "click" (this.onAiFeatureClick "ai_features_enabled")}} />
+            {{t "Allow AI features" key='allow_ai_features'}}
+          </label>
+        </div>
+        {{#if this.pending_preferences.ai_features_enabled}}
+          <div class="checkbox big_checkbox">
+            <label>
+              <input type="checkbox" checked={{this.pending_preferences.ai_board_generation}} id="ai_board_generation" {{on "click" (this.onAiFeatureClick "ai_board_generation")}} />
+              {{t "AI board generation" key='ai_board_generation_pref'}}
+            </label>
+          </div>
+          <div class="checkbox big_checkbox">
+            <label>
+              <input type="checkbox" checked={{this.pending_preferences.ai_word_prediction}} id="ai_word_prediction" {{on "click" (this.onAiFeatureClick "ai_word_prediction")}} />
+              {{t "AI word prediction" key='ai_word_prediction_pref'}}
+            </label>
+          </div>
+          <div class="checkbox big_checkbox">
+            <label>
+              <input type="checkbox" checked={{this.pending_preferences.ai_board_suggestions}} id="ai_board_suggestions" {{on "click" (this.onAiFeatureClick "ai_board_suggestions")}} />
+              {{t "AI board suggestions" key='ai_board_suggestions_pref'}}
+            </label>
+          </div>
+          <div class="checkbox big_checkbox">
+            <label>
+              <input type="checkbox" checked={{this.pending_preferences.ai_symbol_search}} id="ai_symbol_search" {{on "click" (this.onAiFeatureClick "ai_symbol_search")}} />
+              {{t "AI symbol search" key='ai_symbol_search_pref'}}
+            </label>
+          </div>
+        {{/if}}
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="word_suggestions" class="col-sm-3 control-label">{{t "Word Prediction" key='word_prediction'}}</label>
+      <div class="col-sm-5">
+        <div class="checkbox big_checkbox">
+          <label>
+            <input type="checkbox" checked={{this.pending_preferences.word_suggestions}} id="word_suggestions" {{on "change" (set-field this "pending_preferences.word_suggestions" "checkbox")}} />
+            {{t "Show word prediction in Speak Mode" key='show_word_prediction_pref'}}
+          </label>
+        </div>
+        {{#if this.pending_preferences.word_suggestions}}
+          <label for="word_suggestion_position" class="control-label" style="margin-top: 8px; display: block;">{{t "Position" key='word_prediction_position_short'}}</label>
+          <BoundSelect @select_class="form-control" @select_id="word_suggestion_position" @content={{this.wordPredictionPositionList}} @selection={{this.pending_preferences.word_suggestion_position}} @action={{mut this.pending_preferences.word_suggestion_position}} />
+        {{/if}}
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="word_suggestion_images" class="col-sm-3 control-label">{{t "Keyboard Suggestions" key='keyboard_suggestions'}}</label>
+      <div class="col-sm-5">
+        <div class="checkbox big_checkbox">
+          <label>
+            <input type="checkbox" checked={{this.pending_preferences.word_suggestion_images}} id="word_suggestion_images" {{on "change" (set-field this "pending_preferences.word_suggestion_images" "checkbox")}} />
+            {{t "Show images for keyboard suggestions" key='word_suggestion_images'}}
+          </label>
+        </div>
+      </div>
+    </div>
+  </PreferenceBox>
   <PreferenceBox @title="Styling" @glyph="glyphicon glyphicon-picture" @title_key="styling">
     <span style='display: none;'>{{t "Styling" key='styling'}}</span>
     <div class="form-group">
@@ -258,32 +346,6 @@
           <label>
             <input type="checkbox" checked={{this.pending_preferences.blank_status}} id="blank_status" {{on "change" (set-field this "pending_preferences.blank_status" "checkbox")}} />
             {{t "Show time, device status and notifications when vocalization box is empty" key='blank_status'}}
-          </label>
-        </div>
-      </div>
-    </div>
-    <div class="form-group">
-      <label for="word_suggestions" class="col-sm-3 control-label">{{t "Word Prediction" key='word_prediction'}}</label>
-      <div class="col-sm-5">
-        <div class="checkbox big_checkbox">
-          <label>
-            <input type="checkbox" checked={{this.pending_preferences.word_suggestions}} id="word_suggestions" {{on "change" (set-field this "pending_preferences.word_suggestions" "checkbox")}} />
-            {{t "Show word prediction in Speak Mode" key='show_word_prediction_pref'}}
-          </label>
-        </div>
-        {{#if this.pending_preferences.word_suggestions}}
-          <label for="word_suggestion_position" class="control-label" style="margin-top: 8px; display: block;">{{t "Position" key='word_prediction_position_short'}}</label>
-          <BoundSelect @select_class="form-control" @select_id="word_suggestion_position" @content={{this.wordPredictionPositionList}} @selection={{this.pending_preferences.word_suggestion_position}} @action={{mut this.pending_preferences.word_suggestion_position}} />
-        {{/if}}
-      </div>
-    </div>
-    <div class="form-group">
-      <label for="word_suggestion_images" class="col-sm-3 control-label">{{t "Keyboard Suggestions" key='keyboard_suggestions'}}</label>
-      <div class="col-sm-5">
-        <div class="checkbox big_checkbox">
-          <label>
-            <input type="checkbox" checked={{this.pending_preferences.word_suggestion_images}} id="word_suggestion_images" {{on "change" (set-field this "pending_preferences.word_suggestion_images" "checkbox")}} />
-            {{t "Show images for keyboard suggestions" key='word_suggestion_images'}}
           </label>
         </div>
       </div>
