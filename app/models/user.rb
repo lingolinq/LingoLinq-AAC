@@ -534,6 +534,232 @@ class User < ApplicationRecord
     res
   end
 
+  # --- EU AI parental consent (GDPR Art. 8 digital consent age / AI enablement) ---
+  # Separate from COPPA signup (`settings['coppa']`) and AI VPC (`settings['ai_consent']`).
+  # Blob: settings['eu_ai_parental_consent']. Blocks AI until a parent grants via email token.
+
+  EU_AI_PREF_KEYS = %w[
+    ai_features_enabled ai_board_generation ai_word_prediction
+    ai_board_suggestions ai_symbol_search
+  ].freeze
+
+  def registration_country
+    c = self.settings && self.settings['country']
+    return c if c.present?
+    reg = self.settings && self.settings['registration']
+    return nil unless reg.is_a?(Hash)
+    reg['country'].presence
+  end
+
+  def under_16?
+    reg = self.settings && self.settings['registration']
+    return false unless reg.is_a?(Hash)
+    !!reg['under_16']
+  end
+
+  def eu_under_16?
+    reg = self.settings && self.settings['registration']
+    return false unless reg.is_a?(Hash)
+    !!reg['eu_under_16']
+  end
+
+  def eu_ai_parental_consent_pending?
+    c = self.settings && self.settings['eu_ai_parental_consent']
+    return false unless c.is_a?(Hash)
+    return false if c['parent_consent_granted_at'].present?
+    !!c['pending_parent_consent']
+  end
+
+  def eu_ai_parental_consent_revoked?
+    c = self.settings && self.settings['eu_ai_parental_consent']
+    return false unless c.is_a?(Hash)
+    c['parent_consent_revoked_at'].present?
+  end
+
+  def eu_ai_parental_consent_active?
+    c = self.settings && self.settings['eu_ai_parental_consent']
+    return false unless c.is_a?(Hash)
+    c['parent_consent_granted_at'].present? && c['parent_consent_revoked_at'].blank?
+  end
+
+  # True when this EU under-16 account must not use AI: pending, revoked, or never granted.
+  def eu_ai_parental_consent_blocks_ai?
+    return false unless eu_under_16?
+    !eu_ai_parental_consent_active?
+  end
+
+  def valid_eu_ai_parent_consent_grant_link_token?(token)
+    eu_ai_parent_consent_link_token_valid?(token, 'parent_consent_token')
+  end
+
+  def valid_eu_ai_parent_consent_revoke_link_token?(token)
+    eu_ai_parent_consent_link_token_valid?(token, 'parent_consent_revoke_token')
+  end
+
+  def eu_ai_parent_consent_link_token_valid?(token, settings_key)
+    return false if token.blank?
+    c = self.settings && self.settings['eu_ai_parental_consent']
+    return false unless c.is_a?(Hash)
+    stored = c[settings_key].to_s
+    return false if stored.blank?
+    tok = token.to_s
+    return false if stored.bytesize != tok.bytesize
+    ActiveSupport::SecurityUtils.secure_compare(stored, tok)
+  end
+
+  # Allowlisted AI preference keys from a consent request payload. Unknown keys
+  # are dropped. Returns a Hash with string keys; always sets ai_features_enabled
+  # when any feature is requested. Empty Hash if nothing valid was requested.
+  def self.sanitize_eu_ai_requested_features(raw)
+    return {} if raw.blank?
+    if raw.respond_to?(:to_unsafe_h)
+      raw = raw.to_unsafe_h
+    elsif raw.respond_to?(:permit!)
+      raw = raw.to_h
+    elsif raw.respond_to?(:to_h) && !raw.is_a?(Hash)
+      raw = raw.to_h
+    end
+    return {} unless raw.is_a?(Hash)
+    raw = raw.stringify_keys
+    out = {}
+    feature_keys = EU_AI_PREF_KEYS - ['ai_features_enabled']
+    feature_keys.each do |k|
+      val = raw[k]
+      out[k] = true if [true, 'true', '1', 1].include?(val)
+    end
+    master = raw['ai_features_enabled']
+    if out.any? || [true, 'true', '1', 1].include?(master)
+      out['ai_features_enabled'] = true
+    end
+    out
+  end
+
+  # Validate parent email and set pending consent tokens (14-day expiry). save!
+  # requested_features: optional Hash of AI prefs to activate when the parent grants.
+  def request_eu_ai_parental_consent!(parent_email, requested_features: nil)
+    parent = parent_email.to_s.strip
+    raise ArgumentError, 'parent consent email required' if parent.blank?
+    raise ArgumentError, 'invalid parent consent email format' if parent !~ URI::MailTo::EMAIL_REGEXP
+    child_email = (self.settings && self.settings['email'] || '').to_s.strip.downcase
+    if child_email.present? && parent.downcase == child_email
+      raise ArgumentError, 'parent consent email must be different from the account email'
+    end
+    features = self.class.sanitize_eu_ai_requested_features(requested_features)
+    raise ArgumentError, 'requested_features required' if features.blank?
+    self.settings ||= {}
+    blob = {
+      'pending_parent_consent' => true,
+      'parent_email' => process_string(parent),
+      'parent_consent_token' => GoSecure.nonce('eu_ai_parent_consent'),
+      'parent_consent_expires_at' => 14.days.from_now.utc.iso8601,
+      'requested_features' => features
+    }
+    self.settings['eu_ai_parental_consent'] = blob
+    self.save!
+    true
+  end
+
+  def grant_eu_ai_parental_consent!(token, ip: nil, user_agent: nil)
+    return false if token.blank?
+    res = false
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      c = self.settings['eu_ai_parental_consent']
+      next unless c.is_a?(Hash)
+      next if c['parent_consent_granted_at'].present? && c['parent_consent_revoked_at'].blank?
+      next unless c['pending_parent_consent']
+      stored = c['parent_consent_token'].to_s
+      tok = token.to_s
+      next if stored.blank?
+      next if stored.bytesize != tok.bytesize
+      next unless ActiveSupport::SecurityUtils.secure_compare(stored, tok)
+      exp = c['parent_consent_expires_at']
+      if exp.present?
+        begin
+          next if Time.iso8601(exp) < Time.now.utc
+        rescue ArgumentError
+          next
+        end
+      end
+      granted_at = Time.now.utc.iso8601
+      record_id = SecureRandom.uuid
+      requested = c['requested_features']
+      c['parent_consent_granted_at'] = granted_at
+      c['parent_consent_revoke_token'] = GoSecure.nonce('eu_ai_parent_consent_revoke')
+      c.delete('parent_consent_expires_at')
+      c.delete('pending_parent_consent')
+      c.delete('parent_consent_revoked_at')
+      c.delete('requested_features')
+      self.settings['eu_ai_parental_consent'] = c
+      # Activate the features the user requested when they sent the consent email.
+      self.settings['preferences'] ||= {}
+      if requested.is_a?(Hash)
+        EU_AI_PREF_KEYS.each do |k|
+          self.settings['preferences'][k] = true if requested[k]
+        end
+      end
+      self.save!
+      AuditEvent.create!(
+        user_key: self.global_id,
+        data: {
+          'type' => 'eu_ai_parental_consent_grant',
+          'method' => 'email_token_link',
+          'ip' => ip,
+          'user_agent' => user_agent,
+          'granted_at' => granted_at,
+          'record_id' => record_id,
+          'requested_features' => (requested.is_a?(Hash) ? requested : {})
+        },
+        event_type: 'eu_ai_parental_consent_grant',
+        record_id: record_id
+      )
+      res = true
+    end
+    res
+  end
+
+  def revoke_eu_ai_parental_consent!(token, ip: nil, user_agent: nil)
+    return false if token.blank?
+    res = false
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      c = self.settings['eu_ai_parental_consent']
+      next unless c.is_a?(Hash)
+      next if c['parent_consent_revoked_at'].present?
+      next unless c['parent_consent_granted_at'].present?
+      stored = c['parent_consent_revoke_token'].to_s
+      tok = token.to_s
+      next if stored.blank?
+      next if stored.bytesize != tok.bytesize
+      next unless ActiveSupport::SecurityUtils.secure_compare(stored, tok)
+      revoked_at = Time.now.utc.iso8601
+      granted_at = c['parent_consent_granted_at']
+      record_id = SecureRandom.uuid
+      c['parent_consent_revoked_at'] = revoked_at
+      self.settings['eu_ai_parental_consent'] = c
+      # Force AI prefs off when consent is withdrawn (defense in depth vs prefs UI).
+      self.settings['preferences'] ||= {}
+      EU_AI_PREF_KEYS.each { |k| self.settings['preferences'][k] = false }
+      self.save!
+      AuditEvent.create!(
+        user_key: self.global_id,
+        data: {
+          'type' => 'eu_ai_parental_consent_revoke',
+          'method' => 'email_token_link',
+          'ip' => ip,
+          'user_agent' => user_agent,
+          'granted_at' => granted_at,
+          'revoked_at' => revoked_at,
+          'record_id' => record_id
+        },
+        event_type: 'eu_ai_parental_consent_revoke',
+        record_id: record_id
+      )
+      res = true
+    end
+    res
+  end
+
   # AI data-sharing consent (COPPA Item 1b). Returns true only when an unrevoked
   # consent record exists at the queried disclosures_version. Per D-03: missing
   # settings['ai_consent'] is treated as "not granted", no migration needed.
@@ -1317,7 +1543,11 @@ class User < ApplicationRecord
       # the board-detail dark toggle and the create-board-new preview share one
       # remembered choice across sessions. Unset => each surface applies its own
       # default (board-detail dark, create-board-new light).
-      'board_dark_mode'
+      'board_dark_mode',
+      # AI feature prefs (master + per-feature). Master nil = grandfather (allowed);
+      # for EU under-16 without parental consent these are forced false on write.
+      'ai_features_enabled', 'ai_board_generation', 'ai_word_prediction',
+      'ai_board_suggestions', 'ai_symbol_search'
     ]
   # Known home-dashboard section keys — the SINGLE source of truth lives in the
   # frontend (app/frontend/app/utils/dashboard_sections.js: HOME_SECTIONS keys +
@@ -1452,6 +1682,24 @@ class User < ApplicationRecord
         self.settings.delete('privacy_policy_acknowledged')
       end
     end
+    # Registration country + under-16 flags (EU AI / GDPR Art. 8). Persisted only
+    # on create. Server recomputes eu_under_16 from trusted country + under_16;
+    # ignore any client-supplied eu_under_16. COPPA account-activation gate stays
+    # keyed on client coppa_under_13 (literal under-13 only — not EU age-16).
+    # EU under-16 may create accounts without signup parent email; AI enablement
+    # uses settings['eu_ai_parental_consent'] after login.
+    if !self.id
+      country = LingoLinq::Jurisdiction.trusted_country(params['country'])
+      self.settings['country'] = country if country
+      under16_flag = params['under_16'] || params['under-16'] || params['under16']
+      under_16 = [true, 'true', '1', 1].include?(under16_flag)
+      eu_under_16 = !!(country && LingoLinq::Jurisdiction.eu?(country) && under_16)
+      self.settings['registration'] = {
+        'under_16' => under_16,
+        'eu_under_16' => eu_under_16,
+        'registered_at' => Time.now.utc.iso8601
+      }
+    end
     self.settings['referrer'] ||= params['referrer'] if params['referrer']
     self.settings['ad_referrer'] ||= params['ad_referrer'] if params['ad_referrer']
     if org_authorized
@@ -1560,6 +1808,20 @@ class User < ApplicationRecord
         self.settings['preferences'][attr] = val
       end
     end
+    # EU under-16 without active AI parental consent: default AI prefs off on
+    # create, and silently force false if the client tries to enable any.
+    # Also never allow product-improvement / telemetry opt-in for EU under-16.
+    product_improvement_keys = %w[cookies telemetry_opt_in comms_log_opt_in]
+    if self.new_record? && eu_under_16?
+      EU_AI_PREF_KEYS.each { |k| self.settings['preferences'][k] = false }
+      product_improvement_keys.each { |k| self.settings['preferences'][k] = false }
+    end
+    if eu_under_16? && !eu_ai_parental_consent_active?
+      EU_AI_PREF_KEYS.each { |k| self.settings['preferences'][k] = false }
+    end
+    if eu_under_16?
+      product_improvement_keys.each { |k| self.settings['preferences'][k] = false }
+    end
     # The dashboard_* preferences are stored verbatim above but drive the home
     # grid's computed inline styles and CSS class names, so coerce each to a safe
     # shape against the known section-key whitelist. Invalid values are dropped so
@@ -1596,7 +1858,8 @@ class User < ApplicationRecord
       end
     end
     if params['preferences'] && !params['preferences']['cookies'].nil?
-      self.settings['preferences']['cookies'] = process_boolean(params['preferences']['cookies'])
+      # EU under-16: cookies / product-improvement opt-in stay off (set earlier too).
+      self.settings['preferences']['cookies'] = eu_under_16? ? false : process_boolean(params['preferences']['cookies'])
     end
     if params['preferences']
       self.settings['preferences']['clear_vocalization_history'] = process_boolean(params['preferences']['clear_vocalization_history']) if params['preferences'] && params['preferences']['clear_vocalization_history'] != nil

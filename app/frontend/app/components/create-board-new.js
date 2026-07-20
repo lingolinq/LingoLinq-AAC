@@ -16,6 +16,7 @@ import persistence from '../utils/persistence';
 import speecher from '../utils/speecher';
 import { pick_aac_color } from '../utils/parts_of_speech';
 import { buttonSpacingPx, buttonBorderPx, buttonTextPx, BUTTON_SPACING_OPTIONS } from '../utils/display_prefs';
+import aiFeatureGate from '../utils/ai_feature_gate';
 
 /**
  * Create Board (New) Modal Component
@@ -259,9 +260,14 @@ export default Component.extend({
     return 'width: ' + Math.max(0, Math.min(100, lvl)) + '%;';
   }),
 
-  ai_board_generation_enabled: computed('appState.feature_flags.ai_board_generation', function() {
-    return !!this.appState.get('feature_flags.ai_board_generation');
-  }),
+  ai_board_generation_enabled: computed(
+    'appState.feature_flags.ai_board_generation',
+    'appState.currentUser.preferences.ai_features_enabled',
+    'appState.currentUser.preferences.ai_board_generation',
+    function() {
+      return aiFeatureGate.aiFeatureEnabled(this.appState, 'ai_board_generation');
+    }
+  ),
 
   paste_html_import_enabled: computed('appState.feature_flags.paste_html_import', function() {
     return !!this.appState.get('feature_flags.paste_html_import');

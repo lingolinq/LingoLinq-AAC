@@ -1,8 +1,11 @@
 <p><%= mailer_t('parental_consent_mailer.greeting') %></p>
-<p><%= mailer_t('parental_consent_mailer.intro', app_name: app_name) %></p>
+<p><%= mailer_t('parental_consent_mailer.intro', app_name: app_name, consent_age: @consent_age) %></p>
+<p><%= mailer_t('parental_consent_mailer.safety_notice') %></p>
+<p><strong><%= mailer_t('parental_consent_mailer.ready_heading') %></strong></p>
 <p><%= mailer_t('parental_consent_mailer.action_prompt') %></p>
-<p><a href="<%= @consent_url %>"><%= @consent_url %></a></p>
+<p><a href="<%= @consent_url %>"><%= mailer_t('parental_consent_mailer.cta_label') %></a></p>
 <p><%= mailer_t('parental_consent_mailer.privacy_notice') %></p>
-<p><a href="<%= @privacy_url %>"><%= @privacy_url %></a></p>
+<p><a href="<%= @privacy_url %>"><%= mailer_t('parental_consent_mailer.privacy_link_label') %></a></p>
+<p><strong><%= mailer_t('parental_consent_mailer.unexpected_heading') %></strong></p>
 <p><%= mailer_t('parental_consent_mailer.footer') %></p>
 <p><%= email_signature %></p>

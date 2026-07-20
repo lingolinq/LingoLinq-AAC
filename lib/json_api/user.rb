@@ -487,6 +487,18 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
     # Exposed for registration (COPPA): lets the client detect pending consent even if response meta is not matched.
     json['coppa_parental_consent_pending'] = true if user.coppa_parental_consent_pending?
     json['coppa_parental_consent_revoked'] = true if user.coppa_parental_consent_revoked?
+    # EU registration / AI parental-consent flags (GDPR Art. 8 AI enablement).
+    country = user.registration_country
+    json['country'] = country if country.present?
+    json['under_16'] = true if user.under_16?
+    json['eu_under_16'] = true if user.eu_under_16?
+    json['eu_ai_parental_consent_pending'] = true if user.eu_ai_parental_consent_pending?
+    json['eu_ai_parental_consent_active'] = true if user.eu_ai_parental_consent_active?
+    # Prefill Resend modal after reload (edit only; account holder entered this address).
+    if user.eu_ai_parental_consent_pending? && json['permissions'] && json['permissions']['edit']
+      pe = user.settings.dig('eu_ai_parental_consent', 'parent_email')
+      json['eu_ai_parental_consent_parent_email'] = pe if pe.present?
+    end
     json
   end
 

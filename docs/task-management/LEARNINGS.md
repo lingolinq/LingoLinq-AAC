@@ -20,6 +20,10 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: Textarea `@value` on a get-only computed crashes on keystroke — needs a setter/cache](#gotcha-textarea-value-on-a-get-only-computed-crashes-on-keystroke--needs-a-settercache)
+- [Gotcha: Ember `<Input>` checkboxes need `@type`, and bound-select must stopPropagation](#gotcha-ember-input-checkboxes-need-type-and-bound-select-must-stoppropagation)
+- [Gotcha: Ember strict-mode templates treat bare names as helpers — use `this.` for controller props](#gotcha-ember-strict-mode-templates-treat-bare-names-as-helpers--use-this-for-controller-props)
+- [Gotcha: AI feature flags are rollout; prefs turn AI on — Ember UI must AND both](#gotcha-ai-feature-flags-are-rollout-prefs-turn-ai-on--ember-ui-must-and-both)
 - [Gotcha: serialize rapid model saves — overlapping user.save() lose updates / trip "in flight"](#gotcha-serialize-rapid-model-saves--overlapping-usersave-lose-updates--trip-in-flight)
 - [Pattern: dedup an "already-owned copy" by parent lineage, never by slug convention](#pattern-dedup-an-already-owned-copy-by-parent-lineage-never-by-slug-convention)
 - [Pattern: phased board prefetch — shared planner, dual persistence files](#pattern-phased-board-prefetch--shared-planner-dual-persistence-files)
@@ -5627,6 +5631,17 @@ it was never added to the `AI_FEATURES` allowlist (`:77`). Adding a feature to t
 registering it in `AI_FEATURES`. `system_feature_registry.rb:80` also derives its `ai_feature:`
 flag from this list, so registering there correctly tags it in the admin registry.
 
+## Gotcha: AI feature flags are rollout; prefs turn AI on — Ember UI must AND both
+
+`frontend_flags_for` / Ember `feature_flags` do **not** consult user AI prefs. Server egress uses
+`ai_feature_enabled_for?` (flag + org + COPPA + EU + `user_pref_allows_ai?`). If Ember only checks
+`appState.feature_flags.ai_*`, the UI offers generate/predict while the API 403s after the user
+turned prefs off. Do not bake prefs into the flags payload. Mirror pref semantics in
+`app/frontend/app/utils/ai_feature_gate.js` (`prefAllowsAi` / `aiFeatureEnabled`) and gate board-gen /
+word-prediction UI through it. Master `nil` = grandfather allow; master false = block; master true
+= per-feature must be true for `USER_PREF_AI_FEATURES`. See
+`docs/task-management/2026-07-14-eu-ai-prefs-parental-consent.md`. (2026-07-15)
+
 ## Gotcha: `EvalNarrator` shipped against the OLD `ruby-anthropic` API; the gem is official `anthropic ~> 1.23`
 
 `lib/eval_narrator.rb#draft_via_anthropic` originally used `Anthropic::Client.new(access_token:)` +
@@ -5882,6 +5897,16 @@ fresh (a benign duplicate) rather than reuse-on-faith. Single shared helper:
 `app/frontend/app/utils/board-copy.js#findExistingUserCopy` (used by board-preview-overlay +
 sidebar-editor). Don't fork two copies of this logic — divergence is how the slug-trust branch
 crept back in.
+
+## Gotcha: Ember strict-mode templates treat bare names as helpers — use `this.` for controller props
+
+After the Ember 5 upgrade, classic curly invocations still compile under strict resolution:
+a bare identifier like `home_board_pref` in `{{board-icon board=home_board_pref}}` is looked up as
+a **helper**, not a controller property. That throws
+`Attempted to resolve a helper in a strict mode template, but that value was not in scope: home_board_pref`
+and surfaces on `user.account` because that route reuses `templateName: 'user/index'`.
+Fix: `board=this.home_board_pref`. Block params from `{{#each ... as |board|}}` stay bare and
+are fine. See `docs/task-management/2026-07-14-home-board-pref-strict-mode.md`.
 
 ## Gotcha: serialize rapid model saves — overlapping user.save() lose updates / trip "in flight"
 
@@ -6894,3 +6919,14 @@ in 5.12 — so `searchString` never changed and the observer never fired. Replac
 Glimmer component + native input + DDAU (@value/@onChange via set-value) fixed that half. A feature can
 have MULTIPLE independent 5.12 breakages stacked; fixing one reveals the next. Diagnose each layer with
 targeted console logs before concluding.
+## Gotcha: Textarea `@value` on a get-only computed crashes on keystroke — needs a setter/cache
+
+Org Settings → Home Boards bound `<Textarea @value={{this.home_board_key_lines}}>` to a **get-only** computed that joined `model.home_board_keys`. Typing tried to `set('home_board_key_lines', …)` and threw `Cannot read properties of undefined (reading 'call')` (missing Ember computed setter). Fix: writable computed with a `_home_board_key_lines` edit cache, cleared in `opening()` / after save. Related: pasted modern board URLs (`/:user/board-detail/:slug`) are not board keys until host + `board-detail`/`board` segments are stripped to `owner/slug` — do that in both the settings save normalize and `Organization#process`. See `docs/task-management/2026-07-16-org-home-board-key-lines.md`. (2026-07-16)
+
+## Gotcha: Ember `<Input>` checkboxes need `@type`, and bound-select must stopPropagation
+
+`<Input type="checkbox" @checked={{…}}>` renders as a text field (`ember-text-field`, `type="text"`) — the HTML `type` attr is not the component arg. Use `@type="checkbox"` (as organization/settings already does). Separately, `bound-select`'s `ctrlAction` helper used to `preventDefault` then **pop the event** before `send`, so `toggle`/`choose` never received it and never `stopPropagation`'d — clicks bubbled into `modal-dialog` and selects looked dead. Match `modern-select`: keep the event, stopPropagation, and make `.md-org-settings-field > span` `display:block` so the `tagName:span` wrapper doesn't shrink the hit target. See `docs/task-management/2026-07-16-org-home-board-key-lines.md`. (2026-07-16)
+
+## Pattern: EU AI under-16 consent is a third blob, not COPPA signup
+
+EU under-16 AI enablement (`settings['eu_ai_parental_consent']`) is separate from COPPA account activation (`settings['coppa']`) and AI VPC data-sharing (`settings['ai_consent']`). Mirror COPPA token/`with_lock`/`AuditEvent` patterns for grant/revoke, but the complete controller must NOT mint devices or welcome emails — those are account-activation side effects. Persist country via `LingoLinq::Jurisdiction.trusted_country` (ISO alpha-2 only) and always recompute `eu_under_16` server-side from country + under_16; ignore client `eu_under_16`. Prefer-gate AI through `FeatureFlags.ai_feature_enabled_for?` (COPPA + EU + prefs) and keep thin call-site eu/coppa checks for defense in depth. Store allowlisted `requested_features` on request; apply them onto `settings['preferences']` inside the same `grant_eu_ai_parental_consent!` lock that records grant; on revoke force `EU_AI_PREF_KEYS` off. Prefs UI opens a modal (not an inline form) via `gate_ai_enable` → `modal.open('eu-ai-parental-consent')`. **Do not raise signup `coppaConsentAge` to 16 for EU** — that reused COPPA account-activation parent email for Art. 8; product intent is account create without parent email, AI consent only after login. Register keeps literal under-13 for `coppa_under_13`; `_classifyUnder16` + country drive `eu_under_16`. Register product-improvement force-off must set `model.preferences` (the signup user record), not assume `controller.user` exists. See `docs/task-management/2026-07-14-eu-ai-prefs-parental-consent.md`. (2026-07-14; registration decoupling 2026-07-15)

@@ -92,7 +92,7 @@ class ApplicationController < ActionController::Base
   def coppa_sentry_subject_user
     return @api_user if defined?(@api_user) && @api_user
 
-    if controller_path == 'parental_consents'
+    if controller_path == 'parental_consents' || controller_path == 'eu_ai_parental_consents'
       user_id = params[:user_id].presence || params['user_id']
       return User.find_by_path(user_id) if user_id.present?
     end

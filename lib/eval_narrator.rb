@@ -22,8 +22,67 @@ module EvalNarrator
   # it summarizes only what was actually captured, so the SLP can
   # trust it and edit toward intent rather than away from
   # hallucination.
+  #
+  # COMPLIANCE CLASSIFICATION (adjudicated by Scot Wahlquist, 2026-07-19):
+  # Eval narration is NOT a HIPAA "Healthcare Activity" under Anthropic's
+  # HIPAA-Ready Implementation Guide. The eval is an assistive-technology
+  # ACCESS / feature-match assessment (find-the-target tasks at shrinking grid
+  # sizes -> a hit/miss heat map -> a recommended board size and layout). The
+  # model summarizes access findings and a board-layout recommendation; it does
+  # not diagnose, treat, or produce medical charting/billing/coding/claims.
+  # Therefore Anthropic Healthcare-Activity condition (iii) (restrict use to
+  # licensed clinicians) does NOT apply, and there is intentionally no
+  # licensed-clinician gate on this path. Rationale, retained controls, and the
+  # register entry: docs/legal/ANTHROPIC_BAA_ACCEPTED.md and audit-reports/
+  # FINDINGS.json (ruleKey eval-narration-healthcare-activity-classification).
+  # Controls that DO apply and are enforced: Messages-API-only transport on the
+  # HIPAA-Ready org key, PII scrub + student-name drop + etiology minimization
+  # before egress, the EVAL_NARRATOR_MODEL allowlist (below), the COPPA gate,
+  # explicit opt-in, and the org AI opt-out. Do not re-flag the absent
+  # licensed-clinician gate as a finding without first reopening this
+  # classification with Scot.
 
   class NarrationError < StandardError; end
+
+  # Runtime model allowlist (Tier 1 compliance control). EVAL_NARRATOR_MODEL is
+  # env-overridable; pin it to an EXACT set of vetted, in-scope Claude model IDs
+  # so a misconfigured, future, or otherwise unrecognized model ID can never
+  # egress eval data. This is deliberately an exact-ID allowlist, NOT a family
+  # prefix: a prefix check (e.g. "starts with claude-opus") would silently accept
+  # a future model in that family that might carry mandatory retention. Adding a
+  # model is a deliberate vetting step (edit ALLOWED_MODELS below). Fable 5 /
+  # Mythos 5 (ZDR-excluded Covered Models per CLAUDE.md) and every unrecognized
+  # id are refused by construction. Enforced best-effort at boot
+  # (config/initializers/eval_narrator_model_allowlist.rb) and authoritatively,
+  # fail-closed, at call time. See docs/legal/ANTHROPIC_BAA_ACCEPTED.md.
+  DEFAULT_MODEL = 'claude-opus-4-7'.freeze
+  # Exact, vetted in-scope runtime model IDs (the current Tier 1 runtime
+  # inventory). Extend ONLY after confirming a model is HIPAA-eligible and is not
+  # a mandatory-retention Covered Model.
+  ALLOWED_MODELS = %w[
+    claude-opus-4-7
+    claude-haiku-4-5-20251001
+  ].freeze
+
+  # True only when `model` is one of the exact vetted in-scope model IDs. Any
+  # unrecognized id (including a future model in an in-scope family) is refused.
+  def self.allowed_model?(model)
+    model.is_a?(String) && ALLOWED_MODELS.include?(model)
+  end
+
+  # Resolves EVAL_NARRATOR_MODEL (or the default) and refuses anything outside
+  # the allowlist. Raising here fails closed: draft_narrative's rescue falls back
+  # to the deterministic no-egress template rather than sending eval data to a
+  # disallowed model.
+  def self.resolved_model
+    model = ENV['EVAL_NARRATOR_MODEL']
+    model = DEFAULT_MODEL if model.nil? || model.empty?
+    unless allowed_model?(model)
+      raise NarrationError, "EVAL_NARRATOR_MODEL #{model.inspect} is not a vetted in-scope Claude model " \
+        "(allowed: #{ALLOWED_MODELS.join(', ')}); refusing to egress eval data"
+    end
+    model
+  end
 
   # Returns a Hash `{ 'narrative' => String, 'ai_generated' => Hash|nil }`. The
   # `ai_generated` key is the EU AI Act Article 50(2) machine-readable marker
@@ -81,6 +140,7 @@ module EvalNarrator
   def self.ai_allowed_for?(user)
     return false unless user
     return false if FeatureFlags.coppa_blocks_ai_for?(user)
+    return false if FeatureFlags.eu_under16_blocks_ai_for?(user)
     return false unless FeatureFlags.ai_enabled_for?(user)
     true
   end
@@ -110,7 +170,7 @@ module EvalNarrator
     pii_findings = scrub_result[:findings]
     user_content = JSON.pretty_generate(scrubbed_payload)
 
-    model = ENV['EVAL_NARRATOR_MODEL'] || 'claude-opus-4-7'
+    model = resolved_model
     # Plain-string system prompt, matching AiBoardGenerator / AiWordPredictor
     # against the official anthropic (~> 1.23) gem. The prior array +
     # cache_control "ephemeral" shape was never verified against this gem; a
@@ -388,9 +448,18 @@ module EvalNarrator
     # Drop the student name under ANY key casing ('student', 'Student', ...)
     # and never forward a non-Hash sett shape verbatim.
     safe_sett = sett.is_a?(Hash) ? sett.reject { |k, _| k.to_s.downcase == 'student' } : {}
+    # Data minimization: drop the intake `etiology` field (the medical cause /
+    # diagnosis, e.g. cerebral palsy, autism) before egress. It is not needed to
+    # produce the access / board-size recommendation the narrative summarizes,
+    # and it is the one clinical-diagnosis datum in the payload. The local
+    # deterministic template (intake_paragraph) still uses it; only the external
+    # egress path drops it, mirroring the student-name drop above. The SLP fills
+    # in etiology when editing, exactly as they fill in the student name.
+    intake = payload['intake']
+    safe_intake = intake.is_a?(Hash) ? intake.reject { |k, _| k.to_s.downcase == 'etiology' } : intake
     {
       'mode' => payload['eval_mode'],
-      'intake' => payload['intake'],
+      'intake' => safe_intake,
       'recommendation' => payload['recommendation'],
       'sett' => safe_sett,
       'slp_notes' => payload['slp_notes'],

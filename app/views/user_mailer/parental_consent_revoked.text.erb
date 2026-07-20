@@ -4,6 +4,9 @@
 
 <%= mailer_t('parental_consent_revoked_mailer.details', child_name: @child_name.presence || @child_username, child_username: @child_username, revoked_at: long_ordinal_date(@revoked_at)) %>
 
-<%= mailer_t('parental_consent_revoked_mailer.footer', contact_url: @contact_url) %>
+<%= mailer_t('parental_consent_revoked_mailer.footer') %>
+
+<%= mailer_t('parental_consent_revoked_mailer.contact_link_label') %>:
+<%= @contact_url %>
 
 <%= email_signature %>

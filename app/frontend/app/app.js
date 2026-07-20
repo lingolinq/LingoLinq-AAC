@@ -28,6 +28,11 @@ setOnerror(function(err) {
     console.warn('[Ember Data] Suppressed duplicate record ID assertion:', err.message);
     return;
   }
+
+  if(isTesting() || LingoLinq.testing) {
+    throw err;
+  }
+
   // Enhanced debugging for unrecoverable render errors
   if(err && (err.message && err.message.indexOf('unrecoverable error') !== -1 || err.message && err.message.indexOf('Attempted to rerender') !== -1)) {
     console.error('[RENDER ERROR DEBUG] ========== UNRECOVERABLE RENDER ERROR ==========');
@@ -48,10 +53,6 @@ setOnerror(function(err) {
     } else {
       LingoLinq.track_error(JSON.stringify(err), false);
     }
-  }
-  // MUST rethrow when testing - required for test framework validation (after logging)
-  if(isTesting() || LingoLinq.testing) {
-    throw err;
   }
 });
 

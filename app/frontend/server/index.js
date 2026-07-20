@@ -1,9 +1,9 @@
 'use strict';
 
-// Proxy /auth/* and /parental_consent/* to Rails BEFORE Ember's SPA history fallback.
-// Full-page navigations (window.location) send Accept: text/html, which Ember
-// otherwise answers with index.html — so /auth/google/start and COPPA email links
-// never reached Rails.
+// Proxy /auth/*, /parental_consent/*, and /eu_ai_parental_consent/* to Rails BEFORE
+// Ember's SPA history fallback. Full-page navigations (window.location) send
+// Accept: text/html, which Ember otherwise answers with index.html — so OAuth and
+// parental-consent email links never reached Rails.
 module.exports = function(app) {
   var frontendHost = process.env.EMBER_DEV_HOST || process.env.FRONTEND_HOST || 'localhost:8184';
   var frontendOrigin = process.env.FRONTEND_ORIGIN || ('http://' + frontendHost);
@@ -33,7 +33,8 @@ module.exports = function(app) {
 
   function parentalConsentPath(url) {
     var path = (url || '').split('?')[0];
-    return path === '/parental_consent/complete' || path === '/parental_consent/revoke';
+    return path === '/parental_consent/complete' || path === '/parental_consent/revoke' ||
+      path === '/eu_ai_parental_consent/complete' || path === '/eu_ai_parental_consent/revoke';
   }
 
   var proxy = require('http-proxy').createProxyServer({

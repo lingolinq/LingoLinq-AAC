@@ -84,6 +84,18 @@ LingoLinq.User = BaseModel.extend({
   parent_consent_email: attr('string'),
   /** Set by API on create when parental consent is still required (COPPA). */
   coppa_parental_consent_pending: attr('boolean'),
+  /** ISO 3166-1 alpha-2 registration country (client-supplied, server-trusted). */
+  country: attr('string'),
+  /** Under 16 from DOB at registration (used with country to compute eu_under_16). */
+  under_16: attr('boolean'),
+  /** Response-only: EU country + under_16 (server recomputes; never POST). */
+  eu_under_16: attr('boolean'),
+  /** Response-only: EU AI parental consent email outstanding. */
+  eu_ai_parental_consent_pending: attr('boolean'),
+  /** Response-only: EU AI parental consent currently granted. */
+  eu_ai_parental_consent_active: attr('boolean'),
+  /** Response-only (edit): parent email on a pending EU AI consent request (resend prefills). */
+  eu_ai_parental_consent_parent_email: attr('string'),
   unread_messages: attr('number'),
   unread_alerts: attr('number'),
   external_device: attr('raw'),

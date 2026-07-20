@@ -18,6 +18,24 @@
 > ratified two-tier AI data-routing policy). Re-attested 2026-07-13. Operative reference: NIST AI RMF plus the Generative AI Profile
 > (NIST AI 600-1). ISO 42001 certification is not yet a small-vendor expectation and is out of
 > scope for now.
+>
+> **ADDENDUM 2026-07-18 (posture change; flagged for re-attestation).** Since the last attestation,
+> the Anthropic runtime egress path moved from "no model-provider BAA / provisional pending CEO
+> review" to a **signed HIPAA-Ready BAA with HIPAA readiness enabled** on the runtime-dedicated
+> LingoLinq, LLC Anthropic API org (executed and verified live 2026-07-18; see
+> `docs/legal/ANTHROPIC_BAA_ACCEPTED.md`). PHI is now permitted to Anthropic over the Messages API
+> under BAA terms (in-scope models only, no excluded features, no ZDR required), with the PiiScrubber
+> retained as defense-in-depth. The eval-narration seam was reviewed against Anthropic's
+> Healthcare-Activity conditions and classified (Scot, 2026-07-19) as an assistive-technology access /
+> feature-match assessment (find-the-target tasks at shrinking grid sizes producing a hit/miss access
+> recommendation), NOT a HIPAA "Healthcare Activity" - it does not diagnose, treat, or produce
+> charting/billing/coding/claims. Anthropic Healthcare-Activity condition (iii) (licensed-clinician
+> restriction) therefore does not apply, and there is no licensed-clinician gate on this path (see
+> `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` and audit-reports/FINDINGS.json LL-3a1c317a88). The applicable
+> controls (Messages-API-only, PII scrub + student-name drop + etiology minimization, the
+> EVAL_NARRATOR_MODEL allowlist, COPPA gate, opt-in, org opt-out) ship in the eval-narrator
+> runtime-gates security PR. This addendum records the fact; the memo body below still reflects the
+> pre-BAA posture and requires CEO re-attestation to update in full.
 
 ## 1. Purpose
 
