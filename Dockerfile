@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Stage 1: Build Ember Frontend
-FROM node:20-bullseye AS frontend-builder
+FROM node:22-bullseye AS frontend-builder
 WORKDIR /app/frontend
 # Install build dependencies for native modules (like sqlite3)
 RUN apt-get update -qq && apt-get install -y \
@@ -39,8 +39,8 @@ RUN apt-get update -qq && apt-get install -y \
 
 # Install Node.js (needed for Rails asset pipeline)
 # npm is pinned to the v10 major because newer npm releases can require a
-# Node major beyond 20, which would break this build without warning.
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+# Node major beyond 22, which would break this build without warning.
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     apt-get install -y nodejs && \
     npm install -g npm@10
 

@@ -2,7 +2,7 @@
 # it creates (claude -w, EnterWorktree, isolation:worktree subagents, desktop
 # parallel sessions). Uses .gitignore syntax; only files that are themselves
 # gitignored are copied (tracked files like .nvmrc carry over via git already, so
-# the Node 20 pin is preserved automatically).
+# the Node 22 pin is preserved automatically).
 #
 # NOTE: raw `git worktree add` (and therefore the claude-wt launcher) does NOT
 # process this file -- that is a Claude-Code-native feature. claude-wt copies the

@@ -396,14 +396,14 @@ steps, listed.
 **Required services:**
 - PostgreSQL (database)
 - Redis (background jobs, caching)
-- Node.js 20 (managed via nvm)
+- Node.js 22 (managed via nvm)
 - Ruby 3.4.3
 - ImageMagick (`convert`, `identify`, `montage`)
 - Ghostscript (`gs`)
 
 **Node Version Management:**
-- Both `/.nvmrc` and `app/frontend/.nvmrc` specify Node 20
-- `bin/ember-server` uses nvm to ensure Node 20 for the frontend dev server
+- Both `/.nvmrc` and `app/frontend/.nvmrc` specify Node 22
+- `bin/ember-server` uses nvm to ensure Node 22 for the frontend dev server
 
 **Environment variables:**
 - Copy `.env.example` to `.env`

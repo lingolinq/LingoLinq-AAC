@@ -19,7 +19,7 @@ Key characteristics:
 - **Quoting**: 
     - User-facing strings: Use DOUBLE QUOTES `"string"`.
     - Code/Internal strings: Use SINGLE QUOTES `'string'`.
-- **Node Version**: Use Node 20.
+- **Node Version**: Use Node 22.
 - **jQuery**: Prefer native DOM APIs or Ember patterns over jQuery (`$`) where practical.
 
 ## Architecture
@@ -29,7 +29,7 @@ Key characteristics:
 - **JSON API**: Responses generated in `lib/json_api/`.
 - **Background Jobs**: Resque (`lib/worker.rb`).
 
-### Frontend (Ember 3.28)
+### Frontend (Ember 5.12)
 - **State Management**: `app_state.js`.
 - **Persistence**: `dbman.js` / `persistence.js`.
 - **Edit Manager**: `edit_manager.js`.

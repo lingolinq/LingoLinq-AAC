@@ -69,20 +69,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node 20
+      - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
+      # The cache key MUST carry the Node major. node_modules holds native
+      # bindings (sqlite3) compiled against a specific Node ABI; restoring a
+      # Node-20-built tree into a Node 22 runner loads a binding built for the
+      # wrong ABI. Bump this suffix on every Node major bump.
       - name: Cache node_modules and Puppeteer Chrome
         uses: actions/cache@v4
         with:
           path: |
             app/frontend/node_modules
             ~/.cache/puppeteer
-          key: ${{ runner.os }}-node20-${{ hashFiles('app/frontend/package-lock.json') }}
+          key: ${{ runner.os }}-node22-${{ hashFiles('app/frontend/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-node20-
+            ${{ runner.os }}-node22-
 
       - name: Install frontend dependencies
         working-directory: app/frontend
@@ -171,10 +175,10 @@ jobs:
           gem install bundler-audit
           bundle-audit check --update
 
-      - name: Setup Node 20
+      - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Run npm audit (frontend CVE check)
         working-directory: app/frontend

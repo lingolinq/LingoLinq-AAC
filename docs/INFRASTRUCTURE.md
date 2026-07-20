@@ -166,8 +166,8 @@ See `.env.example` for the full list.
 ## Development Environment
 - Platform: WSL2 (Linux on Windows)
 - Ruby: 3.4.3 (rbenv)
-- Node: 20
-- Ember: 3.28
+- Node: 22
+- Ember: 5.12
 - Rails: see Gemfile
 - Package managers: Bundler, npm, Bower (legacy, migrating away)
 
