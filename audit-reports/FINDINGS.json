@@ -3852,7 +3852,10 @@
       "title": "Eval narration has no licensed-clinician gate (classified NOT a HIPAA Healthcare Activity)",
       "severity": "low",
       "confidence": "high",
-      "frameworks": ["HIPAA", "FERPA"],
+      "frameworks": [
+        "HIPAA",
+        "FERPA"
+      ],
       "status": "open",
       "evidence": {
         "file": "app/controllers/api/eval_sessions_controller.rb",
@@ -3875,6 +3878,85 @@
         "rationale": "The LingoLinq eval is an assistive-technology access / feature-match assessment (find-the-target tasks at progressively smaller grid sizes to a hit/miss heat map to a recommended board size and layout). The AI narrative summarizes access findings and the layout recommendation; it does not diagnose, treat, or produce charting/billing/coding/claims, so it is not one of Anthropic's enumerated Healthcare Activities and condition (iii) does not apply. Retained controls: Messages-API-only on the HIPAA-Ready org key, PII scrub + structural student-name drop + etiology minimization before egress, the EVAL_NARRATOR_MODEL allowlist, the COPPA gate, explicit per-request opt-in, and the org AI opt-out. See docs/legal/ANTHROPIC_BAA_ACCEPTED.md and the lib/eval_narrator.rb module header. Do not re-flag the absent licensed-clinician gate without first reopening this classification with Scot."
       },
       "notes": "Adjudicated 2026-07-19 by Scot Wahlquist; a reasoned classification, not a detection error. Corrects the conservative 'Healthcare Activity' reading in the 2026-07-18 eligible-services scope review (docs/task-management/2026-07-18-anthropic-baa-eligible-services-scope.md). The EVAL_NARRATOR_MODEL allowlist + etiology minimization shipped in the eval-narrator runtime-gates security PR (#632); this classification is recorded in the Anthropic-BAA compliance PR (#631). Evidence anchor is the supervise-permission gate the auditor cited as insufficient for licensure, kept as the anchor for the dismissed recommendation."
+    },
+    {
+      "id": "LL-104bfa61dc",
+      "ruleKey": "terms-agree-modal-not-scannable",
+      "title": "Terms-agree modal is unreachable by switch scanning (no .modal_targets / .btn, opened without scannable)",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/components/terms-agree.hbs",
+        "line": 27,
+        "sha": "2a10027a1fb4eddd503230ff9174be258a165dc7",
+        "snippet": "<button type=\"button\" class=\"la-btn la-btn--primary\" {{on \"click\" (this.ctrlAction \"confirm\")}}>{{t \"Agree and Continue\" key=\"accept_and_continue\"}}</button>"
+      },
+      "firstSeen": "2026-07-20",
+      "lastSeen": "2026-07-20",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Two changes, both required. (1) In terms-agree.hbs, wrap the action buttons in a .modal_targets container and give each control the .btn class so the scanner selector at app/frontend/app/utils/modal.js:255 (\".modal-dialog .modal_targets .btn, .modal-dialog .modal_targets a, ...\") can find them. The existing la-btn / la-btn--primary / la-btn--ghost classes match none of those selectors. (2) Pass scannable: true at all four call sites: app/frontend/app/routes/index.js:123, index.js:132, app/frontend/app/routes/bento.js:51, bento.js:55 -- every one currently calls modal.open('terms-agree') with no options object, so scanning is never enabled for this modal even if the markup is fixed. Verify with a switch-scanning walkthrough, not markup inspection alone.",
+        "timeframe": "30 days"
+      },
+      "notes": "Discovered 2026-07-20 during VPC Phase 3 (EU AI Act Art.50 disclosure modal) planning, while cloning terms-agree as the acknowledge-gate exemplar. Independently confirmed against source by two agents plus the coordinator. PRE-EXISTING defect, not introduced by Phase 3; deliberately scoped OUT of Phase 3 so the Art.50 modal does not inherit the same gap (Phase 3's ai-disclosure component specifies .modal_targets + .btn + scannable: true as mechanically-checkable MUSTs). Impact is population-specific and severe: a switch-scanning AAC user -- a core LingoLinq user population -- cannot operate the Terms modal at all, and the modal is uncloseable, so the app is not merely degraded but unusable for them at that point. Rated high on that basis despite being a markup-level fix. WCAG 2.1 AA 2.1.1 Keyboard / 2.4.3 Focus Order operability."
+    },
+    {
+      "id": "LL-53cb93fab1",
+      "ruleKey": "terms-agree-modal-replaced-before-consent",
+      "title": "Terms-agree modal can be silently replaced by intro before the user agrees, so terms_agree is never recorded",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/routes/index.js",
+        "line": 132,
+        "sha": "2a10027a1fb4eddd503230ff9174be258a165dc7",
+        "snippet": "modal.open('terms-agree');"
+      },
+      "firstSeen": "2026-07-20",
+      "lastSeen": "2026-07-20",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "In routes/index.js#setupController, the terms_agree-missing branch (line 117) has no return in any of its three sub-branches, so it always falls through to the shared tail where modal.open('intro') runs (line 185). Opening a second modal resolves the first one's promise with {replaced: true} (app/frontend/app/utils/modal.js:138 and services/modal.js:92), so terms-agree is dismissed without user action. Fix by making the terms_agree gate authoritative: return after opening terms-agree, or defer the intro open until the terms-agree promise resolves with a genuine (non-replaced) result. Do NOT rely on the bumped component's own init() side effects to have run -- see the notes field. Add a regression test covering a fresh account with show_intro true.",
+        "timeframe": "30 days"
+      },
+      "notes": "Discovered 2026-07-20 during VPC Phase 3 planning. Two distinct impacts. (1) CONSENT RECORD: a new user on a fresh account with show_intro true may never see the Terms modal, and terms_agree is never written -- the app proceeds as though terms were presented when they were not. This is the reason for the high rating; it is a record-keeping defect on an agreement, not a cosmetic modal-ordering nit. (2) DURABLE WRITE LOSS: because Ember batches property mutations within one run loop and renders only the final value (services/modal.js:89-107 sets currentTemplate; components/modal-container.hbs conditionally instantiates the component), a modal bumped in the same synchronous pass is NEVER INSTANTIATED, so its init() never runs. For intro that means BOTH appState.set('show_intro', false) (intro.js:41) and the persisted user.set('preferences.progress.intro_watched', true) + user.save() (intro.js:42-45) are skipped -- so show_intro leaks and intro re-competes on later renders. The symptom (intro reappearing) looks cosmetic and hides the failed write; that is the part most likely to be missed during triage. PRE-EXISTING; scoped OUT of VPC Phase 3, which instead guards its own Art.50 chain against the bump by checking result.replaced rather than repairing this."
+    },
+    {
+      "id": "LL-58130aaefe",
+      "ruleKey": "modal-dialog-missing-aria-labelledby",
+      "title": "Shared modal-dialog shell declares role=dialog aria-modal without aria-labelledby or aria-describedby",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/components/modal-dialog.hbs",
+        "line": 6,
+        "sha": "2a10027a1fb4eddd503230ff9174be258a165dc7",
+        "snippet": "<div class=\"modal fade in\" style=\"display: block;\" data-uncloseable={{this.uncloseable}} role=\"dialog\" aria-modal=\"true\">"
+      },
+      "firstSeen": "2026-07-20",
+      "lastSeen": "2026-07-20",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add optional labelledBy / describedBy arguments to the modal-dialog component and bind them as aria-labelledby / aria-describedby on the dialog element. Ember omits a bound attribute whose value is undefined, so defaulting both to undefined is a verified no-op for the roughly 140 existing callers that do not pass them -- the change is additive and carries no regression risk to current modals. Then retrofit callers in priority order (terms-agree and any consent- or compliance-bearing modal first) so each dialog has a programmatically determined accessible name. WCAG 2.1 AA 4.1.2 Name, Role, Value.",
+        "timeframe": "90 days"
+      },
+      "notes": "Discovered 2026-07-20 during VPC Phase 3 planning. PRE-EXISTING and system-wide (~140 callers). VPC Phase 3 adds the optional labelledBy/describedBy arguments to the shell as part of building its own ai-disclosure accessibility contract, but deliberately does NOT retrofit existing callers -- that retrofit is this finding and remains separate prioritized work. Rated medium rather than high because affected modals are still operable; the defect is that a screen-reader user gets no accessible name for the dialog, not that the dialog is unusable."
     }
   ]
 }
