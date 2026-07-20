@@ -9,7 +9,7 @@
 
 Statuses are verified against live code at the audited SHA, not copied from the dated report prose. Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. Disposition (triage) is orthogonal to status: a finding can be `open` yet `dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.
 
-## Open (53)
+## Open (54)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -63,6 +63,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-0196a680c5 |  | low |  | untriaged | audit-run | Ember UserGoal model declares scalar user_id/video_id/template_id attrs that JsonApi::Goal never emits as top-level keys | `app/frontend/app/models/goal.js`:19 |
 | LL-5e7676187f |  | low |  | untriaged | audit-run | indexeddbshim is pinned to a stale major (^6.1.0, ~10 majors behind latest 16.1.0) in the production bundle | `app/frontend/package.json`:70 |
 | LL-3a1c317a88 |  | low | HIPAA, FERPA | **dismissed-false-positive** | audit-run | Eval narration has no licensed-clinician gate (classified NOT a HIPAA Healthcare Activity) | `app/controllers/api/eval_sessions_controller.rb`:60 |
+| LL-abd6c88733 |  | low | SOC2 | untriaged | manual | Prod SES mail has no custom MAIL FROM domain, so SPF does not align with the From: domain and DMARC rests on DKIM alone; no Authentication-Results headers have ever been captured to confirm the SPF/DKIM/DMARC result on a delivered message | (attestation) |
 | LL-941001ca58 | Dep-eslint-8-eol | low | SOC2 | **accepted** | audit-run | eslint 8.57.1 is EOL (v8 end-of-life); dev toolchain on an unsupported linter | `app/frontend/package.json`:64 |
 | LL-a97357136e | P2-2 | low | SOC2 | **wontfix** | audit-run | params.permit! bypasses Strong Parameters | `app/controllers/api/organizations_controller.rb`:866 |
 | LL-ce00c8d3ad | P2-3 | low |  | **wontfix** | audit-run | License model lacks Processable concern | `app/models/license.rb`:1 |
@@ -146,4 +147,4 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 
 ---
 
-_110 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
+_111 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
