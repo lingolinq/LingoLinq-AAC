@@ -12,6 +12,7 @@ import i18n from '../utils/i18n';
 import editManager from '../utils/edit_manager';
 import actionLock from '../utils/action-lock';
 import aiFeatureGate from '../utils/ai_feature_gate';
+import buildEventAction from '../utils/event_action';
 
 /**
  * New Board Modal Component
@@ -112,6 +113,9 @@ export default Component.extend({
         self.send.apply(self, [actionName].concat(args));
       };
     };
+    // For keydown/drag/drop bindings whose handlers need the raw event and do
+    // their own preventDefault. ctrlAction above is unchanged for clicks.
+    this.eventAction = buildEventAction(this);
     this.ctrlActionNoBubble = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function(event) {

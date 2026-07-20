@@ -3,6 +3,7 @@ import { computed } from '@ember/object';
 import { next } from '@ember/runloop';
 import { htmlSafe } from '@ember/template';
 import i18n from '../utils/i18n';
+import buildEventAction from '../utils/event_action';
 
 export default Component.extend({
   classNames: ['label-chips'],
@@ -46,18 +47,13 @@ export default Component.extend({
     }
 
     var self = this;
-    this.ctrlAction = function(actionName) {
-      var bound = Array.prototype.slice.call(arguments, 1);
-      return function() {
-        var args = bound.concat(Array.prototype.slice.call(arguments));
-        var evt = args[args.length - 1];
-        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
-          if (evt.preventDefault) { evt.preventDefault(); }
-          args.pop();
-        }
-        self.send.apply(self, [actionName].concat(args));
-      };
-    };
+    // EVERY action in this component reads its event and manages its own
+    // preventDefault/stopPropagation (see handleKeydown for Enter/comma, and
+    // chipDragOver, where dragover MUST preventDefault or drop never fires),
+    // so ctrlAction here is the event-forwarding wrapper. The generic
+    // ctrlAction copied in during the 5.12 upgrade (#490) preventDefaulted
+    // every event and dropped it, which made labels impossible to type.
+    this.ctrlAction = buildEventAction(this);
     this.ctrlActionNoBubble = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function(event) {
