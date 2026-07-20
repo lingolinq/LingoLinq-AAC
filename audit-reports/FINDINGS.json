@@ -1288,7 +1288,7 @@
         "verifierNote": "Superseded 2026-06-12: prod is migrating off Render to GCP Cloud Run; Google org-wide BAA accepted 2026-06-08. The Render hosting BAA is no longer the compliance path for PHI. Render stays as a PHI-free dev/staging + rollback surface (project_render_cloud_migration).",
         "attestation": ""
       },
-      "notes": "Render prod remains the live rollback path until GCP cutover, but carries no PHI under the migration plan."
+      "notes": "Render prod remains the live rollback path until GCP cutover, but carries no PHI under the migration plan. | 2026-07-16: Google Cloud infrastructure agreements formalized at the project lingolinq-prod level: CDPA + HIPAA BAA accepted 2026-07-12, SCCs certified 2026-07-14 (formalizing the org-wide Google BAA of 2026-06-08); evidence in Drive 'Compliance Audits' / 'Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14)'. Status unchanged (superseded); recorded for evidence continuity only. This infrastructure BAA does NOT close the open cutover-gated infra findings (Redis TLS LL-6619cc1811, sslmode/verify-full LL-ba0585ab93, and the Postgres network-allowlist finding) or the model-provider AI-egress gap (Anthropic egress has no GCP coverage); those remain open for Scot's disposition."
     },
     {
       "id": "LL-97f9001bb4",
@@ -3846,6 +3846,36 @@
         "promotedDate": "2026-07-09"
       },
       "notes": "Surfaced 2026-07-09 during the PR #561 program-overview review (Codex senior-dev re-review pass), code-verified by direct trace at staging tip c595f6304. Not wording-only: TTS is a real external egress path for user utterance text that bypasses the LLM PII scrubber and reaches providers not fully captured in the subprocessor register (Abair undisclosed and DPA-less; Google TTS flow unrowed). Disposition left untriaged for Scot. Filed on branch scot/compliance/tts-undisclosed-subprocessor."
+    },
+    {
+      "id": "LL-3a1c317a88",
+      "ruleKey": "eval-narration-healthcare-activity-classification",
+      "title": "Eval narration has no licensed-clinician gate (classified NOT a HIPAA Healthcare Activity)",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": ["HIPAA", "FERPA"],
+      "status": "open",
+      "evidence": {
+        "file": "app/controllers/api/eval_sessions_controller.rb",
+        "line": 60,
+        "sha": "2c925b39d8195c34c870b3d979f03e8471bfd34d",
+        "snippet": "return unless allowed?(user, 'supervise')",
+        "type": "code"
+      },
+      "firstSeen": "2026-07-19",
+      "lastSeen": "2026-07-19",
+      "owner": "Scot Wahlquist",
+      "remediation": {
+        "options": "No code gate required. Eval narration is adjudicated NOT a Healthcare Activity, so Anthropic Healthcare-Activity condition (iii) (licensed-clinician restriction) does not apply. If eval narration is ever repositioned as diagnosis, treatment, or auto-finalized clinical documentation, reopen this classification with Scot before PHI flows under that use.",
+        "timeframe": "n/a"
+      },
+      "disposition": {
+        "state": "dismissed-false-positive",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-07-19",
+        "rationale": "The LingoLinq eval is an assistive-technology access / feature-match assessment (find-the-target tasks at progressively smaller grid sizes to a hit/miss heat map to a recommended board size and layout). The AI narrative summarizes access findings and the layout recommendation; it does not diagnose, treat, or produce charting/billing/coding/claims, so it is not one of Anthropic's enumerated Healthcare Activities and condition (iii) does not apply. Retained controls: Messages-API-only on the HIPAA-Ready org key, PII scrub + structural student-name drop + etiology minimization before egress, the EVAL_NARRATOR_MODEL allowlist, the COPPA gate, explicit per-request opt-in, and the org AI opt-out. See docs/legal/ANTHROPIC_BAA_ACCEPTED.md and the lib/eval_narrator.rb module header. Do not re-flag the absent licensed-clinician gate without first reopening this classification with Scot."
+      },
+      "notes": "Adjudicated 2026-07-19 by Scot Wahlquist; a reasoned classification, not a detection error. Corrects the conservative 'Healthcare Activity' reading in the 2026-07-18 eligible-services scope review (docs/task-management/2026-07-18-anthropic-baa-eligible-services-scope.md). The EVAL_NARRATOR_MODEL allowlist + etiology minimization shipped in the eval-narrator runtime-gates security PR (#632); this classification is recorded in the Anthropic-BAA compliance PR (#631). Evidence anchor is the supervise-permission gate the auditor cited as insufficient for licensure, kept as the anchor for the dismissed recommendation."
     },
     {
       "id": "LL-caaf8e20ec",

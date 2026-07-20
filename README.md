@@ -72,6 +72,25 @@ rails db:seed
 
 You can skip the last command if you want, it'll populate with some bootstrap data including a login, `example` and `password` to get you started.
 
+#### postgres-dev MCP readonly role
+
+The project-scoped `postgres-dev` MCP server must not use the normal app or local
+owner database role. Provision a dedicated SELECT-only role before approving that
+MCP in Claude Code:
+
+```
+./scripts/provision-postgres-dev-readonly.sh
+export LINGOLINQ_MCP_READONLY_DATABASE_URL='postgresql://lingolinq_mcp_readonly@/lingolinq-development?host=/var/run/postgresql'
+```
+
+If your local Postgres requires password auth, set
+`LINGOLINQ_MCP_READONLY_PASSWORD` before running the script, then keep the
+password-bearing `LINGOLINQ_MCP_READONLY_DATABASE_URL` only in your private
+`.env` or shell profile. The script verifies that SELECT works and that DML,
+DDL, and sequence writes fail at the Postgres permission layer. This is per
+developer and does not replace the rule that local databases used with
+postgres-dev must contain synthetic data only.
+
 You can use the rake task with environment variables to customize:
 
 #### Basic usage (default: "Sample Organization")

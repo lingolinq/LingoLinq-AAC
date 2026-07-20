@@ -24,6 +24,10 @@ INFRASTRUCTURE_MARKERS = (
     "operation not permitted",
     "every shell invocation failed",
     "unable to complete the mandated read-only repository inspection",
+    "tool calls are failing",
+    "before any shell command can run",
+    "command channel rejected",
+    "output-schema validation error",
     "sandbox",
 )
 

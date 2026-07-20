@@ -652,9 +652,48 @@ module PiiScrubber
       end
     end
 
-    # Redact common first-name matches from text, recording findings.
+    # Honorifics that strongly signal the immediately-following Capitalized token
+    # is a surname (e.g. "Dr. Smith", "Mrs. Johnson"). The honorific itself is not
+    # PII and is preserved; only the surname is redacted.
+    HONORIFIC_SURNAME_PATTERN =
+      /\b((?:Mr|Mrs|Ms|Miss|Mx|Dr|Drs|Prof|Professor)\.?\s+)([A-Z][A-Za-z'’-]+)\b/
+
+    # A Capitalized token immediately following an already-redacted name placeholder
+    # is the likely surname (e.g. "[REDACTED_NAME] Johnson"). Applied AFTER the
+    # first-name / blocklist passes so the placeholder is present.
+    TRAILING_SURNAME_PATTERN = /\[REDACTED_NAME\](\s+)([A-Z][A-Za-z'’-]+)\b/
+
+    # Redact person names from free text, recording findings. Three passes, all
+    # deliberately biased toward over-redaction (the safe direction for an AI
+    # egress path, consistent with the COMMON_FIRST_NAMES gazetteer's own bias):
+    #   1. honorific + Capitalized surname ("Dr. Smith")   -> redact the surname
+    #   2. standalone common first name ("Sarah", "Bobby")  -> redact it
+    #   3. a Capitalized token right after a name placeholder ("[REDACTED_NAME]
+    #      Johnson") -> redact it too (the likely surname of a first name from
+    #      pass 2 or a blocklisted account-holder name)
+    # Ordering matters: pass 2 runs before pass 3 so a "First Last" pair becomes
+    # "[REDACTED_NAME] Last" and pass 3 then catches "Last" -- a single left-to-right
+    # two-word regex would instead consume "<preceding word> First" and miss the
+    # surname. Passes 1 and 3 close the surname gap the first-name gazetteer alone
+    # cannot (the residual the eval-narration review flagged for free-typed
+    # third-party names). A bare surname with no honorific and no preceding
+    # first/blocklisted name is still not caught here -- that needs a surname
+    # gazetteer, which over-matches ordinary English words -- so a UI affordance
+    # discouraging free-typed third-party names remains the primary point-of-entry
+    # control (tracked as a follow-up).
     def redact_common_names(text, findings)
-      text.gsub(/\b[A-Za-z]+\b/) do |word|
+      result = text.gsub(HONORIFIC_SURNAME_PATTERN) do
+        prefix = Regexp.last_match(1)
+        surname = Regexp.last_match(2)
+        findings << {
+          type: :person_name,
+          value: redact_value_preview(surname),
+          position: Regexp.last_match.begin(2)
+        }
+        "#{prefix}[REDACTED_NAME]"
+      end
+
+      result = result.gsub(/\b[A-Za-z]+\b/) do |word|
         if COMMON_FIRST_NAMES.include?(word.downcase)
           findings << {
             type: :common_name,
@@ -665,6 +704,17 @@ module PiiScrubber
         else
           word
         end
+      end
+
+      result.gsub(TRAILING_SURNAME_PATTERN) do
+        separator = Regexp.last_match(1)
+        surname = Regexp.last_match(2)
+        findings << {
+          type: :person_name,
+          value: redact_value_preview(surname),
+          position: Regexp.last_match.begin(2)
+        }
+        "[REDACTED_NAME]#{separator}[REDACTED_NAME]"
       end
     end
 
