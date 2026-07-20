@@ -72790,6 +72790,9 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-sidebar-editor__row {
   display: flex;
   align-items: center;
+  /* Wraps so the add/remove confirm can drop to its own line below the row
+     instead of competing with the board name for horizontal space. */
+  flex-wrap: wrap;
   gap: 8px;
   padding: 3px 6px;
   border-radius: 8px;
@@ -72801,6 +72804,48 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-sidebar-editor__section--current {
   padding-left: 10px;
   padding-right: 10px;
+  /* This is the live sidebar — the only section whose order matters and the
+     only one you can reorder. A teal glow + solid top stroke lifts it off the
+     add-lists below, which share the plainer card treatment. */
+  border-top-color: rgba($brand-teal, 0.85);
+  box-shadow:
+    0 1px 4px rgba($brand-blue-black, 0.06),
+    0 4px 16px rgba($brand-blue-black, 0.04),
+    0 0 0 1px rgba($brand-teal, 0.18),
+    0 0 22px 2px rgba($brand-teal, 0.22);
+}
+.md-sidebar-editor__section--current:hover {
+  border-top-color: rgba($brand-teal, 0.95);
+  box-shadow:
+    0 1px 4px rgba($brand-blue-black, 0.06),
+    0 4px 16px rgba($brand-blue-black, 0.04),
+    0 0 0 1px rgba($brand-teal, 0.26),
+    0 0 26px 3px rgba($brand-teal, 0.28);
+}
+.md-board-detail--dark .md-sidebar-editor__section--current {
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.30),
+    0 4px 16px rgba(0, 0, 0, 0.22),
+    0 0 0 1px rgba($brand-teal, 0.30),
+    0 0 26px 3px rgba($brand-teal, 0.30);
+}
+
+/* Divider heading between "on the sidebar" and "can be added". Sits BETWEEN
+   cards rather than inside one, so it reads as a group heading for everything
+   below it; slightly larger than the in-card section labels it introduces. */
+.md-sidebar-editor__group-label {
+  margin: 20px 4px 10px;
+  padding-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: $brand-slate-blue;
+  border-bottom: 1px solid rgba($brand-blue-black, 0.10);
+}
+.md-board-detail--dark .md-sidebar-editor__group-label {
+  color: rgba(240, 244, 250, 0.72);
+  border-bottom-color: rgba(240, 244, 250, 0.16);
 }
 /* Each "On your sidebar" item is wrapped in its own glass container (translucent
    gradient, light rim, inset sheen + soft drop) so the reorderable items read as
@@ -72851,13 +72896,6 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   border-color: rgba(255, 255, 255, 0.26);
 }
 /* Reorder instruction below the search box. */
-.md-sidebar-editor__hint {
-  margin: 8px 4px 0;
-  font-size: 12px;
-  line-height: 1.35;
-  color: $brand-slate-blue;
-}
-.md-board-detail--dark .md-sidebar-editor__hint { color: rgba(240, 244, 250, 0.72); }
 /* Dark mode: the add-list board names in the Edit Sidebar panel inherit a dark
    tone — the My Boards overlay lights them via .md-board-collection__item, but
    these rows wrap the name in .md-sidebar-editor__display instead, so it never
@@ -72878,6 +72916,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   touch-action: none;
 }
 .md-sidebar-editor__grip:active { cursor: grabbing; }
+
 .md-board-detail--dark .md-sidebar-editor__grip { color: rgba(240, 244, 250, 0.5); }
 /* Drag states — the lifted row fades to a ghost; the hovered drop target gets a
    dashed teal insertion outline. */
@@ -73062,32 +73101,19 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 /* "Always on" status pill for Crisis Vocabulary — it can't be removed, so it shows
    this (non-interactive) lock pill instead of a control. */
-.md-sidebar-editor__locked-pill {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 9px;
-  border-radius: 999px;
-  background: rgba($la-navy, 0.07);
-  border: 1px solid rgba($la-navy, 0.14);
-  color: $brand-slate-blue;
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-.md-sidebar-editor__locked-pill svg { opacity: 0.8; }
-.md-board-detail--dark .md-sidebar-editor__locked-pill {
-  background: rgba(255, 255, 255, 0.10);
-  border-color: rgba(255, 255, 255, 0.18);
-  color: rgba(240, 244, 250, 0.78);
-}
 .md-sidebar-editor__action[disabled] { opacity: 0.45; cursor: default; box-shadow: none; }
 .md-sidebar-editor__confirm {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 6px;
-  flex-shrink: 0;
+  /* Full-width so it wraps onto its own line under the row (see the row's
+     flex-wrap). Previously inline + flex-shrink:0, which squeezed the board
+     name until it truncated — you couldn't see what you were confirming. */
+  flex: 0 0 100%;
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px solid rgba($la-navy, 0.10);
 }
 .md-sidebar-editor__confirm-q { font-size: 12px; color: $brand-slate-blue; }
 .md-sidebar-editor__confirm-btn {
@@ -73104,6 +73130,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-sidebar-editor__confirm-btn--primary { color: $brand-verdigris-aa; border-color: rgba(44, 183, 176, 0.40); }
 /* Dark speak shell overrides for the editor's OWN controls (the reused
    md-board-collection__* chrome already carries its own dark overrides). */
+.md-board-detail--dark .md-sidebar-editor__confirm { border-top-color: rgba(240, 244, 250, 0.14); }
 .md-board-detail--dark .md-sidebar-editor__confirm-q { color: rgba(240, 244, 250, 0.72); }
 .md-board-detail--dark .md-sidebar-editor__row:hover { background: rgba(255, 255, 255, 0.05); }
 .md-board-detail--dark .md-sidebar-editor__action,
