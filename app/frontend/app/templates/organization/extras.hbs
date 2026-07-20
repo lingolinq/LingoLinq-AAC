@@ -189,7 +189,7 @@
           <div style='margin-top: -15px;'>
             <div class="checkbox big_checkbox">
               <label>
-                <input value={{this.include_extras}} type="checkbox" {{on "input" (set-field this "include_extras")}} />
+                <input type="checkbox" checked={{this.include_extras}} {{on "change" (set-field this "include_extras" "checkbox")}} />
                 {{t "include premium symbols" key="include_premium_symbols"}}
               </label>
             </div>

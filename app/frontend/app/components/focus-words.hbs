@@ -273,7 +273,7 @@
           {{#if this.model.user}}
             <div class="col-sm-12" style='margin-top: 4px;'>
               <label style='display: flex; align-items: center; gap: 10px; border: 1px solid #ccc; border-radius: 20px; padding: 6px 14px; cursor: pointer; width: fit-content; font-weight: normal; margin-bottom: 0;'>
-                <input value={{this.reuse}} type="checkbox" style='margin: 0; width: 16px; height: 16px; cursor: pointer;' {{on "input" (set-field this "reuse")}} />
+                <input type="checkbox" checked={{this.reuse}} style='margin: 0; width: 16px; height: 16px; cursor: pointer;' {{on "change" (set-field this "reuse" "checkbox")}} />
                 <span>{{t "Save for Re-Use" key="save_for_reuse"}}{{#if this.model.user.user_name}} {{t "(%{user_name})" user_name=this.model.user.user_name key="paren_user_name"}}{{/if}}</span>
               </label>
             </div>
