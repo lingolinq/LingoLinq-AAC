@@ -1,0 +1,51 @@
+{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing uncloseable="true" labelledBy="ai-disclosure-title" describedBy="ai-disclosure-summary"}}
+  <div class="la-support-modal-wrap la-ai-disclosure-modal-wrap">
+    <div class="la-modal-header" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+      <span class="la-modal-header-label la-modal-header-label--regular">{{t "AI Transparency Notice" key="ai_disclosure_eyebrow"}}</span>
+      {{!-- Initial focus lands here (data-autofocus, per modal-dialog.js) so the
+           dialog title is announced first and focus does NOT start on the link
+           buried in the body; Tab then moves to the full-notice link, then
+           Acknowledge. role=heading/aria-level keep it a span (avoids the global
+           h2 sizing) -- exactly matching terms-agree.hbs's title idiom. Reuses
+           the eyebrow's color/weight classes (--regular keeps this modal at two
+           rendered weights total, 03-UI-SPEC.md 3) with an inline size/case
+           override for the larger, sentence-case title role -- a one-off
+           adjustment to this element only, not a stacked selector, matching the
+           existing inline-style precedent elsewhere in this file (gif.hbs,
+           timer.hbs). --}}
+      <span id="ai-disclosure-title" role="heading" aria-level="2" tabindex="-1" data-autofocus class="la-modal-header-label la-modal-header-label--regular" style="font-size: 18px; line-height: 1.3; text-transform: none; letter-spacing: normal;">{{t "This Feature Uses Artificial Intelligence" key="ai_disclosure_title"}}</span>
+    </div>
+    <div class="la-support-modal-body">
+      <div class="la-terms-agree-message">
+        <span class="la-terms-agree-icon" aria-hidden="true">
+          <svg class="la-terms-agree-icon-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="16" x2="12" y2="12"/>
+            <line x1="12" y1="8" x2="12.01" y2="8"/>
+          </svg>
+        </span>
+        <div id="ai-disclosure-summary" class="la-terms-agree-text">
+          <p>{{t "Before you continue, here is what you should know:" key="ai_disclosure_intro"}}</p>
+          {{#if this.loading}}
+            <p>{{t "Loading the AI transparency notice..." key="ai_disclosure_loading"}}</p>
+          {{else if this.disclosure_html}}
+            {{safe this.disclosure_html}}
+          {{else}}
+            <p>{{t "We could not load the full notice right now. In short: some features in this app use AI to help generate suggestions or drafts. You can review the full notice anytime from Settings, AI Features." key="ai_disclosure_offline_fallback"}}</p>
+          {{/if}}
+        </div>
+      </div>
+      {{#if this.ack_error}}
+        <p class="la-terms-agree-error">{{t "There was a problem recording your acknowledgement. Please try again." key="ai_disclosure_ack_error"}}</p>
+      {{/if}}
+      <div class="modal_targets la-contact-form__actions la-terms-agree-actions">
+        <a href={{this.disclosureLinkUrl}} target="_blank" rel="noopener" class="la-terms-agree-link">{{t "Read the Full AI Transparency Notice" key="ai_disclosure_full_link"}}</a>
+        {{#unless this.ack_error}}
+          <button type="button" class="btn la-btn la-btn--primary" disabled={{this.acknowledging}} {{on "click" (this.ctrlAction "acknowledge")}}>{{t "Acknowledge and Continue" key="ai_disclosure_acknowledge"}}</button>
+        {{else}}
+          <button type="button" class="btn la-btn la-btn--primary" disabled={{this.acknowledging}} {{on "click" (this.ctrlAction "acknowledge")}}>{{t "Try Again" key="ai_disclosure_retry"}}</button>
+        {{/unless}}
+      </div>
+    </div>
+  </div>
+{{/modal-dialog}}
