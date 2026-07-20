@@ -221,7 +221,7 @@ rake extras:desktop
 
 ### Frontend Architecture
 
-**Framework:** Ember.js 3.28 with Ember Data for models
+**Framework:** Ember.js 5.12 with Ember Data 5.3 for models
 
 **jQuery removal:** Work to remove jQuery has been done on the develop branch. `jquery-integration` is disabled in `config/optional-features.json` to avoid `Component.reopen` deprecation from @ember/jquery. The app uses jQuery (`$`) for DOM manipulation where needed but does not use `this.$()` on components. When making changes, prefer native DOM APIs or Ember patterns over jQuery where practical.
 
@@ -510,6 +510,18 @@ Phase 2; their content was migrated into the `.claude/` layout below.
 
 Retired from the fan-out: `ember-stabilization` and `rails-upgrade` (migration-era, shipped)
 and the `mvp-readiness` 0-100 score (replaced by open Critical/High counts).
+
+### Ember Upgrade Audit (separate register, same machinery)
+The Ember 3.28 → 5.12 upgrade shipped under-migrated (see `docs/ember-5.12-migration-findings.md`);
+`/ember-audit-run` (`.claude/skills/ember-audit-run/SKILL.md`) hunts residual upgrade
+regressions. It fans out the read-only `ember-upgrade-auditor` finder across seven codebase
+slices (checklist: `.claude/skills/ember-upgrade-audit/SKILL.md`; knowledge base:
+`docs/ember-upgrade/KNOWN-ISSUES.md`), optionally ingests a Playwright runtime crawl
+(`scripts/ember-route-crawl.mjs`), and reconciles into
+`audit-reports/ember-upgrade/FINDINGS-EMBER.json` — a **separate register** from the
+compliance one (engineering findings must not pollute the compliance Critical/High headline)
+using the same `audit-merge.rb`/`citation-check.rb` machinery and the same governance
+(only Scot closes/downgrades/accepts).
 
 ### Audit Rules
 - Finders are read-only by construction: `tools: Read, Grep, Glob, Bash` (no Edit/Write) plus a
