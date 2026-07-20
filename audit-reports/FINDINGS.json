@@ -3853,7 +3853,10 @@
       "title": "Eval narration has no licensed-clinician gate (classified NOT a HIPAA Healthcare Activity)",
       "severity": "low",
       "confidence": "high",
-      "frameworks": ["HIPAA", "FERPA"],
+      "frameworks": [
+        "HIPAA",
+        "FERPA"
+      ],
       "status": "open",
       "evidence": {
         "file": "app/controllers/api/eval_sessions_controller.rb",
@@ -3918,6 +3921,48 @@
         "promotedDate": "2026-07-16"
       },
       "notes": "Promoted 2026-07-16 from the GCP cutover two-gate decision note (~/ai-company-brain/outputs/docs/2026-07-16-gcp-cutover-two-gate-decision.md), Gate 2. Manual promotion (medium severity is below promote-finding.rb's Critical/High threshold, so it was hand-added as status open / disposition untriaged). Only Scot triages/closes."
+    },
+    {
+      "id": "LL-abd6c88733",
+      "ruleKey": "ses-spf-alignment-header-capture-unverified",
+      "title": "Prod SES mail has no custom MAIL FROM domain, so SPF does not align with the From: domain and DMARC rests on DKIM alone; no Authentication-Results headers have ever been captured to confirm the SPF/DKIM/DMARC result on a delivered message",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "runtime",
+        "source": "GCP cutover Gate 1 rehearsal (2026-07-19/20), Rehearsal step 3. A prod SES send via config set 'lingolinq-transactional' was ACCEPTED by SES and manual inbox receipt was confirmed, which closed the earlier delivery question (LL-42a24ee911, verified-closed). Two things that decision did NOT establish remain open: (a) the Authentication-Results headers on a delivered message were never captured, so the actual SPF/DKIM/DMARC evaluation result is unverified; (b) no custom MAIL FROM domain is configured, so the SPF-checked domain is the Amazon SES bounce domain rather than the From: domain, leaving SPF unaligned under DMARC and DKIM as the sole passing alignment mechanism. Verification was blocked in-session by a tooling mismatch, not a delivery failure: the mailtest targets the operator's personal mailbox while the available Gmail connector is authenticated as a Workspace user, so headers could not be read from that session.",
+        "snippet": "No custom MAIL FROM domain on the prod SES identity; DMARC alignment carried by DKIM only. Authentication-Results header capture on a delivered prod message: not performed.",
+        "sha": ""
+      },
+      "firstSeen": "2026-07-20",
+      "lastSeen": "2026-07-20",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Before relying on prod SES for customer-facing transactional mail or alerting: (1) capture the Authentication-Results header from a delivered prod message and record the spf=/dkim=/dmarc= results as closure evidence -- read it from a mailbox the available connector can authenticate against, or via an SES configuration-set event destination (SNS / Firehose / EventBridge) rather than aggregate CloudWatch metrics; AND (2) configure a custom MAIL FROM subdomain on the SES identity with the required MX and SPF records so SPF aligns with the From: domain and DMARC no longer depends on DKIM alone. Not a Gate 1 DNS-cut blocker (accepted for Gate 1 by Scot, 2026-07-19); blocks treating prod mail as customer-ready.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": null,
+        "reviewer": "gcp-cutover-gate1-rehearsal",
+        "promotedDate": "2026-07-20"
+      },
+      "notes": "Promoted 2026-07-20 from the GCP cutover Gate 1 rehearsal. Scoped deliberately NARROW so it does not duplicate LL-42a24ee911 (verified-closed), which covered whether a diagnostic SES send ARRIVED. Arrival is settled; this finding covers only the two residuals that arrival did not prove -- Authentication-Results header capture and SPF/MAIL FROM alignment. An earlier draft finding LL-2c47df5d21 was removed from PR #624 during review as a duplicate of LL-42a24ee911; that removal was correct on its wording, but it left these two residuals with no tracker, which scripts/gcp/PHASE5-CUTOVER-RUNBOOK.md still referred to as 'promotion pending in PR #624'. This finding is that tracker. Manual promotion (low severity is below promote-finding.rb's Critical/High threshold, so hand-added as status open / disposition untriaged). Only Scot triages/closes."
     }
   ]
 }
