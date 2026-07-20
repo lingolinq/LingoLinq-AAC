@@ -22,6 +22,50 @@ preservation).
 > hard constraints (no DNS, no Cloud Armor enforce, no ingress lockdown, no Render/SES changes)
 > stay in force until explicitly lifted.
 
+## Gate 1 (operational) vs Gate 2 (customer-facing) readiness
+
+The cutover is gated in two independent stages. **Gate 1** is operational/infra readiness under the
+no-real-users boundary: can we stand GCP up and cut DNS safely. **Gate 2** is customer-facing
+readiness (email deliverability, credential hygiene, data cleanliness) before any real user is
+onboarded. Gate 1 can be scheduled with open Gate-2 items; the two do not block each other.
+
+**Gate 1 rehearsal evidence (2026-07-19/20) - GREEN:**
+
+- **Render WriteFreeze write-reject:** `POST /api/v1/logs` -> `503` + `Retry-After: 120`; reads
+  return 200; `POST /token` -> `400` (login allowlist intact). The middleware runs before
+  routing/auth and `/api/v1/logs` is not allowlisted (`config/initializers/write_freeze.rb`).
+- **Client 503 stash retention:** a real browser `window.stashes.push_log(false)` against a frozen
+  Render observed the 503 and RETAINED the `usage_log` locally (not dropped).
+- **External-writer pause/resume:** the `sync-render-secrets` GitHub Action, the n8n `infra-monitor`
+  workflow, and the Render cron/worker/web-autoDeploy toggles were each paused and restored to their
+  prior state.
+- **GCP `/api/v1/logs` write + read:** an authenticated `POST` created a real log and `GET` read it
+  back (`pending=false`).
+- **Async usage-log worker materialization - verified via live Cloud Logging (2026-07-20):**
+  `lingolinq-worker` ran `LogSession.process_delayed_follow_on` to completion (0-1s, no errors),
+  paired with web-side stash creation (`generating stash` -> `done with process_as_follow_on`).
+  **Caveat:** this proves the async route RUNS and the worker DRAINS the `default` queue; it is NOT
+  a full real-UI offline replay with a GET-confirmed final `global_id` (that remains an optional
+  Gate-2 belt-and-suspenders check, not a Gate-1 blocker).
+
+**Open items - YELLOW (all Gate 2; none is a DNS-cut blocker):**
+
+- **SES deliverability to the operator's personal Gmail:** SES accepted the send and manual inbox
+  receipt was confirmed, but the SPF/DKIM/DMARC `Authentication-Results` headers were not captured.
+  Accepted for Gate 1 (Scot, 2026-07-19); capture headers before customer-facing launch. Tracked as
+  a Gate-2 register finding (promotion pending in PR #624; not yet on `staging`).
+- **Seeded `lingolinq_admin` weak test credential:** rotate/replace with a break-glass admin
+  procedure before Gate 2. Tracked as a Gate-2 register finding (promotion pending in PR #624; not
+  yet on `staging`).
+- **Test residue:** rehearsal left fake note logs on the current GCP DB, and `Api::LogsController`
+  has no `destroy` action (so `DELETE /api/v1/logs/...` is a no-op). Benign under no-real-users;
+  either console-clean or confirm the migrate Job reseeds the DB at the flip before Gate 2.
+
+**Schedule posture:** READY to schedule Gate 1 with the accepted yellows above, AFTER (a) this
+runbook reconciliation lands and (b) an operator quiet-window is confirmed - no Codex/Claude/browser
+rehearsal still generating `phase2-*` / synthetic `/api/v1/logs` traffic against prod GCP when DNS
+is cut (see the pre-cutover checklist). Gate 1 stays separate from Gate 2 customer-facing readiness.
+
 ## Scope and the one rule that governs everything
 
 **Render stays live and authoritative until DNS is flipped, and stays untouched through the
@@ -519,7 +563,12 @@ the realistic timing and the AAAA/CAA pre-checks.
 ### 9. DNS cut  (tracker 5.4, GATE: DNS)
 
 - DNS TTL is already at **60s** (lowered in step 1); confirm it propagated before the flip.
-- At cutover, flip DNS to the new front end (Cloud Run custom-domain target, or the LB IP).
+- **DNS is on Cloudflare.** At cutover, create a **DNS-only / grey-cloud (unproxied)** `A` record
+  `app.lingolinq.com` -> **`136.68.41.122`** (the LB IP from step 8), **TTL 60, and no `AAAA`**. The
+  decided path is this A-record-to-LB-IP (Option B); the Cloud-Run custom-domain / CNAME target is
+  the Option-A fallback only (step 8). Keep it **grey-cloud (not proxied)** so the Google-managed
+  cert validates directly against the LB and traffic is not fronted by Cloudflare's proxy.
+  (`app.lingolinq.com` is NXDOMAIN until this record is created.)
 - Watch logs, error rate, latency, email deliverability, job processing (tracker 5.5).
 - **Do not touch Render prod** (tracker 5.6) except that it stays UP in write-reject mode; it is
   rollback insurance through the soak. Do not scale it to 0 or decommission (step 9b).
@@ -675,8 +724,9 @@ is the *next* phase, not a cutover step.
 
 ## Rollback plan
 
-The master rollback is **flip DNS back to Render**, which works because Render was only scaled to
-0, never degraded. Trigger and steps:
+The master rollback is **flip DNS back to Render**, which works because Render stayed UP the whole
+time in **write-reject mode** (WriteFreeze) - never scaled to 0 and never degraded. Trigger and
+steps:
 
 ### Rollback triggers (any one -> roll back)
 
@@ -685,6 +735,8 @@ The master rollback is **flip DNS back to Render**, which works because Render w
 - **Migrate Job failure** (any non-zero exit; never re-run blind).
 - **App-level smoke test failure** post-deploy (login, board load, S3, SES, Resque).
 - **Data reconciliation mismatch** (row counts / sequences don't match the dump baseline).
+  **(Full-data fallback only - N/A in the active clean-DB path: there is no dump baseline to
+  reconcile against.)**
 
 ### Rollback steps
 
@@ -697,7 +749,10 @@ The master rollback is **flip DNS back to Render**, which works because Render w
    (rake cron, n8n, the hourly `sync-render-env`). Render's DB was never set read-only, so it is
    immediately authoritative again. Smoke-test Render green (a write succeeds).
 2. **Re-point DNS back to Render.** (TTL is 60s, so this propagates fast.)
-3. **Reconcile the cutover-window writes (the ONLY manual reconciliation case).** Any write that
+3. **Reconcile the cutover-window writes (the ONLY manual reconciliation case).** **(Clean-DB path:
+   the GCP DB is discarded on rollback since Render stays authoritative, so this normally reduces to
+   "accept as lost" for the seeded admin/test accounts - there is no dump baseline to reconcile
+   against; the full replay/merge below is the full-data-fallback procedure.)** Any write that
    reached **Cloud SQL** between the DNS flip and the rollback exists only on GCP and must be
    replayed/merged back into Render, or accepted as lost, before standing down. Capture them with
    the step-7 delta check run in reverse (Cloud SQL rows newer than the DNS-flip timestamp). On the
@@ -925,6 +980,10 @@ cold-start / p50 / p95 / memory in tracker 4.2.
 - [ ] `SMS_ENCRYPTION_KEY`: `RemoteTarget` sms-row query run against restored DB; seeded + in
       BOOT_SECRETS if any row exists, else confirmed-empty.
 - [ ] **DNS TTL lowered to 60s** ahead of the window and propagation confirmed.
+- [ ] **Operator quiet-window confirmed before the DNS cut:** no Codex/Claude/browser rehearsal is
+      still generating `phase2-*` or synthetic `/api/v1/logs` traffic against prod GCP when DNS is
+      flipped (verify with a live `gcloud logging read` sweep). Rehearsal writers must be stood down
+      so the post-cut soak reflects only real traffic, not leftover test writes.
 - [ ] Operator holds GCP `lingolinq-prod` + 1Password "LingoLinq Prod" + Render API key.
 - [x] **Maintenance message (i18n): satisfied by the PR #472 503 page; no proactive announcement
       needed (Scot, 2026-06-24).** Render prod carries no real clients/users at cutover - only a
