@@ -862,12 +862,12 @@ class Api::UsersController < ApplicationController
 
   # Records that the EU AI Act Article 50(1) transparency disclosure was shown to and
   # acknowledged by the caller. Requires API token + edit permission on the target user.
-  # Per D-06 (Phase 3 CONTEXT), both `source` and `disclosures_version` are server-side
-  # constants -- params['source'] / params['disclosures_version'] are intentionally never
-  # referenced here, so a client cannot widen ARTICLE_50_DISCLOSURE_SOURCES or backdate/
-  # forge the recorded version. mark_article_50_disclosure_shown! itself is idempotent
-  # (same-version re-call is a no-op) and audited (one AuditEvent), so a repeat POST (e.g.
-  # a double-click) is still a 200 rather than surfacing as an error to the modal.
+  # Per D-06 (Phase 3 CONTEXT), both the source and the disclosures version are server-side
+  # constants -- the corresponding request params are intentionally never referenced in this
+  # action, so a client cannot widen ARTICLE_50_DISCLOSURE_SOURCES or backdate/forge the
+  # recorded version. mark_article_50_disclosure_shown! itself is idempotent (same-version
+  # re-call is a no-op) and audited (one AuditEvent), so a repeat POST (e.g. a double-click)
+  # is still a 200 rather than surfacing as an error to the modal.
   def article_50_disclosure_ack
     user = User.find_by_path(params['user_id'])
     return unless exists?(user, params['user_id'])
