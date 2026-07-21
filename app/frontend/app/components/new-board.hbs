@@ -43,7 +43,13 @@
           <button type="button" class="la-btn la-btn--ghost">
             {{t "Import Board(s)" key="import_boards"}}
           </button>
+          {{!-- Verified false positive: #board_upload appears in the if-standalone
+               (header) and unless-standalone (body) branches, so provably only one
+               renders. It is JS-targeted (getElementById + content-grabbers), so
+               renaming breaks board import. --}}
+          {{! template-lint-disable no-duplicate-id }}
           <input type="file" name="board_upload" id="board_upload" tabindex="-1">
+          {{! template-lint-enable no-duplicate-id }}
         </span>
         {{#if this.paste_html_import_enabled}}
           <button type="button" class="la-btn la-btn--ghost" {{on "click" (this.ctrlAction "importFromHtml")}}>

@@ -6966,3 +6966,43 @@ version strings) or `NNN_NNN` underscore-digit tokens (global_id scrubber — av
 numeric literals like `100_000` in snippets); and runtime findings (no file anchor)
 id-anchor on `ruleKey` with `evidence.source`, exempt from the snippet-at-SHA citation
 gate. (2026-07-16)
+
+## Gotcha: template-lint migration — verify the defect is REAL before "fixing"; disable syntax; `.lint-todo` count is `adds − removes`, not `wc -l`
+
+Three hard-won rules for clearing `.lint-todo` (Ember 5.12 recommended-rule migration),
+all learned the same way — static analysis being wrong about the runtime (cf. the folders
+`(fn sendAction)` false positive and the 22 `require-input-label` id-count false positives):
+
+1. **Test-first: confirm the flagged defect actually exists in the live DOM before touching
+   code.** `no-duplicate-id` flagged `#board_upload` (create-board-new.hbs) and `#board_upload`
+   (new-board.hbs) — but a Puppeteer check on the live route showed `document.querySelectorAll('#board_upload').length === 1`: the two occurrences are **mutually-exclusive template branches**
+   (`{{#if standalone}}` header vs `{{#unless standalone}}` body), so only one ever renders.
+   "Fixing" by renaming would have broken the JS that targets `#board_upload`
+   (`getElementById` + content-grabbers `event.target.id`) and the `aria-describedby` pairing —
+   degrading working code to satisfy a linter wrong about the runtime. Harness pattern:
+   `scratchpad/verify-defect-duplicate-id.mjs` (login → goto route → count in live DOM). Use
+   **DOM queries** for structural rules (duplicate-id, nested-interactive, duplicate-landmark),
+   **axe-core** (inject at runtime, no dep) for semantic-a11y rules (require-context-role,
+   require-input-accessible-name), and **drive the interaction** for behavior rules (autofocus,
+   pointer-down). If/unless on the SAME boolean is provably mutually exclusive — no live check
+   needed.
+
+2. **`template-lint-disable-next-line` does NOT exist in ember-template-lint 6.1.0** (that's
+   ESLint syntax; an earlier handoff assumed it and was wrong → `error: unrecognized template-lint
+   instruction`). The only instructions are `template-lint-disable` / `template-lint-enable`.
+   To suppress ONE element, wrap it:
+   `{{! template-lint-disable no-duplicate-id }}` / `<el>` / `{{! template-lint-enable no-duplicate-id }}`.
+   Rationale comments with mustache tokens must use `{{!-- --}}` (the short `{{! }}` form ends at
+   the first `}}`). Disabling a **verified false positive** is NOT the banned "suppress a real
+   defect" — it's documenting that the linter is wrong; cite the runtime evidence in the comment.
+
+3. **`.lint-todo` is append-only add/remove pairs; the real count is `grep -c '^add|' − grep -c
+   '^remove|'`, NOT `wc -l`.** Resolving/suppressing a violation appends a `remove|<fingerprint>`
+   line that cancels its `add|` — it does not delete the `add`. So `wc -l` grows while the
+   effective count drops. Incremental `--update-todo` gives a clean minimal diff (+N remove lines)
+   but leaves tombstones; a clean rebaseline (`rm .lint-todo && --update-todo`) collapses tombstones
+   but reorders the whole file (~365-line diff — append-order vs sorted regen) and is merge-hostile.
+   Convention: **incremental for feature PRs** (minimal diff), measure progress by effective count,
+   and do a clean rebaseline only as an isolated housekeeping commit. Editing a template near a
+   deferred violation re-fingerprints/renumbers its entry (a 1-line `input` edit re-keyed its
+   `require-input-accessible-name` entry) — expected, commit it with the template change. (2026-07-20)
