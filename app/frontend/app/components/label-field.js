@@ -1,75 +1,79 @@
-import Component from '@ember/component';
+import Component from '@glimmer/component';
+import { action } from '@ember/object';
 import $ from 'jquery';
 import editManager from '../utils/edit_manager';
 import labelFit from '../utils/label_fit';
-import { observer } from '@ember/object';
 
-export default Component.extend({
-  tagName: 'input',
-  type: 'text',
-  attributeBindings: ['placeholder', 'value', 'aria-label'],
+// Board button label input. @value flows in; label edits are written back through
+// editManager (keyed off the closest [data-id] ancestor), NOT to a caller property,
+// so no @onChange is needed. Pass class/placeholder/aria-label as plain attributes.
+export default class LabelFieldComponent extends Component {
+  _original_value = undefined;
 
   // Find the button ID from the closest parent with data-id
-  _getButtonId: function() {
-    var $el = $(this.get('element'));
+  _getButtonId(el) {
+    var $el = $(el);
     var $parent = $el.closest('.button[data-id]');
-    if(!$parent.length) {
+    if (!$parent.length) {
       $parent = $el.closest('.md-board-detail-symbol-card[data-id]');
     }
-    if(!$parent.length) {
+    if (!$parent.length) {
       $parent = $el.closest('[data-id]');
     }
     return $parent.attr('data-id');
-  },
+  }
 
-  change: function() {
-    this.set('changed_value', this.get('element').value);
-  },
-  valueChange: observer('changed_value', function() {
-    var id = this._getButtonId();
+  _commit(el) {
+    var id = this._getButtonId(el);
     var button = editManager.find_button(id);
-    if(button && this.get('changed_value') != button.label) {
-      editManager.change_button(id, {
-        label: this.get('changed_value')
-      });
+    if (button && el.value != button.label) {
+      editManager.change_button(id, { label: el.value });
     }
-  }),
-  focusIn: function(event) {
+    return id;
+  }
+
+  @action
+  handleChange(event) {
+    this._commit(event.target);
+  }
+
+  @action
+  handleFocusIn(event) {
     editManager.clear_text_edit();
     // Store the original value so Escape can revert changes
-    this._original_value = this.get('element').value;
-  },
-  keyDown: function(event) {
-    if(event.keyCode == 13 || event.code == 'Enter') {
-      this.change.call(this);
-      var id = this._getButtonId();
+    this._original_value = event.target.value;
+  }
+
+  @action
+  handleKeyDown(event) {
+    if (event.keyCode == 13 || event.code == 'Enter') {
+      var id = this._commit(event.target);
       editManager.lucky_symbol(id);
-      this.get('element').blur();
-    } else if(event.keyCode == 27 || event.code == 'Escape') {
-      // Revert to the original value and blur
+      event.target.blur();
+    } else if (event.keyCode == 27 || event.code == 'Escape') {
+      // Revert to the original value and blur (no commit, so the button keeps its label)
       event.preventDefault();
       event.stopPropagation();
-      if(this._original_value !== undefined) {
-        this.get('element').value = this._original_value;
-        this.set('value', this._original_value);
+      if (this._original_value !== undefined) {
+        event.target.value = this._original_value;
       }
-      this.get('element').blur();
+      event.target.blur();
     }
-  },
-  focusOut: function() {
-    var id = this._getButtonId();
+  }
+
+  @action
+  handleFocusOut(event) {
+    var el = event.target;
+    var id = this._getButtonId(el);
     editManager.lucky_symbol(id);
-    // Re-fit this one label if it's a board-detail symbol-card label
-    // input AND the grid has shrink-to-fit enabled. Guards against
-    // refitting label-fields used elsewhere (button stash, classic
-    // board, folder-tab inputs) which aren't part of the grid's
-    // managed label set.
-    var el = this.get('element');
-    if(el && el.classList && el.classList.contains('md-board-detail-symbol-card__label-input')) {
+    // Re-fit this one label if it's a board-detail symbol-card label input AND the
+    // grid has shrink-to-fit enabled. Guards against refitting label-fields used
+    // elsewhere (button stash, classic board, folder-tab inputs).
+    if (el && el.classList && el.classList.contains('md-board-detail-symbol-card__label-input')) {
       var gridEl = el.closest && el.closest('.md-board-detail-grid');
-      if(gridEl && gridEl.classList.contains('md-board-detail-grid--shrink-labels')) {
+      if (gridEl && gridEl.classList.contains('md-board-detail-grid--shrink-labels')) {
         labelFit.fit_one(el, gridEl);
       }
     }
   }
-});
+}

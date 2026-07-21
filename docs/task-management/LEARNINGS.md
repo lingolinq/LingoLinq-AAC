@@ -103,6 +103,7 @@ file (see [README.md](README.md)).
 - [Pattern: reuse the speak-mode-pin modal as a generic PIN gate for any action](#pattern-reuse-the-speak-mode-pin-modal-as-a-generic-pin-gate-for-any-action)
 - [Gotcha: async schedule_for on an unsaved record enqueues id:null and class-dispatches to a nonexistent method](#gotcha-async-schedule_for-on-an-unsaved-record-enqueues-idnull-and-class-dispatches-to-a-nonexistent-method)
 - [Gotcha: safely cleaning up Resque failed jobs — origination is chain::, not scheduled; count-check destructive removes](#gotcha-safely-cleaning-up-resque-failed-jobs--origination-is-chain-not-scheduled-count-check-destructive-removes)
+- [Gotcha: a single-quoted `i18n.t` default silently DELETES the key on the next generator run](#gotcha-a-single-quoted-i18nt-default-silently-deletes-the-key-on-the-next-generator-run)
 
 ---
 
@@ -136,6 +137,8 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Pattern: `.md-board-collection__*` is a light-base panel reusable on any page; dark theme is ancestor-scoped](#pattern-md-board-collection-is-a-light-base-panel-reusable-on-any-page-dark-theme-is-ancestor-scoped)
 - [Pattern: a new user preference is a 3-touch change — whitelist + default + dirty-bit save](#pattern-a-new-user-preference-is-a-3-touch-change--whitelist--default--dirty-bit-save)
 - [Pattern: "order-dependent" spec failures on global counts are often orphaned committed rows in the test DB](#pattern-order-dependent-spec-failures-on-global-counts-are-often-orphaned-committed-rows-in-the-test-db)
+- [Gotcha: ember-data 5.3 relationship/store arrays are NOT EmberArrays — `firstObject` on a hasMany is silent undefined](#gotcha-ember-data-53-relationshipstore-arrays-are-not-emberarrays--firstobject-on-a-hasmany-is-silent-undefined)
+- [Pattern: reuse the audit-register machinery for non-compliance domains via a separate register file](#pattern-reuse-the-audit-register-machinery-for-non-compliance-domains-via-a-separate-register-file)
 
 ## Pattern: a new user preference is a 3-touch change — whitelist + default + dirty-bit save
 
@@ -924,6 +927,146 @@ Walk the chain end-to-end and check each link's arity. The first
 wrapper that truncates is the bug.
 
 **First seen in:** [2026-05-26-board-detail-drag-drop-revert.md](./2026-05-26-board-detail-drag-drop-revert.md)
+
+---
+
+## Pattern: `current_mode` is the ONE source for speak/edit/default — and child-route exits must restore the parent's invariant
+
+**The model:** there is no settable `speak_mode`. All three flags derive from a
+single persisted stash, `stashes.current_mode` (`services/app-state.js:3033-3060`):
+`speak_mode = current_mode=='speak' && currentBoardState`,
+`edit_mode = current_mode=='edit' && …`, `default_mode = current_mode=='default' || …`.
+So "put them back in speak mode" == `stashes.persist('current_mode','speak')`,
+and any change flips TWO flags (speak on, default off).
+
+**The invariant:** the board-detail route declares *"board-detail operates as
+speak mode"* and forces `current_mode='speak'` on entry, recording
+`_was_not_speak_mode` so it can restore `'default'` when you leave
+(`routes/user/board-detail.js:453-457, 496-500`).
+
+**The trap:** `board-detail.edit` is a CHILD route (`router.js:159-161`). Exiting
+the child back to the parent does NOT re-run the parent's `setupController`, so
+the parent cannot re-assert its invariant. The child's `resetController` is the
+only thing that can — and if it restores anything other than `'speak'`, the user
+is stranded ON board-detail with `speak_mode` false. That silently disables the
+whole speak surface (logging, scanning, sidebar, speak chrome) and was the
+upstream cause of the dead ⋮ toggle (see the dual-dispatch entry below).
+**Rule: when a child route mutates a mode/state the parent asserts on entry, the
+child's resetController must restore it — the parent gets no second chance.**
+
+**The second half — `last_speak_mode` asymmetry.** The speak_mode observer skips
+its TEARDOWN when the transition target is 'edit' (`app-state.js:2865-2866`) so a
+session survives the round-trip, but it used to still record
+`last_speak_mode = false` (`:2911`). That made the trip back out of edit look
+like a FRESH activation, re-running the once-per-activation block (`:2733`) on
+every edit exit: speaks "here we go", re-shows logging toast / voice + volume
+warnings / intro + goal modals, and calls `set_history([])` (`:2750`) — wiping
+board history and breaking the back button. Fix was symmetric: skip the
+`last_speak_mode` write while `current_mode=='edit'` too.
+**Rule: if you skip teardown for a transition, you must also skip the
+"last state" bookkeeping for it, or the return trip re-fires first-entry effects.**
+
+**Gotcha when auditing this area:** `current_mode` is PERSISTED, and
+`routes/index.js:101` auto-jumps into speak mode on next login when it reads
+`'speak'`; `routes/index.js:136` / `routes/bento.js:58` only ever downgrade
+`'edit'`, never `'speak'`. Also `res.reload(!speak_mode)`
+(`routes/board/index.js:30`) suppresses server reload in speak mode, which works
+against the edit route's cache invalidation — verify freshly-saved edits appear.
+
+**First seen in:** [2026-07-18-actions-toggle-dead-after-edit.md](./2026-07-18-actions-toggle-dead-after-edit.md)
+
+---
+
+## Pattern: dual-dispatch (raw_events fallback + Ember `{{on}}`) double-fires and net-cancels TOGGLE actions
+
+**Surface:** board-detail chrome. Clicks reach the controller by TWO routes —
+Ember's `{{on "click"}}` and the `raw_events.js` fallback
+(`resolveBoardDetailChromeAction` → `controller.send`), which exists because
+Ember 5 `{{on}}` misses SYNTHETIC clicks (dwell/eye-gaze/touch).
+`defer_board_detail_chrome_click_to_ember` is the dedup that decides which one
+wins. When that dedup mis-fires, BOTH run.
+
+**Symptom:** a toggle button looks dead — no menu, no flash, no console error.
+Non-toggle chrome (e.g. `go_home`) looks fine because double-dispatching an
+IDEMPOTENT action is invisible. Only a toggle net-cancels
+(`false→true→false`), so a toggle is the canary for this whole bug class.
+
+**Root cause found (2026-07-18):** the dedup bailed whenever neither
+`speak_mode` nor `edit_mode` was set. Leaving edit mode lands on board-detail
+with BOTH false, so raw_events stopped deferring and dispatched the action
+itself — while Ember's `{{on "click"}}` still fired for the same interaction.
+
+**The load-bearing detail — `preventDefault()` on `mouseup` does NOT cancel the
+follow-up `click`.** raw_events suppresses at the pointer-release, so with a
+MOUSE the native click still reaches `{{on}}` → two calls. With TOUCH,
+`preventDefault()` on `touchend` DOES suppress the synthetic click → one call →
+works. That mouse/touch asymmetry is the real explanation for symptoms that
+look like timing ghosts.
+
+**Beware the DevTools red herring:** the bug "healed whenever DevTools opened,"
+which reads as a throttling/render-flush issue. It was not — DevTools was
+putting the interaction on the TOUCH path. Do not chase resize/focus/rAF
+theories until you have confirmed the event TYPE (`mouseup` vs `touchend`).
+
+**Diagnostic technique when opening DevTools changes the behavior:** the console
+can't observe the broken state. Instrument the code to push records into a
+global buffer (`window.__td`), reproduce with DevTools CLOSED, then open
+DevTools and read the buffer. Log at EVERY dispatch point (the Ember action AND
+the raw_events `send`) so the call COUNT per interaction is visible — the count
+is what distinguishes double-fire from no-fire.
+
+**Fix:** defer to Ember for real mouse clicks in every mode; let raw_events take
+over only where `{{on}}` genuinely misses events (non-'click' sources, touch
+releases, co-located classic components like `.md-board-collection`). See
+`defer_board_detail_chrome_click_to_ember` (`raw_events.js:2694`).
+
+**First seen in:** [2026-07-18-actions-toggle-dead-after-edit.md](./2026-07-18-actions-toggle-dead-after-edit.md)
+
+---
+
+## Pattern: the Ember-5 migration `ctrlAction` click wrapper kills HTML5 drag
+
+**Surface:** any component that forwards native `ondragstart` /
+`ondragover` / `ondrop` through the hand-rolled `ctrlAction` closure
+introduced during the Ember 4→5 migration to replace classic
+`{{action}}` closure-actions. First hit: `sidebar-editor` (the
+board-detail "Edit Sidebar" reorder drag).
+
+**Symptom:** drag does nothing — no drag ghost, no reorder. The UI hints
+(`draggable="true"`, grip cursor) look right, but the item never lifts.
+
+**Root cause:** `ctrlAction` is built for CLICK handlers. For ANY event
+with `.preventDefault` + (`.type` || `.target`) — which every DOM event
+has — it (1) calls `event.preventDefault()` and (2) pops the event off
+the args before `send`. Both are fatal to native drag:
+- `preventDefault()` on a live `dragstart` **cancels the drag before it
+  starts** (spec behavior) — nothing lifts, no dragover/drop ever fire.
+- popping the event starves `row_drag_start` of the `dataTransfer` it
+  needs to call `setData` (Firefox refuses to drag without a payload).
+
+This is a migration artifact: the drag handlers were wired to the same
+wrapper as the click handlers, and the click-correct preventDefault+pop
+is drag-wrong.
+
+**Fix:** give drag its own forwarder that passes the RAW event through
+untouched (no preventDefault, no pop) — `dragAction` in
+`sidebar-editor.js`. The drag actions already call `preventDefault`
+themselves in exactly the right places (to cancel a non-reorderable
+drag, and to allow a drop on `dragover`/`drop`) — never on a live
+`dragstart`. Rule of thumb: do NOT preventDefault `dragstart`; DO
+preventDefault `dragover`+`drop` (inside the action, guarded).
+
+**Evidence:** `sidebar-editor.js` `ctrlAction` (init) preventDefaults +
+pops; `row_drag_start` (~line 479) reads `event.dataTransfer`;
+`dragAction` (init) is the raw-event forwarder; handlers rewired in
+`sidebar-editor.hbs:51,53`.
+
+**Related:** the "walk the chain, the first wrapper that truncates is the
+bug" diagnostic above — same class (a forwarder mangling the event), one
+layer worse (it also cancels via preventDefault, so the visual hint
+doesn't even appear).
+
+**First seen in:** [2026-07-18-sidebar-editor-drag-drop.md](./2026-07-18-sidebar-editor-drag-drop.md)
 
 ---
 
@@ -3292,7 +3435,7 @@ pinned/clipped by the `#content` scrollport). Paint the mesh on the fixed full-v
 `#within_ember`.** `footer` (controllers/application.js) is true for any non-board route,
 so most app pages ARE `:has(.page-footer)` and can use this.
 
-**Evidence:** task log `2026-05-31-register-login-fullheight-bg.md`; board-picker instance in `2026-06-12-board-picker-bg-and-tabs.md`.
+**Evidence:** task log `2026-05-31-register-login-fullheight-bg.md`; board-picker instance in `2026-06-12-board-picker-bg-and-tabs.md`. SEARCH-PAGE instance (2026-07-15): /search is top-level (no `.index.with_user`), bg was on `.ub-find-board-page` wrapper → short. Fixed the same way: bento gradient on `#within_ember:has(.page-footer):has(.ub-find-board-page)` + transparent `#content:has(.ub-find-board-page)` + transparent wrapper. See `2026-07-15-search-my-boards-empty-self-userid.md`.
 
 ---
 
@@ -6486,10 +6629,298 @@ the cheap fallback to confirm controller/route syntax.
 - **`arr.uniq(fn)` was already identity-dedup:** Ember's `uniq()` takes NO arg — a passed key fn was silently ignored even under 4.12 (prototype extensions). So `[...new Set(arr)]` (identity) *preserves* behavior; a keyed dedupe (`uniqBy`-style) is a behavior CHANGE, not a migration fix. Don't "fix" the latent intent during a migration.
 - **`.compact()` ≠ `.filter(Boolean)`:** compact drops only `null`/`undefined`; use `.filter(x => x != null)` to keep `0`/`''`.
 
+## English i18n renders the INLINE `{{t "default"}}`, not en.json-only edits
+**Context:** goal-form restyle — changed several strings (Title-Case headings, "Enable badge rewards", "Custom tracking", removing a comma) by editing ONLY `public/locales/en.json`. They did NOT show in English; the user still saw the old inline text.
+**Why:** `app/frontend/app/utils/i18n.js:50` resolves `langs[preferred][key] || langs[fallback][key]` and, when that misses (or the browser's cached locale predates your edit), falls back to the literal string passed to `{{t "inline default" key='k'}}`. In practice the **inline default is the source of truth for English**; en.json is consumed for OTHER locales (generated FROM the inline defaults by `i18n_generator.rb`).
+**Fix:** change BOTH the inline default in the `.hbs`/`.js` AND the en.json value, together — same pattern that worked for the landing-alt copy. Editing en.json alone is silently ineffective for English. Quick check: if a copy change isn't showing after reload, grep the template for the `{{t "..." key='k'}}` and update the inline string too. (2026-07-13)
+
+## Modernizing a form that embeds a shared Bootstrap-grid component (badge-settings)
+**Context:** the goal editor embeds `badge-settings` (used by 4 badge editors), built entirely on Bootstrap `.form-horizontal` + `.col-sm-*`.
+**Gotchas:**
+- Dropping `form-horizontal` from the wrapping `<form>` collapses the component's grid into a scattered mess — keep the class (the component was designed for it) even on an otherwise-modern form; your own fields use their own classes and are unaffected.
+- To flatten the grid cleanly, scope overrides to the form: `[class*="col-sm-"] { float:none; width:auto; margin-left:0 }` (kills offsets) and make `.form-group` a `display:flex; flex-wrap:wrap`. Align rows with a fixed label column via `[class*="col-sm-"]:has(.form-control-static) { flex: 0 0 210px }`.
+- `overflow:hidden` on the editor card (added to clip a header bg) **clips open `bound-select` popups** — round the header's own corners instead and drop the card overflow; `bound-select` is a custom `<div>`, not a native `<select>`, so target `.bound-select`/`.bound-select__list` for width.
+- Restructuring the component's template modernizes ALL its consumers at once — preserve every action/conditional/`bound-select`, keep the complex conditional rows verbatim, and lint for block balance. (2026-07-13)
 ## Gotcha: persistence-sync Jasmine harness — wait for `sync_boards` tail / `syncSettled`, not only the `sync()` promise
 
 Recurring Ember CI flakes (timeout / async-work-not-finished) in `persistence-sync-test.js` often look like PR regressions but are harness races: `persistence.sync()` can resolve while real board traversal (`enableRealSyncBoards` / `sync_boards`) and remap/tail work are still running. Passing siblings already use `primeBoardRevisionsSyncHarness(function(){ tailDone = true; })` and wait `done && tailDone`; tests that call the harness with no callback and wait only on `done` assert/cleanup early. Post-`sync()` fixed `later(..., 50)` plus immediate `cancelSyncTailWork()` has the same shape for temp-id rewrite. Prefer `waitForSyncDoneAndSettled(done)` (`done && syncSettled()`) plus the board-sync completion callback, and only cancel tail work after permanent IDs are visible. See `docs/task-management/2026-07-13-ember-ci-persistence-sync-harness-wait.md`. (2026-07-13)
 
+## Gotcha: `EXTEND_PROTOTYPES: false` (set by the 5.12 upgrade) — Ember array/string methods on NATIVE receivers throw
+
+The Ember 5.12 upgrade (PR #490) changed `config/environment.js` `EXTEND_PROTOTYPES: {…}` → **`false`**. So Ember's array/string prototype extensions (`.pushObject`, `.sortBy`, `.mapBy`, `.filterBy`, `.uniq`, `.compact`, `.toArray`, `.camelize`, etc.) are **not installed on native `Array`/`String`** — calling them on a plain `[]`/`''` is `undefined` → `TypeError`, not a deprecation. They work ONLY on an `A()`-wrapped array (`import { A } from '@ember/array'`) or an Ember-Data collection (`ManyArray`/`RecordArray`). Consequences when auditing:
+1. The `deprecate-array-prototype-extensions` warning (until 6.0) **cannot fire here** — the extension path isn't installed. Don't chase it as a live deprecation.
+2. Grep hits for these methods split into: **safe** (`A(...)`-wrapped, ED collection, or guarded by `typeof x.method === 'function'`) vs **broken** (native receiver). Only the native-receiver ones are real bugs — and they're outright `TypeError`s, so check reachability.
+3. When fixing a real native-receiver site, wrap the receiver in `A()` (matches existing repo precedent, e.g. `components/modeling-ideas.js:78 A(follow_ups).sortBy`) or convert to native JS. `A(x).uniq()`/`.sortBy()` return a **native** array, so a following `.compact()`/`.uniq()` must be native (`.filter(v => v != null)`) — don't chain another Ember-array method onto the result.
+
+**Corollary — dead legacy modal controllers.** Many `controllers/modals/*.js` were "Converted … to component" during the modal-system migration: the live path is now `components/modal-container.js`'s `convertedModals` list → the `components/` version; `templates/modals/*.hbs` no longer exists. Same-named `controllers/modals/X.js` are orphaned and never instantiated, so any breakage in them (e.g. native-array `TypeError`s the upgrade missed) never executes. Before "fixing" a modal controller, confirm it isn't a converted-to-component corpse — check `convertedModals` and whether a `components/X.hbs` exists. See `docs/task-management/2026-07-14-ember-5-12-full-deprecation-audit.md`. (2026-07-14)
+
+## Gotcha: the board-detail view has THREE distinct "sidebars" — confirm which before styling
+
+`templates/user/board-detail.hbs` renders three different things a user might call "the sidebar":
+1. **`.md-board-detail-sidebar`** — the left NAV column (`<aside aria-label="Board navigation">`,
+   Communicate / Clinical / Settings). Left grid track of `.md-board-detail-layout`
+   (`grid-template-columns: 194px 1fr 194px`). Shown `{{#unless model.integration}}`; `display:none`
+   in EDIT mode.
+2. **`.md-board-detail-right-panel`** — the RIGHT grid column (3rd 194px track).
+3. **`.md-board-detail-inline-sidebar`** — a thin (`width:100px`) quick-nav strip of board
+   thumbnails, a FLEX child of `.md-board-detail-grid-sidebar-wrap`. Renders only when
+   `inlineSidebarOpen` (the `quick_sidebar` preference) is true, `{{#unless edit_mode}}`.
+
+"Reduce/hide the sidebar" is ambiguous across these — **ask or inspect which element** before
+editing; don't assume the left nav. Styling the wrong one produces correct-looking CSS that
+"does nothing" on screen. Also note the layout difference that dictates the hide technique: the
+3-col grid is AUTO-FLOW (no grid-template-areas), so `display:none` on a grid-child sidebar
+mis-slots the board into the vacated track — collapse the track instead; but the inline sidebar is
+a plain flex child, so `display:none` reflows cleanly. To hide "temporarily without changing the
+user's preference," key the CSS off the transient state class (`.md-shell--board-collection` =
+`board_collection_open`), never the persisted `--collapsed` / `quick_sidebar` state. See
+`docs/task-management/2026-07-14-board-collection-lang-column-narrow.md` Change 5. (2026-07-14)
+
+### Board `user_id` query param resolves via `find_by_path` — pass the real global id, never `'self'`
+`boards_controller#index` resolves the `user_id` query param with
+`User.find_by_path(user_id)`, which routes a non-digit string to
+`find_by(user_name: ...)` and only routes a digit-leading global id (`1_1`) to
+`find_by_global_id`. There is no user named `self`, so `?user_id=self` returns nil
+→ `exists?` 404s → the owned-boards query comes back empty. The literal `'self'`
+DOES work for `store.findRecord('user', 'self')` (persistence.js special-cases it),
+but NOT for the boards index `user_id` param. To load a user's owned boards, pass
+`app_state.get('currentUser.id')` (what the working `board-collection` drawer does),
+not `'self'`. A `.length`-gated section will silently vanish when this is wrong;
+an always-empty "None found" state can hide the same bug for years.
+See `docs/task-management/2026-07-15-search-my-boards-empty-self-userid.md`. (2026-07-15)
+
+### A generic preventDefault-and-drop action wrapper silently breaks `<input>` handlers
+Some components (e.g. `search-board-jump.js`) define a `ctrlAction(name)` helper
+that wraps click actions: it calls `event.preventDefault()` and then POPS the DOM
+event off the args before `send()`. That's correct for buttons, but any handler
+that needs the event — `input` (reads `event.target.value`), `keydown` (reads
+`event.key`) — receives `undefined` and silently no-ops (a text field that won't
+accept typing). Bind input/keydown to dedicated event-preserving closures
+(`this.handleInput = e => self.send('update_query', e)`), NOT the click wrapper.
+See `docs/task-management/2026-07-15-search-my-boards-empty-self-userid.md`. (2026-07-15)
+
+### Overriding a compound-class `!important` base (e.g. `.md-btn--primary`) needs ≥ its specificity
+`.md-btn--primary.md-btn--pill` sets `background`/`border-color`/`color` with
+`!important` at specificity (0,2,0). A page-scoped override like
+`.ub-find-board__create` (0,1,0) that ALSO uses `!important` still LOSES —
+`!important` vs `!important` is resolved by specificity, and source order is
+irrelevant when specificity differs (a `@use`d partial emitting before app.scss
+does not matter here). The override silently applies nothing (button keeps the
+pale base wash). Fix: include the base's classes so the override matches/exceeds
+it — `.ub-find-board__create.md-btn--primary.md-btn--pill` (0,3,0), and the
+`:hover`/`:focus-visible` variants likewise (0,3,1) to beat the base's (0,2,1).
+See `docs/task-management/2026-07-15-search-my-boards-empty-self-userid.md`. (2026-07-15)
+
+### A canvas sized from a parent measurement re-renders wrong on route re-entry
+`board-preview-canvas` sets its dimensions from the parent's measured height
+(`getBoundingClientRect().height − 96`). That measurement is only reliable once
+the layout has settled. When the rendering trigger is a singleton controller
+property that survives navigation (e.g. `preview_board`, never reset on route
+exit), the component re-inserts on route RE-ENTRY and measures a still-transitional
+(short) parent → the element caps to a wide-short strip and the board letterboxes
+tiny. First visit hides the bug because the user only triggers render after layout.
+Fix pattern: a `ResizeObserver` on the PARENT (not the self-sized element) that
+re-renders when the container settles — deterministic, no rAF/setTimeout guessing,
+and it also fixes window-resize sizing. Guard with a <2px no-op check to prevent
+loops. See `docs/task-management/2026-07-15-search-my-boards-empty-self-userid.md`. (2026-07-15)
+
+### Modernizing a Bootstrap input+dropdown combobox → native <datalist>
+When replacing a Bootstrap `input + .btn-group.dropdown` "type-or-pick" control
+in a modal, a native `<input list="x"> + <datalist id="x">` preserves BOTH free
+text and preset suggestions with zero JS and no bootstrap — the cleanest modern
+swap. Caveat: selecting a datalist option only updates the bound input value, so
+any SIDE EFFECT the old dropdown action performed (e.g. external-device's
+`set_vocab` also auto-filled Vocab Size from the preset's `buttons`) is lost —
+re-apply it via an `{{on "change" ...}}` handler that re-matches the value
+against the option list. Modern modal field classes already exist:
+`md-modal-field` / `md-modal-label` / `md-modal-input` / `md-modal-select` /
+`md-modal-hint` / `md-modal-btn(--primary/--cancel/--secondary)`; add
+`md-modal-segment`/`__option(--active)` for a two-choice toggle (replaces
+`.btn-group`). (2026-07-15)
+
+### `<datalist>` + `{{#each ... as |option|}}` — never name the block param `option`
+Rendering `<option value={{option.name}}>` where `option` is ALSO the each block
+param shadows the native `<option>` HTML element. Glimmer flags it
+`no-shadowed-elements` ("Ambiguous element used") and throws an UNRECOVERABLE
+render error at runtime — the whole app then spams "Attempted to rerender, but
+the Ember application has had an unrecoverable error occur during render." The
+page that hosts the component may still paint (the error fires when the
+shadowing template actually renders — e.g. when a modal opens), which makes it
+look unrelated. Fix: rename the block param (`as |opt|` → `<option value=
+{{opt.name}}>`). Catch these fast with `npx ember-template-lint <file.hbs>`
+before blaming data/JS. (2026-07-15)
+
+### Ember 4.x/5.x removed implicit-`this` fallback → bare `{{prop}}` throws an UNRECOVERABLE render error
+A bare property reference in a classic `.hbs` template — `{{board-icon board=home_board_pref}}` or `{{home_board_pref}}` where `home_board_pref` is a CONTROLLER/component property (not `this.`, not `@arg`, not a block param) — worked in Ember 3.28 via the implicit-`this` fallback. Ember 4.x/5.x REMOVED that fallback, so the bare word is now resolved as a HELPER, isn't found, and throws:
+`Attempted to resolve a helper in a strict mode template, but that value was not in scope: <name>`
+This is an UNRECOVERABLE render error — Ember then halts and every nav link changes the URL but can't re-render, so the whole app looks frozen/dead (looks like "navigation is broken," but it's a render throw).
+LATENT + dangerous: it only fires when the specific branch that contains the bare ref actually renders. So a page can work for years until a data state (or an unrelated edit that changes which `{{else if}}` branch renders) reaches that line. Example: `marcus_williams_slp` never rendered the `home_board_pref` line because they hit the External AAC branch first; removing that branch dropped them into it and exposed the upgrade bug.
+Fix: add `this.` (`board=this.home_board_pref`). To find these BEFORE they ship, the `no-implicit-this` template-lint rule catches them — it is NOT enabled in this app's `.template-lintrc.js`, which is why they slip through. Diagnose a frozen app by getting the RED console error (Pause on Caught Exceptions, or filter to errors) — the "Attempted to rerender" spam is downstream noise. See account-page fix 2026-07-15 (`templates/user/index.hbs:149`). (2026-07-15)
+
+### Scanning for implicit-`this` bugs: ember-template-lint is UNRELIABLE on large legacy templates — cross-check with grep
+`no-implicit-this` IS enabled in this repo (`.template-lintrc.js` extends 'recommended') but is NOT enforced by `ember serve`, so violations ship. Worse: when scanning for them, ember-template-lint SILENTLY MISSES the violation in several large legacy route templates (`templates/user/index.hbs`, `templates/user/preferences.hbs`, `templates/trends.hbs`) — it flags the exact same `arg=bare_prop` line in a small temp file but reports 0 for these files (not a cache/ignore/inline-disable issue; unexplained scope-tracking miss on big files). So do NOT trust a green ember-template-lint run as proof there are no implicit-this bugs. Cross-check with grep for the property-shaped patterns: bare `{{snake_case}}` mustaches, `arg=snake_case` values, and `{{#if/each/let snake_case}}` — then rule out block params (`{{#each x as |name|}}`, `{{#let x as |name|}}`), helper INVOCATIONS with args (`{{date_ago x}}`, `{{is_equal a b}}`), component invocations (`{{subscribe}}`, `{{masquerade}}` = real components), and i18n interpolation param names (`board_key=this....`). The 2026-07-15 sweep found 6 real bugs across 3 files (home_board_pref ×1, *_keycode_string ×4, elem_style ×1) that the linter missed entirely. (2026-07-15)
+
+## Gotcha: a single-quoted `i18n.t` default silently DELETES the key on the next generator run
+
+**@MelissaOneil / @scot — flagged 2026-07-16.** `CLAUDE.md` says user-facing strings must use
+double quotes and that this is "CRITICAL — i18n generator depends on it". This is the concrete
+failure it prevents, and it is silent.
+
+`i18n_generator.rb`'s JS parser reads the key between single quotes, then scans **past the comma
+for a `"`** to find the default string (see `i18n_generator.rb` ~L95–140). Given
+`i18n.t('key', 'Default')` it never finds a double quote, skips the string entirely, and the key
+is therefore absent from the regenerated `en.json` — i.e. **`--generate` deletes it**, along with
+its translations in all 13 locales. The generator reports success while doing this
+(`TOTAL DUPS 0 / MISSING 0`).
+
+This had already bitten us: running `--generate` on 2026-07-16 removed **286 keys, 17 of them
+still in use** — all core AAC user-facing settings (`opensymbols`, `lessonpix_library`, `pcs`,
+`twemoji`, `noun_project`, `arasaac`, `tawasol_library`, `text_above_pictures`,
+`text_below_pictures`, `no_pictures`, `show_words`, `show_symbols`, `show_more_libraries`,
+`clear_background`, `always_white_background`, `always_black_background`,
+`high_contrast_black_background`). Fixed in `d71fe1c87` by correcting the quotes at the 31
+offending call sites (`controllers/setup.js`, `(components|controllers)/swap-images.js`); after
+the fix, `--generate` removes 269 keys and **0** of them are still referenced.
+
+**Why it survives unnoticed:** a key only disappears if *every* reference uses a single-quoted
+default. Keys referenced correctly somewhere else are still found, so the violation lies dormant.
+**~291 single-quoted defaults remain across ~69 files** — each a latent landmine with this exact
+failure mode.
+
+**Before running `ruby i18n_generator.rb --generate`, always diff the key set** (regenerate, then
+compare against every key actually referenced in source) instead of trusting its "0 missing" output.
+See §2.10 of the pre-merge checklist for the grep.
+
+## Gotcha: ember-template-lint rewrites `.lint-todo` on a PLAIN run, and line shifts orphan unrelated violations
+
+Two independent traps in the same tool; both cost real diagnosis time on 2026-07-16.
+
+**1. A plain `ember-template-lint .` auto-cleans resolved todos** — it silently rewrites the
+*tracked* `.lint-todo`. You do not need `--update-todo` to mutate it. Confirmed by
+`git diff -- app/frontend/.lint-todo` showing `17 insertions, 0 deletions`, i.e. every `remove|`
+line came from my own read-only-looking lint runs. **Use `--no-clean-todo` for any check you intend
+to be read-only.**
+
+**2. Todo↔violation matching survives line shifts only sometimes, and the failure lands somewhere
+else entirely.** Inserting 2 lines at `button-settings.hbs:794` shifted `<form>`s at 1016/1162/1230
+to 1018/1164/1232 (those still matched), but orphaned the violation at line **369** — 400 lines
+*above* the edit, in a rule (`no-duplicate-landmark-elements`) unrelated to the change. Symptom is
+self-contradictory: a hard error at 369 *plus* `invalid-todo-violation-rule` claiming that same
+todo "passes". Do not hand-patch `remove|` lines; **re-baseline the file**:
+`rm .lint-todo && npx ember-template-lint . --update-todo` (→ clean adds / 0 removes).
+
+**Diagnostic discipline this forces:** when the tool under test mutates its own baseline, an A/B
+experiment against the working tree is worthless — I twice "proved" the error was pre-existing
+using a `.lint-todo` the linter had already corrupted. The only sound test is against a pristine
+`git show HEAD:<path>` copy of **both** the source and the baseline. Restore from HEAD before
+concluding "not mine".
+
+## Pattern: fix `require-input-label` by wiring the EXISTING label with `{{unique-id}}` — not by promoting the placeholder
+
+The obvious fix (`aria-label` derived from `placeholder`) is wrong for a large subset, for two reasons.
+
+**Many flagged inputs already have a visible label that just isn't associated** — it declares
+`for="code"` with no element carrying that id, or has no `for` at all. Wiring it beats an aria-label
+on every axis: zero new i18n keys, no visible text change, and it restores click-label-to-focus.
+Check this bucket *first*.
+
+**Placeholders are often hints, formats, or examples — not names.** `"(optional)"`, `"HH:MMam/pm"`,
+`"email@example.com"`, `"YYYY-MM-DD"` become useless accessible names ("(optional), edit text").
+Every one of those four turned out to sit beside a real label anyway.
+
+Wire with Ember 5.12's built-in `{{unique-id}}` (in `BUILTIN_HELPERS`; no addon needed):
+```hbs
+{{#let (unique-id) as |id|}}
+  <label for={{id}}>{{t "Code" key="code"}}</label>
+  <input id={{id}} …>
+{{/let}}
+```
+Static ids are a latent bug in any component rendered more than once — `pick-license.hbs:21` still
+carries a prior dev's comment: *"Ember is now barfing if I add more than one element with the same
+id, so changed to refid for now"*. But **grep JS before replacing an existing static id**: some are
+load-bearing (`button-settings.js:1199` `getElementById('fill')`/`('border')`,
+`start-codes.js:171` `querySelector('#qr_code img')`). Ember *property* names (`this.set('home_board', …)`)
+are false hits — match on DOM lookups only.
+
+**Analyzer caution:** a proximity walk up the ancestor chain invents false pairings — it matched a
+*"Contact Name"* field to an unrelated `"Name"` label 4 levels up, and a search box to a
+`"Show Ideas For:"` label in a different section. Only trust a pair when the field group contains
+exactly ONE label and ONE control; eyeball the rest.
+
+## Pattern: order-dependent dictionary matching — exact matches must beat predictive/fuzzy ones
+
+`utterance.contraction()` (frontend) walked a single `for...in` over the contractions dictionary,
+mixing two kinds of match in one loop and short-circuiting on the first (`if(!res)`):
+- **exact:** last two words equal a key (`"it is"` → `it's`)
+- **predictive:** last one word equals a key's first word (after `is`, offer `"is not"` → `isn't`)
+
+Because `for...in` iterates in insertion order and the dict lists `"is not"` before `"it is"`, the
+*predictive* branch of the earlier entry fired before the *exact* entry was ever reached — so
+"it is" produced `isn't`. The bug is invisible until two dictionary entries share a leading word AND
+the fuzzy one is listed first; changing dict order would mask or move it, which is exactly why it's
+fragile.
+
+**Rule:** when a lookup has both an exact and a fuzzy/predictive tier, run them as **separate passes
+— all exact matches first, fuzzy only if none matched** — never as one order-dependent loop. Don't
+let iteration order decide precedence.
+
+**Testing note:** this lived in a plain util (`utterance.js`), not a component, so it was unit-testable
+via the existing `setRawButtons([...])` harness in `tests/utils/utterance-test.js` — no rendering, no
+hang. Util-level logic bugs found during UI verification should get a util test (regression guard +
+proof the preserved branch still works), since the app's component-rendering tests hang (see the
+field-wrapper note in the template-lint working log).
+
+## Pattern: DDAU without {{mut}} — the set-value helper; and Glimmer components are untestable here
+
+Migrating curly component invocations to angle-bracket (`no-curly-component-invocation`) breaks any
+component that relied on curly's implicit TWO-WAY `value=` binding (password-field, key-code-text-field,
+lowercase-text-field, login-form fields, …). The fix is DDAU, and the idiomatic 5.12 way — WITHOUT the
+discouraged `{{mut}}` — is a one-way `@value` in + an `@onChange` callback out:
+
+    <FieldWrapper @value={{this.x}} @onChange={{set-value this "x"}} />
+
+`app/helpers/set-value.js` returns a setter closure `(v) => set(target, path, v)` — the companion to
+`set-field` (which reads the value off a DOM event; set-value takes the value directly). The child
+component calls `this.onChange?.(newValue)` (Glimmer) or `this.emitChange` (classic) on input/change.
+
+**Two component-authoring rules learned:**
+1. **A component that has (or needs) a unit test must stay a CLASSIC `@ember/component`.** `@glimmer/component`
+   (1.1.2 here) CANNOT be instantiated outside a rendering context — `new X(owner, {})` and
+   `factoryFor('component:x').create()` both throw "You must pass both the owner and args to super()",
+   and rendering tests hang in this app (see the field-wrapper note in the template-lint log). So a
+   Glimmer component's actions/getters are untestable here. DDAU works in classic too: define a bound
+   closure in `init` (`this.emitChange = (e) => self.onChange?.(e.target.value)`) and wire it with
+   `{{on "input" this.emitChange}}` — a plain closure survives `{{on}}` where a classic METHOD would
+   lose `this` (see [[the password-field ctrlAction regression]]).
+2. **A component that writes through a service, not a caller property, needs NO @onChange.** label-field
+   writes label edits through `editManager.change_button()`, so its `@value` is input-only — converting
+   it required only the invocation change, not a DDAU callback.
+
+**Verifying a DDAU conversion:** the native input always *shows* what you type (browser draws it), so a
+broken write-back is invisible while typing — it only surfaces on submit/save/use. Test the submit path,
+not the typing. login+register validate password-field/lowercase-text-field + the shared set-value
+mechanism in one action; label-field needs a board-label edit (its editManager path is separate).
+
+## Gotcha: store.push does NOT overwrite a dirty attr('raw') in EmberData 5.3 — use set()
+
+find-button's search returned zero results after the 5.12 upgrade. Traced via console diagnostics
+(input→onChange→searchString→observer→search all fire correctly): the buttonset being searched had
+`get('buttons').length === 0` even though the local walk collected 2043 buttons. Root cause:
+find-button builds a local buttonset (`_buildLocalButtonSet`) and does
+`store.push({data:{type:'buttonset', id, attributes:{buttons: all_buttons}}})` — but under EmberData
+5.3, `store.push` will NOT overwrite an attribute that was previously locally `set()` (dirty). A prior
+`bs.set('buttons', [])` left `buttons` dirty-empty, so the push silently no-op'd on that attribute.
+**Fix:** after the push, `record.set('buttons', all_buttons)` — mirroring the server-load path
+(`BoardDownstreamButtonSet.load_buttons` uses `bs.set('buttons', buttons)`, which is why server-loaded
+sets always had buttons and locally-built ones didn't). Rule: to populate an attr('raw') on a record
+that may already exist dirty, use `.set()`, not `store.push`.
+
+Companion 5.12 breakage in the same feature: the search box was `{{focus-input value=this.x}}` on the
+DEPRECATED @ember/legacy-built-in-components TextField, whose two-way `value=` binding stopped updating
+in 5.12 — so `searchString` never changed and the observer never fired. Replacing focus-input with a
+Glimmer component + native input + DDAU (@value/@onChange via set-value) fixed that half. A feature can
+have MULTIPLE independent 5.12 breakages stacked; fixing one reveals the next. Diagnose each layer with
+targeted console logs before concluding.
 ## Gotcha: Textarea `@value` on a get-only computed crashes on keystroke — needs a setter/cache
 
 Org Settings → Home Boards bound `<Textarea @value={{this.home_board_key_lines}}>` to a **get-only** computed that joined `model.home_board_keys`. Typing tried to `set('home_board_key_lines', …)` and threw `Cannot read properties of undefined (reading 'call')` (missing Ember computed setter). Fix: writable computed with a `_home_board_key_lines` edit cache, cleared in `opening()` / after save. Related: pasted modern board URLs (`/:user/board-detail/:slug`) are not board keys until host + `board-detail`/`board` segments are stripped to `owner/slug` — do that in both the settings save normalize and `Organization#process`. See `docs/task-management/2026-07-16-org-home-board-key-lines.md`. (2026-07-16)
@@ -6501,3 +6932,32 @@ Org Settings → Home Boards bound `<Textarea @value={{this.home_board_key_lines
 ## Pattern: EU AI under-16 consent is a third blob, not COPPA signup
 
 EU under-16 AI enablement (`settings['eu_ai_parental_consent']`) is separate from COPPA account activation (`settings['coppa']`) and AI VPC data-sharing (`settings['ai_consent']`). Mirror COPPA token/`with_lock`/`AuditEvent` patterns for grant/revoke, but the complete controller must NOT mint devices or welcome emails — those are account-activation side effects. Persist country via `LingoLinq::Jurisdiction.trusted_country` (ISO alpha-2 only) and always recompute `eu_under_16` server-side from country + under_16; ignore client `eu_under_16`. Prefer-gate AI through `FeatureFlags.ai_feature_enabled_for?` (COPPA + EU + prefs) and keep thin call-site eu/coppa checks for defense in depth. Store allowlisted `requested_features` on request; apply them onto `settings['preferences']` inside the same `grant_eu_ai_parental_consent!` lock that records grant; on revoke force `EU_AI_PREF_KEYS` off. Prefs UI opens a modal (not an inline form) via `gate_ai_enable` → `modal.open('eu-ai-parental-consent')`. **Do not raise signup `coppaConsentAge` to 16 for EU** — that reused COPPA account-activation parent email for Art. 8; product intent is account create without parent email, AI consent only after login. Register keeps literal under-13 for `coppa_under_13`; `_classifyUnder16` + country drive `eu_under_16`. Register product-improvement force-off must set `model.preferences` (the signup user record), not assume `controller.user` exists. See `docs/task-management/2026-07-14-eu-ai-prefs-parental-consent.md`. (2026-07-14; registration decoupling 2026-07-15)
+
+## Gotcha: ember-data 5.3 relationship/store arrays are NOT EmberArrays — `firstObject` on a hasMany is silent undefined
+
+Verified against the emberjs/data v5.3.8 source: `ManyArray` and `RecordArray`
+(`peekAll`/`findAll`/`query` results) are native Proxies exposing only native array
+methods — `.sortBy`/`.pushObject`/`.filterBy` throw and `firstObject`/`lastObject`
+return `undefined` silently (blank UI, no console error), including in templates.
+`A()`-wrapping ED arrays is also unsupported, and `peekAll`-style results refuse
+in-place mutation (`.sort()`/`.push()` assert) — copy with `.slice()` first. So the
+Class-1 receiver rule is: ONLY `A()`-wrapped plain arrays are safe receivers for Ember
+array methods; native arrays AND ED arrays are findings. Async `belongsTo` is the one
+proxy that survives (chained `.get('user.x')` still works — don't over-flag it). The
+unresolved async-hasMany proxy keeps only `length/links/meta/forEach/then/reload`.
+Full per-receiver table + 70-entry known-issues KB: `docs/ember-upgrade/KNOWN-ISSUES.md`
+(built 2026-07-16; hunted by the `/ember-audit-run` orchestrator into the register
+`audit-reports/ember-upgrade/FINDINGS-EMBER.json`). (2026-07-16)
+
+## Pattern: reuse the audit-register machinery for non-compliance domains via a separate register file
+
+`scripts/audit-merge.rb` and `scripts/citation-check.rb` are register-path
+parameterized, so a new audit domain (e.g. the Ember upgrade) gets deterministic ids,
+dedup, regression flagging, PII refusal, and rendered markdown by pointing `--register`
+at its own file (`audit-reports/ember-upgrade/FINDINGS-EMBER.json`) — without polluting
+the compliance headline in `audit-reports/FINDINGS.json`. Two gotchas: the merge
+REFUSES findings containing dotted-quad tokens (IP scrubber — never write 4-part
+version strings) or `NNN_NNN` underscore-digit tokens (global_id scrubber — avoid
+numeric literals like `100_000` in snippets); and runtime findings (no file anchor)
+id-anchor on `ruleKey` with `evidence.source`, exempt from the snippet-at-SHA citation
+gate. (2026-07-16)

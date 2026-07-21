@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="la-button-stash-wrap">
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
@@ -41,7 +41,7 @@
                       <span class="glyphicon glyphicon-volume-up"></span>
                     </div>
                   {{/if}}
-                  {{label-field value=button.label class="button-label" placeholder="enter label"}}
+                  <LabelField @value={{button.label}} class="button-label" placeholder="enter label" />
                   {{#if button.levels_list}}
                     <span class='levels' style='opacity: 0.7;'>{{button.levels_list}}</span>
                   {{/if}}
@@ -66,4 +66,4 @@
     <a href="#" class="la-button-stash-close" {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</a>
   </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

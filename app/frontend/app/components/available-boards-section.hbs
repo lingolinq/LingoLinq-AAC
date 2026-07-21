@@ -205,7 +205,7 @@
                   <div class="ub-boards-page__folder-context-identity-text">
                     {{#if this.editingFolderName}}
                       <form class="ub-boards-page__folder-rename-form" {{on "submit" this.onSaveFolderRename}}>
-                        <Input class="ub-boards-page__folder-rename-input" @type="text" @value={{this.editFolderNameValue}} @enter={{this.onSaveFolderRename}} />
+                        <Input class="ub-boards-page__folder-rename-input" @type="text" @value={{this.editFolderNameValue}} @enter={{this.onSaveFolderRename}} aria-label={{t "Folder name" key="folder_name"}} />
                         <button type="submit" class="ub-boards-page__folder-rename-save" aria-label={{t "Save" key="save"}}>
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                         </button>
@@ -382,14 +382,7 @@
                                 </svg>
                               </span>
                             {{/if}}
-                            {{board-icon
-                              board=board
-                              onAction=this.onOpenBoardInUserView
-                              removeType=this.boardsCtrl.board_list.remove_type
-                              removeLabel=this.boardsCtrl.board_list.remove_label
-                              removeIcon=this.boardsCtrl.board_list.remove_icon
-                              removeCallback=(if this.boardsCtrl.model.permissions.edit (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board))
-                            }}
+                            <BoardIcon @board={{board}} @onAction={{this.onOpenBoardInUserView}} @removeType={{this.boardsCtrl.board_list.remove_type}} @removeLabel={{this.boardsCtrl.board_list.remove_label}} @removeIcon={{this.boardsCtrl.board_list.remove_icon}} @removeCallback={{if this.boardsCtrl.model.permissions.edit (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board)}} />
                             {{#if this.boardsCtrl.model.permissions.edit}}
                               {{#if board.board.id}}
                                 <button class="board_action" type="button" {{on "click" (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board)}}>
@@ -582,7 +575,7 @@
             autocomplete="off"
             placeholder={{t "Filter boards..." key="filter_results"}}
             value={{this.boardsCtrl.filterString}}
-            {{on "input" (this.ctrlAction "updateFilterString")}}
+            {{on "input" (this.eventAction "updateFilterString")}}
           />
           {{#if this.boardsCtrl.filterString}}
             <button type="button" class="ub-boards-page__filter-clear" {{on "click" (this.ctrlAction "clearFilter")}} aria-label={{t "Clear filter" key="clear_filter"}}>
@@ -712,14 +705,7 @@
                      it. The Preview chip (with its "N boards" count)
                      still provides the cluster-inspection
                      affordance. --}}
-                {{board-icon
-                  board=board
-                  onAction=this.onOpenBoardInUserView
-                  removeType=this.boardsCtrl.board_list.remove_type
-                  removeLabel=this.boardsCtrl.board_list.remove_label
-                  removeIcon=this.boardsCtrl.board_list.remove_icon
-                  removeCallback=(if this.boardsCtrl.model.permissions.edit (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board))
-                }}
+                <BoardIcon @board={{board}} @onAction={{this.onOpenBoardInUserView}} @removeType={{this.boardsCtrl.board_list.remove_type}} @removeLabel={{this.boardsCtrl.board_list.remove_label}} @removeIcon={{this.boardsCtrl.board_list.remove_icon}} @removeCallback={{if this.boardsCtrl.model.permissions.edit (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board)}} />
                 {{#if this.boardsCtrl.model.permissions.edit}}
                   {{#if board.board.id}}
                     <button class="board_action" type="button" {{on "click" (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board)}}>
@@ -732,7 +718,7 @@
           {{else if board.orphan}}
             {{#if board.children}}
               <div class="ub-boards-page__board-item board_with_action simple_board_holder">
-                {{board-icon board=board onAction=this.onLoadChildren}}
+                <BoardIcon @board={{board}} @onAction={{this.onLoadChildren}} />
                 {{#if this.boardsCtrl.model.permissions.edit}}
                   <button type="button" class="board_action" {{on "click" (this.ctrlAction "remove_board" "delete_orphans" board)}}>
                     <span title={{t "delete" key="delete"}}><span class="glyphicon glyphicon-trash"></span></span>

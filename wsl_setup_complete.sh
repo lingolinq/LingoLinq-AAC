@@ -111,7 +111,9 @@ else
     [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 fi
 
-# Install Node 22
+# Install Node 22 (must match .nvmrc / app/frontend/.nvmrc, the Dockerfile,
+# and bin/render-build.sh — a mismatch here silently sets up new machines on a
+# different major than CI and the container build use.)
 print_step "Installing Node.js..."
 nvm install 22
 nvm alias default 22

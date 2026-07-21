@@ -1,5 +1,5 @@
-{{#grid-listener gridEvent=(this.ctrlAction "grid_event")}}
-{{#modal-dialog standalone=this.standalone action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<GridListener @gridEvent={{this.ctrlAction "grid_event"}}>
+<ModalDialog @standalone={{this.standalone}} @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="board_drop {{if this.standalone "new-board--modern" "la-new-board-modal-wrap"}}">
     {{#if this.standalone}}
     <div class="modal-header md-modal-header">
@@ -70,18 +70,18 @@
               <div class="nb-basics-grid__col nb-basics-grid__col--left">
                 <div class="nb-field">
                   <label for="new_board_name" class="nb-field__label">{{t "Name" key="name"}}</label>
-                  <Input @value={{this.model.name}} class="form-control nb-field__input" id="new_board_name" placeholder="My Board" />
+                  <input value={{this.model.name}} class="form-control nb-field__input" id="new_board_name" placeholder="My Board" {{on "input" (set-field this "model.name")}} />
                 </div>
                 <div class="nb-field new-board-field--description">
                   <label for="new_board_description" class="nb-field__label">{{t "Description" key="description"}}</label>
-                  <Textarea @value={{this.model.description}} class="form-control nb-field__input nb-field__input--fill" id="new_board_description" placeholder="Brief description of the board" />
+                  <textarea class="form-control nb-field__input nb-field__input--fill" id="new_board_description" placeholder="Brief description of the board" {{on "input" (set-field this "model.description")}}>{{this.model.description}}</textarea>
                 </div>
               </div>
             </div>
             {{#if this.has_supervisees}}
               <div class="nb-field">
                 <label for="for_user_id" class="nb-field__label">{{t "For" key="for"}}</label>
-                {{user-select select_id="for_user_id" selection=this.for_user_id action=(this.ctrlAction "setForUserId") }}
+                <UserSelect @select_id="for_user_id" @selection={{this.for_user_id}} @action={{this.ctrlAction "setForUserId"}} />
               </div>
             {{/if}}
           </div>
@@ -96,7 +96,7 @@
                 <button type="button" class="nb-stepper-mini__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "model.grid.rows")}} aria-label={{t "Decrease rows" key="decrease_rows"}}>
                   <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
                 </button>
-                <Input @type="number" @value={{this.model.grid.rows}} class="nb-stepper-mini__input" id="new_board_rows" aria-labelledby="nb-rows-label" />
+                <input type="number" value={{this.model.grid.rows}} class="nb-stepper-mini__input" id="new_board_rows" aria-labelledby="nb-rows-label" {{on "input" (set-field this "model.grid.rows")}} />
                 <button type="button" class="nb-stepper-mini__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "model.grid.rows")}} aria-label={{t "Increase rows" key="increase_rows"}}>
                   <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M6 2.5 L6 9.5 M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
                 </button>
@@ -106,7 +106,7 @@
                 <button type="button" class="nb-stepper-mini__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "model.grid.columns")}} aria-label={{t "Decrease columns" key="decrease_columns"}}>
                   <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
                 </button>
-                <Input @type="number" @value={{this.model.grid.columns}} class="nb-stepper-mini__input" id="new_board_columns" aria-labelledby="nb-cols-label" />
+                <input type="number" value={{this.model.grid.columns}} class="nb-stepper-mini__input" id="new_board_columns" aria-labelledby="nb-cols-label" {{on "input" (set-field this "model.grid.columns")}} />
                 <button type="button" class="nb-stepper-mini__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "model.grid.columns")}} aria-label={{t "Increase columns" key="increase_columns"}}>
                   <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M6 2.5 L6 9.5 M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
                 </button>
@@ -200,7 +200,7 @@
                       </div>
                     </div>
                   {{/if}}
-                  {{label-chips value=this.model.grid.labels onChange=(this.ctrlAction "setLabels") inputId="new_board_labels" placeholder=(t "Type a word and press Enter, or paste a list" key="labels_chip_placeholder_short")}}
+                  <LabelChips @value={{this.model.grid.labels}} @onChange={{this.ctrlAction "setLabels"}} @inputId="new_board_labels" @placeholder={{t "Type a word and press Enter, or paste a list" key="labels_chip_placeholder_short"}} />
                 </div>
               </div>
             </div>
@@ -219,8 +219,8 @@
                 <div class="nb-field">
                   <div style="margin-bottom: 5px;">
                     {{t "Listening..." key="listening"}}
-                    <button class='btn btn-default' {{on "click" (this.ctrlAction "next_word")}}>{{t "Next Word" key="next_word"}}</button>
-                    {{speech-listener content=(this.ctrlAction "speech_content") error=(this.ctrlAction "speech_error") stop=(this.ctrlAction "speech_stop") speech=this.speech}}
+                    <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "next_word")}}>{{t "Next Word" key="next_word"}}</button>
+                    <SpeechListener @content={{this.ctrlAction "speech_content"}} @error={{this.ctrlAction "speech_error"}} @stop={{this.ctrlAction "speech_stop"}} @speech={{this.speech}} />
                   </div>
                   <ul class="nav nav-pills">
                     {{#each this.speech.words as |word|}}
@@ -245,17 +245,17 @@
                  style={{this.preview_style}}
                  role="grid"
                  aria-label={{t "Board preview" key="board_preview"}}
-                 {{on "dragover" (this.ctrlAction "previewDragOver")}}
-                 {{on "drop" (this.ctrlAction "previewDrop")}}>
+                 {{on "dragover" (this.eventAction "previewDragOver")}}
+                 {{on "drop" (this.eventAction "previewDrop")}}>
               {{#each this.preview_grid as |row|}}
                 {{#each row as |cell|}}
                   <div class="new-board-preview__cell {{if cell.empty "new-board-preview__cell--empty"}} {{if cell.editing "new-board-preview__cell--editing"}}"
                        role="gridcell"
                        draggable={{if (or cell.empty cell.editing) "false" "true"}}
-                       {{on "dragstart" (this.ctrlAction "cellDragStart" cell.row cell.col)}}
-                       {{on "dragover" (this.ctrlAction "cellDragOver")}}
-                       {{on "drop" (this.ctrlAction "cellDrop" cell.row cell.col)}}
-                       {{on "dragend" (this.ctrlAction "cellDragEnd")}}>
+                       {{on "dragstart" (this.eventAction "cellDragStart" cell.row cell.col)}}
+                       {{on "dragover" (this.eventAction "cellDragOver")}}
+                       {{on "drop" (this.eventAction "cellDrop" cell.row cell.col)}}
+                       {{on "dragend" (this.eventAction "cellDragEnd")}}>
                     {{#if cell.editing}}
                       <input type="text"
                              id={{concat "new-board-cell-edit-" cell.idx}}
@@ -263,7 +263,7 @@
                              value={{this._editValue}}
                              aria-label={{t "Edit label" key="edit_cell_label"}}
                              {{on "input" (this.ctrlActionEventValue "cellEditChanged" "value")}}
-                             {{on "keydown" (this.ctrlAction "cellEditKeydown")}}
+                             {{on "keydown" (this.eventAction "cellEditKeydown")}}
                              {{on "blur" (this.ctrlAction "commitCellEdit")}} />
                     {{else if cell.empty}}
                       <span class="new-board-preview__label">{{cell.label}}</span>
@@ -287,7 +287,7 @@
           <p class="nb-section__hint">{{t "Pick who can see this board." key="new_board_section_appearance_hint"}}</p>
           <div class="nb-section__body">
             <div class="nb-field new-board-field--visibility">
-              {{modern-select class="new-board-visibility-select" selectId="new_board_visibility" content=this.public_options selection=this.model.visibility action=(this.ctrlAction "setVisibility") ariaLabel=(t "Visibility" key="visibility")}}
+              <ModernSelect @class="new-board-visibility-select" @selectId="new_board_visibility" @content={{this.public_options}} @selection={{this.model.visibility}} @action={{this.ctrlAction "setVisibility"}} @ariaLabel={{t "Visibility" key="visibility"}} />
             </div>
           </div>
         </section>
@@ -303,35 +303,35 @@
             <div class="nb-section__body">
               <div class="nb-field new-board-field--icon">
                 <label for="image_url" class="nb-field__label">{{t "Icon for your Board" key="icon_for_your_board"}}</label>
-                {{icon-select selection=this.model.image_url action=(mut this.model.image_url) }}
+                <IconSelect @selection={{this.model.image_url}} @action={{mut this.model.image_url}} />
               </div>
               <div class="nb-field new-board-field--key">
                 <label for="new_board_key" class="nb-field__label">{{t "Key" key="key"}}</label>
-                <Input @value={{this.model.key}} class="form-control nb-field__input nb-field__input--narrow" id="new_board_key" placeholder={{this.key_placeholder}} />
+                <input value={{this.model.key}} class="form-control nb-field__input nb-field__input--narrow" id="new_board_key" placeholder={{this.key_placeholder}} {{on "input" (set-field this "model.key")}} />
               </div>
               <div class="nb-field new-board-field--license">
                 <label for="license" class="nb-field__label">{{t "License" key="license"}}</label>
-                {{modern-select class="new-board-select--modern" selectId="license" content=this.license_options selection=this.model.license.type action=(this.ctrlAction "setLicenseType") ariaLabel=(t "License" key="license")}}
+                <ModernSelect @class="new-board-select--modern" @selectId="license" @content={{this.license_options}} @selection={{this.model.license.type}} @action={{this.ctrlAction "setLicenseType"}} @ariaLabel={{t "License" key="license"}} />
               </div>
               <div class="nb-field new-board-field--locale">
                 <label for="locale" class="nb-field__label">{{t "Language" key="locale"}}</label>
-                {{modern-select class="new-board-select--modern" selectId="locale" content=this.locales selection=this.model.locale action=(this.ctrlAction "setLocale") ariaLabel=(t "Language" key="locale")}}
+                <ModernSelect @class="new-board-select--modern" @selectId="locale" @content={{this.locales}} @selection={{this.model.locale}} @action={{this.ctrlAction "setLocale"}} @ariaLabel={{t "Language" key="locale"}} />
               </div>
               {{#if this.attributable_license_type}}
                 <div class="nb-field nb-field--row">
                   <div class="nb-field__col">
                     <label for="author" class="nb-field__label">{{t "Author" key="author"}}</label>
-                    <Input @value={{this.model.license.author_name}} class="form-control nb-field__input" id="author" placeholder="Name" />
+                    <input value={{this.model.license.author_name}} class="form-control nb-field__input" id="author" placeholder="Name" {{on "input" (set-field this "model.license.author_name")}} />
                   </div>
                   <div class="nb-field__col">
                     <label for="author_url" class="nb-field__label">{{t "Author URL" key="author_url"}}</label>
-                    <Input @value={{this.model.license.author_url}} class="form-control nb-field__input" id="author_url" title="Author URL" placeholder="Author URL" />
+                    <input value={{this.model.license.author_url}} class="form-control nb-field__input" id="author_url" title="Author URL" placeholder="Author URL" {{on "input" (set-field this "model.license.author_url")}} />
                   </div>
                 </div>
               {{/if}}
               <div class="nb-field nb-field--checkbox new-board-checkbox-row">
                 <label for="home_board" class="nb-checkbox">
-                  <Input @type="checkbox" @checked={{this.model.home_board}} id="home_board" />
+                  <input type="checkbox" checked={{this.model.home_board}} id="home_board" {{on "change" (set-field this "model.home_board" "checkbox")}} />
                   <span>{{t "This board can be used as a home board" key="is_home_board"}}</span>
                 </label>
               </div>
@@ -340,7 +340,7 @@
                   <p class="nb-field__hint">{{t "Select any categories that this home board may fit well into." key="select_categories"}}</p>
                   {{#each this.board_categories as |category|}}
                     <label class="nb-checkbox">
-                      <Input @type="checkbox" @checked={{category.selected}} />
+                      <input type="checkbox" checked={{category.selected}}  {{on "change" (set-field category "selected" "checkbox")}}/>
                       <span>{{category.name}}</span>
                     </label>
                   {{/each}}
@@ -378,5 +378,5 @@
       {{/if}}
     </div>
   </div>
-{{/modal-dialog}}
-{{/grid-listener}}
+</ModalDialog>
+</GridListener>

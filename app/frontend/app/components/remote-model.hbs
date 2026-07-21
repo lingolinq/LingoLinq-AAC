@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -40,7 +40,7 @@
             {{/each}}
           </div>
           <div style='display: none;'>
-            <Textarea @value={{this.model_message}} class="form-control" placeholder="Enter message to send to communicator" />
+            <textarea class="form-control" placeholder="Enter message to send to communicator" aria-label={{t "Message to send to communicator" key="message_to_communicator"}} {{on "input" (set-field this "model_message")}}>{{this.model_message}}</textarea>
             <div style='text-align: right; margin-top: 5px; margin-bottom: 50px;'>
               <button class='btn btn-primary' {{on "click" (this.ctrlAction "send_message")}}>{{t "Send Message to %{un}" un=this.app_state.pairing.user.user_name key="send_message_to_user"}}</button>
             </div>
@@ -92,4 +92,4 @@
       </div>
     {{/if}}
   </div>
-{{/modal-dialog}}
+</ModalDialog>

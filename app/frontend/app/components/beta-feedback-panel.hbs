@@ -54,6 +54,6 @@
     {{/if}}
   </header>
   <div class="beta-feedback-panel__body">
-    {{beta-feedback-form onSubmitSuccess=@onSubmitSuccess onCancel=@onCancel isDrawer=@isDrawer}}
+    <BetaFeedbackForm @onSubmitSuccess={{@onSubmitSuccess}} @onCancel={{@onCancel}} @isDrawer={{@isDrawer}} />
   </div>
 </div>

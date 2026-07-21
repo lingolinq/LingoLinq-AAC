@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -25,7 +25,7 @@
             <span id="board_link" style="position: absolute; height: 0; left: -1000px;">{{this.board.link}}</span>
           {{/if}}
         </div>
-        {{share-bar url=this.board.link user=this.appState.currentUser element_id="board_link" board=this.board copy_event=(this.ctrlAction "copy_event")}}
+        <ShareBar @url={{this.board.link}} @user={{this.appState.currentUser}} @element_id="board_link" @board={{this.board}} @copy_event={{this.ctrlAction "copy_event"}} />
         <div aria-live="polite" aria-atomic="true">
           {{#if this.copy_result.succeeded}}
             <p class="md-modal-status md-modal-status--success">{{t "Link Copied to the Clipboard!" key="link_copied_to_clipboard"}}</p>
@@ -40,7 +40,7 @@
         {{#if this.show_embed}}
           <div class="md-modal-field">
             <p class="md-modal-hint">{{t "You can embed your %app_name% boards in other web sites like blogs or how-to's so people can try them out more easily. Just copy and paste the code below into your web site:" key="copy_html_embed_code"}}</p>
-            {{focus-input type="text" value=this.board.embed_code class="md-modal-input"}}
+            <FocusInput @type="text" @value={{this.board.embed_code}} @onChange={{set-value this "board.embed_code"}} class="md-modal-input" />
           </div>
         {{/if}}
       </div>
@@ -60,7 +60,7 @@
           {{#if this.board.downstream_boards}}
             <div class="md-modal-field">
               <label class="md-modal-checkbox-label">
-                <Input @checked={{this.board.update_visibility_downstream}} @type="checkbox" class="md-modal-checkbox" />
+                <input type="checkbox" checked={{this.board.update_visibility_downstream}} class="md-modal-checkbox" {{on "change" (set-field this "board.update_visibility_downstream" "checkbox")}} />
                 <span>{{t "Make all linked boards public as well" key="make_all_public"}}</span>
               </label>
             </div>
@@ -115,7 +115,7 @@
           <div class="md-modal-field">
             <div style="display: flex; align-items: center; gap: 8px;">
               <label for="share_board_user_name" class="sr-only">{{t "User name to add" key="user_name_to_add"}}</label>
-              <Input id="share_board_user_name" @value={{this.share_user_name}} class="md-modal-input" placeholder="user name to add" style="flex: 1;" />
+              <input value={{this.share_user_name}} id="share_board_user_name" class="md-modal-input" placeholder="user name to add" style="flex: 1;" {{on "input" (set-field this "share_user_name")}} />
               {{#if this.appState.currentUser.known_supervisees}}
                 <div class="btn-group">
                   <button class="btn md-modal-btn md-modal-btn--cancel dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" type="button">
@@ -132,13 +132,13 @@
           </div>
           <div class="md-modal-field">
             <label class="md-modal-checkbox-label">
-              <Input @type="checkbox" @checked={{this.share_include_downstream}} class="md-modal-checkbox" />
+              <input type="checkbox" checked={{this.share_include_downstream}} class="md-modal-checkbox" {{on "change" (set-field this "share_include_downstream" "checkbox")}} />
               <span>{{t "also share any linked boards" key="include_downstream_boards"}}</span>
             </label>
           </div>
           <div class="md-modal-field">
             <label class="md-modal-checkbox-label">
-              <Input @type="checkbox" @checked={{this.share_allow_editing}} class="md-modal-checkbox" />
+              <input type="checkbox" checked={{this.share_allow_editing}} class="md-modal-checkbox" {{on "change" (set-field this "share_allow_editing" "checkbox")}} />
               <span>{{t "allow editing (and deleting) as well" key="include_editing_downstream_boards"}}</span>
             </label>
           </div>
@@ -164,4 +164,4 @@
   <div class="modal-footer md-modal-footer">
     <button class="btn md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</button>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

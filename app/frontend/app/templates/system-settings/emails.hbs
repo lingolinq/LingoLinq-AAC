@@ -4,7 +4,7 @@
   <div class="la-system-settings__toolbar">
     <label class="la-system-settings__search-label">
       <span class="la-system-settings__label-text">{{t "Search" key="system_settings_search_label"}}</span>
-      <Input @type="search" @value={{this.searchQuery}} class="form-control la-system-settings__search-input" autocomplete="off" placeholder={{t "Email name…" key="system_settings_emails_search_placeholder"}} />
+      <input type="search" value={{this.searchQuery}} class="form-control la-system-settings__search-input" autocomplete="off" placeholder={{t "Email name…" key="system_settings_emails_search_placeholder"}} {{on "input" (set-field this "searchQuery")}} />
     </label>
     <label class="la-system-settings__filter">
       <span class="la-system-settings__label-text">{{t "Category" key="system_settings_category_label"}}</span>

@@ -2646,6 +2646,11 @@ class User < ApplicationRecord
             'image' => board['image'] || record.settings['image_url'] || '/images/lingolinq-board-icon.png',
             'home_lock' => !!board['home_lock']
           }
+          # Hidden entries stay in the list but are not rendered on the sidebar.
+          # Needed for auto-add boards (crisis-vocabulary): removing them outright
+          # is undone by merge_missing_default_sidebar_boards on the next load, so
+          # "hide" has to be a flag on a still-present entry rather than a delete.
+          brd['hidden'] = true if board['hidden']
           brd['locale'] = board['locale'] || record.settings['locale']
           brd['level'] = board['level'] if board['level']
           valid_types = []

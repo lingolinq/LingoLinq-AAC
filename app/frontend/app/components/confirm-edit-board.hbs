@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="la-confirm-edit-wrap">
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
@@ -26,4 +26,4 @@
     <button type="button" class="la-confirm-edit__btn la-confirm-edit__btn--primary" {{on "click" (this.ctrlAction "tweakBoard")}}>{{t "Make a Copy" key="make_a_copy"}}</button>
   </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

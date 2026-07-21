@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -17,7 +17,7 @@
       <div class="form-group">
         <label for="user_name" class="col-sm-3 control-label">{{t "User Name" key="user_name"}}</label>
         <div class="col-sm-5">
-          <Input @value={{this.user_name}} class="form-control" id="user_name" placeholder="user_name" />
+          <input value={{this.user_name}} class="form-control" id="user_name" placeholder="user_name" {{on "input" (set-field this "user_name")}} />
         </div>
       </div>
     </div>
@@ -29,4 +29,4 @@
       <p class='text-danger'>{{this.error}}</p>
     {{/if}}
   </div>
-{{/modal-dialog}}
+</ModalDialog>

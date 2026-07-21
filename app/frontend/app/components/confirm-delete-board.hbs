@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="la-delete-board-wrap">
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
@@ -40,7 +40,7 @@
     {{else if this.model.board.downstream_boards}}
       <div class="la-delete-board-section">
         <label class="la-delete-board-checkbox">
-          <Input @type="checkbox" @checked={{this.delete_downstream}} class="la-delete-board-check" {{on "change" (this.ctrlActionEventValue "setDeleteDownstream" "checked")}} />
+          <input type="checkbox" checked={{this.delete_downstream}} class="la-delete-board-check" {{on "change" (this.ctrlActionEventValue "setDeleteDownstream" "checked")}} {{on "change" (set-field this "delete_downstream" "checkbox")}} />
           <span>{{t "Also delete any of my boards that are linked from this board" key="delete_downstream_boards"}}</span>
         </label>
         {{#if this.delete_downstream}}
@@ -59,7 +59,7 @@
             {{else if this.hierarchy.error}}
               <span class="la-delete-board-error">{{t "There was an error trying to retrieve linked boards" key="error_getting_linked_boards"}}</span>
             {{else if this.hierarchy}}
-              {{board-hierarchy hierarchy=this.hierarchy selectable=true}}
+              <BoardHierarchy @hierarchy={{this.hierarchy}} @selectable={{true}} />
             {{else}}
               <span>{{t "Could not load linked boards" key="error_loading_linked_boards"}}</span>
             {{/if}}
@@ -82,6 +82,7 @@
     {{/if}}
   </div>
   <div class="modal-footer md-modal-footer">
+    <button class='la-delete-board-cancel' {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
     <button class='la-delete-board-submit' {{on "click" (this.ctrlAction "deleteBoard" "delete")}} disabled={{this.deleting}}>
       {{#if this.delete_downstream}}
         {{t "Delete Board Set" key="delete_boards"}}
@@ -89,7 +90,6 @@
         {{t "Delete Board" key="delete_board"}}
       {{/if}}
     </button>
-    <button class='la-delete-board-cancel' {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
   </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

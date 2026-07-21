@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -78,14 +78,14 @@
           <div class="form-group">
             <label for="label" class="col-sm-2 control-label">{{t "Label" key="label"}}</label>
             <div class="col-sm-10">
-              <Input @value={{this.model.label}} class="form-control" id="label" />
+              <input value={{this.model.label}} class="form-control" id="label" {{on "input" (set-field this "model.label")}} />
             </div>
           </div>
           <div class="form-group" style='margin-top: -20px;'>
             <div class="col-sm-10 col-sm-offset-2">
               <div class="checkbox big_checkbox">
                 <label>
-                  <Input @checked={{this.model.hide_label}} @type="checkbox" {{on "change" (this.ctrlActionEventValue "updateHideLabel" "checked")}} />
+                  <input type="checkbox" checked={{this.model.hide_label}} {{on "change" (this.ctrlActionEventValue "updateHideLabel" "checked")}} {{on "change" (set-field this "model.hide_label" "checkbox")}} />
                   {{t "Hide the label when the picture is shown" key="hide_label"}}
                 </label>
               </div>
@@ -94,7 +94,7 @@
           <div class="form-group">
             <label for="part_of_speech" class="col-sm-2 control-label">{{t "Word" key="part_of_speech"}}</label>
             <div class="col-sm-10">
-              {{bound-select select_class="form-control" select_id="part_of_speech" content=this.parts_of_speech selection=this.model.part_of_speech action=(this.ctrlAction "updateModelPartOfSpeech") }}
+              <BoundSelect @select_class="form-control" @select_id="part_of_speech" @content={{this.parts_of_speech}} @selection={{this.model.part_of_speech}} @action={{this.ctrlAction "updateModelPartOfSpeech"}} />
             </div>
           </div>
           <div class="form-group">
@@ -102,7 +102,7 @@
             <div class="col-sm-10">
               <span role="button" tabindex="0" {{on "click" (this.ctrlAction "toggle_color" "fill")}} style="display: inline-block; border-width: 3px; border: 2px dotted #ccc; height: 34px; width: 70px; vertical-align: bottom; cursor: pointer;" class={{this.fake_button_class}} aria-label={{t "Choose fill color" key="choose_fill_color"}}></span>
               <span class="button_field">
-                <Input @value={{this.model.background_color}} class="form-control" id="fill" />
+                <input value={{this.model.background_color}} class="form-control" id="fill" {{on "input" (set-field this "model.background_color")}} />
               </span>
               <br>
               <em style="font-size: 14px; line-height: 12px;">{{t "You can also color multiple buttons at once with standard color schemes using the Paint button" key="use_paint_button"}}</em>
@@ -113,7 +113,7 @@
             <div class="col-sm-10">
               <span role="button" tabindex="0" {{on "click" (this.ctrlAction "toggle_color" "border")}} id="background_pattern" style={{safe-style (concat "display: inline-block; height: 34px; width: 70px; vertical-align: bottom; border: 6px solid " this.model.border_color "; background-color:" this.model.background_color "; cursor: pointer;")}} aria-label={{t "Choose border color" key="choose_border_color"}}></span>
               <span class="button_field">
-                <Input @value={{this.model.border_color}} class="form-control" id="border" />
+                <input value={{this.model.border_color}} class="form-control" id="border" {{on "input" (set-field this "model.border_color")}} />
               </span>
             </div>
           </div>
@@ -122,7 +122,7 @@
             <div class="col-sm-10">
               <div class="checkbox big_checkbox">
                 <label>
-                  <Input @checked={{this.model.hidden}} @type="checkbox" />
+                  <input type="checkbox" checked={{this.model.hidden}} {{on "change" (set-field this "model.hidden" "checkbox")}} />
                   {{t "Hide this button from view" key="hide_this_button_from_view"}}
                 </label>
               </div>
@@ -152,7 +152,7 @@
     {{#if this.image_libraries}}
       <div style='float: left; width: 55px; font-size: 14px;'>{{t "Library: " key="library_colon"}}</div>
       <div style='margin-top: -5px; width: 200px; float: left;'>
-        {{bound-select select_class="form-control skip_select" select_id="image_library" short=true content=this.image_libraries selection=this.image_library action=(this.ctrlAction "updateImageLibrary") }}
+        <BoundSelect @select_class="form-control skip_select" @select_id="image_library" @short={{true}} @content={{this.image_libraries}} @selection={{this.image_library}} @action={{this.ctrlAction "updateImageLibrary"}} />
       </div>
     {{else}}
       <div style='float: left; width: 255px; font-size: 14px;'>{{t "Library: opensymbols.org" key="library_open_symbols"}}</div>
@@ -206,11 +206,11 @@
     {{#if this.show_library_options}}
       <div style='margin-top: 3px;'>
         <div style='width: calc(100% - 170px); float: left;'>
-          {{bound-select select_class="form-control skip_select" select_id="skin_preference" short=true content=this.skin_options selection=this.skin_preference action=(this.ctrlAction "updateSkinPreference") }}
+          <BoundSelect @select_class="form-control skip_select" @select_id="skin_preference" @short={{true}} @content={{this.skin_options}} @selection={{this.skin_preference}} @action={{this.ctrlAction "updateSkinPreference"}} />
         </div>
         <div style='width: 150px; float: left; margin-left: 5px;'>
           <div class='checkbox big_checkbox' style='margin-top: -8px; padding-top: 10px;'>
-            <label><Input @type="checkbox" @checked={{this.safe_search}} /> {{t "safe search" key="safe_search"}}</label>
+            <label><input type="checkbox" checked={{this.safe_search}} {{on "change" (set-field this "safe_search" "checkbox")}} /> {{t "safe search" key="safe_search"}}</label>
           </div>
         </div>
       </div>
@@ -222,7 +222,7 @@
     {{#if this.webcam.error}}
       <p>{{t "There was an error loading the camera" key="error_loading_camera"}}</p>
     {{else}}
-      <video autoplay id="webcam_video" {{on "click" (this.ctrlAction "webcamToggle" true)}} class={{this.webcam_class}}></video>
+      <video autoplay id="webcam_video" {{on "click" (this.ctrlAction "webcamToggle" true)}} class={{this.webcam_class}} aria-label={{t "Camera preview" key="camera_preview"}}></video>
       <canvas id="webcam_canvas" style="display:none;" width="800" height="800"></canvas>
       {{#unless this.webcam.snapshot}}
         <br>
@@ -259,7 +259,7 @@
           <img src={{this.image_preview.url}} class="button_image">
         {{/if}}
         <div style="margin-top: 10px;">
-          {{pick-license license=this.image_preview.license}}
+          <PickLicense @license={{this.image_preview.license}} />
         </div>
         {{#unless this.image_preview.license.uneditable}}
           <div style='margin-top: -10px; text-align: left;'>
@@ -270,7 +270,7 @@
               <div class='col-sm-10'>
                 <div class="checkbox big_checkbox">
                   <label>
-                    <Input @checked={{this.image_preview.hc}} @type="checkbox" />
+                    <input type="checkbox" checked={{this.image_preview.hc}} {{on "change" (set-field this "image_preview.hc" "checkbox")}} />
                     {{t "This is a high-contrast image" key="mark_high_contrast"}}
                   </label>
                 </div>
@@ -371,7 +371,7 @@
   <div class="form-group">
     <label for="action" class="col-sm-2 control-label">{{t "Action" key="action"}}</label>
     <div class="col-sm-10">
-      {{bound-select select_class="form-control" select_id="action" content=this.buttonActions selection=this.model.buttonAction action=(this.ctrlAction "updateModelButtonAction") }}
+      <BoundSelect @select_class="form-control" @select_id="action" @content={{this.buttonActions}} @selection={{this.model.buttonAction}} @action={{this.ctrlAction "updateModelButtonAction"}} />
     </div>
   </div>
   {{#if this.model.folderAction}}
@@ -401,7 +401,7 @@
         {{#unless this.pending_board}}
           <div class="row" style="margin-top: 5px;">
             <div class="col-sm-12">
-              {{bound-select select_class="form-control" select_id="board_search_type" content=this.board_search_options selection=this.board_search_type action=(this.ctrlAction "updateBoardSearchType") }}
+              <BoundSelect @select_class="form-control" @select_id="board_search_type" @content={{this.board_search_options}} @selection={{this.board_search_type}} @action={{this.ctrlAction "updateBoardSearchType"}} />
             </div>
           </div>
           {{#if this.confirm_found_board}}
@@ -498,7 +498,7 @@
                 <div class="row" style="margin-top: 10px; max-height: 250px; overflow: auto;">
                   {{#each this.foundBoards.results as |board|}}
                     <div class="col-sm-4 simple_board_holder">
-                      {{board-icon board=board noinfo=true option="select" onAction=(this.ctrlAction "selectFoundBoard") locale=this.foundBoards.locale}}
+                      <BoardIcon @board={{board}} @noinfo={{true}} @option="select" @onAction={{this.ctrlAction "selectFoundBoard"}} @locale={{this.foundBoards.locale}} />
                     </div>
                   {{/each}}
                 </div>
@@ -527,20 +527,20 @@
         <div class="form-group">
           <label for="for_user_id" class="col-sm-2 control-label">{{t "For" key="for"}}</label>
           <div class="col-sm-10">
-            {{user-select select_id="for_user_id" selection=this.pending_board.for_user_id action=(this.ctrlAction "updatePendingBoardForUserId") }}
+            <UserSelect @select_id="for_user_id" @selection={{this.pending_board.for_user_id}} @action={{this.ctrlAction "updatePendingBoardForUserId"}} />
           </div>
         </div>
       {{/if}}
       <div class="form-group">
         <label for="pending_board_name" class="col-sm-2 control-label">{{t "Name" key="name"}}</label>
         <div class="col-sm-10">
-          <Input @value={{this.pending_board.name}} id="pending_board_name" class="form-control" placeholder="Board name" />
+          <input value={{this.pending_board.name}} id="pending_board_name" class="form-control" placeholder="Board name" {{on "input" (set-field this "pending_board.name")}} />
         </div>
       </div>
       <div class="form-group">
         <label for="pending_board_key" class="col-sm-2 control-label">{{t "Key" key="key"}}</label>
         <div class="col-sm-10">
-          <Input @value={{this.pending_board.key}} id="pending_board_key" class="form-control" placeholder={{this.pending_board.key_placeholder}} />
+          <input value={{this.pending_board.key}} id="pending_board_key" class="form-control" placeholder={{this.pending_board.key_placeholder}} {{on "input" (set-field this "pending_board.key")}} />
         </div>
       </div>
       <div class="form-group">
@@ -550,7 +550,7 @@
             <span class="input-group-btn">
               <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "minus" "pending_board.grid.rows")}}>-</button>
             </span>
-            <Input @value={{this.pending_board.grid.rows}} class="form-control" id="pending_board_rows" placeholder="##" title="rows" />
+            <input value={{this.pending_board.grid.rows}} class="form-control" id="pending_board_rows" placeholder="##" title="rows" {{on "input" (set-field this "pending_board.grid.rows")}} />
             <span class="input-group-btn">
               <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "plus" "pending_board.grid.rows")}}>+</button>
             </span>
@@ -563,7 +563,7 @@
             <span class="input-group-btn">
               <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "minus" "pending_board.grid.columns")}}>-</button>
             </span>
-            <Input @value={{this.pending_board.grid.columns}} class="form-control" id="pending_board_columns" placeholder="##" title="columns" />
+            <input value={{this.pending_board.grid.columns}} class="form-control" id="pending_board_columns" placeholder="##" title="columns" {{on "input" (set-field this "pending_board.grid.columns")}} />
             <span class="input-group-btn">
               <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "plus" "pending_board.grid.columns")}}>+</button>
             </span>
@@ -575,7 +575,7 @@
         <div class="col-sm-10 col-sm-offset-2">
           <div class="checkbox big_checkbox">
             <label>
-              <Input @checked={{this.pending_board.copy_access}} @type="checkbox" />
+              <input type="checkbox" checked={{this.pending_board.copy_access}} {{on "change" (set-field this "pending_board.copy_access" "checkbox")}} />
               {{t "Use same license and access settings as are set for this board" key="use_same_license"}}
             </label>
           </div>
@@ -593,7 +593,7 @@
       <div class="form-group">
         <label for="for_user_id" class="col-sm-2 control-label">{{t "For" key="for"}}</label>
         <div class="col-sm-10">
-          {{user-select select_id="for_user_id" selection=this.model.integration_user_id action=(this.ctrlAction "updateModelIntegrationUserId") }}
+          <UserSelect @select_id="for_user_id" @selection={{this.model.integration_user_id}} @action={{this.ctrlAction "updateModelIntegrationUserId"}} />
         </div>
       </div>
     {{/if}}
@@ -608,7 +608,7 @@
           {{#unless this.user_integrations.content.length}}
             <p class='form-control-static'>{{t "You haven't connected any tools yet. Open a web browser and visit your User Profile page to add integrations." key="no_integrations_found"}}</p>
           {{else}}
-            {{bound-select select_class="form-control" select_id="integration" content=this.user_integrations.content selection=this.integration action=(this.ctrlAction "updateIntegrationId") optionLabelPath="content.name"}}
+            <BoundSelect @select_class="form-control" @select_id="integration" @content={{this.user_integrations.content}} @selection={{this.integration}} @action={{this.ctrlAction "updateIntegrationId"}} @optionLabelPath="content.name" />
           {{/unless}}
         {{/if}}
       </div>
@@ -621,7 +621,7 @@
             {{#if this.integration.accounts}}
               <div class="row">
                 <div class="col-sm-12">
-                  {{bound-select select_class="form-control" select_id="integration_account" content=this.integration.accounts selection=this.integration_account action=(this.ctrlAction "updateIntegrationAccount") optionLabelPath="content.label"}}
+                  <BoundSelect @select_class="form-control" @select_id="integration_account" @content={{this.integration.accounts}} @selection={{this.integration_account}} @action={{this.ctrlAction "updateIntegrationAccount"}} @optionLabelPath="content.label" />
                 </div>
               </div>
             {{else}}
@@ -651,23 +651,23 @@
                   <p class='text-muted'>{{field.info}}</p>
                 {{/if}}
                 {{#if field.string}}
-                  <Input @value={{field.value}} class="form-control" id={{field.name}} placeholder={{field.placeholder}} />
+                  <input value={{field.value}} class="form-control" id={{field.name}} placeholder={{field.placeholder}}  {{on "input" (set-field field "value")}}/>
                 {{else if field.boolean}}
                   <div class="checkbox big_checkbox">
                     <label>
-                      <Input @checked={{field.value}} @type="checkbox" />
+                      <input checked={{field.value}} type="checkbox"  {{on "change" (set-field field "value" "checkbox")}}/>
                     </label>
                   </div>
                 {{else if field.preferred_languages}}
-                  {{bound-select select_class="form-control" select_id="pref_langs" content=field.preferred_languages selection=field.value action=(this.ctrlAction "updateIntegrationFieldValue" field) optionValuePath="content.id" optionLabelPath="content.label"}}
+                  <BoundSelect @select_class="form-control" @select_id="pref_langs" @content={{field.preferred_languages}} @selection={{field.value}} @action={{this.ctrlAction "updateIntegrationFieldValue" field}} @optionValuePath="content.id" @optionLabelPath="content.label" />
                 {{else if field.field_type_key}}
                   {{#if field.field_type_key.is_locale}}
                     <div class="row">
                       <div class="col-sm-9">
-                        <Input @value={{field.value}} class="form-control" id={{field.name}} placeholder={{field.placeholder}} />
+                        <input value={{field.value}} class="form-control" id={{field.name}} placeholder={{field.placeholder}}  {{on "input" (set-field field "value")}}/>
                       </div>
                       <div class="col-sm-3">
-                        {{bound-select select_class="form-control" select_id="pref_langs_for_locale" content=field.locales selection=field.locale action=(this.ctrlAction "updateIntegrationFieldLocale" field) optionValuePath="content.code" optionLabelPath="content.label"}}
+                        <BoundSelect @select_class="form-control" @select_id="pref_langs_for_locale" @content={{field.locales}} @selection={{field.locale}} @action={{this.ctrlAction "updateIntegrationFieldLocale" field}} @optionValuePath="content.code" @optionLabelPath="content.label" />
                       </div>
                     </div>
                   {{/if}}
@@ -690,7 +690,7 @@
             {{#if this.integration.groups}}
               <div class="row">
                 <div class="col-sm-12">
-                  {{bound-select select_class="form-control" select_id="integration_group" content=this.integration.groups selection=this.integration_group action=(this.ctrlAction "updateIntegrationGroup") optionLabelPath="content.label"}}
+                  <BoundSelect @select_class="form-control" @select_id="integration_group" @content={{this.integration.groups}} @selection={{this.integration_group}} @action={{this.ctrlAction "updateIntegrationGroup"}} @optionLabelPath="content.label" />
                 </div>
               </div>
             {{else}}
@@ -742,13 +742,13 @@
     <div class="form-group">
       <label for="format" class="col-sm-2 control-label">{{t "Format" key="format"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="format" content=this.export_formats selection=this.model.export_format action=(this.ctrlAction "updateModelExportFormat") optionValuePath="content.id" optionLabelPath="content.name"}}
+        <BoundSelect @select_class="form-control" @select_id="format" @content={{this.export_formats}} @selection={{this.model.export_format}} @action={{this.ctrlAction "updateModelExportFormat"}} @optionValuePath="content.id" @optionLabelPath="content.name" />
       </div>
     </div>
     <div class="form-group">
       <label for="print_size" class="col-sm-2 control-label">{{t "Print Size" key="print_size"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="print_size" content=this.print_sizes selection=this.model.print_size action=(this.ctrlAction "updateModelPrintSize") }}
+        <BoundSelect @select_class="form-control" @select_id="print_size" @content={{this.print_sizes}} @selection={{this.model.print_size}} @action={{this.ctrlAction "updateModelPrintSize"}} />
         <p class='text-muted'>{{t "There may be a short delay before your export is ready" key="delay_before_export"}}</p>
       </div>
     </div>
@@ -756,7 +756,7 @@
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Audio Delay" key="audio_delay"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="audio_delay" content=this.audio_delay_options selection=this.model.audio_delay action=(this.ctrlAction "updateModelAudioDelay") }}
+        <BoundSelect @select_class="form-control" @select_id="audio_delay" @content={{this.audio_delay_options}} @selection={{this.model.audio_delay}} @action={{this.ctrlAction "updateModelAudioDelay"}} />
         <p class='text-muted'>{{t "When enabled, audio will play without waiting for other sounds to finish." key="audio_delay_info"}}</p>
       </div>
     </div>
@@ -764,7 +764,7 @@
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Action" key="action"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="integration_user_action" content=this.integration_user_actions selection=this.model.integration_user_action_key action=(this.ctrlAction "updateModelIntegrationUserActionKey") optionValuePath="content.id" optionLabelPath="content.name"}}
+        <BoundSelect @select_class="form-control" @select_id="integration_user_action" @content={{this.integration_user_actions}} @selection={{this.model.integration_user_action_key}} @action={{this.ctrlAction "updateModelIntegrationUserActionKey"}} @optionValuePath="content.id" @optionLabelPath="content.name" />
         <p class='text-muted'>{{t "Actions configure commands for the user; these are set up on the web." key="integration_user_action_info"}}</p>
       </div>
     </div>
@@ -772,7 +772,7 @@
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Feature" key="feature"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="feature_toggle" content=this.feature_toggle_options selection=this.model.feature_toggle_key action=(this.ctrlAction "updateModelFeatureToggleKey") optionValuePath="content.id" optionLabelPath="content.name"}}
+        <BoundSelect @select_class="form-control" @select_id="feature_toggle" @content={{this.feature_toggle_options}} @selection={{this.model.feature_toggle_key}} @action={{this.ctrlAction "updateModelFeatureToggleKey"}} @optionValuePath="content.id" @optionLabelPath="content.name" />
       </div>
     </div>
   {{else if this.model.volumeAction}}
@@ -791,24 +791,26 @@
     </div>
   {{else if this.model.keyCommandAction}}
     <div class="form-group">
-      <label class="col-sm-2 control-label">{{t "Command" key="command"}}</label>
+      {{#let (unique-id) as |keyCommandId|}}
+      <label for={{keyCommandId}} class="col-sm-2 control-label">{{t "Command" key="command"}}</label>
       <div class="col-sm-10">
-        <Input @value={{this.model.key_command}} class="form-control" placeholder="ex: CMD+W" />
+        <input id={{keyCommandId}} value={{this.model.key_command}} class="form-control" placeholder="ex: CMD+W" {{on "input" (set-field this "model.key_command")}} />
         <p class='text-muted'>{{t "Use modifier keys like CMD/CTRL/ALT/SHIFT. Multiple keys can be chained with +." key="key_command_hint"}}</p>
       </div>
+      {{/let}}
     </div>
   {{else if this.model.toggleAction}}
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Toggle" key="toggle"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="toggle" content=this.toggle_options selection=this.model.toggle_action action=(this.ctrlAction "updateModelToggleAction") optionValuePath="content.id" optionLabelPath="content.name"}}
+        <BoundSelect @select_class="form-control" @select_id="toggle" @content={{this.toggle_options}} @selection={{this.model.toggle_action}} @action={{this.ctrlAction "updateModelToggleAction"}} @optionValuePath="content.id" @optionLabelPath="content.name" />
       </div>
     </div>
   {{else if this.model.openUrlAction}}
     <div class="form-group">
       <label for="url" class="col-sm-2 control-label">{{t "URL" key="url"}}</label>
       <div class="col-sm-10">
-        <Input @value={{this.model.url}} class="form-control" id="url" placeholder="http://" />
+        <input value={{this.model.url}} class="form-control" id="url" placeholder="http://" {{on "input" (set-field this "model.url")}} />
       </div>
     </div>
   {{else if this.model.shareBoardAction}}
@@ -843,35 +845,35 @@
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Block" key="block"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="block_toggle" content=this.block_toggle_options selection=this.model.block_action action=(this.ctrlAction "updateModelBlockAction") optionValuePath="content.id" optionLabelPath="content.name"}}
+        <BoundSelect @select_class="form-control" @select_id="block_toggle" @content={{this.block_toggle_options}} @selection={{this.model.block_action}} @action={{this.ctrlAction "updateModelBlockAction"}} @optionValuePath="content.id" @optionLabelPath="content.name" />
       </div>
     </div>
   {{else if this.model.randomBoardAction}}
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Source" key="source"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="random_source" content=this.random_sources selection=this.model.random_source action=(this.ctrlAction "updateModelRandomSource") optionValuePath="content.id" optionLabelPath="content.name"}}
+        <BoundSelect @select_class="form-control" @select_id="random_source" @content={{this.random_sources}} @selection={{this.model.random_source}} @action={{this.ctrlAction "updateModelRandomSource"}} @optionValuePath="content.id" @optionLabelPath="content.name" />
       </div>
     </div>
   {{else if this.model.randomAction}}
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Random" key="random"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="random_action" content=this.random_actions selection=this.model.random_action action=(this.ctrlAction "updateModelRandomAction") optionValuePath="content.id" optionLabelPath="content.name"}}
+        <BoundSelect @select_class="form-control" @select_id="random_action" @content={{this.random_actions}} @selection={{this.model.random_action}} @action={{this.ctrlAction "updateModelRandomAction"}} @optionValuePath="content.id" @optionLabelPath="content.name" />
       </div>
     </div>
   {{else if this.model.talkAction}}
     <div class="form-group">
       <label for="talk_text" class="col-sm-2 control-label">{{t "Speak" key="speak"}}</label>
       <div class="col-sm-10">
-        <Textarea @value={{this.model.talk_text}} class="form-control" id="talk_text" rows={{3}} />
+        <textarea class="form-control" id="talk_text" rows={{3}} {{on "input" (set-field this "model.talk_text")}}>{{this.model.talk_text}}</textarea>
       </div>
     </div>
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Capitalize" key="capitalize"}}</label>
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
-          <label><Input @type="checkbox" @checked={{this.model.capitalize}} /> {{t "Capitalize speech" key="capitalize_speech"}}</label>
+          <label><input type="checkbox" checked={{this.model.capitalize}} {{on "change" (set-field this "model.capitalize" "checkbox")}} /> {{t "Capitalize speech" key="capitalize_speech"}}</label>
         </div>
       </div>
     </div>
@@ -880,7 +882,7 @@
       <label class="col-sm-2 control-label">{{t "Shift" key="shift"}}</label>
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
-          <label><Input @type="checkbox" @checked={{this.model.shift_on}} /> {{t "Shift on" key="shift_on"}}</label>
+          <label><input type="checkbox" checked={{this.model.shift_on}} {{on "change" (set-field this "model.shift_on" "checkbox")}} /> {{t "Shift on" key="shift_on"}}</label>
         </div>
       </div>
     </div>
@@ -889,7 +891,7 @@
       <label class="col-sm-2 control-label">{{t "Inflections" key="inflections"}}</label>
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
-          <label><Input @type="checkbox" @checked={{this.model.inflections_on}} /> {{t "Inflections on" key="inflections_on"}}</label>
+          <label><input type="checkbox" checked={{this.model.inflections_on}} {{on "change" (set-field this "model.inflections_on" "checkbox")}} /> {{t "Inflections on" key="inflections_on"}}</label>
         </div>
       </div>
     </div>
@@ -897,7 +899,7 @@
     <div class="form-group">
       <label for="insert_text" class="col-sm-2 control-label">{{t "Insert" key="insert"}}</label>
       <div class="col-sm-10">
-        <Textarea @value={{this.model.insert_text}} class="form-control" id="insert_text" rows={{3}} />
+        <textarea class="form-control" id="insert_text" rows={{3}} {{on "input" (set-field this "model.insert_text")}}>{{this.model.insert_text}}</textarea>
         <p class='text-muted'>{{t "Will insert text without speaking it" key="insert_without_speaking"}}</p>
       </div>
     </div>
@@ -926,14 +928,14 @@
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Toggle" key="toggle"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="toggle_speak_mode" content=this.toggle_speak_mode_options selection=this.model.toggle_speak_mode action=(this.ctrlAction "updateModelToggleSpeakMode") optionValuePath="content.id" optionLabelPath="content.name"}}
+        <BoundSelect @select_class="form-control" @select_id="toggle_speak_mode" @content={{this.toggle_speak_mode_options}} @selection={{this.model.toggle_speak_mode}} @action={{this.ctrlAction "updateModelToggleSpeakMode"}} @optionValuePath="content.id" @optionLabelPath="content.name" />
       </div>
     </div>
   {{else if this.model.setGazeAction}}
     <div class="form-group">
       <label class="col-sm-2 control-label">{{t "Gaze" key="gaze"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="gaze" content=this.gaze_options selection=this.model.gaze_action action=(this.ctrlAction "updateModelGazeAction") optionValuePath="content.id" optionLabelPath="content.name"}}
+        <BoundSelect @select_class="form-control" @select_id="gaze" @content={{this.gaze_options}} @selection={{this.model.gaze_action}} @action={{this.ctrlAction "updateModelGazeAction"}} @optionValuePath="content.id" @optionLabelPath="content.name" />
       </div>
     </div>
   {{else if this.model.toggleAudioAction}}
@@ -941,7 +943,7 @@
       <label class="col-sm-2 control-label">{{t "Audio" key="audio"}}</label>
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
-          <label><Input @type="checkbox" @checked={{this.model.audio_on}} /> {{t "Audio on" key="audio_on"}}</label>
+          <label><input type="checkbox" checked={{this.model.audio_on}} {{on "change" (set-field this "model.audio_on" "checkbox")}} /> {{t "Audio on" key="audio_on"}}</label>
         </div>
       </div>
     </div>
@@ -950,7 +952,7 @@
       <label class="col-sm-2 control-label">{{t "Magnifier" key="magnifier"}}</label>
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
-          <label><Input @type="checkbox" @checked={{this.model.magnifier_on}} /> {{t "Magnifier on" key="magnifier_on"}}</label>
+          <label><input type="checkbox" checked={{this.model.magnifier_on}} {{on "change" (set-field this "model.magnifier_on" "checkbox")}} /> {{t "Magnifier on" key="magnifier_on"}}</label>
         </div>
       </div>
     </div>
@@ -959,7 +961,7 @@
       <label class="col-sm-2 control-label">{{t "Scanning" key="scanning"}}</label>
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
-          <label><Input @type="checkbox" @checked={{this.model.scan_on}} /> {{t "Scanning on" key="scanning_on"}}</label>
+          <label><input type="checkbox" checked={{this.model.scan_on}} {{on "change" (set-field this "model.scan_on" "checkbox")}} /> {{t "Scanning on" key="scanning_on"}}</label>
         </div>
       </div>
     </div>
@@ -968,7 +970,7 @@
       <label class="col-sm-2 control-label">{{t "Stash" key="stash"}}</label>
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
-          <label><Input @type="checkbox" @checked={{this.model.stash_on}} /> {{t "Stash on" key="stash_on"}}</label>
+          <label><input type="checkbox" checked={{this.model.stash_on}} {{on "change" (set-field this "model.stash_on" "checkbox")}} /> {{t "Stash on" key="stash_on"}}</label>
         </div>
       </div>
     </div>
@@ -977,7 +979,7 @@
       <label class="col-sm-2 control-label">{{t "sidebar" key="sidebar"}}</label>
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
-          <label><Input @type="checkbox" @checked={{this.model.sidebar_on}} /> {{t "Sidebar on" key="sidebar_on"}}</label>
+          <label><input type="checkbox" checked={{this.model.sidebar_on}} {{on "change" (set-field this "model.sidebar_on" "checkbox")}} /> {{t "Sidebar on" key="sidebar_on"}}</label>
         </div>
       </div>
     </div>
@@ -986,7 +988,7 @@
       <label class="col-sm-2 control-label">{{t "Full Screen" key="full_screen"}}</label>
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
-          <label><Input @type="checkbox" @checked={{this.model.full_screen_on}} /> {{t "Full screen on" key="full_screen_on"}}</label>
+          <label><input type="checkbox" checked={{this.model.full_screen_on}} {{on "change" (set-field this "model.full_screen_on" "checkbox")}} /> {{t "Full screen on" key="full_screen_on"}}</label>
         </div>
       </div>
     </div>
@@ -995,7 +997,7 @@
       <label class="col-sm-2 control-label">{{t "Sleep" key="sleep"}}</label>
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
-          <label><Input @type="checkbox" @checked={{this.model.sleep_on}} /> {{t "Sleep on" key="sleep_on"}}</label>
+          <label><input type="checkbox" checked={{this.model.sleep_on}} {{on "change" (set-field this "model.sleep_on" "checkbox")}} /> {{t "Sleep on" key="sleep_on"}}</label>
         </div>
       </div>
     </div>
@@ -1004,7 +1006,7 @@
       <label class="col-sm-2 control-label">{{t "Lock" key="lock"}}</label>
       <div class="col-sm-10">
         <div class="checkbox big_checkbox">
-          <label><Input @type="checkbox" @checked={{this.model.lock_on}} /> {{t "Lock on" key="lock_on"}}</label>
+          <label><input type="checkbox" checked={{this.model.lock_on}} {{on "change" (set-field this "model.lock_on" "checkbox")}} /> {{t "Lock on" key="lock_on"}}</label>
         </div>
       </div>
     </div>
@@ -1019,7 +1021,7 @@
     <label for="vocalization" class="col-sm-2 control-label">{{t "Speak" key="speak"}}</label>
     <div class="col-sm-10 options">
       <span class="vocalization_field">
-        <Input @value={{this.model.vocalization}} class="form-control inline" id="vocalization" placeholder={{this.label}} />
+        <input value={{this.model.vocalization}} class="form-control inline" id="vocalization" placeholder={{this.label}} {{on "input" (set-field this "model.vocalization")}} />
       </span>
       <button type="button" {{on "click" (this.ctrlAction "record_sound")}} disabled={{this.recorder_unavailable}} class="btn btn-default">
         <img src={{path "images/microphone.svg"}} style="height: 20px; margin: -15px -3px -13px -3px;" alt="record_a_sound">
@@ -1046,7 +1048,7 @@
     <div class="col-sm-10">
       <div class="checkbox big_checkbox">
         <label>
-          <Input @checked={{this.model.blocking_speech}} @type="checkbox" />
+          <input type="checkbox" checked={{this.model.blocking_speech}} {{on "change" (set-field this "model.blocking_speech" "checkbox")}} />
           {{t "Hold other speech until this button completes" key="hold_other_speech_until_this_button_completes"}}
         </label>
       </div>
@@ -1054,7 +1056,7 @@
   </div>
   {{#if this.browse_audio}}
     <div class="col-sm-10 col-sm-offset-2">
-    {{audio-browser audio_selected=(this.ctrlAction "audio_selected") prompt=this.model.vocalization fallback_prompt=this.model.label}}
+    <AudioBrowser @audio_selected={{this.ctrlAction "audio_selected"}} @prompt={{this.model.vocalization}} @fallback_prompt={{this.model.label}} />
     <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "clear_sound_work")}}>{{t "Clear Sound" key="clear_sound"}}</button>
     </div>
   {{else if this.sound_preview}}
@@ -1063,19 +1065,19 @@
     {{/if}}
     <div style="text-align: center;">
       Selected sound{{#if this.sound_preview.name}} ({{this.sound_preview.name}}){{/if}}:<br>
-      <audio controls src={{this.sound_preview.url}}></audio>
+      <audio controls src={{this.sound_preview.url}} aria-label={{t "Selected sound preview" key="selected_sound_preview"}}></audio>
     </div>
     <div style="margin-top: 10px;">
       <div class="form-group">
         <div class="col-sm-2 control-label">{{t "Name" key="name"}}</div>
         <div class='col-sm-10'>
-          <Input @type="text" @value={{this.sound_preview.name}} class="form-control" />
+          <input type="text" value={{this.sound_preview.name}} aria-label={{t "Sound name" key="sound_name"}} class="form-control" {{on "input" (set-field this "sound_preview.name")}} />
         </div>
       </div>
     </div>
 
     <div style="margin-top: 10px;">
-      {{pick-license license=this.sound_preview.license}}
+      <PickLicense @license={{this.sound_preview.license}} />
     </div>
     <div style="margin-top: 10px;">
       <button type="button" {{on "click" (this.ctrlAction "clear_sound_work")}} class='btn btn-default'>{{t "Cancel" key="cancel"}}</button>
@@ -1117,9 +1119,9 @@
         {{/if}}
         <div style="margin-bottom: 10px; text-align: center;">
           {{t "Played sound:" key="played_sound_colon"}} ({{this.model.sound.extension}})<div style='width: 100%; overflow: hidden;'>{{this.model.sound.name}}</div><br>
-          <audio controls src={{this.model.sound.url}}></audio>
+          <audio controls src={{this.model.sound.url}} aria-label={{t "Played sound" key="played_sound"}}></audio>
         </div>
-        {{pick-license license=this.model.sound.license}}
+        <PickLicense @license={{this.model.sound.license}} />
         <br>
         <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "clear_sound")}}>{{t "Clear Sound" key="clear_sound"}}</button>
       {{else}}
@@ -1136,7 +1138,7 @@
             {{/each}}
             {{#if this.modifiers.any_basic}}
               <span class="modifier_example_field">
-                <Input @value={{this.modifier_text}} class="form-control" id="modifier" placeholder="enter a word to hear it modified" />
+                <input value={{this.modifier_text}} class="form-control" id="modifier" placeholder="enter a word to hear it modified" {{on "input" (set-field this "modifier_text")}} />
               </span>
             {{/if}}
           {{else}}
@@ -1171,13 +1173,13 @@
     <div class="form-group">
       <label for={{locale.label_id}} class="col-sm-4 control-label">{{t "Label" key="label"}}</label>
       <div class="col-sm-8">
-        <Input @value={{locale.label}} class="form-control" id={{locale.label_id}} />
+        <input value={{locale.label}} class="form-control" id={{locale.label_id}}  {{on "input" (set-field locale "label")}}/>
       </div>
     </div>
     <div class="form-group">
       <label for={{locale.vocalization_id}} class="col-sm-4 control-label">{{t "Speech" key="speech"}}</label>
       <div class="col-sm-8">
-        <Input @value={{locale.vocalization}} class="form-control" id={{locale.vocalization_id}} placeholder="matches label if empty" />
+        <input value={{locale.vocalization}} class="form-control" id={{locale.vocalization_id}} placeholder="matches label if empty"  {{on "input" (set-field locale "vocalization")}}/>
       </div>
     </div>
     {{#if this.appState.feature_flags.inflections_overlay}}
@@ -1189,34 +1191,34 @@
         <div class='col-sm-10 col-sm-offset-2'>
           <div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              <Input class="form-control" @value={{locale.inflections_hash.nw}} placeholder={{locale.inflections_suggestions.nw}} />
+              <input class="form-control" value={{locale.inflections_hash.nw}} placeholder={{locale.inflections_suggestions.nw}} aria-label={{t "Inflection, top left" key="inflection_top_left"}}  {{on "input" (set-field locale "inflections_hash.nw")}}/>
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              <Input class="form-control" @value={{locale.inflections_hash.n}} placeholder={{locale.inflections_suggestions.n}} />
+              <input class="form-control" value={{locale.inflections_hash.n}} placeholder={{locale.inflections_suggestions.n}} aria-label={{t "Inflection, top" key="inflection_top"}}  {{on "input" (set-field locale "inflections_hash.n")}}/>
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              <Input class="form-control" @value={{locale.inflections_hash.ne}} placeholder={{locale.inflections_suggestions.ne}} />
+              <input class="form-control" value={{locale.inflections_hash.ne}} placeholder={{locale.inflections_suggestions.ne}} aria-label={{t "Inflection, top right" key="inflection_top_right"}}  {{on "input" (set-field locale "inflections_hash.ne")}}/>
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              <Input class="form-control" @value={{locale.inflections_hash.w}} placeholder={{locale.inflections_suggestions.w}} />
+              <input class="form-control" value={{locale.inflections_hash.w}} placeholder={{locale.inflections_suggestions.w}} aria-label={{t "Inflection, left" key="inflection_left"}}  {{on "input" (set-field locale "inflections_hash.w")}}/>
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px; text-align: center; overflow: hidden;'>
               {{locale.label}}
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              <Input class="form-control" @value={{locale.inflections_hash.e}} placeholder={{locale.inflections_suggestions.e}} />
+              <input class="form-control" value={{locale.inflections_hash.e}} placeholder={{locale.inflections_suggestions.e}} aria-label={{t "Inflection, right" key="inflection_right"}}  {{on "input" (set-field locale "inflections_hash.e")}}/>
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              <Input class="form-control" @value={{locale.inflections_hash.sw}} placeholder={{locale.inflections_suggestions.sw}} />
+              <input class="form-control" value={{locale.inflections_hash.sw}} placeholder={{locale.inflections_suggestions.sw}} aria-label={{t "Inflection, bottom left" key="inflection_bottom_left"}}  {{on "input" (set-field locale "inflections_hash.sw")}}/>
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              <Input class="form-control" @value={{locale.inflections_hash.s}} placeholder={{locale.inflections_suggestions.s}} />
+              <input class="form-control" value={{locale.inflections_hash.s}} placeholder={{locale.inflections_suggestions.s}} aria-label={{t "Inflection, bottom" key="inflection_bottom"}}  {{on "input" (set-field locale "inflections_hash.s")}}/>
             </div>
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-              <Input class="form-control" @value={{locale.inflections_hash.se}} placeholder={{locale.inflections_suggestions.se}} />
+              <input class="form-control" value={{locale.inflections_hash.se}} placeholder={{locale.inflections_suggestions.se}} aria-label={{t "Inflection, bottom right" key="inflection_bottom_right"}}  {{on "input" (set-field locale "inflections_hash.se")}}/>
             </div>
             <div>
-              <Textarea @value={{locale.rules_string}} class="form-control" placeholder={{this.inflection_overrides_placeholder}} />
+              <textarea class="form-control" placeholder={{this.inflection_overrides_placeholder}} aria-label={{t "Inflection overrides" key="inflection_overrides"}}  {{on "input" (set-field locale "rules_string")}}>{{locale.rules_string}}</textarea>
             </div>
           </div>
         </div>
@@ -1232,7 +1234,7 @@
     <div class="form-group">
       <label for="levels" class="col-sm-2 control-label">{{t "Levels" key="levels"}}</label>
       <div class="col-sm-10">
-        {{bound-select select_class="form-control" select_id="levels" content=this.levelTypes selection=this.model.level_style action=(this.ctrlAction "updateModelLevelStyle") }}
+        <BoundSelect @select_class="form-control" @select_id="levels" @content={{this.levelTypes}} @selection={{this.model.level_style}} @action={{this.ctrlAction "updateModelLevelStyle"}} />
       </div>
     </div>
     {{#if this.basic_level_style}}
@@ -1275,7 +1277,7 @@
           {{/if}}
         </label>
         <div class='col-sm-6'>
-            {{bound-select select_class="form-control" select_id="hidden_level" content=this.board_levels selection=this.model.hidden_level action=(this.ctrlAction "updateModelHiddenLevel") }}
+            <BoundSelect @select_class="form-control" @select_id="hidden_level" @content={{this.board_levels}} @selection={{this.model.hidden_level}} @action={{this.ctrlAction "updateModelHiddenLevel"}} />
         </div>
       </div>
       {{#unless this.model.talkAction}}
@@ -1288,7 +1290,7 @@
             {{/if}}
           </label>
           <div class='col-sm-6'>
-            {{bound-select select_class="form-control" select_id="link_disabled_level" content=this.board_levels selection=this.model.link_disabled_level action=(this.ctrlAction "updateModelLinkDisabledLevel") }}
+            <BoundSelect @select_class="form-control" @select_id="link_disabled_level" @content={{this.board_levels}} @selection={{this.model.link_disabled_level}} @action={{this.ctrlAction "updateModelLinkDisabledLevel"}} />
           </div>
         </div>
       {{/unless}}
@@ -1298,7 +1300,7 @@
           <p class='form-control-static'>{{t "Level Settings" key="level_settings"}}</p>
         </div>
         <div class='col-sm-10'>
-          <Textarea @value={{this.model.level_json}} class="form-control" placeholder="level override configuration" />
+          <textarea class="form-control" placeholder="level override configuration" aria-label={{t "Level override configuration" key="level_override_configuration"}} {{on "input" (set-field this "model.level_json")}}>{{this.model.level_json}}</textarea>
         </div>
       </div>
     {{/if}}
@@ -1312,34 +1314,34 @@
               <p>{{t "See the \"Language\" section for per-language inflections" key="see_language_for_inflections"}}</p>
             {{else}}
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                <Input class="form-control" @value={{this.inflections_hash.nw}} placeholder={{this.inflections_suggestions.nw}} />
+                <input value={{this.inflections_hash.nw}} class="form-control" placeholder={{this.inflections_suggestions.nw}} aria-label={{t "Inflection, top left" key="inflection_top_left"}} {{on "input" (set-field this "inflections_hash.nw")}} />
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                <Input class="form-control" @value={{this.inflections_hash.n}} placeholder={{this.inflections_suggestions.n}} />
+                <input value={{this.inflections_hash.n}} class="form-control" placeholder={{this.inflections_suggestions.n}} aria-label={{t "Inflection, top" key="inflection_top"}} {{on "input" (set-field this "inflections_hash.n")}} />
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                <Input class="form-control" @value={{this.inflections_hash.ne}} placeholder={{this.inflections_suggestions.ne}} />
+                <input value={{this.inflections_hash.ne}} class="form-control" placeholder={{this.inflections_suggestions.ne}} aria-label={{t "Inflection, top right" key="inflection_top_right"}} {{on "input" (set-field this "inflections_hash.ne")}} />
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                <Input class="form-control" @value={{this.inflections_hash.w}} placeholder={{this.inflections_suggestions.w}} />
+                <input value={{this.inflections_hash.w}} class="form-control" placeholder={{this.inflections_suggestions.w}} aria-label={{t "Inflection, left" key="inflection_left"}} {{on "input" (set-field this "inflections_hash.w")}} />
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px; text-align: center; overflow: hidden;'>
                 {{this.model.label}}
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                <Input class="form-control" @value={{this.inflections_hash.e}} placeholder={{this.inflections_suggestions.e}} />
+                <input value={{this.inflections_hash.e}} class="form-control" placeholder={{this.inflections_suggestions.e}} aria-label={{t "Inflection, right" key="inflection_right"}} {{on "input" (set-field this "inflections_hash.e")}} />
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                <Input class="form-control" @value={{this.inflections_hash.sw}} placeholder={{this.inflections_suggestions.sw}} />
+                <input value={{this.inflections_hash.sw}} class="form-control" placeholder={{this.inflections_suggestions.sw}} aria-label={{t "Inflection, bottom left" key="inflection_bottom_left"}} {{on "input" (set-field this "inflections_hash.sw")}} />
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                <Input class="form-control" @value={{this.inflections_hash.s}} placeholder={{this.inflections_suggestions.s}} />
+                <input value={{this.inflections_hash.s}} class="form-control" placeholder={{this.inflections_suggestions.s}} aria-label={{t "Inflection, bottom" key="inflection_bottom"}} {{on "input" (set-field this "inflections_hash.s")}} />
               </div>
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
-                <Input class="form-control" @value={{this.inflections_hash.se}} placeholder={{this.inflections_suggestions.se}} />
+                <input value={{this.inflections_hash.se}} class="form-control" placeholder={{this.inflections_suggestions.se}} aria-label={{t "Inflection, bottom right" key="inflection_bottom_right"}} {{on "input" (set-field this "inflections_hash.se")}} />
               </div>
               <div>
-                <Textarea @value={{this.rules_string}} class="form-control" placeholder={{this.inflection_overrides_placeholder}} />
+                <textarea class="form-control" placeholder={{this.inflection_overrides_placeholder}} aria-label={{t "Inflection overrides" key="inflection_overrides"}} {{on "input" (set-field this "rules_string")}}>{{this.rules_string}}</textarea>
               </div>
             {{/if}}
           </div>
@@ -1349,7 +1351,7 @@
   <div class="form-group">
     <label for="ref_id" class="col-sm-2 control-label" style='padding-left: 0; padding-right: 0;'>{{t "Pointer ID" key="pointer_id"}}</label>
     <div class="col-sm-10">
-      <Input @value={{this.model.ref_id}} class="form-control" id="ref_id" placeholder="ID for custom referencing" />
+      <input value={{this.model.ref_id}} class="form-control" id="ref_id" placeholder="ID for custom referencing" {{on "input" (set-field this "model.ref_id")}} />
     </div>
   </div>
 
@@ -1374,4 +1376,4 @@
       </div>
     </div>
   {{/if}}
-{{/modal-dialog}}
+</ModalDialog>

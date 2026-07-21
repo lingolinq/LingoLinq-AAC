@@ -439,6 +439,13 @@ export default Component.extend({
         }
       };
       var record = store.push(payload);
+      // EmberData 5.3: store.push does NOT reliably populate the `buttons`
+      // (attr('raw')) attribute here — if a prior load left `buttons` as a
+      // locally-set (dirty) empty array, push won't override it, so
+      // record.get('buttons') comes back empty and the whole search finds
+      // nothing. Set it explicitly, mirroring the server-load path
+      // (BoardDownstreamButtonSet.load_buttons -> bs.set('buttons', ...)).
+      record.set('buttons', all_buttons);
       // Mark as locally generated so we can tell it apart from
       // server-loaded sets if we ever need to (e.g. for diagnostics).
       record.set('buttons_loaded', true);
