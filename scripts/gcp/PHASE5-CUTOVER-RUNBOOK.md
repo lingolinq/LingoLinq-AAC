@@ -22,6 +22,13 @@ preservation).
 > hard constraints (no DNS, no Cloud Armor enforce, no ingress lockdown, no Render/SES changes)
 > stay in force until explicitly lifted.
 
+> **Finding references in this runbook.** `audit-reports/FINDINGS.json` is the single source of
+> truth for the status of any `LL-*` finding. Notes below are dated, historical, and may cite a
+> finding ID for context, but **a status word written here is not authoritative and may have
+> drifted** since it was typed. Never treat a gate as satisfied - or unsatisfied - on the basis of
+> a status restated in this document; resolve the ID against the register. When editing this file,
+> prefer citing the ID alone over restating its status.
+
 ## Gate 1 (operational) vs Gate 2 (customer-facing) readiness
 
 The cutover is gated in two independent stages. **Gate 1** is operational/infra readiness under the
@@ -119,8 +126,9 @@ the window, revert to it.
     irreversible gate.
   - **0c Redis TLS live handshake (`LL-6619cc1811`)** - **exercised green against live Memorystore
     2026-06-29** (`lingolinq-redischeck-zsq74`, PONG over `rediss://`, CA-chain verified), so the
-    technical gate has passed; the register finding stays `open` only pending Scot's explicit
-    close/edit (see checklist). Because **seeding itself enqueues to Redis synchronously**, re-run
+    technical gate has passed. That is one of two closure conditions for the finding - prod must
+    also cut over off plaintext Render Redis (see 0c); register status is authoritative in
+    `audit-reports/FINDINGS.json`. Because **seeding itself enqueues to Redis synchronously**, re-run
     this handshake BEFORE any re-seed on a fresh DB. The functional go/no-go gate for the Redis path.
 - 0b worker-pool health; the schema-load + seed (two separate executions, NOT a combined re-runnable
   Job; seeding performs a full Moby word import - budget a long task-timeout); the five-path smoke
@@ -223,15 +231,19 @@ request-driven cold start to "warm up." What matters before DNS is **health**:
 
 Run this after the migrate Job + deploys (step 6) and before DNS (step 9).
 
-### 0c. Redis TLS live handshake smoke test  (closes register LL-6619cc1811)
+### 0c. Redis TLS live handshake smoke test  (one of two conditions for register LL-6619cc1811)
 
 The app-side TLS capability is merged (#410/#416/#417: `rediss://` enables `:ssl` + `:ssl_params`
 in `config/initializers/resque.rb`, hostname hatch `REDIS_TLS_VERIFY_HOSTNAME=false`, CA wired
 into `BOOT_SECRETS`). This handshake was **exercised green against the live Memorystore instance on
-2026-06-29** (`lingolinq-redischeck-zsq74`: `PONG` over `rediss://`, CA chain verified), so the
-technical gate has passed; register finding LL-6619cc1811 stays formally open only until Scot
-closes/edits it. **Re-run this handshake as a pre-flight before any re-seed on a fresh DB** - it is
-cheap and catches a broken CA/endpoint before data work.
+2026-06-29** (`lingolinq-redischeck-zsq74`: `PONG` over `rediss://`, CA chain verified), so this
+technical gate has passed. **That alone does NOT close `LL-6619cc1811`.** The finding is that
+*prod* Redis runs without TLS, and prod is still Render (`redis://`, plaintext) until the cutover.
+Closure requires BOTH: (1) this handshake green against live Memorystore, and (2) prod actually
+cut over off plaintext Render Redis. Scot's disposition (2026-06-18) says the same - "full closure
+lands at the GCP Memorystore cutover; status stays open until the cutover." Only Scot closes a
+finding, and only after (2). **Re-run this handshake as a pre-flight before any re-seed on a fresh
+DB** - it is cheap and catches a broken CA/endpoint before data work.
 
 ```
 # From a Cloud Run context that has the prod REDIS_URL (rediss://) + REDIS_CA_CERT loaded
@@ -252,7 +264,9 @@ cheap and catches a broken CA/endpoint before data work.
 - **Rollback trigger:** TLS handshake error (cert chain, CA mismatch, connection refused) that is
   not resolved by confirming `REDIS_CA_CERT` is the live instance CA. Do not proceed to DNS with
   Redis unverified; jobs (including log processing) would silently fail post-cutover. Mark
-  LL-6619cc1811 **verified-closed** in the register only after this is green against live.
+  LL-6619cc1811 **verified-closed** in the register only after BOTH this is green against live AND
+  prod has actually cut over off plaintext Render Redis - the handshake alone is not sufficient
+  (see 0c). Closure is Scot's alone.
 
 ### 1. Write-freeze window - Render write-reject mode  (tracker 5.2, GATE: data move begins)
 
@@ -909,12 +923,15 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       adapter level (credentials/region/delivery-method wiring); it used a generic
       `ActionMailer::Base.mail(...)` call rather than a concrete mailer class (`UserMailer` etc.),
       so full mailer-class representativeness is still untested, and per-message delivery-event
-      evidence explaining the Gmail gap still doesn't exist. The box stays unchecked;
-      `LL-42a24ee911` stays `open`.
+      evidence explaining the Gmail gap still doesn't exist. The box stays unchecked. The finding
+      this note originally tracked (`LL-42a24ee911`) covered only whether a diagnostic send
+      ARRIVED; the residuals described here are now tracked as `LL-abd6c88733`. Current status for
+      both is authoritative in `audit-reports/FINDINGS.json`.
 - [ ] **New findings from this session's Resque investigation, root-caused and cleared - separate
       gate from 0a, do NOT treat as satisfied just because the 0a Resque smoke-test box above gets
-      checked.** Three findings now in the register (`audit-reports/FINDINGS.json`), all status
-      `open`: `LL-a95e9c5f7c` (lingolinq-worker's 512Mi memory limit causes continuous OOM kills of
+      checked.** Three findings are tracked in the register (`audit-reports/FINDINGS.json`), which
+      is authoritative for their current status - this gate is NOT satisfied by a status value
+      restated here: `LL-a95e9c5f7c` (lingolinq-worker's 512Mi memory limit causes continuous OOM kills of
       forked `ButtonImage`/`BoardDownstreamButtonSet` job processes - 832 SIGKILL/SIGSEGV failures,
       see above), `LL-705b10bcd7` (S3 SigV4/KMS-SSE misconfiguration on `BoardDownstreamButtonSet`
       - 58 failures, see above), and `LL-5954bcbbe6` (pre-existing: 16 `ButtonImage` failures from a
@@ -937,11 +954,11 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       literal value in this or any other repo file going forward. Once testing is done, either
       rotate to a real secret or delete the account before this environment is customer-facing.
 - [x] **0c Redis TLS handshake green against live Memorystore** - see `lingolinq-redischeck-zsq74`
-      above (PONG over `rediss://`, CA-chain verified). **LL-6619cc1811 is verified live-closed but
-      the findings register itself has NOT been updated** (`audit-reports/FINDINGS.json` still shows
-      `status: open` as of 2026-07-02) - only Scot can close/downgrade a register finding per repo
-      policy, so this still needs his explicit sign-off + a register edit before it is formally
-      closed, even though the technical gate has passed.
+      above (PONG over `rediss://`, CA-chain verified). This box covers the HANDSHAKE only.
+      **It does not mean `LL-6619cc1811` is closable yet.** That finding is that *prod* Redis runs
+      without TLS, and prod is still Render (`redis://`, plaintext) until the cutover; closure needs
+      the prod cutover as well (see 0c), then Scot's explicit sign-off and a register edit. Current
+      status is authoritative in `audit-reports/FINDINGS.json`.
 - [x] W1 worker SIGTERM grace + requeue fix built + dual-reviewed (tracker 4.W1, **PR #473**,
       merged to staging: `RESQUE_PRE_SHUTDOWN_TIMEOUT=4`/`RESQUE_TERM_TIMEOUT=3` + the
       existing BoyBand requeue).
