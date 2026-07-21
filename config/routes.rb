@@ -135,6 +135,7 @@ LingoLinq::Application.routes.draw do
     get 'users/cache' => 'boards#cache'
     post 'forgot_password' => 'users#forgot_password'
     post 'users/resend_parental_consent' => 'users#resend_parental_consent'
+    post 'users/submit_parental_consent_email' => 'users#submit_parental_consent_email'
     post 'messages' => 'messages#create'
     post 'beta_feedback_recordings' => 'beta_feedback_recordings#create'
     post 'beta_feedback_recordings/:id/upload' => 'beta_feedback_recordings#upload'

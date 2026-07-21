@@ -124,6 +124,7 @@
           <div class="md-org-add-row">
             <input aria-label={{t "org name" key="org_name_lower"}} value={{this.org_org_name}} placeholder={{t "org name" key="org_name_lower"}} class="md-org-input" {{on "input" (set-field this "org_org_name")}} />
             <input aria-label={{t "admin user name" key="admin_user_name_lower"}} value={{this.org_user_name}} placeholder={{t "admin user name" key="admin_user_name_lower"}} class="md-org-input" {{on "input" (set-field this "org_user_name")}} />
+            <BoundSelect @select_class="md-org-report-select" @select_id="org_jurisdiction" @content={{this.jurisdiction_list}} @selection={{this.org_jurisdiction}} @action={{mut this.org_jurisdiction}} />
             <button class="md-btn md-btn--primary md-btn--sm" {{on "click" (this.ctrlAction "add_org")}}>{{t "Add Organization" key="add_org"}}</button>
           </div>
         </section>

@@ -6933,6 +6933,32 @@ Org Settings → Home Boards bound `<Textarea @value={{this.home_board_key_lines
 
 EU under-16 AI enablement (`settings['eu_ai_parental_consent']`) is separate from COPPA account activation (`settings['coppa']`) and AI VPC data-sharing (`settings['ai_consent']`). Mirror COPPA token/`with_lock`/`AuditEvent` patterns for grant/revoke, but the complete controller must NOT mint devices or welcome emails — those are account-activation side effects. Persist country via `LingoLinq::Jurisdiction.trusted_country` (ISO alpha-2 only) and always recompute `eu_under_16` server-side from country + under_16; ignore client `eu_under_16`. Prefer-gate AI through `FeatureFlags.ai_feature_enabled_for?` (COPPA + EU + prefs) and keep thin call-site eu/coppa checks for defense in depth. Store allowlisted `requested_features` on request; apply them onto `settings['preferences']` inside the same `grant_eu_ai_parental_consent!` lock that records grant; on revoke force `EU_AI_PREF_KEYS` off. Prefs UI opens a modal (not an inline form) via `gate_ai_enable` → `modal.open('eu-ai-parental-consent')`. **Do not raise signup `coppaConsentAge` to 16 for EU** — that reused COPPA account-activation parent email for Art. 8; product intent is account create without parent email, AI consent only after login. Register keeps literal under-13 for `coppa_under_13`; `_classifyUnder16` + country drive `eu_under_16`. Register product-improvement force-off must set `model.preferences` (the signup user record), not assume `controller.user` exists. See `docs/task-management/2026-07-14-eu-ai-prefs-parental-consent.md`. (2026-07-14; registration decoupling 2026-07-15)
 
+## Pattern: Org offboarding starts COPPA + resets EU AI (2026-07-16)
+
+District seat reclaim (`Organization#remove_user`, both `License#release_user!` and legacy
+detach) must call `User#begin_family_offboarding_consents!`. School-authorized communicators
+(no prior active COPPA) get `settings['coppa']` pending with `offboarding: true`; parent email
+is optional at remove (`offboarding_parent_email`) and otherwise collected at login via
+`POST /api/v1/users/submit_parental_consent_email` (credential proof, no session) when the
+token endpoint returns `coppa_parent_email_required`. That same submit path re-stamps pending
+after revoke. EU under-16 users get `apply_eu_ai_offboarding_reset!` (force `EU_AI_PREF_KEYS`
+false + invalidate consent) so AI stays off until a new parent grant. Do not require parent
+email to complete org remove — login dialog is the fallback. See
+`docs/task-management/2026-07-16-org-offboarding-parental-consent.md`.
+
+## Pattern: Org `settings['jurisdiction']` drives release-time age laws (2026-07-17)
+
+School-created communicators often have no personal country, so EU Art. 8
+(`eu_under_16`) cannot be derived from the user alone. Store org location as
+`settings['jurisdiction']` (`US` or `EU` only; `USA` normalizes to `US`) —
+required on org create via `Organization#process_params`, editable in settings.
+On `User#begin_family_offboarding_consents!`, prefer the releasing org's
+jurisdiction over `registration_country`: EU + under-16 → set
+`registration.eu_under_16` and force AI off; US + under-16 → AI prefs off but
+`eu_under_16=false` (no Art. 8 parent gate). Under-13 COPPA applies for both.
+Legacy orgs with blank jurisdiction keep the country-based fallback. See
+`docs/task-management/2026-07-16-org-offboarding-parental-consent.md`.
+
 ## Gotcha: ember-data 5.3 relationship/store arrays are NOT EmberArrays — `firstObject` on a hasMany is silent undefined
 
 Verified against the emberjs/data v5.3.8 source: `ManyArray` and `RecordArray`

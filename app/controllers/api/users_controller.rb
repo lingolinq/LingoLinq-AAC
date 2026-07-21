@@ -2,7 +2,7 @@ require_relative '../../../lib/method_tracer'
 
 class Api::UsersController < ApplicationController
   extend MethodTracer
-  before_action :require_api_token, :except => [:update, :show, :create, :confirm_registration, :forgot_password, :password_reset, :protected_image, :subscribe, :activate_button, :resend_parental_consent]
+  before_action :require_api_token, :except => [:update, :show, :create, :confirm_registration, :forgot_password, :password_reset, :protected_image, :subscribe, :activate_button, :resend_parental_consent, :submit_parental_consent_email]
   def show
     # If requesting 'self' but no authenticated user, return 401 instead of 404
     if params['id'] == 'self' && !@api_user
@@ -764,6 +764,9 @@ class Api::UsersController < ApplicationController
         if user.coppa_parental_consent_revoked?
           return api_error 400, {error: 'parental consent revoked', coppa_parental_consent_revoked: true}
         end
+        if user.coppa_needs_parent_email?
+          return api_error 400, {error: 'parent email required', coppa_parent_email_required: true}
+        end
         if user.coppa_parental_consent_pending?
           return api_error 400, {error: 'awaiting parental consent', coppa_parental_consent_pending: true}
         end
@@ -816,6 +819,9 @@ class Api::UsersController < ApplicationController
     unless user.coppa_parental_consent_pending?
       return api_error 400, {error: 'Invalid authentication attempt'}
     end
+    if user.coppa_needs_parent_email?
+      return api_error 400, {error: 'parent email required', coppa_parent_email_required: true}
+    end
     key = parental_consent_resend_redis_key(user)
     ttl_ms = begin
       RedisInit.default.pttl(key)
@@ -829,6 +835,43 @@ class Api::UsersController < ApplicationController
     Permissions.setex(RedisInit.default, key, parental_consent_resend_ttl_seconds, '1', true)
     schedule_parental_consent_request_email!(user)
     render json: {sent: true}
+  end
+
+  # Login-time (or revoked re-request): collect parent email, stamp COPPA token, send consent mail.
+  # Same credential bar as resend_parental_consent. Does not issue a session.
+  def submit_parental_consent_email
+    unless JsonApi::Json.coppa_parental_consent_enabled?
+      return api_error 400, {error: 'Invalid authentication attempt'}
+    end
+    unless params['client_id'].to_s == 'browser' && GoSecure.valid_browser_token?(params['client_secret'])
+      return api_error 400, {error: 'Invalid authentication attempt'}
+    end
+    identification = (params['username'] || params['identification'] || params['user_name']).to_s.strip
+    password = params['password'].to_s
+    parent_email = (
+      params['parent_consent_email'] ||
+      params['parent-consent-email'] ||
+      params['parentConsentEmail'] ||
+      ''
+    ).to_s.strip
+    if identification.blank? || password.blank?
+      return api_error 400, {error: 'Invalid authentication attempt'}
+    end
+    user = User.find_for_login(identification, nil, password)
+    if !user || !user.valid_password?(password)
+      return api_error 400, {error: 'Invalid authentication attempt'}
+    end
+    unless user.coppa_needs_parent_email?
+      return api_error 400, {error: 'Invalid authentication attempt'}
+    end
+    begin
+      unless user.submit_parental_consent_email!(parent_email)
+        return api_error 400, {error: 'Invalid authentication attempt'}
+      end
+    rescue ArgumentError => e
+      return api_error 400, {error: e.message, invalid_parent_consent_email: true}
+    end
+    render json: {sent: true, coppa_parental_consent_pending: true}
   end
 
   # Request (or re-request) EU AI parental consent email for an eu_under_16 user.
