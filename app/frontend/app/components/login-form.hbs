@@ -287,7 +287,7 @@
         {{#if this.coppa_needs_parent_email}}
           <div class="form-group" style="margin-top: 12px;">
             <label for="login_parent_consent_email">{{t "Parent or guardian email" key="coppa_parent_email_label"}}</label>
-            <Input @type="email" @value={{this.parent_consent_email}} class="form-control input-lg" id="login_parent_consent_email" placeholder={{t "Parent's email address (must differ from account email)" key="coppa_parent_email_placeholder"}} autocomplete="email" inputmode="email" />
+            <input type="email" value={{this.parent_consent_email}} class="form-control input-lg" id="login_parent_consent_email" placeholder={{t "Parent's email address (must differ from account email)" key="coppa_parent_email_placeholder"}} autocomplete="email" inputmode="email" {{on "input" (set-field this "parent_consent_email")}} />
             <button type="button" class="login-btn login-btn--outline" style="width: 100%; margin-top: 10px;" disabled={{this.coppaSubmitParentEmailDisabled}} {{on "click" this.onSubmitParentConsentEmail}}>
               {{#if this.coppa_submit_parent_busy}}
                 {{t "Sending Email..." key="sending_email"}}

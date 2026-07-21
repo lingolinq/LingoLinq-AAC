@@ -84,10 +84,10 @@
             <div class="col-sm-6">
               <div class="row">
                 <div class="col-xs-6" style="padding-left: 0;">
-                  {{bound-select select_class="form-control" select_id="offboarding_birth_month" content=this.birthMonths selection=this.birth_month action=(mut this.birth_month) }}
+                  <BoundSelect @select_class="form-control" @select_id="offboarding_birth_month" @content={{this.birthMonths}} @selection={{this.birth_month}} @action={{mut this.birth_month}} />
                 </div>
                 <div class="col-xs-6" style="padding-right: 0;">
-                  {{bound-select select_class="form-control" select_id="offboarding_birth_year" content=this.birthYears selection=this.birth_year action=(mut this.birth_year) }}
+                  <BoundSelect @select_class="form-control" @select_id="offboarding_birth_year" @content={{this.birthYears}} @selection={{this.birth_year}} @action={{mut this.birth_year}} />
                 </div>
               </div>
             </div>
@@ -99,7 +99,7 @@
               {{t "Parent email (optional)" key="offboarding_parent_email_label"}}
             </label>
             <div class="col-sm-6">
-              <Input @type="email" @value={{this.offboarding_parent_email}} class="form-control" id="offboarding_parent_email" placeholder={{t "Parent or guardian email" key="offboarding_parent_email_placeholder"}} autocomplete="email" inputmode="email" />
+              <input type="email" value={{this.offboarding_parent_email}} class="form-control" id="offboarding_parent_email" placeholder={{t "Parent or guardian email" key="offboarding_parent_email_placeholder"}} autocomplete="email" inputmode="email" {{on "input" (set-field this "offboarding_parent_email")}} />
               <span class="help-block">
                 {{t "Optional now. If blank, they will be asked for a parent email the next time they log in." key="offboarding_parent_email_under13_help"}}
               </span>
