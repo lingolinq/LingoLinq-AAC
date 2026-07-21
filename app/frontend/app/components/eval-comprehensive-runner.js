@@ -347,9 +347,26 @@ export default Component.extend({
       }
       // EU AI Act Article 50(1): first-AI-use gate. BLOCK mode (D-03) -- clinician
       // initiated, not mid-communication, so blocking here is safe. Resolves
-      // immediately when no acknowledgement is needed. If the modal is abandoned,
-      // this promise never resolves and no request fires below, and aiBusy is
-      // never set.
+      // immediately when no acknowledgement is needed. Safe to open from here:
+      // eval-comprehensive-runner renders inside eval-quick-screen, a ROUTE page
+      // (templates/eval/quick.hbs), not a modal -- so the disclosure does not
+      // replace its own host the way it would in generate-board.
+      //
+      // GATE SUBJECT: the CLINICIAN (appState.currentUser), deliberately NOT the
+      // evaluated student, even though `user_id` below correctly carries the
+      // student for the COPPA / org-opt-out gate. Two different questions:
+      //   - "may this student's data be processed by AI at all?" -> the student.
+      //     Enforced server-side (EvalNarrator.ai_allowed_for?).
+      //   - "has the human interacting with this AI been told it is an AI?"
+      //     -> Article 50(1) informs the person INTERACTING. That is the SLP
+      //     sitting at the keyboard, who clicks Generate and reads the draft.
+      // The student is also not identifiable in the egress: payload_for_prompt
+      // (lib/eval_narrator.rb) drops the student name and the etiology/diagnosis
+      // outright, and PiiScrubber runs with the resolved student's name
+      // blocklisted. Recording an acknowledgement against a student who never saw
+      // the notice would need a new ARTICLE_50_DISCLOSURE_SOURCES entry and would
+      // make the audit trail less truthful, not more. Reviewed and settled
+      // 2026-07-21; see docs/task-management/2026-07-21-art50-phase3-review-fixes.md.
       article50Gate.presentBlockingGate(this.get('appState')).then(function() {
         if (_this.isDestroyed || _this.isDestroying) { return; }
         _this.set('aiBusy', true);
@@ -393,6 +410,12 @@ export default Component.extend({
           _this.set('aiBusy', false);
           _this.set('aiError', (err && err.error) || i18n.t('comp_ai_failed', "AI narration failed. Please try again."));
         });
+      }, function() {
+        // Art.50 gate not acknowledged. Fail-closed: no narration request fires.
+        // Surface a reason rather than leaving the button looking broken.
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('aiBusy', false);
+        _this.set('aiError', i18n.t('comp_ai_disclosure_required', "Please review the AI transparency notice before generating an AI narrative."));
       });
     },
     editAiNarrative(value) {

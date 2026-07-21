@@ -1886,6 +1886,12 @@ export default Component.extend({
           _this.set('ai_generating', false);
           _this.set('ai_generate_error', msg);
         });
+      }, function() {
+        // Art.50 gate not acknowledged. Fail-closed: no generation request fires.
+        // Surface a reason rather than leaving the button looking broken.
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('ai_generating', false);
+        _this.set('ai_generate_error', i18n.t('generate_disclosure_required', "Please review the AI transparency notice before generating a board with AI."));
       });
     },
     opening: function() {

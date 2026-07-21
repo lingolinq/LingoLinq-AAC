@@ -16,6 +16,16 @@ import modal from './modal';
  */
 
 /**
+ * EU AI Act Article 50(1) transparency notice version, kept in sync with the
+ * backend's LingoLinq::Article50Disclosures::CURRENT_VERSION. Single-sourced
+ * here so the modal (components/ai-disclosure.js) and the passive Preferences
+ * link (controllers/user/preferences.js) cannot drift to different versions --
+ * a bump is one edit, in one place.
+ */
+export var ART50_CURRENT_VERSION = 1;
+export var ART50_DISCLOSURE_URL = '/ai_consent/disclosures/art50_v' + ART50_CURRENT_VERSION;
+
+/**
  * True only when the article_50_disclosure feature flag is on AND there is a
  * current user AND that user's article_50_disclosure_required is true AND
  * article_50_disclosure_shown is false. Fail-safe direction per D-04: gates on
@@ -33,27 +43,49 @@ export function needsAcknowledgement(appState) {
 }
 
 /**
+ * Rejection reason handed to a caller whose gate was bumped by another modal
+ * before the user acknowledged. Exported so callers can tell "the user declined
+ * / never saw it" apart from a genuine error and surface an explanation instead
+ * of failing silently.
+ */
+export var GATE_NOT_ACKNOWLEDGED = 'art50_gate_not_acknowledged';
+
+/**
  * BLOCK-mode gate for board generation / eval narration (D-03). Resolves
  * immediately with no modal when no acknowledgement is needed. Otherwise opens
  * ai-disclosure with scannable:true (03-UI-SPEC.md 6.1) and resolves ONLY on a
  * genuine resolution -- a bumped modal resolving with {replaced: true} is not
- * an acknowledgement (T-03-03-02) and must never let the gated action proceed,
- * so the returned promise is deliberately left pending in that case rather than
- * resolved or rejected. The modal.open() options object below never includes
- * an auto-close-after-inactivity setting (03-UI-SPEC.md 6.6): this modal must
- * not self-dismiss without recording an acknowledgement.
+ * an acknowledgement (T-03-03-02) and must never let the gated action proceed.
+ *
+ * A bump REJECTS with GATE_NOT_ACKNOWLEDGED rather than leaving the promise
+ * pending forever. Fail-closed is right; silent is not -- an unsettled promise
+ * gives the caller no way to tell the user why their button did nothing, and
+ * retains the whole chain. Callers must attach a rejection handler.
+ *
+ * IMPORTANT for callers: do NOT call this from inside a component that is
+ * itself hosted in a modal. modal.open() REPLACES the current modal, so the
+ * gate would destroy its own host and discard whatever the user had entered.
+ * Gate at the point that OPENS the modal instead -- see new-board.js#generateWithAi.
+ *
+ * The modal.open() options object below never includes an auto-close-after-
+ * inactivity setting (03-UI-SPEC.md 6.6): this modal must not self-dismiss
+ * without recording an acknowledgement.
  */
 export function presentBlockingGate(appState) {
   if (!needsAcknowledgement(appState)) {
     return RSVP.resolve();
   }
-  return new RSVP.Promise(function(resolve) {
+  return new RSVP.Promise(function(resolve, reject) {
     modal.open('ai-disclosure', { scannable: true }).then(function(result) {
       if (!result || !result.replaced) {
         resolve(result);
+      } else {
+        // Bumped by another modal, not a genuine acknowledgement. The caller's
+        // gated action must not proceed, but it DOES need to know why.
+        reject({ art50_gate: GATE_NOT_ACKNOWLEDGED });
       }
-      // else: bumped by another modal, not a genuine acknowledgement. Leave
-      // this promise pending -- the caller's gated action must not proceed.
+    }, function(err) {
+      reject(err);
     });
   });
 }
@@ -95,6 +127,9 @@ export function onlyIfGenuinelyResolved(result, model) {
 }
 
 export default {
+  ART50_CURRENT_VERSION: ART50_CURRENT_VERSION,
+  ART50_DISCLOSURE_URL: ART50_DISCLOSURE_URL,
+  GATE_NOT_ACKNOWLEDGED: GATE_NOT_ACKNOWLEDGED,
   needsAcknowledgement: needsAcknowledgement,
   presentBlockingGate: presentBlockingGate,
   maybeShowSessionEntryGate: maybeShowSessionEntryGate,

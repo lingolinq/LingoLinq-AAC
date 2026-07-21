@@ -5,7 +5,8 @@ import {
   needsAcknowledgement,
   presentBlockingGate,
   maybeShowSessionEntryGate,
-  onlyIfGenuinelyResolved
+  onlyIfGenuinelyResolved,
+  GATE_NOT_ACKNOWLEDGED
 } from 'frontend/utils/article50_gate';
 
 function makeAppState(flagOn, user) {
@@ -114,7 +115,7 @@ module('Unit | Utility | article50 gate', function(hooks) {
       });
     });
 
-    test('does NOT resolve when the modal resolves with {replaced: true}', function(assert) {
+    test('does NOT resolve when the modal resolves with {replaced: true}, and rejects with GATE_NOT_ACKNOWLEDGED instead', function(assert) {
       var done = assert.async();
       modal.open = function() {
         return RSVP.resolve({replaced: true});
@@ -122,11 +123,19 @@ module('Unit | Utility | article50 gate', function(hooks) {
       var user = makeUser({article_50_disclosure_required: true, article_50_disclosure_shown: false});
       var appState = makeAppState(true, user);
       var resolved = false;
+      var rejection = null;
       presentBlockingGate(appState).then(function() {
         resolved = true;
+      }, function(err) {
+        rejection = err;
       });
       setTimeout(function() {
+        // Fail-closed: the gated action must not proceed on a bumped modal...
         assert.false(resolved);
+        // ...but the caller still needs to know why, so it can say so instead of
+        // leaving a button that looks broken. An unsettled promise cannot do that.
+        assert.notStrictEqual(rejection, null);
+        assert.strictEqual(rejection.art50_gate, GATE_NOT_ACKNOWLEDGED);
         done();
       }, 50);
     });
