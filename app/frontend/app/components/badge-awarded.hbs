@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -121,7 +121,7 @@
               </div>
             </div>
             {{#if this.model.badge.sound_url_with_fallback}}
-              <audio src={{this.model.badge.sound_url_with_fallback}} autoplay='true' />
+              <audio src={{this.model.badge.sound_url_with_fallback}} autoplay='true' aria-label={{t "Badge sound" key="badge_sound_label"}} />
             {{/if}}
           {{else}}
             <div>
@@ -145,7 +145,7 @@
             </div>
             <div style='width: 200px; margin: 0 auto;'>
               <div class="progress" style="border: 1px solid #aaa;height: 25px;">
-                <div class="progress-bar" role="progressbar" aria-value={{this.model.badge.progress_out_of_100}} aria-valuemin="0" aria-valuemax="100" style={{this.model.badge.progress_style}}>
+                <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" style={{this.model.badge.progress_style}}>
                   <span class="sr-only">
                     {{t "%{pct}% Complete" key="percent_complete" pct=this.model.badge.progress_out_of_100}}
                   </span>
@@ -213,4 +213,4 @@
       {{/if}}
     {{/if}}
   </div>
-{{/modal-dialog}}
+</ModalDialog>

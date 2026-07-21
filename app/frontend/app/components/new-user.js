@@ -43,7 +43,6 @@ export default Component.extend({
         self.send.apply(self, [actionName].concat(bound));
       };
     };
-
     const modalService = this.get('modal');
     const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor('new-user')) ||
                     this.get('model') || {};

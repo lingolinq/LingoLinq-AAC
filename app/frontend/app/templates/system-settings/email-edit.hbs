@@ -13,7 +13,7 @@
   {{#unless this.hasI18nBlocks}}
     <div class="la-system-settings__field">
       <label for="system-email-subject" class="la-system-settings__label-text">{{t "Subject" key="system_settings_email_subject"}}</label>
-      <Input @value={{this.subject}} class="form-control la-system-settings__input" id="system-email-subject" />
+      <input value={{this.subject}} class="form-control la-system-settings__input" id="system-email-subject" {{on "input" (set-field this "subject")}} />
     </div>
   {{/unless}}
 
@@ -35,20 +35,20 @@
           <p class="la-system-settings__hint">{{t "Placeholders:" key="system_settings_email_placeholders"}} {{#each block.placeholders as |ph|}}<code>{{concat "%{" ph "}"}}</code> {{/each}}</p>
         {{/if}}
         {{#if (is-equal block.key "parental_consent_mailer.footer")}}
-          <Textarea @value={{block.value}} class="form-control la-system-settings__textarea" rows="4" id="system-email-i18n-{{block.key}}" {{on "input" (this.ctrlActionEventValueBound "updateI18nBlock" block "value")}} />
+          <textarea class="form-control la-system-settings__textarea" rows="4" id="system-email-i18n-{{block.key}}" {{on "input" (this.ctrlActionEventValueBound "updateI18nBlock" block "value")}} >{{block.value}}</textarea>
         {{else if (is-equal block.key "parental_consent_mailer.intro")}}
-          <Textarea @value={{block.value}} class="form-control la-system-settings__textarea" rows="4" id="system-email-i18n-{{block.key}}" {{on "input" (this.ctrlActionEventValueBound "updateI18nBlock" block "value")}} />
+          <textarea class="form-control la-system-settings__textarea" rows="4" id="system-email-i18n-{{block.key}}" {{on "input" (this.ctrlActionEventValueBound "updateI18nBlock" block "value")}} >{{block.value}}</textarea>
         {{else}}
-          <Input @value={{block.value}} class="form-control la-system-settings__input" id="system-email-i18n-{{block.key}}" {{on "input" (this.ctrlActionEventValueBound "updateI18nBlock" block "value")}} />
+          <input value={{block.value}} class="form-control la-system-settings__input" id="system-email-i18n-{{block.key}}" {{on "input" (this.ctrlActionEventValueBound "updateI18nBlock" block "value")}} />
         {{/if}}
       </div>
     {{/each}}
   {{else if (is-equal this.activeFormat "html")}}
     <p class="la-system-settings__hint">{{t "Advanced template code. Leave unchanged unless you need full control over layout." key="system_settings_email_html_hint"}}</p>
-    <Textarea @value={{this.html_body}} class="form-control la-system-settings__textarea" rows="18" />
+    <textarea class="form-control la-system-settings__textarea" rows="18" aria-label={{t "HTML email template" key="html_email_template"}} {{on "input" (set-field this "html_body")}}>{{this.html_body}}</textarea>
   {{else if (is-equal this.activeFormat "text")}}
     <p class="la-system-settings__hint">{{t "Advanced plain-text template code." key="system_settings_email_text_hint"}}</p>
-    <Textarea @value={{this.text_body}} class="form-control la-system-settings__textarea" rows="18" />
+    <textarea class="form-control la-system-settings__textarea" rows="18" aria-label={{t "Plain-text email template" key="text_email_template"}} {{on "input" (set-field this "text_body")}}>{{this.text_body}}</textarea>
   {{else}}
     <h3 class="la-system-settings__vars-heading">{{t "Branding variables" key="system_settings_email_branding_vars"}}</h3>
     <p class="la-system-settings__hint">

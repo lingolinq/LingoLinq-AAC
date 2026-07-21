@@ -3,7 +3,7 @@
     <label for="license" class="col-sm-2 control-label">{{t "License" key="license"}}</label>
     <div class="col-sm-10">
       <p class='form-control-static'>
-        {{license-attribution license=this.license}}
+        <LicenseAttribution @license={{this.license}} />
       </p>
     </div>
   </div>
@@ -11,7 +11,7 @@
   <div class="form-group">
     <label for="license" class="col-sm-2 control-label">{{t "License" key="license"}}</label>
     <div class="col-sm-10">
-      {{bound-select select_class="form-control" select_id="license" content=this.licenseOptions selection=this.license.type action=(mut this.license.type) }}
+      <BoundSelect @select_class="form-control" @select_id="license" @content={{this.licenseOptions}} @selection={{this.license.type}} @action={{mut this.license.type}} />
     </div>
   </div>
   {{#unless this.private_license}}
@@ -19,10 +19,10 @@
       <label for="license_author" class="col-sm-2 control-label">{{t "Author" key="author"}}</label>
       <div class="col-sm-4">
         <!-- Ember is now barfing if I add more than one element with the same id, so changed to refid for now -->
-        <Input @value={{this.license.author_name}} class="form-control" refid="license_author" placeholder="Name" />
+        <input value={{this.license.author_name}} class="form-control" refid="license_author" placeholder="Name" aria-label={{t "Author name" key="author_name"}} {{on "input" (set-field this "license.author_name")}} />
       </div>
       <div class="col-sm-6">
-        <Input @value={{this.license.author_url}} class="form-control" title="Author URL" placeholder="Author URL" />
+        <input value={{this.license.author_url}} class="form-control" title="Author URL" placeholder="Author URL" aria-label={{t "Author URL" key="author_url"}} {{on "input" (set-field this "license.author_url")}} />
       </div>
     </div>
   {{/unless}}

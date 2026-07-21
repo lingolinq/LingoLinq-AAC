@@ -1,4 +1,4 @@
-{{#modal-dialog full_stretch=true opening=(this.ctrlAction "opening") closing=(this.ctrlAction "closing")}}
+<ModalDialog @full_stretch={{true}} @opening={{this.ctrlAction "opening"}} @closing={{this.ctrlAction "closing"}}>
   <div class="modal-body md-modal-body">
     <div class="book_box">
       <iframe src={{this.book_url}} id="book_preview" frameborder="0" title="Book preview"></iframe>
@@ -7,4 +7,4 @@
       <button class='btn btn-lg btn-default' {{on "click" (this.ctrlAction "close")}}>{{t "Close Book" key="close_book"}}</button>
     </p>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

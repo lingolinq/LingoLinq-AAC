@@ -83,11 +83,17 @@ export default Component.extend({
     return (item && item.name) || '';
   }),
 
-  /** Label shown in trigger: user's choice if set, otherwise derived from selection/content */
-  triggerLabel: computed('_chosenLabel', 'displayLabel', 'placeholder', function() {
+  /** Label shown in trigger: the user's sticky choice ONLY while it still matches
+   *  the current selection (this is what lets it survive a parent re-render that
+   *  doesn't change selection). Once the parent changes selection to a different
+   *  option — or clears it (selection='' / null) — the chosen label is stale, so
+   *  fall back to the reactive selection-derived label / placeholder. */
+  triggerLabel: computed('_chosenLabel', 'selectedItem', 'placeholder', function() {
     const chosen = this.get('_chosenLabel');
-    if (chosen != null && chosen !== '') { return chosen; }
-    return this.get('displayLabel') || this.get('placeholder');
+    const item = this.get('selectedItem');
+    const label = (item && item.name) || '';
+    if (chosen != null && chosen !== '' && item && item.name === chosen) { return chosen; }
+    return label || this.get('placeholder');
   }),
 
   close() {

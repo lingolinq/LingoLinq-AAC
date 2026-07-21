@@ -6,15 +6,15 @@
       <div class="setup-access__card-left">
         <h3 class="setup-access__question">{{t "How will this communicator be selecting buttons?" key="access_selection"}}</h3>
         <div class="setup-access__radios" role="radiogroup" aria-label={{t "How will this communicator be selecting buttons?" key="access_selection"}}>
-          <button type="button" class="setup-access__radio {{if this.setup.access.touch "is-selected"}}" role="radio" aria-checked={{this.setup.access.touch}} {{on "click" (this.ctrlAction "set_preference" "access" "touch" target)}}>
+          <button type="button" class="setup-access__radio {{if this.setup.access.touch "is-selected"}}" role="radio" aria-checked={{this.setup.access.touch}} {{on "click" (this.ctrlAction "set_preference" "access" "touch" this.target)}}>
             <span class="setup-access__radio-dot" aria-hidden="true"></span>
             <span class="setup-access__radio-label">{{t "Touching or Clicking" key="touching_or_clicking"}}</span>
           </button>
-          <button type="button" class="setup-access__radio {{if this.setup.access.scanning "is-selected"}}" role="radio" aria-checked={{this.setup.access.scanning}} {{on "click" (this.ctrlAction "set_preference" "access" "scanning" target)}}>
+          <button type="button" class="setup-access__radio {{if this.setup.access.scanning "is-selected"}}" role="radio" aria-checked={{this.setup.access.scanning}} {{on "click" (this.ctrlAction "set_preference" "access" "scanning" this.target)}}>
             <span class="setup-access__radio-dot" aria-hidden="true"></span>
             <span class="setup-access__radio-label">{{t "Scanning Using a Switch" key="switch_access"}}</span>
           </button>
-          <button type="button" class="setup-access__radio {{if this.setup.access.dwell "is-selected"}}" role="radio" aria-checked={{this.setup.access.dwell}} {{on "click" (this.ctrlAction "set_preference" "access" "dwell" target)}}>
+          <button type="button" class="setup-access__radio {{if this.setup.access.dwell "is-selected"}}" role="radio" aria-checked={{this.setup.access.dwell}} {{on "click" (this.ctrlAction "set_preference" "access" "dwell" this.target)}}>
             <span class="setup-access__radio-dot" aria-hidden="true"></span>
             <span class="setup-access__radio-label">{{t "Eye or Dwell Tracking" key="dwell_tracking"}}</span>
           </button>
@@ -64,11 +64,11 @@
     <h3 class="setup-access__question">{{t "What happens when the communicator selects a button?" key="access_selection_action"}}</h3>
     <p class="setup-access__prompt">{{t "After each tap, %app_name% can return to the home board. That consistent sequence (a motor plan) helps many communicators—we recommend it, but you can change it in Settings." key="home_return_1"}}</p>
     <div class="setup-access__radios" role="radiogroup" aria-label={{t "What happens when the communicator selects a button?" key="access_selection_action"}}>
-      <button type="button" class="setup-access__radio {{if this.setup.home_return.auto_return "is-selected"}}" role="radio" aria-checked={{this.setup.home_return.auto_return}} {{on "click" (this.ctrlAction "set_preference" "home_return" "auto_return" target)}}>
+      <button type="button" class="setup-access__radio {{if this.setup.home_return.auto_return "is-selected"}}" role="radio" aria-checked={{this.setup.home_return.auto_return}} {{on "click" (this.ctrlAction "set_preference" "home_return" "auto_return" this.target)}}>
         <span class="setup-access__radio-dot" aria-hidden="true"></span>
         <span class="setup-access__radio-label">{{t "Return to the Home Board" key="return_to_the_home_board"}}</span>
       </button>
-      <button type="button" class="setup-access__radio {{if this.setup.home_return.stay "is-selected"}}" role="radio" aria-checked={{this.setup.home_return.stay}} {{on "click" (this.ctrlAction "set_preference" "home_return" "stay" target)}}>
+      <button type="button" class="setup-access__radio {{if this.setup.home_return.stay "is-selected"}}" role="radio" aria-checked={{this.setup.home_return.stay}} {{on "click" (this.ctrlAction "set_preference" "home_return" "stay" this.target)}}>
         <span class="setup-access__radio-dot" aria-hidden="true"></span>
         <span class="setup-access__radio-label">{{t "Stay on the Current Board" key="stay_on_the_current_board"}}</span>
       </button>

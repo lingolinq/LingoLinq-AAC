@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -12,19 +12,19 @@
       <div class="form-group">
         <label for="email" class="col-sm-2 control-label">{{t "Email" key="email"}}</label>
         <div class="col-sm-10">
-          <Input @value={{this.email}} class="form-control" id="email" placeholder="Email Address" />
+          <input value={{this.email}} class="form-control" id="email" placeholder="Email Address" {{on "input" (set-field this "email")}} />
         </div>
       </div>
       <div class="form-group">
         <label for="subject" class="col-sm-2 control-label">{{t "Subject" key="subject"}}</label>
         <div class="col-sm-10">
-          <Input @value={{this.subject}} class="form-control" id="subject" placeholder="Email Subject Line" />
+          <input value={{this.subject}} class="form-control" id="subject" placeholder="Email Subject Line" {{on "input" (set-field this "subject")}} />
         </div>
       </div>
       <div class="form-group">
         <label for="message" class="col-sm-2 control-label">{{t "Message" key="message"}}</label>
         <div class="col-sm-10">
-          <Textarea @value={{this.message}} class="form-control" id="message" placeholder="Message" rows={{3}} />
+          <textarea class="form-control" id="message" placeholder="Message" rows={{3}} {{on "input" (set-field this "message")}}>{{this.message}}</textarea>
         </div>
       </div>
       <div class="form-group">
@@ -32,8 +32,8 @@
           {{#if this.loading}}
             <p>{{t "Sending Email..." key="sending_email"}}</p>
           {{else}}
-            <button class='btn btn-default' {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
-            <button class='btn btn-primary' disabled={{this.no_email}} {{on "click" (this.ctrlAction "confirm")}}>{{t "Send Email" key="send_email"}}</button>
+            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
+            <button type="button" class='btn btn-primary' disabled={{this.no_email}} {{on "click" (this.ctrlAction "confirm")}}>{{t "Send Email" key="send_email"}}</button>
           {{/if}}
           {{#if this.error}}
             <p class='text-danger'>{{t "There was an unexpected problem sending the email" key="error_sending_email"}}</p>
@@ -42,4 +42,4 @@
       </div>
     </form>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

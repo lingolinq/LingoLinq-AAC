@@ -80,24 +80,15 @@
         </p>
         <div class="evq-comp__sett-field">
           <label class="evq-comp__sett-label" for="evq-sett-student">{{t "Student" key="comp_sett_student"}}</label>
-          <Textarea @id="evq-sett-student" class="evq-comp__sett-input" rows="3"
-                    placeholder={{t "Strengths, needs, communication history, current AAC use…" key="comp_sett_student_placeholder"}}
-                    @value={{this.session.sett.student}}
-                    @key-up={{this.ctrlActionEventValueBound "settChange" "student" "value"}} />
+          <textarea id="evq-sett-student" class="evq-comp__sett-input" rows="3" placeholder={{t "Strengths, needs, communication history, current AAC use…" key="comp_sett_student_placeholder"}} {{on "keyup" (this.ctrlActionEventValueBound "settChange" "student" "value")}}>{{this.session.sett.student}}</textarea>
         </div>
         <div class="evq-comp__sett-field">
           <label class="evq-comp__sett-label" for="evq-sett-environment">{{t "Environment" key="comp_sett_environment"}}</label>
-          <Textarea @id="evq-sett-environment" class="evq-comp__sett-input" rows="3"
-                    placeholder={{t "Classrooms, home, community partners, supports, barriers…" key="comp_sett_environment_placeholder"}}
-                    @value={{this.session.sett.environment}}
-                    @key-up={{this.ctrlActionEventValueBound "settChange" "environment" "value"}} />
+          <textarea id="evq-sett-environment" class="evq-comp__sett-input" rows="3" placeholder={{t "Classrooms, home, community partners, supports, barriers…" key="comp_sett_environment_placeholder"}} {{on "keyup" (this.ctrlActionEventValueBound "settChange" "environment" "value")}}>{{this.session.sett.environment}}</textarea>
         </div>
         <div class="evq-comp__sett-field">
           <label class="evq-comp__sett-label" for="evq-sett-task">{{t "Task" key="comp_sett_task"}}</label>
-          <Textarea @id="evq-sett-task" class="evq-comp__sett-input" rows="3"
-                    placeholder={{t "What does the student need to do? Curriculum, social, daily living tasks…" key="comp_sett_task_placeholder"}}
-                    @value={{this.session.sett.task}}
-                    @key-up={{this.ctrlActionEventValueBound "settChange" "task" "value"}} />
+          <textarea id="evq-sett-task" class="evq-comp__sett-input" rows="3" placeholder={{t "What does the student need to do? Curriculum, social, daily living tasks…" key="comp_sett_task_placeholder"}} {{on "keyup" (this.ctrlActionEventValueBound "settChange" "task" "value")}}>{{this.session.sett.task}}</textarea>
         </div>
         <div class="evq-comp__da-actions">
           <button type="button" class="evq-btn evq-btn--primary" {{on "click" (this.ctrlAction "settNext")}}>
@@ -117,9 +108,7 @@
             {{t "Generate a draft SLP narrative from the evaluation data. The AI summarizes the recommendation, dynamic-assessment results, and SETT framework into IEP-ready prose — you review and edit before saving." key="comp_ai_intro"}}
           </p>
           {{#if this.aiNarrative}}
-            <Textarea class="evq-comp__ai-textarea" rows="14"
-                      @value={{this.aiNarrative}}
-                      @key-up={{this.ctrlActionEventValue "editAiNarrative" "value"}} />
+            <textarea class="evq-comp__ai-textarea" rows="14" aria-label={{t "AI narrative draft" key="ai_narrative_draft"}} {{on "keyup" (this.ctrlActionEventValue "editAiNarrative" "value")}}>{{this.aiNarrative}}</textarea>
           {{else}}
             <div class="evq-comp__ai-empty">
               <p>{{t "No narrative drafted yet. Click below to generate." key="comp_ai_empty_state"}}</p>

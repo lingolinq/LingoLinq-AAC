@@ -202,7 +202,7 @@
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-06"
       },
-      "contentHash": "ec3fe85db672211b6e5a309ca811cbc3b9c6c5e245a3358a67eb81ac4813029c",
+      "contentHash": "c9b9dbf83b4b4b266a531cf5e06a52db0a6dc476536e6e1c62121605f0849cf8",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-9b299a785b"
@@ -228,7 +228,7 @@
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-06"
       },
-      "contentHash": "bf8179b6fd45a426053e11a39dfb4195a881680eb9171dde712eb4ede3946af9",
+      "contentHash": "4a4cdfd19b7c1eb2ffe78c81af15eea6daa3f7f38f9ce564a28c485873c1bf8f",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
@@ -251,20 +251,20 @@
         "WCAG",
         "SOC2"
       ],
-      "lastReviewed": "2026-06-20",
-      "nextReviewDue": "2026-09-20",
+      "lastReviewed": "2026-07-16",
+      "nextReviewDue": "2026-10-16",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-06-20"
+        "attestedDate": "2026-07-16"
       },
-      "contentHash": "a81f72f13bef3b5947add2eb8ee95e1ccbab953bd93fd88921d9a1658b3370be",
+      "contentHash": "83e981659f64afe06929bc48a53dd702de2d365ae575fd3f1843e686c7252c57",
       "bundles": [
         "school-dpa-package"
       ],
       "mirrors": [
         {
           "system": "drive",
-          "location": "https://docs.google.com/document/d/1A2cM0m6GvErHwpiMgns258NbN_M2krNB_HyedHJkqpk/edit"
+          "location": "https://docs.google.com/document/d/1yx-jVYesJ0ZQM0myir6d0rRMMzGEoH5EL5_luicucYo/edit"
         }
       ],
       "id": "DOC-4e3b7fb1fb"
@@ -287,7 +287,7 @@
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-14"
       },
-      "contentHash": "3bc97c8693637dea77183e6126e8443256c1a47abdc4279d9b58cb142b6f78fb",
+      "contentHash": "3360073f20229ecdd4139385925a7ec8311dad8c16d520ac617f25a8db3efa12",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
@@ -377,7 +377,7 @@
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-06"
       },
-      "contentHash": "40439354e86d796f276b2ab74eb07c8b342728e678ef17a8e05e6e8dc2b473b9",
+      "contentHash": "a47334f5ac69b3dea809a4c1147c171974f5f21f8157e6bd15abcd21b632000b",
       "bundles": [
         "school-dpa-package"
       ],
@@ -531,6 +531,68 @@
       "id": "DOC-0ef0df93d9"
     },
     {
+      "title": "Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record",
+      "description": "In-repo acceptance record for the GCP Cloud Data Processing Addendum and HIPAA Business Associate Addendum (both accepted 2026-07-12) and the Standard Contractual Clauses (EU GDPR / UK GDPR / Swiss FDPA, certified 2026-07-14) on project lingolinq-prod, accepted by scot@lingolinq.com. Google issues no countersigned PDF; the console acceptance record is the authoritative evidence (Drive companion doc + screenshots mirrored). Infrastructure BAA covering products on Google's HIPAA Covered Products list (Cloud Run / Cloud SQL / Memorystore); does NOT cover the Anthropic AI-egress path, and does not extend to Vertex AI as a whole (any future Vertex/Gemini inference path needs per-product covered-service verification; the fallback was disabled 2026-07-09, PR #570).",
+      "type": "evidence",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/GCP_BAA_ACCEPTED.md",
+      "status": "approved",
+      "frameworks": [
+        "HIPAA",
+        "GDPR"
+      ],
+      "lastReviewed": "2026-07-16",
+      "nextReviewDue": "2027-07-16",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-07-16"
+      },
+      "contentHash": "d142ea3d7a91faefba07bc617c222d33b3de8b12c342d5a584e373776d582a95",
+      "bundles": [],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/1CcyQpNfg8aiuY5VA7RHYbYqQEQtzHAdEkjpxcQIhNmM/edit"
+        }
+      ],
+      "notes": "Parity with the AWS acceptance record (docs/legal/AWS_BAA_ACCEPTED.md). Companion Drive doc plus console screenshots ('Google Cloud Console Agreements 07-14-2026') are the source evidence, mirrored here. Referenced by docs/legal/SUBPROCESSORS.md section 5.7, COMPLIANCE.md section 4, and docs/legal/COMPLIANCE_POSTURE_REPORT.md. Approved and attested by Scot Wahlquist 2026-07-16 per explicit instruction; git contentHash is computed and CI-verified.",
+      "id": "DOC-5b14b08908"
+    },
+    {
+      "title": "Anthropic HIPAA-Ready BAA Acceptance Record",
+      "description": "In-repo acceptance record for the Anthropic HIPAA-Ready Business Associate Agreement (2026-05-06 document revision), executed and HIPAA readiness enabled 2026-07-18 on the runtime-dedicated LingoLinq, LLC Anthropic API org by Scot Wahlquist. Covers the direct Anthropic runtime AI egress path (word prediction, board generation, eval-narrative drafting): PHI permitted on the Messages API only, in-scope models only (Haiku 4.5 / Opus 4.7 / Sonnet), no ZDR required; excluded features (Files/Batch/Skills/Code-Exec/Computer-Use/Web-Fetch) blocked org-wide. Verified live (Messages API 200, Files API 400). Distinct from the AWS and GCP infrastructure BAAs. All four runtime seams are in-scope under the BAA; the eval-narration seam is classified (Scot 2026-07-19) as an assistive-technology access assessment, NOT a HIPAA Healthcare Activity, so no licensed-clinician gate applies (see FINDINGS.json LL-3a1c317a88). Executed-agreement PDFs mirrored to Drive 'Compliance Audits'.",
+      "type": "evidence",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/ANTHROPIC_BAA_ACCEPTED.md",
+      "status": "approved",
+      "frameworks": [
+        "HIPAA",
+        "GDPR"
+      ],
+      "lastReviewed": "2026-07-18",
+      "nextReviewDue": "2027-07-18",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-07-18"
+      },
+      "bundles": [],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://drive.google.com/file/d/1sL3di9GRP4hlids-baZDT26n3SKjzwD5/view"
+        },
+        {
+          "system": "drive",
+          "location": "https://drive.google.com/file/d/1QQV-PrgsNtnQZtwa2BJ0bf1qrOG54Upr/view"
+        }
+      ],
+      "notes": "Parity with the AWS (docs/legal/AWS_BAA_ACCEPTED.md) and GCP (docs/legal/GCP_BAA_ACCEPTED.md) acceptance records. Model-provider BAA for the Anthropic runtime egress path; supersedes the prior 'no model-provider BAA / provisional pending CEO review' posture in COMPLIANCE.md, SUBPROCESSORS.md row 4, GCP_BAA_ACCEPTED.md, and AI_GOVERNANCE_MEMO.md (all reconciled in the same PR). Live enablement verified 2026-07-18 (Messages API 200; Files API 400 'not available for HIPAA-regulated organizations without Zero Data Retention'). Attested by Scot Wahlquist 2026-07-18 per explicit confirmation; git contentHash computed and CI-verified. The broader AI_GOVERNANCE_MEMO body was fully updated and re-attested by Scot Wahlquist on 2026-07-19 in the AI governance memo re-attestation PR.",
+      "id": "DOC-ab3a8c3ed4",
+      "contentHash": "5adbe44783d9d74797498415714bb0c84c81dc943ffcd7911ac4284624f9b0d4"
+    },
+    {
       "title": "AWS BAA Acceptance Record",
       "description": "Acceptance/provenance note for the signed AWS BAA.",
       "type": "evidence",
@@ -605,7 +667,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "06abe69d3018c1c38d0fa1ba74584e802834a96b39072d74c7efdcab77d731b7",
+      "contentHash": "ea03bbefb37e1e3f5a7f602a216c11e2e6abe0b0af097b76a2a1e3054cdc413e",
       "bundles": [],
       "mirrors": [
         {

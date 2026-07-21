@@ -72,7 +72,7 @@ jobs:
       - name: Setup Node 20
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Cache node_modules and Puppeteer Chrome
         uses: actions/cache@v4
@@ -87,6 +87,14 @@ jobs:
       - name: Install frontend dependencies
         working-directory: app/frontend
         run: npm install
+
+      # Template lint gate: fails on any NEW ember-template-lint violation (incl.
+      # no-implicit-this bare-property refs that crash render in Ember 5.x).
+      # Pre-existing violations are grandfathered in .lint-todo (suppressed until
+      # their per-entry error date); this only blocks newly-introduced ones.
+      - name: Lint Ember templates
+        working-directory: app/frontend
+        run: npm run lint:hbs
 
       # Puppeteer downloads Chrome under ~/.cache/puppeteer, not inside node_modules.
       # Restoring only node_modules leaves executablePath() pointing at a missing binary.
@@ -174,7 +182,7 @@ jobs:
       - name: Setup Node 20
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Run npm audit (frontend CVE check)
         working-directory: app/frontend

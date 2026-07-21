@@ -19,42 +19,23 @@
 
   <main class="evq__body">
     {{#if this.isConfiguring}}
-      {{eval-quick-intake user=this.user onComplete=(this.ctrlAction "intakeCompleted")}}
+      <EvalQuickIntake @user={{this.user}} @onComplete={{this.ctrlAction "intakeCompleted"}} />
     {{/if}}
 
     {{#if this.isScreening}}
-      {{eval-quick-runner
-        session=this.session
-        onEvent=(this.ctrlAction "subtestEvent")
-        onAdvance=(this.ctrlAction "advanceSubtest")
-        onFinish=(this.ctrlAction "reviewSession")}}
+      <EvalQuickRunner @session={{this.session}} @onEvent={{this.ctrlAction "subtestEvent"}} @onAdvance={{this.ctrlAction "advanceSubtest"}} @onFinish={{this.ctrlAction "reviewSession"}} />
     {{/if}}
 
     {{#if this.isTargeting}}
-      {{eval-targeted-runner
-        session=this.session
-        user=this.user
-        onEvent=(this.ctrlAction "subtestEvent")
-        onAdvance=(this.ctrlAction "advanceSubtest")
-        onFinish=(this.ctrlAction "reviewSession")}}
+      <EvalTargetedRunner @session={{this.session}} @user={{this.user}} @onEvent={{this.ctrlAction "subtestEvent"}} @onAdvance={{this.ctrlAction "advanceSubtest"}} @onFinish={{this.ctrlAction "reviewSession"}} />
     {{/if}}
 
     {{#if this.isComprehensive}}
-      {{eval-comprehensive-runner
-        session=this.session
-        user=this.user
-        onEvent=(this.ctrlAction "subtestEvent")
-        onAdvance=(this.ctrlAction "advanceSubtest")
-        onFinish=(this.ctrlAction "reviewSession")}}
+      <EvalComprehensiveRunner @session={{this.session}} @user={{this.user}} @onEvent={{this.ctrlAction "subtestEvent"}} @onAdvance={{this.ctrlAction "advanceSubtest"}} @onFinish={{this.ctrlAction "reviewSession"}} />
     {{/if}}
 
     {{#if this.isReviewing}}
-      {{eval-quick-report
-        session=this.session
-        user=this.user
-        onSave=(this.ctrlAction "saveSession")
-        onPromote=(this.ctrlAction "promoteToTargeted")
-        onPromoteComprehensive=(this.ctrlAction "promoteToComprehensive")}}
+      <EvalQuickReport @session={{this.session}} @user={{this.user}} @onSave={{this.ctrlAction "saveSession"}} @onPromote={{this.ctrlAction "promoteToTargeted"}} @onPromoteComprehensive={{this.ctrlAction "promoteToComprehensive"}} />
     {{/if}}
   </main>
 </div>

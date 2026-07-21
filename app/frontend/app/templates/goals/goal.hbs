@@ -97,44 +97,44 @@
         <div class="form-group">
           <label for="sequence_summary" class="col-sm-2 control-label">{{t "Sequence" key="sequence"}}</label>
           <div class="col-sm-5">
-            <Input @value={{this.model.sequence_summary}} class="form-control" id="sequence_summary" placeholder="short sequence summary" />
+            <input value={{this.model.sequence_summary}} class="form-control" id="sequence_summary" placeholder="short sequence summary" {{on "input" (set-field this "model.sequence_summary")}} />
           </div>
         </div>
         <div class="form-group">
           <label for="sequence_description" class="col-sm-2 control-label">{{t "Details" key="details"}}</label>
           <div class="col-sm-5">
-            <Textarea @value={{this.model.sequence_description}} class="form-control" id="sequence_description" placeholder="longer, detailed description of the goal sequence" />
+            <textarea class="form-control" id="sequence_description" placeholder="longer, detailed description of the goal sequence" {{on "input" (set-field this "model.sequence_description")}}>{{this.model.sequence_description}}</textarea>
           </div>
         </div>
       {{/if}}
       <div class="form-group">
         <label for="summary" class="col-sm-2 control-label">{{t "Summary" key="summary"}}</label>
         <div class="col-sm-5">
-          <Input @value={{this.model.summary}} class="form-control" id="summary" placeholder="short goal summary" />
+          <input value={{this.model.summary}} class="form-control" id="summary" placeholder="short goal summary" {{on "input" (set-field this "model.summary")}} />
         </div>
       </div>
       <div class="form-group">
         <label for="description" class="col-sm-2 control-label">{{t "Description" key="description"}}</label>
         <div class="col-sm-5">
-          <Textarea @value={{this.model.description}} class="form-control" id="description" placeholder="longer, detailed description of the goal" />
+          <textarea class="form-control" id="description" placeholder="longer, detailed description of the goal" {{on "input" (set-field this "model.description")}}>{{this.model.description}}</textarea>
         </div>
       </div>
       {{#if this.model.sequence}}
         <div class="form-group">
           <label for="advancement" class="col-sm-2 control-label">{{t "Advances" key="advances"}}</label>
           <div class="col-sm-2">
-            {{bound-select select_class="form-control" select_id="advancement" content=this.advance_options selection=this.model.advance_type action=(mut this.model.advance_type) }}
+            <BoundSelect @select_class="form-control" @select_id="advancement" @content={{this.advance_options}} @selection={{this.model.advance_type}} @action={{mut this.model.advance_type}} />
           </div>
           {{#if this.model.date_advance}}
             <div class='col-sm-3'>
-              <Input @value={{this.model.goal_advances_at}} class="form-control" id="date_advance" placeholder="month, day" />
+              <input value={{this.model.goal_advances_at}} class="form-control" id="date_advance" placeholder="month, day" {{on "input" (set-field this "model.goal_advances_at")}} />
             </div>
           {{else if this.model.duration_advance}}
             <div class='col-sm-1'>
-              <Input type="number" @value={{this.model.goal_duration_number}} class="form-control" id="duration_advance" placeholder="##" />
+              <input value={{this.model.goal_duration_number}} type="number" class="form-control" id="duration_advance" placeholder="##" {{on "input" (set-field this "model.goal_duration_number")}} />
             </div>
             <div class='col-sm-2'>
-              {{bound-select select_class="form-control" select_id="duration_advance_at_unit" content=this.advance_unit_options selection=this.model.goal_duration_unit action=(mut this.model.goal_duration_unit) }}
+              <BoundSelect @select_class="form-control" @select_id="duration_advance_at_unit" @content={{this.advance_unit_options}} @selection={{this.model.goal_duration_unit}} @action={{mut this.model.goal_duration_unit}} />
             </div>
           {{/if}}
         </div>
@@ -148,7 +148,7 @@
             {{else if this.status.loading_templates_error}}
               <p class='form-control-static'>{{t "There was an unexpected error loading templates..." key="error_loading_templates2"}}</p>
             {{else}}
-              {{bound-select select_class="form-control" select_id="next_template_id" content=this.template_options selection=this.model.next_template_id action=(mut this.model.next_template_id) }}
+              <BoundSelect @select_class="form-control" @select_id="next_template_id" @content={{this.template_options}} @selection={{this.model.next_template_id}} @action={{mut this.model.next_template_id}} />
             {{/if}}
           </div>
         </div>
@@ -157,7 +157,7 @@
         <div class="form-group">
           <label for="new_summary" class="col-sm-2 control-label">&nbsp;</label>
           <div class="col-sm-5">
-            <Input @value={{this.model.new_next_template_summary}} class="form-control" id="new_summary" placeholder="short sequence summary" />
+            <input value={{this.model.new_next_template_summary}} class="form-control" id="new_summary" placeholder="short sequence summary" {{on "input" (set-field this "model.new_next_template_summary")}} />
           </div>
         </div>
       {{/if}}
@@ -169,7 +169,7 @@
               <div class="col-sm-5">
                 <div class="checkbox big_checkbox">
                   <label>
-                    <Input @type="checkbox" @checked={{this.model.template_header}} id="template_header" />
+                    <input type="checkbox" checked={{this.model.template_header}} id="template_header" {{on "change" (set-field this "model.template_header" "checkbox")}} />
                     {{t "This goal is a public template for others to use" key="make_goal_a_template"}}
                   </label>
                 </div>
@@ -185,14 +185,14 @@
           <div class="col-sm-5">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.model.auto_assessment}} id="auto_assessment" />
+                <input type="checkbox" checked={{this.model.auto_assessment}} id="auto_assessment" {{on "change" (set-field this "model.auto_assessment" "checkbox")}} />
                 {{t "Assess this goal daily based on usage data" key="assess_goal_daily"}}
               </label>
             </div>
           </div>
         </div>
         {{#if this.model.assessment_badge}}
-          {{badge-settings badge=this.model.assessment_badge assessment=true}}
+          <BadgeSettings @badge={{this.model.assessment_badge}} @assessment={{true}} />
         {{/if}}
       {{/unless}}
       <div class="form-group">
@@ -200,7 +200,7 @@
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.model.badges_enabled}} id="badges" />
+              <input type="checkbox" checked={{this.model.badges_enabled}} id="badges" {{on "change" (set-field this "model.badges_enabled" "checkbox")}} />
               {{t "This goal will have one or more badges attached" key="goal_has_badges"}}
             </label>
           </div>
@@ -210,15 +210,15 @@
         <div class="form-group">
           <label for="badge_name" class="col-sm-2 control-label">{{t "Badge Name" key="badge_name"}}</label>
           <div class="col-sm-5">
-            <Input @value={{this.model.badge_name}} class="form-control" id="badge_name" placeholder="optional badge name" />
+            <input value={{this.model.badge_name}} class="form-control" id="badge_name" placeholder="optional badge name" {{on "input" (set-field this "model.badge_name")}} />
           </div>
         </div>
         {{#each this.model.badges as |badge index|}}
-          {{badge-settings badge=badge index=index remove_badge="remove_badge"}}
+          <BadgeSettings @badge={{badge}} @index={{index}} @remove_badge="remove_badge" />
         {{/each}}
         <div class="form-group">
           <div class="col-sm-5">
-            <button class='btn btn-default' {{on "click" (this.ctrlAction "add_badge_level")}}>{{t "Add Badge Level" key="add_badge_level"}}</button>
+            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "add_badge_level")}}>{{t "Add Badge Level" key="add_badge_level"}}</button>
           </div>
         </div>
       {{/if}}
@@ -274,7 +274,7 @@
                     </span>
                   {{else if badge.user_badge}}
                     <div class="progress" style="border: 1px solid #aaa;height: 15px; margin-bottom: 0;">
-                      <div class="progress-bar" role="progressbar" aria-value={{badge.user_badge.progress_out_of_100}} aria-valuemin="0" aria-valuemax="100" style={{badge.user_badge.progress_style}}>
+                      <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" style={{badge.user_badge.progress_style}}>
                         <span class="sr-only">
                           {{t "%{pct}% Complete" key="percent_complete" pct=badge.user_badge.progress_out_of_100}}
                         </span>
