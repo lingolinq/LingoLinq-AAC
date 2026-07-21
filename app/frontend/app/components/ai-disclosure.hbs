@@ -1,4 +1,10 @@
-<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}} @uncloseable="true" @labelledBy="ai-disclosure-title" @describedBy="ai-disclosure-summary">
+{{!-- No @action/@opening/@closing: this modal is @uncloseable, so modal-dialog's
+      dismiss path never runs, and the only exit (Acknowledge) is handled by this
+      component's own action. terms-agree.hbs passes those args bound to properties
+      its component never defines, so they resolve to undefined and modal-dialog's
+      typeof guards skip them -- copying that pattern here would have been dead
+      wiring that reads as live. --}}
+<ModalDialog @uncloseable="true" @labelledBy="ai-disclosure-title" @describedBy="ai-disclosure-summary">
   <div class="la-support-modal-wrap la-ai-disclosure-modal-wrap">
     <div class="la-modal-header" style="flex-direction: column; align-items: flex-start; gap: 4px;">
       <span class="la-modal-header-label la-modal-header-label--regular">{{t "AI Transparency Notice" key="ai_disclosure_eyebrow"}}</span>

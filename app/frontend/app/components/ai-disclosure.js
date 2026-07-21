@@ -1,13 +1,11 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import persistence from '../utils/persistence';
-
-// EU AI Act Article 50(1) transparency notice (VPC Phase 3, F1). Version kept in
-// sync with the backend's LingoLinq::Article50Disclosures::CURRENT_VERSION (Plan
-// 03-01) -- if that constant bumps, only this literal needs to change; nothing
-// else in this component depends on the exact version number.
-var ART50_CURRENT_VERSION = 1;
-var ART50_DISCLOSURE_URL = '/ai_consent/disclosures/art50_v' + ART50_CURRENT_VERSION;
+// EU AI Act Article 50(1) transparency notice (VPC Phase 3, F1). The version and
+// URL live in utils/article50_gate so this modal and the passive Preferences link
+// cannot drift apart; that constant tracks the backend's
+// LingoLinq::Article50Disclosures::CURRENT_VERSION (Plan 03-01).
+import { ART50_DISCLOSURE_URL } from '../utils/article50_gate';
 
 /**
  * The one shared, accessible "you are about to use AI" modal (F1). Composes
@@ -44,18 +42,7 @@ export default Component.extend({
 
   didInsertElement() {
     this._super(...arguments);
-    var self = this;
-    this.onClose = function() { self.send('close'); };
-    this.onOpening = function() { self.send('opening'); };
-    this.onClosing = function() { self.send('closing'); };
     this.fetchDisclosure();
-  },
-
-  willDestroyElement() {
-    this._super(...arguments);
-    this.onClose = null;
-    this.onOpening = null;
-    this.onClosing = null;
   },
 
   /**

@@ -276,20 +276,27 @@
       <div class="form-group">
         <label class="col-sm-3 control-label">{{t "AI Transparency Notice" key='ai_disclosure_pref_label'}}</label>
         <div class="col-sm-9">
+          {{!-- Both states link to the notice rather than opening the ai-disclosure
+                modal. That modal is uncloseable BLOCK mode by design (no Escape, no
+                backdrop dismiss, one exit: Acknowledge), which is correct for a gate
+                the user hit on the way to an AI feature, and wrong for a voluntary
+                read from Preferences -- it would trap someone who just wanted to
+                re-read the notice into re-acknowledging to escape, with no cancel
+                path at all for a switch-scanning user. --}}
           {{#if this.model.article_50_disclosure_shown}}
             <p class="form-control-static">
               {{t "Acknowledged." key='ai_disclosure_pref_status_acknowledged'}}
             </p>
-            <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "review_article_50_disclosure")}}>
+            <a href={{this.article_50_disclosure_url}} target="_blank" rel="noopener" class="btn btn-default">
               {{t "View Notice Again" key='ai_disclosure_pref_view_again'}}
-            </button>
+            </a>
           {{else}}
             <p class="form-control-static">
               {{t "Not yet acknowledged. AI word suggestions are using the standard, non-AI fallback until you review this." key='ai_disclosure_pref_status_unacknowledged'}}
             </p>
-            <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "review_article_50_disclosure")}}>
+            <a href={{this.article_50_disclosure_url}} target="_blank" rel="noopener" class="btn btn-default">
               {{t "Review Notice" key='ai_disclosure_pref_review_button'}}
-            </button>
+            </a>
           {{/if}}
         </div>
       </div>

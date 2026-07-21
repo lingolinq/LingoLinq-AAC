@@ -18,6 +18,7 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { htmlSafe } from '@ember/template';
 import editManager from '../../utils/edit_manager';
+import { ART50_DISCLOSURE_URL } from '../../utils/article50_gate';
 
 var sidebarActionCodeTemplates = {
   ':timer': ':timer(30s)',
@@ -135,6 +136,12 @@ export default Controller.extend({
   // Alias for template compatibility (template uses this.app_state)
   app_state: alias('appState'),
   router: service('router'),
+
+  // EU AI Act Article 50(1) notice URL for the passive Preferences affordance
+  // (03-UI-SPEC 7.3). A plain link, NOT the ai-disclosure modal: that modal is
+  // uncloseable BLOCK mode and would trap a user who opened it just to re-read
+  // the notice. Version single-sourced from utils/article50_gate.
+  article_50_disclosure_url: ART50_DISCLOSURE_URL,
 
   init() {
     this._super(...arguments);
@@ -1281,23 +1288,6 @@ export default Controller.extend({
     },
     resend_eu_ai_parental_consent: function() {
       this.send('open_eu_ai_parental_consent_modal', 'ai_features_enabled');
-    },
-    // Passive affordance (03-UI-SPEC 7.3): opens the same shared, BLOCK-mode,
-    // uncloseable ai-disclosure modal used at the session-entry and BLOCK-
-    // surface trigger points (D-06), scannable exactly as at the other three
-    // (03-UI-SPEC 6.1). A resolved .then() here is not necessarily a genuine
-    // acknowledgement -- modal.open() resolves a bumped modal's promise with
-    // {replaced: true} -- so only a non-replaced resolution updates the
-    // locally-displayed status (T-03-05-05: the row still reads the
-    // server-sourced model attribute; this local set just avoids a reload).
-    review_article_50_disclosure: function() {
-      var _this = this;
-      modal.open('ai-disclosure', { scannable: true }).then(function(result) {
-        if(_this.isDestroyed || _this.isDestroying) { return; }
-        if(!result || !result.replaced) {
-          _this.set('model.article_50_disclosure_shown', true);
-        }
-      });
     },
     cancelSave: function() {
       this.set('advanced', false);
