@@ -6,7 +6,7 @@
 <div class="app-shell" ...attributes>
 
   {{!-- ======== TOP BAR ======== --}}
-  <header class="app-topbar" role="banner">
+  <header class="app-topbar">
     <div class="topbar__logo" aria-label="VoiceReach">
       Voice<span>Reach</span>
     </div>
@@ -64,12 +64,12 @@
   </aside>
 
   {{!-- ======== MAIN CONTENT ======== --}}
-  <main class="app-main" id="main-content" role="main">
+  <main class="app-main" id="main-content">
     {{yield}}
   </main>
 
   {{!-- ======== RIGHT PANEL ======== --}}
-  <aside class="app-panel" role="complementary" aria-label="Activity panel">
+  <aside class="app-panel" aria-label="Activity panel">
 
     {{!-- Recent Phrases --}}
     <div class="panel-card">

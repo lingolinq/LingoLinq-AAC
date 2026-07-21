@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="la-sync-details-modal-wrap">
     <div class="la-modal-header">
       <div class="la-modal-header-icon la-modal-header-icon--sync" aria-hidden="true">
@@ -133,4 +133,4 @@
       <button type="button" class="la-record-note-cancel-btn" {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</button>
     </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

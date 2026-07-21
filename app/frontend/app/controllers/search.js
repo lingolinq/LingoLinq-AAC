@@ -30,6 +30,66 @@ export default Controller.extend({
     res.push({name: i18n.t('any_language', "Any Language"), id: 'any'});
     return res;
   }),
+
+  // ── Client-side panel filter ────────────────────────────────────
+  // Narrows the two-pane panel list only (name/key match). The online
+  // search box (SearchBoardJump → load_results) still queries the server,
+  // so the user keeps both: search the internet + filter what's shown.
+  panel_filter: '',
+  panel_filter_active: computed('panel_filter', function() {
+    return !!(this.get('panel_filter') || '').trim();
+  }),
+  /* The user's default language for the filter — the resolved preferred locale,
+     mirroring routes/search.js#model (the "unfiltered" language state). A locale
+     that differs from this is a deliberate language filter. */
+  default_locale: computed(function() {
+    var preferred = (i18n.langs || {}).preferred || (typeof window !== 'undefined' && window.navigator && window.navigator.language) || 'en';
+    var list = i18n.get('translatable_locales') || {};
+    var normalized = String(preferred).replace(/-/g, '_');
+    if(list[normalized]) { return normalized; }
+    var base = normalized.split(/_/)[0];
+    return list[base] ? base : 'en';
+  }),
+  /* An active filter = a non-empty search query OR a language other than the
+     default (the user selected a specific/Any language). Drives the "Clear
+     filter" affordance shown to the right of the filter row. */
+  has_active_filter: computed('searchString', 'locale', 'default_locale', function() {
+    var q = (this.get('searchString') || '').trim();
+    var locale = this.get('locale');
+    return !!q || (!!locale && locale !== this.get('default_locale'));
+  }),
+  _filter_boards: function(boards) {
+    var q = (this.get('panel_filter') || '').trim().toLowerCase();
+    if(!q || !boards) { return boards || []; }
+    return boards.filter(function(b) {
+      if(!b) { return false; }
+      var name = ((b.get ? b.get('name') : b.name) || '').toLowerCase();
+      var key = ((b.get ? b.get('key') : b.key) || '').toLowerCase();
+      return name.indexOf(q) !== -1 || key.indexOf(q) !== -1;
+    });
+  },
+  filtered_online_groups: computed('online_groups', 'panel_filter', function() {
+    var _this = this;
+    return (this.get('online_groups') || []).map(function(g) {
+      return { id: g.id, label_key: g.label_key, default_label: g.default_label, boards: _this._filter_boards(g.boards || []) };
+    }).filter(function(g) { return g.boards.length > 0; });
+  }),
+  filtered_my_boards: computed('personal_results.results', 'panel_filter', function() {
+    // The user_id='self' query returns EVERY owned board, including sub-board
+    // copies that rode along inside a copied set. filterRootBoards drops those
+    // (keys on copy_id), keeping only the visible root tiles — same cleanup the
+    // board-collection drawer and boards page apply to My Boards.
+    var boards = filterRootBoards(this.get('personal_results.results') || [], app_state.get('currentUser.id'));
+    return this._filter_boards(boards);
+  }),
+
+  // ── Board preview (left pane) ────────────────────────────────────
+  // The selected board is reloaded (select_preview_board) and rendered by
+  // <board-preview-canvas> — the same self-contained renderer the board-preview
+  // modal uses, so no board-detail controller coupling / ordered_buttons build.
+  preview_board: null,
+  preview_loading: false,
+  preview_error: false,
   /* Single "Boards" section for the header jump dropdown
      (search-board-jump) — the online search results. The dropdown's filter
      input is the page's live search box, so the boards are the current
@@ -111,7 +171,12 @@ export default Controller.extend({
           _this.set('online_results', {results: []});
         });
         if(app_state.get('currentUser')) {
-          LingoLinq.store.query('board', {q: str, user_id: 'self', locale: locale, allow_job: true}).then(function(res) {
+          // Owned-boards query must use the user's REAL global id — the server
+          // resolves `user_id` via find_by_path, and the literal string 'self'
+          // has no user_name match, so it 404s and My Boards comes back empty.
+          // The board-detail "My Board Collection" drawer this page mirrors uses
+          // currentUser.id for exactly this reason (board-collection.js).
+          LingoLinq.store.query('board', {q: str, user_id: app_state.get('currentUser.id'), locale: locale, allow_job: true}).then(function(res) {
             if(res.meta && res.meta.progress) {
               progress_tracker.track(res.meta.progress, function(event) {
                 if(event.status == 'errored') {
@@ -153,10 +218,26 @@ export default Controller.extend({
   _autoSearch: observer('searchString', 'locale', function() {
     debounce(this, this._runAutoSearch, 300);
   }),
+  /* Changing the LANGUAGE filter invalidates the current preview — that board is
+     in the previous language, and the panel is about to be re-scoped to the new
+     one (load_results below re-queries with the new locale). Drop the preview
+     back to its empty state so a stale board doesn't linger, and so the canvas
+     stops re-rendering against the changing locale (that churn is what made the
+     preview shrink/enlarge repeatedly). Only `locale` — typing in the search box
+     narrows the panel but should keep the current preview. */
+  _clearPreviewOnLocaleChange: observer('locale', function() {
+    this.set('preview_board', null);
+    this.set('preview_loading', false);
+    this.set('preview_error', false);
+  }),
   _runAutoSearch: function() {
     if(this.isDestroyed || this.isDestroying) { return; }
     var str = this.get('searchString') || '';
     this.load_results(str);
+    /* clear_filter resets the language to '' ([Choose a Language]); skip the
+       route transition so the route's empty-locale→preferred resolution doesn't
+       snap the dropdown back to a concrete language. */
+    if(this._suppressTransition) { this._suppressTransition = false; return; }
     this.router.transitionTo('search', this.get('locale'), encodeURIComponent(str || '_'));
   },
   init() {
@@ -207,6 +288,59 @@ export default Controller.extend({
       var pref = app_state.get('currentUser.preferences.board_view_style');
       var route = (pref === 'classic') ? 'user.board-alt.index' : 'user.board-detail.index';
       this.router.transitionTo(route, parts[0], parts[1]);
+    },
+
+    // Row click in the panel → PREVIEW the board on the left (no navigation).
+    // Loads the full board (search records may be shallow), then builds the
+    // ordered_buttons grid and renders it via board-detail-grid per prefs.
+    select_preview_board: function(board) {
+      var _this = this;
+      if(!board) { return; }
+      this.set('preview_error', false);
+      this.set('preview_loading', true);
+      this.set('preview_board', board);
+      // If the user has scrolled down, bring them back to the top so the newly
+      // selected board's preview is in view.
+      try {
+        var content = document.getElementById('content');
+        if(content) { content.scrollTop = 0; }
+        if(typeof window !== 'undefined' && window.scrollTo) { window.scrollTo({ top: 0, behavior: 'smooth' }); }
+      } catch(e) { /* non-critical */ }
+      // Mirror components/board-preview.js: reload the board so it ships with its
+      // buttons + image_urls, then hand it to <board-preview-canvas> (the SAME
+      // renderer the board-preview modal uses) to draw the exact grid.
+      if(!board.reload) { this.set('preview_loading', false); return; }
+      board.reload().then(function(full) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if(_this.get('preview_board') !== board) { return; } // superseded by a newer pick
+        _this.set('preview_board', full || board);
+        _this.set('preview_loading', false);
+      }, function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if(_this.get('preview_board') !== board) { return; }
+        _this.set('preview_loading', false);
+        _this.set('preview_error', true);
+      });
+    },
+    update_panel_filter: function(event) {
+      this.set('panel_filter', (event && event.target) ? event.target.value : '');
+    },
+    clear_panel_filter: function() {
+      this.set('panel_filter', '');
+    },
+    /* Clear the active filters: empty the search query AND reset the language
+       dropdown to "[Choose a Language]" (id ''). `_suppressTransition` keeps the
+       ensuing _runAutoSearch from route-transitioning — the route resolves an
+       empty locale back to the preferred language and would snap the dropdown
+       off "[Choose a Language]". load_results still reloads the panel (it falls
+       back to the preferred locale for the actual query). */
+    clear_filter: function() {
+      this._suppressTransition = true;
+      this.set('searchString', '');
+      this.set('locale', '');
+    },
+    newBoard: function() {
+      this.router.transitionTo('create-board-new');
     }
   }
 });

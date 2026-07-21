@@ -560,7 +560,6 @@ LingoLinq.Buttonset = BaseModel.extend({
 
     // check each button individually
     var button_sweep = build_board_map.then(function() {
-//      console.log("all buttons", buttons, board_map);
       buttons.forEach(function(button, idx) {
         var lookups = button.lookup_parts;
         var found_some = false;
@@ -625,7 +624,6 @@ LingoLinq.Buttonset = BaseModel.extend({
           });
         });
       });
-      console.log("SRCH: partial", partial_matches);
     });
 
     var sort_results = button_sweep.then(function() {
@@ -635,7 +633,6 @@ LingoLinq.Buttonset = BaseModel.extend({
         }
         return a.total_edit_distance - b.total_edit_distance;
       });
-      console.log("SRCH: sorted partial", partial_matches);
     });
 
 
@@ -733,7 +730,6 @@ LingoLinq.Buttonset = BaseModel.extend({
           return 0;
         }).slice(0, 25 * (part_idx + 1));
       });
-      console.log("SRCH: combos", combos);
     });
 
     // when searching for "I want to sleep" sort as follows:
@@ -765,7 +761,6 @@ LingoLinq.Buttonset = BaseModel.extend({
         }
         return 0;
       });
-      console.log("SRCH: sorted combos", combos);
       combos = combos.slice(0, 10);
       return combos;
     });

@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -36,14 +36,14 @@
             {{t "Home Board:" key="home_board_colon"}}
           </label>
           <div class='col-sm-6'>
-            {{bound-select select_class="form-control" select_id="home_board" content=this.board_options selection=this.home_board_template action=(mut this.home_board_template) }}
+            <BoundSelect @select_class="form-control" @select_id="home_board" @content={{this.board_options}} @selection={{this.home_board_template}} @action={{mut this.home_board_template}} />
           </div>
         </div>
         {{#if this.board_will_copy}}
           <div class="form-group">
             <label for="symbols" class="col-sm-4 control-label">{{t "Preferred Symbols" key="preferred_symbols"}}</label>
             <div class="col-sm-6">
-              {{bound-select select_class="form-control" select_id="preferred_symbols" content=this.symbols_list selection=this.preferred_symbols action=(mut this.preferred_symbols) }}
+              <BoundSelect @select_class="form-control" @select_id="preferred_symbols" @content={{this.symbols_list}} @selection={{this.preferred_symbols}} @action={{mut this.preferred_symbols}} />
               {{#if this.premium_symbol_library}}
                 {{#unless this.add_symbols}}
                   <div class='text-danger' style='margin-left: 10px;'>
@@ -60,7 +60,7 @@
                 <div class="col-sm-6">
                   <div class="checkbox big_checkbox">
                     <label>
-                      <Input @type="checkbox" id="extras" @checked={{this.add_symbols}} />
+                      <input type="checkbox" checked={{this.add_symbols}} id="extras" {{on "change" (set-field this "add_symbols" "checkbox")}} />
                       {{t "Grant premium symbol access if not already granted" key="grand_premium_symbols_if_needed"}}
                       ({{this.model.org.extras_available_count}} {{t "left" key="left"}})
                     </label>
@@ -76,7 +76,7 @@
             {{#unless this.model.lesson_name}}
               <div class="form-group">
                 <div class="col-sm-8 col-sm-offset-2">
-                  <Input @value={{this.confirmed}} class="form-control" placeholder="..." />
+                  <input value={{this.confirmed}} class="form-control" placeholder="..." aria-label={{t "Please type \"confirmed\" to confirm." key="type_confirmed"}} {{on "input" (set-field this "confirmed")}} />
                 </div>
               </div>
             {{/unless}}
@@ -111,4 +111,4 @@
       <p class='text-danger'>{{this.error}}</p>
     {{/if}}
   </div>
-{{/modal-dialog}}
+</ModalDialog>

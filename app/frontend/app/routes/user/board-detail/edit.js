@@ -100,13 +100,27 @@ export default Route.extend({
       boardDetailController.set('board_collapsed', true);
       // Clear level-paint + preview state on exit so re-entry starts fresh.
       boardDetailController.send('clear_level_paint');
-      // If a modeling session was active when the user entered edit, return
-      // them to speak mode (not 'default') so `speak_mode` flips true again,
-      // `modeling` re-evaluates true, and the active Modeling badge re-appears.
-      // The parent route's setupController does NOT re-run on sibling-subroute
-      // transitions, so its current_mode='speak' guard wouldn't fire here.
-      var sessionActive = !!(this.appState.get('referenced_speak_mode_user') || this.appState.get('speakModeUser') || this.appState.get('modeling_for_self'));
-      this.stashes.persist('current_mode', sessionActive ? 'speak' : 'default');
+      // ALWAYS return to speak mode on exit, so `speak_mode` flips true again
+      // (restoring speak chrome, logging, scanning, and the modeling badge).
+      // The parent board-detail route holds the invariant "board-detail
+      // operates as speak mode" (routes/user/board-detail.js:453-457), but its
+      // setupController does NOT re-run on a child-subroute exit, so nothing
+      // else restores it here. app-state's speak_mode observer already documents
+      // this exact contract: it SKIPS its teardown when entering edit precisely
+      // because "the edit route's resetController restores current_mode='speak'
+      // on exit" (services/app-state.js:2859-2864).
+      //
+      // This used to be conditional on an active modeling session, which
+      // satisfied that contract only for supervisors and stranded every other
+      // editor in 'default' — sitting on board-detail with speak_mode false.
+      // That broke the speak surface (logging/scanning/sidebar) and made
+      // board-detail chrome clicks double-dispatch, which showed up as the
+      // options (⋮) menu appearing dead after an edit round-trip.
+      //
+      // If the user is instead navigating AWAY from board-detail entirely, the
+      // parent route's own resetController runs after this one and restores
+      // 'default' when it had forced speak on entry (board-detail.js:496-500).
+      this.stashes.persist('current_mode', 'speak');
       // Resume modeled-event tagging. Fires for Save and Exit, Discard, and
       // browser-back — all route exits trigger isExiting=true.
       this.appState.set('modeling_paused', false);

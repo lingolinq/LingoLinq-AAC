@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing uncloseable="true"}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}} @uncloseable="true">
   <div class="modal-header md-modal-header md-premium-required-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -69,4 +69,4 @@
     {{/if}}
     <LinkTo @route="user.subscription" @model={{this.model.user_name}} class="md-modal-btn md-modal-btn--primary">{{t "Update Account Settings" key="update_my_subscription"}}</LinkTo>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

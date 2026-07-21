@@ -12,28 +12,28 @@
       {{#if this.is_super_admin}}
         <div class="md-org-report-field md-org-report-field--inline">
           <label for="telemetry_scope" class="md-org-report-field__label">{{t "Scope:" key="scope_colon"}}</label>
-          {{bound-select select_class="md-org-report-select md-org-report-select--sm" select_id="telemetry_scope" content=this.scope_options selection=this.scope action=(mut this.scope) }}
+          <BoundSelect @select_class="md-org-report-select md-org-report-select--sm" @select_id="telemetry_scope" @content={{this.scope_options}} @selection={{this.scope}} @action={{mut this.scope}} />
         </div>
       {{/if}}
       <div class="md-org-report-field md-org-report-field--inline">
         <label for="telemetry_start_at" class="md-org-report-field__label">{{t "Start:" key="start_colon"}}</label>
-        <Input id="telemetry_start_at" @type="date" @value={{this.start_at}} class="md-org-report-input" />
+        <input type="date" value={{this.start_at}} id="telemetry_start_at" class="md-org-report-input" {{on "input" (set-field this "start_at")}} />
       </div>
       <div class="md-org-report-field md-org-report-field--inline">
         <label for="telemetry_end_at" class="md-org-report-field__label">{{t "End:" key="end_colon"}}</label>
-        <Input id="telemetry_end_at" @type="date" @value={{this.end_at}} class="md-org-report-input" />
+        <input type="date" value={{this.end_at}} id="telemetry_end_at" class="md-org-report-input" {{on "input" (set-field this "end_at")}} />
       </div>
 
       {{#if (is-equal this.scope "organization")}}
         <div class="md-org-report-field md-org-report-field--inline">
           <label for="telemetry_user_filter" class="md-org-report-field__label">{{t "Communicator:" key="telemetry_communicator_filter"}}</label>
-          {{bound-select select_class="md-org-report-select md-org-report-select--sm" select_id="telemetry_user_filter" content=this.user_filter_options selection=this.filter_user_id action=(this.ctrlAction "set_filter_user")}}
+          <BoundSelect @select_class="md-org-report-select md-org-report-select--sm" @select_id="telemetry_user_filter" @content={{this.user_filter_options}} @selection={{this.filter_user_id}} @action={{this.ctrlAction "set_filter_user"}} />
         </div>
 
         {{#if this.device_filter_options.length}}
           <div class="md-org-report-field md-org-report-field--inline">
             <label for="telemetry_device_filter" class="md-org-report-field__label">{{t "Device:" key="telemetry_device_filter"}}</label>
-            {{bound-select select_class="md-org-report-select md-org-report-select--sm" select_id="telemetry_device_filter" content=this.device_filter_options selection=this.filter_device_id action=(this.ctrlAction "set_filter_device")}}
+            <BoundSelect @select_class="md-org-report-select md-org-report-select--sm" @select_id="telemetry_device_filter" @content={{this.device_filter_options}} @selection={{this.filter_device_id}} @action={{this.ctrlAction "set_filter_device"}} />
           </div>
         {{/if}}
       {{/if}}
@@ -112,7 +112,7 @@
       </p>
 
       <section class="md-org-telemetry-card md-org-telemetry-card--wide" aria-label={{t "Activation heat map" key="heat_map"}}>
-        {{stats/heat-map usage_stats=this.heatmapStats}}
+        <Stats::HeatMap @usage_stats={{this.heatmapStats}} />
       </section>
 
       {{#if this.telemetry.recent_sessions.length}}

@@ -8,7 +8,7 @@
 
     {{!-- ======== TOPBAR ======== --}}
     <nav class="topbar">
-      <div class="logo">{{app-logo showImage=false showName=true nameStyle="branded"}}</div>
+      <div class="logo"><AppLogo @showImage={{false}} @showName={{true}} @nameStyle="branded" /></div>
       <input class="topbar-search" type="search" placeholder={{t "Search symbols, phrases…" key='search_placeholder'}} aria-label={{t "Search symbols and phrases" key='search_aria_label'}} />
       <div class="topbar-right">
         <span class="topbar-badge">{{t "Clinical" key='clinical'}}</span>
@@ -58,7 +58,7 @@
     </aside>
 
     {{!-- ======== MAIN CONTENT ======== --}}
-    <main class="main" id="speech-main" role="main">
+    <main class="main" id="speech-main">
 
       {{!-- Phrase Bar --}}
       <div class="phrase-bar">
@@ -165,7 +165,7 @@
     </main>
 
     {{!-- ======== RIGHT PANEL ======== --}}
-    <aside class="panel" role="complementary" aria-label={{t "Activity panel" key='activity_panel'}}>
+    <aside class="panel" aria-label={{t "Activity panel" key='activity_panel'}}>
 
       {{!-- Recent Phrases --}}
       <div class="panel-card">

@@ -78,7 +78,7 @@
     </div>
   {{/if}}
   {{#if this.current_board}}
-    {{board-preview-canvas board=this.current_board size="selection" show_links=this.level_select base_level=this.base_level current_level=this.current_level}}
+    <BoardPreviewCanvas @board={{this.current_board}} @size="selection" @show_links={{this.level_select}} @base_level={{this.base_level}} @current_level={{this.current_level}} />
   {{/if}}
 {{else}}
   <div style='margin: 10px auto; max-width: 600px;'>

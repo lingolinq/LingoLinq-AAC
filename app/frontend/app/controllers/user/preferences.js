@@ -190,6 +190,7 @@ export default Controller.extend({
       this.set('original_preferences.word_suggestion_position', 'side_rail');
     }
     this.set('phrase_categories_string', (this.get('pending_preferences.phrase_categories') || []).join(', '));
+    this.set('_substitution_string', undefined);
     this.set('advanced', true);
     this.set('skip_save_on_transition', false);
     this.set('eu_ai_parent_email', this.get('model.eu_ai_parental_consent_parent_email') || '');
@@ -636,8 +637,23 @@ export default Controller.extend({
     });
     return htmlSafe(div.innerHTML);
   }),
-  substitution_string: computed('pending_preferences.substitutions', function() {
-    return editManager.stringify_rules(this.get('pending_preferences.substitutions') || []);
+  // Writable: the Phrase Substitutions textarea two-way-binds @value to this
+  // property. A get-only computed crashes on every keystroke in Ember 5 (setting
+  // a setter-less computed throws; pre-4.0 it silently clobbered the computed,
+  // which is how this originally worked). Same pattern as
+  // organization/settings.js home_board_key_lines.
+  substitution_string: computed('pending_preferences.substitutions', {
+    get() {
+      var cached = this.get('_substitution_string');
+      if(cached !== undefined && cached !== null) {
+        return cached;
+      }
+      return editManager.stringify_rules(this.get('pending_preferences.substitutions') || []);
+    },
+    set(key, value) {
+      this.set('_substitution_string', value);
+      return value;
+    }
   }),
   set_auto_sync: observer('model.id', 'model.auto_sync', function() {
     if(this.get('pending_preferences.device')) {
@@ -1136,6 +1152,7 @@ export default Controller.extend({
         this.set('pending_preferences.logging_code', 'false');
       }
       this.set('pending_preferences.substitutions', editManager.parse_rules(this.get('substitution_string')));
+      this.set('_substitution_string', undefined);
       this.set('phrase_categories_string', (this.get('pending_preferences.phrase_categories') || []).join(', '));
 
       // Persist the sidebar list the user sees (active options), not a stale raw pref.

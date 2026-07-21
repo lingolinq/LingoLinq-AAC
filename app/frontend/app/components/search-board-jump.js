@@ -90,6 +90,13 @@ export default Component.extend({
         self.send.apply(self, [actionName].concat(bound));
       };
     };
+    /* Event-preserving handlers for the live search <input>. The generic
+       `ctrlAction` wrapper is built for click actions: it calls preventDefault
+       and DROPS the event before invoking the action. `update_query`/`key_down`
+       need the raw DOM event (to read `event.target.value` / `event.key`), so
+       they bypass ctrlAction and receive the event directly. */
+    this.handleInput = function(event) { self.send('update_query', event); };
+    this.handleKeyDown = function(event) { self.send('key_down', event); };
   },
 
 

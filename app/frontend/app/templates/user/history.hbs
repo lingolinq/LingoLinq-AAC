@@ -45,5 +45,5 @@
 {{else if this.session.isAuthenticated}}
   <p>{{t "It appears you don't have permission to access this information" key="not_allowed_long"}}</p>
 {{else}}
-  {{login-form left=true prompt=true return=true}}
+  <LoginForm @left={{true}} @prompt={{true}} @return={{true}} />
 {{/if}}

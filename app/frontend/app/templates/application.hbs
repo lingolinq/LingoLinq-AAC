@@ -1,17 +1,17 @@
 <div id="within_ember" class="{{this.background_class}} {{if this.app_state.index_or_landing_view "index-or-landing-view"}} {{if (is-equal this.app_state.current_route "speech") "speech-route"}} {{if (is-equal this.app_state.current_route "landing-alt") "landing-alt-route"}} {{if (is-equal this.app_state.current_route "pricing") "pricing-route"}} {{if (is-equal this.app_state.current_route "features") "features-route"}} {{if this.showBentoPageWithFooter "bento-page-with-footer"}} {{if (and this.app_state.index_or_landing_view this.app_state.darkMode) "bento-dark-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.midDayMode) "bento-midday-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.defaultMode) "bento-default-mode-active"}} {{if this.on_board_alt "board-alt-view"}} {{if this.on_board "board-view"}} {{if this.on_board_detail "board-detail-view"}} {{if this.app_state.focus_words "focus-words-active"}} {{if this.app_state.edit_mode "edit-mode-active"}} {{if this.app_state.beta_program_access "beta-program-access"}}" style={{if this.speak_mode_needing_hammer_js "touch-action: auto;" }}>
 <div id="audio"></div>
-{{app-loading-overlay}}
-{{app-toast}}
+<AppLoadingOverlay />
+<AppToast />
 <header class="{{this.header_class}} {{if this.useAppNavbarInHeader "header-index-with-dark-toggle"}} {{unless this.isSessionAuthenticated "header--unauthenticated"}} {{if this.hide_header "header--hidden"}}">
   <div id="inner_header">
   {{#if this.useAppNavbarInHeader}}
-    {{app-navbar onSupport=this.support}}
+    <AppNavbar @onSupport={{this.support}} />
   {{else}}
   {{#if (and this.app_state.speak_mode this.app_state.currentBoardState.id)}}
     <span id="speak" class="{{if this.app_state.eval_mode "md-eval-header"}}">
       <span class="speak-header__home-col">
       <span class="speak-header__home-marker">
-        {{#triple-click-listener triple_click="meta_home_click"}}
+        <TripleClickListener @triple_click="meta_home_click">
           {{#if this.app_state.eval_mode}}
             {{!-- Eval-mode home button — uses the same modern outline-house
                  icon as the board-detail sentence bar (mirrors that visual
@@ -51,7 +51,7 @@
               {{/unless}}
             </button>
           {{/if}}
-        {{/triple-click-listener}}
+        </TripleClickListener>
       </span>
         {{#if this.show_eval_pause}}
           {{!-- In-place Pause/Resume for a running eval. Its own control stacked
@@ -110,7 +110,7 @@
           {{#unless this.app_state.button_list}}
             {{#if this.app_state.embedded}}
               <div style='float: left; margin: 5px; opacity: 0.7;'>
-                {{app-logo size="xs" imgAlt="LingoLinq"}}
+                <AppLogo @size="xs" @imgAlt="LingoLinq" />
                 {{t "Powered by %app_name%" key="powered_by_app"}}
               </div>
             {{else if this.app_state.currentUser.preferences.blank_status}}
@@ -133,7 +133,7 @@
                 {{/if}}
                 {{#if this.show_board_intro}}
                   <div role="button" tabindex="0" data-bd-action="board_intro" data-bd-controller="app" {{on "click" (this.ctrlAction "board_intro")}} class='extra-btn' style='position: absolute; top: 3px; bottom: 3px; border: 1px solid #ccc;  background: #eee; margin-top: 0; margin-bottom: 0; border-radius: 5px; padding: 5px 10px; max-height: 75px; cursor: pointer;'>
-                    <img src={{path "images/learn.png"}} style='height: 100%; max-height: 50px;'>
+                    <img src={{path "images/learn.png"}} alt="" style='height: 100%; max-height: 50px;'>
                     {{t "Intro" key="intro"}}
                   </div>
                 {{else if this.app_state.eye_gaze_state}}
@@ -151,7 +151,7 @@
             {{/if}}
           {{/unless}}
           {{#let this.app_state.button_list as |button_list|}}
-            {{button-list buttonList=button_list}}
+            <ButtonList @buttonList={{button_list}} />
           {{/let}}
         </a>
         {{#unless this.app_state.eval_mode}}
@@ -221,9 +221,9 @@
               {{else if this.app_state.user_badge}}
                 <span class='notification'>
                   {{#if this.app_state.user_badge.earned}}
-                    {{badge-earned badge=this.app_state.user_badge inline=true}}
+                    <BadgeEarned @badge={{this.app_state.user_badge}} @inline={{true}} />
                   {{else}}
-                    {{badge-progress badge=this.app_state.user_badge inline=true}}
+                    <BadgeProgress @badge={{this.app_state.user_badge}} @inline={{true}} />
                   {{/if}}
                 </span>
               {{else if this.app_state.speak_mode_modeling_ideas.timeout}}
@@ -239,7 +239,7 @@
         <span class="sr-only">{{t "backspace" key="backspace_lower"}}</span>
         <img src={{path "images/delete.svg"}}>
       </button>
-      {{#triple-click-listener triple_click="toggle_modeling"}}
+      <TripleClickListener @triple_click="toggle_modeling">
         <button class="btn btn-default access" id="clear_button" type="button" {{on "click" (this.ctrlAction "clear")}} style='position: relative;'>
           <span class="sr-only">{{t "clear" key="clear_lower"}}</span>
           {{#if this.app_state.eval_mode}}
@@ -261,7 +261,7 @@
             </div>
           {{/if}}
         </button>
-      {{/triple-click-listener}}
+      </TripleClickListener>
     </span>
   {{else}}
     <span id="nav_header" class={{this.app_state.nav_header_class}}>
@@ -282,7 +282,7 @@
     {{#if this.app_state.currentUser.single_org.image_url}}
       {{#if this.showBentoStyleHeader}}
         {{#unless (is-equal this.app_state.current_route "landing")}}
-          <img style="position: absolute; top: 50px; left: 19px; width: 50px; height: 50px; border-radius: 50px; object-fit: contain; object-position: center;" src={{this.app_state.currentUser.single_org.image_url}} onerror="this.style.display='none';">
+          <img style="position: absolute; top: 50px; left: 19px; width: 50px; height: 50px; border-radius: 50px; object-fit: contain; object-position: center;" src={{this.app_state.currentUser.single_org.image_url}} {{hide-on-error "display"}}>
         {{/unless}}
       {{/if}}
     {{/if}}
@@ -718,7 +718,7 @@
             {{#if this.allow_search}}
               <form id="header_search" {{on "submit" (this.ctrlAction "searchBoards")}}>
                 <div class="header-search-wrap">
-                  <Input @type="text" @value={{this.searchString}} @enter={{this.ctrlAction "searchBoards"}} class="form-control header-search-input" placeholder={{t "Search Boards" key="search_boards"}} />
+                  <Input aria-label={{t "Search Boards" key="search_boards"}} @type="text" @value={{this.searchString}} @enter={{this.ctrlAction "searchBoards"}} class="form-control header-search-input" placeholder={{t "Search Boards" key="search_boards"}} />
                   <button type="submit" class="header-search-btn" aria-label={{t "Search Boards" key="search_boards"}} title={{t "Search Boards" key="search_boards"}}>
                     <svg class="header-search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                   </button>
@@ -1437,7 +1437,7 @@
       </ul>
       {{else}}
       {{#unless this.useAppNavbarInHeader}}
-      <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id="identity_button" href="#" data-toggle="dropdown" aria-label={{t "Sign In" key="login"}} aria-haspopup="true">
+      <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id="identity_button" href="#" data-toggle="dropdown" aria-label={{t "Sign In" key="login"}}>
         {{t "Sign In" key="login"}}
         <span class="caret"></span>
       </a>
@@ -1473,7 +1473,7 @@
     {{/if}}
     <div id="beta-feedback-top-drawer" class="beta-feedback-drawer {{if (or this.app_state.speak_mode this.app_state.edit_mode this.on_board_detail) "beta-feedback-drawer--speak"}} {{if this.betaFeedbackDrawerOpen "beta-feedback-drawer--open" "beta-feedback-drawer--hidden"}}" role="region" aria-label={{t "Beta feedback" key="beta_feedback_nav"}} aria-hidden={{if this.betaFeedbackDrawerOpen "false" "true"}} inert={{unless this.betaFeedbackDrawerOpen true}}>
       <aside class="beta-feedback-drawer__panel">
-        {{beta-feedback-panel isDrawer=true onSubmitSuccess=this.onCloseBetaFeedbackDrawer onCancel=this.onCloseBetaFeedbackDrawer onClose=this.onCloseBetaFeedbackDrawer}}
+        <BetaFeedbackPanel @isDrawer={{true}} @onSubmitSuccess={{this.onCloseBetaFeedbackDrawer}} @onCancel={{this.onCloseBetaFeedbackDrawer}} @onClose={{this.onCloseBetaFeedbackDrawer}} />
       </aside>
     </div>
   {{/if}}
@@ -1562,20 +1562,20 @@
     {{/if}}
   </div>
 {{else}}
-  {{sidebar-tease}}
+  <SidebarTease />
 {{/if}}
 
-{{modal-container}}
+<ModalContainer />
 <HighlightOutlet />
 <HighlightOutlet @secondary={{true}} />
 {{#if this.modalService.boardPreview}}
-  {{board-preview-overlay}}
+  <BoardPreviewOverlay />
 {{/if}}
 <FlashOutlet />
 {{! Page footer: show on index/dashboard/setup and when not viewing a board (setup_footer no longer used; setup uses same page footer as other pages) }}
 {{#if this.footer}}
-  {{page-footer support=this.support language=this.language}}
+  <PageFooter @support={{this.support}} @language={{this.language}} />
 {{/if}}
 
 </div>
-{{button-tracker}}
+<ButtonTracker />

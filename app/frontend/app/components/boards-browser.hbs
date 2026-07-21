@@ -32,6 +32,6 @@
 
   {{!-- Board grid (Mine folders, filter, DnD) --}}
   <div class="ub-boards-page__boards-body">
-    {{available-boards-section boardsCtrl=this.boardsCtrl filterInputId=this.filterInputId}}
+    <AvailableBoardsSection @boardsCtrl={{this.boardsCtrl}} @filterInputId={{this.filterInputId}} />
   </div>
 </section>

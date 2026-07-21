@@ -46,12 +46,7 @@
          available with a single child, so we toggle via {{if}} on
          the item id. --}}
     {{#if this.currentItem.id}}
-      {{eval-quick-item
-        item=this.currentItem
-        subtest=this.currentSubtest
-        accessMethod=this.session.intake.suspected_access
-        onResponse=(this.ctrlAction "handleItemResponse")
-        onTimeout=(this.ctrlAction "handleItemTimeout")}}
+      <EvalQuickItem @item={{this.currentItem}} @subtest={{this.currentSubtest}} @accessMethod={{this.session.intake.suspected_access}} @onResponse={{this.ctrlAction "handleItemResponse"}} @onTimeout={{this.ctrlAction "handleItemTimeout"}} />
     {{/if}}
 
     <div class="evq-runner__actions">

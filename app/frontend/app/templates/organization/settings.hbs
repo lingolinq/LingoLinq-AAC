@@ -11,7 +11,7 @@
     <div class="md-org-settings-field">
       <label for="org-settings-name" class="md-org-settings-field__label">{{t "Name" key="name"}}</label>
       {{#if this.model.permissions.update_licenses}}
-        <Input @value={{this.model.name}} class="md-org-settings-input" id="org-settings-name" name="organization-name" autocomplete="organization" placeholder="Organization Name" />
+        <input value={{this.model.name}} class="md-org-settings-input" id="org-settings-name" name="organization-name" autocomplete="organization" placeholder="Organization Name" {{on "input" (set-field this "model.name")}} />
       {{else}}
         <span class="md-org-settings-field__static">{{this.model.name}}</span>
       {{/if}}
@@ -19,7 +19,7 @@
 
     <div class="md-org-settings-field">
       <label for="preferred_symbols" class="md-org-settings-field__label">{{t "Preferred Symbols" key="preferred_symbols"}}</label>
-      {{bound-select select_class="md-org-report-select" select_id="preferred_symbols" content=this.symbols_list selection=this.model.preferred_symbols action=(mut this.model.preferred_symbols) }}
+      <BoundSelect @select_class="md-org-report-select" @select_id="preferred_symbols" @content={{this.symbols_list}} @selection={{this.model.preferred_symbols}} @action={{mut this.model.preferred_symbols}} />
       {{#if this.premium_symbol_library}}
         <span class="md-org-settings-field__hint md-org-settings-field__hint--warn">
           {{t "(will not apply for users without premium symbols enabled)" key="wont_work_without_premium_symbols"}}
@@ -29,13 +29,13 @@
 
     <div class="md-org-settings-field">
       <label for="default_locale" class="md-org-settings-field__label">{{t "Default Language" key="default_language"}}</label>
-      {{bound-select select_class="md-org-report-select" select_id="default_locale" content=this.locale_list selection=this.model.default_locale action=(mut this.model.default_locale) }}
+      <BoundSelect @select_class="md-org-report-select" @select_id="default_locale" @content={{this.locale_list}} @selection={{this.model.default_locale}} @action={{mut this.model.default_locale}} />
     </div>
 
     <div class="md-org-settings-field">
       <label class="md-org-settings-field__label">{{t "Beta program access for start codes" key="org_default_beta_program_access_label"}}</label>
       <label class="md-org-settings-toggle">
-        <Input @checked={{this.model.default_beta_program_access}} @type="checkbox" class="md-org-settings-toggle__input" />
+        <input type="checkbox" checked={{this.model.default_beta_program_access}} class="md-org-settings-toggle__input" {{on "change" (set-field this "model.default_beta_program_access" "checkbox")}} />
         <span class="md-org-settings-toggle__label">{{t "Grant beta program access to new users who register with a start code from this organization" key="org_default_beta_program_access_toggle"}}</span>
       </label>
       <span class="md-org-settings-field__hint">
@@ -45,7 +45,7 @@
 
     <div class="md-org-settings-field">
       <label for="board" class="md-org-settings-field__label">{{t "Home Boards" key="home_boards"}}</label>
-      <Textarea @value={{this.home_board_key_lines}} class="md-org-settings-textarea" id="board" placeholder={{this.board_keys_placeholder}} />
+      <textarea class="md-org-settings-textarea" id="board" placeholder={{this.board_keys_placeholder}} {{on "input" (set-field this "home_board_key_lines")}}>{{this.home_board_key_lines}}</textarea>
       <span class="md-org-settings-field__hint">
         {{t "any users you add that don't have a home board set will be set with the first board unless specified" key="default_home_board_explainer"}}
       </span>
@@ -53,8 +53,8 @@
 
     {{#if this.model.premium}}
       <div class="md-org-settings-field">
-        <label for="logo_url" class="md-org-settings-field__label">{{t "Logo URL" key="logo_url"}}</label>
-        <Input @value={{this.model.image_url}} class="md-org-settings-input" id="logo_url" placeholder="URL to (circular) image, ~50px" />
+        <label for="org_image_url" class="md-org-settings-field__label">{{t "Logo URL" key="logo_url"}}</label>
+        <input value={{this.model.image_url}} class="md-org-settings-input" id="org_image_url" placeholder="URL to (circular) image, ~50px" {{on "input" (set-field this "model.image_url")}} />
       </div>
     {{/if}}
   </section>
@@ -70,7 +70,7 @@
       <div class="md-org-settings-field">
         <label for="inactivity_timeout" class="md-org-settings-field__label">{{t "Login Timeout" key="inactivity_timeout"}}</label>
         <div class="md-org-settings-field__row">
-          <Input id="inactivity_timeout" @value={{this.model.inactivity_timeout}} class="md-org-settings-input md-org-settings-input--sm" type="text" />
+          <input value={{this.model.inactivity_timeout}} id="inactivity_timeout" class="md-org-settings-input md-org-settings-input--sm" type="text" {{on "input" (set-field this "model.inactivity_timeout")}} />
           <span class="md-org-settings-field__suffix">{{t "minutes" key="minutes"}}</span>
         </div>
       </div>
@@ -78,7 +78,7 @@
       <div class="md-org-settings-field">
         <label class="md-org-settings-field__label">{{t "Org Access" key="org_access"}}</label>
         <label class="md-org-settings-toggle">
-          <Input @checked={{this.model.org_access}} @type="checkbox" class="md-org-settings-toggle__input" />
+          <input type="checkbox" checked={{this.model.org_access}} class="md-org-settings-toggle__input" {{on "change" (set-field this "model.org_access" "checkbox")}} />
           <span class="md-org-settings-toggle__label">{{t "Allow manager access to the org management tool" key="allow_org_access"}}</span>
         </label>
       </div>
@@ -86,7 +86,7 @@
       <div class="md-org-settings-field">
         <label class="md-org-settings-field__label">{{t "Premium" key="premium"}}</label>
         <label class="md-org-settings-toggle">
-          <Input @checked={{this.model.premium}} @type="checkbox" class="md-org-settings-toggle__input" />
+          <input type="checkbox" checked={{this.model.premium}} class="md-org-settings-toggle__input" {{on "change" (set-field this "model.premium" "checkbox")}} />
           <span class="md-org-settings-toggle__label">{{t "This org has an active annual subscription" key="allow_premium"}}</span>
         </label>
       </div>
@@ -94,7 +94,7 @@
       <div class="md-org-settings-field">
         <label for="parent_org_id" class="md-org-settings-field__label">{{t "Parent Org ID" key="parent_org_id"}}</label>
         <div class="md-org-settings-field__row">
-          <Input @value={{this.model.parent_org_id}} class="md-org-settings-input md-org-settings-input--sm" id="parent_org_id" placeholder="ID of Parent Org" />
+          <input value={{this.model.parent_org_id}} class="md-org-settings-input md-org-settings-input--sm" id="parent_org_id" placeholder="ID of Parent Org" {{on "input" (set-field this "model.parent_org_id")}} />
           {{#if this.model.parent_org.name}}
             <span class="md-org-settings-field__suffix {{if this.model.parent_org.pending 'md-org-settings-field__suffix--pending'}}">
               {{this.model.parent_org.name}}
@@ -106,15 +106,15 @@
       <div class="md-org-settings-field">
         <label class="md-org-settings-field__label">{{t "Authentication" key="authentication"}}</label>
         <label class="md-org-settings-toggle">
-          <Input @checked={{this.external_auth}} @type="checkbox" class="md-org-settings-toggle__input" />
+          <input type="checkbox" checked={{this.external_auth}} class="md-org-settings-toggle__input" {{on "change" (set-field this "external_auth" "checkbox")}} />
           <span class="md-org-settings-toggle__label">{{t "Enable external authentication (beta)" key="enable_external_auth"}}</span>
         </label>
         {{#if this.external_auth}}
           <div class="md-org-settings-field__nested">
-            <Input @value={{this.model.saml_metadata_url}} class="md-org-settings-input" id="metadata_url" placeholder="SAML Metadata URL" />
-            <Input @value={{this.model.saml_sso_url}} class="md-org-settings-input" id="sso_url" placeholder="SSO URL Override (optional)" />
+            <input value={{this.model.saml_metadata_url}} class="md-org-settings-input" id="metadata_url" placeholder="SAML Metadata URL" {{on "input" (set-field this "model.saml_metadata_url")}} />
+            <input value={{this.model.saml_sso_url}} class="md-org-settings-input" id="sso_url" placeholder="SSO URL Override (optional)" {{on "input" (set-field this "model.saml_sso_url")}} />
             <label class="md-org-settings-toggle">
-              <Input @checked={{this.model.saml_enforced}} @type="checkbox" class="md-org-settings-toggle__input" />
+              <input type="checkbox" checked={{this.model.saml_enforced}} class="md-org-settings-toggle__input" {{on "change" (set-field this "model.saml_enforced" "checkbox")}} />
               <span class="md-org-settings-toggle__label">{{t "Require all org users to log in using external authentication" key="require_external_auth"}}</span>
             </label>
           </div>
@@ -134,12 +134,12 @@
       <div class="md-org-settings-field">
         <label class="md-org-settings-field__label">{{t "Support Emails" key="support_emails"}}</label>
         <label class="md-org-settings-toggle">
-          <Input @checked={{this.allow_support_target}} @type="checkbox" class="md-org-settings-toggle__input" />
+          <input type="checkbox" checked={{this.allow_support_target}} class="md-org-settings-toggle__input" {{on "change" (set-field this "allow_support_target" "checkbox")}} />
           <span class="md-org-settings-toggle__label">{{t "Email a copy of all support tickets from within this organization" key="allow_support_target"}}</span>
         </label>
         {{#if this.allow_support_target}}
           <div class="md-org-settings-field__nested">
-            <Input @value={{this.support_email}} class="md-org-settings-input" placeholder="email address" />
+            <input value={{this.support_email}} class="md-org-settings-input" placeholder="email address" aria-label={{t "Support email address" key="support_email_address"}} {{on "input" (set-field this "support_email")}} />
           </div>
         {{/if}}
       </div>
@@ -155,7 +155,7 @@
 
     <div class="md-org-settings-field">
       <label class="md-org-settings-field__label">{{t "Editing Colors" key="editing_colors"}}</label>
-      {{extra-colors colors=this.model.extra_colors}}
+      <ExtraColors @colors={{this.model.extra_colors}} />
     </div>
 
     <div class="md-org-settings-field">
@@ -198,11 +198,11 @@
       <div class="md-org-settings-field">
         <label for="comm_prof_id" class="md-org-settings-field__label">{{t "for communicators" key="for_communicators"}}</label>
         <div class="md-org-settings-field__row">
-          <Input @value={{this.model.communicator_profile_id}} class="md-org-settings-input md-org-settings-input--sm" id="comm_prof_id" placeholder="Profile ID" />
+          <input value={{this.model.communicator_profile_id}} class="md-org-settings-input md-org-settings-input--sm" id="comm_prof_id" placeholder="Profile ID" {{on "input" (set-field this "model.communicator_profile_id")}} />
         </div>
         {{#unless this.no_communicator_profile}}
           <div class="md-org-settings-field__row" style="margin-top: 8px;">
-            <Input @value={{this.model.communicator_profile_frequency}} class="md-org-settings-input md-org-settings-input--xs" id="comm_prof_freq" placeholder="##" />
+            <input value={{this.model.communicator_profile_frequency}} class="md-org-settings-input md-org-settings-input--xs" id="comm_prof_freq" placeholder="##" {{on "input" (set-field this "model.communicator_profile_frequency")}} />
             <span class="md-org-settings-field__suffix">{{t "months until next profile due" key="days_until_next_profile_due"}}</span>
           </div>
         {{/unless}}
@@ -211,11 +211,11 @@
       <div class="md-org-settings-field">
         <label for="comm_sup_id" class="md-org-settings-field__label">{{t "for supervisors" key="for_supervisors"}}</label>
         <div class="md-org-settings-field__row">
-          <Input @value={{this.model.supervisor_profile_id}} class="md-org-settings-input md-org-settings-input--sm" id="comm_sup_id" placeholder="Profile ID" />
+          <input value={{this.model.supervisor_profile_id}} class="md-org-settings-input md-org-settings-input--sm" id="comm_sup_id" placeholder="Profile ID" {{on "input" (set-field this "model.supervisor_profile_id")}} />
         </div>
         {{#unless this.no_supervisor_profile}}
           <div class="md-org-settings-field__row" style="margin-top: 8px;">
-            <Input @value={{this.model.supervisor_profile_frequency}} class="md-org-settings-input md-org-settings-input--xs" id="comm_sup_freq" placeholder="##" />
+            <input value={{this.model.supervisor_profile_frequency}} class="md-org-settings-input md-org-settings-input--xs" id="comm_sup_freq" placeholder="##" {{on "input" (set-field this "model.supervisor_profile_frequency")}} />
             <span class="md-org-settings-field__suffix">{{t "months until next profile due" key="days_until_next_profile_due"}}</span>
           </div>
         {{/unless}}
@@ -240,82 +240,82 @@
 
       <div class="md-org-settings-field">
         <label for="app_name" class="md-org-settings-field__label">{{t "App Name" key="app_name_prompt"}}</label>
-        <Input @value={{this.model.host_settings.app_name}} class="md-org-settings-input" id="app_name" placeholder="name for the application" />
+        <input value={{this.model.host_settings.app_name}} class="md-org-settings-input" id="app_name" placeholder="name for the application" {{on "input" (set-field this "model.host_settings.app_name")}} />
       </div>
       <div class="md-org-settings-field">
         <label for="company_name" class="md-org-settings-field__label">{{t "Organization Name" key="company_name"}}</label>
-        <Input @value={{this.model.host_settings.company_name}} class="md-org-settings-input" id="company_name" placeholder="shown in the app" />
+        <input value={{this.model.host_settings.company_name}} class="md-org-settings-input" id="company_name" placeholder="shown in the app" {{on "input" (set-field this "model.host_settings.company_name")}} />
       </div>
       <div class="md-org-settings-field">
         <label for="admin_email" class="md-org-settings-field__label">{{t "Admin Email" key="admin_email"}}</label>
-        <Input @value={{this.model.host_settings.admin_email}} class="md-org-settings-input" id="admin_email" placeholder="for alerts and messages" />
+        <input value={{this.model.host_settings.admin_email}} class="md-org-settings-input" id="admin_email" placeholder="for alerts and messages" {{on "input" (set-field this "model.host_settings.admin_email")}} />
       </div>
       <div class="md-org-settings-field">
         <label for="email_signature" class="md-org-settings-field__label">{{t "Email signature" key="system_settings_email_signature"}}</label>
-        <Input @value={{this.model.host_settings.email_signature}} class="md-org-settings-input" id="email_signature" placeholder={{t "The LingoLinq Team" key="system_settings_email_signature_placeholder"}} />
+        <input value={{this.model.host_settings.email_signature}} class="md-org-settings-input" id="email_signature" placeholder={{t "The LingoLinq Team" key="system_settings_email_signature_placeholder"}} {{on "input" (set-field this "model.host_settings.email_signature")}} />
         <span class="md-org-settings-field__hint">{{t "Overrides the site-wide email signature for this organization's domain." key="system_settings_org_email_signature_hint"}}</span>
       </div>
       <div class="md-org-settings-field">
         <label for="logo_url" class="md-org-settings-field__label">{{t "Logo Image URL" key="logo_image_url"}}</label>
-        <Input @value={{this.model.host_settings.logo_url}} class="md-org-settings-input" id="logo_url" placeholder="100px x 100px" />
+        <input value={{this.model.host_settings.logo_url}} class="md-org-settings-input" id="logo_url" placeholder="100px x 100px" {{on "input" (set-field this "model.host_settings.logo_url")}} />
       </div>
       <div class="md-org-settings-field">
         <label for="css_url" class="md-org-settings-field__label">{{t "CSS Override URL" key="css_url"}}</label>
-        <Input @value={{this.model.host_settings.css_url}} class="md-org-settings-input" id="css_url" placeholder="https://" />
+        <input value={{this.model.host_settings.css_url}} class="md-org-settings-input" id="css_url" placeholder="https://" {{on "input" (set-field this "model.host_settings.css_url")}} />
       </div>
       <div class="md-org-settings-field">
         <label for="support_url" class="md-org-settings-field__label">{{t "Customer Support URL" key="support_url"}}</label>
-        <Input @value={{this.model.host_settings.support_url}} class="md-org-settings-input" id="support_url" placeholder="https://" />
+        <input value={{this.model.host_settings.support_url}} class="md-org-settings-input" id="support_url" placeholder="https://" {{on "input" (set-field this "model.host_settings.support_url")}} />
       </div>
       <div class="md-org-settings-field">
         <label for="board_user_name" class="md-org-settings-field__label">{{t "Suggest Boards User Name" key="board_user_name"}}</label>
-        <Input @value={{this.model.host_settings.board_user_name}} class="md-org-settings-input" id="board_user_name" placeholder="user_name" />
+        <input value={{this.model.host_settings.board_user_name}} class="md-org-settings-input" id="board_user_name" placeholder="user_name" {{on "input" (set-field this "model.host_settings.board_user_name")}} />
       </div>
 
       <hr class="md-org-report-divider">
 
       <div class="md-org-settings-field">
         <label for="ios_store_url" class="md-org-settings-field__label">{{t "iOS App Store URL" key="ios_store_url"}}</label>
-        <Input @value={{this.model.host_settings.ios_store_url}} class="md-org-settings-input" id="ios_store_url" placeholder="https://" />
+        <input value={{this.model.host_settings.ios_store_url}} class="md-org-settings-input" id="ios_store_url" placeholder="https://" {{on "input" (set-field this "model.host_settings.ios_store_url")}} />
       </div>
       <div class="md-org-settings-field">
         <label for="play_store_url" class="md-org-settings-field__label">{{t "Google Play Store URL" key="play_store_url"}}</label>
-        <Input @value={{this.model.host_settings.play_store_url}} class="md-org-settings-input" id="play_store_url" placeholder="https://" />
+        <input value={{this.model.host_settings.play_store_url}} class="md-org-settings-input" id="play_store_url" placeholder="https://" {{on "input" (set-field this "model.host_settings.play_store_url")}} />
       </div>
       <div class="md-org-settings-field">
         <label for="kindle_store_url" class="md-org-settings-field__label">{{t "Amazon Kindle Store URL" key="kindle_store_url"}}</label>
-        <Input @value={{this.model.host_settings.kindle_store_url}} class="md-org-settings-input" id="kindle_store_url" placeholder="https://" />
+        <input value={{this.model.host_settings.kindle_store_url}} class="md-org-settings-input" id="kindle_store_url" placeholder="https://" {{on "input" (set-field this "model.host_settings.kindle_store_url")}} />
       </div>
       <div class="md-org-settings-field">
         <label for="windows_64_bit_url" class="md-org-settings-field__label">{{t "Windows 64-bit URL" key="windows_64_bit_url"}}</label>
-        <Input @value={{this.model.host_settings.windows_64_bit_url}} class="md-org-settings-input" id="windows_64_bit_url" placeholder="https://" />
+        <input value={{this.model.host_settings.windows_64_bit_url}} class="md-org-settings-input" id="windows_64_bit_url" placeholder="https://" {{on "input" (set-field this "model.host_settings.windows_64_bit_url")}} />
       </div>
       <div class="md-org-settings-field">
         <label for="windows_32_bit_url" class="md-org-settings-field__label">{{t "Windows 32-bit Download URL" key="windows_32_bit_url"}}</label>
-        <Input @value={{this.model.host_settings.windows_32_bit_url}} class="md-org-settings-input" id="windows_32_bit_url" placeholder="https://" />
+        <input value={{this.model.host_settings.windows_32_bit_url}} class="md-org-settings-input" id="windows_32_bit_url" placeholder="https://" {{on "input" (set-field this "model.host_settings.windows_32_bit_url")}} />
       </div>
 
       <hr class="md-org-report-divider">
 
       <div class="md-org-settings-field">
         <label for="blog_url" class="md-org-settings-field__label">{{t "Blog URL" key="blog_url"}}</label>
-        <Input @value={{this.model.host_settings.blog_url}} class="md-org-settings-input" id="blog_url" placeholder="https://" />
+        <input value={{this.model.host_settings.blog_url}} class="md-org-settings-input" id="blog_url" placeholder="https://" {{on "input" (set-field this "model.host_settings.blog_url")}} />
       </div>
       <div class="md-org-settings-field">
         <label for="twitter_url" class="md-org-settings-field__label">{{t "Twitter URL" key="twitter_url"}}</label>
-        <Input @value={{this.model.host_settings.twitter_url}} class="md-org-settings-input" id="twitter_url" placeholder="https://" />
+        <input value={{this.model.host_settings.twitter_url}} class="md-org-settings-input" id="twitter_url" placeholder="https://" {{on "input" (set-field this "model.host_settings.twitter_url")}} />
       </div>
       <div class="md-org-settings-field">
         <label for="twitter_handle" class="md-org-settings-field__label">{{t "Twitter Handle" key="twitter_handle"}}</label>
-        <Input @value={{this.model.host_settings.twitter_handle}} class="md-org-settings-input" id="twitter_handle" placeholder="@whoever" />
+        <input value={{this.model.host_settings.twitter_handle}} class="md-org-settings-input" id="twitter_handle" placeholder="@whoever" {{on "input" (set-field this "model.host_settings.twitter_handle")}} />
       </div>
       <div class="md-org-settings-field">
         <label for="facebook_url" class="md-org-settings-field__label">{{t "Facebook URL" key="facebook_url"}}</label>
-        <Input @value={{this.model.host_settings.facebook_url}} class="md-org-settings-input" id="facebook_url" placeholder="https://" />
+        <input value={{this.model.host_settings.facebook_url}} class="md-org-settings-input" id="facebook_url" placeholder="https://" {{on "input" (set-field this "model.host_settings.facebook_url")}} />
       </div>
       <div class="md-org-settings-field">
         <label for="youtube_url" class="md-org-settings-field__label">{{t "YouTube URL" key="youtube_url"}}</label>
-        <Input @value={{this.model.host_settings.youtube_url}} class="md-org-settings-input" id="youtube_url" placeholder="https://" />
+        <input value={{this.model.host_settings.youtube_url}} class="md-org-settings-input" id="youtube_url" placeholder="https://" {{on "input" (set-field this "model.host_settings.youtube_url")}} />
       </div>
     </section>
   {{/if}}

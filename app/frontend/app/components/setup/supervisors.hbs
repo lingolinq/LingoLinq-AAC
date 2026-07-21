@@ -14,7 +14,7 @@
   </ul>
   {{#unless this.setup.setup_user.supporter_role}}
     {{#if this.setup.setup_user}}
-      <p style='margin-top: 20px;'><button class='btn btn-default btn-lg' {{on "click" (this.ctrlAction "manage_supervision" target)}}>
+      <p style='margin-top: 20px;'><button class='btn btn-default btn-lg' {{on "click" (this.ctrlAction "manage_supervision" this.target)}}>
         {{t "Add or Manage Supervisors" key="add_of_manage_supervisors"}}
       </button></p>
     {{/if}}

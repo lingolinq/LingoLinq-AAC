@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="la-modify-core-modal-wrap">
     <div class="la-modal-header">
       <div class="la-modal-header-icon la-modal-header-icon--core" aria-hidden="true">
@@ -14,7 +14,7 @@
       </p>
       <div class="la-modify-core-row">
         <div class="la-modify-core-select-wrap">
-          {{bound-select select_class="la-modify-core-select" select_id="core_list" content=this.core_lists selection=this.core_list action=(this.ctrlAction "updateCoreList") }}
+          <BoundSelect @select_class="la-modify-core-select" @select_id="core_list" @content={{this.core_lists}} @selection={{this.core_list}} @action={{this.ctrlAction "updateCoreList"}} />
         </div>
         {{#if this.default_core_list}}
           <button type="button" class="la-modify-core-customize-btn" {{on "click" (this.ctrlAction "modify_list")}}>{{t "Customize This List" key="customize_this_list"}}</button>
@@ -22,7 +22,7 @@
       </div>
       <div class="la-modify-core-list-area">
         {{#if this.editing}}
-          <Textarea @value={{this.word_lines}} class="la-modify-core-textarea" placeholder="Type or paste in a list of words, either separated by commas or one per line" rows={{6}} />
+          <textarea class="la-modify-core-textarea" placeholder="Type or paste in a list of words, either separated by commas or one per line" aria-label={{t "Word list" key="word_list"}} rows={{6}} {{on "input" (set-field this "word_lines")}}>{{this.word_lines}}</textarea>
         {{else}}
           <div class="la-modify-core-words-preview">{{this.raw_words_list}}</div>
         {{/if}}
@@ -43,4 +43,4 @@
       <button type="button" class="la-modify-core-cancel-btn" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
     </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

@@ -29,16 +29,14 @@ function _sidebar_editor_i18n_extractor_no_op() {
   i18n.t('edit_sidebar', "Edit Sidebar");
   i18n.t('sidebar_editor_current', "On your sidebar");
   i18n.t('sidebar_editor_your_boards', "Your Boards");
+  i18n.t('sidebar_editor_add_group', "Boards you can add");
   i18n.t('sidebar_editor_remove_q', "Remove from sidebar?");
   i18n.t('sidebar_editor_add_q', "Add to sidebar?");
   i18n.t('sidebar_editor_adding', "Adding to your sidebar");
   i18n.t('sidebar_editor_copy_failed', "We couldn't add that board. Please try again.");
   i18n.t('sidebar_editor_already_added', "That board is already on your sidebar.");
-  i18n.t('sidebar_editor_always_on', "Always on");
-  i18n.t('sidebar_editor_cannot_remove', "Always on your sidebar — can't be removed");
   i18n.t('sidebar_editor_hide', "Hide from sidebar");
   i18n.t('sidebar_editor_show', "Show on sidebar");
-  i18n.t('sidebar_editor_reorder_hint', "Drag and drop the boards below to change their order on your sidebar.");
   i18n.t('sidebar_editor_drag_to_reorder', "Drag to reorder");
   i18n.t('sidebar_editor_move_up', "Move up");
   i18n.t('sidebar_editor_move_down', "Move down");
@@ -52,14 +50,6 @@ function _alphaByName(boards) {
     return an.localeCompare(bn, undefined, { numeric: true, sensitivity: 'base' });
   });
   return copy;
-}
-
-/* Case-insensitive match against name + key — mirrors board-collection's filter. */
-function _matchesQuery(name, key, q) {
-  q = (q || '').trim().toLowerCase();
-  if (!q) { return true; }
-  return ((name || '').toLowerCase().indexOf(q) !== -1) ||
-         ((key || '').toLowerCase().indexOf(q) !== -1);
 }
 
 /* Shape an Ember board record into the plain row object the template renders. */
@@ -96,7 +86,6 @@ export default Component.extend({
   adding_board_name: null,
   confirm_remove_idx: null,
   confirm_add_id: null,
-  search_query: '',
   changed: false,
   _lastSave: null,
   draggingIdx: null,
@@ -116,10 +105,6 @@ export default Component.extend({
     this._super(...arguments);
   },
 
-  search_active: computed('search_query', function() {
-    return (this.get('search_query') || '').trim().length > 0;
-  }),
-
   /* True once My Boards AND every brand family have settled (loaded or errored).
      The template holds all sections behind a single loading message until then, so
      the rows — with their grid-size pills — appear fully formed in one pass instead
@@ -137,13 +122,12 @@ export default Component.extend({
      locked "Always on" pill (can't be removed; the server auto-adds it). Alert →
      eye toggle (hide/show persists). Everything else → remove (×). When Alert is
      hidden (absent from the array) a non-draggable "show" row is appended. */
-  current_items: computed('appState.currentUser.preferences.sidebar_boards.[]', 'search_query', function() {
-    var q = this.get('search_query');
+  current_items: computed('appState.currentUser.preferences.sidebar_boards.[]', function() {
     var raw = this.get('appState.currentUser.preferences.sidebar_boards') || [];
-    var n = raw.length;
     var items = raw.map(function(b, idx) {
       var isAlert = !!b.alert;
       var isCrisis = !isAlert && b.key && (/crisis/i).test(b.key);
+      var hidden = !!b.hidden;
       return {
         id: 'cur:' + idx,
         idx: idx,
@@ -151,27 +135,37 @@ export default Component.extend({
         image: b.image,
         key: b.key,
         special: !!b.special,
-        protected: isCrisis,
+        /* Crisis Vocabulary is auto-added by the server (sidebar_auto_add_keys),
+           so it can't be REMOVED — deleting it is undone on the next load. It can
+           be HIDDEN though: the entry stays in the list carrying `hidden`, and the
+           live sidebar skips it (see sidebar_boards_with_fallbacks). */
+        hideable: isCrisis,
         toggleable: isAlert,
-        visible: true,
-        reorderable: true,
-        is_first: idx === 0,
-        is_last: idx === n - 1
+        visible: !hidden,
+        is_hidden: hidden,
+        /* A hidden row has nothing to order — it drops its grip and arrows and
+           sinks to the bottom, matching the hidden Alert row below. */
+        reorderable: !hidden,
+        is_first: false,
+        is_last: false
       };
     });
+    /* First/last are computed over the MOVABLE rows only, so the end arrows are
+       disabled at the edges of the visible list rather than letting a row swap
+       into the hidden tail. */
+    var movable = items.filter(function(it) { return it.reorderable; });
+    movable.forEach(function(it, i) {
+      it.is_first = (i === 0);
+      it.is_last = (i === movable.length - 1);
+    });
+    items = movable.concat(items.filter(function(it) { return !it.reorderable; }));
     if (!raw.some(function(b) { return b.alert; })) {
       var alertDef = this._default_sidebar_boards().find(function(d) { return d.alert; });
       if (alertDef) {
         items.push({ id: 'alert-hidden', idx: -1, name: alertDef.name || 'Alert', image: alertDef.image, alert: true, toggleable: true, visible: false, is_hidden: true, reorderable: false });
       }
     }
-    return items.filter(function(it) { return _matchesQuery(it.name, it.key, q); });
-  }),
-
-  /* Reordering is disabled while a search filters the list (the visible subset no
-     longer maps to contiguous array positions). */
-  reorder_enabled: computed('search_active', function() {
-    return !this.get('search_active');
+    return items;
   }),
 
   _default_sidebar_boards: function() {
@@ -279,8 +273,7 @@ export default Component.extend({
      filtered by search. These add DIRECTLY (the user already owns them). Alert +
      Crisis Vocabulary are NOT here — they live in the "On your sidebar" list with a
      visibility toggle (they can't be removed, only hidden). */
-  your_boards: computed('my_boards_state.boards.[]', 'appState.currentUser.preferences.sidebar_boards.[]', 'search_query', function() {
-    var q = this.get('search_query');
+  your_boards: computed('my_boards_state.boards.[]', 'appState.currentUser.preferences.sidebar_boards.[]', function() {
     var lookup = this._current_lookup();
     var list = [];
     (this.get('my_boards_state.boards') || []).forEach(function(b) {
@@ -288,19 +281,17 @@ export default Component.extend({
       if (!key || lookup.keys[key]) { return; }
       list.push(_shapeBoard(b, { needs_copy: false }));
     });
-    return list.filter(function(it) { return _matchesQuery(it.name, it.key, q); });
+    return list;
   }),
 
   /* Categorized public brand sections — boards the user likely doesn't own, so
      adding one COPIES it first (needs_copy: true). Mirrors board-collection. */
-  ordered_brands: computed('brand_communikate', 'brand_quick_core', 'brand_sequoia', 'brand_vocal_flair', 'appState.currentUser.preferences.sidebar_boards.[]', 'search_query', function() {
-    var q = this.get('search_query');
+  ordered_brands: computed('brand_communikate', 'brand_quick_core', 'brand_sequoia', 'brand_vocal_flair', 'appState.currentUser.preferences.sidebar_boards.[]', function() {
     var lookup = this._current_lookup();
     return BRAND_FAMILIES.map(function(family) {
       var result = this.get('brand_' + family.id) || { state: 'loading' };
       var boards = (result.boards || []).map(function(b) { return _shapeBoard(b, { needs_copy: true }); })
         .filter(function(it) {
-          if (!_matchesQuery(it.name, it.key, q)) { return false; }
           // Hide a catalog board once the user has its copy on the sidebar, so they
           // can't add a duplicate.
           var slug = (it.key || '').split('/').pop();
@@ -461,12 +452,6 @@ export default Component.extend({
       var fn = this.get('onBack');
       if (typeof fn === 'function') { fn(); }
     },
-    update_search: function(event) {
-      this.set('search_query', (event && event.target && event.target.value) || '');
-    },
-    clear_search: function() {
-      this.set('search_query', '');
-    },
     request_remove: function(item) {
       this.set('confirm_add_id', null);
       this.set('confirm_remove_idx', item.idx);
@@ -477,7 +462,7 @@ export default Component.extend({
     /* ── Drag-and-drop reorder (native HTML5 DnD, mirrors label-chips). Operates on
        raw array indices (item.idx) and persists the reordered array on drop. ── */
     row_drag_start: function(item, event) {
-      if (!item.reorderable || !this.get('reorder_enabled')) {
+      if (!item.reorderable) {
         if (event && event.preventDefault) { event.preventDefault(); }
         return;
       }
@@ -523,6 +508,7 @@ export default Component.extend({
       if (!item.reorderable) { return; }
       var raw = (this.get('appState.currentUser.preferences.sidebar_boards') || []).slice();
       if (item.idx <= 0 || item.idx >= raw.length) { return; }
+      if (raw[item.idx - 1] && raw[item.idx - 1].hidden) { return; }
       var moved = raw.splice(item.idx, 1)[0];
       raw.splice(item.idx - 1, 0, moved);
       this._save(raw);
@@ -531,6 +517,7 @@ export default Component.extend({
       if (!item.reorderable) { return; }
       var raw = (this.get('appState.currentUser.preferences.sidebar_boards') || []).slice();
       if (item.idx < 0 || item.idx >= raw.length - 1) { return; }
+      if (raw[item.idx + 1] && raw[item.idx + 1].hidden) { return; }
       var moved = raw.splice(item.idx, 1)[0];
       raw.splice(item.idx + 1, 0, moved);
       this._save(raw);
@@ -543,6 +530,30 @@ export default Component.extend({
         raw.splice(item.idx, 1);
       } else if (!item.visible) {
         raw.push({ name: item.name, alert: true, special: true, image: item.image });
+      }
+      this.set('confirm_remove_idx', null);
+      this.set('busy_id', item.id);
+      this._save(raw);
+    },
+    /* Show/hide for auto-add boards (Crisis Vocabulary). Flips `hidden` on the
+       stored entry instead of splicing it out, because the server re-appends any
+       missing auto-add board on load — a delete would silently come back. */
+    toggle_hidden: function(item) {
+      var raw = (this.get('appState.currentUser.preferences.sidebar_boards') || []).slice();
+      if (item.idx < 0 || item.idx >= raw.length) { return; }
+      var entry = Object.assign({}, raw[item.idx]);
+      if (entry.hidden) {
+        // Un-hiding leaves it where it sits (at the bottom); the user can move it
+        // back up with the grip or the arrows now that they are enabled again.
+        delete entry.hidden;
+        raw[item.idx] = entry;
+      } else {
+        // Hiding sinks it to the bottom of the STORED order too, so the movable
+        // rows stay contiguous from index 0 and the arrows can't swap a visible
+        // row into the hidden tail.
+        entry.hidden = true;
+        raw.splice(item.idx, 1);
+        raw.push(entry);
       }
       this.set('confirm_remove_idx', null);
       this.set('busy_id', item.id);
@@ -598,6 +609,22 @@ export default Component.extend({
         if (event && event.stopPropagation) { event.stopPropagation(); }
         if (event && event.preventDefault) { event.preventDefault(); }
         self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+    // dragAction: event forwarder for the HTML5 drag/drop handlers ONLY.
+    // ctrlAction (above) is built for CLICK handlers: it preventDefaults the
+    // event AND pops it off the args before dispatch. Both are FATAL to native
+    // drag — preventDefault() on `dragstart` CANCELS the drag before it begins,
+    // and popping the event starves row_drag_start of the `dataTransfer` it needs
+    // to set the payload (Firefox won't drag at all without setData). So drag
+    // gets its own forwarder that passes the RAW event through untouched. The
+    // drag actions (row_drag_start/over/drop) each call preventDefault
+    // themselves, exactly where it's correct (to cancel a non-reorderable drag,
+    // and to allow a drop on dragover/drop) — never on a live dragstart.
+    this.dragAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        self.send.apply(self, [actionName].concat(bound).concat([event]));
       };
     };
   }
