@@ -96,6 +96,10 @@ LingoLinq.User = BaseModel.extend({
   eu_ai_parental_consent_active: attr('boolean'),
   /** Response-only (edit): parent email on a pending EU AI consent request (resend prefills). */
   eu_ai_parental_consent_parent_email: attr('string'),
+  /** Response-only: EU AI Act Article 50(1) disclosure gate (EuJurisdiction.disclosure_required?). Always present as a boolean. */
+  article_50_disclosure_required: attr('boolean'),
+  /** Response-only: Article 50(1) disclosure already acknowledged at the current version. Always present as a boolean. */
+  article_50_disclosure_shown: attr('boolean'),
   unread_messages: attr('number'),
   unread_alerts: attr('number'),
   external_device: attr('raw'),

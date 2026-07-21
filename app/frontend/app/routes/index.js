@@ -9,6 +9,7 @@ import LingoLinq from '../app';
 import session from '../utils/session';
 import i18n from '../utils/i18n';
 import progress_tracker from '../utils/progress_tracker';
+import { onlyIfGenuinelyResolved, maybeShowSessionEntryGate } from '../utils/article50_gate';
 
 export default Route.extend({
   router: service('router'),
@@ -99,6 +100,10 @@ export default Route.extend({
     // a login / app-boot entry. Inherited by user.home, so board-alt's
     // EXIT BOARDS (-> user.home) also lands on the dashboard, not speak.
     var jump_to_speak = !!(_this.appState.get('_index_login_entry') && ((_this.stashes.get('current_mode') == 'speak' && !document.referrer) || (model && model.get('currently_premium') && model.get('preferences.auto_open_speak_mode'))));
+    // EU AI Act Art.50 session-entry gate (03-UI-SPEC 7.1): tracks whether a
+    // terms_agree-missing sub-branch below has already claimed responsibility
+    // for the Art.50 check this render, so the shared tail doesn't also check.
+    var art50_checked_inline = false;
 
     var progress = _this.appState.get('sessionUser.preferences.progress') || {};
     if(!progress || (!progress.skipped_subscribe_modal && !progress.setup_done)) {
@@ -117,19 +122,36 @@ export default Route.extend({
     if(model && model.get('id') && model.get('user_name') && !model.get('terms_agree')) {
       // If data is not fresh, try to reload first before showing modal
       if(!model.get('really_fresh') && _this && _this.persistence && typeof _this.persistence.get === 'function' && _this.persistence.get('online')) {
+        // Claim the Art.50 check now — the shared tail below must not also
+        // check it once this branch is responsible for it (03-UI-SPEC 7.1).
+        art50_checked_inline = true;
         model.reload().then(function() {
           // After successful reload, check again if terms_agree is still missing
           if(model.get('id') && model.get('user_name') && !model.get('terms_agree')) {
-            modal.open('terms-agree');
+            // A resolved .then() here is not the same thing as "the user
+            // acknowledged" — modal.open() resolves a bumped modal's promise
+            // with {replaced: true}. onlyIfGenuinelyResolved rejects that.
+            modal.open('terms-agree').then(function(result) {
+              onlyIfGenuinelyResolved(result, model);
+            });
+          } else {
+            // Reload cleared terms_agree — this call isn't chained off any
+            // other modal's promise, so it needs no {replaced: true} guard.
+            maybeShowSessionEntryGate(model);
           }
         }, function(err) {
           // If reload fails (e.g., 401 error), don't show modal
           // We can't be sure the data is complete, so don't assume terms_agree is missing
           // The modal will show on next successful load if terms_agree is actually false
+          // Same caution extends to Art.50: don't show it either this pass.
+          // art50_checked_inline stays true so the tail skips its own check.
         });
       } else if(model.get('really_fresh')) {
         // Data is fresh from server, safe to check terms_agree
-        modal.open('terms-agree');
+        art50_checked_inline = true;
+        modal.open('terms-agree').then(function(result) {
+          onlyIfGenuinelyResolved(result, model);
+        });
       }
       // If data is not fresh and we're offline, don't show modal (can't verify)
     } else {
@@ -184,6 +206,14 @@ export default Route.extend({
     controller.update_current_badges();
     if(_this.appState.get('show_intro')) {
       modal.open('intro');
+    }
+    // EU AI Act Art.50 session-entry opportunity (03-UI-SPEC 7.1): only check
+    // here if none of the terms_agree-missing sub-branches above already
+    // claimed it. Deliberately placed AFTER modal.open('intro') above — a
+    // compliance-load-bearing BLOCK modal beats a discretionary onboarding
+    // tour if both would fire in the same render.
+    if(!art50_checked_inline) {
+      maybeShowSessionEntryGate(model);
     }
   },
   actions: {

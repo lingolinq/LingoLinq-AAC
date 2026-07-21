@@ -895,5 +895,70 @@ describe JsonApi::User do
         expect(json['can_set_goals']).to eq(true)
       end
     end
+
+    describe "article_50_disclosure fields" do
+      it "requires disclosure and has not shown it for a user with no jurisdiction signal (:unknown)" do
+        u = User.create(settings: {'preferences' => {'locale' => 'en'}})
+        json = JsonApi::User.build_json(u, permissions: u)
+        expect(json['article_50_disclosure_required']).to eq(true)
+        expect(json['article_50_disclosure_shown']).to eq(false)
+      end
+
+      it "does not require disclosure for an authoritative non-EU user" do
+        u = User.create(settings: {'preferences' => {'jurisdiction' => 'US', 'locale' => 'en'}})
+        json = JsonApi::User.build_json(u, permissions: u)
+        expect(json['article_50_disclosure_required']).to eq(false)
+      end
+
+      it "reflects article_50_disclosure_shown true after mark_article_50_disclosure_shown!" do
+        u = User.create(settings: {'preferences' => {'locale' => 'en'}})
+        u.mark_article_50_disclosure_shown!(
+          disclosures_version: LingoLinq::Article50Disclosures::CURRENT_VERSION,
+          source: 'modal_ack'
+        )
+        u.reload
+        json = JsonApi::User.build_json(u, permissions: u)
+        expect(json['article_50_disclosure_shown']).to eq(true)
+      ensure
+        AuditEvent.delete_all
+      end
+
+      it "emits both keys as booleans, never nil, for the session user" do
+        u = User.create(settings: {'preferences' => {'locale' => 'en'}})
+        json = JsonApi::User.build_json(u, permissions: u)
+        expect(json.key?('article_50_disclosure_required')).to eq(true)
+        expect(json.key?('article_50_disclosure_shown')).to eq(true)
+        expect([true, false]).to be_include(json['article_50_disclosure_required'])
+        expect([true, false]).to be_include(json['article_50_disclosure_shown'])
+      end
+
+      # Scoped to permissions['model'] (self). Two reasons, both asserted below:
+      # EuJurisdiction.disclosure_required? resolves the managing organization on an
+      # uncached path, so emitting it per row put an org lookup on every user in every
+      # list (org user pages paginate up to 500); and no consumer needs another user's
+      # disclosure state -- eval narration deliberately gates on the clinician, and the
+      # server backstop reads @api_user directly rather than anything serialized here.
+      it "omits both keys when serializing a user that is not the session user" do
+        u = User.create(settings: {'preferences' => {'locale' => 'en'}})
+        other = User.create
+        json = JsonApi::User.build_json(u, permissions: other)
+        expect(json['permissions']['model']).to eq(nil)
+        expect(json.key?('article_50_disclosure_required')).to eq(false)
+        expect(json.key?('article_50_disclosure_shown')).to eq(false)
+      end
+
+      it "omits both keys on a limited_identity list row (no permissions at all)" do
+        u = User.create(settings: {'preferences' => {'locale' => 'en'}})
+        json = JsonApi::User.build_json(u, limited_identity: true)
+        expect(json.key?('article_50_disclosure_required')).to eq(false)
+        expect(json.key?('article_50_disclosure_shown')).to eq(false)
+      end
+
+      it "does not resolve the managing organization for a limited_identity row" do
+        u = User.create(settings: {'preferences' => {'locale' => 'en'}})
+        expect(EuJurisdiction).not_to receive(:disclosure_required?)
+        JsonApi::User.build_json(u, limited_identity: true)
+      end
+    end
   end
 end
