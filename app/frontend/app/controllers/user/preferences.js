@@ -18,7 +18,7 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { htmlSafe } from '@ember/template';
 import editManager from '../../utils/edit_manager';
-import { ART50_DISCLOSURE_URL } from '../../utils/article50_gate';
+import { art50DisclosureUrl } from '../../utils/article50_gate';
 
 var sidebarActionCodeTemplates = {
   ':timer': ':timer(30s)',
@@ -140,11 +140,14 @@ export default Controller.extend({
   // EU AI Act Article 50(1) notice URL for the passive Preferences affordance
   // (03-UI-SPEC 7.3). A plain link, NOT the ai-disclosure modal: that modal is
   // uncloseable BLOCK mode and would trap a user who opened it just to re-read
-  // the notice. Version single-sourced from utils/article50_gate.
-  article_50_disclosure_url: ART50_DISCLOSURE_URL,
+  // the notice. Version and locale single-sourced from utils/article50_gate;
+  // assigned in init() rather than at module load because the locale is not
+  // resolved until initializers/attempt_lang has run.
+  article_50_disclosure_url: null,
 
   init() {
     this._super(...arguments);
+    this.set('article_50_disclosure_url', art50DisclosureUrl());
     var self = this;
     this.ctrlAction = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);

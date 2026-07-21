@@ -5,7 +5,7 @@ import persistence from '../utils/persistence';
 // URL live in utils/article50_gate so this modal and the passive Preferences link
 // cannot drift apart; that constant tracks the backend's
 // LingoLinq::Article50Disclosures::CURRENT_VERSION (Plan 03-01).
-import { ART50_DISCLOSURE_URL } from '../utils/article50_gate';
+import { art50DisclosureUrl } from '../utils/article50_gate';
 
 /**
  * The one shared, accessible "you are about to use AI" modal (F1). Composes
@@ -37,7 +37,9 @@ export default Component.extend({
     this.set('disclosure_html', null);
     this.set('ack_error', false);
     this.set('acknowledging', false);
-    this.set('disclosureLinkUrl', ART50_DISCLOSURE_URL);
+    // Locale-aware: drives BOTH the in-modal fetch below and the "Read the Full
+    // Notice" link, so a Spanish reader gets the Spanish notice in both places.
+    this.set('disclosureLinkUrl', art50DisclosureUrl());
   },
 
   didInsertElement() {

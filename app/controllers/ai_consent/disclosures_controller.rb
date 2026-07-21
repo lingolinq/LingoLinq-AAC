@@ -53,12 +53,29 @@ module AiConsent
     # or absent locale silently falls back to the default rather than raising
     # I18n::InvalidLocale. Scoped to the art50 branch only, per the plan --
     # the COPPA branch above is left byte-identical to before this change.
+    #
+    # Falls back through the PRIMARY SUBTAG before giving up ('es-ES' -> 'es'),
+    # mirroring the frontend's own i18n.langs.preferred / .fallback pair
+    # (initializers/attempt_lang.js sets preferred to the full navigator tag and
+    # fallback to the base language). Without this step a browser reporting
+    # 'es-ES' -- the common case -- would silently receive the ENGLISH notice
+    # even though config/locales/es.yml carries a full Spanish translation of it.
+    # Still an allowlist: the derived subtag is checked against
+    # I18n.available_locales exactly like the full tag, so an unknown base
+    # language falls through to the default rather than being trusted.
     def resolve_locale(raw_locale)
       candidate = raw_locale.to_s.strip
       return I18n.default_locale if candidate.empty?
 
+      available = I18n.available_locales
       symbol = candidate.to_sym
-      I18n.available_locales.include?(symbol) ? symbol : I18n.default_locale
+      return symbol if available.include?(symbol)
+
+      base = candidate.split(/[-_]/).first.to_s.downcase
+      return I18n.default_locale if base.empty?
+
+      base_symbol = base.to_sym
+      available.include?(base_symbol) ? base_symbol : I18n.default_locale
     end
   end
 end

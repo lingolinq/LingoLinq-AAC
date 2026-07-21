@@ -1,12 +1,15 @@
 import { module, test } from 'qunit';
 import RSVP from 'rsvp';
 import modal from 'frontend/utils/modal';
+import i18n from 'frontend/utils/i18n';
 import {
   needsAcknowledgement,
   presentBlockingGate,
   maybeShowSessionEntryGate,
   onlyIfGenuinelyResolved,
-  GATE_NOT_ACKNOWLEDGED
+  GATE_NOT_ACKNOWLEDGED,
+  art50DisclosureUrl,
+  ART50_DISCLOSURE_URL
 } from 'frontend/utils/article50_gate';
 
 function makeAppState(flagOn, user) {
@@ -186,6 +189,37 @@ module('Unit | Utility | article50 gate', function(hooks) {
       var user = makeUser({really_fresh: true, article_50_disclosure_required: true, article_50_disclosure_shown: false});
       onlyIfGenuinelyResolved({replaced: true}, user);
       assert.false(openCalled);
+    });
+  });
+
+  module('art50DisclosureUrl', function(hooks) {
+    var original_langs;
+    hooks.beforeEach(function() { original_langs = i18n.langs; });
+    hooks.afterEach(function() { i18n.langs = original_langs; });
+
+    test('appends the reader locale so a Spanish reader gets the Spanish notice', function(assert) {
+      i18n.langs = {preferred: 'es', fallback: 'es'};
+      assert.strictEqual(art50DisclosureUrl(), ART50_DISCLOSURE_URL + '?locale=es');
+    });
+
+    test('sends the full regional tag and lets the server resolve the base language', function(assert) {
+      i18n.langs = {preferred: 'es-ES', fallback: 'es'};
+      assert.strictEqual(art50DisclosureUrl(), ART50_DISCLOSURE_URL + '?locale=es-ES');
+    });
+
+    test('falls back to the bare URL when no locale has been resolved yet', function(assert) {
+      i18n.langs = null;
+      assert.strictEqual(art50DisclosureUrl(), ART50_DISCLOSURE_URL);
+    });
+
+    test('does not send the "backwards" debug pseudo-locale', function(assert) {
+      i18n.langs = {preferred: 'backwards'};
+      assert.strictEqual(art50DisclosureUrl(), ART50_DISCLOSURE_URL);
+    });
+
+    test('percent-encodes the locale value', function(assert) {
+      i18n.langs = {preferred: 'es ES&x=1'};
+      assert.strictEqual(art50DisclosureUrl().indexOf('&x=1'), -1);
     });
   });
 });

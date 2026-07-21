@@ -70,7 +70,13 @@ describe('ai-disclosure', function() {
       });
       var resolve = null;
       stub(persistence, 'ajax', function(url, opts) {
-        expect(url).toEqual('/ai_consent/disclosures/art50_v1');
+        // The fetch is locale-aware: config/locales/es.yml carries a full Spanish
+        // translation and disclosures_controller reads params[:locale], so the URL
+        // MUST carry the reader's locale or the Spanish notice is unreachable.
+        // Assert the path plus the presence of the param rather than an exact
+        // string, since the locale varies with the test browser.
+        expect(url.split('?')[0]).toEqual('/ai_consent/disclosures/art50_v1');
+        expect(url.indexOf('locale=') > -1).toEqual(true);
         expect(opts.type).toEqual('GET');
         return new RSVP.Promise(function(innerResolve) {
           resolve = innerResolve;

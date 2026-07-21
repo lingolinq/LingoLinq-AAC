@@ -77,6 +77,27 @@ describe AiConsent::DisclosuresController, :type => :controller do
       expect(response.body).to include(I18n.t('art50_disclosures.v1.page_title', locale: :es))
     end
 
+    # Browsers report a full tag ('es-ES'), not a bare language, so without the
+    # primary-subtag fallback the Spanish notice would ship and be unreachable for
+    # exactly the readers it exists for.
+    it "renders the Spanish translation for a regional tag like es-ES" do
+      get :show, params: {version: 'art50_v1', locale: 'es-ES'}
+      expect(response.status).to eq(200)
+      expect(response.body).to include(I18n.t('art50_disclosures.v1.page_title', locale: :es))
+    end
+
+    it "accepts an underscore-separated regional tag too (es_MX)" do
+      get :show, params: {version: 'art50_v1', locale: 'es_MX'}
+      expect(response.status).to eq(200)
+      expect(response.body).to include(I18n.t('art50_disclosures.v1.page_title', locale: :es))
+    end
+
+    it "still allowlists: an unavailable base language falls back to the default" do
+      get :show, params: {version: 'art50_v1', locale: 'zz-ZZ'}
+      expect(response.status).to eq(200)
+      expect(response.body).to include(I18n.t('art50_disclosures.v1.page_title', locale: I18n.default_locale))
+    end
+
     it "falls back to the default locale, without raising, for an unrecognized locale" do
       expect {
         get :show, params: {version: 'art50_v1', locale: 'zz'}

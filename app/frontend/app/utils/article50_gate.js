@@ -1,5 +1,6 @@
 import RSVP from 'rsvp';
 import modal from './modal';
+import i18n from './i18n';
 
 /**
  * Shared EU AI Act Article 50(1) first-AI-use gate helper (F1/F2, D-02: ONE
@@ -24,6 +25,29 @@ import modal from './modal';
  */
 export var ART50_CURRENT_VERSION = 1;
 export var ART50_DISCLOSURE_URL = '/ai_consent/disclosures/art50_v' + ART50_CURRENT_VERSION;
+
+/**
+ * The notice URL with the reader's current locale attached. ALWAYS use this
+ * rather than the bare ART50_DISCLOSURE_URL constant for anything a user
+ * actually reads.
+ *
+ * config/locales/es.yml carries a full Spanish translation of the notice and
+ * disclosures_controller#show_art50 wraps the render in I18n.with_locale, but
+ * that branch reads params[:locale] -- so a request without one always resolved
+ * to I18n.default_locale and served ENGLISH. The Spanish notice shipped and was
+ * unreachable. For an EU-facing Article 50 transparency notice, delivering it in
+ * a language the reader may not speak defeats the point of the disclosure.
+ *
+ * Sends i18n.langs.preferred (the full navigator tag, e.g. 'es-ES'); the server
+ * allowlists it and falls back through the primary subtag ('es-ES' -> 'es') and
+ * then to the default, so an unrecognized value degrades to English rather than
+ * erroring.
+ */
+export function art50DisclosureUrl() {
+  var preferred = i18n.langs && i18n.langs.preferred;
+  if (!preferred || preferred === 'backwards') { return ART50_DISCLOSURE_URL; }
+  return ART50_DISCLOSURE_URL + '?locale=' + encodeURIComponent(preferred);
+}
 
 /**
  * True only when the article_50_disclosure feature flag is on AND there is a
@@ -129,6 +153,7 @@ export function onlyIfGenuinelyResolved(result, model) {
 export default {
   ART50_CURRENT_VERSION: ART50_CURRENT_VERSION,
   ART50_DISCLOSURE_URL: ART50_DISCLOSURE_URL,
+  art50DisclosureUrl: art50DisclosureUrl,
   GATE_NOT_ACKNOWLEDGED: GATE_NOT_ACKNOWLEDGED,
   needsAcknowledgement: needsAcknowledgement,
   presentBlockingGate: presentBlockingGate,
