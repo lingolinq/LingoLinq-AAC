@@ -98,7 +98,7 @@
 | Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |
 |---|---|---|---|---|---|---|---|---|---|---|
 | accessibility-auditor agent definition | git | `.claude/agents/accessibility-auditor.md` | published | WCAG | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `bd8a7cadd8b2` |  |
-| api-auditor agent definition | git | `.claude/agents/api-auditor.md` | published |  | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `3895f7acff6a` |  |
+| api-auditor agent definition | git | `.claude/agents/api-auditor.md` | published |  | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `39f0ce0aea09` |  |
 | compliance-officer agent definition | git | `.claude/agents/compliance-officer.md` | published |  | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `fffaf2ed0856` |  |
 | dependency-auditor agent definition | git | `.claude/agents/dependency-auditor.md` | published |  | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `d961e07c1def` |  |
 | infra-auditor agent definition | git | `.claude/agents/infra-auditor.md` | published | SOC2 | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `33dc0fdd939e` |  |
