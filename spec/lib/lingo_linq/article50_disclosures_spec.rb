@@ -161,6 +161,48 @@ describe LingoLinq::Article50Disclosures do
     end
   end
 
+  describe 'truthfulness gate 5: eval narration states its own de-identification' do
+    # The notice claims the student's name and diagnosis are removed before eval
+    # data is sent. That claim is only true because EvalNarrator#payload_for_prompt
+    # drops them. Assert BOTH halves here so the pair cannot silently decouple: if
+    # someone stops dropping either field, this spec fails on the code side, and if
+    # someone removes the reassurance from the notice, it fails on the text side.
+    let(:eval_feature) do
+      described_class.metadata(1)['ai_features'].detect { |f| f['key'] == 'eval_narrator' }
+    end
+
+    it 'tells the reader that the name and diagnosis are removed before sending' do
+      expect(eval_feature).not_to be_nil
+      description = eval_feature['description']
+      expect(description).to match(/removed before/i)
+      expect(description).to match(/name/i)
+      expect(description).to match(/diagnosis/i)
+
+      category = described_class.metadata(1)['data_categories'].detect { |c| c =~ /evaluation/i }
+      expect(category).to match(/removed before sending/i)
+    end
+
+    it 'matches what EvalNarrator actually strips from the egress payload' do
+      payload = {
+        'eval_mode' => 'comprehensive',
+        'intake' => { 'etiology' => 'cerebral palsy', 'age' => 7 },
+        'sett' => { 'student' => 'Jane Doe', 'environment' => 'classroom' },
+        'recommendation' => { 'grid_size' => '4x8' },
+        'slp_notes' => 'consistent direct selection',
+        'duration_s' => 900
+      }
+      out = EvalNarrator.send(:payload_for_prompt, payload)
+
+      # The two removals the notice promises.
+      expect(out['sett']).not_to have_key('student')
+      expect(out['intake']).not_to have_key('etiology')
+      # And the fields the notice DOES say are sent are still sent, so the notice
+      # is not under-claiming either.
+      expect(out['slp_notes']).to eq('consistent direct selection')
+      expect(out['recommendation']).to eq({ 'grid_size' => '4x8' })
+    end
+  end
+
   describe 'ai_marking' do
     it 'states that Article 50(2) marking is unconditional and independent of jurisdiction or feature flags' do
       marking = described_class.metadata(1)['ai_marking']

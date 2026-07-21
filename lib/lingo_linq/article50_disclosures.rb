@@ -48,6 +48,18 @@ module LingoLinq
   # 3. Vendor-side retention (what Anthropic keeps) is a separate fact, under
   #    a separate key ('vendor_side'), from LingoLinq's own AiApiLog retention
   #    (the 'lingolinq_*' keys). The two are never merged into one sentence.
+  # 4. The eval-narration entries must state the de-identification that the code
+  #    actually performs. lib/eval_narrator.rb#payload_for_prompt drops the
+  #    student name (any key casing) and the etiology/diagnosis field before
+  #    egress, and PiiScrubber runs with the resolved student's name blocklisted.
+  #    An earlier revision said only "clinical evaluation notes and assessment
+  #    data ... for a specific student", which is accurate about slp_notes but
+  #    silent on the two removals -- and silence here OVERSTATES exposure to
+  #    exactly the audience (EU parents, district DPA reviewers) this notice
+  #    exists to inform. A transparency notice that undersells its own
+  #    safeguards is as wrong as one that oversells them. If payload_for_prompt
+  #    ever stops dropping either field, these strings become false and must
+  #    change in the same commit; the spec asserts the pairing.
   #
   # Content hash design: identical rationale to AiConsentDisclosures -- this
   # hashes the STRUCTURED REGISTRY entry, not the rendered HTML, so a purely
@@ -90,8 +102,10 @@ module LingoLinq
             'key' => 'eval_narrator',
             'name' => 'AI evaluation narration',
             'description' => 'When a speech-language pathologist chooses to generate an AI-drafted evaluation ' \
-              'summary for a student, the app can send the evaluation session data to Anthropic Claude Opus 4.7, ' \
-              'which drafts a narrative the clinician then reviews and edits.'
+              'summary, the app can send that evaluation session to Anthropic Claude Opus 4.7, which drafts a ' \
+              "narrative the clinician then reviews and edits. The student's name and their diagnosis are " \
+              'removed before anything is sent, so the AI provider drafts about "the student" and the clinician ' \
+              'fills those details in afterwards.'
           }
         ],
         'data_categories' => [
@@ -99,8 +113,9 @@ module LingoLinq
             'vocabulary words',
           'The words and sentences a communicator is actively building, when AI word prediction suggests the ' \
             'next word',
-          'Clinical evaluation notes and assessment data, only when a speech-language pathologist chooses to ' \
-            'generate an AI-drafted evaluation summary for a specific student'
+          'Evaluation session results and the clinician\'s own written notes, only when a speech-language ' \
+            'pathologist chooses to generate an AI-drafted evaluation summary. The student\'s name and their ' \
+            'diagnosis are removed before sending'
         ],
         'ai_marking' => {
           'summary' => 'AI-generated output from these features is machine-readably marked as required by EU ' \
