@@ -5,7 +5,6 @@ import { observer } from '@ember/object';
 import modalUtil from '../utils/modal';
 import editManager from '../utils/edit_manager';
 import i18n from '../utils/i18n';
-import article50Gate from '../utils/article50_gate';
 
 /**
  * Generate board with AI modal.
@@ -195,57 +194,58 @@ export default Component.extend({
         this.set('status', { error: i18n.t('prompt_required', 'Please describe the board you want to create.') });
         return;
       }
-      // EU AI Act Article 50(1): first-AI-use gate. BLOCK mode (D-03) -- deliberate,
-      // non-time-critical user action. Resolves immediately when no acknowledgement is
-      // needed. If the modal is abandoned, this promise never resolves and no request
-      // fires below, and no spinner/status state is set.
-      article50Gate.presentBlockingGate(this.get('appState')).then(function() {
+      // EU AI Act Article 50(1) NOTE: the first-AI-use gate for this surface fires in
+      // new-board.js#generateWithAi, BEFORE this modal is opened -- deliberately not
+      // here. modal.open() replaces the currently-showing modal, and generate-board is
+      // itself modal-hosted (modal-container.hbs), so opening the disclosure from this
+      // action would destroy this component along with the prompt / rows / columns the
+      // user just typed. The server-side backstop in boards_controller#generate_labels
+      // is what actually enforces the gate for any caller that reaches the endpoint
+      // another way; this component intentionally carries no gate of its own.
+      this.set('status', { generatingLabels: true });
+      this.set('status.error', undefined);
+
+      var payload = {
+        prompt: prompt,
+        rows: parseInt(this.get('rows'), 10) || 2,
+        columns: parseInt(this.get('columns'), 10) || 4,
+        include_core_words: this.get('include_core_words'),
+        labels_order: this.get('labels_order') || 'columns',
+        locale: this.get('locale') || 'en'
+      };
+
+      if (!persistenceService || !persistenceService.ajax) {
+        this.set('status', { error: i18n.t('app_not_ready', 'App is not ready. Please try again.') });
+        return;
+      }
+
+      persistenceService.ajax('/api/v1/boards/generate_labels', {
+        type: 'POST',
+        contentType: 'application/json',
+        dataType: 'json',
+        data: JSON.stringify(payload)
+      }).then(function(res) {
         if (_this.isDestroyed || _this.isDestroying) { return; }
-        _this.set('status', { generatingLabels: true });
-        _this.set('status.error', undefined);
-
-        var payload = {
-          prompt: prompt,
-          rows: parseInt(_this.get('rows'), 10) || 2,
-          columns: parseInt(_this.get('columns'), 10) || 4,
-          include_core_words: _this.get('include_core_words'),
-          labels_order: _this.get('labels_order') || 'columns',
-          locale: _this.get('locale') || 'en'
-        };
-
-        if (!persistenceService || !persistenceService.ajax) {
-          _this.set('status', { error: i18n.t('app_not_ready', 'App is not ready. Please try again.') });
-          return;
+        _this.set('status', null);
+        var labels = (res && res.labels) || '';
+        _this.set('labels', labels);
+        if (res && res.name) { _this.set('name', res.name); }
+        if (res && res.description) { _this.set('description', res.description); }
+        // EU AI Act Article 50(2): hold the signed AI-generation marker so createBoard
+        // can include it in the board payload for the server to verify + persist.
+        if (res && res.ai_generated) { _this.set('ai_generated', res.ai_generated); }
+      }, function(err) {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        var msg = i18n.t('generate_failed', 'Generation failed');
+        var resp = (err && err.fakeXHR && err.fakeXHR.responseJSON) || (err && err.responseJSON) || (err && err.responseText ? (function() {
+          try { return JSON.parse(err.responseText); } catch (e) { return null; }
+        })() : null);
+        if (resp && resp.error) {
+          msg = resp.error;
+          if (resp.error_kind) { msg += ' [' + resp.error_kind + ']'; }
+          if (resp.error_detail) { msg += ' - ' + resp.error_detail; }
         }
-
-        persistenceService.ajax('/api/v1/boards/generate_labels', {
-          type: 'POST',
-          contentType: 'application/json',
-          dataType: 'json',
-          data: JSON.stringify(payload)
-        }).then(function(res) {
-          if (_this.isDestroyed || _this.isDestroying) { return; }
-          _this.set('status', null);
-          var labels = (res && res.labels) || '';
-          _this.set('labels', labels);
-          if (res && res.name) { _this.set('name', res.name); }
-          if (res && res.description) { _this.set('description', res.description); }
-          // EU AI Act Article 50(2): hold the signed AI-generation marker so createBoard
-          // can include it in the board payload for the server to verify + persist.
-          if (res && res.ai_generated) { _this.set('ai_generated', res.ai_generated); }
-        }, function(err) {
-          if (_this.isDestroyed || _this.isDestroying) { return; }
-          var msg = i18n.t('generate_failed', 'Generation failed');
-          var resp = (err && err.fakeXHR && err.fakeXHR.responseJSON) || (err && err.responseJSON) || (err && err.responseText ? (function() {
-            try { return JSON.parse(err.responseText); } catch (e) { return null; }
-          })() : null);
-          if (resp && resp.error) {
-            msg = resp.error;
-            if (resp.error_kind) { msg += ' [' + resp.error_kind + ']'; }
-            if (resp.error_detail) { msg += ' - ' + resp.error_detail; }
-          }
-          _this.set('status', { error: msg });
-        });
+        _this.set('status', { error: msg });
       });
     },
     createBoard() {
