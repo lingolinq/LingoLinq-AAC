@@ -17,7 +17,7 @@
       {{else}}
         <p class="la-share-text__empty">{{t "There's no message to share yet — add some words to your sentence first." key="nothing_to_share_yet"}}</p>
       {{/if}}
-      <div style='position: absolute; left: -1000px;'><input type="text" value={{this.sentence}} id="utterance_sentence" {{on "input" (set-field this "sentence")}} /></div>
+      <div style='position: absolute; left: -1000px;'><input type="text" value={{this.sentence}} id="utterance_sentence" readonly /></div>
 
       <div class="row share_buttons modal_targets advanced_selection la-share-text__grid">
         {{#if this.appState.sessionUser.any_limited_supervisor}}

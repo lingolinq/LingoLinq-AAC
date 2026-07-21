@@ -182,3 +182,5 @@ add|ember-template-lint|require-input-accessible-name|859|14|859|14|dae5914379df
 add|ember-template-lint|require-input-accessible-name|1445|18|1445|18|b3a2f12f82fef0da38a643ebd16c238bb9251317|1784505600000|1787097600000|1789689600000|app/templates/user/preferences.hbs
 add|ember-template-lint|require-input-accessible-name|1461|18|1461|18|7fa457d4c025b6dd3d021a588e3d746601dd3f07|1784505600000|1787097600000|1789689600000|app/templates/user/preferences.hbs
 add|ember-template-lint|require-input-accessible-name|100|6|100|6|c22ec51ef3b29d8aea93c009a4e88b223394d46d|1784505600000|1787097600000|1789689600000|app/templates/user/recordings.hbs
+add|ember-template-lint|require-input-accessible-name|20|54|20|54|bd917ae53afcb19ba5b8c9b247e7b8116121e655|1784592000000|1787184000000|1789776000000|app/components/share-utterance.hbs
+remove|ember-template-lint|require-input-accessible-name|20|54|20|54|08eea570486b35a656aed1b905b88422609f30dc|1784505600000|1787097600000|1789689600000|app/components/share-utterance.hbs
