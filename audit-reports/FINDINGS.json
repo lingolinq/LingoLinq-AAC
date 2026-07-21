@@ -3963,6 +3963,51 @@
         "promotedDate": "2026-07-20"
       },
       "notes": "Promoted 2026-07-20 from the GCP cutover Gate 1 rehearsal. Scoped deliberately NARROW so it does not duplicate LL-42a24ee911 (verified-closed), which covered whether a diagnostic SES send ARRIVED. Arrival is settled; this finding covers only the two residuals that arrival did not prove -- Authentication-Results header capture and SPF/MAIL FROM alignment. An earlier draft finding LL-2c47df5d21 was removed from PR #624 during review as a duplicate of LL-42a24ee911; that removal was correct on its wording, but it left these two residuals with no tracker, which scripts/gcp/PHASE5-CUTOVER-RUNBOOK.md still referred to as 'promotion pending in PR #624'. This finding is that tracker. Manual promotion (low severity is below promote-finding.rb's Critical/High threshold, so hand-added as status open / disposition untriaged). Only Scot triages/closes."
+    },
+    {
+      "id": "LL-c38e7da48e",
+      "ruleKey": "translation-api-undisclosed-subprocessor",
+      "title": "Board/word translation posts raw, unscrubbed user-authored button labels to Google Cloud Translation API v2, a data flow absent from the subprocessor register (GDPR Art. 28/44)",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "FERPA",
+        "COPPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/word_data.rb",
+        "line": 670,
+        "snippet": "      url = \"https://translation.googleapis.com/language/translate/v2?key=#{key}&target=#{dest_lang}&source=#{source_lang}&format=text\"",
+        "sha": "0848ce7e873c92a848300c257d37342615079519"
+      },
+      "firstSeen": "2026-07-21",
+      "lastSeen": "2026-07-21",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "WordData.query_translations (app/models/word_data.rb:645-684) GETs user-authored strings to https://translation.googleapis.com/language/translate/v2 with no PiiScrubber pass, gated only on ENV['GOOGLE_TRANSLATE_TOKEN']. Reached from Board#translate_set (app/models/board.rb:2566), Api::BoardsController#translate (app/controllers/api/boards_controller.rb:937) and Api::UsersController#translate (app/controllers/api/users_controller.rb:1001), plus the Spanish library-board build (lib/spanish_library_boards.rb:89). The payload is board BUTTON LABELS, which on a personalized board routinely carry a child's name, a family member, a teacher, or a school. Translations are then persisted server-side (WordData.persist_translation). Subprocessor gap: docs/legal/SUBPROCESSORS.md rows Google LLC only twice, for the Gemini API (#5, runtime path disabled 2026-07-09) and Google Workspace (#12, corporate productivity, 'reaches student data: No'). There is no row for Google Cloud Translation, so the register currently implies no Google flow touches student content when one does. Options: (1) add a Google Cloud Translation row to SUBPROCESSORS.md with the transfer basis (the Google Cloud DPA already covers the Google entity; the FLOW is what is unrowed) and record it in the section 8 change log; (2) apply PiiScrubber.redact_for_ai, or a narrower direct-identifier pass, before egress, noting that scrubbing a button label also degrades the translation, so a translate-only allowlist may fit better than the AI scrubber; (3) decide whether translation belongs behind the org-level disable_ai_features opt-out or a separate flag, given it is machine translation and NOT an AI-generation feature (it is deliberately out of scope for the second-tier AI consent in lib/lingo_linq/ai_consent_disclosures.rb, which is correct and should stay that way); (4) confirm the live provisioning state, see notes.",
+        "timeframe": "medium 30-60d (subprocessor-register gap; prod carries only test accounts per PR #483)"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": null,
+        "reviewer": "eval-anthropic-scoping-review",
+        "promotedDate": "2026-07-21"
+      },
+      "notes": "Surfaced 2026-07-21 while scoping which features actually reach Anthropic (the answer: only ai_board_generator, ai_word_predictor, eval_narrator). The translation path turned up as a Google flow that no compliance artifact currently describes. Code-verified by direct trace at staging tip 0848ce7e8. DELIBERATELY SCOPED NARROW so it does not duplicate LL-a167848115 (open, medium), which covers the TEXT-TO-SPEECH egress paths (lib/tts.rb Abair + Google TTS, and api/search_controller.rb TTS). That finding does not mention app/models/word_data.rb or the Translation API, and its remediation text is TTS-specific; this finding covers only the translation flow. The two are the same CLASS of gap (unrowed subprocessor receiving unscrubbed user text) and should probably be triaged together, but closing one does not close the other. LIVENESS NOT VERIFIED: GOOGLE_TRANSLATE_TOKEN is provisioned as a standard synced var (scripts/sync-render-env.js:106 maps it from 1Password 'Google APIs' to Render; scripts/gcp/phase4-seed-app-secrets.sh:80 seeds it into GCP Secret Manager), so the flow is wired to be live, but whether the value is actually populated and non-empty on lingolinq-prod today was NOT confirmed in this session. If it is unset, query_translations short-circuits at line 646 and the flow is dormant, which would make this a documentation-only fix rather than a live exposure. Confirming that is step one of triage. Related but separate: app/controllers/api/search_controller.rb:408 hits the unscraped consumer translate.google.com/translate_tts endpoint, which belongs to LL-a167848115's TTS scope, not this one. Manual promotion (medium severity is below promote-finding.rb's Critical/High threshold, so hand-added as status open / disposition untriaged). Only Scot triages/closes."
     }
   ]
 }
