@@ -5,7 +5,7 @@
 
 **Audited:** `scot/compliance/audit-refresh-2026-07-07` @ `20953ab3d5a80c3a9cbb249f37a79357b7f1baf1` on 2026-07-08  
 **Seed:** audit-reports/unified-audit-2026-04-09.md  
-**Headline (open + remediated-unverified):** 0 Critical / 7 High
+**Headline (open + remediated-unverified):** 0 Critical / 6 High
 
 Statuses are verified against live code at the audited SHA, not copied from the dated report prose. Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. Disposition (triage) is orthogonal to status: a finding can be `open` yet `dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.
 
@@ -17,7 +17,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-7f7372e3eb |  | high | SOC2, HIPAA | **accepted** | audit-review | Audited-console wrapper still shells to Heroku CLI; not operative on Render so console access is unaudited | `bin/audit_console`:7 |
 | LL-f150e0e828 |  | high | COPPA, GDPR | **accepted** | pr-review | District seat reclaim converts an under-13's account to a consumer trial with no parental re-consent or notice (COPPA) | `app/models/license.rb`:76 |
 | LL-854b1d3853 |  | high | GDPR, FERPA, COPPA | **accepted** | pr-review | Hard delete leaves UserVideo records and off-board voice recordings (ButtonSound) undeleted (GDPR right-to-erasure) | `lib/flusher.rb`:363 |
-| LL-6619cc1811 | Infra-P1-1 | high | HIPAA | **fixed** | audit-run | Redis connections without TLS; shared across environments | `config/initializers/resque.rb`:23 |
+| LL-7314b5a8ea |  | medium | HIPAA | **proposed** | audit-run | Render Key Value instance is plaintext and shared by prod-fallback, staging, dev, and PR previews | `render.yaml`:107 |
 | LL-b5c30235d3 |  | medium | SOC2, HIPAA, FERPA | **accepted** | audit-run | infra-auditor runtime/CLI evidence relies on instruction-only control against secret/PII leakage | `.claude/agents/infra-auditor.md`:31 |
 | LL-52ff2a9a79 |  | medium | SOC2 | **accepted** | audit-run | CI security-scan job (Brakeman SAST, bundle-audit, npm audit, gitleaks) is entirely non-blocking | `.github/workflows/ci.yml`:107 |
 | LL-5ff3b22093 |  | medium | WCAG | **accepted** | audit-run | Legacy Bootstrap close button labeled only by a times glyph, no aria-label | `app/frontend/app/templates/board-details.hbs`:3 |
@@ -76,7 +76,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-705b10bcd7 |  | high | SOC2 | untriaged | audit-run | BoardDownstreamButtonSet S3 writes fail against KMS-encrypted bucket: 'Requests specifying Server Side Encryption with AWS KMS managed keys require AWS Signature Version 4' | (attestation) |
 | LL-5954bcbbe6 |  | medium | SOC2 | untriaged | audit-run | Pre-existing Resque background-job failures: ImageMagick identify missing in Cloud Run image, stale job_stash lookups, and a call to a removed Board method | (attestation) |
 
-## Verified closed (49)
+## Verified closed (50)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -100,6 +100,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-47117a3443 |  | high | COPPA, GDPR, FERPA | untriaged | audit-run | COPPA verifiable parental consent is granted with no immutable AuditEvent | `app/controllers/parental_consents_controller.rb`:14 |
 | LL-85038c0a7b |  | high |  | untriaged | audit-run | buttonsets#generate debug_sync=1 path returns raw exception message and full Ruby backtrace as JSON error body | `app/controllers/api/button_sets_controller.rb`:83 |
 | LL-efef111d59 | Dep-nokogiri-1194 | high | SOC2 | untriaged | audit-run | nokogiri 1.19.3 vulnerable to six published advisories (fixed in 1.19.4) | `Gemfile.lock`:281 |
+| LL-6619cc1811 | Infra-P1-1 | high | HIPAA | **fixed** | audit-run | Redis connections without TLS; shared across environments | `config/initializers/resque.rb`:23 |
 | LL-1085e59d29 | Infra-P1-2 | high | FERPA, HIPAA | **fixed** | audit-run | Webhook callback URL validation accepts plaintext http:// | `app/models/webhook.rb`:42 |
 | LL-c6dd65a2aa | Infra-P1-3 | high | SOC2 | **fixed** | audit-run | Static cache_token='abc' never rotates (stale permission cache) | `config/initializers/resque.rb`:29 |
 | LL-ca38d4d99e | P1-1 | high | FERPA, HIPAA | **fixed** | audit-run | Consent endpoints absent from Rack::Attack protected_paths | `config/initializers/throttling.rb`:18 |
@@ -147,4 +148,4 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 
 ---
 
-_111 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
+_112 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
