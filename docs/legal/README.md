@@ -37,8 +37,11 @@ Also acceptable here: executed instruments that have no better home and are smal
 3. **Attestation freezes the artifact.** Once Scot attests a document, its bytes, filename, and
    location are immutable. Supersede it with a new dated file plus two-way `supersedes` /
    `supersededBy` pointers. Do not edit or rename it, and do not move it to tidy up.
-4. **Only Scot attests**, and only Scot moves a row to `approved`, `published`, or `attested`, flips
-   `legalHold`, or moves a retention rule to `approved`. Agents propose register rows; a human merges.
+4. **Only Scot attests**, and only Scot moves a row to `approved` or `published`, records or changes
+   an attestation, flips `legalHold`, or moves a retention rule to `approved`. Note that attestation
+   is a separate block on the row, not a value in `statusEnum` (`draft`, `approved`, `published`,
+   `superseded`, `archived`): a row can be attested at any of those statuses. Agents propose
+   register rows; a human merges.
 
 ## Naming
 

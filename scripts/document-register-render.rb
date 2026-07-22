@@ -536,10 +536,22 @@ def render_markdown(register, generated, generated_date)
       out << "### #{name}\n\n"
       out << "#{defn['description']}\n\n" if defn['description']
       out << "- **Members (#{members.size}):** " + (members.empty? ? '(none)' : members.map { |m| esc(m['title']) }.join('; ')) + "\n"
-      out << "- **Completeness:** " + (missing.empty? ? 'complete' : "MISSING required member(s): #{missing.join('; ')}") + "\n"
       # Tolerate a malformed gaps value here: collect_problems already reports the shape error,
       # and the render must not die before those problems reach the operator.
       gaps = defn['gaps'].is_a?(Array) ? defn['gaps'] : []
+
+      # Deliberately NOT labelled "Completeness". Every requiredDoc resolving is a much weaker
+      # claim than the bundle being complete, and a bundle can pass this check while recording
+      # gaps immediately below. Conflating the two would let a reader take a bundle with six
+      # missing artifacts as ready to send.
+      required_state = if !missing.empty?
+                         "FAILING - missing required member(s): #{missing.join('; ')}"
+                       elsif gaps.empty?
+                         'passing'
+                       else
+                         "passing, but #{gaps.size} known gap(s) recorded below - this bundle is NOT complete"
+                       end
+      out << "- **Required member check:** #{required_state}\n"
       if gaps.empty?
         out << "- **Known gaps:** none recorded\n\n"
       else

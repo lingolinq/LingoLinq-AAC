@@ -90,7 +90,7 @@
 | Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Compliance Docs Guide (runbook) | git | `docs/legal/COMPLIANCE_DOCS_GUIDE.md` | published |  | Scot Wahlquist | 2026-06-21 | 2027-06-21 | no | `05c98f8f40f8` |  |
-| docs/legal README (folder charter) | git | `docs/legal/README.md` | published |  | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | `b16c7b88d38c` |  |
+| docs/legal README (folder charter) | git | `docs/legal/README.md` | published |  | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | `29d65bee2af9` |  |
 | Incident Response and Breach Runbook | git | `docs/legal/BREACH_RUNBOOK.md` | approved | HIPAA, GDPR, FERPA | Scot Wahlquist | 2026-05-27 | 2027-05-27 | 2026-06-21 | `3efcaaf4a7c5` | soc2-evidence, school-dpa-package, security-review, baa |
 | Incident Response and Breach Runbook (branded) | Drive | [open](https://docs.google.com/document/d/1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po/edit) | published | HIPAA, GDPR, FERPA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
 | Notion - Compliance Engineering Onboarding/Handoff | Notion | [open](https://www.notion.so/3845fe8215c28139aa9ec40eda1431c6) | published |  | Scot Wahlquist | 2026-06-19 | 2026-12-19 | no | (supplied) |  |
@@ -126,7 +126,7 @@
 The attested, externally-released branded binder generated 2026-06-19 and held in the Drive 'Branded Records Set' folder. Frozen point-in-time records; the living sources are the git docs and the auto-synced Notion findings board.
 
 - **Members (22):** Access Control Policy; Accessibility Conformance Report (ACR / VPAT) (branded); AI Governance Memo; AI Governance Memo (branded); Audit Results Report; Business Continuity and Disaster Recovery Plan; Compliance & Security - Semi-Annual Program Report (H1 2026); Compliance & Security Program v1.0 (Attested); Compliance Calendar (branded); Compliance Calendar (compliance-calendar.json); Compliance Posture Report (branded); Compliance Program; COPPA Final-Rule Verification (branded); Data Retention Schedule (branded); Incident Log (branded); Incident Response and Breach Runbook (branded); Parental Consent (COPPA / under-13) (branded); Records of Processing Activities (RoPA) and Data Map; Security Risk Assessment 2026 Q2; Subprocessor Register (branded); Vendor and Subprocessor Management Policy; Written Information Security Program (WISP)
-- **Completeness:** complete
+- **Required member check:** passing
 - **Known gaps:** none recorded
 
 ### soc2-evidence
@@ -134,7 +134,7 @@ The attested, externally-released branded binder generated 2026-06-19 and held i
 Documents a SOC 2 readiness reviewer expects to see for the security-program controls.
 
 - **Members (13):** Access Control Policy; Business Continuity and Disaster Recovery Plan; Compliance & Data Governance (COMPLIANCE.md); Data Retention Schedule; Data Retention Schedule (branded); Incident Log; Incident Log (branded); Incident Response and Breach Runbook; Incident Response and Breach Runbook (branded); Security Risk Assessment 2026 Q2; Subprocessor Register; Vendor and Subprocessor Management Policy; Written Information Security Program (WISP)
-- **Completeness:** complete
+- **Required member check:** passing, but 3 known gap(s) recorded below - this bundle is NOT complete
 - **Known gaps (3) - artifacts this bundle needs that do not exist yet:**
   - Independent penetration-test report (none commissioned)
   - Workforce security-training completion records
@@ -145,7 +145,7 @@ Documents a SOC 2 readiness reviewer expects to see for the security-program con
 What a US school-district diligence / DPA review asks for (FERPA / COPPA / accessibility).
 
 - **Members (15):** Accessibility Conformance Report (ACR / VPAT); Accessibility Conformance Report (ACR / VPAT) (branded); AI Data-Flow Classification; Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT); Compliance Posture Report; Compliance Posture Report (branded, 2026-07-16 re-attest); COPPA Final-Rule Verification; COPPA Final-Rule Verification (branded); Data Retention Schedule; Data Retention Schedule (branded); Incident Response and Breach Runbook; Parental Consent (COPPA / under-13) (branded); Parental Consent Email (COPPA / under-13); Subprocessor Register; Subprocessor Register (branded)
-- **Completeness:** complete
+- **Required member check:** passing, but 3 known gap(s) recorded below - this bundle is NOT complete
 - **Known gaps (3) - artifacts this bundle needs that do not exist yet:**
   - Signed per-district NDPA instances (register-backed series; none executed yet)
   - State-specific NDPA exhibits beyond the standing set
@@ -156,7 +156,7 @@ What a US school-district diligence / DPA review asks for (FERPA / COPPA / acces
 What a school district or hospital IT security questionnaire asks for. Deliberately SEPARATE from soc2-evidence: this is the customer-facing diligence pack (posture, accessibility, AI data-flow, subprocessors), whereas soc2-evidence is the internal controls-evidence pack. Merging them would force each to carry documents the other reviewer never asks for.
 
 - **Members (11):** Access Control Policy; Accessibility Conformance Report (ACR / VPAT); AI Data-Flow Classification; AI Governance Memo; Compliance Posture Report; Compliance Posture Report (branded, 2026-07-16 re-attest); Data Retention Schedule; Incident Response and Breach Runbook; LingoLinq Security, Privacy & Compliance Overview; Subprocessor Register; Written Information Security Program (WISP)
-- **Completeness:** complete
+- **Required member check:** passing, but 3 known gap(s) recorded below - this bundle is NOT complete
 - **Known gaps (3) - artifacts this bundle needs that do not exist yet:**
   - SSO / authentication description as a standalone record
   - Dependency and vulnerability posture summary as a customer-facing record
@@ -167,7 +167,7 @@ What a school district or hospital IT security questionnaire asks for. Deliberat
 What a covered entity (hospital, clinic, or district health service) asks for before executing a BAA. Covers both directions: the BAAs LingoLinq holds upstream with its subprocessors, and the BAA LingoLinq offers downstream to customers.
 
 - **Members (10):** Access Control Policy; Annex A - Clinical BAA Template (DRAFT); Anthropic Business Associate Agreement (2026-05-06); Anthropic HIPAA-Ready BAA Acceptance Record; AWS BAA Acceptance Record; AWS Business Associate Agreement (signed PDF); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record; Incident Response and Breach Runbook; Written Information Security Program (WISP)
-- **Completeness:** complete
+- **Required member check:** passing, but 3 known gap(s) recorded below - this bundle is NOT complete
 - **Known gaps (3) - artifacts this bundle needs that do not exist yet:**
   - HIPAA workforce training records (do not exist; owed before real PHI, per the Melissa GCP-admin note)
   - Audit-logging control description as a standalone record (currently only prose inside larger documents)
@@ -178,7 +178,7 @@ What a covered entity (hospital, clinic, or district health service) asks for be
 What a GDPR data-subject access, rectification, or erasure request requires. The Article 30 RoPA is the spine: it is the artifact a supervisory authority asks for first, and LingoLinq does not qualify for the small-business exemption because it processes children's data systematically and at scale.
 
 - **Members (3):** AI Data-Flow Classification; Data Retention Schedule; Records of Processing Activities (RoPA) and Data Map
-- **Completeness:** complete
+- **Required member check:** passing, but 5 known gap(s) recorded below - this bundle is NOT complete
 - **Known gaps (5) - artifacts this bundle needs that do not exist yet:**
   - Data-subject identity-verification procedure (does not exist)
   - Export / deletion operational runbook (does not exist as a record)
@@ -191,7 +191,7 @@ What a GDPR data-subject access, rectification, or erasure request requires. The
 What a federal or foundation grant application needs from the compliance library. Mostly gap today: the SBIR Phase IB material in Drive is application drafting, not the standing records a reviewer asks for.
 
 - **Members (2):** Accessibility Conformance Report (ACR / VPAT); Compliance Posture Report
-- **Completeness:** complete
+- **Required member check:** passing, but 6 known gap(s) recorded below - this bundle is NOT complete
 - **Known gaps (6) - artifacts this bundle needs that do not exist yet:**
   - Corporate formation documents (exist in Drive 610 but are unregistered)
   - PI bio-sketch (does not exist as a standing record)
