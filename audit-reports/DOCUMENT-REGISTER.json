@@ -2410,7 +2410,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/AI_DATA_FLOW_CLASSIFICATION.md",
-      "status": "approved",
+      "status": "draft",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -2419,10 +2419,7 @@
       ],
       "lastReviewed": "2026-07-09",
       "nextReviewDue": "2027-07-09",
-      "attestation": {
-        "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-09"
-      },
+      "attestation": {},
       "contentHash": "b75b6271e3682e1b5ec366c34b1610c9f9397472e17df83e9b4eb461b565b92a",
       "bundles": [
         "school-dpa-package",
@@ -2430,7 +2427,7 @@
         "dsar"
       ],
       "mirrors": [],
-      "notes": "Register bookkeeping from the in-document attestation line (\"Attested (provisional) by Scot Wahlquist, CEO, 2026-07-09\"). Provisional: formal outside-counsel review is deferred until the full 5-phase VPC is built. Scot to confirm or correct this row.",
+      "notes": "Scot attested this document (provisional) on 2026-07-09, per its own header line, but the file has MATERIALLY CHANGED SINCE: commit 74266b41f (#656, 2026-07-22) rewrote the AI-log retention tiers, moving the children and general tiers from \"Decided, rolling out\" to \"Decided, not yet enforced\" and the EU tier from inert to functional. The 2026-07-09 attestation therefore covered an earlier revision, not the bytes this row now hashes. Held at draft with an empty attestation until Scot re-attests. This is not a finding that the original attestation was invalid; it is a refusal to imply he attested the current bytes.",
       "retention": {
         "class": "policy-version",
         "rule": "supersession + 7 years",
@@ -2481,7 +2478,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md",
-      "status": "approved",
+      "status": "draft",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -2491,16 +2488,13 @@
       ],
       "lastReviewed": "2026-07-09",
       "nextReviewDue": "2027-07-09",
-      "attestation": {
-        "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-09"
-      },
+      "attestation": {},
       "contentHash": "c8030f10b9e437ab08a877d9ff9d0ebd2695a5ccc7129c50ddd0fed265ad8a45",
       "bundles": [
         "security-review"
       ],
       "mirrors": [],
-      "notes": "Register bookkeeping from the in-document line \"Attested for external release by Scot Wahlquist (CEO) on 2026-07-09 (rev. 2026-07-09-c)\". Scot to confirm or correct.",
+      "notes": "Scot attested this document for external release on 2026-07-09 (rev. 2026-07-09-c), per its own header banner, but the file has MATERIALLY CHANGED SINCE: commits 3d1bf2f70 (#649, 2026-07-21) and 0ce7c2f70 (#652, 2026-07-21) rewrote the subprocessor and hosting posture (GCP as live production host, Render as a write-frozen fallback, Anthropic HIPAA-ready BAA executed) and inverted the COPPA offboarding section from an open gap to an implemented control. The banner still reads rev. 2026-07-09-c. Because this document is EXTERNALLY SHAREABLE, the gap between the attested revision and the current bytes matters more here than anywhere else in the register. Held at draft with an empty attestation until Scot re-attests.",
       "retention": {
         "class": "policy-version",
         "rule": "supersession + 7 years",
