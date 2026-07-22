@@ -8,7 +8,7 @@
   {{/if}}
 {{else}}
   <div style='margin-bottom: 5px;'>
-    <input value={{this.browse_audio.filter_string}} type="text" class="form-control" placeholder="filter results" {{on "input" (set-field this "browse_audio.filter_string")}} />
+    <input value={{this.browse_audio.filter_string}} type="text" class="form-control" placeholder="filter results" aria-label={{t "Filter audio results" key="filter_audio_results"}} {{on "input" (set-field this "browse_audio.filter_string")}} />
   </div>
   {{#if this.browse_audio.results}}
     <div style='max-height: 200px; overflow: auto;'>

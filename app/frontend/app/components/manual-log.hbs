@@ -18,13 +18,13 @@
       </div>
       <div class='col-sm-2'><p class='form-control-static'>{{t "Date:" key="date_colon"}}</p></div>
       <div class='col-sm-4'>
-        <input value={{this.date}} type="date" class="form-control" {{on "input" (set-field this "date")}} />
+        <input value={{this.date}} type="date" class="form-control" aria-label={{t "Log date" key="log_date"}} {{on "input" (set-field this "date")}} />
       </div>
       <div class='col-sm-4'>
-        <input value={{this.time}} type="time" class="form-control" {{on "input" (set-field this "time")}} />
+        <input value={{this.time}} type="time" class="form-control" aria-label={{t "Log time" key="log_time"}} {{on "input" (set-field this "time")}} />
       </div>
       <div class='col-sm-12' style='margin-top: 20px; margin-bottom: 20px;'>
-        <textarea class="form-control" placeholder="one word/button per line" rows={{10}} {{on "input" (set-field this "words")}}>{{this.words}}</textarea>
+        <textarea class="form-control" placeholder="one word/button per line" aria-label={{t "Words or buttons used" key="words_or_buttons_used"}} rows={{10}} {{on "input" (set-field this "words")}}>{{this.words}}</textarea>
       </div>
     </div>
   </div>

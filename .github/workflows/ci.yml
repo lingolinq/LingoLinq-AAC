@@ -69,10 +69,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node 20
+      - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Cache node_modules and Puppeteer Chrome
         uses: actions/cache@v4
@@ -80,9 +80,9 @@ jobs:
           path: |
             app/frontend/node_modules
             ~/.cache/puppeteer
-          key: ${{ runner.os }}-node20-${{ hashFiles('app/frontend/package-lock.json') }}
+          key: ${{ runner.os }}-node22-${{ hashFiles('app/frontend/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-node20-
+            ${{ runner.os }}-node22-
 
       - name: Install frontend dependencies
         working-directory: app/frontend
@@ -179,10 +179,10 @@ jobs:
           gem install bundler-audit
           bundle-audit check --update
 
-      - name: Setup Node 20
+      - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Run npm audit (frontend CVE check)
         working-directory: app/frontend
@@ -207,14 +207,21 @@ jobs:
 
       - name: Download gitleaks (CLI - no license required)
         run: |
-          GITLEAKS_DOWNLOAD_URL="$(curl -sSfL \
+          set -o pipefail
+          GITLEAKS_VERSION="8.30.1"
+          GITLEAKS_DOWNLOAD_URL="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          if LATEST_GITLEAKS_DOWNLOAD_URL="$(curl -sSfL \
             --retry 3 \
             --retry-delay 2 \
             --retry-all-errors \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ github.token }}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/gitleaks/gitleaks/releases/latest | python3 -c "import json, sys; release=json.load(sys.stdin); print(next(asset['browser_download_url'] for asset in release['assets'] if asset['name'].endswith('_linux_x64.tar.gz')))")"
+            https://api.github.com/repos/gitleaks/gitleaks/releases/latest | python3 -c "import json, sys; release=json.load(sys.stdin); print(next(asset['browser_download_url'] for asset in release['assets'] if asset['name'].endswith('_linux_x64.tar.gz')))")"; then
+            GITLEAKS_DOWNLOAD_URL="$LATEST_GITLEAKS_DOWNLOAD_URL"
+          else
+            echo "Falling back to pinned gitleaks ${GITLEAKS_VERSION} download URL"
+          fi
           curl -sSfL --retry 3 --retry-delay 2 --retry-all-errors "$GITLEAKS_DOWNLOAD_URL" | tar -xz gitleaks
 
       - name: Scan for newly-introduced secrets (blocking)

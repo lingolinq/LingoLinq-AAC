@@ -33,6 +33,14 @@
     </div>
 
     <div class="md-org-settings-field">
+      <label for="org_jurisdiction" class="md-org-settings-field__label">{{t "Organization location" key="org_jurisdiction_label"}}</label>
+      <BoundSelect @select_class="md-org-report-select" @select_id="org_jurisdiction" @content={{this.jurisdiction_list}} @selection={{this.model.jurisdiction}} @action={{mut this.model.jurisdiction}} />
+      <span class="md-org-settings-field__hint">
+        {{t "Used when a communicator leaves this organization so under-13 and under-16 protections follow US or EU rules." key="org_jurisdiction_hint"}}
+      </span>
+    </div>
+
+    <div class="md-org-settings-field">
       <label class="md-org-settings-field__label">{{t "Beta program access for start codes" key="org_default_beta_program_access_label"}}</label>
       <label class="md-org-settings-toggle">
         <input type="checkbox" checked={{this.model.default_beta_program_access}} class="md-org-settings-toggle__input" {{on "change" (set-field this "model.default_beta_program_access" "checkbox")}} />
@@ -53,8 +61,8 @@
 
     {{#if this.model.premium}}
       <div class="md-org-settings-field">
-        <label for="logo_url" class="md-org-settings-field__label">{{t "Logo URL" key="logo_url"}}</label>
-        <input value={{this.model.image_url}} class="md-org-settings-input" id="logo_url" placeholder="URL to (circular) image, ~50px" {{on "input" (set-field this "model.image_url")}} />
+        <label for="org_image_url" class="md-org-settings-field__label">{{t "Logo URL" key="logo_url"}}</label>
+        <input value={{this.model.image_url}} class="md-org-settings-input" id="org_image_url" placeholder="URL to (circular) image, ~50px" {{on "input" (set-field this "model.image_url")}} />
       </div>
     {{/if}}
   </section>
@@ -139,7 +147,7 @@
         </label>
         {{#if this.allow_support_target}}
           <div class="md-org-settings-field__nested">
-            <input value={{this.support_email}} class="md-org-settings-input" placeholder="email address" {{on "input" (set-field this "support_email")}} />
+            <input value={{this.support_email}} class="md-org-settings-input" placeholder="email address" aria-label={{t "Support email address" key="support_email_address"}} {{on "input" (set-field this "support_email")}} />
           </div>
         {{/if}}
       </div>

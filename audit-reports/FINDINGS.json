@@ -39,7 +39,8 @@
     ],
     "sourceEnum": [
       "audit-run",
-      "pr-review"
+      "pr-review",
+      "manual"
     ],
     "governance": "Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition (accepted/fixed/dismissed-false-positive/wontfix). closureEvidence.attestation and disposition.decidedBy stay empty until Scot signs. Findings are added mechanically (scripts/audit-merge.rb from /audit-run, scripts/promote-finding.rb from PR-time reviews) and only ever land as status 'open' with disposition 'untriaged'; the adding scripts never close, downgrade, or triage. No student/patient data ever appears here; evidence snippets are code only and any PII/secret-bearing finding is refused at promotion, never redacted-in.",
     "disposition": "Optional per-finding triage state, orthogonal to status. status answers 'does the issue still exist in code' (lifecycle, citation-validated); disposition answers 'what did we decide to do about it' (untriaged/accepted/fixed/dismissed-false-positive/wontfix). A finding with no disposition object is treated as untriaged. Set only by Scot.",
@@ -1287,7 +1288,7 @@
         "verifierNote": "Superseded 2026-06-12: prod is migrating off Render to GCP Cloud Run; Google org-wide BAA accepted 2026-06-08. The Render hosting BAA is no longer the compliance path for PHI. Render stays as a PHI-free dev/staging + rollback surface (project_render_cloud_migration).",
         "attestation": ""
       },
-      "notes": "Render prod remains the live rollback path until GCP cutover, but carries no PHI under the migration plan."
+      "notes": "Render prod remains the live rollback path until GCP cutover, but carries no PHI under the migration plan. | 2026-07-16: Google Cloud infrastructure agreements formalized at the project lingolinq-prod level: CDPA + HIPAA BAA accepted 2026-07-12, SCCs certified 2026-07-14 (formalizing the org-wide Google BAA of 2026-06-08); evidence in Drive 'Compliance Audits' / 'Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14)'. Status unchanged (superseded); recorded for evidence continuity only. This infrastructure BAA does NOT close the open cutover-gated infra findings (Redis TLS LL-6619cc1811, sslmode/verify-full LL-ba0585ab93, and the Postgres network-allowlist finding) or the model-provider AI-egress gap (Anthropic egress has no GCP coverage); those remain open for Scot's disposition."
     },
     {
       "id": "LL-97f9001bb4",
@@ -3845,6 +3846,123 @@
         "promotedDate": "2026-07-09"
       },
       "notes": "Surfaced 2026-07-09 during the PR #561 program-overview review (Codex senior-dev re-review pass), code-verified by direct trace at staging tip c595f6304. Not wording-only: TTS is a real external egress path for user utterance text that bypasses the LLM PII scrubber and reaches providers not fully captured in the subprocessor register (Abair undisclosed and DPA-less; Google TTS flow unrowed). Disposition left untriaged for Scot. Filed on branch scot/compliance/tts-undisclosed-subprocessor."
+    },
+    {
+      "id": "LL-3a1c317a88",
+      "ruleKey": "eval-narration-healthcare-activity-classification",
+      "title": "Eval narration has no licensed-clinician gate (classified NOT a HIPAA Healthcare Activity)",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "HIPAA",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "file": "app/controllers/api/eval_sessions_controller.rb",
+        "line": 60,
+        "sha": "2c925b39d8195c34c870b3d979f03e8471bfd34d",
+        "snippet": "return unless allowed?(user, 'supervise')",
+        "type": "code"
+      },
+      "firstSeen": "2026-07-19",
+      "lastSeen": "2026-07-19",
+      "owner": "Scot Wahlquist",
+      "remediation": {
+        "options": "No code gate required. Eval narration is adjudicated NOT a Healthcare Activity, so Anthropic Healthcare-Activity condition (iii) (licensed-clinician restriction) does not apply. If eval narration is ever repositioned as diagnosis, treatment, or auto-finalized clinical documentation, reopen this classification with Scot before PHI flows under that use.",
+        "timeframe": "n/a"
+      },
+      "disposition": {
+        "state": "dismissed-false-positive",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-07-19",
+        "rationale": "The LingoLinq eval is an assistive-technology access / feature-match assessment (find-the-target tasks at progressively smaller grid sizes to a hit/miss heat map to a recommended board size and layout). The AI narrative summarizes access findings and the layout recommendation; it does not diagnose, treat, or produce charting/billing/coding/claims, so it is not one of Anthropic's enumerated Healthcare Activities and condition (iii) does not apply. Retained controls: Messages-API-only on the HIPAA-Ready org key, PII scrub + structural student-name drop + etiology minimization before egress, the EVAL_NARRATOR_MODEL allowlist, the COPPA gate, explicit per-request opt-in, and the org AI opt-out. See docs/legal/ANTHROPIC_BAA_ACCEPTED.md and the lib/eval_narrator.rb module header. Do not re-flag the absent licensed-clinician gate without first reopening this classification with Scot."
+      },
+      "notes": "Adjudicated 2026-07-19 by Scot Wahlquist; a reasoned classification, not a detection error. Corrects the conservative 'Healthcare Activity' reading in the 2026-07-18 eligible-services scope review (docs/task-management/2026-07-18-anthropic-baa-eligible-services-scope.md). The EVAL_NARRATOR_MODEL allowlist + etiology minimization shipped in the eval-narrator runtime-gates security PR (#632); this classification is recorded in the Anthropic-BAA compliance PR (#631). Evidence anchor is the supervise-permission gate the auditor cited as insufficient for licensure, kept as the anchor for the dismissed recommendation."
+    },
+    {
+      "id": "LL-caaf8e20ec",
+      "ruleKey": "seeded-admin-credential-weak-prod",
+      "title": "lingolinq_admin site-admin account carries a simple, memorable seeded password (deliberate for pre-cutover hands-on testing); must be rotated, disabled, or replaced with a break-glass admin procedure before the GCP environment is customer-facing",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "runtime",
+        "source": "GCP cutover two-gate decision (2026-07-16), Gate 2 (customer-facing/onboarding). db/seeds.rb sets the lingolinq_admin account from the SEED_ADMIN_PASSWORD env via the seed_password helper (dev default is weak). The live prod/rehearsal account was given a deliberately simple, memorable value for multi-device hands-on testing before cutover (Scot's call, 2026-07-03), acceptable only because the current prod DB holds no real user data (PR #483, project_prod_no_real_users). It has NOT been rotated. lingolinq_admin is a live site-admin on the live prod app path, which is why this is tracked as operational security rather than ordinary housekeeping.",
+        "snippet": "db/seeds.rb: seeds user_name 'lingolinq_admin' via seed_password('SEED_ADMIN_PASSWORD', <dev-default>) with a lifetime subscription and site-admin rights; live prod value is a simple memorable one set for testing (value deliberately kept out of every repo file).",
+        "sha": ""
+      },
+      "firstSeen": "2026-07-16",
+      "lastSeen": "2026-07-16",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Before onboarding any real district/clinic to the GCP environment: (1) rotate lingolinq_admin to a strong secret stored ONLY in 1Password 'LingoLinq Prod' (never write the value into any repo file), OR (2) disable/delete the account, OR (3) replace the standing shared admin with an explicit break-glass admin procedure (short-lived, audited elevation). Not a DNS-cut blocker; blocks treating the environment as customer-ready.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": null,
+        "reviewer": "gcp-cutover-two-gate-decision",
+        "promotedDate": "2026-07-16"
+      },
+      "notes": "Promoted 2026-07-16 from the GCP cutover two-gate decision note (~/ai-company-brain/outputs/docs/2026-07-16-gcp-cutover-two-gate-decision.md), Gate 2. Manual promotion (medium severity is below promote-finding.rb's Critical/High threshold, so it was hand-added as status open / disposition untriaged). Only Scot triages/closes."
+    },
+    {
+      "id": "LL-abd6c88733",
+      "ruleKey": "ses-spf-alignment-header-capture-unverified",
+      "title": "Prod SES mail has no custom MAIL FROM domain, so SPF does not align with the From: domain and DMARC rests on DKIM alone; no Authentication-Results headers have ever been captured to confirm the SPF/DKIM/DMARC result on a delivered message",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "runtime",
+        "source": "GCP cutover Gate 1 rehearsal (2026-07-19/20), Rehearsal step 3. A prod SES send via config set 'lingolinq-transactional' was ACCEPTED by SES and manual inbox receipt was confirmed, which closed the earlier delivery question (LL-42a24ee911, verified-closed). Two things that decision did NOT establish remain open: (a) the Authentication-Results headers on a delivered message were never captured, so the actual SPF/DKIM/DMARC evaluation result is unverified; (b) no custom MAIL FROM domain is configured, so the SPF-checked domain is the Amazon SES bounce domain rather than the From: domain, leaving SPF unaligned under DMARC and DKIM as the sole passing alignment mechanism. Verification was blocked in-session by a tooling mismatch, not a delivery failure: the mailtest targets the operator's personal mailbox while the available Gmail connector is authenticated as a Workspace user, so headers could not be read from that session.",
+        "snippet": "No custom MAIL FROM domain on the prod SES identity; DMARC alignment carried by DKIM only. Authentication-Results header capture on a delivered prod message: not performed.",
+        "sha": ""
+      },
+      "firstSeen": "2026-07-20",
+      "lastSeen": "2026-07-20",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Before relying on prod SES for customer-facing transactional mail or alerting: (1) capture the Authentication-Results header from a delivered prod message and record the spf=/dkim=/dmarc= results as closure evidence -- read it from a mailbox the available connector can authenticate against, or via an SES configuration-set event destination (SNS / Firehose / EventBridge) rather than aggregate CloudWatch metrics; AND (2) configure a custom MAIL FROM subdomain on the SES identity with the required MX and SPF records so SPF aligns with the From: domain and DMARC no longer depends on DKIM alone. Not a Gate 1 DNS-cut blocker (accepted for Gate 1 by Scot, 2026-07-19); blocks treating prod mail as customer-ready.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": null,
+        "reviewer": "gcp-cutover-gate1-rehearsal",
+        "promotedDate": "2026-07-20"
+      },
+      "notes": "Promoted 2026-07-20 from the GCP cutover Gate 1 rehearsal. Scoped deliberately NARROW so it does not duplicate LL-42a24ee911 (verified-closed), which covered whether a diagnostic SES send ARRIVED. Arrival is settled; this finding covers only the two residuals that arrival did not prove -- Authentication-Results header capture and SPF/MAIL FROM alignment. An earlier draft finding LL-2c47df5d21 was removed from PR #624 during review as a duplicate of LL-42a24ee911; that removal was correct on its wording, but it left these two residuals with no tracker, which scripts/gcp/PHASE5-CUTOVER-RUNBOOK.md still referred to as 'promotion pending in PR #624'. This finding is that tracker. Manual promotion (low severity is below promote-finding.rb's Critical/High threshold, so hand-added as status open / disposition untriaged). Only Scot triages/closes."
     }
   ]
 }

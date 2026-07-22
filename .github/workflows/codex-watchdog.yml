@@ -1,0 +1,69 @@
+name: Codex Review Watchdog
+
+# Fail-closed backstop for codex-review.yml (build spec section 1/6,
+# resolution to Codex review finding #1: the pipeline must never leave
+# codex-review/deep-pass pending forever, because a required status check
+# that never resolves blocks merge silently rather than failing loudly).
+#
+# Two independent triggers, because `workflow_run: completed` alone cannot
+# catch a run that hangs and never completes:
+#   1. workflow_run(completed) — codex-review.yml or claude-fix.yml concluded
+#      (crashed, cancelled, or exited nonzero) but deep-pass is still pending.
+#   2. schedule — a 10-minute sweep that fails ANY deep-pass status still
+#      pending more than 30 minutes after it was set, regardless of whether
+#      the dispatching workflow run ever reports a conclusion at all.
+on:
+  workflow_run:
+    workflows: ["Codex Review", "Claude Fix"]
+    types: [completed]
+  schedule:
+    - cron: "*/10 * * * *"
+
+jobs:
+  fail-stale-pending:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      statuses: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout (for the labeling helper script only)
+        uses: actions/checkout@v4
+
+      - name: Find open PRs with a pending codex-review/deep-pass status
+        id: find_pending
+        run: |
+          # commit-status API has no "list all pending for context X" endpoint,
+          # so we walk open PRs and check each head SHA's status directly.
+          gh api "repos/${{ github.repository }}/pulls?state=open&per_page=100" \
+            --jq '.[] | [.number, .head.sha] | @tsv' > /tmp/open-prs.tsv
+          : > /tmp/stale.tsv
+          while IFS=$'\t' read -r pr_number head_sha; do
+            [ -z "$head_sha" ] && continue
+            status_json="$(gh api "repos/${{ github.repository }}/commits/${head_sha}/status" 2>/dev/null || echo '{}')"
+            state="$(echo "$status_json" | jq -r '[.statuses[] | select(.context=="codex-review/deep-pass") | .state][0] // empty')"
+            created_at="$(echo "$status_json" | jq -r '[.statuses[] | select(.context=="codex-review/deep-pass") | .created_at][0] // empty')"
+            [ "$state" != "pending" ] && continue
+            [ -z "$created_at" ] && continue
+            age_min=$(( ( $(date -u +%s) - $(date -u -d "$created_at" +%s) ) / 60 ))
+            if [ "$age_min" -ge 30 ]; then
+              printf '%s\t%s\t%s\n' "$pr_number" "$head_sha" "$age_min" >> /tmp/stale.tsv
+            fi
+          done < /tmp/open-prs.tsv
+          cat /tmp/stale.tsv
+
+      - name: Fail stale-pending statuses and label the PR
+        run: |
+          [ -s /tmp/stale.tsv ] || { echo "No stale pending codex-review/deep-pass statuses."; exit 0; }
+          while IFS=$'\t' read -r pr_number head_sha age_min; do
+            echo "Failing codex-review/deep-pass on PR #${pr_number} (${head_sha}), pending ${age_min}min"
+            gh api "repos/${{ github.repository }}/statuses/${head_sha}" \
+              -f state=failure \
+              -f context=codex-review/deep-pass \
+              -f description="Timed out after ${age_min}min with no result (watchdog)" \
+              -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            gh pr edit "$pr_number" --add-label codex-review-failed \
+              --repo "${{ github.repository }}" || true
+          done < /tmp/stale.tsv

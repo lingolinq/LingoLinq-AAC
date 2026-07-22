@@ -114,8 +114,10 @@
         </h4>
         <form class="md-sc-form" {{on "submit" (this.ctrlAction "generate")}}>
           <div class="md-org-settings-field">
-            <label for="code" class="md-org-settings-field__label">{{t "Code" key="code"}}</label>
-            <input value={{this.code}} class="md-org-settings-input" type="text" placeholder="(optional)" {{on "input" (set-field this "code")}} />
+            {{#let (unique-id) as |codeId|}}
+              <label for={{codeId}} class="md-org-settings-field__label">{{t "Code" key="code"}}</label>
+              <input id={{codeId}} value={{this.code}} class="md-org-settings-input" type="text" placeholder="(optional)" {{on "input" (set-field this "code")}} />
+            {{/let}}
             {{#if this.invalid_code}}
               <span class="md-org-settings-field__hint md-org-settings-field__hint--warn">{{t "codes must be 7+ characters long and start with a letter" key="codes_must_start_with_letter"}}</span>
             {{/if}}
@@ -128,7 +130,7 @@
             <div class="md-org-settings-field">
               <label class="md-org-settings-field__label">{{t "Sponsored" key="sponsored"}}</label>
               <label class="md-org-settings-toggle">
-                <input value={{this.premium}} id="premium" type="checkbox" class="md-org-settings-toggle__input" {{on "input" (set-field this "premium")}} />
+                <input checked={{this.premium}} id="premium" type="checkbox" class="md-org-settings-toggle__input" {{on "change" (set-field this "premium" "checkbox")}} />
                 <span class="md-org-settings-toggle__label">{{t "Sponsor any users who use this start code" key="sponsors_users_with_start_code"}}</span>
               </label>
             </div>
@@ -136,7 +138,7 @@
               <div class="md-org-settings-field">
                 <label class="md-org-settings-field__label">{{t "Premium Symbols" key="premium_symbols"}}</label>
                 <label class="md-org-settings-toggle">
-                  <input value={{this.premium_symbols}} id="premium_symbols" type="checkbox" class="md-org-settings-toggle__input" {{on "input" (set-field this "premium_symbols")}} />
+                  <input checked={{this.premium_symbols}} id="premium_symbols" type="checkbox" class="md-org-settings-toggle__input" {{on "change" (set-field this "premium_symbols" "checkbox")}} />
                   <span class="md-org-settings-toggle__label">{{t "Add premium symbols to users" key="add_premium_symbols_to_users"}}</span>
                 </label>
               </div>
@@ -152,16 +154,20 @@
           </div>
           {{#if this.model.org}}
             <div class="md-org-settings-field">
-              <label for="supervisor" class="md-org-settings-field__label">{{t "Supervisor" key="supervisor"}}</label>
-              <input value={{this.supervisors}} class="md-org-settings-input" type="text" placeholder="(optional supervisor user names, comma-separated)" {{on "input" (set-field this "supervisors")}} />
+              {{#let (unique-id) as |supervisorId|}}
+                <label for={{supervisorId}} class="md-org-settings-field__label">{{t "Supervisor" key="supervisor"}}</label>
+                <input id={{supervisorId}} value={{this.supervisors}} class="md-org-settings-input" type="text" placeholder="(optional supervisor user names, comma-separated)" {{on "input" (set-field this "supervisors")}} />
+              {{/let}}
             </div>
           {{/if}}
           <div class="md-org-settings-field">
-            <label for="home_board" class="md-org-settings-field__label">{{t "Home Board" key="home_board"}}</label>
-            <input value={{this.home_board_key}} class="md-org-settings-input" type="text" placeholder="(optional board key to copy)" {{on "input" (set-field this "home_board_key")}} />
+            {{#let (unique-id) as |homeBoardId|}}
+              <label for={{homeBoardId}} class="md-org-settings-field__label">{{t "Home Board" key="home_board"}}</label>
+              <input id={{homeBoardId}} value={{this.home_board_key}} class="md-org-settings-input" type="text" placeholder="(optional board key to copy)" {{on "input" (set-field this "home_board_key")}} />
+            {{/let}}
             {{#if this.home_board_key}}
               <label class="md-org-settings-toggle" style="margin-top: 8px;">
-                <input value={{this.shallow_clone}} id="shallow_clone" type="checkbox" class="md-org-settings-toggle__input" {{on "input" (set-field this "shallow_clone")}} />
+                <input checked={{this.shallow_clone}} id="shallow_clone" type="checkbox" class="md-org-settings-toggle__input" {{on "change" (set-field this "shallow_clone" "checkbox")}} />
                 <span class="md-org-settings-toggle__label">{{t "Apply shallow clones" key="apply_shallow_clones"}}</span>
               </label>
             {{/if}}

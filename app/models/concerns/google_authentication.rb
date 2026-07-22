@@ -42,11 +42,15 @@ module GoogleAuthentication
       user
     end
 
-    def create_from_google_signup!(profile, user_name:, registration_type:, terms_agree:, product_improvement_opt_in: false)
+    def create_from_google_signup!(profile, user_name:, registration_type:, terms_agree:, product_improvement_opt_in: false, country: nil, under_16: false)
       raise GoogleOAuth::Error, 'terms_required' unless ActiveModel::Type::Boolean.new.cast(terms_agree)
       user_name = user_name.to_s.strip
       raise GoogleOAuth::Error, 'username_required' if user_name.blank?
       product_improvement_opt_in = ActiveModel::Type::Boolean.new.cast(product_improvement_opt_in)
+      under_16 = ActiveModel::Type::Boolean.new.cast(under_16)
+      trusted_country = LingoLinq::Jurisdiction.trusted_country(country)
+      eu_under_16 = !!(trusted_country && LingoLinq::Jurisdiction.eu?(trusted_country) && under_16)
+      product_improvement_opt_in = false if eu_under_16
 
       email = profile[:email].to_s.strip
       name = profile[:name].presence || email.split('@').first
@@ -56,6 +60,8 @@ module GoogleAuthentication
         'email' => email,
         'password' => password,
         'terms_agree' => true,
+        'country' => trusted_country,
+        'under_16' => under_16,
         'preferences' => {
           'registration_type' => registration_type.presence || 'communicator',
           'cookies' => product_improvement_opt_in,

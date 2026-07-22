@@ -304,6 +304,7 @@ class UserMailer < ActionMailer::Base
     @privacy_url = "#{JsonApi::Json.current_host}/privacy"
     @child_name = @user.settings['name']
     @parent_email = c['parent_email']
+    @consent_age = JsonApi::Json.coppa_consent_age(@user)
     from = JsonApi::Json.current_domain['settings']['admin_email']
     opts = {to: @parent_email, subject: subject}
     opts[:from] = from if !from.blank?
@@ -330,6 +331,7 @@ class UserMailer < ActionMailer::Base
     @child_name = @user.settings['name']
     @child_username = @user.display_user_name
     @parent_email = c['parent_email']
+    @registered_at = @user.created_at && @user.created_at.utc
     @granted_at = begin
       Time.iso8601(c['parent_consent_granted_at']).utc
     rescue ArgumentError
@@ -349,6 +351,89 @@ class UserMailer < ActionMailer::Base
 
     unless c.is_a?(Hash) && c['parent_email'].present? && c['parent_consent_revoked_at'].present?
       Rails.logger.warn("Skipping parental_consent_revoked for user #{user_id}: missing COPPA parent_email or revoke timestamp")
+      message = mail(subject: subject)
+      message.perform_deliveries = false
+      return message
+    end
+
+    @privacy_url = "#{JsonApi::Json.current_host}/privacy"
+    @contact_url = "#{JsonApi::Json.current_host}/contact"
+    @child_name = @user.settings['name']
+    @child_username = @user.display_user_name
+    @parent_email = c['parent_email']
+    @revoked_at = begin
+      Time.iso8601(c['parent_consent_revoked_at']).utc
+    rescue ArgumentError
+      nil
+    end
+    from = JsonApi::Json.current_domain['settings']['admin_email']
+    opts = {to: @parent_email, subject: subject}
+    opts[:from] = from if !from.blank?
+    mail(opts)
+  end
+
+  # EU AI parental consent request: parent must approve before AI features can be enabled.
+  # Core AAC without AI remains available. Blob: settings['eu_ai_parental_consent'].
+  def eu_ai_parental_consent_request(user_id)
+    @user = User.find_by_global_id(user_id)
+    c = (@user && @user.settings) ? @user.settings['eu_ai_parental_consent'] : nil
+    subject = SystemEmailI18n.resolve('user_mailer/eu_ai_parental_consent_request', 'eu_ai_parental_consent_mailer.subject', 'app_name' => app_name)
+
+    unless c.is_a?(Hash) && c['parent_email'].present? && c['parent_consent_token'].present?
+      Rails.logger.warn("Skipping eu_ai_parental_consent_request for user #{user_id}: missing parent_email or parent_consent_token")
+      message = mail(subject: subject)
+      message.perform_deliveries = false
+      return message
+    end
+
+    esc_tok = CGI.escape(c['parent_consent_token'].to_s)
+    @consent_url = "#{JsonApi::Json.current_host}/eu_ai_parental_consent/complete?user_id=#{@user.global_id}&token=#{esc_tok}"
+    @privacy_url = "#{JsonApi::Json.current_host}/privacy"
+    @child_name = @user.settings['name']
+    @parent_email = c['parent_email']
+    from = JsonApi::Json.current_domain['settings']['admin_email']
+    opts = {to: @parent_email, subject: subject}
+    opts[:from] = from if !from.blank?
+    mail(opts)
+  end
+
+  def eu_ai_parental_consent_confirmation(user_id)
+    @user = User.find_by_global_id(user_id)
+    c = (@user && @user.settings) ? @user.settings['eu_ai_parental_consent'] : nil
+    subject = SystemEmailI18n.resolve('user_mailer/eu_ai_parental_consent_confirmation', 'eu_ai_parental_consent_confirmation_mailer.subject', 'app_name' => app_name)
+
+    unless c.is_a?(Hash) && c['parent_email'].present? && c['parent_consent_granted_at'].present? && c['parent_consent_revoke_token'].present?
+      Rails.logger.warn("Skipping eu_ai_parental_consent_confirmation for user #{user_id}: missing parent_email, grant timestamp, or revoke token")
+      message = mail(subject: subject)
+      message.perform_deliveries = false
+      return message
+    end
+
+    esc_tok = CGI.escape(c['parent_consent_revoke_token'].to_s)
+    @revoke_url = "#{JsonApi::Json.current_host}/eu_ai_parental_consent/revoke?user_id=#{@user.global_id}&token=#{esc_tok}"
+    @privacy_url = "#{JsonApi::Json.current_host}/privacy"
+    @contact_url = "#{JsonApi::Json.current_host}/contact"
+    @child_name = @user.settings['name']
+    @child_username = @user.display_user_name
+    @parent_email = c['parent_email']
+    @granted_at = begin
+      Time.iso8601(c['parent_consent_granted_at']).utc
+    rescue ArgumentError
+      nil
+    end
+    from = JsonApi::Json.current_domain['settings']['admin_email']
+    opts = {to: @parent_email, subject: subject}
+    opts[:from] = from if !from.blank?
+    mail(opts)
+  end
+
+  def eu_ai_parental_consent_revoked(user_id)
+    @user = User.find_by_global_id(user_id)
+    c = (@user && @user.settings) ? @user.settings['eu_ai_parental_consent'] : nil
+    subject = SystemEmailI18n.resolve('user_mailer/eu_ai_parental_consent_revoked', 'eu_ai_parental_consent_revoked_mailer.subject', 'app_name' => app_name)
+
+    unless c.is_a?(Hash) && c['parent_email'].present? && c['parent_consent_revoked_at'].present?
+      Rails.logger.warn("Skipping eu_ai_parental_consent_revoked for user #{user_id}: missing parent_email or revoke timestamp")
       message = mail(subject: subject)
       message.perform_deliveries = false
       return message

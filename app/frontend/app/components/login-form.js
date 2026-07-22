@@ -55,7 +55,14 @@ export default Component.extend({
     }
     if(coppaRevoked && !this.get('login_error')) {
       this.set('coppa_awaiting_parent', false);
+      this.set('coppa_needs_parent_email', true);
       this.set('login_error', i18n.t('coppa_login_blocked_parent_consent_revoked', "A parent or guardian withdrew consent for this account. It cannot be used until consent is given again."));
+    }
+    var coppaParentEmail = params.get('coppa_parent_email');
+    if(coppaParentEmail && !this.get('login_error')) {
+      this.set('coppa_awaiting_parent', false);
+      this.set('coppa_needs_parent_email', true);
+      this.set('login_error', i18n.t('coppa_login_needs_parent_email', "A parent or guardian email is required before this account can be used. Enter it below so we can send an approval request."));
     }
   },
   googleLinkNonceObserver: observer('google_link_nonce', function() {
@@ -358,6 +365,18 @@ export default Component.extend({
       return true;
     }
     if (isEmpty(this.get('identification')) || isEmpty(this.get('password'))) {
+      return true;
+    }
+    return false;
+  }),
+  coppaSubmitParentEmailDisabled: computed('coppa_submit_parent_busy', 'password', 'identification', 'parent_consent_email', function() {
+    if (this.get('coppa_submit_parent_busy')) {
+      return true;
+    }
+    if (isEmpty(this.get('identification')) || isEmpty(this.get('password'))) {
+      return true;
+    }
+    if (isEmpty((this.get('parent_consent_email') || '').trim())) {
       return true;
     }
     return false;
@@ -694,6 +713,7 @@ export default Component.extend({
     this.onStartGoogleSignup = () => { send('start_google_signup'); };
     this.onConfirm2fa = () => { send('confirm_2fa'); };
     this.onResendParentConsentEmail = () => { send('resendParentConsentEmail'); };
+    this.onSubmitParentConsentEmail = () => { send('submitParentConsentEmail'); };
     this.onLogout = () => { send('logout'); };
     this.onContinueWithGoogle = (event) => { send('continue_with_google', event); };
   },
@@ -1152,7 +1172,9 @@ export default Component.extend({
       this.appState.set('logging_in', true);
       this.set('login_error', null);
       this.set('coppa_awaiting_parent', false);
+      this.set('coppa_needs_parent_email', false);
       this.set('coppa_resend_notice', null);
+      this.set('coppa_submit_parent_notice', null);
       var _this = this;
       var data = this.getProperties('identification', 'password', 'client_secret', 'long_token', 'browserless');
       if(capabilities.browserless || capabilities.installed_app) {
@@ -1176,8 +1198,14 @@ export default Component.extend({
             _this.set('login_error', i18n.t('invalid_login', "Invalid user name or password"));
           } else if(err.coppa_parental_consent_revoked) {
             _this.set('coppa_awaiting_parent', false);
+            _this.set('coppa_needs_parent_email', true);
             _this.set('login_error', i18n.t('coppa_login_blocked_parent_consent_revoked', "A parent or guardian withdrew consent for this account. It cannot be used until consent is given again."));
+          } else if(err.coppa_parent_email_required) {
+            _this.set('coppa_awaiting_parent', false);
+            _this.set('coppa_needs_parent_email', true);
+            _this.set('login_error', i18n.t('coppa_login_needs_parent_email', "A parent or guardian email is required before this account can be used. Enter it below so we can send an approval request."));
           } else if(err.coppa_parental_consent_pending) {
+            _this.set('coppa_needs_parent_email', false);
             _this.set('coppa_awaiting_parent', true);
             _this.set('login_error', i18n.t('coppa_login_blocked_until_parent_consent', "This account is waiting for a parent or guardian to approve it. Ask them to check their email for the approval link."));
           } else if(err.error == "Invalid client secret") {
@@ -1277,7 +1305,66 @@ export default Component.extend({
           _this.get('pendingTimeouts').push(h2);
           return;
         }
+        if (json['coppa_parent_email_required']) {
+          _this.set('coppa_awaiting_parent', false);
+          _this.set('coppa_needs_parent_email', true);
+          _this.set('login_error', i18n.t('coppa_login_needs_parent_email', "A parent or guardian email is required before this account can be used. Enter it below so we can send an approval request."));
+          return;
+        }
         _this.set('coppa_resend_notice', i18n.t('coppa_parent_email_resend_failed', "Could not resend the email. Check your username and password, then try again."));
+      });
+    },
+    submitParentConsentEmail: function() {
+      var _this = this;
+      if (!_this.get('coppa_needs_parent_email') || _this.get('coppaSubmitParentEmailDisabled')) {
+        return;
+      }
+      _this.set('coppa_submit_parent_busy', true);
+      _this.set('coppa_submit_parent_notice', null);
+      var identification = _this.get('identification');
+      var token = _this.get('client_secret');
+      var parentEmail = (_this.get('parent_consent_email') || '').trim();
+      _this.session.hashed_password(_this.get('password')).then(function(pw) {
+        return _this.persistence.ajax('/api/v1/users/submit_parental_consent_email', {
+          type: 'POST',
+          data: {
+            client_id: 'browser',
+            client_secret: token,
+            username: identification,
+            password: pw,
+            parent_consent_email: parentEmail
+          }
+        });
+      }).then(function() {
+        if (_this.isDestroyed || _this.isDestroying) {
+          return;
+        }
+        _this.set('coppa_submit_parent_busy', false);
+        _this.set('coppa_needs_parent_email', false);
+        _this.set('coppa_awaiting_parent', true);
+        _this.set('login_error', i18n.t('coppa_login_blocked_until_parent_consent', "This account is waiting for a parent or guardian to approve it. Ask them to check their email for the approval link."));
+        _this.set('coppa_submit_parent_notice', i18n.t('coppa_parent_email_submitted', "We sent an approval request to that parent or guardian email."));
+        _this.set('coppa_resend_notice', i18n.t('coppa_parent_email_submitted', "We sent an approval request to that parent or guardian email."));
+      }, function(xhr) {
+        if (_this.isDestroyed || _this.isDestroying) {
+          return;
+        }
+        _this.set('coppa_submit_parent_busy', false);
+        if (xhr && xhr.short_circuit) {
+          _this.set('coppa_submit_parent_notice', i18n.t('coppa_parent_email_resend_offline', "You appear to be offline. Check your connection and try again."));
+          return;
+        }
+        var json = (xhr && xhr.responseJSON) || {};
+        if (xhr && xhr.responseText && (!json || !json['error'])) {
+          try {
+            json = JSON.parse(xhr.responseText) || json;
+          } catch (e) { /* ignore */ }
+        }
+        if (json['invalid_parent_consent_email']) {
+          _this.set('coppa_submit_parent_notice', i18n.t('coppa_parent_email_invalid', "Please enter a valid parent or guardian email that is different from the account email."));
+          return;
+        }
+        _this.set('coppa_submit_parent_notice', i18n.t('coppa_parent_email_submit_failed', "Could not send the approval email. Check your username, password, and the parent email, then try again."));
       });
     }
   }

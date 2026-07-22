@@ -108,6 +108,8 @@ class SessionController < ApplicationController
     end
     if !error && user && user.coppa_parental_consent_revoked?
       error = 'parental_consent_revoked'
+    elsif !error && user && user.coppa_needs_parent_email?
+      error = 'parent_email_required'
     elsif !error && user && user.coppa_parental_consent_pending?
       error = 'awaiting_parental_consent'
     end
@@ -529,6 +531,9 @@ class SessionController < ApplicationController
         if u.coppa_parental_consent_revoked?
           return api_error 400, {error: 'parental consent revoked', coppa_parental_consent_revoked: true}
         end
+        if u.coppa_needs_parent_email?
+          return api_error 400, {error: 'parent email required', coppa_parent_email_required: true}
+        end
         if u.coppa_parental_consent_pending?
           return api_error 400, {error: 'awaiting parental consent', coppa_parental_consent_pending: true}
         end
@@ -755,7 +760,14 @@ class SessionController < ApplicationController
       config['registration_type'] = registration_type
       config['user_name'] = params['user_name'].to_s.strip
       config['terms_agree'] = ActiveModel::Type::Boolean.new.cast(params['terms_agree'])
-      config['product_improvement_opt_in'] = ActiveModel::Type::Boolean.new.cast(params['product_improvement_opt_in'])
+      country = LingoLinq::Jurisdiction.trusted_country(params['country'])
+      under_16 = ActiveModel::Type::Boolean.new.cast(params['under_16'])
+      config['country'] = country
+      config['under_16'] = under_16
+      # EU under-16: never carry product-improvement opt-in through Google signup.
+      eu_under_16 = !!(country && LingoLinq::Jurisdiction.eu?(country) && under_16)
+      pi = ActiveModel::Type::Boolean.new.cast(params['product_improvement_opt_in'])
+      config['product_improvement_opt_in'] = eu_under_16 ? false : pi
       unless config['terms_agree']
         return redirect_to google_frontend_redirect('/register?google_error=terms_required', return_origin.present? ? { 'return_origin' => return_origin } : nil), allow_other_host: true
       end
@@ -901,13 +913,17 @@ class SessionController < ApplicationController
       link['mode'] = 'signup_complete'
       GoogleOAuth.store_link(params['nonce'], link)
     end
+    country = link['country']
+    under_16 = !!link['under_16']
+    eu_under_16 = !!(country && LingoLinq::Jurisdiction.eu?(country) && under_16)
     render json: {
       email: link['email'],
       name: link['name'],
       user_name: link['user_name'],
       registration_type: link['registration_type'] || 'communicator',
       terms_agree: !!link['terms_agree'],
-      product_improvement_opt_in: !!link['product_improvement_opt_in']
+      product_improvement_opt_in: eu_under_16 ? false : !!link['product_improvement_opt_in'],
+      show_product_improvement_opt_in: !eu_under_16
     }
   end
 
@@ -934,12 +950,20 @@ class SessionController < ApplicationController
       name: link['name']
     }
     begin
+      country = link['country']
+      under_16 = !!link['under_16']
+      eu_under_16 = !!(country && LingoLinq::Jurisdiction.eu?(country) && under_16)
+      pi = ActiveModel::Type::Boolean.new.cast(
+        params['product_improvement_opt_in'].presence || link['product_improvement_opt_in']
+      )
       user = User.create_from_google_signup!(
         profile,
         user_name: params['user_name'].presence || link['user_name'],
         registration_type: params['registration_type'].presence || link['registration_type'],
         terms_agree: params['terms_agree'].presence || link['terms_agree'],
-        product_improvement_opt_in: params['product_improvement_opt_in'].presence || link['product_improvement_opt_in']
+        product_improvement_opt_in: eu_under_16 ? false : pi,
+        country: country,
+        under_16: under_16
       )
     rescue GoogleOAuth::Error => e
       error = e.message == 'user_creation_failed' ? 'registration_failed' : e.message
@@ -998,6 +1022,9 @@ class SessionController < ApplicationController
     if user.coppa_parental_consent_revoked?
       return redirect_to google_frontend_redirect('/login?coppa_revoked=1', config), allow_other_host: true
     end
+    if user.coppa_needs_parent_email?
+      return redirect_to google_frontend_redirect('/login?coppa_parent_email=1', config), allow_other_host: true
+    end
     if user.coppa_parental_consent_pending?
       return redirect_to google_frontend_redirect('/register?coppa_waiting=1', config), allow_other_host: true
     end
@@ -1031,7 +1058,9 @@ class SessionController < ApplicationController
       'registration_type' => config['registration_type'],
       'user_name' => config['user_name'],
       'terms_agree' => config['terms_agree'],
-      'product_improvement_opt_in' => config['product_improvement_opt_in']
+      'product_improvement_opt_in' => config['product_improvement_opt_in'],
+      'country' => config['country'],
+      'under_16' => config['under_16']
     }
     link['single_candidate'] = true if single_candidate
     if unlinked_candidates.any?

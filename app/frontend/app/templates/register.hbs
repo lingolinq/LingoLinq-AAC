@@ -56,12 +56,14 @@
               </div>
             {{/if}}
           {{/unless}}
-          <div class="checkbox big_checkbox">
-            <label>
-              <input type="checkbox" checked={{this.googleSignupProductImprovementOptIn}} {{on "change" (set-field this "googleSignupProductImprovementOptIn" "checkbox")}} />
-              {{t "Help improve LingoLinq by sharing usage, performance, and anonymized troubleshooting data." key="product_improvement_opt_in"}}
-            </label>
-          </div>
+          {{#if this.googleSignupShowProductImprovement}}
+            <div class="checkbox big_checkbox">
+              <label>
+                <input type="checkbox" checked={{this.googleSignupProductImprovementOptIn}} {{on "change" (set-field this "googleSignupProductImprovementOptIn" "checkbox")}} />
+                {{t "Help improve LingoLinq by sharing usage, performance, and anonymized troubleshooting data." key="product_improvement_opt_in"}}
+              </label>
+            </div>
+          {{/if}}
         </div>
         <div class="form-group">
           <label for="google_signup_user_name">{{t "Username" key="username"}}</label>
@@ -162,6 +164,13 @@
             </button>
             <p class="register-step-copy">{{t "First, we need your date of birth to help us give you the best experience." key="register_birthdate_intro"}}</p>
             <div class="form-group">
+              <label for="registration_country">{{t "Country" key="registration_country"}}</label>
+              <BoundSelect @select_class="form-control" @select_id="registration_country" @content={{this.countryOptions}} @selection={{this.registration_country}} @action={{mut this.registration_country}} />
+              {{#if this.countryMissing}}
+                <span class="text-danger">{{t "Please select your country." key="registration_country_required"}}</span>
+              {{/if}}
+            </div>
+            <div class="form-group">
               <label>{{t "Date of birth" key="date_of_birth"}}</label>
               <div class="register-date-row">
                 <BoundSelect @select_class="form-control" @select_id="birth_month" @content={{this.birthMonths}} @selection={{this.birth_month}} @action={{mut this.birth_month}} />
@@ -183,6 +192,13 @@
               {{t "Choose a different role" key="choose_different_role"}}
             </button>
             <p class="register-step-copy">{{t "What kind of supporter account are you creating?" key="supporter_type_prompt"}}</p>
+            <div class="form-group">
+              <label for="registration_country_supporter">{{t "Country" key="registration_country"}}</label>
+              <BoundSelect @select_class="form-control" @select_id="registration_country_supporter" @content={{this.countryOptions}} @selection={{this.registration_country}} @action={{mut this.registration_country}} />
+              {{#if this.countryMissing}}
+                <span class="text-danger">{{t "Please select your country." key="registration_country_required"}}</span>
+              {{/if}}
+            </div>
             <div class="register-supporter-types register-supporter-types--large" role="radiogroup" aria-label={{t "What kind of supporter are you?" key="supporter_type_group"}}>
               {{#each this.supporter_types as |st|}}
                 <button type="button" role="radio"
@@ -213,7 +229,7 @@
               <label for="parent_consent_email">{{t "Parent or guardian email" key="coppa_parent_email_label"}}</label>
               <input value={{this.parent_consent_email}} class="form-control" id="parent_consent_email" placeholder={{t "Parent's email address (must differ from account email)" key="coppa_parent_email_placeholder"}} autocomplete="email" inputmode="email" {{on "input" (set-field this "parent_consent_email")}} />
               {{#if this.coppaParentEmailMissing}}
-                <span class="text-danger">{{t "Parent or guardian email is required for users under 13." key="coppa_parent_email_required"}}</span>
+                <span class="text-danger">{{t "Parent or guardian email is required for users under %{consent_age}." key="coppa_parent_email_required" consent_age=this.coppaConsentAge}}</span>
               {{/if}}
               {{#if this.coppaParentEmailSameAsAccount}}
                 <span class="text-danger">{{t "Parent email must be different from the account email." key="coppa_parent_email_must_differ"}}</span>
@@ -239,7 +255,7 @@
             </div>
             <div class="form-group">
               <label for="password_under_13">{{t "Password" key="password"}}</label>
-              {{password-field id="password_under_13" class="form-control" value=this.model.password placeholder=(t "at least 6 characters" key="at_least_6_characters") autocomplete="new-password"}}
+              <PasswordField @id="password_under_13" @class="form-control" @value={{this.model.password}} @onChange={{set-value this "model.password"}} @placeholder={{t "at least 6 characters" key="at_least_6_characters"}} @autocomplete="new-password" />
               {{#if this.shortPassword}}
                 <span class='text-danger'>{{t "password must be at least 6 characters" key="min_password_lower"}}</span>
               {{/if}}
@@ -353,14 +369,16 @@
               {{t "Choose a different sign up method" key="choose_different_signup_method"}}
             </button>
             <h3 class="register-role-heading">{{this.selectedRoleSignupHeading}}</h3>
-            <div class="register-checkboxes">
-              <div class="checkbox big_checkbox">
-                <label>
-                  <input type="checkbox" checked={{this.productImprovementOptIn}} {{on "change" (set-field this "productImprovementOptIn" "checkbox")}} />
-                  {{t "Help improve LingoLinq by sharing usage, performance, and anonymized troubleshooting data." key="product_improvement_opt_in"}}
-                </label>
+            {{#if this.showProductImprovementOptIn}}
+              <div class="register-checkboxes">
+                <div class="checkbox big_checkbox">
+                  <label>
+                    <input type="checkbox" checked={{this.productImprovementOptIn}} {{on "change" (set-field this "productImprovementOptIn" "checkbox")}} />
+                    {{t "Help improve LingoLinq by sharing usage, performance, and anonymized troubleshooting data." key="product_improvement_opt_in"}}
+                  </label>
+                </div>
               </div>
-            </div>
+            {{/if}}
             <div class="form-group">
               <label for="user_name_email">{{t "Username" key="username"}}</label>
               <input type="text" value={{this.model.user_name}} class="form-control" id="user_name_email" placeholder={{t "choose a username" key="choose_a_username"}} autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" {{on "input" (set-field this "model.user_name")}} />
@@ -381,7 +399,7 @@
             </div>
             <div class="form-group">
               <label for="password_email_step">{{t "Password" key="password"}}</label>
-              {{password-field id="password_email_step" class="form-control" value=this.model.password placeholder=(t "at least 6 characters" key="at_least_6_characters") autocomplete="new-password"}}
+              <PasswordField @id="password_email_step" @class="form-control" @value={{this.model.password}} @onChange={{set-value this "model.password"}} @placeholder={{t "at least 6 characters" key="at_least_6_characters"}} @autocomplete="new-password" />
               {{#if this.shortPassword}}
                 <span class='text-danger'>{{t "password must be at least 6 characters" key="min_password_lower"}}</span>
               {{/if}}

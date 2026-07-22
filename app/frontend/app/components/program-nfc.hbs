@@ -31,7 +31,7 @@
         {{else}}
           {{t "Phrase to speak" key="phrase_to_speak"}}
           <div>
-            <input value={{this.label}} type="text" class="form-control" {{on "input" (set-field this "label")}} />
+            <input value={{this.label}} type="text" class="form-control" aria-label={{t "Phrase to speak" key="phrase_to_speak"}} {{on "input" (set-field this "label")}} />
           </div>
         {{/if}}
       </div>

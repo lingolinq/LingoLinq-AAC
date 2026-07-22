@@ -29,6 +29,7 @@ import boardDetailCache from '../../utils/board_detail_cache';
 import { pick_aac_type, pick_aac_color } from '../../utils/parts_of_speech';
 import prefClasses from '../../mixins/pref-classes';
 import LingoLinq from '../../app';
+import buildEventAction from '../../utils/event_action';
 
 // Catalog of speak-mode options-menu entries the user can show/hide
 // via the "Customize Menu" preference (right panel → Board Settings).
@@ -497,6 +498,10 @@ export default Controller.extend(prefClasses, {
         _this.send.apply(_this, [actionName].concat(args));
       };
     };
+    // For `input` bindings: the handler reads event.target.value, which the
+    // generic ctrlAction above discards (5.12 upgrade #490), so the search
+    // box never filtered. ctrlAction is unchanged for clicks.
+    _this.eventAction = buildEventAction(_this);
     _this.ctrlActionNoBubble = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function(event) {
@@ -4315,7 +4320,19 @@ export default Controller.extend(prefClasses, {
           _this.set('_saved_recolor', null);
           _this.set('borders_matched', false);
           _this.set('_saved_border_colors', null);
-          stashes.persist('current_mode', 'default');
+          // current_mode is deliberately NOT written here — mode ownership lives
+          // in the routes. Exiting the .edit child route restores 'speak'
+          // (routes/user/board-detail/edit.js resetController), and if this
+          // transition ALSO leaves board-detail entirely (the
+          // _save_exit_to_boards branch below), the parent route restores
+          // 'default' when it had forced speak on entry
+          // (routes/user/board-detail.js:496-500). So both destinations already
+          // land correctly. Writing 'default' here was contradictory — the edit
+          // route's resetController runs after this and overwrote it anyway —
+          // and it opened a window where the speak_mode observer could fire
+          // mid-transition and clobber last_speak_mode, re-triggering speak-mode
+          // first-entry effects (set_history([]) wiping board history, the
+          // "here we go" utterance, intro/goal modals).
           _this.set('panels_collapsed', true);
           _this.set('board_collapsed', true);
           // Honor "Save & Continue" flow from the panel's "Back to
@@ -6939,7 +6956,11 @@ export default Controller.extend(prefClasses, {
           _this.set('_saved_recolor', null);
           _this.set('borders_matched', false);
           _this.set('_saved_border_colors', null);
-          _this.get('stashes').persist('current_mode', 'default');
+          // current_mode is deliberately NOT written here (same reasoning as the
+          // save-and-exit path above). This branch transitions to
+          // user.board-detail.index — the user STAYS on board-detail, whose
+          // invariant is speak mode — so 'default' was outright wrong. Exiting
+          // the .edit child route restores 'speak' via its resetController.
           // Discard any pending copy-on-save: if the user entered edit
           // mode on a non-owned board (which set this flag) and is now
           // cancelling, no copy should be created.

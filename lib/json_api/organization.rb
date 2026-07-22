@@ -53,6 +53,7 @@ module JsonApi::Organization
       json['org_access'] = true if json['org_access'] == nil
       json['preferred_symbols'] = org.settings['preferred_symbols'] || 'original'
       json['default_locale'] = org.settings['default_locale'] || 'en'
+      json['jurisdiction'] = org.jurisdiction
       json['default_beta_program_access'] = org.default_beta_program_access?
       if org.settings['activation_settings']
         json['start_codes'] = Organization.start_codes(org)

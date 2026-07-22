@@ -6,7 +6,7 @@
     </div>
     <div class="la-find-button-body">
       <label for="button_search_string" class="sr-only">{{t "Search for buttons" key="search_for_buttons"}}</label>
-      {{focus-input force="true" type="text" id="button_search_string" value=this.searchString class="la-find-button-input" select="pick_result" placeholder=(t "Word or phrase you're looking for" key="word_or_phrase_youre_looking_for") autocomplete="off" aria-label=(t "Search for buttons" key="search_for_buttons")}}
+      <FocusInput @force={{true}} @type="text" @id="button_search_string" @value={{this.searchString}} @onChange={{set-value this "searchString"}} class="la-find-button-input" @placeholder={{t "Word or phrase you're looking for" key="word_or_phrase_youre_looking_for"}} @autocomplete="off" aria-label={{t "Search for buttons" key="search_for_buttons"}} />
       {{#if this.searchString}}
         <div class="la-find-button-results" role="region" aria-live="polite" aria-atomic="false" aria-label={{t "Search results" key="search_results"}}>
           {{#if this.results}}

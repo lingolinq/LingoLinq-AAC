@@ -40,7 +40,7 @@
             {{/each}}
           </div>
           <div style='display: none;'>
-            <textarea class="form-control" placeholder="Enter message to send to communicator" {{on "input" (set-field this "model_message")}}>{{this.model_message}}</textarea>
+            <textarea class="form-control" placeholder="Enter message to send to communicator" aria-label={{t "Message to send to communicator" key="message_to_communicator"}} {{on "input" (set-field this "model_message")}}>{{this.model_message}}</textarea>
             <div style='text-align: right; margin-top: 5px; margin-bottom: 50px;'>
               <button class='btn btn-primary' {{on "click" (this.ctrlAction "send_message")}}>{{t "Send Message to %{un}" un=this.app_state.pairing.user.user_name key="send_message_to_user"}}</button>
             </div>

@@ -25,13 +25,13 @@
       <div class='col-sm-6'>
         <h4>{{t "Sale End Date" key="sale_date"}}</h4>
         <div style='margin-bottom: 30px;'>
-          <input value={{this.sale_cutoff_date}} placeholder="YYYY-MM-DD" class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "sale_cutoff_date")}} />
+          <input value={{this.sale_cutoff_date}} placeholder="YYYY-MM-DD" aria-label={{t "Sale End Date" key="sale_date"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "sale_cutoff_date")}} />
           <button class="btn btn-default btn-sm" {{on "click" (this.ctrlAction "update_sale_date")}}>{{t "Update" key="update"}}</button>
         </div>
 
         <h4>{{t "Start Code Lookup" key="start_code_lookup"}}</h4>
         <div style='margin-bottom: 30px;'>
-          <input value={{this.start_code}} placeholder="start code" class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "start_code")}} />
+          <input value={{this.start_code}} placeholder="start code" aria-label={{t "Start Code Lookup" key="start_code_lookup"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "start_code")}} />
           <button class="btn btn-default btn-sm" {{on "click" (this.ctrlAction "start_code_lookup")}}>{{t "Lookup" key="lookup"}}</button>
         </div>
 
@@ -52,7 +52,7 @@
 
         <h4 style='margin-top: 20px;'>{{t "Word Data Import" key="word_data_import"}}</h4>
         <div style='margin-bottom: 30px;'>
-          <input value={{this.word_data_url}} placeholder="URL" class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "word_data_url")}} />
+          <input value={{this.word_data_url}} placeholder="URL" aria-label={{t "Word Data Import" key="word_data_import"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "word_data_url")}} />
           <button class="btn btn-default btn-sm" {{on "click" (this.ctrlAction "word_data_import")}}>{{t "Import" key="import"}}</button>
         </div>
 
@@ -189,7 +189,7 @@
           <div style='margin-top: -15px;'>
             <div class="checkbox big_checkbox">
               <label>
-                <input value={{this.include_extras}} type="checkbox" {{on "input" (set-field this "include_extras")}} />
+                <input type="checkbox" checked={{this.include_extras}} {{on "change" (set-field this "include_extras" "checkbox")}} />
                 {{t "include premium symbols" key="include_premium_symbols"}}
               </label>
             </div>

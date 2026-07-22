@@ -21,7 +21,7 @@
       <div class="md-modal-supervisee-list">
         {{#each this.recipient_rows as |row|}}
           <label class="md-modal-checkbox-label">
-            <Input @type="checkbox" @checked={{row.selected}} class="md-modal-checkbox" />
+            <input type="checkbox" checked={{row.selected}} class="md-modal-checkbox"  {{on "change" (set-field row "selected" "checkbox")}}/>
             <span>{{row.user_name}}{{#if row.is_self}} {{t "(me)" key="import_recipients_me_suffix"}}{{/if}}</span>
           </label>
         {{/each}}

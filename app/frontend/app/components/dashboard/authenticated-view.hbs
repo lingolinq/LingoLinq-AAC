@@ -49,20 +49,20 @@
       <span class="md-pillnav-dropdown__chevron" aria-hidden="true"></span>
     </button>
     <ul class="md-pillnav-dropdown__list" role="listbox" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
-      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "home") "is-active"}}" {{on "click" (fn this.onSelectTab "home")}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>{{t "Home" key="home"}}</button></li>
+      <li><button type="button" role="option" aria-selected={{if (is-equal this.activeTab "home") "true" "false"}} class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "home") "is-active"}}" {{on "click" (fn this.onSelectTab "home")}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>{{t "Home" key="home"}}</button></li>
       {{#if this.sectionAvailable.caseload}}
-      <li><LinkTo @route="caseload" role="option" class="md-pillnav-dropdown__option"><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>{{t "Caseload" key="caseload_pill"}}</LinkTo></li>
+      <li><LinkTo @route="caseload" role="option" aria-selected="false" class="md-pillnav-dropdown__option"><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>{{t "Caseload" key="caseload_pill"}}</LinkTo></li>
       {{/if}}
       {{#if this.sectionAvailable.org}}
-      <li><LinkTo @route="organizations" role="option" class="md-pillnav-dropdown__option"><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>{{t "Organizations" key="organizations"}}</LinkTo></li>
+      <li><LinkTo @route="organizations" role="option" aria-selected="false" class="md-pillnav-dropdown__option"><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>{{t "Organizations" key="organizations"}}</LinkTo></li>
       {{/if}}
-      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "boards") "is-active"}}" {{on "click" (fn this.onSelectTab "boards")}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>{{t "Boards" key="boards"}}</button></li>
+      <li><button type="button" role="option" aria-selected={{if (is-equal this.activeTab "boards") "true" "false"}} class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "boards") "is-active"}}" {{on "click" (fn this.onSelectTab "boards")}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>{{t "Boards" key="boards"}}</button></li>
       {{#if this.showReportsPill}}
-      <li><button type="button" role="option" class="md-pillnav-dropdown__option md-pillnav-dropdown__option--reports {{if (is-equal this.activeTab "reports") "is-active"}}" {{on "click" (fn this.onSelectTab "reports")}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 4 5-8"/></svg>{{t "Reports" key="reports"}}</button></li>
+      <li><button type="button" role="option" aria-selected={{if (is-equal this.activeTab "reports") "true" "false"}} class="md-pillnav-dropdown__option md-pillnav-dropdown__option--reports {{if (is-equal this.activeTab "reports") "is-active"}}" {{on "click" (fn this.onSelectTab "reports")}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 4 5-8"/></svg>{{t "Reports" key="reports"}}</button></li>
       {{/if}}
-      <li><button type="button" role="option" class="md-pillnav-dropdown__option {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "is-active"}}" {{on "click" (fn this.onSelectTab "extras")}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>{{t "Extras" key="extras"}}</button></li>
+      <li><button type="button" role="option" aria-selected={{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "true" "false"}} class="md-pillnav-dropdown__option {{if (or (is-equal this.activeTab "extras") (is-equal this.activeTab "supervisors")) "is-active"}}" {{on "click" (fn this.onSelectTab "extras")}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>{{t "Extras" key="extras"}}</button></li>
       {{#if this.showAccountPill}}
-      <li><LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}} role="option" class="md-pillnav-dropdown__option"><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>{{t "Account" key="account"}}</LinkTo></li>
+      <li><LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}} role="option" aria-selected="false" class="md-pillnav-dropdown__option"><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>{{t "Account" key="account"}}</LinkTo></li>
       {{/if}}
     </ul>
   </div>
@@ -301,7 +301,7 @@
             <svg class="md-card__icon-glyph" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4.7 6.4 8.5H3v7h3.4l4.6 3.8z"/><path d="M15.6 8.5a5 5 0 0 1 0 7"/><path d="M18.7 5.8a9 9 0 0 1 0 12.4"/></svg>
           </div>
           <div class="md-card__titles">
-            <h3 class="md-card__title">{{t "Speak Mode" key="speak_mode"}} <span aria-hidden="true">→</span></h3>
+            <div class="md-card__title">{{t "Speak Mode" key="speak_mode"}} <span aria-hidden="true">→</span></div>
             {{!-- Single supporting accent (no interactive UI): a calm
                  "ready" status line that makes the card feel active. --}}
             <span class="md-card__status">
@@ -356,7 +356,7 @@
             <img src={{path "images/extras-circle.png"}} class="md-card__icon-img" alt="" decoding="async">
           </div>
           <div class="md-card__titles">
-            <h3 class="md-card__title">{{t "Extras" key="extras"}} <span aria-hidden="true">→</span></h3>
+            <div class="md-card__title">{{t "Extras" key="extras"}} <span aria-hidden="true">→</span></div>
             <div class="md-card__sub">{{t "Tools & Resources" key="tools_and_resources"}}</div>
           </div>
         </div>
@@ -429,7 +429,7 @@
             <svg class="md-card__icon-glyph" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><line x1="12" y1="8.5" x2="12" y2="15.5"/><line x1="8.5" y1="12" x2="15.5" y2="12"/></svg>
           </div>
           <div class="md-card__titles">
-            <h3 class="md-card__title">{{t "Create a Board" key="create_a_board"}} <span aria-hidden="true">→</span></h3>
+            <div class="md-card__title">{{t "Create a Board" key="create_a_board"}} <span aria-hidden="true">→</span></div>
             <div class="md-card__sub">{{t "Create your own board" key="create_a_board_sub"}}</div>
           </div>
         </div>
@@ -443,7 +443,7 @@
             <svg class="md-card__icon-glyph" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4C86D8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7.5 16v-3"/><path d="M12 16V9"/><path d="M16.5 16v-5"/></svg>
           </div>
           <div class="md-card__titles">
-            <h3 class="md-card__title">{{t "Reports" key="reports"}} <span aria-hidden="true">→</span></h3>
+            <div class="md-card__title">{{t "Reports" key="reports"}} <span aria-hidden="true">→</span></div>
             <div class="md-card__sub">{{t "View usage and progress" key="reports_card_sub"}}</div>
           </div>
         </div>
@@ -458,7 +458,7 @@
             <svg class="md-card__icon-glyph" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4C86D8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/><path d="M14 6l3.5 3.5"/></svg>
           </div>
           <div class="md-card__titles">
-            <h3 class="md-card__title">{{t "Edit Dashboard" key="edit_dashboard"}} <span aria-hidden="true">→</span></h3>
+            <div class="md-card__title">{{t "Edit Dashboard" key="edit_dashboard"}} <span aria-hidden="true">→</span></div>
             <div class="md-card__sub">{{t "Customize your Dashboard" key="edit_dashboard_sub"}}</div>
           </div>
         </div>
@@ -685,7 +685,7 @@
                     {{/if}}
                   </div>
                   <div class="md-extras-card__body">
-                    <h3 class="md-extras-card__title">{{t item.title_default key=item.title_key}}</h3>
+                    <div class="md-extras-card__title">{{t item.title_default key=item.title_key}}</div>
                     <p class="md-extras-card__sub">{{t item.subtitle_default key=item.subtitle_key}}</p>
                   </div>
                 </div>
@@ -703,7 +703,7 @@
   {{#if this.isSearchOpen}}
     <section class="md-searchOverlay" role="dialog" aria-label={{t "Search" key="search"}}>
       <div class="md-searchOverlay__top">
-        <input
+        <input aria-label={{t "Search boards, reports, supervisors…" key="md_search_placeholder"}}
           class="md-searchOverlay__input"
           placeholder={{t "Search boards, reports, supervisors…" key="md_search_placeholder"}}
           autofocus

@@ -82,7 +82,7 @@
           <div class="md-modal-supervisee-list">
             {{#each this.model.known_supervisees as |supervisee|}}
               <label class="md-modal-checkbox-label">
-                <Input @type="checkbox" @checked={{supervisee.share}} class="md-modal-checkbox" />
+                <input type="checkbox" checked={{supervisee.share}} class="md-modal-checkbox"  {{on "change" (set-field supervisee "share" "checkbox")}}/>
                 <img src={{supervisee.avatar_url}} alt="" class="md-modal-avatar">
                 <span>{{supervisee.user_name}}</span>
               </label>

@@ -181,5 +181,45 @@ describe Api::EvalSessionsController, type: :controller do
       expect(assert_success_json['narrative']).to eq('template draft')
       expect(captured_user).to be_nil
     end
+
+    # PN-01 / D-02 REGRESSION LOCK (the mandatory data-subject test). This is the layer a
+    # future refactor that resolved jurisdiction from current_user/@api_user would regress:
+    # the authenticated clinician is NON-EU, the supervised student is in the EU, and the
+    # PERSISTED AiApiLog row must stamp jurisdiction 'EU' -- the stamp follows the STUDENT
+    # data subject the controller selects (user_id -> find_by_path), not the caller.
+    it 'stamps jurisdiction "EU" from the EU student when a non-EU clinician narrates (PN-01/D-02)' do
+      old_key = ENV['ANTHROPIC_API_KEY']
+      ENV['ANTHROPIC_API_KEY'] = 'test-anthropic-key'
+      token_user
+      # The authenticated clinician (@user) is explicitly NON-EU -- the stamp must NOT follow them.
+      @user.settings ||= {}
+      @user.settings['preferences'] = {'jurisdiction' => 'US'}
+      @user.save
+      # The supervised student is in the EU (the data subject).
+      eu_student = User.create
+      eu_student.settings ||= {}
+      eu_student.settings['preferences'] = {'jurisdiction' => 'FR'}
+      eu_student.save
+      User.link_supervisor_to_user(@user, eu_student)
+
+      allow(FeatureFlags).to receive(:coppa_blocks_ai_for?).and_return(false)
+      allow(FeatureFlags).to receive(:eu_under16_blocks_ai_for?).and_return(false)
+      allow(FeatureFlags).to receive(:ai_enabled_for?).and_return(true)
+      allow(EvalNarrator).to receive(:anthropic_configured?).and_return(true)
+      resp = double('anthropic_response',
+                    content: [double('block', type: 'text', text: 'Drafted narrative.')],
+                    usage: double('usage', input_tokens: 10, output_tokens: 20))
+      allow(EvalNarrator).to receive(:call_anthropic).and_return(resp)
+
+      expect {
+        post :narrate, params: {eval_session: eval_payload, user_id: eu_student.global_id, use_anthropic: true}
+      }.to change(AiApiLog, :count).by(1)
+
+      log = AiApiLog.order(:created_at).last
+      expect(log.request_type).to eq('eval_narration')
+      expect(log.jurisdiction).to eq('EU')
+    ensure
+      ENV['ANTHROPIC_API_KEY'] = old_key
+    end
   end
 end

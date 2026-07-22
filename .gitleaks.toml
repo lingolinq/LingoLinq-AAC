@@ -44,35 +44,3 @@ targetRules = ["generic-api-key"]
 regexes = [
   '''trends_explainer2''',
 ]
-
-[[allowlists]]
-description = "Landing-page accessibility i18n keys (landing_a11y_*) in Ember templates trip generic-api-key via the same high-entropy heuristic as other translation keys. Locale JSON is already path-allowlisted above; these regexes cover the key= literals in .hbs (and historical templates/components paths). Only generic-api-key is relaxed."
-targetRules = ["generic-api-key"]
-regexes = [
-  '''landing_a11y_meets''',
-  '''landing_a11y_neurodivergent''',
-  '''landing_a11y_let_us_know''',
-]
-
-[[allowlists]]
-description = "Rails ActiveSupport duration helpers (N.days.from_now) trip generic-api-key because of digit+entropy heuristics. These are framework APIs used for consent-token expiry, not secrets. Exact-literal regexes only; only generic-api-key is relaxed."
-targetRules = ["generic-api-key"]
-regexes = [
-  '''14\.days\.from_now''',
-  '''7\.days\.from_now''',
-]
-
-[[allowlists]]
-description = "Infra-auditor scan-strategy prose 'Render/AWS/GCP' (cloud provider names) trips generic-api-key. Exact literal only; only generic-api-key is relaxed."
-targetRules = ["generic-api-key"]
-regexes = [
-  '''Render/AWS/GCP''',
-  '''Render/GCP''',
-]
-
-[[allowlists]]
-description = "docs/ROTATING_KEYS.md Stripe rotation verification uses curl -u \"$STRIPE_SECRET_KEY:\" (env-var placeholder, not a real credential). Trips curl-auth-user. Exact literal only; only that rule is relaxed."
-targetRules = ["curl-auth-user"]
-regexes = [
-  '''"\$STRIPE_SECRET_KEY:"''',
-]

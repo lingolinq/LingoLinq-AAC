@@ -85,7 +85,7 @@
               <p class="form-control-static">{{t "New Suggestion:" key="new_suggestion_colon"}}</p>
             </div>
             <div class="col-sm-5">
-              <input type="text" value={{this.sentence}} class="form-control la-contact-input" {{on "input" (set-field this "sentence")}} />
+              <input type="text" value={{this.sentence}} class="form-control la-contact-input" aria-label={{t "New Suggestion:" key="new_suggestion_colon"}} {{on "input" (set-field this "sentence")}} />
             </div>
             <div class="col-sm-4">
               <button type="button" class="la-btn la-btn--primary" {{on "click" (this.ctrlAction "add_sentence")}} disabled={{this.sentence_state.loading}}>

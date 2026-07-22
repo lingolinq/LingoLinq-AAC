@@ -66,13 +66,14 @@ module LingoLinq
     # US state code colliding with an ISO country (e.g. 'DE' = Delaware vs
     # Germany) is read as the ISO country. Callers wiring this to a user field
     # must pass ISO country codes, not subnational region codes.
+    # Public so registration / User#process_params can persist ISO alpha-2
+    # country codes with the same validation as jurisdiction lookups.
     def self.trusted_country(val)
       return nil if val.nil?
       token = val.to_s.strip
       return nil unless token.match?(/\A[A-Za-z]{2}\z/)
       token.upcase
     end
-    private_class_method :trusted_country
 
     # A locale/Accept-Language string: only yields a country from a region
     # subtag or an uppercase 2-letter country token (see ambiguity policy).

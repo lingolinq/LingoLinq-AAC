@@ -28,17 +28,17 @@
         <div class="col-sm-8">
           {{#each this.model.unit.topics as |row|}}
             <div class='row' style='margin-top: 5px;'>
-              <div class='col-sm-5'><Input @value={{row.title}} class="form-control" placeholder="topic" /></div>
-              <div class='col-sm-6'><Input @value={{row.url}} class="form-control" placeholder="https://" /></div>
+              <div class='col-sm-5'><input value={{row.title}} class="form-control" placeholder="topic" aria-label={{t "Unit topic" key="unit_topic"}} {{on "input" (set-field row "title")}}/></div>
+              <div class='col-sm-6'><input value={{row.url}} class="form-control" placeholder="https://" aria-label={{t "Curriculum URL" key="curriculum_url"}} {{on "input" (set-field row "url")}}/></div>
               <div class='col-sm-1'><a href='#' {{on "click" (this.ctrlAction "remove_curriculum_row" row)}}><span class='glyphicon glyphicon-remove'></span></a></div>
             </div>
           {{/each}}
-          <div style='margin-top: 5px;'><button class='btn btn-default btn-sm' {{on "click" (this.ctrlAction "add_curriculum_row")}}>{{t "add row" key="add_row_lower"}}</button></div>
+          <div style='margin-top: 5px;'><button type="button" class='btn btn-default btn-sm' {{on "click" (this.ctrlAction "add_curriculum_row")}}>{{t "add row" key="add_row_lower"}}</button></div>
         </div>
       </div>
       <div class="form-group">
         <div class="col-sm-9 col-sm-offset-3">
-          <button class='btn btn-default' {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
+          <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
           <button class='btn btn-primary' type='submit' disabled={{this.saving}}>
             {{#if this.saving}}
               {{t "Updating Room..." key="updating_room"}}

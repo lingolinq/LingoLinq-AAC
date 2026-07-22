@@ -16,6 +16,9 @@ class Api::WordSuggestionsController < ApplicationController
     if FeatureFlags.coppa_blocks_ai_for?(@api_user)
       return render json: { error: 'parental consent required', words: [] }, status: 403
     end
+    if FeatureFlags.eu_under16_blocks_ai_for?(@api_user)
+      return render json: { error: 'parental consent required', words: [] }, status: 403
+    end
 
     token_words = Array.wrap(word_suggestion_params[:words]).map(&:to_s).map(&:strip).reject(&:blank?).first(12)
     if token_words.empty?

@@ -49,17 +49,17 @@
             <input value={{this.model.supervisor.name}} class="md-add-supervisor__input" id="supervisor_name" placeholder="Full name" autocomplete="name" {{on "input" (set-field this "model.supervisor.name")}} />
           </div>
           <div class="md-add-supervisor__field">
-            <input value={{this.model.supervisor.user_name}} class="md-add-supervisor__input" placeholder="User name" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" {{on "input" (set-field this "model.supervisor.user_name")}} />
+            <input value={{this.model.supervisor.user_name}} class="md-add-supervisor__input" placeholder="User name" aria-label={{t "User Name" key="user_name"}} autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" {{on "input" (set-field this "model.supervisor.user_name")}} />
             {{#if this.model.supervisor.user_name_check.checking}}
             {{else if this.model.supervisor.user_name_check.exists}}
               <span class="md-add-supervisor__error">{{t "\"%{user_name}\" already exists" user_name=this.model.supervisor.user_name}}</span>
             {{/if}}
           </div>
           <div class="md-add-supervisor__field">
-            <input type="email" value={{this.model.supervisor.email}} class="md-add-supervisor__input" placeholder="Email address" autocomplete="email" inputmode="email" {{on "input" (set-field this "model.supervisor.email")}} />
+            <input type="email" value={{this.model.supervisor.email}} class="md-add-supervisor__input" placeholder="Email address" aria-label={{t "Email address" key="email_address"}} autocomplete="email" inputmode="email" {{on "input" (set-field this "model.supervisor.email")}} />
           </div>
           <div class="md-add-supervisor__field">
-            <input type="password" value={{this.model.supervisor.password}} class="md-add-supervisor__input" placeholder="Password" autocomplete="new-password" {{on "input" (set-field this "model.supervisor.password")}} />
+            <input type="password" value={{this.model.supervisor.password}} class="md-add-supervisor__input" placeholder="Password" aria-label={{t "Password" key="password"}} autocomplete="new-password" {{on "input" (set-field this "model.supervisor.password")}} />
           </div>
         {{/if}}
         {{#unless this.start_code}}

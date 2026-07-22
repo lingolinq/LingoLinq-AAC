@@ -45,8 +45,9 @@ export default Route.extend({
   beforeModel: function() {
     if(typeof window === 'undefined') { return; }
     var path = window.location.pathname;
-    if(path.indexOf('/parental_consent/') === 0) {
-      // COPPA email links must hit Rails, not the Ember SPA (see server/index.js proxy).
+    if(path.indexOf('/parental_consent/') === 0 || path.indexOf('/eu_ai_parental_consent/') === 0) {
+      // COPPA / EU AI parental-consent email links must hit Rails, not the Ember SPA
+      // (see server/index.js proxy).
       if(window.location.port === '8184') {
         var qs = window.location.search || '';
         window.location.replace(window.location.protocol + '//' + window.location.hostname + ':5000' + path + qs);

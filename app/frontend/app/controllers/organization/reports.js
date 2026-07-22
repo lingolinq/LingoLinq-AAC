@@ -351,13 +351,48 @@ export default Controller.extend({
       var model = this.get('model');
       var _this = this;
       if(!user_name || !action) { return; }
-      model.set('management_action', action + '-' + user_name);
-      model.save().then(function() {
-        modal.success(i18n.t('user_removed', "The user %{user_name} was successfully removed.", {user_name: user.user_name}));
-        _this.get_report();
-      }, function(err) {
-        modal.error(i18n.t('error_removing_user_name', "There was an error removing the user %{user_name}", {user_name: user.user_name}));
-      });
+      var clearOffboarding = function() {
+        model.set('offboarding_parent_email', null);
+        model.set('offboarding_birth_month', null);
+        model.set('offboarding_birth_year', null);
+        model.set('offboarding_under_13', null);
+        model.set('offboarding_under_16', null);
+      };
+      var doRemove = function(offboarding) {
+        model.set('management_action', action + '-' + user_name);
+        if(action === 'remove_user' && offboarding) {
+          model.set('offboarding_parent_email', offboarding.parent_email || null);
+          model.set('offboarding_birth_month', offboarding.birth_month ? parseInt(offboarding.birth_month, 10) : null);
+          model.set('offboarding_birth_year', offboarding.birth_year ? parseInt(offboarding.birth_year, 10) : null);
+          model.set('offboarding_under_13', !!offboarding.under_13);
+          model.set('offboarding_under_16', !!offboarding.under_16);
+        } else {
+          clearOffboarding();
+        }
+        model.save().then(function() {
+          clearOffboarding();
+          modal.success(i18n.t('user_removed', "The user %{user_name} was successfully removed.", {user_name: user.user_name}));
+          _this.get_report();
+        }, function(err) {
+          clearOffboarding();
+          modal.error(i18n.t('error_removing_user_name', "There was an error removing the user %{user_name}", {user_name: user.user_name}));
+        });
+      };
+      if(action === 'remove_user') {
+        modal.open('modals/confirm-org-action', {action: action, user_name: user_name}).then(function(res) {
+          if(res && res.confirmed) {
+            doRemove({
+              parent_email: res.offboarding_parent_email,
+              birth_month: res.offboarding_birth_month,
+              birth_year: res.offboarding_birth_year,
+              under_13: res.offboarding_under_13,
+              under_16: res.offboarding_under_16
+            });
+          }
+        });
+        return;
+      }
+      doRemove(null);
     }
   }
 });

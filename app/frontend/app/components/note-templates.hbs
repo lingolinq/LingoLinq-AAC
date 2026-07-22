@@ -16,12 +16,16 @@
     {{#if this.current_template}}
       <div class="md-sc-form">
         <div class="md-org-settings-field">
-          <label class="md-org-settings-field__label">{{t "Template Name" key="template_name"}}</label>
-          <input value={{this.current_template.title}} class="md-org-settings-input" type="text" placeholder="Template Name" {{on "input" (set-field this "current_template.title")}} />
+          {{#let (unique-id) as |templateNameId|}}
+            <label for={{templateNameId}} class="md-org-settings-field__label">{{t "Template Name" key="template_name"}}</label>
+            <input id={{templateNameId}} value={{this.current_template.title}} class="md-org-settings-input" type="text" placeholder="Template Name" {{on "input" (set-field this "current_template.title")}} />
+          {{/let}}
         </div>
         <div class="md-org-settings-field">
-          <label class="md-org-settings-field__label">{{t "Template Contents" key="template_contents"}}</label>
-          <textarea rows={{8}} class="md-org-settings-textarea" placeholder="Template Contents" {{on "input" (set-field this "current_template.text")}}>{{this.current_template.text}}</textarea>
+          {{#let (unique-id) as |templateContentsId|}}
+            <label for={{templateContentsId}} class="md-org-settings-field__label">{{t "Template Contents" key="template_contents"}}</label>
+            <textarea id={{templateContentsId}} rows={{8}} class="md-org-settings-textarea" placeholder="Template Contents" {{on "input" (set-field this "current_template.text")}}>{{this.current_template.text}}</textarea>
+          {{/let}}
         </div>
         <div style="text-align: right; margin-top: 8px;">
           <button type="button" class="md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "remove" this.current_template)}}>{{t "Remove Template" key="remove_template"}}</button>

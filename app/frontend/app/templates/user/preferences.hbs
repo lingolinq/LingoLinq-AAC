@@ -113,7 +113,7 @@
       </div>
       <div class='col-sm-2' style='text-align: right;'>
         {{#if this.pending_preferences.home_board.key}}
-          <button class='btn btn-default' {{on "click" (this.ctrlAction 'clear_home')}}>{{t "Clear Home Board" key='clear_home_board'}}</button>
+          <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction 'clear_home')}}>{{t "Clear Home Board" key='clear_home_board'}}</button>
         {{/if}}
       </div>
       {{#unless this.pending_preferences.home_board.key}}
@@ -177,7 +177,7 @@
                 <div>
                   <div class='checkbox big_checkbox'>
                     <label>
-                      <Input @type="checkbox" @checked={{option.checked}} />
+                      <input type="checkbox" checked={{option.checked}}  {{on "change" (set-field option "checked" "checkbox")}}/>
                       <img src={{option.image_url}} style='width: 30px; height: 30px;'>
                       {{option.label}}
                     </label>
@@ -208,6 +208,123 @@
       <label for="share_notifications" class="col-sm-3 control-label">{{t "Share Notifications" key="share_notifications"}}</label>
       <div class="col-sm-5">
         <BoundSelect @select_class="form-control" @select_id="share_notifications" @content={{this.allow_shares_options}} @selection={{this.pending_preferences.share_notifications}} @action={{mut this.pending_preferences.share_notifications}} />
+      </div>
+    </div>
+  </PreferenceBox>
+  <PreferenceBox @title="AI Features" @glyph="glyphicon glyphicon-flash" @title_key="ai_features">
+    <span style='display: none;'>{{t "AI Features" key='ai_features'}}</span>
+    {{#if this.euAiConsentRequired}}
+      <div class="form-group">
+        <div class="col-sm-9 col-sm-offset-3">
+          <p class="form-control-static">
+            {{t "Parental consent is required before AI features can be enabled for this account. Turning a feature on will open a dialog to email a parent or guardian." key="eu_ai_parental_consent_required_notice"}}
+          </p>
+          {{#if this.model.eu_ai_parental_consent_pending}}
+            <p class="form-control-static">
+              {{t "Waiting for a parent or guardian to approve AI features. The features you selected will turn on automatically after they approve." key="eu_ai_parental_consent_pending_notice"}}
+            </p>
+            {{#if this.euAiConsentSendSuccess}}
+              <p class="form-control-static text-success">
+                {{t "Consent email sent. Waiting for parent approval." key="eu_ai_parental_consent_send_success"}}
+              </p>
+            {{/if}}
+            <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "resend_eu_ai_parental_consent")}}>
+              {{t "Resend consent email" key="resend_eu_ai_parental_consent"}}
+            </button>
+          {{/if}}
+        </div>
+      </div>
+    {{/if}}
+    <div class="form-group">
+      <label for="ai_features_enabled" class="col-sm-3 control-label">{{t "AI Features" key='ai_features_master'}}</label>
+      <div class="col-sm-5">
+        <div class="checkbox big_checkbox">
+          <label>
+            <input type="checkbox" checked={{this.pending_preferences.ai_features_enabled}} id="ai_features_enabled" {{on "click" (this.onAiFeatureClick "ai_features_enabled")}} />
+            {{t "Allow AI features" key='allow_ai_features'}}
+          </label>
+        </div>
+        {{#if this.pending_preferences.ai_features_enabled}}
+          <div class="checkbox big_checkbox">
+            <label>
+              <input type="checkbox" checked={{this.pending_preferences.ai_board_generation}} id="ai_board_generation" {{on "click" (this.onAiFeatureClick "ai_board_generation")}} />
+              {{t "AI board generation" key='ai_board_generation_pref'}}
+            </label>
+          </div>
+          <div class="checkbox big_checkbox">
+            <label>
+              <input type="checkbox" checked={{this.pending_preferences.ai_word_prediction}} id="ai_word_prediction" {{on "click" (this.onAiFeatureClick "ai_word_prediction")}} />
+              {{t "AI word prediction" key='ai_word_prediction_pref'}}
+            </label>
+          </div>
+          <div class="checkbox big_checkbox">
+            <label>
+              <input type="checkbox" checked={{this.pending_preferences.ai_board_suggestions}} id="ai_board_suggestions" {{on "click" (this.onAiFeatureClick "ai_board_suggestions")}} />
+              {{t "AI board suggestions" key='ai_board_suggestions_pref'}}
+            </label>
+          </div>
+          <div class="checkbox big_checkbox">
+            <label>
+              <input type="checkbox" checked={{this.pending_preferences.ai_symbol_search}} id="ai_symbol_search" {{on "click" (this.onAiFeatureClick "ai_symbol_search")}} />
+              {{t "AI symbol search" key='ai_symbol_search_pref'}}
+            </label>
+          </div>
+        {{/if}}
+      </div>
+    </div>
+    {{#if this.model.article_50_disclosure_required}}
+      <div class="form-group">
+        <label class="col-sm-3 control-label">{{t "AI Transparency Notice" key='ai_disclosure_pref_label'}}</label>
+        <div class="col-sm-9">
+          {{!-- Both states link to the notice rather than opening the ai-disclosure
+                modal. That modal is uncloseable BLOCK mode by design (no Escape, no
+                backdrop dismiss, one exit: Acknowledge), which is correct for a gate
+                the user hit on the way to an AI feature, and wrong for a voluntary
+                read from Preferences -- it would trap someone who just wanted to
+                re-read the notice into re-acknowledging to escape, with no cancel
+                path at all for a switch-scanning user. --}}
+          {{#if this.model.article_50_disclosure_shown}}
+            <p class="form-control-static">
+              {{t "Acknowledged." key='ai_disclosure_pref_status_acknowledged'}}
+            </p>
+            <a href={{this.article_50_disclosure_url}} target="_blank" rel="noopener" class="btn btn-default">
+              {{t "View Notice Again" key='ai_disclosure_pref_view_again'}}
+            </a>
+          {{else}}
+            <p class="form-control-static">
+              {{t "Not yet acknowledged. AI word suggestions are using the standard, non-AI fallback until you review this." key='ai_disclosure_pref_status_unacknowledged'}}
+            </p>
+            <a href={{this.article_50_disclosure_url}} target="_blank" rel="noopener" class="btn btn-default">
+              {{t "Review Notice" key='ai_disclosure_pref_review_button'}}
+            </a>
+          {{/if}}
+        </div>
+      </div>
+    {{/if}}
+    <div class="form-group">
+      <label for="word_suggestions" class="col-sm-3 control-label">{{t "Word Prediction" key='word_prediction'}}</label>
+      <div class="col-sm-5">
+        <div class="checkbox big_checkbox">
+          <label>
+            <input type="checkbox" checked={{this.pending_preferences.word_suggestions}} id="word_suggestions" {{on "change" (set-field this "pending_preferences.word_suggestions" "checkbox")}} />
+            {{t "Show word prediction in Speak Mode" key='show_word_prediction_pref'}}
+          </label>
+        </div>
+        {{#if this.pending_preferences.word_suggestions}}
+          <label for="word_suggestion_position" class="control-label" style="margin-top: 8px; display: block;">{{t "Position" key='word_prediction_position_short'}}</label>
+          <BoundSelect @select_class="form-control" @select_id="word_suggestion_position" @content={{this.wordPredictionPositionList}} @selection={{this.pending_preferences.word_suggestion_position}} @action={{mut this.pending_preferences.word_suggestion_position}} />
+        {{/if}}
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="word_suggestion_images" class="col-sm-3 control-label">{{t "Keyboard Suggestions" key='keyboard_suggestions'}}</label>
+      <div class="col-sm-5">
+        <div class="checkbox big_checkbox">
+          <label>
+            <input type="checkbox" checked={{this.pending_preferences.word_suggestion_images}} id="word_suggestion_images" {{on "change" (set-field this "pending_preferences.word_suggestion_images" "checkbox")}} />
+            {{t "Show images for keyboard suggestions" key='word_suggestion_images'}}
+          </label>
+        </div>
       </div>
     </div>
   </PreferenceBox>
@@ -258,32 +375,6 @@
           <label>
             <input type="checkbox" checked={{this.pending_preferences.blank_status}} id="blank_status" {{on "change" (set-field this "pending_preferences.blank_status" "checkbox")}} />
             {{t "Show time, device status and notifications when vocalization box is empty" key='blank_status'}}
-          </label>
-        </div>
-      </div>
-    </div>
-    <div class="form-group">
-      <label for="word_suggestions" class="col-sm-3 control-label">{{t "Word Prediction" key='word_prediction'}}</label>
-      <div class="col-sm-5">
-        <div class="checkbox big_checkbox">
-          <label>
-            <input type="checkbox" checked={{this.pending_preferences.word_suggestions}} id="word_suggestions" {{on "change" (set-field this "pending_preferences.word_suggestions" "checkbox")}} />
-            {{t "Show word prediction in Speak Mode" key='show_word_prediction_pref'}}
-          </label>
-        </div>
-        {{#if this.pending_preferences.word_suggestions}}
-          <label for="word_suggestion_position" class="control-label" style="margin-top: 8px; display: block;">{{t "Position" key='word_prediction_position_short'}}</label>
-          <BoundSelect @select_class="form-control" @select_id="word_suggestion_position" @content={{this.wordPredictionPositionList}} @selection={{this.pending_preferences.word_suggestion_position}} @action={{mut this.pending_preferences.word_suggestion_position}} />
-        {{/if}}
-      </div>
-    </div>
-    <div class="form-group">
-      <label for="word_suggestion_images" class="col-sm-3 control-label">{{t "Keyboard Suggestions" key='keyboard_suggestions'}}</label>
-      <div class="col-sm-5">
-        <div class="checkbox big_checkbox">
-          <label>
-            <input type="checkbox" checked={{this.pending_preferences.word_suggestion_images}} id="word_suggestion_images" {{on "change" (set-field this "pending_preferences.word_suggestion_images" "checkbox")}} />
-            {{t "Show images for keyboard suggestions" key='word_suggestion_images'}}
           </label>
         </div>
       </div>
@@ -396,7 +487,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <input type="checkbox" checked={{this.pending_preferences.activation_on_start}} id="device_home" {{on "change" (set-field this "pending_preferences.activation_on_start" "checkbox")}} />
+            <input type="checkbox" checked={{this.pending_preferences.activation_on_start}} id="activation_on_start" {{on "change" (set-field this "pending_preferences.activation_on_start" "checkbox")}} />
             {{t "Select the button as soon as it is pressed" key='select_immediately'}}
           </label>
         </div>
@@ -536,7 +627,7 @@
               </div>
             {{else}}
               <div class='col-sm-2 col-sm-offset-3'>
-                <input type="text" value={{this.logging_code_check}} class="form-control" placeholder="Log PIN" {{on "input" (set-field this "logging_code_check")}} />
+                <input id="logging_PIN" type="text" value={{this.logging_code_check}} class="form-control" placeholder="Log PIN" {{on "input" (set-field this "logging_code_check")}} />
               </div>
               <div class='col-sm-2'>
                 <button type='button' {{on "click" (this.ctrlAction 'check_logging_code')}} disabled={{this.pin_status.checking}} class='btn btn-default'>
@@ -581,7 +672,7 @@
                 {{#if this.cant_change_private_logging}}
                 {{else}}
                   <div>
-                    <input type="text" value={{this.pending_preferences.logging_code}} class="form-control" placeholder="Set/Change a Log PIN" {{on "input" (set-field this "pending_preferences.logging_code")}} />
+                    <input type="text" value={{this.pending_preferences.logging_code}} class="form-control" placeholder="Set/Change a Log PIN" aria-label={{t "Set/Change a Log PIN" key="set_change_log_pin"}} {{on "input" (set-field this "pending_preferences.logging_code")}} />
                   </div>
                   {{#if this.pending_preferences.logging_code}}
                     <div class='text-danger'>{{t "NOTE: Remember this code! Once it has been set it can only be changed by remembering the current code, or by contacting technical support." key='logging_code_had_to_recover'}}</div>
@@ -1015,7 +1106,7 @@
               {{t "Automatically substitute common contractions" key='substitute_contractions'}}
             </label>
           </div>
-          <textarea class="form-control" placeholder="additional substitutions, one per line (stop break=I need to take a break)" {{on "input" (set-field this "substitution_string")}}>{{this.substitution_string}}</textarea>
+          <textarea class="form-control" placeholder="additional substitutions, one per line (stop break=I need to take a break)" aria-label={{t "Additional substitutions" key="additional_substitutions"}} {{on "input" (set-field this "substitution_string")}}>{{this.substitution_string}}</textarea>
         </div>
       </div>
       {{#if this.core_lists.for_user}}
@@ -1037,7 +1128,7 @@
               {{/if}}
             </div>
             <div style='display: flex; gap: 10px; margin-top: 12px;'>
-              <input type="text" value={{this.new_phrase}} class="form-control" placeholder="request additional phrase" {{on "input" (set-field this "new_phrase")}} />
+              <input type="text" value={{this.new_phrase}} class="form-control" placeholder="request additional phrase" aria-label={{t "Requested phrase" key="requested_phrase"}} {{on "input" (set-field this "new_phrase")}} />
               <button type='button' class='btn btn-default' style='white-space: nowrap;' {{on "click" (this.ctrlAction 'add_phrase')}}>{{t "Add" key='add'}}</button>
             </div>
           </div>
@@ -1047,11 +1138,11 @@
         <label for="phrase_categories" class="col-sm-3 control-label">{{t "Saved Phrase Types" key='saved_phrase_types'}}</label>
         <div class="col-sm-5">
           <div style='margin-bottom: 12px;'>
-            <input type="text" value={{this.phrase_categories_string}} class="form-control" placeholder="list, of, phrase, categories" {{on "input" (set-field this "phrase_categories_string")}} />
+            <input type="text" id="phrase_categories" value={{this.phrase_categories_string}} class="form-control" placeholder="list, of, phrase, categories" {{on "input" (set-field this "phrase_categories_string")}} />
           </div>
           <p class='form-control-static' style='margin-bottom: 14px;'><em>{{t "%app_name% has \"Quick\" and \"Journal\" categories by default, but you can list more categories to add here." key='phrase_categories_explainer'}}</em></p>
           <div style='margin-top: 12px;'>
-            <button class='btn btn-default' {{on "click" (this.ctrlAction 'phrases')}}>{{t "Manage Phrases" key='manage_phrases'}}</button>
+            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction 'phrases')}}>{{t "Manage Phrases" key='manage_phrases'}}</button>
           </div>
         </div>
       </div>
@@ -1121,7 +1212,7 @@
         <div class="col-sm-5">
           {{#unless this.editing_sidebar}}
             <div style='margin-bottom: 12px;'>
-              <button class='btn btn-default' {{on "click" (this.ctrlAction 'edit_sidebar')}}>{{t "Edit Sidebar Links and Buttons" key='edit_sidebar_links_and_buttons'}}</button>
+              <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction 'edit_sidebar')}}>{{t "Edit Sidebar Links and Buttons" key='edit_sidebar_links_and_buttons'}}</button>
             </div>
           {{else}}
             <p class="form-control-static">
@@ -1132,9 +1223,9 @@
                 <li class="list-group-item" style="height: 60px;">
                   <img src={{option.image}} style="float: left; height: 40px; max-width: 40px;"  {{on "click" (this.ctrlAction "sidebar_button_settings" option)}}>
                   <span style="float: right; margin-top: 5px;">
-                    <button class='btn btn-default btn-sm' title={{t "move up" key='move_up'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "up")}} style={{if option.top 'visibility: hidden;' ''}}><span class='glyphicon glyphicon-arrow-up'></span></button>
-                    <button class='btn btn-default btn-sm' title={{t "move down" key='move_down'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "down")}}style={{if option.bottom 'visibility:hidden;' ''}}><span class='glyphicon glyphicon-arrow-down'></span></button>
-                    <button class='btn btn-default btn-sm' title={{t "remove" key='remove_lower'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "delete")}}><span class='glyphicon glyphicon-trash'></span></button>
+                    <button type="button" class='btn btn-default btn-sm' title={{t "move up" key='move_up'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "up")}} style={{if option.top 'visibility: hidden;' ''}}><span class='glyphicon glyphicon-arrow-up'></span></button>
+                    <button type="button" class='btn btn-default btn-sm' title={{t "move down" key='move_down'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "down")}}style={{if option.bottom 'visibility:hidden;' ''}}><span class='glyphicon glyphicon-arrow-down'></span></button>
+                    <button type="button" class='btn btn-default btn-sm' title={{t "remove" key='remove_lower'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "delete")}}><span class='glyphicon glyphicon-trash'></span></button>
                   </span>
                   <span style="cursor: pointer; margin-top: 10px; display: inline-block; margin-left: 5px;" {{on "click" (this.ctrlAction "sidebar_button_settings" option)}}>
                     {{#if option.alert}}
@@ -1160,7 +1251,7 @@
                   <li class="list-group-item" style="height: 60px;">
                     <img src={{option.image}} style="float: left; height: 40px; max-width: 40px;">
                     <span style="float: right; margin-top: 5px;">
-                      <button class='btn btn-default btn-sm' title={{t "restore" key='restore'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "restore")}} style={{if option.top 'visibility: hidden;' ''}}><span class='glyphicon glyphicon-arrow-up'></span></button>
+                      <button type="button" class='btn btn-default btn-sm' title={{t "restore" key='restore'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "restore")}} style={{if option.top 'visibility: hidden;' ''}}><span class='glyphicon glyphicon-arrow-up'></span></button>
                     </span>
                     <span style="margin-top: 10px; display: inline-block; margin-left: 5px;">
                       {{#if option.alert}}
@@ -1187,7 +1278,7 @@
                 <input type="text" value={{this.new_sidebar_board}} class="form-control" placeholder={{t "add board key or action code" key="sidebar_add_placeholder"}} aria-label={{t "add board key or action code" key="sidebar_add_placeholder"}} {{on "input" (set-field this "new_sidebar_board")}} />
               </span>
               <span style='display: inline-block; width: 60px;'>
-                <button class='btn btn-default' {{on "click" (this.ctrlAction "add_sidebar_board" this.new_sidebar_board)}}>{{t "Add" key='add'}}</button>
+                <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "add_sidebar_board" this.new_sidebar_board)}}>{{t "Add" key='add'}}</button>
               </span>
               <p class="form-control-static" style="margin-top: 10px; font-size: 1.05rem;">{{t "You can edit the action code before adding—for example change :timer(30s) to :timer(60s)." key="sidebar_action_picker_edit_help"}}</p>
               <p class="form-control-static" style="margin-top: 4px; font-size: 1.05rem;">{{t "Board example: lingolinq/yesno" key="sidebar_board_key_example"}}</p>
@@ -1213,9 +1304,9 @@
           </p>
           <div style='display: flex; gap: 10px; flex-wrap: wrap;'>
             {{#if this.can_record_tags}}
-              <button class='btn btn-default' {{on "click" (this.ctrlAction 'program_tag')}}>{{t "Save New Tag" key='save_new_tag'}}</button>
+              <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction 'program_tag')}}>{{t "Save New Tag" key='save_new_tag'}}</button>
             {{/if}}
-            <button class='btn btn-default' {{on "click" (this.ctrlAction 'clear_nfc_tags')}}>{{t "Clear Saved Tags" key='clear_tags'}}</button>
+            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction 'clear_nfc_tags')}}>{{t "Clear Saved Tags" key='clear_tags'}}</button>
           </div>
         </div>
       </div>
@@ -1498,7 +1589,7 @@
             <div class="col-sm-5">
               <div style='display: flex; align-items: center; gap: 10px;'>
                 <div style='width: 60px;'>
-                  {{key-code-text-field id='scanning_select_keycode' class='form-control' value=this.pending_preferences.device.scanning_select_keycode action=(mut this.pending_preferences.device.scanning_select_keycode) placeholder='press a key'}}
+                  <KeyCodeTextField @id='scanning_select_keycode' @class='form-control' @value={{this.pending_preferences.device.scanning_select_keycode}} @onChange={{set-value this "pending_preferences.device.scanning_select_keycode"}} @placeholder='press a key' />
                 </div>
                 <span class='form-control-static' style='color: var(--md-muted);'>{{this.select_keycode_string}}</span>
               </div>
@@ -1510,7 +1601,7 @@
               <div class="col-sm-5">
                 <div style='display: flex; align-items: center; gap: 10px;'>
                   <div style='width: 60px;'>
-                    {{key-code-text-field id='scanning_next_keycode' class='form-control' value=this.pending_preferences.device.scanning_next_keycode placeholder='press a key'}}
+                    <KeyCodeTextField @id='scanning_next_keycode' @class='form-control' @value={{this.pending_preferences.device.scanning_next_keycode}} @onChange={{set-value this "pending_preferences.device.scanning_next_keycode"}} @placeholder='press a key' />
                   </div>
                   <span class='form-control-static' style='color: var(--md-muted);'>{{this.next_keycode_string}}</span>
                 </div>
@@ -1521,7 +1612,7 @@
               <div class="col-sm-5">
                 <div style='display: flex; align-items: center; gap: 10px;'>
                   <div style='width: 60px;'>
-                    {{key-code-text-field id='scanning_prev_keycode' class='form-control' value=this.pending_preferences.device.scanning_prev_keycode placeholder='press a key'}}
+                    <KeyCodeTextField @id='scanning_prev_keycode' @class='form-control' @value={{this.pending_preferences.device.scanning_prev_keycode}} @onChange={{set-value this "pending_preferences.device.scanning_prev_keycode"}} @placeholder='press a key' />
                   </div>
                   <span class='form-control-static' style='color: var(--md-muted);'>{{this.prev_keycode_string}}</span>
                 </div>
@@ -1533,7 +1624,7 @@
             <div class="col-sm-5">
               <div style='display: flex; align-items: center; gap: 10px;'>
                 <div style='width: 60px;'>
-                  {{key-code-text-field id='scanning_cancel_keycode' class='form-control' value=this.pending_preferences.device.scanning_cancel_keycode placeholder='press a key'}}
+                  <KeyCodeTextField @id='scanning_cancel_keycode' @class='form-control' @value={{this.pending_preferences.device.scanning_cancel_keycode}} @onChange={{set-value this "pending_preferences.device.scanning_cancel_keycode"}} @placeholder='press a key' />
                 </div>
                 <span class='form-control-static' style='color: var(--md-muted);'>{{this.cancel_keycode_string}}</span>
               </div>
@@ -1590,7 +1681,7 @@
             <BoundSelect @select_class="form-control" @select_id="scanning_mode" @content={{this.dwellList}} @selection={{this.pending_preferences.device.dwell_type}} @action={{mut this.pending_preferences.device.dwell_type}} />
           </div>
           <div class="col-sm-2">
-            <button class='btn btn-default' {{on "click" (this.ctrlAction "test_dwell")}} style='width: 100%;'>
+            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "test_dwell")}} style='width: 100%;'>
               {{#if this.testing_dwell}}
                 {{t "Stop Tracking" key='stop_test_dwell'}}
               {{else}}
@@ -1601,13 +1692,13 @@
           {{#if this.eyegaze_type}}
             {{#if this.calibratable}}
               <div class="col-sm-2">
-                <button class='btn btn-default' {{on "click" (this.ctrlAction "calibrate")}} style='width: 100%; margin-bottom: 3px;'>{{t "Calibrate Tracker" key='calibrate'}}</button>
+                <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "calibrate")}} style='width: 100%; margin-bottom: 3px;'>{{t "Calibrate Tracker" key='calibrate'}}</button>
               </div>
             {{/if}}
           {{/if}}
           {{#if this.testing_dwell}}
             <div class="col-sm-5 col-sm-offset-3">
-              {{dwell-tracker user=this.model preferences=this.pending_preferences type=this.pending_preferences.device.dwell_type}}
+              <DwellTracker @user={{this.model}} @preferences={{this.pending_preferences}} @type={{this.pending_preferences.device.dwell_type}} />
             </div>
           {{/if}}
         </div>
@@ -1712,7 +1803,7 @@
             <label for="scanning_select_keycode" class="col-sm-3 control-label">{{t "Dwell \"Select\" Key" key='dwell_select_keycode'}}</label>
             <div class="col-sm-5">
               <label style="width: 50px;">
-                {{key-code-text-field id='scanning_select_keycode' class='form-control' value=this.pending_preferences.device.scanning_select_keycode action=(mut this.pending_preferences.device.scanning_select_keycode) placeholder='hit any key'}}
+                <KeyCodeTextField @id='scanning_select_keycode' @class='form-control' @value={{this.pending_preferences.device.scanning_select_keycode}} @onChange={{set-value this "pending_preferences.device.scanning_select_keycode"}} @placeholder='hit any key' />
               </label>
               &nbsp;{{this.select_keycode_string}}
             </div>
@@ -1811,7 +1902,7 @@
           <BoundSelect @select_class="form-control" @select_id="voiceURI" @content={{this.user_voice_list}} @selection={{this.pending_preferences.device.voice.voice_uri}} @action={{mut this.pending_preferences.device.voice.voice_uri}} />
         </div>
         <div class="col-sm-2 col-xs-5">
-          <button class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}}>{{t "Premium Voices" key='premium_voices'}}</button>
+          <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}}>{{t "Premium Voices" key='premium_voices'}}</button>
         </div>
       </div>
       <div class="form-group" style="margin-top: -15px;">
@@ -1836,7 +1927,7 @@
         </div>
       </div>
       <div class="col-sm-2 col-xs-5">
-        <button class='btn btn-default' {{on "click" (this.ctrlAction "test_voice")}}>{{t "Test Voice" key='test_voice'}}</button>
+        <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "test_voice")}}>{{t "Test Voice" key='test_voice'}}</button>
       </div>
     </div>
   {{else}}
@@ -1851,7 +1942,7 @@
               <div style="flex: 1 1 auto; min-width: 180px;">
                 <BoundSelect @select_class="form-control" @select_id="voiceURI" @content={{this.user_voice_list}} @selection={{this.pending_preferences.device.voice.voice_uri}} @action={{mut this.pending_preferences.device.voice.voice_uri}} />
               </div>
-              <button class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}} style="white-space: nowrap;">{{t "Premium Voices" key='premium_voices'}}</button>
+              <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}} style="white-space: nowrap;">{{t "Premium Voices" key='premium_voices'}}</button>
             </div>
             {{#if this.ios_app}}
               <p class='form-control-static' style='margin-top: 8px;'><em>{{t "Some system voices may not work due to an Apple speech engine issue. Try a Premium Voice or \"System Default Voice\" if needed." key='apple_tts_bug'}}</em></p>
@@ -1867,7 +1958,7 @@
             </p>
           </div>
           <div class="col-sm-2 col-xs-5">
-            <button class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}}>{{t "Premium Voices" key='premium_voices'}}</button>
+            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}}>{{t "Premium Voices" key='premium_voices'}}</button>
           </div>
         </div>
       {{/if}}
@@ -1900,7 +1991,7 @@
               <input value={{this.pending_preferences.device.voice.volume}} class="md-number-picker__input" id="voice_volume" placeholder="1.0" {{on "input" (set-field this "pending_preferences.device.voice.volume")}} />
               <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.voice.volume")}}>+</button>
             </div>
-            <button class='btn btn-default' {{on "click" (this.ctrlAction "test_voice")}} style="white-space: nowrap;">{{t "Test Voice" key='test_voice'}}</button>
+            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "test_voice")}} style="white-space: nowrap;">{{t "Test Voice" key='test_voice'}}</button>
           </div>
           <p class='form-control-static' style='margin-top: 8px;'><em>{{t "Some voices may not support changing pitch or volume" key='voice_pitch_volume_note'}}</em></p>
         </div>
@@ -2013,7 +2104,7 @@
             </div>
           </div>
           <div class="col-sm-2 col-xs-5">
-            <button class='btn btn-default' {{on "click" (this.ctrlAction "test_voice" "alternate")}}>{{t "Test Voice" key='test_voice'}}</button>
+            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "test_voice" "alternate")}}>{{t "Test Voice" key='test_voice'}}</button>
           </div>
         </div>
       {{#if this.audio_target_available}}

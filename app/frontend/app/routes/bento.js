@@ -5,6 +5,7 @@ import Subscription from '../utils/subscription';
 import modal from '../utils/modal';
 import LingoLinq from '../app';
 import session from '../utils/session';
+import { onlyIfGenuinelyResolved, maybeShowSessionEntryGate } from '../utils/article50_gate';
 
 export default Route.extend({
   router: service('router'),
@@ -44,15 +45,39 @@ export default Route.extend({
     controller.set('subscription', Subscription.create());
     controller.set('model', model);
 
+    // EU AI Act Art.50 session-entry gate (03-UI-SPEC 7.1, applied identically
+    // to routes/index.js): tracks whether a terms_agree-missing sub-branch
+    // below has already claimed responsibility for the Art.50 check this
+    // render, so the shared tail doesn't also check. bento.js has no
+    // auto-speak-launch fork (confirmed by grep, see 03-05-SUMMARY), so there
+    // is no auto-launch branch to protect here.
+    var art50_checked_inline = false;
+
     if (model && model.get('id') && model.get('user_name') && !model.get('terms_agree')) {
       if (!model.get('really_fresh') && _this && _this.persistence && typeof _this.persistence.get === 'function' && _this.persistence.get('online')) {
+        art50_checked_inline = true;
         model.reload().then(function() {
           if (model.get('id') && model.get('user_name') && !model.get('terms_agree')) {
-            modal.open('terms-agree');
+            // A resolved .then() here is not the same thing as "the user
+            // acknowledged" -- modal.open() resolves a bumped modal's promise
+            // with {replaced: true}. onlyIfGenuinelyResolved rejects that.
+            modal.open('terms-agree').then(function(result) {
+              onlyIfGenuinelyResolved(result, model);
+            });
+          } else {
+            // Reload cleared terms_agree -- this call isn't chained off any
+            // other modal's promise, so it needs no {replaced: true} guard.
+            maybeShowSessionEntryGate(model);
           }
-        }, function() {});
+        }, function() {
+          // Reload failed -- can't verify, don't show either modal this pass.
+          // art50_checked_inline stays true so the tail skips its own check.
+        });
       } else if (model.get('really_fresh')) {
-        modal.open('terms-agree');
+        art50_checked_inline = true;
+        modal.open('terms-agree').then(function(result) {
+          onlyIfGenuinelyResolved(result, model);
+        });
       }
     } else {
       if (_this.stashes.get('current_mode') === 'edit') {
@@ -100,6 +125,14 @@ export default Route.extend({
     }
     if (_this.appState.get('show_intro')) {
       modal.open('intro');
+    }
+    // EU AI Act Art.50 session-entry opportunity (03-UI-SPEC 7.1): only check
+    // here if none of the terms_agree-missing sub-branches above already
+    // claimed it. Deliberately placed AFTER modal.open('intro') above -- a
+    // compliance-load-bearing BLOCK modal beats a discretionary onboarding
+    // tour if both would fire in the same render.
+    if (!art50_checked_inline) {
+      maybeShowSessionEntryGate(model);
     }
   }
 });

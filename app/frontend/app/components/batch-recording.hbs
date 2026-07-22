@@ -21,7 +21,7 @@
     {{/if}}
     {{#if this.model.user}}
       {{#if this.model.single}}
-        {{audio-recorder id=this.phrase.id pending_sound=this.phrase.pending_sound text=this.phrase.text next_phrase=this.next_phrase sound=this.phrase.sound decide_on_recording=(this.ctrlAction "decide_on_recording") select_phrase=(this.ctrlAction "select_phrase") audio_ready=(this.ctrlAction "audio_ready") audio_not_ready=(this.ctrlAction "audio_not_ready")}}
+        <AudioRecorder @id={{this.phrase.id}} @pending_sound={{this.phrase.pending_sound}} @text={{this.phrase.text}} @next_phrase={{this.next_phrase}} @sound={{this.phrase.sound}} @onSoundChange={{set-value this "phrase.sound"}} @decide_on_recording={{this.ctrlAction "decide_on_recording"}} @select_phrase={{this.ctrlAction "select_phrase"}} @audio_ready={{this.ctrlAction "audio_ready"}} @audio_not_ready={{this.ctrlAction "audio_not_ready"}} />
       {{else if this.phrase}}
         <div class="la-batch-recording-nav">
           <button class='la-batch-recording-back-btn' {{on "click" (this.ctrlAction "select_phrase")}}>
@@ -32,7 +32,10 @@
             <span class="la-batch-recording-breadcrumb">{{this.category.name}} <span class="la-batch-recording-breadcrumb--dim">{{this.repository.name}}</span></span>
           </div>
         </div>
-        {{audio-recorder id=this.phrase.id user_id=this.model.user.id pending_sound=this.phrase.pending_sound text=this.phrase.text next_phrase=this.next_phrase sound=this.phrase.sound decide_on_recording="decide_on_recording" select_phrase="select_phrase" audio_ready="audio_ready" audio_not_ready="audio_not_ready"}}
+        {{! The recording callbacks here were string names ("audio_ready", etc.), which audio-recorder
+            never invoked (it guards on typeof === 'function'), so they were dead. Omitted to preserve
+            exact behavior — this branch drives phrase.sound solely through the @onSoundChange write-back. }}
+        <AudioRecorder @id={{this.phrase.id}} @user_id={{this.model.user.id}} @pending_sound={{this.phrase.pending_sound}} @text={{this.phrase.text}} @next_phrase={{this.next_phrase}} @sound={{this.phrase.sound}} @onSoundChange={{set-value this "phrase.sound"}} />
       {{else if this.category}}
         <div class="la-batch-recording-nav">
           <button class='la-batch-recording-back-btn' {{on "click" (this.ctrlAction "select_category")}}>

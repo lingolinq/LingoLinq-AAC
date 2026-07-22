@@ -97,7 +97,7 @@
               <p class="form-control-static">{{t "in the last" key="in_the_last"}}</p>
             </div>
             <div class="col-sm-2">
-              <input value={{this.lesson.past_cutoff}} type="text" class="form-control" placeholder="##" {{on "input" (set-field this "lesson.past_cutoff")}} />
+              <input value={{this.lesson.past_cutoff}} type="text" class="form-control" placeholder="##" aria-label={{t "Number of months" key="number_of_months"}} {{on "input" (set-field this "lesson.past_cutoff")}} />
             </div>
             <div class="col-sm-2">
               <p class="form-control-static">{{t "months" key="months_lower"}}</p>
