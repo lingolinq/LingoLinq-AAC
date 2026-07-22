@@ -44,3 +44,33 @@ targetRules = ["generic-api-key"]
 regexes = [
   '''trends_explainer2''',
 ]
+
+[[allowlists]]
+description = "Landing-page Ember i18n keys (landing_a11y_*) trip generic-api-key when referenced as key='…' in .hbs templates. Locale JSON is already path-allowlisted above; these exact key literals cover the template references (and historical templates/components/ paths in git history). Not secrets."
+targetRules = ["generic-api-key"]
+regexes = [
+  '''landing_a11y_meets''',
+  '''landing_a11y_let_us_know''',
+  '''landing_a11y_neurodivergent''',
+]
+
+[[allowlists]]
+description = "ActiveSupport duration literals assigned to consent_token_expires_at (e.g. 14.days.from_now, 7.days.from_now) trip generic-api-key's entropy heuristic. They are Rails time helpers, not API keys."
+targetRules = ["generic-api-key"]
+regexes = [
+  '''\d+\.days\.from_now''',
+]
+
+[[allowlists]]
+description = "Agent scan-strategy prose in .claude/agents/infra-auditor.md mentions the literal 'Render/AWS/GCP' (cloud providers under review). That path fragment trips generic-api-key; it is documentation, not a credential."
+targetRules = ["generic-api-key"]
+regexes = [
+  '''Render/AWS/GCP''',
+]
+
+[[allowlists]]
+description = "docs/ROTATING_KEYS.md shows example curl -u invocations for verifying Stripe key rotation (sk_OLD_KEY placeholder and \"$STRIPE_SECRET_KEY:\" env-var reference). The curl-auth-user rule flags those examples; the file contains no live credentials."
+targetRules = ["curl-auth-user"]
+paths = [
+  '''docs/ROTATING_KEYS\.md''',
+]
