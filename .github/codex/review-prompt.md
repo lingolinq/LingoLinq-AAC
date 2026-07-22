@@ -54,6 +54,12 @@ the theory that unseen changes might exist. When it says TRUNCATED, review the
 hunks shown and treat unseen hunks as unverified -- that partial coverage is
 itself grounds for `NEEDS_HUMAN` if a hidden hunk could change your verdict.
 
+If a changed file itself contains `CI_INJECT` marker comments (e.g. this very
+prompt file), those markers are shown inside the diff in a defanged `[[ ... ]]`
+form instead of `<!-- ... -->`, so they do not break prompt assembly. That
+substitution is expected pipeline behavior; the underlying file uses the real
+`<!-- ... -->` comment form.
+
 <!-- CI_INJECT:DIFF -->
 The unified diff of the changed files.
 <!-- /CI_INJECT:DIFF -->
