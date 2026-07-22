@@ -224,6 +224,10 @@ export default Controller.extend({
         var args = bound.concat(Array.prototype.slice.call(arguments));
         var evt = args[args.length - 1];
         if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          // SPA forms: block native navigation on submit (header/brief board search).
+          if (evt.type === 'submit') {
+            evt.preventDefault();
+          }
           args.pop();
         }
         _this.send.apply(_this, [actionName].concat(args));

@@ -88,7 +88,6 @@ add|ember-template-lint|require-context-role|869|21|869|21|0be75355d0dd43dafc600
 add|ember-template-lint|require-context-role|870|24|870|24|0be75355d0dd43dafc60091285ba906c43350d19|1784505600000|1787097600000|1789689600000|app/templates/application.hbs
 add|ember-template-lint|require-context-role|898|17|898|17|0be75355d0dd43dafc60091285ba906c43350d19|1784505600000|1787097600000|1789689600000|app/templates/application.hbs
 add|ember-template-lint|require-context-role|901|17|901|17|0be75355d0dd43dafc60091285ba906c43350d19|1784505600000|1787097600000|1789689600000|app/templates/application.hbs
-add|ember-template-lint|no-builtin-form-components|65|10|65|10|2ec6c9e3cbb8038f9de2854faae66da1c7aa619f|1784505600000|1787097600000|1789689600000|app/templates/brief.hbs
 add|ember-template-lint|require-context-role|121|19|121|19|0be75355d0dd43dafc60091285ba906c43350d19|1784505600000|1787097600000|1789689600000|app/templates/brief.hbs
 add|ember-template-lint|require-context-role|122|19|122|19|0be75355d0dd43dafc60091285ba906c43350d19|1784505600000|1787097600000|1789689600000|app/templates/brief.hbs
 add|ember-template-lint|require-context-role|123|19|123|19|0be75355d0dd43dafc60091285ba906c43350d19|1784505600000|1787097600000|1789689600000|app/templates/brief.hbs
