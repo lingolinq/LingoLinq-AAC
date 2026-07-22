@@ -3,7 +3,7 @@
     "schemaVersion": "1.0",
     "register": "LingoLinq-AAC compliance document register",
     "description": "Single source of truth for WHERE every compliance document lives across the codebase (git), Google Drive, and Notion - its canonical home, its mirrors, its owner, its review dates, and which compliance bundles it belongs to. This is the document-level analogue of audit-reports/FINDINGS.json (which tracks finding status). The codebase copy is canonical; the Notion board is a one-way mirror; Drive docs are referenced by URL, never copied. See docs/legal/COMPLIANCE_DOCS_GUIDE.md.",
-    "generatedDate": "2026-06-21",
+    "generatedDate": "2026-07-22",
     "idAlgorithm": "id = 'DOC-' + sha256(canonicalLocation) first 10 hex chars; stable across runs so a moved/renamed doc reads as a diff. Computed and written back by scripts/document-register-render.rb.",
     "contentHashNote": "contentHash is sha256 of the canonical content. For canonicalSystem=git rows the render script computes it from the file bytes at its repo path and CI verifies it in --check (a tracked doc edited without updating its row fails). For drive/notion rows the hash is externally supplied: Notion-row hashes can be refreshed automatically by the network-capable Notion-sync run (--refresh-notion-hashes); DRIVE-row hashes have NO automated refresh and must be supplied by the operator (the sync script carries no Google credentials), so Drive freshness is a dated review obligation, not an automated guarantee. CI is network-free: a null/empty drive/notion hash is allowed and surfaced as an advisory, never a CI failure.",
     "typeEnum": [
@@ -35,7 +35,100 @@
       "WCAG",
       "SOC2"
     ],
+    "retentionClassEnum": [
+      "executed-agreement",
+      "corporate-permanent",
+      "grant-record",
+      "policy-version",
+      "audit-evidence",
+      "attestation-record",
+      "dsar-case",
+      "questionnaire-response",
+      "superseded-draft",
+      "working-note",
+      "operational-config"
+    ],
+    "dispositionEnum": [
+      "archive",
+      "delete"
+    ],
+    "retentionStatusEnum": [
+      "draft",
+      "approved"
+    ],
     "governance": "Only Scot changes a document's attestation, or moves its status to approved/published. The compliance-officer agent and the main session keep the index current (add/retire rows, refresh review dates, maintain bundles and contentHash) but never attest. Drafts stay status:draft with an empty attestation until Scot signs. No student/patient data ever appears here; entries are titles, paths/URLs, and hashes only.",
+    "retentionSchedule": {
+      "executed-agreement": {
+        "rule": "term + 7 years",
+        "trigger": "contract-end",
+        "disposition": "archive",
+        "source": "IA report 2026-07-22 sec 5.2"
+      },
+      "corporate-permanent": {
+        "rule": "permanent",
+        "trigger": "n/a",
+        "disposition": "archive",
+        "source": "IA report 2026-07-22 sec 5.2"
+      },
+      "grant-record": {
+        "rule": "award + 7 years",
+        "trigger": "close-out",
+        "disposition": "archive",
+        "source": "IA report 2026-07-22 sec 5.2 (federal record floors)"
+      },
+      "policy-version": {
+        "rule": "supersession + 7 years",
+        "trigger": "superseded",
+        "disposition": "archive",
+        "source": "IA report 2026-07-22 sec 5.2; exceeds the 45 CFR 164.530(j) six-year HIPAA floor"
+      },
+      "audit-evidence": {
+        "rule": "7 years",
+        "trigger": "finding-closed",
+        "disposition": "archive",
+        "source": "IA report 2026-07-22 sec 5.2; exceeds the 45 CFR 164.530(j) six-year HIPAA floor"
+      },
+      "attestation-record": {
+        "rule": "permanent",
+        "trigger": "n/a",
+        "disposition": "archive",
+        "source": "IA report 2026-07-22 sec 5.2"
+      },
+      "dsar-case": {
+        "rule": "3 years",
+        "trigger": "case-closed",
+        "disposition": "delete",
+        "source": "IA report 2026-07-22 sec 5.2"
+      },
+      "questionnaire-response": {
+        "rule": "3 years",
+        "trigger": "sent",
+        "disposition": "delete",
+        "source": "IA report 2026-07-22 sec 5.2"
+      },
+      "superseded-draft": {
+        "rule": "1 year",
+        "trigger": "superseded",
+        "disposition": "delete",
+        "source": "IA report 2026-07-22 sec 5.2 (unattested drafts only)"
+      },
+      "working-note": {
+        "rule": "90 days",
+        "trigger": "created",
+        "disposition": "delete",
+        "source": "IA report 2026-07-22 sec 5.2"
+      },
+      "operational-config": {
+        "rule": "retain while in use; supersession + 1 year",
+        "trigger": "superseded",
+        "disposition": "archive",
+        "source": "ADDED BEYOND the sec 5.2 starting table: agent configs and generated repo artifacts are not a record class counsel has been given. Flagged on every row that uses it."
+      }
+    },
+    "retentionNote": "EVERY retention block is status:draft and legally inert. Nothing in this register wires, schedules, or authorises deletion. --check performs SHAPE validation only: required fields present, class resolves to meta.retentionSchedule, and the row's denormalised rule/disposition match that schedule entry. dispositionEligibleAfter MUST stay null while retention.status is not \"approved\" - --check enforces that, so a draft schedule can never produce a disposition date. Only Scot moves a retention rule to approved, and only after counsel review. retention.ambiguous:true marks a row whose class was inferred rather than read off the sec 5.2 table; those are the rows counsel should look at first. Note also that no current row carries a delete disposition: where sec 5.2 was ambiguous the assignment was made conservatively toward archive, so the delete-disposition classes exist in the schedule with zero members.",
+    "supersessionNote": "supersedes / supersededBy form a two-way chain and --check enforces reciprocity: if A.supersededBy == B then B.supersedes must == A, neither may self-reference, both ids must resolve to real rows, and a row carrying supersededBy must have status:superseded. Attestation freezes bytes: a superseded record is never edited, renamed, or moved - it keeps its row, its title, and its bundle membership in any frozen point-in-time binder, and only the pointer is added.",
+    "driveFileIdNote": "driveFileId is the stable Google Drive file ID, required on every canonicalSystem=drive row and forbidden on git/notion rows. Drive IDs survive renames and moves; path-shaped URLs do not. --check verifies the id is the one embedded in canonicalLocation, so the two can never disagree.",
+    "completenessNote": "Register/reality drift is checked in both directions. Registered-but-missing has always been a hard failure (a git row must resolve to a real in-repo file). Present-but-unregistered is now checked too: every tracked file under docs/legal/ must have a git row or --check fails, because that directory is unambiguously the compliance corpus. The .claude/agents/ sweep is advisory only, since that directory also holds non-compliance agents. Drive and Notion completeness cannot be checked here (CI is network-free) and remains a dated review obligation.",
     "bundleDefinitions": {
       "compliance-records-set-2026-06": {
         "description": "The attested, externally-released branded binder generated 2026-06-19 and held in the Drive 'Branded Records Set' folder. Frozen point-in-time records; the living sources are the git docs and the auto-synced Notion findings board.",
@@ -144,7 +237,24 @@
           {
             "title": "Incident Log",
             "location": "docs/legal/INCIDENT_LOG.md"
+          },
+          {
+            "title": "Business Continuity and Disaster Recovery Plan",
+            "location": "https://docs.google.com/document/d/1WIr3aBuFjworFtv9EOisOCSdfLvMSMFWQrFMzkhda00/edit"
+          },
+          {
+            "title": "Compliance & Data Governance (COMPLIANCE.md)",
+            "location": "COMPLIANCE.md"
+          },
+          {
+            "title": "Subprocessor Register",
+            "location": "docs/legal/SUBPROCESSORS.md"
           }
+        ],
+        "gaps": [
+          "Independent penetration-test report (none commissioned)",
+          "Workforce security-training completion records",
+          "Formal change-management policy as a standalone record"
         ]
       },
       "school-dpa-package": {
@@ -173,11 +283,174 @@
           {
             "title": "Accessibility Conformance Report (ACR / VPAT)",
             "location": "docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md"
+          },
+          {
+            "title": "Incident Response and Breach Runbook",
+            "location": "docs/legal/BREACH_RUNBOOK.md"
+          },
+          {
+            "title": "AI Data-Flow Classification",
+            "location": "docs/legal/AI_DATA_FLOW_CLASSIFICATION.md"
+          },
+          {
+            "title": "Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT)",
+            "location": "https://docs.google.com/document/d/1vPwlcZwllRPuTU1TlqFeSwxJZ445pxsh6O0cBrGyE6M/edit"
           }
+        ],
+        "gaps": [
+          "Signed per-district NDPA instances (register-backed series; none executed yet)",
+          "State-specific NDPA exhibits beyond the standing set",
+          "Standalone deletion/return commitment (currently only a clause inside DATA_RETENTION.md)"
+        ]
+      },
+      "security-review": {
+        "description": "What a school district or hospital IT security questionnaire asks for. Deliberately SEPARATE from soc2-evidence: this is the customer-facing diligence pack (posture, accessibility, AI data-flow, subprocessors), whereas soc2-evidence is the internal controls-evidence pack. Merging them would force each to carry documents the other reviewer never asks for.",
+        "requiredDocs": [
+          {
+            "title": "Compliance Posture Report",
+            "location": "docs/legal/COMPLIANCE_POSTURE_REPORT.md"
+          },
+          {
+            "title": "LingoLinq Security, Privacy & Compliance Overview",
+            "location": "docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md"
+          },
+          {
+            "title": "Subprocessor Register",
+            "location": "docs/legal/SUBPROCESSORS.md"
+          },
+          {
+            "title": "Data Retention Schedule",
+            "location": "docs/legal/DATA_RETENTION.md"
+          },
+          {
+            "title": "Incident Response and Breach Runbook",
+            "location": "docs/legal/BREACH_RUNBOOK.md"
+          },
+          {
+            "title": "Accessibility Conformance Report (ACR / VPAT)",
+            "location": "docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md"
+          },
+          {
+            "title": "AI Data-Flow Classification",
+            "location": "docs/legal/AI_DATA_FLOW_CLASSIFICATION.md"
+          },
+          {
+            "title": "AI Governance Memo",
+            "location": "docs/legal/AI_GOVERNANCE_MEMO.md"
+          },
+          {
+            "title": "Written Information Security Program (WISP)",
+            "location": "https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit"
+          },
+          {
+            "title": "Access Control Policy",
+            "location": "https://docs.google.com/document/d/1yyibyEBfMiaS8NoHVVW629SkK61C0jo5P5OjUGojOck/edit"
+          }
+        ],
+        "gaps": [
+          "SSO / authentication description as a standalone record",
+          "Dependency and vulnerability posture summary as a customer-facing record",
+          "Independent penetration-test or third-party audit summary"
+        ]
+      },
+      "baa": {
+        "description": "What a covered entity (hospital, clinic, or district health service) asks for before executing a BAA. Covers both directions: the BAAs LingoLinq holds upstream with its subprocessors, and the BAA LingoLinq offers downstream to customers.",
+        "requiredDocs": [
+          {
+            "title": "AWS Business Associate Agreement (signed PDF)",
+            "location": "docs/legal/AWS_BAA_2026-02.pdf"
+          },
+          {
+            "title": "AWS BAA acceptance record",
+            "location": "docs/legal/AWS_BAA_ACCEPTED.md"
+          },
+          {
+            "title": "Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record",
+            "location": "docs/legal/GCP_BAA_ACCEPTED.md"
+          },
+          {
+            "title": "Anthropic HIPAA-Ready BAA Acceptance Record",
+            "location": "docs/legal/ANTHROPIC_BAA_ACCEPTED.md"
+          },
+          {
+            "title": "Anthropic Business Associate Agreement (2026-05-06)",
+            "location": "https://drive.google.com/file/d/1sL3di9GRP4hlids-baZDT26n3SKjzwD5/view"
+          },
+          {
+            "title": "Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14)",
+            "location": "https://docs.google.com/document/d/1CcyQpNfg8aiuY5VA7RHYbYqQEQtzHAdEkjpxcQIhNmM/edit"
+          },
+          {
+            "title": "Annex A - Clinical BAA Template (DRAFT)",
+            "location": "https://docs.google.com/document/d/1Q6hDhooIQVMArkpn4ppxr4om3-Hx64QmYiIQe0sSWmY/edit"
+          },
+          {
+            "title": "Incident Response and Breach Runbook",
+            "location": "docs/legal/BREACH_RUNBOOK.md"
+          },
+          {
+            "title": "Written Information Security Program (WISP)",
+            "location": "https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit"
+          },
+          {
+            "title": "Access Control Policy",
+            "location": "https://docs.google.com/document/d/1yyibyEBfMiaS8NoHVVW629SkK61C0jo5P5OjUGojOck/edit"
+          }
+        ],
+        "gaps": [
+          "HIPAA workforce training records (do not exist; owed before real PHI, per the Melissa GCP-admin note)",
+          "Audit-logging control description as a standalone record (currently only prose inside larger documents)",
+          "Executed downstream customer BAAs (none executed yet; will become a register-backed series)"
+        ]
+      },
+      "dsar": {
+        "description": "What a GDPR data-subject access, rectification, or erasure request requires. The Article 30 RoPA is the spine: it is the artifact a supervisory authority asks for first, and LingoLinq does not qualify for the small-business exemption because it processes children's data systematically and at scale.",
+        "requiredDocs": [
+          {
+            "title": "Records of Processing Activities (RoPA) and Data Map",
+            "location": "https://docs.google.com/document/d/1x6F8qiqR_7Ojc6-TQGYp2HYBMxjIUTzH0EGCQj8R-qg/edit"
+          },
+          {
+            "title": "Data Retention Schedule",
+            "location": "docs/legal/DATA_RETENTION.md"
+          },
+          {
+            "title": "AI Data-Flow Classification",
+            "location": "docs/legal/AI_DATA_FLOW_CLASSIFICATION.md"
+          }
+        ],
+        "gaps": [
+          "Data-subject identity-verification procedure (does not exist)",
+          "Export / deletion operational runbook (does not exist as a record)",
+          "DSAR response-letter templates (do not exist)",
+          "DSAR case-log template (does not exist; must hold no case content with PII)",
+          "GDPR Art. 27 EU representative designation (Annex G in Drive is a recommendation, not a designation)"
+        ]
+      },
+      "grant": {
+        "description": "What a federal or foundation grant application needs from the compliance library. Mostly gap today: the SBIR Phase IB material in Drive is application drafting, not the standing records a reviewer asks for.",
+        "requiredDocs": [
+          {
+            "title": "Accessibility Conformance Report (ACR / VPAT)",
+            "location": "docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md"
+          },
+          {
+            "title": "Compliance Posture Report",
+            "location": "docs/legal/COMPLIANCE_POSTURE_REPORT.md"
+          }
+        ],
+        "gaps": [
+          "Corporate formation documents (exist in Drive 610 but are unregistered)",
+          "PI bio-sketch (does not exist as a standing record)",
+          "Prior-award and commercialization history (does not exist)",
+          "Data-management plan (does not exist)",
+          "Human-subjects / IRB posture statement (does not exist)",
+          "D-U-N-S and SAM.gov registration evidence (unregistered; gates the native-apps initiative too)"
         ]
       }
     },
     "bundleMatchNote": "bundleDefinitions[*].requiredDocs binds each requirement to a specific document by canonicalLocation (identity), not free-text title, so a doc retitled to a required string cannot satisfy a requirement. Each requiredDoc carries a human-readable title that --check verifies still matches the member at that location (register-drift guard). --check fails if a requiredDoc location is not a bundle member, or its title has drifted.",
+    "bundleGapNote": "bundleDefinitions[*].gaps names artifacts a bundle genuinely needs that DO NOT EXIST as records yet. A gap is a deliberate, visible hole: it is rendered in DOCUMENT-REGISTER.md and never satisfied by inventing a row or by pointing a requiredDoc at an unrelated document. gaps never fail --check; an unmet requiredDoc always does. Close a gap by creating the real artifact and promoting it out of gaps into requiredDocs.",
     "integrityNote": "--check also enforces: every canonicalSystem is one of canonicalSystemEnum; a git row canonicalLocation is a repo path (not a URL); a drive/notion row canonicalLocation is a URL and does not resolve to a tracked repo file (so a git doc cannot dodge hash verification by being relabeled drive/notion); and id + canonicalLocation are unique across the register."
   },
   "documents": [
@@ -203,9 +476,19 @@
         "attestedDate": "2026-07-06"
       },
       "contentHash": "1e75223be75eadb026a8a4eedd730a3b2a97049383dd095e8fcc530fbf8db609",
-      "bundles": [],
+      "bundles": [
+        "soc2-evidence"
+      ],
       "mirrors": [],
-      "id": "DOC-9b299a785b"
+      "id": "DOC-9b299a785b",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "Compliance Program",
@@ -233,7 +516,15 @@
         "compliance-records-set-2026-06"
       ],
       "mirrors": [],
-      "id": "DOC-b61994933c"
+      "id": "DOC-b61994933c",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "Compliance Posture Report",
@@ -259,7 +550,9 @@
       },
       "contentHash": "80af6f2c5b34d5697942cead1f88bdc79d1141c8ffa180a011078468148c4cf1",
       "bundles": [
-        "school-dpa-package"
+        "school-dpa-package",
+        "security-review",
+        "grant"
       ],
       "mirrors": [
         {
@@ -267,7 +560,15 @@
           "location": "https://docs.google.com/document/d/1yx-jVYesJ0ZQM0myir6d0rRMMzGEoH5EL5_luicucYo/edit"
         }
       ],
-      "id": "DOC-4e3b7fb1fb"
+      "id": "DOC-4e3b7fb1fb",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "AI Governance Memo",
@@ -289,7 +590,8 @@
       },
       "contentHash": "34b0b857f494864186d1305a40e5ce22a17b2265340a81436161dae2d87efafc",
       "bundles": [
-        "compliance-records-set-2026-06"
+        "compliance-records-set-2026-06",
+        "security-review"
       ],
       "mirrors": [
         {
@@ -297,7 +599,15 @@
           "location": "https://docs.google.com/document/d/1HEuWT7cS5zPmGI-o9SB2zsc1DJgArEAlCgJz0ECJK9U/edit"
         }
       ],
-      "id": "DOC-39f37f8200"
+      "id": "DOC-39f37f8200",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "Accessibility Conformance Report (ACR / VPAT)",
@@ -315,7 +625,9 @@
       "attestation": {},
       "contentHash": "e68ef80b2638ddb15ccf2c351513ec83508d7073a0e6576ca2d3fdee98f815bd",
       "bundles": [
-        "school-dpa-package"
+        "school-dpa-package",
+        "security-review",
+        "grant"
       ],
       "mirrors": [
         {
@@ -323,7 +635,15 @@
           "location": "https://docs.google.com/document/d/1ez60NG2PVKnkcjjbz4NgHOeL_0OcQtVkdhToImcnihs/edit"
         }
       ],
-      "id": "DOC-a744f8f663"
+      "id": "DOC-a744f8f663",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "Data Retention Schedule",
@@ -348,7 +668,9 @@
       "contentHash": "b1bee6c56129f610f2d4e8b9d5ae83a0f80a0404a8efe4dad85d431a3e894194",
       "bundles": [
         "soc2-evidence",
-        "school-dpa-package"
+        "school-dpa-package",
+        "security-review",
+        "dsar"
       ],
       "mirrors": [
         {
@@ -356,7 +678,15 @@
           "location": "https://docs.google.com/document/d/1GRFuvaacbUbcAixhaOAOsdGKhOfclAByYS53bWap14k/edit"
         }
       ],
-      "id": "DOC-bff9acf51f"
+      "id": "DOC-bff9acf51f",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "Subprocessor Register",
@@ -379,7 +709,9 @@
       },
       "contentHash": "e76da3475c16c79927e58625e90c900eb506d8bfaccc1fe086aefb638463b6e3",
       "bundles": [
-        "school-dpa-package"
+        "school-dpa-package",
+        "soc2-evidence",
+        "security-review"
       ],
       "mirrors": [
         {
@@ -387,7 +719,15 @@
           "location": "https://docs.google.com/document/d/13i7PUAZO-_lyUrObdB3CLDQ5KB9s5GNL7XHpcBCRn_M/edit"
         }
       ],
-      "id": "DOC-0387973005"
+      "id": "DOC-0387973005",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "COPPA Final-Rule Verification",
@@ -416,7 +756,15 @@
           "location": "https://docs.google.com/document/d/1p_pPVDr6FocvdQ7UjK3ElmPXOlQvRX9n2XdFpiqZeXY/edit"
         }
       ],
-      "id": "DOC-407d2c2bf4"
+      "id": "DOC-407d2c2bf4",
+      "retention": {
+        "class": "audit-evidence",
+        "rule": "7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "Parental Consent Email (COPPA / under-13)",
@@ -445,7 +793,15 @@
           "location": "https://docs.google.com/document/d/1ljRwXPEAkQdJT81iGgAMHkfZTdbJ3EZPkIbHNuDtNxE/edit"
         }
       ],
-      "id": "DOC-4e6c9253b9"
+      "id": "DOC-4e6c9253b9",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "Incident Response and Breach Runbook",
@@ -468,7 +824,10 @@
       },
       "contentHash": "3efcaaf4a7c53016237527a5202a370bf74852f4b3e26e4346db5f418c5e263b",
       "bundles": [
-        "soc2-evidence"
+        "soc2-evidence",
+        "school-dpa-package",
+        "security-review",
+        "baa"
       ],
       "mirrors": [
         {
@@ -476,7 +835,15 @@
           "location": "https://docs.google.com/document/d/1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po/edit"
         }
       ],
-      "id": "DOC-d4e3b8be32"
+      "id": "DOC-d4e3b8be32",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "Incident Log",
@@ -506,7 +873,15 @@
           "location": "https://docs.google.com/document/d/1i5XFqAtgbxpDMLMdd80KS09WP7kWQ-GnTJU0ox7JGqQ/edit"
         }
       ],
-      "id": "DOC-1ea9f75b4f"
+      "id": "DOC-1ea9f75b4f",
+      "retention": {
+        "class": "audit-evidence",
+        "rule": "7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "AWS Business Associate Agreement (signed PDF)",
@@ -526,9 +901,19 @@
         "attestedDate": "2026-02"
       },
       "contentHash": "55f28e00168cfe5a1ecfaac3c56c33bd3fadd05276c8e9bcc6e678fc798b9bee",
-      "bundles": [],
+      "bundles": [
+        "baa"
+      ],
       "mirrors": [],
-      "id": "DOC-0ef0df93d9"
+      "id": "DOC-0ef0df93d9",
+      "retention": {
+        "class": "executed-agreement",
+        "rule": "term + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record",
@@ -549,7 +934,9 @@
         "attestedDate": "2026-07-16"
       },
       "contentHash": "70671328fe90b51b7d2689cfa417d49cb37fb4407cd09c439fcafd26dd6bf719",
-      "bundles": [],
+      "bundles": [
+        "baa"
+      ],
       "mirrors": [
         {
           "system": "drive",
@@ -557,7 +944,15 @@
         }
       ],
       "notes": "Parity with the AWS acceptance record (docs/legal/AWS_BAA_ACCEPTED.md). Companion Drive doc plus console screenshots ('Google Cloud Console Agreements 07-14-2026') are the source evidence, mirrored here. Referenced by docs/legal/SUBPROCESSORS.md section 5.7, COMPLIANCE.md section 4, and docs/legal/COMPLIANCE_POSTURE_REPORT.md. Approved and attested by Scot Wahlquist 2026-07-16 per explicit instruction; git contentHash is computed and CI-verified.",
-      "id": "DOC-5b14b08908"
+      "id": "DOC-5b14b08908",
+      "retention": {
+        "class": "executed-agreement",
+        "rule": "term + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "Anthropic HIPAA-Ready BAA Acceptance Record",
@@ -577,7 +972,9 @@
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-18"
       },
-      "bundles": [],
+      "bundles": [
+        "baa"
+      ],
       "mirrors": [
         {
           "system": "drive",
@@ -590,7 +987,15 @@
       ],
       "notes": "Parity with the AWS (docs/legal/AWS_BAA_ACCEPTED.md) and GCP (docs/legal/GCP_BAA_ACCEPTED.md) acceptance records. Model-provider BAA for the Anthropic runtime egress path; supersedes the prior 'no model-provider BAA / provisional pending CEO review' posture in COMPLIANCE.md, SUBPROCESSORS.md row 4, GCP_BAA_ACCEPTED.md, and AI_GOVERNANCE_MEMO.md (all reconciled in the same PR). Live enablement verified 2026-07-18 (Messages API 200; Files API 400 'not available for HIPAA-regulated organizations without Zero Data Retention'). Attested by Scot Wahlquist 2026-07-18 per explicit confirmation; git contentHash computed and CI-verified. The broader AI_GOVERNANCE_MEMO body was fully updated and re-attested by Scot Wahlquist on 2026-07-19 in the AI governance memo re-attestation PR.",
       "id": "DOC-ab3a8c3ed4",
-      "contentHash": "5adbe44783d9d74797498415714bb0c84c81dc943ffcd7911ac4284624f9b0d4"
+      "contentHash": "5adbe44783d9d74797498415714bb0c84c81dc943ffcd7911ac4284624f9b0d4",
+      "retention": {
+        "class": "executed-agreement",
+        "rule": "term + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "AWS BAA Acceptance Record",
@@ -610,9 +1015,19 @@
         "attestedDate": "2026-06-21"
       },
       "contentHash": "dc6a2ba9fa167f3f2bff6ec356bbd2b8bd9f9bafcd680b15362225aeca023f3e",
-      "bundles": [],
+      "bundles": [
+        "baa"
+      ],
       "mirrors": [],
-      "id": "DOC-286318ff28"
+      "id": "DOC-286318ff28",
+      "retention": {
+        "class": "executed-agreement",
+        "rule": "term + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "Compliance Status Snapshot (2026-06-18)",
@@ -629,7 +1044,17 @@
       "contentHash": "94b8288187ead04f26a0c929afab0a234b3154ed7ba0dca06adad69a50d053a6",
       "bundles": [],
       "mirrors": [],
-      "id": "DOC-d19d6ab8e6"
+      "id": "DOC-d19d6ab8e6",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "sec 5.2 offers two readings for a superseded record: \"policies (each version)\" (7yr, archive) and \"superseded drafts with no attestation\" (1yr, delete). This was a published artifact, not a draft, so the archive reading was taken. Confirm with counsel."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "Compliance Status Snapshot (2026-04-23)",
@@ -646,7 +1071,17 @@
       "contentHash": "0cacd835e906fc81d94e4dc032b004245dce8092fa4949e27935292f6605564d",
       "bundles": [],
       "mirrors": [],
-      "id": "DOC-9d29260615"
+      "id": "DOC-9d29260615",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "sec 5.2 offers two readings for a superseded record: \"policies (each version)\" (7yr, archive) and \"superseded drafts with no attestation\" (1yr, delete). This was a published artifact, not a draft, so the archive reading was taken. Confirm with counsel."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "Findings Register (FINDINGS.json)",
@@ -675,7 +1110,17 @@
           "location": "https://app.notion.com/p/1f8451c4a17b4f5b868878ac4386b805"
         }
       ],
-      "id": "DOC-62baffb3b1"
+      "id": "DOC-62baffb3b1",
+      "retention": {
+        "class": "audit-evidence",
+        "rule": "7 years",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "Living generated register rather than a point-in-time evidence artifact; sec 5.2 has no row for the index itself. Assigned the evidence rule conservatively (archive, never delete)."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "Compliance Calendar (compliance-calendar.json)",
@@ -705,7 +1150,17 @@
           "location": "https://docs.google.com/document/d/19IT_GKK1PzC7zLnGNr-RNT0Rw1fFR68syUvnuBBA2CI/edit"
         }
       ],
-      "id": "DOC-94b1de84ef"
+      "id": "DOC-94b1de84ef",
+      "retention": {
+        "class": "audit-evidence",
+        "rule": "7 years",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "Living generated register rather than a point-in-time evidence artifact; sec 5.2 has no row for the index itself. Assigned the evidence rule conservatively (archive, never delete)."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "Audit Reports Index (audit-reports/README.md)",
@@ -722,7 +1177,17 @@
       "contentHash": "22b5592fb46a3e8f00467451f6789569a657f41dc8935647362661b9d6873a11",
       "bundles": [],
       "mirrors": [],
-      "id": "DOC-b35f7a3444"
+      "id": "DOC-b35f7a3444",
+      "retention": {
+        "class": "audit-evidence",
+        "rule": "7 years",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "Living generated register rather than a point-in-time evidence artifact; sec 5.2 has no row for the index itself. Assigned the evidence rule conservatively (archive, never delete)."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "Document Register (this file)",
@@ -744,7 +1209,17 @@
           "location": "https://www.notion.so/3865fe8215c28174aef3ce32239ced5c"
         }
       ],
-      "id": "DOC-2d4e00befa"
+      "id": "DOC-2d4e00befa",
+      "retention": {
+        "class": "audit-evidence",
+        "rule": "7 years",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "Living generated register rather than a point-in-time evidence artifact; sec 5.2 has no row for the index itself. Assigned the evidence rule conservatively (archive, never delete)."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "Compliance Docs Guide (runbook)",
@@ -761,7 +1236,15 @@
       "contentHash": "05c98f8f40f85ddbdae308e2a8721467377f92b9a286cf51501111ff66f5d5c5",
       "bundles": [],
       "mirrors": [],
-      "id": "DOC-a936b01d6a"
+      "id": "DOC-a936b01d6a",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "compliance-officer agent definition",
@@ -778,7 +1261,17 @@
       "contentHash": "fffaf2ed085616af30a6814e805d65ae0d605f470ce9cf8101ac4d290c6f31f3",
       "bundles": [],
       "mirrors": [],
-      "id": "DOC-d9f17c6919"
+      "id": "DOC-d9f17c6919",
+      "retention": {
+        "class": "operational-config",
+        "rule": "retain while in use; supersession + 1 year",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "agent-config is not a record class in the sec 5.2 starting table; operational-config was added for it and needs counsel confirmation."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "privacy-auditor agent definition",
@@ -800,7 +1293,17 @@
       "contentHash": "ef397e5cfe5326879405524d3803fcfe65d3c539ae987a9d93da6df98759b4e4",
       "bundles": [],
       "mirrors": [],
-      "id": "DOC-869279c9fa"
+      "id": "DOC-869279c9fa",
+      "retention": {
+        "class": "operational-config",
+        "rule": "retain while in use; supersession + 1 year",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "agent-config is not a record class in the sec 5.2 starting table; operational-config was added for it and needs counsel confirmation."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "infra-auditor agent definition",
@@ -819,7 +1322,17 @@
       "contentHash": "33dc0fdd939e7673c97afd514fe3711d7ee1c6f26a780cca415fa5df889ffcf1",
       "bundles": [],
       "mirrors": [],
-      "id": "DOC-75b4889dfd"
+      "id": "DOC-75b4889dfd",
+      "retention": {
+        "class": "operational-config",
+        "rule": "retain while in use; supersession + 1 year",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "agent-config is not a record class in the sec 5.2 starting table; operational-config was added for it and needs counsel confirmation."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "api-auditor agent definition",
@@ -836,7 +1349,17 @@
       "contentHash": "3895f7acff6a17b2d559b0f1a8fa6d84320d64bcadeea765e3050616cb63c1fb",
       "bundles": [],
       "mirrors": [],
-      "id": "DOC-ee90a1cf59"
+      "id": "DOC-ee90a1cf59",
+      "retention": {
+        "class": "operational-config",
+        "rule": "retain while in use; supersession + 1 year",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "agent-config is not a record class in the sec 5.2 starting table; operational-config was added for it and needs counsel confirmation."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "dependency-auditor agent definition",
@@ -853,7 +1376,17 @@
       "contentHash": "60f14c798bdb796ba90c7f3a0754fd3a45546dbeda0d0e00f8eb97372e007bb1",
       "bundles": [],
       "mirrors": [],
-      "id": "DOC-2c8d32b86c"
+      "id": "DOC-2c8d32b86c",
+      "retention": {
+        "class": "operational-config",
+        "rule": "retain while in use; supersession + 1 year",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "agent-config is not a record class in the sec 5.2 starting table; operational-config was added for it and needs counsel confirmation."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "accessibility-auditor agent definition",
@@ -872,7 +1405,17 @@
       "contentHash": "bd8a7cadd8b2404f237caae6f024850d26ab80514d6ed8f624d7ab522f440e41",
       "bundles": [],
       "mirrors": [],
-      "id": "DOC-a04fd87b5c"
+      "id": "DOC-a04fd87b5c",
+      "retention": {
+        "class": "operational-config",
+        "rule": "retain while in use; supersession + 1 year",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "agent-config is not a record class in the sec 5.2 starting table; operational-config was added for it and needs counsel confirmation."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "Compliance & Security Program v1.0 (Attested)",
@@ -906,7 +1449,16 @@
         }
       ],
       "notes": "Externally released 2026-06-19; distribution governed by Drive folder access controls. Frozen point-in-time record.",
-      "id": "DOC-a7761b41b8"
+      "id": "DOC-a7761b41b8",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1bvVQClfhbNUCCPnmFZoDABlBA9hGNCEHQnWA2Z-r9Dg"
     },
     {
       "title": "Compliance & Security - Semi-Annual Program Report (H1 2026)",
@@ -935,7 +1487,16 @@
         "compliance-records-set-2026-06"
       ],
       "mirrors": [],
-      "id": "DOC-a11fb54085"
+      "id": "DOC-a11fb54085",
+      "retention": {
+        "class": "audit-evidence",
+        "rule": "7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1VKTOxmGjLiRYy9U3_Y4gzQ2gsmfnZZTeq5RZ7mkHAIM"
     },
     {
       "title": "Compliance Posture Report (branded)",
@@ -944,7 +1505,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "drive",
       "canonicalLocation": "https://docs.google.com/document/d/1A2cM0m6GvErHwpiMgns258NbN_M2krNB_HyedHJkqpk/edit",
-      "status": "published",
+      "status": "superseded",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -961,8 +1522,7 @@
       },
       "contentHash": null,
       "bundles": [
-        "compliance-records-set-2026-06",
-        "school-dpa-package"
+        "compliance-records-set-2026-06"
       ],
       "mirrors": [
         {
@@ -970,8 +1530,20 @@
           "location": "docs/legal/COMPLIANCE_POSTURE_REPORT.md"
         }
       ],
-      "notes": "Hard-codes a point-in-time posture count; the Notion findings board is the live source. Treat as a frozen record.",
-      "id": "DOC-9f6a2412ad"
+      "notes": "FROZEN point-in-time record: stays a member of compliance-records-set-2026-06 and keeps its title, because that binder is an attested 2026-06-19 set and its requiredDocs are never mutated. Superseded 2026-07-16 by DOC-ae3f9d06ef; removed from school-dpa-package so no live district pack points at it. Drive has retitled this file \"[SUPERSEDED 2026-07-16 - see current version] ...\" IN PLACE, which is an edit to an attested artifact and is exactly what IA report sec 3.2 forbids. Recorded, not corrected: the fix is the pointer, never the file.",
+      "id": "DOC-9f6a2412ad",
+      "supersededBy": "DOC-ae3f9d06ef",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "sec 5.2 offers two readings for a superseded record: \"policies (each version)\" (7yr, archive) and \"superseded drafts with no attestation\" (1yr, delete). This was a published artifact, not a draft, so the archive reading was taken. Confirm with counsel."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1A2cM0m6GvErHwpiMgns258NbN_M2krNB_HyedHJkqpk"
     },
     {
       "title": "Audit Results Report",
@@ -1006,7 +1578,16 @@
         }
       ],
       "notes": "Companion '5 Domain Reports' live in subfolder 1FNSX8BCMynkrnfyb3lOONXmnCZGuLAON.",
-      "id": "DOC-79c93a29a3"
+      "id": "DOC-79c93a29a3",
+      "retention": {
+        "class": "audit-evidence",
+        "rule": "7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1n6z-76-awsAtWq-2clQ340vfcn_gAtJbkCmVnIxL4tY"
     },
     {
       "title": "Compliance Calendar (branded)",
@@ -1039,7 +1620,16 @@
           "location": "audit-reports/compliance-calendar.json"
         }
       ],
-      "id": "DOC-df19938e01"
+      "id": "DOC-df19938e01",
+      "retention": {
+        "class": "audit-evidence",
+        "rule": "7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "19IT_GKK1PzC7zLnGNr-RNT0Rw1fFR68syUvnuBBA2CI"
     },
     {
       "title": "Records of Processing Activities (RoPA) and Data Map",
@@ -1060,10 +1650,20 @@
       },
       "contentHash": null,
       "bundles": [
-        "compliance-records-set-2026-06"
+        "compliance-records-set-2026-06",
+        "dsar"
       ],
       "mirrors": [],
-      "id": "DOC-3987298c7f"
+      "id": "DOC-3987298c7f",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1x6F8qiqR_7Ojc6-TQGYp2HYBMxjIUTzH0EGCQj8R-qg"
     },
     {
       "title": "Data Retention Schedule (branded)",
@@ -1097,7 +1697,16 @@
           "location": "docs/legal/DATA_RETENTION.md"
         }
       ],
-      "id": "DOC-52c8c33583"
+      "id": "DOC-52c8c33583",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1GRFuvaacbUbcAixhaOAOsdGKhOfclAByYS53bWap14k"
     },
     {
       "title": "Subprocessor Register (branded)",
@@ -1129,7 +1738,16 @@
           "location": "docs/legal/SUBPROCESSORS.md"
         }
       ],
-      "id": "DOC-b0cde875f5"
+      "id": "DOC-b0cde875f5",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "13i7PUAZO-_lyUrObdB3CLDQ5KB9s5GNL7XHpcBCRn_M"
     },
     {
       "title": "COPPA Final-Rule Verification (branded)",
@@ -1159,7 +1777,16 @@
           "location": "docs/legal/COPPA_VERIFICATION_2026-04-26.md"
         }
       ],
-      "id": "DOC-509843e543"
+      "id": "DOC-509843e543",
+      "retention": {
+        "class": "audit-evidence",
+        "rule": "7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1p_pPVDr6FocvdQ7UjK3ElmPXOlQvRX9n2XdFpiqZeXY"
     },
     {
       "title": "Parental Consent (COPPA / under-13) (branded)",
@@ -1189,7 +1816,16 @@
           "location": "docs/legal/PARENTAL_CONSENT_EMAIL.md"
         }
       ],
-      "id": "DOC-7c9b3b876c"
+      "id": "DOC-7c9b3b876c",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1ljRwXPEAkQdJT81iGgAMHkfZTdbJ3EZPkIbHNuDtNxE"
     },
     {
       "title": "Written Information Security Program (WISP)",
@@ -1212,10 +1848,21 @@
       "contentHash": null,
       "bundles": [
         "compliance-records-set-2026-06",
-        "soc2-evidence"
+        "soc2-evidence",
+        "security-review",
+        "baa"
       ],
       "mirrors": [],
-      "id": "DOC-4aaffa8efd"
+      "id": "DOC-4aaffa8efd",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE"
     },
     {
       "title": "Security Risk Assessment 2026 Q2",
@@ -1240,7 +1887,16 @@
         "soc2-evidence"
       ],
       "mirrors": [],
-      "id": "DOC-2ae6e003f0"
+      "id": "DOC-2ae6e003f0",
+      "retention": {
+        "class": "audit-evidence",
+        "rule": "7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1bvdVI_ftFaUu7CFVR8ajVZAQleruaIlqKxwI50iBRrc"
     },
     {
       "title": "Access Control Policy",
@@ -1264,10 +1920,21 @@
       "contentHash": null,
       "bundles": [
         "compliance-records-set-2026-06",
-        "soc2-evidence"
+        "soc2-evidence",
+        "security-review",
+        "baa"
       ],
       "mirrors": [],
-      "id": "DOC-b8cb4b3bed"
+      "id": "DOC-b8cb4b3bed",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1yyibyEBfMiaS8NoHVVW629SkK61C0jo5P5OjUGojOck"
     },
     {
       "title": "Vendor and Subprocessor Management Policy",
@@ -1293,7 +1960,16 @@
         "soc2-evidence"
       ],
       "mirrors": [],
-      "id": "DOC-98ec5238bb"
+      "id": "DOC-98ec5238bb",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1fmBOfw-peYUpdwmttHC3hqzU_5c3OMNgBSN4NDK7mAM"
     },
     {
       "title": "AI Governance Memo (branded)",
@@ -1323,7 +1999,16 @@
           "location": "docs/legal/AI_GOVERNANCE_MEMO.md"
         }
       ],
-      "id": "DOC-082273934e"
+      "id": "DOC-082273934e",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1HEuWT7cS5zPmGI-o9SB2zsc1DJgArEAlCgJz0ECJK9U"
     },
     {
       "title": "Accessibility Conformance Report (ACR / VPAT) (branded)",
@@ -1351,7 +2036,16 @@
         }
       ],
       "notes": "Held-by-design: not a published conformance claim until assistive-technology user testing + adversary review close the gaps.",
-      "id": "DOC-6093912673"
+      "id": "DOC-6093912673",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1ez60NG2PVKnkcjjbz4NgHOeL_0OcQtVkdhToImcnihs"
     },
     {
       "title": "Business Continuity and Disaster Recovery Plan",
@@ -1372,11 +2066,21 @@
       },
       "contentHash": null,
       "bundles": [
-        "compliance-records-set-2026-06"
+        "compliance-records-set-2026-06",
+        "soc2-evidence"
       ],
       "mirrors": [],
       "notes": "Marked proposed, not yet tested - accuracy caveat preserved in the doc.",
-      "id": "DOC-c58765c47d"
+      "id": "DOC-c58765c47d",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1WIr3aBuFjworFtv9EOisOCSdfLvMSMFWQrFMzkhda00"
     },
     {
       "title": "Incident Response and Breach Runbook (branded)",
@@ -1408,7 +2112,16 @@
           "location": "docs/legal/BREACH_RUNBOOK.md"
         }
       ],
-      "id": "DOC-f576f43250"
+      "id": "DOC-f576f43250",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po"
     },
     {
       "title": "Incident Log (branded)",
@@ -1439,7 +2152,16 @@
           "location": "docs/legal/INCIDENT_LOG.md"
         }
       ],
-      "id": "DOC-50629fc487"
+      "id": "DOC-50629fc487",
+      "retention": {
+        "class": "audit-evidence",
+        "rule": "7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1i5XFqAtgbxpDMLMdd80KS09WP7kWQ-GnTJU0ox7JGqQ"
     },
     {
       "title": "Compliance Program - Claim vs Code Review",
@@ -1459,7 +2181,16 @@
       "contentHash": null,
       "bundles": [],
       "mirrors": [],
-      "id": "DOC-401893ddc9"
+      "id": "DOC-401893ddc9",
+      "retention": {
+        "class": "audit-evidence",
+        "rule": "7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1IHQ5yFkoU39N01wyTt5SRXM-Q71aKa9wuXvnGVWnbRg"
     },
     {
       "title": "Compliance & Security Overhaul - Completion Report",
@@ -1479,7 +2210,16 @@
       "contentHash": null,
       "bundles": [],
       "mirrors": [],
-      "id": "DOC-450ac8e3fe"
+      "id": "DOC-450ac8e3fe",
+      "retention": {
+        "class": "audit-evidence",
+        "rule": "7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1en3MCE47qKj1nwg6wb_MA7h3TwwsDMs33oUM-0GhdEM"
     },
     {
       "title": "Roadmap - What's Left (2026-06-19)",
@@ -1500,7 +2240,16 @@
       "bundles": [],
       "mirrors": [],
       "notes": "Internal roadmap; not part of the externally-released set. Attested by Scot Wahlquist 2026-06-21 per CEO direction.",
-      "id": "DOC-912b28f375"
+      "id": "DOC-912b28f375",
+      "retention": {
+        "class": "audit-evidence",
+        "rule": "7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1f9haDNHifkZQ4qDbZBYMODaWO2KiuwEkrBpUq2Edq4E"
     },
     {
       "title": "Data & Compliance Pipeline - Build Inventory (dated)",
@@ -1523,7 +2272,16 @@
         }
       ],
       "notes": "Current Drive search also shows an undated companion document, LingoLinq Data & Compliance Pipeline - Build Inventory, at 1ZcYdaCc2eo5EGoaqlOgTLo9IXsbAvb-myw6pgO9Urtw. Treat this dated row as the tracked review artifact until the living/frozen ownership split is reconciled.",
-      "id": "DOC-71d0861ff9"
+      "id": "DOC-71d0861ff9",
+      "retention": {
+        "class": "audit-evidence",
+        "rule": "7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1xxLsESUXKm6rDWuqr_Z-Ob5kWzUZUbFD3gTKZWfLMnY"
     },
     {
       "title": "Notion - Compliance Findings board (LL)",
@@ -1546,7 +2304,17 @@
         }
       ],
       "notes": "Auto-synced from FINDINGS.json on push to staging via .github/workflows/sync-findings-to-notion.yml. The live source for posture counts.",
-      "id": "DOC-f994e09fcf"
+      "id": "DOC-f994e09fcf",
+      "retention": {
+        "class": "operational-config",
+        "rule": "retain while in use; supersession + 1 year",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "One-way mirror. Retention should follow the canonical source it mirrors, not run independently; sec 5.2 does not model mirrors."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "Notion - Compliance & Audits hub",
@@ -1563,7 +2331,17 @@
       "contentHash": null,
       "bundles": [],
       "mirrors": [],
-      "id": "DOC-8fc50f083c"
+      "id": "DOC-8fc50f083c",
+      "retention": {
+        "class": "operational-config",
+        "rule": "retain while in use; supersession + 1 year",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "One-way mirror. Retention should follow the canonical source it mirrors, not run independently; sec 5.2 does not model mirrors."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "Notion - Compliance Engineering Onboarding/Handoff",
@@ -1580,7 +2358,17 @@
       "contentHash": null,
       "bundles": [],
       "mirrors": [],
-      "id": "DOC-44080e322c"
+      "id": "DOC-44080e322c",
+      "retention": {
+        "class": "operational-config",
+        "rule": "retain while in use; supersession + 1 year",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "One-way mirror. Retention should follow the canonical source it mirrors, not run independently; sec 5.2 does not model mirrors."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     },
     {
       "title": "Notion - Compliance Documents board (LL)",
@@ -1603,7 +2391,506 @@
         }
       ],
       "notes": "Auto-synced from DOCUMENT-REGISTER.json on push to staging via .github/workflows/sync-document-register-to-notion.yml. The team-facing board for the document index.",
-      "id": "DOC-791a05d70e"
+      "id": "DOC-791a05d70e",
+      "retention": {
+        "class": "operational-config",
+        "rule": "retain while in use; supersession + 1 year",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "One-way mirror. Retention should follow the canonical source it mirrors, not run independently; sec 5.2 does not model mirrors."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
+    },
+    {
+      "title": "AI Data-Flow Classification",
+      "description": "Classifies every AI data flow in the product: which model sees what, under which lawful basis, with which scrubbing applied. The data-flow/classification artifact a district DPA review asks for.",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/AI_DATA_FLOW_CLASSIFICATION.md",
+      "status": "approved",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR"
+      ],
+      "lastReviewed": "2026-07-09",
+      "nextReviewDue": "2027-07-09",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-07-09"
+      },
+      "contentHash": "b75b6271e3682e1b5ec366c34b1610c9f9397472e17df83e9b4eb461b565b92a",
+      "bundles": [
+        "school-dpa-package",
+        "security-review",
+        "dsar"
+      ],
+      "mirrors": [],
+      "notes": "Register bookkeeping from the in-document attestation line (\"Attested (provisional) by Scot Wahlquist, CEO, 2026-07-09\"). Provisional: formal outside-counsel review is deferred until the full 5-phase VPC is built. Scot to confirm or correct this row.",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-90b5d33227"
+    },
+    {
+      "title": "AI Data-Sharing Consent: Rationale and Policy",
+      "description": "Why AI data-sharing consent is separate from signup-time COPPA consent, and the conservative-default position taken until counsel review.",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/AI_DATA_SHARING_CONSENT.md",
+      "status": "approved",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "GDPR"
+      ],
+      "lastReviewed": "2026-07-09",
+      "nextReviewDue": "2027-07-09",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-07-09"
+      },
+      "contentHash": "c77ebb0dc5c8a228f32f268f40f36a74e60ef867a5ada78ba0e22f0d4a7ca914",
+      "bundles": [],
+      "mirrors": [],
+      "notes": "Register bookkeeping from the in-document attestation line (2026-07-09, provisional, conservative-default). Not yet reviewed by outside counsel. Scot to confirm or correct.",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-2e9fdc06e4"
+    },
+    {
+      "title": "LingoLinq Security, Privacy & Compliance Overview",
+      "description": "The short, externally shareable program overview. Deliberately claims only controls that exist in the live production build.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md",
+      "status": "approved",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-07-09",
+      "nextReviewDue": "2027-07-09",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-07-09"
+      },
+      "contentHash": "c8030f10b9e437ab08a877d9ff9d0ebd2695a5ccc7129c50ddd0fed265ad8a45",
+      "bundles": [
+        "security-review"
+      ],
+      "mirrors": [],
+      "notes": "Register bookkeeping from the in-document line \"Attested for external release by Scot Wahlquist (CEO) on 2026-07-09 (rev. 2026-07-09-c)\". Scot to confirm or correct.",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-03cb9fe91f"
+    },
+    {
+      "title": "EU AI Act Article 50 Transparency: Implementation Milestone Plan",
+      "description": "Milestone plan for Article 50 transparency obligations. Art. 50 applies 2026-08-02; the machine-readable marking duty under 50(2) has a grace period to 2026-12-02 for systems already on market.",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md",
+      "status": "draft",
+      "frameworks": [
+        "GDPR"
+      ],
+      "lastReviewed": "2026-07-14",
+      "nextReviewDue": "2026-08-02",
+      "attestation": {},
+      "contentHash": "1a557d9d5b3d0fa00fbee146b773f1af979bf2379748564fa46c0fc7de7b1c89",
+      "bundles": [],
+      "mirrors": [],
+      "notes": "Self-declared DRAFT for review. Regulatory deadline 2026-08-02 is tracked in audit-reports/compliance-calendar.json.",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-771d214850"
+    },
+    {
+      "title": "LingoLinq Capability Ledger (rendered)",
+      "description": "Human-readable render of audit-reports/CAPABILITY-LEDGER.json. Every built/partial claim has currentEvidence validated at HEAD by capability-check.rb in CI.",
+      "type": "audit-artifact",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/CAPABILITY_LEDGER.md",
+      "status": "published",
+      "frameworks": [],
+      "lastReviewed": "2026-07-12",
+      "nextReviewDue": "2027-01-12",
+      "attestation": {},
+      "contentHash": "e0b25b0bb51f5b6ed493dfedef4d993ec9dafc71b63bf706b6a6fa4eda776fac",
+      "bundles": [],
+      "mirrors": [
+        {
+          "system": "git",
+          "location": "audit-reports/CAPABILITY-LEDGER.json"
+        }
+      ],
+      "notes": "GENERATED - do not hand-edit. Rendered by scripts/capability-check.rb --render from the JSON ledger, and CI-enforced by audit-artifacts-integrity.",
+      "retention": {
+        "class": "audit-evidence",
+        "rule": "7 years",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "Living generated register rather than a point-in-time evidence artifact; sec 5.2 has no row for the index itself. Assigned the evidence rule conservatively (archive, never delete)."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-eb861d7d4f"
+    },
+    {
+      "title": "docs/legal README (folder charter)",
+      "description": "Folder-level charter for docs/legal/: what belongs here, what does not, who owns it, and the retention class that applies.",
+      "type": "runbook",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/README.md",
+      "status": "published",
+      "frameworks": [],
+      "lastReviewed": "2026-07-22",
+      "nextReviewDue": "2027-07-22",
+      "attestation": {},
+      "contentHash": "b16c7b88d38c223de3f639f6b5942ba6277696a665986288f25e73442a756b3b",
+      "bundles": [],
+      "mirrors": [],
+      "notes": "Written for IA report sec 9.2 (folder READMEs so agents stop filing things in the wrong place).",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-6e34e8251a"
+    },
+    {
+      "title": "Agent config - diff-compliance-check",
+      "description": "Read-only FERPA/HIPAA/COPPA gap check scoped to a single diff, PR, or plan step.",
+      "type": "agent-config",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": ".claude/agents/diff-compliance-check.md",
+      "status": "published",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA"
+      ],
+      "lastReviewed": "2026-07-22",
+      "nextReviewDue": "2027-07-22",
+      "attestation": {},
+      "contentHash": "3ec5a0034774f60b09d68c2b558286c6515aa1ab7da569d2e2cdbc9b20605e07",
+      "bundles": [],
+      "mirrors": [],
+      "retention": {
+        "class": "operational-config",
+        "rule": "retain while in use; supersession + 1 year",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "agent-config is not a record class in the sec 5.2 starting table; operational-config was added for it and needs counsel confirmation."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-da49470b80"
+    },
+    {
+      "title": "Agent config - security-reviewer",
+      "description": "Read-only reviewer for org_id scoping gaps, AuditEvent lifecycle gaps, serializer permission leaks, and audit payload minimization violations.",
+      "type": "agent-config",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": ".claude/agents/security-reviewer.md",
+      "status": "published",
+      "frameworks": [
+        "SOC2"
+      ],
+      "lastReviewed": "2026-07-22",
+      "nextReviewDue": "2027-07-22",
+      "attestation": {},
+      "contentHash": "f54ce5aa4c45e4dc83f00ef6b123ebb539579df6c7a1e75d215587fbb837cd49",
+      "bundles": [],
+      "mirrors": [],
+      "retention": {
+        "class": "operational-config",
+        "rule": "retain while in use; supersession + 1 year",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "agent-config is not a record class in the sec 5.2 starting table; operational-config was added for it and needs counsel confirmation."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-920d8d7d66"
+    },
+    {
+      "title": "Agent config - rails-implementer",
+      "description": "Applies surgical, org_id-scoped, audit-logged Rails fixes for compliance and security findings.",
+      "type": "agent-config",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": ".claude/agents/rails-implementer.md",
+      "status": "published",
+      "frameworks": [
+        "SOC2"
+      ],
+      "lastReviewed": "2026-07-22",
+      "nextReviewDue": "2027-07-22",
+      "attestation": {},
+      "contentHash": "6ecdf690295374ae704724798c4f635435e97fe38b7a8b59ec128a8d0abe10bd",
+      "bundles": [],
+      "mirrors": [],
+      "retention": {
+        "class": "operational-config",
+        "rule": "retain while in use; supersession + 1 year",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "agent-config is not a record class in the sec 5.2 starting table; operational-config was added for it and needs counsel confirmation."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-8e353e5c8d"
+    },
+    {
+      "title": "Agent config - ember-upgrade-auditor",
+      "description": "Migration-era Ember upgrade finder. Retired from the /audit-run fan-out; registered for completeness of the agent-config class.",
+      "type": "agent-config",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": ".claude/agents/ember-upgrade-auditor.md",
+      "status": "published",
+      "frameworks": [],
+      "lastReviewed": "2026-07-22",
+      "nextReviewDue": "2027-07-22",
+      "attestation": {},
+      "contentHash": "e62d81741c82c741da069fb4e817dc658dbf86522b6b694de41c6986bfac967c",
+      "bundles": [],
+      "mirrors": [],
+      "notes": "Retired from the audit fan-out after the Ember 3.28 -> 5.12 upgrade shipped. Kept for provenance.",
+      "retention": {
+        "class": "operational-config",
+        "rule": "retain while in use; supersession + 1 year",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "agent-config is not a record class in the sec 5.2 starting table; operational-config was added for it and needs counsel confirmation."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-9e70bd81e4"
+    },
+    {
+      "title": "Compliance Posture Report (branded, 2026-07-16 re-attest)",
+      "description": "Current branded render of the compliance posture report, replacing the 2026-06-19 branded cut.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1yx-jVYesJ0ZQM0myir6d0rRMMzGEoH5EL5_luicucYo/edit",
+      "status": "draft",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-07-22",
+      "nextReviewDue": "2027-01-22",
+      "attestation": {},
+      "contentHash": null,
+      "bundles": [
+        "school-dpa-package",
+        "security-review"
+      ],
+      "mirrors": [
+        {
+          "system": "git",
+          "location": "docs/legal/COMPLIANCE_POSTURE_REPORT.md"
+        }
+      ],
+      "notes": "Drive titles this \"(2026-07-16, re-attested)\" but no attestation is recorded here: only Scot attests, and only Scot moves a row to approved/published. Held at draft with an empty attestation until he signs. Supersedes the 2026-06-19 branded cut, which Drive has retitled \"[SUPERSEDED 2026-07-16 ...]\" in place.",
+      "supersedes": "DOC-9f6a2412ad",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1yx-jVYesJ0ZQM0myir6d0rRMMzGEoH5EL5_luicucYo",
+      "id": "DOC-ae3f9d06ef"
+    },
+    {
+      "title": "Anthropic Business Associate Agreement (2026-05-06)",
+      "description": "Executed upstream BAA with Anthropic covering the HIPAA-eligible model route.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://drive.google.com/file/d/1sL3di9GRP4hlids-baZDT26n3SKjzwD5/view",
+      "status": "draft",
+      "frameworks": [
+        "HIPAA"
+      ],
+      "lastReviewed": "2026-07-22",
+      "nextReviewDue": "2027-07-22",
+      "attestation": {},
+      "contentHash": null,
+      "bundles": [
+        "baa"
+      ],
+      "mirrors": [
+        {
+          "system": "git",
+          "location": "docs/legal/ANTHROPIC_BAA_ACCEPTED.md"
+        }
+      ],
+      "notes": "Executed instrument held in Drive because it is a signed PDF. The git row docs/legal/ANTHROPIC_BAA_ACCEPTED.md is the acceptance record. Held at draft pending Scot.",
+      "retention": {
+        "class": "executed-agreement",
+        "rule": "term + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1sL3di9GRP4hlids-baZDT26n3SKjzwD5",
+      "id": "DOC-34d5ae69f1"
+    },
+    {
+      "title": "Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14)",
+      "description": "Capture of the GCP console state showing which compliance agreements, including the BAA, are accepted for the lingolinq-prod organisation.",
+      "type": "evidence",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1CcyQpNfg8aiuY5VA7RHYbYqQEQtzHAdEkjpxcQIhNmM/edit",
+      "status": "draft",
+      "frameworks": [
+        "HIPAA"
+      ],
+      "lastReviewed": "2026-07-22",
+      "nextReviewDue": "2027-01-22",
+      "attestation": {},
+      "contentHash": null,
+      "bundles": [
+        "baa"
+      ],
+      "mirrors": [
+        {
+          "system": "git",
+          "location": "docs/legal/GCP_BAA_ACCEPTED.md"
+        }
+      ],
+      "notes": "Point-in-time console capture. Held at draft pending Scot.",
+      "retention": {
+        "class": "executed-agreement",
+        "rule": "term + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1CcyQpNfg8aiuY5VA7RHYbYqQEQtzHAdEkjpxcQIhNmM",
+      "id": "DOC-36ff3e85d6"
+    },
+    {
+      "title": "Annex A - Clinical BAA Template (DRAFT)",
+      "description": "Downstream BAA template offered to covered-entity customers (hospitals and clinics).",
+      "type": "template",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1Q6hDhooIQVMArkpn4ppxr4om3-Hx64QmYiIQe0sSWmY/edit",
+      "status": "draft",
+      "frameworks": [
+        "HIPAA"
+      ],
+      "lastReviewed": "2026-07-22",
+      "nextReviewDue": "2027-01-22",
+      "attestation": {},
+      "contentHash": null,
+      "bundles": [
+        "baa"
+      ],
+      "mirrors": [],
+      "notes": "Part of the 641.1 annex set in Drive. Self-declared DRAFT; never sent to a customer as-is without counsel review.",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1Q6hDhooIQVMArkpn4ppxr4om3-Hx64QmYiIQe0sSWmY",
+      "id": "DOC-4af407049c"
+    },
+    {
+      "title": "Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT)",
+      "description": "The SDPC National Data Privacy Agreement text LingoLinq signs against, plus standing exhibits.",
+      "type": "template",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "drive",
+      "canonicalLocation": "https://docs.google.com/document/d/1vPwlcZwllRPuTU1TlqFeSwxJZ445pxsh6O0cBrGyE6M/edit",
+      "status": "draft",
+      "frameworks": [
+        "FERPA",
+        "COPPA"
+      ],
+      "lastReviewed": "2026-07-22",
+      "nextReviewDue": "2027-01-22",
+      "attestation": {},
+      "contentHash": null,
+      "bundles": [
+        "school-dpa-package"
+      ],
+      "mirrors": [],
+      "notes": "Part of the 641.1 annex set in Drive. Self-declared DRAFT. Note that any modification to the standard NDPA clause set that is not expressed as an exhibit voids use of the NDPA name.",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "driveFileId": "1vPwlcZwllRPuTU1TlqFeSwxJZ445pxsh6O0cBrGyE6M",
+      "id": "DOC-78b0aa1618"
     }
   ]
 }

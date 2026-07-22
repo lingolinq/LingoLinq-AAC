@@ -102,6 +102,23 @@ notion_needs_hash = notion_docs.select do |d|
   d['contentHash'].to_s.empty?
 end
 
+retention_schedule = doc_meta['retentionSchedule'] || {}
+missing_retention = docs.reject { |d| d['retention'].is_a?(Hash) }
+ambiguous_retention = docs.select { |d| d.dig('retention', 'ambiguous') }
+approved_retention = docs.select { |d| d.dig('retention', 'status').to_s == 'approved' }
+legal_holds = docs.select { |d| d['legalHold'] == true }
+superseded_rows = docs.select { |d| !d['supersededBy'].to_s.empty? }
+docs_by_id = docs.to_h { |d| [d['id'].to_s, d] }
+
+# A bundle gap is an artifact the bundle needs that does not exist yet. It is deliberately not a
+# failure anywhere; it is a work queue.
+bundle_gaps = (doc_meta['bundleDefinitions'] || {}).filter_map do |name, defn|
+  gaps = defn['gaps']
+  next unless gaps.is_a?(Array) && !gaps.empty?
+
+  [name, gaps]
+end
+
 out = +''
 out << "# Compliance Publication Status\n\n"
 out << "> Generated from `#{FINDINGS_PATH}` and `#{DOCS_PATH}` by `scripts/compliance-publication-status.rb`.\n"
@@ -160,11 +177,96 @@ else
   out << "\n"
 end
 
+out << "## Retention Draft Coverage\n\n"
+if retention_schedule.empty?
+  out << "_No retention schedule is defined in the document register._\n\n"
+else
+  out << "Every rule is `status: draft` and legally inert. No deletion behaviour is wired anywhere in this repo. "
+  out << "Only Scot moves a rule to `approved`, and only after counsel review.\n\n"
+  out << "| Class | Rule | Disposition | Rows | Status |\n"
+  out << "|---|---|---|---|---|\n"
+  retention_schedule.each do |klass, entry|
+    rows = docs.count { |d| d.dig('retention', 'class').to_s == klass }
+    state = rows.zero? ? 'unused (no record of this class exists yet)' : 'draft'
+    out << "| `#{klass}` | #{esc(entry['rule'])} | #{entry['disposition']} | #{rows} | #{state} |\n"
+  end
+  out << "\n"
+
+  if missing_retention.empty?
+    out << "All #{docs.size} rows carry a retention block.\n\n"
+  else
+    out << "**#{missing_retention.size} row(s) have NO retention block:** "
+    out << missing_retention.map { |d| esc(d['title']) }.join('; ') << "\n\n"
+  end
+
+  if approved_retention.empty?
+    out << "No retention rule has been approved. Nothing in this register is eligible for disposition.\n\n"
+  else
+    out << "**#{approved_retention.size} row(s) carry an APPROVED retention rule.** Verify Scot signed each one.\n\n"
+  end
+
+  if ambiguous_retention.empty?
+    out << "No retention class was inferred; every class was read off the drafted schedule.\n\n"
+  else
+    out << "### Inferred retention classes (counsel review these first)\n\n"
+    out << "| Title | System | Class | Why it is ambiguous |\n"
+    out << "|---|---|---|---|\n"
+    ambiguous_retention.sort_by { |d| [d['canonicalSystem'].to_s, d['title'].to_s] }.each do |d|
+      out << "| #{esc(d['title'])} | #{d['canonicalSystem']} | `#{d.dig('retention', 'class')}` | #{esc(d.dig('retention', 'ambiguityNote'))} |\n"
+    end
+    out << "\n"
+  end
+end
+
+out << "## Legal Holds\n\n"
+if legal_holds.empty?
+  out << "_No record is under legal hold. A hold suspends all disposition for the rows it covers, and only Scot flips it._\n\n"
+else
+  out << "| Title | System | Location | Status |\n"
+  out << "|---|---|---|---|\n"
+  legal_holds.sort_by { |d| d['title'].to_s }.each do |d|
+    out << "| #{esc(d['title'])} | #{d['canonicalSystem']} | #{link_for(d)} | #{d['status']} |\n"
+  end
+  out << "\nDisposition is suspended for every row above until the hold is released, and the release must be dated and recorded.\n\n"
+end
+
+out << "## Supersession Chains\n\n"
+if superseded_rows.empty?
+  out << "_No superseded records._\n\n"
+else
+  out << "A superseded record is never edited, renamed, or moved. It keeps its row and its membership in any frozen "
+  out << "point-in-time binder; only the pointer is added.\n\n"
+  out << "| Superseded | Location | Replaced by | Still bundled in |\n"
+  out << "|---|---|---|---|\n"
+  superseded_rows.sort_by { |d| d['title'].to_s }.each do |d|
+    succ = docs_by_id[d['supersededBy'].to_s]
+    bundles = (d['bundles'] || []).join(', ')
+    out << "| #{esc(d['title'])} | #{link_for(d)} | #{esc(succ ? succ['title'] : '(unresolved)')} | #{esc(bundles.empty? ? '(none)' : bundles)} |\n"
+  end
+  out << "\n"
+end
+
+out << "## Bundle Gaps\n\n"
+if bundle_gaps.empty?
+  out << "_No bundle records a missing artifact._\n\n"
+else
+  out << "Artifacts a bundle needs that do not exist yet. These are never satisfied by inventing a register row; "
+  out << "they are closed by creating the real document and promoting it into `requiredDocs`.\n\n"
+  bundle_gaps.each do |name, gaps|
+    out << "**#{name}** (#{gaps.size})\n\n"
+    gaps.each { |g| out << "- #{esc(g)}\n" }
+    out << "\n"
+  end
+end
+
 out << "## Next Automation Gap\n\n"
 out << "The missing layer is a Google Docs publisher/refresh workflow. Until that exists, the compliance agent should use this report as its work queue: update canonical registers, sync Notion boards, then refresh or explicitly freeze affected Drive documents.\n\n"
 
 out << "---\n\n"
-out << "_#{docs.size} documents tracked. #{review_stale.size} stale review item(s). #{drive_needs_refresh.size} Drive refresh item(s). #{notion_needs_hash.size} Notion hash item(s)._\n"
+out << "_#{docs.size} documents tracked. #{review_stale.size} stale review item(s). #{drive_needs_refresh.size} Drive refresh item(s). "
+out << "#{notion_needs_hash.size} Notion hash item(s). #{ambiguous_retention.size} inferred retention class(es). "
+out << "#{legal_holds.size} legal hold(s). #{superseded_rows.size} superseded record(s). "
+out << "#{bundle_gaps.sum { |_, g| g.size }} bundle gap(s) across #{bundle_gaps.size} bundle(s)._\n"
 
 if options[:mode] == :check
   unless File.file?(REPORT_PATH)
