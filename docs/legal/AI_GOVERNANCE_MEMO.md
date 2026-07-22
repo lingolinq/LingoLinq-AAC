@@ -15,7 +15,7 @@
 > Draft date: 2026-06-13. Refreshed 2026-06-18 (eval narration added to the inventory after
 > #411/#412/#413; DeepSeek-on-compliance-surface discrepancy flagged in section 4). Re-verified
 > and attested 2026-06-19. Refreshed 2026-07-12 (section 4.1 discrepancy resolved via Scot's
-> ratified two-tier AI data-routing policy). Re-attested 2026-07-13. Refreshed 2026-07-18/19 (Anthropic HIPAA-Ready BAA recorded; section 3 HIPAA conclusion for the model-call path updated to BAA-covered; eval narration classified NOT a Healthcare Activity; model inventory updated). Re-attested 2026-07-19. Operative reference: NIST AI RMF plus the Generative AI Profile
+> ratified two-tier AI data-routing policy). Re-attested 2026-07-13. Refreshed 2026-07-18/19 (Anthropic HIPAA-Ready BAA recorded; section 3 HIPAA conclusion for the model-call path updated to BAA-covered; eval narration classified NOT a Healthcare Activity; model inventory updated). Re-attested 2026-07-19. Refreshed 2026-07-22 (Art50 Phase 5: section 5.2 rewritten to record that the 50(1) disclosure modal, ack endpoint, and first-AI-use gate are built and staged, gated OFF behind the `article_50_disclosure` flag registered AVAILABLE-only; Phase 4 jurisdiction stamping shipped and un-inerts the EU log-retention purge; retention tiers reconciled). This 2026-07-22 refresh awaits Scot's re-attestation. Operative reference: NIST AI RMF plus the Generative AI Profile
 > (NIST AI 600-1). ISO 42001 certification is not yet a small-vendor expectation and is out of
 > scope for now.
 >
@@ -238,30 +238,40 @@ immediately, with no grace. LingoLinq has no EU deployment today, so its first E
 so no grace is needed for them.
 
 **Article 50(1) -- disclosure of AI interaction:**
-- Board generation and word prediction may implicate 50(1) (disclose that the feature is AI). The
-  remaining deliverable is the **EU-gated AI-interaction disclosure modal** shown before first AI
-  generation. It is **not yet built** (no `article_50_disclosure_modal` feature flag; no modal
-  component), and it sits on the COPPA "VPC" (Verifiable Parental Consent) consent track -- **not**
-  the Render-to-GCP migration (that conflation was corrected in the 2026-06-30 decoupling brief).
-- **Deferral is ratified and bounded.** Per the 2026-07-09 fallback memo, best-effort by
-  2026-08-02 with a slip measured in days-to-weeks is accepted **because prod carries no real EU
-  users** (internal/test accounts only). The deferral is withdrawn the instant a real EU customer
-  onboards, at which point the modal moves to unconditional priority.
+- Board generation and word prediction implicate 50(1) (disclose that the feature is AI). The
+  deliverable is the **EU-gated AI-interaction disclosure modal** shown before first AI generation.
+  It is **built and staged, gated OFF**, not yet enabled for any user. Shipped to `staging`:
+  the shared, accessible modal component (`app/frontend/app/components/ai-disclosure.{hbs,js}`), the
+  acknowledgement endpoint (`POST .../article_50_disclosure_ack` -> `users#article_50_disclosure_ack`,
+  `User#mark_article_50_disclosure_shown!`), and the shared first-AI-use gate
+  (`app/frontend/app/utils/article50_gate.js`) wired at the board-generation and eval-narration call
+  sites (PR #646, Phase 3). The gate reads a single input,
+  `appState.feature_flags.article_50_disclosure`; that flag is registered in
+  `AVAILABLE_FRONTEND_FEATURES` only (Phase 5, RLL-01), so it is **OFF for everyone by default and the
+  whole path is inert** until the flag is enabled. Note the delivered flag name is
+  `article_50_disclosure` (the earlier plan named it `article_50_disclosure_modal`).
+- **Enabling the flag is the hard 2026-08-02 release gate**, done on Scot's explicit sign-off and only
+  after the production deploy of Phases 3-5. Enabling is NOT part of this documentation change.
+- **The interim deferral is ratified and bounded.** Per the 2026-07-09 fallback memo, keeping the flag
+  OFF short of 2026-08-02 is accepted **because prod carries no real EU users** (internal/test accounts
+  only). The deferral is withdrawn the instant a real EU customer onboards, at which point enabling the
+  flag moves to unconditional priority.
 
-**Ownership -- the 50(1) modal is VPC-owned (single owner).** Build and delivery of the Article
-50(1) disclosure modal belong to the **VPC (Verifiable Parental Consent) GSD project** as a phase
-on that track, not to any standalone Article 50 effort or compliance-doc thread. Rationale: the
-modal's linchpin dependency -- a shared call-context helper that stamps `jurisdiction:` at the
-three AI call sites (board generation, word prediction, eval narration) -- **is VPC Phase 4**, and
-that same helper un-inerts the currently-dormant EU log-retention purge
-(`AiApiLog.purge_old_eu_logs!`, which today matches zero rows because nothing stamps jurisdiction).
-Two efforts editing the same call sites would collide. Boundary rules: **(1)** only the VPC track
-edits the three AI call sites, the `article_50_disclosure_modal` flag, and the 50(1) paragraph of
-this section; **(2)** this section 5.2 is the shared contract -- any Article 50 thread reads it
-first and updates it last; **(3)** when the modal ships, the "not yet built / deferred" wording
-above is rewritten by the shipping thread and re-attested per section 6. Compliance-posture
-documentation (this memo, the calendar) remains a separate, non-code workstream and never edits
-the call sites.
+**Ownership -- the 50(1) modal originated on the VPC track.** Build and delivery of the Article
+50(1) disclosure modal belonged to the **VPC (Verifiable Parental Consent) GSD project** as a phase
+on that track, not to any standalone Article 50 effort or compliance-doc thread. Its linchpin
+dependency -- a shared call-context helper (`LingoLinq::Article50CallContext.for`) that stamps
+`jurisdiction:` at the three AI call sites (board generation, word prediction, eval narration) --
+**shipped as Phase 4 (PR #635)**, and that same helper **un-inerts the EU log-retention purge**
+(`AiApiLog.purge_old_eu_logs!`), which now matches `jurisdiction = 'EU'` rows wherever Phase 4 is
+deployed (staged; effective in production after the Phase 4/5 prod deploy). Boundary rules that
+remain in force: **(1)** only the code track edits the three AI call sites, the
+`article_50_disclosure` flag, and the 50(1) paragraph of this section; **(2)** this section 5.2 is the
+shared contract -- any Article 50 thread reads it first and updates it last; **(3)** this section was
+re-written by the Phase 5 shipping thread on modal delivery and awaits Scot's re-attestation per
+section 6.
+Compliance-posture documentation (this memo, the calendar) remains a separate, non-code workstream
+and never edits the call sites.
 
 Tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`,
 `fix-euaiact-art50-2-2026-12-02`).

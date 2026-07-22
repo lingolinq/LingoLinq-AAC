@@ -35,7 +35,18 @@ module FeatureFlags
               # AVAILABLE-only => OFF for everyone by default; with it OFF the
               # registration flow is identical to today. Add to
               # ENABLED_FRONTEND_FEATURES to activate (see eu_consent_age_enabled?).
-              'eu_consent_age']
+              'eu_consent_age',
+              # EU AI Act Article 50(1) first-AI-use disclosure modal (Art50 Phase 5,
+              # RLL-01). Reaches the client via frontend_flags_for(user) ->
+              # appState.feature_flags.article_50_disclosure, which is the ONLY input
+              # utils/article50_gate.js#needsAcknowledgement reads before it will show
+              # the modal. AVAILABLE-only => OFF for everyone by default, so the whole
+              # Phase 3/4 disclosure path stays inert (the intended pre-2026-08-02
+              # state). Enabling it is a HARD release gate for the 2026-08-02 Article 50
+              # deadline: add to ENABLED_FRONTEND_FEATURES (or opt individual EU orgs in
+              # via per-user beta flag) ONLY on Scot's explicit sign-off, and only after
+              # the production deploy of Phases 3-5. Do NOT blanket-enable here.
+              'article_50_disclosure']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',
