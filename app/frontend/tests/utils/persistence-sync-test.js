@@ -997,17 +997,14 @@ describe("persistence-sync", function() {
         id: '303'
       });
       var ids = null;
-      var syncDone = false;
 
       persistence.sync(1340).then(function() {
-          syncDone = true;
           if (persistence.important_ids && persistence.important_ids.length >= 10) {
             ids = persistence.important_ids;
             return;
           }
           return readSettingsAfterSync('importantIds');
         }, function() {
-          syncDone = true;
           if (persistence.important_ids && persistence.important_ids.length) {
             ids = persistence.important_ids;
           }
@@ -1028,13 +1025,22 @@ describe("persistence-sync", function() {
       // torn-down service instance than the one that synced -- so this wait could never
       // become true and burned the full 15s. (This test passes in module isolation and only
       // times out in the full suite, which is what pointed here.) Poll the resolved target too.
+      //
+      // Do NOT also gate on syncSettled()/waitForSyncDoneAndSettled(): board-traversal
+      // leftovers (eventual_store / urls_to_store / active_board_threads) can stay
+      // non-empty after important_ids are already written, and ANDing that check then
+      // burns the full 15s waitsFor even though the assertion data is ready
+      // (CI flake 2026-07-22 on chore/melissa-merge-staging-into-develop).
       waitsFor(function() {
         var target = persistenceTarget();
-        return waitForSyncDoneAndSettled(syncDone) && (
-          (ids && ids.length >= 10) ||
+        if ((!ids || ids.length < 10) && target && target.important_ids && target.important_ids.length >= 10) {
+          ids = target.important_ids;
+        } else if ((!ids || ids.length < 10) && persistence.important_ids && persistence.important_ids.length >= 10) {
+          ids = persistence.important_ids;
+        }
+        return (ids && ids.length >= 10) ||
           (persistence.important_ids && persistence.important_ids.length >= 10) ||
-          (target && target.important_ids && target.important_ids.length >= 10)
-        );
+          (target && target.important_ids && target.important_ids.length >= 10);
       });
       runs(function() {
         if (!ids || ids.length < 10) {
@@ -1044,6 +1050,7 @@ describe("persistence-sync", function() {
             ids = target.important_ids;
           }
         }
+        cancelSyncTailWork();
         expect(ids.length >= 10).toEqual(true);
         expect(ids.find(function(u) { return u === 'user_1340'; })).not.toEqual(null);
         expect(ids.find(function(u) { return u === 'dataCache_http://example.com/pic.png'; })).not.toEqual(null);
