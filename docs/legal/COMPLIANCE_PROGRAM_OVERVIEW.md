@@ -157,13 +157,15 @@ Everything in this section is live in the product.
 
 **Vendors and subprocessors**
 - We maintain a subprocessor list and sign agreements only with vendors that actually handle our
-  data. These include AWS (storage, BAA signed), Anthropic (AI, under a DPA), Google (sign-in and AI
-  fallback), our application host (Render today, moving to Google Cloud at the in-progress
-  migration), Sentry (error monitoring, configured with the child-data scrubber above), and HubSpot
-  (marketing CRM and support, handling customer and prospect records only, no student data). When IP
-  geolocation is enabled for registration, subscription, or supporter-routing context, iplocate.io
-  receives the IP address for lookup. `docs/legal/SUBPROCESSORS.md` is the authoritative register and
-  is updated as services are enabled or retired.
+  data. These include AWS (storage, BAA signed), Anthropic (AI, HIPAA-ready BAA executed), Google
+  Cloud Platform (live production hosting on Cloud Run, Cloud SQL, and Memorystore under the
+  accepted GCP CDPA / HIPAA BAA / SCCs), Render (superseded primary host, retained temporarily as a
+  write-frozen rollback fallback pending decommission), Sentry (error monitoring, configured with
+  the child-data scrubber above), and HubSpot (marketing CRM and support, handling customer and
+  prospect records only, no student data). When IP geolocation is enabled for registration,
+  subscription, or supporter-routing context, iplocate.io receives the IP address for lookup.
+  `docs/legal/SUBPROCESSORS.md` is the authoritative register and is updated as services are enabled
+  or retired.
 
 **Breach response**
 - We maintain a breach runbook (`docs/legal/BREACH_RUNBOOK.md`) and notify affected parties and
@@ -206,14 +208,12 @@ requires them, not before.
   profiles with an export-first, delete-later flow.
 - Harden console and privileged-access session auditing so every administrative session is
   attributably logged.
-- **Add the missing parental re-consent at offboarding.** When a district reclaims a seat, the
-  child's account currently converts to a family trial with no verifiable parental consent captured
-  and no parent notice (confirmed: `license.rb` `release_user!` sets a 2-month trial and drops the
-  org link but captures no consent). Because district-created minors are set up under the
-  school-official exception with no direct parental consent on file (the COPPA gate in `user.rb` is
-  skipped for a validated org), the resulting family relationship has no COPPA-valid consent. Add a
-  parent/guardian notice-and-consent step at that transition, with export-then-delete if the family
-  declines.
+- **Parental re-consent at offboarding (implemented 2026-07-16).** When a district reclaims a seat,
+  `Organization#remove_user` → `User#begin_family_offboarding_consents!` stamps COPPA pending for
+  school-authorized / under-13 communicators (optional parent email at remove; otherwise collected
+  at next login via `submit_parental_consent_email`) and resets EU under-16 AI consent/prefs.
+  Full login stays blocked until a parent grants COPPA consent. **Follow-up:** export-then-delete
+  if the family declines or never responds.
 - Publish an accurate VPAT and complete the EU AI Act Article 50 transparency disclosures for AI
   features (target early August 2026).
 
@@ -276,11 +276,11 @@ Two points we state honestly so the model holds up under a district's own agreem
   their own account as consumers at offboarding; it is not a claim that a district can never require
   deletion during the school relationship.
 - Continuing to process a child's data after the school's authorization ends shifts the lawful basis
-  to **parental consent**. The offboarding-to-family transition therefore requires clear parent or
-  guardian notice and consent to continue, with export-then-delete if the family declines. **This
-  step is not yet implemented** (verified: `release_user!` retains the account and starts a 2-month
-  trial but captures no consent and sends no notice), and it is tracked as a near-term control in
-  Section 4.
+  to **parental consent**. The offboarding-to-family transition now stamps COPPA pending (and resets
+  EU AI consent when applicable) via `User#begin_family_offboarding_consents!` on
+  `Organization#remove_user` (both license `release_user!` and legacy detach paths). Parent email may
+  be supplied at remove or at the child's next login. **Follow-up:** export-then-delete if the family
+  declines (Section 4).
 
 **Contracts we sign.** In practice districts and hospitals provide their own paper: we sign the
 **district's DPA** and operate under its guidelines, and we provide a **BAA to a clinical
@@ -303,7 +303,8 @@ schools or agencies. GDPR therefore moves from "someday" to near-term. In that m
 - **EU representative.** We appoint an Article 27 EU representative (a purchased service, not a hire)
   before going live.
 - **Transfers.** The EU data-transfer mechanism (Standard Contractual Clauses, and reliance on the
-  Data Privacy Framework where applicable) couples to the GCP cutover and to the vendor DPAs.
+  Data Privacy Framework where applicable) is now tied to the live GCP hosting posture and vendor
+  DPAs.
 - **AI transparency.** EU AI Act Article 50 transparency disclosures for AI features are due
   2026-08-02 and are tracked separately (`docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md`).
 - **Documents.** The detailed EU controller privacy notice for Polish families and the EU processor

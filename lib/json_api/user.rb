@@ -494,6 +494,33 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
     json['eu_under_16'] = true if user.eu_under_16?
     json['eu_ai_parental_consent_pending'] = true if user.eu_ai_parental_consent_pending?
     json['eu_ai_parental_consent_active'] = true if user.eu_ai_parental_consent_active?
+    # EU AI Act Article 50(1) disclosure gate + acknowledgement state (Phase 3, F1/F2).
+    # SELF ONLY. Scoped to permissions['model'] for two independent reasons:
+    #
+    # 1. Cost. EuJurisdiction.disclosure_required? resolves the user's managing
+    #    organization, and Organization.attached_orgs / find_by_global_id are NOT
+    #    cached (concerns/global_id.rb) even though UserLink.links_for is. Emitting
+    #    these unconditionally put an org lookup on every serialized user, including
+    #    limited-identity list rows -- and org user lists paginate at up to 500 per
+    #    page (organizations_controller#users) with 10 more nested supervisees per
+    #    row. That was a straight N+1 on a path that previously did no org lookup.
+    # 2. Scope. Every consumer of these fields is the session user reading its own
+    #    state: the Ember gate (utils/article50_gate.js) reads appState.currentUser,
+    #    and appState.feature_flags is itself computed from currentUser. A supervisor
+    #    never needs a supervisee's disclosure state -- eval narration gates on the
+    #    clinician, deliberately (see eval-comprehensive-runner.js), and the
+    #    server-side backstop in boards_controller reads @api_user directly rather
+    #    than trusting anything serialized here.
+    #
+    # WITHIN that scope the pair is still assigned UNCONDITIONALLY (unlike the
+    # neighbouring '= true if' flags): the gate must distinguish "not required"
+    # (false) from "absent" (D-04, 03-02-PLAN Task 2). Absent now means exactly one
+    # thing -- "not the session user" -- and needsAcknowledgement() reads a missing
+    # field as falsy, which fails toward not prompting a user we have no state for.
+    if json['permissions'] && json['permissions']['model']
+      json['article_50_disclosure_required'] = EuJurisdiction.disclosure_required?(user)
+      json['article_50_disclosure_shown'] = user.article_50_disclosure_shown?
+    end
     # Prefill Resend modal after reload (edit only; account holder entered this address).
     if user.eu_ai_parental_consent_pending? && json['permissions'] && json['permissions']['edit']
       pe = user.settings.dig('eu_ai_parental_consent', 'parent_email')

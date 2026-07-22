@@ -397,6 +397,220 @@ class User < ApplicationRecord
     coppa_parental_consent_pending? || coppa_parental_consent_revoked?
   end
 
+  # True when login must collect a parent email before (re)sending the COPPA
+  # consent request: offboarding without email yet, pending with blank parent
+  # email, or revoked (re-request).
+  def coppa_needs_parent_email?
+    return true if coppa_parental_consent_revoked?
+    return false unless coppa_parental_consent_pending?
+    c = self.settings && self.settings['coppa']
+    return false unless c.is_a?(Hash)
+    return true if c['needs_parent_email']
+    c['parent_email'].blank?
+  end
+
+  # Manager-attested birth month/year (same ambiguity rule as register.js):
+  # cutoff month counts as still under the threshold.
+  # Returns true / false / nil (nil when month/year incomplete).
+  def self.age_under_threshold?(birth_month:, birth_year:, age:)
+    month = birth_month.to_i
+    year = birth_year.to_i
+    return nil if month < 1 || month > 12 || year < 1900 || year > Time.now.utc.year
+    today = Time.now.utc
+    cutoff_year = today.year - age.to_i
+    cutoff_month = today.month
+    year > cutoff_year || (year == cutoff_year && month >= cutoff_month)
+  end
+
+  # Under-13 needs family COPPA when leaving an org. Prefer manager-attested
+  # birth month/year from the remove dialog; also repair pending/revoked COPPA.
+  # School-authorization alone is NOT enough (org New User has no age).
+  def requires_coppa_offboarding?(attested_under_13: nil)
+    return false unless JsonApi::Json.coppa_parental_consent_enabled?
+    return false if coppa_parental_consent_active?
+    return true if attested_under_13
+    coppa_parental_consent_pending? || coppa_parental_consent_revoked?
+  end
+
+  def self.validate_parent_consent_email!(parent_email, child_email: nil)
+    parent = parent_email.to_s.strip
+    raise ArgumentError, 'parent consent email required' if parent.blank?
+    raise ArgumentError, 'invalid parent consent email format' if parent !~ URI::MailTo::EMAIL_REGEXP
+    child = child_email.to_s.strip.downcase
+    if child.present? && parent.downcase == child
+      raise ArgumentError, 'parent consent email must be different from the account email'
+    end
+    parent
+  end
+
+  # Org seat reclaim → family account. Uses manager-attested birth month/year
+  # from the remove dialog + releasing org jurisdiction (US/EU):
+  # under-13 → COPPA pending (optional parent email);
+  # under-16 → AI prefs off; EU org also sets eu_under_16 for parental re-consent
+  # when they re-enable AI in preferences.
+  def begin_family_offboarding_consents!(org: nil, parent_email: nil, actor: nil, birth_month: nil, birth_year: nil)
+    attested_under_13 = self.class.age_under_threshold?(
+      birth_month: birth_month, birth_year: birth_year, age: 13
+    )
+    attested_under_16 = self.class.age_under_threshold?(
+      birth_month: birth_month, birth_year: birth_year, age: 16
+    )
+    org_jurisdiction = org.respond_to?(:jurisdiction) ? org.jurisdiction : nil
+    did_coppa = false
+    did_ai = false
+    send_coppa_email = false
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      if birth_month.present? && birth_year.present?
+        self.settings['registration'] ||= {}
+        self.settings['registration']['offboarding_birth_month'] = birth_month.to_i
+        self.settings['registration']['offboarding_birth_year'] = birth_year.to_i
+        self.settings['registration']['offboarding_attested_at'] = Time.now.utc.iso8601
+        self.settings['registration']['offboarding_org_jurisdiction'] = org_jurisdiction if org_jurisdiction
+        if !attested_under_16.nil?
+          self.settings['registration']['under_16'] = !!attested_under_16
+          # Prefer releasing org jurisdiction so school-created users (no country)
+          # still get the correct EU Art. 8 AI gate. Legacy orgs without
+          # jurisdiction fall back to the user's registration country.
+          if org && org.respond_to?(:eu_jurisdiction?) && org.eu_jurisdiction?
+            self.settings['registration']['eu_under_16'] = !!attested_under_16
+          elsif org && org.respond_to?(:us_jurisdiction?) && org.us_jurisdiction?
+            self.settings['registration']['eu_under_16'] = false
+          else
+            country = registration_country
+            self.settings['registration']['eu_under_16'] = !!(
+              attested_under_16 && country && LingoLinq::Jurisdiction.eu?(country)
+            )
+          end
+        end
+      end
+
+      if requires_coppa_offboarding?(attested_under_13: attested_under_13)
+        school = self.settings['school_authorization']
+        if school.is_a?(Hash) && school.present?
+          ended = school.dup
+          ended['ended_at'] = Time.now.utc.iso8601
+          ended['ended_org_id'] = org && org.global_id
+          self.settings['school_authorization_ended'] = ended
+          self.settings.delete('school_authorization')
+        end
+        parent = parent_email.to_s.strip
+        blob = {
+          'pending_parent_consent' => true,
+          'offboarding' => true
+        }
+        if parent.present?
+          parent = self.class.validate_parent_consent_email!(
+            parent,
+            child_email: (self.settings['email'] || '')
+          )
+          blob['parent_email'] = process_string(parent)
+          blob['parent_consent_token'] = GoSecure.nonce('parent_consent')
+          blob['parent_consent_expires_at'] = 14.days.from_now.utc.iso8601
+          blob['needs_parent_email'] = false
+          send_coppa_email = true
+        else
+          blob['needs_parent_email'] = true
+        end
+        self.settings['coppa'] = blob
+        did_coppa = true
+      end
+
+      # Under-16: turn AI prefs off now. No parent email at remove — for EU
+      # orgs, parental consent runs when they try to turn AI back on.
+      if attested_under_16 || eu_under_16?
+        apply_eu_ai_offboarding_reset!
+        did_ai = true
+      end
+
+      if did_coppa || did_ai || (birth_month.present? && birth_year.present?)
+        self.save!
+        if did_coppa
+          record_id = SecureRandom.uuid
+          AuditEvent.create!(
+            user_key: self.global_id,
+            data: {
+              'type' => 'parental_consent_offboarding_started',
+              'organization_id' => org && org.global_id,
+              'actor_id' => actor && (actor.respond_to?(:global_id) ? actor.global_id : actor),
+              'parent_email_provided' => send_coppa_email,
+              'attested_under_13' => !!attested_under_13,
+              'org_jurisdiction' => org_jurisdiction,
+              'record_id' => record_id
+            },
+            event_type: 'parental_consent_offboarding_started',
+            record_id: record_id
+          )
+        end
+        if did_ai
+          record_id = SecureRandom.uuid
+          AuditEvent.create!(
+            user_key: self.global_id,
+            data: {
+              'type' => 'eu_ai_parental_consent_offboarding_reset',
+              'organization_id' => org && org.global_id,
+              'actor_id' => actor && (actor.respond_to?(:global_id) ? actor.global_id : actor),
+              'attested_under_16' => !!attested_under_16,
+              'org_jurisdiction' => org_jurisdiction,
+              'record_id' => record_id
+            },
+            event_type: 'eu_ai_parental_consent_offboarding_reset',
+            record_id: record_id
+          )
+        end
+      end
+    end
+    if did_coppa
+      devices.each(&:invalidate_cached_keys)
+      if send_coppa_email
+        UserMailer.schedule_parent_consent_delivery(:parental_consent_request, self.global_id)
+      end
+    end
+    did_coppa || did_ai
+  end
+
+  # Login-time (or revoked re-request): stamp parent email + token and send
+  # the COPPA consent request. Does not grant a session.
+  def submit_parental_consent_email!(parent_email)
+    parent = self.class.validate_parent_consent_email!(
+      parent_email,
+      child_email: (self.settings && self.settings['email'] || '')
+    )
+    unless coppa_needs_parent_email? || (coppa_parental_consent_pending? && (self.settings['coppa'].is_a?(Hash) && self.settings['coppa']['parent_email'].blank?))
+      return false
+    end
+    offboarding = false
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      prior = self.settings['coppa']
+      offboarding = prior.is_a?(Hash) && !!prior['offboarding']
+      self.settings['coppa'] = {
+        'pending_parent_consent' => true,
+        'offboarding' => offboarding,
+        'parent_email' => process_string(parent),
+        'parent_consent_token' => GoSecure.nonce('parent_consent'),
+        'parent_consent_expires_at' => 14.days.from_now.utc.iso8601,
+        'needs_parent_email' => false
+      }
+      self.save!
+      record_id = SecureRandom.uuid
+      AuditEvent.create!(
+        user_key: self.global_id,
+        data: {
+          'type' => 'parental_consent_email_submitted',
+          'method' => 'login_dialog',
+          'offboarding' => offboarding,
+          'record_id' => record_id
+        },
+        event_type: 'parental_consent_email_submitted',
+        record_id: record_id
+      )
+    end
+    devices.each(&:invalidate_cached_keys)
+    UserMailer.schedule_parent_consent_delivery(:parental_consent_request, self.global_id)
+    true
+  end
+
   # Validates the grant link token from the parental consent request email.
   # Retained after grant so idempotent revisits require the same secret as the first click.
   def valid_parent_consent_grant_link_token?(token)
@@ -758,6 +972,35 @@ class User < ApplicationRecord
       res = true
     end
     res
+  end
+
+  # Org offboarding: force AI prefs off and invalidate any EU AI parental
+  # consent so family re-enable requires a new parent grant. Caller is
+  # responsible for save! / audit when used inside begin_family_offboarding.
+  def apply_eu_ai_offboarding_reset!
+    self.settings ||= {}
+    self.settings['preferences'] ||= {}
+    EU_AI_PREF_KEYS.each { |k| self.settings['preferences'][k] = false }
+    c = self.settings['eu_ai_parental_consent']
+    if c.is_a?(Hash) && c['parent_consent_granted_at'].present? && c['parent_consent_revoked_at'].blank?
+      c = c.dup
+      c['parent_consent_revoked_at'] = Time.now.utc.iso8601
+      c['offboarding_reset'] = true
+      self.settings['eu_ai_parental_consent'] = c
+    else
+      self.settings['eu_ai_parental_consent'] = {
+        'offboarding_reset' => true,
+        'reset_at' => Time.now.utc.iso8601
+      }
+    end
+    true
+  end
+
+  def reset_eu_ai_parental_consent_for_offboarding!
+    return false unless eu_under_16?
+    apply_eu_ai_offboarding_reset!
+    self.save!
+    true
   end
 
   # AI data-sharing consent (COPPA Item 1b). Returns true only when an unrevoked

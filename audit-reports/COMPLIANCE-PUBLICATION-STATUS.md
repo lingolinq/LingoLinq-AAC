@@ -59,7 +59,6 @@
 | Compliance & Data Governance (COMPLIANCE.md) | git | `COMPLIANCE.md` | 2026-07-06 | approved | Review date is older than 2026-07-08. |
 | Compliance Calendar (compliance-calendar.json) | git | `audit-reports/compliance-calendar.json` | 2026-06-16 | published | Review date is older than 2026-07-08. |
 | Compliance Docs Guide (runbook) | git | `docs/legal/COMPLIANCE_DOCS_GUIDE.md` | 2026-06-21 | published | Review date is older than 2026-07-08. |
-| Compliance Program | git | `docs/legal/COMPLIANCE_PROGRAM.md` | 2026-06-18 | approved | Review date is older than 2026-07-08. |
 | Data Retention Schedule | git | `docs/legal/DATA_RETENTION.md` | 2026-06-18 | approved | Review date is older than 2026-07-08. |
 | Document Register (this file) | git | `audit-reports/DOCUMENT-REGISTER.json` | 2026-06-21 | published | Review date is older than 2026-07-08. |
 | Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | 2026-06-19 | published | Review date is older than 2026-07-08. |
@@ -144,4 +143,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_55 documents tracked. 49 stale review item(s). 23 Drive refresh item(s). 4 Notion hash item(s)._
+_55 documents tracked. 48 stale review item(s). 23 Drive refresh item(s). 4 Notion hash item(s)._

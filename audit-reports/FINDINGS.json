@@ -3963,6 +3963,49 @@
         "promotedDate": "2026-07-20"
       },
       "notes": "Promoted 2026-07-20 from the GCP cutover Gate 1 rehearsal. Scoped deliberately NARROW so it does not duplicate LL-42a24ee911 (verified-closed), which covered whether a diagnostic SES send ARRIVED. Arrival is settled; this finding covers only the two residuals that arrival did not prove -- Authentication-Results header capture and SPF/MAIL FROM alignment. An earlier draft finding LL-2c47df5d21 was removed from PR #624 during review as a duplicate of LL-42a24ee911; that removal was correct on its wording, but it left these two residuals with no tracker, which scripts/gcp/PHASE5-CUTOVER-RUNBOOK.md still referred to as 'promotion pending in PR #624'. This finding is that tracker. Manual promotion (low severity is below promote-finding.rb's Critical/High threshold, so hand-added as status open / disposition untriaged). Only Scot triages/closes."
+    },
+    {
+      "id": "LL-a9d6d5a46b",
+      "ruleKey": "disclosure-full-notice-link-low-contrast-token",
+      "title": "AI disclosure full-notice link uses the low-contrast verdigris token for text on the near-white modal surface",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/styles/app.scss",
+        "line": 38150,
+        "snippet": "color: var(--md-teal);",
+        "sha": "3cafc72ccd72a4e645c5506ce719b79443c1144e"
+      },
+      "firstSeen": "2026-07-22",
+      "lastSeen": "2026-07-22",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "The .la-terms-agree-link rule (the class on the Article 50(1) disclosure modal's full-notice link, app/frontend/app/components/ai-disclosure.hbs:48) colors normal-size link text with var(--md-teal) = brand-verdigris (~3.32:1 on white per the codebase's own WCAG note at app.scss:533). The modal surface is a near-white gradient. Recolor this link text to the AA-safe brand-verdigris-aa token (>4.5:1 on white) or point a text-role variable at the AA token; do not inline a hex. The class is shared with terms-agree, so the fix benefits both. Pre-enable blocker for the 2026-08-02 Article 50 flag enable; frontend/styling owner (Traci) domain.",
+        "timeframe": "30 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": null,
+        "reviewer": "accessibility-auditor",
+        "promotedDate": "2026-07-22"
+      },
+      "notes": "Promoted from accessibility-auditor review on 2026-07-22. WCAG 1.4.3 (EN 301 549 clause 9.1.4). Surfaced by the accessibility-auditor on 2026-07-22 during Art50 Phase 5 review of the blocking AI-disclosure modal. The modal's structural a11y contract (name/role/description, keyboard, focus trap, focus restore, no auto-speak) is otherwise sound. Icon use of --md-teal is non-text/aria-hidden and out of scope."
     }
   ]
 }

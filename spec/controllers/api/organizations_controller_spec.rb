@@ -391,11 +391,22 @@ describe Api::OrganizationsController, :type => :controller do
       o = Organization.create(:admin => true)
       token_user
       o.add_manager(@user.user_name, true)
-      post :create, params: {:organization => {:name => "bob"}}
+      post :create, params: {:organization => {:name => "bob", :jurisdiction => "US"}}
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['organization']).not_to eq(nil)
       expect(json['organization']['name']).to eq("bob")
+      expect(json['organization']['jurisdiction']).to eq("US")
+    end
+
+    it "should require jurisdiction on create" do
+      o = Organization.create(:admin => true)
+      token_user
+      o.add_manager(@user.user_name, true)
+      post :create, params: {:organization => {:name => "no_jurisdiction"}}
+      expect(response).not_to be_successful
+      json = JSON.parse(response.body)
+      expect(json['errors'].to_s).to match(/jurisdiction/i)
     end
   end
   

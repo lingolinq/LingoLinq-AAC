@@ -9,44 +9,77 @@ infrastructure changes.
 - **GitHub:** lingolinq/LingoLinq-AAC
 - **License:** AGPLv3
 
-## Architecture Overview
+## Current Production Architecture
+
+As of the 2026-07-22 Gate 1 DNS cutover, the public production app hostname
+`app.lingolinq.com` serves from Google Cloud Platform. Render remains online as a
+write-frozen rollback fallback at `https://lingolinq-prod.onrender.com` until a
+separate explicit decommission go.
 
 ```
-                    GitHub (lingolinq/LingoLinq-AAC)
-                    |           |              |
-                    main     develop      clean-release
-                    |           |              |
-              +-----+     +----+         +----+
-              v           v              v
-         lingolinq-   lingolinq-    lingolinq-
-           prod          dev          staging
-              |           |              |
-              v           v              v
-         prod-db     dev-staging-db  dev-staging-db
-              |           |              |
-              v           v              v
-         prod-worker  dev-worker     dev-worker
-                    \     |         /
-                     \    |        /
-                      v   v       v
-                    lingolinq-redis (shared)
-                          |
-                     S3 Buckets (per env)
+app.lingolinq.com
+      |
+      v
+Google Cloud Load Balancer (lingolinq-lb-ip: 136.68.41.122)
+      |
+      v
+Cloud Run web (lingolinq-web)
+      |
+      +--> Cloud SQL PostgreSQL (lingolinq-prod-pg, private IP)
+      +--> Memorystore Redis (lingolinq-prod-redis, TLS/rediss)
+      +--> AWS S3 / CloudFront (uploads and media)
+
+Cloud Run worker pool (lingolinq-worker)
+      |
+      +--> Cloud SQL PostgreSQL
+      +--> Memorystore Redis
+      +--> AWS S3 / CloudFront
 ```
 
-## Render Services
+## Google Cloud Production Services
+
+### Frontend and App Runtime
+
+| Service | Type | Purpose | Notes |
+|---|---|---|---|
+| `lingolinq-web` | Cloud Run service | Production Rails web app | Serves `app.lingolinq.com` through the global HTTPS load balancer |
+| `lingolinq-worker` | Cloud Run worker pool | Production Resque workers | Processes `priority`, `default`, and `slow` queues |
+| `lingolinq-lb-ip` | Global address | Public load-balancer IP | `136.68.41.122` |
+| `lingolinq-cert` / replacement certs | Google-managed SSL cert | HTTPS for `app.lingolinq.com` | Recreate stale certs before DNS if they have been in `FAILED_NOT_VISIBLE` retry backoff |
+
+### Data Layer
+
+| Service | Type | Purpose | Notes |
+|---|---|---|---|
+| `lingolinq-prod-pg` | Cloud SQL PostgreSQL | Production relational database | Private-IP only |
+| `lingolinq-prod-redis` | Memorystore Redis | Production Redis / Resque | TLS enabled; app connects with `rediss://` |
+
+### Cutover State
+
+- Gate 1 DNS cutover completed 2026-07-22.
+- `app.lingolinq.com` is the live production app hostname on GCP.
+- Render is retained only as a write-frozen rollback fallback pending a separate decommission go.
+- Frozen writer state, WAF enforcement, ingress lockdown, and Render decommission are separate
+  post-cutover operations; do not change them without explicit approval.
+
+## Render Services (rollback fallback / legacy)
+
+Render previously hosted the production web app, worker, scheduler, managed PostgreSQL, and managed
+Redis. After the Gate 1 cutover, the production Render stack is intentionally frozen and retained as
+rollback insurance until decommission. Do not unfreeze, delete, or repoint it without an explicit
+post-cutover go.
 
 ### Web Services
 | Service | ID | Branch | URL | Database |
 |---------|-----|--------|-----|----------|
-| lingolinq-prod | srv-d510bsemcj7s73966i60 | main | https://lingolinq-prod.onrender.com | lingolinq-prod-db |
+| lingolinq-prod | srv-d510bsemcj7s73966i60 | main | https://lingolinq-prod.onrender.com | lingolinq-prod-db (write-frozen fallback) |
 | lingolinq-dev | srv-d510c5emcj7s73966pug | develop | https://lingolinq-dev.onrender.com | lingolinq-dev-staging-db |
 | lingolinq-staging | srv-d510c13e5dus73c8lg10 | clean-release | https://lingolinq-staging.onrender.com | lingolinq-dev-staging-db |
 
 ### Background Workers
 | Service | ID | Branch | Database | REDIS_NAMESPACE_SUFFIX |
 |---------|-----|--------|----------|----------------------|
-| lingolinq-prod-worker | srv-d66jbgogjchc73erhnfg | main | lingolinq-prod-db | -prod |
+| lingolinq-prod-worker | srv-d66jbgogjchc73erhnfg | main | lingolinq-prod-db (paused fallback) | -prod |
 | lingolinq-dev-worker | srv-d66jbilum26s73aa7mn0 | develop | lingolinq-dev-staging-db | -dev |
 
 Worker start command:
@@ -62,17 +95,19 @@ env QUEUES=priority,default,slow INTERVAL=0.1 TERM_CHILD=1 bundle exec rake envi
 ### Databases
 | Database | ID | Used By |
 |----------|----|---------|
-| lingolinq-prod-db | dpg-d64c5i1r0fns73c5jcp0-a | lingolinq-prod + prod-worker |
+| lingolinq-prod-db | dpg-d64c5i1r0fns73c5jcp0-a | write-frozen rollback fallback until decommission |
 | lingolinq-dev-staging-db | dpg-d64c53v5r7bs73acj600-a | lingolinq-dev + lingolinq-staging + dev-worker |
 
 ### Redis
 | Instance | ID | Plan | Notes |
 |----------|----|------|-------|
-| lingolinq-redis | red-d46rhqer433s738dha9g | Free | Shared by ALL services. Queue isolation via REDIS_NAMESPACE_SUFFIX |
+| lingolinq-redis | red-d46rhqer433s738dha9g | Free | Legacy Render Redis; production is now on Memorystore. Dev/staging still use Render Redis. |
 
 ### Redis Namespace Isolation
-All services share one Redis instance. Queue isolation uses REDIS_NAMESPACE_SUFFIX env var:
-- lingolinq-prod + prod-worker: `-prod` -> namespace `lingolinq-prod`
+Render dev/staging services share one Redis instance. The frozen Render prod fallback retains its
+old namespace, but live production traffic now uses GCP Memorystore. Queue isolation uses
+REDIS_NAMESPACE_SUFFIX env var:
+- frozen Render prod + prod-worker: `-prod` -> namespace `lingolinq-prod`
 - lingolinq-dev + dev-worker: `-dev` -> namespace `lingolinq-dev`
 - lingolinq-staging + dev-worker: `-dev` -> namespace `lingolinq-dev` (shares with dev)
 
@@ -111,8 +146,9 @@ S3 prefixes used by the app:
 - `extras*/*` - large data (BoardDownstreamButtonSet, LogSession)
 - `imports/*` - uploaded OBF/OBZ files for import
 
-### No CloudFront
-UPLOADS_S3_CDN is not configured. Download URLs go directly to S3.
+### CloudFront
+UPLOADS_S3_CDN fronts production uploads through CloudFront. Raw S3 bucket URLs should remain
+private where the newer upload path uses the CDN read path.
 
 ## Background Job Architecture (Resque)
 
