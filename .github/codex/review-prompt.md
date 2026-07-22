@@ -45,10 +45,14 @@ Changed-file list WITH git modes (`git ls-files -s` on changed paths).
 
 ## Injected diff
 
-The full `git diff BASE...HEAD` for this PR, bounded to a size cap. If the
-diff was truncated, a marker line says so -- review the hunks shown and treat
-any unseen hunks as unverified (that partial coverage is itself grounds for
-`NEEDS_HUMAN` if a hidden hunk could change your verdict).
+The `git diff BASE...HEAD` for this PR, bounded to a size cap. The block opens
+with a `NOTE:` line stating whether the diff is COMPLETE or TRUNCATED and how
+many changed files it covers -- treat that line as authoritative. When it says
+COMPLETE, the diff below is the entire change set for this PR (every changed
+file and every hunk); reach a real verdict from it, and do not withhold one on
+the theory that unseen changes might exist. When it says TRUNCATED, review the
+hunks shown and treat unseen hunks as unverified -- that partial coverage is
+itself grounds for `NEEDS_HUMAN` if a hidden hunk could change your verdict.
 
 <!-- CI_INJECT:DIFF -->
 The unified diff of the changed files.

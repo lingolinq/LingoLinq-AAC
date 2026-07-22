@@ -181,13 +181,22 @@ jobs:
           MAX_BYTES=60000
           RAW="$(git diff "${BASE_SHA}...${HEAD_SHA}")"
           TOTAL_BYTES="$(printf '%s' "$RAW" | wc -c)"
+          FILE_COUNT="$(git diff --name-only "${BASE_SHA}...${HEAD_SHA}" | wc -l | tr -d ' ')"
           {
             echo "pr_diff<<PR_DIFF_EOF"
+            # Emit an authoritative completeness NOTE on BOTH paths. CI knows
+            # whether the diff fit under the cap; the reviewer (which may have
+            # no shell) does not, and without a positive signal it can wrongly
+            # assume the diff is partial and refuse a verdict. State the fact.
             if [ "$TOTAL_BYTES" -gt "$MAX_BYTES" ]; then
+              echo "NOTE: git diff BASE...HEAD for all ${FILE_COUNT} changed file(s), TRUNCATED to the first ${MAX_BYTES} of ${TOTAL_BYTES} bytes. Hunks past the cut are not shown -- treat them as unverified."
+              echo ""
               printf '%s' "$RAW" | head -c "$MAX_BYTES"
               echo ""
-              echo "[... diff truncated: showing the first ${MAX_BYTES} of ${TOTAL_BYTES} bytes. Hunks beyond this point are NOT shown -- treat them as unverified. ...]"
+              echo "[... diff truncated at ${MAX_BYTES} bytes ...]"
             else
+              echo "NOTE: COMPLETE git diff BASE...HEAD for all ${FILE_COUNT} changed file(s) (${TOTAL_BYTES} bytes, not truncated). Every changed file and every hunk in this PR is included below; there is no further diff evidence beyond what follows."
+              echo ""
               printf '%s\n' "$RAW"
             fi
             echo "PR_DIFF_EOF"
