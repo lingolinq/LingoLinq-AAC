@@ -162,9 +162,9 @@ reconciled in every place this phase writes retention copy:
 
 | Scope | Window | Status | Basis |
 |---|---|---|---|
-| EU-jurisdiction accounts | 5 years | **Enforced** (`AiApiLog.purge_old_eu_logs!(years: 5)`, shipped PR #553, runs via `scheduler:dispatch`). Currently inert in practice because jurisdiction is not yet stamped on accounts (VPC Phase 4 wires that). | EU AI Act Article 50 record-keeping |
-| Children (under-13) accounts | 12 months, rolling, independent of account status | **Decided, rolling out** (not yet enforced in code as of this commit) | 2026-07-09 ratified decision |
-| General (non-EU, non-child) accounts | 24 months | **Decided, rolling out** (not yet enforced in code beyond the 90-day IP redaction below) | 2026-07-09 ratified decision, GDPR Article 5(1)(e) storage limitation |
+| EU-jurisdiction accounts | Up to 5 years | **Enforced** (`AiApiLog.purge_old_eu_logs!(years: 5)`, shipped PR #553, runs via `scheduler:dispatch`). Now functional: the Art50 Phase 4 shared call-context helper stamps `jurisdiction = 'EU'` at the three AI call sites (merged to staging). It matches EU rows wherever Phase 4 is deployed; effective in production only after the Phase 4/5 production deploy. | EU AI Act Article 50 record-keeping |
+| Children (under-13) accounts | 12 months, rolling, independent of account status | **Decided, not yet enforced.** No purge job: `ai_api_logs` has no per-row child-subject marker, so this tier cannot be carved out from the 6-year HIPAA floor without a write-time stamp (schema + call-site change). | 2026-07-09 ratified decision |
+| General (non-EU, non-child) accounts | 24 months | **Decided, not yet enforced** (beyond the 90-day IP redaction below). Same blocker: a safe non-EU purge needs the HIPAA-covered vs non-covered distinction stamped per row first; a flat 24-month delete is deliberately not shipped. | 2026-07-09 ratified decision, GDPR Article 5(1)(e) storage limitation |
 | All `AiApiLog` records, IP address field only | 90 days | **Enforced today** (`AiApiLog.redact_old_ip_addresses!(days: 90)`, live via `scheduler:dispatch`) | GDPR data minimization |
 | HIPAA-linked accounts | Up to 6 years may be required for audit-floor purposes | **Open, deferred.** This is why a single blanket non-EU purge job was not shipped alongside the EU one. | HIPAA 45 CFR 164.316(b)(2)(i) |
 | Account-lifecycle deletion | The `AiApiLog` rows tied to a user account are deleted when that account is deleted | **Enforced today** (Flusher cascade) | Contract / FERPA |
