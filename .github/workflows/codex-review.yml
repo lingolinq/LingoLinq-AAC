@@ -148,9 +148,23 @@ jobs:
             echo "### gh pr checks"
             gh pr checks "$PR_NUMBER" -R "${{ github.repository }}" || true
             echo ""
-            echo "### changed files (git ls-files -s)"
+            echo "### changed files (git mode at PR head ${HEAD_SHA})"
+            # Source of truth is the PR head COMMIT, so this list agrees with the
+            # injected BASE...HEAD diff. Do NOT use `git ls-files -s` here: it
+            # reads the INDEX, and the later "Restore Codex review helpers from
+            # workflow ref" step rewrites the index/working-tree for helper files
+            # to the workflow-ref blobs. That made the mode/blob evidence for
+            # helper files disagree with the diff, which the reviewer correctly
+            # flagged as an evidence mismatch (CR-1). `git ls-tree HEAD_SHA`
+            # reads the head commit's tree object directly and is immune to the
+            # restore regardless of step ordering.
             git diff --name-only "${BASE_SHA}...${HEAD_SHA}" | while read -r f; do
-              git ls-files -s -- "$f" 2>/dev/null || echo "?????? 0	$f (untracked/deleted)"
+              entry="$(git ls-tree "${HEAD_SHA}" -- "$f" 2>/dev/null)"
+              if [ -n "$entry" ]; then
+                printf '%s\n' "$entry"
+              else
+                printf '(deleted at head)\t%s\n' "$f"
+              fi
             done
             echo "LIVE_STATE_EOF"
           } >> "$GITHUB_OUTPUT"
