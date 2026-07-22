@@ -69,7 +69,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node 20
+      - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -80,9 +80,9 @@ jobs:
           path: |
             app/frontend/node_modules
             ~/.cache/puppeteer
-          key: ${{ runner.os }}-node20-${{ hashFiles('app/frontend/package-lock.json') }}
+          key: ${{ runner.os }}-node22-${{ hashFiles('app/frontend/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-node20-
+            ${{ runner.os }}-node22-
 
       - name: Install frontend dependencies
         working-directory: app/frontend
@@ -179,7 +179,7 @@ jobs:
           gem install bundler-audit
           bundle-audit check --update
 
-      - name: Setup Node 20
+      - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
           node-version: 22
