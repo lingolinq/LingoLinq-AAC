@@ -191,9 +191,15 @@ jobs:
             if [ "$TOTAL_BYTES" -gt "$MAX_BYTES" ]; then
               echo "NOTE: git diff BASE...HEAD for all ${FILE_COUNT} changed file(s), TRUNCATED to the first ${MAX_BYTES} of ${TOTAL_BYTES} bytes. Hunks past the cut are not shown -- treat them as unverified."
               echo ""
-              printf '%s' "$RAW" | head -c "$MAX_BYTES"
+              # Cut on a line boundary: drop the final (possibly partial) line
+              # with `sed '$d'`. A raw `head -c` byte cut can split a multibyte
+              # UTF-8 char (this repo has unicode-heavy public/locales/*.json),
+              # which would make the assembled prompt undecodable and fail the
+              # job. A newline never falls inside a UTF-8 char, so every
+              # retained line stays valid.
+              printf '%s' "$RAW" | head -c "$MAX_BYTES" | sed '$d'
               echo ""
-              echo "[... diff truncated at ${MAX_BYTES} bytes ...]"
+              echo "[... diff truncated near ${MAX_BYTES} bytes (cut on a line boundary) ...]"
             else
               echo "NOTE: COMPLETE git diff BASE...HEAD for all ${FILE_COUNT} changed file(s) (${TOTAL_BYTES} bytes, not truncated). Every changed file and every hunk in this PR is included below; there is no further diff evidence beyond what follows."
               echo ""

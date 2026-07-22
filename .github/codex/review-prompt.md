@@ -40,7 +40,8 @@ Return exactly one of:
 PR metadata (`gh pr view`): mergeable state, mergeStateStatus, head SHA.
 Full CI check results (`gh pr checks`): rspec, build-and-test,
 audit-artifacts-integrity, security-scan, secret-detection.
-Changed-file list WITH git modes (`git ls-files -s` on changed paths).
+Changed-file list WITH git modes at the PR head (`git ls-tree HEAD_SHA`, one
+`<mode> blob <sha>\t<path>` line per changed file).
 <!-- /CI_INJECT:LIVE_STATE -->
 
 ## Injected diff
@@ -94,8 +95,9 @@ source. Do not skip any item because the diff "looks small."
    finding and cite the injected check result.
 4. Check git file modes on any script referenced in the diff or PR body as
    directly runnable (e.g. `./scripts/foo.sh`) using the injected changed-file
-   modes (`git ls-files -s`) -- expect `100755`. A script invoked as
-   `bash scripts/foo.sh` does not need the exec bit.
+   modes (`git ls-tree HEAD_SHA`; the mode is the first field of each line) --
+   expect `100755`. A script invoked as `bash scripts/foo.sh` does not need the
+   exec bit.
 5. Best-effort: from the injected diff and evidence, flag any change that
    contradicts an existing compliance claim. Without shell you cannot grep the
    whole repo, so bound this to what the diff and injected state reveal; note
