@@ -25,6 +25,9 @@ def main():
     output_path = sys.argv[1]
 
     live_state = os.environ["LIVE_STATE"]
+    # PR_DIFF is optional/defensive: the workflow always sets it, but fall back
+    # gracefully rather than crashing the assemble step if it is ever absent.
+    pr_diff = os.environ.get("PR_DIFF", "").strip() or "(no diff was provided to this review)"
     memory = MEMORY_PATH.read_text()
     loop_n = int(os.environ["LOOP_N"])
 
@@ -38,6 +41,7 @@ def main():
 
     prompt = PROMPT_PATH.read_text()
     prompt = replace_block(prompt, "LIVE_STATE", live_state)
+    prompt = replace_block(prompt, "DIFF", pr_diff)
     prompt = replace_block(prompt, "REVIEW_MEMORY", memory)
     prompt = replace_block(prompt, "PRIOR_LOOP", prior_loop)
 
