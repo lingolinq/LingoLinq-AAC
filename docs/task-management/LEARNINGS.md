@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: `ensure_senner_baud!` in beta_seed_spec hits live Typhoeus/libcurl and can segfault CI](#gotcha-ensure_senner_baud-in-beta_seed_spec-hits-live-typhoeuslibcurl-and-can-segfault-ci)
 - [Gotcha: Textarea `@value` on a get-only computed crashes on keystroke — needs a setter/cache](#gotcha-textarea-value-on-a-get-only-computed-crashes-on-keystroke--needs-a-settercache)
 - [Gotcha: Ember `<Input>` checkboxes need `@type`, and bound-select must stopPropagation](#gotcha-ember-input-checkboxes-need-type-and-bound-select-must-stoppropagation)
 - [Gotcha: Ember strict-mode templates treat bare names as helpers — use `this.` for controller props](#gotcha-ember-strict-mode-templates-treat-bare-names-as-helpers--use-this-for-controller-props)
@@ -6987,3 +6988,7 @@ version strings) or `NNN_NNN` underscore-digit tokens (global_id scrubber — av
 numeric literals like `100_000` in snippets); and runtime findings (no file anchor)
 id-anchor on `ruleKey` with `evidence.source`, exempt from the snippet-at-SHA citation
 gate. (2026-07-16)
+
+## Gotcha: `ensure_senner_baud!` in beta_seed_spec hits live Typhoeus/libcurl and can segfault CI
+
+`BetaSeed.ensure_baseline!` calls `SystemBoardSources.ensure_senner_baud!`, which fetches an OBZ from S3 and imports media via `upload_to_remote` → `Typhoeus.post` → ethon/libcurl. In CI that path has segfaulted (`ethon ... [BUG] Segmentation fault` in `curl_mime_type`). Stub it in `spec/lib/beta_seed_spec.rb` the same way as `ensure_crisis_vocabulary!` (`and_return(nil)`) whenever the example only needs starter boards / verify helpers — do not exercise live multipart curl from seed specs. (2026-07-22; task log `2026-07-22-stub-senner-baud-beta-seed-spec.md`)
