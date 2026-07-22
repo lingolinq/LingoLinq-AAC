@@ -34197,7 +34197,7 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-// ── Testimonial Section ─────────────────────────────────────────────────────
+// ── Mission Section (reuses la-testimonial-* class hooks for parallax/layout) ─
 .la-testimonial-section {
   display: flex;
   flex-direction: column;
@@ -34209,8 +34209,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 
 .la-testimonial-display {
   position: relative;
-  max-width: 700px; /* ideal quote width 640–720px for readability */
-  margin: 0 auto $aac-spacing-16;
+  max-width: 840px;
+  margin: 0 auto;
   padding: 0;
   border: none;
 }
@@ -34233,7 +34233,11 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   line-height: 1.55;
   letter-spacing: -0.01em;
   margin: 0;
-  display: inline;
+  display: block;
+
+  & + & {
+    margin-top: $aac-spacing-20;
+  }
 }
 
 .la-testimonial-attribution {
