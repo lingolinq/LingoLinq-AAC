@@ -2410,24 +2410,27 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/AI_DATA_FLOW_CLASSIFICATION.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "FERPA",
         "COPPA",
         "HIPAA",
         "GDPR"
       ],
-      "lastReviewed": "2026-07-09",
-      "nextReviewDue": "2027-07-09",
-      "attestation": {},
-      "contentHash": "b75b6271e3682e1b5ec366c34b1610c9f9397472e17df83e9b4eb461b565b92a",
+      "lastReviewed": "2026-07-22",
+      "nextReviewDue": "2027-07-22",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-07-22"
+      },
+      "contentHash": "f16e851f8cc09794437f0f87089b309763124943af4a5475b1e60b25fcf9f475",
       "bundles": [
         "school-dpa-package",
         "security-review",
         "dsar"
       ],
       "mirrors": [],
-      "notes": "Scot attested this document (provisional) on 2026-07-09, per its own header line, but the file has MATERIALLY CHANGED SINCE: commit 74266b41f (#656, 2026-07-22) rewrote the AI-log retention tiers, moving the children and general tiers from \"Decided, rolling out\" to \"Decided, not yet enforced\" and the EU tier from inert to functional. The 2026-07-09 attestation therefore covered an earlier revision, not the bytes this row now hashes. Held at draft with an empty attestation until Scot re-attests. This is not a finding that the original attestation was invalid; it is a refusal to imply he attested the current bytes.",
+      "notes": "Re-attested (provisional) by Scot Wahlquist 2026-07-22, covering the current revision. The prior 2026-07-09 attestation covered an earlier revision (PR #656 rewrote the AI-log retention tiers). Before the re-attestation was recorded, the changed claims were verified against live code: AiApiLog.purge_old_eu_logs!(years: 5) exists at app/models/ai_api_log.rb and is dispatched from lib/tasks/scheduler.rake, and LingoLinq::Article50CallContext.for(user) stamps jurisdiction at exactly the three AI call sites. Outside-counsel review remains deferred until the full 5-phase VPC is built, so this stays a provisional attestation.",
       "retention": {
         "class": "policy-version",
         "rule": "supersession + 7 years",
@@ -2478,7 +2481,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -2486,15 +2489,18 @@
         "GDPR",
         "SOC2"
       ],
-      "lastReviewed": "2026-07-09",
-      "nextReviewDue": "2027-07-09",
-      "attestation": {},
-      "contentHash": "c8030f10b9e437ab08a877d9ff9d0ebd2695a5ccc7129c50ddd0fed265ad8a45",
+      "lastReviewed": "2026-07-22",
+      "nextReviewDue": "2027-07-22",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-07-22"
+      },
+      "contentHash": "71577f49b16e6e3b938c61e79931104a47159612c2174069336f12a928d06fc6",
       "bundles": [
         "security-review"
       ],
       "mirrors": [],
-      "notes": "Scot attested this document for external release on 2026-07-09 (rev. 2026-07-09-c), per its own header banner, but the file has MATERIALLY CHANGED SINCE: commits 3d1bf2f70 (#649, 2026-07-21) and 0ce7c2f70 (#652, 2026-07-21) rewrote the subprocessor and hosting posture (GCP as live production host, Render as a write-frozen fallback, Anthropic HIPAA-ready BAA executed) and inverted the COPPA offboarding section from an open gap to an implemented control. The banner still reads rev. 2026-07-09-c. Because this document is EXTERNALLY SHAREABLE, the gap between the attested revision and the current bytes matters more here than anywhere else in the register. Held at draft with an empty attestation until Scot re-attests.",
+      "notes": "Re-attested for EXTERNAL RELEASE by Scot Wahlquist 2026-07-22 (rev. 2026-07-22-a). The prior 2026-07-09 attestation (rev. 2026-07-09-c) covered an earlier revision, superseded by PR #649 (COPPA offboarding rewritten from open gap to implemented control) and PR #652 (subprocessor and hosting posture rewritten for the GCP cutover). Because this document is externally shareable, the newer claims were verified against live code before the re-attestation was recorded: Organization#remove_user calls User#begin_family_offboarding_consents!, parent email is collected at next login via submit_parental_consent_email, and full login is genuinely blocked while consent is pending because the device token is only issued \"unless coppa_pending\".",
       "retention": {
         "class": "policy-version",
         "rule": "supersession + 7 years",
