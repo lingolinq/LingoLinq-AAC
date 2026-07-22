@@ -2,8 +2,8 @@
 
 **Owner:** Privacy Office (privacy@lingolinq.com)
 **Last reviewed:** 2026-04-20 (last full review)
-**Last amended:** 2026-07-16 (GCP infrastructure agreements recorded; see change log)
-**Next review:** 2026-07-20 (quarterly)
+**Last amended:** 2026-07-22 (Gate 1 GCP cutover recorded; see change log)
+**Next review:** 2026-10-20 (quarterly)
 **Related:** `docs/legal/BREACH_RUNBOOK.md`, `docs/legal/DATA_RETENTION.md`, `COMPLIANCE.md`
 
 ## 1. Purpose
@@ -24,7 +24,7 @@ LingoLinq will provide customers with at least 30 days advance notice before any
 | # | Subprocessor | Service provided | Data categories | Student or patient data reaches this vendor? | Region | DPA / BAA status | Privacy / security reference |
 |---|---|---|---|---|---|---|---|
 | 1 | Amazon Web Services, Inc. | S3 object storage, KMS, RDS (if used), CloudFront | User-uploaded media, database backups, application secrets | Yes | us-east-1 | BAA signed 2026-02-07, account 2390-4478-5114 | https://aws.amazon.com/compliance/data-privacy/ |
-| 2 | Render Services, Inc. | Application hosting, managed PostgreSQL, managed Redis, scheduler, worker services | Full application data at rest in PostgreSQL; logs; environment | Yes | us-east (Ohio primary) | DPA signed; BAA pending | https://render.com/legal/dpa and https://render.com/security |
+| 2 | Render Services, Inc. | Superseded primary application host; retained temporarily as write-frozen rollback fallback pending decommission | Frozen production database copy, logs, environment, and fallback app services until deleted or restricted | Yes until decommission | us-east (Ohio primary) | DPA signed; BAA pending; no new hospital tenants relying on Render fallback | https://render.com/legal/dpa and https://render.com/security |
 | 3 | OpenAI, L.L.C. | GPT models (contracted); NOTE: no active code path sends data to OpenAI as of 2026-07-06 — the in-repo OpenAI SDK clients target Google's Gemini OpenAI-compatible endpoint. Row retained pending Privacy Office review (removal per section 7). | Pseudonymized (scrubbed) prompts only IF used, redacted by lib/pii_scrubber.rb before transmission; still personal data under GDPR/UK-GDPR | Currently none (no active flow); would be Yes — pseudonymized if activated | US | DPA via OpenAI API standard terms | https://openai.com/policies/data-processing-addendum |
 | 4 | Anthropic, PBC | Claude models for AI board generation, word prediction, and eval-narrative drafting | Pseudonymized (scrubbed) prompts only, redacted by lib/pii_scrubber.rb before transmission; still personal data under GDPR/UK-GDPR | Yes — pseudonymized learner content (direct identifiers removed by design) | US | **HIPAA-Ready BAA executed + HIPAA readiness enabled 2026-07-18** (runtime-dedicated LingoLinq, LLC API org; see docs/legal/ANTHROPIC_BAA_ACCEPTED.md); supersedes the prior Commercial-Terms-DPA-only basis | https://www.anthropic.com/legal/commercial-terms |
 | 5 | Google LLC (Gemini API) | Gemini models for AI board generation and word prediction; NOTE: runtime path DISABLED 2026-07-09 -- the GEMINI_API_KEY fallback was removed from lib/ai_word_predictor.rb, lib/ai_prediction_generator.rb, and lib/ai_board_generator.rb (Gemini Developer/AI-Studio endpoint data-handling terms inadequate for child data). No active code path sends data to Gemini today; a Vertex AI fallback may replace it. Row retained pending reactivation (compliance calendar rev-gemini-baa-annual; removal per section 7). | Pseudonymized (scrubbed) prompts only IF used, redacted by lib/pii_scrubber.rb before transmission; still personal data under GDPR/UK-GDPR | Currently none (runtime path disabled 2026-07-09); would be Yes -- pseudonymized if reactivated | US | DPA via Google Cloud Terms of Service and Data Processing Addendum | https://cloud.google.com/terms/data-processing-addendum |
@@ -32,11 +32,12 @@ LingoLinq will provide customers with at least 30 days advance notice before any
 | 7 | Functional Software, Inc. (Sentry) | Application error monitoring | Stack traces, request metadata, optional user ID; PII scrubbing filters active | Potentially yes if filters fail; treat as Yes for review | US | DPA via Sentry Customer DPA | https://sentry.io/trust/ |
 | 8 | n8n GmbH (self-hosted on LingoLinq Render) | Internal workflow automation | No customer data; operational signals only | No | us-east (same Render infrastructure) | No third-party processing; covered by Render | https://n8n.io/legal/ |
 | 9 | Cake.com Inc. (Clockify) | Internal time tracking | LingoLinq employee and contractor time entries; no customer data | No | US | DPA via Clockify standard terms | https://clockify.me/privacy-policy |
-| 10 | Render Managed PostgreSQL | Relational database for the production application | All tenant application data at rest | Yes | us-east | Covered by Render DPA, BAA pending | https://render.com/docs/databases |
+| 10 | Render Managed PostgreSQL | Superseded production database retained as write-frozen rollback fallback pending decommission | Frozen production data copy until deleted or restricted | Yes until decommission | us-east | Covered by Render DPA, BAA pending | https://render.com/docs/databases |
 | 11 | Cloudflare, Inc. | DNS resolution; CDN in front of marketing site where applicable | Request metadata, IP addresses, user agents for traffic to public endpoints | Incidental only (IP and UA for public traffic) | Global anycast | DPA via Cloudflare Customer DPA | https://www.cloudflare.com/cloudflare-customer-dpa/ |
 | 12 | Google LLC (Google Workspace) | LingoLinq corporate email, calendar, Drive, Chat | LingoLinq employee and contractor business data | No (corporate productivity only) | US, EU failover | DPA via Google Workspace DPA | https://workspace.google.com/terms/dpa_terms.html |
 | 13 | 1Password Corp. | Password and secrets management for LingoLinq staff | LingoLinq internal secrets; no customer data | No | US and Canada | DPA via 1Password standard terms | https://1password.com/legal/data-processing-agreement |
 | 14 | GitHub, Inc. | Source code hosting and CI | LingoLinq source code, issue content; customer data is not permitted in this system | No (policy: no customer data) | US | DPA via GitHub Customer DPA | https://docs.github.com/en/site-policy/privacy-policies/github-data-protection-agreement |
+| 15 | Google LLC (Google Cloud Platform infrastructure) | Live production application hosting on Cloud Run, Cloud SQL PostgreSQL, Memorystore Redis, load balancing, and supporting logs for project `lingolinq-prod` | Full tenant application data in compute and database; operational logs; secrets surfaced through GCP Secret Manager | Yes | US | CDPA + HIPAA BAA accepted 2026-07-12; SCCs certified 2026-07-14 | https://cloud.google.com/terms/data-processing-addendum and `docs/legal/GCP_BAA_ACCEPTED.md` |
 
 ## 5. Data Flow Notes
 
@@ -50,7 +51,13 @@ Scrubbing removes *known* direct identifiers — patterns (emails, phones), acco
 
 ### 5.2 Render
 
-Render is the hosting platform for every production service: web, worker, scheduler, and n8n. Managed PostgreSQL and managed Redis are provisioned inside the same Render account. BAA negotiation with Render is in progress; until it is executed, LingoLinq does not onboard new hospital tenants that require a formal HIPAA BAA with the hosting provider.
+Render was the production hosting platform before the 2026-07-22 Gate 1 DNS cutover. It is now
+superseded as the active branded-domain host by Google Cloud Platform, but remains online as a
+write-frozen rollback fallback at `https://lingolinq-prod.onrender.com` until a separately
+authorized decommission. Managed PostgreSQL and managed Redis in Render therefore remain in this
+register until deletion or restriction is verified. BAA negotiation with Render is no longer the
+hosting path for new production traffic, and LingoLinq does not onboard new hospital tenants that
+would rely on the Render fallback.
 
 ### 5.3 AWS
 
@@ -68,20 +75,40 @@ HubSpot receives data via `lib/external_tracker.rb`. The code path gates on `sup
 
 The `lib/pusher.rb` module is an internal naming relic from the CoughDrop fork; it is an `aws-sdk-sns` wrapper used to deliver transactional SMS (supervisor consent invitations, two-factor codes, password resets). Phone numbers and short message bodies are transmitted to AWS SNS; no communication content or board data is sent. This flow is covered by the AWS BAA executed on 2026-02-07 and is listed under subprocessor #1 (Amazon Web Services).
 
-### 5.7 Planned: Google Cloud Platform / Cloud Run (migration in progress, NOT yet an active subprocessor)
+### 5.7 Google Cloud Platform / Cloud Run (active production infrastructure)
 
-LingoLinq is migrating production compute from Render to Google Cloud Run, with object storage and email staying on AWS (project: Render-to-GCP Cloud Run migration). When that cutover lands, GCP becomes a subprocessor that processes tenant application data at rest and in compute (Cloud Run, Cloud SQL, Memorystore over a private VPC), and Google must be added to the table in section 4 as an active subprocessor.
+LingoLinq completed the Gate 1 DNS cutover on 2026-07-22. `app.lingolinq.com` now serves from
+Google Cloud Platform, with production compute on Cloud Run, relational data on Cloud SQL
+PostgreSQL, and Redis/Resque on Memorystore over TLS. Object storage and email remain on AWS.
+Google Cloud Platform infrastructure is now listed as active subprocessor #15.
 
-This has not happened yet, so Google compute is **deliberately not listed as an active subprocessor today**. Two items gate that listing; as of 2026-07-14 the first is closed and the second remains open:
+The Google Cloud data-processing and HIPAA terms for project `lingolinq-prod` were reviewed and
+accepted in the GCP console by scot@lingolinq.com: the Cloud Data Processing Addendum (CDPA) and the
+Google Cloud HIPAA Business Associate Addendum (BAA) on 2026-07-12, and the European Data Protection
+Law Standard Contractual Clauses (EU GDPR, UK GDPR, Swiss FDPA) certified 2026-07-14. This
+formalizes at the `lingolinq-prod` project level the org-wide Google BAA previously accepted
+2026-06-08. Under the HIPAA BAA, PHI is permitted on Google Cloud subject to BAA terms, which are
+necessary but not sufficient (HIPAA-eligible services only, encryption in transit and at rest, access
+controls, minimum necessary). Google issues no countersigned PDF for these; the console acceptance
+record is the authoritative evidence and is captured in-repo at `docs/legal/GCP_BAA_ACCEPTED.md`.
+Evidence: Google Drive "Compliance Audits" folder, "Google Cloud Platform - Accepted Compliance
+Agreements (captured 2026-07-14)" plus the source console screenshots; Notion "Vendor BAAs &
+Subprocessor Registry" Google row updated 2026-07-14 and cutover status updated 2026-07-22.
 
-1. **Executed agreements on file -- SATISFIED 2026-07-12/14.** The Google Cloud data-processing and HIPAA terms for project `lingolinq-prod` were reviewed and accepted in the GCP console by scot@lingolinq.com: the Cloud Data Processing Addendum (CDPA) and the Google Cloud HIPAA Business Associate Addendum (BAA) on 2026-07-12, and the European Data Protection Law Standard Contractual Clauses (EU GDPR, UK GDPR, Swiss FDPA) certified 2026-07-14. This formalizes at the `lingolinq-prod` project level the org-wide Google BAA previously accepted 2026-06-08. Under the HIPAA BAA, PHI is permitted on Google Cloud subject to BAA terms, which are necessary but not sufficient (HIPAA-eligible services only, encryption in transit and at rest, access controls, minimum necessary). Google issues no countersigned PDF for these; the console acceptance record is the authoritative evidence and is captured in-repo at `docs/legal/GCP_BAA_ACCEPTED.md` (parity with `AWS_BAA_ACCEPTED.md`). Evidence: Google Drive "Compliance Audits" folder, "Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14)" plus the source console screenshots; Notion "Vendor BAAs & Subprocessor Registry" Google row updated 2026-07-14. Scope boundary: this is an **infrastructure** BAA covering the products on Google's HIPAA Covered Products list in use or planned for hosting (Cloud Run, Cloud SQL, Memorystore); it does not extend to Vertex AI as a whole, so any future Vertex AI or Gemini inference path requires per-product covered-service verification before PHI or child data. It does **not** cover the Anthropic model-provider egress path, which is covered by Anthropic's own HIPAA-Ready BAA (executed 2026-07-18; see `ANTHROPIC_BAA_ACCEPTED.md`) with the PiiScrubber and no-identifiable-data policy retained as defense-in-depth (see `AI_GOVERNANCE_MEMO.md`); the compliance-calendar Gemini-path item (`rev-gemini-baa-annual`) is likewise a separate model-provider concern.
-2. **Cutover actually carries data -- still open.** Phase 3 of the migration (Cloud SQL, Memorystore, VPC) is drafted, but the live production environment still runs on Render; the `rediss://` TLS capability (#410) is shipped but is not yet the live path. Until production tenant data actually runs on GCP, Google compute remains a **planned** subprocessor, not an active one. At cutover, add the GCP row to section 4, give 30 days advance change notice per section 2, and log the change below.
-
-   This planned (not active) classification depends on the `lingolinq-prod` project not already holding tenant personal data through Cloud Logging, database backups, or migration-rehearsal artifacts; if it did, GCP would already be a processor under Article 28 and the active-listing plus the 30-day customer-notice clock would start now, not at cutover. **Confirmed by Scot Wahlquist 2026-07-16: `lingolinq-prod` has no real users and no tenant (student/patient) personal data yet; any data present is synthetic/test.** GCP is therefore not yet processing personal data and correctly remains a planned (not active) subprocessor. Re-confirm at the 2026-07-20 quarterly review and immediately before cutover, when production tenant data begins to flow.
+Scope boundary: this is an **infrastructure** BAA covering the products on Google's HIPAA Covered
+Products list in use for hosting (Cloud Run, Cloud SQL, Memorystore); it does not extend to Vertex
+AI as a whole, so any future Vertex AI or Gemini inference path requires per-product covered-service
+verification before PHI or child data. It does **not** cover the Anthropic model-provider egress
+path, which is covered by Anthropic's own HIPAA-Ready BAA (executed 2026-07-18; see
+`ANTHROPIC_BAA_ACCEPTED.md`) with the PiiScrubber and no-identifiable-data policy retained as
+defense-in-depth. The compliance-calendar Gemini-path item (`rev-gemini-baa-annual`) is likewise a
+separate model-provider concern.
 
 Consistency note (2026-07-12 Two-Plane AI Architecture decision): that decision's target of production inference via Vertex AI would first require confirming that Vertex AI (or the specific Vertex/Gemini product used) is a Google HIPAA Covered Service; the infrastructure BAA does not by itself extend to it. It is a direction, not a live path -- the runtime today is Anthropic-only, and the Google Gemini/Vertex inference fallback was disabled 2026-07-09 (PR #570). No AI inference reaches Google today.
 
-Google LLC already appears in the table for the **Gemini API** (#5, disabled runtime path) and **Google Workspace** (#12, corporate productivity). The Cloud Run / infrastructure relationship is distinct from both and will be a separate row.
+Google LLC also appears in the table for the **Gemini API** (#5, disabled runtime path) and
+**Google Workspace** (#12, corporate productivity). The Cloud Run / infrastructure relationship is
+distinct from both and is listed separately as row #15.
 
 ## 6. Pseudonymized (Scrubbed) Data Standard
 
@@ -109,3 +136,4 @@ When LingoLinq ends a subprocessor relationship, the Privacy Contact confirms th
 | 2026-07-12 | Reclassified AI vendor row 5 (Google Gemini API) from an active AI flow to DISABLED / historical, correcting the register to match runtime state. The runtime Gemini fallback was removed on 2026-07-09 (lib/ai_word_predictor.rb, lib/ai_prediction_generator.rb, lib/ai_board_generator.rb; the Gemini Developer/AI-Studio endpoint's data-handling terms are inadequate for child data). Row 5 reaches-vendor changed from "Yes -- pseudonymized" to "Currently none (no active flow)"; row retained pending reactivation (rev-gemini-baa-annual). This removes a stale active-flow claim; no new data flow is introduced. | Privacy Office to note at the 2026-07-20 quarterly review; no customer notice (removal of a flow, not a new one) |
 | 2026-07-16 | Recorded execution of the Google Cloud **infrastructure** agreements for project `lingolinq-prod`: CDPA + HIPAA BAA accepted 2026-07-12 and SCCs certified 2026-07-14, formalizing the org-wide Google BAA of 2026-06-08 (section 5.7 blocker 1 marked satisfied; PHI now permitted on GCP under BAA terms). Google compute remains a **planned**, not active, subprocessor until the Render-to-GCP cutover carries production data (blocker 2 still open), so no change to the active list in section 4. Does not extend to the Anthropic AI-egress path. | No customer notice yet (no active change; the 30-day notice is due at cutover per section 2) |
 | 2026-07-18 | Row 4 (Anthropic) contract basis updated from Commercial-Terms DPA to an executed **HIPAA-Ready BAA with HIPAA readiness enabled** on the runtime-dedicated LingoLinq, LLC API org (verified live: Messages API 200, Files API 400; see docs/legal/ANTHROPIC_BAA_ACCEPTED.md). This is a contract-basis upgrade for an existing flow, not a new flow or a new vendor; the pseudonymized-personal-data classification and reaches-vendor="Yes" are unchanged. PHI is now permitted to Anthropic over the Messages API under BAA terms. All four runtime seams are in-scope; eval narration is classified as an assistive-technology access assessment, not a Healthcare Activity (Scot 2026-07-19), so no licensed-clinician gate applies (see docs/legal/ANTHROPIC_BAA_ACCEPTED.md). | No customer notice required (no new subprocessor and no new data flow; contract-basis strengthening only). Privacy Office to note at the 2026-07-20 quarterly review. |
+| 2026-07-22 | Gate 1 DNS cutover completed: `app.lingolinq.com` is live on GCP Cloud Run, with Cloud SQL PostgreSQL and Memorystore Redis carrying production traffic. Added Google Cloud Platform infrastructure as active subprocessor #15. Updated Render rows #2 and #10 from active primary hosting/database to superseded write-frozen rollback fallback pending decommission. Render remains listed until its production fallback data and services are deleted or restricted. | Customer subprocessor notice required per section 2; record bulletin timing before external publication. |

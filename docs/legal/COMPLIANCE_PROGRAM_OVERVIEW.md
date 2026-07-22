@@ -157,13 +157,15 @@ Everything in this section is live in the product.
 
 **Vendors and subprocessors**
 - We maintain a subprocessor list and sign agreements only with vendors that actually handle our
-  data. These include AWS (storage, BAA signed), Anthropic (AI, under a DPA), Google (sign-in and AI
-  fallback), our application host (Render today, moving to Google Cloud at the in-progress
-  migration), Sentry (error monitoring, configured with the child-data scrubber above), and HubSpot
-  (marketing CRM and support, handling customer and prospect records only, no student data). When IP
-  geolocation is enabled for registration, subscription, or supporter-routing context, iplocate.io
-  receives the IP address for lookup. `docs/legal/SUBPROCESSORS.md` is the authoritative register and
-  is updated as services are enabled or retired.
+  data. These include AWS (storage, BAA signed), Anthropic (AI, HIPAA-ready BAA executed), Google
+  Cloud Platform (live production hosting on Cloud Run, Cloud SQL, and Memorystore under the
+  accepted GCP CDPA / HIPAA BAA / SCCs), Render (superseded primary host, retained temporarily as a
+  write-frozen rollback fallback pending decommission), Sentry (error monitoring, configured with
+  the child-data scrubber above), and HubSpot (marketing CRM and support, handling customer and
+  prospect records only, no student data). When IP geolocation is enabled for registration,
+  subscription, or supporter-routing context, iplocate.io receives the IP address for lookup.
+  `docs/legal/SUBPROCESSORS.md` is the authoritative register and is updated as services are enabled
+  or retired.
 
 **Breach response**
 - We maintain a breach runbook (`docs/legal/BREACH_RUNBOOK.md`) and notify affected parties and
@@ -301,7 +303,8 @@ schools or agencies. GDPR therefore moves from "someday" to near-term. In that m
 - **EU representative.** We appoint an Article 27 EU representative (a purchased service, not a hire)
   before going live.
 - **Transfers.** The EU data-transfer mechanism (Standard Contractual Clauses, and reliance on the
-  Data Privacy Framework where applicable) couples to the GCP cutover and to the vendor DPAs.
+  Data Privacy Framework where applicable) is now tied to the live GCP hosting posture and vendor
+  DPAs.
 - **AI transparency.** EU AI Act Article 50 transparency disclosures for AI features are due
   2026-08-02 and are tracked separately (`docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md`).
 - **Documents.** The detailed EU controller privacy notice for Polish families and the EU processor
