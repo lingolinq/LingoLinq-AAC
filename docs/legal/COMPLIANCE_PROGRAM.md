@@ -242,14 +242,19 @@ and event-driven ZDR re-verification after key rotation.
 
 ## 11. Infrastructure and the cloud migration
 
-Production currently runs on Render (web, worker, scheduler, managed PostgreSQL and Redis). A
-deliberate migration to Google Cloud Run is in progress: Phase 1 foundation is complete, and the
-Phase 3 data layer (Cloud SQL, Memorystore, VPC) is provisioned but inert pending cutover, with
-TLS configured on the Memorystore endpoint. Production Redis TLS in the running application
-remains an **open pre-cutover item** (finding LL-6619cc1811); the inert endpoint's TLS is not the
-same as the live app encrypting Redis in transit today. BAAs are being put in place along the
-migration (AWS signed; GCP and Render in progress). The migration is also the natural home for any future
-self-hosted model (Section 12).
+Production now serves `app.lingolinq.com` from Google Cloud Platform after the 2026-07-22 Gate 1
+DNS cutover. The live app runs on Cloud Run, Cloud SQL PostgreSQL, and Memorystore Redis over the
+private GCP network, with object storage and email remaining on AWS. The Google Cloud CDPA, HIPAA
+BAA, and SCCs for project `lingolinq-prod` are accepted and recorded in
+`docs/legal/GCP_BAA_ACCEPTED.md`.
+
+Render is no longer the active production app host for the branded domain, but it remains online as
+a write-frozen rollback fallback at `https://lingolinq-prod.onrender.com` until a separate explicit
+decommission go. This matters for the findings register: Redis TLS (LL-6619cc1811) is ready for
+closure only after the in-context Cloud Run `rediss://` PONG is captured and Scot attests it; the
+Render Postgres public-allowlist finding (LL-aacae48768) and audited-console finding
+(LL-7f7372e3eb) should be superseded only when Render is deleted or restricted, not silently closed
+at DNS cutover.
 
 ---
 
@@ -269,7 +274,7 @@ as a false promise. Several of these came from v1.1, where they were incorrectly
 | Biometric (voiceprint / gaze) consent and handling | Audited, not fully built | COPPA audit items 2; scope carefully before building a dedicated consent vault. |
 | Multi-state minor/biometric/health law coverage (CCPA-minor, TX CUBI, WA MHMDA, IL BIPA) | Deferred | Apply as the customer footprint reaches those states; not pre-MVP. |
 | Formal SOC 2 program (risk assessments, training cadence, KPIs, internal audit schedule) | In progress / deferred | Enterprise maturity; staged as the team grows. |
-| Render BAA execution | Pending | Blocks new hospital tenants that require a hosting-provider BAA. |
+| Render decommission | Pending | Render is superseded as primary host but remains a write-frozen rollback fallback until explicit teardown. |
 
 ---
 
@@ -322,7 +327,9 @@ attest that, to the best of my knowledge as of the dates recorded below:
    anywhere above as live.
 4. The open residuals are known, tracked in the register, and accepted as the current state rather
    than hidden: the eval consent-binding residual (LL-11db0dc848), free-text named-entity coverage in
-   PiiScrubber (LL-e573a39d2b), and production Redis TLS pending the GCP cutover (LL-6619cc1811).
+   PiiScrubber (LL-e573a39d2b), Redis TLS closure evidence pending the in-context Cloud Run
+   `rediss://` PONG and attestation (LL-6619cc1811), and the Render-tail findings that remain until
+   fallback infrastructure is deleted or restricted (including LL-aacae48768 and LL-7f7372e3eb).
 5. The items flagged for counsel in Section 14 (the 16 CFR 312.2 internal-operations carve-out, the
    FERPA studies-exception conditions, and the HIPAA de-identification standard) have not yet been
    confirmed with counsel, and the related claims are not to go external until they are.
@@ -338,9 +345,9 @@ the attestation date. It is not a certification, a legal opinion, or a guarantee
 | Reviewed by | Adversary review 2026-06-18: v0.1 findings (1 Critical + 2 High + 2 Medium + 1 nit) all addressed in v0.2; re-verification confirmed each fixed against the live register and code (verdict: attestable) |
 | Register audited commit | `d72463c7558f1f00543763f3ab866fcecf4606d1` (2026-06-17) |
 | Posture at that commit | 0 open Critical; see `audit-reports/FINDINGS.json` / `docs/legal/COMPLIANCE_POSTURE_REPORT.md` for live High / Medium / Low |
-| Infrastructure state verified | 2026-06-18 (Render `lingolinq-prod-scheduler` cron live; retention and AiApiLog IP-redaction enforcement confirmed running) |
+| Infrastructure state verified | 2026-07-22 Gate 1 DNS cutover: `app.lingolinq.com` live on GCP; Render retained as write-frozen rollback fallback pending explicit decommission |
 | Attested by | Scot Wahlquist, CEO |
-| Attestation date | 2026-06-18 |
+| Attestation date | 2026-06-18; post-Gate-1 update pending Scot re-attestation |
 
 _Once attested, the canonical home for this document is the repository at
 `docs/legal/COMPLIANCE_PROGRAM.md`, alongside the evidence it indexes. Moving it there is a

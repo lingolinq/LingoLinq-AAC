@@ -19,8 +19,9 @@
   blocks under-13 eval data via COPPA gating, and binds the egress payload to the server-resolved
   user. Three findings on this path were verified-closed; one residual stays open (below).
 - **Redis TLS capability shipped** (#410). The application can now speak `rediss://` TLS to a
-  managed Redis. This is an enabler for the GCP Memorystore cutover, not a live closure: the
-  current hosting environment still runs plaintext `redis://`, so finding LL-6619cc1811 stays open.
+  managed Redis. After the 2026-07-22 Gate 1 cutover, closure of LL-6619cc1811 is no longer blocked
+  on DNS cutover; it is blocked on the in-context Cloud Run `rediss://` PONG evidence and Scot's
+  attestation.
 - **Open High count moved 13 -> 16 -> 4.** A second full audit run plus the accessibility finder
   raised the count to 16 (wider scan coverage, not new regressions); those 16 were dispositioned
   in #419 (14 fixed-intent / 2 accepted), and the fixed-intent set has since been remediated and
@@ -29,7 +30,12 @@
   2026-07-12) and SCCs (certified 2026-07-14) for project `lingolinq-prod` are recorded in the
   framework table and migration section, and in `SUBPROCESSORS.md` / `COMPLIANCE.md` /
   `docs/legal/GCP_BAA_ACCEPTED.md`. Confirmed 2026-07-16 that `lingolinq-prod` holds no real users
-  or tenant personal data yet, so GCP remains a planned (not active) subprocessor.
+  or tenant personal data yet, so GCP correctly remained a planned (not active) subprocessor at that
+  point in time.
+- **Gate 1 DNS cutover completed (2026-07-22).** `app.lingolinq.com` now serves from GCP Cloud Run
+  with Cloud SQL and Memorystore. Render remains online as a write-frozen rollback fallback pending
+  explicit decommission. This report's headline counts remain register-derived; no finding is
+  marked closed here.
 - **Counts refreshed and re-attested 2026-07-16.** The register was restamped to auditedSha
   `20953ab3` (auditedDate 2026-07-08) after the 2026-07-07 audit refresh, which the 2026-06-19
   figures predated. Recomputing per the publisher convention (open + remediated-unverified by
@@ -115,16 +121,17 @@ These are implemented and operating, not aspirational:
   is dropped). One residual on this path stays open and tracked (consent binding to the gate
   subject, LL-11db0dc848).
 
-## Infrastructure migration in progress
+## Infrastructure migration state
 
-LingoLinq is migrating production compute from Render to Google Cloud Run, with object storage
-and email staying on AWS. Two compliance-relevant items are in flight:
+LingoLinq completed the Gate 1 DNS cutover on 2026-07-22. Production compute for
+`app.lingolinq.com` now runs on Google Cloud Run, with Cloud SQL PostgreSQL and Memorystore Redis
+inside the GCP infrastructure boundary. Object storage and email stay on AWS. Render remains online
+as a write-frozen rollback fallback until explicit decommission.
 
 - **Managed Redis over TLS.** The application can now negotiate `rediss://` TLS to a managed
   Redis instance (#410), which is the prerequisite for moving Redis to GCP Memorystore with AUTH
-  and TLS. The current Render environment still runs plaintext `redis://`, so the corresponding
-  finding (LL-6619cc1811, HIPAA) is held open until the cutover lands. Closure is gated on the
-  migration, not on a separate fix.
+  and TLS. Closure of LL-6619cc1811 still requires the in-context Cloud Run `rediss://` PONG and
+  Scot's attestation; the DNS cutover alone does not close the register entry.
 - **GCP Business Associate Agreement.** The Google Cloud HIPAA BAA was first accepted in-console
   org-wide (certified 2026-06-08; acceptance evidence captured 2026-06-19). On 2026-07-12 the
   Cloud Data Processing Addendum (CDPA) and the HIPAA BAA were reviewed and accepted for project
@@ -140,9 +147,8 @@ and email staying on AWS. Two compliance-relevant items are in flight:
   Run, Cloud SQL, Memorystore) covering only products on Google's HIPAA Covered Products list; it
   does not extend to Vertex AI as a whole or to the Anthropic model-provider egress path. Any future
   Vertex AI or Gemini inference path requires per-product covered-service verification before PHI or
-  child data. Add Google as an active subprocessor in
-  `docs/legal/SUBPROCESSORS.md` at cutover, when Google compute begins carrying production data;
-  until then it remains a planned subprocessor.
+  child data. Google Cloud infrastructure is now listed as an active subprocessor in
+  `docs/legal/SUBPROCESSORS.md`; Google Gemini remains disabled as an AI runtime path.
 
 ## Accessibility
 
