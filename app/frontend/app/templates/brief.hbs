@@ -62,7 +62,7 @@
       {{#if (persistence-online)}}
         <form style="display: inline-block; padding-left: 10px;">
           <div style="float: left; margin-right: 4px; width: 150px;">
-          <Input @type="text" @value={{this.searchString}} @enter={{this.ctrlAction "searchBoards"}} class="form-control" placeholder="Search Boards" aria-label={{t "Search Boards" key="search_boards"}} />
+          <input type="text" value={{this.searchString}} {{on "input" (set-field this "searchString")}} {{on-enter (this.ctrlAction "searchBoards")}} class="form-control" placeholder="Search Boards" aria-label={{t "Search Boards" key="search_boards"}} />
           </div>
           <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "searchBoards")}}>{{t "Go" key="go"}}</button>
           <div style="clear: left;"></div>
@@ -117,7 +117,7 @@
           <button class="btn btn-default" data-toggle="dropdown"><span class="wide">{{t "Grid +/-" key="grid_plus_minus"}}</span><span class="skinny glyphicon glyphicon-th"></span></button>
           <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
             <li role="presentation">
-              <span style="display: block; width: 300px; height: 180px; position: relative;">
+              <span role="presentation" style="display: block; width: 300px; height: 180px; position: relative;">
                 <a role="menuitem" tabindex="-1" href="#" style="position: absolute; top: 0; left: 0; width: 100%; text-align: center;" {{on "click" (this.ctrlAction "modifyGrid" "add" "row" "top")}}>{{t "Add Row" key="add_row"}} <span class="glyphicon glyphicon-chevron-up"></span></a>
                 <a role="menuitem" tabindex="-1" href="#" style="position: absolute; top: 20px; left: 0; width: 100%; text-align: center;" {{on "click" (this.ctrlAction "modifyGrid" "remove" "row" "top")}}>{{t "Remove Row" key="remove_row"}} <span class="glyphicon glyphicon-remove"></span></a>
                 <a role="menuitem" tabindex="-1" href="#" style="position: absolute; top: 70px; right: 0; width: 50%; text-align: right;" {{on "click" (this.ctrlAction "modifyGrid" "add" "column" "right")}}>{{t "Add Column" key="add_column"}} <span class="glyphicon glyphicon-chevron-right"></span></a>

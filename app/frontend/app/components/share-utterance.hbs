@@ -17,7 +17,13 @@
       {{else}}
         <p class="la-share-text__empty">{{t "There's no message to share yet — add some words to your sentence first." key="nothing_to_share_yet"}}</p>
       {{/if}}
-      <div style='position: absolute; left: -1000px;'><input type="text" value={{this.sentence}} id="utterance_sentence" readonly /></div>
+      {{!-- Off-screen, aria-hidden, tabindex=-1 clipboard mirror (JS does .focus().select().val()
+           in share-utterance.js) — not a user-facing control, so it needs no accessible name.
+           The ancestor aria-hidden already removes it from the a11y tree; the rule checks the
+           element in isolation and can't see that, hence the scoped disable. --}}
+      {{! template-lint-disable require-input-accessible-name }}
+      <div style='position: absolute; left: -1000px;' aria-hidden="true"><input type="text" value={{this.sentence}} id="utterance_sentence" readonly tabindex="-1" /></div>
+      {{! template-lint-enable require-input-accessible-name }}
 
       <div class="row share_buttons modal_targets advanced_selection la-share-text__grid">
         {{#if this.appState.sessionUser.any_limited_supervisor}}

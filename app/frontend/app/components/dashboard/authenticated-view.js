@@ -1290,6 +1290,12 @@ export default Component.extend({
     },
     openSearch: function() {
       this.set('isSearchOpen', true);
+      // Move focus to the search field once the overlay renders (replaces the
+      // `autofocus` attribute, which reduces accessibility and is unreliable in an SPA).
+      runLater(function() {
+        var el = document.querySelector('.md-searchOverlay__input');
+        if(el) { el.focus(); }
+      }, 50);
     },
     closeSearch: function() {
       this.set('isSearchOpen', false);

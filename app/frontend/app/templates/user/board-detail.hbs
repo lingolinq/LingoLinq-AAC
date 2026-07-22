@@ -2637,7 +2637,7 @@
                             autocomplete="off"
                             oninput={{this.onUpdateCustomPaintColor}}
                             onchange={{this.onUpdateCustomPaintColor}}>
-                          <input value={{this.custom_paint_color}} id="bd-paint-hex-input" placeholder="#hex" class="md-board-edit-right-panel__custom-picker-hex" autocomplete="off" {{on "input" (set-field this "custom_paint_color")}} />
+                          <input value={{this.custom_paint_color}} id="bd-paint-hex-input" placeholder="#hex" aria-label={{t "Custom hex color" key="custom_hex_color"}} class="md-board-edit-right-panel__custom-picker-hex" autocomplete="off" {{on "input" (set-field this "custom_paint_color")}} />
                           <button type="button"
                             class="md-board-edit-right-panel__custom-picker-apply"
                             data-bd-action="apply_custom_paint_color" {{on "click" (this.ctrlAction "apply_custom_paint_color")}}>
@@ -2834,7 +2834,7 @@
                             {{#if opt.divider}}
                               <li class="md-settings-dropdown-divider" role="separator" aria-hidden="true"></li>
                             {{else}}
-                              <li>
+                              <li role="presentation">
                                 <button type="button" role="option" aria-selected={{if (is-equal this.current_display_prefs.button_style opt.id) "true" "false"}} class="md-settings-dropdown-item {{if (is-equal this.current_display_prefs.button_style opt.id) 'md-settings-dropdown-item--active'}}" {{on "click" (this.ctrlAction "pick_display_font" opt.id)}}>
                                   {{#if (is-equal this.current_display_prefs.button_style opt.id)}}
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
@@ -2947,7 +2947,7 @@
                         <div class="md-settings-dropdown-backdrop" data-bd-action="close_display_symbol_background_dropdown" {{on "click" (this.ctrlAction "close_display_symbol_background_dropdown")}} aria-hidden="true"></div>
                         <ul class="md-settings-dropdown-menu" role="listbox" aria-label={{t "Image background color" key="board_detail_prefs_image_background"}}>
                           {{#each this.symbol_background_options as |opt|}}
-                            <li>
+                            <li role="presentation">
                               <button type="button" role="option" aria-selected={{if (is-equal this.display_prefs_current_symbol_background_id opt.id) "true" "false"}} class="md-settings-dropdown-item {{if (is-equal this.display_prefs_current_symbol_background_id opt.id) 'md-settings-dropdown-item--active'}}" {{on "click" (this.ctrlAction "pick_display_symbol_background" opt.id)}}>
                                 {{#if (is-equal this.display_prefs_current_symbol_background_id opt.id)}}
                                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
@@ -3063,7 +3063,7 @@
                       <div class="md-settings-dropdown-backdrop" data-bd-action="close_display_symbol_library_dropdown" {{on "click" (this.ctrlAction "close_display_symbol_library_dropdown")}} aria-hidden="true"></div>
                       <ul class="md-settings-dropdown-menu" role="listbox" aria-label={{t "Symbol library" key="board_detail_prefs_symbol_library"}}>
                         {{#each this.preferred_symbols_options as |opt|}}
-                          <li>
+                          <li role="presentation">
                             <button type="button" role="option" aria-selected={{if (is-equal this.current_display_prefs.preferred_symbols opt.id) "true" "false"}} class="md-settings-dropdown-item {{if (is-equal this.current_display_prefs.preferred_symbols opt.id) 'md-settings-dropdown-item--active'}}" {{on "click" (this.ctrlAction "pick_display_symbol_library" opt.id)}}>
                               {{#if (is-equal this.current_display_prefs.preferred_symbols opt.id)}}
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
@@ -3432,7 +3432,7 @@
                         <div class="md-settings-dropdown-backdrop" data-bd-action="close_display_voice_height_dropdown" {{on "click" (this.ctrlAction "close_display_voice_height_dropdown")}} aria-hidden="true"></div>
                         <ul class="md-settings-dropdown-menu" role="listbox" aria-label={{t "Sentence bar size" key="board_detail_prefs_voice_height_aria"}}>
                           {{#each this.voice_height_options as |opt|}}
-                            <li>
+                            <li role="presentation">
                               <button type="button" role="option" aria-selected={{if (is-equal this.current_display_prefs.vocalization_height opt.id) "true" "false"}} class="md-settings-dropdown-item {{if (is-equal this.current_display_prefs.vocalization_height opt.id) 'md-settings-dropdown-item--active'}}" {{on "click" (this.ctrlAction "pick_display_voice_height" opt.id)}}>
                                 {{#if (is-equal this.current_display_prefs.vocalization_height opt.id)}}
                                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
@@ -3502,7 +3502,7 @@
                           <div class="md-settings-dropdown-backdrop" data-bd-action="close_word_prediction_position_dropdown" {{on "click" (this.ctrlAction "close_word_prediction_position_dropdown")}} aria-hidden="true"></div>
                           <ul class="md-settings-dropdown-menu" role="listbox" aria-label={{t "Word prediction position" key="word_prediction_position"}}>
                             {{#each this.word_prediction_position_options as |opt|}}
-                              <li>
+                              <li role="presentation">
                                 <button type="button" role="option" aria-selected={{if (is-equal this.word_suggestion_position_value opt.id) "true" "false"}} class="md-settings-dropdown-item {{if (is-equal this.word_suggestion_position_value opt.id) 'md-settings-dropdown-item--active'}}" {{on "click" (this.ctrlAction "pick_word_suggestion_position" opt.id)}}>
                                   {{#if (is-equal this.word_suggestion_position_value opt.id)}}
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>

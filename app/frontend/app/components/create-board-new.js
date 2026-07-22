@@ -2286,6 +2286,10 @@ export default Component.extend({
      *  button into one affordance, mirroring how the palette pill
      *  itself is the activation/deactivation control. */
     toggle_paint_dropdown: function() {
+      // Collapse a duplicate toggle from one modal click (same fix as bound-select.js).
+      var now = (window.performance && performance.now) ? performance.now() : Date.now();
+      if (this._lastPaintDropdownToggle != null && (now - this._lastPaintDropdownToggle) < 250) { return; }
+      this._lastPaintDropdownToggle = now;
       if(this.get('paint_mode')) {
         this.send('clear_paint_mode');
         this.set('show_paint_dropdown', false);
@@ -2339,6 +2343,9 @@ export default Component.extend({
       this.notifyPropertyChange('_painted_colors');
     },
     toggle_paint_color_picker: function() {
+      var now = (window.performance && performance.now) ? performance.now() : Date.now();
+      if (this._lastPaintColorPickerToggle != null && (now - this._lastPaintColorPickerToggle) < 250) { return; }
+      this._lastPaintColorPickerToggle = now;
       this.toggleProperty('show_paint_color_picker');
     },
     update_custom_paint_color: function(value) {

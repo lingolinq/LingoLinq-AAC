@@ -9,7 +9,7 @@
           <button type="button" class="btn btn-default">
             {{t "Import Board(s)" key="import_boards"}}
           </button>
-          <input type="file" name="board_upload" id="board_upload" tabindex="-1">
+          <input type="file" name="board_upload" id="board_upload" tabindex="-1" aria-label={{t "Import Board(s)" key="import_boards"}}>
         </span>
         {{#if this.paste_html_import_enabled}}
           <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "importFromHtml")}}>
@@ -48,7 +48,7 @@
                renders. It is JS-targeted (getElementById + content-grabbers), so
                renaming breaks board import. --}}
           {{! template-lint-disable no-duplicate-id }}
-          <input type="file" name="board_upload" id="board_upload" tabindex="-1">
+          <input type="file" name="board_upload" id="board_upload" tabindex="-1" aria-label={{t "Import Board(s)" key="import_boards"}}>
           {{! template-lint-enable no-duplicate-id }}
         </span>
         {{#if this.paste_html_import_enabled}}

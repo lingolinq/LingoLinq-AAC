@@ -7006,3 +7006,51 @@ all learned the same way — static analysis being wrong about the runtime (cf. 
    and do a clean rebaseline only as an isolated housekeeping commit. Editing a template near a
    deferred violation re-fingerprints/renumbers its entry (a 1-line `input` edit re-keyed its
    `require-input-accessible-name` entry) — expected, commit it with the template change. (2026-07-20)
+
+## Template action-chains fail SILENTLY on a wrong/missing model-computed name (2026-07-21)
+Button Settings modal: selecting "Open a web site" or "Launch an application" showed
+NOTHING below the Action dropdown. Reported as "selecting an action doesn't save."
+Root cause was purely in `button-settings.hbs`: the `{{#if}}/{{else if}}` chain that
+renders per-action config branched on `this.model.openUrlAction` — **a computed that
+exists nowhere** (real name `linkAction`, `utils/button.js:240`) — and had **no
+`appAction` branch at all** (computed exists, `button.js:243`; all supporting JS —
+`find_app`/`pick_app`/`set_app_find_mode`, `ios_search`/`*_status_class`,
+`contentGrabbers.setup(btn, this)` — was already present). A bad `{{else if this.model.X}}`
+produces no error/warning; the pane just stays blank.
+- **Diagnostic pattern:** when a modal pane "does nothing / won't save," first check whether
+  the config UI even RENDERS. Extract every `this.model.<x>Action` the hbs references and grep
+  each against the model's actual computed definitions; cross-check dropdown option `id`s
+  (`buttonActions`: talk/folder/link/app/integration) against the `== 'id'` checks in the
+  computeds. Mismatch = dead branch.
+- **Recovery:** original working markup lived in the pre-component template
+  (`git show 869c59c2f:app/frontend/app/templates/button-settings-action.hbs`); port faithfully
+  rather than invent, adapting to current conventions (native `<input>`+`set-field`,
+  `{{on "click" (this.ctrlAction ...)}}`, `this.` prefixes, `{{t "..." key='...'}}`).
+- **i18n gotcha:** a reused key with two different default strings ("custom_launch" for iOS vs
+  Android) → generator aborts with `DUPLICATE`. Give each string a distinct key. After adding
+  `{{t}}` helpers, `ruby i18n_generator.rb --generate` (syncs en.json to template usage; prunes
+  0-reference orphans) then `--merge` (propagates to 12 locales in the `"<trans> [[ <English>"`
+  convention). Validate all locale JSON parses after.
+
+## Driving the button-settings modal headlessly (Puppeteer) — it CAN be automated
+Prior handoffs claimed the button-settings modal "can't be driven headless." It can.
+- **Auth without a password:** mint a token in Rails (`Device.generate_token!` → the value is
+  `device.settings['keys'].last['value']`), then in the browser BEFORE app boot set
+  `localStorage['lingolinqStash-auth_settings'] = JSON.stringify({access_token, token_type:'bearer',
+  user_name, user_id})` and `localStorage['lingolinqStash-prior_login']='"true"'`. `stashes.setup()`
+  reads `lingolinqStash-*` keys on boot; `capabilities.access_token` syncs from auth_settings.
+- **Speak-mode board URL:** `/:user/board-detail/:boardname` (board-detail defaults to speak mode).
+  Edit mode: append `/edit`. Clicking a symbol card in edit mode opens button-settings.
+- **Modal internals:** nav pills are `#button_settings .nav-pills a` (match EXACT text — "Action"
+  vs "Quick Actions"). The action `<BoundSelect>` trigger is `#action`; its options are
+  `.bound-select__option` (click by text). The destination picker is `.md-board-collection` with
+  `.md-board-collection__item` rows grouped in `.md-board-collection__section` (My Boards first,
+  then brand groups = community). A cross-author pick raises the confirm card
+  (`.md-bs-card--selected` eyebrow "Choose how to use this board"); `.md-bs-choose__btn` "Use
+  original board" links directly. Selected link shows in `.md-bs-dest__name`.
+- **Save path:** closing button-settings does NOT save the board. Click "Done Editing"
+  (`.md-board-edit-session__btn--save`, action `back_to_boards`) → it opens the `confirm-leave-edit`
+  modal → click `.md-leave-edit-btn--save` to actually persist. Missing this step = edits lost.
+- **Folder-link navigation is sound:** verified own + community links persist with `load_board.key`
+  and navigate in speak mode. `load_board` is dropped at runtime ONLY when `link_disabled` is true
+  (`app-state.js:3764`) or the whole hash is server-deleted for an unviewable/missing target.

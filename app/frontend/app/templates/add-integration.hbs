@@ -62,7 +62,7 @@
       </div>
       {{#if this.integration.with_board_url}}
         <div class="form-group" style='margin-top: -10px; margin-bottom: 20px;'>
-          <label for="integration_button_url" class="col-sm-3 col-sm-offset-3 control-label">{{t "Event URL" key="event_url"}}</label>
+          <label for="board_render_url" class="col-sm-3 col-sm-offset-3 control-label">{{t "Event URL" key="event_url"}}</label>
           <div class="col-sm-6">
             <input value={{this.integration.board_render_url}} class="form-control" id="board_render_url" placeholder="Board Render URL" {{on "input" (set-field this "integration.board_render_url")}} />
             {{#if this.integration.insecure_board_render_url}}
