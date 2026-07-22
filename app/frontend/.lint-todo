@@ -182,3 +182,4 @@ add|ember-template-lint|require-input-accessible-name|859|14|859|14|dae5914379df
 add|ember-template-lint|require-input-accessible-name|1445|18|1445|18|b3a2f12f82fef0da38a643ebd16c238bb9251317|1784505600000|1787097600000|1789689600000|app/templates/user/preferences.hbs
 add|ember-template-lint|require-input-accessible-name|1461|18|1461|18|7fa457d4c025b6dd3d021a588e3d746601dd3f07|1784505600000|1787097600000|1789689600000|app/templates/user/preferences.hbs
 add|ember-template-lint|require-input-accessible-name|100|6|100|6|c22ec51ef3b29d8aea93c009a4e88b223394d46d|1784505600000|1787097600000|1789689600000|app/templates/user/recordings.hbs
+remove|ember-template-lint|no-builtin-form-components|65|10|65|10|2ec6c9e3cbb8038f9de2854faae66da1c7aa619f|1784505600000|1787097600000|1789689600000|app/templates/brief.hbs

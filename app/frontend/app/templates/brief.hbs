@@ -60,11 +60,11 @@
     {{/if}}
     {{#if this.app_state.empty_header}}
       {{#if (persistence-online)}}
-        <form style="display: inline-block; padding-left: 10px;">
+        <form style="display: inline-block; padding-left: 10px;" {{on "submit" (this.ctrlAction "searchBoards")}}>
           <div style="float: left; margin-right: 4px; width: 150px;">
-          <Input @type="text" @value={{this.searchString}} @enter={{this.ctrlAction "searchBoards"}} class="form-control" placeholder="Search Boards" />
+          <input type="text" value={{this.searchString}} class="form-control" placeholder={{t "Search Boards" key="search_boards"}} aria-label={{t "Search Boards" key="search_boards"}} {{on "input" (set-field this "searchString")}} />
           </div>
-          <button class="btn btn-default" {{on "click" (this.ctrlAction "searchBoards")}}>{{t "Go" key="go"}}</button>
+          <button type="submit" class="btn btn-default">{{t "Go" key="go"}}</button>
           <div style="clear: left;"></div>
         </form>
       {{/if}}
