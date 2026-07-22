@@ -2,8 +2,10 @@ import Controller from '@ember/controller';
 import LingoLinq from '../../app';
 import Utils from '../../utils/misc';
 import { computed } from '@ember/object';
+import { inject as service } from '@ember/service';
 
 export default Controller.extend({
+  session: service('session'),
   load_results: function() {
     var _this = this;
     _this.set('history', {loading: true});
