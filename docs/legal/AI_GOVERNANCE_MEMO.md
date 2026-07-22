@@ -1,6 +1,6 @@
 # LingoLinq AAC AI Governance Memo
 
-> **ATTESTED 2026-06-19; RE-ATTESTED 2026-07-19 by Scot Wahlquist, CEO.** Phase 3 deliverable. This memo documents how
+> **ATTESTED 2026-06-19; RE-ATTESTED 2026-07-22 by Scot Wahlquist, CEO.** Phase 3 deliverable. This memo documents how
 > LingoLinq uses AI models, the controls that keep identifiable data out of external models, and
 > the EU AI Act classification analysis. It is a living document; model ids and code citations are
 > point-in-time and were re-verified against live code on 2026-06-19 prior to original attestation
@@ -15,7 +15,7 @@
 > Draft date: 2026-06-13. Refreshed 2026-06-18 (eval narration added to the inventory after
 > #411/#412/#413; DeepSeek-on-compliance-surface discrepancy flagged in section 4). Re-verified
 > and attested 2026-06-19. Refreshed 2026-07-12 (section 4.1 discrepancy resolved via Scot's
-> ratified two-tier AI data-routing policy). Re-attested 2026-07-13. Refreshed 2026-07-18/19 (Anthropic HIPAA-Ready BAA recorded; section 3 HIPAA conclusion for the model-call path updated to BAA-covered; eval narration classified NOT a Healthcare Activity; model inventory updated). Re-attested 2026-07-19. Refreshed 2026-07-22 (Art50 Phase 5: section 5.2 rewritten to record that the 50(1) disclosure modal, ack endpoint, and first-AI-use gate are built and staged, gated OFF behind the `article_50_disclosure` flag registered AVAILABLE-only; Phase 4 jurisdiction stamping shipped and un-inerts the EU log-retention purge; retention tiers reconciled). This 2026-07-22 refresh awaits Scot's re-attestation. Operative reference: NIST AI RMF plus the Generative AI Profile
+> ratified two-tier AI data-routing policy). Re-attested 2026-07-13. Refreshed 2026-07-18/19 (Anthropic HIPAA-Ready BAA recorded; section 3 HIPAA conclusion for the model-call path updated to BAA-covered; eval narration classified NOT a Healthcare Activity; model inventory updated). Re-attested 2026-07-19. Refreshed 2026-07-22 (Art50 Phase 5: section 5.2 rewritten to record that the 50(1) disclosure modal, ack endpoint, and first-AI-use gate are built and staged, gated OFF behind the `article_50_disclosure` flag registered AVAILABLE-only; Phase 4 jurisdiction stamping shipped and un-inerts the EU log-retention purge; retention tiers reconciled). Re-attested 2026-07-22 by Scot Wahlquist, CEO (see section 8, 2026-07-22 amendment). Operative reference: NIST AI RMF plus the Generative AI Profile
 > (NIST AI 600-1). ISO 42001 certification is not yet a small-vendor expectation and is out of
 > scope for now.
 >
@@ -324,7 +324,7 @@ Tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`,
 | Reviewed by | adversary agent |
 | Attested by | **Scot Wahlquist, CEO** |
 | Original attestation date | **2026-06-19** |
-| Latest re-attestation date | **2026-07-19** |
+| Latest re-attestation date | **2026-07-22** |
 
 _Phase 3 deliverable of the Audit/Compliance System Modernization (plan section 6, sections 1.3
 and 1.8). Model ids and code citations were re-verified against live code on 2026-06-19 prior to
@@ -390,3 +390,20 @@ updated accordingly. This is a **substantive** change to the attested HIPAA anal
 (AI drafts and flags, humans attest and accept risk), Scot reviewed and re-attested it on
 2026-07-19. Code, BAA, and classification citations were verified against `origin/staging` (PRs
 #631 and #632 merged 2026-07-19) and the live Anthropic API._
+
+_Amended 2026-07-22, re-attested 2026-07-22 by Scot Wahlquist, CEO: **EU AI Act Article 50 Phase 5
+refresh.** Section 5.2 was rewritten to record that the Art. 50(1) user-facing AI-interaction
+disclosure modal, its acknowledgement endpoint, and the first-AI-use gate are **built and staged
+but gated OFF** behind the `article_50_disclosure` frontend flag, which is registered in
+`AVAILABLE_FRONTEND_FEATURES` only (not enabled for any user); the modal is therefore shown to no
+one in production, and enabling it for EU accounts is the 2026-08-02 release gate on the CEO's
+explicit sign-off after the production deploy. Phase 4 jurisdiction stamping (`Article50CallContext`
+stamps `jurisdiction = 'EU'` at the three AI call sites, merged to staging) un-inerts the EU
+`AiApiLog` 5-year retention purge (`purge_old_eu_logs!`) wherever Phase 4 is deployed. The
+`AiApiLog` retention tiers were reconciled to a single wording across the memo, `DATA_RETENTION.md`,
+`AI_DATA_FLOW_CLASSIFICATION.md`, and `scheduler.rake` (EU 5-year and 90-day IP redaction enforced;
+children 12-month and general 24-month **decided, not yet enforced** pending a per-row
+retention-class marker; HIPAA 6-year floor open). No new external data egress or model routing is
+introduced. This is a **substantive** change to the attested Article 50 position; per section 6 (AI
+drafts and flags, humans attest and accept risk), Scot reviewed and re-attested it on 2026-07-22.
+Nothing in this refresh goes live in production until Phases 3-5 deploy and the flag is enabled._
