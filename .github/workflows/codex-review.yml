@@ -192,6 +192,7 @@ jobs:
           CODEX_HOME: ${{ runner.temp }}/codex-home
         run: |
           codex exec \
+            --enable use_legacy_landlock \
             --sandbox read-only \
             -m gpt-5.5 \
             --output-schema .github/codex/review-schema.json \
@@ -203,7 +204,7 @@ jobs:
           if ! python3 -c "import json; json.load(open('/tmp/review.json'))" 2>/dev/null; then
             echo "First pass produced invalid JSON; retrying with stricter instruction." >&2
             { cat /tmp/prompt.md; echo ""; echo "Output ONLY the JSON object. No prose, no markdown fences."; } \
-              | codex exec --sandbox read-only -m gpt-5.5 \
+              | codex exec --enable use_legacy_landlock --sandbox read-only -m gpt-5.5 \
                   --output-schema .github/codex/review-schema.json \
                   --output-last-message /tmp/review.json
           fi
