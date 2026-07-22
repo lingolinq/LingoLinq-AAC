@@ -9,8 +9,9 @@
 > request, or finding ID that can be verified against live code. Aspirational controls are confined
 > to Section 12 and are marked "not yet built" so nothing here reads as a promise we cannot keep.
 >
-> **Version:** 1.0 (attested) · **Date:** 2026-06-18 · **Attested by:** Scot Wahlquist, CEO
-> (2026-06-18) · **Supersedes:** Master Compliance & Security Program v1.0/v1.1 · **Source of
+> **Version:** 1.1 (re-attested) · **Date:** 2026-06-18 (v1.0); 2026-07-22 (v1.1) ·
+> **Attested by:** Scot Wahlquist, CEO (2026-06-18; 2026-07-22) · **Supersedes:** Master
+> Compliance & Security Program v1.0/v1.1 · **Source of
 > truth for status:** `audit-reports/FINDINGS.json`
 
 ---
@@ -315,39 +316,49 @@ over them.
 
 ## 15. Attestation
 
-**Attestation statement.** As CEO and the accountable owner of LingoLinq's compliance program, I
-attest that, to the best of my knowledge as of the dates recorded below:
+**Re-attestation statement.** As CEO and the accountable owner of LingoLinq's compliance program, I
+re-affirm points 1 through 6 of the 2026-06-18 attestation: this document is an honest,
+evidence-based description of the program; implemented controls in Sections 5 through 11 are backed
+by code, configuration, or signed agreements with accurate citations; aspirational controls remain
+confined to Section 12; known residuals remain tracked rather than hidden, including LL-11db0dc848,
+LL-e573a39d2b, LL-6619cc1811, LL-aacae48768, and LL-7f7372e3eb; counsel-dependent claims remain
+internal; and no external sharing is authorized until explicitly released. I additionally attest
+that, to the best of my knowledge as of 2026-07-22:
 
 1. This document is an honest, evidence-based description of the compliance and security program as
-   it actually exists, not as we aspire for it to be.
-2. Every control described in Sections 5 through 11 as "implemented" is backed by code,
-   configuration, or a signed agreement that my team can produce on request, and the file, PR, or
-   finding ID cited for each is accurate.
-3. Aspirational and not-yet-built controls are confined to Section 12 and are not represented
-   anywhere above as live.
-4. The open residuals are known, tracked in the register, and accepted as the current state rather
-   than hidden: the eval consent-binding residual (LL-11db0dc848), free-text named-entity coverage in
-   PiiScrubber (LL-e573a39d2b), Redis TLS closure evidence pending the in-context Cloud Run
-   `rediss://` PONG and attestation (LL-6619cc1811), and the Render-tail findings that remain until
-   fallback infrastructure is deleted or restricted (including LL-aacae48768 and LL-7f7372e3eb).
-5. The items flagged for counsel in Section 14 (the 16 CFR 312.2 internal-operations carve-out, the
-   FERPA studies-exception conditions, and the HIPAA de-identification standard) have not yet been
-   confirmed with counsel, and the related claims are not to go external until they are.
-6. This document is internal. It is not authorized for external sharing, in full or in summary,
-   until I explicitly release a version for that purpose.
+   it actually exists after the Gate 1 GCP DNS cutover, not as we aspire for it to be.
+2. The infrastructure posture described in Section 11 is accurate: `app.lingolinq.com` serves from
+   Google Cloud Platform on Cloud Run behind the Google Cloud load balancer, using Cloud SQL
+   PostgreSQL and Memorystore Redis, while Render remains a write-frozen rollback fallback pending
+   explicit decommission.
+3. The vendor and BAA posture described here is accurate for the live hosting path: AWS remains the
+   storage/email provider under the AWS BAA, Google Cloud Platform is the active infrastructure
+   host under the accepted GCP CDPA / HIPAA BAA / SCCs, Anthropic is the active runtime AI provider
+   under the executed HIPAA-Ready BAA, and Render remains listed only because fallback data and
+   services still exist.
+4. This re-attestation does not close, downgrade, or supersede any finding by itself. Finding
+   status remains governed by `audit-reports/FINDINGS.json`: Redis TLS (LL-6619cc1811) has its
+   in-context Cloud Run `rediss://` PONG evidence captured, but formal closure still requires the
+   separate register update; LL-f150e0e828 still needs functional offboarding-consent verification;
+   LL-aacae48768 and LL-7f7372e3eb remain Render-tail items until the fallback is deleted or
+   restricted.
+5. The items flagged for counsel in Section 14, customer notice timing for the new active GCP
+   infrastructure subprocessor listing, Render decommission, and external release of any summary
+   remain separate decisions. This document is internal and is not authorized for external sharing,
+   in full or in summary, until I explicitly release a version for that purpose.
 
 This attestation reflects the register's audited commit and the live infrastructure state verified on
 the attestation date. It is not a certification, a legal opinion, or a guarantee of compliance.
 
 | Field | Value |
 |---|---|
-| Prepared by | Compliance review (Claude, acting as compliance officer), draft |
-| Reviewed by | Adversary review 2026-06-18: v0.1 findings (1 Critical + 2 High + 2 Medium + 1 nit) all addressed in v0.2; re-verification confirmed each fixed against the live register and code (verdict: attestable) |
-| Register audited commit | `d72463c7558f1f00543763f3ab866fcecf4606d1` (2026-06-17) |
-| Posture at that commit | 0 open Critical; see `audit-reports/FINDINGS.json` / `docs/legal/COMPLIANCE_POSTURE_REPORT.md` for live High / Medium / Low |
-| Infrastructure state verified | 2026-07-22 Gate 1 DNS cutover: `app.lingolinq.com` live on GCP; Render retained as write-frozen rollback fallback pending explicit decommission |
+| Prepared by | Compliance review (Claude, acting as compliance officer), draft; Codex repo/evidence refresh |
+| Reviewed by | Post-cutover consistency sweep against merged staging commit `0ce7c2f700aecfd8a55b2943a83f6e58f6117eec`; register-derived counts and document hashes regenerated |
+| Register audited commit | `20953ab3d5a80c3a9cbb249f37a79357b7f1baf1` (auditedDate 2026-07-08) |
+| Posture at that commit | 0 open Critical / 5 open High / 24 open Medium / 25 open Low, per `audit-reports/FINDINGS.json` |
+| Infrastructure state verified | 2026-07-22 Gate 1 DNS cutover: `app.lingolinq.com` live on GCP load balancer IP `136.68.41.122`; Redis PONG captured from Cloud Run execution `lingolinq-migrate-vl5d5` at 2026-07-22T05:00:46Z (`ping=PONG`, `scheme=rediss`, `ca_blocks=1`, `verify_hostname=false`). `ca_blocks=1` is the expected Memorystore instance-CA chain length for this endpoint; `verify_hostname=false` is the documented pinned-CA/private-IP hatch while CA-chain verification remains on. Render retained as write-frozen rollback fallback pending explicit decommission. |
 | Attested by | Scot Wahlquist, CEO |
-| Attestation date | 2026-06-18; post-Gate-1 update pending Scot re-attestation |
+| Attestation date | 2026-06-18 (v1.0); 2026-07-22 (v1.1) |
 
 _Once attested, the canonical home for this document is the repository at
 `docs/legal/COMPLIANCE_PROGRAM.md`, alongside the evidence it indexes. Moving it there is a
