@@ -40,7 +40,7 @@
 | Compliance & Security Program v1.0 (Attested) | Drive | [open](https://docs.google.com/document/d/1bvVQClfhbNUCCPnmFZoDABlBA9hGNCEHQnWA2Z-r9Dg/edit) | published | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-12-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06 |
 | Compliance Posture Report | git | `docs/legal/COMPLIANCE_POSTURE_REPORT.md` | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-07-16 | 2026-10-16 | 2026-07-16 | `80af6f2c5b34` | school-dpa-package |
 | Compliance Posture Report (branded) | Drive | [open](https://docs.google.com/document/d/1A2cM0m6GvErHwpiMgns258NbN_M2krNB_HyedHJkqpk/edit) | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, school-dpa-package |
-| Compliance Program | git | `docs/legal/COMPLIANCE_PROGRAM.md` | approved | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-06-18 | 2027-06-18 | 2026-07-06 | `f28a8bf454c0` | compliance-records-set-2026-06 |
+| Compliance Program | git | `docs/legal/COMPLIANCE_PROGRAM.md` | approved | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-07-22 | 2027-07-22 | 2026-07-22 | `1d1f81b0eeab` | compliance-records-set-2026-06 |
 | Records of Processing Activities (RoPA) and Data Map | Drive | [open](https://docs.google.com/document/d/1x6F8qiqR_7Ojc6-TQGYp2HYBMxjIUTzH0EGCQj8R-qg/edit) | published | GDPR | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06 |
 
 ### evidence (8)
