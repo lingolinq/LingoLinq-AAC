@@ -334,7 +334,7 @@
               placeholder={{t "Search" key="search_short"}}
               aria-label={{t "Search buttons" key="search_buttons_aria"}}
               value={{this.board_search_string}}
-              {{on "input" (this.ctrlAction "update_board_search")}}
+              {{on "input" (this.eventAction "update_board_search")}}
             />
             {{#if this.board_search_string}}
               <button type="button" class="md-board-edit-panel__search-clear" data-bd-action="clear_board_search" {{on "click" (this.ctrlAction "clear_board_search")}} aria-label={{t "Clear filter" key="clear_filter"}}>
@@ -913,7 +913,7 @@
             (handled by board-detail controller) so this is purely a mouse
             convenience — hide it from AT. --}}
           <div class="md-board-detail-actions-backdrop" data-bd-action="toggle_options_menu" {{on "click" (this.ctrlAction "toggle_options_menu")}} aria-hidden="true"></div>
-          <div class="md-board-detail-actions-menu" role="menu" {{on "keydown" (this.ctrlAction "options_menu_keydown")}}>
+          <div class="md-board-detail-actions-menu" role="menu" {{on "keydown" (this.eventAction "options_menu_keydown")}}>
             {{#unless this.edit_mode}}
               {{!-- Edit Board — pulled out of the BOARD section per
                    design request and floated above all other items as
@@ -1586,7 +1586,7 @@
                        internal scroll; on focus the JS expands it to
                        its full scrollHeight, letting the page scroll
                        handle anything past the viewport. --}}
-                  <textarea class="md-board-detail-header__info-description md-board-detail-header__info-description--editable" placeholder={{t "Add a description for this board..." key="board_detail_description_placeholder"}} rows="3" aria-label={{t "Board description" key="board_detail_description_label"}} {{on "focus" (this.ctrlAction "auto_resize_description")}} {{on "input" (this.ctrlAction "auto_resize_description")}} {{on "blur" (this.ctrlAction "auto_resize_description_blur")}}>{{this.model.description}}</textarea>
+                  <textarea class="md-board-detail-header__info-description md-board-detail-header__info-description--editable" placeholder={{t "Add a description for this board..." key="board_detail_description_placeholder"}} rows="3" aria-label={{t "Board description" key="board_detail_description_label"}} {{on "focus" (this.eventAction "auto_resize_description")}} {{on "input" (this.eventAction "auto_resize_description")}} {{on "blur" (this.eventAction "auto_resize_description_blur")}}>{{this.model.description}}</textarea>
                 </div>
               {{else}}
                 <div class="md-board-detail-header__title-row">
@@ -2017,7 +2017,7 @@
                           aria-label={{btn.label}}>
                           {{#if btn.image}}
                             <span class="md-board-detail-phrase-builder__sentence-chip-img">
-                              <img src={{btn.image}} alt="" draggable="false" onerror="this.style.display='none'">
+                              <img src={{btn.image}} alt="" draggable="false" {{hide-on-error "display"}}>
                             </span>
                           {{/if}}
                           <span class="md-board-detail-phrase-builder__sentence-chip-label">{{btn.label}}</span>
@@ -2091,44 +2091,44 @@
         </div>
       {{else}}
       <div class="md-board-detail-grid-fade {{if this.grid_loading 'md-board-detail-grid-fade--loading'}}">
-      {{board-detail-grid
-        board=this.model
-        orderedButtons=this.ordered_buttons
-        activeCategory=this.active_category
-        editMode=this.edit_mode
-        previewLevelsMode=this.preview_levels_mode
-        paintMode=this.paint_mode
-        labelsEditable=true
-        boardSaving=this.board_saving
-        folderLabelsOnTab=this.folder_labels_on_tab
-        folderColoredCorner=this.folder_colored_corner
-        folderColoredFace=this.folder_colored_face
-        shrinkLabelsToFit=this.shrink_labels_to_fit
-        softBorders=this.soft_borders
-        buttonTextSizeClass=this.button_text_size_class
-        buttonTextPositionClass=this.button_text_position_class
-        hiddenButtonsClass=this.hidden_buttons_class
-        symbolBackgroundClass=this.symbol_background_class
-        highContrastClass=this.high_contrast_class
-        buttonShapeClass=this.button_shape_class
-        gridStyle=this.grid_style
-        buttonTextSizePx=this.button_text_size_px
-        buttonSpacingPx=this.button_spacing_px
-        buttonBorderPx=this.button_border_px
-        buttonFontStyle=this.button_font_style
-        bgStyle=this.bg_style
-        bgClass=this.bg_class
-        bgImgStyle=this.bg_img_style
-        colorPickerButton=this.color_picker_button
-        colorPickerSwatches=this.color_picker_swatches
-        customColorValue=this.custom_color_value
-        buttonEvent=(this.ctrlAction "button_event")
-        selectButton=(this.ctrlAction "select_button")
-        selectButtonKey=(this.ctrlAction "select_button_key")
-        closeColorPicker=(this.ctrlAction "close_color_picker")
-        applySwatchColor=(this.ctrlAction "apply_swatch_color")
-        toggleMinicolors=(this.ctrlAction "toggle_minicolors")
-        applyCustomColor=(this.ctrlAction "apply_custom_color")}}
+      <BoardDetailGrid
+        @board={{this.model}}
+        @orderedButtons={{this.ordered_buttons}}
+        @activeCategory={{this.active_category}}
+        @editMode={{this.edit_mode}}
+        @previewLevelsMode={{this.preview_levels_mode}}
+        @paintMode={{this.paint_mode}}
+        @labelsEditable={{true}}
+        @boardSaving={{this.board_saving}}
+        @folderLabelsOnTab={{this.folder_labels_on_tab}}
+        @folderColoredCorner={{this.folder_colored_corner}}
+        @folderColoredFace={{this.folder_colored_face}}
+        @shrinkLabelsToFit={{this.shrink_labels_to_fit}}
+        @softBorders={{this.soft_borders}}
+        @buttonTextSizeClass={{this.button_text_size_class}}
+        @buttonTextPositionClass={{this.button_text_position_class}}
+        @hiddenButtonsClass={{this.hidden_buttons_class}}
+        @symbolBackgroundClass={{this.symbol_background_class}}
+        @highContrastClass={{this.high_contrast_class}}
+        @buttonShapeClass={{this.button_shape_class}}
+        @gridStyle={{this.grid_style}}
+        @buttonTextSizePx={{this.button_text_size_px}}
+        @buttonSpacingPx={{this.button_spacing_px}}
+        @buttonBorderPx={{this.button_border_px}}
+        @buttonFontStyle={{this.button_font_style}}
+        @bgStyle={{this.bg_style}}
+        @bgClass={{this.bg_class}}
+        @bgImgStyle={{this.bg_img_style}}
+        @colorPickerButton={{this.color_picker_button}}
+        @colorPickerSwatches={{this.color_picker_swatches}}
+        @customColorValue={{this.custom_color_value}}
+        @buttonEvent={{this.ctrlAction "button_event"}}
+        @selectButton={{this.ctrlAction "select_button"}}
+        @selectButtonKey={{this.ctrlAction "select_button_key"}}
+        @closeColorPicker={{this.ctrlAction "close_color_picker"}}
+        @applySwatchColor={{this.ctrlAction "apply_swatch_color"}}
+        @toggleMinicolors={{this.ctrlAction "toggle_minicolors"}}
+        @applyCustomColor={{this.ctrlAction "apply_custom_color"}} />
       </div>{{!-- /.md-board-detail-grid-fade --}}
       {{/if}}{{!-- /nothing_visible_not_edit --}}
       {{/if}}{{!-- /active_view phrase-builder vs symbol-board --}}

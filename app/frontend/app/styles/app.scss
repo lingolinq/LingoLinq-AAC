@@ -3930,8 +3930,12 @@ footer a:hover,
 .highlight {
   background: rgba(0, 0, 0, 0.35);
 }
-/* Scanning highlight box — modern high-contrast border */
+/* Scanning highlight box — modern high-contrast border. It sits ON TOP of the
+   highlighted button, so it must stay transparent: the base `.highlight` rule sets
+   a 0.35 black background (for the dimming masks), which would otherwise tint the
+   target button dark and hard to see. Only the border + glow should show here. */
 .highlight.box {
+  background: transparent;
   border: 5px solid $brand-verdigris;
   border-radius: 12px;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -16340,6 +16344,9 @@ form.row.subscription-form-with-cards {
 .md-speak-menu__row--2 { grid-template-columns: repeat(2, 1fr); }
 .md-speak-menu__row--3 { grid-template-columns: repeat(3, 1fr); }
 .md-speak-menu__row--5 { grid-template-columns: repeat(5, 1fr); }
+/* Full punctuation set in one row (single-tap reach, no "More" submenu). 7 across
+   only while the targets stay comfortably hittable — see the narrow-screen wrap below. */
+.md-speak-menu__row--7 { grid-template-columns: repeat(7, 1fr); }
 .md-speak-menu__row--locale {
   grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
 }
@@ -16521,6 +16528,11 @@ form.row.subscription-form-with-cards {
 @media (max-width: 768px) {
   .md-speak-menu__row--3 {
     grid-template-columns: repeat(2, 1fr);
+  }
+  /* 7 punctuation targets across is too small to hit reliably on a phone --
+     wrap to 4+3 so each stays a comfortable touch target (AAC motor accuracy). */
+  .md-speak-menu__row--7 {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
@@ -19085,15 +19097,6 @@ header:has(#nav_header) .ll-header-settings-btn:focus,
   flex-shrink: 0 !important;
 
 }
-.app-navbar .header-unauth-right .app-navbar__beta-badge,
-.header--unauthenticated .header-unauth-right .app-navbar__beta-badge {
-  margin-bottom: 0;
-  white-space: nowrap;
-}
-.app-navbar__beta-badge--drawer {
-  display: inline-block;
-  margin: 8px 16px 0;
-}
 .app-navbar #header_search {
   display: inline-block !important;
 
@@ -20600,6 +20603,17 @@ header.header--unauthenticated ~ #content .la-topbar {
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
+
+.app-navbar .header-unauth-right .app-navbar__beta-badge,
+.header--unauthenticated .header-unauth-right .app-navbar__beta-badge {
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+.app-navbar__beta-badge--drawer {
+  display: inline-block;
+  margin: 8px 16px 0;
+}
+
 
 /* Theme picker inside mobile drawer: inline below Theme button, no popup positioning */
 .la-mobile-drawer__panel .ll-bento-theme-picker--in-drawer {
@@ -31762,7 +31776,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 
 /* Section anchoring: light gray band so flow is white (hero) → light gray (features) → parallax → white (CTA) */
 #la-features {
-  margin-top: $aac-spacing-48;
+  /* No margin-top: the section sits directly under the spotlight and supplies its own
+     top spacing via padding-top. (.la-section sets no margin, so this resolves to 0.) */
   padding-top: $aac-spacing-32;
   background: transparent;
   border: none;
@@ -31774,7 +31789,6 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 #about-hero .la-section-header .la-section-eyebrow-badge,
 #la-plan .la-section-eyebrow-badge,
 #la-slp-spotlight .la-section-eyebrow-badge,
-#la-slp-spotlight-desktop .la-section-eyebrow-badge,
 #la-devices-spotlight .la-section-eyebrow-badge,
 #la-devices-spotlight-desktop .la-section-eyebrow-badge,
 #la-testimonial .la-section-eyebrow-badge,
@@ -33053,10 +33067,17 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 }
 
 .la-section-subtitle {
-  font-size: $aac-font-size-base * 1.404;
+  /* Landing-alt body copy tracks .la-hero-subtitle's fluid size (see the
+     .la-wrapper--landing .la-plan-subtitle rule, which keeps the spotlight/plan
+     bodies identical to this). clamp() min/max are the hero's; the ≤640px floor
+     lives with that rule. This class is landing-alt-only, so it's set in place. */
+  font-size: clamp(1.25rem, calc(0.65rem + 1.38vw), 1.755rem);
   font-weight: 400;
   color: rgba($indigo, 0.9);
-  max-width: 558.72px; /* 698.4px × 0.8 */
+  /* Same container width as the spotlight bodies (.la-slp-spotlight__body /
+     .la-devices-spotlight__body are max-width: 720px, centred, at both breakpoints)
+     so the two read as one column. Was 558.72px. */
+  max-width: 720px;
   margin: 0 auto;
   line-height: 1.8;
   letter-spacing: 0.005em;
@@ -33759,7 +33780,10 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 /* Mirror the parallax-zone card-frame styling onto the desktop spotlight
    copies that live OUTSIDE the parallax zone, so they share the identical
    gray frame, rounding, shadow, and inner background. */
-.la-spotlight-desktop .la-parallax-card-outer {
+.la-spotlight-desktop .la-parallax-card-outer,
+/* The SLP spotlight sits above Features, OUTSIDE the parallax zone, at every width,
+   so it needs the same frame mirrored onto it (it can't inherit the zone-scoped rule). */
+.la-slp-spotlight .la-parallax-card-outer {
   margin-top: 5rem;
   margin-bottom: 5rem;
   background: transparent;
@@ -33767,7 +33791,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   border-radius: 20px;
   box-shadow: 0 2px 16px rgba(0, 0, 0, 0.04);
 }
-.la-spotlight-desktop .la-parallax-card-inner {
+.la-spotlight-desktop .la-parallax-card-inner,
+.la-slp-spotlight .la-parallax-card-inner {
   background: #F7F9FA;
 }
 
@@ -33779,14 +33804,15 @@ body.md-ds-active .app-navbar__beta-feedback-link {
      • Outside the parallax zone (desktop placement, IDs with -desktop)
    The .la-spotlight-desktop class flips the visibility logic for the desktop
    copies, so on each viewport exactly one of the two copies is shown. */
-.la-slp-spotlight,
+/* Only the DEVICES spotlight is still rendered twice (mobile copy inside the parallax
+   zone, desktop copy outside it). The SLP spotlight is now a single section above
+   Features at all widths, so it is NOT hidden here. */
 .la-devices-spotlight { display: none; }
 
 /* Desktop versions: hidden by default at all widths via the rule above; this
    block re-shows them only above 1024px and ensures the mobile mirrors stay
    hidden in that range. */
 @media (min-width: 1025px) {
-  #la-slp-spotlight-desktop,
   #la-devices-spotlight-desktop { display: block; }
 }
 @media (max-width: 1024px) {
@@ -33821,21 +33847,30 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   border-radius: 16px;
 }
 .la-slp-spotlight__image {
-  background-image: url('/images/landing-instructor.png');
+  /* aac-user.jpg (1536x1024). JPEG, not PNG: it's a photograph, so PNG only
+     compressed to ~1.9MB while q85 JPEG is ~200KB at the same visual quality.
+     Kept landing-instructor.png in public/images for later use. */
+  background-image: url('/images/aac-user.jpg');
 }
 .la-devices-spotlight__image {
-  background-image: url('/images/landing-devices.png');
+  /* JPEG for the same reason as aac-user.jpg: it's a photo, so PNG only reached
+     ~1.9MB vs ~230KB at q85 with no visible loss in the symbol grids. */
+  background-image: url('/images/landing-devices.jpg');
 }
 
-/* Desktop (>1024px): swap the SLP image to landing-classroom.png and let
-   both spotlight images render at full height using their natural aspect
-   ratios (image dimensions: classroom 850×638, devices 1000×667). */
+/* Desktop (>1024px): let both spotlight images render at full height using their
+   natural aspect ratios (image dimensions: aac-user 1536×1024, devices 1000×667). */
 @media (min-width: 1025px) {
   .la-slp-spotlight__image {
-    background-image: url('/images/landing-instructor.png');
-    aspect-ratio: 1535 / 1024;
+    background-image: url('/images/aac-user.jpg');
+    /* aspect-ratio matches aac-user.jpg's natural 1536x1024 (3:2), so the div is
+       exactly the image's shape and `background-size: cover` (inherited) fills it
+       edge-to-edge. That's what makes the radius below clip the IMAGE's own corners
+       rather than empty letterbox strips — same reasoning as the devices image. */
+    aspect-ratio: 1536 / 1024;
     min-height: 0;
-    border-radius: 0;
+    /* Rounded corners, matching the base rule and the devices spotlight. */
+    border-radius: 16px;
     /* "Built for schools" image: 62.5% width (25% bigger than prior 50%), centered.
        margin-top: 16px adds breathing room under the paragraph (parent gap 48px
        + 16px = ~64px visible). */
@@ -33850,12 +33885,18 @@ body.md-ds-active .app-navbar__beta-feedback-link {
        strips top/bottom, and the 16px border-radius clips invisible space
        instead of the image. With matching aspect-ratio, the radius is visible
        on the image's own corners.
-       margin-top: -48px cancels the parent flex gap ($aac-spacing-48), so the
-       image sits flush against the paragraph above. */
-    aspect-ratio: 1000 / 667;
+       margin-top previously used -48px to cancel the parent flex gap
+       ($aac-spacing-48) and sit flush against the paragraph, which left no breathing
+       room under the body copy. Now zero, so the parent's 48px gap stands on its own
+       as the copy-to-image spacing. */
+    /* Must track landing-devices.jpg's natural size (1726x911). It previously read
+       1000/667 (1.50) against a 1727x911 (1.90) image, so `contain` letterboxed it
+       and the radius rounded the empty strips -- the exact failure the note above
+       warns about. */
+    aspect-ratio: 1726 / 911;
     min-height: 0;
     width: 78.125%;
-    margin: -48px auto 0;
+    margin: 0 auto;
     background-size: contain;
     border-radius: 16px;
   }
@@ -33880,6 +33921,12 @@ body.md-ds-active .app-navbar__beta-feedback-link {
      so the card blends into the page. Scoped to the desktop copy. */
   .la-slp-spotlight .la-slp-spotlight__card.la-parallax-card-outer {
     margin-top: 0;
+    /* margin-bottom: 0 removes the dead band under the image. The base
+       `.la-slp-spotlight .la-parallax-card-outer` rule applies margin-bottom: 5rem,
+       and since the section has padding the margin can't collapse through it — so
+       that 80px renders INSIDE the section's content box, between the image and the
+       section's own padding. Same reason the devices card zeroes it below. */
+    margin-bottom: 0;
     background: transparent;
     border: none;
     box-shadow: none;
@@ -33908,7 +33955,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 }
 
 @media (max-width: 1024px) {
-  .la-slp-spotlight,
+  /* .la-slp-spotlight is no longer display:none by default (single copy, all widths),
+     so only the devices mobile mirror needs re-showing here. */
   .la-devices-spotlight { display: block; }
   .la-parallax-zone {
     background-image: none !important;
@@ -33933,8 +33981,12 @@ body.md-ds-active .app-navbar__beta-feedback-link {
      aspect-ratio to match the image lets the full classroom photo
      render without clipping. */
   .la-slp-spotlight__image {
-    background-image: url('/images/landing-classroom.png');
-    aspect-ratio: 850 / 638;
+    background-image: url('/images/landing-classroom.jpg');
+    /* Tracks landing-classroom.jpg's natural size (1535x1024). It previously read
+       850/638 (1.33) against a 1535x1024 (1.50) image, so `contain` letterboxed it
+       and the radius rounded the empty strips -- the same mismatch that was wrong on
+       the devices image. */
+    aspect-ratio: 1535 / 1024;
     min-height: 0;
     background-size: contain;
   }
@@ -33958,7 +34010,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
      to `contain` and pinning the container's aspect-ratio to match
      the image lets the full mockup render without clipping. */
   .la-devices-spotlight__image {
-    aspect-ratio: 1000 / 667;
+    /* Tracks landing-devices.jpg's natural size (1726x911); see the desktop rule. */
+    aspect-ratio: 1726 / 911;
     min-height: 0;
     background-size: contain;
   }
@@ -34035,6 +34088,25 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   line-height: 1.8;
   letter-spacing: 0.005em;
   margin: 0;
+}
+
+/* Landing-alt body copy reads at the same size as .la-hero-subtitle, scaling with the
+   viewport exactly as it does (same clamp min/max, same ≤640px floor).
+   Scoped to .la-wrapper--landing on purpose: .la-plan-subtitle is SHARED with
+   about.hbs, which is not part of this change. It covers the plan + SLP + devices
+   bodies together, preserving the "all three subtitles scale identically" intent noted
+   on the spotlight rules (those override layout only, never font-size).
+   .la-section-subtitle carries the same clamp at its own definition. */
+.la-wrapper--landing .la-plan-subtitle {
+  font-size: clamp(1.25rem, calc(0.65rem + 1.38vw), 1.755rem);
+}
+/* Floor at 15px on small screens so it stays legible where the clamp would go smaller
+   — mirrors the .la-hero-subtitle rule. */
+@media (max-width: $aac-breakpoint-sm) {
+  .la-wrapper--landing .la-plan-subtitle,
+  .la-wrapper--landing .la-section-subtitle {
+    font-size: 15px;
+  }
 }
 
 .la-plan-grid {
@@ -34136,7 +34208,7 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-// ── Testimonial Section ─────────────────────────────────────────────────────
+// ── Mission Section (reuses la-testimonial-* class hooks for parallax/layout) ─
 .la-testimonial-section {
   display: flex;
   flex-direction: column;
@@ -34148,8 +34220,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 
 .la-testimonial-display {
   position: relative;
-  max-width: 700px; /* ideal quote width 640–720px for readability */
-  margin: 0 auto $aac-spacing-16;
+  max-width: 840px;
+  margin: 0 auto;
   padding: 0;
   border: none;
 }
@@ -34172,7 +34244,11 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   line-height: 1.55;
   letter-spacing: -0.01em;
   margin: 0;
-  display: inline;
+  display: block;
+
+  & + & {
+    margin-top: $aac-spacing-20;
+  }
 }
 
 .la-testimonial-attribution {
@@ -35113,6 +35189,14 @@ a.la-footer-bottom-a11y-wcag {
   text-transform: uppercase;
   letter-spacing: $aac-letter-spacing-wide;
   color: $brand-honey-bronze;
+}
+
+// Opt-in eyebrow-weight override for ai-disclosure only (03-UI-SPEC.md 3, the
+// eyebrow-weight fix). A second single-class selector at the SAME specificity as
+// .la-modal-header-label above, not a nested/wrapper-scoped override -- every other
+// modal keeps rendering its eyebrow at $aac-font-weight-black (800) unchanged.
+.la-modal-header-label--regular {
+  font-weight: $aac-font-weight-bold;
 }
 
 .la-modal-close {
@@ -38097,6 +38181,14 @@ a.la-footer-bottom-a11y-wcag {
   flex-wrap: wrap;
 }
 
+// AI disclosure modal (EU AI Act Article 50(1), VPC Phase 3). Same support-modal
+// shell as terms-agree; the one addition is a larger dwell/scan target minimum for
+// this modal's population (03-UI-SPEC.md 6.2) -- a new selector scoped to this
+// component's own wrapper class, not a stacked override of the shared .la-btn rule.
+.la-ai-disclosure-modal-wrap .la-btn {
+  min-height: $aac-spacing-64;
+}
+
 // Word Cloud modal: same styling as support modal, wider dialog for cloud content
 .modal-dialog:has(.la-word-cloud-modal-wrap) {
   max-width: 720px;
@@ -39166,9 +39258,9 @@ a.la-footer-bottom-a11y-wcag {
     font-size: 26px;
   }
 
-  .la-section-subtitle {
-    font-size: $aac-font-size-base;
-  }
+  /* No .la-section-subtitle font-size override here on purpose: it now tracks
+     .la-plan-subtitle (the spotlight/plan body), which is a single size at every
+     width. Shrinking it here would re-introduce the mismatch below $aac-breakpoint-md. */
 
   // Footer: single column
   .la-footer-inner {
@@ -66248,6 +66340,17 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 }
 .md-shell.md-shell--board-detail:not(.md-shell--board-detail-edit) {
   padding-top: 2px !important;
+  /* SPEAK mode: flatten the atmospheric shell gradient (defined on
+     .md-shell--board-detail below) to the SAME flat surface as
+     .md-board-detail-main (color.adjust($surface-200, -15%), line ~66802).
+     The main's 8px top padding exposes a band of the main's flat gray at the
+     very top; with the shell behind/around it kept as the bluish gradient
+     (this rule's 2px top strip + the side grid columns), that gray band met
+     the gradient and read as a color seam. Matching the shell to the main
+     removes the seam — the top band and the surround are now one surface.
+     The 0,4,0 selector out-specifies the 0,1,0 gradient rule regardless of
+     source order; EDIT mode is excluded so it keeps its atmospheric page bg. */
+  background: color.adjust($surface-200, $lightness: -15%);
 }
 /* Layer 1: Background — same as authenticated-view home page.
    Halo alphas bumped ~30% over the prior version to strengthen the
@@ -66278,8 +66381,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 }
 .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-layout {
   /* No left/right padding in speak mode — the board grid runs edge to edge
-     (removes the purple page-background strip on the sides). Top/bottom keep 2px. */
-  padding: 2px 0;
+     (removes the purple page-background strip on the sides). Top is flush with the
+     shell so the board/sentence bar reaches the top; keep 2px at the bottom. */
+  padding: 0 0 2px;
   /* 100dvh (dynamic viewport height) tracks the actual visible area on mobile
      — Android Chrome's URL bar eats into the viewport but isn't reflected in
      100vh. dvh keeps the layout flush to the visible bottom so the button grid
@@ -66291,6 +66395,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    — the layout's own side padding + grid gap are 0 (above), so this is the single
    source of the side inset. Adjust this value to tune the left/right spacing. */
 .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-main {
+  padding-top: 8px;
   padding-left: 12px;
   padding-right: 12px;
 }
@@ -71792,20 +71897,28 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail-inline-sidebar__name {
   display: block;
   text-align: center;
-  word-break: break-word;
+  /* Truncate a too-long label to a single line with an ellipsis rather than
+     wrapping (e.g. "Inflections" on a narrow sidebar). The block is width-
+     constrained by the full-width .__item button, so ellipsis applies. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 15px;
 }
 /* Wider viewports (>1024px): a 125px sidebar. At <=1024px it stays at the
    base 100px width (and 70px at <=768px). */
 @media (min-width: 1025px) {
   .md-board-detail-inline-sidebar {
-    width: 125px;
+    width: 112px;
   }
 }
-/* Narrow viewports (<=1024px): shrink the inline sidebar's board
-   thumbnails/labels so they don't crowd the grid. The sidebar width is the base
-   100px here. The pin control is left alone so it keeps its 44px touch target. */
+/* Narrow viewports (<=1024px): narrow the inline sidebar to 80px and shrink its
+   board thumbnails/labels so they don't crowd the grid. The pin control is left
+   alone so it keeps its 44px touch target. */
 @media (max-width: 1024px) {
+  .md-board-detail-inline-sidebar {
+    width: 80px;
+  }
   .md-board-detail-inline-sidebar__item {
     padding: 7px 4px;
     font-size: 12px;
@@ -72708,6 +72821,9 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-sidebar-editor__row {
   display: flex;
   align-items: center;
+  /* Wraps so the add/remove confirm can drop to its own line below the row
+     instead of competing with the board name for horizontal space. */
+  flex-wrap: wrap;
   gap: 8px;
   padding: 3px 6px;
   border-radius: 8px;
@@ -72719,6 +72835,48 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-sidebar-editor__section--current {
   padding-left: 10px;
   padding-right: 10px;
+  /* This is the live sidebar — the only section whose order matters and the
+     only one you can reorder. A teal glow + solid top stroke lifts it off the
+     add-lists below, which share the plainer card treatment. */
+  border-top-color: rgba($brand-teal, 0.85);
+  box-shadow:
+    0 1px 4px rgba($brand-blue-black, 0.06),
+    0 4px 16px rgba($brand-blue-black, 0.04),
+    0 0 0 1px rgba($brand-teal, 0.18),
+    0 0 22px 2px rgba($brand-teal, 0.22);
+}
+.md-sidebar-editor__section--current:hover {
+  border-top-color: rgba($brand-teal, 0.95);
+  box-shadow:
+    0 1px 4px rgba($brand-blue-black, 0.06),
+    0 4px 16px rgba($brand-blue-black, 0.04),
+    0 0 0 1px rgba($brand-teal, 0.26),
+    0 0 26px 3px rgba($brand-teal, 0.28);
+}
+.md-board-detail--dark .md-sidebar-editor__section--current {
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.30),
+    0 4px 16px rgba(0, 0, 0, 0.22),
+    0 0 0 1px rgba($brand-teal, 0.30),
+    0 0 26px 3px rgba($brand-teal, 0.30);
+}
+
+/* Divider heading between "on the sidebar" and "can be added". Sits BETWEEN
+   cards rather than inside one, so it reads as a group heading for everything
+   below it; slightly larger than the in-card section labels it introduces. */
+.md-sidebar-editor__group-label {
+  margin: 20px 4px 10px;
+  padding-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: $brand-slate-blue;
+  border-bottom: 1px solid rgba($brand-blue-black, 0.10);
+}
+.md-board-detail--dark .md-sidebar-editor__group-label {
+  color: rgba(240, 244, 250, 0.72);
+  border-bottom-color: rgba(240, 244, 250, 0.16);
 }
 /* Each "On your sidebar" item is wrapped in its own glass container (translucent
    gradient, light rim, inset sheen + soft drop) so the reorderable items read as
@@ -72769,13 +72927,6 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   border-color: rgba(255, 255, 255, 0.26);
 }
 /* Reorder instruction below the search box. */
-.md-sidebar-editor__hint {
-  margin: 8px 4px 0;
-  font-size: 12px;
-  line-height: 1.35;
-  color: $brand-slate-blue;
-}
-.md-board-detail--dark .md-sidebar-editor__hint { color: rgba(240, 244, 250, 0.72); }
 /* Dark mode: the add-list board names in the Edit Sidebar panel inherit a dark
    tone — the My Boards overlay lights them via .md-board-collection__item, but
    these rows wrap the name in .md-sidebar-editor__display instead, so it never
@@ -72796,6 +72947,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   touch-action: none;
 }
 .md-sidebar-editor__grip:active { cursor: grabbing; }
+
 .md-board-detail--dark .md-sidebar-editor__grip { color: rgba(240, 244, 250, 0.5); }
 /* Drag states — the lifted row fades to a ghost; the hovered drop target gets a
    dashed teal insertion outline. */
@@ -72980,32 +73132,19 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 /* "Always on" status pill for Crisis Vocabulary — it can't be removed, so it shows
    this (non-interactive) lock pill instead of a control. */
-.md-sidebar-editor__locked-pill {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 9px;
-  border-radius: 999px;
-  background: rgba($la-navy, 0.07);
-  border: 1px solid rgba($la-navy, 0.14);
-  color: $brand-slate-blue;
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-.md-sidebar-editor__locked-pill svg { opacity: 0.8; }
-.md-board-detail--dark .md-sidebar-editor__locked-pill {
-  background: rgba(255, 255, 255, 0.10);
-  border-color: rgba(255, 255, 255, 0.18);
-  color: rgba(240, 244, 250, 0.78);
-}
 .md-sidebar-editor__action[disabled] { opacity: 0.45; cursor: default; box-shadow: none; }
 .md-sidebar-editor__confirm {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 6px;
-  flex-shrink: 0;
+  /* Full-width so it wraps onto its own line under the row (see the row's
+     flex-wrap). Previously inline + flex-shrink:0, which squeezed the board
+     name until it truncated — you couldn't see what you were confirming. */
+  flex: 0 0 100%;
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px solid rgba($la-navy, 0.10);
 }
 .md-sidebar-editor__confirm-q { font-size: 12px; color: $brand-slate-blue; }
 .md-sidebar-editor__confirm-btn {
@@ -73022,6 +73161,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-sidebar-editor__confirm-btn--primary { color: $brand-verdigris-aa; border-color: rgba(44, 183, 176, 0.40); }
 /* Dark speak shell overrides for the editor's OWN controls (the reused
    md-board-collection__* chrome already carries its own dark overrides). */
+.md-board-detail--dark .md-sidebar-editor__confirm { border-top-color: rgba(240, 244, 250, 0.14); }
 .md-board-detail--dark .md-sidebar-editor__confirm-q { color: rgba(240, 244, 250, 0.72); }
 .md-board-detail--dark .md-sidebar-editor__row:hover { background: rgba(255, 255, 255, 0.05); }
 .md-board-detail--dark .md-sidebar-editor__action,
@@ -73893,27 +74033,6 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     height: auto !important;
     flex: 0 0 auto !important;
     align-content: start;
-  }
-
-  /* Demo speak-only pins the page and re-caps the grid with max-height:100% +
-     overflow:hidden (see .demo-board-page--speak-only rules). That defeats
-     square-collapse: aspect-ratio cards stay column-tall while 1fr rows
-     compress, so buttons paint over the row above. Clear the fill trap and
-     let <main> scroll — same escape hatch as board-detail speak. */
-  .demo-board-page--speak-only:has(.md-board-detail-grid--shape-square) .demo-board-page__main {
-    overflow-x: hidden;
-    overflow-y: auto;
-  }
-  .demo-board-page--speak-only:has(.md-board-detail-grid--shape-square) .demo-board-page__board {
-    flex: 0 0 auto;
-    overflow: visible;
-  }
-  .demo-board-page--speak-only:has(.md-board-detail-grid--shape-square) .demo-board-page__board > .ember-view {
-    flex: 0 0 auto;
-    max-height: none;
-  }
-  .demo-board-page--speak-only .demo-board-page__board .md-board-detail-grid.md-board-detail-grid--shape-square {
-    max-height: none;
   }
 }
 
@@ -84982,6 +85101,14 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 .md-org-settings-field {
   margin-bottom: 18px;
+}
+/* bound-select / modern-select use tagName:span; an inline span shrinks
+   the hit target so clicks on the painted trigger miss the <button>.
+   Same fix as `.md-modal-body .md-modal-field > span`. */
+.md-org-settings-field > span {
+  display: block;
+  width: 100%;
+  max-width: 100%;
 }
 .md-org-settings-field__label {
   display: block;

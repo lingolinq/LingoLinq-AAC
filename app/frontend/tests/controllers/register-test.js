@@ -30,6 +30,7 @@ describe('RegisterController', 'controller:register', function() {
     expect(controller.get('registrationStep')).toEqual('communicator_age');
     expect(controller.get('model.preferences.registration_type')).toEqual('communicator');
 
+    controller.set('registration_country', 'US');
     controller.set('birth_month', '1');
     controller.set('birth_year', ((new Date()).getFullYear() - 20).toString());
     controller.send('continue_communicator_age');
@@ -42,6 +43,7 @@ describe('RegisterController', 'controller:register', function() {
     var controller = testOwner.lookup('controller:register');
     controller.set('model', EmberObject.create({ preferences: {} }));
     controller.send('select_registration_role', 'communicator');
+    controller.set('registration_country', 'US');
     controller.set('birth_month', '1');
     controller.set('birth_year', (new Date()).getFullYear().toString());
     controller.send('continue_communicator_age');
@@ -52,6 +54,67 @@ describe('RegisterController', 'controller:register', function() {
     expect(controller.get('coppaParentEmailMissing')).toEqual(true);
   });
 
+  it("does not ask for signup parent email for EU communicators aged 13–15", function() {
+    var controller = testOwner.lookup('controller:register');
+    controller.set('model', EmberObject.create({ preferences: {} }));
+    controller.send('select_registration_role', 'communicator');
+    controller.set('registration_country', 'DE');
+    controller.set('birth_month', '1');
+    // Age 14: under 16 (EU AI flag) but over COPPA under-13 signup gate.
+    controller.set('birth_year', ((new Date()).getFullYear() - 14).toString());
+    controller.send('continue_communicator_age');
+
+    expect(controller.get('coppaConsentAge')).toEqual(13);
+    expect(controller.get('coppa_age_group')).toEqual('over_13');
+    expect(controller.get('registrationStep')).toEqual('account');
+    expect(controller._classifyUnder16()).toEqual(true);
+  });
+
+  it("still routes EU under-13 communicators to the COPPA parent approval step", function() {
+    var controller = testOwner.lookup('controller:register');
+    controller.set('model', EmberObject.create({ preferences: {} }));
+    controller.send('select_registration_role', 'communicator');
+    controller.set('registration_country', 'FR');
+    controller.set('birth_month', '1');
+    controller.set('birth_year', ((new Date()).getFullYear() - 10).toString());
+    controller.send('continue_communicator_age');
+
+    expect(controller.get('coppa_age_group')).toEqual('under_13');
+    expect(controller.get('registrationStep')).toEqual('under_13');
+    expect(controller._classifyUnder16()).toEqual(true);
+  });
+
+  it("hides product-improvement opt-in for EU under-16 communicators", function() {
+    var controller = testOwner.lookup('controller:register');
+    controller.set('model', EmberObject.create({ preferences: {} }));
+    controller.send('select_registration_role', 'communicator');
+    controller.set('registration_country', 'DE');
+    controller.set('birth_month', '1');
+    controller.set('birth_year', ((new Date()).getFullYear() - 14).toString());
+    controller.set('productImprovementOptIn', true);
+    controller.send('continue_communicator_age');
+
+    expect(controller.get('euUnder16Registration')).toEqual(true);
+    expect(controller.get('showProductImprovementOptIn')).toEqual(false);
+    expect(controller.get('productImprovementOptIn')).toEqual(false);
+    expect(controller.get('model.preferences.cookies')).toEqual(false);
+    expect(controller.get('model.preferences.telemetry_opt_in')).toEqual(false);
+    expect(controller.get('model.preferences.comms_log_opt_in')).toEqual(false);
+  });
+
+  it("shows product-improvement opt-in for non-EU under-16 communicators", function() {
+    var controller = testOwner.lookup('controller:register');
+    controller.set('model', EmberObject.create({ preferences: {} }));
+    controller.send('select_registration_role', 'communicator');
+    controller.set('registration_country', 'US');
+    controller.set('birth_month', '1');
+    controller.set('birth_year', ((new Date()).getFullYear() - 14).toString());
+    controller.send('continue_communicator_age');
+
+    expect(controller.get('euUnder16Registration')).toEqual(false);
+    expect(controller.get('showProductImprovementOptIn')).toEqual(true);
+  });
+
   it("stores supporter subtypes without persisting the supporter grouping", function() {
     var controller = testOwner.lookup('controller:register');
     controller.set('model', EmberObject.create({ preferences: {} }));
@@ -60,6 +123,7 @@ describe('RegisterController', 'controller:register', function() {
     expect(controller.get('registrationStep')).toEqual('supporter_type');
     expect(controller.get('model.preferences.registration_type')).toEqual(null);
 
+    controller.set('registration_country', 'US');
     controller.send('select_supporter_type', 'teacher');
     expect(controller.get('registrationStep')).toEqual('account');
     expect(controller.get('registration_role')).toEqual('supporter');

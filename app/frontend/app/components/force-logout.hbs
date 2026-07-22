@@ -4,6 +4,6 @@
   </div>
   <div class="modal-body md-modal-body">
     <h4>{{this.model.message}}</h4>
-    {{login-form wide=true return=true force_logout=true}}
+    <LoginForm @wide={{true}} @return={{true}} @force_logout={{true}} />
   </div>
 </ModalDialog>

@@ -17,7 +17,7 @@
              class="btn btn-default md-json-bundle-export__bookmarklet"
              draggable="true"
              {{on "click" (this.ctrlAction "preventBookmarkletClick")}}
-             {{on "dragstart" (this.ctrlAction "dragBookmarklet")}}>
+             {{on "dragstart" (this.eventAction "dragBookmarklet")}}>
             {{t "Export CoughDrop boards" key="coughdrop_export_bookmarklet_label"}}
           </a>
         </div>

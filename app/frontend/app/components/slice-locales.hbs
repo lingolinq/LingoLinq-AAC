@@ -38,7 +38,7 @@
       <div class="md-manage-lang-list">
         {{#each this.langs as |lang|}}
           <label class="md-manage-lang-item {{if lang.keep 'md-manage-lang-item--active'}}">
-            <Input @type="checkbox" @checked={{lang.keep}} class="md-manage-lang-checkbox" />
+            <input type="checkbox" checked={{lang.keep}} class="md-manage-lang-checkbox"  {{on "change" (set-field lang "keep" "checkbox")}}/>
             <span class="md-manage-lang-name">{{lang.str}}</span>
             <span class="md-manage-lang-code">{{lang.loc}}</span>
           </label>

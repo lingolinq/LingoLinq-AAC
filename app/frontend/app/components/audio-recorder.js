@@ -92,9 +92,9 @@ export default Component.extend({
     audio_selected: function(sound) {
       var fn = this.get('audio_ready');
       if (typeof fn === 'function') { fn(sound); }
-      try {
-        this.set('sound', sound);
-      } catch(e) { }
+      // DDAU write-back of the recorded sound (replaces the former two-way `sound=` binding).
+      var onSoundChange = this.get('onSoundChange');
+      if (typeof onSoundChange === 'function') { onSoundChange(sound); }
       contentGrabbers.soundGrabber.clear_sound_work();
     },
     select_sound_preview: function() {

@@ -11,6 +11,9 @@ import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import editManager from '../utils/edit_manager';
 import actionLock from '../utils/action-lock';
+import aiFeatureGate from '../utils/ai_feature_gate';
+import article50Gate from '../utils/article50_gate';
+import buildEventAction from '../utils/event_action';
 
 /**
  * New Board Modal Component
@@ -111,6 +114,9 @@ export default Component.extend({
         self.send.apply(self, [actionName].concat(args));
       };
     };
+    // For keydown/drag/drop bindings whose handlers need the raw event and do
+    // their own preventDefault. ctrlAction above is unchanged for clicks.
+    this.eventAction = buildEventAction(this);
     this.ctrlActionNoBubble = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function(event) {
@@ -139,9 +145,14 @@ export default Component.extend({
     return this.get('model.for_user_id');
   }),
 
-  ai_board_generation_enabled: computed('appState.feature_flags.ai_board_generation', function() {
-    return !!this.appState.get('feature_flags.ai_board_generation');
-  }),
+  ai_board_generation_enabled: computed(
+    'appState.feature_flags.ai_board_generation',
+    'appState.currentUser.preferences.ai_features_enabled',
+    'appState.currentUser.preferences.ai_board_generation',
+    function() {
+      return aiFeatureGate.aiFeatureEnabled(this.appState, 'ai_board_generation');
+    }
+  ),
 
   paste_html_import_enabled: computed('appState.feature_flags.paste_html_import', function() {
     return !!this.appState.get('feature_flags.paste_html_import');
@@ -393,10 +404,31 @@ export default Component.extend({
       modalUtil.open('import-from-json-bundle');
     },
     generateWithAi: function() {
-      if(!this.get('standalone')) {
-        this.get('modal').close();
-      }
-      modalUtil.open('generate-board');
+      // EU AI Act Article 50(1) first-AI-use gate, BLOCK mode (D-03). Gated HERE,
+      // at the point that opens the generate-board modal, NOT inside
+      // generate-board.js itself: modal.open() replaces the currently-showing
+      // modal, so a gate fired from within generate-board would tear down its own
+      // host and discard the prompt / rows / columns the user had already typed,
+      // and the post-acknowledge continuation would then no-op on isDestroyed.
+      // Gating before the form exists means there is nothing to lose.
+      //
+      // modalUtil is the module, not a component-bound service, so it still works
+      // in the continuation below even though opening ai-disclosure destroys THIS
+      // component (new-board is itself modal-hosted). Nothing after the gate reads
+      // component state for the same reason -- `standalone` is captured up front.
+      var standalone = this.get('standalone');
+      var modalService = this.get('modal');
+      article50Gate.presentBlockingGate(this.get('appState')).then(function() {
+        if(!standalone) {
+          modalService.close();
+        }
+        modalUtil.open('generate-board');
+      }, function() {
+        // Gate not acknowledged (bumped by another modal). Do not open
+        // generate-board. The disclosure modal is what the user is looking at,
+        // or another modal took over; either way this is fail-closed by design
+        // and needs no separate error surface here.
+      });
     },
     opening: function() {
       if (this.get('standalone')) { return; }

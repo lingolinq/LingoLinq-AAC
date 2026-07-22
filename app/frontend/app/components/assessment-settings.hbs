@@ -16,8 +16,10 @@
     </div>
 
     <div class="md-modal-field">
-      <label class="md-modal-label">{{t "Title" key="title"}}</label>
-      <input value={{this.settings.name}} type="text" class="md-modal-input" placeholder={{this.name_placeholder}} {{on "input" (set-field this "settings.name")}} />
+      {{#let (unique-id) as |titleId|}}
+        <label for={{titleId}} class="md-modal-label">{{t "Title" key="title"}}</label>
+        <input id={{titleId}} value={{this.settings.name}} type="text" class="md-modal-input" placeholder={{this.name_placeholder}} {{on "input" (set-field this "settings.name")}} />
+      {{/let}}
     </div>
 
     {{#unless this.save_option}}
@@ -62,11 +64,13 @@
 
       {{#if this.settings.prompts}}
         <div class="md-modal-field">
-          <label class="md-modal-label">{{t "Prompt Delay" key="prompt_delay"}}</label>
+          {{#let (unique-id) as |promptDelayId|}}
+          <label for={{promptDelayId}} class="md-modal-label">{{t "Prompt Delay" key="prompt_delay"}}</label>
           <div style="display: flex; align-items: center; gap: 10px;">
-            <input value={{this.settings.prompts_delay}} type="text" class="md-modal-input" style="max-width: 120px;" placeholder="no delay" {{on "input" (set-field this "settings.prompts_delay")}} />
+            <input id={{promptDelayId}} value={{this.settings.prompts_delay}} type="text" class="md-modal-input" style="max-width: 120px;" placeholder="no delay" {{on "input" (set-field this "settings.prompts_delay")}} />
             <span class="md-modal-hint" style="margin: 0;">{{t "milliseconds" key="milliseconds"}}</span>
           </div>
+          {{/let}}
         </div>
       {{/if}}
 
@@ -79,11 +83,13 @@
     {{/unless}}
 
     <div class="md-modal-field">
-      <label class="md-modal-label">{{t "Notes" key="notes"}}</label>
-      <textarea class="md-modal-input" placeholder="any accommodations or supports provided that wouldn't be otherwise noted" rows={{2}} {{on "input" (set-field this "settings.accommodations")}}>{{this.settings.accommodations}}</textarea>
+      {{#let (unique-id) as |accommodationsId|}}
+        <label for={{accommodationsId}} class="md-modal-label">{{t "Notes" key="notes"}}</label>
+        <textarea id={{accommodationsId}} class="md-modal-input" placeholder="any accommodations or supports provided that wouldn't be otherwise noted" rows={{2}} {{on "input" (set-field this "settings.accommodations")}}>{{this.settings.accommodations}}</textarea>
+      {{/let}}
     </div>
     <div class="md-modal-field">
-      <textarea class="md-modal-input" placeholder="additional notes" rows={{4}} {{on "input" (set-field this "settings.notes")}}>{{this.settings.notes}}</textarea>
+      <textarea class="md-modal-input" placeholder="additional notes" aria-label={{t "Additional notes" key="additional_notes"}} rows={{4}} {{on "input" (set-field this "settings.notes")}}>{{this.settings.notes}}</textarea>
     </div>
   </div>
   <div class="modal-footer md-modal-footer">

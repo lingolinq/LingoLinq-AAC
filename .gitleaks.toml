@@ -46,33 +46,31 @@ regexes = [
 ]
 
 [[allowlists]]
-description = "Landing-page accessibility i18n keys (landing_a11y_*) in Ember templates trip generic-api-key via the same high-entropy heuristic as other translation keys. Locale JSON is already path-allowlisted above; these regexes cover the key= literals in .hbs (and historical templates/components paths). Only generic-api-key is relaxed."
+description = "Landing-page Ember i18n keys (landing_a11y_*) trip generic-api-key when referenced as key='…' in .hbs templates. Locale JSON is already path-allowlisted above; these exact key literals cover the template references (and historical templates/components/ paths in git history). Not secrets."
 targetRules = ["generic-api-key"]
 regexes = [
   '''landing_a11y_meets''',
-  '''landing_a11y_neurodivergent''',
   '''landing_a11y_let_us_know''',
+  '''landing_a11y_neurodivergent''',
 ]
 
 [[allowlists]]
-description = "Rails ActiveSupport duration helpers (N.days.from_now) trip generic-api-key because of digit+entropy heuristics. These are framework APIs used for consent-token expiry, not secrets. Exact-literal regexes only; only generic-api-key is relaxed."
+description = "ActiveSupport duration literals assigned to consent_token_expires_at (e.g. 14.days.from_now, 7.days.from_now) trip generic-api-key's entropy heuristic. They are Rails time helpers, not API keys."
 targetRules = ["generic-api-key"]
 regexes = [
-  '''14\.days\.from_now''',
-  '''7\.days\.from_now''',
+  '''\d+\.days\.from_now''',
 ]
 
 [[allowlists]]
-description = "Infra-auditor scan-strategy prose 'Render/AWS/GCP' (cloud provider names) trips generic-api-key. Exact literal only; only generic-api-key is relaxed."
+description = "Agent scan-strategy prose in .claude/agents/infra-auditor.md mentions the literal 'Render/AWS/GCP' (cloud providers under review). That path fragment trips generic-api-key; it is documentation, not a credential."
 targetRules = ["generic-api-key"]
 regexes = [
   '''Render/AWS/GCP''',
-  '''Render/GCP''',
 ]
 
 [[allowlists]]
-description = "docs/ROTATING_KEYS.md Stripe rotation verification uses curl -u \"$STRIPE_SECRET_KEY:\" (env-var placeholder, not a real credential). Trips curl-auth-user. Exact literal only; only that rule is relaxed."
+description = "docs/ROTATING_KEYS.md shows example curl -u invocations for verifying Stripe key rotation (sk_OLD_KEY placeholder and \"$STRIPE_SECRET_KEY:\" env-var reference). The curl-auth-user rule flags those examples; the file contains no live credentials."
 targetRules = ["curl-auth-user"]
-regexes = [
-  '''"\$STRIPE_SECRET_KEY:"''',
+paths = [
+  '''docs/ROTATING_KEYS\.md''',
 ]

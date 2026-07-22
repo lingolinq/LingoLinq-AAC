@@ -149,6 +149,7 @@ describe FeatureFlags do
     end
   end
 
+
   describe "landing_beta_closed" do
     it "is registered and enabled on the landing-page beta publish branch" do
       expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).to include('landing_beta_closed')

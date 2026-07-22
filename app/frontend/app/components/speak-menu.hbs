@@ -13,7 +13,13 @@
       <div class="md-speak-menu__section md-speak-menu__section--punctuation">
         <div class="md-speak-menu__section-label">{{t "Punctuation" key="punctuation"}}</div>
         <ButtonListener @buttonEvent={{this.ctrlAction "button_event"}}>
-          <div class="md-speak-menu__row md-speak-menu__row--5">
+          {{!-- All punctuation is shown in ONE row so it's reachable in a single tap.
+               This previously showed 5 buttons plus a "More" toggle that swapped in a
+               second punctuation submenu (which duplicated , ? ! and hid contraction/
+               quote/colon behind an extra click). The submenu is gone; its three unique
+               buttons live here now. The dynamic contraction button is placed LAST (far
+               right) so the fixed marks stay in a stable, predictable order. --}}
+          <div class="md-speak-menu__row md-speak-menu__row--7">
             <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_period_button'>
               <span class="md-speak-menu__punctuation">.</span>
             </div>
@@ -26,14 +32,14 @@
             <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_exclamation_button'>
               <span class="md-speak-menu__punctuation">!</span>
             </div>
-            <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_punctuation_button'>
-              {{#if this.punctuation_menu}}
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5" stroke="#46505F"/></svg>
-                <span class="md-speak-menu__btn-label">{{t "Back" key='back'}}</span>
-              {{else}}
-                <span class="md-speak-menu__punctuation md-speak-menu__punctuation--sm">...</span>
-                <span class="md-speak-menu__btn-label">{{t "More" key='more'}}</span>
-              {{/if}}
+            <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_quote_button'>
+              <span class="md-speak-menu__punctuation">"</span>
+            </div>
+            <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_colon_button'>
+              <span class="md-speak-menu__punctuation">:</span>
+            </div>
+            <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_contraction_button'>
+              <span class="md-speak-menu__punctuation md-speak-menu__punctuation--sm">{{this.contraction.label}}</span>
             </div>
           </div>
         </ButtonListener>
@@ -81,32 +87,6 @@
                   <span class="md-speak-menu__btn-label">{{t "GIF" key="gif"}}</span>
                 </div>
               {{/if}}
-            </div>
-          </div>
-
-        {{else if this.punctuation_menu}}
-          {{!-- Punctuation group --}}
-          <div class="md-speak-menu__section">
-            <div class="md-speak-menu__section-label">{{t "Punctuation" key="punctuation"}}</div>
-            <div class="md-speak-menu__row md-speak-menu__row--3">
-              <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_contraction_button'>
-                <span class="md-speak-menu__punctuation md-speak-menu__punctuation--sm">{{this.contraction.label}}</span>
-              </div>
-              <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_quote_button'>
-                <span class="md-speak-menu__punctuation">"</span>
-              </div>
-              <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_colon_button'>
-                <span class="md-speak-menu__punctuation">:</span>
-              </div>
-              <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_exclamation_button'>
-                <span class="md-speak-menu__punctuation">!</span>
-              </div>
-              <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_comma_button'>
-                <span class="md-speak-menu__punctuation">,</span>
-              </div>
-              <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_question_button'>
-                <span class="md-speak-menu__punctuation">?</span>
-              </div>
             </div>
           </div>
 

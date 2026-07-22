@@ -28,7 +28,7 @@
       {{#each this.filteredFeatures as |feature|}}
         <li class="la-system-settings__feature-item">
           <label class="la-system-settings__feature-label">
-            <Input @type="checkbox" @checked={{get this.pendingToggles feature.key}} disabled={{feature.env_locked}} {{on "change" (this.ctrlAction "toggleFeature" feature.key)}} />
+            <input type="checkbox" checked={{get this.pendingToggles feature.key}} disabled={{feature.env_locked}} {{on "change" (this.ctrlAction "toggleFeature" feature.key)}} />
             <span class="la-system-settings__feature-name">{{feature.name}}</span>
             <span class="la-system-settings__feature-key">{{feature.key}}</span>
           </label>

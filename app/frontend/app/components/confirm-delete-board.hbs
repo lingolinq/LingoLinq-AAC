@@ -82,6 +82,7 @@
     {{/if}}
   </div>
   <div class="modal-footer md-modal-footer">
+    <button class='la-delete-board-cancel' {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
     <button class='la-delete-board-submit' {{on "click" (this.ctrlAction "deleteBoard" "delete")}} disabled={{this.deleting}}>
       {{#if this.delete_downstream}}
         {{t "Delete Board Set" key="delete_boards"}}
@@ -89,7 +90,6 @@
         {{t "Delete Board" key="delete_board"}}
       {{/if}}
     </button>
-    <button class='la-delete-board-cancel' {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
   </div>
   </div>
 </ModalDialog>

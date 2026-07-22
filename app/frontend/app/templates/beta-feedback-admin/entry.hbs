@@ -155,7 +155,7 @@
                     <section class="la-beta-feedback-detail__block" aria-labelledby="bfd-recording">
                       <h2 id="bfd-recording" class="la-beta-feedback-detail__block-title">{{t "Screen recording" key="beta_feedback_admin_heading_recording"}}</h2>
                       {{#if this.detail.recording.signed_url}}
-                        <video src={{this.detail.recording.signed_url}} controls class="la-beta-feedback-detail__recording"></video>
+                        <video src={{this.detail.recording.signed_url}} controls class="la-beta-feedback-detail__recording" aria-label={{t "Recorded feedback video" key="recorded_feedback_video"}}></video>
                         <p><a href={{this.detail.recording.signed_url}} class="btn btn-default" target="_blank" rel="noopener noreferrer">{{t "Open recording" key="beta_feedback_admin_open_recording"}}</a></p>
                         <p class="text-muted">{{t "This private link expires shortly. The recording is retained for 90 days from submission." key="beta_feedback_admin_recording_signed_hint"}}</p>
                       {{else if this.detail.recording.deleted}}

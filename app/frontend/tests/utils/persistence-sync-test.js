@@ -153,14 +153,38 @@ function refreshBoardsInStore(boards, opts) {
   });
 }
 
+// Track reloads at the PROTOTYPE level, keyed by id -- not per record instance.
+//
+// Sync unloads and re-pushes board records mid-traversal (refreshBoardsInStore above,
+// store.push in sync_boards), and Ember Data hands back a NEW instance each time. A stub
+// installed on the instance that existed at setup time is silently discarded when that
+// happens, so the board's real reload() runs and is never recorded: the reload genuinely
+// occurred, but the assertion sees a missing key. That is an untracked-observation bug in
+// the harness, not a missing reload in the code under test.
+//
+// Boards that are not being tracked still get their real reload(), so behaviour is unchanged
+// for everything outside `boards`.
 function stubBoardReloadTracking(boards, reloadsObj) {
+  var tracked = {};
   boards.forEach(function(board) {
-    var rec = LingoLinq.store.peekRecord('board', board.id);
-    if (!rec) { return; }
-    stub(rec, 'reload', function() {
-      reloadsObj[String(board.id)] = true;
-      return RSVP.resolve(rec);
-    });
+    tracked[String(board.id)] = true;
+  });
+  if (!LingoLinq.Board || !LingoLinq.Board.prototype || !LingoLinq.Board.prototype.reload) {
+    return;
+  }
+  var origReload = LingoLinq.Board.prototype.reload;
+  stub(LingoLinq.Board.prototype, 'reload', function() {
+    var id = null;
+    try {
+      id = this && typeof this.get === 'function' ? String(this.get('id')) : null;
+    } catch (e) {
+      id = null;
+    }
+    if (id && tracked[id]) {
+      reloadsObj[id] = true;
+      return RSVP.resolve(this);
+    }
+    return origReload.apply(this, arguments);
   });
 }
 
@@ -987,20 +1011,46 @@ describe("persistence-sync", function() {
         }).then(function(res) {
           if ((!ids || ids.length < 10) && res && res.ids) {
             ids = res.ids;
+          } else if ((!ids || ids.length < 10) && res && res.raw && res.raw.ids) {
+            ids = res.raw.ids;
           }
         }, function() {
           if (persistence.important_ids && persistence.important_ids.length) {
             ids = persistence.important_ids;
           }
         });
+      // `important_ids` is set on whichever persistence instance ran the sync. Reading it via
+      // the imported `persistence` proxy forwards to `window.persistence`
+      // (utils/persistence.js:4588), which in a FULL-SUITE run can be a different or
+      // torn-down service instance than the one that synced -- so this wait could never
+      // become true and burned the full 15s. (This test passes in module isolation and only
+      // times out in the full suite, which is what pointed here.) Poll the resolved target too.
+      //
+      // Do NOT also gate on syncSettled()/waitForSyncDoneAndSettled(): board-traversal
+      // leftovers (eventual_store / urls_to_store / active_board_threads) can stay
+      // non-empty after important_ids are already written, and ANDing that check then
+      // burns the full 15s waitsFor even though the assertion data is ready
+      // (CI flake 2026-07-22 on chore/melissa-merge-staging-into-develop).
       waitsFor(function() {
+        var target = persistenceTarget();
+        if ((!ids || ids.length < 10) && target && target.important_ids && target.important_ids.length >= 10) {
+          ids = target.important_ids;
+        } else if ((!ids || ids.length < 10) && persistence.important_ids && persistence.important_ids.length >= 10) {
+          ids = persistence.important_ids;
+        }
         return (ids && ids.length >= 10) ||
-          (persistence.important_ids && persistence.important_ids.length >= 10);
+          (persistence.important_ids && persistence.important_ids.length >= 10) ||
+          (target && target.important_ids && target.important_ids.length >= 10);
       });
       runs(function() {
         if (!ids || ids.length < 10) {
+          var target = persistenceTarget();
           ids = persistence.important_ids;
+          if ((!ids || ids.length < 10) && target && target.important_ids) {
+            ids = target.important_ids;
+          }
         }
+        cancelSyncTailWork();
         expect(ids.length >= 10).toEqual(true);
         expect(ids.find(function(u) { return u === 'user_1340'; })).not.toEqual(null);
         expect(ids.find(function(u) { return u === 'dataCache_http://example.com/pic.png'; })).not.toEqual(null);

@@ -10,7 +10,7 @@
   <div class="modal-body md-modal-body">
     <form class="form-horizontal">
       <div class="form-group">
-        <label id="note_type" class="col-sm-2 control-label">{{t "Recipients" key="recipients"}}</label>
+        <label id="note_recipients" class="col-sm-2 control-label">{{t "Recipients" key="recipients"}}</label>
         <div class="col-sm-10">
           <p class='form-control-static'>
             {{this.model.unit.name}} -
@@ -62,8 +62,8 @@
         </div>
         <div class="form-group">
           <div class="col-sm-10 col-sm-offset-2">
-            <button class="btn btn-default" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
-            <button class="btn btn-primary" {{on "click" (this.ctrlAction "send_message")}}>
+            <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
+            <button type="button" class="btn btn-primary" {{on "click" (this.ctrlAction "send_message")}}>
               {{t "Save Note" key="save_note"}}
             </button>
           </div>
@@ -103,8 +103,8 @@
         </div>
         <div class="form-group">
           <div class="col-sm-10 col-sm-offset-2">
-            <button class="btn btn-default" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
-            <button class="btn btn-primary" disabled={{this.no_video_ready}} {{on "click" (this.ctrlAction "send_message" "video")}}>
+            <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
+            <button type="button" class="btn btn-primary" disabled={{this.no_video_ready}} {{on "click" (this.ctrlAction "send_message" "video")}}>
               {{t "Save Note" key="save_note"}}
             </button>
           </div>

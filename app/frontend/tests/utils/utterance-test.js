@@ -176,6 +176,31 @@ describe('utterance', function() {
     });
   });
 
+  describe("contraction", function() {
+    it("should prefer an exact two-word contraction over a predictive one-word match", function() {
+      // "it is" is an exact key ("it's"); "is" alone predicts "is not" ("isn't").
+      // The exact two-word match must win regardless of dictionary order.
+      setRawButtons([{label: "it"}, {label: "is"}]);
+      var res = utterance.contraction();
+      expect(res && res.label).toEqual("it's");
+    });
+    it("should contract he/she + is to the possessive-looking form", function() {
+      setRawButtons([{label: "he"}, {label: "is"}]);
+      expect((utterance.contraction() || {}).label).toEqual("he's");
+      setRawButtons([{label: "she"}, {label: "is"}]);
+      expect((utterance.contraction() || {}).label).toEqual("she's");
+    });
+    it("should still contract an exact negative like 'is not'", function() {
+      setRawButtons([{label: "is"}, {label: "not"}]);
+      expect((utterance.contraction() || {}).label).toEqual("isn't");
+    });
+    it("should still offer a predictive contraction from the last word alone", function() {
+      // Only "is" typed so far -> predict the "is not" contraction.
+      setRawButtons([{label: "is"}]);
+      expect((utterance.contraction() || {}).label).toEqual("isn't");
+    });
+  });
+
   describe("modify_button", function() {
     it("should return a valid button object", function() {
       var result = utterance.modify_button({label: "cow"}, {label: "hat"});

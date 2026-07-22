@@ -194,6 +194,14 @@ export default Component.extend({
         this.set('status', { error: i18n.t('prompt_required', 'Please describe the board you want to create.') });
         return;
       }
+      // EU AI Act Article 50(1) NOTE: the first-AI-use gate for this surface fires in
+      // new-board.js#generateWithAi, BEFORE this modal is opened -- deliberately not
+      // here. modal.open() replaces the currently-showing modal, and generate-board is
+      // itself modal-hosted (modal-container.hbs), so opening the disclosure from this
+      // action would destroy this component along with the prompt / rows / columns the
+      // user just typed. The server-side backstop in boards_controller#generate_labels
+      // is what actually enforces the gate for any caller that reaches the endpoint
+      // another way; this component intentionally carries no gate of its own.
       this.set('status', { generatingLabels: true });
       this.set('status.error', undefined);
 
@@ -217,6 +225,7 @@ export default Component.extend({
         dataType: 'json',
         data: JSON.stringify(payload)
       }).then(function(res) {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
         _this.set('status', null);
         var labels = (res && res.labels) || '';
         _this.set('labels', labels);
@@ -226,6 +235,7 @@ export default Component.extend({
         // can include it in the board payload for the server to verify + persist.
         if (res && res.ai_generated) { _this.set('ai_generated', res.ai_generated); }
       }, function(err) {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
         var msg = i18n.t('generate_failed', 'Generation failed');
         var resp = (err && err.fakeXHR && err.fakeXHR.responseJSON) || (err && err.responseJSON) || (err && err.responseText ? (function() {
           try { return JSON.parse(err.responseText); } catch (e) { return null; }

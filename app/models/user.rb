@@ -397,6 +397,220 @@ class User < ApplicationRecord
     coppa_parental_consent_pending? || coppa_parental_consent_revoked?
   end
 
+  # True when login must collect a parent email before (re)sending the COPPA
+  # consent request: offboarding without email yet, pending with blank parent
+  # email, or revoked (re-request).
+  def coppa_needs_parent_email?
+    return true if coppa_parental_consent_revoked?
+    return false unless coppa_parental_consent_pending?
+    c = self.settings && self.settings['coppa']
+    return false unless c.is_a?(Hash)
+    return true if c['needs_parent_email']
+    c['parent_email'].blank?
+  end
+
+  # Manager-attested birth month/year (same ambiguity rule as register.js):
+  # cutoff month counts as still under the threshold.
+  # Returns true / false / nil (nil when month/year incomplete).
+  def self.age_under_threshold?(birth_month:, birth_year:, age:)
+    month = birth_month.to_i
+    year = birth_year.to_i
+    return nil if month < 1 || month > 12 || year < 1900 || year > Time.now.utc.year
+    today = Time.now.utc
+    cutoff_year = today.year - age.to_i
+    cutoff_month = today.month
+    year > cutoff_year || (year == cutoff_year && month >= cutoff_month)
+  end
+
+  # Under-13 needs family COPPA when leaving an org. Prefer manager-attested
+  # birth month/year from the remove dialog; also repair pending/revoked COPPA.
+  # School-authorization alone is NOT enough (org New User has no age).
+  def requires_coppa_offboarding?(attested_under_13: nil)
+    return false unless JsonApi::Json.coppa_parental_consent_enabled?
+    return false if coppa_parental_consent_active?
+    return true if attested_under_13
+    coppa_parental_consent_pending? || coppa_parental_consent_revoked?
+  end
+
+  def self.validate_parent_consent_email!(parent_email, child_email: nil)
+    parent = parent_email.to_s.strip
+    raise ArgumentError, 'parent consent email required' if parent.blank?
+    raise ArgumentError, 'invalid parent consent email format' if parent !~ URI::MailTo::EMAIL_REGEXP
+    child = child_email.to_s.strip.downcase
+    if child.present? && parent.downcase == child
+      raise ArgumentError, 'parent consent email must be different from the account email'
+    end
+    parent
+  end
+
+  # Org seat reclaim → family account. Uses manager-attested birth month/year
+  # from the remove dialog + releasing org jurisdiction (US/EU):
+  # under-13 → COPPA pending (optional parent email);
+  # under-16 → AI prefs off; EU org also sets eu_under_16 for parental re-consent
+  # when they re-enable AI in preferences.
+  def begin_family_offboarding_consents!(org: nil, parent_email: nil, actor: nil, birth_month: nil, birth_year: nil)
+    attested_under_13 = self.class.age_under_threshold?(
+      birth_month: birth_month, birth_year: birth_year, age: 13
+    )
+    attested_under_16 = self.class.age_under_threshold?(
+      birth_month: birth_month, birth_year: birth_year, age: 16
+    )
+    org_jurisdiction = org.respond_to?(:jurisdiction) ? org.jurisdiction : nil
+    did_coppa = false
+    did_ai = false
+    send_coppa_email = false
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      if birth_month.present? && birth_year.present?
+        self.settings['registration'] ||= {}
+        self.settings['registration']['offboarding_birth_month'] = birth_month.to_i
+        self.settings['registration']['offboarding_birth_year'] = birth_year.to_i
+        self.settings['registration']['offboarding_attested_at'] = Time.now.utc.iso8601
+        self.settings['registration']['offboarding_org_jurisdiction'] = org_jurisdiction if org_jurisdiction
+        if !attested_under_16.nil?
+          self.settings['registration']['under_16'] = !!attested_under_16
+          # Prefer releasing org jurisdiction so school-created users (no country)
+          # still get the correct EU Art. 8 AI gate. Legacy orgs without
+          # jurisdiction fall back to the user's registration country.
+          if org && org.respond_to?(:eu_jurisdiction?) && org.eu_jurisdiction?
+            self.settings['registration']['eu_under_16'] = !!attested_under_16
+          elsif org && org.respond_to?(:us_jurisdiction?) && org.us_jurisdiction?
+            self.settings['registration']['eu_under_16'] = false
+          else
+            country = registration_country
+            self.settings['registration']['eu_under_16'] = !!(
+              attested_under_16 && country && LingoLinq::Jurisdiction.eu?(country)
+            )
+          end
+        end
+      end
+
+      if requires_coppa_offboarding?(attested_under_13: attested_under_13)
+        school = self.settings['school_authorization']
+        if school.is_a?(Hash) && school.present?
+          ended = school.dup
+          ended['ended_at'] = Time.now.utc.iso8601
+          ended['ended_org_id'] = org && org.global_id
+          self.settings['school_authorization_ended'] = ended
+          self.settings.delete('school_authorization')
+        end
+        parent = parent_email.to_s.strip
+        blob = {
+          'pending_parent_consent' => true,
+          'offboarding' => true
+        }
+        if parent.present?
+          parent = self.class.validate_parent_consent_email!(
+            parent,
+            child_email: (self.settings['email'] || '')
+          )
+          blob['parent_email'] = process_string(parent)
+          blob['parent_consent_token'] = GoSecure.nonce('parent_consent')
+          blob['parent_consent_expires_at'] = 14.days.from_now.utc.iso8601
+          blob['needs_parent_email'] = false
+          send_coppa_email = true
+        else
+          blob['needs_parent_email'] = true
+        end
+        self.settings['coppa'] = blob
+        did_coppa = true
+      end
+
+      # Under-16: turn AI prefs off now. No parent email at remove — for EU
+      # orgs, parental consent runs when they try to turn AI back on.
+      if attested_under_16 || eu_under_16?
+        apply_eu_ai_offboarding_reset!
+        did_ai = true
+      end
+
+      if did_coppa || did_ai || (birth_month.present? && birth_year.present?)
+        self.save!
+        if did_coppa
+          record_id = SecureRandom.uuid
+          AuditEvent.create!(
+            user_key: self.global_id,
+            data: {
+              'type' => 'parental_consent_offboarding_started',
+              'organization_id' => org && org.global_id,
+              'actor_id' => actor && (actor.respond_to?(:global_id) ? actor.global_id : actor),
+              'parent_email_provided' => send_coppa_email,
+              'attested_under_13' => !!attested_under_13,
+              'org_jurisdiction' => org_jurisdiction,
+              'record_id' => record_id
+            },
+            event_type: 'parental_consent_offboarding_started',
+            record_id: record_id
+          )
+        end
+        if did_ai
+          record_id = SecureRandom.uuid
+          AuditEvent.create!(
+            user_key: self.global_id,
+            data: {
+              'type' => 'eu_ai_parental_consent_offboarding_reset',
+              'organization_id' => org && org.global_id,
+              'actor_id' => actor && (actor.respond_to?(:global_id) ? actor.global_id : actor),
+              'attested_under_16' => !!attested_under_16,
+              'org_jurisdiction' => org_jurisdiction,
+              'record_id' => record_id
+            },
+            event_type: 'eu_ai_parental_consent_offboarding_reset',
+            record_id: record_id
+          )
+        end
+      end
+    end
+    if did_coppa
+      devices.each(&:invalidate_cached_keys)
+      if send_coppa_email
+        UserMailer.schedule_parent_consent_delivery(:parental_consent_request, self.global_id)
+      end
+    end
+    did_coppa || did_ai
+  end
+
+  # Login-time (or revoked re-request): stamp parent email + token and send
+  # the COPPA consent request. Does not grant a session.
+  def submit_parental_consent_email!(parent_email)
+    parent = self.class.validate_parent_consent_email!(
+      parent_email,
+      child_email: (self.settings && self.settings['email'] || '')
+    )
+    unless coppa_needs_parent_email? || (coppa_parental_consent_pending? && (self.settings['coppa'].is_a?(Hash) && self.settings['coppa']['parent_email'].blank?))
+      return false
+    end
+    offboarding = false
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      prior = self.settings['coppa']
+      offboarding = prior.is_a?(Hash) && !!prior['offboarding']
+      self.settings['coppa'] = {
+        'pending_parent_consent' => true,
+        'offboarding' => offboarding,
+        'parent_email' => process_string(parent),
+        'parent_consent_token' => GoSecure.nonce('parent_consent'),
+        'parent_consent_expires_at' => 14.days.from_now.utc.iso8601,
+        'needs_parent_email' => false
+      }
+      self.save!
+      record_id = SecureRandom.uuid
+      AuditEvent.create!(
+        user_key: self.global_id,
+        data: {
+          'type' => 'parental_consent_email_submitted',
+          'method' => 'login_dialog',
+          'offboarding' => offboarding,
+          'record_id' => record_id
+        },
+        event_type: 'parental_consent_email_submitted',
+        record_id: record_id
+      )
+    end
+    devices.each(&:invalidate_cached_keys)
+    UserMailer.schedule_parent_consent_delivery(:parental_consent_request, self.global_id)
+    true
+  end
+
   # Validates the grant link token from the parental consent request email.
   # Retained after grant so idempotent revisits require the same secret as the first click.
   def valid_parent_consent_grant_link_token?(token)
@@ -532,6 +746,261 @@ class User < ApplicationRecord
     end
     devices.each(&:invalidate_cached_keys) if res
     res
+  end
+
+  # --- EU AI parental consent (GDPR Art. 8 digital consent age / AI enablement) ---
+  # Separate from COPPA signup (`settings['coppa']`) and AI VPC (`settings['ai_consent']`).
+  # Blob: settings['eu_ai_parental_consent']. Blocks AI until a parent grants via email token.
+
+  EU_AI_PREF_KEYS = %w[
+    ai_features_enabled ai_board_generation ai_word_prediction
+    ai_board_suggestions ai_symbol_search
+  ].freeze
+
+  def registration_country
+    c = self.settings && self.settings['country']
+    return c if c.present?
+    reg = self.settings && self.settings['registration']
+    return nil unless reg.is_a?(Hash)
+    reg['country'].presence
+  end
+
+  def under_16?
+    reg = self.settings && self.settings['registration']
+    return false unless reg.is_a?(Hash)
+    !!reg['under_16']
+  end
+
+  def eu_under_16?
+    reg = self.settings && self.settings['registration']
+    return false unless reg.is_a?(Hash)
+    !!reg['eu_under_16']
+  end
+
+  def eu_ai_parental_consent_pending?
+    c = self.settings && self.settings['eu_ai_parental_consent']
+    return false unless c.is_a?(Hash)
+    return false if c['parent_consent_granted_at'].present?
+    !!c['pending_parent_consent']
+  end
+
+  def eu_ai_parental_consent_revoked?
+    c = self.settings && self.settings['eu_ai_parental_consent']
+    return false unless c.is_a?(Hash)
+    c['parent_consent_revoked_at'].present?
+  end
+
+  def eu_ai_parental_consent_active?
+    c = self.settings && self.settings['eu_ai_parental_consent']
+    return false unless c.is_a?(Hash)
+    c['parent_consent_granted_at'].present? && c['parent_consent_revoked_at'].blank?
+  end
+
+  # True when this EU under-16 account must not use AI: pending, revoked, or never granted.
+  def eu_ai_parental_consent_blocks_ai?
+    return false unless eu_under_16?
+    !eu_ai_parental_consent_active?
+  end
+
+  def valid_eu_ai_parent_consent_grant_link_token?(token)
+    eu_ai_parent_consent_link_token_valid?(token, 'parent_consent_token')
+  end
+
+  def valid_eu_ai_parent_consent_revoke_link_token?(token)
+    eu_ai_parent_consent_link_token_valid?(token, 'parent_consent_revoke_token')
+  end
+
+  def eu_ai_parent_consent_link_token_valid?(token, settings_key)
+    return false if token.blank?
+    c = self.settings && self.settings['eu_ai_parental_consent']
+    return false unless c.is_a?(Hash)
+    stored = c[settings_key].to_s
+    return false if stored.blank?
+    tok = token.to_s
+    return false if stored.bytesize != tok.bytesize
+    ActiveSupport::SecurityUtils.secure_compare(stored, tok)
+  end
+
+  # Allowlisted AI preference keys from a consent request payload. Unknown keys
+  # are dropped. Returns a Hash with string keys; always sets ai_features_enabled
+  # when any feature is requested. Empty Hash if nothing valid was requested.
+  def self.sanitize_eu_ai_requested_features(raw)
+    return {} if raw.blank?
+    if raw.respond_to?(:to_unsafe_h)
+      raw = raw.to_unsafe_h
+    elsif raw.respond_to?(:permit!)
+      raw = raw.to_h
+    elsif raw.respond_to?(:to_h) && !raw.is_a?(Hash)
+      raw = raw.to_h
+    end
+    return {} unless raw.is_a?(Hash)
+    raw = raw.stringify_keys
+    out = {}
+    feature_keys = EU_AI_PREF_KEYS - ['ai_features_enabled']
+    feature_keys.each do |k|
+      val = raw[k]
+      out[k] = true if [true, 'true', '1', 1].include?(val)
+    end
+    master = raw['ai_features_enabled']
+    if out.any? || [true, 'true', '1', 1].include?(master)
+      out['ai_features_enabled'] = true
+    end
+    out
+  end
+
+  # Validate parent email and set pending consent tokens (14-day expiry). save!
+  # requested_features: optional Hash of AI prefs to activate when the parent grants.
+  def request_eu_ai_parental_consent!(parent_email, requested_features: nil)
+    parent = parent_email.to_s.strip
+    raise ArgumentError, 'parent consent email required' if parent.blank?
+    raise ArgumentError, 'invalid parent consent email format' if parent !~ URI::MailTo::EMAIL_REGEXP
+    child_email = (self.settings && self.settings['email'] || '').to_s.strip.downcase
+    if child_email.present? && parent.downcase == child_email
+      raise ArgumentError, 'parent consent email must be different from the account email'
+    end
+    features = self.class.sanitize_eu_ai_requested_features(requested_features)
+    raise ArgumentError, 'requested_features required' if features.blank?
+    self.settings ||= {}
+    blob = {
+      'pending_parent_consent' => true,
+      'parent_email' => process_string(parent),
+      'parent_consent_token' => GoSecure.nonce('eu_ai_parent_consent'),
+      'parent_consent_expires_at' => 14.days.from_now.utc.iso8601,
+      'requested_features' => features
+    }
+    self.settings['eu_ai_parental_consent'] = blob
+    self.save!
+    true
+  end
+
+  def grant_eu_ai_parental_consent!(token, ip: nil, user_agent: nil)
+    return false if token.blank?
+    res = false
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      c = self.settings['eu_ai_parental_consent']
+      next unless c.is_a?(Hash)
+      next if c['parent_consent_granted_at'].present? && c['parent_consent_revoked_at'].blank?
+      next unless c['pending_parent_consent']
+      stored = c['parent_consent_token'].to_s
+      tok = token.to_s
+      next if stored.blank?
+      next if stored.bytesize != tok.bytesize
+      next unless ActiveSupport::SecurityUtils.secure_compare(stored, tok)
+      exp = c['parent_consent_expires_at']
+      if exp.present?
+        begin
+          next if Time.iso8601(exp) < Time.now.utc
+        rescue ArgumentError
+          next
+        end
+      end
+      granted_at = Time.now.utc.iso8601
+      record_id = SecureRandom.uuid
+      requested = c['requested_features']
+      c['parent_consent_granted_at'] = granted_at
+      c['parent_consent_revoke_token'] = GoSecure.nonce('eu_ai_parent_consent_revoke')
+      c.delete('parent_consent_expires_at')
+      c.delete('pending_parent_consent')
+      c.delete('parent_consent_revoked_at')
+      c.delete('requested_features')
+      self.settings['eu_ai_parental_consent'] = c
+      # Activate the features the user requested when they sent the consent email.
+      self.settings['preferences'] ||= {}
+      if requested.is_a?(Hash)
+        EU_AI_PREF_KEYS.each do |k|
+          self.settings['preferences'][k] = true if requested[k]
+        end
+      end
+      self.save!
+      AuditEvent.create!(
+        user_key: self.global_id,
+        data: {
+          'type' => 'eu_ai_parental_consent_grant',
+          'method' => 'email_token_link',
+          'ip' => ip,
+          'user_agent' => user_agent,
+          'granted_at' => granted_at,
+          'record_id' => record_id,
+          'requested_features' => (requested.is_a?(Hash) ? requested : {})
+        },
+        event_type: 'eu_ai_parental_consent_grant',
+        record_id: record_id
+      )
+      res = true
+    end
+    res
+  end
+
+  def revoke_eu_ai_parental_consent!(token, ip: nil, user_agent: nil)
+    return false if token.blank?
+    res = false
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      c = self.settings['eu_ai_parental_consent']
+      next unless c.is_a?(Hash)
+      next if c['parent_consent_revoked_at'].present?
+      next unless c['parent_consent_granted_at'].present?
+      stored = c['parent_consent_revoke_token'].to_s
+      tok = token.to_s
+      next if stored.blank?
+      next if stored.bytesize != tok.bytesize
+      next unless ActiveSupport::SecurityUtils.secure_compare(stored, tok)
+      revoked_at = Time.now.utc.iso8601
+      granted_at = c['parent_consent_granted_at']
+      record_id = SecureRandom.uuid
+      c['parent_consent_revoked_at'] = revoked_at
+      self.settings['eu_ai_parental_consent'] = c
+      # Force AI prefs off when consent is withdrawn (defense in depth vs prefs UI).
+      self.settings['preferences'] ||= {}
+      EU_AI_PREF_KEYS.each { |k| self.settings['preferences'][k] = false }
+      self.save!
+      AuditEvent.create!(
+        user_key: self.global_id,
+        data: {
+          'type' => 'eu_ai_parental_consent_revoke',
+          'method' => 'email_token_link',
+          'ip' => ip,
+          'user_agent' => user_agent,
+          'granted_at' => granted_at,
+          'revoked_at' => revoked_at,
+          'record_id' => record_id
+        },
+        event_type: 'eu_ai_parental_consent_revoke',
+        record_id: record_id
+      )
+      res = true
+    end
+    res
+  end
+
+  # Org offboarding: force AI prefs off and invalidate any EU AI parental
+  # consent so family re-enable requires a new parent grant. Caller is
+  # responsible for save! / audit when used inside begin_family_offboarding.
+  def apply_eu_ai_offboarding_reset!
+    self.settings ||= {}
+    self.settings['preferences'] ||= {}
+    EU_AI_PREF_KEYS.each { |k| self.settings['preferences'][k] = false }
+    c = self.settings['eu_ai_parental_consent']
+    if c.is_a?(Hash) && c['parent_consent_granted_at'].present? && c['parent_consent_revoked_at'].blank?
+      c = c.dup
+      c['parent_consent_revoked_at'] = Time.now.utc.iso8601
+      c['offboarding_reset'] = true
+      self.settings['eu_ai_parental_consent'] = c
+    else
+      self.settings['eu_ai_parental_consent'] = {
+        'offboarding_reset' => true,
+        'reset_at' => Time.now.utc.iso8601
+      }
+    end
+    true
+  end
+
+  def reset_eu_ai_parental_consent_for_offboarding!
+    return false unless eu_under_16?
+    apply_eu_ai_offboarding_reset!
+    self.save!
+    true
   end
 
   # AI data-sharing consent (COPPA Item 1b). Returns true only when an unrevoked
@@ -722,6 +1191,89 @@ class User < ApplicationRecord
           'record_id' => c['record_id']
         },
         event_type: 'ai_consent_revoke',
+        record_id: c['record_id']
+      )
+      res = true
+    end
+    res
+  end
+
+  # EU AI Act Article 50(1) TRANSPARENCY disclosure-shown state (B3, VPC Phase 4).
+  # Mirrors ai_consent_granted? exactly, swapping settings['ai_consent'] for
+  # settings['ai_transparency'] and "granted" semantics for "shown". The kwarg is
+  # named `disclosures_version:` to MATCH ai_consent_granted?'s clone target so a
+  # caller reusing the ai_consent call shape cannot hit an ArgumentError footgun.
+  #
+  # Semantically DISTINCT from ai_consent: this records that the Article 50
+  # transparency NOTICE was displayed, NOT that AI data-sharing consent was granted.
+  # It is versioned against Article50Disclosures::CURRENT_VERSION (its OWN version
+  # source, not the ai_consent one, PN-02) so an Art.50 copy change re-prompts
+  # without forcing an ai_consent re-consent. Defaults to false for a nil/missing
+  # key: nothing flips shown=true until the Phase 3/5 modal acknowledge ships, so in
+  # production every AiApiLog row carries article_50_disclosure_shown=false until then.
+  def article_50_disclosure_shown?(disclosures_version: LingoLinq::Article50Disclosures::CURRENT_VERSION)
+    c = self.settings && self.settings['ai_transparency']
+    return false unless c.is_a?(Hash)
+    return false if c['shown_at'].blank?
+    return false if c['disclosures_version'].blank?
+    return false unless c['disclosures_version'] == disclosures_version
+    true
+  end
+
+  # Sources accepted by mark_article_50_disclosure_shown!. Anything else raises
+  # ArgumentError, mirroring AI_CONSENT_SOURCES: a Phase 3/5 controller cannot widen
+  # the audit source surface by passing an arbitrary value pulled from params.
+  ARTICLE_50_DISCLOSURE_SOURCES = %w[modal_ack admin_backfill].freeze
+
+  # Records that the Article 50(1) transparency disclosure was SHOWN at the given
+  # version. Clones grant_ai_consent!'s structure: runs inside
+  # with_lock(requires_new: true) so the settings write and the single AuditEvent
+  # insert are atomic (a failed audit rolls back the settings write) and concurrent
+  # writes to the same user are serialized. Idempotent on a same-version re-call
+  # (returns false, fires NO second AuditEvent). A version BUMP (newer version) falls
+  # through and re-records, giving re-prompt semantics.
+  #
+  # record_id uses SecureRandom.uuid (RFC-4122, 122 bits), matching the SHIPPED
+  # grant_ai_consent! code -- NOT GoSecure.nonce, which had low entropy under bulk
+  # backfill. Raises ArgumentError 'invalid_source' for a non-allowlisted source.
+  #
+  # WRITE TRIGGER: the Phase 3/5 modal acknowledge is the writer. Phase 4 ships this
+  # API only; nothing calls it in production yet, so article_50_disclosure_shown?
+  # stays false on every row until the modal ships (that is expected -- the plumbing
+  # is the deliverable).
+  def mark_article_50_disclosure_shown!(disclosures_version:, source:, ip: nil, user_agent: nil)
+    raise ArgumentError, 'invalid_source' unless ARTICLE_50_DISCLOSURE_SOURCES.include?(source)
+    disclosures_version = ai_consent_normalize_version!(disclosures_version)
+    res = false
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      c = self.settings['ai_transparency']
+      c = {} unless c.is_a?(Hash)
+      prior_version = c['disclosures_version']
+      prior_version = Integer(prior_version) if prior_version.is_a?(String) && prior_version.strip.match?(/\A\d+\z/)
+      # Same-version re-call is a no-op (already shown at this version). A newer
+      # version falls through and re-records (re-prompt). An older version cannot
+      # regress an already-shown newer disclosure.
+      if c['shown_at'].present? && prior_version.is_a?(Integer)
+        next if disclosures_version <= prior_version
+      end
+      c['record_id'] = SecureRandom.uuid if c['record_id'].blank?
+      c['shown_at'] = Time.now.utc.iso8601
+      c['disclosures_version'] = disclosures_version
+      c['source'] = source
+      c['ip'] = ip
+      c['user_agent'] = user_agent
+      self.settings['ai_transparency'] = c
+      self.save!
+      AuditEvent.create!(
+        user_key: self.global_id,
+        data: {
+          'type' => 'article_50_disclosure_shown',
+          'disclosures_version' => disclosures_version,
+          'source' => source,
+          'record_id' => c['record_id']
+        },
+        event_type: 'article_50_disclosure_shown',
         record_id: c['record_id']
       )
       res = true
@@ -1317,7 +1869,11 @@ class User < ApplicationRecord
       # the board-detail dark toggle and the create-board-new preview share one
       # remembered choice across sessions. Unset => each surface applies its own
       # default (board-detail dark, create-board-new light).
-      'board_dark_mode'
+      'board_dark_mode',
+      # AI feature prefs (master + per-feature). Master nil = grandfather (allowed);
+      # for EU under-16 without parental consent these are forced false on write.
+      'ai_features_enabled', 'ai_board_generation', 'ai_word_prediction',
+      'ai_board_suggestions', 'ai_symbol_search'
     ]
   # Known home-dashboard section keys — the SINGLE source of truth lives in the
   # frontend (app/frontend/app/utils/dashboard_sections.js: HOME_SECTIONS keys +
@@ -1452,6 +2008,24 @@ class User < ApplicationRecord
         self.settings.delete('privacy_policy_acknowledged')
       end
     end
+    # Registration country + under-16 flags (EU AI / GDPR Art. 8). Persisted only
+    # on create. Server recomputes eu_under_16 from trusted country + under_16;
+    # ignore any client-supplied eu_under_16. COPPA account-activation gate stays
+    # keyed on client coppa_under_13 (literal under-13 only — not EU age-16).
+    # EU under-16 may create accounts without signup parent email; AI enablement
+    # uses settings['eu_ai_parental_consent'] after login.
+    if !self.id
+      country = LingoLinq::Jurisdiction.trusted_country(params['country'])
+      self.settings['country'] = country if country
+      under16_flag = params['under_16'] || params['under-16'] || params['under16']
+      under_16 = [true, 'true', '1', 1].include?(under16_flag)
+      eu_under_16 = !!(country && LingoLinq::Jurisdiction.eu?(country) && under_16)
+      self.settings['registration'] = {
+        'under_16' => under_16,
+        'eu_under_16' => eu_under_16,
+        'registered_at' => Time.now.utc.iso8601
+      }
+    end
     self.settings['referrer'] ||= params['referrer'] if params['referrer']
     self.settings['ad_referrer'] ||= params['ad_referrer'] if params['ad_referrer']
     if org_authorized
@@ -1560,6 +2134,20 @@ class User < ApplicationRecord
         self.settings['preferences'][attr] = val
       end
     end
+    # EU under-16 without active AI parental consent: default AI prefs off on
+    # create, and silently force false if the client tries to enable any.
+    # Also never allow product-improvement / telemetry opt-in for EU under-16.
+    product_improvement_keys = %w[cookies telemetry_opt_in comms_log_opt_in]
+    if self.new_record? && eu_under_16?
+      EU_AI_PREF_KEYS.each { |k| self.settings['preferences'][k] = false }
+      product_improvement_keys.each { |k| self.settings['preferences'][k] = false }
+    end
+    if eu_under_16? && !eu_ai_parental_consent_active?
+      EU_AI_PREF_KEYS.each { |k| self.settings['preferences'][k] = false }
+    end
+    if eu_under_16?
+      product_improvement_keys.each { |k| self.settings['preferences'][k] = false }
+    end
     # The dashboard_* preferences are stored verbatim above but drive the home
     # grid's computed inline styles and CSS class names, so coerce each to a safe
     # shape against the known section-key whitelist. Invalid values are dropped so
@@ -1596,7 +2184,8 @@ class User < ApplicationRecord
       end
     end
     if params['preferences'] && !params['preferences']['cookies'].nil?
-      self.settings['preferences']['cookies'] = process_boolean(params['preferences']['cookies'])
+      # EU under-16: cookies / product-improvement opt-in stay off (set earlier too).
+      self.settings['preferences']['cookies'] = eu_under_16? ? false : process_boolean(params['preferences']['cookies'])
     end
     if params['preferences']
       self.settings['preferences']['clear_vocalization_history'] = process_boolean(params['preferences']['clear_vocalization_history']) if params['preferences'] && params['preferences']['clear_vocalization_history'] != nil
@@ -2300,6 +2889,11 @@ class User < ApplicationRecord
             'image' => board['image'] || record.settings['image_url'] || '/images/lingolinq-board-icon.png',
             'home_lock' => !!board['home_lock']
           }
+          # Hidden entries stay in the list but are not rendered on the sidebar.
+          # Needed for auto-add boards (crisis-vocabulary): removing them outright
+          # is undone by merge_missing_default_sidebar_boards on the next load, so
+          # "hide" has to be a flag on a still-present entry rather than a delete.
+          brd['hidden'] = true if board['hidden']
           brd['locale'] = board['locale'] || record.settings['locale']
           brd['level'] = board['level'] if board['level']
           valid_types = []

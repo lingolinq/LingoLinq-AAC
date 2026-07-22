@@ -74,7 +74,7 @@
       {{/if}}
       {{#unless this.recent_category}}
         <div class="la-phrases-add-row">
-          <input value={{this.sentence}} type="text" class="la-phrases-input" placeholder="Enter a new phrase to add to the list" {{on "input" (set-field this "sentence")}} />
+          <input value={{this.sentence}} type="text" class="la-phrases-input" placeholder="Enter a new phrase to add to the list" aria-label={{t "New phrase" key="new_phrase"}} {{on "input" (set-field this "sentence")}} />
           <button class="la-phrases-add-btn" {{on "click" (this.ctrlAction "add")}}>
             {{#if this.journaling}}
               {{t "Save Entry" key="save_entry"}}

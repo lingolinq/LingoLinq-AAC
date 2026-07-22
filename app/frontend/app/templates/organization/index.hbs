@@ -226,7 +226,7 @@
           {{#if this.app_state.feature_flags.profiles}}
             <div class="md-org-charts__item">
               {{#if this.user_counts.communicators}}
-                {{stats/recent-profiles type="communicator" total=this.user_counts.communicators recent=this.user_counts.communicator_recent_profiles}}
+                <Stats::RecentProfiles @type="communicator" @total={{this.user_counts.communicators}} @recent={{this.user_counts.communicator_recent_profiles}} />
               {{else}}
                 <div class="md-org-chart-empty">
                   <svg class="md-org-chart-empty__icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11l-3 3-2-2"/></svg>
@@ -237,7 +237,7 @@
             </div>
             <div class="md-org-charts__item">
               {{#if this.user_counts.supervisors}}
-                {{stats/recent-profiles type="supervisor" total=this.user_counts.supervisors recent=this.user_counts.supervisor_recent_profiles}}
+                <Stats::RecentProfiles @type="supervisor" @total={{this.user_counts.supervisors}} @recent={{this.user_counts.supervisor_recent_profiles}} />
               {{else}}
                 <div class="md-org-chart-empty">
                   <svg class="md-org-chart-empty__icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>

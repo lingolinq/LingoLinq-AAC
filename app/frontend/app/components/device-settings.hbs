@@ -22,7 +22,7 @@
               <div class="la-devices-item__info">
                 {{#if device.renaming}}
                   <div class="la-devices-item__rename">
-                    {{focus-input type="text" value=device.new_name action="update_device" class="la-devices-rename-input"}}
+                    <FocusInput @type="text" @value={{device.new_name}} @onChange={{set-value device "new_name"}} class="la-devices-rename-input" />
                     <button {{on "click" (this.ctrlAction "update_device")}} class="la-btn la-btn--primary la-btn--sm">{{t "Save" key="save"}}</button>
                   </div>
                 {{else}}

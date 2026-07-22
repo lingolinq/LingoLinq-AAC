@@ -206,14 +206,12 @@ requires them, not before.
   profiles with an export-first, delete-later flow.
 - Harden console and privileged-access session auditing so every administrative session is
   attributably logged.
-- **Add the missing parental re-consent at offboarding.** When a district reclaims a seat, the
-  child's account currently converts to a family trial with no verifiable parental consent captured
-  and no parent notice (confirmed: `license.rb` `release_user!` sets a 2-month trial and drops the
-  org link but captures no consent). Because district-created minors are set up under the
-  school-official exception with no direct parental consent on file (the COPPA gate in `user.rb` is
-  skipped for a validated org), the resulting family relationship has no COPPA-valid consent. Add a
-  parent/guardian notice-and-consent step at that transition, with export-then-delete if the family
-  declines.
+- **Parental re-consent at offboarding (implemented 2026-07-16).** When a district reclaims a seat,
+  `Organization#remove_user` → `User#begin_family_offboarding_consents!` stamps COPPA pending for
+  school-authorized / under-13 communicators (optional parent email at remove; otherwise collected
+  at next login via `submit_parental_consent_email`) and resets EU under-16 AI consent/prefs.
+  Full login stays blocked until a parent grants COPPA consent. **Follow-up:** export-then-delete
+  if the family declines or never responds.
 - Publish an accurate VPAT and complete the EU AI Act Article 50 transparency disclosures for AI
   features (target early August 2026).
 
@@ -276,11 +274,11 @@ Two points we state honestly so the model holds up under a district's own agreem
   their own account as consumers at offboarding; it is not a claim that a district can never require
   deletion during the school relationship.
 - Continuing to process a child's data after the school's authorization ends shifts the lawful basis
-  to **parental consent**. The offboarding-to-family transition therefore requires clear parent or
-  guardian notice and consent to continue, with export-then-delete if the family declines. **This
-  step is not yet implemented** (verified: `release_user!` retains the account and starts a 2-month
-  trial but captures no consent and sends no notice), and it is tracked as a near-term control in
-  Section 4.
+  to **parental consent**. The offboarding-to-family transition now stamps COPPA pending (and resets
+  EU AI consent when applicable) via `User#begin_family_offboarding_consents!` on
+  `Organization#remove_user` (both license `release_user!` and legacy detach paths). Parent email may
+  be supplied at remove or at the child's next login. **Follow-up:** export-then-delete if the family
+  declines (Section 4).
 
 **Contracts we sign.** In practice districts and hospitals provide their own paper: we sign the
 **district's DPA** and operate under its guidelines, and we provide a **BAA to a clinical

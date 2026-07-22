@@ -57,13 +57,13 @@
       <div class="form-group">
         <label class="col-sm-3 control-label">{{t "Password" key="password"}}</label>
         <div class="col-sm-5">
-          {{password-field id="old_password" class="form-control" value=this.model.old_password placeholder="current password" autocomplete="current-password"}}
+          <PasswordField @id="old_password" @class="form-control" @value={{this.model.old_password}} @onChange={{set-value this "model.old_password"}} @placeholder="current password" @autocomplete="current-password" />
         </div>
       </div>
       <div class="form-group">
         <span class="col-sm-3 control-label"></span>
         <div class="col-sm-5">
-          {{password-field id="password" class="form-control" value=this.model.password placeholder="new password" autocomplete="new-password"}}
+          <PasswordField @id="password" @class="form-control" @value={{this.model.password}} @onChange={{set-value this "model.password"}} @placeholder="new password" @autocomplete="new-password" />
         </div>
       </div>
     {{/unless}}
@@ -79,12 +79,12 @@
             <QrCode @text={{this.status_2fa.uri}} @size={{300}} />
             </div>
             <span style='display: inline-block; width: 200px;'>
-              <input value={{this.code_2fa}} type="number" class="form-control" placeholder="# # # # # #" autocomplete="one-time-code" {{on "input" (set-field this "code_2fa")}} />
+              <input value={{this.code_2fa}} type="number" class="form-control" placeholder="# # # # # #" aria-label={{t "Two-factor authentication code" key="two_factor_code"}} autocomplete="one-time-code" {{on "input" (set-field this "code_2fa")}} />
             </span>
             {{#if this.status_2fa.error}}
               <p class='text-danger'>{{t "Invalid code, please check again" key="invalid_code_please_try_again"}}</p>
             {{/if}}
-            <button class='btn btn-default' {{on "click" (this.ctrlAction "update_2fa" "confirm")}}>{{t "Confirm" key="confirm"}}</button>
+            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "update_2fa" "confirm")}}>{{t "Confirm" key="confirm"}}</button>
           {{else}}
             {{#if this.model.permissions.edit}}
               {{#if this.model.state_2fa.required}}
@@ -94,12 +94,12 @@
                   {{t "Currently Enabled" key="currently_enabled"}}
                 {{/if}}
                 {{#unless this.model.state_2fa.mandatory}}
-                  <button class='btn btn-default' {{on "click" (this.ctrlAction "update_2fa" "disable")}}>{{t "Disable" key="disable_2fa"}}</button>
+                  <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "update_2fa" "disable")}}>{{t "Disable" key="disable_2fa"}}</button>
                 {{/unless}}
-                <button class='btn btn-default' {{on "click" (this.ctrlAction "update_2fa" "reset")}}>{{t "Reset" key="reset_2fa"}}</button>
+                <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "update_2fa" "reset")}}>{{t "Reset" key="reset_2fa"}}</button>
               {{else}}
                 {{t "Ensure you have the latest app versions before enabling!" key="ensure_latest_app_versions"}}
-                <button class='btn btn-default' {{on "click" (this.ctrlAction "update_2fa" "enable")}}>{{t "Enable Two-Factor Authentication" key="enable_2fa"}}</button>
+                <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "update_2fa" "enable")}}>{{t "Enable Two-Factor Authentication" key="enable_2fa"}}</button>
               {{/if}}
             {{/if}}
             {{#if this.status_2fa.error}}
@@ -178,13 +178,13 @@
               <li class='list-group-item'>
                 <div style='float: right;'>
                   {{#unless contact.temporary}}
-                    <button class='btn btn-default' {{on "click" (this.ctrlAction "message_link" contact)}} title={{t "Send message link to contact" key="send_message_link_to_contact"}} style='position: relative;'>
+                    <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "message_link" contact)}} title={{t "Send message link to contact" key="send_message_link_to_contact"}} style='position: relative;'>
                       <span class='glyphicon glyphicon-envelope' style='position: absolute;top: 3px;left: 3px;'></span>
                       <span class='glyphicon glyphicon-link' style='margin-right: -7px;margin-left: 7px;'></span>
                       <span class='sr-only'>{{t "Send message link to contact" key="send_message_link_to_contact"}}</span>
                     </button>
                   {{/unless}}
-                  <button class='btn btn-default' {{on "click" (this.ctrlAction "remove_contact" contact)}}>
+                  <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "remove_contact" contact)}}>
                     <span class='glyphicon glyphicon-trash'></span>
                     <span class='sr-only'>{{t "Remove contact" key="remove_contact"}}</span>
                   </button>
@@ -211,14 +211,14 @@
       </div>
       {{#if this.model.permissions.edit}}
         <div class='col-sm-3 col-sm-offset-3'>
-          <input value={{this.contact_name}} type="text" class="form-control" placeholder="Contact Name" {{on "input" (set-field this "contact_name")}} />
+          <input value={{this.contact_name}} type="text" class="form-control" placeholder="Contact Name" aria-label={{t "Contact Name" key="contact_name"}} {{on "input" (set-field this "contact_name")}} />
         </div>
         <div class='col-sm-2'>
-          <input value={{this.contact_contact}} type="text" class="form-control" placeholder="email or cell #" {{on "input" (set-field this "contact_contact")}} />
+          <input value={{this.contact_contact}} type="text" class="form-control" placeholder="email or cell #" aria-label={{t "Contact email or phone number" key="contact_email_or_phone"}} {{on "input" (set-field this "contact_contact")}} />
           <span style="font-size: 14px; color: #888;">+country prefix for non-US</span>
         </div>
         <div class='col-sm-3'>
-          <button class='btn btn-default' {{on "click" (this.ctrlAction "set_picture")}} style='width: 100%;'>
+          <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "set_picture")}} style='width: 100%;'>
             <span class='glyphicon glyphicon-camera'></span>
             {{t "Set Picture & Add" key="set_picture"}}
           </button>

@@ -125,7 +125,7 @@
     {{/if}}
     {{#if this.recordingUrl}}
       <div class="la-beta-feedback__recording-preview">
-        <video src={{this.recordingUrl}} controls class="la-beta-feedback__recording-video"></video>
+        <video src={{this.recordingUrl}} controls class="la-beta-feedback__recording-video" aria-label={{t "Recorded feedback video" key="recorded_feedback_video"}}></video>
         <p class="la-contact-form__hint">{{t "Recording size: %{size}" key="beta_feedback_recording_size_label" size=this.recordingSizeLabel}}</p>
         <p class="la-contact-form__hint">{{t "The recording is attached and will upload when you send beta feedback." key="beta_feedback_recording_upload_hint"}}</p>
         <button type="button" class="la-btn la-btn--ghost" disabled={{this.recordingUploading}} {{on "click" this.onClearRecording}}>{{t "Remove recording" key="beta_feedback_recording_remove"}}</button>

@@ -2908,8 +2908,23 @@ export default Service.extend({
       }
       this.refresh_suggestions();
       
-      if(!this.session.get('isAuthenticated') || this.get('currentUser')) {
-        this.set('last_speak_mode', !!this.get('speak_mode'));
+      // Preserve last_speak_mode across an edit-mode round-trip. Entering edit
+      // flips speak_mode false; recording that would make the trip back OUT of
+      // edit look like a brand-new speak-mode activation, re-running the
+      // once-per-activation block above (:2733) on EVERY edit exit — speaking
+      // "here we go", re-showing the logging toast / voice + volume warnings /
+      // intro + goal modals, and most damagingly calling set_history([])
+      // (:2750), which wipes board history and breaks the back button.
+      // The teardown just above is already skipped for exactly this reason
+      // (:2865-2866); this is its symmetric counterpart, so an edit round-trip
+      // is fully transparent to the speak-mode lifecycle.
+      // NOTE: entering edit from 'default' (never in speak mode) still leaves
+      // last_speak_mode false, so exiting edit is correctly treated as a
+      // genuine first activation and the block DOES run.
+      if(this.stashes.get('current_mode') !== 'edit') {
+        if(!this.session.get('isAuthenticated') || this.get('currentUser')) {
+          this.set('last_speak_mode', !!this.get('speak_mode'));
+        }
       }
     }
   ),
@@ -3512,7 +3527,11 @@ export default Service.extend({
       return res;
     }
   ),
-  current_sidebar_boards: computed('referenced_user.sidebar_boards_with_fallback', function() {
+  // NOTE: the dependent key must be the PLURAL `sidebar_boards_with_fallbacks`
+  // (models/user.js). It was singular, so this computed watched a property that
+  // does not exist and cached its first value forever — hiding/showing or
+  // reordering a sidebar board never reached the live speak-mode sidebar.
+  current_sidebar_boards: computed('referenced_user.sidebar_boards_with_fallbacks', function() {
     var res = this.get('referenced_user.sidebar_boards_with_fallbacks');
     return res;
   }),
@@ -3524,7 +3543,7 @@ export default Service.extend({
     'currentUser',
     'currentUser.sidebar_boards_with_fallbacks',
     'referenced_speak_mode_user',
-    'referenced_speak_mode_user.sidebar_boards_with_fallback',
+    'referenced_speak_mode_user.sidebar_boards_with_fallbacks',
     function() {
       // Guard: ensure this is valid before accessing it
       if(!this || typeof this.get !== 'function') {

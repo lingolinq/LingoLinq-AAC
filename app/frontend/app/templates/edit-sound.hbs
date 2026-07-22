@@ -15,7 +15,7 @@
         <label for="name" class="col-sm-3 control-label">{{t "Sound" key="sound"}}</label>
         <div class="col-sm-7">
           <p class='form-control-static'>
-            <audio src={{this.model.sound.url}} controls='true' />
+            <audio src={{this.model.sound.url}} controls='true' aria-label={{t "Sound" key="sound"}} />
           </p>
         </div>
       </div>
@@ -34,7 +34,7 @@
               {{t "Update Recording" key="update_sound"}}
             {{/if}}
           </button>
-          <button class='btn btn-default' {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
+          <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
           {{#if this.error}}
             <p class='text-danger'>{{t "There was an unexpected error while updating the recording" key="error_updating_sound"}}</p>
           {{/if}}

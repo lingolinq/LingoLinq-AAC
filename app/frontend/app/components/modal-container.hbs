@@ -10,6 +10,8 @@
     <Intro />
   {{else if (is-equal this.currentTemplate "terms-agree")}}
     <TermsAgree />
+  {{else if (is-equal this.currentTemplate "ai-disclosure")}}
+    <AiDisclosure />
   {{else if (is-equal this.currentTemplate "confirm-update-app")}}
     <ConfirmUpdateApp />
   {{else if (is-equal this.currentTemplate "download-board")}}
@@ -256,6 +258,8 @@
     <BetaFeedbackModal />
   {{else if (is-equal this.currentTemplate "tour-board-picker")}}
     <TourBoardPicker />
+  {{else if (is-equal this.currentTemplate "eu-ai-parental-consent")}}
+    <EuAiParentalConsent />
   {{else}}
     {{! Other modals still use outlet-based rendering during migration }}
     {{! This will be expanded as more modals are converted to components }}
