@@ -11,13 +11,13 @@
 **Audited commit:** `20953ab3d5a80c3a9cbb249f37a79357b7f1baf1`  
 **Audited ref:** `scot/compliance/audit-refresh-2026-07-07`  
 **Run date:** 2026-07-08  
-**Page generated:** 2026-07-21T19:05:24Z
+**Page generated:** 2026-07-22T16:33:10Z
 
 ## Headline - open findings
 
 | Critical | High | Medium | Low |
 |---|---|---|---|
-| **0** | **7** | 26 | 25 |
+| **0** | **7** | 27 | 25 |
 
 _Headline is the count of `open` + `remediated-unverified` findings by severity (plan decision 5.9.2: counts, not a synthetic score). Only Scot closes a finding, downgrades severity, or accepts risk._
 
@@ -37,6 +37,7 @@ _Headline is the count of `open` + `remediated-unverified` findings by severity 
 | LL-13ad11eaee |  | medium | WCAG | Loading status text has no aria-live or role=status | `app/frontend/app/templates/bento.hbs`:14 |
 | LL-14edf1a801 |  | medium | GDPR, FERPA | DataPolicyEnforcer retention job skips child orgs that inherit (rather than set) a retention_months policy | `lib/data_policy_enforcer.rb`:22 |
 | LL-1bb85a2ef5 |  | medium |  | bootstrap 3.4.1 (EOL, no upstream patches) remains a production dependency; supply-chain exposure beyond the already-fixed XSS | `app/frontend/package.json`:36 |
+| LL-1eb9a2435b |  | medium | GDPR, FERPA, COPPA, HIPAA | ButtonSound auto-uploads raw user VOICE-RECORDING audio to Google Cloud Speech-to-Text (speech:recognize) on every save, a data flow absent from the subprocessor register; audio cannot be PII-scrubbed (GDPR Art. 9/28/44, FERPA, COPPA) | `app/models/button_sound.rb`:64 |
 | LL-35e6b7a3d6 |  | medium | WCAG | Dashboard search overlay text input has no programmatic label (placeholder only) | `app/frontend/app/templates/components/dashboard/authenticated-view.hbs`:588 |
 | LL-3bb2e2eaad |  | medium | GDPR, HIPAA | Retention purge deletes the LogSession's PaperTrail destroy-version and writes no disposal AuditEvent | `lib/flusher.rb`:45 |
 | LL-52ff2a9a79 |  | medium | SOC2 | CI security-scan job (Brakeman SAST, bundle-audit, npm audit, gitleaks) is entirely non-blocking | `.github/workflows/ci.yml`:107 |
