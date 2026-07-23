@@ -148,4 +148,17 @@ describe FeatureFlags do
       expect(FeatureFlags.eu_consent_age_enabled?).to eq(true)
     end
   end
+
+  describe "compliance_workflow_kernel" do
+    it "is registered as available but OFF by default" do
+      expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).to include('compliance_workflow_kernel')
+      expect(FeatureFlags::ENABLED_FRONTEND_FEATURES).not_to include('compliance_workflow_kernel')
+      expect(FeatureFlags.compliance_workflow_kernel_enabled?).to eq(false)
+    end
+
+    it "reports enabled once added to the enabled list" do
+      stub_const('FeatureFlags::ENABLED_FRONTEND_FEATURES', FeatureFlags::ENABLED_FRONTEND_FEATURES + ['compliance_workflow_kernel'])
+      expect(FeatureFlags.compliance_workflow_kernel_enabled?).to eq(true)
+    end
+  end
 end

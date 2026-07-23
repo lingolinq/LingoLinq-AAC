@@ -517,6 +517,26 @@ describe Api::IntegrationsController, :type => :controller do
     end
   end
 
+  describe "domain_settings compliance_kernel injection" do
+    it "does not inject compliance_kernel when the flag is OFF" do
+      get 'domain_settings'
+      json = JSON.parse(response.body)
+      expect(json['settings']).not_to have_key('compliance_kernel')
+    end
+
+    it "injects digital_consent_age for a declared jurisdiction when the flag is ON" do
+      stub_const('FeatureFlags::ENABLED_FRONTEND_FEATURES',
+                 FeatureFlags::ENABLED_FRONTEND_FEATURES + ['compliance_workflow_kernel'])
+      get 'domain_settings', params: { jurisdiction: 'DE' }
+      json = JSON.parse(response.body)
+      ck = json['settings']['compliance_kernel']
+      expect(ck).to be_a(Hash)
+      expect(ck['digital_consent_age']).to eq(16)
+      expect(ck['jurisdiction']['code']).to eq('DE')
+      expect(ck['effective_rules']['frameworks']).to include('GDPR')
+    end
+  end
+
   # The layout (app/views/layouts/application.html.erb) injects window.domain_settings
   # via exactly these helpers; test them directly so the primary (server-render)
   # delivery path is covered, not only the JSON endpoint.

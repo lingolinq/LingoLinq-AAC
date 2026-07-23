@@ -7171,3 +7171,13 @@ The machine's default node is 16; running `npm install` there (npm 8) mangled
 Always `export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use 22` first. If a lockfile got
 mangled, `git checkout -- package.json package-lock.json` and redo under Node 22 (clean diff =
 only the intended deps).
+
+## Pattern: Compliance Kernel is feature-gated and additive — never replace eu_consent_age in the same PR
+
+The Section 1 kernel (`lib/compliance/`, flag `compliance_workflow_kernel`) computes segment,
+jurisdiction, per-member digital consent age, and HCD framework merge into a `Compliance::Profile`.
+It must ship AVAILABLE-only (OFF by default). When OFF: no `settings['compliance']` stamp, no
+`compliance` key on user JSON, no `compliance_kernel` in domain_settings. Leave
+`eu_consent_age` / `JsonApi::Json.coppa_consent_age` and existing COPPA signup paths untouched
+so consumers migrate deliberately. Jurisdiction priority for this phase: declaration > org >
+user country > locale (IP geolocation deferred). Quebec is `CA-QC` → age 14 (Law 25).
