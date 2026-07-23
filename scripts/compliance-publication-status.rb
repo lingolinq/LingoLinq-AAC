@@ -107,6 +107,21 @@ missing_retention = docs.reject { |d| d['retention'].is_a?(Hash) }
 ambiguous_retention = docs.select { |d| d.dig('retention', 'ambiguous') }
 approved_retention = docs.select { |d| d.dig('retention', 'status').to_s == 'approved' }
 legal_holds = docs.select { |d| d['legalHold'] == true }
+
+# Attestation integrity. attestedContentHash pins the bytes Scot attested; contentHash tracks the
+# file now. A git row where the two disagree is asserting an attestation of a revision that no
+# longer exists. Rows attested before the check landed are grandfathered with evidence rather than
+# backfilled, so they read here as owed work, not as clean.
+attestation_exemptions = doc_meta['attestationBackfillExemptions'] || []
+exempt_by_id = attestation_exemptions.select { |e| e.is_a?(Hash) }.to_h { |e| [e['id'].to_s, e] }
+attested_git = docs.select do |d|
+  d['canonicalSystem'].to_s == 'git' && !d.dig('attestation', 'attestedBy').to_s.empty?
+end
+attestation_mismatched = attested_git.select do |d|
+  pin = d.dig('attestation', 'attestedContentHash').to_s
+  !pin.empty? && pin != d['contentHash'].to_s
+end
+attestation_unpinned = attested_git.select { |d| d.dig('attestation', 'attestedContentHash').to_s.empty? }
 superseded_rows = docs.select { |d| !d['supersededBy'].to_s.empty? }
 docs_by_id = docs.to_h { |d| [d['id'].to_s, d] }
 
@@ -230,6 +245,46 @@ else
   out << "\nDisposition is suspended for every row above until the hold is released, and the release must be dated and recorded.\n\n"
 end
 
+out << "## Attestation Integrity\n\n"
+if attested_git.empty?
+  out << "_No attested git records._\n\n"
+else
+  out << "#{attested_git.size} attested git record(s). `attestation.attestedContentHash` pins the bytes that were "
+  out << "attested; `ruby scripts/document-register-render.rb --check` fails when a pinned hash stops matching the "
+  out << "file. Drive and Notion rows are out of scope: their hashes are operator-supplied, so there is nothing CI "
+  out << "can verify.\n\n"
+
+  if attestation_mismatched.empty?
+    out << "**No pinned attestation has drifted.** Every record that pins a hash still matches the attested bytes.\n\n"
+  else
+    out << "**#{attestation_mismatched.size} record(s) have drifted from their attested bytes.** Only Scot re-attests; "
+    out << "never edit the pinned hash to clear this.\n\n"
+    out << "| Title | Location | Attested | Pinned | Current |\n"
+    out << "|---|---|---|---|---|\n"
+    attestation_mismatched.sort_by { |d| d['title'].to_s }.each do |d|
+      out << "| #{esc(d['title'])} | #{link_for(d)} | #{d.dig('attestation', 'attestedDate')} | `#{d.dig('attestation', 'attestedContentHash').to_s[0, 12]}` | `#{d['contentHash'].to_s[0, 12]}` |\n"
+    end
+    out << "\n"
+  end
+
+  if attestation_unpinned.empty?
+    out << "Every attested git record pins the bytes it was attested against.\n\n"
+  else
+    out << "### Re-attestation queue (#{attestation_unpinned.size})\n\n"
+    out << "Attested before the check existed and modified afterwards, so the attested revision no longer exists. "
+    out << "The hash is deliberately not backfilled: pinning current bytes would re-assert an attestation Scot never "
+    out << "gave. Each row clears when Scot re-attests the current revision.\n\n"
+    out << "| Title | Location | Attested | Why it is unpinned |\n"
+    out << "|---|---|---|---|\n"
+    attestation_unpinned.sort_by { |d| d['title'].to_s }.each do |d|
+      ex = exempt_by_id[d['id'].to_s]
+      why = ex ? ex['reason'] : 'no exemption recorded (this fails `--check`)'
+      out << "| #{esc(d['title'])} | #{link_for(d)} | #{d.dig('attestation', 'attestedDate')} | #{esc(why)} |\n"
+    end
+    out << "\n"
+  end
+end
+
 out << "## Supersession Chains\n\n"
 if superseded_rows.empty?
   out << "_No superseded records._\n\n"
@@ -266,6 +321,7 @@ out << "---\n\n"
 out << "_#{docs.size} documents tracked. #{review_stale.size} stale review item(s). #{drive_needs_refresh.size} Drive refresh item(s). "
 out << "#{notion_needs_hash.size} Notion hash item(s). #{ambiguous_retention.size} inferred retention class(es). "
 out << "#{legal_holds.size} legal hold(s). #{superseded_rows.size} superseded record(s). "
+out << "#{attestation_mismatched.size} drifted attestation(s), #{attestation_unpinned.size} awaiting re-attestation. "
 out << "#{bundle_gaps.sum { |_, g| g.size }} bundle gap(s) across #{bundle_gaps.size} bundle(s)._\n"
 
 if options[:mode] == :check

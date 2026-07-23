@@ -26,7 +26,7 @@
 | Data Retention Schedule | git | `docs/legal/DATA_RETENTION.md` | approved | FERPA, GDPR, HIPAA, COPPA | Scot Wahlquist | 2026-06-18 | 2027-06-18 | 2026-06-21 | `b1bee6c56129` | soc2-evidence, school-dpa-package, security-review, dsar |
 | Data Retention Schedule (branded) | Drive | [open](https://docs.google.com/document/d/1GRFuvaacbUbcAixhaOAOsdGKhOfclAByYS53bWap14k/edit) | published | FERPA, GDPR, HIPAA, COPPA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence, school-dpa-package |
 | EU AI Act Article 50 Transparency: Implementation Milestone Plan | git | `docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md` | draft | GDPR | Scot Wahlquist | 2026-07-14 | 2026-08-02 | no | `1a557d9d5b3d` |  |
-| Subprocessor Register | git | `docs/legal/SUBPROCESSORS.md` | approved | GDPR, FERPA, HIPAA | Scot Wahlquist | 2026-06-18 | 2027-06-18 | 2026-07-06 | `e76da3475c16` | school-dpa-package, soc2-evidence, security-review |
+| Subprocessor Register | git | `docs/legal/SUBPROCESSORS.md` | approved | GDPR, FERPA, HIPAA | Scot Wahlquist | 2026-06-18 | 2027-06-18 | 2026-07-06 | `603f09c09868` | school-dpa-package, soc2-evidence, security-review |
 | Subprocessor Register (branded) | Drive | [open](https://docs.google.com/document/d/13i7PUAZO-_lyUrObdB3CLDQ5KB9s5GNL7XHpcBCRn_M/edit) | published | GDPR, FERPA, HIPAA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, school-dpa-package |
 | Vendor and Subprocessor Management Policy | Drive | [open](https://docs.google.com/document/d/1fmBOfw-peYUpdwmttHC3hqzU_5c3OMNgBSN4NDK7mAM/edit) | published | SOC2, GDPR | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
 | Written Information Security Program (WISP) | Drive | [open](https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit) | published | SOC2, HIPAA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence, security-review, baa |
@@ -78,7 +78,7 @@
 | Compliance Status Snapshot (2026-06-18) | git | `docs/legal/COMPLIANCE_STATUS_2026-06-18.md` | superseded |  | Scot Wahlquist | 2026-06-18 |  | no | `94b8288187ea` |  |
 | Data & Compliance Pipeline - Build Inventory (dated) | Drive | [open](https://docs.google.com/document/d/1xxLsESUXKm6rDWuqr_Z-Ob5kWzUZUbFD3gTKZWfLMnY/edit) | approved |  | Scot Wahlquist | 2026-06-22 | 2026-09-22 | no | (supplied) |  |
 | Document Register (this file) | git | `audit-reports/DOCUMENT-REGISTER.json` | published |  | Scot Wahlquist | 2026-06-21 | 2026-09-21 | no | (self) |  |
-| Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | `46671a8fa5b3` |  |
+| Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | `6bf4ac3d6fb4` |  |
 | LingoLinq Capability Ledger (rendered) | git | `docs/legal/CAPABILITY_LEDGER.md` | published |  | Scot Wahlquist | 2026-07-12 | 2027-01-12 | no | `e0b25b0bb51f` |  |
 | Notion - Compliance & Audits hub | Notion | [open](https://www.notion.so/3655fe8215c2815a949ec8ed971d5580) | published |  | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | (supplied) |  |
 | Notion - Compliance Documents board (LL) | Notion | [open](https://www.notion.so/3865fe8215c28174aef3ce32239ced5c) | published |  | Scot Wahlquist | 2026-06-21 | 2026-09-21 | no | (supplied) |  |
@@ -90,7 +90,7 @@
 | Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Compliance Docs Guide (runbook) | git | `docs/legal/COMPLIANCE_DOCS_GUIDE.md` | published |  | Scot Wahlquist | 2026-06-21 | 2027-06-21 | no | `05c98f8f40f8` |  |
-| docs/legal README (folder charter) | git | `docs/legal/README.md` | published |  | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | `29d65bee2af9` |  |
+| docs/legal README (folder charter) | git | `docs/legal/README.md` | published |  | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | `e9f92d18c061` |  |
 | Incident Response and Breach Runbook | git | `docs/legal/BREACH_RUNBOOK.md` | approved | HIPAA, GDPR, FERPA | Scot Wahlquist | 2026-05-27 | 2027-05-27 | 2026-06-21 | `3efcaaf4a7c5` | soc2-evidence, school-dpa-package, security-review, baa |
 | Incident Response and Breach Runbook (branded) | Drive | [open](https://docs.google.com/document/d/1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po/edit) | published | HIPAA, GDPR, FERPA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
 | Notion - Compliance Engineering Onboarding/Handoff | Notion | [open](https://www.notion.so/3845fe8215c28139aa9ec40eda1431c6) | published |  | Scot Wahlquist | 2026-06-19 | 2026-12-19 | no | (supplied) |  |
@@ -249,6 +249,47 @@ status rather than read off the drafted schedule, and are the rows to look at fi
 | privacy-auditor agent definition | `operational-config` | agent-config is not a record class in the sec 5.2 starting table; operational-config was added for it and needs counsel confirmation. |
 
 **Legal holds:** none active
+
+## Attestation integrity
+
+`attestation.attestedContentHash` pins the bytes Scot actually attested. `--check` fails when a
+pinned hash stops matching the file, so an attested document can no longer be rewritten with a
+green build. Verified for git rows only; Drive and Notion hashes are operator-supplied.
+
+| Record | Attested | Pinned bytes | State |
+|---|---|---|---|
+| AI Data-Flow Classification | 2026-07-22 | `f16e851f8cc0` | verified |
+| AI Data-Sharing Consent: Rationale and Policy | 2026-07-09 | `c77ebb0dc5c8` | verified |
+| AI Governance Memo | 2026-07-22 | `34b0b857f494` | verified |
+| Anthropic HIPAA-Ready BAA Acceptance Record | 2026-07-18 | `5adbe44783d9` | verified |
+| AWS BAA Acceptance Record | 2026-06-21 | `dc6a2ba9fa16` | verified |
+| AWS Business Associate Agreement (signed PDF) | 2026-02 | `55f28e00168c` | verified |
+| Compliance & Data Governance (COMPLIANCE.md) | 2026-07-06 | (none) | grandfathered - re-attestation owed |
+| Compliance Posture Report | 2026-07-16 | (none) | grandfathered - re-attestation owed |
+| Compliance Program | 2026-07-22 | `1d1f81b0eeab` | verified |
+| COPPA Final-Rule Verification | 2026-06-21 | (none) | grandfathered - re-attestation owed |
+| Data Retention Schedule | 2026-06-21 | (none) | grandfathered - re-attestation owed |
+| Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record | 2026-07-16 | (none) | grandfathered - re-attestation owed |
+| Incident Log | 2026-06-21 | `e4e7c0b98d3f` | verified |
+| Incident Response and Breach Runbook | 2026-06-21 | `3efcaaf4a7c5` | verified |
+| LingoLinq Security, Privacy & Compliance Overview | 2026-07-22 | `71577f49b16e` | verified |
+| Parental Consent Email (COPPA / under-13) | 2026-06-21 | (none) | grandfathered - re-attestation owed |
+| Subprocessor Register | 2026-07-06 | (none) | grandfathered - re-attestation owed |
+
+**Grandfathered rows (7) - attested before this check existed, hash deliberately not
+backfilled.** Pinning the current bytes would silently re-assert an attestation that covered an
+earlier revision, which is the exact failure the field exists to catch. Each entry is removed when
+Scot re-attests; the list only shrinks.
+
+| Record | Why it is exempt | Added |
+|---|---|---|
+| Compliance & Data Governance (COMPLIANCE.md) | attested 2026-07-06, then modified by 3 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave | 2026-07-22 |
+| Compliance Posture Report | attested 2026-07-16, then modified by 2 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave | 2026-07-22 |
+| Data Retention Schedule | attested 2026-06-21, then modified by 2 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave | 2026-07-22 |
+| Subprocessor Register | attested 2026-07-06, then modified by 5 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave | 2026-07-22 |
+| COPPA Final-Rule Verification | attested 2026-06-21, then modified by 1 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave | 2026-07-22 |
+| Parental Consent Email (COPPA / under-13) | attested 2026-06-21, then modified by 2 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave | 2026-07-22 |
+| Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record | attested 2026-07-16, then modified by 2 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave | 2026-07-22 |
 
 ## Supersession chains
 

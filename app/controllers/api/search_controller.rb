@@ -364,10 +364,10 @@ class Api::SearchController < ApplicationController
         json = JSON.parse(cache) rescue nil
       end
       if !json || json['voices'].length == 0
-        req = Typhoeus.get("https://texttospeech.googleapis.com/v1beta1/voices?languageCode=#{CGI.escape(params['locale'] || 'en')}&key=#{ENV['GOOGLE_TTS_TOKEN']}")
+        req = Typhoeus.get("https://texttospeech.googleapis.com/v1/voices?languageCode=#{CGI.escape(params['locale'] || 'en')}&key=#{ENV['GOOGLE_TTS_TOKEN']}")
         json = JSON.parse(req.body) rescue nil
         if json && (!json['voices'] || json['voices'].length == 0)
-          req = Typhoeus.get("https://texttospeech.googleapis.com/v1beta1/voices?languageCode=#{CGI.escape((params['locale'] || 'en').split(/-|_/)[0])}&key=#{ENV['GOOGLE_TTS_TOKEN']}")
+          req = Typhoeus.get("https://texttospeech.googleapis.com/v1/voices?languageCode=#{CGI.escape((params['locale'] || 'en').split(/-|_/)[0])}&key=#{ENV['GOOGLE_TTS_TOKEN']}")
           json = JSON.parse(req.body) rescue nil
         end
         cache = nil
@@ -391,7 +391,7 @@ class Api::SearchController < ApplicationController
         end
         # https://cloud.google.com/text-to-speech/?hl=en_US&_ga=2.240949507.-1294930961.1646091692
         content_type = 'audio/mp3' if params['mp3'] != '0'
-        res = Typhoeus.post("https://texttospeech.googleapis.com/v1beta1/text:synthesize?key=#{ENV['GOOGLE_TTS_TOKEN']}", body: 
+        res = Typhoeus.post("https://texttospeech.googleapis.com/v1/text:synthesize?key=#{ENV['GOOGLE_TTS_TOKEN']}", body: 
           {
             audioConfig: {audioEncoding: content_type == 'audio/mp3' ? 'MP3' : 'LINEAR16', pitch: 0, speakingRate: 1},
             input: {text: params['text']},
@@ -405,7 +405,11 @@ class Api::SearchController < ApplicationController
         end
       end
     else
-      req = Typhoeus.get("https://translate.google.com/translate_tts?id=UTF-8&tl=#{params['locale'] || 'en'}&q=#{URI.escape(params['text'] || "")}&total=1&idx=0&textlen=#{(params['text'] || '').length}&client=tw-ob", timeout: 5, headers: {'Referer' => "https://translate.google.com/", 'User-Agent' => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"})
+      # No contracted TTS provider is configured (GOOGLE_TTS_TOKEN unset) and the
+      # locale is not Irish/Abair. The former consumer translate.google.com/translate_tts
+      # fallback was removed: it is an unauthenticated consumer endpoint with no DPA/BAA
+      # basis and must never receive user utterance text (finding LL-a167848115).
+      return api_error 400, {error: 'no tts provider configured'}
     end
     return api_error 400, {error: 'remote request failed'} unless req && !req.body.blank?
     response.headers['Content-Type'] = content_type
