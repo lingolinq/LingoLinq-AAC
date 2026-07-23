@@ -3,7 +3,7 @@
     "schemaVersion": "1.0",
     "register": "LingoLinq-AAC compliance document register",
     "description": "Single source of truth for WHERE every compliance document lives across the codebase (git), Google Drive, and Notion - its canonical home, its mirrors, its owner, its review dates, and which compliance bundles it belongs to. This is the document-level analogue of audit-reports/FINDINGS.json (which tracks finding status). The codebase copy is canonical; the Notion board is a one-way mirror; Drive docs are referenced by URL, never copied. See docs/legal/COMPLIANCE_DOCS_GUIDE.md.",
-    "generatedDate": "2026-07-22",
+    "generatedDate": "2026-07-23",
     "idAlgorithm": "id = 'DOC-' + sha256(canonicalLocation) first 10 hex chars; stable across runs so a moved/renamed doc reads as a diff. Computed and written back by scripts/document-register-render.rb.",
     "contentHashNote": "contentHash is sha256 of the canonical content. For canonicalSystem=git rows the render script computes it from the file bytes at its repo path and CI verifies it in --check (a tracked doc edited without updating its row fails). For drive/notion rows the hash is externally supplied: Notion-row hashes can be refreshed automatically by the network-capable Notion-sync run (--refresh-notion-hashes); DRIVE-row hashes have NO automated refresh and must be supplied by the operator (the sync script carries no Google credentials), so Drive freshness is a dated review obligation, not an automated guarantee. CI is network-free: a null/empty drive/notion hash is allowed and surfaced as an advisory, never a CI failure.",
     "typeEnum": [
@@ -453,164 +453,8 @@
     "bundleGapNote": "bundleDefinitions[*].gaps names artifacts a bundle genuinely needs that DO NOT EXIST as records yet. A gap is a deliberate, visible hole: it is rendered in DOCUMENT-REGISTER.md and never satisfied by inventing a row or by pointing a requiredDoc at an unrelated document. gaps never fail --check; an unmet requiredDoc always does. Close a gap by creating the real artifact and promoting it out of gaps into requiredDocs.",
     "integrityNote": "--check also enforces: every canonicalSystem is one of canonicalSystemEnum; a git row canonicalLocation is a repo path (not a URL); a drive/notion row canonicalLocation is a URL and does not resolve to a tracked repo file (so a git doc cannot dodge hash verification by being relabeled drive/notion); and id + canonicalLocation are unique across the register.",
     "attestationHashNote": "attestation.attestedContentHash pins the sha256 of the bytes that were actually attested, alongside contentHash which tracks the file as it is now. document-register-render.rb --check fails when the two diverge on a canonicalSystem=git row: the attested revision no longer exists and re-attestation is owed. Enforced for git rows only - Drive and Notion hashes are operator-supplied with no automated refresh, so the field is rejected there. Render NEVER backfills this field; populating it from current bytes would make every attestation self-certifying. Only Scot attests, and the hash is pinned when the attestation is recorded.",
-    "attestationBackfillExemptions": [
-      {
-        "id": "DOC-9b299a785b",
-        "canonicalLocation": "COMPLIANCE.md",
-        "attestedDate": "2026-07-06",
-        "reason": "attested 2026-07-06, then modified by 3 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave",
-        "driftCommits": [
-          {
-            "date": "2026-07-21",
-            "commit": "0ce7c2f70",
-            "subject": "docs(compliance): record GCP cutover posture (#652)"
-          },
-          {
-            "date": "2026-07-19",
-            "commit": "42ea9cb1e",
-            "subject": "compliance(anthropic): record executed HIPAA-Ready BAA + classify eval narration (#631)"
-          },
-          {
-            "date": "2026-07-17",
-            "commit": "2782ec809",
-            "subject": "compliance(gcp): record executed GCP CDPA + HIPAA BAA + SCCs, correct Vertex scope (#622)"
-          }
-        ],
-        "addedOn": "2026-07-22",
-        "clears": "Scot re-attests the current revision; pin attestedContentHash and delete this entry"
-      },
-      {
-        "id": "DOC-4e3b7fb1fb",
-        "canonicalLocation": "docs/legal/COMPLIANCE_POSTURE_REPORT.md",
-        "attestedDate": "2026-07-16",
-        "reason": "attested 2026-07-16, then modified by 2 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave",
-        "driftCommits": [
-          {
-            "date": "2026-07-21",
-            "commit": "0ce7c2f70",
-            "subject": "docs(compliance): record GCP cutover posture (#652)"
-          },
-          {
-            "date": "2026-07-17",
-            "commit": "2782ec809",
-            "subject": "compliance(gcp): record executed GCP CDPA + HIPAA BAA + SCCs, correct Vertex scope (#622)"
-          }
-        ],
-        "addedOn": "2026-07-22",
-        "clears": "Scot re-attests the current revision; pin attestedContentHash and delete this entry"
-      },
-      {
-        "id": "DOC-bff9acf51f",
-        "canonicalLocation": "docs/legal/DATA_RETENTION.md",
-        "attestedDate": "2026-06-21",
-        "reason": "attested 2026-06-21, then modified by 2 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave",
-        "driftCommits": [
-          {
-            "date": "2026-07-22",
-            "commit": "74266b41f",
-            "subject": "compliance(art50): Phase 5 - rollout flag (AVAILABLE-only), retention reconciliation, a11y (#656)"
-          },
-          {
-            "date": "2026-07-10",
-            "commit": "72e141e5a",
-            "subject": "compliance(coppa): VPC Phase 2 -- AI data-sharing disclosure content (attested by Scot, pending es + outside counsel) (#569)"
-          }
-        ],
-        "addedOn": "2026-07-22",
-        "clears": "Scot re-attests the current revision; pin attestedContentHash and delete this entry"
-      },
-      {
-        "id": "DOC-0387973005",
-        "canonicalLocation": "docs/legal/SUBPROCESSORS.md",
-        "attestedDate": "2026-07-06",
-        "reason": "attested 2026-07-06, then modified by 5 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave",
-        "driftCommits": [
-          {
-            "date": "2026-07-22",
-            "commit": "cb105e098",
-            "subject": "compliance(register+subprocessors): disclose 5 raw localization/speech egress sinks; open LL-c38e7da48e + LL-1eb9a2435b (#648)"
-          },
-          {
-            "date": "2026-07-21",
-            "commit": "0ce7c2f70",
-            "subject": "docs(compliance): record GCP cutover posture (#652)"
-          },
-          {
-            "date": "2026-07-19",
-            "commit": "42ea9cb1e",
-            "subject": "compliance(anthropic): record executed HIPAA-Ready BAA + classify eval narration (#631)"
-          },
-          {
-            "date": "2026-07-17",
-            "commit": "2782ec809",
-            "subject": "compliance(gcp): record executed GCP CDPA + HIPAA BAA + SCCs, correct Vertex scope (#622)"
-          },
-          {
-            "date": "2026-07-12",
-            "commit": "93eac0501",
-            "subject": "compliance(subprocessors): mark Gemini row disabled/historical (2026-07-09) (#588)"
-          }
-        ],
-        "addedOn": "2026-07-22",
-        "clears": "Scot re-attests the current revision; pin attestedContentHash and delete this entry"
-      },
-      {
-        "id": "DOC-407d2c2bf4",
-        "canonicalLocation": "docs/legal/COPPA_VERIFICATION_2026-04-26.md",
-        "attestedDate": "2026-06-21",
-        "reason": "attested 2026-06-21, then modified by 1 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave",
-        "driftCommits": [
-          {
-            "date": "2026-07-13",
-            "commit": "23338d916",
-            "subject": "Feat/melissa parental consent confirmation email (#597)"
-          }
-        ],
-        "addedOn": "2026-07-22",
-        "clears": "Scot re-attests the current revision; pin attestedContentHash and delete this entry"
-      },
-      {
-        "id": "DOC-4e6c9253b9",
-        "canonicalLocation": "docs/legal/PARENTAL_CONSENT_EMAIL.md",
-        "attestedDate": "2026-06-21",
-        "reason": "attested 2026-06-21, then modified by 2 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave",
-        "driftCommits": [
-          {
-            "date": "2026-07-15",
-            "commit": "36517f6a2",
-            "subject": "feat: EU AI parental consent plus AI pref gating (#616)"
-          },
-          {
-            "date": "2026-07-13",
-            "commit": "23338d916",
-            "subject": "Feat/melissa parental consent confirmation email (#597)"
-          }
-        ],
-        "addedOn": "2026-07-22",
-        "clears": "Scot re-attests the current revision; pin attestedContentHash and delete this entry"
-      },
-      {
-        "id": "DOC-5b14b08908",
-        "canonicalLocation": "docs/legal/GCP_BAA_ACCEPTED.md",
-        "attestedDate": "2026-07-16",
-        "reason": "attested 2026-07-16, then modified by 2 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave",
-        "driftCommits": [
-          {
-            "date": "2026-07-21",
-            "commit": "0ce7c2f70",
-            "subject": "docs(compliance): record GCP cutover posture (#652)"
-          },
-          {
-            "date": "2026-07-19",
-            "commit": "42ea9cb1e",
-            "subject": "compliance(anthropic): record executed HIPAA-Ready BAA + classify eval narration (#631)"
-          }
-        ],
-        "addedOn": "2026-07-22",
-        "clears": "Scot re-attests the current revision; pin attestedContentHash and delete this entry"
-      }
-    ],
-    "attestationBackfillNote": "Rows attested before the attestedContentHash check landed (2026-07-22) whose files were modified after their attestation date. Their attested revision is gone, so the hash is deliberately NOT backfilled - doing so would silently re-assert an attestation that covered earlier bytes, which is the exact failure the field exists to catch. Each entry names the commits that caused the drift and is removed only when Scot re-attests the current revision. The list is one-way: --check fails on a stale entry, so it can only shrink to zero. Rows with no post-attestation modification were pinned directly, since git proves the attested bytes are the current bytes."
+    "attestationBackfillExemptions": [],
+    "attestationBackfillNote": "CLEARED 2026-07-23. All seven rows that predated the attestedContentHash check were re-attested against their current revisions and now pin their attested bytes, so the grandfather list is empty and every attested git row is verifiable. It stays empty: the closed set in scripts/document-register-render.rb is the ceiling and nothing is ever added to it, so a future attestation must pin its hash when it is recorded."
   },
   "documents": [
     {
@@ -628,13 +472,18 @@
         "GDPR",
         "SOC2"
       ],
-      "lastReviewed": "2026-07-06",
-      "nextReviewDue": "2027-06-23",
+      "lastReviewed": "2026-07-23",
+      "nextReviewDue": "2027-07-10",
       "attestation": {
-        "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-06"
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-07-23",
+        "attestedContentHash": "4afee21c69b01deeecca9f33e80fbb74f4d639ff381c5d539d06a4269912a126",
+        "priorAttestations": [
+          "2026-07-06"
+        ],
+        "note": "Re-attested 2026-07-23 against the current revision after verification against live code and infrastructure state. The prior attestation covered a revision that no longer exists; see the document banner for what changed."
       },
-      "contentHash": "1e75223be75eadb026a8a4eedd730a3b2a97049383dd095e8fcc530fbf8db609",
+      "contentHash": "4afee21c69b01deeecca9f33e80fbb74f4d639ff381c5d539d06a4269912a126",
       "bundles": [
         "soc2-evidence"
       ],
@@ -702,13 +551,18 @@
         "WCAG",
         "SOC2"
       ],
-      "lastReviewed": "2026-07-16",
-      "nextReviewDue": "2026-10-16",
+      "lastReviewed": "2026-07-23",
+      "nextReviewDue": "2026-10-23",
       "attestation": {
-        "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-16"
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-07-23",
+        "attestedContentHash": "b29b1cd0d5caf7c89425319f28a74dbea5b1ad2a618f0526201308333ff538f3",
+        "priorAttestations": [
+          "2026-07-16"
+        ],
+        "note": "Re-attested 2026-07-23 against the current revision after verification against live code and infrastructure state. The prior attestation covered a revision that no longer exists; see the document banner for what changed."
       },
-      "contentHash": "80af6f2c5b34d5697942cead1f88bdc79d1141c8ffa180a011078468148c4cf1",
+      "contentHash": "b29b1cd0d5caf7c89425319f28a74dbea5b1ad2a618f0526201308333ff538f3",
       "bundles": [
         "school-dpa-package",
         "security-review",
@@ -820,13 +674,18 @@
         "HIPAA",
         "COPPA"
       ],
-      "lastReviewed": "2026-06-18",
-      "nextReviewDue": "2027-06-18",
+      "lastReviewed": "2026-07-23",
+      "nextReviewDue": "2027-07-23",
       "attestation": {
-        "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-06-21"
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-07-23",
+        "attestedContentHash": "30bd1f472cf53b1043cce268e644cdf49426fdf0e02534d8a9526c22877bb399",
+        "priorAttestations": [
+          "2026-06-21"
+        ],
+        "note": "Re-attested 2026-07-23 against the current revision after verification against live code and infrastructure state. The prior attestation covered a revision that no longer exists; see the document banner for what changed."
       },
-      "contentHash": "b1bee6c56129f610f2d4e8b9d5ae83a0f80a0404a8efe4dad85d431a3e894194",
+      "contentHash": "30bd1f472cf53b1043cce268e644cdf49426fdf0e02534d8a9526c22877bb399",
       "bundles": [
         "soc2-evidence",
         "school-dpa-package",
@@ -862,13 +721,18 @@
         "FERPA",
         "HIPAA"
       ],
-      "lastReviewed": "2026-06-18",
-      "nextReviewDue": "2027-06-18",
+      "lastReviewed": "2026-07-23",
+      "nextReviewDue": "2027-07-23",
       "attestation": {
-        "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-06"
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-07-23",
+        "attestedContentHash": "fc535a9105ed179bbe986941fd055461cb482e2d409e8687202accaf8332235e",
+        "priorAttestations": [
+          "2026-07-06"
+        ],
+        "note": "Re-attested 2026-07-23 against the current revision after verification against live code and infrastructure state. The prior attestation covered a revision that no longer exists; see the document banner for what changed."
       },
-      "contentHash": "603f09c09868601cd931bc7ec1c4f3119dfe2edba22aa079cae0847b2c785700",
+      "contentHash": "fc535a9105ed179bbe986941fd055461cb482e2d409e8687202accaf8332235e",
       "bundles": [
         "school-dpa-package",
         "soc2-evidence",
@@ -901,13 +765,18 @@
       "frameworks": [
         "COPPA"
       ],
-      "lastReviewed": "2026-04-26",
-      "nextReviewDue": "2026-07-26",
+      "lastReviewed": "2026-07-23",
+      "nextReviewDue": "2026-10-22",
       "attestation": {
-        "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-06-21"
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-07-23",
+        "attestedContentHash": "35a6298e2df5b31a90637895f65ac626e79013c045def99a1531b019590e8c7c",
+        "priorAttestations": [
+          "2026-06-21"
+        ],
+        "note": "Re-attested 2026-07-23 against the current revision after verification against live code and infrastructure state. The prior attestation covered a revision that no longer exists; see the document banner for what changed."
       },
-      "contentHash": "b826e9beeec37df16a7c470572fa2ea1e97cb0d216179e759fd0da11c17ae244",
+      "contentHash": "35a6298e2df5b31a90637895f65ac626e79013c045def99a1531b019590e8c7c",
       "bundles": [
         "school-dpa-package"
       ],
@@ -938,13 +807,18 @@
       "frameworks": [
         "COPPA"
       ],
-      "lastReviewed": "2026-06-11",
-      "nextReviewDue": "2027-06-11",
+      "lastReviewed": "2026-07-23",
+      "nextReviewDue": "2027-07-23",
       "attestation": {
-        "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-06-21"
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-07-23",
+        "attestedContentHash": "d7c935ce4743b63e88495f9c2b7b91a2af143b4b6e95bd5d902b9599888e6524",
+        "priorAttestations": [
+          "2026-06-21"
+        ],
+        "note": "Re-attested 2026-07-23 against the current revision after verification against live code and infrastructure state. The prior attestation covered a revision that no longer exists; see the document banner for what changed."
       },
-      "contentHash": "cab41be40abc6b0b480162f321e508da795def56076c3d0e2faf2393ff9eae26",
+      "contentHash": "d7c935ce4743b63e88495f9c2b7b91a2af143b4b6e95bd5d902b9599888e6524",
       "bundles": [
         "school-dpa-package"
       ],
@@ -1091,13 +965,18 @@
         "HIPAA",
         "GDPR"
       ],
-      "lastReviewed": "2026-07-16",
-      "nextReviewDue": "2027-07-16",
+      "lastReviewed": "2026-07-23",
+      "nextReviewDue": "2027-07-23",
       "attestation": {
-        "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-16"
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-07-23",
+        "attestedContentHash": "3e8f43b12186af5ec1ad1a9c32d87db72a2b99f0bce035ef97a15cfe12a08ef2",
+        "priorAttestations": [
+          "2026-07-16"
+        ],
+        "note": "Re-attested 2026-07-23 against the current revision after verification against live code and infrastructure state. The prior attestation covered a revision that no longer exists; see the document banner for what changed."
       },
-      "contentHash": "70671328fe90b51b7d2689cfa417d49cb37fb4407cd09c439fcafd26dd6bf719",
+      "contentHash": "3e8f43b12186af5ec1ad1a9c32d87db72a2b99f0bce035ef97a15cfe12a08ef2",
       "bundles": [
         "baa"
       ],
