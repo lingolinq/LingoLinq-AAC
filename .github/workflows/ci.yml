@@ -74,6 +74,10 @@ jobs:
         with:
           node-version: 22
 
+      # The cache key MUST carry the Node major. node_modules holds native
+      # bindings (sqlite3) compiled against a specific Node ABI; restoring a
+      # Node-20-built tree into a Node 22 runner loads a binding built for the
+      # wrong ABI. Bump this suffix on every Node major bump.
       - name: Cache node_modules and Puppeteer Chrome
         uses: actions/cache@v4
         with:
