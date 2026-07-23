@@ -760,11 +760,10 @@ describe Api::SearchController, :type => :controller do
       end
     end
 
-    it "should use the irish voice service" do
-      obj = OpenStruct.new(body: "<audio><source src='/abcde'/></audio>", headers: {'Content-Type' => 'audio/wav'})
-      expect(obj).to receive(:success?).and_return(true)
-      expect(Typhoeus).to receive(:post).with("https://abair.ie/aac_irish", body: {text: 'aha', voice: 'a1'}, timeout: 5).and_return(obj)
+    it "returns an error for Irish (ga) locales without calling Abair (disabled, no DPA -- LL-a167848115)" do
+      expect(Typhoeus).not_to receive(:post)
       get :audio, params: {locale: 'ga', text: 'aha', voice_id: 'a1'}
+      assert_error('irish tts disabled', 400)
     end
   end
 
