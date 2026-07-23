@@ -54044,6 +54044,13 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   overflow: hidden;
 }
 
+/* ARIA row wrapper (grid → row → gridcell). `display: contents` generates no
+   layout box, so the cells keep auto-placing into the .new-board-preview CSS grid
+   unchanged; the wrapper exists only to carry role="row". */
+.new-board-preview__row {
+  display: contents;
+}
+
 .new-board-preview__cell {
   position: relative;
   min-width: 0;
@@ -74636,6 +74643,14 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   /* See .md-board-detail-layout — 100dvh prevents bottom-row clipping on
      Android Chrome/Edge where 100vh extends past the actual visible viewport. */
   height: calc(100dvh - 120px);
+}
+/* ARIA row wrapper for the board grid (grid → row → gridcell). `display: contents`
+   generates no layout box, so the gridcells inside it keep participating in the
+   parent .md-board-detail-grid's CSS grid exactly as before — the wrapper exists
+   only to give each row the role="row" that require-context-role (and screen-reader
+   grid navigation) needs. */
+.md-board-detail-grid__row {
+  display: contents;
 }
 /* Narrow screens (<=768px): override the user's grid-gap preference
    (--bd-button-gap) with a tight, fixed gap so the board fits more comfortably —

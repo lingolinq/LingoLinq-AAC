@@ -6645,6 +6645,38 @@ the cheap fallback to confirm controller/route syntax.
 
 Recurring Ember CI flakes (timeout / async-work-not-finished) in `persistence-sync-test.js` often look like PR regressions but are harness races: `persistence.sync()` can resolve while real board traversal (`enableRealSyncBoards` / `sync_boards`) and remap/tail work are still running. Passing siblings already use `primeBoardRevisionsSyncHarness(function(){ tailDone = true; })` and wait `done && tailDone`; tests that call the harness with no callback and wait only on `done` assert/cleanup early. Post-`sync()` fixed `later(..., 50)` plus immediate `cancelSyncTailWork()` has the same shape for temp-id rewrite. Prefer `waitForSyncDoneAndSettled(done)` (`done && syncSettled()`) plus the board-sync completion callback, and only cancel tail work after permanent IDs are visible. See `docs/task-management/2026-07-13-ember-ci-persistence-sync-harness-wait.md`. (2026-07-13)
 
+**UPDATE (2026-07-22) — the `waitForSyncDoneAndSettled` gate is NECESSARY but NOT SUFFICIENT; the
+flake is deeper (still live).** Deep re-investigation: the flake survives even on FULLY-gated tests
+(e.g. `not try to download boards that match the fresh revision`). Runtime evidence on a failing
+`persist important ids`: `syncDone=true settled=true important_ids=null` — and since `important_ids`
+is set only on the sync SUCCESS path (`persistence.js:2335`), this proves **the victim test's own
+`persistence.sync()` intermittently REJECTS.** Root cause: a PRIOR test's late-resolving async
+(`store_url`/`find`/`save` promise) bleeds into the shared `persistence` singleton and corrupts a
+LATER test's sync into rejection / never-settling. No per-test wait predicate can fix this — the
+singleton is dirtied BEFORE the victim runs. What DIDN'T work (tried & reverted): a
+drain-before-teardown in the shared `tests/helpers/jasmine.js`, a defensive `beforeEach`
+`cancelSyncTailWork()`, and adding `refresh_after_eventual_stores.waiting` to `syncSettled()` — the
+last made it WORSE (that flag sticks `true`, so `syncSettled()` never returns true and HANGS gated
+tests). Across batches the rate stayed ~17–33% regardless. The fix is EPOCH-FENCING the async tail (a
+promise resolving after its test ended must no-op, not touch the next test's state). SHIPPED as
+TEST-HARNESS ONLY (persistence.js unchanged): a per-test `LingoLinq.sync_epoch` stamped in the
+jasmine shim + a stub-traversal fence in `sync-test-cleanup.js` that no-ops stale `findRecord.then`/
+`store_url` work + the real-boards wait-gate completion. This cut the flake from ~25% to low single
+digits (residual: one real-boards test, `not try to download … fresh revision`, whose own sync
+promise is intermittently orphaned by the REAL sync_boards in-flight race — not harness-fixable
+without prod surgery). That residual is then ABSORBED by a module-scoped auto-retry in the jasmine
+shim (`test_wrap`): persistence-sync tests ONLY (name-gated; all other modules keep the original
+path — zero blast radius) run up to 3 attempts, buffering QUnit results and reporting only the final
+one, with a per-attempt hang cap under a raised `assert.timeout`. Abandoned attempts self-terminate
+via the existing `runs()` `id == current_test_id` guard. Net: 0 failures across ~40+ module runs,
+production code untouched. (Retry masks only a proven-timing flake — a genuinely broken test fails
+all 3 attempts and is still reported.) DEAD ENDS (reverted): guarding
+`schedule_sync_board_step` (no-op'd a scheduled nextBoard → hung the real sync); adding
+`refresh_after_eventual_stores.waiting` to `syncSettled()` (flag sticks true → hangs gated tests);
+a defensive `beforeEach cancelSyncTailWork()` (pre-cancel can orphan the next sync). Verify any flake
+fix over ≥30 iterations AND on the full suite — variance is huge, 15 green runs prove nothing.
+(2026-07-22)
+
 ## Gotcha: `EXTEND_PROTOTYPES: false` (set by the 5.12 upgrade) — Ember array/string methods on NATIVE receivers throw
 
 The Ember 5.12 upgrade (PR #490) changed `config/environment.js` `EXTEND_PROTOTYPES: {…}` → **`false`**. So Ember's array/string prototype extensions (`.pushObject`, `.sortBy`, `.mapBy`, `.filterBy`, `.uniq`, `.compact`, `.toArray`, `.camelize`, etc.) are **not installed on native `Array`/`String`** — calling them on a plain `[]`/`''` is `undefined` → `TypeError`, not a deprecation. They work ONLY on an `A()`-wrapped array (`import { A } from '@ember/array'`) or an Ember-Data collection (`ManyArray`/`RecordArray`). Consequences when auditing:
@@ -7080,3 +7112,57 @@ Prior handoffs claimed the button-settings modal "can't be driven headless." It 
 - **Folder-link navigation is sound:** verified own + community links persist with `load_board.key`
   and navigate in speak mode. `load_board` is dropped at runtime ONLY when `link_disabled` is true
   (`app-state.js:3764`) or the whole hash is server-deleted for an unviewable/missing target.
+
+## `.lint-todo` raw line count ≠ open violations (it's an add/remove append-log)
+
+`app/frontend/.lint-todo` is NOT a flat list of current violations — it is an append-log of
+`add|…` and `remove|…` operations keyed by (rule, content-hash, file, line). A violation is
+**open only if its `add` has no matching `remove`**. A naive `grep -c "<rule>"` counts both and
+massively overcounts: a 2026-07 handoff claimed "68 require-context-role violations" (raw
+`add` count) when only **2** were actually open — prior migration commits had already appended
+`remove` lines for ~66.
+
+To get the TRUE current set, never trust the raw count or a stale figure:
+- `npx ember-template-lint --include-todo <path>` re-evaluates at HEAD and reports every current
+  violation (whether it would be an error or a suppressed todo). A stale todo shows nothing.
+- Or compute net-active = (# add − # matching remove) by hash in a script.
+
+After fixing, `ember-template-lint . --update-todo` appends only the `remove` lines for the
+now-passing violations (a clean, minimal diff) — you do NOT need to hand-edit `.lint-todo`, and
+you should NOT wholesale re-baseline unless you intend to churn every rule's tracked state.
+
+## `require-context-role`: fix grid→gridcell with a `display:contents` row wrapper
+
+The rule (see the installed `node_modules/ember-template-lint/lib/rules/require-context-role.js`)
+walks UP from the child-role element, **skips** `role="presentation"`/`role="none"` ancestors,
+bails (no violation) if any ancestor is `aria-hidden`, and checks the FIRST real ancestor's role.
+So `role="option"` inside `<li role="presentation">` inside `<ul role="listbox">` is VALID
+(the presentation li is skipped). The common real violation is a `role="grid"` whose `{{#each}}`
+renders `role="gridcell"` divs with no `role="row"` between them.
+
+Fix without breaking CSS: wrap each row's cells in `<div role="row">` carrying
+`display: contents` (a dedicated `…__row` class). `display:contents` generates no layout box, so
+cells keep participating in the parent CSS grid. **Safe precondition (verify first):** the grid
+lays out via `display:grid` + `grid-template-columns/rows` with auto-placed cells and uses only
+descendant (space) selectors — NO `>` direct-child or `:nth-child` cell selectors and no
+`grid-template-areas` targeting direct children. Under those conditions the wrapper is
+layout-invisible; verified byte-identical on create-board-new + new-board preview grids.
+
+## Synthetic `@each` reactivity tests don't reproduce the real Class 2 native-array staleness
+
+The Ember 5.12 Class 2 bug (in-place element mutation not refiring `foo.@each.prop` on a native
+array) does NOT reproduce in a minimal QUnit repro: Ember 5.12 STILL fires `@each` for
+`EmberObject` elements `set()` in place even on a raw `[]`. A "native array won't refire"
+negative-control assertion FAILS (recomputes to 1, not 0). The production staleness only manifests
+under the real controllers' build path (array of records, `emberSet`, no wholesale re-set). So a
+unit test can validly guard the FIX's A()-array reactivity contract, but a faithful bug repro needs
+controller-level integration coverage — don't ship a false negative control. (Ref:
+`tests/unit/ember-5-12-regression-test.js`.)
+
+## npm install must run under the project's Node (22 via nvm), not the shell default
+
+The machine's default node is 16; running `npm install` there (npm 8) mangled
+`app/frontend/package-lock.json` (300-line diff, "removed 45 packages") even for a 6-dep add.
+Always `export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use 22` first. If a lockfile got
+mangled, `git checkout -- package.json package-lock.json` and redo under Node 22 (clean diff =
+only the intended deps).

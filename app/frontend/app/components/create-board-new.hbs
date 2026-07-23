@@ -625,6 +625,11 @@
                    {{on "dragover" (this.eventAction "previewDragOver")}}
                    {{on "drop" (this.eventAction "previewDrop")}}>
                 {{#each this.preview_grid as |row rowIdx|}}
+                  {{!-- grid → row → gridcell: the role="row" wrapper completes the
+                       ARIA grid structure require-context-role requires. It carries
+                       `display: contents` (.md-board-detail-grid__row) so the cells
+                       keep auto-placing into the same CSS grid — layout unchanged. --}}
+                  <div class="md-board-detail-grid__row" role="row">
                   {{#each row as |cell colIdx|}}
                     <div class="md-board-detail-grid__cell {{if cell.empty "md-board-detail-grid__cell--empty"}} {{if cell.editing "md-board-detail-grid__cell--editing"}} {{if cell.painted "md-board-detail-grid__cell--painted"}} {{if cell.is_duplicate "md-board-detail-grid__cell--duplicate"}} {{if cell.no_category "md-board-detail-grid__cell--no-category"}}"
                          role="gridcell"
@@ -717,6 +722,7 @@
                       </div>
                     </div>
                   {{/each}}
+                  </div>
                 {{/each}}
               </div>
             </div>

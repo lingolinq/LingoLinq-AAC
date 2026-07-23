@@ -254,6 +254,11 @@
                  {{on "dragover" (this.eventAction "previewDragOver")}}
                  {{on "drop" (this.eventAction "previewDrop")}}>
               {{#each this.preview_grid as |row|}}
+                {{!-- grid → row → gridcell: the role="row" wrapper completes the
+                     ARIA grid structure require-context-role requires. It carries
+                     `display: contents` (.new-board-preview__row) so the cells keep
+                     auto-placing into the same CSS grid — layout unchanged. --}}
+                <div class="new-board-preview__row" role="row">
                 {{#each row as |cell|}}
                   <div class="new-board-preview__cell {{if cell.empty "new-board-preview__cell--empty"}} {{if cell.editing "new-board-preview__cell--editing"}}"
                        role="gridcell"
@@ -283,6 +288,7 @@
                     {{/if}}
                   </div>
                 {{/each}}
+                </div>
               {{/each}}
             </div>
           </div>

@@ -374,3 +374,5 @@ remove|ember-template-lint|no-builtin-form-components|130|18|130|18|b2de737b248f
 remove|ember-template-lint|no-builtin-form-components|108|12|108|12|75f50df0c3375ccc3ff69a41aee9378ee2e8dbc0|1784592000000|1787184000000|1789776000000|app/components/profiles.hbs
 remove|ember-template-lint|no-builtin-form-components|65|10|65|10|2ec6c9e3cbb8038f9de2854faae66da1c7aa619f|1784505600000|1787097600000|1789689600000|app/templates/brief.hbs
 remove|ember-template-lint|no-builtin-form-components|62|14|62|14|f9062870e7c3acf4cac5b986f69369b2296fc8eb|1784592000000|1787184000000|1789776000000|app/components/batch-recording.hbs
+remove|ember-template-lint|require-context-role|617|25|617|25|655f4679475e1b5c7a8d9acd2047496de4d5eaa3|1784505600000|1787097600000|1789689600000|app/components/create-board-new.hbs
+remove|ember-template-lint|require-context-role|253|23|253|23|655f4679475e1b5c7a8d9acd2047496de4d5eaa3|1784505600000|1787097600000|1789689600000|app/components/new-board.hbs
