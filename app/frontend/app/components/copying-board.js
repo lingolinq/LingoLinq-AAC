@@ -240,6 +240,10 @@ export default Component.extend({
     // The board picker is collapsed by default — every board is already selected,
     // so opening it is an opt-in step for deselecting specific sub-boards.
     toggle_board_picker() {
+      // Collapse a duplicate toggle from one modal click (same fix as bound-select.js).
+      var now = (window.performance && performance.now) ? performance.now() : Date.now();
+      if (this._lastToggleAt != null && (now - this._lastToggleAt) < 250) { return; }
+      this._lastToggleAt = now;
       this.toggleProperty('show_board_picker');
     }
   },

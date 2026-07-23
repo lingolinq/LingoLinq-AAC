@@ -260,7 +260,7 @@ export default Component.extend({
         if (_this.isDestroyed || _this.isDestroying) { return; }
         _this.set('loadingPreview', false);
       }, 1200);
-      board.preview_option = null;
+      board.preview_option = _this.get('preview_option') || null;
       if(_this.get('localized')) {
         board.preview_locale = this.get('board_record.localized_locale');
       }

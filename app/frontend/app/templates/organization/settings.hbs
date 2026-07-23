@@ -119,8 +119,8 @@
         </label>
         {{#if this.external_auth}}
           <div class="md-org-settings-field__nested">
-            <input value={{this.model.saml_metadata_url}} class="md-org-settings-input" id="metadata_url" placeholder="SAML Metadata URL" {{on "input" (set-field this "model.saml_metadata_url")}} />
-            <input value={{this.model.saml_sso_url}} class="md-org-settings-input" id="sso_url" placeholder="SSO URL Override (optional)" {{on "input" (set-field this "model.saml_sso_url")}} />
+            <input value={{this.model.saml_metadata_url}} class="md-org-settings-input" id="metadata_url" placeholder="SAML Metadata URL" aria-label={{t "SAML metadata URL" key="saml_metadata_url"}} {{on "input" (set-field this "model.saml_metadata_url")}} />
+            <input value={{this.model.saml_sso_url}} class="md-org-settings-input" id="sso_url" placeholder="SSO URL Override (optional)" aria-label={{t "SSO URL override" key="sso_url_override"}} {{on "input" (set-field this "model.saml_sso_url")}} />
             <label class="md-org-settings-toggle">
               <input type="checkbox" checked={{this.model.saml_enforced}} class="md-org-settings-toggle__input" {{on "change" (set-field this "model.saml_enforced" "checkbox")}} />
               <span class="md-org-settings-toggle__label">{{t "Require all org users to log in using external authentication" key="require_external_auth"}}</span>
@@ -210,7 +210,7 @@
         </div>
         {{#unless this.no_communicator_profile}}
           <div class="md-org-settings-field__row" style="margin-top: 8px;">
-            <input value={{this.model.communicator_profile_frequency}} class="md-org-settings-input md-org-settings-input--xs" id="comm_prof_freq" placeholder="##" {{on "input" (set-field this "model.communicator_profile_frequency")}} />
+            <input value={{this.model.communicator_profile_frequency}} class="md-org-settings-input md-org-settings-input--xs" id="comm_prof_freq" placeholder="##" aria-label={{t "Communicator profile frequency (months)" key="communicator_profile_frequency"}} {{on "input" (set-field this "model.communicator_profile_frequency")}} />
             <span class="md-org-settings-field__suffix">{{t "months until next profile due" key="days_until_next_profile_due"}}</span>
           </div>
         {{/unless}}
@@ -223,7 +223,7 @@
         </div>
         {{#unless this.no_supervisor_profile}}
           <div class="md-org-settings-field__row" style="margin-top: 8px;">
-            <input value={{this.model.supervisor_profile_frequency}} class="md-org-settings-input md-org-settings-input--xs" id="comm_sup_freq" placeholder="##" {{on "input" (set-field this "model.supervisor_profile_frequency")}} />
+            <input value={{this.model.supervisor_profile_frequency}} class="md-org-settings-input md-org-settings-input--xs" id="comm_sup_freq" placeholder="##" aria-label={{t "Supervisor profile frequency (months)" key="supervisor_profile_frequency"}} {{on "input" (set-field this "model.supervisor_profile_frequency")}} />
             <span class="md-org-settings-field__suffix">{{t "months until next profile due" key="days_until_next_profile_due"}}</span>
           </div>
         {{/unless}}
@@ -315,7 +315,7 @@
       </div>
       <div class="md-org-settings-field">
         <label for="twitter_handle" class="md-org-settings-field__label">{{t "Twitter Handle" key="twitter_handle"}}</label>
-        <input value={{this.model.host_settings.twitter_handle}} class="md-org-settings-input" id="twitter_handle" placeholder="@whoever" {{on "input" (set-field this "model.host_settings.twitter_handle")}} />
+        <input value={{this.model.host_settings.twitter_handle}} class="md-org-settings-input" id="twitter_handle" placeholder={{t "@whoever" key="twitter_handle_example"}} {{on "input" (set-field this "model.host_settings.twitter_handle")}} />
       </div>
       <div class="md-org-settings-field">
         <label for="facebook_url" class="md-org-settings-field__label">{{t "Facebook URL" key="facebook_url"}}</label>

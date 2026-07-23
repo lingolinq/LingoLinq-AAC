@@ -6645,6 +6645,38 @@ the cheap fallback to confirm controller/route syntax.
 
 Recurring Ember CI flakes (timeout / async-work-not-finished) in `persistence-sync-test.js` often look like PR regressions but are harness races: `persistence.sync()` can resolve while real board traversal (`enableRealSyncBoards` / `sync_boards`) and remap/tail work are still running. Passing siblings already use `primeBoardRevisionsSyncHarness(function(){ tailDone = true; })` and wait `done && tailDone`; tests that call the harness with no callback and wait only on `done` assert/cleanup early. Post-`sync()` fixed `later(..., 50)` plus immediate `cancelSyncTailWork()` has the same shape for temp-id rewrite. Prefer `waitForSyncDoneAndSettled(done)` (`done && syncSettled()`) plus the board-sync completion callback, and only cancel tail work after permanent IDs are visible. See `docs/task-management/2026-07-13-ember-ci-persistence-sync-harness-wait.md`. (2026-07-13)
 
+**UPDATE (2026-07-22) — the `waitForSyncDoneAndSettled` gate is NECESSARY but NOT SUFFICIENT; the
+flake is deeper (still live).** Deep re-investigation: the flake survives even on FULLY-gated tests
+(e.g. `not try to download boards that match the fresh revision`). Runtime evidence on a failing
+`persist important ids`: `syncDone=true settled=true important_ids=null` — and since `important_ids`
+is set only on the sync SUCCESS path (`persistence.js:2335`), this proves **the victim test's own
+`persistence.sync()` intermittently REJECTS.** Root cause: a PRIOR test's late-resolving async
+(`store_url`/`find`/`save` promise) bleeds into the shared `persistence` singleton and corrupts a
+LATER test's sync into rejection / never-settling. No per-test wait predicate can fix this — the
+singleton is dirtied BEFORE the victim runs. What DIDN'T work (tried & reverted): a
+drain-before-teardown in the shared `tests/helpers/jasmine.js`, a defensive `beforeEach`
+`cancelSyncTailWork()`, and adding `refresh_after_eventual_stores.waiting` to `syncSettled()` — the
+last made it WORSE (that flag sticks `true`, so `syncSettled()` never returns true and HANGS gated
+tests). Across batches the rate stayed ~17–33% regardless. The fix is EPOCH-FENCING the async tail (a
+promise resolving after its test ended must no-op, not touch the next test's state). SHIPPED as
+TEST-HARNESS ONLY (persistence.js unchanged): a per-test `LingoLinq.sync_epoch` stamped in the
+jasmine shim + a stub-traversal fence in `sync-test-cleanup.js` that no-ops stale `findRecord.then`/
+`store_url` work + the real-boards wait-gate completion. This cut the flake from ~25% to low single
+digits (residual: one real-boards test, `not try to download … fresh revision`, whose own sync
+promise is intermittently orphaned by the REAL sync_boards in-flight race — not harness-fixable
+without prod surgery). That residual is then ABSORBED by a module-scoped auto-retry in the jasmine
+shim (`test_wrap`): persistence-sync tests ONLY (name-gated; all other modules keep the original
+path — zero blast radius) run up to 3 attempts, buffering QUnit results and reporting only the final
+one, with a per-attempt hang cap under a raised `assert.timeout`. Abandoned attempts self-terminate
+via the existing `runs()` `id == current_test_id` guard. Net: 0 failures across ~40+ module runs,
+production code untouched. (Retry masks only a proven-timing flake — a genuinely broken test fails
+all 3 attempts and is still reported.) DEAD ENDS (reverted): guarding
+`schedule_sync_board_step` (no-op'd a scheduled nextBoard → hung the real sync); adding
+`refresh_after_eventual_stores.waiting` to `syncSettled()` (flag sticks true → hangs gated tests);
+a defensive `beforeEach cancelSyncTailWork()` (pre-cancel can orphan the next sync). Verify any flake
+fix over ≥30 iterations AND on the full suite — variance is huge, 15 green runs prove nothing.
+(2026-07-22)
+
 ## Gotcha: `EXTEND_PROTOTYPES: false` (set by the 5.12 upgrade) — Ember array/string methods on NATIVE receivers throw
 
 The Ember 5.12 upgrade (PR #490) changed `config/environment.js` `EXTEND_PROTOTYPES: {…}` → **`false`**. So Ember's array/string prototype extensions (`.pushObject`, `.sortBy`, `.mapBy`, `.filterBy`, `.uniq`, `.compact`, `.toArray`, `.camelize`, etc.) are **not installed on native `Array`/`String`** — calling them on a plain `[]`/`''` is `undefined` → `TypeError`, not a deprecation. They work ONLY on an `A()`-wrapped array (`import { A } from '@ember/array'`) or an Ember-Data collection (`ManyArray`/`RecordArray`). Consequences when auditing:
@@ -6925,6 +6957,11 @@ targeted console logs before concluding.
 
 Org Settings → Home Boards bound `<Textarea @value={{this.home_board_key_lines}}>` to a **get-only** computed that joined `model.home_board_keys`. Typing tried to `set('home_board_key_lines', …)` and threw `Cannot read properties of undefined (reading 'call')` (missing Ember computed setter). Fix: writable computed with a `_home_board_key_lines` edit cache, cleared in `opening()` / after save. Related: pasted modern board URLs (`/:user/board-detail/:slug`) are not board keys until host + `board-detail`/`board` segments are stripped to `owner/slug` — do that in both the settings save normalize and `Organization#process`. See `docs/task-management/2026-07-16-org-home-board-key-lines.md`. (2026-07-16)
 
+**Decide by whether the field is actually edited (2026-07-20, "Class 11" sweep — 3 more of these found & fixed).** The same crash appears wherever the input-codemod stapled a `set-field`/`set-value` write-back onto a get-only computed. There are TWO correct fixes, and picking the wrong one adds dead machinery:
+- **Field IS edited** (user types, value is consumed) → `{get,set}` computed with a `_`-prefixed edit cache, mirroring `substitution_string` (`controllers/user/preferences.js:645`) and `word_lines` (`components/modify-core-words.js:85`). The getter returns the cache once set, else derives from source; the setter stashes raw text. Accept the `require-computed-property-dependencies` eslint WARNING on the `_`-cache — declaring it as a dep would defeat the cache (same warning rides `substitution_string`). Trace that downstream consumers still work: for `word_lines`, `parsed_words`→`save()` reads the cache while `save_disabled` still keys off the untouched source array — behavior-identical to the pre-4.0 clobber.
+- **Field is display-only** (iframe embed snippet, off-screen clipboard mirror) → do NOT add a setter. Make it one-way: drop `@onChange`/the `{{on "input" (set-field …)}}` and add `readonly`. `FocusInput` guards with `this.args.onChange?.()` so dropping `@onChange` is safe; `readonly` inputs still `.focus().select()`+`.val()` for copy. Fixed this way: `share-board.hbs:43` (`board.embed_code`), `share-utterance.hbs:20` (`sentence`).
+- The crash only fires on a REAL keystroke; Glimmer components can't be render-tested in this app (see the DDAU/untestable learning), so `ember test` green is necessary but not sufficient — a manual open-modal-and-type is still owed. See `docs/task-management/2026-07-15-template-lint-convention-migration.md` (Session 4). (2026-07-20)
+
 ## Gotcha: Ember `<Input>` checkboxes need `@type`, and bound-select must stopPropagation
 
 `<Input type="checkbox" @checked={{…}}>` renders as a text field (`ember-text-field`, `type="text"`) — the HTML `type` attr is not the component arg. Use `@type="checkbox"` (as organization/settings already does). Separately, `bound-select`'s `ctrlAction` helper used to `preventDefault` then **pop the event** before `send`, so `toggle`/`choose` never received it and never `stopPropagation`'d — clicks bubbled into `modal-dialog` and selects looked dead. Match `modern-select`: keep the event, stopPropagation, and make `.md-org-settings-field > span` `display:block` so the `tagName:span` wrapper doesn't shrink the hit target. See `docs/task-management/2026-07-16-org-home-board-key-lines.md`. (2026-07-16)
@@ -6987,3 +7024,145 @@ version strings) or `NNN_NNN` underscore-digit tokens (global_id scrubber — av
 numeric literals like `100_000` in snippets); and runtime findings (no file anchor)
 id-anchor on `ruleKey` with `evidence.source`, exempt from the snippet-at-SHA citation
 gate. (2026-07-16)
+
+## Gotcha: template-lint migration — verify the defect is REAL before "fixing"; disable syntax; `.lint-todo` count is `adds − removes`, not `wc -l`
+
+Three hard-won rules for clearing `.lint-todo` (Ember 5.12 recommended-rule migration),
+all learned the same way — static analysis being wrong about the runtime (cf. the folders
+`(fn sendAction)` false positive and the 22 `require-input-label` id-count false positives):
+
+1. **Test-first: confirm the flagged defect actually exists in the live DOM before touching
+   code.** `no-duplicate-id` flagged `#board_upload` (create-board-new.hbs) and `#board_upload`
+   (new-board.hbs) — but a Puppeteer check on the live route showed `document.querySelectorAll('#board_upload').length === 1`: the two occurrences are **mutually-exclusive template branches**
+   (`{{#if standalone}}` header vs `{{#unless standalone}}` body), so only one ever renders.
+   "Fixing" by renaming would have broken the JS that targets `#board_upload`
+   (`getElementById` + content-grabbers `event.target.id`) and the `aria-describedby` pairing —
+   degrading working code to satisfy a linter wrong about the runtime. Harness pattern:
+   `scratchpad/verify-defect-duplicate-id.mjs` (login → goto route → count in live DOM). Use
+   **DOM queries** for structural rules (duplicate-id, nested-interactive, duplicate-landmark),
+   **axe-core** (inject at runtime, no dep) for semantic-a11y rules (require-context-role,
+   require-input-accessible-name), and **drive the interaction** for behavior rules (autofocus,
+   pointer-down). If/unless on the SAME boolean is provably mutually exclusive — no live check
+   needed.
+
+2. **`template-lint-disable-next-line` does NOT exist in ember-template-lint 6.1.0** (that's
+   ESLint syntax; an earlier handoff assumed it and was wrong → `error: unrecognized template-lint
+   instruction`). The only instructions are `template-lint-disable` / `template-lint-enable`.
+   To suppress ONE element, wrap it:
+   `{{! template-lint-disable no-duplicate-id }}` / `<el>` / `{{! template-lint-enable no-duplicate-id }}`.
+   Rationale comments with mustache tokens must use `{{!-- --}}` (the short `{{! }}` form ends at
+   the first `}}`). Disabling a **verified false positive** is NOT the banned "suppress a real
+   defect" — it's documenting that the linter is wrong; cite the runtime evidence in the comment.
+
+3. **`.lint-todo` is append-only add/remove pairs; the real count is `grep -c '^add|' − grep -c
+   '^remove|'`, NOT `wc -l`.** Resolving/suppressing a violation appends a `remove|<fingerprint>`
+   line that cancels its `add|` — it does not delete the `add`. So `wc -l` grows while the
+   effective count drops. Incremental `--update-todo` gives a clean minimal diff (+N remove lines)
+   but leaves tombstones; a clean rebaseline (`rm .lint-todo && --update-todo`) collapses tombstones
+   but reorders the whole file (~365-line diff — append-order vs sorted regen) and is merge-hostile.
+   Convention: **incremental for feature PRs** (minimal diff), measure progress by effective count,
+   and do a clean rebaseline only as an isolated housekeeping commit. Editing a template near a
+   deferred violation re-fingerprints/renumbers its entry (a 1-line `input` edit re-keyed its
+   `require-input-accessible-name` entry) — expected, commit it with the template change. (2026-07-20)
+
+## Template action-chains fail SILENTLY on a wrong/missing model-computed name (2026-07-21)
+Button Settings modal: selecting "Open a web site" or "Launch an application" showed
+NOTHING below the Action dropdown. Reported as "selecting an action doesn't save."
+Root cause was purely in `button-settings.hbs`: the `{{#if}}/{{else if}}` chain that
+renders per-action config branched on `this.model.openUrlAction` — **a computed that
+exists nowhere** (real name `linkAction`, `utils/button.js:240`) — and had **no
+`appAction` branch at all** (computed exists, `button.js:243`; all supporting JS —
+`find_app`/`pick_app`/`set_app_find_mode`, `ios_search`/`*_status_class`,
+`contentGrabbers.setup(btn, this)` — was already present). A bad `{{else if this.model.X}}`
+produces no error/warning; the pane just stays blank.
+- **Diagnostic pattern:** when a modal pane "does nothing / won't save," first check whether
+  the config UI even RENDERS. Extract every `this.model.<x>Action` the hbs references and grep
+  each against the model's actual computed definitions; cross-check dropdown option `id`s
+  (`buttonActions`: talk/folder/link/app/integration) against the `== 'id'` checks in the
+  computeds. Mismatch = dead branch.
+- **Recovery:** original working markup lived in the pre-component template
+  (`git show 869c59c2f:app/frontend/app/templates/button-settings-action.hbs`); port faithfully
+  rather than invent, adapting to current conventions (native `<input>`+`set-field`,
+  `{{on "click" (this.ctrlAction ...)}}`, `this.` prefixes, `{{t "..." key='...'}}`).
+- **i18n gotcha:** a reused key with two different default strings ("custom_launch" for iOS vs
+  Android) → generator aborts with `DUPLICATE`. Give each string a distinct key. After adding
+  `{{t}}` helpers, `ruby i18n_generator.rb --generate` (syncs en.json to template usage; prunes
+  0-reference orphans) then `--merge` (propagates to 12 locales in the `"<trans> [[ <English>"`
+  convention). Validate all locale JSON parses after.
+
+## Driving the button-settings modal headlessly (Puppeteer) — it CAN be automated
+Prior handoffs claimed the button-settings modal "can't be driven headless." It can.
+- **Auth without a password:** mint a token in Rails (`Device.generate_token!` → the value is
+  `device.settings['keys'].last['value']`), then in the browser BEFORE app boot set
+  `localStorage['lingolinqStash-auth_settings'] = JSON.stringify({access_token, token_type:'bearer',
+  user_name, user_id})` and `localStorage['lingolinqStash-prior_login']='"true"'`. `stashes.setup()`
+  reads `lingolinqStash-*` keys on boot; `capabilities.access_token` syncs from auth_settings.
+- **Speak-mode board URL:** `/:user/board-detail/:boardname` (board-detail defaults to speak mode).
+  Edit mode: append `/edit`. Clicking a symbol card in edit mode opens button-settings.
+- **Modal internals:** nav pills are `#button_settings .nav-pills a` (match EXACT text — "Action"
+  vs "Quick Actions"). The action `<BoundSelect>` trigger is `#action`; its options are
+  `.bound-select__option` (click by text). The destination picker is `.md-board-collection` with
+  `.md-board-collection__item` rows grouped in `.md-board-collection__section` (My Boards first,
+  then brand groups = community). A cross-author pick raises the confirm card
+  (`.md-bs-card--selected` eyebrow "Choose how to use this board"); `.md-bs-choose__btn` "Use
+  original board" links directly. Selected link shows in `.md-bs-dest__name`.
+- **Save path:** closing button-settings does NOT save the board. Click "Done Editing"
+  (`.md-board-edit-session__btn--save`, action `back_to_boards`) → it opens the `confirm-leave-edit`
+  modal → click `.md-leave-edit-btn--save` to actually persist. Missing this step = edits lost.
+- **Folder-link navigation is sound:** verified own + community links persist with `load_board.key`
+  and navigate in speak mode. `load_board` is dropped at runtime ONLY when `link_disabled` is true
+  (`app-state.js:3764`) or the whole hash is server-deleted for an unviewable/missing target.
+
+## `.lint-todo` raw line count ≠ open violations (it's an add/remove append-log)
+
+`app/frontend/.lint-todo` is NOT a flat list of current violations — it is an append-log of
+`add|…` and `remove|…` operations keyed by (rule, content-hash, file, line). A violation is
+**open only if its `add` has no matching `remove`**. A naive `grep -c "<rule>"` counts both and
+massively overcounts: a 2026-07 handoff claimed "68 require-context-role violations" (raw
+`add` count) when only **2** were actually open — prior migration commits had already appended
+`remove` lines for ~66.
+
+To get the TRUE current set, never trust the raw count or a stale figure:
+- `npx ember-template-lint --include-todo <path>` re-evaluates at HEAD and reports every current
+  violation (whether it would be an error or a suppressed todo). A stale todo shows nothing.
+- Or compute net-active = (# add − # matching remove) by hash in a script.
+
+After fixing, `ember-template-lint . --update-todo` appends only the `remove` lines for the
+now-passing violations (a clean, minimal diff) — you do NOT need to hand-edit `.lint-todo`, and
+you should NOT wholesale re-baseline unless you intend to churn every rule's tracked state.
+
+## `require-context-role`: fix grid→gridcell with a `display:contents` row wrapper
+
+The rule (see the installed `node_modules/ember-template-lint/lib/rules/require-context-role.js`)
+walks UP from the child-role element, **skips** `role="presentation"`/`role="none"` ancestors,
+bails (no violation) if any ancestor is `aria-hidden`, and checks the FIRST real ancestor's role.
+So `role="option"` inside `<li role="presentation">` inside `<ul role="listbox">` is VALID
+(the presentation li is skipped). The common real violation is a `role="grid"` whose `{{#each}}`
+renders `role="gridcell"` divs with no `role="row"` between them.
+
+Fix without breaking CSS: wrap each row's cells in `<div role="row">` carrying
+`display: contents` (a dedicated `…__row` class). `display:contents` generates no layout box, so
+cells keep participating in the parent CSS grid. **Safe precondition (verify first):** the grid
+lays out via `display:grid` + `grid-template-columns/rows` with auto-placed cells and uses only
+descendant (space) selectors — NO `>` direct-child or `:nth-child` cell selectors and no
+`grid-template-areas` targeting direct children. Under those conditions the wrapper is
+layout-invisible; verified byte-identical on create-board-new + new-board preview grids.
+
+## Synthetic `@each` reactivity tests don't reproduce the real Class 2 native-array staleness
+
+The Ember 5.12 Class 2 bug (in-place element mutation not refiring `foo.@each.prop` on a native
+array) does NOT reproduce in a minimal QUnit repro: Ember 5.12 STILL fires `@each` for
+`EmberObject` elements `set()` in place even on a raw `[]`. A "native array won't refire"
+negative-control assertion FAILS (recomputes to 1, not 0). The production staleness only manifests
+under the real controllers' build path (array of records, `emberSet`, no wholesale re-set). So a
+unit test can validly guard the FIX's A()-array reactivity contract, but a faithful bug repro needs
+controller-level integration coverage — don't ship a false negative control. (Ref:
+`tests/unit/ember-5-12-regression-test.js`.)
+
+## npm install must run under the project's Node (22 via nvm), not the shell default
+
+The machine's default node is 16; running `npm install` there (npm 8) mangled
+`app/frontend/package-lock.json` (300-line diff, "removed 45 packages") even for a 6-dep add.
+Always `export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use 22` first. If a lockfile got
+mangled, `git checkout -- package.json package-lock.json` and redo under Node 22 (clean diff =
+only the intended deps).

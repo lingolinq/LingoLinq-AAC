@@ -49,6 +49,7 @@
     {{#each this.navGroups as |group|}}
       <div class="sidebar__section-label">{{group.section}}</div>
 
+      <div role="group" aria-label={{group.section}} style="display: contents;">
       {{#each group.items as |item|}}
         <LinkTo
           class="nav-item {{if (is-active item.route) 'active'}}"
@@ -60,6 +61,7 @@
           {{item.label}}
         </LinkTo>
       {{/each}}
+      </div>
     {{/each}}
   </aside>
 

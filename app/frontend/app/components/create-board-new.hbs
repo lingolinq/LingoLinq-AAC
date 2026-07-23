@@ -162,7 +162,13 @@
                chooser so the user can switch methods. The board-file input stays
                in the DOM (hidden) so the chooser's "Import Board(s)" can still
                trigger it — content-grabbers.js processes #board_upload on change. --}}
+          {{!-- Verified non-defect: this input is display:none (kept in the DOM only so the
+               chooser's "Import Board(s)" can programmatically trigger #board_upload), so it is
+               NEVER in the accessibility tree — axe reports it inapplicable. Labeling a control
+               that AT can never reach adds noise, not access. --}}
+          {{! template-lint-disable require-input-accessible-name }}
           <input type="file" name="board_upload" id="board_upload" tabindex="-1" style="display: none;">
+          {{! template-lint-enable require-input-accessible-name }}
           <button type="button" class="nb-ai-mode-other nb-other-methods-btn" {{on "click" (this.ctrlAction "open_create_chooser")}}>
             {{t "Other Create Board Methods" key="other_create_methods"}}
           </button>
@@ -224,7 +230,14 @@
             <button type="button" class="la-btn la-btn--ghost">
               {{t "Import Board(s)" key="import_boards"}}
             </button>
-            <input type="file" name="board_upload" id="board_upload" tabindex="-1">
+            {{!-- Verified false positive: this #board_upload and the chooser-branch one
+                 are mutually-exclusive template branches, so only one renders (live DOM
+                 count=1, zero duplicate ids on the page). #board_upload is JS-targeted
+                 (getElementById + content-grabbers event.target.id), so renaming breaks
+                 board import. --}}
+            {{! template-lint-disable no-duplicate-id }}
+            <input type="file" name="board_upload" id="board_upload" tabindex="-1" aria-label={{t "Import Board(s)" key="import_boards"}}>
+            {{! template-lint-enable no-duplicate-id }}
           </span>
           {{#if this.paste_html_import_enabled}}
             <button type="button" class="la-btn la-btn--ghost" {{on "click" (this.ctrlAction "importFromHtml")}}>
@@ -389,7 +402,7 @@
                              accept=".csv,text/csv"
                              {{on "change" (this.ctrlAction "csvFileChosen")}}
                              tabindex="-1"
-                             aria-hidden="true" />
+                             aria-label={{t "import csv" key="import_csv"}} />
                     </div>
                   </div>
                   {{#if this.has_duplicate_labels}}
@@ -612,6 +625,11 @@
                    {{on "dragover" (this.eventAction "previewDragOver")}}
                    {{on "drop" (this.eventAction "previewDrop")}}>
                 {{#each this.preview_grid as |row rowIdx|}}
+                  {{!-- grid → row → gridcell: the role="row" wrapper completes the
+                       ARIA grid structure require-context-role requires. It carries
+                       `display: contents` (.md-board-detail-grid__row) so the cells
+                       keep auto-placing into the same CSS grid — layout unchanged. --}}
+                  <div class="md-board-detail-grid__row" role="row">
                   {{#each row as |cell colIdx|}}
                     <div class="md-board-detail-grid__cell {{if cell.empty "md-board-detail-grid__cell--empty"}} {{if cell.editing "md-board-detail-grid__cell--editing"}} {{if cell.painted "md-board-detail-grid__cell--painted"}} {{if cell.is_duplicate "md-board-detail-grid__cell--duplicate"}} {{if cell.no_category "md-board-detail-grid__cell--no-category"}}"
                          role="gridcell"
@@ -704,6 +722,7 @@
                       </div>
                     </div>
                   {{/each}}
+                  </div>
                 {{/each}}
               </div>
             </div>
@@ -859,7 +878,7 @@
                                       {{#if opt.divider}}
                                         <li class="md-settings-dropdown-divider" role="separator" aria-hidden="true"></li>
                                       {{else}}
-                                        <li>
+                                        <li role="presentation">
                                           <button type="button" role="option" aria-selected={{if (is-equal this.appState.sessionUser.preferences.device.button_style opt.id) "true" "false"}} class="md-settings-dropdown-item {{if (is-equal this.appState.sessionUser.preferences.device.button_style opt.id) 'md-settings-dropdown-item--active'}}" {{on "click" (this.ctrlAction "pick_display_font" opt.id)}}>
                                             {{#if (is-equal this.appState.sessionUser.preferences.device.button_style opt.id)}}
                                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
@@ -941,7 +960,7 @@
                                   <div class="md-settings-dropdown-backdrop" {{on "click" (this.ctrlAction "close_display_skin_dropdown")}} aria-hidden="true"></div>
                                   <ul class="md-settings-dropdown-menu" role="listbox" aria-label={{t "Skin tone" key="board_detail_prefs_skin"}}>
                                     {{#each this.skin_tone_options as |opt|}}
-                                      <li>
+                                      <li role="presentation">
                                         <button type="button" role="option" aria-selected={{if (is-equal this.display_prefs_current_skin_id opt.id) "true" "false"}} class="md-settings-dropdown-item md-settings-dropdown-item--with-swatch {{if (is-equal this.display_prefs_current_skin_id opt.id) 'md-settings-dropdown-item--active'}}" {{on "click" (this.ctrlAction "pick_display_skin" opt.id)}}>
                                           {{#if (is-equal this.display_prefs_current_skin_id opt.id)}}
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
@@ -1027,7 +1046,7 @@
                                         aria-label={{t "Pick paint color" key="board_detail_pick_paint_color"}}
                                         autocomplete="off"
                                         {{on "input" (this.ctrlActionEventValue "update_custom_paint_color" "value")}}>
-                                      <input value={{this.custom_paint_color}} id="nb-paint-hex-input" placeholder="#hex" class="md-board-edit-right-panel__custom-picker-hex" autocomplete="off" {{on "input" (set-field this "custom_paint_color")}} />
+                                      <input value={{this.custom_paint_color}} id="nb-paint-hex-input" placeholder="#hex" aria-label={{t "Custom hex color" key="custom_hex_color"}} class="md-board-edit-right-panel__custom-picker-hex" autocomplete="off" {{on "input" (set-field this "custom_paint_color")}} />
                                       <button type="button"
                                         class="md-board-edit-right-panel__custom-picker-apply"
                                         {{on "click" (this.ctrlAction "apply_custom_paint_color")}}>
@@ -1092,7 +1111,7 @@
                                   <div class="md-settings-dropdown-backdrop" {{on "click" (this.ctrlAction "close_display_symbol_background_dropdown")}} aria-hidden="true"></div>
                                   <ul class="md-settings-dropdown-menu" role="listbox" aria-label={{t "Image background color" key="board_detail_prefs_image_background"}}>
                                     {{#each this.symbol_background_options as |opt|}}
-                                      <li>
+                                      <li role="presentation">
                                         <button type="button" role="option" aria-selected={{if (is-equal this.display_prefs_current_symbol_background_id opt.id) "true" "false"}} class="md-settings-dropdown-item {{if (is-equal this.display_prefs_current_symbol_background_id opt.id) 'md-settings-dropdown-item--active'}}" {{on "click" (this.ctrlAction "pick_display_symbol_background" opt.id)}}>
                                           {{#if (is-equal this.display_prefs_current_symbol_background_id opt.id)}}
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
@@ -1123,7 +1142,7 @@
                                 <div class="md-settings-dropdown-backdrop" {{on "click" (this.ctrlAction "close_display_symbol_library_dropdown")}} aria-hidden="true"></div>
                                 <ul class="md-settings-dropdown-menu" role="listbox" aria-label={{t "Symbol library" key="board_detail_prefs_symbol_library"}}>
                                   {{#each this.preferred_symbols_options as |opt|}}
-                                    <li>
+                                    <li role="presentation">
                                       <button type="button" role="option" aria-selected={{if (is-equal this.appState.sessionUser.preferences.preferred_symbols opt.id) "true" "false"}} class="md-settings-dropdown-item {{if (is-equal this.appState.sessionUser.preferences.preferred_symbols opt.id) 'md-settings-dropdown-item--active'}}" {{on "click" (this.ctrlAction "pick_display_symbol_library" opt.id)}}>
                                         {{#if (is-equal this.appState.sessionUser.preferences.preferred_symbols opt.id)}}
                                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
@@ -1166,7 +1185,7 @@
                                   <div class="md-settings-dropdown-backdrop" {{on "click" (this.ctrlAction "close_display_voice_height_dropdown")}} aria-hidden="true"></div>
                                   <ul class="md-settings-dropdown-menu" role="listbox" aria-label={{t "Sentence bar size" key="board_detail_prefs_voice_height_aria"}}>
                                     {{#each this.voice_height_options as |opt|}}
-                                      <li>
+                                      <li role="presentation">
                                         <button type="button" role="option" aria-selected={{if (is-equal this.appState.sessionUser.preferences.device.vocalization_height opt.id) "true" "false"}} class="md-settings-dropdown-item {{if (is-equal this.appState.sessionUser.preferences.device.vocalization_height opt.id) 'md-settings-dropdown-item--active'}}" {{on "click" (this.ctrlAction "pick_display_voice_height" opt.id)}}>
                                           {{#if (is-equal this.appState.sessionUser.preferences.device.vocalization_height opt.id)}}
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
@@ -1400,7 +1419,12 @@
            modern pattern (Stripe/Linear/Vercel) is to keep the disabled
            CTA self-explanatory and let the reason live in a tooltip /
            aria description, not as floating layout text. --}}
+      {{!-- Verified false positive: this #new-board-create-hint and its twin are
+           mutually-exclusive branches, only one renders (live DOM count=1). It is
+           referenced by aria-describedby, so it must keep this id. --}}
+      {{! template-lint-disable no-duplicate-id }}
       <span id="new-board-create-hint" class="sr-only" aria-live="polite">{{this.missing_required_summary}}</span>
+      {{! template-lint-enable no-duplicate-id }}
       <div class="la-new-board-modal-footer__actions">
         <button type="button" {{on "click" (this.ctrlAction "attemptSave")}}
                 class="la-btn la-btn--primary new-board__submit {{if this.createBoardDisabled 'new-board__submit--invalid'}}"

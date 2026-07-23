@@ -876,7 +876,7 @@
         <div class="col-sm-9 col-sm-offset-3">
           <p class='form-control-static'>
             <span style='display: inline-block; width: 75px;'>
-              <input type="text" value={{this.pending_preferences.clear_vocalization_history_minutes}} placeholder="##" class="form-control" id="clear_vocalization_history_minutes" {{on "input" (set-field this "pending_preferences.clear_vocalization_history_minutes")}} />
+              <input type="text" value={{this.pending_preferences.clear_vocalization_history_minutes}} placeholder="##" class="form-control" id="clear_vocalization_history_minutes" aria-label={{t "minutes after being spoken in the vocalization box" key="clear_vocalization_history_minutes"}} {{on "input" (set-field this "pending_preferences.clear_vocalization_history_minutes")}} />
             </span>
             {{t "minutes after being spoken in the vocalization box" key='clear_vocalization_history_minutes'}}
           </p>
@@ -885,7 +885,7 @@
           <p class='form-control-static'>
             {{t "after" key='after'}}
             <span style='display: inline-block; width: 75px;'>
-              <input type="text" value={{this.pending_preferences.clear_vocalization_history_count}} placeholder="##" class="form-control" id="clear_vocalization_history_count" {{on "input" (set-field this "pending_preferences.clear_vocalization_history_count")}} />
+              <input type="text" value={{this.pending_preferences.clear_vocalization_history_count}} placeholder="##" class="form-control" id="clear_vocalization_history_count" aria-label={{t "times being spoken in the vocalization box" key="clear_vocalization_history_count"}} {{on "input" (set-field this "pending_preferences.clear_vocalization_history_count")}} />
             </span>
             {{t "times being spoken in the vocalization box" key='clear_vocalization_history_count'}}
           </p>
@@ -1471,7 +1471,7 @@
                   <span class="input-group-btn">
                     <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.scanning_region_rows")}}>-</button>
                   </span>
-                  <input value={{this.pending_preferences.device.scanning_region_rows}} class="form-control" id="scanning_region_rows" placeholder="rows" {{on "input" (set-field this "pending_preferences.device.scanning_region_rows")}} />
+                  <input value={{this.pending_preferences.device.scanning_region_rows}} class="form-control" id="scanning_region_rows" placeholder="rows" aria-label={{t "Rows" key="rows"}} {{on "input" (set-field this "pending_preferences.device.scanning_region_rows")}} />
                   <span class="input-group-btn">
                     <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.scanning_region_rows")}}>+</button>
                   </span>
@@ -1487,7 +1487,7 @@
                   <span class="input-group-btn">
                     <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.scanning_region_columns")}}>-</button>
                   </span>
-                  <input value={{this.pending_preferences.device.scanning_region_columns}} class="form-control" id="scanning_region_columns" placeholder="cols" {{on "input" (set-field this "pending_preferences.device.scanning_region_columns")}} />
+                  <input value={{this.pending_preferences.device.scanning_region_columns}} class="form-control" id="scanning_region_columns" placeholder="cols" aria-label={{t "Columns" key="columns"}} {{on "input" (set-field this "pending_preferences.device.scanning_region_columns")}} />
                   <span class="input-group-btn">
                     <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.scanning_region_columns")}}>+</button>
                   </span>
