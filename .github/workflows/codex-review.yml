@@ -182,12 +182,14 @@ jobs:
           RAW="$(git diff "${BASE_SHA}...${HEAD_SHA}")"
           TOTAL_BYTES="$(printf '%s' "$RAW" | wc -c)"
           FILE_COUNT="$(git diff --name-only "${BASE_SHA}...${HEAD_SHA}" | wc -l | tr -d ' ')"
+          # Build the bounded diff ONCE into a file. It is used twice: injected
+          # into the prompt (via GITHUB_OUTPUT below) AND scanned by the
+          # prompt-injection guard in build-envelope.py, which must see exactly
+          # what the reviewer saw. Emit an authoritative completeness NOTE on
+          # BOTH paths: CI knows whether the diff fit under the cap; the reviewer
+          # (which may have no shell) does not, and without a positive signal it
+          # can wrongly assume the diff is partial and refuse a verdict.
           {
-            echo "pr_diff<<PR_DIFF_EOF"
-            # Emit an authoritative completeness NOTE on BOTH paths. CI knows
-            # whether the diff fit under the cap; the reviewer (which may have
-            # no shell) does not, and without a positive signal it can wrongly
-            # assume the diff is partial and refuse a verdict. State the fact.
             if [ "$TOTAL_BYTES" -gt "$MAX_BYTES" ]; then
               echo "NOTE: git diff BASE...HEAD for all ${FILE_COUNT} changed file(s), TRUNCATED to the first ${MAX_BYTES} of ${TOTAL_BYTES} bytes. Hunks past the cut are not shown -- treat them as unverified."
               echo ""
@@ -205,6 +207,10 @@ jobs:
               echo ""
               printf '%s\n' "$RAW"
             fi
+          } > /tmp/pr_diff.txt
+          {
+            echo "pr_diff<<PR_DIFF_EOF"
+            cat /tmp/pr_diff.txt
             echo "PR_DIFF_EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -230,27 +236,44 @@ jobs:
           mkdir -p "$CODEX_HOME"
           printf '%s' "$OPENAI_API_KEY" | codex login --with-api-key
 
-      - name: Run reviewer (codex exec)
+      - name: Run reviewer (codex exec, converge across runs)
         id: review_codex
         if: steps.classify.outputs.reviewer_route == 'codex'
         env:
           CODEX_HOME: ${{ runner.temp }}/codex-home
         run: |
-          codex exec \
-            --sandbox read-only \
-            -m gpt-5.5 \
-            --output-schema .github/codex/review-schema.json \
-            --output-last-message /tmp/review.json \
-            < /tmp/prompt.md
-          # Fallback per build spec section 6: one retry with a stricter
-          # instruction if the model still emitted invalid JSON despite
-          # --output-schema.
-          if ! python3 -c "import json; json.load(open('/tmp/review.json'))" 2>/dev/null; then
-            echo "First pass produced invalid JSON; retrying with stricter instruction." >&2
-            { cat /tmp/prompt.md; echo ""; echo "Output ONLY the JSON object. No prose, no markdown fences."; } \
-              | codex exec --sandbox read-only -m gpt-5.5 \
-                  --output-schema .github/codex/review-schema.json \
-                  --output-last-message /tmp/review.json
+          run_codex() {
+            # $1 = output path for this run's review JSON
+            codex exec \
+              --sandbox read-only \
+              -m gpt-5.5 \
+              --output-schema .github/codex/review-schema.json \
+              --output-last-message "$1" \
+              < /tmp/prompt.md
+            # Fallback per build spec section 6: one retry with a stricter
+            # instruction if the model still emitted invalid JSON despite
+            # --output-schema.
+            if ! python3 -c "import json, sys; json.load(open(sys.argv[1]))" "$1" 2>/dev/null; then
+              echo "Run produced invalid JSON; retrying with stricter instruction." >&2
+              { cat /tmp/prompt.md; echo ""; echo "Output ONLY the JSON object. No prose, no markdown fences."; } \
+                | codex exec --sandbox read-only -m gpt-5.5 \
+                    --output-schema .github/codex/review-schema.json \
+                    --output-last-message "$1"
+            fi
+          }
+          # Convergence policy ("confirm both directions"): the model is
+          # non-deterministic, so a lone run is not a repeatable gate. Run twice
+          # and require agreement; on disagreement run a third tiebreaker
+          # (majority decides). build-envelope.py --need-third makes the
+          # agreement decision (it also applies the injection guard, so two
+          # APPROVEs over an injection-bearing diff both become blocks and agree,
+          # converging straight to fail-closed without a wasted third run).
+          run_codex /tmp/review-1.json
+          run_codex /tmp/review-2.json
+          NEED_THIRD="$(python3 scripts/codex-review-build-envelope.py --need-third --diff /tmp/pr_diff.txt /tmp/review-1.json /tmp/review-2.json)"
+          echo "convergence: third tiebreaker needed? ${NEED_THIRD}"
+          if [ "$NEED_THIRD" = "yes" ]; then
+            run_codex /tmp/review-3.json
           fi
 
       - name: Run reviewer (Claude Sonnet 4.6 API, Tier 2 claude-deep route)
@@ -260,13 +283,17 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.CLAUDE_REVIEW_API_KEY }}
         run: |
           echo "::add-mask::$ANTHROPIC_API_KEY"
-          scripts/codex-review-claude-deep.sh /tmp/prompt.md .github/codex/review-schema.json /tmp/review.json
+          # Single run: the claude-deep route is the compliance-path fallback and
+          # is not convergence-looped in this pass. build-envelope treats one
+          # review file as a no-op convergence (its outcome passes through), and
+          # the injection guard still applies.
+          scripts/codex-review-claude-deep.sh /tmp/prompt.md .github/codex/review-schema.json /tmp/review-1.json
 
       - name: Reviewer blocked (Tier 1 data-bearing path)
         id: review_blocked
         if: steps.classify.outputs.reviewer_route == 'blocked'
         run: |
-          cat > /tmp/review.json <<JSONEOF
+          cat > /tmp/review-1.json <<JSONEOF
           {
             "verdict": "NEEDS_HUMAN",
             "head_sha": "${HEAD_SHA}",
@@ -293,7 +320,14 @@ jobs:
         # on, which status to resolve). Wrap it in an envelope of
         # Actions-validated values instead, so W2 routes off CI ground
         # truth, not model output.
-        run: python3 scripts/codex-review-build-envelope.py /tmp/review.json /tmp/envelope.json
+        run: |
+          # Pass every review run that was produced (1 for claude-deep/blocked,
+          # 2 or 3 for the codex convergence loop). build-envelope applies the
+          # injection guard per run and folds the runs into one converged status.
+          REVIEWS=/tmp/review-1.json
+          [ -f /tmp/review-2.json ] && REVIEWS="$REVIEWS /tmp/review-2.json"
+          [ -f /tmp/review-3.json ] && REVIEWS="$REVIEWS /tmp/review-3.json"
+          python3 scripts/codex-review-build-envelope.py --diff /tmp/pr_diff.txt --out /tmp/envelope.json $REVIEWS
         env:
           REVIEWER_ROUTE: ${{ steps.classify.outputs.reviewer_route }}
           RUN_ID: ${{ github.run_id }}

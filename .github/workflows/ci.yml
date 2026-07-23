@@ -150,6 +150,19 @@ jobs:
       - name: Verify capability ledger (currentEvidence resolves at HEAD; negativeEvidence scoping)
         run: ruby scripts/capability-check.rb --check
 
+  codex-review-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Guards the codex-review envelope logic: status fail-closed mapping,
+      # the prompt-injection guard, and the convergence policy. Stdlib-only
+      # (unittest), so no Python setup or dependencies are needed.
+      - name: Run codex-review envelope guard + convergence unit tests
+        run: python3 scripts/codex-review-build-envelope.test.py
+
   security-scan:
     runs-on: ubuntu-latest
 
