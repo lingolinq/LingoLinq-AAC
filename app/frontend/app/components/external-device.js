@@ -129,6 +129,17 @@ export default Component.extend({
         this.set('external_vocab_size', vocab.buttons);
       }
     },
+    // The modern modal offers the vocab presets via a <datalist> (free text +
+    // suggestions) instead of a Bootstrap dropdown. Selecting/typing a preset
+    // name only updates the bound input, so re-apply the preset's button count
+    // to Vocab Size here — preserving the old dropdown's auto-fill behavior.
+    vocab_changed() {
+      const str = this.get('external_vocab');
+      const match = (this.get('vocab_options') || []).find(function(v) { return v.name === str; });
+      if (match && match.buttons) {
+        this.set('external_vocab_size', match.buttons);
+      }
+    },
     update() {
       const _this = this;
       const user = this.get('model.user');

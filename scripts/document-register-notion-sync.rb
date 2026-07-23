@@ -84,11 +84,20 @@ def cap(s)
   s.empty? ? s : s[0].upcase + s[1..].to_s
 end
 
+# The mirror must not read cleaner than the register. An attested git row only means "these bytes
+# were attested" when attestation.attestedContentHash pins them and still matches contentHash;
+# otherwise the file has moved since and re-attestation is owed (see meta.attestationHashNote).
 def attested_str(doc)
   att = doc['attestation']
   return '' unless att.is_a?(Hash) && !att['attestedBy'].to_s.empty?
 
-  "#{att['attestedBy']} #{att['attestedDate']}".strip
+  base = "#{att['attestedBy']} #{att['attestedDate']}".strip
+  return base unless doc['canonicalSystem'].to_s == 'git'
+
+  pinned = att['attestedContentHash'].to_s
+  return base if !pinned.empty? && pinned == doc['contentHash'].to_s
+
+  "#{base} (re-attestation owed: attested bytes not pinned or no longer current)"
 end
 
 def mirrors_str(doc)

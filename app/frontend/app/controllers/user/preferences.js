@@ -18,6 +18,7 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { htmlSafe } from '@ember/template';
 import editManager from '../../utils/edit_manager';
+import { art50DisclosureUrl } from '../../utils/article50_gate';
 
 var sidebarActionCodeTemplates = {
   ':timer': ':timer(30s)',
@@ -130,14 +131,24 @@ function mergeMissingDefaultSidebarBoards(stored, defaults) {
 
 export default Controller.extend({
   appState: service('app-state'),
+  session: service('session'),
   // Ember Data 5.x removed automatic `store` injection into controllers.
   store: service('store'),
   // Alias for template compatibility (template uses this.app_state)
   app_state: alias('appState'),
   router: service('router'),
 
+  // EU AI Act Article 50(1) notice URL for the passive Preferences affordance
+  // (03-UI-SPEC 7.3). A plain link, NOT the ai-disclosure modal: that modal is
+  // uncloseable BLOCK mode and would trap a user who opened it just to re-read
+  // the notice. Version and locale single-sourced from utils/article50_gate;
+  // assigned in init() rather than at module load because the locale is not
+  // resolved until initializers/attempt_lang has run.
+  article_50_disclosure_url: null,
+
   init() {
     this._super(...arguments);
+    this.set('article_50_disclosure_url', art50DisclosureUrl());
     var self = this;
     this.ctrlAction = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
@@ -190,6 +201,7 @@ export default Controller.extend({
       this.set('original_preferences.word_suggestion_position', 'side_rail');
     }
     this.set('phrase_categories_string', (this.get('pending_preferences.phrase_categories') || []).join(', '));
+    this.set('_substitution_string', undefined);
     this.set('advanced', true);
     this.set('skip_save_on_transition', false);
     this.set('eu_ai_parent_email', this.get('model.eu_ai_parental_consent_parent_email') || '');
@@ -636,8 +648,23 @@ export default Controller.extend({
     });
     return htmlSafe(div.innerHTML);
   }),
-  substitution_string: computed('pending_preferences.substitutions', function() {
-    return editManager.stringify_rules(this.get('pending_preferences.substitutions') || []);
+  // Writable: the Phrase Substitutions textarea two-way-binds @value to this
+  // property. A get-only computed crashes on every keystroke in Ember 5 (setting
+  // a setter-less computed throws; pre-4.0 it silently clobbered the computed,
+  // which is how this originally worked). Same pattern as
+  // organization/settings.js home_board_key_lines.
+  substitution_string: computed('pending_preferences.substitutions', {
+    get() {
+      var cached = this.get('_substitution_string');
+      if(cached !== undefined && cached !== null) {
+        return cached;
+      }
+      return editManager.stringify_rules(this.get('pending_preferences.substitutions') || []);
+    },
+    set(key, value) {
+      this.set('_substitution_string', value);
+      return value;
+    }
   }),
   set_auto_sync: observer('model.id', 'model.auto_sync', function() {
     if(this.get('pending_preferences.device')) {
@@ -1136,6 +1163,7 @@ export default Controller.extend({
         this.set('pending_preferences.logging_code', 'false');
       }
       this.set('pending_preferences.substitutions', editManager.parse_rules(this.get('substitution_string')));
+      this.set('_substitution_string', undefined);
       this.set('phrase_categories_string', (this.get('pending_preferences.phrase_categories') || []).join(', '));
 
       // Persist the sidebar list the user sees (active options), not a stale raw pref.

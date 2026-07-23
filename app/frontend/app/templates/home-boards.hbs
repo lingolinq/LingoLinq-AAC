@@ -14,10 +14,10 @@
             <p class="md-card--home-boards__subheader-support">{{t "When you find one that fits, use the menu and choose \"Set as Home\" to make it yours." key="finding_home_board2"}}</p>
           </div>
           <div class="md-card--home-boards__picker">
-            {{board-picker}}
+            <BoardPicker />
           </div>
         {{else}}
-          {{board-selection-tool search=true loadError=(this.ctrlAction "show_advanced") advanced=(this.ctrlAction "show_advanced") onSelect=(this.ctrlAction "select_board")}}
+          <BoardSelectionTool @search={{true}} @loadError={{this.ctrlAction "show_advanced"}} @advanced={{this.ctrlAction "show_advanced"}} @onSelect={{this.ctrlAction "select_board"}} />
         {{/if}}
       </article>
     </main>

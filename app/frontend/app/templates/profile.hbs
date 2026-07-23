@@ -35,7 +35,7 @@
     <div style='font-size: 16px; margin: 10px 0; border: 2px solid #c88; padding: 10px 20px; border-radius: 5px;'>
       <div class='checkbox big_checkbox' style='padding-bottom: 8px;'>
         <label style='display: block; margin-top: -2px;'>
-          <Input @type="checkbox" @checked={{this.profile.with_communicator}} />
+          <input type="checkbox" checked={{this.profile.with_communicator}} {{on "change" (set-field this "profile.with_communicator" "checkbox")}} />
           {{t "This profile was completed with the communicator's participation" key="profile_completed_with_communicator"}}
         </label>
       </div>
@@ -77,9 +77,9 @@
             {{#if question.answer_type.text}}
               <div style={{if question.manual_selection "min-height: 75px; height: calc(100% - 59px);" "min-height: 75px; height: 100%;"}}>
                 {{#if question.answer_type.extra}}
-                  <Textarea @value={{question.text_response}} placeholder={{question.answer_type.hint}} class="text_response" />
+                  <textarea placeholder={{question.answer_type.hint}} aria-label={{question.label}} class="text_response"  {{on "input" (set-field question "text_response")}}>{{question.text_response}}</textarea>
                 {{else}}
-                  <Textarea @value={{question.text_response}} placeholder={{question.answer_type.hint}} class="text_response expected" />
+                  <textarea placeholder={{question.answer_type.hint}} aria-label={{question.label}} class="text_response expected"  {{on "input" (set-field question "text_response")}}>{{question.text_response}}</textarea>
                 {{/if}}
               </div>
             {{else}}
@@ -100,7 +100,7 @@
               <div class='manual_select'>
                 <div class='checkbox big_checkbox' style='padding-bottom: 8px;'>
                   <label style='display: block; margin-top: -2px;'>
-                    <Input @type="checkbox" @checked={{question.manual}} />
+                    <input type="checkbox" checked={{question.manual}}  {{on "change" (set-field question "manual" "checkbox")}}/>
                     {{question.manual_selection}}
                   </label>
                 </div>
@@ -113,8 +113,10 @@
     {{/if}}
   {{/each}}
   <div style='font-size: 16px; margin: 30px 0 10px; border: 2px solid #888; padding: 10px 20px; border-radius: 5px;'>
-      <label for='feedback'>{{t "Feedback on your experience with this profile (will be made available to the profile author)"}}</label><br>
-      <Textarea @value={{this.profile.feedback}} placeholder="Feedback" class="form-control" />
+      {{#let (unique-id) as |feedbackId|}}
+      <label for={{feedbackId}}>{{t "Feedback on your experience with this profile (will be made available to the profile author)"}}</label><br>
+      <textarea id={{feedbackId}} placeholder="Feedback" class="form-control" {{on "input" (set-field this "profile.feedback")}}>{{this.profile.feedback}}</textarea>
+      {{/let}}
   </div>
   <div style='margin-top: 50px;'>
     {{#if this.missing_responses}}

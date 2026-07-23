@@ -708,12 +708,20 @@ var utterance = EmberObject.extend({
     var lang = (app_state.get('speak_mode') && app_state.get('vocalization_locale')) || i18n.langs.preferred || i18n.langs.fallback || 'en';
     var lang_fallback = lang.split(/-|_/)[0];
     var contractions = (i18n.lang_overrides[lang] || i18n.lang_overrides[lang_fallback] || {}).contractions || i18n.substitutions.contractions
-    for(var words in contractions) {
+    var words;
+    // First pass: an exact match on the last two words (e.g. "it is" -> "it's") always wins,
+    // regardless of dictionary order.
+    for(words in contractions) {
+      if(!res && words.length > 0 && str_2 && str_2.toLowerCase() == words) {
+        res = {lookback: words.split(/\s+/).length, label: contractions[words]};
+      }
+    }
+    // Second pass: fall back to a predictive match on the last word alone (e.g. after just "is",
+    // offer "isn't"), but only when no exact two-word contraction applies.
+    for(words in contractions) {
       if(!res) {
         var words_minus_last = words.split(/\s+/).slice(0, -1).join(' ');
-        if(words.length > 0 && str_2 && str_2.toLowerCase() == words) {
-          res = {lookback: words.split(/\s+/).length, label: contractions[words]};
-        } else if(words_minus_last.length > 0 && str_1 && str_1.toLowerCase() == words_minus_last) {
+        if(words_minus_last.length > 0 && str_1 && str_1.toLowerCase() == words_minus_last) {
           res = {lookback: words_minus_last.split(/\s+/).length, label: contractions[words]};
         }
       }

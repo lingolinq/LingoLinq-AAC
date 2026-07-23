@@ -124,7 +124,7 @@
             {{t "%{h} of %{t} target cells" key="saved_eval_motor_map_hint" h=this.motorMapReport.total_correct t=this.motorMapReport.total_trials}}
           </small>
           <div class="evq-saved__motor-map-heatmap">
-            {{stats/eval-hits hits=this.motorMapHits}}
+            <Stats::EvalHits @hits={{this.motorMapHits}} />
           </div>
         </article>
       {{/if}}

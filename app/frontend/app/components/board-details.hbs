@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="la-board-details-wrap">
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
@@ -83,7 +83,7 @@
           </dd>
         <dt>{{t "License" key="license"}}</dt>
           <dd>
-            {{license-attribution license=this.model.license}}
+            <LicenseAttribution @license={{this.model.license}} />
             {{#if this.model.protected_material}}
               <div style='margin-top: 5px;'>
                 {{#if this.model.has_fallbacks}}
@@ -149,7 +149,7 @@
           {{else if this.hierarchy.error}}
             <p>{{t "There was an error trying to retrieve linked boards" key="error_getting_linked_boards"}}</p>
           {{else}}
-            {{board-hierarchy hierarchy=this.hierarchy}}
+            <BoardHierarchy @hierarchy={{this.hierarchy}} />
           {{/if}}
         </div>
       {{/if}}
@@ -179,15 +179,15 @@
         <ul class="list-unstyled">
         {{#each this.images_with_license as |image|}}
           <li><img src={{image.personalized_url_without_preferred_symbols}} alt={{image.filename}} title={{image.filename}} style="width: 30px;">
-          {{license-attribution license=image.license}}
+          <LicenseAttribution @license={{image.license}} />
           </li>
         {{/each}}
         {{#each this.sounds_with_license as |sound|}}
           <li>
             <strong>{{sound.filename}}</strong><br>
-            <audio controls src={{sound.url}} style="width: 100%;"></audio><br>
+            <audio controls src={{sound.url}} style="width: 100%;" aria-label={{t "Board sound: %{filename}" filename=sound.filename key="board_sound_named"}}></audio><br>
             <span style="padding-left: 20px;">
-              {{license-attribution license=sound.license}}
+              <LicenseAttribution @license={{sound.license}} />
             </span>
           </li>
         {{/each}}
@@ -201,4 +201,4 @@
     <a href="#" class="btn btn-lg" {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</a>
   </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

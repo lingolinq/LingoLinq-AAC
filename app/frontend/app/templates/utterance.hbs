@@ -31,7 +31,7 @@
         <div id="utterance" class="button_list" {{on "click" (this.ctrlAction "vocalize")}}>
           {{#let this.model.button_list as |button_list|}}
             {{#if button_list}}
-              {{button-list buttonList=button_list}}
+              <ButtonList @buttonList={{button_list}} />
             {{/if}}
           {{/let}}
         </div>
@@ -63,7 +63,7 @@
             {{/if}}
           {{/if}}
         {{/if}}
-        <Textarea @value={{this.message}} class="form-control" id="utterance_reply" />
+        <textarea class="form-control" id="utterance_reply" aria-label={{t "Reply" key="reply"}} {{on "input" (set-field this "message")}}>{{this.message}}</textarea>
         <button class='btn btn-lg btn-primary' {{on "click" (this.ctrlAction "reply")}} disabled={{this.reply_status.loading}}>
           {{#if this.reply_status.loading}}
             {{t "Sending Reply..." key="sending_reply"}}
@@ -91,7 +91,7 @@
           <button class='btn btn-primary btn-lg' {{on "click" (this.ctrlAction "vocalize")}}>{{t "Speak This Sentence" key="speak_this_sentence"}}</button>
         </div>
       {{/if}}
-      {{share-bar url=this.model.link text=this.model.sentence element_id="sentence" user=this.app_state.currentUser utterance=this.model copy_event="copy_event"}}
+      <ShareBar @url={{this.model.link}} @text={{this.model.sentence}} @element_id="sentence" @user={{this.app_state.currentUser}} @utterance={{this.model}} @copy_event="copy_event" />
       <div style="clear: left;"></div>
       <p style="margin-top: 15px; margin-bottom: 15px;">
         {{t "This person uses software running on a tablet, phone or computer to help them communicate. People use " key="stash_explanation_1"}}
@@ -111,7 +111,7 @@
               <div class="col-sm-8">
                 <div class="checkbox big_checkbox">
                   <label>
-                    <Input @type="checkbox" @checked={{this.model.show_user}} />
+                    <input type="checkbox" checked={{this.model.show_user}} {{on "change" (set-field this "model.show_user" "checkbox")}} />
                     {{t "Show author name when sharing" key="show_author"}}
                   </label>
                 </div>
@@ -147,7 +147,7 @@
             {{#if button.image}}
               <li>
                 <img src={{button.image}} alt={{button.label}} title={{button.label}} style="width: 30px;">
-                {{license-attribution license=button.image_license}}
+                <LicenseAttribution @license={{button.image_license}} />
               </li>
             {{/if}}
           {{/each}}
@@ -155,9 +155,9 @@
             {{#if button.sound}}
               <li>
                 <strong>{{button.label}}</strong><br>
-                <audio controls src={{button.sound}} style="width: 100%;"></audio><br>
+                <audio controls src={{button.sound}} style="width: 100%;" aria-label={{t "Button sound" key="button_sound"}}></audio><br>
                 <span style="padding-left: 20px;">
-                  {{license-attribution license=button.sound_license}}
+                  <LicenseAttribution @license={{button.sound_license}} />
                 </span>
               </li>
             {{/if}}

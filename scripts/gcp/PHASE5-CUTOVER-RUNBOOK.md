@@ -22,6 +22,59 @@ preservation).
 > hard constraints (no DNS, no Cloud Armor enforce, no ingress lockdown, no Render/SES changes)
 > stay in force until explicitly lifted.
 
+> **Finding references in this runbook.** `audit-reports/FINDINGS.json` is the single source of
+> truth for the status of any `LL-*` finding. Notes below are dated, historical, and may cite a
+> finding ID for context, but **a status word written here is not authoritative and may have
+> drifted** since it was typed. Never treat a gate as satisfied - or unsatisfied - on the basis of
+> a status restated in this document; resolve the ID against the register. When editing this file,
+> prefer citing the ID alone over restating its status.
+
+## Gate 1 (operational) vs Gate 2 (customer-facing) readiness
+
+The cutover is gated in two independent stages. **Gate 1** is operational/infra readiness under the
+no-real-users boundary: can we stand GCP up and cut DNS safely. **Gate 2** is customer-facing
+readiness (email deliverability, credential hygiene, data cleanliness) before any real user is
+onboarded. Gate 1 can be scheduled with open Gate-2 items; the two do not block each other.
+
+**Gate 1 rehearsal evidence (2026-07-19/20) - GREEN:**
+
+- **Render WriteFreeze write-reject:** `POST /api/v1/logs` -> `503` + `Retry-After: 120`; reads
+  return 200; `POST /token` -> `400` (login allowlist intact). The middleware runs before
+  routing/auth and `/api/v1/logs` is not allowlisted (`config/initializers/write_freeze.rb`).
+- **Client 503 stash retention:** a real browser `window.stashes.push_log(false)` against a frozen
+  Render observed the 503 and RETAINED the `usage_log` locally (not dropped).
+- **External-writer pause/resume:** the `sync-render-secrets` GitHub Action, the n8n `infra-monitor`
+  workflow, and the Render cron/worker/web-autoDeploy toggles were each paused and restored to their
+  prior state.
+- **GCP `/api/v1/logs` write + read:** an authenticated `POST` created a real log and `GET` read it
+  back (`pending=false`).
+- **Async usage-log worker materialization - verified via live Cloud Logging (2026-07-20):**
+  `lingolinq-worker` ran `LogSession.process_delayed_follow_on` to completion (0-1s, no errors),
+  paired with web-side stash creation (`generating stash` -> `done with process_as_follow_on`).
+  **Caveat:** this proves the async route RUNS and the worker DRAINS the `default` queue; it is NOT
+  a full real-UI offline replay with a GET-confirmed final `global_id` (that remains an optional
+  Gate-2 belt-and-suspenders check, not a Gate-1 blocker).
+
+**Open items - YELLOW (all Gate 2; none is a DNS-cut blocker):**
+
+- **SES mail authentication residuals:** SES accepted the send and manual inbox receipt was
+  confirmed, so *delivery* is settled (`LL-42a24ee911`, verified-closed). Two residuals that
+  delivery did not establish remain open: the SPF/DKIM/DMARC `Authentication-Results` headers have
+  never been captured on a delivered prod message, and no custom `MAIL FROM` domain is configured,
+  so SPF is unaligned under DMARC and DKIM is the sole passing alignment mechanism. Accepted for
+  Gate 1 (Scot, 2026-07-19); resolve both before customer-facing launch. Tracked as Gate-2 register
+  finding `LL-abd6c88733`.
+- **Seeded `lingolinq_admin` weak test credential:** rotate/replace with a break-glass admin
+  procedure before Gate 2. Tracked as Gate-2 register finding `LL-caaf8e20ec`.
+- **Test residue:** rehearsal left fake note logs on the current GCP DB, and `Api::LogsController`
+  has no `destroy` action (so `DELETE /api/v1/logs/...` is a no-op). Benign under no-real-users;
+  either console-clean or confirm the migrate Job reseeds the DB at the flip before Gate 2.
+
+**Schedule posture:** READY to schedule Gate 1 with the accepted yellows above, AFTER (a) this
+runbook reconciliation lands and (b) an operator quiet-window is confirmed - no Codex/Claude/browser
+rehearsal still generating `phase2-*` / synthetic `/api/v1/logs` traffic against prod GCP when DNS
+is cut (see the pre-cutover checklist). Gate 1 stays separate from Gate 2 customer-facing readiness.
+
 ## Scope and the one rule that governs everything
 
 **Render stays live and authoritative until DNS is flipped, and stays untouched through the
@@ -73,8 +126,9 @@ the window, revert to it.
     irreversible gate.
   - **0c Redis TLS live handshake (`LL-6619cc1811`)** - **exercised green against live Memorystore
     2026-06-29** (`lingolinq-redischeck-zsq74`, PONG over `rediss://`, CA-chain verified), so the
-    technical gate has passed; the register finding stays `open` only pending Scot's explicit
-    close/edit (see checklist). Because **seeding itself enqueues to Redis synchronously**, re-run
+    technical gate has passed. That is one of two closure conditions for the finding - prod must
+    also cut over off plaintext Render Redis (see 0c); register status is authoritative in
+    `audit-reports/FINDINGS.json`. Because **seeding itself enqueues to Redis synchronously**, re-run
     this handshake BEFORE any re-seed on a fresh DB. The functional go/no-go gate for the Redis path.
 - 0b worker-pool health; the schema-load + seed (two separate executions, NOT a combined re-runnable
   Job; seeding performs a full Moby word import - budget a long task-timeout); the five-path smoke
@@ -177,15 +231,19 @@ request-driven cold start to "warm up." What matters before DNS is **health**:
 
 Run this after the migrate Job + deploys (step 6) and before DNS (step 9).
 
-### 0c. Redis TLS live handshake smoke test  (closes register LL-6619cc1811)
+### 0c. Redis TLS live handshake smoke test  (one of two conditions for register LL-6619cc1811)
 
 The app-side TLS capability is merged (#410/#416/#417: `rediss://` enables `:ssl` + `:ssl_params`
 in `config/initializers/resque.rb`, hostname hatch `REDIS_TLS_VERIFY_HOSTNAME=false`, CA wired
 into `BOOT_SECRETS`). This handshake was **exercised green against the live Memorystore instance on
-2026-06-29** (`lingolinq-redischeck-zsq74`: `PONG` over `rediss://`, CA chain verified), so the
-technical gate has passed; register finding LL-6619cc1811 stays formally open only until Scot
-closes/edits it. **Re-run this handshake as a pre-flight before any re-seed on a fresh DB** - it is
-cheap and catches a broken CA/endpoint before data work.
+2026-06-29** (`lingolinq-redischeck-zsq74`: `PONG` over `rediss://`, CA chain verified), so this
+technical gate has passed. **That alone does NOT close `LL-6619cc1811`.** The finding is that
+*prod* Redis runs without TLS, and prod is still Render (`redis://`, plaintext) until the cutover.
+Closure requires BOTH: (1) this handshake green against live Memorystore, and (2) prod actually
+cut over off plaintext Render Redis. Scot's disposition (2026-06-18) says the same - "full closure
+lands at the GCP Memorystore cutover; status stays open until the cutover." Only Scot closes a
+finding, and only after (2). **Re-run this handshake as a pre-flight before any re-seed on a fresh
+DB** - it is cheap and catches a broken CA/endpoint before data work.
 
 ```
 # From a Cloud Run context that has the prod REDIS_URL (rediss://) + REDIS_CA_CERT loaded
@@ -206,7 +264,9 @@ cheap and catches a broken CA/endpoint before data work.
 - **Rollback trigger:** TLS handshake error (cert chain, CA mismatch, connection refused) that is
   not resolved by confirming `REDIS_CA_CERT` is the live instance CA. Do not proceed to DNS with
   Redis unverified; jobs (including log processing) would silently fail post-cutover. Mark
-  LL-6619cc1811 **verified-closed** in the register only after this is green against live.
+  LL-6619cc1811 **verified-closed** in the register only after BOTH this is green against live AND
+  prod has actually cut over off plaintext Render Redis - the handshake alone is not sufficient
+  (see 0c). Closure is Scot's alone.
 
 ### 1. Write-freeze window - Render write-reject mode  (tracker 5.2, GATE: data move begins)
 
@@ -519,7 +579,12 @@ the realistic timing and the AAAA/CAA pre-checks.
 ### 9. DNS cut  (tracker 5.4, GATE: DNS)
 
 - DNS TTL is already at **60s** (lowered in step 1); confirm it propagated before the flip.
-- At cutover, flip DNS to the new front end (Cloud Run custom-domain target, or the LB IP).
+- **DNS is on Cloudflare.** At cutover, create a **DNS-only / grey-cloud (unproxied)** `A` record
+  `app.lingolinq.com` -> **`136.68.41.122`** (the LB IP from step 8), **TTL 60, and no `AAAA`**. The
+  decided path is this A-record-to-LB-IP (Option B); the Cloud-Run custom-domain / CNAME target is
+  the Option-A fallback only (step 8). Keep it **grey-cloud (not proxied)** so the Google-managed
+  cert validates directly against the LB and traffic is not fronted by Cloudflare's proxy.
+  (`app.lingolinq.com` is NXDOMAIN until this record is created.)
 - Watch logs, error rate, latency, email deliverability, job processing (tracker 5.5).
 - **Do not touch Render prod** (tracker 5.6) except that it stays UP in write-reject mode; it is
   rollback insurance through the soak. Do not scale it to 0 or decommission (step 9b).
@@ -547,6 +612,25 @@ the realistic timing and the AAAA/CAA pre-checks.
        Check: `dig CAA lingolinq.com +short` should be **empty**, or list both CAs.
     3. **One claimant.** Confirm only ONE cert resource claims the domain (a second managed cert on
        the same domain stalls both).
+    4. **Stale cert in retry-backoff (VERIFIED trap, 2026-07-22 cutover).** If the managed cert was
+       created BEFORE `app.lingolinq.com` existed, it has been failing validation on every retry
+       since creation, and Google-managed certs use **exponential backoff**. After days of failures
+       it only re-checks every several hours, so it will **not** flip to `ACTIVE` promptly after the
+       DNS cut even though everything is now correct - our cert was 22 days old and sat at
+       `FAILED_NOT_VISIBLE` for 66+ min post-cut with config verified clean (attached to the
+       https-proxy, DNS->LB, no AAAA, no CAA). **Pre-flip check:** compare the cert's
+       `creationTimestamp` to now; if it predates the DNS record you are about to create, it is
+       stale. **Fix (fast):** create a FRESH managed cert and swap it onto the proxy - a new cert
+       starts a clean retry schedule and validates in minutes because DNS is already in place:
+       ```
+       gcloud compute ssl-certificates create lingolinq-cert-v2 \
+           --domains app.lingolinq.com --global --project lingolinq-prod
+       gcloud compute target-https-proxies update lingolinq-https-proxy \
+           --ssl-certificates lingolinq-cert-v2 --global --project lingolinq-prod
+       ```
+       This is safe mid-cutover: HTTPS is not serving anything while the old cert is stuck, so the
+       swap can only improve state, and it is reversible (the old cert is left in place). Better
+       still, recreate the cert as part of pre-flip prep so the window starts from a clean cert.
   (To eliminate the window entirely instead, pre-provision via Certificate Manager DNS-authorization
   before the flip - deliberately NOT chosen for this cut.)
 
@@ -675,8 +759,9 @@ is the *next* phase, not a cutover step.
 
 ## Rollback plan
 
-The master rollback is **flip DNS back to Render**, which works because Render was only scaled to
-0, never degraded. Trigger and steps:
+The master rollback is **flip DNS back to Render**, which works because Render stayed UP the whole
+time in **write-reject mode** (WriteFreeze) - never scaled to 0 and never degraded. Trigger and
+steps:
 
 ### Rollback triggers (any one -> roll back)
 
@@ -685,6 +770,8 @@ The master rollback is **flip DNS back to Render**, which works because Render w
 - **Migrate Job failure** (any non-zero exit; never re-run blind).
 - **App-level smoke test failure** post-deploy (login, board load, S3, SES, Resque).
 - **Data reconciliation mismatch** (row counts / sequences don't match the dump baseline).
+  **(Full-data fallback only - N/A in the active clean-DB path: there is no dump baseline to
+  reconcile against.)**
 
 ### Rollback steps
 
@@ -697,7 +784,10 @@ The master rollback is **flip DNS back to Render**, which works because Render w
    (rake cron, n8n, the hourly `sync-render-env`). Render's DB was never set read-only, so it is
    immediately authoritative again. Smoke-test Render green (a write succeeds).
 2. **Re-point DNS back to Render.** (TTL is 60s, so this propagates fast.)
-3. **Reconcile the cutover-window writes (the ONLY manual reconciliation case).** Any write that
+3. **Reconcile the cutover-window writes (the ONLY manual reconciliation case).** **(Clean-DB path:
+   the GCP DB is discarded on rollback since Render stays authoritative, so this normally reduces to
+   "accept as lost" for the seeded admin/test accounts - there is no dump baseline to reconcile
+   against; the full replay/merge below is the full-data-fallback procedure.)** Any write that
    reached **Cloud SQL** between the DNS flip and the rollback exists only on GCP and must be
    replayed/merged back into Render, or accepted as lost, before standing down. Capture them with
    the step-7 delta check run in reverse (Cloud SQL rows newer than the DNS-flip timestamp). On the
@@ -852,12 +942,15 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       adapter level (credentials/region/delivery-method wiring); it used a generic
       `ActionMailer::Base.mail(...)` call rather than a concrete mailer class (`UserMailer` etc.),
       so full mailer-class representativeness is still untested, and per-message delivery-event
-      evidence explaining the Gmail gap still doesn't exist. The box stays unchecked;
-      `LL-42a24ee911` stays `open`.
+      evidence explaining the Gmail gap still doesn't exist. The box stays unchecked. The finding
+      this note originally tracked (`LL-42a24ee911`) covered only whether a diagnostic send
+      ARRIVED; the residuals described here are now tracked as `LL-abd6c88733`. Current status for
+      both is authoritative in `audit-reports/FINDINGS.json`.
 - [ ] **New findings from this session's Resque investigation, root-caused and cleared - separate
       gate from 0a, do NOT treat as satisfied just because the 0a Resque smoke-test box above gets
-      checked.** Three findings now in the register (`audit-reports/FINDINGS.json`), all status
-      `open`: `LL-a95e9c5f7c` (lingolinq-worker's 512Mi memory limit causes continuous OOM kills of
+      checked.** Three findings are tracked in the register (`audit-reports/FINDINGS.json`), which
+      is authoritative for their current status - this gate is NOT satisfied by a status value
+      restated here: `LL-a95e9c5f7c` (lingolinq-worker's 512Mi memory limit causes continuous OOM kills of
       forked `ButtonImage`/`BoardDownstreamButtonSet` job processes - 832 SIGKILL/SIGSEGV failures,
       see above), `LL-705b10bcd7` (S3 SigV4/KMS-SSE misconfiguration on `BoardDownstreamButtonSet`
       - 58 failures, see above), and `LL-5954bcbbe6` (pre-existing: 16 `ButtonImage` failures from a
@@ -880,11 +973,11 @@ cold-start / p50 / p95 / memory in tracker 4.2.
       literal value in this or any other repo file going forward. Once testing is done, either
       rotate to a real secret or delete the account before this environment is customer-facing.
 - [x] **0c Redis TLS handshake green against live Memorystore** - see `lingolinq-redischeck-zsq74`
-      above (PONG over `rediss://`, CA-chain verified). **LL-6619cc1811 is verified live-closed but
-      the findings register itself has NOT been updated** (`audit-reports/FINDINGS.json` still shows
-      `status: open` as of 2026-07-02) - only Scot can close/downgrade a register finding per repo
-      policy, so this still needs his explicit sign-off + a register edit before it is formally
-      closed, even though the technical gate has passed.
+      above (PONG over `rediss://`, CA-chain verified). This box covers the HANDSHAKE only.
+      **It does not mean `LL-6619cc1811` is closable yet.** That finding is that *prod* Redis runs
+      without TLS, and prod is still Render (`redis://`, plaintext) until the cutover; closure needs
+      the prod cutover as well (see 0c), then Scot's explicit sign-off and a register edit. Current
+      status is authoritative in `audit-reports/FINDINGS.json`.
 - [x] W1 worker SIGTERM grace + requeue fix built + dual-reviewed (tracker 4.W1, **PR #473**,
       merged to staging: `RESQUE_PRE_SHUTDOWN_TIMEOUT=4`/`RESQUE_TERM_TIMEOUT=3` + the
       existing BoyBand requeue).
@@ -925,6 +1018,10 @@ cold-start / p50 / p95 / memory in tracker 4.2.
 - [ ] `SMS_ENCRYPTION_KEY`: `RemoteTarget` sms-row query run against restored DB; seeded + in
       BOOT_SECRETS if any row exists, else confirmed-empty.
 - [ ] **DNS TTL lowered to 60s** ahead of the window and propagation confirmed.
+- [ ] **Operator quiet-window confirmed before the DNS cut:** no Codex/Claude/browser rehearsal is
+      still generating `phase2-*` or synthetic `/api/v1/logs` traffic against prod GCP when DNS is
+      flipped (verify with a live `gcloud logging read` sweep). Rehearsal writers must be stood down
+      so the post-cut soak reflects only real traffic, not leftover test writes.
 - [ ] Operator holds GCP `lingolinq-prod` + 1Password "LingoLinq Prod" + Render API key.
 - [x] **Maintenance message (i18n): satisfied by the PR #472 503 page; no proactive announcement
       needed (Scot, 2026-06-24).** Render prod carries no real clients/users at cutover - only a

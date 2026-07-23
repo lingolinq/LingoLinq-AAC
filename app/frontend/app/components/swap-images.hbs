@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="la-swap-images-wrap">
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
@@ -21,7 +21,7 @@
         {{else if this.hierarchy.error}}
           <span class="la-swap-images-error">{{t "There was an error trying to retrieve linked boards" key="error_getting_linked_boards"}}</span>
         {{else if this.hierarchy}}
-          {{board-hierarchy hierarchy=this.hierarchy selectable=true}}
+          <BoardHierarchy @hierarchy={{this.hierarchy}} @selectable={{true}} />
         {{else}}
           <span class="la-swap-images-empty">{{t "No linked boards" key="no_linked_boards"}}</span>
         {{/if}}
@@ -30,7 +30,7 @@
 
     <div class="la-swap-images-section">
       <label class="la-swap-images-label" for="libraries">{{t "Library" key="library"}}</label>
-      {{bound-select select_class="la-swap-images-select" select_id="libraries" content=this.libraries selection=this.library action=(this.ctrlAction "updateLibrary") }}
+      <BoundSelect @select_class="la-swap-images-select" @select_id="libraries" @content={{this.libraries}} @selection={{this.library}} @action={{this.ctrlAction "updateLibrary"}} />
       {{#if this.premium_symbol_library}}
         {{#if this.appState.currentUser.subscription.grace_trial_period}}
           <div class="la-swap-images-warning">
@@ -53,4 +53,4 @@
     <a href="#" class="la-swap-images-cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</a>
   </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

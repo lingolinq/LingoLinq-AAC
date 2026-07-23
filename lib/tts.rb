@@ -11,32 +11,24 @@ module Tts
       return nil if text.blank?
 
       if locale.to_s.match(/^ga/)
-        return generate_irish(text, locale)
+        # Irish (Gaeilge) TTS via abair.ie is DISABLED. The Trinity College Dublin / ADAPT
+        # endpoint has no DPA/SCCs on file and would receive raw, unscrubbed user utterance
+        # text (finding LL-a167848115, docs/legal/SUBPROCESSORS.md #17). Disabled 2026-07-23
+        # per CEO decision rather than executing a DPA. Re-enable only once a DPA/SCCs exist.
+        return nil
       end
 
       if ENV['GOOGLE_TTS_TOKEN']
         return generate_google(text, locale: locale, mp3: mp3)
       end
 
-      # Fallback: unscraped translate.google.com (fragile, not for batch use)
+      # No contracted TTS provider configured: return nil rather than falling back to
+      # the unauthenticated consumer translate.google.com endpoint, which has no DPA/BAA
+      # basis (see LL-a167848115 and docs/legal/SUBPROCESSORS.md §5.8).
       nil
     end
 
     private
-
-    def generate_irish(text, locale)
-      req = Typhoeus.post(
-        'https://abair.ie/aac_irish',
-        body: { text: text, voice: 'Ulster' },
-        timeout: 5,
-        connecttimeout: 3
-      )
-      return nil unless req.success? && req.body.present?
-      {
-        body: req.body,
-        content_type: req.headers['Content-Type'].to_s.split(';').first.presence || 'audio/wav'
-      }
-    end
 
     def generate_google(text, locale: 'en', mp3: true)
       json = voices_for_locale(locale)
@@ -54,7 +46,7 @@ module Tts
       content_type = mp3 ? 'audio/mp3' : 'audio/wav'
       encoding = mp3 ? 'MP3' : 'LINEAR16'
       res = Typhoeus.post(
-        "https://texttospeech.googleapis.com/v1beta1/text:synthesize?key=#{ENV['GOOGLE_TTS_TOKEN']}",
+        "https://texttospeech.googleapis.com/v1/text:synthesize?key=#{ENV['GOOGLE_TTS_TOKEN']}",
         body: {
           audioConfig: { audioEncoding: encoding, pitch: 0, speakingRate: 1 },
           input: { text: text },
@@ -80,14 +72,14 @@ module Tts
         return JSON.parse(cache) rescue nil
       end
       req = Typhoeus.get(
-        "https://texttospeech.googleapis.com/v1beta1/voices?languageCode=#{CGI.escape(locale)}&key=#{ENV['GOOGLE_TTS_TOKEN']}",
+        "https://texttospeech.googleapis.com/v1/voices?languageCode=#{CGI.escape(locale)}&key=#{ENV['GOOGLE_TTS_TOKEN']}",
         timeout: 10,
         connecttimeout: 5
       )
       json = JSON.parse(req.body) rescue nil
       if json && (!json['voices'] || json['voices'].length == 0)
         req = Typhoeus.get(
-          "https://texttospeech.googleapis.com/v1beta1/voices?languageCode=#{CGI.escape(locale.split(/-|_/)[0])}&key=#{ENV['GOOGLE_TTS_TOKEN']}",
+          "https://texttospeech.googleapis.com/v1/voices?languageCode=#{CGI.escape(locale.split(/-|_/)[0])}&key=#{ENV['GOOGLE_TTS_TOKEN']}",
           timeout: 10,
           connecttimeout: 5
         )

@@ -1,6 +1,6 @@
 {{#if this.settings}}
-  {{#opening-observer opening=this.openingHandler closing=this.closingHandler}}
-  {{#touch-listener release=this.selectReleaseHandler}}
+  <OpeningObserver @opening={{this.openingHandler}} @closing={{this.closingHandler}}>
+  <TouchListener @release={{this.selectReleaseHandler}}>
     <div class="highlight" style={{this.highlightController.model.top_style}} {{on "click" this.closeHighlight}}>
     </div>
     <div class="highlight" style={{this.highlightController.model.left_style}} {{on "click" this.closeHighlight}}>
@@ -16,6 +16,6 @@
         <span class={{this.highlightController.model.icon_class}} style={{this.highlightController.model.icon_style}}></span>
       {{/if}}
     </div>
-  {{/touch-listener}}
-  {{/opening-observer}}
+  </TouchListener>
+  </OpeningObserver>
 {{/if}}

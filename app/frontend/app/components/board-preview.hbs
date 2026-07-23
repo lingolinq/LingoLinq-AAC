@@ -56,7 +56,7 @@
        suppressed (include_canvas=false); there it stacks under the info. --}}
   <div class="{{if this.include_canvas "col-sm-8" "col-sm-8 col-sm-offset-2"}} md-board-preview__canvas-col">
     {{#if this.include_canvas}}
-      {{board-preview-canvas board=this.model locale=this.locale show_links=true size="modal" dark_mode=this.dark_mode onCanvasReady=(this.ctrlAction "canvas_ready") onCanvasProgress=(this.ctrlAction "canvas_progress")}}
+      <BoardPreviewCanvas @board={{this.model}} @locale={{this.locale}} @show_links={{true}} @size="modal" @dark_mode={{this.dark_mode}} @onCanvasReady={{this.ctrlAction "canvas_ready"}} @onCanvasProgress={{this.ctrlAction "canvas_progress"}} />
     {{/if}}
     {{!-- Action buttons: secondary / Back flow from the LEFT; the primary CTA is
          pushed to the RIGHT (.md-board-preview__action--primary { margin-left:auto }
@@ -77,6 +77,13 @@
         {{/if}}
         <button class='btn btn-lg btn-primary md-modal-btn md-modal-btn--primary md-board-preview__action md-board-preview__action--primary' {{on "click" (this.ctrlAction "pick_for_home")}}>
           {{t "Pick this Board" key="pick_this_board"}}
+        </button>
+      {{else if this.return_only}}
+        {{!-- Opened from another modal (e.g. button-settings) that stays open
+             underneath: view-only. Close dismisses this overlay and returns the
+             user to that modal. --}}
+        <button class='btn btn-lg btn-primary md-modal-btn md-modal-btn--primary md-board-preview__action md-board-preview__action--primary' {{on "click" (this.ctrlAction "close")}}>
+          {{t "Close" key="close"}}
         </button>
       {{else}}
         {{!-- Regular details modal: destructive Remove sits at the far LEFT
@@ -103,10 +110,6 @@
         {{#if this.select_option}}
           <button class='btn btn-default md-modal-btn md-modal-btn--cancel md-board-preview__action' {{on "click" (this.ctrlAction "close")}}>
             {{t "Cancel" key="cancel"}}
-          </button>
-        {{else}}
-          <button class='btn btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{on "click" (this.ctrlAction "visit")}}>
-            {{t "Board Actions" key="board_actions"}}
           </button>
         {{/if}}
         {{#if this.app_state.currentUser.supervisees}}

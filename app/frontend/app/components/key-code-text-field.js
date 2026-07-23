@@ -1,33 +1,23 @@
-import Component from '@ember/component';
-import $ from 'jquery';
-import { observer } from '@ember/object';
+import Component from '@glimmer/component';
+import { action } from '@ember/object';
 
-export default Component.extend({
-  tagName: 'input',
-  type: 'text',
-  attributeBindings: ['placeholder'],
-  didInsertElement: function() {
-    this.update_placeholder();
-  },
-  update_placeholder: observer('value', function() {
-    if($(this.element)) {
-      if(this.get('value')) {
-        $(this.element).attr('placeholder', '##');
-        $(this.element).attr('value', this.get('value'));
-      } else {
-        $(this.element).attr('placeholder', '');
-      }
-    }
-  }),
-  keyDown: function(event) {
-    if(this.get('value') == '9' && event.keyCode == 9) {
-      // double-tab to escape text entry lockage
-      return;
-    } else if(this.get('value') == 'Escape' && event.code == 'Escape') {
-      return;
-    }
-    $(this.element).val(event.code || event.keyCode);
-    event.preventDefault();
-    this.set('value', event.code || event.keyCode);
+// Captures a single key's code (used for scanning-key preferences). One-way
+// @value in, @onChange out (DDAU): <KeyCodeTextField @value={{this.x}} @onChange={{set-value this "x"}} />
+// Placeholder mirrors the original: "##" once a key is captured, otherwise blank.
+export default class KeyCodeTextFieldComponent extends Component {
+  get placeholder() {
+    return this.args.value ? '##' : '';
   }
-});
+
+  @action
+  handleKeyDown(event) {
+    var current = this.args.value;
+    // A captured Tab (double-tap) or Escape lets focus leave the field instead of re-capturing.
+    if (current == '9' && event.keyCode == 9) { return; }
+    if (current == 'Escape' && event.code == 'Escape') { return; }
+    event.preventDefault();
+    var code = event.code || event.keyCode;
+    event.target.value = code;
+    this.args.onChange?.(code);
+  }
+}

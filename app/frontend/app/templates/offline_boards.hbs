@@ -12,7 +12,7 @@
           <form class="form-horizontal md-preferences__form">
             {{#each this.locales as |loc|}}
               <div style='margin-bottom: 12px;'>
-                {{#preference-box title=loc.locale_text glyph=loc.icon_class title_key=loc.locale closed_text=loc.tally open=loc.open}}
+                <PreferenceBox @title={{loc.locale_text}} @glyph={{loc.icon_class}} @title_key={{loc.locale}} @closed_text={{loc.tally}} @open={{loc.open}}>
                   {{#if loc.credit}}
                     <p class='md-offline-boards__credit'>{{t "translations provided by" key="translations_by"}} {{loc.credit}}</p>
                   {{/if}}
@@ -30,7 +30,7 @@
                       {{/if}}
                     {{/each}}
                   </ul>
-                {{/preference-box}}
+                </PreferenceBox>
               </div>
             {{/each}}
           </form>

@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="la-board-ideas-wrap">
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
@@ -18,7 +18,7 @@
     {{#if this.has_supervisees}}
       <div class="la-board-ideas-user-select">
         <label class="la-board-ideas-label">{{t "Show Ideas For:" key="show_ideas_for"}}</label>
-        {{user-select select_id="for_user_id" selection=this.for_user_id action=(this.ctrlAction "updateForUserId") }}
+        <UserSelect @select_id="for_user_id" @selection={{this.for_user_id}} @action={{this.ctrlAction "updateForUserId"}} />
       </div>
     {{/if}}
 
@@ -35,7 +35,7 @@
       {{#if this.premium_ideas}}
         <p class="la-board-ideas-desc">{{t "Now you can search for images and pictures from Tar Heel Reader books! Just search for the book you're using and add the pictures and text from any of the pages you want to use." key="extras_explainer"}}</p>
         <div class="la-board-ideas-search">
-          <Input @type="text" @value={{this.extras_search}} class="la-board-ideas-search-input" />
+          <input type="text" value={{this.extras_search}} class="la-board-ideas-search-input" aria-label={{t "Search books and images" key="search_books_and_images"}} {{on "input" (set-field this "extras_search")}} />
           <button class='la-board-ideas-search-btn' {{on "click" (this.ctrlAction "search_extras")}}>{{t "Go" key="go"}}</button>
         </div>
       {{else}}
@@ -101,7 +101,7 @@
               <div class="la-board-ideas-item {{if item.image 'la-board-ideas-item--with-image'}}">
                 {{#if item.image}}
                   <div class="la-board-ideas-item-image">
-                    <img src={{item.safe_image}} rel={{item.image}} onerror="this.src = this.getAttribute('rel');" alt="">
+                    <img src={{item.safe_image}} rel={{item.image}} {{image-fallback-to-rel}} alt="">
                   </div>
                 {{/if}}
                 <span class="la-board-ideas-item-text {{if item.used 'la-board-ideas-item-text--used'}}">
@@ -152,4 +152,4 @@
     {{/if}}
   </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

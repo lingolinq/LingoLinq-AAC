@@ -303,6 +303,23 @@ Patterns that recur most across past PRs (read these first):
 | [SVG gradient IDs mangled by Sprockets in production](task-management/LEARNINGS.md#pattern-svg-gradient-id-refs-inside-css-data-uris-mangled-by-rails-sprockets-in-production) | Any new SVG gradient — verify with `npx ember build --environment=production` not just dev |
 | [`__label-collapsed` is a multi-role class — scope by parent](task-management/LEARNINGS.md#pattern-__label-collapsed-is-a-multi-role-class--scope-by-parent-before-styling) | Any new selector on a shared class name |
 | [Settings-backed API flags should be cast](task-management/LEARNINGS.md#pattern-settings-backed-api-flags-should-be-cast-before-ember-consumes-them) | Any new feature flag that round-trips through `User#preferences` |
+| [A single-quoted `i18n.t` default silently DELETES the key](task-management/LEARNINGS.md#gotcha-a-single-quoted-i18nt-default-silently-deletes-the-key-on-the-next-generator-run) | Any new/edited `i18n.t(...)` call — a single-quoted default makes the generator drop the key (and all 13 locales' translations) on its next run, while reporting success |
+
+**Mechanical check — new `i18n.t` calls must double-quote the user-facing default:**
+
+```bash
+# Any hit in YOUR diff is a latent key-deletion landmine. Fix to: i18n.t('key', "Default")
+git diff --unified=0 origin/staging... -- 'app/frontend/app/**/*.js' \
+  | grep -E "^\+.*i18n\.t\('[a-zA-Z0-9_]+', *'"
+```
+
+> Baseline as of 2026-07-16: ~291 pre-existing single-quoted defaults across ~69 files (see `d71fe1c87`).
+> They survive only because those keys are *also* referenced with a correct double-quoted default
+> elsewhere — so don't "fix" the count, just don't ADD to it.
+>
+> **Before running `ruby i18n_generator.rb --generate`:** do not trust its `TOTAL MISSING 0` output.
+> Regenerate, then diff the key set against every key actually referenced in source. On 2026-07-16
+> a clean-looking run deleted 286 keys, 17 still in use.
 
 > **The LEARNINGS doc is INPUT to this checklist, not just OUTPUT.** Per [feedback_learnings_doc_workflow](../../.claude/projects/-home-tracid-LingoLinq-AAC/memory/feedback_learnings_doc_workflow.md), every researched fix opens a task-management log with a `## Prior LEARNINGS consulted` section. If you can't fill that section in for this PR, you haven't done the audit.
 

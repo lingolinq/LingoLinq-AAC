@@ -8,6 +8,8 @@
 @use "caseload";
 @use "modern_pages";
 @use "badges";
+@use "goals";
+@use "search";
 
 // All design-token variables ($brand-*, $color-*, $aac-*, $la-*, $cat-*,
 // $nav_*, $page-footer-*, $ll-bento-*) live in _variables.scss above.
@@ -670,6 +672,28 @@ html, body {
     radial-gradient(900px 500px at 80% 55%, rgba($brand-verdigris, 0.14), transparent 45%),
     radial-gradient(800px 400px at 25% 65%, rgba($brand-dusty-denim, 0.10), transparent 50%),
     linear-gradient(180deg, #{color.adjust($brand-stone-100, $lightness: 10%)} 0%, #{color.adjust($brand-stone-200, $lightness: 10%)} 50%, #{color.adjust($brand-stone-300, $lightness: 10%)} 100%);
+}
+
+/* Search / Find Boards page: same recurring "short background" bug as
+   login/register/board-picker — /search is a top-level route, so its #content is
+   NOT `.index.with_user` and never gets the fill-painted bento gradient (line
+   ~579). Painting the gradient on the inner `.ub-find-board-page` wrapper only
+   reached content height, leaving a bare strip below. FIX (per LEARNINGS
+   "auth-page bg not full height"): paint the SAME bento gradient the home page
+   uses (line ~579) on the fixed full-viewport #within_ember so it fills the
+   entire page height behind the (transparent) #content + wrapper. Compound
+   `:has()` (1,2,0) out-specifies the `:has(.page-footer)` transparent reset. */
+#within_ember:has(.page-footer):has(.ub-find-board-page) {
+  background: linear-gradient(to bottom,
+    rgba(126, 184, 224, 0.25) 0%,
+    rgba(212, 168, 75, 0.12) 50%,
+    rgba(61, 122, 92, 0.14) 100%);
+}
+/* Keep this page's #content transparent so the full-viewport mesh above shows
+   through the whole height (mirrors the login/register #content reset). Scoped
+   to the search page; padding/flex are left to the existing #content rules. */
+#within_ember:has(.page-footer) #content:has(.ub-find-board-page) {
+  background: transparent;
 }
 
 /* Full-screen onboarding: hide the app footer bar on the beta pages. Use
@@ -3906,8 +3930,12 @@ footer a:hover,
 .highlight {
   background: rgba(0, 0, 0, 0.35);
 }
-/* Scanning highlight box — modern high-contrast border */
+/* Scanning highlight box — modern high-contrast border. It sits ON TOP of the
+   highlighted button, so it must stay transparent: the base `.highlight` rule sets
+   a 0.35 black background (for the dimming masks), which would otherwise tint the
+   target button dark and hard to see. Only the border + glow should show here. */
 .highlight.box {
+  background: transparent;
   border: 5px solid $brand-verdigris;
   border-radius: 12px;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -11712,6 +11740,13 @@ video.button_image {
 #button_settings .nav-pills.nav-stacked > li {
   margin: 0;
 }
+/* Gradient divider under the pinned "Quick Actions" tab. */
+#button_settings .nav-pills.nav-stacked > .md-bs-nav-sep {
+  padding: 0 6px;
+}
+#button_settings .nav-pills.nav-stacked > .md-bs-nav-sep .md-bs-card__sep {
+  margin: 8px 0;
+}
 #button_settings .nav-pills.nav-stacked > li > a {
   border-radius: 8px;
   padding: 10px 14px;
@@ -11729,10 +11764,18 @@ video.button_image {
 #button_settings .nav-pills.nav-stacked > li.active > a,
 #button_settings .nav-pills.nav-stacked > li.active > a:hover,
 #button_settings .nav-pills.nav-stacked > li.active > a:focus-visible {
-  background: linear-gradient(135deg, $brand-verdigris, $brand-dusty-denim);
-  color: #fff;
+  /* Same silvery-glass verdigris→denim tint as the "Create editable copy"
+     button; navy label keeps WCAG AA on the light gradient (>6:1). */
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.14) 42%, rgba(255, 255, 255, 0) 62%),
+    linear-gradient(135deg, rgba($brand-verdigris, 0.50), rgba($brand-dusty-denim, 0.52)),
+    #fff;
+  color: $la-navy;
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba($brand-verdigris, 0.25);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba($la-navy, 0.06),
+    0 1px 3px rgba($la-navy, 0.08);
 }
 
 /* Stronger keyboard focus ring for all interactive elements in button settings modal.
@@ -11769,22 +11812,38 @@ video.button_image {
   color: #4a5568;
 }
 
-/* Quick action buttons (Help tab) */
+/* Quick action buttons (Help tab) — same brushed-silver glass as the Preview
+   button in the Action section. */
 #button_settings .btn-group-vertical .btn {
   border-radius: 10px !important;
-  border: 1px solid rgba($la-navy, 0.10);
+  border: 1px solid rgba($la-navy, 0.16);
   padding: 14px 18px;
   font-size: 16px;
   font-weight: 500;
   color: $brand-charcoal-dark;
-  background: #fff;
+  background: linear-gradient(150deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(236, 240, 245, 0.9) 50%,
+    rgba(210, 217, 227, 0.85) 100%);
+  backdrop-filter: blur(8px) saturate(150%);
+  -webkit-backdrop-filter: blur(8px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba($la-navy, 0.05),
+    0 1px 3px rgba($la-navy, 0.08);
   text-align: left;
-  transition: background 0.12s ease, box-shadow 0.12s ease, transform 0.1s ease;
+  transition: background 0.12s ease, box-shadow 0.12s ease, transform 0.1s ease, border-color 0.12s ease;
   margin-bottom: 6px;
 }
 #button_settings .btn-group-vertical .btn:hover {
-  background: rgba($brand-verdigris, 0.06);
-  box-shadow: 0 2px 8px rgba($la-navy, 0.08);
+  background: linear-gradient(150deg,
+    #ffffff 0%,
+    rgba(233, 238, 244, 0.96) 50%,
+    rgba(200, 209, 221, 0.92) 100%);
+  border-color: rgba($la-navy, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 2px 8px rgba($la-navy, 0.14);
   transform: translateX(2px);
 }
 #button_settings .btn-group-vertical .btn .glyphicon {
@@ -11825,10 +11884,752 @@ video.button_image {
   color: $la-navy;
   margin-bottom: 12px;
 }
+/* The header form-group inherits `.content .form-group { margin-bottom: 16px }`
+   (higher specificity), which is the gap under "Button Settings". Override it at
+   matching specificity + zero the h4 margin so "QUICK ACTIONS" sits just below. */
+#button_settings .content .form-group.md-bs-help__head {
+  margin-bottom: 6px;
+}
+#button_settings .md-bs-help__head h4 {
+  margin-bottom: 0;
+}
 
 /* Image search results / options grid */
 #button_settings .options {
   border-radius: 10px;
+}
+
+/* ── Action-tab guided cards (ACTION / DESTINATION / per-action config) ──
+   Turns the Action tab into a stacked, card-based flow: a lightly-tinted
+   glass card per step, an uppercase eyebrow label, helper text, and
+   labels-above controls. Verdigris = selected/primary/focus; dusty-denim
+   = secondary (browse / create / change). */
+#button_settings .md-bs-card {
+  background:
+    linear-gradient(180deg, rgba($brand-verdigris, 0.035), rgba($brand-dusty-denim, 0.03)),
+    #fff;
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba($la-navy, 0.05);
+}
+#button_settings .md-bs-card:last-child {
+  margin-bottom: 0;
+}
+/* The ACTION card holds a single control — keep it compact so the destination
+   step sits higher on the page. */
+#button_settings .md-bs-card--action {
+  padding: 13px 20px 15px;
+  margin-bottom: 18px;
+}
+#button_settings .md-bs-card--action .md-bs-card__hint {
+  margin-bottom: 10px;
+}
+#button_settings .md-bs-card__eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+  font-weight: 700;
+  color: $brand-dusty-denim-aa;
+  margin-bottom: 6px;
+}
+/* Modern gradient hairline between a card header and its body. */
+#button_settings .md-bs-card__sep {
+  height: 2px;
+  margin: 10px 0 18px;
+  border-radius: 2px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba($brand-verdigris, 0.4) 25%,
+    rgba($brand-dusty-denim, 0.4) 75%,
+    transparent);
+}
+#button_settings .md-bs-card__hint {
+  font-size: 15px;
+  color: $brand-slate-gray;
+  margin: 0 0 14px;
+}
+#button_settings .md-bs-field-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: $brand-charcoal-dark;
+  margin: 16px 0 6px;
+}
+/* Give every control in these cards a comfortable touch target */
+#button_settings .md-bs-card .form-control,
+#button_settings .md-bs-card .bound-select__trigger {
+  min-height: 50px;
+}
+
+/* Selected-board card (verdigris "chosen" state) */
+#button_settings .md-bs-dest__selected {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid rgba($brand-verdigris, 0.35);
+  background: rgba($brand-verdigris, 0.06);
+  border-radius: 12px;
+}
+#button_settings .md-bs-dest__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.10);
+  flex: 0 0 auto;
+}
+#button_settings .md-bs-dest__meta {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+#button_settings .md-bs-dest__name {
+  font-size: 17px;
+  font-weight: 600;
+  color: $la-navy;
+  word-break: break-word;
+}
+#button_settings .md-bs-dest__change {
+  flex: 0 0 auto;
+}
+
+/* "Selected" / state label above the status component */
+#button_settings .md-bs-status__label {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+  font-weight: 700;
+  color: $brand-slate-gray;
+  margin-bottom: 6px;
+}
+/* Secondary line inside the selected-board card (owner / breadcrumb slot) */
+#button_settings .md-bs-dest__owner {
+  display: block;
+  font-size: 13px;
+  color: $brand-slate-gray;
+  margin-top: 2px;
+}
+
+/* "Choose how to use this board" confirmation: a clean vertical preview card
+   (thumbnail → title / grid / preview) on the left, and the explanation + two
+   clearly-differentiated choices on the right. */
+#button_settings .md-bs-choose {
+  display: flex;
+  gap: 30px;
+  align-items: stretch;
+}
+#button_settings .md-bs-choose__status {
+  font-size: 15px;
+  color: $brand-charcoal-dark;
+  margin: 0;
+}
+/* "Change Board" — reset the pending board and go back to the collection.
+   Pushed to the bottom of the content column so it sits flush with the preview
+   card's bottom edge. */
+#button_settings .md-bs-choose__footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+  padding-top: 16px;
+}
+/* Sleek modern pill */
+#button_settings .md-bs-choose__change,
+#button_settings .md-bs-dest__change,
+#button_settings .md-bs-help__skip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 22px;
+  border-radius: 999px;
+  border: 1px solid rgba($brand-dusty-denim, 0.35);
+  background: linear-gradient(180deg, #ffffff 0%, rgba($brand-dusty-denim, 0.07) 100%);
+  color: $brand-dusty-denim-aa;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 1px 3px rgba($la-navy, 0.08);
+  transition: background 0.14s ease, box-shadow 0.14s ease, transform 0.1s ease, border-color 0.14s ease;
+}
+#button_settings .md-bs-choose__change:hover,
+#button_settings .md-bs-dest__change:hover,
+#button_settings .md-bs-help__skip:hover {
+  background: linear-gradient(180deg, #ffffff 0%, rgba($brand-dusty-denim, 0.14) 100%);
+  border-color: rgba($brand-dusty-denim, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 3px 10px rgba($brand-dusty-denim, 0.22);
+  transform: translateY(-1px);
+}
+#button_settings .md-bs-choose__change-icon,
+#button_settings .md-bs-dest__change-icon {
+  flex: 0 0 auto;
+  opacity: 0.9;
+}
+/* Help tab: the skip/enable pill sits centered below the quick-action list. */
+#button_settings .md-bs-help__skip-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 22px;
+}
+
+/* Color tab: live button preview + swatch palette + revert pill. */
+#button_settings .md-bs-color__preview-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+#button_settings .md-bs-color__preview {
+  width: 120px;
+  height: 120px;
+  border-radius: 12px;
+  border: 3px solid #cccccc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  box-shadow: 0 1px 4px rgba($la-navy, 0.10);
+}
+#button_settings .md-bs-color__preview-img {
+  max-width: 62px;
+  max-height: 62px;
+  object-fit: contain;
+}
+#button_settings .md-bs-color__preview-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: #222222;
+  text-align: center;
+  line-height: 1.15;
+  word-break: break-word;
+}
+#button_settings .md-bs-color__field-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: $brand-charcoal-dark;
+  margin-bottom: 10px;
+}
+/* Fitzgerald color swatches — labeled tiles (color chip + name + category). */
+#button_settings .md-bs-color__swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 10px;
+}
+#button_settings .md-bs-color__swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba($la-navy, 0.16);
+  /* Brushed-silver glass, same as the quick-action buttons. */
+  background: linear-gradient(150deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(236, 240, 245, 0.9) 50%,
+    rgba(210, 217, 227, 0.85) 100%);
+  backdrop-filter: blur(8px) saturate(150%);
+  -webkit-backdrop-filter: blur(8px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba($la-navy, 0.05),
+    0 1px 3px rgba($la-navy, 0.08);
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+#button_settings .md-bs-color__swatch:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(150deg,
+    #ffffff 0%,
+    rgba(233, 238, 244, 0.96) 50%,
+    rgba(200, 209, 221, 0.92) 100%);
+  border-color: rgba($la-navy, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 3px 8px rgba($la-navy, 0.14);
+}
+#button_settings .md-bs-color__swatch.is-selected {
+  border-color: $brand-verdigris;
+  box-shadow: 0 0 0 2px rgba($brand-verdigris, 0.4);
+}
+#button_settings .md-bs-color__swatch-chip {
+  width: 100%;
+  height: 32px;
+  border-radius: 6px;
+  border-width: 2px;
+  border-style: solid;
+}
+#button_settings .md-bs-color__swatch-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: $la-navy;
+  line-height: 1.1;
+}
+#button_settings .md-bs-color__swatch-hint {
+  font-size: 11px;
+  color: $brand-slate-gray;
+  text-transform: capitalize;
+  line-height: 1.1;
+}
+#button_settings .md-bs-color__field-label--custom {
+  margin-top: 22px;
+}
+#button_settings .md-bs-color__custom {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+#button_settings .md-bs-color__custom-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+#button_settings .md-bs-color__custom-label {
+  flex: 0 0 56px;
+  font-size: 14px;
+  font-weight: 600;
+  color: $brand-charcoal-dark;
+}
+#button_settings .md-bs-color__picker {
+  flex: 0 0 auto;
+  width: 46px;
+  height: 40px;
+  padding: 2px;
+  border: 1px solid rgba($la-navy, 0.15);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+#button_settings .md-bs-color__value {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+#button_settings .md-bs-color__footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 22px;
+}
+
+/* Vertical preview card */
+#button_settings .md-bs-choose__preview {
+  flex: 0 0 auto;
+  width: 230px;
+  border: 1px solid rgba($la-navy, 0.12);
+  border-radius: 14px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba($la-navy, 0.06);
+}
+#button_settings .md-bs-choose__thumb {
+  padding: 16px;
+  background: rgba($la-navy, 0.03);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#button_settings .md-bs-choose__thumb img {
+  width: 100%;
+  height: 130px;
+  object-fit: contain;
+  display: block;
+}
+#button_settings .md-bs-choose__preview-info {
+  padding: 12px 14px 14px;
+  border-top: 1px solid rgba($la-navy, 0.08);
+  text-align: center;
+}
+#button_settings .md-bs-choose__preview-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: $la-navy;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#button_settings .md-bs-choose__preview-grid {
+  font-size: 13px;
+  color: $brand-slate-gray;
+  margin: 2px 0 10px;
+}
+#button_settings .md-bs-choose__preview-btn {
+  width: 100%;
+  min-height: 40px;
+  border-radius: 8px;
+  /* Same brushed-silver glass as the "Use original board" button. */
+  border: 1px solid rgba($la-navy, 0.16);
+  background: linear-gradient(150deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(236, 240, 245, 0.9) 50%,
+    rgba(210, 217, 227, 0.85) 100%);
+  color: $brand-dusty-denim-aa;
+  font-weight: 600;
+  font-size: 14px;
+  backdrop-filter: blur(8px) saturate(150%);
+  -webkit-backdrop-filter: blur(8px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba($la-navy, 0.05),
+    0 1px 3px rgba($la-navy, 0.08);
+  transition: background 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+#button_settings .md-bs-choose__preview-btn:hover {
+  background: linear-gradient(150deg,
+    #ffffff 0%,
+    rgba(233, 238, 244, 0.96) 50%,
+    rgba(200, 209, 221, 0.92) 100%);
+  border-color: rgba($la-navy, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 2px 8px rgba($la-navy, 0.14);
+}
+
+/* Decision content */
+#button_settings .md-bs-choose__body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+#button_settings .md-bs-choose__explain {
+  font-size: 15px;
+  color: $brand-charcoal-dark;
+  margin: 0 0 16px;
+}
+#button_settings .md-bs-choose__note {
+  font-size: 13px;
+  color: $brand-slate-gray;
+  margin: 0 0 16px;
+}
+#button_settings .md-bs-choose__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+#button_settings .md-bs-choose__actions .md-bs-or {
+  margin: 2px 0;
+}
+#button_settings .md-bs-choose__btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 11px 16px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease, box-shadow 0.12s ease;
+}
+#button_settings .md-bs-choose__btn-label {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+#button_settings .md-bs-choose__btn-sub {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.3;
+  opacity: 0.9;
+}
+/* Recommended action: light verdigris→denim tint gradient with dark navy text.
+   Navy (#1B365D) on this light gradient clears WCAG AA (>7:1); the sub uses
+   charcoal (#374151, ~8:1). */
+#button_settings .md-bs-choose__btn--primary {
+  /* Silvery glass shine: a glossy top sheen over the verdigris→denim tint,
+     with inset highlights + backdrop blur. The sheen only lightens the top, so
+     the dark navy label keeps (and gains) contrast. */
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.14) 42%, rgba(255, 255, 255, 0) 62%),
+    linear-gradient(135deg, rgba($brand-verdigris, 0.50), rgba($brand-dusty-denim, 0.52)),
+    #fff;
+  border: 1px solid rgba($la-navy, 0.18);
+  color: $la-navy;
+  backdrop-filter: blur(8px) saturate(155%);
+  -webkit-backdrop-filter: blur(8px) saturate(155%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba($la-navy, 0.06),
+    0 1px 3px rgba($la-navy, 0.08);
+}
+#button_settings .md-bs-choose__btn--primary:hover {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.16) 42%, rgba(255, 255, 255, 0) 62%),
+    linear-gradient(135deg, rgba($brand-verdigris, 0.58), rgba($brand-dusty-denim, 0.60)),
+    #fff;
+  border-color: rgba($la-navy, 0.26);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 2px 10px rgba($la-navy, 0.14);
+}
+#button_settings .md-bs-choose__btn--primary .md-bs-choose__btn-sub {
+  color: $brand-charcoal-dark;
+  opacity: 1;
+}
+/* Secondary: brushed-silver glass — cool white→silver gradient with inset
+   highlights + backdrop blur, navy label. */
+#button_settings .md-bs-choose__btn--secondary {
+  background: linear-gradient(150deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(236, 240, 245, 0.9) 50%,
+    rgba(210, 217, 227, 0.85) 100%);
+  border-color: rgba($la-navy, 0.16);
+  color: $la-navy;
+  backdrop-filter: blur(8px) saturate(150%);
+  -webkit-backdrop-filter: blur(8px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba($la-navy, 0.05),
+    0 1px 3px rgba($la-navy, 0.08);
+}
+#button_settings .md-bs-choose__btn--secondary:hover {
+  background: linear-gradient(150deg,
+    #ffffff 0%,
+    rgba(233, 238, 244, 0.96) 50%,
+    rgba(200, 209, 221, 0.92) 100%);
+  border-color: rgba($la-navy, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 2px 8px rgba($la-navy, 0.14);
+}
+#button_settings .md-bs-choose__btn--secondary .md-bs-choose__btn-sub {
+  color: $brand-slate-gray;
+}
+
+/* Status panel — the empty (no-board) state, styled as its own component.
+   Recessed/inset look: sunken background + inner shadow so it reads as a
+   "nothing here yet" well rather than a raised card. */
+#button_settings .md-bs-status {
+  padding: 12px 14px;
+  border: 1px solid rgba($la-navy, 0.12);
+  border-radius: 10px;
+  background: $surface-200;
+  box-shadow: inset 0 2px 4px rgba($la-navy, 0.10);
+}
+#button_settings .md-bs-status__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#button_settings .md-bs-status__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid rgba($la-navy, 0.25);
+  flex: 0 0 auto;
+}
+#button_settings .md-bs-status__text {
+  font-size: 15px;
+  font-weight: 600;
+  color: $brand-charcoal-dark;
+}
+#button_settings .md-bs-status__hint {
+  font-size: 13px;
+  color: $brand-slate-gray;
+  margin: 6px 0 0;
+}
+
+/* Method groups (search / browse / create) with tiny "or …" headers — the
+   separators make the three alternative paths read as distinct choices. */
+#button_settings .md-bs-group {
+  margin-top: 16px;
+}
+#button_settings .md-bs-group-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: $brand-slate-gray;
+  margin-bottom: 6px;
+}
+#button_settings .md-bs-dest__results:empty {
+  display: none;
+}
+
+/* Search row: input is the dominant path, Search button beside it */
+#button_settings .md-bs-dest__search-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+#button_settings .md-bs-dest__search-field {
+  flex: 1 1 auto;
+  display: block;
+}
+#button_settings .md-bs-dest__search-input {
+  width: 100%;
+}
+#button_settings .md-bs-dest__search-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+/* Card buttons (primary = verdigris, secondary = dusty-denim, outline = quiet) */
+#button_settings .md-bs-btn {
+  min-height: 50px;
+  padding: 0 20px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  transition: background 0.12s ease, box-shadow 0.12s ease;
+}
+#button_settings .md-bs-btn--primary {
+  background: linear-gradient(135deg, $brand-verdigris, $brand-dusty-denim);
+  border: none;
+  color: #fff;
+}
+#button_settings .md-bs-btn--primary:hover {
+  box-shadow: 0 2px 10px rgba($brand-verdigris, 0.3);
+}
+#button_settings .md-bs-btn--secondary {
+  background: rgba($brand-dusty-denim, 0.08);
+  border-color: rgba($brand-dusty-denim, 0.30);
+  color: $brand-dusty-denim-aa;
+}
+#button_settings .md-bs-btn--secondary:hover {
+  background: rgba($brand-dusty-denim, 0.14);
+}
+/* Quiet secondary: white with a blue outline, so it reads as an alternative
+   action rather than competing with the primary Search button. */
+#button_settings .md-bs-btn--outline {
+  background: #fff;
+  border-color: rgba($brand-dusty-denim, 0.45);
+  color: $brand-dusty-denim-aa;
+}
+#button_settings .md-bs-btn--outline:hover {
+  background: rgba($brand-dusty-denim, 0.06);
+  border-color: $brand-dusty-denim;
+}
+#button_settings .md-bs-btn--outline .glyphicon {
+  color: $brand-dusty-denim-aa;
+}
+/* Wrapper card grouping the three destination methods (search / browse /
+   create) so they read as one "choose a board" unit inside the card. */
+#button_settings .md-bs-methods {
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid rgba($la-navy, 0.12);
+  border-radius: 12px;
+  /* Recessed/inset well so the white board-section cards sit proud of it. */
+  background: $surface-200;
+  box-shadow: inset 0 2px 5px rgba($la-navy, 0.10);
+}
+#button_settings .md-bs-methods > .md-bs-group:first-child {
+  margin-top: 0;
+}
+
+/* Board-collection picker inside the destination card: reuses the Find Boards
+   page's .md-board-collection markup/styles (light base theme outside a
+   .md-board-detail--dark ancestor). Cap the height so the sectioned list scrolls
+   inside the card instead of stretching the modal. */
+#button_settings .md-bs-collection {
+  margin-bottom: 4px;
+}
+#button_settings .md-bs-collection__header {
+  padding: 0 0 10px;
+}
+#button_settings .md-bs-collection__body {
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+/* "OR" separator between the three destination methods — mirrors the
+   create-board-new chooser (.nb-create-chooser__or): centered uppercase OR
+   with a short rule on each side. */
+#button_settings .md-bs-or {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 14px 4px;
+  color: rgba($la-navy, 0.45);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+#button_settings .md-bs-or::before,
+#button_settings .md-bs-or::after {
+  content: "";
+  flex: 1 1 auto;
+  max-width: 90px;
+  height: 1px;
+  background: rgba($la-navy, 0.14);
+}
+
+/* Raised "choice" card — matches the create-board-new chooser buttons
+   (.nb-create-chooser__btn): top-lit gradient, layered ambient shadow, and a
+   glassy icon chip, so Create reads as a pressable key rather than a plain
+   button. */
+#button_settings .md-bs-choice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 50px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid rgba($brand-slate-blue, 0.22);
+  background: linear-gradient(180deg, #ffffff 0%, #eef2f8 100%);
+  color: $la-navy;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -2px 0 rgba($la-navy, 0.06),
+    0 2px 4px rgba($la-navy, 0.08),
+    0 10px 22px rgba($la-navy, 0.12);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+#button_settings .md-bs-choice:hover,
+#button_settings .md-bs-choice:focus-visible {
+  transform: translateY(-3px);
+  border-color: rgba($brand-slate-blue, 0.45);
+  background: linear-gradient(180deg, #ffffff 0%, #e9eef6 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -2px 0 rgba($la-navy, 0.07),
+    0 4px 8px rgba($la-navy, 0.12),
+    0 18px 34px rgba($la-navy, 0.16);
+  outline: none;
+}
+#button_settings .md-bs-choice:active {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 2px 5px rgba($la-navy, 0.14),
+    0 2px 6px rgba($la-navy, 0.10);
+}
+#button_settings .md-bs-choice__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba($brand-slate-blue, 0.16), rgba($brand-slate-blue, 0.07));
+  color: $brand-slate-blue;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 1px 2px rgba($la-navy, 0.12);
+}
+#button_settings .md-bs-choice__icon .glyphicon {
+  color: $brand-slate-blue;
+  top: 0;
+}
+#button_settings .md-bs-choice__label {
+  flex: 0 0 auto;
 }
 
 /* Footer */
@@ -16316,6 +17117,9 @@ form.row.subscription-form-with-cards {
 .md-speak-menu__row--2 { grid-template-columns: repeat(2, 1fr); }
 .md-speak-menu__row--3 { grid-template-columns: repeat(3, 1fr); }
 .md-speak-menu__row--5 { grid-template-columns: repeat(5, 1fr); }
+/* Full punctuation set in one row (single-tap reach, no "More" submenu). 7 across
+   only while the targets stay comfortably hittable — see the narrow-screen wrap below. */
+.md-speak-menu__row--7 { grid-template-columns: repeat(7, 1fr); }
 .md-speak-menu__row--locale {
   grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
 }
@@ -16497,6 +17301,11 @@ form.row.subscription-form-with-cards {
 @media (max-width: 768px) {
   .md-speak-menu__row--3 {
     grid-template-columns: repeat(2, 1fr);
+  }
+  /* 7 punctuation targets across is too small to hit reliably on a phone --
+     wrap to 4+3 so each stays a comfortable touch target (AAC motor accuracy). */
+  .md-speak-menu__row--7 {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
@@ -29310,7 +30119,7 @@ header #identity #identity_button.btn::after {
 }
 
 .la-hero-trust-line {
-  margin-top: 24px;
+  margin-top: 0;
   margin-bottom: 14px;
   padding-top: 18px;
   border-top: 1px solid rgba(255, 255, 255, 0.11);
@@ -30917,6 +31726,14 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   }
 }
 
+/* AI-sparkle SVG (AI-driven badge) — sized like the ☁/$ glyphs, inherits their
+   charcoal color via fill:currentColor so it sits consistently in the circle. */
+.la-hero-badge-icon__svg {
+  width: 1.25em;
+  height: 1.25em;
+  display: block;
+}
+
 /* 90% Lower Cost icon: copy cloud-based icon bg and icon color */
 .la-hero-badge-icon--cost {
   background: $la-hero-badge-icon-bg !important;
@@ -31721,7 +32538,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 
 /* Section anchoring: light gray band so flow is white (hero) → light gray (features) → parallax → white (CTA) */
 #la-features {
-  margin-top: $aac-spacing-48;
+  /* No margin-top: the section sits directly under the spotlight and supplies its own
+     top spacing via padding-top. (.la-section sets no margin, so this resolves to 0.) */
   padding-top: $aac-spacing-32;
   background: transparent;
   border: none;
@@ -31733,7 +32551,6 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 #about-hero .la-section-header .la-section-eyebrow-badge,
 #la-plan .la-section-eyebrow-badge,
 #la-slp-spotlight .la-section-eyebrow-badge,
-#la-slp-spotlight-desktop .la-section-eyebrow-badge,
 #la-devices-spotlight .la-section-eyebrow-badge,
 #la-devices-spotlight-desktop .la-section-eyebrow-badge,
 #la-testimonial .la-section-eyebrow-badge,
@@ -33012,10 +33829,17 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 }
 
 .la-section-subtitle {
-  font-size: $aac-font-size-base * 1.404;
+  /* Landing-alt body copy tracks .la-hero-subtitle's fluid size (see the
+     .la-wrapper--landing .la-plan-subtitle rule, which keeps the spotlight/plan
+     bodies identical to this). clamp() min/max are the hero's; the ≤640px floor
+     lives with that rule. This class is landing-alt-only, so it's set in place. */
+  font-size: clamp(1.25rem, calc(0.65rem + 1.38vw), 1.755rem);
   font-weight: 400;
   color: rgba($indigo, 0.9);
-  max-width: 558.72px; /* 698.4px × 0.8 */
+  /* Same container width as the spotlight bodies (.la-slp-spotlight__body /
+     .la-devices-spotlight__body are max-width: 720px, centred, at both breakpoints)
+     so the two read as one column. Was 558.72px. */
+  max-width: 720px;
   margin: 0 auto;
   line-height: 1.8;
   letter-spacing: 0.005em;
@@ -33718,7 +34542,10 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 /* Mirror the parallax-zone card-frame styling onto the desktop spotlight
    copies that live OUTSIDE the parallax zone, so they share the identical
    gray frame, rounding, shadow, and inner background. */
-.la-spotlight-desktop .la-parallax-card-outer {
+.la-spotlight-desktop .la-parallax-card-outer,
+/* The SLP spotlight sits above Features, OUTSIDE the parallax zone, at every width,
+   so it needs the same frame mirrored onto it (it can't inherit the zone-scoped rule). */
+.la-slp-spotlight .la-parallax-card-outer {
   margin-top: 5rem;
   margin-bottom: 5rem;
   background: transparent;
@@ -33726,7 +34553,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   border-radius: 20px;
   box-shadow: 0 2px 16px rgba(0, 0, 0, 0.04);
 }
-.la-spotlight-desktop .la-parallax-card-inner {
+.la-spotlight-desktop .la-parallax-card-inner,
+.la-slp-spotlight .la-parallax-card-inner {
   background: #F7F9FA;
 }
 
@@ -33738,14 +34566,15 @@ body.md-ds-active .app-navbar__beta-feedback-link {
      • Outside the parallax zone (desktop placement, IDs with -desktop)
    The .la-spotlight-desktop class flips the visibility logic for the desktop
    copies, so on each viewport exactly one of the two copies is shown. */
-.la-slp-spotlight,
+/* Only the DEVICES spotlight is still rendered twice (mobile copy inside the parallax
+   zone, desktop copy outside it). The SLP spotlight is now a single section above
+   Features at all widths, so it is NOT hidden here. */
 .la-devices-spotlight { display: none; }
 
 /* Desktop versions: hidden by default at all widths via the rule above; this
    block re-shows them only above 1024px and ensures the mobile mirrors stay
    hidden in that range. */
 @media (min-width: 1025px) {
-  #la-slp-spotlight-desktop,
   #la-devices-spotlight-desktop { display: block; }
 }
 @media (max-width: 1024px) {
@@ -33780,21 +34609,30 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   border-radius: 16px;
 }
 .la-slp-spotlight__image {
-  background-image: url('/images/landing-instructor.png');
+  /* aac-user.jpg (1536x1024). JPEG, not PNG: it's a photograph, so PNG only
+     compressed to ~1.9MB while q85 JPEG is ~200KB at the same visual quality.
+     Kept landing-instructor.png in public/images for later use. */
+  background-image: url('/images/aac-user.jpg');
 }
 .la-devices-spotlight__image {
-  background-image: url('/images/landing-devices.png');
+  /* JPEG for the same reason as aac-user.jpg: it's a photo, so PNG only reached
+     ~1.9MB vs ~230KB at q85 with no visible loss in the symbol grids. */
+  background-image: url('/images/landing-devices.jpg');
 }
 
-/* Desktop (>1024px): swap the SLP image to landing-classroom.png and let
-   both spotlight images render at full height using their natural aspect
-   ratios (image dimensions: classroom 850×638, devices 1000×667). */
+/* Desktop (>1024px): let both spotlight images render at full height using their
+   natural aspect ratios (image dimensions: aac-user 1536×1024, devices 1000×667). */
 @media (min-width: 1025px) {
   .la-slp-spotlight__image {
-    background-image: url('/images/landing-instructor.png');
-    aspect-ratio: 1535 / 1024;
+    background-image: url('/images/aac-user.jpg');
+    /* aspect-ratio matches aac-user.jpg's natural 1536x1024 (3:2), so the div is
+       exactly the image's shape and `background-size: cover` (inherited) fills it
+       edge-to-edge. That's what makes the radius below clip the IMAGE's own corners
+       rather than empty letterbox strips — same reasoning as the devices image. */
+    aspect-ratio: 1536 / 1024;
     min-height: 0;
-    border-radius: 0;
+    /* Rounded corners, matching the base rule and the devices spotlight. */
+    border-radius: 16px;
     /* "Built for schools" image: 62.5% width (25% bigger than prior 50%), centered.
        margin-top: 16px adds breathing room under the paragraph (parent gap 48px
        + 16px = ~64px visible). */
@@ -33809,12 +34647,18 @@ body.md-ds-active .app-navbar__beta-feedback-link {
        strips top/bottom, and the 16px border-radius clips invisible space
        instead of the image. With matching aspect-ratio, the radius is visible
        on the image's own corners.
-       margin-top: -48px cancels the parent flex gap ($aac-spacing-48), so the
-       image sits flush against the paragraph above. */
-    aspect-ratio: 1000 / 667;
+       margin-top previously used -48px to cancel the parent flex gap
+       ($aac-spacing-48) and sit flush against the paragraph, which left no breathing
+       room under the body copy. Now zero, so the parent's 48px gap stands on its own
+       as the copy-to-image spacing. */
+    /* Must track landing-devices.jpg's natural size (1726x911). It previously read
+       1000/667 (1.50) against a 1727x911 (1.90) image, so `contain` letterboxed it
+       and the radius rounded the empty strips -- the exact failure the note above
+       warns about. */
+    aspect-ratio: 1726 / 911;
     min-height: 0;
     width: 78.125%;
-    margin: -48px auto 0;
+    margin: 0 auto;
     background-size: contain;
     border-radius: 16px;
   }
@@ -33839,6 +34683,12 @@ body.md-ds-active .app-navbar__beta-feedback-link {
      so the card blends into the page. Scoped to the desktop copy. */
   .la-slp-spotlight .la-slp-spotlight__card.la-parallax-card-outer {
     margin-top: 0;
+    /* margin-bottom: 0 removes the dead band under the image. The base
+       `.la-slp-spotlight .la-parallax-card-outer` rule applies margin-bottom: 5rem,
+       and since the section has padding the margin can't collapse through it — so
+       that 80px renders INSIDE the section's content box, between the image and the
+       section's own padding. Same reason the devices card zeroes it below. */
+    margin-bottom: 0;
     background: transparent;
     border: none;
     box-shadow: none;
@@ -33867,7 +34717,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 }
 
 @media (max-width: 1024px) {
-  .la-slp-spotlight,
+  /* .la-slp-spotlight is no longer display:none by default (single copy, all widths),
+     so only the devices mobile mirror needs re-showing here. */
   .la-devices-spotlight { display: block; }
   .la-parallax-zone {
     background-image: none !important;
@@ -33892,8 +34743,12 @@ body.md-ds-active .app-navbar__beta-feedback-link {
      aspect-ratio to match the image lets the full classroom photo
      render without clipping. */
   .la-slp-spotlight__image {
-    background-image: url('/images/landing-classroom.png');
-    aspect-ratio: 850 / 638;
+    background-image: url('/images/landing-classroom.jpg');
+    /* Tracks landing-classroom.jpg's natural size (1535x1024). It previously read
+       850/638 (1.33) against a 1535x1024 (1.50) image, so `contain` letterboxed it
+       and the radius rounded the empty strips -- the same mismatch that was wrong on
+       the devices image. */
+    aspect-ratio: 1535 / 1024;
     min-height: 0;
     background-size: contain;
   }
@@ -33917,7 +34772,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
      to `contain` and pinning the container's aspect-ratio to match
      the image lets the full mockup render without clipping. */
   .la-devices-spotlight__image {
-    aspect-ratio: 1000 / 667;
+    /* Tracks landing-devices.jpg's natural size (1726x911); see the desktop rule. */
+    aspect-ratio: 1726 / 911;
     min-height: 0;
     background-size: contain;
   }
@@ -33994,6 +34850,25 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   line-height: 1.8;
   letter-spacing: 0.005em;
   margin: 0;
+}
+
+/* Landing-alt body copy reads at the same size as .la-hero-subtitle, scaling with the
+   viewport exactly as it does (same clamp min/max, same ≤640px floor).
+   Scoped to .la-wrapper--landing on purpose: .la-plan-subtitle is SHARED with
+   about.hbs, which is not part of this change. It covers the plan + SLP + devices
+   bodies together, preserving the "all three subtitles scale identically" intent noted
+   on the spotlight rules (those override layout only, never font-size).
+   .la-section-subtitle carries the same clamp at its own definition. */
+.la-wrapper--landing .la-plan-subtitle {
+  font-size: clamp(1.25rem, calc(0.65rem + 1.38vw), 1.755rem);
+}
+/* Floor at 15px on small screens so it stays legible where the clamp would go smaller
+   — mirrors the .la-hero-subtitle rule. */
+@media (max-width: $aac-breakpoint-sm) {
+  .la-wrapper--landing .la-plan-subtitle,
+  .la-wrapper--landing .la-section-subtitle {
+    font-size: 15px;
+  }
 }
 
 .la-plan-grid {
@@ -35072,6 +35947,14 @@ a.la-footer-bottom-a11y-wcag {
   text-transform: uppercase;
   letter-spacing: $aac-letter-spacing-wide;
   color: $brand-honey-bronze;
+}
+
+// Opt-in eyebrow-weight override for ai-disclosure only (03-UI-SPEC.md 3, the
+// eyebrow-weight fix). A second single-class selector at the SAME specificity as
+// .la-modal-header-label above, not a nested/wrapper-scoped override -- every other
+// modal keeps rendering its eyebrow at $aac-font-weight-black (800) unchanged.
+.la-modal-header-label--regular {
+  font-weight: $aac-font-weight-bold;
 }
 
 .la-modal-close {
@@ -38056,6 +38939,14 @@ a.la-footer-bottom-a11y-wcag {
   flex-wrap: wrap;
 }
 
+// AI disclosure modal (EU AI Act Article 50(1), VPC Phase 3). Same support-modal
+// shell as terms-agree; the one addition is a larger dwell/scan target minimum for
+// this modal's population (03-UI-SPEC.md 6.2) -- a new selector scoped to this
+// component's own wrapper class, not a stacked override of the shared .la-btn rule.
+.la-ai-disclosure-modal-wrap .la-btn {
+  min-height: $aac-spacing-64;
+}
+
 // Word Cloud modal: same styling as support modal, wider dialog for cloud content
 .modal-dialog:has(.la-word-cloud-modal-wrap) {
   max-width: 720px;
@@ -39125,9 +40016,9 @@ a.la-footer-bottom-a11y-wcag {
     font-size: 26px;
   }
 
-  .la-section-subtitle {
-    font-size: $aac-font-size-base;
-  }
+  /* No .la-section-subtitle font-size override here on purpose: it now tracks
+     .la-plan-subtitle (the spotlight/plan body), which is a single size at every
+     width. Shrinking it here would re-introduce the mismatch below $aac-breakpoint-md. */
 
   // Footer: single column
   .la-footer-inner {
@@ -40173,6 +41064,7 @@ a.la-footer-bottom-a11y-wcag {
   .ub-search-jump__trigger-label {
     flex: 1 1 auto;
     min-width: 0;
+    padding-left: 14px; /* extra breathing room between the search icon and the "Find a board…" text */
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -40216,6 +41108,12 @@ a.la-footer-bottom-a11y-wcag {
        collapse it. */
     .md-board-collection__search {
       margin-top: 0;
+    }
+    /* Match the trigger's helper-text indent — push the live input's
+       "Find a board…" placeholder off the search icon. Scoped to this panel
+       so the shared speak-mode drawer field is untouched. */
+    .md-board-collection__search-input {
+      padding-left: 8px;
     }
   }
   .ub-search-page__locale-wrap {
@@ -44474,7 +45372,10 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 
 /* ---------- User page (My Account) hero and summary ---------- */
 .md-hero--user {
-  position: relative;
+  /* !important to beat the shared `.md-hero { position: static !important }`
+     (app.scss ~42670) — this card MUST be the positioning context so the absolute
+     AAC chip (.md-hero--user__aac) anchors to the card's bottom-right, not the page. */
+  position: relative !important;
   padding: 36px 24px 32px !important;
   width: 100%;
   margin-left: auto;
@@ -44482,7 +45383,11 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   display: flex;
   align-items: center;
   gap: 28px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(248, 250, 252, 0.95));
+  /* !important so this actually paints — the shared `.md-hero { background:
+     transparent !important }` (app.scss ~42675) was overriding it, leaving the
+     card fully transparent (it only looked light because the page behind is).
+     Alpha bumped up so the card reads as a solid, ~15%-less-transparent surface. */
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.90)) !important;
   border: 1px solid var(--md-line);
   border-bottom: 2px solid rgba($la-navy, 0.08);
   border-radius: var(--md-r-lg, 22px);
@@ -44525,6 +45430,67 @@ a.md-pillnav__pill.active .md-pillnav__badge,
 .md-hero--user__body {
   flex: 1 1 auto;
   min-width: 0;
+}
+/* Current AAC solution — an action chip pinned to the hero card's bottom-right.
+   Shows the app/device the user currently uses; opens the Current AAC Solution
+   modal. Absolute so it doesn't disturb the avatar+body flex row. */
+.md-hero--user__aac {
+  position: absolute;
+  right: 24px;
+  bottom: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 280px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba($la-navy, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 2px 6px rgba($la-navy, 0.08);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
+}
+.md-hero--user__aac:hover {
+  background: #fff;
+  box-shadow: 0 4px 12px rgba($la-navy, 0.14);
+  transform: translateY(-1px);
+}
+.md-hero--user__aac-icon {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: linear-gradient(135deg, rgba($brand-slate-blue, 0.16), rgba($brand-charcoal-blue, 0.10));
+  color: $brand-charcoal-blue;
+}
+.md-hero--user__aac-icon img { width: 30px; height: 30px; object-fit: contain; border-radius: 6px; }
+.md-hero--user__aac-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.md-hero--user__aac-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba($la-navy, 0.5);
+}
+.md-hero--user__aac-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: $la-navy;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (min-width: 1025px) {
+  /* Match the hero's wider side padding at this width. */
+  .md-hero--user__aac { right: 88px; }
+}
+@media (max-width: 768px) {
+  /* Column layout — flow the chip below the content instead of overlapping. */
+  .md-hero--user__aac { position: static; margin: 14px auto 0; }
 }
 /* 1024px and smaller (but still in the row layout, above the 768px mobile-column
    breakpoint): center the avatar + text group horizontally within the card. The body
@@ -53078,6 +54044,13 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   overflow: hidden;
 }
 
+/* ARIA row wrapper (grid → row → gridcell). `display: contents` generates no
+   layout box, so the cells keep auto-placing into the .new-board-preview CSS grid
+   unchanged; the wrapper exists only to carry role="row". */
+.new-board-preview__row {
+  display: contents;
+}
+
 .new-board-preview__cell {
   position: relative;
   min-width: 0;
@@ -61258,6 +62231,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     flex: 1 1 100% !important;
   }
   .ub-boards-page__boards-summary-new-btn--in-tabs-row {
+    /* Back into flow at phone width so it stacks below the <select>
+       (desktop pins it absolutely to page-center the tabs). */
+    position: static !important;
     flex: 1 1 100% !important;
     margin-top: 8px !important;
   }
@@ -62745,13 +63721,18 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
       linear-gradient(135deg, rgba(44, 183, 176, 0.18), rgba(91, 141, 239, 0.15))
     );
   }
-  /* In-tabs-row positional modifier — lifts the button 1rem off the
-     layered divider beneath the tabs so it doesn't sit directly on
-     the gradient hairline. The parent .tabs-row uses
-     align-items: flex-end so without this nudge the button's
-     bottom edge would touch the divider. */
+  /* In-tabs-row positional modifier — pulled OUT of the flex flow and
+     pinned to the row's right edge so the tab strip (.tabs--boards,
+     flex: 1 1 auto + justify-content: center) spans the full row width and
+     its pills center on the PAGE rather than only within the space left of
+     this button. `bottom: 1rem` keeps the original 1rem lift off the layered
+     divider (the ::after hairline at the row's bottom). The tabs-row is
+     position: relative, so this anchors to it. Reset to static ≤640px, where
+     the button stacks below the mobile <select>. */
   &__boards-summary-new-btn--in-tabs-row {
-    margin-bottom: 1rem;
+    position: absolute;
+    right: 0;
+    bottom: 1rem;
   }
   &__boards-summary-body {
     /* Matches the folders body's top padding + layered divider so
@@ -66124,6 +67105,17 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 }
 .md-shell.md-shell--board-detail:not(.md-shell--board-detail-edit) {
   padding-top: 2px !important;
+  /* SPEAK mode: flatten the atmospheric shell gradient (defined on
+     .md-shell--board-detail below) to the SAME flat surface as
+     .md-board-detail-main (color.adjust($surface-200, -15%), line ~66802).
+     The main's 8px top padding exposes a band of the main's flat gray at the
+     very top; with the shell behind/around it kept as the bluish gradient
+     (this rule's 2px top strip + the side grid columns), that gray band met
+     the gradient and read as a color seam. Matching the shell to the main
+     removes the seam — the top band and the surround are now one surface.
+     The 0,4,0 selector out-specifies the 0,1,0 gradient rule regardless of
+     source order; EDIT mode is excluded so it keeps its atmospheric page bg. */
+  background: color.adjust($surface-200, $lightness: -15%);
 }
 /* Layer 1: Background — same as authenticated-view home page.
    Halo alphas bumped ~30% over the prior version to strengthen the
@@ -66154,8 +67146,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 }
 .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-layout {
   /* No left/right padding in speak mode — the board grid runs edge to edge
-     (removes the purple page-background strip on the sides). Top/bottom keep 2px. */
-  padding: 2px 0;
+     (removes the purple page-background strip on the sides). Top is flush with the
+     shell so the board/sentence bar reaches the top; keep 2px at the bottom. */
+  padding: 0 0 2px;
   /* 100dvh (dynamic viewport height) tracks the actual visible area on mobile
      — Android Chrome's URL bar eats into the viewport but isn't reflected in
      100vh. dvh keeps the layout flush to the visible bottom so the button grid
@@ -66167,6 +67160,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    — the layout's own side padding + grid gap are 0 (above), so this is the single
    source of the side inset. Adjust this value to tune the left/right spacing. */
 .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-main {
+  padding-top: 8px;
   padding-left: 12px;
   padding-right: 12px;
 }
@@ -69350,12 +70344,14 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    control. Scoped to the metadata row so the pill style elsewhere
    on the page is unaffected. */
 .md-board-detail-header__meta .md-board-detail-header__info-icon--private,
+.md-board-detail-header__meta .md-board-detail-header__info-icon--public,
 .md-board-detail-header__meta .md-board-detail-header__info-icon--lock {
   height: 22px;
   padding: 0 8px;
   font-size: 14px;
 }
 .md-board-detail-header__meta .md-board-detail-header__info-icon--private svg,
+.md-board-detail-header__meta .md-board-detail-header__info-icon--public svg,
 .md-board-detail-header__meta .md-board-detail-header__info-icon--lock svg {
   width: 13px;
   height: 13px;
@@ -69539,6 +70535,18 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail-header__info-icon--private svg line {
   stroke: currentColor;
 }
+/* Public pill — same soft metadata chip as --private, in a blue tint
+   (dusty-denim) so the open/globe indicator reads as the counterpart to
+   the private verdigris. Structural sizing/shape/hover come from the
+   shared .info-icon / meta-context / --clickable rules. */
+.md-board-detail-header__info-icon--public {
+  background: rgba($la-navy, 0.05);
+  border: 1px solid rgba($la-navy, 0.04);
+  color: $brand-dusty-denim;
+}
+.md-board-detail-header__info-icon--public svg {
+  stroke: $brand-dusty-denim;
+}
 /* Dark-mode pinning: the broader `--private { color: white }` rule
    below would otherwise override the verdigris text + strokes set
    above. Re-asserts the verdigris on text + eye shape, with a
@@ -69566,7 +70574,8 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    and explicitly set the SVG stroke so currentColor inheritance can't
    be overridden by any descendant rule. */
 .md-board-detail--dark .md-board-detail-header__info-icon--lock,
-.md-board-detail--dark .md-board-detail-header__info-icon--private {
+.md-board-detail--dark .md-board-detail-header__info-icon--private,
+.md-board-detail--dark .md-board-detail-header__info-icon--public {
   /* Per user spec — softer metadata pill in dark mode:
      bg .10 → .08, hairline white border at .05. */
   background: rgba(255, 255, 255, 0.08);
@@ -69574,7 +70583,8 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   color: rgba(255, 255, 255, 0.92);
 }
 .md-board-detail--dark .md-board-detail-header__info-icon--lock svg,
-.md-board-detail--dark .md-board-detail-header__info-icon--private svg {
+.md-board-detail--dark .md-board-detail-header__info-icon--private svg,
+.md-board-detail--dark .md-board-detail-header__info-icon--public svg {
   stroke: rgba(255, 255, 255, 0.92);
 }
 /* Clickable variant — when the user has edit permission, the private
@@ -71479,6 +72489,14 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   overflow: hidden;
   margin-left: 6px;
 }
+/* When the My Board Collection drawer is open, temporarily hide the inline sidebar
+   (any screen width/height). This is a VISUAL hide only — the sidebar is rendered by
+   the user's `inlineSidebarOpen` / quick_sidebar preference, which we do NOT touch, so
+   it reappears when the drawer closes (if they had it expanded). It's a flex child, so
+   display:none lets the board reflow to fill the space — no gap. */
+.md-shell--board-collection .md-board-detail-inline-sidebar {
+  display: none;
+}
 /* Absolute scroll layer filling the shell — keeps the content from growing the
    flex row (which would push the sidebar below the grid). */
 .md-board-detail-inline-sidebar__scroll {
@@ -71644,20 +72662,28 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail-inline-sidebar__name {
   display: block;
   text-align: center;
-  word-break: break-word;
+  /* Truncate a too-long label to a single line with an ellipsis rather than
+     wrapping (e.g. "Inflections" on a narrow sidebar). The block is width-
+     constrained by the full-width .__item button, so ellipsis applies. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 15px;
 }
 /* Wider viewports (>1024px): a 125px sidebar. At <=1024px it stays at the
    base 100px width (and 70px at <=768px). */
 @media (min-width: 1025px) {
   .md-board-detail-inline-sidebar {
-    width: 125px;
+    width: 112px;
   }
 }
-/* Narrow viewports (<=1024px): shrink the inline sidebar's board
-   thumbnails/labels so they don't crowd the grid. The sidebar width is the base
-   100px here. The pin control is left alone so it keeps its 44px touch target. */
+/* Narrow viewports (<=1024px): narrow the inline sidebar to 80px and shrink its
+   board thumbnails/labels so they don't crowd the grid. The pin control is left
+   alone so it keeps its 44px touch target. */
 @media (max-width: 1024px) {
+  .md-board-detail-inline-sidebar {
+    width: 80px;
+  }
   .md-board-detail-inline-sidebar__item {
     padding: 7px 4px;
     font-size: 12px;
@@ -72244,6 +73270,12 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    left edge for the floating-drawer feel that matches the rest of
    the modern design language. The shared `.md-board-detail-actions-backdrop`
    (z-index 99, full-viewport position: fixed) already sits beneath. */
+/* Single source of truth for the pinned Board Collection drawer width, so the
+   panel and the layout push it reserves stay identical at every breakpoint.
+   Override this ONE variable per breakpoint (see ≤1024px below) and both track it. */
+.md-shell--board-collection {
+  --md-collection-drawer-w: 380px;
+}
 .md-board-detail-actions-menu--collection {
   position: fixed;
   top: 0;
@@ -72251,7 +73283,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   bottom: 0;
   height: 100vh;
   max-height: 100vh;
-  width: 380px;
+  width: var(--md-collection-drawer-w, 380px);
   max-width: calc(100vw - 24px);
   padding: 0;
   display: flex;
@@ -72271,7 +73303,15 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    stays interactive. Push the layout left by the drawer width so the whole
    grid remains visible (no overlay) while the user browses board-to-board. */
 .md-shell--board-collection.md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-layout {
-  padding-right: 388px; /* drawer width (380) + 8px gap */
+  padding-right: var(--md-collection-drawer-w, 380px); /* == drawer width, exactly */
+}
+/* ≤1024px: narrow the pinned Board Collection drawer by 60px (380 → 320). Only the
+   variable changes — the panel width and the layout push both read it, so they stay
+   equal automatically at this (and any future) breakpoint. */
+@media (max-width: 1024px) {
+  .md-shell--board-collection {
+    --md-collection-drawer-w: 320px;
+  }
 }
 .md-board-collection {
   display: flex;
@@ -72546,6 +73586,9 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-sidebar-editor__row {
   display: flex;
   align-items: center;
+  /* Wraps so the add/remove confirm can drop to its own line below the row
+     instead of competing with the board name for horizontal space. */
+  flex-wrap: wrap;
   gap: 8px;
   padding: 3px 6px;
   border-radius: 8px;
@@ -72557,6 +73600,48 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-sidebar-editor__section--current {
   padding-left: 10px;
   padding-right: 10px;
+  /* This is the live sidebar — the only section whose order matters and the
+     only one you can reorder. A teal glow + solid top stroke lifts it off the
+     add-lists below, which share the plainer card treatment. */
+  border-top-color: rgba($brand-teal, 0.85);
+  box-shadow:
+    0 1px 4px rgba($brand-blue-black, 0.06),
+    0 4px 16px rgba($brand-blue-black, 0.04),
+    0 0 0 1px rgba($brand-teal, 0.18),
+    0 0 22px 2px rgba($brand-teal, 0.22);
+}
+.md-sidebar-editor__section--current:hover {
+  border-top-color: rgba($brand-teal, 0.95);
+  box-shadow:
+    0 1px 4px rgba($brand-blue-black, 0.06),
+    0 4px 16px rgba($brand-blue-black, 0.04),
+    0 0 0 1px rgba($brand-teal, 0.26),
+    0 0 26px 3px rgba($brand-teal, 0.28);
+}
+.md-board-detail--dark .md-sidebar-editor__section--current {
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.30),
+    0 4px 16px rgba(0, 0, 0, 0.22),
+    0 0 0 1px rgba($brand-teal, 0.30),
+    0 0 26px 3px rgba($brand-teal, 0.30);
+}
+
+/* Divider heading between "on the sidebar" and "can be added". Sits BETWEEN
+   cards rather than inside one, so it reads as a group heading for everything
+   below it; slightly larger than the in-card section labels it introduces. */
+.md-sidebar-editor__group-label {
+  margin: 20px 4px 10px;
+  padding-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: $brand-slate-blue;
+  border-bottom: 1px solid rgba($brand-blue-black, 0.10);
+}
+.md-board-detail--dark .md-sidebar-editor__group-label {
+  color: rgba(240, 244, 250, 0.72);
+  border-bottom-color: rgba(240, 244, 250, 0.16);
 }
 /* Each "On your sidebar" item is wrapped in its own glass container (translucent
    gradient, light rim, inset sheen + soft drop) so the reorderable items read as
@@ -72607,13 +73692,6 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   border-color: rgba(255, 255, 255, 0.26);
 }
 /* Reorder instruction below the search box. */
-.md-sidebar-editor__hint {
-  margin: 8px 4px 0;
-  font-size: 12px;
-  line-height: 1.35;
-  color: $brand-slate-blue;
-}
-.md-board-detail--dark .md-sidebar-editor__hint { color: rgba(240, 244, 250, 0.72); }
 /* Dark mode: the add-list board names in the Edit Sidebar panel inherit a dark
    tone — the My Boards overlay lights them via .md-board-collection__item, but
    these rows wrap the name in .md-sidebar-editor__display instead, so it never
@@ -72634,6 +73712,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   touch-action: none;
 }
 .md-sidebar-editor__grip:active { cursor: grabbing; }
+
 .md-board-detail--dark .md-sidebar-editor__grip { color: rgba(240, 244, 250, 0.5); }
 /* Drag states — the lifted row fades to a ghost; the hovered drop target gets a
    dashed teal insertion outline. */
@@ -72818,32 +73897,19 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 /* "Always on" status pill for Crisis Vocabulary — it can't be removed, so it shows
    this (non-interactive) lock pill instead of a control. */
-.md-sidebar-editor__locked-pill {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 9px;
-  border-radius: 999px;
-  background: rgba($la-navy, 0.07);
-  border: 1px solid rgba($la-navy, 0.14);
-  color: $brand-slate-blue;
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-.md-sidebar-editor__locked-pill svg { opacity: 0.8; }
-.md-board-detail--dark .md-sidebar-editor__locked-pill {
-  background: rgba(255, 255, 255, 0.10);
-  border-color: rgba(255, 255, 255, 0.18);
-  color: rgba(240, 244, 250, 0.78);
-}
 .md-sidebar-editor__action[disabled] { opacity: 0.45; cursor: default; box-shadow: none; }
 .md-sidebar-editor__confirm {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 6px;
-  flex-shrink: 0;
+  /* Full-width so it wraps onto its own line under the row (see the row's
+     flex-wrap). Previously inline + flex-shrink:0, which squeezed the board
+     name until it truncated — you couldn't see what you were confirming. */
+  flex: 0 0 100%;
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px solid rgba($la-navy, 0.10);
 }
 .md-sidebar-editor__confirm-q { font-size: 12px; color: $brand-slate-blue; }
 .md-sidebar-editor__confirm-btn {
@@ -72860,6 +73926,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-sidebar-editor__confirm-btn--primary { color: $brand-verdigris-aa; border-color: rgba(44, 183, 176, 0.40); }
 /* Dark speak shell overrides for the editor's OWN controls (the reused
    md-board-collection__* chrome already carries its own dark overrides). */
+.md-board-detail--dark .md-sidebar-editor__confirm { border-top-color: rgba(240, 244, 250, 0.14); }
 .md-board-detail--dark .md-sidebar-editor__confirm-q { color: rgba(240, 244, 250, 0.72); }
 .md-board-detail--dark .md-sidebar-editor__row:hover { background: rgba(255, 255, 255, 0.05); }
 .md-board-detail--dark .md-sidebar-editor__action,
@@ -72967,6 +74034,19 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   font-size: 0.85rem;
   font-weight: 600;
   color: rgba($la-navy, 0.65);
+}
+/* ≤1024px: hide the language field entirely — it crowds the board name at this
+   width, so drop it and let the name (.md-board-collection__item-name, flex: 1 1 auto)
+   reclaim the full width. The grid-size pill keeps a shared min-width so it still
+   reads as a tidy, consistent column. */
+@media (max-width: 1024px) {
+  .md-board-collection__item-lang {
+    display: none;
+  }
+  .md-board-collection__item-count {
+    min-width: 54px;
+    text-align: center;
+  }
 }
 /* Home-board indicator. Mirrors the Glyphicon-home pattern from
    `app/components/board-icon.hbs` so the user's home board
@@ -73563,6 +74643,14 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   /* See .md-board-detail-layout — 100dvh prevents bottom-row clipping on
      Android Chrome/Edge where 100vh extends past the actual visible viewport. */
   height: calc(100dvh - 120px);
+}
+/* ARIA row wrapper for the board grid (grid → row → gridcell). `display: contents`
+   generates no layout box, so the gridcells inside it keep participating in the
+   parent .md-board-detail-grid's CSS grid exactly as before — the wrapper exists
+   only to give each row the role="row" that require-context-role (and screen-reader
+   grid navigation) needs. */
+.md-board-detail-grid__row {
+  display: contents;
 }
 /* Narrow screens (<=768px): override the user's grid-gap preference
    (--bd-button-gap) with a tight, fixed gap so the board fits more comfortably —
@@ -80328,6 +81416,11 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   flex-direction: column;
   min-height: 0;
 }
+/* 20% de-saturation on the rendered preview board buttons — applies wherever the
+   board-preview-canvas is used (the board-preview modal AND the Find Boards preview). */
+.board-preview-canvas__el {
+  filter: saturate(0.8);
+}
 /* Action buttons sit in a row DIRECTLY BELOW the preview canvas (inside the
    right-hand canvas column, to the right of the board-detail info). The row is
    RIGHT-ALIGNED so the primary CTA and its neighbours (Board Actions / Back)
@@ -81734,6 +82827,48 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   outline: none;
   border-color: $brand-verdigris;
   box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.12);
+}
+/* Segmented two-choice control (e.g. Primary Solution: app vs. Something Else) —
+   modern replacement for the Bootstrap `.btn-group` toggle. A pill container with
+   equal-width options; the active one gets the slate-blue brand fill. */
+.md-modal-segment {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba($la-navy, 0.05);
+  border: 1px solid rgba($la-navy, 0.10);
+}
+.md-modal-segment__option {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 11px 14px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 600;
+  color: $la-navy;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background 0.14s ease, color 0.14s ease, box-shadow 0.14s ease;
+}
+.md-modal-segment__option:hover { background: rgba($la-navy, 0.06); }
+.md-modal-segment__option--active,
+.md-modal-segment__option--active:hover {
+  background: linear-gradient(135deg, $brand-slate-blue, $brand-charcoal-blue);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba($brand-charcoal-blue, 0.28);
+}
+/* Read-only value line (e.g. the current home board key). */
+.md-modal-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: $la-navy;
+  margin: 0 0 10px;
+  word-break: break-word;
 }
 /* Style any Bootstrap form-control inside modern modals to match the
    md-modal-input / md-modal-select look (e.g. user-select component

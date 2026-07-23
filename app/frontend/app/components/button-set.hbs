@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -48,7 +48,7 @@
         <div class="md-translate-row md-translate-row--board">
           <div class="md-translate-row__source">{{this.model.board.name}}</div>
           <div class="md-translate-row__target">
-            <Input type="text" @value={{this.model.board.translated_name}} class="md-translate-input" placeholder={{t "translation" key="translation_placeholder"}} />
+            <input aria-label={{t "translation" key="translation_placeholder"}} value={{this.model.board.translated_name}} type="text" class="md-translate-input" placeholder={{t "translation" key="translation_placeholder"}} {{on "input" (set-field this "model.board.translated_name")}} />
           </div>
         </div>
       {{/if}}
@@ -64,7 +64,7 @@
               {{/if}}
             </div>
             <div class="md-translate-row__target">
-              <Input type="text" @value={{button.translation}} class="md-translate-input" placeholder={{t "translation" key="translation_placeholder"}} />
+              <input aria-label={{t "translation" key="translation_placeholder"}} type="text" value={{button.translation}} class="md-translate-input" placeholder={{t "translation" key="translation_placeholder"}}  {{on "input" (set-field button "translation")}}/>
             </div>
             {{#if button.secondary_translation}}
               <div class="md-translate-row__source">
@@ -76,7 +76,7 @@
                 {{/if}}
               </div>
               <div class="md-translate-row__target">
-                <Input type="text" @value={{button.secondary_translation}} class="md-translate-input" placeholder={{t "translation" key="translation_placeholder"}} />
+                <input aria-label={{t "translation" key="translation_placeholder"}} type="text" value={{button.secondary_translation}} class="md-translate-input" placeholder={{t "translation" key="translation_placeholder"}}  {{on "input" (set-field button "secondary_translation")}}/>
               </div>
             {{/if}}
           {{else}}
@@ -118,4 +118,4 @@
       <button class="md-modal-btn md-modal-btn--primary" {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</button>
     {{/if}}
   </div>
-{{/modal-dialog}}
+</ModalDialog>

@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -26,12 +26,12 @@
       <div style='max-width: 300px; margin: 20px auto;'>
         {{#if this.model.button}}
           <div style='text-align: center;'>
-            {{button-preview button=this.model.button}}
+            <ButtonPreview @button={{this.model.button}} />
           </div>
         {{else}}
           {{t "Phrase to speak" key="phrase_to_speak"}}
           <div>
-            <Input type="text" class="form-control" @value={{this.label}} />
+            <input value={{this.label}} type="text" class="form-control" aria-label={{t "Phrase to speak" key="phrase_to_speak"}} {{on "input" (set-field this "label")}} />
           </div>
         {{/if}}
       </div>
@@ -64,13 +64,13 @@
       {{#if this.can_write}}
         {{#unless this.update_tag_id}}
           <label>
-            <Input @type="checkbox" @checked={{this.write_tag}} />
+            <input type="checkbox" checked={{this.write_tag}} {{on "change" (set-field this "write_tag" "checkbox")}} />
             {{t "Write data to the NFC tag if possible" key="write_data_to_nfc_tag"}}
           </label>
         {{/unless}}
       {{/if}}
       <label>
-        <Input @type="checkbox" @checked={{this.public}} />
+        <input type="checkbox" checked={{this.public}} {{on "change" (set-field this "public" "checkbox")}} />
         {{t "Let others see this data when they tap the tag to their devices" key="share_tag_with_others"}}
       </label>
     {{/unless}}
@@ -89,4 +89,4 @@
       </button>
     {{/if}}
   </div>
-{{/modal-dialog}}
+</ModalDialog>

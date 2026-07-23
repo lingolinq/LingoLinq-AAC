@@ -1,5 +1,5 @@
-{{#grid-listener gridEvent=(this.ctrlAction "grid_event")}}
-{{#modal-dialog action=this.onClose opening=this.onOpening}}
+<GridListener @gridEvent={{this.ctrlAction "grid_event"}}>
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}}>
   <div class="la-new-board-modal-wrap la-generate-board-modal-wrap">
     <div class="la-modal-header">
       <span class="la-modal-header-label">{{t "Generate Board with AI" key="generate_board_with_ai"}}</span>
@@ -13,7 +13,7 @@
       <div class="form-group">
         <label for="generate_board_prompt" class="col-sm-2 control-label">{{t "Description" key="description"}}</label>
         <div class="col-sm-10">
-          <Textarea @value={{this.prompt}} class="form-control" id="generate_board_prompt" rows="3" placeholder={{this.prompt_placeholder}} />
+          <textarea class="form-control" id="generate_board_prompt" rows="3" placeholder={{this.prompt_placeholder}} {{on "input" (set-field this "prompt")}}>{{this.prompt}}</textarea>
         </div>
       </div>
       <div class="form-group">
@@ -23,7 +23,7 @@
             <span class="input-group-btn">
               <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "minus" "rows")}}>-</button>
             </span>
-            <Input @type="number" @value={{this.rows}} class="form-control" id="generate_board_rows" placeholder="2" />
+            <input type="number" value={{this.rows}} class="form-control" id="generate_board_rows" placeholder="2" {{on "input" (set-field this "rows")}} />
             <span class="input-group-btn">
               <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "plus" "rows")}}>+</button>
             </span>
@@ -37,7 +37,7 @@
             <span class="input-group-btn">
               <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "minus" "columns")}}>-</button>
             </span>
-            <Input @type="number" @value={{this.columns}} class="form-control" id="generate_board_columns" placeholder="4" />
+            <input type="number" value={{this.columns}} class="form-control" id="generate_board_columns" placeholder="4" {{on "input" (set-field this "columns")}} />
             <span class="input-group-btn">
               <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "plus" "columns")}}>+</button>
             </span>
@@ -61,7 +61,7 @@
         <div class="col-sm-10 col-sm-offset-2">
           <div class="checkbox big_checkbox">
             <label title={{this.core_words_tooltip}}>
-              <Input @type="checkbox" @checked={{this.include_core_words}} {{on "change" (fn (mut this.include_core_words) value="target.checked")}} id="generate_board_core_words" />
+              <input type="checkbox" checked={{this.include_core_words}} id="generate_board_core_words" {{on "change" (fn (mut this.include_core_words) value="target.checked")}} {{on "change" (set-field this "include_core_words" "checkbox")}} />
               {{t "Core Words" key="core_words"}}
             </label>
           </div>
@@ -70,13 +70,13 @@
       <div class="form-group">
         <label for="generate_board_locale" class="col-sm-2 control-label">{{t "Language" key="locale"}}</label>
         <div class="col-sm-10">
-          {{modern-select class="new-board-select--modern" selectId="generate_board_locale" content=this.locales selection=this.locale action=(this.ctrlAction "setLocale") ariaLabel=(t "Language" key="locale")}}
+          <ModernSelect @class="new-board-select--modern" @selectId="generate_board_locale" @content={{this.locales}} @selection={{this.locale}} @action={{this.ctrlAction "setLocale"}} @ariaLabel={{t "Language" key="locale"}} />
         </div>
       </div>
       <div class="form-group">
         <label for="generate_board_icon" class="col-sm-2 control-label">{{t "Icon" key="icon"}}</label>
         <div class="col-sm-10">
-          {{icon-select selection=this.image_url action=(mut this.image_url) }}
+          <IconSelect @selection={{this.image_url}} @action={{mut this.image_url}} />
         </div>
       </div>
       <div class="form-group">
@@ -91,26 +91,26 @@
               {{/if}}
             </button>
           </div>
-          <Textarea @value={{this.labels}} class="form-control" id="generate_board_labels" rows="4" placeholder={{this.labels_placeholder}} />
+          <textarea class="form-control" id="generate_board_labels" rows="4" placeholder={{this.labels_placeholder}} {{on "input" (set-field this "labels")}}>{{this.labels}}</textarea>
         </div>
       </div>
       <div class="form-group">
         <label for="generate_board_name" class="col-sm-2 control-label">{{t "Board name" key="board_name"}}</label>
         <div class="col-sm-10">
-          <Input @value={{this.name}} class="form-control" id="generate_board_name" placeholder="AI Generated Board" />
+          <input value={{this.name}} class="form-control" id="generate_board_name" placeholder="AI Generated Board" {{on "input" (set-field this "name")}} />
         </div>
       </div>
       <div class="form-group">
         <label for="generate_board_description" class="col-sm-2 control-label">{{t "Description" key="description"}}</label>
         <div class="col-sm-10">
-          <Textarea @value={{this.description}} class="form-control" id="generate_board_description" rows="2" placeholder={{this.description_placeholder}} />
+          <textarea class="form-control" id="generate_board_description" rows="2" placeholder={{this.description_placeholder}} {{on "input" (set-field this "description")}}>{{this.description}}</textarea>
         </div>
       </div>
       {{#if this.has_supervisees}}
         <div class="form-group">
           <label for="for_user_id" class="col-sm-2 control-label">{{t "For" key="for"}}</label>
           <div class="col-sm-10">
-            {{user-select select_id="for_user_id" selection=this.for_user_id action=(this.ctrlAction "setForUserId") }}
+            <UserSelect @select_id="for_user_id" @selection={{this.for_user_id}} @action={{this.ctrlAction "setForUserId"}} />
           </div>
         </div>
       {{/if}}
@@ -118,7 +118,7 @@
       <div class="form-group">
         <label for="generate_board_labels_order" class="col-sm-2 control-label">{{t "Label order" key="labels_order"}}</label>
         <div class="col-sm-10">
-          {{modern-select class="new-board-select--modern" selectId="generate_board_labels_order" content=this.labels_order_list selection=this.labels_order action=(this.ctrlAction "setLabelsOrder") ariaLabel=(t "Label order" key="labels_order")}}
+          <ModernSelect @class="new-board-select--modern" @selectId="generate_board_labels_order" @content={{this.labels_order_list}} @selection={{this.labels_order}} @action={{this.ctrlAction "setLabelsOrder"}} @ariaLabel={{t "Label order" key="labels_order"}} />
         </div>
       </div>
       {{#if this.status.error}}
@@ -139,5 +139,5 @@
       </div>
     </div>
   </div>
-{{/modal-dialog}}
-{{/grid-listener}}
+</ModalDialog>
+</GridListener>

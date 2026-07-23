@@ -37,18 +37,22 @@
         {{/if}}
         <div class="form-group">
           <div class="col-sm-9" style="padding-top: 30px;">
-            <label>{{t "Your Name" key="your_name"}}</label><br>
+            {{#let (unique-id) as |nameId|}}
+            <label for={{nameId}}>{{t "Your Name" key="your_name"}}</label><br>
             <span style="display: inline-block; width: 300px;">
-              <Input @type="text" @value={{this.subscription.name}} class="form-control input-lg" placeholder="Purchaser's Name" />
+              <input id={{nameId}} type="text" value={{this.subscription.name}} class="form-control input-lg" placeholder="Purchaser's Name" {{on "input" (set-field this "subscription.name")}} />
             </span>
+            {{/let}}
           </div>
         </div>
         <div class="form-group">
           <div class="col-sm-9" style="padding-top: 30px;">
-            <label>{{t "Your Email" key="your_email"}}</label><br>
+            {{#let (unique-id) as |emailId|}}
+            <label for={{emailId}}>{{t "Your Email" key="your_email"}}</label><br>
             <span style="display: inline-block; width: 300px;">
-              <Input @type="text" @value={{this.subscription.email}} class="form-control input-lg" placeholder="email@example.com" />
+              <input id={{emailId}} type="text" value={{this.subscription.email}} class="form-control input-lg" placeholder="email@example.com" {{on "input" (set-field this "subscription.email")}} />
             </span>
+            {{/let}}
           </div>
         </div>
         <div class="form-group">
@@ -79,12 +83,12 @@
             </div>
             <div>
               <label style='margin-top: 15px; font-size: 20px;'>
-                <Input @type="checkbox" @checked={{this.subscription.extras}} />
+                <input type="checkbox" checked={{this.subscription.extras}} {{on "change" (set-field this "subscription.extras" "checkbox")}} />
                 <img src="https://lingolinq.s3.amazonaws.com/icons/lessonpix_symbolstix_pcs.png" style="width: 60px; margin-left: 0px;" >
                 {{t "Add LessonPix, SymbolStix & PCS (BoardMaker) by Tobii Dynavox ($25)" key="include_extras"}}
               </label>
               <label style='margin-top: 15px; font-size: 20px;'>
-                <Input @type="checkbox" @checked={{this.subscription.donate}} />
+                <input type="checkbox" checked={{this.subscription.donate}} {{on "change" (set-field this "subscription.donate" "checkbox")}} />
                 {{t "Help sponsor a license for people with financial need ($50)" key="donate_license"}}
               </label>
             </div>
@@ -96,7 +100,7 @@
                 <div style="float: left; width: 250px;">
                   <div class="input-group input-group-lg">
                     <span class="input-group-addon">$</span>
-                   <Input @type="text" @value={{this.subscription.subscription_custom_amount}} class="form-control small-placeholder" placeholder="multiple of $50 at least $150" />
+                   <input type="text" value={{this.subscription.subscription_custom_amount}} class="form-control small-placeholder" placeholder="multiple of $50 at least $150" aria-label={{t "Gift amount in dollars" key="gift_amount_in_dollars"}} {{on "input" (set-field this "subscription.subscription_custom_amount")}} />
                   </div>
                 </div>
               {{/if}}

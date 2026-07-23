@@ -2,7 +2,7 @@ import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { observer } from '@ember/object';
 import i18n from '../utils/i18n';
-import { availableHomeSections, sectionHidden, sectionLabel, sectionsMapFor, HOME_SECTIONS, EXTRA_HOME_TOGGLES, gridLayoutState, reorderInsert, reorderForFocused, defaultOrderFor } from '../utils/dashboard_sections';
+import { availableHomeSections, sectionHidden, sectionLabel, sectionsMapFor, HOME_SECTIONS, EXTRA_HOME_TOGGLES, gridLayoutState, reorderInsert, reorderForFocused, defaultOrderFor, focusedHeroKey } from '../utils/dashboard_sections';
 
 // Centered-step show hook — toggles the body flag the CSS uses to scope the
 // "paused" backdrop blur to centered (non-anchored) modal steps, mirroring
@@ -636,7 +636,7 @@ function _onDisplayShow(component) {
           var on = vis[t.key] && !(t.gentleOnly && layout === 'focused');
           setCardDisplay(t.cardClass, on);
         });
-        var state = gridLayoutState(vis, flagOn ? order : null, layout);
+        var state = gridLayoutState(vis, flagOn ? order : null, layout, focusedHeroKey(previewUser));
         // Reconcile ALL engine-driven state classes (boards-full + the gentle
         // per-card md-grid--fullspan-<key>) so the preview matches the real grid:
         // strip the current set, then add the computed one.

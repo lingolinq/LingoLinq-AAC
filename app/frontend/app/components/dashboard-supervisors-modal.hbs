@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="la-support-modal-wrap md-dashboard-supervisors-modal-wrap" role="document">
     <div class="la-modal-header">
       <span class="la-modal-header-label">{{t "Supervisors" key="supervisors"}}</span>
@@ -64,7 +64,7 @@
               </span>
             {{/unless}}
             <div class="md-dashboard-supervisors-modal__settings">
-              {{supervision-settings inline=true model=this.appState.currentUser compactInline=true hideMakeSupervisorButton=true}}
+              <SupervisionSettings @inline={{true}} @model={{this.appState.currentUser}} @compactInline={{true}} @hideMakeSupervisorButton={{true}} />
             </div>
           </div>
           {{#if this.appState.currentUser.supervised_units}}
@@ -83,4 +83,4 @@
       </div>
     </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

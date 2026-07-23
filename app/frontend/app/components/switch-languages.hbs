@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -33,7 +33,7 @@
             </div>
           {{else}}
             <div class='input-group input-group-lg' style='min-width: 200px;'>
-              {{bound-select select_class="form-control big_select" select_id="vocalization_locale" content=this.locales selection=this.vocalization_locale action=(this.ctrlAction "set_locale" "vocalization") }}
+              <BoundSelect @select_class="form-control big_select" @select_id="vocalization_locale" @content={{this.locales}} @selection={{this.vocalization_locale}} @action={{this.ctrlAction "set_locale" "vocalization"}} />
             </div>
           {{/if}}
         </div>
@@ -42,7 +42,7 @@
         <div class='col-sm-8 col-sm-offset-4'>
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.same_locale}} />
+              <input type="checkbox" checked={{this.same_locale}} {{on "change" (set-field this "same_locale" "checkbox")}} />
               {{t "Use the same language for button labels and speech generation" key="use_same_language"}}
             </label>
           </div>
@@ -63,7 +63,7 @@
               </div>
             {{else}}
               <div class='input-group input-group-lg' style='min-width: 200px;'>
-                {{bound-select select_class="form-control big_select" select_id="label_locale" content=this.locales selection=this.label_locale action=(this.ctrlAction "set_locale" "label") }}
+                <BoundSelect @select_class="form-control big_select" @select_id="label_locale" @content={{this.locales}} @selection={{this.label_locale}} @action={{this.ctrlAction "set_locale" "label"}} />
               </div>
             {{/if}}
           </div>
@@ -78,4 +78,4 @@
     </button>
     <button class='btn btn-lg btn-primary' {{on "click" (this.ctrlAction "set_languages")}}>{{t "Switch Languages" key="switch_languages"}}</button>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

@@ -144,6 +144,28 @@ task "scheduler:dispatch" => :environment do
       "#{count} AI log IPs redacted"
     end
 
+    # AiApiLog tiered retention (reconciled with docs/legal/DATA_RETENTION.md and
+    # docs/legal/AI_DATA_FLOW_CLASSIFICATION.md section 6; keep these three surfaces
+    # identical). Windows: 24 months general, 12 months rolling children (under-13),
+    # up to 5 years EU-jurisdiction, up to 6 years HIPAA hard floor
+    # (45 CFR 164.316(b)(2)). NOT a flat 24-month purge.
+    #
+    # ENFORCED here today:
+    #   - EU 5-year purge (purge_old_eu_ai_api_logs below): scans jurisdiction = 'EU'
+    #     rows, which the Art50 Phase 4 shared call-context helper now stamps at the
+    #     three AI call sites. It is functional wherever Phase 4 is deployed (staged
+    #     on staging; effective in production only after the Phase 4/5 prod deploy).
+    #   - 90-day IP redaction (redact_old_ai_api_log_ips above).
+    #   - Row-lifecycle deletion when the owning account is deleted (Flusher cascade).
+    #
+    # DECIDED, NOT YET ENFORCED (no task here on purpose): the 24-month general and
+    # 12-month children tiers. ai_api_logs carries no per-row child-subject or
+    # HIPAA-covered marker (only jurisdiction / user_global_id / organization_global_id),
+    # so a purge that safely carves out the 6-year HIPAA audit floor and the 12-month
+    # children tier cannot be written without first stamping those classes at write
+    # time (a schema + call-site change). A blanket 24-month delete is deliberately NOT
+    # shipped because it would destroy HIPAA audit-floor rows early. Tracked in
+    # docs/legal/DATA_RETENTION.md and AI_DATA_FLOW_CLASSIFICATION.md section 6.
     run_task.call("purge_old_eu_ai_api_logs") do
       count = AiApiLog.purge_old_eu_logs!
       "#{count} EU AI logs purged (5-year retention)"

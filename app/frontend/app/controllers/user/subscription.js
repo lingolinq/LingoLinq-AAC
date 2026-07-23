@@ -10,6 +10,7 @@ import progress_tracker from '../../utils/progress_tracker';
 
 export default Controller.extend({
   appState: service('app-state'),
+  session: service('session'),
   // Alias for template compatibility (template uses this.app_state)
   app_state: alias('appState'),
   router: service('router'),

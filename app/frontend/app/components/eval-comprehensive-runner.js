@@ -4,6 +4,7 @@ import { inject as service } from '@ember/service';
 import i18n from '../utils/i18n';
 import prompt_hierarchy from '../utils/eval_prompt_hierarchy';
 import persistence from '../utils/persistence';
+import article50Gate from '../utils/article50_gate';
 
 /*
  * eval-comprehensive-runner — Phase 3 scaffold. Comprehensive Eval
@@ -344,44 +345,77 @@ export default Component.extend({
         this.set('aiError', i18n.t('comp_ai_no_payload', "Could not assemble the eval payload."));
         return;
       }
-      this.set('aiBusy', true);
-      this.set('aiError', null);
-      // Send the evaluated student's id so the server can apply the same
-      // COPPA consent + org AI opt-out gate as every other AI call site
-      // before any eval data leaves for the AI provider.
-      const user = this.get('user');
-      const userId = user && user.get ? user.get('id') : null;
-      // use_anthropic: true is the SLP's explicit opt-in for external-model
-      // narration. This action only runs when they click "Generate AI
-      // Narrative"; the server defaults to the local template and sends no
-      // eval data to the AI provider unless this flag is present.
-      persistence.ajax('/api/v1/eval_sessions/narrate', {
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({ eval_session: payload.data, user_id: userId, use_anthropic: true })
-      }).then(function(res) {
+      // EU AI Act Article 50(1): first-AI-use gate. BLOCK mode (D-03) -- clinician
+      // initiated, not mid-communication, so blocking here is safe. Resolves
+      // immediately when no acknowledgement is needed. Safe to open from here:
+      // eval-comprehensive-runner renders inside eval-quick-screen, a ROUTE page
+      // (templates/eval/quick.hbs), not a modal -- so the disclosure does not
+      // replace its own host the way it would in generate-board.
+      //
+      // GATE SUBJECT: the CLINICIAN (appState.currentUser), deliberately NOT the
+      // evaluated student, even though `user_id` below correctly carries the
+      // student for the COPPA / org-opt-out gate. Two different questions:
+      //   - "may this student's data be processed by AI at all?" -> the student.
+      //     Enforced server-side (EvalNarrator.ai_allowed_for?).
+      //   - "has the human interacting with this AI been told it is an AI?"
+      //     -> Article 50(1) informs the person INTERACTING. That is the SLP
+      //     sitting at the keyboard, who clicks Generate and reads the draft.
+      // The student is also not identifiable in the egress: payload_for_prompt
+      // (lib/eval_narrator.rb) drops the student name and the etiology/diagnosis
+      // outright, and PiiScrubber runs with the resolved student's name
+      // blocklisted. Recording an acknowledgement against a student who never saw
+      // the notice would need a new ARTICLE_50_DISCLOSURE_SOURCES entry and would
+      // make the audit trail less truthful, not more. Reviewed and settled
+      // 2026-07-21; see docs/task-management/2026-07-21-art50-phase3-review-fixes.md.
+      article50Gate.presentBlockingGate(this.get('appState')).then(function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('aiBusy', true);
+        _this.set('aiError', null);
+        // Send the evaluated student's id so the server can apply the same
+        // COPPA consent + org AI opt-out gate as every other AI call site
+        // before any eval data leaves for the AI provider.
+        const user = _this.get('user');
+        const userId = user && user.get ? user.get('id') : null;
+        // use_anthropic: true is the SLP's explicit opt-in for external-model
+        // narration. This action only runs when they click "Generate AI
+        // Narrative"; the server defaults to the local template and sends no
+        // eval data to the AI provider unless this flag is present.
+        persistence.ajax('/api/v1/eval_sessions/narrate', {
+          type: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify({ eval_session: payload.data, user_id: userId, use_anthropic: true })
+        }).then(function(res) {
+          if (_this.isDestroyed || _this.isDestroying) { return; }
+          _this.set('aiBusy', false);
+          const narrative = res && res.narrative;
+          if (!narrative) {
+            _this.set('aiError', i18n.t('comp_ai_empty', "The AI did not return a narrative."));
+            return;
+          }
+          session.set('aiNarrative', narrative);
+          // EU AI Act Article 50(2): carry the marker the server minted for this
+          // narrative (null for the deterministic template path) so it saves with
+          // the log. See EvalSession#toLogPayload.
+          session.set('aiGenerated', res.ai_generated || null);
+          const onEvent = _this.get('onEvent');
+          if (onEvent) {
+            onEvent({
+              subtest: 'ai_narration',
+              converged: true,
+              narrative_length: narrative.length
+            });
+          }
+        }, function(err) {
+          if (_this.isDestroyed || _this.isDestroying) { return; }
+          _this.set('aiBusy', false);
+          _this.set('aiError', (err && err.error) || i18n.t('comp_ai_failed', "AI narration failed. Please try again."));
+        });
+      }, function() {
+        // Art.50 gate not acknowledged. Fail-closed: no narration request fires.
+        // Surface a reason rather than leaving the button looking broken.
+        if (_this.isDestroyed || _this.isDestroying) { return; }
         _this.set('aiBusy', false);
-        const narrative = res && res.narrative;
-        if (!narrative) {
-          _this.set('aiError', i18n.t('comp_ai_empty', "The AI did not return a narrative."));
-          return;
-        }
-        session.set('aiNarrative', narrative);
-        // EU AI Act Article 50(2): carry the marker the server minted for this
-        // narrative (null for the deterministic template path) so it saves with
-        // the log. See EvalSession#toLogPayload.
-        session.set('aiGenerated', res.ai_generated || null);
-        const onEvent = _this.get('onEvent');
-        if (onEvent) {
-          onEvent({
-            subtest: 'ai_narration',
-            converged: true,
-            narrative_length: narrative.length
-          });
-        }
-      }, function(err) {
-        _this.set('aiBusy', false);
-        _this.set('aiError', (err && err.error) || i18n.t('comp_ai_failed', "AI narration failed. Please try again."));
+        _this.set('aiError', i18n.t('comp_ai_disclosure_required', "Please review the AI transparency notice before generating an AI narrative."));
       });
     },
     editAiNarrative(value) {

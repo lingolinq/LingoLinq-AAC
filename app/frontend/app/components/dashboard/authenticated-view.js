@@ -17,7 +17,7 @@ import modal from '../../utils/modal';
 import sync from '../../utils/sync';
 import i18n from '../../utils/i18n';
 import { filterRootBoards } from '../../utils/board-roots';
-import { availableHomeSections, sectionHidden, gridLayoutState, communicatorsNeedingAttention } from '../../utils/dashboard_sections';
+import { availableHomeSections, sectionHidden, gridLayoutState, focusedHeroKey, communicatorsNeedingAttention } from '../../utils/dashboard_sections';
 
 export default Component.extend({
   tagName: '',
@@ -165,12 +165,24 @@ export default Component.extend({
     }
   ),
 
+  // The Focused View hero for THIS user, resolved by role (admin > supervisor >
+  // communicator): 'org' for admins, 'caseload' for supervisors, 'speak' for
+  // communicators. Drives which section gets the full-width hero showcase (the
+  // grid `md-grid--hero-<key>` class + the template's per-hero card variant).
+  heroKey: computed(
+    'appState.currentUser.supporter_role',
+    'appState.currentUser.organizations',
+    function() {
+      return focusedHeroKey(this.get('appState.currentUser'));
+    }
+  ),
+
   // Dashboard grid state derived from visibility — the card-styling classes plus
   // the computed grid-template-areas/rows. The layout is applied as an inline
   // style (gridStyle) from the shared layout matrix, so the home grid and the
   // Getting Started preview reflow identically with no CSS-specificity juggling.
-  dashboardGrid: computed('sectionVisibility', 'sectionOrder', 'effectiveLayout', function() {
-    return gridLayoutState(this.get('sectionVisibility'), this.get('sectionOrder'), this.get('effectiveLayout'));
+  dashboardGrid: computed('sectionVisibility', 'sectionOrder', 'effectiveLayout', 'heroKey', function() {
+    return gridLayoutState(this.get('sectionVisibility'), this.get('sectionOrder'), this.get('effectiveLayout'), this.get('heroKey'));
   }),
 
   // The user's saved drag-to-reorder arrangement: an ordered array of section
@@ -1278,6 +1290,12 @@ export default Component.extend({
     },
     openSearch: function() {
       this.set('isSearchOpen', true);
+      // Move focus to the search field once the overlay renders (replaces the
+      // `autofocus` attribute, which reduces accessibility and is unreliable in an SPA).
+      runLater(function() {
+        var el = document.querySelector('.md-searchOverlay__input');
+        if(el) { el.focus(); }
+      }, 50);
     },
     closeSearch: function() {
       this.set('isSearchOpen', false);

@@ -6,7 +6,7 @@
 <div class="app-shell" ...attributes>
 
   {{!-- ======== TOP BAR ======== --}}
-  <header class="app-topbar" role="banner">
+  <header class="app-topbar">
     <div class="topbar__logo" aria-label="VoiceReach">
       Voice<span>Reach</span>
     </div>
@@ -49,6 +49,7 @@
     {{#each this.navGroups as |group|}}
       <div class="sidebar__section-label">{{group.section}}</div>
 
+      <div role="group" aria-label={{group.section}} style="display: contents;">
       {{#each group.items as |item|}}
         <LinkTo
           class="nav-item {{if (is-active item.route) 'active'}}"
@@ -60,16 +61,17 @@
           {{item.label}}
         </LinkTo>
       {{/each}}
+      </div>
     {{/each}}
   </aside>
 
   {{!-- ======== MAIN CONTENT ======== --}}
-  <main class="app-main" id="main-content" role="main">
+  <main class="app-main" id="main-content">
     {{yield}}
   </main>
 
   {{!-- ======== RIGHT PANEL ======== --}}
-  <aside class="app-panel" role="complementary" aria-label="Activity panel">
+  <aside class="app-panel" aria-label="Activity panel">
 
     {{!-- Recent Phrases --}}
     <div class="panel-card">

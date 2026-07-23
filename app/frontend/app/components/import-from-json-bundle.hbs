@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}}>
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -17,7 +17,7 @@
              class="btn btn-default md-json-bundle-export__bookmarklet"
              draggable="true"
              {{on "click" (this.ctrlAction "preventBookmarkletClick")}}
-             {{on "dragstart" (this.ctrlAction "dragBookmarklet")}}>
+             {{on "dragstart" (this.eventAction "dragBookmarklet")}}>
             {{t "Export CoughDrop boards" key="coughdrop_export_bookmarklet_label"}}
           </a>
         </div>
@@ -68,4 +68,4 @@
       {{/if}}
     </button>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="modal-header md-modal-header md-new-goal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -95,7 +95,7 @@
             <div class="col-sm-10">
               <div class="checkbox big_checkbox">
                 <label>
-                  <Input @type="checkbox" @checked={{this.selected_goal.user_primary}} id="primary" />
+                  <input type="checkbox" checked={{this.selected_goal.user_primary}} id="primary" {{on "change" (set-field this "selected_goal.user_primary" "checkbox")}} />
                   {{t "Set as the User's Primary Goal" key="set_as_primary_user_goal"}}
                 </label>
               </div>
@@ -106,10 +106,10 @@
           <div class="form-group">
             <label for="new_goal_concludes" class="col-sm-2 control-label">{{t "Concludes" key="concludes"}}</label>
             <div class="col-sm-7" style='max-width: 300px;'>
-              <Input @type="date" @value={{this.goal.expires}} class="form-control" id="new_goal_concludes" />
+              <input type="date" value={{this.goal.expires}} class="form-control" id="new_goal_concludes" {{on "input" (set-field this "goal.expires")}} />
             </div>
             <div class='col-sm-3'>
-              <button class='btn btn-default' {{on "click" (this.ctrlAction "clear_expires")}}>{{t "clear" key="clear_lower"}}</button>
+              <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "clear_expires")}}>{{t "clear" key="clear_lower"}}</button>
             </div>
           </div>
         {{/unless}}
@@ -159,15 +159,15 @@
       <form class="md-modal-form">
         <div class="md-modal-field">
           <label for="new_goal_type" class="md-modal-label">{{t "Type" key="type"}}</label>
-          {{modern-select class="md-modal-modern-select" selectId="new_goal_type" content=this.simple_types selection=this.goal.simple_type action=(this.ctrlAction "updateGoalSimpleType") ariaLabel=(t "Goal type" key="goal_type_aria") placeholder=(t "[ Select a Goal Type ]" key="select_a_goal_type")}}
+          <ModernSelect @class="md-modal-modern-select" @selectId="new_goal_type" @content={{this.simple_types}} @selection={{this.goal.simple_type}} @action={{this.ctrlAction "updateGoalSimpleType"}} @ariaLabel={{t "Goal type" key="goal_type_aria"}} @placeholder={{t "[ Select a Goal Type ]" key="select_a_goal_type"}} />
         </div>
         {{#if this.goal_type.strings_list}}
           <div class="md-modal-field">
             <label for="new_goal_strings_list" class="md-modal-label">{{t "Target Words" key="target_words"}}</label>
             {{#if this.goal_type.modeling}}
-              <Input @value={{this.goal.strings_list}} class="form-control" id="new_goal_strings_list" placeholder="modeling targets (optional)" />
+              <input value={{this.goal.strings_list}} class="form-control" id="new_goal_strings_list" placeholder="modeling targets (optional)" {{on "input" (set-field this "goal.strings_list")}} />
             {{else}}
-              <Input @value={{this.goal.strings_list}} class="form-control" id="new_goal_strings_list" placeholder="words, to, watch, for" />
+              <input value={{this.goal.strings_list}} class="form-control" id="new_goal_strings_list" placeholder="words, to, watch, for" {{on "input" (set-field this "goal.strings_list")}} />
             {{/if}}
           </div>
         {{/if}}
@@ -175,7 +175,7 @@
           <div class="md-modal-field">
             <label for="new_goal_instance_count" class="md-modal-label">{{t "Try For" key="try_for"}}</label>
             <div class="md-modal-inline-row">
-              <Input @value={{this.goal.instance_count}} class="form-control md-modal-input--narrow" id="new_goal_instance_count" placeholder="#" />
+              <input value={{this.goal.instance_count}} class="form-control md-modal-input--narrow" id="new_goal_instance_count" placeholder="#" {{on "input" (set-field this "goal.instance_count")}} />
               <span class="md-modal-hint md-modal-hint--inline">{{this.goal_simple_action}} {{t "per day" key="per_day_lower"}}</span>
             </div>
           </div>
@@ -184,36 +184,36 @@
           {{#if this.has_simple_content}}
             <div class="md-modal-field">
               <label for="new_goal_summary" class="md-modal-label">{{t "Summary" key="summary"}}</label>
-              <Input @value={{this.goal.summary}} class="form-control" id="new_goal_summary" placeholder="short goal summary" />
+              <input value={{this.goal.summary}} class="form-control" id="new_goal_summary" placeholder="short goal summary" {{on "input" (set-field this "goal.summary")}} />
             </div>
           {{/if}}
         {{/if}}
         {{#if this.goal_type.custom}}
           <div class="md-modal-field">
             <label for="new_goal_description" class="md-modal-label">{{t "Description" key="description"}}</label>
-            <Textarea @value={{this.goal.description}} class="form-control" id="new_goal_description" placeholder="longer, detailed description of the goal" />
+            <textarea class="form-control" id="new_goal_description" placeholder="longer, detailed description of the goal" {{on "input" (set-field this "goal.description")}}>{{this.goal.description}}</textarea>
           </div>
           {{#if this.goal.video}}
             <div class="md-modal-field">
               <label class="md-modal-label">{{t "Video" key="video"}}</label>
-              <video src={{this.model.video.url}} controls class="md-modal-video"></video>
+              <video src={{this.model.video.url}} controls class="md-modal-video" aria-label={{t "Goal video" key="goal_video"}}></video>
               <a href="#" class="md-modal-link" {{on "click" (this.ctrlAction "reset_video")}}>{{t "Remove Video" key="remove_video"}}</a>
             </div>
           {{else}}
             <div class="md-modal-field">
               <label class="md-modal-label">{{t "Video" key="video"}}</label>
-              {{video-recorder user=this.model.user video_ready=(this.ctrlAction "video_ready") video_not_ready=(this.ctrlAction "video_not_ready")}}
+              <VideoRecorder @user={{this.model.user}} @video_ready={{this.ctrlAction "video_ready"}} @video_not_ready={{this.ctrlAction "video_not_ready"}} />
             </div>
           {{/if}}
           <div class="md-modal-field">
             <label class="md-modal-label">{{t "Assessment" key="auto_assessment"}}</label>
             <label class="md-modal-check" for="auto_assessment">
-              <Input @type="checkbox" @checked={{this.goal.auto_assessment}} id="auto_assessment" class="md-modal-check__input" />
+              <input type="checkbox" checked={{this.goal.auto_assessment}} id="auto_assessment" class="md-modal-check__input" {{on "change" (set-field this "goal.auto_assessment" "checkbox")}} />
               <span class="md-modal-check__label">{{t "Generate a daily progress report for mastery of this goal" key="auto_generate_goal_daily"}}</span>
             </label>
           </div>
           {{#if this.goal.assessment_badge}}
-            {{badge-settings badge=this.goal.assessment_badge assessment=true}}
+            <BadgeSettings @badge={{this.goal.assessment_badge}} @assessment={{true}} />
           {{/if}}
 
         {{/if}}
@@ -225,7 +225,7 @@
                 {{#each this.model.users as |user|}}
                   <li>
                     <label class="md-modal-check md-modal-check--user {{if user.not_premium "is-not-premium"}} {{if user.add_goal "is-selected"}}">
-                      <Input @type="checkbox" @checked={{user.add_goal}} disabled={{user.not_premium}} class="md-modal-check__input" />
+                      <input type="checkbox" checked={{user.add_goal}} disabled={{user.not_premium}} class="md-modal-check__input"  {{on "change" (set-field user "add_goal" "checkbox")}}/>
                       <img src={{user.avatar_url}} class="md-modal-user-list__avatar" alt="">
                       <span class="md-modal-check__label">{{user.user_name}}</span>
                     </label>
@@ -239,7 +239,7 @@
               <div class="md-modal-field">
                 <label class="md-modal-label">{{t "Badges" key="badges"}}</label>
                 <label class="md-modal-check" for="set_badges">
-                  <Input @type="checkbox" @checked={{this.goal.set_badges}} id="set_badges" class="md-modal-check__input" />
+                  <input type="checkbox" checked={{this.goal.set_badges}} id="set_badges" class="md-modal-check__input" {{on "change" (set-field this "goal.set_badges" "checkbox")}} />
                   <span class="md-modal-check__label">{{t "I want to create earnable badges as part of this goal" key="created_badges"}}</span>
                 </label>
               </div>
@@ -248,7 +248,7 @@
               <div class="md-modal-field">
                 <label class="md-modal-label">{{t "Primary" key="primary"}}</label>
                 <label class="md-modal-check" for="primary">
-                  <Input @type="checkbox" @checked={{this.goal.primary}} id="primary" class="md-modal-check__input" />
+                  <input type="checkbox" checked={{this.goal.primary}} id="primary" class="md-modal-check__input" {{on "change" (set-field this "goal.primary" "checkbox")}} />
                   <span class="md-modal-check__label">
                     {{#if this.model.user.user_goal}}
                       {{t "Set as the User's New Primary Goal" key="set_as_new_primary_user_goal"}}
@@ -265,7 +265,7 @@
           <div class="md-modal-field">
             <label for="new_goal_concludes" class="md-modal-label">{{t "Concludes" key="concludes"}}</label>
             <div class="md-modal-inline-row">
-              <Input @type="date" @value={{this.goal.expires}} class="form-control md-modal-input--date" id="new_goal_concludes" />
+              <input type="date" value={{this.goal.expires}} class="form-control md-modal-input--date" id="new_goal_concludes" {{on "input" (set-field this "goal.expires")}} />
               <button type="button" class="md-modal-btn md-modal-btn--cancel md-modal-btn--inline" {{on "click" (this.ctrlAction "clear_expires")}}>{{t "clear" key="clear_lower"}}</button>
             </div>
           </div>
@@ -318,4 +318,4 @@
       {{/if}}
     {{/if}}
   </div>
-{{/modal-dialog}}
+</ModalDialog>

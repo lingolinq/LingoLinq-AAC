@@ -1,0 +1,888 @@
+// =============================================================================
+// Goal detail + edit page  (/:user/goals/:goal_id — route user.goal)
+// =============================================================================
+// Modernizes the legacy Bootstrap goal view (State/Date/Average/Sessions cards,
+// badges, notes) and the inline edit form. Renders inside the user workspace
+// (.md-shell--user > .md-workspace > .md-main--user), so no shell/mesh here — the
+// workspace already provides the background + panel. Tokens from _variables.scss;
+// card language mirrors _badges.scss and the org/start-code tiles.
+
+@use "variables" as *;
+
+// Elevation scale — the depth hierarchy between panels. Each = a tight contact
+// shadow + a wide ambient shadow; higher level lifts further off the mesh.
+$goal-elev-1: 0 1px 2px rgba($la-navy, 0.04), 0 3px 10px rgba($la-navy, 0.05);   // content sections (recede)
+$goal-elev-2: 0 2px 5px rgba($la-navy, 0.06), 0 9px 24px rgba($la-navy, 0.08);   // stats / edit form (secondary)
+$goal-elev-3: 0 4px 10px rgba($la-navy, 0.09), 0 18px 40px rgba($la-navy, 0.12); // hero (primary anchor)
+$goal-top-hl: inset 0 1px 0 rgba(255, 255, 255, 0.7);                             // glassy top edge
+
+.md-goal {
+  max-width: 1040px;
+  margin: 0 auto;
+}
+
+// ── Hero (goal identity panel) ───────────────────────────────────────────────
+.md-goal__hero {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin-bottom: 20px;
+  padding: 28px 30px;
+  border-radius: 20px;
+  background: linear-gradient(158deg, #ffffff 0%, rgba(240, 245, 252, 0.94) 60%, rgba(232, 240, 251, 0.92) 100%);
+  border: 1px solid rgba($la-navy, 0.12);
+  // Layered lift + a soft brand-denim glow radiating behind the hero.
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    $goal-elev-3,
+    0 14px 50px rgba($brand-dusty-denim, 0.24);
+}
+
+.md-goal__hero-badge {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 84px;
+  height: 84px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba($brand-honey-bronze, 0.22), rgba($brand-honey-bronze, 0.10));
+  border: 1px solid rgba($brand-honey-bronze, 0.40);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 4px 12px rgba($brand-honey-bronze, 0.22);
+}
+.md-goal__hero-badge-img {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+}
+
+.md-goal__hero-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.md-goal__hero-top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.md-goal__title {
+  // override the global `h1/h2 { height: 60px; display: inline-block }` chrome
+  display: block;
+  height: auto;
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.18;
+  letter-spacing: -0.01em;
+  color: var(--md-ink, $brand-blue-black);
+}
+
+.md-goal__state-pill {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  background: rgba($brand-dusty-denim, 0.12);
+  color: $brand-dusty-denim-aa;
+  border: 1px solid rgba($brand-dusty-denim, 0.22);
+}
+.md-goal__state-pill--past {
+  background: rgba($la-navy, 0.08);
+  color: var(--md-muted, $la-navy);
+  border-color: rgba($la-navy, 0.12);
+}
+
+// ── Stat tiles ───────────────────────────────────────────────────────────────
+// The stats row is itself a section panel; the four tiles read as soft cells
+// inside it (subtle tint) rather than free-floating cards.
+.md-goal__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
+  gap: 14px;
+  padding: 20px 22px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.80));
+  border: 1px solid rgba($la-navy, 0.10);
+  box-shadow: $goal-top-hl, $goal-elev-2;
+}
+
+// Raised gradient tiles — a subtle white→cool-blue wash (cohesive with the hero)
+// plus a top highlight + soft drop shadow gives each metric real depth.
+.md-goal-stat {
+  padding: 15px 16px;
+  border-radius: 14px;
+  background: linear-gradient(158deg, #ffffff 0%, rgba(234, 241, 250, 0.92) 100%);
+  border: 1px solid rgba($la-navy, 0.09);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 2px 6px rgba($la-navy, 0.06);
+}
+
+.md-goal-stat__label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--md-muted, $la-navy);
+  opacity: 0.7;
+}
+
+.md-goal-stat__value {
+  margin-top: 8px;
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--md-ink, $brand-blue-black);
+}
+
+.md-goal-stat__sub {
+  margin-top: 5px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--md-muted, $la-navy);
+}
+.md-goal-stat__sub a {
+  color: $brand-dusty-denim-aa;
+  font-weight: 600;
+  text-decoration: none;
+}
+.md-goal-stat__sub a:hover { text-decoration: underline; }
+
+// Charts row (goal-statuses-over-time / goal-summary components) sit below the
+// tiles; give them breathing room and let them span the full width.
+.md-goal__charts {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 18px;
+}
+
+// ── Sections ─────────────────────────────────────────────────────────────────
+// Every content block gets its own surface panel so the page reads as distinct,
+// grouped sections on the mesh rather than floating text/cards.
+.md-goal__section {
+  position: relative;
+  overflow: hidden; // clips the accent stripe to the panel's rounded corners
+  margin-top: 18px;
+  padding: 22px 24px 22px 28px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.74));
+  border: 1px solid rgba($la-navy, 0.08);
+  box-shadow: $goal-top-hl, $goal-elev-1;
+}
+// Full-height accent stripe cradling the left edge of the whole section.
+.md-goal__section::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background: linear-gradient(180deg, $brand-dusty-denim, $brand-verdigris);
+}
+
+.md-goal__section-title {
+  display: block;
+  height: auto;
+  margin: 0 0 16px;
+  // !important to beat the global `h2 { font-size: 25px !important }` (app.scss ~2589),
+  // which was overriding this and rendering the section headers at 25px.
+  font-size: 18px !important;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--md-ink, $brand-blue-black);
+}
+
+.md-goal__description {
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: var(--md-ink, $brand-blue-black);
+}
+.md-goal__description :where(p, ul, ol) { margin: 0 0 10px; }
+.md-goal__description a { color: $brand-dusty-denim-aa; font-weight: 600; }
+
+.md-goal__note {
+  margin: 6px 0 0;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--md-muted, $la-navy);
+}
+.md-goal__note em { color: var(--md-ink, $brand-blue-black); font-style: italic; }
+
+.md-goal__video {
+  margin-top: 14px;
+  max-width: 100%;
+  max-height: 400px;
+  border-radius: 12px;
+  border: 1px solid rgba($la-navy, 0.12);
+}
+
+// ── Badge cards ──────────────────────────────────────────────────────────────
+.md-goal-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.md-goal-badge {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 7px;
+  width: 152px;
+  padding: 20px 14px 16px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff, rgba(255, 255, 255, 0.88));
+  border: 1px solid rgba($la-navy, 0.07);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 3px 10px rgba($la-navy, 0.07);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.md-goal-badge.is-earned {
+  border-color: rgba($brand-honey-bronze, 0.5);
+  background: linear-gradient(180deg, rgba(255, 249, 236, 0.95), rgba(255, 250, 240, 0.85));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 5px 16px rgba($brand-honey-bronze, 0.24);
+}
+.md-goal-badge.is-locked { opacity: 0.72; }
+.md-goal-badge.is-clickable { cursor: pointer; }
+.md-goal-badge.is-clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba($la-navy, 0.10);
+}
+
+.md-goal-badge__img-wrap {
+  position: relative;
+  line-height: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+.md-goal-badge__img {
+  width: 78px;
+  height: 78px;
+  object-fit: contain;
+}
+.md-goal-badge:not(.is-earned) .md-goal-badge__img {
+  filter: grayscale(0.35);
+  opacity: 0.85;
+}
+.md-goal-badge__sparkle {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  font-size: 20px;
+  line-height: 1;
+  color: $brand-honey-bronze;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.md-goal-badge__level {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--md-ink, $brand-blue-black);
+}
+
+.md-goal-badge__earned {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: $brand-verdigris-aa;
+}
+
+.md-goal-badge__hint {
+  font-size: 12.5px;
+  color: var(--md-muted, $la-navy);
+}
+
+.md-goal-badge__progress {
+  width: 100%;
+  max-width: 120px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba($la-navy, 0.10);
+  overflow: hidden;
+}
+.md-goal-badge__bar {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, $brand-dusty-denim, $brand-dusty-denim-aa);
+}
+
+// ── Notes & Assessments table ────────────────────────────────────────────────
+// Sits directly on the Notes section panel — hairline frame only, the panel
+// provides the surface (no double-card).
+.md-goal-notes {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba($la-navy, 0.10);
+  background: transparent;
+}
+.md-goal-notes table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+  background: transparent;
+}
+.md-goal-notes thead th {
+  padding: 12px 16px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--md-muted, $la-navy);
+  background: rgba($la-navy, 0.04);
+  border: none;
+}
+.md-goal-notes tbody td {
+  padding: 12px 16px;
+  font-size: 14.5px;
+  color: var(--md-ink, $brand-blue-black);
+  border: none;
+  border-top: 1px solid rgba($la-navy, 0.07);
+  vertical-align: top;
+}
+.md-goal-notes tbody tr:hover td { background: rgba($la-navy, 0.03); }
+.md-goal-notes__empty td {
+  color: var(--md-muted, $la-navy);
+  font-style: italic;
+}
+
+// ── Action buttons ───────────────────────────────────────────────────────────
+.md-goal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 26px;
+}
+
+.md-goal-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--md-ink, $brand-blue-black);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba($la-navy, 0.12);
+  transition: background 0.14s ease, box-shadow 0.14s ease, transform 0.08s ease, color 0.14s ease;
+}
+.md-goal-btn:hover {
+  background: #fff;
+  box-shadow: 0 3px 10px rgba($la-navy, 0.10);
+}
+.md-goal-btn:active { transform: translateY(1px); }
+// Matches the app-wide .md-btn--primary — soft dusty-denim wash + navy text.
+.md-goal-btn--primary {
+  color: $la-navy;
+  background: rgba($brand-dusty-denim, 0.3);
+  border-color: rgba($brand-dusty-denim, 0.22);
+}
+.md-goal-btn--primary:hover {
+  color: $la-navy;
+  background: rgba($brand-dusty-denim, 0.45);
+  border-color: rgba($brand-dusty-denim, 0.35);
+  box-shadow: 0 4px 14px rgba($brand-dusty-denim, 0.15);
+}
+.md-goal-btn--danger { color: $brand-danger; }
+.md-goal-btn__uneditable {
+  margin: 0;
+  align-self: center;
+  font-size: 14px;
+  font-style: italic;
+  color: var(--md-muted, $la-navy);
+}
+
+// ── Edit form ────────────────────────────────────────────────────────────────
+.md-goal-form {
+  // Full width — matches the view sections (both fill the .md-goal container).
+  margin-top: 18px;
+  padding: 26px 28px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.80));
+  border: 1px solid rgba($la-navy, 0.10);
+  box-shadow: $goal-top-hl, $goal-elev-2;
+}
+
+.md-goal-form__intro {
+  margin: 0 0 20px;
+  font-size: 14.5px;
+}
+.md-goal-form__intro a { color: $brand-dusty-denim-aa; font-weight: 600; }
+
+.md-goal-field { margin-bottom: 20px; }
+.md-goal-field__label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--md-ink, $brand-blue-black);
+}
+.md-goal-field__hint {
+  margin-top: 5px;
+  font-size: 12.5px;
+  color: var(--md-muted, $la-navy);
+}
+
+// Style the Bootstrap controls the form (and the shared badge-settings component)
+// still emit, scoped to this form so nothing else on the page is affected.
+.md-goal-form input.form-control,
+.md-goal-form textarea.form-control {
+  width: 100%;
+  max-width: 460px;
+  padding: 10px 13px;
+  font-size: 15px;
+  color: var(--md-ink, $brand-blue-black);
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.16);
+  border-radius: 11px;
+  box-shadow: none;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+.md-goal-form textarea.form-control { min-height: 96px; max-width: 620px; }
+.md-goal-form input.form-control:focus,
+.md-goal-form textarea.form-control:focus {
+  outline: none;
+  border-color: $brand-dusty-denim-aa;
+  box-shadow: 0 0 0 3px rgba($brand-dusty-denim, 0.16);
+}
+
+// Selects (bound-select dropdowns in the badge editor) — match the inputs.
+.md-goal-form select.form-control {
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 14.5px;
+  color: var(--md-ink, $brand-blue-black);
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.16);
+  border-radius: 11px;
+  box-shadow: none;
+}
+.md-goal-form select.form-control:focus {
+  outline: none;
+  border-color: $brand-dusty-denim-aa;
+  box-shadow: 0 0 0 3px rgba($brand-dusty-denim, 0.16);
+}
+
+// Inline explanatory text + row labels the shared badge-settings component emits.
+.md-goal-form .form-control-static {
+  margin: 0;
+  padding-top: 9px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--md-muted, $la-navy);
+}
+.md-goal-form .control-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--md-ink, $brand-blue-black);
+  padding-top: 8px;
+}
+
+.md-goal-form .checkbox {
+  margin: 0;
+  padding: 0;
+}
+.md-goal-form .checkbox label {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--md-ink, $brand-blue-black);
+  cursor: pointer;
+}
+// Modern checkbox — matches .md-modal-check: white box that FILLS with
+// charcoal-blue + a white check when checked. Covers every checkbox in the goal
+// form, including the shared badge-settings ones (which nest inside .md-goal-form).
+.md-goal-form input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1.5px solid rgba($la-navy, 0.35);
+  border-radius: 5px;
+  background: #fff;
+  cursor: pointer;
+  vertical-align: middle;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.md-goal-form input[type="checkbox"]:hover { border-color: rgba($la-navy, 0.5); }
+.md-goal-form input[type="checkbox"]:checked {
+  background: $brand-charcoal-blue;
+  border-color: $brand-charcoal-blue;
+}
+.md-goal-form input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 5px;
+  width: 5px;
+  height: 10px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.md-goal-form input[type="checkbox"]:focus-visible {
+  outline: 2px solid rgba($brand-verdigris, 0.6);
+  outline-offset: 2px;
+}
+
+// Links anywhere in the form (e.g. the video-recorder premium notice) — on-brand.
+.md-goal-form a { color: $brand-dusty-denim-aa; font-weight: 600; }
+
+// ── Badge editor cards (shared badge-settings component, modernized) ───────────
+// Each level is a self-contained card with three clear regions: header ·
+// "Badge appearance" · "Completion criteria". badge-settings emits the
+// .badge-level__* structure; the advanced auto-tracking rows still use Bootstrap
+// .form-group/.col-sm and are flattened + padded below the criteria region.
+// No overflow:hidden here — it would clip the open bound-select popups. The
+// header rounds its own top corners instead.
+.md-goal-badge-editor {
+  margin: 8px 0 16px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.12);
+  box-shadow: 0 2px 10px rgba($la-navy, 0.06);
+}
+
+// Header row — tinted, delete action right-aligned as a quiet danger control.
+.badge-level__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  border-radius: 13px 13px 0 0;
+  background: linear-gradient(180deg, rgba($la-navy, 0.055), rgba($la-navy, 0.03));
+  border-bottom: 1px solid rgba($la-navy, 0.10);
+}
+.badge-level__title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--md-ink, $brand-blue-black);
+}
+.badge-level__delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  color: $brand-danger;
+  background: transparent;
+  border: 1px solid rgba($brand-danger, 0.28);
+  cursor: pointer;
+  transition: background 0.14s ease;
+}
+.badge-level__delete:hover { background: rgba($brand-danger, 0.08); }
+
+// Regions
+.badge-level__section { padding: 16px 20px; }
+.badge-level__section + .badge-level__section { border-top: 1px solid rgba($la-navy, 0.08); }
+.badge-level__section-title {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--md-ink, $brand-blue-black);
+}
+.badge-level__section-hint {
+  margin: -6px 0 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--md-muted, $la-navy);
+}
+
+// Body — Badge appearance (1/3) beside the Completion-criteria column (2/3) on
+// wide screens; stacks columnar on narrow. The criteria column holds the criteria
+// section AND its advanced auto-tracking rows, so the checkbox's expanded content
+// stays under it (not spanning full width beneath both sections).
+.badge-level__body { display: flex; flex-wrap: wrap; }
+.badge-level__body .badge-level__section { border-top: none; }
+.badge-level__section--appearance {
+  flex: 0 0 33%;
+  min-width: 0;
+  border-right: 1px solid rgba($la-navy, 0.08);
+}
+.badge-level__criteria-col {
+  flex: 1 1 0;
+  min-width: 0;
+}
+@media (max-width: 720px) {
+  .badge-level__body { display: block; }
+  .badge-level__section--appearance {
+    border-right: none;
+    border-bottom: 1px solid rgba($la-navy, 0.08);
+  }
+}
+
+// Badge appearance — a vertical "property inspector". The badge preview sits on
+// its honey pedestal, then Change image; a divider; then the sound subsection.
+// No columns, no inner cards — the Level card is the only container.
+.badge-assets {
+  display: flex;
+  flex-direction: column;
+}
+.badge-asset {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+.badge-asset + .badge-asset {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid rgba($la-navy, 0.08);
+}
+.badge-asset__label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--md-ink, $brand-blue-black);
+}
+.badge-asset__preview {
+  width: 112px;
+  height: 112px;
+  object-fit: contain;
+  padding: 12px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba($brand-honey-bronze, 0.18), rgba($brand-honey-bronze, 0.08));
+  border: 1px solid rgba($brand-honey-bronze, 0.32);
+}
+.badge-asset__audio { height: 40px; max-width: 100%; }
+.badge-asset__empty {
+  font-size: 13.5px;
+  font-style: italic;
+  color: var(--md-muted, $la-navy);
+}
+.badge-asset__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+// Change image / Add sound are light ghost buttons — secondary to the badge itself.
+.md-goal-form .badge-asset__btn.btn {
+  padding: 7px 14px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: $brand-dusty-denim-aa;
+  background: transparent;
+  border: 1px solid rgba($la-navy, 0.16);
+  box-shadow: none;
+}
+.md-goal-form .badge-asset__btn.btn:hover {
+  background: rgba($la-navy, 0.05);
+  box-shadow: none;
+}
+
+// Completion criteria
+.badge-criteria {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+}
+.badge-criteria__select { min-width: 220px; max-width: 300px; }
+.badge-criteria__checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--md-ink, $brand-blue-black);
+  cursor: pointer;
+}
+.badge-criteria__checkbox input[type="checkbox"] {
+  margin-top: 3px;   // aligns with the first line of a multi-line label
+}
+
+// Advanced auto-tracking rows (Bootstrap grid) — flattened into a clean, aligned
+// label/control grid: a fixed-width label column so the controls line up across
+// every row, consistent dropdown width, and tight uniform row spacing.
+.md-goal-badge-editor .form-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin: 0;
+  padding: 1px 20px;
+  border-top: 0 !important;
+}
+.md-goal-badge-editor .form-group:first-of-type { margin-top: 4px; }
+.md-goal-badge-editor .form-control-static {
+  margin: 0;
+  padding-top: 0;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--md-muted, $la-navy);
+}
+.md-goal-badge-editor [class*="col-sm-"] {
+  float: none;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  margin-left: 0;
+  padding: 0;
+}
+// Fixed label column → the dropdowns line up down the left edge.
+.md-goal-badge-editor [class*="col-sm-"]:has(.form-control-static) {
+  flex: 0 0 210px;
+}
+.md-goal-badge-editor input.form-control { min-width: 64px; }
+
+// bound-select dropdowns — consistent width + aligned; the open list sizes to the
+// widest option (capped) instead of being clipped inside the card.
+.md-goal-badge-editor .bound-select { width: 240px; min-width: 0; }
+.md-goal-badge-editor .bound-select__list {
+  min-width: 100%;
+  width: max-content;
+  max-width: 380px;
+  z-index: 20;
+}
+.md-goal-badge-editor .bound-select__option { white-space: nowrap; }
+
+// The shared badge-settings component uses .form-group rows + .btn buttons; give
+// them the modern rhythm within the goal form (component template untouched).
+.md-goal-form .form-group {
+  margin-bottom: 20px;
+}
+.md-goal-form .form-group img {
+  border-radius: 10px;
+  vertical-align: bottom;
+}
+.md-goal-form .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 11px;
+  font-size: 14.5px;
+  font-weight: 600;
+  border: 1px solid rgba($la-navy, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--md-ink, $brand-blue-black);
+  box-shadow: none;
+  transition: background 0.14s ease, box-shadow 0.14s ease, color 0.14s ease;
+}
+.md-goal-form .btn:hover {
+  background: #fff;
+  box-shadow: 0 3px 10px rgba($la-navy, 0.10);
+}
+.md-goal-form .btn-primary {
+  color: $la-navy;
+  background: rgba($brand-dusty-denim, 0.3);
+  border-color: rgba($brand-dusty-denim, 0.22);
+}
+.md-goal-form .btn-primary:hover {
+  color: $la-navy;
+  background: rgba($brand-dusty-denim, 0.45);
+  border-color: rgba($brand-dusty-denim, 0.35);
+  box-shadow: 0 4px 14px rgba($brand-dusty-denim, 0.15);
+}
+.md-goal-form .btn[disabled] { opacity: 0.55; cursor: default; box-shadow: none; }
+
+.md-goal-form__badges-title {
+  height: auto;
+  margin: 4px 0 16px;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--md-ink, $brand-blue-black);
+}
+
+// Field groups — "Goal details" / "Optional features" / "Badge rewards".
+.md-goal-form__group + .md-goal-form__group {
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid rgba($la-navy, 0.08);
+}
+.md-goal-form__group-title {
+  margin: 0 0 16px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--md-ink, $brand-blue-black);
+}
+
+// Video field — a compact, muted info callout so it doesn't compete with the goal.
+.md-goal-field--video {
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba($la-navy, 0.03);
+  border: 1px solid rgba($la-navy, 0.08);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--md-muted, $la-navy);
+}
+.md-goal-field--video .md-goal-field__label {
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+
+// "Add another badge level" — dashed contextual secondary action.
+.md-goal-form__add-level {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 4px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+  color: $brand-dusty-denim-aa;
+  background: rgba($brand-dusty-denim, 0.05);
+  border: 1px dashed rgba($brand-dusty-denim, 0.45);
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+.md-goal-form__add-level:hover {
+  background: rgba($brand-dusty-denim, 0.10);
+  border-color: rgba($brand-dusty-denim, 0.65);
+}
+
+// Footer — a simple divider + right-aligned actions, no card effect.
+.md-goal-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 24px;
+  border-top: 1px solid rgba($la-navy, 0.10);
+}
+.md-goal-form__error {
+  margin: 0;
+  flex-basis: 100%;
+  text-align: right;
+  font-size: 13.5px;
+  color: $brand-danger;
+}
+
+// Update Goal uses the shared .md-goal-btn--primary (same as Edit Goal / the
+// app-wide .md-btn--primary); just add the disabled state for the footer submit.
+.md-goal-btn[disabled] {
+  opacity: 0.55;
+  cursor: default;
+  box-shadow: none;
+}

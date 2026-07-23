@@ -237,28 +237,28 @@
       <div class="demo-board-page__board-title">
         <h2>{{this.board.name}}</h2>
       </div>
-      {{board-detail-grid
-        board=this.board
-        orderedButtons=this.ordered_buttons
-        activeCategory=this.active_category
-        editMode=this.edit_mode
-        labelsEditable=false
-        folderLabelsOnTab=this.folder_labels_on_tab
-        folderColoredCorner=this.folder_colored_corner
-        folderColoredFace=this.folder_colored_face
-        buttonTextSizeClass=this.button_text_size_class
-        buttonTextPositionClass=this.button_text_position_class
-        hiddenButtonsClass=this.hidden_buttons_class
-        symbolBackgroundClass=this.symbol_background_class
-        highContrastClass=this.high_contrast_class
-        buttonShapeClass=this.button_shape_class
-        gridStyle=this.grid_style
-        buttonTextSizePx=this.button_text_size_px
-        buttonSpacingPx=this.button_spacing_px
-        buttonBorderPx=this.button_border_px
-        buttonFontStyle=this.button_font_style
-        selectButton=this.gridSelectButton
-        selectButtonKey=this.gridSelectButtonKey}}
+      <BoardDetailGrid
+        @board={{this.board}}
+        @orderedButtons={{this.ordered_buttons}}
+        @activeCategory={{this.active_category}}
+        @editMode={{this.edit_mode}}
+        @labelsEditable={{false}}
+        @folderLabelsOnTab={{this.folder_labels_on_tab}}
+        @folderColoredCorner={{this.folder_colored_corner}}
+        @folderColoredFace={{this.folder_colored_face}}
+        @buttonTextSizeClass={{this.button_text_size_class}}
+        @buttonTextPositionClass={{this.button_text_position_class}}
+        @hiddenButtonsClass={{this.hidden_buttons_class}}
+        @symbolBackgroundClass={{this.symbol_background_class}}
+        @highContrastClass={{this.high_contrast_class}}
+        @buttonShapeClass={{this.button_shape_class}}
+        @gridStyle={{this.grid_style}}
+        @buttonTextSizePx={{this.button_text_size_px}}
+        @buttonSpacingPx={{this.button_spacing_px}}
+        @buttonBorderPx={{this.button_border_px}}
+        @buttonFontStyle={{this.button_font_style}}
+        @selectButton={{this.gridSelectButton}}
+        @selectButtonKey={{this.gridSelectButtonKey}} />
     </section>
   </main>
 </div>

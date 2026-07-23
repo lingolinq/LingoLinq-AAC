@@ -176,7 +176,7 @@ export default Controller.extend({
         }
       });
     },
-    management_action: function(action, user_name, decision, home_board, symbol_library) {
+    management_action: function(action, user_name, decision, home_board, symbol_library, offboarding) {
       var model = this.get('model');
       var _this = this;
       _this.set('missing_user_name', null);
@@ -184,7 +184,13 @@ export default Controller.extend({
       if(action && action.match(/remove/) && !decision) {
         modal.open('modals/confirm-org-action', {action: action, user_name: user_name}).then(function(res) {
           if(res && res.confirmed) {
-            _this.send('management_action', action, user_name, true);
+            _this.send('management_action', action, user_name, true, null, null, {
+              parent_email: res.offboarding_parent_email,
+              birth_month: res.offboarding_birth_month,
+              birth_year: res.offboarding_birth_year,
+              under_13: res.offboarding_under_13,
+              under_16: res.offboarding_under_16
+            });
           }
         });
         return;
@@ -228,10 +234,28 @@ export default Controller.extend({
       }
       if(!user_name) { return; }
       model.set('management_action', action + '-' + user_name);
+      if(action === 'remove_user' && offboarding) {
+        model.set('offboarding_parent_email', offboarding.parent_email || null);
+        model.set('offboarding_birth_month', offboarding.birth_month ? parseInt(offboarding.birth_month, 10) : null);
+        model.set('offboarding_birth_year', offboarding.birth_year ? parseInt(offboarding.birth_year, 10) : null);
+        model.set('offboarding_under_13', !!offboarding.under_13);
+        model.set('offboarding_under_16', !!offboarding.under_16);
+      } else {
+        model.set('offboarding_parent_email', null);
+        model.set('offboarding_birth_month', null);
+        model.set('offboarding_birth_year', null);
+        model.set('offboarding_under_13', null);
+        model.set('offboarding_under_16', null);
+      }
       if(home_board) {
         model.set('assignment_action', 'copy_board:' + home_board + ':' + (symbol_library || 'original'));
       }
       model.save().then(function() {
+        model.set('offboarding_parent_email', null);
+        model.set('offboarding_birth_month', null);
+        model.set('offboarding_birth_year', null);
+        model.set('offboarding_under_13', null);
+        model.set('offboarding_under_16', null);
         if(home_board) {
           runLater(function() {
             model.reload();
@@ -272,6 +296,11 @@ export default Controller.extend({
         }
         cleanup();
       }, function(err) {
+        model.set('offboarding_parent_email', null);
+        model.set('offboarding_birth_month', null);
+        model.set('offboarding_birth_year', null);
+        model.set('offboarding_under_13', null);
+        model.set('offboarding_under_16', null);
         console.log(err);
         if(err && err.errors && err.errors.length === 1 && err.errors[0].match(/invalid user/)) {
           _this.set('missing_user_name', user_name);
