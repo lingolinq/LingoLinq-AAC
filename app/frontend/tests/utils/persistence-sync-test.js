@@ -435,11 +435,6 @@ function syncDoneWait() {
   return syncSettled();
 }
 
-function waitForSyncDone(doneFlag) {
-  return doneFlag || persistence.get('sync_status') === 'success' ||
-    persistence.get('sync_status') === 'failed';
-}
-
 // Wait until the sync() promise flagged done AND harness async (board threads,
 // url queue, eventual_store) has drained — prevents assert/cleanup racing the
 // real sync_boards traversal that can finish after the sync() promise resolves.
@@ -1574,7 +1569,7 @@ describe("persistence-sync", function() {
           done = true;
         }, function() { done = true; });
       }, 50);
-      waitsFor(function() { return done && tailDone; });
+      waitsFor(function() { return waitForSyncDoneAndSettled(done) && tailDone; });
       runs(function() {
         var logs = queryLog;
         expect(logById(logs, '1340')).toNotEqual(undefined);
@@ -1664,7 +1659,7 @@ describe("persistence-sync", function() {
         result = res;
       });
       waitsFor(function() {
-        return result && tailDone && persistence.get('sync_status') !== 'syncing';
+        return waitForSyncDoneAndSettled(result) && tailDone;
       });
       runs(function() {
         expect(logById(queryLog, '1340')).toNotEqual(undefined);
@@ -1857,7 +1852,7 @@ describe("persistence-sync", function() {
           done = true;
         }, function() { done = true; });
       }, 50);
-      waitsFor(function() { return done && tailDone; });
+      waitsFor(function() { return waitForSyncDoneAndSettled(done) && tailDone; });
       runs(function() {
         var logs = queryLog;
         expect(logById(logs, '1340')).toNotEqual(undefined);
@@ -2053,7 +2048,7 @@ describe("persistence-sync", function() {
           }, function() { done = true; });
         }, 50);
       });
-      waitsFor(function() { return waitForSyncDone(done); });
+      waitsFor(function() { return waitForSyncDoneAndSettled(done) && tailDone; });
       runs(function() {
         expect(done).toEqual(true);
         cancelSyncTailWork();
@@ -2214,7 +2209,7 @@ describe("persistence-sync", function() {
           });
         }, 50);
       });
-      waitsFor(function() { return waitForSyncDone(done); });
+      waitsFor(function() { return waitForSyncDoneAndSettled(done) && tailDone; });
       runs(function() {
         expect(remote_checked_b1).toEqual(true);
         expect(remote_checked_b2).toEqual(true);
@@ -2380,7 +2375,7 @@ describe("persistence-sync", function() {
           });
         }, 50);
       });
-      waitsFor(function() { return waitForSyncDone(done); });
+      waitsFor(function() { return waitForSyncDoneAndSettled(done) && tailDone; });
       runs(function() {
         expect(remote_checked_b1).toEqual(true);
         expect(remote_checked_b2).toEqual(true);
@@ -2550,7 +2545,7 @@ describe("persistence-sync", function() {
           });
         }, 50);
       });
-      waitsFor(function() { return waitForSyncDone(done); });
+      waitsFor(function() { return waitForSyncDoneAndSettled(done) && tailDone; });
       runs(function() {
         expect(remote_checked_b1).toEqual(true);
         expect(remote_checked_b2).toEqual(true);
@@ -4206,7 +4201,7 @@ describe("persistence-sync", function() {
       persistence.sync(1340).then(function() {
         done = true;
       }, function() { done = true; });
-      waitsFor(function() { return done && tailDone; });
+      waitsFor(function() { return waitForSyncDoneAndSettled(done) && tailDone; });
       runs(function() {
         expect(warnings.some(function(w) { return w.indexOf('fiona') >= 0; })).toEqual(true);
         expect(warnings.some(function(w) { return w.indexOf('alastar') >= 0; })).toEqual(true);

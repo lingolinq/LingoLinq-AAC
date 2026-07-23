@@ -1798,6 +1798,103 @@ describe Api::UsersController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['error']).to eq('Invalid authentication attempt')
     end
+
+    it 'returns coppa_parent_email_required when pending without parent email' do
+      token = GoSecure.browser_token
+      u = User.process_new({
+        'user_name' => 'coppa_resend_needemail',
+        'name' => 'COPPA Need Email',
+        'email' => 'child_needemail@example.com',
+        'password' => 'seashell',
+        'terms_agree' => true
+      })
+      u.settings['school_authorization'] = {
+        'basis' => 'school_official',
+        'organization_id' => '1_1',
+        'authorized_at' => Time.now.utc.iso8601
+      }
+      u.save!
+      u.begin_family_offboarding_consents!(org: nil, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 10)
+      expect(u.reload.coppa_needs_parent_email?).to eq(true)
+      post :resend_parental_consent, params: {
+        :client_id => 'browser',
+        :client_secret => token,
+        :username => 'coppa_resend_needemail',
+        :password => 'seashell'
+      }
+      expect(response.status).to eq(400)
+      json = JSON.parse(response.body)
+      expect(json['coppa_parent_email_required']).to eq(true)
+    end
+  end
+
+  describe 'submit_parental_consent_email' do
+    before do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+    end
+    after(:each) { AuditEvent.delete_all }
+
+    it 'stamps parent email and queues consent mail without issuing a session' do
+      token = GoSecure.browser_token
+      u = User.process_new({
+        'user_name' => 'coppa_submit_kid',
+        'name' => 'COPPA Submit Kid',
+        'email' => 'child_submit@example.com',
+        'password' => 'seashell',
+        'terms_agree' => true
+      })
+      u.settings['school_authorization'] = {
+        'basis' => 'school_official',
+        'organization_id' => '1_1',
+        'authorized_at' => Time.now.utc.iso8601
+      }
+      u.save!
+      u.begin_family_offboarding_consents!(org: nil, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 10)
+      expect(u.reload.coppa_needs_parent_email?).to eq(true)
+      expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_request, u.global_id).once
+      post :submit_parental_consent_email, params: {
+        :client_id => 'browser',
+        :client_secret => token,
+        :username => 'coppa_submit_kid',
+        :password => 'seashell',
+        :parent_consent_email => 'guardian_submit@example.com'
+      }
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['sent']).to eq(true)
+      expect(json['coppa_parental_consent_pending']).to eq(true)
+      u.reload
+      expect(u.coppa_needs_parent_email?).to eq(false)
+      expect(u.settings['coppa']['parent_email']).to eq('guardian_submit@example.com')
+    end
+
+    it 'rejects parent email matching the account email' do
+      token = GoSecure.browser_token
+      u = User.process_new({
+        'user_name' => 'coppa_submit_same',
+        'name' => 'COPPA Submit Same',
+        'email' => 'child_submit_same@example.com',
+        'password' => 'seashell',
+        'terms_agree' => true
+      })
+      u.settings['school_authorization'] = {
+        'basis' => 'school_official',
+        'organization_id' => '1_1',
+        'authorized_at' => Time.now.utc.iso8601
+      }
+      u.save!
+      u.begin_family_offboarding_consents!(org: nil, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 10)
+      post :submit_parental_consent_email, params: {
+        :client_id => 'browser',
+        :client_secret => token,
+        :username => 'coppa_submit_same',
+        :password => 'seashell',
+        :parent_consent_email => 'child_submit_same@example.com'
+      }
+      expect(response.status).to eq(400)
+      json = JSON.parse(response.body)
+      expect(json['invalid_parent_consent_email']).to eq(true)
+    end
   end
 
   describe "password_reset" do
@@ -4134,6 +4231,82 @@ describe Api::UsersController, :type => :controller do
       token_user
       post :ensure_board_tag, params: {user_id: @user.global_id, tag: '  '}
       expect(response).not_to be_successful
+    end
+  end
+
+  describe "article_50_disclosure_ack" do
+    after(:each) { AuditEvent.delete_all }
+
+    it "should require a valid token" do
+      post :article_50_disclosure_ack, params: {user_id: '1_1'}
+      assert_missing_token
+    end
+
+    it "records the acknowledgement and returns the recorded version" do
+      token_user
+      post :article_50_disclosure_ack, params: {user_id: @user.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['article_50_disclosure_shown']).to eq(true)
+      expect(json['disclosures_version']).to eq(LingoLinq::Article50Disclosures::CURRENT_VERSION)
+
+      @user.reload
+      expect(@user.article_50_disclosure_shown?).to eq(true)
+      events = AuditEvent.where(user_key: @user.global_id, event_type: 'article_50_disclosure_shown')
+      expect(events.count).to eq(1)
+      expect(events.first.data['source']).to eq('modal_ack')
+    end
+
+    it "is idempotent on a second identical POST (no second AuditEvent)" do
+      token_user
+      post :article_50_disclosure_ack, params: {user_id: @user.global_id}
+      expect(response).to be_successful
+
+      post :article_50_disclosure_ack, params: {user_id: @user.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['article_50_disclosure_shown']).to eq(true)
+
+      events = AuditEvent.where(user_key: @user.global_id, event_type: 'article_50_disclosure_shown')
+      expect(events.count).to eq(1)
+    end
+
+    it "rejects a caller without edit permission on the target user and writes nothing" do
+      u = User.create
+      token_user
+      post :article_50_disclosure_ack, params: {user_id: u.global_id, access_token: @device.tokens[0], check_token: true}
+      assert_unauthorized
+      expect(u.reload.article_50_disclosure_shown?).to eq(false)
+      expect(AuditEvent.where(user_key: u.global_id, event_type: 'article_50_disclosure_shown').count).to eq(0)
+    end
+
+    it "ignores a client-supplied source and always records modal_ack" do
+      token_user
+      post :article_50_disclosure_ack, params: {user_id: @user.global_id, source: 'admin_backfill'}
+      expect(response).to be_successful
+      @user.reload
+      expect(@user.settings['ai_transparency']['source']).to eq('modal_ack')
+    end
+
+    it "ignores a client-supplied disclosures_version and always records the current version" do
+      token_user
+      post :article_50_disclosure_ack, params: {user_id: @user.global_id, disclosures_version: 999}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['disclosures_version']).to eq(LingoLinq::Article50Disclosures::CURRENT_VERSION)
+      @user.reload
+      expect(@user.settings['ai_transparency']['disclosures_version']).to eq(LingoLinq::Article50Disclosures::CURRENT_VERSION)
+    end
+
+    it "persists the request ip and user agent" do
+      token_user
+      request.env['REMOTE_ADDR'] = '203.0.113.5'
+      request.env['HTTP_USER_AGENT'] = 'RSpec Test Agent'
+      post :article_50_disclosure_ack, params: {user_id: @user.global_id}
+      expect(response).to be_successful
+      @user.reload
+      expect(@user.settings['ai_transparency']['ip']).to eq('203.0.113.5')
+      expect(@user.settings['ai_transparency']['user_agent']).to eq('RSpec Test Agent')
     end
   end
 

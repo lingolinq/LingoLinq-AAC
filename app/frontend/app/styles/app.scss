@@ -11740,6 +11740,13 @@ video.button_image {
 #button_settings .nav-pills.nav-stacked > li {
   margin: 0;
 }
+/* Gradient divider under the pinned "Quick Actions" tab. */
+#button_settings .nav-pills.nav-stacked > .md-bs-nav-sep {
+  padding: 0 6px;
+}
+#button_settings .nav-pills.nav-stacked > .md-bs-nav-sep .md-bs-card__sep {
+  margin: 8px 0;
+}
 #button_settings .nav-pills.nav-stacked > li > a {
   border-radius: 8px;
   padding: 10px 14px;
@@ -11757,10 +11764,18 @@ video.button_image {
 #button_settings .nav-pills.nav-stacked > li.active > a,
 #button_settings .nav-pills.nav-stacked > li.active > a:hover,
 #button_settings .nav-pills.nav-stacked > li.active > a:focus-visible {
-  background: linear-gradient(135deg, $brand-verdigris, $brand-dusty-denim);
-  color: #fff;
+  /* Same silvery-glass verdigris→denim tint as the "Create editable copy"
+     button; navy label keeps WCAG AA on the light gradient (>6:1). */
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.14) 42%, rgba(255, 255, 255, 0) 62%),
+    linear-gradient(135deg, rgba($brand-verdigris, 0.50), rgba($brand-dusty-denim, 0.52)),
+    #fff;
+  color: $la-navy;
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba($brand-verdigris, 0.25);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba($la-navy, 0.06),
+    0 1px 3px rgba($la-navy, 0.08);
 }
 
 /* Stronger keyboard focus ring for all interactive elements in button settings modal.
@@ -11797,22 +11812,38 @@ video.button_image {
   color: #4a5568;
 }
 
-/* Quick action buttons (Help tab) */
+/* Quick action buttons (Help tab) — same brushed-silver glass as the Preview
+   button in the Action section. */
 #button_settings .btn-group-vertical .btn {
   border-radius: 10px !important;
-  border: 1px solid rgba($la-navy, 0.10);
+  border: 1px solid rgba($la-navy, 0.16);
   padding: 14px 18px;
   font-size: 16px;
   font-weight: 500;
   color: $brand-charcoal-dark;
-  background: #fff;
+  background: linear-gradient(150deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(236, 240, 245, 0.9) 50%,
+    rgba(210, 217, 227, 0.85) 100%);
+  backdrop-filter: blur(8px) saturate(150%);
+  -webkit-backdrop-filter: blur(8px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba($la-navy, 0.05),
+    0 1px 3px rgba($la-navy, 0.08);
   text-align: left;
-  transition: background 0.12s ease, box-shadow 0.12s ease, transform 0.1s ease;
+  transition: background 0.12s ease, box-shadow 0.12s ease, transform 0.1s ease, border-color 0.12s ease;
   margin-bottom: 6px;
 }
 #button_settings .btn-group-vertical .btn:hover {
-  background: rgba($brand-verdigris, 0.06);
-  box-shadow: 0 2px 8px rgba($la-navy, 0.08);
+  background: linear-gradient(150deg,
+    #ffffff 0%,
+    rgba(233, 238, 244, 0.96) 50%,
+    rgba(200, 209, 221, 0.92) 100%);
+  border-color: rgba($la-navy, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 2px 8px rgba($la-navy, 0.14);
   transform: translateX(2px);
 }
 #button_settings .btn-group-vertical .btn .glyphicon {
@@ -11853,10 +11884,752 @@ video.button_image {
   color: $la-navy;
   margin-bottom: 12px;
 }
+/* The header form-group inherits `.content .form-group { margin-bottom: 16px }`
+   (higher specificity), which is the gap under "Button Settings". Override it at
+   matching specificity + zero the h4 margin so "QUICK ACTIONS" sits just below. */
+#button_settings .content .form-group.md-bs-help__head {
+  margin-bottom: 6px;
+}
+#button_settings .md-bs-help__head h4 {
+  margin-bottom: 0;
+}
 
 /* Image search results / options grid */
 #button_settings .options {
   border-radius: 10px;
+}
+
+/* ── Action-tab guided cards (ACTION / DESTINATION / per-action config) ──
+   Turns the Action tab into a stacked, card-based flow: a lightly-tinted
+   glass card per step, an uppercase eyebrow label, helper text, and
+   labels-above controls. Verdigris = selected/primary/focus; dusty-denim
+   = secondary (browse / create / change). */
+#button_settings .md-bs-card {
+  background:
+    linear-gradient(180deg, rgba($brand-verdigris, 0.035), rgba($brand-dusty-denim, 0.03)),
+    #fff;
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba($la-navy, 0.05);
+}
+#button_settings .md-bs-card:last-child {
+  margin-bottom: 0;
+}
+/* The ACTION card holds a single control — keep it compact so the destination
+   step sits higher on the page. */
+#button_settings .md-bs-card--action {
+  padding: 13px 20px 15px;
+  margin-bottom: 18px;
+}
+#button_settings .md-bs-card--action .md-bs-card__hint {
+  margin-bottom: 10px;
+}
+#button_settings .md-bs-card__eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+  font-weight: 700;
+  color: $brand-dusty-denim-aa;
+  margin-bottom: 6px;
+}
+/* Modern gradient hairline between a card header and its body. */
+#button_settings .md-bs-card__sep {
+  height: 2px;
+  margin: 10px 0 18px;
+  border-radius: 2px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba($brand-verdigris, 0.4) 25%,
+    rgba($brand-dusty-denim, 0.4) 75%,
+    transparent);
+}
+#button_settings .md-bs-card__hint {
+  font-size: 15px;
+  color: $brand-slate-gray;
+  margin: 0 0 14px;
+}
+#button_settings .md-bs-field-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: $brand-charcoal-dark;
+  margin: 16px 0 6px;
+}
+/* Give every control in these cards a comfortable touch target */
+#button_settings .md-bs-card .form-control,
+#button_settings .md-bs-card .bound-select__trigger {
+  min-height: 50px;
+}
+
+/* Selected-board card (verdigris "chosen" state) */
+#button_settings .md-bs-dest__selected {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid rgba($brand-verdigris, 0.35);
+  background: rgba($brand-verdigris, 0.06);
+  border-radius: 12px;
+}
+#button_settings .md-bs-dest__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.10);
+  flex: 0 0 auto;
+}
+#button_settings .md-bs-dest__meta {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+#button_settings .md-bs-dest__name {
+  font-size: 17px;
+  font-weight: 600;
+  color: $la-navy;
+  word-break: break-word;
+}
+#button_settings .md-bs-dest__change {
+  flex: 0 0 auto;
+}
+
+/* "Selected" / state label above the status component */
+#button_settings .md-bs-status__label {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+  font-weight: 700;
+  color: $brand-slate-gray;
+  margin-bottom: 6px;
+}
+/* Secondary line inside the selected-board card (owner / breadcrumb slot) */
+#button_settings .md-bs-dest__owner {
+  display: block;
+  font-size: 13px;
+  color: $brand-slate-gray;
+  margin-top: 2px;
+}
+
+/* "Choose how to use this board" confirmation: a clean vertical preview card
+   (thumbnail → title / grid / preview) on the left, and the explanation + two
+   clearly-differentiated choices on the right. */
+#button_settings .md-bs-choose {
+  display: flex;
+  gap: 30px;
+  align-items: stretch;
+}
+#button_settings .md-bs-choose__status {
+  font-size: 15px;
+  color: $brand-charcoal-dark;
+  margin: 0;
+}
+/* "Change Board" — reset the pending board and go back to the collection.
+   Pushed to the bottom of the content column so it sits flush with the preview
+   card's bottom edge. */
+#button_settings .md-bs-choose__footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+  padding-top: 16px;
+}
+/* Sleek modern pill */
+#button_settings .md-bs-choose__change,
+#button_settings .md-bs-dest__change,
+#button_settings .md-bs-help__skip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 22px;
+  border-radius: 999px;
+  border: 1px solid rgba($brand-dusty-denim, 0.35);
+  background: linear-gradient(180deg, #ffffff 0%, rgba($brand-dusty-denim, 0.07) 100%);
+  color: $brand-dusty-denim-aa;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 1px 3px rgba($la-navy, 0.08);
+  transition: background 0.14s ease, box-shadow 0.14s ease, transform 0.1s ease, border-color 0.14s ease;
+}
+#button_settings .md-bs-choose__change:hover,
+#button_settings .md-bs-dest__change:hover,
+#button_settings .md-bs-help__skip:hover {
+  background: linear-gradient(180deg, #ffffff 0%, rgba($brand-dusty-denim, 0.14) 100%);
+  border-color: rgba($brand-dusty-denim, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 3px 10px rgba($brand-dusty-denim, 0.22);
+  transform: translateY(-1px);
+}
+#button_settings .md-bs-choose__change-icon,
+#button_settings .md-bs-dest__change-icon {
+  flex: 0 0 auto;
+  opacity: 0.9;
+}
+/* Help tab: the skip/enable pill sits centered below the quick-action list. */
+#button_settings .md-bs-help__skip-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 22px;
+}
+
+/* Color tab: live button preview + swatch palette + revert pill. */
+#button_settings .md-bs-color__preview-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+#button_settings .md-bs-color__preview {
+  width: 120px;
+  height: 120px;
+  border-radius: 12px;
+  border: 3px solid #cccccc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  box-shadow: 0 1px 4px rgba($la-navy, 0.10);
+}
+#button_settings .md-bs-color__preview-img {
+  max-width: 62px;
+  max-height: 62px;
+  object-fit: contain;
+}
+#button_settings .md-bs-color__preview-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: #222222;
+  text-align: center;
+  line-height: 1.15;
+  word-break: break-word;
+}
+#button_settings .md-bs-color__field-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: $brand-charcoal-dark;
+  margin-bottom: 10px;
+}
+/* Fitzgerald color swatches — labeled tiles (color chip + name + category). */
+#button_settings .md-bs-color__swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 10px;
+}
+#button_settings .md-bs-color__swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba($la-navy, 0.16);
+  /* Brushed-silver glass, same as the quick-action buttons. */
+  background: linear-gradient(150deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(236, 240, 245, 0.9) 50%,
+    rgba(210, 217, 227, 0.85) 100%);
+  backdrop-filter: blur(8px) saturate(150%);
+  -webkit-backdrop-filter: blur(8px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba($la-navy, 0.05),
+    0 1px 3px rgba($la-navy, 0.08);
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+#button_settings .md-bs-color__swatch:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(150deg,
+    #ffffff 0%,
+    rgba(233, 238, 244, 0.96) 50%,
+    rgba(200, 209, 221, 0.92) 100%);
+  border-color: rgba($la-navy, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 3px 8px rgba($la-navy, 0.14);
+}
+#button_settings .md-bs-color__swatch.is-selected {
+  border-color: $brand-verdigris;
+  box-shadow: 0 0 0 2px rgba($brand-verdigris, 0.4);
+}
+#button_settings .md-bs-color__swatch-chip {
+  width: 100%;
+  height: 32px;
+  border-radius: 6px;
+  border-width: 2px;
+  border-style: solid;
+}
+#button_settings .md-bs-color__swatch-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: $la-navy;
+  line-height: 1.1;
+}
+#button_settings .md-bs-color__swatch-hint {
+  font-size: 11px;
+  color: $brand-slate-gray;
+  text-transform: capitalize;
+  line-height: 1.1;
+}
+#button_settings .md-bs-color__field-label--custom {
+  margin-top: 22px;
+}
+#button_settings .md-bs-color__custom {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+#button_settings .md-bs-color__custom-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+#button_settings .md-bs-color__custom-label {
+  flex: 0 0 56px;
+  font-size: 14px;
+  font-weight: 600;
+  color: $brand-charcoal-dark;
+}
+#button_settings .md-bs-color__picker {
+  flex: 0 0 auto;
+  width: 46px;
+  height: 40px;
+  padding: 2px;
+  border: 1px solid rgba($la-navy, 0.15);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+#button_settings .md-bs-color__value {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+#button_settings .md-bs-color__footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 22px;
+}
+
+/* Vertical preview card */
+#button_settings .md-bs-choose__preview {
+  flex: 0 0 auto;
+  width: 230px;
+  border: 1px solid rgba($la-navy, 0.12);
+  border-radius: 14px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba($la-navy, 0.06);
+}
+#button_settings .md-bs-choose__thumb {
+  padding: 16px;
+  background: rgba($la-navy, 0.03);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#button_settings .md-bs-choose__thumb img {
+  width: 100%;
+  height: 130px;
+  object-fit: contain;
+  display: block;
+}
+#button_settings .md-bs-choose__preview-info {
+  padding: 12px 14px 14px;
+  border-top: 1px solid rgba($la-navy, 0.08);
+  text-align: center;
+}
+#button_settings .md-bs-choose__preview-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: $la-navy;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#button_settings .md-bs-choose__preview-grid {
+  font-size: 13px;
+  color: $brand-slate-gray;
+  margin: 2px 0 10px;
+}
+#button_settings .md-bs-choose__preview-btn {
+  width: 100%;
+  min-height: 40px;
+  border-radius: 8px;
+  /* Same brushed-silver glass as the "Use original board" button. */
+  border: 1px solid rgba($la-navy, 0.16);
+  background: linear-gradient(150deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(236, 240, 245, 0.9) 50%,
+    rgba(210, 217, 227, 0.85) 100%);
+  color: $brand-dusty-denim-aa;
+  font-weight: 600;
+  font-size: 14px;
+  backdrop-filter: blur(8px) saturate(150%);
+  -webkit-backdrop-filter: blur(8px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba($la-navy, 0.05),
+    0 1px 3px rgba($la-navy, 0.08);
+  transition: background 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+#button_settings .md-bs-choose__preview-btn:hover {
+  background: linear-gradient(150deg,
+    #ffffff 0%,
+    rgba(233, 238, 244, 0.96) 50%,
+    rgba(200, 209, 221, 0.92) 100%);
+  border-color: rgba($la-navy, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 2px 8px rgba($la-navy, 0.14);
+}
+
+/* Decision content */
+#button_settings .md-bs-choose__body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+#button_settings .md-bs-choose__explain {
+  font-size: 15px;
+  color: $brand-charcoal-dark;
+  margin: 0 0 16px;
+}
+#button_settings .md-bs-choose__note {
+  font-size: 13px;
+  color: $brand-slate-gray;
+  margin: 0 0 16px;
+}
+#button_settings .md-bs-choose__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+#button_settings .md-bs-choose__actions .md-bs-or {
+  margin: 2px 0;
+}
+#button_settings .md-bs-choose__btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 11px 16px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease, box-shadow 0.12s ease;
+}
+#button_settings .md-bs-choose__btn-label {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+#button_settings .md-bs-choose__btn-sub {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.3;
+  opacity: 0.9;
+}
+/* Recommended action: light verdigris→denim tint gradient with dark navy text.
+   Navy (#1B365D) on this light gradient clears WCAG AA (>7:1); the sub uses
+   charcoal (#374151, ~8:1). */
+#button_settings .md-bs-choose__btn--primary {
+  /* Silvery glass shine: a glossy top sheen over the verdigris→denim tint,
+     with inset highlights + backdrop blur. The sheen only lightens the top, so
+     the dark navy label keeps (and gains) contrast. */
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.14) 42%, rgba(255, 255, 255, 0) 62%),
+    linear-gradient(135deg, rgba($brand-verdigris, 0.50), rgba($brand-dusty-denim, 0.52)),
+    #fff;
+  border: 1px solid rgba($la-navy, 0.18);
+  color: $la-navy;
+  backdrop-filter: blur(8px) saturate(155%);
+  -webkit-backdrop-filter: blur(8px) saturate(155%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba($la-navy, 0.06),
+    0 1px 3px rgba($la-navy, 0.08);
+}
+#button_settings .md-bs-choose__btn--primary:hover {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.16) 42%, rgba(255, 255, 255, 0) 62%),
+    linear-gradient(135deg, rgba($brand-verdigris, 0.58), rgba($brand-dusty-denim, 0.60)),
+    #fff;
+  border-color: rgba($la-navy, 0.26);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 2px 10px rgba($la-navy, 0.14);
+}
+#button_settings .md-bs-choose__btn--primary .md-bs-choose__btn-sub {
+  color: $brand-charcoal-dark;
+  opacity: 1;
+}
+/* Secondary: brushed-silver glass — cool white→silver gradient with inset
+   highlights + backdrop blur, navy label. */
+#button_settings .md-bs-choose__btn--secondary {
+  background: linear-gradient(150deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(236, 240, 245, 0.9) 50%,
+    rgba(210, 217, 227, 0.85) 100%);
+  border-color: rgba($la-navy, 0.16);
+  color: $la-navy;
+  backdrop-filter: blur(8px) saturate(150%);
+  -webkit-backdrop-filter: blur(8px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba($la-navy, 0.05),
+    0 1px 3px rgba($la-navy, 0.08);
+}
+#button_settings .md-bs-choose__btn--secondary:hover {
+  background: linear-gradient(150deg,
+    #ffffff 0%,
+    rgba(233, 238, 244, 0.96) 50%,
+    rgba(200, 209, 221, 0.92) 100%);
+  border-color: rgba($la-navy, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 2px 8px rgba($la-navy, 0.14);
+}
+#button_settings .md-bs-choose__btn--secondary .md-bs-choose__btn-sub {
+  color: $brand-slate-gray;
+}
+
+/* Status panel — the empty (no-board) state, styled as its own component.
+   Recessed/inset look: sunken background + inner shadow so it reads as a
+   "nothing here yet" well rather than a raised card. */
+#button_settings .md-bs-status {
+  padding: 12px 14px;
+  border: 1px solid rgba($la-navy, 0.12);
+  border-radius: 10px;
+  background: $surface-200;
+  box-shadow: inset 0 2px 4px rgba($la-navy, 0.10);
+}
+#button_settings .md-bs-status__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#button_settings .md-bs-status__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid rgba($la-navy, 0.25);
+  flex: 0 0 auto;
+}
+#button_settings .md-bs-status__text {
+  font-size: 15px;
+  font-weight: 600;
+  color: $brand-charcoal-dark;
+}
+#button_settings .md-bs-status__hint {
+  font-size: 13px;
+  color: $brand-slate-gray;
+  margin: 6px 0 0;
+}
+
+/* Method groups (search / browse / create) with tiny "or …" headers — the
+   separators make the three alternative paths read as distinct choices. */
+#button_settings .md-bs-group {
+  margin-top: 16px;
+}
+#button_settings .md-bs-group-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: $brand-slate-gray;
+  margin-bottom: 6px;
+}
+#button_settings .md-bs-dest__results:empty {
+  display: none;
+}
+
+/* Search row: input is the dominant path, Search button beside it */
+#button_settings .md-bs-dest__search-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+#button_settings .md-bs-dest__search-field {
+  flex: 1 1 auto;
+  display: block;
+}
+#button_settings .md-bs-dest__search-input {
+  width: 100%;
+}
+#button_settings .md-bs-dest__search-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+/* Card buttons (primary = verdigris, secondary = dusty-denim, outline = quiet) */
+#button_settings .md-bs-btn {
+  min-height: 50px;
+  padding: 0 20px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  transition: background 0.12s ease, box-shadow 0.12s ease;
+}
+#button_settings .md-bs-btn--primary {
+  background: linear-gradient(135deg, $brand-verdigris, $brand-dusty-denim);
+  border: none;
+  color: #fff;
+}
+#button_settings .md-bs-btn--primary:hover {
+  box-shadow: 0 2px 10px rgba($brand-verdigris, 0.3);
+}
+#button_settings .md-bs-btn--secondary {
+  background: rgba($brand-dusty-denim, 0.08);
+  border-color: rgba($brand-dusty-denim, 0.30);
+  color: $brand-dusty-denim-aa;
+}
+#button_settings .md-bs-btn--secondary:hover {
+  background: rgba($brand-dusty-denim, 0.14);
+}
+/* Quiet secondary: white with a blue outline, so it reads as an alternative
+   action rather than competing with the primary Search button. */
+#button_settings .md-bs-btn--outline {
+  background: #fff;
+  border-color: rgba($brand-dusty-denim, 0.45);
+  color: $brand-dusty-denim-aa;
+}
+#button_settings .md-bs-btn--outline:hover {
+  background: rgba($brand-dusty-denim, 0.06);
+  border-color: $brand-dusty-denim;
+}
+#button_settings .md-bs-btn--outline .glyphicon {
+  color: $brand-dusty-denim-aa;
+}
+/* Wrapper card grouping the three destination methods (search / browse /
+   create) so they read as one "choose a board" unit inside the card. */
+#button_settings .md-bs-methods {
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid rgba($la-navy, 0.12);
+  border-radius: 12px;
+  /* Recessed/inset well so the white board-section cards sit proud of it. */
+  background: $surface-200;
+  box-shadow: inset 0 2px 5px rgba($la-navy, 0.10);
+}
+#button_settings .md-bs-methods > .md-bs-group:first-child {
+  margin-top: 0;
+}
+
+/* Board-collection picker inside the destination card: reuses the Find Boards
+   page's .md-board-collection markup/styles (light base theme outside a
+   .md-board-detail--dark ancestor). Cap the height so the sectioned list scrolls
+   inside the card instead of stretching the modal. */
+#button_settings .md-bs-collection {
+  margin-bottom: 4px;
+}
+#button_settings .md-bs-collection__header {
+  padding: 0 0 10px;
+}
+#button_settings .md-bs-collection__body {
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+/* "OR" separator between the three destination methods — mirrors the
+   create-board-new chooser (.nb-create-chooser__or): centered uppercase OR
+   with a short rule on each side. */
+#button_settings .md-bs-or {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 14px 4px;
+  color: rgba($la-navy, 0.45);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+#button_settings .md-bs-or::before,
+#button_settings .md-bs-or::after {
+  content: "";
+  flex: 1 1 auto;
+  max-width: 90px;
+  height: 1px;
+  background: rgba($la-navy, 0.14);
+}
+
+/* Raised "choice" card — matches the create-board-new chooser buttons
+   (.nb-create-chooser__btn): top-lit gradient, layered ambient shadow, and a
+   glassy icon chip, so Create reads as a pressable key rather than a plain
+   button. */
+#button_settings .md-bs-choice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 50px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid rgba($brand-slate-blue, 0.22);
+  background: linear-gradient(180deg, #ffffff 0%, #eef2f8 100%);
+  color: $la-navy;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -2px 0 rgba($la-navy, 0.06),
+    0 2px 4px rgba($la-navy, 0.08),
+    0 10px 22px rgba($la-navy, 0.12);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+#button_settings .md-bs-choice:hover,
+#button_settings .md-bs-choice:focus-visible {
+  transform: translateY(-3px);
+  border-color: rgba($brand-slate-blue, 0.45);
+  background: linear-gradient(180deg, #ffffff 0%, #e9eef6 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -2px 0 rgba($la-navy, 0.07),
+    0 4px 8px rgba($la-navy, 0.12),
+    0 18px 34px rgba($la-navy, 0.16);
+  outline: none;
+}
+#button_settings .md-bs-choice:active {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 2px 5px rgba($la-navy, 0.14),
+    0 2px 6px rgba($la-navy, 0.10);
+}
+#button_settings .md-bs-choice__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba($brand-slate-blue, 0.16), rgba($brand-slate-blue, 0.07));
+  color: $brand-slate-blue;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 1px 2px rgba($la-navy, 0.12);
+}
+#button_settings .md-bs-choice__icon .glyphicon {
+  color: $brand-slate-blue;
+  top: 0;
+}
+#button_settings .md-bs-choice__label {
+  flex: 0 0 auto;
 }
 
 /* Footer */
@@ -35176,6 +35949,14 @@ a.la-footer-bottom-a11y-wcag {
   color: $brand-honey-bronze;
 }
 
+// Opt-in eyebrow-weight override for ai-disclosure only (03-UI-SPEC.md 3, the
+// eyebrow-weight fix). A second single-class selector at the SAME specificity as
+// .la-modal-header-label above, not a nested/wrapper-scoped override -- every other
+// modal keeps rendering its eyebrow at $aac-font-weight-black (800) unchanged.
+.la-modal-header-label--regular {
+  font-weight: $aac-font-weight-bold;
+}
+
 .la-modal-close {
   display: flex;
   align-items: center;
@@ -38156,6 +38937,14 @@ a.la-footer-bottom-a11y-wcag {
   margin-top: 8px;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+// AI disclosure modal (EU AI Act Article 50(1), VPC Phase 3). Same support-modal
+// shell as terms-agree; the one addition is a larger dwell/scan target minimum for
+// this modal's population (03-UI-SPEC.md 6.2) -- a new selector scoped to this
+// component's own wrapper class, not a stacked override of the shared .la-btn rule.
+.la-ai-disclosure-modal-wrap .la-btn {
+  min-height: $aac-spacing-64;
 }
 
 // Word Cloud modal: same styling as support modal, wider dialog for cloud content
@@ -53253,6 +54042,13 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     0 1px 2px rgba(13, 36, 56, 0.04),
     0 6px 18px -8px rgba(13, 36, 56, 0.12);
   overflow: hidden;
+}
+
+/* ARIA row wrapper (grid → row → gridcell). `display: contents` generates no
+   layout box, so the cells keep auto-placing into the .new-board-preview CSS grid
+   unchanged; the wrapper exists only to carry role="row". */
+.new-board-preview__row {
+  display: contents;
 }
 
 .new-board-preview__cell {
@@ -73847,6 +74643,14 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   /* See .md-board-detail-layout — 100dvh prevents bottom-row clipping on
      Android Chrome/Edge where 100vh extends past the actual visible viewport. */
   height: calc(100dvh - 120px);
+}
+/* ARIA row wrapper for the board grid (grid → row → gridcell). `display: contents`
+   generates no layout box, so the gridcells inside it keep participating in the
+   parent .md-board-detail-grid's CSS grid exactly as before — the wrapper exists
+   only to give each row the role="row" that require-context-role (and screen-reader
+   grid navigation) needs. */
+.md-board-detail-grid__row {
+  display: contents;
 }
 /* Narrow screens (<=768px): override the user's grid-gap preference
    (--bd-button-gap) with a tight, fixed gap so the board fits more comfortably —

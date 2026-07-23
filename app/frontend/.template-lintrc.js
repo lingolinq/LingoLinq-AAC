@@ -89,6 +89,21 @@ module.exports = {
     // docs/task-management/2026-07-15-template-lint-convention-migration.md.
     'require-input-label': false,
     'require-input-accessible-name': 'error',
+    // Disabled deliberately -- NOT to silence a defect. This rule maps <form> -> `form`
+    // landmark and <header> -> `banner` landmark by TAG ALONE, ignoring the ARIA rules that
+    // (a) an UNNAMED <form> is not a form landmark and (b) a <header> nested inside
+    // main/article/section/aside/nav is not a banner. All 18 flagged elements are unnamed
+    // <form>s (Enter-key-suppression wrappers) and component-scoped <header>s -- so per real
+    // ARIA semantics none are landmarks, and none are duplicates. Confirmed empirically with
+    // axe-core (0 landmark violations on /example and /example/boards despite 3 <form> + 4
+    // <header> each). The rule's suggested "fix" is actively HARMFUL here: adding aria-labels
+    // to make them "unique landmarks" would promote 7 Enter-suppression forms into real
+    // landmarks, cluttering the screen-reader landmark menu. Also, landmark uniqueness is a
+    // PAGE-level property while template-lint only sees one template, so it can't catch the
+    // cross-component collisions that matter anyway. Real landmark defects are verified at
+    // runtime with axe-core (see the defect-verification harness /
+    // docs/task-management/2026-07-15-template-lint-convention-migration.md).
+    'no-duplicate-landmark-elements': false,
     // Disabled deliberately -- NOT to silence a defect. This rule is satisfied only by a
     // <track kind="captions"> containing the words being said. Our media is user-recorded
     // speech/sounds and app sound effects; the 9 <video>s have no transcription field at all,

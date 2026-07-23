@@ -19,7 +19,7 @@ Key characteristics:
 - **Quoting**: 
     - User-facing strings: Use DOUBLE QUOTES `"string"`.
     - Code/Internal strings: Use SINGLE QUOTES `'string'`.
-- **Node Version**: Use Node 22.
+- **Node Version**: Use Node 22 (pinned in `.nvmrc` and `app/frontend/.nvmrc`). The repo was on Node 20 while it ran Ember 3.28; the Ember 5.12 upgrade (#490) lifted that ceiling and it moved to Node 22.
 - **jQuery**: Prefer native DOM APIs or Ember patterns over jQuery (`$`) where practical.
 
 ## Architecture

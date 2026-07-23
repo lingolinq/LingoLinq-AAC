@@ -17,7 +17,7 @@
         {{#if this.loading_avatar}}
           {{t "Uploading..." key="uploading"}}
         {{else}}
-          <input type="file" id="avatar_upload" >
+          <input type="file" id="avatar_upload" aria-label={{t "Upload avatar" key="upload_avatar"}} >
           {{#if this.editable}}
             <div style='margin-bottom: 10px; margin-top: 5px;'>
               <a href="#" class='btn btn-default btn-sm' {{on "click" (this.ctrlAction "edit_image_url")}}>{{t "edit image" key="edit_image_lower"}}</a>

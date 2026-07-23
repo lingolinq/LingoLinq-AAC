@@ -102,6 +102,10 @@ export default Component.extend({
 
   actions: {
     toggle: function() {
+      // Collapse a duplicate toggle from one modal click (same fix as bound-select.js).
+      var now = (window.performance && performance.now) ? performance.now() : Date.now();
+      if (this._lastToggleAt != null && (now - this._lastToggleAt) < 250) { return; }
+      this._lastToggleAt = now;
       this.toggleProperty('open');
       if (this.get('open')) { this._focusSearchInput(); }
     },

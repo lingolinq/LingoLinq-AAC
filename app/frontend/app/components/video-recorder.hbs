@@ -37,7 +37,7 @@
             <button class='btn btn-default' title={{t "Upload Video" key="upload_video"}}>
               <img src={{path "images/upload.svg"}} style='width: 35px; margin: -12px -3px -3px;'><span class='sr-only'>{{t "Upload Video" key="upload_video"}}</span>
             </button>
-            <input type="file" name="video_upload" id="video_upload" accept="video/*" tabindex="-1">
+            <input type="file" name="video_upload" id="video_upload" accept="video/*" tabindex="-1" aria-label={{t "Upload Video" key="upload_video"}}>
           </span>
           {{#if this.video_error}}
             <p>{{t "There was an error while trying to record video" key="error_recording_video"}}</p>

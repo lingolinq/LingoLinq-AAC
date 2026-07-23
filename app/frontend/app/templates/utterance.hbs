@@ -63,7 +63,7 @@
             {{/if}}
           {{/if}}
         {{/if}}
-        <textarea class="form-control" id="utterance_reply" {{on "input" (set-field this "message")}}>{{this.message}}</textarea>
+        <textarea class="form-control" id="utterance_reply" aria-label={{t "Reply" key="reply"}} {{on "input" (set-field this "message")}}>{{this.message}}</textarea>
         <button class='btn btn-lg btn-primary' {{on "click" (this.ctrlAction "reply")}} disabled={{this.reply_status.loading}}>
           {{#if this.reply_status.loading}}
             {{t "Sending Reply..." key="sending_reply"}}

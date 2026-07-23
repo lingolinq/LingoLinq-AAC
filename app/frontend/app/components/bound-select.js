@@ -151,6 +151,14 @@ export default Component.extend({
     },
     toggle(ev) {
       if (ev && ev.stopPropagation) { ev.stopPropagation(); }
+      // In a modal, one physical click reaches this toggle TWICE (raw_events
+      // synthesizes a pass-through click for Ember-5 co-located modal components,
+      // and the browser's own native click fires too), which would open the
+      // dropdown then instantly re-close it. Collapse a duplicate toggle from the
+      // same gesture. Scoped to the toggle only, so it never affects choose/close.
+      var now = (window.performance && performance.now) ? performance.now() : Date.now();
+      if (this._lastToggleAt != null && (now - this._lastToggleAt) < 250) { return; }
+      this._lastToggleAt = now;
       this.toggleProperty('isOpen');
       if (this.get('isOpen')) {
         const self = this;

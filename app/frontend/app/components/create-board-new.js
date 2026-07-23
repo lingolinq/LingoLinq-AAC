@@ -18,6 +18,7 @@ import speecher from '../utils/speecher';
 import { pick_aac_color } from '../utils/parts_of_speech';
 import { buttonSpacingPx, buttonBorderPx, buttonTextPx, BUTTON_SPACING_OPTIONS } from '../utils/display_prefs';
 import aiFeatureGate from '../utils/ai_feature_gate';
+import article50Gate from '../utils/article50_gate';
 
 /**
  * Create Board (New) Modal Component
@@ -1839,44 +1840,58 @@ export default Component.extend({
         return;
       }
       this.set('ai_generate_error', null);
-      this.set('ai_generating', true);
-      var payload = {
-        prompt: prompt,
-        rows: parseInt(this.get('model.grid.rows'), 10) || 2,
-        columns: parseInt(this.get('model.grid.columns'), 10) || 4,
-        include_core_words: true,
-        labels_order: this.get('model.grid.labels_order') || 'columns',
-        locale: (this.get('model.locale') || 'en')
-      };
-      persistence.ajax('/api/v1/boards/generate_labels', {
-        type: 'POST',
-        contentType: 'application/json',
-        dataType: 'json',
-        data: JSON.stringify(payload)
-      }).then(function(res) {
+      // EU AI Act Article 50(1): first-AI-use gate. BLOCK mode (D-03) -- this is a
+      // deliberate, non-time-critical user action, so it is safe to hold the request
+      // behind the disclosure modal. Resolves immediately when no acknowledgement is
+      // needed (flag off, already acknowledged, out of scope). If the modal is
+      // abandoned, this promise never resolves and the request below never fires.
+      article50Gate.presentBlockingGate(this.get('appState')).then(function() {
         if(_this.isDestroyed || _this.isDestroying) { return; }
-        var labels = (res && res.labels) || '';
-        _this.set('model.grid.labels', labels);
-        if(res && res.name && !(_this.get('model.name') || '').trim().length) {
-          _this.set('model.name', res.name);
-        }
-        // EU AI Act Article 50(2): carry the signed AI-generation marker onto the board
-        // so it rides the save payload and the server can verify + persist it.
-        if(res && res.ai_generated) {
-          _this.set('model.ai_generated', res.ai_generated);
-        }
-        _this.set('ai_generating', false);
-        _this.set('ai_labels_generated', true);
-      }, function(err) {
+        _this.set('ai_generating', true);
+        var payload = {
+          prompt: prompt,
+          rows: parseInt(_this.get('model.grid.rows'), 10) || 2,
+          columns: parseInt(_this.get('model.grid.columns'), 10) || 4,
+          include_core_words: true,
+          labels_order: _this.get('model.grid.labels_order') || 'columns',
+          locale: (_this.get('model.locale') || 'en')
+        };
+        persistence.ajax('/api/v1/boards/generate_labels', {
+          type: 'POST',
+          contentType: 'application/json',
+          dataType: 'json',
+          data: JSON.stringify(payload)
+        }).then(function(res) {
+          if(_this.isDestroyed || _this.isDestroying) { return; }
+          var labels = (res && res.labels) || '';
+          _this.set('model.grid.labels', labels);
+          if(res && res.name && !(_this.get('model.name') || '').trim().length) {
+            _this.set('model.name', res.name);
+          }
+          // EU AI Act Article 50(2): carry the signed AI-generation marker onto the board
+          // so it rides the save payload and the server can verify + persist it.
+          if(res && res.ai_generated) {
+            _this.set('model.ai_generated', res.ai_generated);
+          }
+          _this.set('ai_generating', false);
+          _this.set('ai_labels_generated', true);
+        }, function(err) {
+          if(_this.isDestroyed || _this.isDestroying) { return; }
+          var msg = i18n.t('generate_failed', "Generation failed");
+          var resp = (err && err.fakeXHR && err.fakeXHR.responseJSON) || (err && err.responseJSON) || null;
+          if(resp && resp.error) {
+            msg = resp.error;
+            if(resp.error_detail) { msg += ' - ' + resp.error_detail; }
+          }
+          _this.set('ai_generating', false);
+          _this.set('ai_generate_error', msg);
+        });
+      }, function() {
+        // Art.50 gate not acknowledged. Fail-closed: no generation request fires.
+        // Surface a reason rather than leaving the button looking broken.
         if(_this.isDestroyed || _this.isDestroying) { return; }
-        var msg = i18n.t('generate_failed', "Generation failed");
-        var resp = (err && err.fakeXHR && err.fakeXHR.responseJSON) || (err && err.responseJSON) || null;
-        if(resp && resp.error) {
-          msg = resp.error;
-          if(resp.error_detail) { msg += ' - ' + resp.error_detail; }
-        }
         _this.set('ai_generating', false);
-        _this.set('ai_generate_error', msg);
+        _this.set('ai_generate_error', i18n.t('generate_disclosure_required', "Please review the AI transparency notice before generating a board with AI."));
       });
     },
     opening: function() {
@@ -2286,6 +2301,10 @@ export default Component.extend({
      *  button into one affordance, mirroring how the palette pill
      *  itself is the activation/deactivation control. */
     toggle_paint_dropdown: function() {
+      // Collapse a duplicate toggle from one modal click (same fix as bound-select.js).
+      var now = (window.performance && performance.now) ? performance.now() : Date.now();
+      if (this._lastPaintDropdownToggle != null && (now - this._lastPaintDropdownToggle) < 250) { return; }
+      this._lastPaintDropdownToggle = now;
       if(this.get('paint_mode')) {
         this.send('clear_paint_mode');
         this.set('show_paint_dropdown', false);
@@ -2339,6 +2358,9 @@ export default Component.extend({
       this.notifyPropertyChange('_painted_colors');
     },
     toggle_paint_color_picker: function() {
+      var now = (window.performance && performance.now) ? performance.now() : Date.now();
+      if (this._lastPaintColorPickerToggle != null && (now - this._lastPaintColorPickerToggle) < 250) { return; }
+      this._lastPaintColorPickerToggle = now;
       this.toggleProperty('show_paint_color_picker');
     },
     update_custom_paint_color: function(value) {

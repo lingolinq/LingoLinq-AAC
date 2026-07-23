@@ -272,6 +272,35 @@
         {{/if}}
       </div>
     </div>
+    {{#if this.model.article_50_disclosure_required}}
+      <div class="form-group">
+        <label class="col-sm-3 control-label">{{t "AI Transparency Notice" key='ai_disclosure_pref_label'}}</label>
+        <div class="col-sm-9">
+          {{!-- Both states link to the notice rather than opening the ai-disclosure
+                modal. That modal is uncloseable BLOCK mode by design (no Escape, no
+                backdrop dismiss, one exit: Acknowledge), which is correct for a gate
+                the user hit on the way to an AI feature, and wrong for a voluntary
+                read from Preferences -- it would trap someone who just wanted to
+                re-read the notice into re-acknowledging to escape, with no cancel
+                path at all for a switch-scanning user. --}}
+          {{#if this.model.article_50_disclosure_shown}}
+            <p class="form-control-static">
+              {{t "Acknowledged." key='ai_disclosure_pref_status_acknowledged'}}
+            </p>
+            <a href={{this.article_50_disclosure_url}} target="_blank" rel="noopener" class="btn btn-default">
+              {{t "View Notice Again" key='ai_disclosure_pref_view_again'}}
+            </a>
+          {{else}}
+            <p class="form-control-static">
+              {{t "Not yet acknowledged. AI word suggestions are using the standard, non-AI fallback until you review this." key='ai_disclosure_pref_status_unacknowledged'}}
+            </p>
+            <a href={{this.article_50_disclosure_url}} target="_blank" rel="noopener" class="btn btn-default">
+              {{t "Review Notice" key='ai_disclosure_pref_review_button'}}
+            </a>
+          {{/if}}
+        </div>
+      </div>
+    {{/if}}
     <div class="form-group">
       <label for="word_suggestions" class="col-sm-3 control-label">{{t "Word Prediction" key='word_prediction'}}</label>
       <div class="col-sm-5">
@@ -847,7 +876,7 @@
         <div class="col-sm-9 col-sm-offset-3">
           <p class='form-control-static'>
             <span style='display: inline-block; width: 75px;'>
-              <input type="text" value={{this.pending_preferences.clear_vocalization_history_minutes}} placeholder="##" class="form-control" id="clear_vocalization_history_minutes" {{on "input" (set-field this "pending_preferences.clear_vocalization_history_minutes")}} />
+              <input type="text" value={{this.pending_preferences.clear_vocalization_history_minutes}} placeholder="##" class="form-control" id="clear_vocalization_history_minutes" aria-label={{t "minutes after being spoken in the vocalization box" key="clear_vocalization_history_minutes"}} {{on "input" (set-field this "pending_preferences.clear_vocalization_history_minutes")}} />
             </span>
             {{t "minutes after being spoken in the vocalization box" key='clear_vocalization_history_minutes'}}
           </p>
@@ -856,7 +885,7 @@
           <p class='form-control-static'>
             {{t "after" key='after'}}
             <span style='display: inline-block; width: 75px;'>
-              <input type="text" value={{this.pending_preferences.clear_vocalization_history_count}} placeholder="##" class="form-control" id="clear_vocalization_history_count" {{on "input" (set-field this "pending_preferences.clear_vocalization_history_count")}} />
+              <input type="text" value={{this.pending_preferences.clear_vocalization_history_count}} placeholder="##" class="form-control" id="clear_vocalization_history_count" aria-label={{t "times being spoken in the vocalization box" key="clear_vocalization_history_count"}} {{on "input" (set-field this "pending_preferences.clear_vocalization_history_count")}} />
             </span>
             {{t "times being spoken in the vocalization box" key='clear_vocalization_history_count'}}
           </p>
@@ -1442,7 +1471,7 @@
                   <span class="input-group-btn">
                     <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.scanning_region_rows")}}>-</button>
                   </span>
-                  <input value={{this.pending_preferences.device.scanning_region_rows}} class="form-control" id="scanning_region_rows" placeholder="rows" {{on "input" (set-field this "pending_preferences.device.scanning_region_rows")}} />
+                  <input value={{this.pending_preferences.device.scanning_region_rows}} class="form-control" id="scanning_region_rows" placeholder="rows" aria-label={{t "Rows" key="rows"}} {{on "input" (set-field this "pending_preferences.device.scanning_region_rows")}} />
                   <span class="input-group-btn">
                     <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.scanning_region_rows")}}>+</button>
                   </span>
@@ -1458,7 +1487,7 @@
                   <span class="input-group-btn">
                     <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.scanning_region_columns")}}>-</button>
                   </span>
-                  <input value={{this.pending_preferences.device.scanning_region_columns}} class="form-control" id="scanning_region_columns" placeholder="cols" {{on "input" (set-field this "pending_preferences.device.scanning_region_columns")}} />
+                  <input value={{this.pending_preferences.device.scanning_region_columns}} class="form-control" id="scanning_region_columns" placeholder="cols" aria-label={{t "Columns" key="columns"}} {{on "input" (set-field this "pending_preferences.device.scanning_region_columns")}} />
                   <span class="input-group-btn">
                     <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.scanning_region_columns")}}>+</button>
                   </span>
