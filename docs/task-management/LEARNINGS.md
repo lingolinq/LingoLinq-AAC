@@ -103,6 +103,7 @@ file (see [README.md](README.md)).
 - [Pattern: reuse the speak-mode-pin modal as a generic PIN gate for any action](#pattern-reuse-the-speak-mode-pin-modal-as-a-generic-pin-gate-for-any-action)
 - [Gotcha: async schedule_for on an unsaved record enqueues id:null and class-dispatches to a nonexistent method](#gotcha-async-schedule_for-on-an-unsaved-record-enqueues-idnull-and-class-dispatches-to-a-nonexistent-method)
 - [Gotcha: safely cleaning up Resque failed jobs — origination is chain::, not scheduled; count-check destructive removes](#gotcha-safely-cleaning-up-resque-failed-jobs--origination-is-chain-not-scheduled-count-check-destructive-removes)
+- [Gotcha: `Worker.process_queues` destroys RemoteActions — assert RA rows after one wave, not two](#gotcha-workerprocess_queues-destroys-remoteactions--assert-ra-rows-after-one-wave-not-two)
 - [Gotcha: a single-quoted `i18n.t` default silently DELETES the key on the next generator run](#gotcha-a-single-quoted-i18nt-default-silently-deletes-the-key-on-the-next-generator-run)
 
 ---
@@ -6482,6 +6483,10 @@ count against what the prior analysis predicted and abort on a large gap
 2,674 (267×) — an assertion would have caught it. Note there is effectively no
 undo: `Resque::Failure.remove` is irreversible, and the dev Redis has no AOF and
 auto-BGSAVEs on churn, so the pre-delete RDB is overwritten within minutes.
+
+## Gotcha: `Worker.process_queues` destroys RemoteActions — assert RA rows after one wave, not two
+
+`Worker.process_queues` (`lib/worker.rb`) always calls `RemoteAction.process_all` before draining Resque, and `process_all` destroys every row it processes. After synchronous `track_downstream_boards!`, board-level `schedule_update_available_boards` RAs already exist; the first `process_queues` turns those into user-level `update_available_boards` RAs. A second `process_queues` immediately consumes/destroys those user RAs — so `expect(RemoteAction.where(...).count).to be >= 1` after two waves flakes as `got: 0`. Assert after one wave when the setup already called `track_downstream_boards!`. Deferred-track examples (no sync track, only `process`) still need two waves because track itself arrives as a RemoteAction. See [`2026-07-23-board-caching-remote-action-flake.md`](./2026-07-23-board-caching-remote-action-flake.md).
 
 ## Pattern: privacy classification language in docs/legal/* is load-bearing and drifts across repos
 
