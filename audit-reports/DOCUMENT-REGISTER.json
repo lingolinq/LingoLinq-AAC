@@ -679,13 +679,13 @@
       "attestation": {
         "attestedBy": "Scot Wahlquist, CEO",
         "attestedDate": "2026-07-23",
-        "attestedContentHash": "ec818a003732d2a5b14dde65ffe4a251ef4a6e66701c6330a18827c13dd581b5",
+        "attestedContentHash": "30bd1f472cf53b1043cce268e644cdf49426fdf0e02534d8a9526c22877bb399",
         "priorAttestations": [
           "2026-06-21"
         ],
         "note": "Re-attested 2026-07-23 against the current revision after verification against live code and infrastructure state. The prior attestation covered a revision that no longer exists; see the document banner for what changed."
       },
-      "contentHash": "ec818a003732d2a5b14dde65ffe4a251ef4a6e66701c6330a18827c13dd581b5",
+      "contentHash": "30bd1f472cf53b1043cce268e644cdf49426fdf0e02534d8a9526c22877bb399",
       "bundles": [
         "soc2-evidence",
         "school-dpa-package",

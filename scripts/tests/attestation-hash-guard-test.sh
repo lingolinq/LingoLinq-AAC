@@ -22,7 +22,25 @@ WORK_MD=audit-reports/DOCUMENT-REGISTER.attestation-test.md
 LIVE_SNAPSHOT=$(mktemp)
 cp "$LIVE" "$LIVE_SNAPSHOT"
 
-cleanup() { rm -f "$WORK" "$WORK_MD" "$LIVE_SNAPSHOT"; }
+# One end-to-end case must edit a real attested file in place (see below). Snapshot its exact bytes
+# now - NOT its committed version - so the trap can restore whatever the working tree held when this
+# run started, including any pre-existing uncommitted edits. `git checkout` would discard those.
+MEMO=docs/legal/AI_GOVERNANCE_MEMO.md
+MEMO_SNAPSHOT=$(mktemp)
+cp "$MEMO" "$MEMO_SNAPSHOT"
+
+restore_failed=0
+restore_memo() {
+  # Only touch the file if this run changed it; restore from the byte snapshot and verify.
+  if ! cmp -s "$MEMO_SNAPSHOT" "$MEMO"; then
+    if ! cp "$MEMO_SNAPSHOT" "$MEMO" || ! cmp -s "$MEMO_SNAPSHOT" "$MEMO"; then
+      echo "  FAIL could not restore $MEMO from snapshot; it is left modified" >&2
+      restore_failed=1
+    fi
+  fi
+}
+
+cleanup() { restore_memo; rm -f "$WORK" "$WORK_MD" "$LIVE_SNAPSHOT" "$MEMO_SNAPSHOT"; }
 trap cleanup EXIT INT TERM
 
 SEED="ex=docs.find{|x| x['canonicalLocation']=='docs/legal/INCIDENT_LOG.md'}; m['attestationBackfillExemptions']=[{'id'=>ex['id'],'canonicalLocation'=>ex['canonicalLocation'],'reason'=>'seeded by the test harness','addedOn'=>'2026-07-23'}]"
@@ -122,26 +140,31 @@ echo "attestation-hash-guard-test: the render cannot launder a pin"
 # Render recomputes contentHash from current bytes; if it also wrote attestedContentHash, every
 # attestation would be self-certifying and this case would silently pass.
 cp "$LIVE" "$WORK"
-printf '\n' >> docs/legal/AI_GOVERNANCE_MEMO.md
+printf '\n' >> "$MEMO"
 ruby scripts/document-register-render.rb "$WORK" >/dev/null 2>&1
 if ruby scripts/document-register-render.rb --check "$WORK" 2>&1 | grep -qF "attested revision no longer exists"; then
   pass "edit an attested file, re-render, guard still fires"
 else
   fail "edit an attested file, re-render, guard was laundered by the render"
 fi
-git checkout -- docs/legal/AI_GOVERNANCE_MEMO.md
+restore_memo   # restore before the untouched-tree assertions below; the trap is the backstop
 
-# The live register must be byte-identical to how this run found it.
+# Both source files this run edited in place must be byte-identical to how it found them.
 if cmp -s "$LIVE_SNAPSHOT" "$LIVE"; then
   pass "live register untouched"
 else
   fail "live register was modified by the test run"
 fi
+if cmp -s "$MEMO_SNAPSHOT" "$MEMO"; then
+  pass "attested test file restored"
+else
+  fail "attested test file was left modified"
+fi
 
 echo
-if [ "$fails" -eq 0 ]; then
+if [ "$fails" -eq 0 ] && [ "$restore_failed" -eq 0 ]; then
   echo "attestation-hash-guard-test: OK (all guards fired)"
   exit 0
 fi
-echo "attestation-hash-guard-test: $fails guard(s) missing or misworded"
+echo "attestation-hash-guard-test: $fails guard(s) missing or misworded; restore_failed=$restore_failed"
 exit 1
