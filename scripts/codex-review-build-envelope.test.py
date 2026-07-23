@@ -34,8 +34,11 @@ class ReviewOutcomeTest(unittest.TestCase):
 
         outcome = build_envelope.review_outcome(review)
 
+        # kind stays distinguishable so W2 can label it as an infra
+        # inconclusive, but the commit-status STATE must fail-closed: an
+        # inconclusive runner/sandbox result blocks, it does not read green.
         self.assertEqual(outcome["kind"], "inconclusive_infrastructure")
-        self.assertEqual(outcome["status_state"], "success")
+        self.assertEqual(outcome["status_state"], "failure")
         self.assertEqual(outcome["status_description"], "Codex review inconclusive (runner/sandbox)")
 
     def test_non_live_state_needs_human_still_requires_attention(self):

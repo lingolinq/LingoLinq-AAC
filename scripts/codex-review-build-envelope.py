@@ -66,9 +66,16 @@ def review_outcome(review):
             "human_label": "Approved",
         }
     if is_infrastructure_inconclusive(review):
+        # Fail-closed: an inconclusive runner/sandbox result must BLOCK, not
+        # read green. `codex-review/deep-pass` cannot ever gate merges while
+        # its inconclusive outcome maps to `success`. The check is non-required
+        # today, so red-until-it-actually-reviews blocks nothing; it only stops
+        # the check from being promoted to required while it still fails open.
+        # `kind` stays distinguishable so W2 can label it as an infra
+        # inconclusive rather than a real requires-changes finding.
         return {
             "kind": "inconclusive_infrastructure",
-            "status_state": "success",
+            "status_state": "failure",
             "status_description": "Codex review inconclusive (runner/sandbox)",
             "human_label": "Inconclusive - runner/sandbox",
         }
