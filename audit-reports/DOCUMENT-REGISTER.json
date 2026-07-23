@@ -724,15 +724,15 @@
       "lastReviewed": "2026-07-23",
       "nextReviewDue": "2027-07-23",
       "attestation": {
-        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-23",
-        "attestedContentHash": "fc535a9105ed179bbe986941fd055461cb482e2d409e8687202accaf8332235e",
+        "attestedContentHash": "44e26b05b12c9e0c176896f0c408e1ac578127d10a8ec33dfbf7bab117921938",
         "priorAttestations": [
           "2026-07-06"
         ],
         "note": "Re-attested 2026-07-23 against the current revision after verification against live code and infrastructure state. The prior attestation covered a revision that no longer exists; see the document banner for what changed."
       },
-      "contentHash": "fc535a9105ed179bbe986941fd055461cb482e2d409e8687202accaf8332235e",
+      "contentHash": "44e26b05b12c9e0c176896f0c408e1ac578127d10a8ec33dfbf7bab117921938",
       "bundles": [
         "school-dpa-package",
         "soc2-evidence",
@@ -752,7 +752,8 @@
         "status": "draft"
       },
       "legalHold": false,
-      "dispositionEligibleAfter": null
+      "dispositionEligibleAfter": null,
+      "notes": "Re-attested by Scot Wahlquist, CEO, 2026-07-23. This revision adds the Abair Irish-TTS DISABLE (row #17, PR #674) and the localization/speech finding triage (LL-a167848115 remediated; LL-c38e7da48e and LL-1eb9a2435b accepted-risk) on top of the 2026-07-23 re-attestation recorded in PR #672 (which cleared the 2026-07-21/22/23 DRAFT amendments). Only Scot attests."
     },
     {
       "title": "COPPA Final-Rule Verification",
@@ -1147,7 +1148,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "6bf4ac3d6fb430ea6539053c31a1296c0e52dfd84fb0a8136692653587104b6c",
+      "contentHash": "ac5c223b6460b54995fe430d51c7ad099d07c339c82dffb0e5aebb99083787a6",
       "bundles": [],
       "mirrors": [
         {
@@ -2536,19 +2537,19 @@
         "GDPR",
         "SOC2"
       ],
-      "lastReviewed": "2026-07-22",
+      "lastReviewed": "2026-07-23",
       "nextReviewDue": "2027-07-22",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-22",
-        "attestedContentHash": "71577f49b16e6e3b938c61e79931104a47159612c2174069336f12a928d06fc6"
+        "attestedDate": "2026-07-23",
+        "attestedContentHash": "47318beb94b3d3b9fa76845def3d68db6eddd38b7a6e2c44596d11b2d733b046"
       },
-      "contentHash": "71577f49b16e6e3b938c61e79931104a47159612c2174069336f12a928d06fc6",
+      "contentHash": "47318beb94b3d3b9fa76845def3d68db6eddd38b7a6e2c44596d11b2d733b046",
       "bundles": [
         "security-review"
       ],
       "mirrors": [],
-      "notes": "Re-attested for EXTERNAL RELEASE by Scot Wahlquist 2026-07-22 (rev. 2026-07-22-a). The prior 2026-07-09 attestation (rev. 2026-07-09-c) covered an earlier revision, superseded by PR #649 (COPPA offboarding rewritten from open gap to implemented control) and PR #652 (subprocessor and hosting posture rewritten for the GCP cutover). Because this document is externally shareable, the newer claims were verified against live code before the re-attestation was recorded: Organization#remove_user calls User#begin_family_offboarding_consents!, parent email is collected at next login via submit_parental_consent_email, and full login is genuinely blocked while consent is pending because the device token is only issued \"unless coppa_pending\".",
+      "notes": "Re-attested for EXTERNAL RELEASE by Scot Wahlquist, CEO, 2026-07-23 (rev. 2026-07-23-a): corrected the text-to-speech statement after Irish/Abair TTS was disabled (PR #674, no DPA on file) so the doc no longer names Abair as an active provider (see docs/legal/SUBPROCESSORS.md #17 and finding LL-a167848115). Prior re-attestation 2026-07-22 (rev. 2026-07-22-a) covered the COPPA-offboarding (#649) and GCP-cutover subprocessor/hosting (#652) rewrites; the 2026-07-09 attestation (rev. 2026-07-09-c) covered an earlier revision.",
       "retention": {
         "class": "policy-version",
         "rule": "supersession + 7 years",
