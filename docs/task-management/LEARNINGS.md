@@ -7171,3 +7171,37 @@ The machine's default node is 16; running `npm install` there (npm 8) mangled
 Always `export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use 22` first. If a lockfile got
 mangled, `git checkout -- package.json package-lock.json` and redo under Node 22 (clean diff =
 only the intended deps).
+
+## Oversized-PR review: chunk the diff across passes, fold fail-closed (never truncate-and-defer)
+
+`codex-review/deep-pass` (Scot's required, fail-closed gate) injected only the first
+`MAX_BYTES=60000` of the diff. A large PR (#665: ~644 KB) was truncated, the reviewer correctly
+refused a verdict over unverified hunks, and the fail-closed policy turned that into a red required
+check. **Truncation is the wrong lever for a required gate** — it converts "too big" into
+"unreviewable → blocked" instead of "reviewed across passes".
+
+**Fix pattern (reusable for any prompt-budget-bound reviewer):**
+- Split the raw `git diff BASE...HEAD` on **file-boundary headers** (`^diff --git `) into chunks
+  each ≤ a raised per-chunk cap; never split one file across chunks. Only a single file bigger than
+  the cap stays truncated, and only for its own chunk (truncate on a **line** boundary — a byte cut
+  splits multibyte UTF-8 in `public/locales/*.json` and makes the prompt undecodable; mirror the
+  workflow's `head -c | sed '$d'`).
+- Review each chunk on its own pass; keep the existing per-chunk convergence ("confirm both
+  directions").
+- Fold **across** chunks as a **conjunction, not a vote**: APPROVE only if every chunk approves;
+  any blocked chunk blocks the PR; surface the highest-priority blocker. (Contrast: convergence
+  *within* a chunk is a majority vote across non-deterministic runs.)
+- Bound fan-out with `MAX_CHUNKS`; the overflow tail becomes a **synthetic fail-closed chunk** so a
+  truly enormous PR still routes to a human — preserving the original safe behavior for just the
+  tail, not the whole PR. Never silently drop the overflow.
+- Keep normal PRs free: a diff under the cap = exactly one chunk = unchanged cost.
+
+**Gotchas:** (1) GitHub Actions `run:` bash is `set -eo pipefail` by default — `ls glob | sort`
+crashes the step on an empty diff; use `shopt -s nullglob; for f in dir/glob; do` so 0 chunks
+skips cleanly and folds to fail-closed downstream. (2) The prompt-injection guard must scan **each
+chunk's own diff** (the text that chunk's reviewer actually saw), not a single global diff. (3)
+Make the cap/limit repo `vars.` (`CODEX_MAX_DIFF_BYTES`, `CODEX_MAX_DIFF_CHUNKS`) so the tooling
+owner can tune runner cost without a code change. Files:
+`scripts/codex-review-chunk-diff.py`, `codex-review-assemble-manifest.py`,
+`codex-review-build-envelope.py` (`fold_across_chunks` + `--manifest`),
+`.github/workflows/codex-review.yml`.
