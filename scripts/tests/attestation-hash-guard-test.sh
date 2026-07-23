@@ -19,8 +19,31 @@ LIVE=audit-reports/DOCUMENT-REGISTER.json
 WORK=audit-reports/DOCUMENT-REGISTER.attestation-test.json
 WORK_MD=audit-reports/DOCUMENT-REGISTER.attestation-test.md
 
-cleanup() { rm -f "$WORK" "$WORK_MD"; }
+LIVE_SNAPSHOT=$(mktemp)
+cp "$LIVE" "$LIVE_SNAPSHOT"
+
+# One end-to-end case must edit a real attested file in place (see below). Snapshot its exact bytes
+# now - NOT its committed version - so the trap can restore whatever the working tree held when this
+# run started, including any pre-existing uncommitted edits. `git checkout` would discard those.
+MEMO=docs/legal/AI_GOVERNANCE_MEMO.md
+MEMO_SNAPSHOT=$(mktemp)
+cp "$MEMO" "$MEMO_SNAPSHOT"
+
+restore_failed=0
+restore_memo() {
+  # Only touch the file if this run changed it; restore from the byte snapshot and verify.
+  if ! cmp -s "$MEMO_SNAPSHOT" "$MEMO"; then
+    if ! cp "$MEMO_SNAPSHOT" "$MEMO" || ! cmp -s "$MEMO_SNAPSHOT" "$MEMO"; then
+      echo "  FAIL could not restore $MEMO from snapshot; it is left modified" >&2
+      restore_failed=1
+    fi
+  fi
+}
+
+cleanup() { restore_memo; rm -f "$WORK" "$WORK_MD" "$LIVE_SNAPSHOT" "$MEMO_SNAPSHOT"; }
 trap cleanup EXIT INT TERM
+
+SEED="ex=docs.find{|x| x['canonicalLocation']=='docs/legal/INCIDENT_LOG.md'}; m['attestationBackfillExemptions']=[{'id'=>ex['id'],'canonicalLocation'=>ex['canonicalLocation'],'reason'=>'seeded by the test harness','addedOn'=>'2026-07-23'}]"
 
 fails=0
 pass() { echo "  ok   $1"; }
@@ -63,7 +86,7 @@ expect "pinned hash no longer matches the file" \
   "attested revision no longer exists"
 
 expect "attested git row pins nothing and is not grandfathered" \
-  "m['attestationBackfillExemptions']=[]" \
+  "docs.find{|x| x['canonicalLocation']=='docs/legal/INCIDENT_LOG.md'}['attestation'].delete('attestedContentHash')" \
   "has no attestation.attestedContentHash"
 
 expect "pin is malformed" \
@@ -77,35 +100,35 @@ expect "non-git row carries a pin CI cannot verify" \
 echo "attestation-hash-guard-test: the exemption list cannot become a waiver"
 # The load-bearing case. A future unpinned attestation must NOT be clearable by appending an entry.
 expect "a new row cannot be exempted into passing" \
-  "m['attestationBackfillExemptions']=[]; d=docs.find{|x| x['canonicalLocation']=='docs/legal/INCIDENT_LOG.md'}; d['attestation'].delete('attestedContentHash'); m['attestationBackfillExemptions']=[{'id'=>d['id'],'canonicalLocation'=>d['canonicalLocation'],'reason'=>'plausible sounding excuse','addedOn'=>'2026-08-01'}]" \
+  "${SEED}; ex['attestation'].delete('attestedContentHash'); m['attestationBackfillExemptions'][0]['reason']='plausible sounding excuse'" \
   "is not in the closed grandfather set"
 
 expect "exemption left behind after the row was pinned" \
-  "d=docs.find{|x| x['canonicalLocation']=='docs/legal/SUBPROCESSORS.md'}; d['attestation']['attestedContentHash']=d['contentHash']" \
+  "${SEED}; ex['attestation']['attestedContentHash']=ex['contentHash']" \
   "stale attestation exemption"
 
 expect "exemption id resolves to nothing" \
-  "m['attestationBackfillExemptions'][0]['id']='DOC-deadbeef00'" \
+  "${SEED}; m['attestationBackfillExemptions'][0]['id']='DOC-deadbeef00'" \
   "does not resolve to a row in this register"
 
 expect "exemption carries no reason" \
-  "m['attestationBackfillExemptions'][0].delete('reason')" \
+  "${SEED}; m['attestationBackfillExemptions'][0].delete('reason')" \
   'is missing "reason"'
 
 expect "exemption date is unparseable" \
-  "m['attestationBackfillExemptions'][0]['addedOn']='2026-13-45'" \
+  "${SEED}; m['attestationBackfillExemptions'][0]['addedOn']='2026-13-45'" \
   "unparseable addedOn"
 
 expect "exemption is duplicated" \
-  "m['attestationBackfillExemptions'] << m['attestationBackfillExemptions'][0].dup" \
+  "${SEED}; m['attestationBackfillExemptions'] << m['attestationBackfillExemptions'][0].dup" \
   "duplicate attestation exemption"
 
 expect "exemption covers a row with no attestation" \
-  "d=docs.find{|x| x['canonicalLocation']=='docs/legal/SUBPROCESSORS.md'}; d['attestation']={}" \
+  "${SEED}; ex['attestation']={}" \
   "covers a row carrying no attestation"
 
 expect "exemption location disagrees with its row" \
-  "m['attestationBackfillExemptions'][0]['canonicalLocation']='docs/legal/NOPE.md'" \
+  "${SEED}; m['attestationBackfillExemptions'][0]['canonicalLocation']='docs/legal/NOPE.md'" \
   "but the row is"
 
 expect "exemption list is not an array" \
@@ -117,26 +140,31 @@ echo "attestation-hash-guard-test: the render cannot launder a pin"
 # Render recomputes contentHash from current bytes; if it also wrote attestedContentHash, every
 # attestation would be self-certifying and this case would silently pass.
 cp "$LIVE" "$WORK"
-printf '\n' >> docs/legal/AI_GOVERNANCE_MEMO.md
+printf '\n' >> "$MEMO"
 ruby scripts/document-register-render.rb "$WORK" >/dev/null 2>&1
 if ruby scripts/document-register-render.rb --check "$WORK" 2>&1 | grep -qF "attested revision no longer exists"; then
   pass "edit an attested file, re-render, guard still fires"
 else
   fail "edit an attested file, re-render, guard was laundered by the render"
 fi
-git checkout -- docs/legal/AI_GOVERNANCE_MEMO.md
+restore_memo   # restore before the untouched-tree assertions below; the trap is the backstop
 
-# The live register must be untouched by this run.
-if git diff --quiet -- "$LIVE"; then
+# Both source files this run edited in place must be byte-identical to how it found them.
+if cmp -s "$LIVE_SNAPSHOT" "$LIVE"; then
   pass "live register untouched"
 else
   fail "live register was modified by the test run"
 fi
+if cmp -s "$MEMO_SNAPSHOT" "$MEMO"; then
+  pass "attested test file restored"
+else
+  fail "attested test file was left modified"
+fi
 
 echo
-if [ "$fails" -eq 0 ]; then
+if [ "$fails" -eq 0 ] && [ "$restore_failed" -eq 0 ]; then
   echo "attestation-hash-guard-test: OK (all guards fired)"
   exit 0
 fi
-echo "attestation-hash-guard-test: $fails guard(s) missing or misworded"
+echo "attestation-hash-guard-test: $fails guard(s) missing or misworded; restore_failed=$restore_failed"
 exit 1

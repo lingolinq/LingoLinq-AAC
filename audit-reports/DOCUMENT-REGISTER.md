@@ -4,12 +4,12 @@
 > Do not hand-edit; edit the JSON (the source of truth) and re-render.
 > The codebase copy is canonical; the Notion board is a one-way mirror; Drive docs are linked, never copied.
 >
-> Generated: 2026-07-22 | Documents: 70 (git 38 / drive 28 / notion 4)
+> Generated: 2026-07-23 | Documents: 70 (git 38 / drive 28 / notion 4)
 
 ## Headline
 
 - **Status:** draft 8, approved 16, published 43, superseded 3
-- **Overdue for review** (as of 2026-07-22): none
+- **Overdue for review** (as of 2026-07-23): none
 - **Drafts awaiting attestation:** Accessibility Conformance Report (ACR / VPAT); Accessibility Conformance Report (ACR / VPAT) (branded); EU AI Act Article 50 Transparency: Implementation Milestone Plan; Compliance Posture Report (branded, 2026-07-16 re-attest); Anthropic Business Associate Agreement (2026-05-06); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Annex A - Clinical BAA Template (DRAFT); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT)
 
 ## Documents by type
@@ -22,11 +22,11 @@
 | AI Data-Flow Classification | git | `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md` | approved | FERPA, COPPA, HIPAA, GDPR | Scot Wahlquist | 2026-07-22 | 2027-07-22 | 2026-07-22 | `f16e851f8cc0` | school-dpa-package, security-review, dsar |
 | AI Data-Sharing Consent: Rationale and Policy | git | `docs/legal/AI_DATA_SHARING_CONSENT.md` | approved | FERPA, COPPA, GDPR | Scot Wahlquist | 2026-07-09 | 2027-07-09 | 2026-07-09 | `c77ebb0dc5c8` |  |
 | Business Continuity and Disaster Recovery Plan | Drive | [open](https://docs.google.com/document/d/1WIr3aBuFjworFtv9EOisOCSdfLvMSMFWQrFMzkhda00/edit) | published | SOC2 | Scot Wahlquist | 2026-06-19 | 2026-12-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
-| Compliance & Data Governance (COMPLIANCE.md) | git | `COMPLIANCE.md` | approved | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-07-06 | 2027-06-23 | 2026-07-06 | `1e75223be75e` | soc2-evidence |
-| Data Retention Schedule | git | `docs/legal/DATA_RETENTION.md` | approved | FERPA, GDPR, HIPAA, COPPA | Scot Wahlquist | 2026-06-18 | 2027-06-18 | 2026-06-21 | `b1bee6c56129` | soc2-evidence, school-dpa-package, security-review, dsar |
+| Compliance & Data Governance (COMPLIANCE.md) | git | `COMPLIANCE.md` | approved | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-07-23 | 2027-07-10 | 2026-07-23 | `4afee21c69b0` | soc2-evidence |
+| Data Retention Schedule | git | `docs/legal/DATA_RETENTION.md` | approved | FERPA, GDPR, HIPAA, COPPA | Scot Wahlquist | 2026-07-23 | 2027-07-23 | 2026-07-23 | `30bd1f472cf5` | soc2-evidence, school-dpa-package, security-review, dsar |
 | Data Retention Schedule (branded) | Drive | [open](https://docs.google.com/document/d/1GRFuvaacbUbcAixhaOAOsdGKhOfclAByYS53bWap14k/edit) | published | FERPA, GDPR, HIPAA, COPPA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence, school-dpa-package |
 | EU AI Act Article 50 Transparency: Implementation Milestone Plan | git | `docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md` | draft | GDPR | Scot Wahlquist | 2026-07-14 | 2026-08-02 | no | `1a557d9d5b3d` |  |
-| Subprocessor Register | git | `docs/legal/SUBPROCESSORS.md` | approved | GDPR, FERPA, HIPAA | Scot Wahlquist | 2026-06-18 | 2027-06-18 | 2026-07-06 | `603f09c09868` | school-dpa-package, soc2-evidence, security-review |
+| Subprocessor Register | git | `docs/legal/SUBPROCESSORS.md` | approved | GDPR, FERPA, HIPAA | Scot Wahlquist | 2026-07-23 | 2027-07-23 | 2026-07-23 | `fc535a9105ed` | school-dpa-package, soc2-evidence, security-review |
 | Subprocessor Register (branded) | Drive | [open](https://docs.google.com/document/d/13i7PUAZO-_lyUrObdB3CLDQ5KB9s5GNL7XHpcBCRn_M/edit) | published | GDPR, FERPA, HIPAA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, school-dpa-package |
 | Vendor and Subprocessor Management Policy | Drive | [open](https://docs.google.com/document/d/1fmBOfw-peYUpdwmttHC3hqzU_5c3OMNgBSN4NDK7mAM/edit) | published | SOC2, GDPR | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
 | Written Information Security Program (WISP) | Drive | [open](https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit) | published | SOC2, HIPAA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence, security-review, baa |
@@ -42,7 +42,7 @@
 | Anthropic Business Associate Agreement (2026-05-06) | Drive | [open](https://drive.google.com/file/d/1sL3di9GRP4hlids-baZDT26n3SKjzwD5/view) | draft | HIPAA | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | (supplied) | baa |
 | AWS Business Associate Agreement (signed PDF) | git | `docs/legal/AWS_BAA_2026-02.pdf` | published | HIPAA | Scot Wahlquist | 2026-05-11 | 2027-05-11 | 2026-02 | `55f28e00168c` | baa |
 | Compliance & Security Program v1.0 (Attested) | Drive | [open](https://docs.google.com/document/d/1bvVQClfhbNUCCPnmFZoDABlBA9hGNCEHQnWA2Z-r9Dg/edit) | published | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-12-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06 |
-| Compliance Posture Report | git | `docs/legal/COMPLIANCE_POSTURE_REPORT.md` | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-07-16 | 2026-10-16 | 2026-07-16 | `80af6f2c5b34` | school-dpa-package, security-review, grant |
+| Compliance Posture Report | git | `docs/legal/COMPLIANCE_POSTURE_REPORT.md` | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-07-23 | 2026-10-23 | 2026-07-23 | `b29b1cd0d5ca` | school-dpa-package, security-review, grant |
 | Compliance Posture Report (branded) | Drive | [open](https://docs.google.com/document/d/1A2cM0m6GvErHwpiMgns258NbN_M2krNB_HyedHJkqpk/edit) | superseded | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06 |
 | Compliance Posture Report (branded, 2026-07-16 re-attest) | Drive | [open](https://docs.google.com/document/d/1yx-jVYesJ0ZQM0myir6d0rRMMzGEoH5EL5_luicucYo/edit) | draft | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-07-22 | 2027-01-22 | no | (supplied) | school-dpa-package, security-review |
 | Compliance Program | git | `docs/legal/COMPLIANCE_PROGRAM.md` | approved | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-07-22 | 2027-07-22 | 2026-07-22 | `1d1f81b0eeab` | compliance-records-set-2026-06 |
@@ -55,10 +55,10 @@
 |---|---|---|---|---|---|---|---|---|---|---|
 | Anthropic HIPAA-Ready BAA Acceptance Record | git | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` | approved | HIPAA, GDPR | Scot Wahlquist | 2026-07-18 | 2027-07-18 | 2026-07-18 | `5adbe44783d9` | baa |
 | AWS BAA Acceptance Record | git | `docs/legal/AWS_BAA_ACCEPTED.md` | approved | HIPAA | Scot Wahlquist | 2026-05-11 | 2027-05-11 | 2026-06-21 | `dc6a2ba9fa16` | baa |
-| COPPA Final-Rule Verification | git | `docs/legal/COPPA_VERIFICATION_2026-04-26.md` | approved | COPPA | Scot Wahlquist | 2026-04-26 | 2026-07-26 | 2026-06-21 | `b826e9beeec3` | school-dpa-package |
+| COPPA Final-Rule Verification | git | `docs/legal/COPPA_VERIFICATION_2026-04-26.md` | approved | COPPA | Scot Wahlquist | 2026-07-23 | 2026-10-22 | 2026-07-23 | `35a6298e2df5` | school-dpa-package |
 | COPPA Final-Rule Verification (branded) | Drive | [open](https://docs.google.com/document/d/1p_pPVDr6FocvdQ7UjK3ElmPXOlQvRX9n2XdFpiqZeXY/edit) | published | COPPA | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, school-dpa-package |
 | Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14) | Drive | [open](https://docs.google.com/document/d/1CcyQpNfg8aiuY5VA7RHYbYqQEQtzHAdEkjpxcQIhNmM/edit) | draft | HIPAA | Scot Wahlquist | 2026-07-22 | 2027-01-22 | no | (supplied) | baa |
-| Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record | git | `docs/legal/GCP_BAA_ACCEPTED.md` | approved | HIPAA, GDPR | Scot Wahlquist | 2026-07-16 | 2027-07-16 | 2026-07-16 | `70671328fe90` | baa |
+| Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record | git | `docs/legal/GCP_BAA_ACCEPTED.md` | approved | HIPAA, GDPR | Scot Wahlquist | 2026-07-23 | 2027-07-23 | 2026-07-23 | `3e8f43b12186` | baa |
 | Incident Log | git | `docs/legal/INCIDENT_LOG.md` | approved | HIPAA, GDPR | Scot Wahlquist | 2026-05-27 | 2026-08-27 | 2026-06-21 | `e4e7c0b98d3f` | soc2-evidence |
 | Incident Log (branded) | Drive | [open](https://docs.google.com/document/d/1i5XFqAtgbxpDMLMdd80KS09WP7kWQ-GnTJU0ox7JGqQ/edit) | published | HIPAA, GDPR | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
 | Security Risk Assessment 2026 Q2 | Drive | [open](https://docs.google.com/document/d/1bvdVI_ftFaUu7CFVR8ajVZAQleruaIlqKxwI50iBRrc/edit) | published | SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
@@ -102,7 +102,7 @@
 | Annex A - Clinical BAA Template (DRAFT) | Drive | [open](https://docs.google.com/document/d/1Q6hDhooIQVMArkpn4ppxr4om3-Hx64QmYiIQe0sSWmY/edit) | draft | HIPAA | Scot Wahlquist | 2026-07-22 | 2027-01-22 | no | (supplied) | baa |
 | Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT) | Drive | [open](https://docs.google.com/document/d/1vPwlcZwllRPuTU1TlqFeSwxJZ445pxsh6O0cBrGyE6M/edit) | draft | FERPA, COPPA | Scot Wahlquist | 2026-07-22 | 2027-01-22 | no | (supplied) | school-dpa-package |
 | Parental Consent (COPPA / under-13) (branded) | Drive | [open](https://docs.google.com/document/d/1ljRwXPEAkQdJT81iGgAMHkfZTdbJ3EZPkIbHNuDtNxE/edit) | published | COPPA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, school-dpa-package |
-| Parental Consent Email (COPPA / under-13) | git | `docs/legal/PARENTAL_CONSENT_EMAIL.md` | approved | COPPA | Scot Wahlquist | 2026-06-11 | 2027-06-11 | 2026-06-21 | `cab41be40abc` | school-dpa-package |
+| Parental Consent Email (COPPA / under-13) | git | `docs/legal/PARENTAL_CONSENT_EMAIL.md` | approved | COPPA | Scot Wahlquist | 2026-07-23 | 2027-07-23 | 2026-07-23 | `d7c935ce4743` | school-dpa-package |
 
 ### agent-config (10)
 
@@ -264,32 +264,19 @@ green build. Verified for git rows only; Drive and Notion hashes are operator-su
 | Anthropic HIPAA-Ready BAA Acceptance Record | 2026-07-18 | `5adbe44783d9` | verified |
 | AWS BAA Acceptance Record | 2026-06-21 | `dc6a2ba9fa16` | verified |
 | AWS Business Associate Agreement (signed PDF) | 2026-02 | `55f28e00168c` | verified |
-| Compliance & Data Governance (COMPLIANCE.md) | 2026-07-06 | (none) | grandfathered - re-attestation owed |
-| Compliance Posture Report | 2026-07-16 | (none) | grandfathered - re-attestation owed |
+| Compliance & Data Governance (COMPLIANCE.md) | 2026-07-23 | `4afee21c69b0` | verified |
+| Compliance Posture Report | 2026-07-23 | `b29b1cd0d5ca` | verified |
 | Compliance Program | 2026-07-22 | `1d1f81b0eeab` | verified |
-| COPPA Final-Rule Verification | 2026-06-21 | (none) | grandfathered - re-attestation owed |
-| Data Retention Schedule | 2026-06-21 | (none) | grandfathered - re-attestation owed |
-| Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record | 2026-07-16 | (none) | grandfathered - re-attestation owed |
+| COPPA Final-Rule Verification | 2026-07-23 | `35a6298e2df5` | verified |
+| Data Retention Schedule | 2026-07-23 | `30bd1f472cf5` | verified |
+| Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record | 2026-07-23 | `3e8f43b12186` | verified |
 | Incident Log | 2026-06-21 | `e4e7c0b98d3f` | verified |
 | Incident Response and Breach Runbook | 2026-06-21 | `3efcaaf4a7c5` | verified |
 | LingoLinq Security, Privacy & Compliance Overview | 2026-07-22 | `71577f49b16e` | verified |
-| Parental Consent Email (COPPA / under-13) | 2026-06-21 | (none) | grandfathered - re-attestation owed |
-| Subprocessor Register | 2026-07-06 | (none) | grandfathered - re-attestation owed |
+| Parental Consent Email (COPPA / under-13) | 2026-07-23 | `d7c935ce4743` | verified |
+| Subprocessor Register | 2026-07-23 | `fc535a9105ed` | verified |
 
-**Grandfathered rows (7) - attested before this check existed, hash deliberately not
-backfilled.** Pinning the current bytes would silently re-assert an attestation that covered an
-earlier revision, which is the exact failure the field exists to catch. Each entry is removed when
-Scot re-attests; the list only shrinks.
-
-| Record | Why it is exempt | Added |
-|---|---|---|
-| Compliance & Data Governance (COMPLIANCE.md) | attested 2026-07-06, then modified by 3 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave | 2026-07-22 |
-| Compliance Posture Report | attested 2026-07-16, then modified by 2 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave | 2026-07-22 |
-| Data Retention Schedule | attested 2026-06-21, then modified by 2 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave | 2026-07-22 |
-| Subprocessor Register | attested 2026-07-06, then modified by 5 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave | 2026-07-22 |
-| COPPA Final-Rule Verification | attested 2026-06-21, then modified by 1 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave | 2026-07-22 |
-| Parental Consent Email (COPPA / under-13) | attested 2026-06-21, then modified by 2 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave | 2026-07-22 |
-| Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record | attested 2026-07-16, then modified by 2 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave | 2026-07-22 |
+**Grandfathered rows:** none. Every attested git record pins the bytes it was attested against.
 
 ## Supersession chains
 

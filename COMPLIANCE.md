@@ -1,8 +1,12 @@
 # LingoLinq AAC: Compliance & Data Governance
 
-**Last updated:** 2026-07-06
+**Last updated:** 2026-07-23
 **Owner:** Scott W.
 **Review cycle:** Annual (next review: 2027-02-21)
+**Attested:** 2026-07-06; re-attested 2026-07-23 by Scot Wahlquist, CEO. The 2026-07-06 attestation
+covered an earlier revision: PRs #622, #631, and #652 recorded the GCP and Anthropic agreements and
+the cutover posture after it. The header date above had also drifted behind the revision history in
+section 13.
 
 ---
 
@@ -147,7 +151,7 @@ This table covers every MCP (Model Context Protocol) server used in the developm
 | **GitHub**             | None            | Source code, issues, PRs          | None              | GitHub API      | No           | No user data in repos                       |
 | **Render**             | Low             | Deploy status, service metadata   | Indirect (fallback still holds frozen data) | Render API    | DPA / fallback only | MCP sees infra metadata only; do not unfreeze or decommission without explicit go |
 | **Notion**             | Low             | Project pages, task databases     | None if policy followed | Notion API | No           | NEVER store user data in Notion             |
-| **n8n**                | Medium          | Workflow definitions, execution logs | Medium          | Self-hosted (Render) | Covered by Render BAA | Audit workflow configs quarterly       |
+| **n8n**                | Medium          | Workflow definitions, execution logs | Medium          | Self-hosted (Render) | Covered by the Render **DPA** (no Render BAA exists; BAA remains pending, see section 4) | Audit workflow configs quarterly; no customer data by policy |
 | **Filesystem**         | None            | Local source code files           | None              | Local machine   | No           | Dev machine only; no user data on disk      |
 | **Sequential-thinking**| None            | Developer reasoning chains        | None              | Local process   | No           | No external data sent                       |
 | **Perplexity**         | None            | Web search results                | None              | Perplexity API  | No           | Never search for user-specific info         |
