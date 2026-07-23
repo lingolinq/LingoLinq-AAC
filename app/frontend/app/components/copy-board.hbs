@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -25,12 +25,12 @@
 
     <div class="md-modal-field">
       <label class="md-modal-label" for="board_name">{{t "Name:" key="name_colon"}}</label>
-      <Input @type="text" class="md-modal-input" id="board_name" @value={{this.board_name}} placeholder="Name for board copy" />
+      <input type="text" value={{this.board_name}} class="md-modal-input" id="board_name" placeholder="Name for board copy" {{on "input" (set-field this "board_name")}} />
     </div>
 
     <div class="md-modal-field">
       <label class="md-modal-checkbox-label">
-        <Input @type="checkbox" @checked={{this.set_as_home}} class="md-modal-checkbox" />
+        <input type="checkbox" checked={{this.set_as_home}} class="md-modal-checkbox" {{on "change" (set-field this "set_as_home" "checkbox")}} />
         <span>
           {{#if this.has_supervisees}}
             {{t "Set as the User's Home Board (optional)" key="set_as_users_home_board"}}
@@ -54,7 +54,7 @@
           <span class="md-modal-required-label__asterisk" aria-hidden="true">*</span>
           {{t "Required Selection" key="required_selection"}}
         </p>
-        {{user-select select_id="currently_selected_id" buttons=true selection=this.currently_selected_id action=(this.ctrlAction "updateCurrentlySelectedId") }}
+        <UserSelect @select_id="currently_selected_id" @buttons={{true}} @selection={{this.currently_selected_id}} @action={{this.ctrlAction "updateCurrentlySelectedId"}} />
       </div>
     {{/if}}
 
@@ -82,7 +82,7 @@
           <div class="md-modal-supervisee-list">
             {{#each this.model.known_supervisees as |supervisee|}}
               <label class="md-modal-checkbox-label">
-                <Input @type="checkbox" @checked={{supervisee.share}} class="md-modal-checkbox" />
+                <input type="checkbox" checked={{supervisee.share}} class="md-modal-checkbox"  {{on "change" (set-field supervisee "share" "checkbox")}}/>
                 <img src={{supervisee.avatar_url}} alt="" class="md-modal-avatar">
                 <span>{{supervisee.user_name}}</span>
               </label>
@@ -95,25 +95,25 @@
     {{#if this.currently_selected_id}}
       <div class="md-modal-field">
         <label class="md-modal-label" for="symbol_library">{{t "Preferred Symbols:" key="preferred_symbols_colon"}}</label>
-        {{bound-select select_class="md-modal-select" select_id="symbol_library" content=this.symbol_libraries selection=this.symbol_library action=(this.ctrlAction "updateSymbolLibrary") }}
+        <BoundSelect @select_class="md-modal-select" @select_id="symbol_library" @content={{this.symbol_libraries}} @selection={{this.symbol_library}} @action={{this.ctrlAction "updateSymbolLibrary"}} />
       </div>
     {{/if}}
 
     {{#if this.show_more_options}}
       <div class="md-modal-field">
         <label class="md-modal-label" for="board_prefix">{{t "Prefix:" key="prefix"}}</label>
-        <Input @type="text" class="md-modal-input" id="board_prefix" @value={{this.board_prefix}} placeholder="Prefix" />
+        <input type="text" value={{this.board_prefix}} class="md-modal-input" id="board_prefix" placeholder="Prefix" {{on "input" (set-field this "board_prefix")}} />
         <p class="md-modal-hint" style="margin-top: 4px;">{{t "applied to all copied boards" key="applied_to_all_copied_boards"}}</p>
       </div>
       <div class="md-modal-field">
         <label class="md-modal-checkbox-label">
-          <Input @type="checkbox" @checked={{this.public}} class="md-modal-checkbox" />
+          <input type="checkbox" checked={{this.public}} class="md-modal-checkbox" {{on "change" (set-field this "public" "checkbox")}} />
           <span>{{t "Make the copied board(s) public to share changes with others" key="make_copies_public"}}</span>
         </label>
       </div>
       <div class="md-modal-field">
         <label class="md-modal-checkbox-label">
-          <Input @type="checkbox" @checked={{this.translate}} class="md-modal-checkbox" />
+          <input type="checkbox" checked={{this.translate}} class="md-modal-checkbox" {{on "change" (set-field this "translate" "checkbox")}} />
           <span>{{t "Translate the copied board(s) into a different language" key="translate_boards_to_language"}}</span>
         </label>
       </div>
@@ -121,7 +121,7 @@
         {{#if this.model.board.permissions.edit}}
           <div class="md-modal-field">
             <label class="md-modal-checkbox-label" style="color: #9ca3af;">
-              <Input @type="checkbox" @checked={{this.new_owner}} class="md-modal-checkbox" />
+              <input type="checkbox" checked={{this.new_owner}} class="md-modal-checkbox" {{on "change" (set-field this "new_owner" "checkbox")}} />
               <span>{{t "Allow this user to make copies of the protected board(s) for others" key="allow_sub_copies"}}</span>
             </label>
           </div>
@@ -130,7 +130,7 @@
       {{#if this.model.board.permissions.edit}}
         <div class="md-modal-field">
           <label class="md-modal-checkbox-label" style="color: #9ca3af;">
-            <Input @type="checkbox" @checked={{this.disconnect}} class="md-modal-checkbox" />
+            <input type="checkbox" checked={{this.disconnect}} class="md-modal-checkbox" {{on "change" (set-field this "disconnect" "checkbox")}} />
             <span>{{t "Mark this copy as unrelated to the original" key="disconnect_from_original"}}</span>
           </label>
         </div>
@@ -138,12 +138,12 @@
       {{#if this.translate}}
         <div class="md-modal-field">
           <label class="md-modal-label" for="translate_locale">{{t "Language:" key="language_colon"}}</label>
-          {{bound-select select_class="md-modal-select" select_id="translate_locale" content=this.locales selection=this.translate_locale action=(this.ctrlAction "updateTranslateLocale") }}
+          <BoundSelect @select_class="md-modal-select" @select_id="translate_locale" @content={{this.locales}} @selection={{this.translate_locale}} @action={{this.ctrlAction "updateTranslateLocale"}} />
         </div>
       {{else if this.model.board.multiple_locales}}
         <div class="md-modal-field">
           <label class="md-modal-label" for="default_locale">{{t "Default Language:" key="default_language_colon"}}</label>
-          {{bound-select select_class="md-modal-select" select_id="default_locale" content=this.model.board.readable_locales selection=this.default_locale action=(this.ctrlAction "updateDefaultLocale") }}
+          <BoundSelect @select_class="md-modal-select" @select_id="default_locale" @content={{this.model.board.readable_locales}} @selection={{this.default_locale}} @action={{this.ctrlAction "updateDefaultLocale"}} />
         </div>
       {{/if}}
     {{else}}
@@ -199,4 +199,4 @@
       <CopyJustThisBoard @parent={{this}} />
     {{/if}}
   </div>
-{{/modal-dialog}}
+</ModalDialog>

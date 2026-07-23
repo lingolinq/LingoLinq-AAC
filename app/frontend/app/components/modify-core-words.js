@@ -82,8 +82,23 @@ export default Component.extend({
       });
     }
   }),
-  word_lines: computed('words', function() {
-    return (this.get('words') || []).join('\n');
+  // Writable: the word-list textarea two-way-binds @value to this property via
+  // (set-field this "word_lines"). A get-only computed crashes on every keystroke
+  // in Ember 5 (setting a setter-less computed throws; pre-4.0 it silently
+  // clobbered the computed, which is how this originally worked). Same pattern as
+  // controllers/user/preferences.js substitution_string.
+  word_lines: computed('words', {
+    get() {
+      var cached = this.get('_word_lines');
+      if(cached !== undefined && cached !== null) {
+        return cached;
+      }
+      return (this.get('words') || []).join('\n');
+    },
+    set(key, value) {
+      this.set('_word_lines', value);
+      return value;
+    }
   }),
   raw_words_list: computed('words', function() {
     var div = document.createElement('div');

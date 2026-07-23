@@ -90,11 +90,22 @@ export default Component.extend({
         self.send.apply(self, [actionName].concat(bound));
       };
     };
+    /* Event-preserving handlers for the live search <input>. The generic
+       `ctrlAction` wrapper is built for click actions: it calls preventDefault
+       and DROPS the event before invoking the action. `update_query`/`key_down`
+       need the raw DOM event (to read `event.target.value` / `event.key`), so
+       they bypass ctrlAction and receive the event directly. */
+    this.handleInput = function(event) { self.send('update_query', event); };
+    this.handleKeyDown = function(event) { self.send('key_down', event); };
   },
 
 
   actions: {
     toggle: function() {
+      // Collapse a duplicate toggle from one modal click (same fix as bound-select.js).
+      var now = (window.performance && performance.now) ? performance.now() : Date.now();
+      if (this._lastToggleAt != null && (now - this._lastToggleAt) < 250) { return; }
+      this._lastToggleAt = now;
       this.toggleProperty('open');
       if (this.get('open')) { this._focusSearchInput(); }
     },

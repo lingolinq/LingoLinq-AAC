@@ -1,0 +1,476 @@
+{
+  "meta": {
+    "schemaVersion": "1.1",
+    "register": "LingoLinq-AAC Ember upgrade findings register",
+    "description": "Single source of truth for Ember 3.28->5.12 upgrade-regression findings. Separate from the compliance register (audit-reports/FINDINGS.json) on purpose: framework-upgrade bugs are engineering findings, not compliance findings, but they use the SAME merge/citation machinery (scripts/audit-merge.rb, scripts/citation-check.rb) and the same governance: the merge never closes or downgrades; only Scot closes a finding. See audit-reports/ember-upgrade/README.md.",
+    "auditedSha": "8708d1a9e59d21f13a45a746461aa67273c32a0b",
+    "auditedRef": "traci/styling/styling-updates",
+    "auditedDate": "2026-07-22"
+  },
+  "findings": [
+    {
+      "id": "LL-da717dd8d6",
+      "ruleKey": "twoway-bind-input-checkbox-attr",
+      "title": "Masquerade confirm checkbox uses bare type=\"checkbox\" on <Input>; @checked never binds so Continue is permanently inert",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/components/masquerade.hbs",
+        "line": 19,
+        "snippet": "            <Input @checked={{this.confirmed}} type=\"checkbox\" />",
+        "sha": "ee11c1a8b4b33a0bfac7314ab88b18a16ed27d8b"
+      },
+      "firstSeen": "2026-07-19",
+      "lastSeen": "2026-07-19",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Change type=\"checkbox\" to @type=\"checkbox\" (component argument) so <Input> renders a checkbox and two-way binds @checked to this.confirmed. Same fix pattern applied to start-codes.hbs in PR #621.",
+        "timeframe": "this-sprint"
+      },
+      "closureEvidence": {
+        "sha": "8708d1a9e59d21f13a45a746461aa67273c32a0b",
+        "verifierNote": "Verified 2026-07-22 at HEAD: masquerade.hbs:19 now native <input type=\"checkbox\" checked={{this.confirmed}} {{on \"change\" (set-field this \"confirmed\" \"checkbox\")}}>; the Continue/agreement gate binds (no longer inert).",
+        "attestation": "Traci Day 2026-07-22: authorized verified-closed based on independent code verification at HEAD (native-form-component migration). NOTE: register governance normally reserves closes for Scot; closed here at operator direction."
+      },
+      "notes": "Surfaced by ember-components finder on 2026-07-19. Class 11. Verified against installed ember-source 5.12 (isCheckbox getter keys off the @type ARGUMENT; in the Input template ...attributes precedes the explicit type={{this.type}}, so the bare HTML attr is overridden and the element renders type=text; the change handler routes to the value path, @checked is never written back). Reachability: modal.open('modals/masquerade') at controllers/user/index.js:1267 -> modal-container.hbs:230 renders the masquerade component (no dead twin). masquerade.js:59 confirm() gates on this.confirmed, which the broken control can never set true -> Continue silently does nothing. | adversary: confirmed (high). Mechanism verified in 5.12 dist (isCheckbox reads @type named arg only; template places type={{this.type}} AFTER ...attributes; non-checkbox branch binds checked=undefined; edits go to throwaway LocalValue; NO dev assert fires for this pattern - silent). Reachability: user/index.hbs:274 menu -> controllers/user/index.js:1264-1268 modal.open -> modal-container.hbs:229-230 live component (controllers/modals/masquerade.js is a dead twin). Gate: masquerade.js:58-59 confirm() returns early unless confirmed; only writers set false. Continue permanently inert; control visibly renders as a text box."
+    },
+    {
+      "id": "LL-43c3d11094",
+      "ruleKey": "twoway-bind-input-checkbox-attr",
+      "title": "Focus-words 'Save for Re-Use' checkbox uses bare type=\"checkbox\" on <Input>; toggle is inert and reuse never saves",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/components/focus-words.hbs",
+        "line": 276,
+        "snippet": "                <Input type=\"checkbox\" @checked={{this.reuse}} style='margin: 0; width: 16px; height: 16px; cursor: pointer;' />",
+        "sha": "ee11c1a8b4b33a0bfac7314ab88b18a16ed27d8b"
+      },
+      "firstSeen": "2026-07-19",
+      "lastSeen": "2026-07-19",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Change type=\"checkbox\" to @type=\"checkbox\" so <Input> two-way binds @checked to this.reuse. Same class of fix as PR #621.",
+        "timeframe": "next-sprint"
+      },
+      "closureEvidence": {
+        "sha": "8708d1a9e59d21f13a45a746461aa67273c32a0b",
+        "verifierNote": "Verified 2026-07-22 at HEAD: focus-words.hbs:276 now native <input type=\"checkbox\" checked={{this.reuse}} {{on \"change\" (set-field this \"reuse\" \"checkbox\")}}>; Save-for-Re-Use toggles.",
+        "attestation": "Traci Day 2026-07-22: authorized verified-closed based on independent code verification at HEAD (native-form-component migration). NOTE: register governance normally reserves closes for Scot; closed here at operator direction."
+      },
+      "notes": "Surfaced by ember-components finder on 2026-07-19. Class 11. Same mechanism as the masquerade finding (isCheckbox keys off the @type argument in ember-source 5.12; bare HTML type attribute is overridden -> renders a text field, @checked inert). this.reuse is only set by this control (reset at focus-words.js:299) and read at :448/:486 to decide whether to persist the focus-word list for reuse; with the toggle dead the user can never opt in, so Save-for-Re-Use is silently non-functional. Not on the migration doc verified-safe list; fix #621 (2026-07-16) fixed start-codes.hbs/bound-select.js but missed this file (last touched 2026-07-08). | adversary: confirmed (medium). Same verified mechanism. reuse writers: only set(reuse,null):299 + the broken checkbox; save_set() (:257) gated on reuse at both call sites (:448-450, :486-488) - Save-for-Re-Use can never persist (stash_set runs instead). Reachable via modal-container.hbs:215-216 on the normal path."
+    },
+    {
+      "id": "LL-f95415c037",
+      "ruleKey": "twoway-bind-getonly-computed",
+      "title": "Textarea @value bound to get-only computed substitution_string crashes on keystroke",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/templates/user/preferences.hbs",
+        "line": 1080,
+        "snippet": "          <Textarea @value={{this.substitution_string}} class=\"form-control\" placeholder=\"additional substitutions, one per line (stop break=I need to take a break)\" />",
+        "sha": "ee11c1a8b4b33a0bfac7314ab88b18a16ed27d8b"
+      },
+      "firstSeen": "2026-07-19",
+      "lastSeen": "2026-07-19",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Convert controllers/user/preferences.js:639 substitution_string to a writable computed ({get, set}) with an edit cache, mirroring the home_board_key_lines fix (controllers/organization/settings.js:67). The set() should stash the raw text and parse it into pending_preferences.substitutions.",
+        "timeframe": "next-sprint"
+      },
+      "closureEvidence": {
+        "sha": "8708d1a9e59d21f13a45a746461aa67273c32a0b",
+        "verifierNote": "Verified 2026-07-22 at HEAD: preferences.hbs:1080 now native <textarea {{on \"input\" (set-field this \"substitution_string\")}}>{{this.substitution_string}}</textarea>; controllers/user/preferences.js:645-657 substitution_string is now a WRITABLE {get,set} computed caching _substitution_string, so keystrokes no longer hit a get-only computed. No crash.",
+        "attestation": "Traci Day 2026-07-22: authorized verified-closed based on independent code verification at HEAD (native-form-component migration). NOTE: register governance normally reserves closes for Scot; closed here at operator direction."
+      },
+      "notes": "Surfaced by ember-templates finder on 2026-07-19. Class 11(a). Target provenance: substitution_string is a GET-ONLY computed at controllers/user/preferences.js:639 (single-function form, no setter). The Textarea @value two-way bind writes on every keystroke -> set on a setter-less computed throws Cannot read properties of undefined (reading call) - identical shape to the home_board_key_lines bug fixed 2026-07-16 per LEARNINGS. Reachability: live user-preferences route, Phrase Substitutions section (preferences.hbs:1072-1080), rendered unconditionally. NOT in the migration doc fixed list. | adversary: confirmed (high). substitution_string (preferences.js:639-641) is the single-function computed form: 5.12 ComputedProperty sets only _getter, _setter undefined. Every input/change/paste event -> set() -> debug assert 'Cannot override the computed property' / prod TypeError on _setter.call - EVERY KEYSTROKE THROWS in both build modes. NOT flag-limited: advanced=true is set during controller setup (:193) so the Phrase Substitutions block renders by default. Edits can never reach pending_preferences.substitutions."
+    },
+    {
+      "id": "LL-ed9a5c4c56",
+      "ruleKey": "twoway-bind-input-type-checkbox",
+      "title": "Input checkbox uses HTML type= without @type; renders as text field and drops @checked binding",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/templates/organization/extras.hbs",
+        "line": 192,
+        "snippet": "                <Input @checked={{this.include_extras}} type=\"checkbox\" />",
+        "sha": "ee11c1a8b4b33a0bfac7314ab88b18a16ed27d8b"
+      },
+      "firstSeen": "2026-07-19",
+      "lastSeen": "2026-07-19",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Change type=\"checkbox\" to @type=\"checkbox\" so the Input component runs its checkbox path and honors @checked.",
+        "timeframe": "next-sprint"
+      },
+      "closureEvidence": {
+        "sha": "8708d1a9e59d21f13a45a746461aa67273c32a0b",
+        "verifierNote": "Verified 2026-07-22 at HEAD: organization/extras.hbs:192 now native <input type=\"checkbox\" checked={{this.include_extras}} {{on \"change\" (set-field this \"include_extras\" \"checkbox\")}}>; renders as a checkbox and binds.",
+        "attestation": "Traci Day 2026-07-22: authorized verified-closed based on independent code verification at HEAD (native-form-component migration). NOTE: register governance normally reserves closes for Scot; closed here at operator direction."
+      },
+      "notes": "Surfaced by ember-templates finder on 2026-07-19. Class 11(b) checkbox variant (functional break). Verified against installed ember-source: the Input template renders ...attributes BEFORE type={{this.type}}, so the splattribute is overridden to text; isCheckbox reads the @type NAMED arg, absent here -> renders input type=text, checked getter undefined -> @checked inert. Admin cannot toggle include_extras. Reachability: organization/extras admin route. Matches the org-settings checkbox gotcha in LEARNINGS 2026-07-16, fixed elsewhere but missed here. | adversary: confirmed (medium). Same verified mechanism. Sole reader organization/extras.js:141 (gift.set include_extras in add_gift('purchase')); the broken Input is the only writer -> always undefined; purchase gifts can never include premium symbols from this UI. Purchase branch reachable via the gift-type bound-select (extras.hbs:171)."
+    },
+    {
+      "id": "LL-1210143556",
+      "ruleKey": "removed-api-action-modifier",
+      "title": "{{action}} modifier still used in register.hbs (deprecated RFC 1006, removed in 6.0)",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/templates/register.hbs",
+        "line": 32,
+        "snippet": "            <button type=\"button\" class=\"register-btn\" {{action \"restart_google_signup\"}}>",
+        "sha": "ee11c1a8b4b33a0bfac7314ab88b18a16ed27d8b"
+      },
+      "firstSeen": "2026-07-19",
+      "lastSeen": "2026-07-19",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Replace the three {{action ...}} modifier usages (register.hbs:32,356,367) with the {{on}} closure form already used elsewhere in this template.",
+        "timeframe": "backlog"
+      },
+      "closureEvidence": {
+        "sha": "8708d1a9e59d21f13a45a746461aa67273c32a0b",
+        "verifierNote": "Verified 2026-07-22 at HEAD: register.hbs:32 now {{on \"click\" (this.ctrlAction ...)}}; zero {{action}} element modifiers remain anywhere under templates/ (verified by grep at HEAD).",
+        "attestation": "Traci Day 2026-07-22: authorized verified-closed based on independent code verification at HEAD (native-form-component migration). NOTE: register governance normally reserves closes for Scot; closed here at operator direction."
+      },
+      "notes": "Surfaced by ember-templates finder on 2026-07-19. Class 5 / D23 (known LOW, 6.0 blocker only; works at 5.12). Live modifier usages at register.hbs:32,356,367 (shifted by staging #616 from 32/340/351). Rest of register.hbs audited fresh and otherwise clean. | adversary: confirmed. Three modifier-form usages verified in live markup at :32/:356/:367 (only occurrences); no addon neutralizes RFC-1006 removal for 6.0 (@ember/legacy-built-in-components covers Input/Textarea/LinkTo only)."
+    },
+    {
+      "id": "LL-dbf4c804c6",
+      "ruleKey": "twoway-bind-input-type-attr",
+      "title": "Input type=\"date\" passed as HTML attr (no @type); renders as plain text field",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/templates/organization/subscription.hbs",
+        "line": 32,
+        "snippet": "          <Input type=\"date\" @value={{this.model.licenses_expire}} class=\"form-control\" id=\"licenses_expire\" placeholder=\"YYYY-MM-DD\" />",
+        "sha": "ee11c1a8b4b33a0bfac7314ab88b18a16ed27d8b"
+      },
+      "firstSeen": "2026-07-19",
+      "lastSeen": "2026-07-19",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Change type=\"date\" to @type=\"date\" so the native date picker renders.",
+        "timeframe": "backlog"
+      },
+      "closureEvidence": {
+        "sha": "8708d1a9e59d21f13a45a746461aa67273c32a0b",
+        "verifierNote": "Verified 2026-07-22 at HEAD: organization/subscription.hbs:32 now native <input type=\"date\" ... {{on \"input\" (set-field ...)}}>; renders a real date field.",
+        "attestation": "Traci Day 2026-07-22: authorized verified-closed based on independent code verification at HEAD (native-form-component migration). NOTE: register governance normally reserves closes for Scot; closed here at operator direction."
+      },
+      "notes": "Surfaced by ember-templates finder on 2026-07-19. Class 11(b) widget-degradation variant. Same verified mechanism as the checkbox finding; @value binding intact so field usable via manual entry (hence LOW). Codemod mistranslated the curly input named-arg into an HTML attribute. Reachable org-subscription admin route. | adversary: confirmed. Mechanism verified at 3 layers of ember-source 5.12 dist (InputTemplate splat-before-type order; get type() falls back to 'text' without the @type NAMED arg; ComponentElementOperations last-write-wins dict). Angle-bracket-only caveat checked: curly {{input}} unaffected, all findings are angle-bracket. Route live."
+    },
+    {
+      "id": "LL-cd434e144a",
+      "ruleKey": "twoway-bind-input-type-attr",
+      "title": "Input type=\"date\" passed as HTML attr (no @type) on gift-expiry field; renders as plain text field",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/templates/organization/extras.hbs",
+        "line": 217,
+        "snippet": "            <Input type=\"date\" @value={{this.expires}} placeholder=\"(optional)\" class=\"form-control inline inline-masquerade input-sm\" />",
+        "sha": "ee11c1a8b4b33a0bfac7314ab88b18a16ed27d8b"
+      },
+      "firstSeen": "2026-07-19",
+      "lastSeen": "2026-07-19",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Change type=\"date\" to @type=\"date\".",
+        "timeframe": "backlog"
+      },
+      "closureEvidence": {
+        "sha": "8708d1a9e59d21f13a45a746461aa67273c32a0b",
+        "verifierNote": "Verified 2026-07-22 at HEAD: organization/extras.hbs:217 now native <input type=\"date\" ... {{on \"input\" (set-field ...)}}>; renders a real date field.",
+        "attestation": "Traci Day 2026-07-22: authorized verified-closed based on independent code verification at HEAD (native-form-component migration). NOTE: register governance normally reserves closes for Scot; closed here at operator direction."
+      },
+      "notes": "Surfaced by ember-templates finder on 2026-07-19. Class 11(b) widget-degradation variant (same verified mechanism). Date picker silently downgraded to text; @value intact. Distinct fix site from extras.hbs:192 (the checkbox finding). | adversary: confirmed. Same 3-layer mechanism; line verified; organization/extras route live."
+    },
+    {
+      "id": "LL-a354d658c9",
+      "ruleKey": "twoway-bind-input-type-attr",
+      "title": "Input type=\"number\" passed as HTML attr (no @type) on goal-duration field; renders as plain text field",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/templates/goals/goal.hbs",
+        "line": 134,
+        "snippet": "              <Input type=\"number\" @value={{this.model.goal_duration_number}} class=\"form-control\" id=\"duration_advance\" placeholder=\"##\" />",
+        "sha": "ee11c1a8b4b33a0bfac7314ab88b18a16ed27d8b"
+      },
+      "firstSeen": "2026-07-19",
+      "lastSeen": "2026-07-19",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Change type=\"number\" to @type=\"number\".",
+        "timeframe": "backlog"
+      },
+      "closureEvidence": {
+        "sha": "8708d1a9e59d21f13a45a746461aa67273c32a0b",
+        "verifierNote": "Verified 2026-07-22 at HEAD: goals/goal.hbs:134 now native <input type=\"number\" ... {{on \"input\" (set-field ...)}}>; renders a real number field.",
+        "attestation": "Traci Day 2026-07-22: authorized verified-closed based on independent code verification at HEAD (native-form-component migration). NOTE: register governance normally reserves closes for Scot; closed here at operator direction."
+      },
+      "notes": "Surfaced by ember-templates finder on 2026-07-19. Class 11(b) widget-degradation variant. HTML type=number overridden to text; numeric affordance lost; @value intact. Verified mechanism. | adversary: confirmed. Same mechanism; goals route live."
+    },
+    {
+      "id": "LL-072eacb9e4",
+      "ruleKey": "twoway-bind-input-type-attr",
+      "title": "Input type=\"date\" passed as HTML attr (no @type) on board-history rollback field; renders as plain text field",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/templates/board/history.hbs",
+        "line": 17,
+        "snippet": "    <span style='display: inline-block;'><Input type=\"date\" class=\"form-control\" @value={{this.rollback_date}} /></span>",
+        "sha": "ee11c1a8b4b33a0bfac7314ab88b18a16ed27d8b"
+      },
+      "firstSeen": "2026-07-19",
+      "lastSeen": "2026-07-19",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Change type=\"date\" to @type=\"date\".",
+        "timeframe": "backlog"
+      },
+      "closureEvidence": {
+        "sha": "8708d1a9e59d21f13a45a746461aa67273c32a0b",
+        "verifierNote": "Verified 2026-07-22 at HEAD: board/history.hbs:17 now native <input type=\"date\" ... {{on \"input\" (set-field ...)}}>; renders a real date field.",
+        "attestation": "Traci Day 2026-07-22: authorized verified-closed based on independent code verification at HEAD (native-form-component migration). NOTE: register governance normally reserves closes for Scot; closed here at operator direction."
+      },
+      "notes": "Surfaced by ember-templates finder on 2026-07-19. Class 11(b) widget-degradation variant (verified mechanism). Rollback date picker downgraded to text; @value intact. board/history is a live route. | adversary: confirmed. Same mechanism; board/history live (admin-gated but reachable)."
+    },
+    {
+      "id": "LL-8c1c30bc35",
+      "ruleKey": "twoway-bind-input-type-attr",
+      "title": "Input type=\"number\" passed as HTML attr (no @type) on user-edit fields; renders as plain text field",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/templates/user/edit.hbs",
+        "line": 82,
+        "snippet": "              <Input type=\"number\" class=\"form-control\" @value={{this.code_2fa}} placeholder=\"# # # # # #\" autocomplete=\"one-time-code\" />",
+        "sha": "ee11c1a8b4b33a0bfac7314ab88b18a16ed27d8b"
+      },
+      "firstSeen": "2026-07-19",
+      "lastSeen": "2026-07-19",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Change type=\"number\" to @type=\"number\" at user/edit.hbs:82 (2FA code) and :282 (external_vocab_size).",
+        "timeframe": "backlog"
+      },
+      "closureEvidence": {
+        "sha": "8708d1a9e59d21f13a45a746461aa67273c32a0b",
+        "verifierNote": "Verified 2026-07-22 at HEAD: user/edit.hbs:82 now native <input type=\"number\" ... {{on \"input\" (set-field ...)}}>; renders a real number field.",
+        "attestation": "Traci Day 2026-07-22: authorized verified-closed based on independent code verification at HEAD (native-form-component migration). NOTE: register governance normally reserves closes for Scot; closed here at operator direction."
+      },
+      "notes": "Surfaced by ember-templates finder on 2026-07-19. Class 11(b) widget-degradation variant (verified mechanism). Two occurrences: :82 (code_2fa) and :282 (external_vocab_size). Numeric affordance lost; @value intact. LOW. | adversary: confirmed. Both :82 (code_2fa) and :282 (external_vocab_size) verified; 2FA numeric-keypad loss is the most user-visible of the five; @value binds so low stands."
+    },
+    {
+      "id": "LL-ae11e67651",
+      "ruleKey": "removed-api-router-didtransition",
+      "title": "Router-class on('didTransition') GA pageview handler never fires in Ember 5.12",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/router.js",
+        "line": 36,
+        "snippet": "  notifyGoogleAnalytics: on('didTransition', function() {",
+        "sha": "8708d1a9e59d21f13a45a746461aa67273c32a0b"
+      },
+      "firstSeen": "2026-07-19",
+      "lastSeen": "2026-07-22",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Replace the dead Router-class event listener with a RouterService 'routeDidChange' subscription (as routes/application.js already does with this.router.on('routeWillChange', ...)). Inject router: service() and register the GA pageview send in init() via this.router.on('routeDidChange', ...), reading this.router.currentURL / currentRouteName instead of this.get('url').",
+        "timeframe": "next-sprint"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by ember-boot-routing finder on 2026-07-19. Breakage class A6 (KB docs/ember-upgrade/KNOWN-ISSUES.md:61) / audit Class 5 removed-API. Reachability proof: router.js:35-44 registers notifyGoogleAnalytics via Router.reopen. Verified against ember-source 5.12 dist: defaultDidTransition performs only updatePaths/notifyPropertyChange and does NOT trigger 'didTransition'; only 'routeWillChange'/'routeDidChange' are emitted. GA pageview tracking silently stopped. router.js last changed 2026-07-11, after the 2026-07-09 sweep; not on any verified-safe list. Low severity: analytics-only, no AAC communication-path impact. | adversary: confirmed. No trigger('didTransition') anywhere in ember-source 5.12 dist; the triggerEvent('didTransition') near-miss dispatches to Route actions hashes (which still fire), not the router's Evented emitter; nothing in app/ triggers it manually. GA handler is dead code; low appropriate (window.ga-gated, analytics-only)."
+    },
+    {
+      "id": "LL-fadeb0e5fc",
+      "ruleKey": "build-babel-core-peer-undeclared",
+      "title": "@babel/core peer and directly-referenced @babel transform plugins undeclared in package.json (satisfied only by hoisting)",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/ember-cli-build.js",
+        "line": 8,
+        "snippet": "        ['@babel/plugin-transform-class-properties', { loose: true }],",
+        "sha": "8708d1a9e59d21f13a45a746461aa67273c32a0b"
+      },
+      "firstSeen": "2026-07-19",
+      "lastSeen": "2026-07-22",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add explicit devDependencies for @babel/core (^7.25) and the three transform plugins named in ember-cli-build.js (@babel/plugin-transform-class-properties, -private-methods, -private-property-in-object) so the build no longer relies on npm hoisting to resolve them.",
+        "timeframe": "next-sprint"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by ember-build-tests finder on 2026-07-19. Class 9 (build pipeline / addon compatibility). ember-cli-babel ^8.2.0 (package.json:49) peer-requires @babel/core, and ember-cli-build.js:8-10 directly references three @babel/plugin-transform-* packages. None appear in package.json devDependencies (verified at SHA; devDependencies only lists @babel/eslint-parser and @babel/plugin-proposal-decorators). They resolve today only transitively/hoisted in package-lock.json - a lockfile regen or dedupe change could de-hoist and break the build. Matches KB Build section. Builds green today; latent. | adversary: confirmed (factual claims hold; risk mechanism overstated). All three transform plugins are ember-cli-babel's OWN runtime dependencies and @babel/core is its peerDep (npm>=7 auto-installs), so a plain lockfile regen re-installs them; residual risk is narrower: strict-nesting package managers (pnpm no-hoist) or a future version conflict de-hoisting the string-name resolution from ember-cli-build.js. Low hygiene finding stands with softened framing."
+    },
+    {
+      "id": "LL-44aae2db6b",
+      "ruleKey": "build-deprecation-workflow-absent",
+      "title": "No deprecation surfacing (ember-cli-deprecation-workflow / RAISE_ON_DEPRECATION) despite EXTEND_PROTOTYPES:false and 6.0 trajectory",
+      "severity": "low",
+      "confidence": "medium",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/config/environment.js",
+        "line": 14,
+        "snippet": "      EXTEND_PROTOTYPES: false",
+        "sha": "8708d1a9e59d21f13a45a746461aa67273c32a0b"
+      },
+      "firstSeen": "2026-07-19",
+      "lastSeen": "2026-07-22",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add ember-cli-deprecation-workflow v4 with setupDeprecationWorkflow({throwOnUnhandled: true, workflow:[...]}) in app.js and/or EmberENV.RAISE_ON_DEPRECATION for CI, per KB Build section and the migration doc's own suggestion (docs/ember-5.12-migration-findings.md:209).",
+        "timeframe": "backlog"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by ember-build-tests finder on 2026-07-19. Class 9 (build pipeline). Deterministically verified absent: no ember-cli-deprecation-workflow in package.json/package-lock.json, and no setupDeprecationWorkflow / registerDeprecationHandler / RAISE_ON_DEPRECATION anywhere under app/frontend (grep clean at SHA). With EXTEND_PROTOTYPES:false (environment.js:14) and the app approaching 6.0 (where EXTEND_PROTOTYPES, the action modifier, separate-template resolution all become removals), there is no mechanism surfacing 5.x deprecations that gate the next major. Config/process gap, not runtime breakage - hence low/medium. The migration doc itself (line 209) recommends this tooling. | adversary: confirmed. Exhaustive greps: no deprecation-workflow in package.json/lock, no setupDeprecationWorkflow/RAISE_ON_DEPRECATION/custom handler anywhere; no CI flag. Nothing surfaces deprecations."
+    },
+    {
+      "id": "LL-e5ecce96ee",
+      "ruleKey": "test-gap-migration-classes-1-4",
+      "title": "No regression tests over the migration-doc Class 1-4 fixed paths; no @ember/test-waiters despite fetch-heavy sync",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/tests/test-helper.js",
+        "line": 59,
+        "snippet": "import 'frontend/tests/acceptance/board-detail-empty-state-test';",
+        "sha": "8708d1a9e59d21f13a45a746461aa67273c32a0b"
+      },
+      "firstSeen": "2026-07-19",
+      "lastSeen": "2026-07-22",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add targeted regression tests for the 2026-07-09 fixed paths (native-array method replacements in utterance/persistence/log, @each A()-wrapping in preferences skin-tone / inflections, converted-modal opening() wiring, block-param template renders), and adopt @ember/test-waiters (waitForPromise/buildWaiter) around persistence.sync and speecher fetch chains so settled() actually blocks on them.",
+        "timeframe": "next-sprint"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by ember-build-tests finder on 2026-07-19. Class 10 (test-harness gap), grouped LOW as scoped. (1) The curated regression-import list in test-helper.js:59-71 contains none of the migration Class 1-4 fixed paths; the migration doc states these were only caught by manual UI verification (docs/ember-5.12-migration-findings.md:208). A Class-1..4 regression would re-ship green. (2) @ember/test-waiters is never imported in app/frontend/app (grep clean at SHA) even though the fetch-heavy stack issues native fetches invisible to settled() - assertions can race data loads and pass while the app is broken. Verified non-findings in same class: isTesting() used correctly (test-helper.js:7,13); no live moduleFor*/Ember.testing. | adversary: confirmed on substance with two corrections: (1) the curated test-helper import list is NOT the only loader (a requirejs loop force-loads all *-test AMD modules) - but searching ALL of tests/ still finds zero coverage of the 2026-07-09 fixed paths (utterance inline_actions, skin-tone A() wrap, the 19 modal opening() wirings, block-param renders); (2) persistence.js uses \\$.ajax + raw XHR, not native fetch - but with jquery-integration disabled neither is tracked by settled(), so the untracked-async conclusion holds unchanged."
+    },
+    {
+      "id": "LL-8375546f44",
+      "ruleKey": "tpl-thisx-missing-injection",
+      "title": "session service not injected in user/subscription controller; Cancel-Subscription control replaced by a login form for authenticated users",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/templates/user/subscription.hbs",
+        "line": 110,
+        "snippet": "        {{#if this.session.isAuthenticated}}",
+        "sha": "8708d1a9e59d21f13a45a746461aa67273c32a0b"
+      },
+      "firstSeen": "2026-07-22",
+      "lastSeen": "2026-07-22",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add `session: service('session')` to controllers/user/subscription.js (mirror controllers/board.js:5, register.js, user/lessons.js). services/session.js already exposes isAuthenticated. Same fix repairs the :199 active-management branch and the :250 access-denied fallback.",
+        "timeframe": "next-sprint"
+      },
+      "closureEvidence": {
+        "sha": "76cc9176157836864fcd521a89c352a71c69b94b",
+        "verifierNote": "Verified 2026-07-22: Fixed in 76cc9176: controllers/user/subscription.js now injects session: service(session). Runtime-verified in a real browser via Ember owner introspection: subscription controller this.session is defined and session.isAuthenticated === true, so subscription.hbs:110/199/250 now take the authenticated branch (Cancel-Subscription control) instead of the <LoginForm>. 0 page/console errors on load. Literal cancel-confirm pixels still require a subscribed user (enclosing gate), unrelated to this fix.",
+        "attestation": "Traci Day 2026-07-22: authorized verified-closed. Fix committed in 76cc9176 (session: service(session) injected into the 9 user/* controllers). Register governance normally reserves closes for Scot; closed here at operator direction."
+      },
+      "notes": "Surfaced by templates finder on 2026-07-22. Class 3B (missing service injection). Provenance proof: controllers/user/subscription.js extends Controller directly and injects only appState (:12), app_state alias (:14), router (:15) - NO session (grep 'session' -> 0 matches). routes/user/subscription.js setupController does not controller.set('session',...). No app-wide session auto-injection (board.js/register.js/user/lessons.js each EXPLICITLY inject session: service('session'), proving no ambient injection). So this.session is undefined and this.session.isAuthenticated is falsy at :110/:199/:250. Impact at :110: inside {{#if this.subscription.show_cancel}} (normal flow for an active subscriber), the always-false check renders the {{else}} branch (:122-127) = login prompt + <LoginForm> to an already-authenticated premium user, so subscription cancellation is inert via the UI. Live user.subscription route. The 2026-07-09 remediation (78bbc855a) added appState/router but missed session; this.session refs predate it. NEEDS ADVERSARY VERIFY + a real browser click-test before fix. [adversary: confirmed \u2014 session injection absent + no ambient injection in 5.12; norm confirmed via controllers/user/lessons.js:15 + board.js:5; reachable + renders falsy without throw.]"
+    },
+    {
+      "id": "LL-63aa8f9e68",
+      "ruleKey": "tpl-thisx-missing-injection",
+      "title": "session service not injected across user/* controllers; premium/access-denied gate shows the not-logged-in branch to authenticated users",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/templates/user/logs.hbs",
+        "line": 170,
+        "snippet": "{{else if this.session.isAuthenticated}}",
+        "sha": "8708d1a9e59d21f13a45a746461aa67273c32a0b"
+      },
+      "firstSeen": "2026-07-22",
+      "lastSeen": "2026-07-22",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add `session: service('session')` to each affected controller (user/logs.js, user/edit.js, user/badges.js, user/stats.js, user/history.js, user/goals.js, user/recordings.js, user/preferences.js), mirroring board.js.",
+        "timeframe": "backlog"
+      },
+      "closureEvidence": {
+        "sha": "76cc9176157836864fcd521a89c352a71c69b94b",
+        "verifierNote": "Verified 2026-07-22: Fixed in 76cc9176: session: service(session) injected into user/{logs,edit,badges,stats,history,goals,recordings,preferences}.js. Runtime-verified: all 8 controllers instantiate with this.session defined and session.isAuthenticated === true; the premium/access-denied gates now render the authenticated branch for logged-in users. Regression sweep across edit/goals/recordings routes: 0 page/console errors.",
+        "attestation": "Traci Day 2026-07-22: authorized verified-closed. Fix committed in 76cc9176 (session: service(session) injected into the 9 user/* controllers). Register governance normally reserves closes for Scot; closed here at operator direction."
+      },
+      "notes": "Surfaced by templates finder on 2026-07-22. Class 3B, consolidated - same root cause as the subscription HIGH finding, lower impact. Anchor user/logs.hbs:170; identical {{else if this.session.isAuthenticated}} at user/edit.hbs:578, user/badges.hbs:75, user/stats.hbs:377, user/history.hbs:45, user/goals.hbs:395, user/recordings.hbs:111, user/preferences.hbs:2130. Each backing controller has no session property (logs.js uses global LingoLinq.session not this.session). Trailing premium/access-denied gate: authenticated-but-ungated user falls through to the not-logged-in {{else}} instead of 'Premium Membership Required'; feature stays gated, user can navigate away -> LOW. EXCLUDED false positive: eval/quick.hbs @session (legit eval assessment session); brief.hbs this.session is dead-list. [adversary: confirmed \u2014 session injection absent + no ambient injection in 5.12; norm confirmed via controllers/user/lessons.js:15 + board.js:5; reachable + renders falsy without throw.]"
+    }
+  ]
+}

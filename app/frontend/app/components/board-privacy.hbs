@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="la-board-privacy-wrap">
   <div class="modal-header md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
@@ -21,7 +21,7 @@
         {{else if this.hierarchy.error}}
           <span class="la-board-privacy-error">{{t "There was an error trying to retrieve linked boards" key="error_getting_linked_boards"}}</span>
         {{else if this.hierarchy}}
-          {{board-hierarchy hierarchy=this.hierarchy selectable=true}}
+          <BoardHierarchy @hierarchy={{this.hierarchy}} @selectable={{true}} />
         {{else}}
           <span class="la-board-privacy-loading">{{t "No linked boards" key="no_linked_boards"}}</span>
         {{/if}}
@@ -30,7 +30,7 @@
 
     <div class="la-board-privacy-section">
       <label class="la-board-privacy-label" for="privacy_level">{{t "Privacy" key="privacy"}}</label>
-      {{bound-select select_class="la-board-privacy-select" select_id="privacy_level" content=this.privacy_levels selection=this.privacy action=(mut this.privacy) }}
+      <BoundSelect @select_class="la-board-privacy-select" @select_id="privacy_level" @content={{this.privacy_levels}} @selection={{this.privacy}} @action={{mut this.privacy}} />
     </div>
   </div>
   <div class="modal-footer md-modal-footer">
@@ -46,4 +46,4 @@
     <a href="#" class="la-board-privacy-cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</a>
   </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="la-eval-status-wrap">
     <div class="la-modal-header">
       <span class="la-modal-header-label">{{t "Evaluation Status" key="eval_status"}}</span>
@@ -17,11 +17,11 @@
           <div class="la-eval-status-form">
             <div class="la-eval-status-field">
               <label class="la-eval-status-field__label" for="eval_reset_user_name">{{t "Current User Name" key="current_user_name"}}</label>
-              <Input type="text" id="eval_reset_user_name" @value={{this.reset_user_name}} class="la-eval-status-field__input" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+              <input value={{this.reset_user_name}} type="text" id="eval_reset_user_name" class="la-eval-status-field__input" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" {{on "input" (set-field this "reset_user_name")}} />
             </div>
             <div class="la-eval-status-field">
               <label class="la-eval-status-field__label" for="eval_reset_email">{{t "New Email Address" key="new_email"}}</label>
-              <Input type="email" id="eval_reset_email" @value={{this.reset_email}} class="la-eval-status-field__input" autocomplete="email" inputmode="email" />
+              <input value={{this.reset_email}} type="email" id="eval_reset_email" class="la-eval-status-field__input" autocomplete="email" inputmode="email" {{on "input" (set-field this "reset_email")}} />
               {{#if this.status.reset_email_used}}
                 <p class="la-eval-status-error" role="alert">{{t "Must be a different email address than last time" key="must_be_different_email"}}</p>
               {{/if}}
@@ -29,22 +29,22 @@
             {{#if this.org_board_keys}}
               <div class="la-eval-status-field">
                 <label class="la-eval-status-field__label" for="home_board">{{t "New Home Board" key="new_home_board"}}</label>
-                {{bound-select select_class="la-eval-status-field__input" select_id="home_board" content=this.org_board_keys selection=this.home_board_key action=(mut this.home_board_key) }}
+                <BoundSelect @select_class="la-eval-status-field__input" @select_id="home_board" @content={{this.org_board_keys}} @selection={{this.home_board_key}} @action={{mut this.home_board_key}} />
               </div>
               {{#if this.org_board_set}}
                 <div class="la-eval-status-field">
                   <label class="la-eval-status-field__label" for="symbol_library">{{t "Preferred Symbols:" key="preferred_symbols_colon"}}</label>
-                  {{bound-select select_class="la-eval-status-field__input" select_id="symbol_library" content=this.symbol_libraries selection=this.symbol_library action=(mut this.symbol_library) }}
+                  <BoundSelect @select_class="la-eval-status-field__input" @select_id="symbol_library" @content={{this.symbol_libraries}} @selection={{this.symbol_library}} @action={{mut this.symbol_library}} />
                 </div>
               {{/if}}
             {{/if}}
             <div class="la-eval-status-field">
               <label class="la-eval-status-field__label" for="eval_reset_expires">{{t "New Expiration" key="new_expiration"}}</label>
-              <Input type="date" id="eval_reset_expires" @value={{this.eval_expires}} class="la-eval-status-field__input" />
+              <input value={{this.eval_expires}} type="date" id="eval_reset_expires" class="la-eval-status-field__input" {{on "input" (set-field this "eval_expires")}} />
             </div>
             <div class="la-eval-status-field">
               <label class="la-eval-status-field__label" for="eval_reset_password">{{t "New Password" key="new_password"}}</label>
-              <Input type="password" id="eval_reset_password" placeholder="(optional)" @value={{this.reset_password}} class="la-eval-status-field__input" autocomplete="new-password" />
+              <input value={{this.reset_password}} type="password" id="eval_reset_password" placeholder="(optional)" class="la-eval-status-field__input" autocomplete="new-password" {{on "input" (set-field this "reset_password")}} />
             </div>
           </div>
         {{else}}
@@ -57,14 +57,14 @@
         <div class="la-eval-status-form">
           <div class="la-eval-status-field">
             <label class="la-eval-status-field__label" for="eval_transfer_user_name">{{t "New User Name" key="new_user_name"}}</label>
-            <Input type="text" id="eval_transfer_user_name" @value={{this.transfer_user_name}} class="la-eval-status-field__input" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" />
+            <input value={{this.transfer_user_name}} type="text" id="eval_transfer_user_name" class="la-eval-status-field__input" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" {{on "input" (set-field this "transfer_user_name")}} />
             {{#if this.status.transfer_bad_credentials}}
               <p class="la-eval-status-error" role="alert">{{t "No account found with that user name and password" key="no_account_found"}}</p>
             {{/if}}
           </div>
           <div class="la-eval-status-field">
             <label class="la-eval-status-field__label" for="eval_transfer_password">{{t "New Password" key="new_password"}}</label>
-            <Input type="password" id="eval_transfer_password" @value={{this.transfer_password}} class="la-eval-status-field__input" autocomplete="current-password" />
+            <input value={{this.transfer_password}} type="password" id="eval_transfer_password" class="la-eval-status-field__input" autocomplete="current-password" {{on "input" (set-field this "transfer_password")}} />
           </div>
         </div>
       {{else if this.choice.extend}}
@@ -83,7 +83,7 @@
             </div>
             <div class="la-eval-status-field">
               <label class="la-eval-status-field__label" for="eval_extend_date">{{t "Updated Expiration" key="updated_expiration"}}</label>
-              <Input type="date" id="eval_extend_date" @value={{this.extend_date}} class="la-eval-status-field__input" />
+              <input value={{this.extend_date}} type="date" id="eval_extend_date" class="la-eval-status-field__input" {{on "input" (set-field this "extend_date")}} />
             </div>
           </div>
         {{/if}}
@@ -185,4 +185,4 @@
       <button type="button" class="la-eval-status-close" {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</button>
     </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

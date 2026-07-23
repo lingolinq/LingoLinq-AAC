@@ -2,7 +2,7 @@
   <div class="row">
     {{#if this.video}}
       <div class="col-sm-10">
-        <video id='video_elem' controls preload='metadata' src={{this.video.url}} style="width: 100%; max-height: 300px; border: 1px solid #ccc;"></video>
+        <video id='video_elem' controls preload='metadata' src={{this.video.url}} style="width: 100%; max-height: 300px; border: 1px solid #ccc;" aria-label={{t "Recorded video" key="recorded_video"}}></video>
       </div>
     {{else}}
       <div class="col-sm-2 video_buttons">
@@ -37,7 +37,7 @@
             <button class='btn btn-default' title={{t "Upload Video" key="upload_video"}}>
               <img src={{path "images/upload.svg"}} style='width: 35px; margin: -12px -3px -3px;'><span class='sr-only'>{{t "Upload Video" key="upload_video"}}</span>
             </button>
-            <input type="file" name="video_upload" id="video_upload" accept="video/*" tabindex="-1">
+            <input type="file" name="video_upload" id="video_upload" accept="video/*" tabindex="-1" aria-label={{t "Upload Video" key="upload_video"}}>
           </span>
           {{#if this.video_error}}
             <p>{{t "There was an error while trying to record video" key="error_recording_video"}}</p>
@@ -50,9 +50,9 @@
             {{t "Video recording is supported by this browser" key="video_recording_not_supported"}}
           </span>
         {{else if this.video_preview.local_url}}
-          <video id='video_elem' controls preload='metadata' src={{this.video_preview.local_url}} style="width: 100%; border: 1px solid #ccc;"></video>
+          <video id='video_elem' controls preload='metadata' src={{this.video_preview.local_url}} style="width: 100%; border: 1px solid #ccc;" aria-label={{t "Video preview" key="video_preview"}}></video>
         {{else if this.video_preview.url}}
-          <video id='video_elem' controls preload='metadata' src={{this.video_preview.url}} style="width: 100%; border: 1px solid #ccc;"></video>
+          <video id='video_elem' controls preload='metadata' src={{this.video_preview.url}} style="width: 100%; border: 1px solid #ccc;" aria-label={{t "Video preview" key="video_preview"}}></video>
         {{else if this.video_recording.video_url}}
           <video id='video_elem' muted preload='metadata' src={{this.video_recording.video_url}} style="width: 100%; border: 1px solid #ccc;"></video>
         {{else}}

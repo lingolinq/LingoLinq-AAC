@@ -198,7 +198,7 @@
         {{#if this.model.adding_users}}
           <div class='col-sm-6' style='margin-bottom: 20px;'>
             <span style="display: inline-block; width: 150px;">
-              {{bound-select select_class="form-control" content=this.organization.supervisor_options selection=this.model.supervisor_user_name action=(mut this.model.supervisor_user_name) }}
+              <BoundSelect @select_class="form-control" @content={{this.organization.supervisor_options}} @selection={{this.model.supervisor_user_name}} @action={{mut this.model.supervisor_user_name}} />
             </span>
             <div class="btn-group dropdown">
               <button class='btn btn-default dropdown-toggle' data-toggle="dropdown" aria-expanded="false">
@@ -212,7 +212,7 @@
           </div>
           <div class='col-sm-6' style='margin-bottom: 20px;'>
             <span style="display: inline-block; width: 150px;">
-              {{bound-select select_class="form-control" content=this.organization.communicator_options selection=this.model.communicator_user_name action=(mut this.model.communicator_user_name) }}
+              <BoundSelect @select_class="form-control" @content={{this.organization.communicator_options}} @selection={{this.model.communicator_user_name}} @action={{mut this.model.communicator_user_name}} />
             </span>
             <button class='btn btn-default' {{on "click" (this.ctrlAction "add_unit_user" "communicator")}}>{{t "Add Communicator" key="add_communicator"}}</button>
           </div>
@@ -225,21 +225,21 @@
         {{else if this.model.weekly_stats.error}}
           {{t "There was a problem loading this report" key="problem_loading_report"}}
         {{else}}
-          {{stats/sessions-per-week weekly_stats=this.model.weekly_stats}}
+          <Stats::SessionsPerWeek @weekly_stats={{this.model.weekly_stats}} />
         {{/if}}
       </div>
       <div class="col-sm-3 col-xs-6" style="padding: 0;">
-        {{stats/recent-sessions total=this.model.user_counts.total_users recent=this.model.user_counts.recent_session_user_count}}
+        <Stats::RecentSessions @total={{this.model.user_counts.total_users}} @recent={{this.model.user_counts.recent_session_user_count}} />
       </div>
       {{#if this.model.user_counts}}
         <div class="col-sm-3 col-xs-6" style="padding: 0;">
-          {{stats/recent-goals total=this.model.user_counts.total_users goal_set=this.model.user_counts.goal_set tracked=this.model.user_counts.goal_recently_logged}}
+          <Stats::RecentGoals @total={{this.model.user_counts.total_users}} @goal_set={{this.model.user_counts.goal_set}} @tracked={{this.model.user_counts.goal_recently_logged}} />
         </div>
       {{/if}}
       <div class='col-sm-6' style='clear: both;'>
         <strong>{{t "Recent Words" key="recent_words"}}</strong>
         {{#if this.log_stats.word_count}}
-          {{stats/word-cloud stats=this.words_cloud short=true zoom=1}}
+          <Stats::WordCloud @stats={{this.words_cloud}} @short={{true}} @zoom={{1}} />
         {{else}}
           <br><br><em>{{t "No recent words to report" key="no_recent_words_to_report"}}</em><br>
         {{/if}}
@@ -247,7 +247,7 @@
       <div class='col-sm-6'>
         <strong>{{t "Modeled Words" key="modeled_words"}}</strong>
         {{#if this.modeled_words_cloud.words_by_frequency.length}}
-          {{stats/word-cloud stats=this.modeled_words_cloud short=true zoom=1}}
+          <Stats::WordCloud @stats={{this.modeled_words_cloud}} @short={{true}} @zoom={{1}} />
         {{else}}
           <br><br><em>{{t "No modeled words to report" key="no_modeled_words_to_report"}}</em><br>
         {{/if}}
@@ -257,14 +257,14 @@
   {{/if}}
   <h3>{{t "Supervisors" key="supervisors"}}</h3>
   {{#if this.model.supervisors}}
-    {{stats/user-weeks unit=this.model user_type="supervisor" users=this.model.supervisors weeks=this.model.supervisor_weeks delete_user="delete_unit_user" user_profile="supervisor_profile" refresh="refresh" deletable=this.model.permissions.edit profiles=this.model.org_profile show_profiles=this.model.org_supervisor_profile lesson=this.model.lesson}}
+    <Stats::UserWeeks @unit={{this.model}} @user_type="supervisor" @users={{this.model.supervisors}} @weeks={{this.model.supervisor_weeks}} @delete_user="delete_unit_user" @user_profile="supervisor_profile" @refresh="refresh" @deletable={{this.model.permissions.edit}} @profiles={{this.model.org_profile}} @show_profiles={{this.model.org_supervisor_profile}} @lesson={{this.model.lesson}} />
   {{else}}
     <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
   {{/if}}
 
   <h3>{{t "Communicators" key="communicators"}}</h3>
   {{#if this.model.communicators}}
-    {{stats/user-weeks unit=this.model user_type="communicator" org=this.organization users=this.model.communicators weeks=this.model.user_weeks room_goal_id=this.model.goal_id delete_user="delete_unit_user" user_profile="communicator_profile" user_status="communicator_status" refresh_id=this.refresh_id refresh="refresh" deletable=this.model.permissions.edit max_session_count=this.model.max_session_count profiles=this.model.org_profile show_profiles=this.model.org_communicator_profile lesson=this.model.lesson}}
+    <Stats::UserWeeks @unit={{this.model}} @user_type="communicator" @org={{this.organization}} @users={{this.model.communicators}} @weeks={{this.model.user_weeks}} @room_goal_id={{this.model.goal_id}} @delete_user="delete_unit_user" @user_profile="communicator_profile" @user_status="communicator_status" @refresh_id={{this.refresh_id}} @refresh="refresh" @deletable={{this.model.permissions.edit}} @max_session_count={{this.model.max_session_count}} @profiles={{this.model.org_profile}} @show_profiles={{this.model.org_communicator_profile}} @lesson={{this.model.lesson}} />
   {{else}}
     <p style="margin-bottom: 30px;">{{t "None found" key="none_found"}}</p>
   {{/if}}

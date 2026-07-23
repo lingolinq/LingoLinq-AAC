@@ -334,7 +334,7 @@
               placeholder={{t "Search" key="search_short"}}
               aria-label={{t "Search buttons" key="search_buttons_aria"}}
               value={{this.board_search_string}}
-              {{on "input" (this.ctrlAction "update_board_search")}}
+              {{on "input" (this.eventAction "update_board_search")}}
             />
             {{#if this.board_search_string}}
               <button type="button" class="md-board-edit-panel__search-clear" data-bd-action="clear_board_search" {{on "click" (this.ctrlAction "clear_board_search")}} aria-label={{t "Clear filter" key="clear_filter"}}>
@@ -609,7 +609,7 @@
             <span class="md-board-detail-integration-header__title">{{this.model.integration_name}}</span>
           </div>
           {{#if this.model.embed_url}}
-            {{embed-frame board_style="width: 100%; height: 100%; position: relative;" code=this.model.action embed_url=this.model.embed_url user_token=this.model.user_token}}
+            <EmbedFrame @board_style="width: 100%; height: 100%; position: relative;" @code={{this.model.action}} @embed_url={{this.model.embed_url}} @user_token={{this.model.user_token}} />
           {{else}}
             <p class='text-danger'>{{t "There was an error loading the tool's page, it appears to not be configured properly" key="misconfigured_integration"}}</p>
           {{/if}}
@@ -905,7 +905,7 @@
              is present on page load for the auto-open. --}}
         {{#unless this.edit_mode}}
           {{#if this.app_state.feature_flags.home_tour}}
-            <span class="md-board-detail-speak-tour" aria-hidden="true">{{guided-tour}}</span>
+            <span class="md-board-detail-speak-tour" aria-hidden="true"><GuidedTour /></span>
           {{/if}}
         {{/unless}}
         {{#if this.show_options_menu}}
@@ -913,7 +913,7 @@
             (handled by board-detail controller) so this is purely a mouse
             convenience — hide it from AT. --}}
           <div class="md-board-detail-actions-backdrop" data-bd-action="toggle_options_menu" {{on "click" (this.ctrlAction "toggle_options_menu")}} aria-hidden="true"></div>
-          <div class="md-board-detail-actions-menu" role="menu" {{on "keydown" (this.ctrlAction "options_menu_keydown")}}>
+          <div class="md-board-detail-actions-menu" role="menu" {{on "keydown" (this.eventAction "options_menu_keydown")}}>
             {{#unless this.edit_mode}}
               {{!-- Edit Board — pulled out of the BOARD section per
                    design request and floated above all other items as
@@ -1435,7 +1435,7 @@
                        trigger AND the runner that auto-starts it. hasTour resolves to
                        the board-detail builder only in edit mode (registry). --}}
                   {{#if this.app_state.feature_flags.home_tour}}
-                    <span class="md-board-edit-session__tour">{{guided-tour}}</span>
+                    <span class="md-board-edit-session__tour"><GuidedTour /></span>
                   {{/if}}
                 </div>
                 <div class="md-board-detail-header__edit-card" role="region" aria-label={{t "Board details" key="board_detail_info_panel"}}>
@@ -1483,46 +1483,63 @@
                           {{else if this.pd_license}}
                             <img src={{path "images/pd.png"}} alt={{t "Public Domain" key="pd_license_label"}} class="md-board-detail-header__license-icon">
                           {{/if}}
-                          {{#unless this.model.public}}
-                            {{#if this.model.protected_material}}
-                              {{!-- Protected material can't change privacy
-                                   via this control (the asset license
-                                   blocks it), so render as a non-interactive
-                                   pill. --}}
-                              <span class="md-board-detail-header__info-icon md-board-detail-header__info-icon--lock" title={{t "Protected material" key="protected_material"}} aria-label={{t "Protected material" key="protected_material"}}>
+                          {{#if this.model.protected_material}}
+                            {{!-- Protected material can't change privacy via
+                                 this control (the asset license blocks it), so
+                                 render a non-interactive pill regardless of
+                                 public/private. --}}
+                            <span class="md-board-detail-header__info-icon md-board-detail-header__info-icon--lock" title={{t "Protected material" key="protected_material"}} aria-label={{t "Protected material" key="protected_material"}}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                              </svg>
+                              <span class="md-board-detail-header__info-icon-label">{{t "Protected" key="protected"}}</span>
+                            </span>
+                          {{else if this.model.public}}
+                            {{#if this.model.permissions.edit}}
+                              {{!-- Public + editable: clicking the pill opens the
+                                   board-privacy modal so the user can make it
+                                   private again (mirrors the Private pill). --}}
+                              <button type="button" class="md-board-detail-header__info-icon md-board-detail-header__info-icon--public md-board-detail-header__info-icon--clickable" title={{t "Public board — click to change privacy" key="public_board_click_to_change"}} aria-label={{t "Public board — click to change privacy" key="public_board_click_to_change"}} data-bd-action="open_board_privacy" {{on "click" (this.ctrlAction "open_board_privacy")}}>
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                  <circle cx="12" cy="12" r="10"/>
+                                  <line x1="2" y1="12" x2="22" y2="12"/>
+                                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                                 </svg>
-                                <span class="md-board-detail-header__info-icon-label">{{t "Protected" key="protected"}}</span>
-                              </span>
-                            {{else if this.model.permissions.edit}}
-                              {{!-- Editable board: clicking the private
-                                   pill opens the board-privacy modal,
-                                   matching the "Change privacy" flow on
-                                   the preferences screen. The label sits
-                                   to the right of the icon inside the
-                                   button so the whole pill is the touch
-                                   target. --}}
-                              <button type="button" class="md-board-detail-header__info-icon md-board-detail-header__info-icon--private md-board-detail-header__info-icon--clickable" title={{t "Private board — click to change privacy" key="private_board_click_to_change"}} aria-label={{t "Private board — click to change privacy" key="private_board_click_to_change"}} data-bd-action="open_board_privacy" {{on "click" (this.ctrlAction "open_board_privacy")}}>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                  <circle cx="12" cy="12" r="3"/>
-                                  <line x1="4" y1="20" x2="20" y2="4"/>
-                                </svg>
-                                <span class="md-board-detail-header__info-icon-label">{{t "Private" key="private"}}</span>
+                                <span class="md-board-detail-header__info-icon-label">{{t "Public" key="public"}}</span>
                               </button>
                             {{else}}
-                              <span class="md-board-detail-header__info-icon md-board-detail-header__info-icon--private" title={{t "Private board" key="private_board"}} aria-label={{t "Private board" key="private_board"}}>
+                              <span class="md-board-detail-header__info-icon md-board-detail-header__info-icon--public" title={{t "Public board" key="public_board"}} aria-label={{t "Public board" key="public_board"}}>
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                  <circle cx="12" cy="12" r="3"/>
-                                  <line x1="4" y1="20" x2="20" y2="4"/>
+                                  <circle cx="12" cy="12" r="10"/>
+                                  <line x1="2" y1="12" x2="22" y2="12"/>
+                                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                                 </svg>
-                                <span class="md-board-detail-header__info-icon-label">{{t "Private" key="private"}}</span>
+                                <span class="md-board-detail-header__info-icon-label">{{t "Public" key="public"}}</span>
                               </span>
                             {{/if}}
-                          {{/unless}}
+                          {{else if this.model.permissions.edit}}
+                            {{!-- Editable private board: clicking the pill opens
+                                 the board-privacy modal, matching the "Change
+                                 privacy" flow on the preferences screen. --}}
+                            <button type="button" class="md-board-detail-header__info-icon md-board-detail-header__info-icon--private md-board-detail-header__info-icon--clickable" title={{t "Private board — click to change privacy" key="private_board_click_to_change"}} aria-label={{t "Private board — click to change privacy" key="private_board_click_to_change"}} data-bd-action="open_board_privacy" {{on "click" (this.ctrlAction "open_board_privacy")}}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                                <line x1="4" y1="20" x2="20" y2="4"/>
+                              </svg>
+                              <span class="md-board-detail-header__info-icon-label">{{t "Private" key="private"}}</span>
+                            </button>
+                          {{else}}
+                            <span class="md-board-detail-header__info-icon md-board-detail-header__info-icon--private" title={{t "Private board" key="private_board"}} aria-label={{t "Private board" key="private_board"}}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                                <line x1="4" y1="20" x2="20" y2="4"/>
+                              </svg>
+                              <span class="md-board-detail-header__info-icon-label">{{t "Private" key="private"}}</span>
+                            </span>
+                          {{/if}}
                         </div>
                       </div>
                     </div>
@@ -1569,16 +1586,7 @@
                        internal scroll; on focus the JS expands it to
                        its full scrollHeight, letting the page scroll
                        handle anything past the viewport. --}}
-                  <Textarea
-                    @value={{this.model.description}}
-                    class="md-board-detail-header__info-description md-board-detail-header__info-description--editable"
-                    placeholder={{t "Add a description for this board..." key="board_detail_description_placeholder"}}
-                    rows="3"
-                    aria-label={{t "Board description" key="board_detail_description_label"}}
-                    {{on "focus" (this.ctrlAction "auto_resize_description")}}
-                    {{on "input" (this.ctrlAction "auto_resize_description")}}
-                    {{on "blur" (this.ctrlAction "auto_resize_description_blur")}}
-                  />
+                  <textarea class="md-board-detail-header__info-description md-board-detail-header__info-description--editable" placeholder={{t "Add a description for this board..." key="board_detail_description_placeholder"}} rows="3" aria-label={{t "Board description" key="board_detail_description_label"}} {{on "focus" (this.eventAction "auto_resize_description")}} {{on "input" (set-field this "model.description")}} {{on "input" (this.eventAction "auto_resize_description")}} {{on "blur" (this.eventAction "auto_resize_description_blur")}}>{{this.model.description}}</textarea>
                 </div>
               {{else}}
                 <div class="md-board-detail-header__title-row">
@@ -1612,35 +1620,53 @@
                   <div class="md-board-detail-header__info-panel" role="region" aria-label={{t "Board details" key="board_detail_info_panel"}}>
                     {{#if this.has_info_icons}}
                       <div class="md-board-detail-header__info-icons">
-                        {{#unless this.model.public}}
-                          {{#if this.model.protected_material}}
-                            <span class="md-board-detail-header__info-icon md-board-detail-header__info-icon--lock" title={{t "Protected material" key="protected_material"}} aria-label={{t "Protected material" key="protected_material"}}>
+                        {{#if this.model.protected_material}}
+                          <span class="md-board-detail-header__info-icon md-board-detail-header__info-icon--lock" title={{t "Protected material" key="protected_material"}} aria-label={{t "Protected material" key="protected_material"}}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                            </svg>
+                            <span class="md-board-detail-header__info-icon-label">{{t "Protected" key="protected"}}</span>
+                          </span>
+                        {{else if this.model.public}}
+                          {{#if this.model.permissions.edit}}
+                            <button type="button" class="md-board-detail-header__info-icon md-board-detail-header__info-icon--public md-board-detail-header__info-icon--clickable" title={{t "Public board — click to change privacy" key="public_board_click_to_change"}} aria-label={{t "Public board — click to change privacy" key="public_board_click_to_change"}} data-bd-action="open_board_privacy" {{on "click" (this.ctrlAction "open_board_privacy")}}>
                               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="2" y1="12" x2="22" y2="12"/>
+                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                               </svg>
-                              <span class="md-board-detail-header__info-icon-label">{{t "Protected" key="protected"}}</span>
-                            </span>
-                          {{else if this.model.permissions.edit}}
-                            <button type="button" class="md-board-detail-header__info-icon md-board-detail-header__info-icon--private md-board-detail-header__info-icon--clickable" title={{t "Private board — click to change privacy" key="private_board_click_to_change"}} aria-label={{t "Private board — click to change privacy" key="private_board_click_to_change"}} data-bd-action="open_board_privacy" {{on "click" (this.ctrlAction "open_board_privacy")}}>
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                <circle cx="12" cy="12" r="3"/>
-                                <line x1="4" y1="20" x2="20" y2="4"/>
-                              </svg>
-                              <span class="md-board-detail-header__info-icon-label">{{t "Private" key="private"}}</span>
+                              <span class="md-board-detail-header__info-icon-label">{{t "Public" key="public"}}</span>
                             </button>
                           {{else}}
-                            <span class="md-board-detail-header__info-icon md-board-detail-header__info-icon--private" title={{t "Private board" key="private_board"}} aria-label={{t "Private board" key="private_board"}}>
+                            <span class="md-board-detail-header__info-icon md-board-detail-header__info-icon--public" title={{t "Public board" key="public_board"}} aria-label={{t "Public board" key="public_board"}}>
                               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                <circle cx="12" cy="12" r="3"/>
-                                <line x1="4" y1="20" x2="20" y2="4"/>
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="2" y1="12" x2="22" y2="12"/>
+                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                               </svg>
-                              <span class="md-board-detail-header__info-icon-label">{{t "Private" key="private"}}</span>
+                              <span class="md-board-detail-header__info-icon-label">{{t "Public" key="public"}}</span>
                             </span>
                           {{/if}}
-                        {{/unless}}
+                        {{else if this.model.permissions.edit}}
+                          <button type="button" class="md-board-detail-header__info-icon md-board-detail-header__info-icon--private md-board-detail-header__info-icon--clickable" title={{t "Private board — click to change privacy" key="private_board_click_to_change"}} aria-label={{t "Private board — click to change privacy" key="private_board_click_to_change"}} data-bd-action="open_board_privacy" {{on "click" (this.ctrlAction "open_board_privacy")}}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                              <circle cx="12" cy="12" r="3"/>
+                              <line x1="4" y1="20" x2="20" y2="4"/>
+                            </svg>
+                            <span class="md-board-detail-header__info-icon-label">{{t "Private" key="private"}}</span>
+                          </button>
+                        {{else}}
+                          <span class="md-board-detail-header__info-icon md-board-detail-header__info-icon--private" title={{t "Private board" key="private_board"}} aria-label={{t "Private board" key="private_board"}}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                              <circle cx="12" cy="12" r="3"/>
+                              <line x1="4" y1="20" x2="20" y2="4"/>
+                            </svg>
+                            <span class="md-board-detail-header__info-icon-label">{{t "Private" key="private"}}</span>
+                          </span>
+                        {{/if}}
                         {{#if this.cc_license}}
                           <img src={{path "images/cc.png"}} alt={{t "Creative Commons license" key="cc_license_label"}} class="md-board-detail-header__license-icon">
                         {{else if this.pd_license}}
@@ -1930,18 +1956,7 @@
               <span class="md-board-detail-phrase-builder__search-icon" aria-hidden="true">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               </span>
-              <Input
-                id="bd-phrase-builder-search"
-                name="bd-phrase-builder-search"
-                @type="text"
-                @value={{this.phrase_search}}
-                class="md-board-detail-phrase-builder__input"
-                placeholder={{t "Type a word or a full sentence…" key="board_detail_phrase_builder_placeholder"}}
-                aria-label={{t "Search for buttons or type a sentence" key="board_detail_search_buttons_aria"}}
-                autocomplete="off"
-                autocorrect="off"
-                spellcheck="false"
-              />
+              <input type="text" value={{this.phrase_search}} id="bd-phrase-builder-search" name="bd-phrase-builder-search" class="md-board-detail-phrase-builder__input" placeholder={{t "Type a word or a full sentence…" key="board_detail_phrase_builder_placeholder"}} aria-label={{t "Search for buttons or type a sentence" key="board_detail_search_buttons_aria"}} autocomplete="off" autocorrect="off" spellcheck="false" {{on "input" (set-field this "phrase_search")}} />
               {{#if this.has_phrase_search}}
                 <button type="button" class="md-board-detail-phrase-builder__clear" data-bd-action="clear_phrase_search" {{on "click" (this.ctrlAction "clear_phrase_search")}} aria-label={{t "Clear search" key="board_detail_clear_search"}}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -2002,7 +2017,7 @@
                           aria-label={{btn.label}}>
                           {{#if btn.image}}
                             <span class="md-board-detail-phrase-builder__sentence-chip-img">
-                              <img src={{btn.image}} alt="" draggable="false" onerror="this.style.display='none'">
+                              <img src={{btn.image}} alt="" draggable="false" {{hide-on-error "display"}}>
                             </span>
                           {{/if}}
                           <span class="md-board-detail-phrase-builder__sentence-chip-label">{{btn.label}}</span>
@@ -2076,44 +2091,44 @@
         </div>
       {{else}}
       <div class="md-board-detail-grid-fade {{if this.grid_loading 'md-board-detail-grid-fade--loading'}}">
-      {{board-detail-grid
-        board=this.model
-        orderedButtons=this.ordered_buttons
-        activeCategory=this.active_category
-        editMode=this.edit_mode
-        previewLevelsMode=this.preview_levels_mode
-        paintMode=this.paint_mode
-        labelsEditable=true
-        boardSaving=this.board_saving
-        folderLabelsOnTab=(if this._collection_preview_force_corner false this.folder_labels_on_tab)
-        folderColoredCorner=(if this._collection_preview_force_corner true this.folder_colored_corner)
-        folderColoredFace=(if this._collection_preview_force_corner false this.folder_colored_face)
-        shrinkLabelsToFit=this.shrink_labels_to_fit
-        softBorders=this.soft_borders
-        buttonTextSizeClass=this.button_text_size_class
-        buttonTextPositionClass=this.button_text_position_class
-        hiddenButtonsClass=this.hidden_buttons_class
-        symbolBackgroundClass=this.symbol_background_class
-        highContrastClass=this.high_contrast_class
-        buttonShapeClass=this.button_shape_class
-        gridStyle=this.grid_style
-        buttonTextSizePx=this.button_text_size_px
-        buttonSpacingPx=this.button_spacing_px
-        buttonBorderPx=this.button_border_px
-        buttonFontStyle=this.button_font_style
-        bgStyle=this.bg_style
-        bgClass=this.bg_class
-        bgImgStyle=this.bg_img_style
-        colorPickerButton=this.color_picker_button
-        colorPickerSwatches=this.color_picker_swatches
-        customColorValue=this.custom_color_value
-        buttonEvent=(this.ctrlAction "button_event")
-        selectButton=(this.ctrlAction "select_button")
-        selectButtonKey=(this.ctrlAction "select_button_key")
-        closeColorPicker=(this.ctrlAction "close_color_picker")
-        applySwatchColor=(this.ctrlAction "apply_swatch_color")
-        toggleMinicolors=(this.ctrlAction "toggle_minicolors")
-        applyCustomColor=(this.ctrlAction "apply_custom_color")}}
+      <BoardDetailGrid
+        @board={{this.model}}
+        @orderedButtons={{this.ordered_buttons}}
+        @activeCategory={{this.active_category}}
+        @editMode={{this.edit_mode}}
+        @previewLevelsMode={{this.preview_levels_mode}}
+        @paintMode={{this.paint_mode}}
+        @labelsEditable={{true}}
+        @boardSaving={{this.board_saving}}
+        @folderLabelsOnTab={{this.folder_labels_on_tab}}
+        @folderColoredCorner={{this.folder_colored_corner}}
+        @folderColoredFace={{this.folder_colored_face}}
+        @shrinkLabelsToFit={{this.shrink_labels_to_fit}}
+        @softBorders={{this.soft_borders}}
+        @buttonTextSizeClass={{this.button_text_size_class}}
+        @buttonTextPositionClass={{this.button_text_position_class}}
+        @hiddenButtonsClass={{this.hidden_buttons_class}}
+        @symbolBackgroundClass={{this.symbol_background_class}}
+        @highContrastClass={{this.high_contrast_class}}
+        @buttonShapeClass={{this.button_shape_class}}
+        @gridStyle={{this.grid_style}}
+        @buttonTextSizePx={{this.button_text_size_px}}
+        @buttonSpacingPx={{this.button_spacing_px}}
+        @buttonBorderPx={{this.button_border_px}}
+        @buttonFontStyle={{this.button_font_style}}
+        @bgStyle={{this.bg_style}}
+        @bgClass={{this.bg_class}}
+        @bgImgStyle={{this.bg_img_style}}
+        @colorPickerButton={{this.color_picker_button}}
+        @colorPickerSwatches={{this.color_picker_swatches}}
+        @customColorValue={{this.custom_color_value}}
+        @buttonEvent={{this.ctrlAction "button_event"}}
+        @selectButton={{this.ctrlAction "select_button"}}
+        @selectButtonKey={{this.ctrlAction "select_button_key"}}
+        @closeColorPicker={{this.ctrlAction "close_color_picker"}}
+        @applySwatchColor={{this.ctrlAction "apply_swatch_color"}}
+        @toggleMinicolors={{this.ctrlAction "toggle_minicolors"}}
+        @applyCustomColor={{this.ctrlAction "apply_custom_color"}} />
       </div>{{!-- /.md-board-detail-grid-fade --}}
       {{/if}}{{!-- /nothing_visible_not_edit --}}
       {{/if}}{{!-- /active_view phrase-builder vs symbol-board --}}
@@ -2622,11 +2637,7 @@
                             autocomplete="off"
                             oninput={{this.onUpdateCustomPaintColor}}
                             onchange={{this.onUpdateCustomPaintColor}}>
-                          <Input id="bd-paint-hex-input"
-                            @value={{this.custom_paint_color}}
-                            placeholder="#hex"
-                            class="md-board-edit-right-panel__custom-picker-hex"
-                            autocomplete="off" />
+                          <input value={{this.custom_paint_color}} id="bd-paint-hex-input" placeholder="#hex" aria-label={{t "Custom hex color" key="custom_hex_color"}} class="md-board-edit-right-panel__custom-picker-hex" autocomplete="off" {{on "input" (set-field this "custom_paint_color")}} />
                           <button type="button"
                             class="md-board-edit-right-panel__custom-picker-apply"
                             data-bd-action="apply_custom_paint_color" {{on "click" (this.ctrlAction "apply_custom_paint_color")}}>
@@ -2823,7 +2834,7 @@
                             {{#if opt.divider}}
                               <li class="md-settings-dropdown-divider" role="separator" aria-hidden="true"></li>
                             {{else}}
-                              <li>
+                              <li role="presentation">
                                 <button type="button" role="option" aria-selected={{if (is-equal this.current_display_prefs.button_style opt.id) "true" "false"}} class="md-settings-dropdown-item {{if (is-equal this.current_display_prefs.button_style opt.id) 'md-settings-dropdown-item--active'}}" {{on "click" (this.ctrlAction "pick_display_font" opt.id)}}>
                                   {{#if (is-equal this.current_display_prefs.button_style opt.id)}}
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
@@ -2936,7 +2947,7 @@
                         <div class="md-settings-dropdown-backdrop" data-bd-action="close_display_symbol_background_dropdown" {{on "click" (this.ctrlAction "close_display_symbol_background_dropdown")}} aria-hidden="true"></div>
                         <ul class="md-settings-dropdown-menu" role="listbox" aria-label={{t "Image background color" key="board_detail_prefs_image_background"}}>
                           {{#each this.symbol_background_options as |opt|}}
-                            <li>
+                            <li role="presentation">
                               <button type="button" role="option" aria-selected={{if (is-equal this.display_prefs_current_symbol_background_id opt.id) "true" "false"}} class="md-settings-dropdown-item {{if (is-equal this.display_prefs_current_symbol_background_id opt.id) 'md-settings-dropdown-item--active'}}" {{on "click" (this.ctrlAction "pick_display_symbol_background" opt.id)}}>
                                 {{#if (is-equal this.display_prefs_current_symbol_background_id opt.id)}}
                                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
@@ -3052,7 +3063,7 @@
                       <div class="md-settings-dropdown-backdrop" data-bd-action="close_display_symbol_library_dropdown" {{on "click" (this.ctrlAction "close_display_symbol_library_dropdown")}} aria-hidden="true"></div>
                       <ul class="md-settings-dropdown-menu" role="listbox" aria-label={{t "Symbol library" key="board_detail_prefs_symbol_library"}}>
                         {{#each this.preferred_symbols_options as |opt|}}
-                          <li>
+                          <li role="presentation">
                             <button type="button" role="option" aria-selected={{if (is-equal this.current_display_prefs.preferred_symbols opt.id) "true" "false"}} class="md-settings-dropdown-item {{if (is-equal this.current_display_prefs.preferred_symbols opt.id) 'md-settings-dropdown-item--active'}}" {{on "click" (this.ctrlAction "pick_display_symbol_library" opt.id)}}>
                               {{#if (is-equal this.current_display_prefs.preferred_symbols opt.id)}}
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
@@ -3421,7 +3432,7 @@
                         <div class="md-settings-dropdown-backdrop" data-bd-action="close_display_voice_height_dropdown" {{on "click" (this.ctrlAction "close_display_voice_height_dropdown")}} aria-hidden="true"></div>
                         <ul class="md-settings-dropdown-menu" role="listbox" aria-label={{t "Sentence bar size" key="board_detail_prefs_voice_height_aria"}}>
                           {{#each this.voice_height_options as |opt|}}
-                            <li>
+                            <li role="presentation">
                               <button type="button" role="option" aria-selected={{if (is-equal this.current_display_prefs.vocalization_height opt.id) "true" "false"}} class="md-settings-dropdown-item {{if (is-equal this.current_display_prefs.vocalization_height opt.id) 'md-settings-dropdown-item--active'}}" {{on "click" (this.ctrlAction "pick_display_voice_height" opt.id)}}>
                                 {{#if (is-equal this.current_display_prefs.vocalization_height opt.id)}}
                                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
@@ -3491,7 +3502,7 @@
                           <div class="md-settings-dropdown-backdrop" data-bd-action="close_word_prediction_position_dropdown" {{on "click" (this.ctrlAction "close_word_prediction_position_dropdown")}} aria-hidden="true"></div>
                           <ul class="md-settings-dropdown-menu" role="listbox" aria-label={{t "Word prediction position" key="word_prediction_position"}}>
                             {{#each this.word_prediction_position_options as |opt|}}
-                              <li>
+                              <li role="presentation">
                                 <button type="button" role="option" aria-selected={{if (is-equal this.word_suggestion_position_value opt.id) "true" "false"}} class="md-settings-dropdown-item {{if (is-equal this.word_suggestion_position_value opt.id) 'md-settings-dropdown-item--active'}}" {{on "click" (this.ctrlAction "pick_word_suggestion_position" opt.id)}}>
                                   {{#if (is-equal this.word_suggestion_position_value opt.id)}}
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>

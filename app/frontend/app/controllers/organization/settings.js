@@ -108,6 +108,13 @@ export default Controller.extend({
     res.push({name: i18n.t('unspecified', "Unspecified"), id: ''});
     return res;
   }),
+  jurisdiction_list: computed(function() {
+    return [
+      {name: i18n.t('org_jurisdiction_placeholder', "[ Organization location ]"), id: ''},
+      {name: i18n.t('org_jurisdiction_us', "United States"), id: 'US'},
+      {name: i18n.t('org_jurisdiction_eu', "European Union"), id: 'EU'}
+    ];
+  }),
   init() {
     this._super(...arguments);
     var self = this;

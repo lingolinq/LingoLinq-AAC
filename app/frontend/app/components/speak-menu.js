@@ -150,7 +150,6 @@ export default Component.extend({
         });
       }
       this.set('model', {});
-      this.set('punctuation_menu', false);
       this.set('repeat_menu', false);
       this.set('rememberedUtterances', utterances.slice(0, 7));
       var height = this.appState.get('header_height');
@@ -227,7 +226,10 @@ export default Component.extend({
             capabilities.vibrate();
           }
         };
-        if (button !== 'menu_repeat_button' && button !== 'menu_punctuation_button') {
+        // menu_repeat_button toggles the repeat/volume group in place, so it must not
+        // close the menu. (menu_punctuation_button used to be the other exception; the
+        // punctuation submenu it toggled is gone -- all punctuation is one row now.)
+        if (button !== 'menu_repeat_button') {
           _this.get('modal').close();
         }
         if (button === 'menu_share_button') {
@@ -308,11 +310,6 @@ export default Component.extend({
           } else {
             _this.appState.activate_button({ vocalization: '+.' }, { label: '.', vocalization: '+.', prevent_return: true, button_id: null, source: 'speak_menu', board: { id: 'speak_menu', key: 'core/speak_menu' }, type: 'speak' });
           }
-        } else if (button === 'menu_punctuation_button') {
-          _this.set('ref', Math.random());
-          _this.set('repeat_menu', false);
-          _this.set('punctuation_menu', !_this.get('punctuation_menu'));
-          click();
         } else {
           console.error('unrecognized button', button);
         }

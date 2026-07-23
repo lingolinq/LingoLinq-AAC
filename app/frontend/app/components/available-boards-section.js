@@ -4,6 +4,7 @@ import { inject as service } from '@ember/service';
 import { run, next } from '@ember/runloop';
 import i18n from '../utils/i18n';
 import actionLock from '../utils/action-lock';
+import buildEventAction from '../utils/event_action';
 
 /**
  * Available Boards grid (Mine folders, filter, DnD) — used on user/boards and dashboard.
@@ -79,6 +80,10 @@ export default Component.extend({
         if (ctrl) { ctrl.send.apply(ctrl, [actionName].concat(args)); }
       };
     };
+    // For `input` bindings: the handler reads event.target.value, which the
+    // generic ctrlAction above discards (5.12 upgrade #490), so the search
+    // box never filtered. ctrlAction is unchanged for clicks.
+    this.eventAction = buildEventAction(function() { return self.get('boardsCtrl'); });
     this.ctrlActionNoBubble = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function(event) {

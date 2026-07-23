@@ -21,14 +21,14 @@
     <div style='max-height: 300px; overflow: auto;'>
       <div class="btn-group-vertical" style="width: 100%;">
         {{#each this.setup.user_voice_list as |voice|}}
-          <a href="#" class={{if voice.selected "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{on "click" (this.ctrlAction "set_preference" "device.voice.voice_uri" voice.id target)}}>{{voice.name}}</a>
+          <a href="#" class={{if voice.selected "btn btn-lg btn-primary" "btn btn-lg btn-default"}} {{on "click" (this.ctrlAction "set_preference" "device.voice.voice_uri" voice.id this.target)}}>{{voice.name}}</a>
         {{/each}}
       </div>
     </div>
     <div style='margin-top: 15px;'>
-      <button class='btn btn-lg btn-default' {{on "click" (this.ctrlAction "test_voice" target)}}>{{t "Listen to This Voice" key="listen_to_this_voice"}}</button>
+      <button class='btn btn-lg btn-default' {{on "click" (this.ctrlAction "test_voice" this.target)}}>{{t "Listen to This Voice" key="listen_to_this_voice"}}</button>
       {{#if this.setup.premium_voices_supported}}
-        <button class='btn btn-lg btn-default' {{on "click" (this.ctrlAction "premium_voices" target)}}>{{t "Browse Premium Voices" key="browse_premium_voices"}}</button>
+        <button class='btn btn-lg btn-default' {{on "click" (this.ctrlAction "premium_voices" this.target)}}>{{t "Browse Premium Voices" key="browse_premium_voices"}}</button>
       {{/if}}
     </div>
   </div>

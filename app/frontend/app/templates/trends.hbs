@@ -153,7 +153,7 @@
           <div class='col-sm-12'>
             <span class='label label-danger'>{{t "Not Public Information:" key="not_public_information"}}</span>
           </div>
-          <div class="col-sm-3 col-xs-6" style={{elem_style}}>
+          <div class="col-sm-3 col-xs-6" style={{this.elem_style}}>
             <div class="panel panel-default summary">
               <div class="panel-heading">
                 {{t "Total Logged Users" key="total_logged_users"}}
@@ -198,11 +198,11 @@
 
       <div class='col-sm-12' style='margin-bottom: 50px;'>
         <h4>{{t "Frequently-Used Core Words" key="most_common_core_words"}}</h4>
-        {{stats/word-cloud stats=this.word_cloud_stats zoom=1}}
+        <Stats::WordCloud @stats={{this.word_cloud_stats}} @zoom={{1}} />
       </div>
 
-      {{stats/core-usage trends=this.trends}}
-      {{stats/modeling-frequency trends=this.trends}}
+      <Stats::CoreUsage @trends={{this.trends}} />
+      <Stats::ModelingFrequency @trends={{this.trends}} />
 
       <div class='col-sm-6' style='margin-bottom: 50px;'>
         <h4>{{t "Common Home Boards" key="common_home_boards"}}</h4>
@@ -380,9 +380,9 @@
                   {{word.name}}
                   <span class='text-muted' style='margin-left: 20px; font-size: 14px;'>
                     <br>
-                    {{t "freq:" key="frequency"}} {{word.pct}}%&nbsp;&nbsp;
+                    <span style='margin-right: 8px;'>{{t "freq:" key="frequency"}} {{word.pct}}%</span>
                     {{#if word.travel}}
-                      {{t "avg. travel:" key="avg_travel"}} {{word.travel}}&nbsp;&nbsp;
+                      <span style='margin-right: 8px;'>{{t "avg. travel:" key="avg_travel"}} {{word.travel}}</span>
                     {{/if}}
                     {{#if word.available}}
                       {{t "available to:" key="available_to"}} {{word.available}}%
@@ -407,9 +407,9 @@
                   {{word.name}}
                   <span class='text-muted' style='margin-left: 20px; font-size: 14px;'>
                     <br>
-                    {{t "freq:" key="frequency"}} {{word.pct}}%&nbsp;&nbsp;
+                    <span style='margin-right: 8px;'>{{t "freq:" key="frequency"}} {{word.pct}}%</span>
                     {{#if word.travel}}
-                      {{t "avg. travel:" key="avg_travel"}} {{word.travel}}&nbsp;&nbsp;
+                      <span style='margin-right: 8px;'>{{t "avg. travel:" key="avg_travel"}} {{word.travel}}</span>
                     {{/if}}
                     {{#if word.available}}
                       {{t "available to:" key="available_to"}} {{word.available}}%

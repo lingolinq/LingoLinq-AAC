@@ -5,19 +5,19 @@
     <h2 class="md-preferences__title">{{t "General Preferences" key='general_preferences'}}</h2>
   </div>
   <form class="form-horizontal md-preferences__form" {{on "submit" this.onSavePreferences}}>
-  {{#preference-box title="Basics" glyph='glyphicon glyphicon-cog' title_key='basics' open=true}}
+  <PreferenceBox @title="Basics" @glyph="glyphicon glyphicon-cog" @title_key="basics" @open={{true}}>
     <span style='display: none;'>{{t "Basics" key='basics'}}</span>
     <div class="form-group">
       <label for="role" class="col-sm-3 control-label">{{t "Account Type" key='role'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="role" content=this.dashboardViewList selection=this.pending_preferences.role action=(mut this.pending_preferences.role) }}
+        <BoundSelect @select_class="form-control" @select_id="role" @content={{this.dashboardViewList}} @selection={{this.pending_preferences.role}} @action={{mut this.pending_preferences.role}} />
       </div>
     </div>
     {{#unless this.non_communicator}}
       <div class="form-group">
         <label for="device_role" class="col-sm-3 control-label">{{t "Device Purpose" key='device_purpose'}}</label>
         <div class="col-sm-5">
-          {{bound-select select_class="form-control" select_id="device_role" content=this.device_type_list selection=this.pending_preferences.device.role action=(mut this.pending_preferences.device.role) }}
+          <BoundSelect @select_class="form-control" @select_id="device_role" @content={{this.device_type_list}} @selection={{this.pending_preferences.device.role}} @action={{mut this.pending_preferences.device.role}} />
         </div>
       </div>
       <div class="form-group">
@@ -25,7 +25,7 @@
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" id='auto_open_speak_mode' @checked={{this.pending_preferences.auto_open_speak_mode}} />
+              <input type="checkbox" checked={{this.pending_preferences.auto_open_speak_mode}} id='auto_open_speak_mode' {{on "change" (set-field this "pending_preferences.auto_open_speak_mode" "checkbox")}} />
               {{t "Start app in Speak Mode on launch" key='start_in_speak_mode_on_launch'}}
             </label>
           </div>
@@ -38,7 +38,7 @@
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.pending_preferences.device.long_token}} id="long_token" />
+              <input type="checkbox" checked={{this.pending_preferences.device.long_token}} id="long_token" {{on "change" (set-field this "pending_preferences.device.long_token" "checkbox")}} />
               {{t "Keep me logged in on this private device" key='enable_long_token'}}
             </label>
           </div>
@@ -50,7 +50,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.require_speak_mode_pin}} id="require_speak_mode_pin" />
+            <input type="checkbox" checked={{this.pending_preferences.require_speak_mode_pin}} id="require_speak_mode_pin" {{on "change" (set-field this "pending_preferences.require_speak_mode_pin" "checkbox")}} />
             {{t "Require a PIN when exiting Speak Mode" key='require_speak_mode_pin'}}
           </label>
         </div>
@@ -63,7 +63,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.require_sidebar_edit_pin}} id="require_sidebar_edit_pin" />
+            <input type="checkbox" checked={{this.pending_preferences.require_sidebar_edit_pin}} id="require_sidebar_edit_pin" {{on "change" (set-field this "pending_preferences.require_sidebar_edit_pin" "checkbox")}} />
             {{t "Require a PIN to edit the Sidebar" key='require_sidebar_edit_pin'}}
           </label>
         </div>
@@ -75,7 +75,7 @@
         <label for="speak_mode_pin" class="col-sm-3 control-label">{{t "Speak Mode PIN" key='speak_mode_pin'}}</label>
         <div class="col-sm-5">
           <label>
-            <Input @value={{this.pending_preferences.speak_mode_pin}} class="form-control" id="speak_mode_pin" placeholder="4-digit numerical PIN" />
+            <input value={{this.pending_preferences.speak_mode_pin}} class="form-control" id="speak_mode_pin" placeholder="4-digit numerical PIN" {{on "input" (set-field this "pending_preferences.speak_mode_pin")}} />
           </label>
         </div>
       </div>
@@ -84,7 +84,7 @@
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.pending_preferences.hide_pin_hint}} id="hide_pin_hint" />
+              <input type="checkbox" checked={{this.pending_preferences.hide_pin_hint}} id="hide_pin_hint" {{on "change" (set-field this "pending_preferences.hide_pin_hint" "checkbox")}} />
               {{t "Don't show hint for discovering forgotten PIN" key='hide_pin_hint'}}
             </label>
           </div>
@@ -113,14 +113,14 @@
       </div>
       <div class='col-sm-2' style='text-align: right;'>
         {{#if this.pending_preferences.home_board.key}}
-          <button class='btn btn-default' {{on "click" (this.ctrlAction 'clear_home')}}>{{t "Clear Home Board" key='clear_home_board'}}</button>
+          <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction 'clear_home')}}>{{t "Clear Home Board" key='clear_home_board'}}</button>
         {{/if}}
       </div>
       {{#unless this.pending_preferences.home_board.key}}
         <div class="col-sm-5 col-sm-offset-3">
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.pending_preferences.sync_starred_boards}} id="sync_starred_boards" />
+              <input type="checkbox" checked={{this.pending_preferences.sync_starred_boards}} id="sync_starred_boards" {{on "change" (set-field this "pending_preferences.sync_starred_boards" "checkbox")}} />
               {{t "Sync my liked boards to use as a home board" key='sync_starred_boards_for_home'}}
             </label>
           </div>
@@ -130,13 +130,13 @@
     <div class="form-group">
       <label for="locale" class="col-sm-3 control-label">{{t "Preferred Language" key='preferred_language'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="locale" content=(readonly this.localeList) selection=this.pending_preferences.locale action=(mut this.pending_preferences.locale) }}
+        <BoundSelect @select_class="form-control" @select_id="locale" @content={{readonly this.localeList}} @selection={{this.pending_preferences.locale}} @action={{mut this.pending_preferences.locale}} />
       </div>
     </div>
     <div class="form-group">
       <label for="preferred_symbols" class="col-sm-3 control-label">{{t "Preferred Symbols" key='preferred_symbols'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="preferred_symbols" content=(readonly this.symbolsList) selection=this.pending_preferences.preferred_symbols action=(mut this.pending_preferences.preferred_symbols) }}
+        <BoundSelect @select_class="form-control" @select_id="preferred_symbols" @content={{readonly this.symbolsList}} @selection={{this.pending_preferences.preferred_symbols}} @action={{mut this.pending_preferences.preferred_symbols}} />
         {{#if (get this "premium_symbol_library")}}
           {{#if this.app_state.currentUser.subscription.grace_trial_period}}
             <div class='text-danger'>
@@ -177,7 +177,7 @@
                 <div>
                   <div class='checkbox big_checkbox'>
                     <label>
-                      <Input @type="checkbox" @checked={{option.checked}} />
+                      <input type="checkbox" checked={{option.checked}}  {{on "change" (set-field option "checked" "checkbox")}}/>
                       <img src={{option.image_url}} style='width: 30px; height: 30px;'>
                       {{option.label}}
                     </label>
@@ -189,29 +189,29 @@
         </div>
       </div>
     {{/if}}
-  {{/preference-box}}
-  {{#preference-box title="Notifications" glyph='glyphicon glyphicon-bell' title_key='notifications'}}
+  </PreferenceBox>
+  <PreferenceBox @title="Notifications" @glyph="glyphicon glyphicon-bell" @title_key="notifications">
     <span style='display: none;'>{{t "Notifications" key='notifications'}}</span>
     <div class="form-group">
       <label for="notification_frequency" class="col-sm-3 control-label">{{t "Usage Summaries" key="notification_frequency"}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="notification_frequency" content=this.notification_frequency_options selection=this.pending_preferences.notification_frequency action=(mut this.pending_preferences.notification_frequency) }}
+        <BoundSelect @select_class="form-control" @select_id="notification_frequency" @content={{this.notification_frequency_options}} @selection={{this.pending_preferences.notification_frequency}} @action={{mut this.pending_preferences.notification_frequency}} />
       </div>
     </div>
     <div class="form-group">
       <label for="goal_notifications" class="col-sm-3 control-label">{{t "Goal Updates" key="goal_notifications"}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="goal_notifications" content=this.goal_notification_options selection=this.pending_preferences.goal_notifications action=(mut this.pending_preferences.goal_notifications) }}
+        <BoundSelect @select_class="form-control" @select_id="goal_notifications" @content={{this.goal_notification_options}} @selection={{this.pending_preferences.goal_notifications}} @action={{mut this.pending_preferences.goal_notifications}} />
       </div>
     </div>
     <div class="form-group">
       <label for="share_notifications" class="col-sm-3 control-label">{{t "Share Notifications" key="share_notifications"}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="share_notifications" content=this.allow_shares_options selection=this.pending_preferences.share_notifications action=(mut this.pending_preferences.share_notifications) }}
+        <BoundSelect @select_class="form-control" @select_id="share_notifications" @content={{this.allow_shares_options}} @selection={{this.pending_preferences.share_notifications}} @action={{mut this.pending_preferences.share_notifications}} />
       </div>
     </div>
-  {{/preference-box}}
-  {{#preference-box title="AI Features" glyph='glyphicon glyphicon-flash' title_key='ai_features'}}
+  </PreferenceBox>
+  <PreferenceBox @title="AI Features" @glyph="glyphicon glyphicon-flash" @title_key="ai_features">
     <span style='display: none;'>{{t "AI Features" key='ai_features'}}</span>
     {{#if this.euAiConsentRequired}}
       <div class="form-group">
@@ -272,18 +272,47 @@
         {{/if}}
       </div>
     </div>
+    {{#if this.model.article_50_disclosure_required}}
+      <div class="form-group">
+        <label class="col-sm-3 control-label">{{t "AI Transparency Notice" key='ai_disclosure_pref_label'}}</label>
+        <div class="col-sm-9">
+          {{!-- Both states link to the notice rather than opening the ai-disclosure
+                modal. That modal is uncloseable BLOCK mode by design (no Escape, no
+                backdrop dismiss, one exit: Acknowledge), which is correct for a gate
+                the user hit on the way to an AI feature, and wrong for a voluntary
+                read from Preferences -- it would trap someone who just wanted to
+                re-read the notice into re-acknowledging to escape, with no cancel
+                path at all for a switch-scanning user. --}}
+          {{#if this.model.article_50_disclosure_shown}}
+            <p class="form-control-static">
+              {{t "Acknowledged." key='ai_disclosure_pref_status_acknowledged'}}
+            </p>
+            <a href={{this.article_50_disclosure_url}} target="_blank" rel="noopener" class="btn btn-default">
+              {{t "View Notice Again" key='ai_disclosure_pref_view_again'}}
+            </a>
+          {{else}}
+            <p class="form-control-static">
+              {{t "Not yet acknowledged. AI word suggestions are using the standard, non-AI fallback until you review this." key='ai_disclosure_pref_status_unacknowledged'}}
+            </p>
+            <a href={{this.article_50_disclosure_url}} target="_blank" rel="noopener" class="btn btn-default">
+              {{t "Review Notice" key='ai_disclosure_pref_review_button'}}
+            </a>
+          {{/if}}
+        </div>
+      </div>
+    {{/if}}
     <div class="form-group">
       <label for="word_suggestions" class="col-sm-3 control-label">{{t "Word Prediction" key='word_prediction'}}</label>
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.word_suggestions}} id="word_suggestions" />
+            <input type="checkbox" checked={{this.pending_preferences.word_suggestions}} id="word_suggestions" {{on "change" (set-field this "pending_preferences.word_suggestions" "checkbox")}} />
             {{t "Show word prediction in Speak Mode" key='show_word_prediction_pref'}}
           </label>
         </div>
         {{#if this.pending_preferences.word_suggestions}}
           <label for="word_suggestion_position" class="control-label" style="margin-top: 8px; display: block;">{{t "Position" key='word_prediction_position_short'}}</label>
-          {{bound-select select_class="form-control" select_id="word_suggestion_position" content=this.wordPredictionPositionList selection=this.pending_preferences.word_suggestion_position action=(mut this.pending_preferences.word_suggestion_position) }}
+          <BoundSelect @select_class="form-control" @select_id="word_suggestion_position" @content={{this.wordPredictionPositionList}} @selection={{this.pending_preferences.word_suggestion_position}} @action={{mut this.pending_preferences.word_suggestion_position}} />
         {{/if}}
       </div>
     </div>
@@ -292,25 +321,25 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.word_suggestion_images}} id="word_suggestion_images" />
+            <input type="checkbox" checked={{this.pending_preferences.word_suggestion_images}} id="word_suggestion_images" {{on "change" (set-field this "pending_preferences.word_suggestion_images" "checkbox")}} />
             {{t "Show images for keyboard suggestions" key='word_suggestion_images'}}
           </label>
         </div>
       </div>
     </div>
-  {{/preference-box}}
-  {{#preference-box title="Styling" glyph='glyphicon glyphicon-picture' title_key='styling'}}
+  </PreferenceBox>
+  <PreferenceBox @title="Styling" @glyph="glyphicon glyphicon-picture" @title_key="styling">
     <span style='display: none;'>{{t "Styling" key='styling'}}</span>
     <div class="form-group">
       <label for="board_background" class="col-sm-3 control-label">{{t "Board Background Color" key='board_background'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="board_background" content=this.buttonBackgroundList selection=this.pending_preferences.board_background action=(mut this.pending_preferences.board_background) }}
+        <BoundSelect @select_class="form-control" @select_id="board_background" @content={{this.buttonBackgroundList}} @selection={{this.pending_preferences.board_background}} @action={{mut this.pending_preferences.board_background}} />
       </div>
     </div>
     <div class="form-group">
       <label for="symbol_background" class="col-sm-3 control-label">{{t "Image Background Color" key='symbol_background'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="symbol_background" content=this.symbolBackgroundList selection=this.pending_preferences.symbol_background action=(mut this.pending_preferences.symbol_background) }}
+        <BoundSelect @select_class="form-control" @select_id="symbol_background" @content={{this.symbolBackgroundList}} @selection={{this.pending_preferences.symbol_background}} @action={{mut this.pending_preferences.symbol_background}} />
       </div>
     </div>
     <div class="form-group">
@@ -319,14 +348,14 @@
         {{#if this.buttons_stretched}}
           <p class='form-control-static'><em>{{t "When \"Stretch Buttons\" is enabled, hidden buttons cannot be shown" key='no_hidden_buttons_when_stretching'}}</em></p>
         {{else}}
-          {{bound-select select_class="form-control" select_id="hidden_buttons" content=this.hiddenButtonsList selection=this.pending_preferences.hidden_buttons action=(mut this.pending_preferences.hidden_buttons) }}
+          <BoundSelect @select_class="form-control" @select_id="hidden_buttons" @content={{this.hiddenButtonsList}} @selection={{this.pending_preferences.hidden_buttons}} @action={{mut this.pending_preferences.hidden_buttons}} />
         {{/if}}
       </div>
       {{#if this.app_state.feature_flags.enable_all_buttons}}
         <div class="col-sm-5 col-sm-offset-3">
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.pending_preferences.prevent_hide_buttons}} id="prevent_hide_buttons" />
+              <input type="checkbox" checked={{this.pending_preferences.prevent_hide_buttons}} id="prevent_hide_buttons" {{on "change" (set-field this "pending_preferences.prevent_hide_buttons" "checkbox")}} />
               {{t "Disable \"Show Hidden Buttons\" option in Speak Mode" key='prevent_hide_buttons'}}
             </label>
           </div>
@@ -336,7 +365,7 @@
     <div class="form-group">
       <label for="dim_level" class="col-sm-3 control-label">{{t "Dimmed Button Brightness" key='dim_level'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="dim_level" content=this.dimLevelList selection=this.pending_preferences.dim_level action=(mut this.pending_preferences.dim_level) }}
+        <BoundSelect @select_class="form-control" @select_id="dim_level" @content={{this.dimLevelList}} @selection={{this.pending_preferences.dim_level}} @action={{mut this.pending_preferences.dim_level}} />
       </div>
     </div>
     <div class="form-group">
@@ -344,7 +373,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.blank_status}} id="blank_status" />
+            <input type="checkbox" checked={{this.pending_preferences.blank_status}} id="blank_status" {{on "change" (set-field this "pending_preferences.blank_status" "checkbox")}} />
             {{t "Show time, device status and notifications when vocalization box is empty" key='blank_status'}}
           </label>
         </div>
@@ -355,7 +384,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.high_contrast}} id="high_contrast" />
+            <input type="checkbox" checked={{this.pending_preferences.high_contrast}} id="high_contrast" {{on "change" (set-field this "pending_preferences.high_contrast" "checkbox")}} />
             {{t "Show all button images in high-contrast mode" key='high_contrast_images'}}
           </label>
         </div>
@@ -366,7 +395,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.dim_header}} id="dim_header" />
+            <input type="checkbox" checked={{this.pending_preferences.dim_header}} id="dim_header" {{on "change" (set-field this "pending_preferences.dim_header" "checkbox")}} />
             {{t "Make the header and sidebar less bright" key='dim_header_long'}}
           </label>
         </div>
@@ -375,24 +404,24 @@
     <div class="form-group" style="display: none;">
       <label for="stretch_buttons" class="col-sm-3 control-label">{{t "Fill Empty Button Spaces" key='stretch_buttons'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="stretch_buttons" content=this.buttonSpaceList selection=this.pending_preferences.stretch_buttons action=(mut this.pending_preferences.stretch_buttons) }}
+        <BoundSelect @select_class="form-control" @select_id="stretch_buttons" @content={{this.buttonSpaceList}} @selection={{this.pending_preferences.stretch_buttons}} @action={{mut this.pending_preferences.stretch_buttons}} />
       </div>
     </div>
     <div class='form-group'>
       <label class="col-sm-3 control-label">{{t "Editing Colors" key='editing_colors'}}</label>
       <div class="col-sm-6">
-        {{extra-colors colors=this.pending_preferences.extra_colors}}
+        <ExtraColors @colors={{this.pending_preferences.extra_colors}} />
       </div>
     </div>
-  {{/preference-box}}
-  {{#preference-box title="Selection Settings" glyph='glyphicon glyphicon-hand-up' title_key='selection_settings'}}
+  </PreferenceBox>
+  <PreferenceBox @title="Selection Settings" @glyph="glyphicon glyphicon-hand-up" @title_key="selection_settings">
     <span style='display: none;'>{{t "Selection Settings" key='selection_settings'}}</span>
     <div class="form-group">
       <label for="auto_home_return" class="col-sm-3 control-label">{{t "On Select" key='on_select'}}</label>
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.vocalize_buttons}} id="vocalize_buttons" />
+            <input type="checkbox" checked={{this.pending_preferences.vocalize_buttons}} id="vocalize_buttons" {{on "change" (set-field this "pending_preferences.vocalize_buttons" "checkbox")}} />
             {{t "Vocalize after each button press" key='vocalize_buttons'}}
           </label>
         </div>
@@ -400,32 +429,32 @@
           {{#if this.pending_preferences.vocalize_buttons}}
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.pending_preferences.vocalize_linked_buttons}} id="vocalize_linked_buttons" />
+                <input type="checkbox" checked={{this.pending_preferences.vocalize_linked_buttons}} id="vocalize_linked_buttons" {{on "change" (set-field this "pending_preferences.vocalize_linked_buttons" "checkbox")}} />
                 {{t "Vocalize when hitting linked buttons" key='vocalize_linked_buttons'}}
               </label>
             </div>
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.pending_preferences.silence_spelling_buttons}} id="silence_spelling_buttons" />
+                <input type="checkbox" checked={{this.pending_preferences.silence_spelling_buttons}} id="silence_spelling_buttons" {{on "change" (set-field this "pending_preferences.silence_spelling_buttons" "checkbox")}} />
                 {{t "Don't vocalize when spelling until the word is completed" key='silence_spelling_buttons'}}
               </label>
             </div>
           {{/if}}
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.pending_preferences.click_buttons}} id="click_buttons" />
+              <input type="checkbox" checked={{this.pending_preferences.click_buttons}} id="click_buttons" {{on "change" (set-field this "pending_preferences.click_buttons" "checkbox")}} />
               {{t "Make a clicking sound when hitting unspoken buttons" key='click_buttons'}}
             </label>
           </div>
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.pending_preferences.vibrate_buttons}} id="vibrate_buttons" />
+              <input type="checkbox" checked={{this.pending_preferences.vibrate_buttons}} id="vibrate_buttons" {{on "change" (set-field this "pending_preferences.vibrate_buttons" "checkbox")}} />
               {{t "Vibrate the device when hitting buttons (if supported)" key='vibrate_buttons'}}
             </label>
           </div>
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.pending_preferences.auto_home_return}} id="auto_home_return" />
+              <input type="checkbox" checked={{this.pending_preferences.auto_home_return}} id="auto_home_return" {{on "change" (set-field this "pending_preferences.auto_home_return" "checkbox")}} />
               {{t "Automatically return to Home board after an unlinked button is selected" key='auto_home_return'}}
             </label>
           </div>
@@ -436,7 +465,7 @@
       <div class="form-group">
         <label for="highlighted_buttons" class="col-sm-3 control-label">{{t "Selection Highlights" key='highlighted_buttons'}}</label>
         <div class="col-sm-5">
-          {{bound-select select_class="form-control" select_id="highlighted_buttons" content=this.highlighted_buttons_list selection=this.pending_preferences.highlighted_buttons action=(mut this.pending_preferences.highlighted_buttons) }}
+          <BoundSelect @select_class="form-control" @select_id="highlighted_buttons" @content={{this.highlighted_buttons_list}} @selection={{this.pending_preferences.highlighted_buttons}} @action={{mut this.pending_preferences.highlighted_buttons}} />
         </div>
       </div>
       {{#if this.some_highlighted_buttons}}
@@ -445,7 +474,7 @@
           <div class="col-sm-5">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.pending_preferences.highlight_popup_text}} id="highlighted_popup_text" />
+                <input type="checkbox" checked={{this.pending_preferences.highlight_popup_text}} id="highlighted_popup_text" {{on "change" (set-field this "pending_preferences.highlight_popup_text" "checkbox")}} />
                 {{t "Highlight buttons using a text box for developing sight word reading" key='popup_for_sight_reading'}}
               </label>
             </div>
@@ -458,7 +487,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.activation_on_start}} id="device_home" />
+            <input type="checkbox" checked={{this.pending_preferences.activation_on_start}} id="activation_on_start" {{on "change" (set-field this "pending_preferences.activation_on_start" "checkbox")}} />
             {{t "Select the button as soon as it is pressed" key='select_immediately'}}
           </label>
         </div>
@@ -469,7 +498,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.swipe_pages}} id="swipe_pages" />
+            <input type="checkbox" checked={{this.pending_preferences.swipe_pages}} id="swipe_pages" {{on "change" (set-field this "pending_preferences.swipe_pages" "checkbox")}} />
             {{t "Use long swipe action to toggle between home and sidebar boards" key='swipe_pages_enabled'}}
           </label>
         </div>
@@ -481,7 +510,7 @@
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.pending_preferences.auto_inflections}} id="auto_inflections" />
+              <input type="checkbox" checked={{this.pending_preferences.auto_inflections}} id="auto_inflections" {{on "change" (set-field this "pending_preferences.auto_inflections" "checkbox")}} />
               {{t "Automatically update button inflections when the default doesn't match" key='enable_auto_inflections'}}
             </label>
           </div>
@@ -494,7 +523,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.inflections_overlay}} id="inflections_overlay" />
+            <input type="checkbox" checked={{this.pending_preferences.inflections_overlay}} id="inflections_overlay" {{on "change" (set-field this "pending_preferences.inflections_overlay" "checkbox")}} />
             {{t "Show inflection options on long-press in Speak Mode" key='inflections_overlay'}}
           </label>
         </div>
@@ -504,7 +533,7 @@
       <div class="form-group">
         <label for="activation_location" class="col-sm-3 control-label">{{t "Select Based on" key='activation_location'}}</label>
         <div class="col-sm-5">
-          {{bound-select select_class="form-control" select_id="activation_location" content=this.activationLocationList selection=this.pending_preferences.activation_location action=(mut this.pending_preferences.activation_location) }}
+          <BoundSelect @select_class="form-control" @select_id="activation_location" @content={{this.activationLocationList}} @selection={{this.pending_preferences.activation_location}} @action={{mut this.pending_preferences.activation_location}} />
         </div>
       </div>
       <div class="form-group">
@@ -513,7 +542,7 @@
           <div style="display: flex; align-items: center; gap: 10px;">
             <div class="md-number-picker">
               <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.activation_cutoff")}}>−</button>
-              <Input @value={{this.pending_preferences.activation_cutoff}} class="md-number-picker__input" id="activation_cutoff" placeholder="disabled" />
+              <input value={{this.pending_preferences.activation_cutoff}} class="md-number-picker__input" id="activation_cutoff" placeholder="disabled" {{on "input" (set-field this "pending_preferences.activation_cutoff")}} />
               <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.activation_cutoff")}}>+</button>
             </div>
             <span class="form-control-static" style="white-space: nowrap;">{{t "milliseconds" key='milliseconds'}}</span>
@@ -526,7 +555,7 @@
           <div style="display: flex; align-items: center; gap: 10px;">
             <div class="md-number-picker">
               <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.activation_minimum")}}>−</button>
-              <Input @value={{this.pending_preferences.activation_minimum}} class="md-number-picker__input" id="activation_minimum" placeholder="disabled" />
+              <input value={{this.pending_preferences.activation_minimum}} class="md-number-picker__input" id="activation_minimum" placeholder="disabled" {{on "input" (set-field this "pending_preferences.activation_minimum")}} />
               <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.activation_minimum")}}>+</button>
             </div>
             <span class="form-control-static" style="white-space: nowrap;">{{t "milliseconds" key='milliseconds'}}</span>
@@ -540,15 +569,15 @@
         <div style="display: flex; align-items: center; gap: 10px;">
           <div class="md-number-picker">
             <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.debounce")}}>−</button>
-            <Input @value={{this.pending_preferences.debounce}} class="md-number-picker__input" id="debounce" placeholder="100" />
+            <input value={{this.pending_preferences.debounce}} class="md-number-picker__input" id="debounce" placeholder="100" {{on "input" (set-field this "pending_preferences.debounce")}} />
             <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.debounce")}}>+</button>
           </div>
           <span class="form-control-static" style="white-space: nowrap;">{{t "milliseconds" key='milliseconds'}}</span>
         </div>
       </div>
     </div>
-  {{/preference-box}}
-  {{#preference-box title="Logging and Sync" glyph='glyphicon glyphicon-refresh' title_key='logging_and_sync'}}
+  </PreferenceBox>
+  <PreferenceBox @title="Logging and Sync" @glyph="glyphicon glyphicon-refresh" @title_key="logging_and_sync">
     <span style='display: none;'>{{t "Logging and Sync" key='logging_and_sync'}}</span>
     <div class="form-group">
       <div style="margin-left: calc(25% - 9rem); width: calc(60% + 9rem);">
@@ -560,7 +589,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.logging}} id="logging" />
+            <input type="checkbox" checked={{this.pending_preferences.logging}} id="logging" {{on "change" (set-field this "pending_preferences.logging" "checkbox")}} />
             {{t "Log and analyze all Speak Mode actions" key='log_all_actions'}}
           </label>
         </div>
@@ -572,7 +601,7 @@
         <div class='col-sm-5 col-sm-offset-3'>
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" disabled={{this.cant_change_private_logging}} @checked={{this.limited_logging}} id="limited_logging" />
+              <input type="checkbox" checked={{this.limited_logging}} disabled={{this.cant_change_private_logging}} id="limited_logging" {{on "change" (set-field this "limited_logging" "checkbox")}} />
               {{t "Restrict access to my raw usage logs. NOTE: User account reports will still be available to supervisors with access permissions." key='restrict_log_access'}}
               {{#if this.cant_change_private_logging}}
                 <div class='text-muted'>{{t "Only the user can adjust this setting." key='user_only'}}</div>
@@ -598,7 +627,7 @@
               </div>
             {{else}}
               <div class='col-sm-2 col-sm-offset-3'>
-                <Input @type="text" @value={{this.logging_code_check}} class="form-control" placeholder="Log PIN" />
+                <input id="logging_PIN" type="text" value={{this.logging_code_check}} class="form-control" placeholder="Log PIN" {{on "input" (set-field this "logging_code_check")}} />
               </div>
               <div class='col-sm-2'>
                 <button type='button' {{on "click" (this.ctrlAction 'check_logging_code')}} disabled={{this.pin_status.checking}} class='btn btn-default'>
@@ -620,7 +649,7 @@
             <label for="logging_cutoff" class="col-sm-3 control-label">{{t "Logging Cutoff" key='logging_cutoff'}}</label>
             <div class='col-sm-5'>
               <div>
-                {{bound-select disabled=this.cant_change_private_logging select_class="form-control" select_id="external_links" content=this.cutoffsList selection=this.pending_preferences.logging_cutoff action=(mut this.pending_preferences.logging_cutoff) }}
+                <BoundSelect @disabled={{this.cant_change_private_logging}} @select_class="form-control" @select_id="external_links" @content={{this.cutoffsList}} @selection={{this.pending_preferences.logging_cutoff}} @action={{mut this.pending_preferences.logging_cutoff}} />
               </div>
               {{#if this.cant_change_private_logging}}
                 <div class='text-muted'>{{t "Only the user can adjust this setting." key='user_only'}}</div>
@@ -632,7 +661,7 @@
             <div class='col-sm-5'>
               <div class="checkbox big_checkbox">
                 <label>
-                  <Input @type="checkbox" disabled={{this.cant_change_private_logging}} @checked={{this.logging_pin}} id="logging_code" />
+                  <input type="checkbox" checked={{this.logging_pin}} disabled={{this.cant_change_private_logging}} id="logging_code" {{on "change" (set-field this "logging_pin" "checkbox")}} />
                   {{t "Only allow changes to my logging preferences, and temporary access to all my logs, with a PIN" key='restrict_log_access_by_pin'}}
                   {{#if this.cant_change_private_logging}}
                     <div class='text-muted'>{{t "Only the user can adjust this setting." key='user_only'}}</div>
@@ -643,7 +672,7 @@
                 {{#if this.cant_change_private_logging}}
                 {{else}}
                   <div>
-                    <Input @type="text" @value={{this.pending_preferences.logging_code}} class="form-control" placeholder="Set/Change a Log PIN" />
+                    <input type="text" value={{this.pending_preferences.logging_code}} class="form-control" placeholder="Set/Change a Log PIN" aria-label={{t "Set/Change a Log PIN" key="set_change_log_pin"}} {{on "input" (set-field this "pending_preferences.logging_code")}} />
                   </div>
                   {{#if this.pending_preferences.logging_code}}
                     <div class='text-danger'>{{t "NOTE: Remember this code! Once it has been set it can only be changed by remembering the current code, or by contacting technical support." key='logging_code_had_to_recover'}}</div>
@@ -652,7 +681,7 @@
               {{/if}}
               <div class="checkbox big_checkbox">
                 <label>
-                  <Input @type="checkbox" disabled={{this.cant_change_private_logging}} @checked={{this.pending_preferences.private_logging}} id="private_logging" />
+                  <input type="checkbox" checked={{this.pending_preferences.private_logging}} disabled={{this.cant_change_private_logging}} id="private_logging" {{on "change" (set-field this "pending_preferences.private_logging" "checkbox")}} />
                   {{t "Completely Restrict Data Log Access outside this login (includes supervisors, support, integrations & community summaries)." key='completely_restrict_log_access'}}
                   {{#if this.cant_change_private_logging}}
                     <div class='text-muted'>{{t "Only the user can adjust this setting." key='user_only'}}</div>
@@ -670,21 +699,21 @@
         <div class='col-sm-5'>
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.pending_preferences.allow_log_reports}} id="allow_log_reports" />
+              <input type="checkbox" checked={{this.pending_preferences.allow_log_reports}} id="allow_log_reports" {{on "change" (set-field this "pending_preferences.allow_log_reports" "checkbox")}} />
               {{t "Allow anonymized log data to be used for AAC community and research purposes (unused accounts will be kept longer when this is enabled)" key='allow_log_reports'}}
             </label>
           </div>
           {{#if this.pending_preferences.allow_log_reports}}
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.pending_preferences.allow_log_publishing}} />
+                <input type="checkbox" checked={{this.pending_preferences.allow_log_publishing}} {{on "change" (set-field this "pending_preferences.allow_log_publishing" "checkbox")}} />
                 {{t "Allow anonymized logs to be included in public data sets for automated research and analysis" key='allow_publishing'}}
               </label>
             </div>
           {{/if}}
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.pending_preferences.geo_logging}} id="geo_logging" />
+              <input type="checkbox" checked={{this.pending_preferences.geo_logging}} id="geo_logging" {{on "change" (set-field this "pending_preferences.geo_logging" "checkbox")}} />
               {{t "Include geolocation in Speak Mode logs" key='include_geo_in_logs'}}
             </label>
           </div>
@@ -696,7 +725,7 @@
           <div class='col-sm-5 col-sm-offset-3'>
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.pending_preferences.never_delete}} id="never_delete" />
+                <input type="checkbox" checked={{this.pending_preferences.never_delete}} id="never_delete" {{on "change" (set-field this "pending_preferences.never_delete" "checkbox")}} />
                 {{t "Never delete this account, even if it hasn't been used in a long time" key="never_delete"}}
               </label>
             </div>
@@ -712,7 +741,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.cookies}} id="cookies" />
+            <input type="checkbox" checked={{this.pending_preferences.cookies}} id="cookies" {{on "change" (set-field this "pending_preferences.cookies" "checkbox")}} />
             {{t "%app_name% can track my actions and pageviews for internal purposes like error handling, improving features and tracking trends" key='allow_cookies_checkbox'}}
           </label>
         </div>
@@ -730,7 +759,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.device.auto_sync}} id="auto_sync" />
+            <input type="checkbox" checked={{this.pending_preferences.device.auto_sync}} id="auto_sync" {{on "change" (set-field this "pending_preferences.device.auto_sync" "checkbox")}} />
             {{t "Automatically Sync this device if online and there are changes to boards" key='auto_sync_if_changes_and_online'}}
           </label>
         </div>
@@ -741,7 +770,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.sync_starred_boards}} id="sync_starred_boards" />
+            <input type="checkbox" checked={{this.pending_preferences.sync_starred_boards}} id="sync_starred_boards" {{on "change" (set-field this "pending_preferences.sync_starred_boards" "checkbox")}} />
             {{t "Make my Home Board a list of all my liked boards" key='sync_starred_boards'}}<br>
             {{t "(and sync them for offline use)" key='and_sync_for_offline'}}
           </label>
@@ -753,21 +782,21 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.skip_supervisee_sync}} id="skip_supervisee_sync" />
+            <input type="checkbox" checked={{this.pending_preferences.skip_supervisee_sync}} id="skip_supervisee_sync" {{on "change" (set-field this "pending_preferences.skip_supervisee_sync" "checkbox")}} />
             {{t "Don't sync boards for my supervisors, only sync my boards" key='skip_supervisee_sync'}}
           </label>
         </div>
       </div>
     </div>
-  {{/preference-box}}
-  {{#preference-box title="Startup and Extras" glyph='glyphicon glyphicon-play-circle' title_key='startup_and_extras'}}
+  </PreferenceBox>
+  <PreferenceBox @title="Startup and Extras" @glyph="glyphicon glyphicon-play-circle" @title_key="startup_and_extras">
     <span style='display: none;'>{{t "Startup and Extras" key='startup_and_extras'}}</span>
     <div class="form-group">
       <label for="speak_mode_edit" class="col-sm-3 control-label">{{t "Edit Button in Speak Mode" key='edit_button_in_speak_mode'}}</label>
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.speak_mode_edit}} id="speak_mode_edit" />
+            <input type="checkbox" checked={{this.pending_preferences.speak_mode_edit}} id="speak_mode_edit" {{on "change" (set-field this "pending_preferences.speak_mode_edit" "checkbox")}} />
             {{t "Show an edit icon in the menu in Speak Mode for editable boards" key='allow_speak_mode_edit'}}
           </label>
         </div>
@@ -779,7 +808,7 @@
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.pending_preferences.device.fullscreen}} id="fullscreen" />
+              <input type="checkbox" checked={{this.pending_preferences.device.fullscreen}} id="fullscreen" {{on "change" (set-field this "pending_preferences.device.fullscreen" "checkbox")}} />
               {{t "Launch Full Screen when entering Speak Mode" key='full_screen_speak_mode'}}
             </label>
           </div>
@@ -791,7 +820,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.clear_on_vocalize}} id="clear_on_vocalize" />
+            <input type="checkbox" checked={{this.pending_preferences.clear_on_vocalize}} id="clear_on_vocalize" {{on "change" (set-field this "pending_preferences.clear_on_vocalize" "checkbox")}} />
             {{t "Automatically clear the current utterance after vocalization" key='clear_on_vocalize'}}
           </label>
         </div>
@@ -799,7 +828,7 @@
       <div class="col-sm-5 col-sm-offset-3">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.repair_on_vocalize}} id="repair_on_vocalize" />
+            <input type="checkbox" checked={{this.pending_preferences.repair_on_vocalize}} id="repair_on_vocalize" {{on "change" (set-field this "pending_preferences.repair_on_vocalize" "checkbox")}} />
             {{t "Always open the \"Repairs\" window when hitting the vocalization box" key='repair_on_vocalize'}}
           </label>
         </div>
@@ -810,7 +839,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.utterance_interruptions}} id="utterance_interruptions" />
+            <input type="checkbox" checked={{this.pending_preferences.utterance_interruptions}} id="utterance_interruptions" {{on "change" (set-field this "pending_preferences.utterance_interruptions" "checkbox")}} />
             {{t "Interrupt any running speech or audio when the vocalization box is selected" key='enable_utterance_interruptions'}}
           </label>
         </div>
@@ -818,7 +847,7 @@
       <div class="col-sm-5 col-sm-offset-3">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.prevent_utterance_repeat}} id="prevent_utterance_repeat" />
+            <input type="checkbox" checked={{this.pending_preferences.prevent_utterance_repeat}} id="prevent_utterance_repeat" {{on "change" (set-field this "pending_preferences.prevent_utterance_repeat" "checkbox")}} />
             {{t "Don't interrupt the vocalization box when it is hit more than once" key='prevent_utterance_repeat'}}
           </label>
         </div>
@@ -826,7 +855,7 @@
       <div class="col-sm-5 col-sm-offset-3">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.prevent_button_interruptions}} id="prevent_button_interruptions" />
+            <input type="checkbox" checked={{this.pending_preferences.prevent_button_interruptions}} id="prevent_button_interruptions" {{on "change" (set-field this "pending_preferences.prevent_button_interruptions" "checkbox")}} />
             {{t "Don't interrupt held buttons when another held button is selected" key='prevent_button_interruptions'}}
           </label>
         </div>
@@ -838,7 +867,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.clear_vocalization_history}} id="clear_vocalization_history" />
+            <input type="checkbox" checked={{this.pending_preferences.clear_vocalization_history}} id="clear_vocalization_history" {{on "change" (set-field this "pending_preferences.clear_vocalization_history" "checkbox")}} />
             {{t "Auto-Clear words in the vocalization box after they are used" key='clear_vocalization_history'}}
           </label>
         </div>
@@ -847,7 +876,7 @@
         <div class="col-sm-9 col-sm-offset-3">
           <p class='form-control-static'>
             <span style='display: inline-block; width: 75px;'>
-              <Input @type="text" placeholder="##" class="form-control" @value={{this.pending_preferences.clear_vocalization_history_minutes}} id="clear_vocalization_history_minutes" />
+              <input type="text" value={{this.pending_preferences.clear_vocalization_history_minutes}} placeholder="##" class="form-control" id="clear_vocalization_history_minutes" aria-label={{t "minutes after being spoken in the vocalization box" key="clear_vocalization_history_minutes"}} {{on "input" (set-field this "pending_preferences.clear_vocalization_history_minutes")}} />
             </span>
             {{t "minutes after being spoken in the vocalization box" key='clear_vocalization_history_minutes'}}
           </p>
@@ -856,7 +885,7 @@
           <p class='form-control-static'>
             {{t "after" key='after'}}
             <span style='display: inline-block; width: 75px;'>
-              <Input @type="text" placeholder="##" class="form-control" @value={{this.pending_preferences.clear_vocalization_history_count}} id="clear_vocalization_history_count" />
+              <input type="text" value={{this.pending_preferences.clear_vocalization_history_count}} placeholder="##" class="form-control" id="clear_vocalization_history_count" aria-label={{t "times being spoken in the vocalization box" key="clear_vocalization_history_count"}} {{on "input" (set-field this "pending_preferences.clear_vocalization_history_count")}} />
             </span>
             {{t "times being spoken in the vocalization box" key='clear_vocalization_history_count'}}
           </p>
@@ -869,7 +898,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.hide_gif}} id="hide_gif" />
+            <input type="checkbox" checked={{this.pending_preferences.hide_gif}} id="hide_gif" {{on "change" (set-field this "pending_preferences.hide_gif" "checkbox")}} />
             {{t "Disable GIF Search in Repeats sentence menu" key='hide_gif_search'}}
           </label>
         </div>
@@ -880,7 +909,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.battery_sounds}} id="battery_sounds" />
+            <input type="checkbox" checked={{this.pending_preferences.battery_sounds}} id="battery_sounds" {{on "change" (set-field this "pending_preferences.battery_sounds" "checkbox")}} />
             {{t "Play sounds for low/fully-charged battery" key='play_battery_sounds'}}
           </label>
         </div>
@@ -892,7 +921,7 @@
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.pending_preferences.device.wakelock}} id="wakelock" />
+              <input type="checkbox" checked={{this.pending_preferences.device.wakelock}} id="wakelock" {{on "change" (set-field this "pending_preferences.device.wakelock" "checkbox")}} />
               {{t "Keep the screen awake when in Speak Mode on this device" key='wakelock_speak_mode'}}
             </label>
           </div>
@@ -904,7 +933,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.speak_on_speak_mode}} id="speak_on_speak_mode" />
+            <input type="checkbox" checked={{this.pending_preferences.speak_on_speak_mode}} id="speak_on_speak_mode" {{on "change" (set-field this "pending_preferences.speak_on_speak_mode" "checkbox")}} />
             {{t "Speak a phrase when entering Speak Mode to warm up the speech engine" key='speak_on_speak_mode'}}
           </label>
         </div>
@@ -916,7 +945,7 @@
         <div style="display: flex; align-items: center; gap: 10px;">
           <div class="md-number-picker">
             <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.board_jump_delay")}}>−</button>
-            <Input @value={{this.pending_preferences.board_jump_delay}} class="md-number-picker__input" id="board_jump_delay" placeholder="500" />
+            <input value={{this.pending_preferences.board_jump_delay}} class="md-number-picker__input" id="board_jump_delay" placeholder="500" {{on "input" (set-field this "pending_preferences.board_jump_delay")}} />
             <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.board_jump_delay")}}>+</button>
           </div>
           <span class="form-control-static" style="white-space: nowrap;">{{t "milliseconds" key='milliseconds'}}</span>
@@ -926,7 +955,7 @@
     <div class="form-group">
       <label for="external_links" class="col-sm-3 control-label">{{t "External Links" key='external_links'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="external_links" content=this.externalLinksList selection=this.pending_preferences.external_links action=(mut this.pending_preferences.external_links) }}
+        <BoundSelect @select_class="form-control" @select_id="external_links" @content={{this.externalLinksList}} @selection={{this.pending_preferences.external_links}} @action={{mut this.pending_preferences.external_links}} />
       </div>
     </div>
     <div class="form-group">
@@ -934,7 +963,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.sharing}} id="sharing" />
+            <input type="checkbox" checked={{this.pending_preferences.sharing}} id="sharing" {{on "change" (set-field this "pending_preferences.sharing" "checkbox")}} />
             {{t "Show sharing options in speak menu for sharing to social networks" key='allow_sharing'}}
           </label>
         </div>
@@ -945,7 +974,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.utterance_core_access}} id="utterance_core_access" />
+            <input type="checkbox" checked={{this.pending_preferences.utterance_core_access}} id="utterance_core_access" {{on "change" (set-field this "pending_preferences.utterance_core_access" "checkbox")}} />
             {{t "Let message recipients see this user's core word list when replying" key='allow_core_access_via_utterance_shares'}}
           </label>
         </div>
@@ -956,7 +985,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.auto_capitalize}} id="auto_capitalize" />
+            <input type="checkbox" checked={{this.pending_preferences.auto_capitalize}} id="auto_capitalize" {{on "change" (set-field this "pending_preferences.auto_capitalize" "checkbox")}} />
             {{t "Automatically capitalize new sentences in the vocalization box" key='auto_capitalize_sentences'}}
           </label>
         </div>
@@ -967,7 +996,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.device.external_keyboard}} id="external_keyboard" />
+            <input type="checkbox" checked={{this.pending_preferences.device.external_keyboard}} id="external_keyboard" {{on "change" (set-field this "pending_preferences.device.external_keyboard" "checkbox")}} />
             {{t "Allow adding to the vocalization box from an external keyboard on this device" key='allow_external_keyboard'}}
           </label>
         </div>
@@ -977,7 +1006,7 @@
           <div class='col-sm-5 col-sm-offset-3'>
             <div class='checkbox big_checkbox'>
               <label>
-                <Input @type="checkbox" @checked={{this.pending_preferences.device.prefer_native_keyboard}} id="native_keyboard" />
+                <input type="checkbox" checked={{this.pending_preferences.device.prefer_native_keyboard}} id="native_keyboard" {{on "change" (set-field this "pending_preferences.device.prefer_native_keyboard" "checkbox")}} />
                 {{t "Try to use the native on-screen keyboard when available" key='prefer_native_keyboard'}}
               </label>
             </div>
@@ -991,14 +1020,14 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.new_index}} />
+            <input type="checkbox" checked={{this.pending_preferences.new_index}} {{on "change" (set-field this "pending_preferences.new_index" "checkbox")}} />
             {{t "Use the New Dashboard Layout" key='new_index'}}
           </label>
         </div>
       </div>
     </div>
-  {{/preference-box}}
-  {{#preference-box title="Core, Phrases and Modeling" glyph='glyphicon glyphicon-comment' title_key='core_phrases_and_modeling'}}
+  </PreferenceBox>
+  <PreferenceBox @title="Core, Phrases and Modeling" @glyph="glyphicon glyphicon-comment" @title_key="core_phrases_and_modeling">
     <span style='display: none;'>{{t "Core, Phrases and Modeling" key='core_phrases_and_modeling'}}</span>
     {{#if this.app_state.feature_flags.remote_modeling}}
       <div class="form-group">
@@ -1006,7 +1035,7 @@
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.pending_preferences.remote_modeling}} />
+              <input type="checkbox" checked={{this.pending_preferences.remote_modeling}} {{on "change" (set-field this "pending_preferences.remote_modeling" "checkbox")}} />
               {{t "Enable remote modeling so supervisors can request a connection to your device remotely" key='enable_remote_modeling'}}
             </label>
           </div>
@@ -1018,7 +1047,7 @@
           <div class="col-sm-5">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.pending_preferences.remote_modeling_auto_follow}} />
+                <input type="checkbox" checked={{this.pending_preferences.remote_modeling_auto_follow}} {{on "change" (set-field this "pending_preferences.remote_modeling_auto_follow" "checkbox")}} />
                 {{t "Automatically allow supervisors to remotely follow activity in real-time" key='enable_remote_modeling_auto_follow'}}
               </label>
             </div>
@@ -1029,7 +1058,7 @@
           <div class="col-sm-5">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.pending_preferences.remote_modeling_auto_accept}} />
+                <input type="checkbox" checked={{this.pending_preferences.remote_modeling_auto_accept}} {{on "change" (set-field this "pending_preferences.remote_modeling_auto_accept" "checkbox")}} />
                 {{t "Automatically allow supervisors to remotely initiate a modeling session (otherwise requires manual approval)" key='enable_remote_modeling_auto_accept'}}
               </label>
             </div>
@@ -1073,11 +1102,11 @@
         <div class="col-sm-5">
           <div class="checkbox big_checkbox" style='margin-bottom: 5px;'>
             <label>
-              <Input @type="checkbox" @checked={{this.pending_preferences.substitute_contractions}} id="substitute_contractions" />
+              <input type="checkbox" checked={{this.pending_preferences.substitute_contractions}} id="substitute_contractions" {{on "change" (set-field this "pending_preferences.substitute_contractions" "checkbox")}} />
               {{t "Automatically substitute common contractions" key='substitute_contractions'}}
             </label>
           </div>
-          <Textarea @value={{this.substitution_string}} class="form-control" placeholder="additional substitutions, one per line (stop break=I need to take a break)" />
+          <textarea class="form-control" placeholder="additional substitutions, one per line (stop break=I need to take a break)" aria-label={{t "Additional substitutions" key="additional_substitutions"}} {{on "input" (set-field this "substitution_string")}}>{{this.substitution_string}}</textarea>
         </div>
       </div>
       {{#if this.core_lists.for_user}}
@@ -1099,7 +1128,7 @@
               {{/if}}
             </div>
             <div style='display: flex; gap: 10px; margin-top: 12px;'>
-              <Input @type="text" class="form-control" @value={{this.new_phrase}} placeholder="request additional phrase" />
+              <input type="text" value={{this.new_phrase}} class="form-control" placeholder="request additional phrase" aria-label={{t "Requested phrase" key="requested_phrase"}} {{on "input" (set-field this "new_phrase")}} />
               <button type='button' class='btn btn-default' style='white-space: nowrap;' {{on "click" (this.ctrlAction 'add_phrase')}}>{{t "Add" key='add'}}</button>
             </div>
           </div>
@@ -1109,11 +1138,11 @@
         <label for="phrase_categories" class="col-sm-3 control-label">{{t "Saved Phrase Types" key='saved_phrase_types'}}</label>
         <div class="col-sm-5">
           <div style='margin-bottom: 12px;'>
-            <Input class="form-control" @type="text" @value={{this.phrase_categories_string}} placeholder="list, of, phrase, categories" />
+            <input type="text" id="phrase_categories" value={{this.phrase_categories_string}} class="form-control" placeholder="list, of, phrase, categories" {{on "input" (set-field this "phrase_categories_string")}} />
           </div>
           <p class='form-control-static' style='margin-bottom: 14px;'><em>{{t "%app_name% has \"Quick\" and \"Journal\" categories by default, but you can list more categories to add here." key='phrase_categories_explainer'}}</em></p>
           <div style='margin-top: 12px;'>
-            <button class='btn btn-default' {{on "click" (this.ctrlAction 'phrases')}}>{{t "Manage Phrases" key='manage_phrases'}}</button>
+            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction 'phrases')}}>{{t "Manage Phrases" key='manage_phrases'}}</button>
           </div>
         </div>
       </div>
@@ -1122,7 +1151,7 @@
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.pending_preferences.recent_cleared_phrases}} id="recent_cleared_phrases" />
+              <input type="checkbox" checked={{this.pending_preferences.recent_cleared_phrases}} id="recent_cleared_phrases" {{on "change" (set-field this "pending_preferences.recent_cleared_phrases" "checkbox")}} />
               {{t "Save recently-cleared phrases to the 'Recents' phrase type" key='save_recent_cleared_phrases'}}
             </label>
           </div>
@@ -1133,22 +1162,22 @@
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.pending_preferences.multi_touch_modeling}} id="multi_touch_modeling" />
+              <input type="checkbox" checked={{this.pending_preferences.multi_touch_modeling}} id="multi_touch_modeling" {{on "change" (set-field this "pending_preferences.multi_touch_modeling" "checkbox")}} />
               {{t "Mark two-finger touches as modeling events, not user selections" key='multi_touch_modeling'}}
             </label>
           </div>
         </div>
       </div>
     {{/unless}}
-  {{/preference-box}}
-  {{#preference-box title="Sidebar and Shortcuts" glyph='glyphicon glyphicon-link' title_key='sidebar_and_shortcuts'}}
+  </PreferenceBox>
+  <PreferenceBox @title="Sidebar and Shortcuts" @glyph="glyphicon glyphicon-link" @title_key="sidebar_and_shortcuts">
     <span style='display: none;'>{{t "Sidebar and Shortcuts" key='sidebar_and_shortcuts'}}</span>
     <div class="form-group">
       <label for="quick_sidebar" class="col-sm-3 control-label">{{t "Quick Actions" key='quick_actions'}}</label>
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.quick_sidebar}} id="quick_sidebar" />
+            <input type="checkbox" checked={{this.pending_preferences.quick_sidebar}} id="quick_sidebar" {{on "change" (set-field this "pending_preferences.quick_sidebar" "checkbox")}} />
             {{t "Always show quick actions sidebar" key='always_show_quick_sidebar'}}
           </label>
         </div>
@@ -1160,7 +1189,7 @@
         {{#unless this.pending_preferences.quick_sidebar}}
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.pending_preferences.disable_quick_sidebar}} id="disable_quick_sidebar" />
+              <input type="checkbox" checked={{this.pending_preferences.disable_quick_sidebar}} id="disable_quick_sidebar" {{on "change" (set-field this "pending_preferences.disable_quick_sidebar" "checkbox")}} />
               {{t "Remove quick actions sidebar completely" key='never_show_quick_sidebar'}}
             </label>
           </div>
@@ -1168,7 +1197,7 @@
         {{else}}
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.pending_preferences.lock_quick_sidebar}} id="lock_quick_sidebar" />
+              <input type="checkbox" checked={{this.pending_preferences.lock_quick_sidebar}} id="lock_quick_sidebar" {{on "change" (set-field this "pending_preferences.lock_quick_sidebar" "checkbox")}} />
               {{t "Don't allow hiding quick actions sidebar" key='never_hide_quick_sidebar'}}
             </label>
           </div>
@@ -1183,7 +1212,7 @@
         <div class="col-sm-5">
           {{#unless this.editing_sidebar}}
             <div style='margin-bottom: 12px;'>
-              <button class='btn btn-default' {{on "click" (this.ctrlAction 'edit_sidebar')}}>{{t "Edit Sidebar Links and Buttons" key='edit_sidebar_links_and_buttons'}}</button>
+              <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction 'edit_sidebar')}}>{{t "Edit Sidebar Links and Buttons" key='edit_sidebar_links_and_buttons'}}</button>
             </div>
           {{else}}
             <p class="form-control-static">
@@ -1194,9 +1223,9 @@
                 <li class="list-group-item" style="height: 60px;">
                   <img src={{option.image}} style="float: left; height: 40px; max-width: 40px;"  {{on "click" (this.ctrlAction "sidebar_button_settings" option)}}>
                   <span style="float: right; margin-top: 5px;">
-                    <button class='btn btn-default btn-sm' title={{t "move up" key='move_up'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "up")}} style={{if option.top 'visibility: hidden;' ''}}><span class='glyphicon glyphicon-arrow-up'></span></button>
-                    <button class='btn btn-default btn-sm' title={{t "move down" key='move_down'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "down")}}style={{if option.bottom 'visibility:hidden;' ''}}><span class='glyphicon glyphicon-arrow-down'></span></button>
-                    <button class='btn btn-default btn-sm' title={{t "remove" key='remove_lower'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "delete")}}><span class='glyphicon glyphicon-trash'></span></button>
+                    <button type="button" class='btn btn-default btn-sm' title={{t "move up" key='move_up'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "up")}} style={{if option.top 'visibility: hidden;' ''}}><span class='glyphicon glyphicon-arrow-up'></span></button>
+                    <button type="button" class='btn btn-default btn-sm' title={{t "move down" key='move_down'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "down")}}style={{if option.bottom 'visibility:hidden;' ''}}><span class='glyphicon glyphicon-arrow-down'></span></button>
+                    <button type="button" class='btn btn-default btn-sm' title={{t "remove" key='remove_lower'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "delete")}}><span class='glyphicon glyphicon-trash'></span></button>
                   </span>
                   <span style="cursor: pointer; margin-top: 10px; display: inline-block; margin-left: 5px;" {{on "click" (this.ctrlAction "sidebar_button_settings" option)}}>
                     {{#if option.alert}}
@@ -1222,7 +1251,7 @@
                   <li class="list-group-item" style="height: 60px;">
                     <img src={{option.image}} style="float: left; height: 40px; max-width: 40px;">
                     <span style="float: right; margin-top: 5px;">
-                      <button class='btn btn-default btn-sm' title={{t "restore" key='restore'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "restore")}} style={{if option.top 'visibility: hidden;' ''}}><span class='glyphicon glyphicon-arrow-up'></span></button>
+                      <button type="button" class='btn btn-default btn-sm' title={{t "restore" key='restore'}} {{on "click" (this.ctrlAction "move_sidebar_button" option "restore")}} style={{if option.top 'visibility: hidden;' ''}}><span class='glyphicon glyphicon-arrow-up'></span></button>
                     </span>
                     <span style="margin-top: 10px; display: inline-block; margin-left: 5px;">
                       {{#if option.alert}}
@@ -1243,13 +1272,13 @@
             <div>
               <p class="form-control-static" style="margin-top: 0; margin-bottom: 8px; font-size: 1.05rem;">{{t "Pick an action from the list, or type a board path (username/boardkey)." key="sidebar_manual_add_help"}}</p>
               <div style="margin-bottom: 10px;">
-                {{bound-select select_class="form-control" select_id="sidebar_action_picker" content=this.sidebar_action_picker_options prompt=(t "Choose an action..." key="sidebar_action_picker_prompt") action=(this.ctrlAction "pick_sidebar_action_code")}}
+                <BoundSelect @select_class="form-control" @select_id="sidebar_action_picker" @content={{this.sidebar_action_picker_options}} @prompt={{t "Choose an action..." key="sidebar_action_picker_prompt"}} @action={{this.ctrlAction "pick_sidebar_action_code"}} />
               </div>
               <span style='display: inline-block; width: calc(100% - 65px);'>
-                <Input @type="text" class="form-control" @value={{this.new_sidebar_board}} placeholder={{t "add board key or action code" key="sidebar_add_placeholder"}} aria-label={{t "add board key or action code" key="sidebar_add_placeholder"}} />
+                <input type="text" value={{this.new_sidebar_board}} class="form-control" placeholder={{t "add board key or action code" key="sidebar_add_placeholder"}} aria-label={{t "add board key or action code" key="sidebar_add_placeholder"}} {{on "input" (set-field this "new_sidebar_board")}} />
               </span>
               <span style='display: inline-block; width: 60px;'>
-                <button class='btn btn-default' {{on "click" (this.ctrlAction "add_sidebar_board" this.new_sidebar_board)}}>{{t "Add" key='add'}}</button>
+                <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "add_sidebar_board" this.new_sidebar_board)}}>{{t "Add" key='add'}}</button>
               </span>
               <p class="form-control-static" style="margin-top: 10px; font-size: 1.05rem;">{{t "You can edit the action code before adding—for example change :timer(30s) to :timer(60s)." key="sidebar_action_picker_edit_help"}}</p>
               <p class="form-control-static" style="margin-top: 4px; font-size: 1.05rem;">{{t "Board example: lingolinq/yesno" key="sidebar_board_key_example"}}</p>
@@ -1275,9 +1304,9 @@
           </p>
           <div style='display: flex; gap: 10px; flex-wrap: wrap;'>
             {{#if this.can_record_tags}}
-              <button class='btn btn-default' {{on "click" (this.ctrlAction 'program_tag')}}>{{t "Save New Tag" key='save_new_tag'}}</button>
+              <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction 'program_tag')}}>{{t "Save New Tag" key='save_new_tag'}}</button>
             {{/if}}
-            <button class='btn btn-default' {{on "click" (this.ctrlAction 'clear_nfc_tags')}}>{{t "Clear Saved Tags" key='clear_tags'}}</button>
+            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction 'clear_nfc_tags')}}>{{t "Clear Saved Tags" key='clear_tags'}}</button>
           </div>
         </div>
       </div>
@@ -1288,50 +1317,50 @@
         </div>
       </div>
     {{/if}}
-  {{/preference-box}}
+  </PreferenceBox>
 
   <!-- keyboard shortcuts for actions/phrases, abbreviations/message expansions -->
   <div class="md-preferences__header md-preferences__header--device">
     <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2" stroke="#2A9D8F"/><line x1="8" y1="21" x2="16" y2="21" stroke="#46505F"/><line x1="12" y1="17" x2="12" y2="21" stroke="#46505F"/></svg>
     <h2 class="md-preferences__title">{{t "Device Preferences" key='device_preferences'}} ({{this.pending_preferences.device.name}})</h2>
   </div>
-  {{#preference-box title="Device Layout" glyph='glyphicon glyphicon-th' title_key='device_layout'}}
+  <PreferenceBox @title="Device Layout" @glyph="glyphicon glyphicon-th" @title_key="device_layout">
     <span style='display: none;'>{{t "Device Layout" key='device_layout'}}</span>
     <div class='form-group'>
       <div class='col-sm-5 col-sm-offset-3'>
-        {{layout-preview preferences=this.pending_preferences user=this.model}}
+        <LayoutPreview @preferences={{this.pending_preferences}} @user={{this.model}} />
       </div>
     </div>
     <div class="form-group">
       <label for="vocalization_height" class="col-sm-3 control-label">{{t "Vocalization Box Size" key='vocalization_height'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="vocalization_height" content=this.vocalizationHeightList selection=this.pending_preferences.device.vocalization_height action=(mut this.pending_preferences.device.vocalization_height) }}
+        <BoundSelect @select_class="form-control" @select_id="vocalization_height" @content={{this.vocalizationHeightList}} @selection={{this.pending_preferences.device.vocalization_height}} @action={{mut this.pending_preferences.device.vocalization_height}} />
       </div>
     </div>
     <div class="form-group">
       <label for="button_spacing" class="col-sm-3 control-label">{{t "Button Spacing" key='button_spacing'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="button_spacing" content=this.buttonSpacingList selection=this.pending_preferences.device.button_spacing action=(mut this.pending_preferences.device.button_spacing) }}
+        <BoundSelect @select_class="form-control" @select_id="button_spacing" @content={{this.buttonSpacingList}} @selection={{this.pending_preferences.device.button_spacing}} @action={{mut this.pending_preferences.device.button_spacing}} />
       </div>
     </div>
     {{#if this.advanced}}
     <div class="form-group">
       <label for="button_border" class="col-sm-3 control-label">{{t "Button Border Size" key='button_border'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="button_border" content=this.buttonBorderList selection=this.pending_preferences.device.button_border action=(mut this.pending_preferences.device.button_border) }}
+        <BoundSelect @select_class="form-control" @select_id="button_border" @content={{this.buttonBorderList}} @selection={{this.pending_preferences.device.button_border}} @action={{mut this.pending_preferences.device.button_border}} />
       </div>
     </div>
     {{/if}}
     <div class="form-group">
       <label for="button_text" class="col-sm-3 control-label">{{t "Button Text Size" key='button_text'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="button_text" content=this.buttonTextList selection=this.pending_preferences.device.button_text action=(mut this.pending_preferences.device.button_text) }}
+        <BoundSelect @select_class="form-control" @select_id="button_text" @content={{this.buttonTextList}} @selection={{this.pending_preferences.device.button_text}} @action={{mut this.pending_preferences.device.button_text}} />
       </div>
     </div>
     <div class="form-group">
       <label for="button_text_position" class="col-sm-3 control-label">{{t "Button Text Position" key='button_text_position'}}</label>
       <div class="col-sm-5">
-        {{bound-select select_class="form-control" select_id="button_text_position" content=this.buttonTextPositionList selection=this.pending_preferences.device.button_text_position action=(mut this.pending_preferences.device.button_text_position) }}
+        <BoundSelect @select_class="form-control" @select_id="button_text_position" @content={{this.buttonTextPositionList}} @selection={{this.pending_preferences.device.button_text_position}} @action={{mut this.pending_preferences.device.button_text_position}} />
       </div>
     </div>
     {{#if this.advanced}}
@@ -1341,7 +1370,7 @@
           <div class="col-sm-5">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.pending_preferences.device.utterance_text_only}} id="utterance_text_only" />
+                <input type="checkbox" checked={{this.pending_preferences.device.utterance_text_only}} id="utterance_text_only" {{on "change" (set-field this "pending_preferences.device.utterance_text_only" "checkbox")}} />
                 {{t "Show only text in the vocalization box" key='utterance_text_only'}}
               </label>
             </div>
@@ -1353,7 +1382,7 @@
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.pending_preferences.device.flipped_override}} id="flipped_override" />
+              <input type="checkbox" checked={{this.pending_preferences.device.flipped_override}} id="flipped_override" {{on "change" (set-field this "pending_preferences.device.flipped_override" "checkbox")}} />
               {{t "Use different size settings for a flipped vocalization box" key='flipped_override'}}
             </label>
           </div>
@@ -1363,13 +1392,13 @@
         <div class="form-group">
           <label for="flipped_text" class="col-sm-3 control-label">{{t "Vocalization Box Text Size" key='flipped_text'}}</label>
           <div class="col-sm-5">
-            {{bound-select select_class="form-control" select_id="flipped_text" content=this.buttonTextList selection=this.pending_preferences.device.flipped_text action=(mut this.pending_preferences.device.flipped_text) }}
+            <BoundSelect @select_class="form-control" @select_id="flipped_text" @content={{this.buttonTextList}} @selection={{this.pending_preferences.device.flipped_text}} @action={{mut this.pending_preferences.device.flipped_text}} />
           </div>
         </div>
         <div class="form-group">
           <label for="flipped_height" class="col-sm-3 control-label">{{t "Flipped Box Size" key='flipped_height'}}</label>
           <div class="col-sm-5">
-            {{bound-select select_class="form-control" select_id="flipped_height" content=this.vocalizationHeightList selection=this.pending_preferences.device.flipped_height action=(mut this.pending_preferences.device.flipped_height) }}
+            <BoundSelect @select_class="form-control" @select_id="flipped_height" @content={{this.vocalizationHeightList}} @selection={{this.pending_preferences.device.flipped_height}} @action={{mut this.pending_preferences.device.flipped_height}} />
           </div>
         </div>
       {{/if}}
@@ -1377,7 +1406,7 @@
         <!-- TODO: shouldn't font be a global preference, not a device preference? -->
         <label for="button_style" class="col-sm-3 control-label">{{t "Button Text Style" key='button_style'}}</label>
         <div class="col-sm-5">
-          {{bound-select select_class="form-control" select_id="button_style" content=this.buttonStyleList selection=this.pending_preferences.device.button_style action=(mut this.pending_preferences.device.button_style) }}
+          <BoundSelect @select_class="form-control" @select_id="button_style" @content={{this.buttonStyleList}} @selection={{this.pending_preferences.device.button_style}} @action={{mut this.pending_preferences.device.button_style}} />
           <div class={{this.text_sample_class}} style="margin-left: 20px; margin-top: 5px;">{{t "This is a Text Sample" key='this_is_a_text_sample'}}</div>
         </div>
       </div>
@@ -1387,7 +1416,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.device.always_show_back}} id="always_show_back" />
+            <input type="checkbox" checked={{this.pending_preferences.device.always_show_back}} id="always_show_back" {{on "change" (set-field this "pending_preferences.device.always_show_back" "checkbox")}} />
             {{t "Always show the Back button in the header (recommended for users with key guards)" key='always_show_back'}}
           </label>
         </div>
@@ -1398,22 +1427,22 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.device.disable_speak_options}} id="disable_speak_options" />
+            <input type="checkbox" checked={{this.pending_preferences.device.disable_speak_options}} id="disable_speak_options" {{on "change" (set-field this "pending_preferences.device.disable_speak_options" "checkbox")}} />
             {{t "Disable the menu dropdown in the sentence box (recommended for users with key guards)" key='disable_speak_options'}}
           </label>
         </div>
       </div>
     </div>
-  {{/preference-box}}
+  </PreferenceBox>
   {{#if this.advanced}}
-    {{#preference-box title="Scanning Settings" glyph='glyphicon glyphicon-menu-hamburger' title_key='scanning_settings'}}
+    <PreferenceBox @title="Scanning Settings" @glyph="glyphicon glyphicon-menu-hamburger" @title_key="scanning_settings">
       <span style='display: none;'>{{t "Scanning Settings" key='scanning_settings'}}</span>
       <div class="form-group">
         <label for="scanning" class="col-sm-3 control-label">{{t "Scanning" key='scanning'}}</label>
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.pending_preferences.device.scanning}} id="scanning" />
+              <input type="checkbox" checked={{this.pending_preferences.device.scanning}} id="scanning" {{on "change" (set-field this "pending_preferences.device.scanning" "checkbox")}} />
               {{t "Enable switch-activated scanning" key='enable_scanning'}}
             </label>
           </div>
@@ -1423,14 +1452,14 @@
         <div class="form-group">
           <label for="scanning_mode" class="col-sm-3 control-label">{{t "Scanning Mode" key='scanning_mode'}}</label>
           <div class="col-sm-5">
-            {{bound-select select_class="form-control" select_id="scanning_mode" content=this.scanningModeList selection=this.pending_preferences.device.scanning_mode action=(mut this.pending_preferences.device.scanning_mode) }}
+            <BoundSelect @select_class="form-control" @select_id="scanning_mode" @content={{this.scanningModeList}} @selection={{this.pending_preferences.device.scanning_mode}} @action={{mut this.pending_preferences.device.scanning_mode}} />
           </div>
         </div>
         {{#if this.axes_scanning}}
           <div class="form-group">
             <label for="scanning_sweep_speed" class="col-sm-3 control-label">{{t "Scanning Speed" key='scanning_sweep_speed'}}</label>
             <div class="col-sm-5">
-              {{bound-select select_class="form-control" select_id="scanning_sweep_speed" content=this.scanningAxisSpeedList selection=this.pending_preferences.device.scanning_sweep_speed action=(mut this.pending_preferences.device.scanning_sweep_speed) }}
+              <BoundSelect @select_class="form-control" @select_id="scanning_sweep_speed" @content={{this.scanningAxisSpeedList}} @selection={{this.pending_preferences.device.scanning_sweep_speed}} @action={{mut this.pending_preferences.device.scanning_sweep_speed}} />
             </div>
           </div>
         {{else}}
@@ -1442,7 +1471,7 @@
                   <span class="input-group-btn">
                     <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.scanning_region_rows")}}>-</button>
                   </span>
-                  <Input @value={{this.pending_preferences.device.scanning_region_rows}} class="form-control" id="scanning_region_rows" placeholder="rows" />
+                  <input value={{this.pending_preferences.device.scanning_region_rows}} class="form-control" id="scanning_region_rows" placeholder="rows" aria-label={{t "Rows" key="rows"}} {{on "input" (set-field this "pending_preferences.device.scanning_region_rows")}} />
                   <span class="input-group-btn">
                     <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.scanning_region_rows")}}>+</button>
                   </span>
@@ -1458,7 +1487,7 @@
                   <span class="input-group-btn">
                     <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.scanning_region_columns")}}>-</button>
                   </span>
-                  <Input @value={{this.pending_preferences.device.scanning_region_columns}} class="form-control" id="scanning_region_columns" placeholder="cols" />
+                  <input value={{this.pending_preferences.device.scanning_region_columns}} class="form-control" id="scanning_region_columns" placeholder="cols" aria-label={{t "Columns" key="columns"}} {{on "input" (set-field this "pending_preferences.device.scanning_region_columns")}} />
                   <span class="input-group-btn">
                     <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.scanning_region_columns")}}>+</button>
                   </span>
@@ -1472,7 +1501,7 @@
           <div class="col-sm-5">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.pending_preferences.device.scanning_skip_header}} id="scanning_skip_header" />
+                <input type="checkbox" checked={{this.pending_preferences.device.scanning_skip_header}} id="scanning_skip_header" {{on "change" (set-field this "pending_preferences.device.scanning_skip_header" "checkbox")}} />
                 {{t "Skip Header when scanning" key='scanning_skip_header'}}
               </label>
             </div>
@@ -1483,7 +1512,7 @@
           <div class="col-sm-5">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.pending_preferences.device.scanning_wait_for_input}} id="scanning_wait_for_input" />
+                <input type="checkbox" checked={{this.pending_preferences.device.scanning_wait_for_input}} id="scanning_wait_for_input" {{on "change" (set-field this "pending_preferences.device.scanning_wait_for_input" "checkbox")}} />
                 {{t "Don't start scanning until a switch is activated" key='scanning_wait_for_input'}}
               </label>
             </div>
@@ -1495,7 +1524,7 @@
             <label for="scanning_interval" class="col-sm-3 control-label">{{t "Scanning Interval" key='scanning_interval'}}</label>
             <div class="col-sm-5">
               <div style='display: flex; align-items: center; gap: 10px;'>
-                <Input @value={{this.pending_preferences.device.scanning_interval}} class="form-control" id="scanning_interval" placeholder="1000" style="max-width: 120px;" />
+                <input value={{this.pending_preferences.device.scanning_interval}} class="form-control" id="scanning_interval" placeholder="1000" style="max-width: 120px;" {{on "input" (set-field this "pending_preferences.device.scanning_interval")}} />
                 <span class='form-control-static' style='white-space: nowrap;'>{{t "milliseconds" key='milliseconds'}}</span>
               </div>
               <p class='form-control-static' style='margin-top: 8px;'><em>{{t "Set to 0 to disable auto-scanning" key='zero_to_prevent_scanning'}}</em></p>
@@ -1506,7 +1535,7 @@
             <div class="col-sm-5">
               <div class="checkbox big_checkbox">
                 <label>
-                  <Input @type="checkbox" @checked={{this.pending_preferences.device.scanning_prompt}} id="scanning_prompt" />
+                  <input type="checkbox" checked={{this.pending_preferences.device.scanning_prompt}} id="scanning_prompt" {{on "change" (set-field this "pending_preferences.device.scanning_prompt" "checkbox")}} />
                   {{t "Speak Audio Prompts While Scanning" key='speak_audio_prompts'}}
                 </label>
               </div>
@@ -1518,7 +1547,7 @@
               <div class="col-sm-5">
                 <div class="checkbox big_checkbox">
                   <label>
-                    <Input @type="checkbox" @checked={{this.pending_preferences.device.alternate_voice.for_scanning}} id="scanning_voice" />
+                    <input type="checkbox" checked={{this.pending_preferences.device.alternate_voice.for_scanning}} id="scanning_voice" {{on "change" (set-field this "pending_preferences.device.alternate_voice.for_scanning" "checkbox")}} />
                     {{t "Use My Secondary Voice for Audio Prompts" key='use_scanning_voice'}}
                   </label>
                   {{#if this.pending_preferences.device.alternate_voice.for_scanning}}
@@ -1534,7 +1563,7 @@
           <div class="col-sm-5">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.pending_preferences.device.scanning_select_on_any_event}} id="scanning_select_on_any_event" />
+                <input type="checkbox" checked={{this.pending_preferences.device.scanning_select_on_any_event}} id="scanning_select_on_any_event" {{on "change" (set-field this "pending_preferences.device.scanning_select_on_any_event" "checkbox")}} />
                 {{t "Select on Any Key Press or Screen Touch/Click" key='scanning_select_on_any_event'}}
               </label>
             </div>
@@ -1546,11 +1575,11 @@
             <div class="form-group">
               <div class="col-sm-2">
                 <p class="form-control-static"><label for="scan_left">{{t "Left Half" key='left_half'}}</label></p>
-                {{bound-select select_class="form-control" select_id="scan_left" content=this.scan_pseudo_options selection=this.pending_preferences.device.scanning_left_screen_action action=(mut this.pending_preferences.device.scanning_left_screen_action) }}
+                <BoundSelect @select_class="form-control" @select_id="scan_left" @content={{this.scan_pseudo_options}} @selection={{this.pending_preferences.device.scanning_left_screen_action}} @action={{mut this.pending_preferences.device.scanning_left_screen_action}} />
               </div>
               <div class="col-sm-2">
                 <p class="form-control-static"><label for="scan_right">{{t "Right Half" key='right_half'}}</label></p>
-                {{bound-select select_class="form-control" select_id="scan_right" content=this.scan_pseudo_options selection=this.pending_preferences.device.scanning_right_screen_action action=(mut this.pending_preferences.device.scanning_right_screen_action) }}
+                <BoundSelect @select_class="form-control" @select_id="scan_right" @content={{this.scan_pseudo_options}} @selection={{this.pending_preferences.device.scanning_right_screen_action}} @action={{mut this.pending_preferences.device.scanning_right_screen_action}} />
               </div>
             </div>
           {{/unless}}
@@ -1560,9 +1589,9 @@
             <div class="col-sm-5">
               <div style='display: flex; align-items: center; gap: 10px;'>
                 <div style='width: 60px;'>
-                  {{key-code-text-field id='scanning_select_keycode' class='form-control' value=this.pending_preferences.device.scanning_select_keycode action=(mut this.pending_preferences.device.scanning_select_keycode) placeholder='press a key'}}
+                  <KeyCodeTextField @id='scanning_select_keycode' @class='form-control' @value={{this.pending_preferences.device.scanning_select_keycode}} @onChange={{set-value this "pending_preferences.device.scanning_select_keycode"}} @placeholder='press a key' />
                 </div>
-                <span class='form-control-static' style='color: var(--md-muted);'>{{select_keycode_string}}</span>
+                <span class='form-control-static' style='color: var(--md-muted);'>{{this.select_keycode_string}}</span>
               </div>
             </div>
           </div>
@@ -1572,9 +1601,9 @@
               <div class="col-sm-5">
                 <div style='display: flex; align-items: center; gap: 10px;'>
                   <div style='width: 60px;'>
-                    {{key-code-text-field id='scanning_next_keycode' class='form-control' value=this.pending_preferences.device.scanning_next_keycode placeholder='press a key'}}
+                    <KeyCodeTextField @id='scanning_next_keycode' @class='form-control' @value={{this.pending_preferences.device.scanning_next_keycode}} @onChange={{set-value this "pending_preferences.device.scanning_next_keycode"}} @placeholder='press a key' />
                   </div>
-                  <span class='form-control-static' style='color: var(--md-muted);'>{{next_keycode_string}}</span>
+                  <span class='form-control-static' style='color: var(--md-muted);'>{{this.next_keycode_string}}</span>
                 </div>
               </div>
             </div>
@@ -1583,9 +1612,9 @@
               <div class="col-sm-5">
                 <div style='display: flex; align-items: center; gap: 10px;'>
                   <div style='width: 60px;'>
-                    {{key-code-text-field id='scanning_prev_keycode' class='form-control' value=this.pending_preferences.device.scanning_prev_keycode placeholder='press a key'}}
+                    <KeyCodeTextField @id='scanning_prev_keycode' @class='form-control' @value={{this.pending_preferences.device.scanning_prev_keycode}} @onChange={{set-value this "pending_preferences.device.scanning_prev_keycode"}} @placeholder='press a key' />
                   </div>
-                  <span class='form-control-static' style='color: var(--md-muted);'>{{prev_keycode_string}}</span>
+                  <span class='form-control-static' style='color: var(--md-muted);'>{{this.prev_keycode_string}}</span>
                 </div>
               </div>
             </div>
@@ -1595,9 +1624,9 @@
             <div class="col-sm-5">
               <div style='display: flex; align-items: center; gap: 10px;'>
                 <div style='width: 60px;'>
-                  {{key-code-text-field id='scanning_cancel_keycode' class='form-control' value=this.pending_preferences.device.scanning_cancel_keycode placeholder='press a key'}}
+                  <KeyCodeTextField @id='scanning_cancel_keycode' @class='form-control' @value={{this.pending_preferences.device.scanning_cancel_keycode}} @onChange={{set-value this "pending_preferences.device.scanning_cancel_keycode"}} @placeholder='press a key' />
                 </div>
-                <span class='form-control-static' style='color: var(--md-muted);'>{{cancel_keycode_string}}</span>
+                <span class='form-control-static' style='color: var(--md-muted);'>{{this.cancel_keycode_string}}</span>
               </div>
             </div>
           </div>
@@ -1608,7 +1637,7 @@
             <div class="col-sm-5">
               <div class="checkbox big_checkbox">
                 <label>
-                  <Input @type="checkbox" @checked={{this.pending_preferences.device.scanning_auto_select}} id="scanning_auto_select" />
+                  <input type="checkbox" checked={{this.pending_preferences.device.scanning_auto_select}} id="scanning_auto_select" {{on "change" (set-field this "pending_preferences.device.scanning_auto_select" "checkbox")}} />
                   {{t "Select after the interval if no \"Next\" button hit" key='auto_select_after_delay'}}
                 </label>
               </div>
@@ -1620,15 +1649,15 @@
           <div class="col-sm-5">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.pending_preferences.device.scan_modeling}} id="scan_modeling" />
+                <input type="checkbox" checked={{this.pending_preferences.device.scan_modeling}} id="scan_modeling" {{on "change" (set-field this "pending_preferences.device.scan_modeling" "checkbox")}} />
                 {{t "Mark clicks/touches as modeling events, not user selections" key='touch_as_modeling'}}
               </label>
             </div>
           </div>
         </div>
       {{/if}}
-    {{/preference-box}}
-    {{#preference-box title="Dwell/Eye Tracking" glyph='glyphicon glyphicon-eye-open' title_key='dwell_eye_tracking'}}
+    </PreferenceBox>
+    <PreferenceBox @title="Dwell/Eye Tracking" @glyph="glyphicon glyphicon-eye-open" @title_key="dwell_eye_tracking">
       <span style='display: none;'>{{t "Dwell/Eye Tracking" key='dwell_eye_tracking'}}</span>
       <div class="form-group">
         <label for="eyegaze" class="col-sm-3 control-label">{{t "Dwell/Eye Tracking" key='dwell_eye_tracking'}}</label>
@@ -1636,7 +1665,7 @@
           <div class="checkbox big_checkbox">
             {{#if this.eyegaze_or_dwell_capable}}
               <label>
-                <Input @type="checkbox" @checked={{this.pending_preferences.device.dwell}} id="eyegaze" />
+                <input type="checkbox" checked={{this.pending_preferences.device.dwell}} id="eyegaze" {{on "change" (set-field this "pending_preferences.device.dwell" "checkbox")}} />
                 {{t "Enable dwell/eye-tracking" key='eyegaze'}}
               </label>
             {{else}}
@@ -1649,10 +1678,10 @@
         <div class="form-group">
           <label for="dwell_type" class="col-sm-3 control-label">{{t "Dwell Type" key='dwell_type'}}</label>
           <div class="col-sm-3">
-            {{bound-select select_class="form-control" select_id="scanning_mode" content=this.dwellList selection=this.pending_preferences.device.dwell_type action=(mut this.pending_preferences.device.dwell_type) }}
+            <BoundSelect @select_class="form-control" @select_id="scanning_mode" @content={{this.dwellList}} @selection={{this.pending_preferences.device.dwell_type}} @action={{mut this.pending_preferences.device.dwell_type}} />
           </div>
           <div class="col-sm-2">
-            <button class='btn btn-default' {{on "click" (this.ctrlAction "test_dwell")}} style='width: 100%;'>
+            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "test_dwell")}} style='width: 100%;'>
               {{#if this.testing_dwell}}
                 {{t "Stop Tracking" key='stop_test_dwell'}}
               {{else}}
@@ -1663,13 +1692,13 @@
           {{#if this.eyegaze_type}}
             {{#if this.calibratable}}
               <div class="col-sm-2">
-                <button class='btn btn-default' {{on "click" (this.ctrlAction "calibrate")}} style='width: 100%; margin-bottom: 3px;'>{{t "Calibrate Tracker" key='calibrate'}}</button>
+                <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "calibrate")}} style='width: 100%; margin-bottom: 3px;'>{{t "Calibrate Tracker" key='calibrate'}}</button>
               </div>
             {{/if}}
           {{/if}}
           {{#if this.testing_dwell}}
             <div class="col-sm-5 col-sm-offset-3">
-              {{dwell-tracker user=this.model preferences=this.pending_preferences type=this.pending_preferences.device.dwell_type}}
+              <DwellTracker @user={{this.model}} @preferences={{this.pending_preferences}} @type={{this.pending_preferences.device.dwell_type}} />
             </div>
           {{/if}}
         </div>
@@ -1715,7 +1744,7 @@
             <div class="form-group">
               <label for="dwell_tilt_sensitivity" class="col-sm-3 control-label">{{t "Dwell Head Sensitivity" key='dwell_tilt_sensitivity'}}</label>
               <div class="col-sm-3">
-                {{bound-select select_class="form-control" select_id="dwell_tilt_sensitivity" content=this.dwellTiltList selection=this.pending_preferences.device.dwell_tilt_sensitivity action=(mut this.pending_preferences.device.dwell_tilt_sensitivity) }}
+                <BoundSelect @select_class="form-control" @select_id="dwell_tilt_sensitivity" @content={{this.dwellTiltList}} @selection={{this.pending_preferences.device.dwell_tilt_sensitivity}} @action={{mut this.pending_preferences.device.dwell_tilt_sensitivity}} />
               </div>
             </div>
 
@@ -1724,7 +1753,7 @@
               <div class="col-sm-5">
                 <div class="checkbox big_checkbox">
                   <label>
-                    <Input @type="checkbox" @checked={{this.pending_preferences.device.dwell_head_pointer}} id="dwell_head_pointer" />
+                    <input type="checkbox" checked={{this.pending_preferences.device.dwell_head_pointer}} id="dwell_head_pointer" {{on "change" (set-field this "pending_preferences.device.dwell_head_pointer" "checkbox")}} />
                     {{t "Use head position as a direct pointer" key='use_dwell_head_pointer'}}
                   </label>
                 </div>
@@ -1735,7 +1764,7 @@
             <div class="form-group">
               <label for="dwell_arrow_speed" class="col-sm-3 control-label">{{t "Dwell Cursor Speed" key='dwell_arrow_speed'}}</label>
               <div class="col-sm-3">
-                {{bound-select select_class="form-control" select_id="dwell_arrow_speed" content=this.arrowSpeedList selection=this.pending_preferences.device.dwell_arrow_speed action=(mut this.pending_preferences.device.dwell_arrow_speed) }}
+                <BoundSelect @select_class="form-control" @select_id="dwell_arrow_speed" @content={{this.arrowSpeedList}} @selection={{this.pending_preferences.device.dwell_arrow_speed}} @action={{mut this.pending_preferences.device.dwell_arrow_speed}} />
               </div>
             </div>
           {{/unless}}
@@ -1745,7 +1774,7 @@
             <div class="col-sm-5">
               <div class="checkbox big_checkbox">
                 <label>
-                  <Input @type="checkbox" @checked={{this.pending_preferences.device.dwell_cursor}} id="dwell_cursor" />
+                  <input type="checkbox" checked={{this.pending_preferences.device.dwell_cursor}} id="dwell_cursor" {{on "change" (set-field this "pending_preferences.device.dwell_cursor" "checkbox")}} />
                   {{t "Show icon at current dwell location" key='show_dwell_cursor'}}
                 </label>
               </div>
@@ -1756,7 +1785,7 @@
           <div class="form-group">
             <label for="dwell_icon_option" class="col-sm-3 control-label">{{t "Dwell Cursor Icon" key='dwell_icon'}}</label>
             <div class="col-sm-3">
-              {{bound-select select_class="form-control" select_id="dwell_icon_option" content=this.dwellIconList selection=this.pending_preferences.device.dwell_icon action=(mut this.pending_preferences.device.dwell_icon) }}
+              <BoundSelect @select_class="form-control" @select_id="dwell_icon_option" @content={{this.dwellIconList}} @selection={{this.pending_preferences.device.dwell_icon}} @action={{mut this.pending_preferences.device.dwell_icon}} />
             </div>
             <div class='col-sm-1'>
               <div id='dwell_icon' style='z-index: 1;' class={{this.dwell_icon_class}}></div>
@@ -1766,7 +1795,7 @@
         <div class="form-group">
           <label for="dwell_type" class="col-sm-3 control-label">{{t "Dwell Selection" key='dwell_selection'}}</label>
           <div class="col-sm-3">
-            {{bound-select select_class="form-control" select_id="dwell_selection" content=this.dwellSelectList selection=this.pending_preferences.device.dwell_selection action=(mut this.pending_preferences.device.dwell_selection) }}
+            <BoundSelect @select_class="form-control" @select_id="dwell_selection" @content={{this.dwellSelectList}} @selection={{this.pending_preferences.device.dwell_selection}} @action={{mut this.pending_preferences.device.dwell_selection}} />
           </div>
         </div>
         {{#if this.button_dwell}}
@@ -1774,7 +1803,7 @@
             <label for="scanning_select_keycode" class="col-sm-3 control-label">{{t "Dwell \"Select\" Key" key='dwell_select_keycode'}}</label>
             <div class="col-sm-5">
               <label style="width: 50px;">
-                {{key-code-text-field id='scanning_select_keycode' class='form-control' value=this.pending_preferences.device.scanning_select_keycode action=(mut this.pending_preferences.device.scanning_select_keycode) placeholder='hit any key'}}
+                <KeyCodeTextField @id='scanning_select_keycode' @class='form-control' @value={{this.pending_preferences.device.scanning_select_keycode}} @onChange={{set-value this "pending_preferences.device.scanning_select_keycode"}} @placeholder='hit any key' />
               </label>
               &nbsp;{{this.select_keycode_string}}
             </div>
@@ -1783,7 +1812,7 @@
           <div class="form-group">
             <label for="select_expression" class="col-sm-3 control-label">{{t "Dwell Expression" key='select_expression'}}</label>
             <div class="col-sm-3">
-              {{bound-select select_class="form-control" select_id="select_expression" content=this.expressionList selection=this.pending_preferences.device.select_expression action=(mut this.pending_preferences.device.select_expression) }}
+              <BoundSelect @select_class="form-control" @select_id="select_expression" @content={{this.expressionList}} @selection={{this.pending_preferences.device.select_expression}} @action={{mut this.pending_preferences.device.select_expression}} />
             </div>
           </div>
         {{else}}
@@ -1792,7 +1821,7 @@
             <div class="col-sm-5">
               <div class="checkbox big_checkbox">
                 <label>
-                  <Input @type="checkbox" @checked={{this.pending_preferences.device.dwell_no_cutoff}} id="dwell_no_cutoff" />
+                  <input type="checkbox" checked={{this.pending_preferences.device.dwell_no_cutoff}} id="dwell_no_cutoff" {{on "change" (set-field this "pending_preferences.device.dwell_no_cutoff" "checkbox")}} />
                   {{t "Keep dwell targeting even if cursor stops moving" key='dwell_no_cutoff'}}
                 </label>
               </div>
@@ -1804,7 +1833,7 @@
               <div style="display: flex; align-items: center; gap: 10px;">
                 <div class="md-number-picker">
                   <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.dwell_duration")}}>−</button>
-                  <Input @value={{this.pending_preferences.device.dwell_duration}} class="md-number-picker__input" id="dwell_duration" placeholder="1000" />
+                  <input value={{this.pending_preferences.device.dwell_duration}} class="md-number-picker__input" id="dwell_duration" placeholder="1000" {{on "input" (set-field this "pending_preferences.device.dwell_duration")}} />
                   <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.dwell_duration")}}>+</button>
                 </div>
                 <span class="form-control-static" style="white-space: nowrap;">{{t "ms to select" key='milliseconds_to_select'}}</span>
@@ -1817,7 +1846,7 @@
               <div style="display: flex; align-items: center; gap: 10px;">
                 <div class="md-number-picker">
                   <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.dwell_delay")}}>−</button>
-                  <Input @value={{this.pending_preferences.device.dwell_delay}} class="md-number-picker__input" id="dwell_delay" placeholder="100" />
+                  <input value={{this.pending_preferences.device.dwell_delay}} class="md-number-picker__input" id="dwell_delay" placeholder="100" {{on "input" (set-field this "pending_preferences.device.dwell_delay")}} />
                   <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.dwell_delay")}}>+</button>
                 </div>
                 <span class="form-control-static" style="white-space: nowrap;">{{t "ms before new selection" key='milliseconds_delay'}}</span>
@@ -1827,7 +1856,7 @@
           <div class="form-group">
             <label for="dwell_release_distance" class="col-sm-3 control-label">{{t "Next Dwell Movement" key='dwell_release'}}</label>
             <div class="col-sm-2">
-              {{bound-select select_class="form-control" select_id="dwell_release_distance" content=this.dwellReleaseDistanceList selection=this.pending_preferences.device.dwell_release_distance action=(mut this.pending_preferences.device.dwell_release_distance) }}
+              <BoundSelect @select_class="form-control" @select_id="dwell_release_distance" @content={{this.dwellReleaseDistanceList}} @selection={{this.pending_preferences.device.dwell_release_distance}} @action={{mut this.pending_preferences.device.dwell_release_distance}} />
             </div>
             <div class="col-sm-3">
               <p class='form-control-static'>{{t "before starting a new selection" key='move_after_select'}}</p>
@@ -1836,7 +1865,7 @@
           <div class="form-group">
             <label for="dwell_targeting" class="col-sm-3 control-label">{{t "Dwell Targeting Style" key='dwell_targeting'}}</label>
             <div class="col-sm-5">
-              {{bound-select select_class="form-control" select_id="scanning_mode" content=this.targetingList selection=this.pending_preferences.device.dwell_targeting action=(mut this.pending_preferences.device.dwell_targeting) }}
+              <BoundSelect @select_class="form-control" @select_id="scanning_mode" @content={{this.targetingList}} @selection={{this.pending_preferences.device.dwell_targeting}} @action={{mut this.pending_preferences.device.dwell_targeting}} />
             </div>
           </div>
           <div class="form-group">
@@ -1844,7 +1873,7 @@
             <div class="col-sm-5">
               <div class="checkbox big_checkbox">
                 <label>
-                  <Input @type="checkbox" @checked={{this.pending_preferences.device.dwell_gravity}} id="dwell_gravity" />
+                  <input type="checkbox" checked={{this.pending_preferences.device.dwell_gravity}} id="dwell_gravity" {{on "change" (set-field this "pending_preferences.device.dwell_gravity" "checkbox")}} />
                   {{t "Stay on the same target if the user's gaze leaves a bit" key='enable_dwell_gravity'}}
                 </label>
               </div>
@@ -1856,24 +1885,24 @@
           <div class="col-sm-5">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.pending_preferences.device.dwell_modeling}} id="dwell_modeling" />
+                <input type="checkbox" checked={{this.pending_preferences.device.dwell_modeling}} id="dwell_modeling" {{on "change" (set-field this "pending_preferences.device.dwell_modeling" "checkbox")}} />
                 {{t "Mark clicks/touches as modeling events, not user selections" key='touch_as_modeling'}}
               </label>
             </div>
           </div>
         </div>
       {{/if}}
-    {{/preference-box}}
+    </PreferenceBox>
   {{/if}}
   {{#unless this.advanced}}
     {{#if this.user_voice_list}}
       <div class="form-group">
         <label for="voice_pitch" class="col-sm-3 col-xs-12 control-label">{{t "Voice" key='voiceURI'}}</label>
         <div class="col-sm-3 col-xs-7">
-          {{bound-select select_class="form-control" select_id="voiceURI" content=this.user_voice_list selection=this.pending_preferences.device.voice.voice_uri action=(mut this.pending_preferences.device.voice.voice_uri) }}
+          <BoundSelect @select_class="form-control" @select_id="voiceURI" @content={{this.user_voice_list}} @selection={{this.pending_preferences.device.voice.voice_uri}} @action={{mut this.pending_preferences.device.voice.voice_uri}} />
         </div>
         <div class="col-sm-2 col-xs-5">
-          <button class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}}>{{t "Premium Voices" key='premium_voices'}}</button>
+          <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}}>{{t "Premium Voices" key='premium_voices'}}</button>
         </div>
       </div>
       <div class="form-group" style="margin-top: -15px;">
@@ -1891,19 +1920,19 @@
           <span class="input-group-btn">
             <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.voice.rate")}}>-</button>
           </span>
-          <Input @value={{this.pending_preferences.device.voice.rate}} class="form-control" id="voice_rate" placeholder="1.0" />
+          <input value={{this.pending_preferences.device.voice.rate}} class="form-control" id="voice_rate" placeholder="1.0" {{on "input" (set-field this "pending_preferences.device.voice.rate")}} />
           <span class="input-group-btn">
             <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.voice.rate")}}>+</button>
           </span>
         </div>
       </div>
       <div class="col-sm-2 col-xs-5">
-        <button class='btn btn-default' {{on "click" (this.ctrlAction "test_voice")}}>{{t "Test Voice" key='test_voice'}}</button>
+        <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "test_voice")}}>{{t "Test Voice" key='test_voice'}}</button>
       </div>
     </div>
   {{else}}
     <div id="voice-settings-box"></div>
-    {{#preference-box title="Voice Settings" glyph='glyphicon glyphicon-volume-up' title_key='voice_settings' open=this.auto_open_voice}}
+    <PreferenceBox @title="Voice Settings" @glyph="glyphicon glyphicon-volume-up" @title_key="voice_settings" @open={{this.auto_open_voice}}>
       <span style='display: none;'>{{t "Voice Settings" key='voice_settings'}}</span>
       {{#if this.user_voice_list}}
         <div class="form-group">
@@ -1911,9 +1940,9 @@
           <div class="col-sm-5">
             <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
               <div style="flex: 1 1 auto; min-width: 180px;">
-                {{bound-select select_class="form-control" select_id="voiceURI" content=this.user_voice_list selection=this.pending_preferences.device.voice.voice_uri action=(mut this.pending_preferences.device.voice.voice_uri) }}
+                <BoundSelect @select_class="form-control" @select_id="voiceURI" @content={{this.user_voice_list}} @selection={{this.pending_preferences.device.voice.voice_uri}} @action={{mut this.pending_preferences.device.voice.voice_uri}} />
               </div>
-              <button class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}} style="white-space: nowrap;">{{t "Premium Voices" key='premium_voices'}}</button>
+              <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}} style="white-space: nowrap;">{{t "Premium Voices" key='premium_voices'}}</button>
             </div>
             {{#if this.ios_app}}
               <p class='form-control-static' style='margin-top: 8px;'><em>{{t "Some system voices may not work due to an Apple speech engine issue. Try a Premium Voice or \"System Default Voice\" if needed." key='apple_tts_bug'}}</em></p>
@@ -1929,7 +1958,7 @@
             </p>
           </div>
           <div class="col-sm-2 col-xs-5">
-            <button class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}}>{{t "Premium Voices" key='premium_voices'}}</button>
+            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}}>{{t "Premium Voices" key='premium_voices'}}</button>
           </div>
         </div>
       {{/if}}
@@ -1938,7 +1967,7 @@
         <div class="col-sm-5">
           <div class="md-number-picker">
             <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.voice.rate")}}>−</button>
-            <Input @value={{this.pending_preferences.device.voice.rate}} class="md-number-picker__input" id="voice_rate" placeholder="1.0" />
+            <input value={{this.pending_preferences.device.voice.rate}} class="md-number-picker__input" id="voice_rate" placeholder="1.0" {{on "input" (set-field this "pending_preferences.device.voice.rate")}} />
             <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.voice.rate")}}>+</button>
           </div>
         </div>
@@ -1948,7 +1977,7 @@
         <div class="col-sm-5">
           <div class="md-number-picker">
             <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.voice.pitch")}}>−</button>
-            <Input @value={{this.pending_preferences.device.voice.pitch}} class="md-number-picker__input" id="voice_pitch" placeholder="1.0" />
+            <input value={{this.pending_preferences.device.voice.pitch}} class="md-number-picker__input" id="voice_pitch" placeholder="1.0" {{on "input" (set-field this "pending_preferences.device.voice.pitch")}} />
             <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.voice.pitch")}}>+</button>
           </div>
         </div>
@@ -1959,10 +1988,10 @@
           <div style="display: flex; align-items: center; gap: 12px;">
             <div class="md-number-picker">
               <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.voice.volume")}}>−</button>
-              <Input @value={{this.pending_preferences.device.voice.volume}} class="md-number-picker__input" id="voice_volume" placeholder="1.0" />
+              <input value={{this.pending_preferences.device.voice.volume}} class="md-number-picker__input" id="voice_volume" placeholder="1.0" {{on "input" (set-field this "pending_preferences.device.voice.volume")}} />
               <button type="button" class="md-number-picker__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.voice.volume")}}>+</button>
             </div>
-            <button class='btn btn-default' {{on "click" (this.ctrlAction "test_voice")}} style="white-space: nowrap;">{{t "Test Voice" key='test_voice'}}</button>
+            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "test_voice")}} style="white-space: nowrap;">{{t "Test Voice" key='test_voice'}}</button>
           </div>
           <p class='form-control-static' style='margin-top: 8px;'><em>{{t "Some voices may not support changing pitch or volume" key='voice_pitch_volume_note'}}</em></p>
         </div>
@@ -1971,7 +2000,7 @@
         <div class="form-group">
           <label for="voice_output" class="col-sm-3 control-label">{{t "Voice & Output" key='voice_output'}}</label>
           <div class="col-sm-5">
-            {{bound-select select_class="form-control" select_id="voice_output" content=this.audioOutputList selection=this.pending_preferences.device.voice.target action=(mut this.pending_preferences.device.voice.target) }}
+            <BoundSelect @select_class="form-control" @select_id="voice_output" @content={{this.audioOutputList}} @selection={{this.pending_preferences.device.voice.target}} @action={{mut this.pending_preferences.device.voice.target}} />
             {{#if this.audio_switching_delays.primary}}
               <em>{{t "There may be a short delay on this device if switching between different outputs" key='possible_output_delay'}}</em>
             {{/if}}
@@ -1984,7 +2013,7 @@
         <div class="col-sm-5">
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.pending_preferences.device.alternate_voice.enabled}} id="alternate_voice" />
+              <input type="checkbox" checked={{this.pending_preferences.device.alternate_voice.enabled}} id="alternate_voice" {{on "change" (set-field this "pending_preferences.device.alternate_voice.enabled" "checkbox")}} />
               {{t "Use My Secondary Voice for Some Prompts" key='use_different_prompting_voice'}}
             </label>
           </div>
@@ -1994,7 +2023,7 @@
         {{#if this.user_voice_list}}
           <div class="form-group">
             <div class="col-sm-3 col-xs-7 col-sm-offset-3">
-              {{bound-select select_class="form-control" select_id="alternate_voice_uri" content=this.user_voice_list selection=this.pending_preferences.device.alternate_voice.voice_uri action=(mut this.pending_preferences.device.alternate_voice.voice_uri) }}
+              <BoundSelect @select_class="form-control" @select_id="alternate_voice_uri" @content={{this.user_voice_list}} @selection={{this.pending_preferences.device.alternate_voice.voice_uri}} @action={{mut this.pending_preferences.device.alternate_voice.voice_uri}} />
             </div>
           </div>
         {{/if}}
@@ -2003,31 +2032,31 @@
           <div class="col-sm-5 col-xs-7">
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.pending_preferences.device.alternate_voice.for_scanning}} disabled={{this.not_scanning}} id="for_scanning" />
+                <input type="checkbox" checked={{this.pending_preferences.device.alternate_voice.for_scanning}} disabled={{this.not_scanning}} id="for_scanning" {{on "change" (set-field this "pending_preferences.device.alternate_voice.for_scanning" "checkbox")}} />
                 {{t "Use for Scanning Prompts" key='use_for_scanning'}}
               </label>
             </div>
             <div class="checkbox big_checkbox" style='display: none;'>
               <label>
-                <Input @type="checkbox" @checked={{this.pending_preferences.device.alternate_voice.for_fishing}} disabled={{this.not_fishing}} id="for_fishing" />
+                <input type="checkbox" checked={{this.pending_preferences.device.alternate_voice.for_fishing}} disabled={{this.not_fishing}} id="for_fishing" {{on "change" (set-field this "pending_preferences.device.alternate_voice.for_fishing" "checkbox")}} />
                 {{t "Use for Auditory Fishing" key='use_for_fishing'}}
               </label>
             </div>
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.pending_preferences.device.alternate_voice.for_integrations}} id="for_integrations" />
+                <input type="checkbox" checked={{this.pending_preferences.device.alternate_voice.for_integrations}} id="for_integrations" {{on "change" (set-field this "pending_preferences.device.alternate_voice.for_integrations" "checkbox")}} />
                 {{t "Use for Third-Party Integrations" key='use_for_integrations'}}
               </label>
             </div>
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.pending_preferences.device.alternate_voice.for_buttons}} id="for_buttons" />
+                <input type="checkbox" checked={{this.pending_preferences.device.alternate_voice.for_buttons}} id="for_buttons" {{on "change" (set-field this "pending_preferences.device.alternate_voice.for_buttons" "checkbox")}} />
                 {{t "Use for Button Presses" key='use_for_buttons'}}
               </label>
             </div>
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.pending_preferences.device.alternate_voice.for_messages}} id="for_messages" />
+                <input type="checkbox" checked={{this.pending_preferences.device.alternate_voice.for_messages}} id="for_messages" {{on "change" (set-field this "pending_preferences.device.alternate_voice.for_messages" "checkbox")}} />
                 {{t "Use for Inbound Messages" key='use_for_messages'}}
               </label>
             </div>
@@ -2040,7 +2069,7 @@
               <span class="input-group-btn">
                 <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.alternate_voice.rate")}}>-</button>
               </span>
-              <Input @value={{this.pending_preferences.device.alternate_voice.rate}} class="form-control" id="alternate_voice_rate" placeholder="1.0" />
+              <input value={{this.pending_preferences.device.alternate_voice.rate}} class="form-control" id="alternate_voice_rate" placeholder="1.0" {{on "input" (set-field this "pending_preferences.device.alternate_voice.rate")}} />
               <span class="input-group-btn">
                 <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.alternate_voice.rate")}}>+</button>
               </span>
@@ -2054,7 +2083,7 @@
               <span class="input-group-btn">
                 <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.alternate_voice.pitch")}}>-</button>
               </span>
-              <Input @value={{this.pending_preferences.device.alternate_voice.pitch}} class="form-control" id="alternate_voice_pitch" placeholder="1.0" />
+              <input value={{this.pending_preferences.device.alternate_voice.pitch}} class="form-control" id="alternate_voice_pitch" placeholder="1.0" {{on "input" (set-field this "pending_preferences.device.alternate_voice.pitch")}} />
               <span class="input-group-btn">
                 <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.alternate_voice.pitch")}}>+</button>
               </span>
@@ -2068,21 +2097,21 @@
               <span class="input-group-btn">
                 <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "minus" "this.pending_preferences.device.alternate_voice.volume")}}>-</button>
               </span>
-              <Input @value={{this.pending_preferences.device.alternate_voice.volume}} class="form-control" id="alternate_voice_volume" placeholder="1.0" />
+              <input value={{this.pending_preferences.device.alternate_voice.volume}} class="form-control" id="alternate_voice_volume" placeholder="1.0" {{on "input" (set-field this "pending_preferences.device.alternate_voice.volume")}} />
               <span class="input-group-btn">
                 <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "plus_minus" "plus" "this.pending_preferences.device.alternate_voice.volume")}}>+</button>
               </span>
             </div>
           </div>
           <div class="col-sm-2 col-xs-5">
-            <button class='btn btn-default' {{on "click" (this.ctrlAction "test_voice" "alternate")}}>{{t "Test Voice" key='test_voice'}}</button>
+            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "test_voice" "alternate")}}>{{t "Test Voice" key='test_voice'}}</button>
           </div>
         </div>
       {{#if this.audio_target_available}}
           <div class="form-group">
             <label for="alternate_voice_output" class="col-sm-3 control-label">{{t "Secondary Voice Output" key='alternate_voice_output'}}</label>
             <div class="col-sm-5">
-              {{bound-select select_class="form-control" select_id="alternate_voice_output" content=this.audioOutputList selection=this.pending_preferences.device.alternate_voice.target action=(mut this.pending_preferences.device.alternate_voice.target) }}
+              <BoundSelect @select_class="form-control" @select_id="alternate_voice_output" @content={{this.audioOutputList}} @selection={{this.pending_preferences.device.alternate_voice.target}} @action={{mut this.pending_preferences.device.alternate_voice.target}} />
               {{#if this.audio_switching_delays.alternate}}
                 <em>{{t "There may be a short delay on this device if switching between different outputs" key='possible_output_delay'}}</em>
               {{/if}}
@@ -2090,7 +2119,7 @@
           </div>
         {{/if}}
       {{/if}}
-    {{/preference-box}}
+    </PreferenceBox>
   {{/unless}}
   
   {{#if this.pending_preferences.device.allows_home_override}}
@@ -2099,7 +2128,7 @@
       <div class="col-sm-5">
         <div class="checkbox big_checkbox">
           <label>
-            <Input @type="checkbox" @checked={{this.pending_preferences.device.device_home}} id="device_home" />
+            <input type="checkbox" checked={{this.pending_preferences.device.device_home}} id="device_home" {{on "change" (set-field this "pending_preferences.device.device_home" "checkbox")}} />
             {{t "Replace the device's home screen with %app_name%" key='device_home_screen'}}
           </label>
         </div>
@@ -2130,5 +2159,5 @@
 {{else if this.session.isAuthenticated}}
   <p>{{t "It looks like you don't have permission to access this information" key='not_authorized_for_access'}}</p>
 {{else}}
-  {{login-form left=true prompt=true return=true}}
+  <LoginForm @left={{true}} @prompt={{true}} @return={{true}} />
 {{/if}}

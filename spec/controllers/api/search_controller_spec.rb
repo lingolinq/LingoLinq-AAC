@@ -689,22 +689,25 @@ describe Api::SearchController, :type => :controller do
     before(:each) do
       RedisInit.permissions.del("google/voices/fr")
     end
-    it 'should not require an api token' do
-      expect(Typhoeus).to receive(:get).and_return(OpenStruct.new({
-        headers: {
-          'Content-Type' => 'audio/mp3'
-        },
-        body: 'asdf'
-      }))
+    it 'returns an error when no TTS provider is configured (consumer fallback removed)' do
+      # The unauthenticated consumer translate.google.com/translate_tts fallback was
+      # removed: no DPA/BAA basis, must never receive user utterance text (LL-a167848115).
+      # With no GOOGLE_TTS_TOKEN and a non-Irish locale, no external call is made.
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with('GOOGLE_TTS_TOKEN').and_return(nil)
+      expect(Typhoeus).to_not receive(:get)
+      expect(Typhoeus).to_not receive(:post)
       get :audio, params: {text: 'asdf'}
+      expect(response.code).to eq('400')
+      expect(JSON.parse(response.body)['error']).to eq('no tts provider configured')
     end
 
     env_wrap('GOOGLE_TTS_TOKEN' => 'test_tts_key') do
       it "should use the token if there is one" do
-        expect(Typhoeus).to receive(:get).with("https://texttospeech.googleapis.com/v1beta1/voices?languageCode=fr&key=test_tts_key").and_return(OpenStruct.new({
+        expect(Typhoeus).to receive(:get).with("https://texttospeech.googleapis.com/v1/voices?languageCode=fr&key=test_tts_key").and_return(OpenStruct.new({
           body: {voices: [{'ssmlGender' => 'male', 'name' => 'Bob'}]}.to_json
         }))
-        expect(Typhoeus).to receive(:post).with("https://texttospeech.googleapis.com/v1beta1/text:synthesize?key=test_tts_key", body: {
+        expect(Typhoeus).to receive(:post).with("https://texttospeech.googleapis.com/v1/text:synthesize?key=test_tts_key", body: {
           audioConfig: {audioEncoding: 'MP3', pitch: 0, speakingRate: 1},
           input: {text: 'asdf'},
           voice: {languageCode: 'fr', name: 'Bob'}
@@ -717,10 +720,10 @@ describe Api::SearchController, :type => :controller do
       end
 
       it "should cache the voices list when retrieved" do
-        expect(Typhoeus).to receive(:get).with("https://texttospeech.googleapis.com/v1beta1/voices?languageCode=fr&key=test_tts_key").and_return(OpenStruct.new({
+        expect(Typhoeus).to receive(:get).with("https://texttospeech.googleapis.com/v1/voices?languageCode=fr&key=test_tts_key").and_return(OpenStruct.new({
           body: {voices: [{'ssmlGender' => 'male', 'name' => 'Bob'}]}.to_json
         }))
-        expect(Typhoeus).to receive(:post).with("https://texttospeech.googleapis.com/v1beta1/text:synthesize?key=test_tts_key", body: {
+        expect(Typhoeus).to receive(:post).with("https://texttospeech.googleapis.com/v1/text:synthesize?key=test_tts_key", body: {
           audioConfig: {audioEncoding: 'MP3', pitch: 0, speakingRate: 1},
           input: {text: 'asdf'},
           voice: {languageCode: 'fr', name: 'Bob'}
@@ -743,8 +746,8 @@ describe Api::SearchController, :type => :controller do
 
       it "should use the cached voices list when available" do
         RedisInit.permissions.setex("google/voices/fr", 10.seconds.to_i, {voices: [{'ssmlGender' => 'male', 'name' => 'Bob'}]}.to_json)
-        expect(Typhoeus).to_not receive(:get).with("https://texttospeech.googleapis.com/v1beta1/voices?languageCode=fr&key=test_tts_key")
-        expect(Typhoeus).to receive(:post).with("https://texttospeech.googleapis.com/v1beta1/text:synthesize?key=test_tts_key", body: {
+        expect(Typhoeus).to_not receive(:get).with("https://texttospeech.googleapis.com/v1/voices?languageCode=fr&key=test_tts_key")
+        expect(Typhoeus).to receive(:post).with("https://texttospeech.googleapis.com/v1/text:synthesize?key=test_tts_key", body: {
           audioConfig: {audioEncoding: 'MP3', pitch: 0, speakingRate: 1},
           input: {text: 'asdf'},
           voice: {languageCode: 'fr', name: 'Bob'}

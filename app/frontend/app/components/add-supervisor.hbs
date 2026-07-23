@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="md-add-supervisor">
     <div class="modal-header md-modal-header">
       <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
@@ -29,50 +29,50 @@
             <p class="md-modal-hint" style="font-style: italic;">{{t "Enter their email address. They'll receive a consent request and must approve before access is granted." key="consent_request_intro"}}</p>
             <div class="md-add-supervisor__field">
               <label for="owner_email" class="md-add-supervisor__label">{{t "Email" key="email"}}</label>
-              <Input @type="email" @value={{this.owner_email}} class="md-add-supervisor__input" id="owner_email" placeholder={{t "Supervisor's email address" key="supervisor_email_placeholder"}} autocomplete="email" inputmode="email" />
+              <input type="email" value={{this.owner_email}} class="md-add-supervisor__input" id="owner_email" placeholder={{t "Supervisor's email address" key="supervisor_email_placeholder"}} autocomplete="email" inputmode="email" {{on "input" (set-field this "owner_email")}} />
             </div>
           {{/if}}
         {{else if this.existing_user}}
           <div class="md-add-supervisor__field">
             <label for="add_supervisee_key" class="md-add-supervisor__label">{{t "Supervisor" key="supervisor"}}</label>
-            <Input @value={{this.supervisor_key}} class="md-add-supervisor__input" id="add_supervisee_key" placeholder="User name" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+            <input value={{this.supervisor_key}} class="md-add-supervisor__input" id="add_supervisee_key" placeholder="User name" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" {{on "input" (set-field this "supervisor_key")}} />
           </div>
         {{else if this.start_code}}
           <div class="md-add-supervisor__field">
             <label for="add_start_code_key" class="md-add-supervisor__label">{{t "Start Code" key="start_code"}}</label>
-            <Input @value={{this.start_code_key}} class="md-add-supervisor__input" id="add_start_code" placeholder="start code" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+            <input value={{this.start_code_key}} class="md-add-supervisor__input" id="add_start_code_key" placeholder="start code" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" {{on "input" (set-field this "start_code_key")}} />
             <p class="md-modal-hint" style="font-style: italic;">{{t "Start codes may also update some of your settings — check with the supervisor before entering one." key="start_code_warning"}}</p>
           </div>
         {{else}}
           <div class="md-add-supervisor__field">
             <label for="supervisor_name" class="md-add-supervisor__label">{{t "Supervisor" key="supervisor"}}</label>
-            <Input @value={{this.model.supervisor.name}} class="md-add-supervisor__input" id="supervisor_name" placeholder="Full name" autocomplete="name" />
+            <input value={{this.model.supervisor.name}} class="md-add-supervisor__input" id="supervisor_name" placeholder="Full name" autocomplete="name" {{on "input" (set-field this "model.supervisor.name")}} />
           </div>
           <div class="md-add-supervisor__field">
-            <Input @value={{this.model.supervisor.user_name}} class="md-add-supervisor__input" placeholder="User name" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+            <input value={{this.model.supervisor.user_name}} class="md-add-supervisor__input" placeholder="User name" aria-label={{t "User Name" key="user_name"}} autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" {{on "input" (set-field this "model.supervisor.user_name")}} />
             {{#if this.model.supervisor.user_name_check.checking}}
             {{else if this.model.supervisor.user_name_check.exists}}
               <span class="md-add-supervisor__error">{{t "\"%{user_name}\" already exists" user_name=this.model.supervisor.user_name}}</span>
             {{/if}}
           </div>
           <div class="md-add-supervisor__field">
-            <Input @type="email" @value={{this.model.supervisor.email}} class="md-add-supervisor__input" placeholder="Email address" autocomplete="email" inputmode="email" />
+            <input type="email" value={{this.model.supervisor.email}} class="md-add-supervisor__input" placeholder="Email address" aria-label={{t "Email address" key="email_address"}} autocomplete="email" inputmode="email" {{on "input" (set-field this "model.supervisor.email")}} />
           </div>
           <div class="md-add-supervisor__field">
-            <Input @type="password" @value={{this.model.supervisor.password}} class="md-add-supervisor__input" placeholder="Password" autocomplete="new-password" />
+            <input type="password" value={{this.model.supervisor.password}} class="md-add-supervisor__input" placeholder="Password" aria-label={{t "Password" key="password"}} autocomplete="new-password" {{on "input" (set-field this "model.supervisor.password")}} />
           </div>
         {{/if}}
         {{#unless this.start_code}}
           {{#unless this.consent_submitted}}
             <div class="md-add-supervisor__field">
               <label for="supervisor_type" class="md-add-supervisor__label">{{t "Access" key="access"}}</label>
-              {{bound-select select_class="md-add-supervisor__input md-add-supervisor__select" select_id="supervisor_type" content=this.supervisor_types selection=this.supervisor_permission action=(this.ctrlAction "updateSupervisorPermission") }}
+              <BoundSelect @select_class="md-add-supervisor__input md-add-supervisor__select" @select_id="supervisor_type" @content={{this.supervisor_types}} @selection={{this.supervisor_permission}} @action={{this.ctrlAction "updateSupervisorPermission"}} />
             </div>
             {{#if this.supervisor_sponsorships}}
               {{#unless this.consent_request}}
                 <div class="md-add-supervisor__field md-add-supervisor__field--checkbox">
                   <label class="md-add-supervisor__checkbox-label">
-                    <Input @checked={{this.premium_supporter}} @type="checkbox" />
+                    <input type="checkbox" checked={{this.premium_supporter}} {{on "change" (set-field this "premium_supporter" "checkbox")}} />
                     <span>{{t "use one of my supervisor credits (%{n} left) to make this person a premium supporter" n=this.supervisor_sponsorships key="grant_premium_supporter"}}</span>
                   </label>
                 </div>
@@ -118,4 +118,4 @@
       </div>
     {{/unless}}
   </div>
-{{/modal-dialog}}
+</ModalDialog>

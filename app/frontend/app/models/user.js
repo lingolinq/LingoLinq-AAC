@@ -96,6 +96,10 @@ LingoLinq.User = BaseModel.extend({
   eu_ai_parental_consent_active: attr('boolean'),
   /** Response-only (edit): parent email on a pending EU AI consent request (resend prefills). */
   eu_ai_parental_consent_parent_email: attr('string'),
+  /** Response-only: EU AI Act Article 50(1) disclosure gate (EuJurisdiction.disclosure_required?). Always present as a boolean. */
+  article_50_disclosure_required: attr('boolean'),
+  /** Response-only: Article 50(1) disclosure already acknowledged at the current version. Always present as a boolean. */
+  article_50_disclosure_shown: attr('boolean'),
   unread_messages: attr('number'),
   unread_alerts: attr('number'),
   external_device: attr('raw'),
@@ -638,6 +642,10 @@ LingoLinq.User = BaseModel.extend({
     var res = [];
     var _this = this;
     boards.forEach(function(board) {
+      // Hidden entries remain in preferences (so the server's auto-add pass sees
+      // them as present and doesn't restore them) but are not shown on the
+      // sidebar. Set from the Edit Sidebar panel's show/hide toggle.
+      if(board.hidden) { return; }
       var board_object = EmberObject.create(board);
       // "Crisis Vocabulary" wraps awkwardly in the narrow sidebar — show the short
       // "Crisis" label there (the editor reads raw prefs, so it keeps the full name).

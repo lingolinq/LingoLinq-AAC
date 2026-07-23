@@ -10,6 +10,7 @@ import { later as runLater } from '@ember/runloop';
 import paint_view_switch_overlay from '../utils/view_switch_overlay';
 import { board_view_route } from '../utils/board_view';
 import warm_board_preview from '../utils/board_preview_warmer';
+import buildEventAction from '../utils/event_action';
 
 export default Component.extend({
   appState: service('app-state'),
@@ -219,6 +220,10 @@ export default Component.extend({
         self.send.apply(self, [actionName].concat(args));
       };
     };
+    // For keydown/drag bindings whose handlers need the raw event and do
+    // their own preventDefault (5.12 upgrade #490 dropped it). ctrlAction
+    // above is unchanged for clicks.
+    this.eventAction = buildEventAction(this);
     this.ctrlActionNoBubble = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function(event) {
@@ -255,7 +260,7 @@ export default Component.extend({
         if (_this.isDestroyed || _this.isDestroying) { return; }
         _this.set('loadingPreview', false);
       }, 1200);
-      board.preview_option = null;
+      board.preview_option = _this.get('preview_option') || null;
       if(_this.get('localized')) {
         board.preview_locale = this.get('board_record.localized_locale');
       }

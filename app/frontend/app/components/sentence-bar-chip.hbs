@@ -1,6 +1,10 @@
 {{!-- One speak-bar chip. When editing is enabled the chip is focusable,
       draggable, and keyboard-operable; when disabled it renders plainly and
       clicks bubble up to the bar's whole-sentence speak handler. --}}
+{{!-- template-lint-disable no-pointer-down-event-binding --}}
+{{!-- pointerdown is the START of a genuine press-and-hold gesture (holdStart → holdMove →
+     holdEnd on pointerup/cancel/leave), not a click substitute — a plain tap is handled
+     separately via {{on "click"}}. Hold-to-swap cannot be detected without the down event. --}}
 <span
   class="md-board-detail-sentence-bar__chip
     {{if this.textOnTop "md-board-detail-sentence-bar__chip--text-top"}}
@@ -40,3 +44,4 @@
     <span class="md-board-detail-sentence-bar__chip-label">{{this.part.label}}</span>
   {{/unless}}
 </span>
+{{!-- template-lint-enable no-pointer-down-event-binding --}}

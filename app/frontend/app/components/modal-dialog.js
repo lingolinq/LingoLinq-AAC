@@ -7,6 +7,13 @@ import modal from '../utils/modal';
 import { observer } from '@ember/object';
 
 export default Component.extend({
+  // Optional ARIA wiring (additive, opt-in only -- see 03-UI-SPEC.md 6.4). When a
+  // caller passes labelledBy/describedBy string ids, modal-dialog.hbs binds them as
+  // aria-labelledby/aria-describedby on the outer .modal div. Left undefined here so
+  // Ember omits the attribute entirely for the ~140 existing callers that don't pass
+  // either -- zero behavior change for every modal that predates this.
+  labelledBy: undefined,
+  describedBy: undefined,
   init() {
     this._super(...arguments);
     var self = this;

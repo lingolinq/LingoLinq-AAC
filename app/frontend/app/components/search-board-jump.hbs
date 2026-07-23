@@ -37,8 +37,8 @@
             placeholder={{t "Find a board…" key="search_board_jump_placeholder"}}
             aria-label={{t "Find a board…" key="search_board_jump_placeholder"}}
             value={{this.query}}
-            {{on "input" (this.ctrlAction "update_query")}}
-            {{on "keydown" (this.ctrlAction "key_down")}} />
+            {{on "input" this.handleInput}}
+            {{on "keydown" this.handleKeyDown}} />
           {{#if this.has_query}}
             <button type="button" class="md-board-collection__search-clear" {{on "click" (this.ctrlAction "clear_query")}} aria-label={{t "Clear search" key="clear_search"}}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
