@@ -1,8 +1,12 @@
 # LingoLinq Data Retention Schedule
 
 **Owner:** Privacy Office (privacy@lingolinq.com)
-**Last reviewed:** 2026-04-20
+**Last reviewed:** 2026-07-23 (attested by Scot Wahlquist, CEO)
 **Next review:** 2027-04-20
+**Attestation history:** first attested 2026-06-21. That attestation covered an earlier revision:
+PR #569 (2026-07-10) and PR #656 (2026-07-22) rewrote the AI-log retention rows, and the
+2026-07-22 Gate 1 cutover moved the production database off Render, which the backup rows did not
+reflect until the 2026-07-23 correction below. Re-attested 2026-07-23 against the current revision.
 **Related:** `docs/legal/BREACH_RUNBOOK.md`, `docs/legal/SUBPROCESSORS.md`, `COMPLIANCE.md`
 
 ## 1. Purpose
@@ -34,7 +38,8 @@ Default retention windows apply unless a customer data processing addendum speci
 | Analytics events (`WeeklyStatsSummary` and similar aggregates) | Indefinite once aggregated; raw events 2 years | Legitimate interest (GDPR); aggregates are non-identifiable | Raw-event purge job; aggregates retained | Aggregates do not re-identify individuals |
 | Session cookies and device fingerprints | Session lifetime plus 14 days | GDPR consent or legitimate interest; ePrivacy | Browser expiry plus server-side session purge | EU users require opt-in consent before non-essential cookies |
 | ClusterLocation (IP and geolocation) | 90 days | GDPR data minimization; HIPAA audit | Nightly job trims older records | Geo coordinates are precise; treat as sensitive |
-| Backups (Render managed PostgreSQL) | 35 day rolling window | Operational recovery; aligned with RPO target | Managed automatically by Render | Restoring from backup does not defeat deletion; we re-run deletion jobs post-restore |
+| Backups (Google Cloud SQL, live production) | 7 most-recent automated daily backups, plus point-in-time recovery over a 7 day transaction-log window | Operational recovery; aligned with RPO target | Managed automatically by Cloud SQL (`lingolinq-prod-pg`, us-central1; daily backup at 08:00 UTC, PITR enabled) | Verified against the live instance 2026-07-23. This replaces the pre-cutover Render 35 day window: the recovery window is now **shorter**, which is a deliberate default and not yet reviewed against the RPO target. Restoring from backup does not defeat deletion; we re-run deletion jobs post-restore |
+| Backups (Render managed PostgreSQL, superseded) | 35 day rolling window, retained only while the write-frozen rollback fallback exists | Operational rollback for the 2026-07-22 cutover | Managed automatically by Render until the fallback is deleted or restricted | Frozen copy of pre-cutover production data. Ends when the Render fallback is decommissioned (see `SUBPROCESSORS.md` §5.2); `BREACH_RUNBOOK.md` step 3 still names Render as the restore source and is stale pending its own re-attestation |
 | Incident log (`docs/legal/INCIDENT_LOG.md`) | 7 years minimum from incident close | HIPAA; state breach statutes; legal hold | Manual, only with Privacy Contact approval | Append-only; no deletion without legal review |
 | Support tickets | 3 years from last activity | Legitimate interest; tax defense | Help-desk tool retention policy | Tickets referencing PHI follow HIPAA audit retention |
 | Billing and tax records | 7 years | IRS recordkeeping guidance; state tax rules | Accounting system scheduled purge | Includes invoices, payment records, purchase orders |

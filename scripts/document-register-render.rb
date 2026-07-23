@@ -202,15 +202,14 @@ SHA256_RE = /\A[0-9a-f]{64}\z/.freeze
 # (because Scot re-attested and the hash is now pinned) is the only supported edit. Nothing is ever
 # added to the constant - a new attestation pins its bytes at the moment it is recorded, which
 # costs nothing, because the attester is looking at the file.
-CLOSED_ATTESTATION_EXEMPTIONS = %w[
-  DOC-9b299a785b
-  DOC-4e3b7fb1fb
-  DOC-bff9acf51f
-  DOC-0387973005
-  DOC-407d2c2bf4
-  DOC-4e6c9253b9
-  DOC-5b14b08908
-].to_set.freeze
+#
+# EMPTY as of 2026-07-23. All seven rows that predated the check were re-attested against their
+# current revisions and now pin their bytes, so the grandfather population is exhausted and every
+# attested git row is verifiable. An empty set is the intended end state, not a gap: with nothing
+# in it, no unpinned attestation can pass, which is exactly the invariant the field exists to hold.
+# The seven ids it held were DOC-9b299a785b, DOC-4e3b7fb1fb, DOC-bff9acf51f, DOC-0387973005,
+# DOC-407d2c2bf4, DOC-4e6c9253b9, DOC-5b14b08908 (git history has the entries and their evidence).
+CLOSED_ATTESTATION_EXEMPTIONS = Set.new.freeze
 def attestation_problems(documents, exemptions)
   exempt_ids = exemption_ids(exemptions)
   problems = []
@@ -284,10 +283,11 @@ def attestation_exemption_problems(documents, exemptions)
 
     label = doc['title'].to_s.inspect
 
-    # The gate that keeps the list from becoming a waiver mechanism.
+    # The gate that keeps the list from becoming a waiver mechanism. Deliberately does NOT skip the
+    # remaining checks: an operator adding an entry should see every reason it is wrong in one run,
+    # not fix the shape and then discover the entry was never permitted in the first place.
     unless CLOSED_ATTESTATION_EXEMPTIONS.include?(id)
       problems << "attestation exemption for #{label} (#{id}) is not in the closed grandfather set; that set is frozen in scripts/document-register-render.rb and can only shrink. An attestation recorded after this check landed must pin attestedContentHash - it cannot be exempted"
-      next
     end
 
     %w[reason addedOn].each do |f|
