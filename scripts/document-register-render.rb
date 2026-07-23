@@ -192,6 +192,25 @@ SHA256_RE = /\A[0-9a-f]{64}\z/.freeze
 # meta.attestationBackfillExemptions, each carrying the commits that modified the file after its
 # attestation. An entry is removed only when Scot re-attests and the hash is pinned; the list is
 # one-way and shrinks to zero. Only Scot attests.
+#
+# CLOSED_ATTESTATION_EXEMPTIONS is what makes "one-way" true rather than aspirational. Were the
+# exemption list merely a JSON array the check honoured, any future unpinned attestation could be
+# waved through by appending an id to it, and the gate would be optional. The set of rows that
+# predate this check is finite, known, and can never grow, so it is frozen HERE, in code, outside
+# the data the check reads. meta.attestationBackfillExemptions may only ever be a subset: an id
+# outside this set is rejected no matter how well-formed its entry is. Removing an id from the JSON
+# (because Scot re-attested and the hash is now pinned) is the only supported edit. Nothing is ever
+# added to the constant - a new attestation pins its bytes at the moment it is recorded, which
+# costs nothing, because the attester is looking at the file.
+CLOSED_ATTESTATION_EXEMPTIONS = %w[
+  DOC-9b299a785b
+  DOC-4e3b7fb1fb
+  DOC-bff9acf51f
+  DOC-0387973005
+  DOC-407d2c2bf4
+  DOC-4e6c9253b9
+  DOC-5b14b08908
+].to_set.freeze
 def attestation_problems(documents, exemptions)
   exempt_ids = exemption_ids(exemptions)
   problems = []
@@ -210,9 +229,9 @@ def attestation_problems(documents, exemptions)
     next unless attested?(doc)
 
     if pinned.empty?
-      next if exempt_ids.include?(doc['id'].to_s)
+      next if exempt_ids.include?(doc['id'].to_s) && CLOSED_ATTESTATION_EXEMPTIONS.include?(doc['id'].to_s)
 
-      problems << "attested doc #{title.inspect} (#{doc['canonicalLocation']}) has no attestation.attestedContentHash; an attestation with no pinned bytes cannot be verified - pin the hash when the attestation is recorded, or record a dated entry in meta.attestationBackfillExemptions"
+      problems << "attested doc #{title.inspect} (#{doc['canonicalLocation']}) has no attestation.attestedContentHash; an attestation with no pinned bytes cannot be verified. Pin the sha256 of the attested bytes alongside attestedBy/attestedDate. This cannot be waived: meta.attestationBackfillExemptions is closed to the rows that predate this check (see CLOSED_ATTESTATION_EXEMPTIONS) and adding an entry for this row will not clear the failure"
       next
     end
 
@@ -264,6 +283,13 @@ def attestation_exemption_problems(documents, exemptions)
     end
 
     label = doc['title'].to_s.inspect
+
+    # The gate that keeps the list from becoming a waiver mechanism.
+    unless CLOSED_ATTESTATION_EXEMPTIONS.include?(id)
+      problems << "attestation exemption for #{label} (#{id}) is not in the closed grandfather set; that set is frozen in scripts/document-register-render.rb and can only shrink. An attestation recorded after this check landed must pin attestedContentHash - it cannot be exempted"
+      next
+    end
+
     %w[reason addedOn].each do |f|
       problems << "attestation exemption for #{label} is missing #{f.inspect}" if ex[f].to_s.empty?
     end
@@ -803,7 +829,10 @@ end
 
 # ---- modes -----------------------------------------------------------------------
 
-md_path = File.join(File.dirname(register_path), 'DOCUMENT-REGISTER.md')
+# Derived from the register's own filename rather than hard-coded, so a scratch or test register
+# renders beside itself instead of comparing against (and overwriting) the real DOCUMENT-REGISTER.md.
+# For the default path this resolves to exactly audit-reports/DOCUMENT-REGISTER.md as before.
+md_path = register_path.sub(/\.json\z/, '') + '.md'
 
 schedule = meta['retentionSchedule'] || {}
 exemptions = meta['attestationBackfillExemptions'] || []
