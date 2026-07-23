@@ -35176,6 +35176,14 @@ a.la-footer-bottom-a11y-wcag {
   color: $brand-honey-bronze;
 }
 
+// Opt-in eyebrow-weight override for ai-disclosure only (03-UI-SPEC.md 3, the
+// eyebrow-weight fix). A second single-class selector at the SAME specificity as
+// .la-modal-header-label above, not a nested/wrapper-scoped override -- every other
+// modal keeps rendering its eyebrow at $aac-font-weight-black (800) unchanged.
+.la-modal-header-label--regular {
+  font-weight: $aac-font-weight-bold;
+}
+
 .la-modal-close {
   display: flex;
   align-items: center;
@@ -38156,6 +38164,14 @@ a.la-footer-bottom-a11y-wcag {
   margin-top: 8px;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+// AI disclosure modal (EU AI Act Article 50(1), VPC Phase 3). Same support-modal
+// shell as terms-agree; the one addition is a larger dwell/scan target minimum for
+// this modal's population (03-UI-SPEC.md 6.2) -- a new selector scoped to this
+// component's own wrapper class, not a stacked override of the shared .la-btn rule.
+.la-ai-disclosure-modal-wrap .la-btn {
+  min-height: $aac-spacing-64;
 }
 
 // Word Cloud modal: same styling as support modal, wider dialog for cloud content

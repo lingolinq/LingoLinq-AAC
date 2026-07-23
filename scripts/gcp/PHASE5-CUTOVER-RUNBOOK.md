@@ -612,6 +612,25 @@ the realistic timing and the AAAA/CAA pre-checks.
        Check: `dig CAA lingolinq.com +short` should be **empty**, or list both CAs.
     3. **One claimant.** Confirm only ONE cert resource claims the domain (a second managed cert on
        the same domain stalls both).
+    4. **Stale cert in retry-backoff (VERIFIED trap, 2026-07-22 cutover).** If the managed cert was
+       created BEFORE `app.lingolinq.com` existed, it has been failing validation on every retry
+       since creation, and Google-managed certs use **exponential backoff**. After days of failures
+       it only re-checks every several hours, so it will **not** flip to `ACTIVE` promptly after the
+       DNS cut even though everything is now correct - our cert was 22 days old and sat at
+       `FAILED_NOT_VISIBLE` for 66+ min post-cut with config verified clean (attached to the
+       https-proxy, DNS->LB, no AAAA, no CAA). **Pre-flip check:** compare the cert's
+       `creationTimestamp` to now; if it predates the DNS record you are about to create, it is
+       stale. **Fix (fast):** create a FRESH managed cert and swap it onto the proxy - a new cert
+       starts a clean retry schedule and validates in minutes because DNS is already in place:
+       ```
+       gcloud compute ssl-certificates create lingolinq-cert-v2 \
+           --domains app.lingolinq.com --global --project lingolinq-prod
+       gcloud compute target-https-proxies update lingolinq-https-proxy \
+           --ssl-certificates lingolinq-cert-v2 --global --project lingolinq-prod
+       ```
+       This is safe mid-cutover: HTTPS is not serving anything while the old cert is stuck, so the
+       swap can only improve state, and it is reversible (the old cert is left in place). Better
+       still, recreate the cert as part of pre-flip prep so the window starts from a clean cert.
   (To eliminate the window entirely instead, pre-provision via Certificate Manager DNS-authorization
   before the flip - deliberately NOT chosen for this cut.)
 

@@ -50,6 +50,15 @@ describe JsonApi::Organization do
       res = JsonApi::Organization.build_json(o.reload, :permissions => u)
       expect(res['default_beta_program_access']).to eq(false)
     end
+
+    it "should include jurisdiction when edit permissions are allowed" do
+      o = Organization.create(settings: {'jurisdiction' => 'EU'})
+      u = User.create
+      o.add_manager(u.user_name, true)
+      u.reload
+      res = JsonApi::Organization.build_json(o, :permissions => u)
+      expect(res['jurisdiction']).to eq('EU')
+    end
     
     it "should include basic tallies" do
       o = Organization.create(:settings => {'total_licenses' => 4})
