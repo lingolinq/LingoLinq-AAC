@@ -116,6 +116,34 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
     assert.notOk(forced.ordered_buttons, 'force clears ordered_buttons');
   });
 
+  test('ingest_tree with warm_root_images false still caches descendants without replacing a fresh root', function(assert) {
+    var origStore = LingoLinq.store;
+    var pushed = [];
+    LingoLinq.store = {
+      normalize: function(type, data) { return { type: type, data: data }; },
+      push: function(payload) { pushed.push(payload); return payload; }
+    };
+
+    var rootRaw = { key: 'user/root', id: '1_100', buttons: [{ id: 1 }] };
+    var rootEntry = boardDetailCache.set(rootRaw, { force: true });
+    rootEntry.ordered_buttons = [[{ id: 1 }]];
+
+    var tree = {
+      root: { board: { key: 'user/root', id: '1_100', buttons: [{ id: 99 }] } },
+      descendants: [
+        { board: { key: 'user/child-a', id: '1_101', buttons: [] } },
+        { board: { key: 'user/child-b', id: '1_102', buttons: [] } }
+      ]
+    };
+    var ok = boardDetailCache.ingest_tree(tree, null, { force: false, warm_root_images: false });
+    assert.ok(ok, 'ingest succeeds');
+    assert.strictEqual(boardDetailCache.get('user/root'), rootEntry.raw, 'keeps painted root payload');
+    assert.ok(rootEntry.ordered_buttons, 'preserves ordered_buttons on painted root');
+    assert.ok(boardDetailCache.get('user/child-a'), 'caches first descendant');
+    assert.ok(boardDetailCache.get('user/child-b'), 'caches second descendant');
+    LingoLinq.store = origStore;
+  });
+
   test('warm_linked_images warms cached child boards without refetching', function(assert) {
     var url = 'https://example.com/child-symbol.png';
     var parent = {
