@@ -3908,7 +3908,7 @@
     {
       "id": "LL-53cb93fab1",
       "ruleKey": "terms-agree-modal-replaced-before-consent",
-      "title": "Terms-agree modal can be silently replaced by intro before the user agrees, so terms_agree is never recorded",
+      "title": "Terms-agree modal can be silently replaced by intro before the user agrees",
       "severity": "high",
       "confidence": "high",
       "frameworks": [
@@ -3924,13 +3924,13 @@
         "snippet": "modal.open('terms-agree');"
       },
       "firstSeen": "2026-07-20",
-      "lastSeen": "2026-07-20",
+      "lastSeen": "2026-07-23",
       "owner": "unassigned",
       "remediation": {
-        "options": "In routes/index.js#setupController, the terms_agree-missing branch (line 117) has no return in any of its three sub-branches, so it always falls through to the shared tail where modal.open('intro') runs (line 185). Opening a second modal resolves the first one's promise with {replaced: true} (app/frontend/app/utils/modal.js:138 and services/modal.js:92), so terms-agree is dismissed without user action. Fix by making the terms_agree gate authoritative: return after opening terms-agree, or defer the intro open until the terms-agree promise resolves with a genuine (non-replaced) result. Do NOT rely on the bumped component's own init() side effects to have run -- see the notes field. Add a regression test covering a fresh account with show_intro true.",
+        "options": "In routes/index.js#setupController (and the parallel routes/bento.js path), the terms_agree-missing branch has no return, so execution falls through to modal.open('intro') when show_intro is set. On the synchronous fresh-model path that replaces terms-agree before it mounts (final currentTemplate is intro; utils/modal.js:138 and services/modal.js:92 resolve the first open with {replaced: true}). Fix by making the terms_agree gate authoritative: return after opening terms-agree, or defer intro until the terms-agree promise resolves with a genuine (non-replaced) result. Add a regression test covering really_fresh + show_intro true.",
         "timeframe": "30 days"
       },
-      "notes": "Discovered 2026-07-20 during VPC Phase 3 planning. Two distinct impacts. (1) CONSENT RECORD: a new user on a fresh account with show_intro true may never see the Terms modal, and terms_agree is never written -- the app proceeds as though terms were presented when they were not. This is the reason for the high rating; it is a record-keeping defect on an agreement, not a cosmetic modal-ordering nit. (2) DURABLE WRITE LOSS: because Ember batches property mutations within one run loop and renders only the final value (services/modal.js:89-107 sets currentTemplate; components/modal-container.hbs conditionally instantiates the component), a modal bumped in the same synchronous pass is NEVER INSTANTIATED, so its init() never runs. For intro that means BOTH appState.set('show_intro', false) (intro.js:41) and the persisted user.set('preferences.progress.intro_watched', true) + user.save() (intro.js:42-45) are skipped -- so show_intro leaks and intro re-competes on later renders. The symptom (intro reappearing) looks cosmetic and hides the failed write; that is the part most likely to be missed during triage. PRE-EXISTING; scoped OUT of VPC Phase 3, which instead guards its own Art.50 chain against the bump by checking result.replaced rather than repairing this."
+      "notes": "Discovered 2026-07-20 during VPC Phase 3 planning. Corrected 2026-07-23 after Codex review of PR #642: removed an inverted second-impact claim. CONSENT PRESENTATION (confirmed): when show_intro is true (set via routes/intro.js) and the fresh-model path opens terms-agree then intro in one run loop, Ember renders only the final currentTemplate (intro), so terms-agree never mounts and the user does not see or confirm Terms that visit; terms_agree stays false (no false-positive consent record). On the reload path, intro opens first — its init() clears show_intro and saves intro_watched — and the async reload may later open terms-agree. The previously claimed DURABLE WRITE LOSS / recurring intro (intro init skipped) does not occur: intro is the winner of the sync bump, not the victim. High rating remains for the consent-presentation gap on the sync path. PRE-EXISTING; scoped OUT of VPC Phase 3, which instead guards its own Art.50 chain against the bump by checking result.replaced rather than repairing this."
     },
     {
       "id": "LL-58130aaefe",
