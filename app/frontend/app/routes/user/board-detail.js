@@ -9,6 +9,7 @@ import contentGrabbers from '../../utils/content_grabbers';
 import persistence from '../../utils/persistence';
 import capabilities from '../../utils/capabilities';
 import boardDetailCache from '../../utils/board_detail_cache';
+import boardCacheDiag from '../../utils/board_cache_diag';
 
 export default Route.extend({
   store: service('store'),
@@ -78,7 +79,13 @@ export default Route.extend({
     // (folder / load_board targets), then fetch JSON for any missing children.
     runLater(function() {
       if(controller.isDestroyed || controller.isDestroying || controller.get('edit_mode')) { return; }
+      var warm_started = Date.now();
+      boardCacheDiag.mark('warm_images:start', { key: raw && raw.key });
       boardDetailCache.warm_images(raw, warm_opts);
+      boardCacheDiag.mark('warm_images:dispatched', {
+        key: raw && raw.key,
+        ms: Date.now() - warm_started
+      });
     }, 100);
     runLater(function() {
       if(controller.isDestroyed || controller.isDestroying || controller.get('edit_mode')) { return; }
@@ -91,6 +98,7 @@ export default Route.extend({
     var user = this.modelFor('user');
     user.set('subroute_name', i18n.t('board_detail', "Board Detail"));
     var board_key = user.get('user_name') + '/' + params.boardname;
+    boardCacheDiag.mark('model:start', { board_key: board_key });
 
     // Cache-first: try the in-memory raw cache + Ember Data identity map
     // before hitting the network. Mirrors the cache-first pattern in
@@ -122,25 +130,22 @@ export default Route.extend({
         var hit_normalized = this.store.normalize('board', JSON.parse(JSON.stringify(cached_raw)));
         this.store.push(hit_normalized);
       } catch (e) { /* best-effort; serializer edge cases shouldn't block nav */ }
+      boardCacheDiag.span('model:start', 'model:cache_hit', {
+        board_key: board_key,
+        button_count: (cached_raw.buttons && cached_raw.buttons.length) || 0
+      });
       return RSVP.resolve(cached_record);
     }
 
-    // Cache miss — fetch via /api/v1/boards/:id/tree (root + every
-    // reachable descendant in one response). NO loading overlay: the
-    // grid renders as soon as the root is ready; descendants are
-    // cached + pushed to the Ember Data store as background work so
-    // every subsequent folder tap is a synchronous cache HIT (instant,
-    // no overlay, no network). Images warm in the background too.
-    //
-    // Resolve the route the moment the ROOT board is ready — we do
-    // NOT block on descendant caching or image preloads. Descendant
-    // work continues after resolve(); by the time the user reads the
-    // board and taps a folder, it's done.
-    //
-    // Fallback: if /tree fails (older deploy, network) we retry with
-    // the single-board endpoint so the page still works.
+    // Cache miss — two-phase load so large vocab trees do not block paint:
+    //   1) GET /tree?root_only=1 (lite root JSON only) → resolve + paint
+    //   2) GET /tree (full) in background → ingest descendants into
+    //      boardDetailCache + Ember Data for instant folder taps
+    // Fallback: if root_only fails, try show, then still warm full /tree.
+    boardCacheDiag.mark('model:cache_miss', { board_key: board_key });
     return new RSVP.Promise(function(resolve) {
-      var handleRoot = function(boardData) {
+      var resolved = false;
+      var handleRoot = function(boardData, source) {
         var raw_copy = JSON.parse(JSON.stringify(boardData));
         _this.set('_raw_board_data', raw_copy);
         // force: network response is authoritative for this navigation.
@@ -148,26 +153,71 @@ export default Route.extend({
         var store = _this.store;
         var normalized = store.normalize('board', boardData);
         var record = store.push(normalized);
-        // Image warm runs in _finalize_board_display for the visible board.
-        // Resolve immediately — grid renders now, no overlay.
-        resolve(record);
+        boardCacheDiag.span('model:start', 'model:root_ready', {
+          board_key: board_key,
+          source: source || 'tree',
+          button_count: (boardData.buttons && boardData.buttons.length) || 0
+        });
+        if (!resolved) {
+          resolved = true;
+          // Image warm runs in _finalize_board_display for the visible board.
+          resolve(record);
+        }
+        return record;
       };
 
-      var fallbackSingleBoard = function() {
-        persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
-          var boardData = boardDetailCache.normalize_board_payload(data);
-          if(boardData) {
-            handleRoot(boardData);
-          } else {
-            resolve({ error: true, boardname: params.boardname });
-          }
+      var warmFullTreeInBackground = function() {
+        var tree_started = Date.now();
+        boardCacheDiag.mark('model:background_tree_start', { board_key: board_key });
+        persistence.ajax('/api/v1/boards/' + board_key + '/tree', { type: 'GET' }).then(function(data) {
+          boardCacheDiag.mark('model:background_tree_response', {
+            board_key: board_key,
+            ms: Date.now() - tree_started,
+            descendant_count: (data && data.descendants && data.descendants.length) || 0
+          });
+          if (!data || !data.root || !data.root.board) { return; }
+          // Root is already painted/cached; do not force-replace it or
+          // re-warm its images. Descendants still get cached + pushed.
+          boardDetailCache.ingest_tree(data, null, {
+            force: false,
+            warm_root_images: false
+          });
+          boardCacheDiag.mark('model:descendants_cached', {
+            board_key: board_key,
+            descendant_count: (data.descendants && data.descendants.length) || 0
+          });
         }, function() {
-          resolve({ error: true, boardname: params.boardname });
+          boardCacheDiag.mark('model:background_tree_fail', { board_key: board_key });
         });
       };
 
-      persistence.ajax('/api/v1/boards/' + board_key + '/tree', { type: 'GET' }).then(function(data) {
-        if(!data || !data.root || !data.root.board) {
+      var fallbackSingleBoard = function() {
+        boardCacheDiag.mark('model:tree_fallback_show', { board_key: board_key });
+        persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
+          var boardData = boardDetailCache.normalize_board_payload(data);
+          if (boardData) {
+            handleRoot(boardData, 'show');
+            warmFullTreeInBackground();
+          } else if (!resolved) {
+            resolved = true;
+            resolve({ error: true, boardname: params.boardname });
+          }
+        }, function() {
+          if (!resolved) {
+            resolved = true;
+            resolve({ error: true, boardname: params.boardname });
+          }
+        });
+      };
+
+      var root_started = Date.now();
+      persistence.ajax('/api/v1/boards/' + board_key + '/tree?root_only=1', { type: 'GET' }).then(function(data) {
+        boardCacheDiag.mark('model:root_only_response', {
+          board_key: board_key,
+          ms: Date.now() - root_started,
+          descendant_count: (data && data.descendants && data.descendants.length) || 0
+        });
+        if (!data || !data.root || !data.root.board) {
           fallbackSingleBoard();
           return;
         }
@@ -176,27 +226,8 @@ export default Route.extend({
           fallbackSingleBoard();
           return;
         }
-        // Resolve the route with the root FIRST so the user sees the
-        // board immediately — descendant caching happens after.
-        handleRoot(rootBoardData);
-
-        // Background: cache + Ember-Data-push every descendant so
-        // sub-board navigation is a true synchronous cache hit
-        // (boardDetailCache.get → raw AND store.peekAll → record).
-        // This is the work that makes folder taps instant.
-        var subStore = _this.store;
-        // JSON + Ember Data only — do not warm descendant images here.
-        // Warming every sub-board floods the browser queue (same rationale
-        // as prefetch_for_user). Images load when the user opens that board.
-        (data.descendants || []).forEach(function(wrapped) {
-          var sub_raw = boardDetailCache.normalize_board_payload(wrapped);
-          if (!sub_raw) { return; }
-          boardDetailCache.set(sub_raw);
-          try {
-            var sub_normalized = subStore.normalize('board', JSON.parse(JSON.stringify(sub_raw)));
-            subStore.push(sub_normalized);
-          } catch (e) { /* serializer edge cases shouldn't block prefetch */ }
-        });
+        handleRoot(rootBoardData, 'tree_root_only');
+        warmFullTreeInBackground();
       }, function() {
         fallbackSingleBoard();
       });
@@ -357,9 +388,21 @@ export default Route.extend({
     // Load button set for find-a-button functionality
     if(model.get('valid_id') && !model.get('integration')) {
       // Find-a-button support; failure must not surface as an unhandled rejection.
+      var bs_started = Date.now();
+      boardCacheDiag.mark('setup:buttonset_start', { board_key: board_key });
       var load_bs = model.load_button_set();
-      if(load_bs && typeof load_bs.catch === 'function') {
-        load_bs.catch(function() { /* optional offline path */ });
+      if(load_bs && typeof load_bs.then === 'function') {
+        load_bs.then(function() {
+          boardCacheDiag.mark('setup:buttonset_done', {
+            board_key: board_key,
+            ms: Date.now() - bs_started
+          });
+        }, function() {
+          boardCacheDiag.mark('setup:buttonset_fail', {
+            board_key: board_key,
+            ms: Date.now() - bs_started
+          });
+        });
       }
     }
 
@@ -422,9 +465,26 @@ export default Route.extend({
     // above; priming here does not extend overlay visibility.
     var raw = _this.get('_raw_board_data');
     if(raw) {
+      var primed_already = !!(this.persistence && this.persistence.get('primed'));
+      boardCacheDiag.mark('setup:prime_start', {
+        board_key: board_key,
+        primed_already: primed_already
+      });
+      var prime_started = Date.now();
       _this._maybe_prime_caches().then(function() {
         if(controller.isDestroyed || controller.isDestroying) { return; }
+        boardCacheDiag.mark('setup:prime_done', {
+          board_key: board_key,
+          ms: Date.now() - prime_started,
+          primed_already: primed_already
+        });
+        var build_started = Date.now();
         _this._finalize_board_display(controller, raw);
+        boardCacheDiag.mark('setup:grid_built', {
+          board_key: board_key,
+          ms: Date.now() - build_started,
+          rows: (controller.get('ordered_buttons') || []).length
+        });
       });
     }
 
