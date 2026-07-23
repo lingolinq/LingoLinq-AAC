@@ -29,6 +29,10 @@
 #      embedded in canonicalLocation (IDs survive renames and moves; paths do not).
 #   6. completeness - every tracked file under docs/legal/ must have a git row (hard failure);
 #      unregistered .claude/agents/*.md is advisory only.
+#   7. attestation integrity - attestation.attestedContentHash pins the bytes Scot attested. A git
+#      row whose pinned hash no longer matches its contentHash fails: the attested revision is
+#      gone and re-attestation is owed. Never backfilled by render (that would self-certify every
+#      attestation); rows attested before the check sit on meta.attestationBackfillExemptions.
 #
 # Usage:
 #   ruby scripts/document-register-render.rb [JSON]           # normalize JSON (id + git hash) and write .md
@@ -164,6 +168,124 @@ end
 
 DISPOSITIONS = %w[archive delete].freeze
 RETENTION_STATUSES = %w[draft approved].freeze
+SHA256_RE = /\A[0-9a-f]{64}\z/.freeze
+
+# Attestation integrity.
+#
+# `contentHash` tracks a file as it is NOW. `attestation.attestedContentHash` records the bytes
+# Scot actually signed off on. Without the second hash an attested document can be rewritten with
+# CI green: the render simply recomputes contentHash and the row goes on asserting an attestation
+# that covered a revision which no longer exists. That is not hypothetical - it happened twice
+# before this check existed (#649/#652 rewrote the subprocessor, hosting, and COPPA-offboarding
+# content of COMPLIANCE_PROGRAM_OVERVIEW.md after its 2026-07-09 external-release attestation;
+# #656 moved two AI-log retention tiers in AI_DATA_FLOW_CLASSIFICATION.md after its 2026-07-09
+# attestation) and both passed a green build. Both were caught by hand.
+#
+# Enforced for canonicalSystem=git ONLY. Those bytes are in the repo and hashable offline. Drive
+# and Notion hashes are operator-supplied with no automated refresh, so pinning one there would
+# assert an integrity guarantee this network-free check cannot make; carrying the field on a
+# non-git row is itself an error.
+#
+# Backfill is deliberately NOT automatic, and render mode never writes this field. Populating it
+# from current bytes would silently re-assert every existing attestation - precisely the failure
+# the field exists to catch. Rows attested before the check landed sit on
+# meta.attestationBackfillExemptions, each carrying the commits that modified the file after its
+# attestation. An entry is removed only when Scot re-attests and the hash is pinned; the list is
+# one-way and shrinks to zero. Only Scot attests.
+def attestation_problems(documents, exemptions)
+  exempt_ids = exemption_ids(exemptions)
+  problems = []
+
+  documents.each do |doc|
+    title = doc['title'].to_s
+    pinned = doc.dig('attestation', 'attestedContentHash').to_s
+
+    unless git_row?(doc)
+      unless pinned.empty?
+        problems << "#{doc['canonicalSystem']} doc #{title.inspect} carries attestation.attestedContentHash; only git rows have bytes this check can verify (Drive/Notion hashes are operator-supplied)"
+      end
+      next
+    end
+    next if self_row?(doc)
+    next unless attested?(doc)
+
+    if pinned.empty?
+      next if exempt_ids.include?(doc['id'].to_s)
+
+      problems << "attested doc #{title.inspect} (#{doc['canonicalLocation']}) has no attestation.attestedContentHash; an attestation with no pinned bytes cannot be verified - pin the hash when the attestation is recorded, or record a dated entry in meta.attestationBackfillExemptions"
+      next
+    end
+
+    unless pinned.match?(SHA256_RE)
+      problems << "attested doc #{title.inspect} has a malformed attestation.attestedContentHash #{pinned.inspect} (expected 64 lowercase hex characters)"
+      next
+    end
+
+    current = doc['contentHash'].to_s
+    if current.empty?
+      problems << "attested doc #{title.inspect} pins attestedContentHash but carries no contentHash to compare it against (run render)"
+    elsif current != pinned
+      problems << "attested revision no longer exists for #{title.inspect} (#{doc['canonicalLocation']}): attestation of #{doc.dig('attestation', 'attestedDate')} covered #{pinned[0, 12]}, the file is now #{current[0, 12]}. Re-attestation is owed and only Scot attests - do not edit the pinned hash to make this pass"
+    end
+  end
+
+  problems
+end
+
+def exemption_ids(exemptions)
+  return Set.new unless exemptions.is_a?(Array)
+
+  exemptions.filter_map { |e| e['id'].to_s if e.is_a?(Hash) }.to_set
+end
+
+# Hygiene for the grandfather list itself, so it cannot quietly become permanent cover: every
+# entry must resolve to a real, attested, git row, must carry a reason and a date, and must
+# disappear the moment that row pins a hash.
+def attestation_exemption_problems(documents, exemptions)
+  return [] if exemptions.nil?
+  return ["meta.attestationBackfillExemptions must be an array, got #{exemptions.class}"] unless exemptions.is_a?(Array)
+
+  problems = []
+  by_id = documents.to_h { |d| [d['id'].to_s, d] }
+  seen = Hash.new(0)
+
+  exemptions.each do |ex|
+    unless ex.is_a?(Hash)
+      problems << "meta.attestationBackfillExemptions entries must be objects, got #{ex.class}"
+      next
+    end
+
+    id = ex['id'].to_s
+    seen[id] += 1
+    doc = by_id[id]
+    if doc.nil?
+      problems << "attestation exemption #{id.inspect} does not resolve to a row in this register"
+      next
+    end
+
+    label = doc['title'].to_s.inspect
+    %w[reason addedOn].each do |f|
+      problems << "attestation exemption for #{label} is missing #{f.inspect}" if ex[f].to_s.empty?
+    end
+    if !ex['addedOn'].to_s.empty? && parse_date(ex['addedOn']).nil?
+      problems << "attestation exemption for #{label} has an unparseable addedOn #{ex['addedOn'].inspect}"
+    end
+    if !ex['canonicalLocation'].to_s.empty? && ex['canonicalLocation'].to_s != doc['canonicalLocation'].to_s
+      problems << "attestation exemption for #{label} records canonicalLocation #{ex['canonicalLocation'].inspect} but the row is #{doc['canonicalLocation'].inspect}"
+    end
+    problems << "attestation exemption for #{label} covers a #{doc['canonicalSystem']} row; only git rows are subject to the attestedContentHash check" unless git_row?(doc)
+    problems << "attestation exemption for #{label} covers a row carrying no attestation; remove the exemption" unless attested?(doc)
+    unless doc.dig('attestation', 'attestedContentHash').to_s.empty?
+      problems << "stale attestation exemption: #{label} now pins attestedContentHash, so its exemption must be removed (this list only ever shrinks)"
+    end
+  end
+
+  seen.select { |_, n| n > 1 }.each_key do |id|
+    problems << "duplicate attestation exemption for #{id.inspect} (#{seen[id]} entries)"
+  end
+
+  problems
+end
 
 # The Drive file id embedded in a canonicalLocation, or nil if the URL carries none.
 def drive_id_in(url)
@@ -271,7 +393,7 @@ def completeness_problems(documents)
   end
 end
 
-def collect_problems(documents, bundle_defs, schedule = {})
+def collect_problems(documents, bundle_defs, schedule = {}, exemptions = [])
   problems = []
 
   documents.each do |doc|
@@ -345,6 +467,8 @@ def collect_problems(documents, bundle_defs, schedule = {})
 
   problems.concat(supersession_problems(documents))
   problems.concat(completeness_problems(documents))
+  problems.concat(attestation_problems(documents, exemptions))
+  problems.concat(attestation_exemption_problems(documents, exemptions))
 
   # id + canonicalLocation must be unique: a duplicate canonicalLocation collides ids
   # (sha256 of the same string) and silently overwrites a row in the Notion upsert.
@@ -403,8 +527,17 @@ end
 #   - unregistered agent configs (.claude/agents also holds non-compliance agents)
 #   - retention classes defined in the schedule with no rows using them (an intentional gap
 #     today: no current record carries a delete disposition)
-def collect_soft_signals(documents, schedule, generated_date)
+def collect_soft_signals(documents, schedule, generated_date, exemptions = [])
   out = []
+
+  # The grandfather list is a debt register, not a clean bill of health: surface it every run so
+  # it stays visible until it reaches zero.
+  exempt_ids = exemption_ids(exemptions)
+  unless exempt_ids.empty?
+    titles = documents.select { |d| exempt_ids.include?(d['id'].to_s) }
+                      .map { |d| d['title'].to_s }.sort
+    out << "#{exempt_ids.size} attested row(s) are grandfathered on meta.attestationBackfillExemptions and pin no attested hash - re-attestation owed (only Scot attests): #{titles.join('; ')}"
+  end
 
   overdue = documents.select do |d|
     due = (Date.parse(d['nextReviewDue'].to_s) rescue nil)
@@ -599,6 +732,50 @@ def render_markdown(register, generated, generated_date)
            (held.empty? ? 'none active' : held.map { |d| esc(d['title']) }.join('; ')) + "\n\n"
   end
 
+  # ---- attestation integrity -------------------------------------------------------
+  exemptions = meta['attestationBackfillExemptions'] || []
+  exempt_by_id = exemptions.is_a?(Array) ? exemptions.select { |e| e.is_a?(Hash) }.to_h { |e| [e['id'].to_s, e] } : {}
+  attested_git = documents.select { |d| d['canonicalSystem'].to_s == 'git' && attested?(d) }
+                          .sort_by { |d| d['title'].to_s.downcase }
+  out << "## Attestation integrity\n\n"
+  if attested_git.empty?
+    out << "_No attested git records._\n\n"
+  else
+    out << "`attestation.attestedContentHash` pins the bytes Scot actually attested. `--check` fails when a\n"
+    out << "pinned hash stops matching the file, so an attested document can no longer be rewritten with a\n"
+    out << "green build. Verified for git rows only; Drive and Notion hashes are operator-supplied.\n\n"
+    out << "| Record | Attested | Pinned bytes | State |\n"
+    out << "|---|---|---|---|\n"
+    attested_git.each do |d|
+      pinned = d.dig('attestation', 'attestedContentHash').to_s
+      state = if !pinned.empty?
+                pinned == d['contentHash'].to_s ? 'verified' : 'MISMATCH - re-attestation owed'
+              elsif exempt_by_id.key?(d['id'].to_s)
+                'grandfathered - re-attestation owed'
+              else
+                'unpinned'
+              end
+      out << "| #{esc(d['title'])} | #{d.dig('attestation', 'attestedDate')} | #{pinned.empty? ? '(none)' : "`#{pinned[0, 12]}`"} | #{state} |\n"
+    end
+    out << "\n"
+
+    if exempt_by_id.empty?
+      out << "**Grandfathered rows:** none. Every attested git record pins the bytes it was attested against.\n\n"
+    else
+      out << "**Grandfathered rows (#{exempt_by_id.size}) - attested before this check existed, hash deliberately not\n"
+      out << "backfilled.** Pinning the current bytes would silently re-assert an attestation that covered an\n"
+      out << "earlier revision, which is the exact failure the field exists to catch. Each entry is removed when\n"
+      out << "Scot re-attests; the list only shrinks.\n\n"
+      out << "| Record | Why it is exempt | Added |\n"
+      out << "|---|---|---|\n"
+      exempt_by_id.each do |id, ex|
+        d = documents.find { |x| x['id'].to_s == id }
+        out << "| #{esc(d ? d['title'] : id)} | #{esc(ex['reason'])} | #{ex['addedOn']} |\n"
+      end
+      out << "\n"
+    end
+  end
+
   # ---- supersession chains ---------------------------------------------------------
   chains = documents.select { |d| !d['supersededBy'].to_s.empty? }
                     .sort_by { |d| d['title'].to_s.downcase }
@@ -629,11 +806,12 @@ end
 md_path = File.join(File.dirname(register_path), 'DOCUMENT-REGISTER.md')
 
 schedule = meta['retentionSchedule'] || {}
+exemptions = meta['attestationBackfillExemptions'] || []
 
 if options[:mode] == :check
-  problems = collect_problems(documents, bundle_defs, schedule)
+  problems = collect_problems(documents, bundle_defs, schedule, exemptions)
   advisories = collect_advisories(documents)
-  soft = collect_soft_signals(documents, schedule, generated_date)
+  soft = collect_soft_signals(documents, schedule, generated_date, exemptions)
 
   rendered = render_markdown(register, generated, generated_date)
   if !File.file?(md_path)
@@ -650,7 +828,7 @@ if options[:mode] == :check
   soft.each { |s| warn "  [advisory] #{s}" }
 
   if problems.empty?
-    puts "document-register-render: OK (#{documents.size} docs; ids, git hashes, render, bundles, retention shape, supersession chains, and docs/legal completeness all consistent)"
+    puts "document-register-render: OK (#{documents.size} docs; ids, git hashes, render, bundles, retention shape, supersession chains, attested-byte pins, and docs/legal completeness all consistent)"
     exit 0
   end
   warn 'document-register-render: DRIFT'
@@ -659,6 +837,10 @@ if options[:mode] == :check
 end
 
 # render mode: normalize the JSON (id + git contentHash) in place, then write the .md.
+# Note what is deliberately absent: attestation.attestedContentHash is NEVER written here. Render
+# recomputes contentHash from current bytes, so backfilling the attested hash in the same pass
+# would make every attestation self-certifying and the check worthless. Pinning is a human act
+# recorded alongside the attestation itself.
 documents.each do |doc|
   doc['id'] = expected_id(doc)
   if git_row?(doc) && !self_row?(doc)
@@ -678,10 +860,10 @@ unless advisories.empty?
   puts "  note: #{advisories.size} non-git rows have no supplied contentHash (#{notion_n} notion: auto-refreshable; #{drive_n} drive: operator-supplied, no automated refresh)"
 end
 
-collect_soft_signals(documents, schedule, generated_date).each { |s| puts "  note: #{s}" }
+collect_soft_signals(documents, schedule, generated_date, exemptions).each { |s| puts "  note: #{s}" }
 
 # Surface hard problems even in render mode (e.g. a dangling git path render can't fix).
-problems = collect_problems(documents, bundle_defs, schedule)
+problems = collect_problems(documents, bundle_defs, schedule, exemptions)
 unless problems.empty?
   warn 'document-register-render: remaining issues after render:'
   problems.each { |p| warn "  [FAIL] #{p}" }

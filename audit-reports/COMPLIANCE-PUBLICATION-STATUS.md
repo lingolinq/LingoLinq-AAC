@@ -199,6 +199,26 @@ No retention rule has been approved. Nothing in this register is eligible for di
 
 _No record is under legal hold. A hold suspends all disposition for the rows it covers, and only Scot flips it._
 
+## Attestation Integrity
+
+17 attested git record(s). `attestation.attestedContentHash` pins the bytes that were attested; `ruby scripts/document-register-render.rb --check` fails when a pinned hash stops matching the file. Drive and Notion rows are out of scope: their hashes are operator-supplied, so there is nothing CI can verify.
+
+**No pinned attestation has drifted.** Every record that pins a hash still matches the attested bytes.
+
+### Re-attestation queue (7)
+
+Attested before the check existed and modified afterwards, so the attested revision no longer exists. The hash is deliberately not backfilled: pinning current bytes would re-assert an attestation Scot never gave. Each row clears when Scot re-attests the current revision.
+
+| Title | Location | Attested | Why it is unpinned |
+|---|---|---|---|
+| COPPA Final-Rule Verification | `docs/legal/COPPA_VERIFICATION_2026-04-26.md` | 2026-06-21 | attested 2026-06-21, then modified by 1 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave |
+| Compliance & Data Governance (COMPLIANCE.md) | `COMPLIANCE.md` | 2026-07-06 | attested 2026-07-06, then modified by 3 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave |
+| Compliance Posture Report | `docs/legal/COMPLIANCE_POSTURE_REPORT.md` | 2026-07-16 | attested 2026-07-16, then modified by 2 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave |
+| Data Retention Schedule | `docs/legal/DATA_RETENTION.md` | 2026-06-21 | attested 2026-06-21, then modified by 2 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave |
+| Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record | `docs/legal/GCP_BAA_ACCEPTED.md` | 2026-07-16 | attested 2026-07-16, then modified by 2 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave |
+| Parental Consent Email (COPPA / under-13) | `docs/legal/PARENTAL_CONSENT_EMAIL.md` | 2026-06-21 | attested 2026-06-21, then modified by 2 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave |
+| Subprocessor Register | `docs/legal/SUBPROCESSORS.md` | 2026-07-06 | attested 2026-07-06, then modified by 5 later commit(s); the attested revision no longer exists, so pinning current bytes would re-assert an attestation Scot never gave |
+
 ## Supersession Chains
 
 A superseded record is never edited, renamed, or moved. It keeps its row and its membership in any frozen point-in-time binder; only the pointer is added.
@@ -258,4 +278,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_70 documents tracked. 53 stale review item(s). 22 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 1 superseded record(s). 23 bundle gap(s) across 6 bundle(s)._
+_70 documents tracked. 53 stale review item(s). 22 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 1 superseded record(s). 0 drifted attestation(s), 7 awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
