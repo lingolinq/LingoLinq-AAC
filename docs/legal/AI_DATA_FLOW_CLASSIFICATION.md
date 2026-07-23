@@ -2,8 +2,17 @@
 
 **Owner:** Privacy Office (privacy@lingolinq.com)
 **Created:** 2026-07-09 (VPC Phase 2, Task 02-01.1)
-**Status:** Attested (provisional) by Scot Wahlquist, CEO, 2026-07-09 -- formal outside counsel
-review deferred until the full 5-phase VPC is built. See `AI_DATA_SHARING_CONSENT.md` section 9.
+**Status:** Re-attested (provisional) by Scot Wahlquist, CEO, **2026-07-22**, covering the current
+revision. Formal outside counsel review remains deferred until the full 5-phase VPC is built. See
+`AI_DATA_SHARING_CONSENT.md` section 9.
+**Attestation history:** first attested (provisional) 2026-07-09. That attestation covered an
+earlier revision: PR #656 (2026-07-22) rewrote the AI-log retention tiers, moving the children and
+general tiers from "Decided, rolling out" to "Decided, not yet enforced" with the blocker named, and
+the EU tier from inert to functional. The 2026-07-22 re-attestation was taken only after the changed
+claims were re-verified against live code: `AiApiLog.purge_old_eu_logs!(years: 5)`
+(`app/models/ai_api_log.rb`) is dispatched from `lib/tasks/scheduler.rake`, and
+`LingoLinq::Article50CallContext.for(user)` stamps jurisdiction at exactly the three AI call sites
+(`lib/eval_narrator.rb`, `lib/ai_word_predictor.rb`, `lib/ai_board_generator.rb`).
 **Related:** `docs/legal/AI_DATA_SHARING_CONSENT.md`, `docs/legal/AI_GOVERNANCE_MEMO.md` (attested
 2026-06-19, the authoritative live model inventory), `docs/legal/SUBPROCESSORS.md`,
 `docs/legal/DATA_RETENTION.md`, `.planning/phases/02-disclosures-content/PLAN.md`

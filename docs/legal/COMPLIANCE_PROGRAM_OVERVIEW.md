@@ -1,13 +1,23 @@
 # LingoLinq Security, Privacy & Compliance Overview
 
-> **Attested for external release by Scot Wahlquist (CEO) on 2026-07-09 (rev. 2026-07-09-c).**
-> This attestation covers the version corrected after the Codex senior-dev re-review: the Sentry
-> scrubber, password-hashing, right-to-erasure, WCAG, vendor-list, and text-to-speech statements
-> were reconciled with the live code before this attestation, including the final recording-delete
-> and IP-geolocation processor scoping corrections. Reflects the current
-> production build. Present tense describes controls that exist in the product today. The
-> "Planned" section describes controls we intend to add and is written in the future tense on
-> purpose. This document deliberately claims only what we actually do.
+> **Re-attested for external release by Scot Wahlquist (CEO) on 2026-07-22 (rev. 2026-07-22-a).**
+> Reflects the current production build. Present tense describes controls that exist in the product
+> today. The "Planned" section describes controls we intend to add and is written in the future tense
+> on purpose. This document deliberately claims only what we actually do.
+>
+> **Attestation history.** First attested for external release 2026-07-09 (rev. 2026-07-09-c), after
+> a Codex senior-dev re-review reconciled the Sentry scrubber, password-hashing, right-to-erasure,
+> WCAG, vendor-list, text-to-speech, recording-delete, and IP-geolocation statements against live
+> code. That revision was then superseded by two edits on 2026-07-21: PR #649 rewrote the COPPA
+> offboarding section from an open gap to an implemented control, and PR #652 rewrote the
+> subprocessor and hosting posture for the Google Cloud cutover. Because this document is externally
+> shareable, it was held as unattested in the document register until those newer claims were
+> re-verified against live code on 2026-07-22:
+> `Organization#remove_user` (`app/models/organization.rb`) calls
+> `User#begin_family_offboarding_consents!` (`app/models/user.rb`); parent email is collected at next
+> login via `submit_parental_consent_email` (`app/controllers/api/users_controller.rb`,
+> `app/models/user.rb`); and full login is genuinely blocked while consent is pending, because the
+> device token is only issued `unless coppa_pending`. This re-attestation covers rev. 2026-07-22-a.
 >
 > **Purpose:** this is the short, externally shareable overview of our program. It is the
 > honest, right-sized replacement for the aspirational 85-page draft. It does not replace the
@@ -16,8 +26,8 @@
 > district, or a partner. Status of every implemented claim is verifiable against live code and
 > the findings register (`audit-reports/FINDINGS.json`).
 >
-> **Owner:** Scot Wahlquist, CEO. **Authorized for external sharing** as of the 2026-07-09 CEO
-> attestation of this version.
+> **Owner:** Scot Wahlquist, CEO. **Authorized for external sharing** as of the 2026-07-22 CEO
+> re-attestation of this version.
 
 ---
 
