@@ -75,7 +75,6 @@
 | Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | 2026-06-19 | published | Review date is older than 2026-07-23. |
 | Incident Log | git | `docs/legal/INCIDENT_LOG.md` | 2026-05-27 | approved | Review date is older than 2026-07-23. |
 | LingoLinq Capability Ledger (rendered) | git | `docs/legal/CAPABILITY_LEDGER.md` | 2026-07-12 | published | Review date is older than 2026-07-23. |
-| LingoLinq Security, Privacy & Compliance Overview | git | `docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md` | 2026-07-22 | approved | Review date is older than 2026-07-23. |
 | accessibility-auditor agent definition | git | `.claude/agents/accessibility-auditor.md` | 2026-06-21 | published | Review date is older than 2026-07-23. |
 | api-auditor agent definition | git | `.claude/agents/api-auditor.md` | 2026-06-21 | published | Review date is older than 2026-07-23. |
 | compliance-officer agent definition | git | `.claude/agents/compliance-officer.md` | 2026-06-21 | published | Review date is older than 2026-07-23. |
@@ -277,4 +276,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_70 documents tracked. 59 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 1 superseded record(s). 0 drifted attestation(s), 0 awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
+_70 documents tracked. 58 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 1 superseded record(s). 0 drifted attestation(s), 0 awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._

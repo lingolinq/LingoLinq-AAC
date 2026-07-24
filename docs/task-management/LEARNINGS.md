@@ -30,6 +30,7 @@ file (see [README.md](README.md)).
 - [Pattern: board-detail `/tree` blocks paint on the full descendant payload](#pattern-board-detail-tree-blocks-paint-on-the-full-descendant-payload)
 - [Pattern: board-preview latency is cold-cache, not the loading gate — warm on intent](#pattern-board-preview-latency-is-cold-cache-not-the-loading-gate--warm-on-intent)
 - [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
+- [Gotcha: sync double `modal.open` — the *second* template wins; do not invent write-loss on the winner](#gotcha-sync-double-modalopen--the-second-template-wins-do-not-invent-write-loss-on-the-winner)
 - [Gotcha: Shepherd modal overlay is VISUAL-ONLY; canClickTarget:false makes the target click "fall through"](#gotcha-shepherd-modal-overlay-is-visual-only-canclicktargetfalse-makes-the-target-click-fall-through)
 - [Pattern: supervisor caseload session prefetch reuses board_detail_cache, not offline sync](#pattern-supervisor-caseload-session-prefetch-reuses-board_detail_cache-not-offline-sync)
 - [Pattern: encrypted buttonset JSON cache must carry parsed payloads](#pattern-encrypted-buttonset-json-cache-must-carry-parsed-payloads)
@@ -6984,6 +6985,10 @@ Org Settings → Home Boards bound `<Textarea @value={{this.home_board_key_lines
 
 `<Input type="checkbox" @checked={{…}}>` renders as a text field (`ember-text-field`, `type="text"`) — the HTML `type` attr is not the component arg. Use `@type="checkbox"` (as organization/settings already does). Separately, `bound-select`'s `ctrlAction` helper used to `preventDefault` then **pop the event** before `send`, so `toggle`/`choose` never received it and never `stopPropagation`'d — clicks bubbled into `modal-dialog` and selects looked dead. Match `modern-select`: keep the event, stopPropagation, and make `.md-org-settings-field > span` `display:block` so the `tagName:span` wrapper doesn't shrink the hit target. See `docs/task-management/2026-07-16-org-home-board-key-lines.md`. (2026-07-16)
 
+## Gotcha: sync double `modal.open` — the *second* template wins; do not invent write-loss on the winner
+
+When `setupController` opens `terms-agree` then falls through to `modal.open('intro')` in the same run loop, Ember’s final `currentTemplate` is `intro`: the *first* modal never mounts; the *second* does, so its `init()` side effects (`show_intro` clear, `intro_watched` save) still run. Claiming “durable write loss” on the winner inverts the victim. Remaining real defect is consent *presentation* (terms skipped that visit; `terms_agree` stays false — no false-positive record). Same fall-through exists in `routes/bento.js`. See `docs/task-management/2026-07-23-terms-agree-intro-finding-correction.md` and register `LL-53cb93fab1`. (2026-07-23)
+
 ## Pattern: EU AI under-16 consent is a third blob, not COPPA signup
 
 EU under-16 AI enablement (`settings['eu_ai_parental_consent']`) is separate from COPPA account activation (`settings['coppa']`) and AI VPC data-sharing (`settings['ai_consent']`). Mirror COPPA token/`with_lock`/`AuditEvent` patterns for grant/revoke, but the complete controller must NOT mint devices or welcome emails — those are account-activation side effects. Persist country via `LingoLinq::Jurisdiction.trusted_country` (ISO alpha-2 only) and always recompute `eu_under_16` server-side from country + under_16; ignore client `eu_under_16`. Prefer-gate AI through `FeatureFlags.ai_feature_enabled_for?` (COPPA + EU + prefs) and keep thin call-site eu/coppa checks for defense in depth. Store allowlisted `requested_features` on request; apply them onto `settings['preferences']` inside the same `grant_eu_ai_parental_consent!` lock that records grant; on revoke force `EU_AI_PREF_KEYS` off. Prefs UI opens a modal (not an inline form) via `gate_ai_enable` → `modal.open('eu-ai-parental-consent')`. **Do not raise signup `coppaConsentAge` to 16 for EU** — that reused COPPA account-activation parent email for Art. 8; product intent is account create without parent email, AI consent only after login. Register keeps literal under-13 for `coppa_under_13`; `_classifyUnder16` + country drive `eu_under_16`. Register product-improvement force-off must set `model.preferences` (the signup user record), not assume `controller.user` exists. See `docs/task-management/2026-07-14-eu-ai-prefs-parental-consent.md`. (2026-07-14; registration decoupling 2026-07-15)
@@ -7184,3 +7189,45 @@ The machine's default node is 16; running `npm install` there (npm 8) mangled
 Always `export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use 22` first. If a lockfile got
 mangled, `git checkout -- package.json package-lock.json` and redo under Node 22 (clean diff =
 only the intended deps).
+
+## Oversized-PR review: chunk the diff across passes, fold fail-closed (never truncate-and-defer)
+
+`codex-review/deep-pass` (Scot's required, fail-closed gate) injected only the first
+`MAX_BYTES=60000` of the diff. A large PR (#665: ~644 KB) was truncated, the reviewer correctly
+refused a verdict over unverified hunks, and the fail-closed policy turned that into a red required
+check. **Truncation is the wrong lever for a required gate** — it converts "too big" into
+"unreviewable → blocked" instead of "reviewed across passes".
+
+**Fix pattern (reusable for any prompt-budget-bound reviewer):**
+- Split the raw `git diff BASE...HEAD` on **file-boundary headers** (`^diff --git `) into chunks
+  each ≤ a raised per-chunk cap; never split one file across chunks. Only a single file bigger than
+  the cap stays truncated, and only for its own chunk (truncate on a **line** boundary — a byte cut
+  splits multibyte UTF-8 in `public/locales/*.json` and makes the prompt undecodable; mirror the
+  workflow's `head -c | sed '$d'`).
+- Review each chunk on its own pass; keep the existing per-chunk convergence ("confirm both
+  directions").
+- Fold **across** chunks as a **conjunction, not a vote**: APPROVE only if every chunk approves;
+  any blocked chunk blocks the PR; surface the highest-priority blocker. (Contrast: convergence
+  *within* a chunk is a majority vote across non-deterministic runs.)
+- Bound fan-out with `MAX_CHUNKS`; the overflow tail becomes a **synthetic fail-closed chunk** so a
+  truly enormous PR still routes to a human — preserving the original safe behavior for just the
+  tail, not the whole PR. Never silently drop the overflow.
+- Keep normal PRs free: a diff under the cap = exactly one chunk = unchanged cost.
+
+**Gotchas:** (1) GitHub Actions `run:` bash is `set -eo pipefail` by default — `ls glob | sort`
+crashes the step on an empty diff. `find <dir> -maxdepth 1 -name 'chunk-*.txt' -print0 | xargs -0`
+is the robust idiom: it runs **nothing** (exit 0) on 0 matches, never word-splits paths, and adding
+`-P N -I{}` turns it into a **bounded-parallel pool** in one line — GNU xargs (ubuntu-latest) honors
+`-P` with `-I{}` (BSD xargs does not, but the runner is GNU). A pooled worker that exits non-zero
+fails the step → fail-closed; a legitimate REQUEST_CHANGES review must exit 0 (write JSON, let the
+downstream fold decide), or every blocking review would false-fail the step. Keep the per-worker
+body in its own script so the pool invokes `bash script.sh {}` (no exec-bit needed) and both routes
+share one code path. (2) The prompt-injection guard must scan **each chunk's own diff** (the text
+that chunk's reviewer actually saw), not a single global diff. (3) Make the cap/limit/concurrency
+repo `vars.` (`CODEX_MAX_DIFF_BYTES`, `CODEX_MAX_DIFF_CHUNKS`, `CODEX_REVIEW_CONCURRENCY`) so the
+tooling owner can tune runner cost/time without a code change. (4) Parallelizing the chunk loop is
+what keeps a large PR under the 30-min watchdog — serial passes (up to MAX_CHUNKS × 3 codex runs)
+can otherwise time out, which is still fail-closed but defeats the point of reviewing the big PR.
+Files: `scripts/codex-review-chunk-diff.py`, `codex-review-one-chunk.sh` (per-chunk worker, both
+routes), `codex-review-assemble-manifest.py`, `codex-review-build-envelope.py` (`fold_across_chunks`
++ `--manifest`), `.github/workflows/codex-review.yml`.

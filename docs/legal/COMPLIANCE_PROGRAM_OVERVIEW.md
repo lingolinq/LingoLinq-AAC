@@ -1,6 +1,6 @@
 # LingoLinq Security, Privacy & Compliance Overview
 
-> **Re-attested for external release by Scot Wahlquist (CEO) on 2026-07-22 (rev. 2026-07-22-a).**
+> **Re-attested for external release by Scot Wahlquist (CEO) on 2026-07-23 (rev. 2026-07-23-a).**
 > Reflects the current production build. Present tense describes controls that exist in the product
 > today. The "Planned" section describes controls we intend to add and is written in the future tense
 > on purpose. This document deliberately claims only what we actually do.
@@ -17,7 +17,13 @@
 > `User#begin_family_offboarding_consents!` (`app/models/user.rb`); parent email is collected at next
 > login via `submit_parental_consent_email` (`app/controllers/api/users_controller.rb`,
 > `app/models/user.rb`); and full login is genuinely blocked while consent is pending, because the
-> device token is only issued `unless coppa_pending`. This re-attestation covers rev. 2026-07-22-a.
+> device token is only issued `unless coppa_pending`. That re-attestation covered rev. 2026-07-22-a.
+>
+> **2026-07-23 re-attestation (rev. 2026-07-23-a).** Corrected the text-to-speech statement: Irish
+> (Gaeilge) TTS via Abair (`abair.ie`, Trinity College Dublin / ADAPT) was **disabled 2026-07-23**
+> (PR #674) because there is no DPA on file, so spoken text is no longer sent to Abair. Google Cloud
+> Text-to-Speech has no Irish voice, so there is no covered replacement; Irish cloud TTS is off until
+> a DPA/SCCs exists. See the text-to-speech bullet below and `docs/legal/SUBPROCESSORS.md` #17.
 >
 > **Purpose:** this is the short, externally shareable overview of our program. It is the
 > honest, right-sized replacement for the aspirational 85-page draft. It does not replace the
@@ -108,9 +114,10 @@ Everything in this section is live in the product.
   describe it accurately: the result is scrubbed data that we still treat as personal data. We do
   not call it de-identified or anonymized.
 - Text-to-speech is a separate voice/audio feature. To synthesize spoken audio, the text being
-  spoken is sent to the configured TTS provider (Google Text-to-Speech, or Abair for Irish-language
-  voices). This path does not run the LLM PII scrubber, because the text to be spoken is itself the
-  payload.
+  spoken is sent to the configured TTS provider (Google Text-to-Speech). Irish (Gaeilge) TTS via
+  Abair was disabled 2026-07-23 (no DPA on file), so no spoken text is sent to a third-party Irish
+  TTS service. This path does not run the LLM PII scrubber, because the text to be spoken is itself
+  the payload.
 - Our production AI vendors operate under Data Processing Agreements. The Anthropic models we use
   are eligible for zero data retention (no ZDR contract is signed today; see Section 3).
 - Every runtime, user-facing AI call (word prediction, board generation, and eval narration) is
