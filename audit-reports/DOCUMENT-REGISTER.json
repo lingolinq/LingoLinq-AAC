@@ -679,13 +679,13 @@
       "attestation": {
         "attestedBy": "Scot Wahlquist, CEO",
         "attestedDate": "2026-07-23",
-        "attestedContentHash": "30bd1f472cf53b1043cce268e644cdf49426fdf0e02534d8a9526c22877bb399",
+        "attestedContentHash": "0c748cadd7442821d768c475f64e32036dd1a8b3a86a9f3557a0f3a4aba84858",
         "priorAttestations": [
           "2026-06-21"
         ],
-        "note": "Re-attested 2026-07-23 against the current revision after verification against live code and infrastructure state. The prior attestation covered a revision that no longer exists; see the document banner for what changed."
+        "note": "Re-attested 2026-07-23 against the current revision after live Cloud SQL verification. The RPO target is not established, so this attestation does not assert that the current recovery capability meets an RPO target. The prior attestation covered a revision that no longer exists. (Re-pinned after a same-day follow-up removed a stray blank line that had split the retention table; no substantive content change.)"
       },
-      "contentHash": "30bd1f472cf53b1043cce268e644cdf49426fdf0e02534d8a9526c22877bb399",
+      "contentHash": "0c748cadd7442821d768c475f64e32036dd1a8b3a86a9f3557a0f3a4aba84858",
       "bundles": [
         "soc2-evidence",
         "school-dpa-package",
@@ -724,15 +724,15 @@
       "lastReviewed": "2026-07-23",
       "nextReviewDue": "2027-07-23",
       "attestation": {
-        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-23",
-        "attestedContentHash": "fc535a9105ed179bbe986941fd055461cb482e2d409e8687202accaf8332235e",
+        "attestedContentHash": "1e404832da3df838571d75ad29c0f3f5385a7e6a9d027c39e54b579e25ad4dc7",
         "priorAttestations": [
           "2026-07-06"
         ],
         "note": "Re-attested 2026-07-23 against the current revision after verification against live code and infrastructure state. The prior attestation covered a revision that no longer exists; see the document banner for what changed."
       },
-      "contentHash": "fc535a9105ed179bbe986941fd055461cb482e2d409e8687202accaf8332235e",
+      "contentHash": "1e404832da3df838571d75ad29c0f3f5385a7e6a9d027c39e54b579e25ad4dc7",
       "bundles": [
         "school-dpa-package",
         "soc2-evidence",
@@ -752,7 +752,8 @@
         "status": "draft"
       },
       "legalHold": false,
-      "dispositionEligibleAfter": null
+      "dispositionEligibleAfter": null,
+      "notes": "Re-attested by Scot Wahlquist, CEO, 2026-07-23. This revision adds the Abair Irish-TTS DISABLE (row #17, PR #674) and the localization/speech finding triage (LL-a167848115 remediated; LL-c38e7da48e and LL-1eb9a2435b accepted-risk) on top of the 2026-07-23 re-attestation recorded in PR #672 (which cleared the 2026-07-21/22/23 DRAFT amendments). Only Scot attests."
     },
     {
       "title": "COPPA Final-Rule Verification",
@@ -851,14 +852,18 @@
         "GDPR",
         "FERPA"
       ],
-      "lastReviewed": "2026-05-27",
-      "nextReviewDue": "2027-05-27",
+      "lastReviewed": "2026-07-23",
+      "nextReviewDue": "2027-06-28",
       "attestation": {
-        "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-06-21",
-        "attestedContentHash": "3efcaaf4a7c53016237527a5202a370bf74852f4b3e26e4346db5f418c5e263b"
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-07-23",
+        "attestedContentHash": "f7a73ebacab3d22e58a8e918cf8bccad0dd95b6afdf826a0b21c5eaf6102df8e",
+        "priorAttestations": [
+          "2026-06-21"
+        ],
+        "note": "Re-attested 2026-07-23 against the current revision after live Cloud SQL verification. The prior attestation covered a revision that no longer exists; the runbook now names Cloud SQL as primary recovery and Render only as the rollback fallback in both §4.5 step 3 and the §4.1 step 4 evidence snapshot. Other Render references (application logs, alerts, Render-hosted service surfaces) are intentionally retained, as the Render fallback remains online."
       },
-      "contentHash": "3efcaaf4a7c53016237527a5202a370bf74852f4b3e26e4346db5f418c5e263b",
+      "contentHash": "f7a73ebacab3d22e58a8e918cf8bccad0dd95b6afdf826a0b21c5eaf6102df8e",
       "bundles": [
         "soc2-evidence",
         "school-dpa-package",
@@ -1147,7 +1152,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "6bf4ac3d6fb430ea6539053c31a1296c0e52dfd84fb0a8136692653587104b6c",
+      "contentHash": "23c5edfd936ddcc670255ebd01017578f5007babcedb6c1b79fbf8396b5f2ec6",
       "bundles": [],
       "mirrors": [
         {
@@ -2536,19 +2541,19 @@
         "GDPR",
         "SOC2"
       ],
-      "lastReviewed": "2026-07-22",
+      "lastReviewed": "2026-07-23",
       "nextReviewDue": "2027-07-22",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-22",
-        "attestedContentHash": "71577f49b16e6e3b938c61e79931104a47159612c2174069336f12a928d06fc6"
+        "attestedDate": "2026-07-23",
+        "attestedContentHash": "47318beb94b3d3b9fa76845def3d68db6eddd38b7a6e2c44596d11b2d733b046"
       },
-      "contentHash": "71577f49b16e6e3b938c61e79931104a47159612c2174069336f12a928d06fc6",
+      "contentHash": "47318beb94b3d3b9fa76845def3d68db6eddd38b7a6e2c44596d11b2d733b046",
       "bundles": [
         "security-review"
       ],
       "mirrors": [],
-      "notes": "Re-attested for EXTERNAL RELEASE by Scot Wahlquist 2026-07-22 (rev. 2026-07-22-a). The prior 2026-07-09 attestation (rev. 2026-07-09-c) covered an earlier revision, superseded by PR #649 (COPPA offboarding rewritten from open gap to implemented control) and PR #652 (subprocessor and hosting posture rewritten for the GCP cutover). Because this document is externally shareable, the newer claims were verified against live code before the re-attestation was recorded: Organization#remove_user calls User#begin_family_offboarding_consents!, parent email is collected at next login via submit_parental_consent_email, and full login is genuinely blocked while consent is pending because the device token is only issued \"unless coppa_pending\".",
+      "notes": "Re-attested for EXTERNAL RELEASE by Scot Wahlquist, CEO, 2026-07-23 (rev. 2026-07-23-a): corrected the text-to-speech statement after Irish/Abair TTS was disabled (PR #674, no DPA on file) so the doc no longer names Abair as an active provider (see docs/legal/SUBPROCESSORS.md #17 and finding LL-a167848115). Prior re-attestation 2026-07-22 (rev. 2026-07-22-a) covered the COPPA-offboarding (#649) and GCP-cutover subprocessor/hosting (#652) rewrites; the 2026-07-09 attestation (rev. 2026-07-09-c) covered an earlier revision.",
       "retention": {
         "class": "policy-version",
         "rule": "supersession + 7 years",
