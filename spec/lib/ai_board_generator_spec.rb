@@ -10,13 +10,21 @@ describe AiBoardGenerator do
   end
 
   around(:each) do |example|
-    old_anthropic = ENV['ANTHROPIC_API_KEY']
+    # Runtime AI routes via AWS Bedrock (AiClient); enable it with the dedicated
+    # Bedrock AWS creds rather than a direct ANTHROPIC_API_KEY.
+    old_region = ENV['BEDROCK_AWS_REGION']
+    old_key = ENV['BEDROCK_AWS_KEY']
+    old_secret = ENV['BEDROCK_AWS_SECRET']
     old_gemini = ENV['GEMINI_API_KEY']
-    ENV['ANTHROPIC_API_KEY'] = 'test-anthropic-key'
+    ENV['BEDROCK_AWS_REGION'] = 'us-west-2'
+    ENV['BEDROCK_AWS_KEY'] = 'test-bedrock-key'
+    ENV['BEDROCK_AWS_SECRET'] = 'test-bedrock-secret'
     ENV.delete('GEMINI_API_KEY')
     example.run
   ensure
-    ENV['ANTHROPIC_API_KEY'] = old_anthropic
+    ENV['BEDROCK_AWS_REGION'] = old_region
+    ENV['BEDROCK_AWS_KEY'] = old_key
+    ENV['BEDROCK_AWS_SECRET'] = old_secret
     ENV['GEMINI_API_KEY'] = old_gemini
   end
 

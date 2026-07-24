@@ -59,6 +59,9 @@ jobs:
         run: |
           bundle exec rails db:create db:schema:load
 
+      - name: AI endpoint guard (runtime AI must route via AWS Bedrock, not api.anthropic.com)
+        run: bash scripts/ai-endpoint-guard.sh
+
       - name: Run RSpec
         run: bundle exec rspec
 
