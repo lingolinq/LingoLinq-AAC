@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdict", "head_sha", "findings", "checks_run", "resolved_from_prior_loop"],
+  "properties": {
+    "verdict": { "type": "string", "enum": ["APPROVE", "REQUEST_CHANGES", "NEEDS_HUMAN"] },
+    "head_sha": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "severity", "category", "file", "line", "description", "evidence", "suggested_fix", "verifiable_check"],
+        "properties": {
+          "id": { "type": "string" },
+          "severity": { "type": "string", "enum": ["HIGH", "MED", "LOW"] },
+          "category": { "type": "string", "enum": ["claim_vs_code", "artifact_metadata", "path_coverage", "live_state", "design", "code"] },
+          "file": { "type": "string" },
+          "line": { "type": ["integer", "null"], "minimum": 0 },
+          "description": { "type": "string" },
+          "evidence": { "type": "string" },
+          "suggested_fix": { "type": "string" },
+          "verifiable_check": { "type": "string" }
+        }
+      }
+    },
+    "checks_run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["register_drift", "modes", "ci"],
+      "properties": {
+        "register_drift": { "type": "string", "enum": ["pass", "fail", "n/a"] },
+        "modes": { "type": "string" },
+        "ci": { "type": "string" }
+      }
+    },
+    "resolved_from_prior_loop": { "type": "array", "items": { "type": "string" } }
+  }
+}

@@ -7,8 +7,9 @@
 > for orientation, not for filling out the Apple/Google forms. If the two files
 > disagree, the evidence map (with `file:line` citations) wins.
 
-**Status:** DRAFT evidence map for Scot + compliance review. **Claude-only compliance
-content; never route this file or its analysis to Codex / external models.**
+**Status:** DRAFT evidence map for Scot + compliance review. **Tier 2 compliance content**
+(posture/narrative, no records): reviewable by any approved reviewer under the two-tier policy;
+data-bearing content, if any, is Tier 1 and stays off no-BAA routes.
 **Owner:** compliance-auditor / compliance-officer agents (verification) + Scot (sign-off).
 **Purpose:** this is the single source the three store privacy declarations draw from, so
 they come out consistent:
@@ -165,5 +166,5 @@ native builds.
 
 *Evidence cited inline (file:line). This map reflects the runtime data posture as of the
 `scot/feat/native-apps` branch; the compliance-auditor must re-verify each declaration
-against live code before any store form is submitted. Claude-only content per LingoLinq
-compliance rules.*
+against live code before any store form is submitted. Tier 2 posture content per LingoLinq
+compliance rules (PII-free; data-bearing content, if any, is Tier 1 and stays off no-BAA routes).*

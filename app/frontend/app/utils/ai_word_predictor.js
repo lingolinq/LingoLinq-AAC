@@ -2,6 +2,8 @@ import RSVP from 'rsvp';
 import $ from 'jquery';
 import { later as runLater, cancel as runCancel } from '@ember/runloop';
 import app_state from './app_state';
+import aiFeatureGate from './ai_feature_gate';
+import { needsAcknowledgement } from './article50_gate';
 
 // AI-powered word prediction service.
 // Optimized for Gemini free tier (20 requests/minute).
@@ -38,8 +40,17 @@ var ai_word_predictor = {
 
   is_enabled: function(appStateService) {
     var state = appStateService || app_state;
-    if(!state || typeof state.get !== 'function') { return false; }
-    return !!state.get('feature_flags.ai_word_prediction');
+    // EU AI Act Article 50(1) DEGRADE mode (D-03): word prediction fires inline
+    // on keystrokes in the speak path, so it must NEVER block and NEVER prompt.
+    // When acknowledgement is still needed, silently report disabled here --
+    // predict() below already turns a false is_enabled() into a silent
+    // RSVP.resolve([]) with no AJAX call, so the caller falls back to the
+    // existing non-AI prediction path with no dialog, error, or indicator of
+    // any kind. Acknowledging at any other gated surface (or at session
+    // entry) flips article_50_disclosure_shown, and this check re-evaluates
+    // per call, so prediction re-enables automatically with no extra wiring.
+    if(needsAcknowledgement(state)) { return false; }
+    return aiFeatureGate.aiFeatureEnabled(state, 'ai_word_prediction');
   },
 
   predict: function(sentence, options) {

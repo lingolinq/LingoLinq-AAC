@@ -27,14 +27,7 @@
               <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
           </span>
-          <Input
-            class="modern-select__search-input"
-            @type="text"
-            @value={{this.searchString}}
-            placeholder={{this.searchPlaceholder}}
-            aria-label={{this.searchPlaceholder}}
-            {{on "keydown" this.onSearchKeydown}}
-          />
+          <input type="text" value={{this.searchString}} class="modern-select__search-input" placeholder={{this.searchPlaceholder}} aria-label={{this.searchPlaceholder}} {{on "keydown" this.onSearchKeydown}} {{on "input" (set-field this "searchString")}} />
         </li>
       {{/if}}
       {{#each this.filteredContent as |item|}}
@@ -50,7 +43,7 @@
         </li>
       {{else}}
         {{!-- Empty-state row — modern alternative to a blank dropdown. --}}
-        <li class="modern-select__empty" role="presentation" aria-disabled="true">
+        <li class="modern-select__empty" role="presentation">
           <span class="modern-select__empty-icon" aria-hidden="true">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"/>

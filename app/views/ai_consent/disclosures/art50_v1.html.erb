@@ -1,0 +1,92 @@
+<%# EU AI Act Article 50(1) transparency disclosure, version 1 (VPC Phase 3,
+    A50-DISC-01). Rendered without a layout (see
+    AiConsent::DisclosuresController#show) so this fragment can be viewed
+    standalone AND fetched raw by the Ember ai-disclosure modal (later plan
+    in this phase) without pulling in the SPA shell.
+
+    This is a SIBLING disclosure to app/views/ai_consent/disclosures/v1.html.erb
+    (the COPPA AI data-sharing consent, VPC Phase 2), not a replacement -- the
+    two documents cover different legal obligations and version independently
+    (see lib/lingo_linq/article50_disclosures.rb's PN-02 comment).
+
+    Long-form chrome/prose lives here via standard Rails i18n
+    (config/locales/en.yml + es.yml, "art50_disclosures.v1.*"). Structured
+    facts the copy must not contradict (vendor list, model names, AI feature
+    list, retention numbers) come from LingoLinq::Article50Disclosures.metadata(1),
+    passed in as @metadata by the controller, so there is exactly one source
+    of truth for those facts. Retention NUMBERS are interpolated from
+    @metadata into translated sentences; vendor/model names and AI feature
+    descriptions are rendered directly from @metadata (English only, matching
+    the existing KNOWN GAP precedent in ai_consent_disclosures.rb / v1.html.erb
+    for the same category of structured, vendor-specific fact text). %>
+<div class="article50-disclosure" data-disclosure-version="<%= @metadata['version'] %>" data-content-hash="<%= @metadata['content_hash'] %>" lang="<%= I18n.locale %>">
+  <header>
+    <h1><%= t('art50_disclosures.v1.page_title') %></h1>
+    <p><%= t('art50_disclosures.v1.heading') %></p>
+  </header>
+
+  <p><%= t('art50_disclosures.v1.intro') %></p>
+
+  <section aria-labelledby="art50-ai-system-heading">
+    <h2 id="art50-ai-system-heading"><%= t('art50_disclosures.v1.ai_system_heading') %></h2>
+    <p><%= t('art50_disclosures.v1.ai_system_body') %></p>
+  </section>
+
+  <section aria-labelledby="art50-features-heading">
+    <h2 id="art50-features-heading"><%= t('art50_disclosures.v1.features_heading') %></h2>
+    <p><%= t('art50_disclosures.v1.features_intro') %></p>
+    <ul>
+      <% @metadata['ai_features'].each do |feature| %>
+        <li>
+          <strong><%= feature['name'] %>.</strong>
+          <%= feature['description'] %>
+        </li>
+      <% end %>
+    </ul>
+  </section>
+
+  <section aria-labelledby="art50-who-heading">
+    <h2 id="art50-who-heading"><%= t('art50_disclosures.v1.who_heading') %></h2>
+    <p><%= t('art50_disclosures.v1.who_intro') %></p>
+    <ul>
+      <% @metadata['vendors'].each do |vendor| %>
+        <li>
+          <strong><%= vendor['name'] %></strong>
+          (<%= vendor['tier'] %>).
+          <%= vendor['models'].join('. ') %>.
+        </li>
+      <% end %>
+    </ul>
+  </section>
+
+  <section aria-labelledby="art50-marking-heading">
+    <h2 id="art50-marking-heading"><%= t('art50_disclosures.v1.marking_heading') %></h2>
+    <p><%= t('art50_disclosures.v1.marking_body') %></p>
+  </section>
+
+  <section aria-labelledby="art50-retention-heading">
+    <h2 id="art50-retention-heading"><%= t('art50_disclosures.v1.retention_heading') %></h2>
+    <p><%= t('art50_disclosures.v1.retention_vendor_intro') %> <%= @metadata['retention']['vendor_side'] %></p>
+    <p><%= t('art50_disclosures.v1.retention_lingolinq_intro') %></p>
+    <ul>
+      <li><%= t('art50_disclosures.v1.retention_general', months: @metadata['retention']['lingolinq_general']['window_months']) %></li>
+      <li><%= t('art50_disclosures.v1.retention_children', months: @metadata['retention']['lingolinq_children']['window_months']) %></li>
+      <li><%= t('art50_disclosures.v1.retention_eu', years: @metadata['retention']['lingolinq_eu']['window_years']) %></li>
+      <li><%= t('art50_disclosures.v1.retention_hipaa', years: @metadata['retention']['lingolinq_hipaa_floor']['window_years']) %></li>
+      <li><%= t('art50_disclosures.v1.retention_ip', days: @metadata['retention']['ip_address']['window_days']) %></li>
+      <li><%= t('art50_disclosures.v1.retention_account_deletion') %></li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="art50-privacy-heading">
+    <h2 id="art50-privacy-heading"><%= t('art50_disclosures.v1.privacy_heading') %></h2>
+    <p>
+      <%= t('art50_disclosures.v1.privacy_intro') %>
+      <%= link_to t('art50_disclosures.v1.privacy_link_text'), '/privacy' %>.
+    </p>
+  </section>
+
+  <footer>
+    <p><%= t('art50_disclosures.v1.version_footer', version: @metadata['version'], effective_date: @metadata['effective_date']) %></p>
+  </footer>
+</div>

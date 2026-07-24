@@ -99,15 +99,34 @@ RSpec.configure do |config|
 end
 
 def env_wrap(overrides, &block)
-  fallbacks = {}
-  overrides.each{|k, v| fallbacks[k] = ENV[k] }
-  before(:each) do
-    overrides.each{|k, v| ENV[k] = v }
+  # Run `block`'s examples with the given ENV overrides, then restore the prior state.
+  #
+  # Two isolation defects are fixed here vs the old implementation:
+  #   1. Scoping: the overrides now apply ONLY to the examples defined inside `block`,
+  #      by nesting them in their own example group. The old version attached its
+  #      before/after hooks to the *enclosing* group, so the overrides leaked into
+  #      every sibling example in that group.
+  #   2. Restore fidelity: the original values are captured at RUN time (inside the
+  #      around hook), not at spec-definition time, and a key that was originally
+  #      UNSET is deleted on teardown rather than left behind. The old version
+  #      snapshotted ENV once when the file loaded, so a value that changed between
+  #      load and run (e.g. via a prior env_wrap) was "restored" to a stale value.
+  unset = :__env_wrap_unset__
+  describe "with env: #{overrides.keys.sort.join(', ')}" do
+    around(:each) do |example|
+      originals = overrides.keys.each_with_object({}) do |k, h|
+        h[k] = ENV.key?(k) ? ENV[k] : unset
+      end
+      overrides.each { |k, v| ENV[k] = v }
+      begin
+        example.run
+      ensure
+        originals.each { |k, v| v.equal?(unset) ? ENV.delete(k) : ENV[k] = v }
+      end
+    end
+
+    instance_exec(&block)
   end
-  after(:each) do
-    fallbacks.each{|k, v| ENV[k] = v }
-  end
-  block.call
 end
 
 def write_this_test

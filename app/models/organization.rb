@@ -63,6 +63,30 @@ class Organization < ApplicationRecord
     @processed = false
     true
   end
+
+  # Org-level legal region for offboarding age laws (US COPPA vs EU Art. 8 AI).
+  # Stored in settings['jurisdiction'] as 'US' or 'EU' only.
+  JURISDICTIONS = %w[US EU].freeze
+
+  def self.normalize_jurisdiction(raw)
+    val = raw.to_s.strip.upcase
+    return 'US' if val == 'USA' || val == 'US'
+    return 'EU' if val == 'EU'
+    nil
+  end
+
+  def jurisdiction
+    raw = (self.settings || {})['jurisdiction'].presence || (self.settings || {})['country']
+    self.class.normalize_jurisdiction(raw)
+  end
+
+  def eu_jurisdiction?
+    jurisdiction == 'EU'
+  end
+
+  def us_jurisdiction?
+    jurisdiction == 'US'
+  end
   
   # Data policy: org-level privacy floor for all managed users.
   # Stored in settings['data_policy'] as a hash.
@@ -1037,9 +1061,18 @@ class Organization < ApplicationRecord
     user
   end
   
-  def remove_user(user_key)
+  def remove_user(user_key, parent_email: nil, actor: nil, birth_month: nil, birth_year: nil)
     user = User.find_by_path(user_key)
     raise "invalid user, #{user_key}" unless user
+
+    # Validate optional offboarding parent email before detaching the seat so a
+    # typo does not leave the user org-less without a recoverable consent path.
+    if parent_email.present?
+      User.validate_parent_consent_email!(
+        parent_email,
+        child_email: (user.settings && user.settings['email'])
+      )
+    end
     
     # Release formal license if exists
     license = self.licenses.find_by(user_id: user.id, status: 'active')
@@ -1059,6 +1092,14 @@ class Organization < ApplicationRecord
     end
     
     self.remove_extras_from_user(user.user_name)
+    user.reload
+    user.begin_family_offboarding_consents!(
+      org: self,
+      parent_email: parent_email,
+      actor: actor,
+      birth_month: birth_month,
+      birth_year: birth_year
+    )
     true
   end
 
@@ -1500,6 +1541,25 @@ class Organization < ApplicationRecord
     self.settings['extra_colors'] = params['extra_colors'] if params['extra_colors'] != nil
     self.settings['note_templates'] = params['note_templates'] if params['note_templates'] != nil
     self.settings['support_target'] = params['support_target'] if params['support_target'] != nil
+    # USA/EU location for offboarding age laws. Accept jurisdiction or country synonym.
+    if params.key?('jurisdiction') || params.key?(:jurisdiction) || params.key?('country') || params.key?(:country)
+      raw = params['jurisdiction'] || params[:jurisdiction] || params['country'] || params[:country]
+      normalized = self.class.normalize_jurisdiction(raw)
+      if raw.present? && normalized.nil?
+        add_processing_error('jurisdiction must be US or EU')
+        return false
+      end
+      if normalized
+        self.settings['jurisdiction'] = normalized
+      elsif !self.id
+        # Blank on create is handled by the require-on-create check below.
+        self.settings.delete('jurisdiction')
+      end
+    end
+    if !self.id && self.jurisdiction.blank?
+      add_processing_error('jurisdiction required (US or EU)')
+      return false
+    end
     raise "updater required" unless non_user_params['updater']
     if self.admin
       if params[:sale_cutoff_date]
@@ -1695,6 +1755,11 @@ class Organization < ApplicationRecord
         if key.match(/^https?:\/\/[^\/]+\//)
           key = key.sub(/^https?:\/\/[^\/]+\//, '')
         end
+        # Modern Ember routes are /:user/board-detail/:boardname (and
+        # /:user/board/:boardname). Strip those middle segments so a pasted
+        # URL becomes the board key owner/slug (e.g. lingolinq/vocal-flair-84).
+        key = key.sub(%r{\A([^/]+)/board-detail/([^/]+)(?:/edit)?/?\z}, '\1/\2')
+        key = key.sub(%r{\A([^/]+)/board/([^/]+)/?\z}, '\1/\2')
         board = Board.find_by_path(key)
         if board && board.public
           self.settings['default_home_boards'] << {
@@ -1747,7 +1812,13 @@ class Organization < ApplicationRecord
         elsif action == 'add_extras'
           self.add_extras_to_user(key)
         elsif action == 'remove_user'
-          self.remove_user(key)
+          self.remove_user(
+            key,
+            parent_email: params[:offboarding_parent_email] || params['offboarding_parent_email'],
+            actor: non_user_params && non_user_params['updater'],
+            birth_month: params[:offboarding_birth_month] || params['offboarding_birth_month'],
+            birth_year: params[:offboarding_birth_year] || params['offboarding_birth_year']
+          )
         elsif action == 'remove_supervisor'
           self.remove_supervisor(key)
         elsif action == 'remove_assistant' || action == 'remove_manager'

@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>&times;</button>
     <h3 class="md-modal-title">{{t "Manage Start Codes" key="manage_start_codes"}} — {{this.org_or_user.name}}</h3>
@@ -11,7 +11,7 @@
       </h4>
       <p class="md-modal-message" style="text-align: left; margin-bottom: 16px;">{{t "The following link can be shared with new users. You can save the QR code below to embed in additional resources, or copy the registration link directly to your clipboard. When users follow that link, the start code will be automatically generated for them." key="start_code_link_explainer"}}</p>
       <div style="text-align: center; margin-bottom: 16px;">
-        {{qr-code text=this.link_code.url}}
+        <QrCode @text={{this.link_code.url}} />
       </div>
       <div class="md-modal-footer" style="border: none; padding: 0; justify-content: center;">
         <button class="md-modal-btn md-modal-btn--primary" {{on "click" (this.ctrlAction "copy_link")}}>{{t "Copy Registration Link" key="copy_registration_link"}}</button>
@@ -114,8 +114,10 @@
         </h4>
         <form class="md-sc-form" {{on "submit" (this.ctrlAction "generate")}}>
           <div class="md-org-settings-field">
-            <label for="code" class="md-org-settings-field__label">{{t "Code" key="code"}}</label>
-            <Input class="md-org-settings-input" type="text" @value={{this.code}} placeholder="(optional)" />
+            {{#let (unique-id) as |codeId|}}
+              <label for={{codeId}} class="md-org-settings-field__label">{{t "Code" key="code"}}</label>
+              <input id={{codeId}} value={{this.code}} class="md-org-settings-input" type="text" placeholder="(optional)" {{on "input" (set-field this "code")}} />
+            {{/let}}
             {{#if this.invalid_code}}
               <span class="md-org-settings-field__hint md-org-settings-field__hint--warn">{{t "codes must be 7+ characters long and start with a letter" key="codes_must_start_with_letter"}}</span>
             {{/if}}
@@ -123,12 +125,12 @@
           {{#if this.model.org}}
             <div class="md-org-settings-field">
               <label for="user_type" class="md-org-settings-field__label">{{t "User Type" key="user_type"}}</label>
-              {{bound-select select_class="md-org-report-select" select_id="user_type" content=this.user_types selection=this.user_type action=(mut this.user_type) }}
+              <BoundSelect @select_class="md-org-report-select" @select_id="user_type" @content={{this.user_types}} @selection={{this.user_type}} @action={{mut this.user_type}} />
             </div>
             <div class="md-org-settings-field">
               <label class="md-org-settings-field__label">{{t "Sponsored" key="sponsored"}}</label>
               <label class="md-org-settings-toggle">
-                <Input id="premium" type="checkbox" @checked={{this.premium}} class="md-org-settings-toggle__input" />
+                <input checked={{this.premium}} id="premium" type="checkbox" class="md-org-settings-toggle__input" {{on "change" (set-field this "premium" "checkbox")}} />
                 <span class="md-org-settings-toggle__label">{{t "Sponsor any users who use this start code" key="sponsors_users_with_start_code"}}</span>
               </label>
             </div>
@@ -136,7 +138,7 @@
               <div class="md-org-settings-field">
                 <label class="md-org-settings-field__label">{{t "Premium Symbols" key="premium_symbols"}}</label>
                 <label class="md-org-settings-toggle">
-                  <Input id="premium_symbols" type="checkbox" @checked={{this.premium_symbols}} class="md-org-settings-toggle__input" />
+                  <input checked={{this.premium_symbols}} id="premium_symbols" type="checkbox" class="md-org-settings-toggle__input" {{on "change" (set-field this "premium_symbols" "checkbox")}} />
                   <span class="md-org-settings-toggle__label">{{t "Add premium symbols to users" key="add_premium_symbols_to_users"}}</span>
                 </label>
               </div>
@@ -144,24 +146,28 @@
           {{/if}}
           <div class="md-org-settings-field">
             <label for="locale" class="md-org-settings-field__label">{{t "Language" key="language"}}</label>
-            {{bound-select select_class="md-org-report-select" select_id="locale" content=this.locales selection=this.locale action=(mut this.locale) }}
+            <BoundSelect @select_class="md-org-report-select" @select_id="locale" @content={{this.locales}} @selection={{this.locale}} @action={{mut this.locale}} />
           </div>
           <div class="md-org-settings-field">
             <label for="symbol_library" class="md-org-settings-field__label">{{t "Default Symbols" key="default_symbols"}}</label>
-            {{bound-select select_class="md-org-report-select" select_id="symbol_library" content=this.symbol_libraries selection=this.symbol_library action=(mut this.symbol_library) }}
+            <BoundSelect @select_class="md-org-report-select" @select_id="symbol_library" @content={{this.symbol_libraries}} @selection={{this.symbol_library}} @action={{mut this.symbol_library}} />
           </div>
           {{#if this.model.org}}
             <div class="md-org-settings-field">
-              <label for="supervisor" class="md-org-settings-field__label">{{t "Supervisor" key="supervisor"}}</label>
-              <Input class="md-org-settings-input" type="text" @value={{this.supervisors}} placeholder="(optional supervisor user names, comma-separated)" />
+              {{#let (unique-id) as |supervisorId|}}
+                <label for={{supervisorId}} class="md-org-settings-field__label">{{t "Supervisor" key="supervisor"}}</label>
+                <input id={{supervisorId}} value={{this.supervisors}} class="md-org-settings-input" type="text" placeholder="(optional supervisor user names, comma-separated)" {{on "input" (set-field this "supervisors")}} />
+              {{/let}}
             </div>
           {{/if}}
           <div class="md-org-settings-field">
-            <label for="home_board" class="md-org-settings-field__label">{{t "Home Board" key="home_board"}}</label>
-            <Input class="md-org-settings-input" type="text" @value={{this.home_board_key}} placeholder="(optional board key to copy)" />
+            {{#let (unique-id) as |homeBoardId|}}
+              <label for={{homeBoardId}} class="md-org-settings-field__label">{{t "Home Board" key="home_board"}}</label>
+              <input id={{homeBoardId}} value={{this.home_board_key}} class="md-org-settings-input" type="text" placeholder="(optional board key to copy)" {{on "input" (set-field this "home_board_key")}} />
+            {{/let}}
             {{#if this.home_board_key}}
               <label class="md-org-settings-toggle" style="margin-top: 8px;">
-                <Input id="shallow_clone" type="checkbox" @checked={{this.shallow_clone}} class="md-org-settings-toggle__input" />
+                <input checked={{this.shallow_clone}} id="shallow_clone" type="checkbox" class="md-org-settings-toggle__input" {{on "change" (set-field this "shallow_clone" "checkbox")}} />
                 <span class="md-org-settings-toggle__label">{{t "Apply shallow clones" key="apply_shallow_clones"}}</span>
               </label>
             {{/if}}
@@ -170,7 +176,7 @@
             <div class="md-org-settings-field">
               <label class="md-org-settings-field__label">{{t "Linked Boards" key="linked_boards"}}</label>
               <label class="md-org-settings-toggle">
-                <Input @type="checkbox" @checked={{this.downstream}} class="md-org-settings-toggle__input" />
+                <input type="checkbox" checked={{this.downstream}} class="md-org-settings-toggle__input" {{on "change" (set-field this "downstream" "checkbox")}} />
                 <span class="md-org-settings-toggle__label">{{t "Categorize all Linked Boards in the same category" key="categorize_linked_board"}}</span>
               </label>
             </div>
@@ -201,4 +207,4 @@
   <div class="md-modal-footer">
     <button type="button" class="md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</button>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

@@ -175,9 +175,9 @@
       "status": "upcoming",
       "title": "EU AI Act Article 50 transparency obligations apply",
       "obligation": "Disclose AI interaction to users; label synthetic/AI-generated content; deepfake identification. Applies to ANY in-scope AI system, not only high-risk. For an AAC predictor, the relevant question is whether output meets the synthetic-content marking trigger.",
-      "action": "Article 50 transparency plan (applicability analysis for the AAC predictor + user-facing AI-interaction disclosure) is DRAFTED and adversary-reviewed; implementation is gated on the Render-to-GCP VPC cutover (migration thread). Before 2026-08-02: finalize the applicability memo in the AI Governance Memo and ship the disclosure once the cutover lands.",
+      "action": "Applicability memo finalized (AI_GOVERNANCE_MEMO section 5). 50(2) marking on prod (PR #584). 50(1) disclosure now BUILT and STAGED, gated OFF: modal + ack endpoint + first-AI-use gate (PR #646, Phase 3) and jurisdiction stamping (PR #635, Phase 4) are on staging; the article_50_disclosure flag is registered AVAILABLE-only (Phase 5, RLL-01), so nothing is shown to any user yet. Remaining before 2026-08-02: (1) production deploy of Phases 3-5; (2) on Scot's sign-off, enable the flag for EU accounts; (3) clear the pre-enable accessibility blocker (finding disclosure-full-notice-link-low-contrast-token, WCAG 1.4.3). Not live in production until the deploy + enable happen.",
       "source": "https://artificialintelligenceact.eu/article/50/",
-      "verifiedOn": "2026-06-23"
+      "verifiedOn": "2026-07-22"
     },
     {
       "id": "fix-euaiact-art50-2-2026-12-02",
@@ -185,10 +185,10 @@
       "date": "2026-12-02",
       "status": "upcoming",
       "title": "EU AI Act Article 50(2) machine-readable marking grace ends",
-      "obligation": "Generative AI systems already on the market before 2026-08-02 must meet the machine-readable marking-of-output requirement by 2026-12-02 (May-2026 Digital Omnibus grace period).",
-      "action": "Only relevant if the AAC predictor is deemed to generate markable synthetic content; resolve in the Article 50 applicability analysis.",
-      "source": "https://artificialintelligenceact.eu/transparency-rules-article-50/",
-      "verifiedOn": "2026-06-13"
+      "obligation": "The 2026-12-02 grace on the Article 50(2) machine-readable marking sub-obligation comes from the Digital Omnibus on AI AMENDING regulation (Council final adoption 2026-06-29; OJ publication expected July 2026, in force 3 days after publication), not the original Regulation (EU) 2024/1689. Two conditions our earlier note missed: (a) the grace defers ONLY 50(2) marking -- 50(1)/(3)/(4)/(5) remain live for 2026-08-02; (b) it applies ONLY to AI systems already placed on the EU market before 2026-08-02. A system first placed on the EU market from 2026-08-02 onward must mark immediately, with no grace.",
+      "action": "NOT headroom for LingoLinq. Applicability decided 2026-07-13 (AI_GOVERNANCE_MEMO section 5.2, pending re-attestation): board gen / focus words / eval narration are in-scope and already marked + on prod (PR #584), so they need no grace; word prediction is out of 50(2) scope via the assistive-function carve-out. LingoLinq has no pre-2026-08-02 EU deployment, so any first EU deployment is a 'new' system with no December grace. Re-verify Digital Omnibus OJ publication directly at EUR-Lex before citing this date to counsel or a customer.",
+      "source": "https://www.consilium.europa.eu/en/press/press-releases/2026/06/29/artificial-intelligence-council-gives-final-green-light-to-simplify-and-streamline-rules/",
+      "verifiedOn": "2026-07-13"
     },
     {
       "id": "fix-ada-titleii-2027-04",

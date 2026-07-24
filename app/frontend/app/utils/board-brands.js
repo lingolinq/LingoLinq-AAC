@@ -82,22 +82,29 @@ export const BRAND_FAMILIES = [
    then a trailing "Other Boards" group for anything that matches no brand
    (so nothing is dropped). Shape per group:
      { id, label_key, default_label, boards: [...] } */
+/* Brand families demoted into the "Other Boards" bucket on the Find Boards grid
+   (they get no section of their own here). They still classify normally in the
+   speak-mode "My Board Collection" drawer, which uses BRAND_FAMILIES directly —
+   only this Find-Boards grouping skips them. */
+var FIND_BOARD_DEMOTED_BRANDS = { communikate: true, sequoia: true };
+
 export function groupBoardsByBrand(boards) {
   if (!boards || !boards.forEach) { return []; }
+  var families = BRAND_FAMILIES.filter(function(f) { return !FIND_BOARD_DEMOTED_BRANDS[f.id]; });
   var buckets = Object.create(null);
-  BRAND_FAMILIES.forEach(function(f) { buckets[f.id] = []; });
+  families.forEach(function(f) { buckets[f.id] = []; });
   var other = [];
   boards.forEach(function(b) {
     if (!b) { return; }
     var matched = null;
-    for (var i = 0; i < BRAND_FAMILIES.length; i++) {
-      if (BRAND_FAMILIES[i].test(b)) { matched = BRAND_FAMILIES[i]; break; }
+    for (var i = 0; i < families.length; i++) {
+      if (families[i].test(b)) { matched = families[i]; break; }
     }
     if (matched) { buckets[matched.id].push(b); }
     else { other.push(b); }
   });
   var groups = [];
-  BRAND_FAMILIES.forEach(function(f) {
+  families.forEach(function(f) {
     if (buckets[f.id].length) {
       groups.push({ id: f.id, label_key: f.label_key, default_label: f.default_label, boards: buckets[f.id] });
     }

@@ -411,6 +411,10 @@ class Api::BoardsController < ApplicationController
   # Capped at MAX_TREE descendants for safety — a healthy AAC vocab
   # tree is well under that ceiling; extremely large trees fall back
   # to the depth-1 prefetch on the client.
+  #
+  # root_only=1 skips descendant load/serialize so speak-mode can paint
+  # the visible board first, then call /tree again (without root_only)
+  # in the background to warm folder targets. Same lite root JSON either way.
   MAX_TREE = 500
   def tree
     # Member route is GET /api/v1/boards/:board_id/tree, so Rails supplies
@@ -425,19 +429,22 @@ class Api::BoardsController < ApplicationController
     return unless exists?(root)
     return unless allowed?(root, 'view')
 
-    descendant_ids = ((root.settings || {})['downstream_board_ids'] || []).first(MAX_TREE)
+    root_only = params['root_only'].to_s =~ /^(1|true|yes)$/i
     descendants = []
-    if descendant_ids.any?
-      ApplicationRecord.using(:master) do
-        descendants = Board.find_all_by_global_id(descendant_ids)
+    unless root_only
+      descendant_ids = ((root.settings || {})['downstream_board_ids'] || []).first(MAX_TREE)
+      if descendant_ids.any?
+        ApplicationRecord.using(:master) do
+          descendants = Board.find_all_by_global_id(descendant_ids)
+        end
+        # Permission filter. Use the Permissable model method `allows?`
+        # directly — NOT the controller's `allowed?`, which renders an
+        # error response as a side effect (it's designed for single-
+        # resource gates, not list filtering). `scopes` mirrors what
+        # `allowed?` computes internally via `api_permission_scopes`.
+        scopes = api_permission_scopes
+        descendants = descendants.select { |b| b && b.allows?(@api_user, 'view', scopes) }
       end
-      # Permission filter. Use the Permissable model method `allows?`
-      # directly — NOT the controller's `allowed?`, which renders an
-      # error response as a side effect (it's designed for single-
-      # resource gates, not list filtering). `scopes` mirrors what
-      # `allowed?` computes internally via `api_permission_scopes`.
-      scopes = api_permission_scopes
-      descendants = descendants.select { |b| b && b.allows?(@api_user, 'view', scopes) }
     end
 
     # as_lite drops the per-board N+1 enrichment (parent_board, find_copies_by,
@@ -565,6 +572,25 @@ class Api::BoardsController < ApplicationController
     # check here and being rejected deeper in the generator as a 503.
     unless FeatureFlags.ai_feature_enabled_for?('ai_board_generation', @api_user)
       return api_error(403, { error: 'Feature not available' })
+    end
+    # EU AI Act Article 50(1) server-side backstop (Phase 3 Plan 03-04, T-03-04-01):
+    # a client that skips the ai-disclosure modal and calls this endpoint directly
+    # must still be refused. The feature-flag check comes FIRST and is load-bearing
+    # (T-03-04-02): 'article_50_disclosure' is not in AVAILABLE_FRONTEND_FEATURES on
+    # this branch (Phase 5 / RLL-01 owns that registration), so feature_enabled_for?
+    # returns false and this guard is inert until the 2026-08-02 enable gate.
+    # Shipping an active backstop before the modal is enabled would lock EU and
+    # unknown-jurisdiction users out of board generation with no way to unblock
+    # themselves. Gates on EuJurisdiction.disclosure_required? (D-04, true for :eu
+    # AND :unknown), never the retention-column jurisdiction stamp. Reads
+    # server-side state only (@api_user.article_50_disclosure_shown?), never a
+    # request field (T-03-04-06), and uses a distinct error code from the AI
+    # feature-flag refusal above so the client and the register can tell the two
+    # apart.
+    if FeatureFlags.feature_enabled_for?('article_50_disclosure', @api_user) &&
+       EuJurisdiction.disclosure_required?(@api_user) &&
+       !@api_user.article_50_disclosure_shown?
+      return api_error(403, { error: 'article_50_disclosure_required' })
     end
     processed_params, json_body_source = board_json_body_params_source
     if json_body_source == :invalid_json_root

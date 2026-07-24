@@ -129,4 +129,30 @@ describe EuJurisdiction do
       expect(EuJurisdiction.eu?(nil)).to be(false)
     end
   end
+
+  describe ".retention_stamp" do
+    # The load-bearing D-01 contract: this column drives purge_old_eu_logs! (5yr delete),
+    # so ONLY a confirmed :eu user is stamped 'EU'. Both :non_eu AND :unknown must map to
+    # nil, the OPPOSITE fail-safe direction from disclosure_required? -- an unsure
+    # (potentially HIPAA-covered) user must never be marked for early deletion.
+    it "stamps 'EU' for a confirmed :eu user" do
+      expect(EuJurisdiction.retention_stamp(user(prefs: { 'jurisdiction' => 'FR' }))).to eq('EU')
+    end
+
+    it "returns nil for an authoritative :non_eu user (not stamped for early deletion)" do
+      expect(EuJurisdiction.retention_stamp(user(prefs: { 'jurisdiction' => 'US' }))).to be_nil
+    end
+
+    it "returns nil for an :unknown user (D-01: NOT 'EU' -- the load-bearing case)" do
+      # :unknown must resolve to nil, NOT 'EU'. Stamping an unsure US-hospital user 'EU'
+      # would delete HIPAA-covered records a year inside the six-year floor.
+      unknown_user = user(prefs: { 'locale' => 'en' })
+      expect(EuJurisdiction.status(unknown_user)).to eq(:unknown)
+      expect(EuJurisdiction.retention_stamp(unknown_user)).to be_nil
+    end
+
+    it "returns nil for a nil user" do
+      expect(EuJurisdiction.retention_stamp(nil)).to be_nil
+    end
+  end
 end

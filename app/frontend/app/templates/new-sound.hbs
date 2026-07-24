@@ -1,4 +1,4 @@
-{{#modal-dialog action=(this.ctrlAction "close") opening=(this.ctrlAction "opening") closing=(this.ctrlAction "closing")}}
+<ModalDialog @action={{this.ctrlAction "close"}} @opening={{this.ctrlAction "opening"}} @closing={{this.ctrlAction "closing"}}>
   <div class="modal-header">
     <button type="button" class="close" {{on "click" (this.ctrlAction "close")}}>&times;</button>
     <h3>{{t "Add Audio" key="add_audio"}}</h3>
@@ -9,7 +9,7 @@
         <div style='margin-bottom: 5px;'>
           <span style='display: inline-block; width: 275px;'>
 <!-- https://lingolinq-usercontent.s3.amazonaws.com/sounds/2/9/1_29_635d33f9c9196f22140f3276-d7c75f40661f0ae83500a430bb1f774091c9b3a21e58143a71804e63077feb9a371827c1d11e59c5da913628428eb2903404eec886460b4eb4f6e50e032c085a -->
-            <Input @type="text" class="form-control" @value={{this.url}} placeholder="URL to audio file" />
+            <input type="text" value={{this.url}} class="form-control" placeholder="URL to audio file" aria-label={{t "URL to audio file" key="audio_file_url"}} {{on "input" (set-field this "url")}} />
           </span>
           <button class='btn btn-default' type='button' {{on "click" (this.ctrlAction "find_url")}}>{{t "Retrieve" key="retrieve"}}</button>
         </div>
@@ -23,13 +23,13 @@
                 <img src={{path "images/upload.svg"}} style="height: 30px; margin: -10px -6px -6px;" alt="upload">
                 {{t "Upload Sound" key="upload_sound"}}
               </button>
-              <input type="file" name="sound_upload" id="sound_upload" accept="audio/*" tabindex="-1">
+              <input type="file" name="sound_upload" id="sound_upload" accept="audio/*" tabindex="-1" aria-label={{t "Upload Sound" key="upload_sound"}}>
             </span>
         </div>
         {{#if this.sound_preview}}
           <div style="text-align: center; margin: 20px;">
             Selected sound{{#if this.sound_preview.name}} ({{this.sound_preview.name}}){{/if}}:<br>
-            <audio controls src={{this.sound_preview.url}}></audio>
+            <audio controls src={{this.sound_preview.url}} aria-label={{t "Selected sound preview" key="selected_sound_preview"}}></audio>
           </div>
         {{else}}
           {{#if this.sound_recording.ready}}
@@ -72,4 +72,4 @@
       <a href="#" class="btn btn-default" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</a>
     </div>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

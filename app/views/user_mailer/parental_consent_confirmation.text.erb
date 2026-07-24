@@ -1,0 +1,24 @@
+<%= mailer_t('parental_consent_confirmation_mailer.greeting') %>
+
+<%= mailer_t('parental_consent_confirmation_mailer.intro', app_name: app_name, child_username: @child_username, registered_at: long_ordinal_date(@registered_at)) %>
+
+<%= mailer_t('parental_consent_confirmation_mailer.privacy_notice') %>
+
+<%= mailer_t('parental_consent_confirmation_mailer.privacy_link_label') %>:
+<%= @privacy_url %>
+
+<%= mailer_t('parental_consent_confirmation_mailer.revoke_heading') %>
+
+<%= mailer_t('parental_consent_confirmation_mailer.revoke_notice') %>
+
+<%= mailer_t('parental_consent_confirmation_mailer.revoke_prompt') %>
+
+<%= mailer_t('parental_consent_confirmation_mailer.revoke_cta_label') %>:
+<%= @revoke_url %>
+
+<%= mailer_t('parental_consent_confirmation_mailer.footer') %>
+
+<%= mailer_t('parental_consent_confirmation_mailer.contact_link_label') %>:
+<%= @contact_url %>
+
+<%= email_signature %>

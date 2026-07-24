@@ -62,7 +62,7 @@ Three core strategy decisions (already confirmed):
   add no user value.
 - **Mobile moves from Cordova to Capacitor 7.** Capacitor is the modern, maintained successor
   to Cordova and reuses our existing web build. (Capacitor 7 specifically, because it is
-  compatible with the Node 20 version our app is pinned to.)
+  compatible with the Node 22 version our app is pinned to.)
 - **Desktop stays on Electron.** Capacitor has no desktop path, and Electron is already in our
   codebase. We refresh it for Windows.
 
@@ -171,7 +171,7 @@ run in parallel with Android once Phase 1 is done, since it shares no mobile cod
 | All vendor registrations (D-U-N-S, Apple, Google, Microsoft, Azure signing) | **Scot** | The research docs are read-only checklists; the actual account actions are Scot's. Credentials go to 1Password, never the repo. |
 | Locking store/business decisions | **Scot** | Done for Phase 1 (section 5). |
 | Capacitor migration, native features, CI/CD, app repos | **Development (assignee TBC)** | The heaviest engineering, mostly in Phase 2. |
-| Compliance and privacy declarations | **Compliance review + Scot sign-off** | Privacy content is reviewed internally and signed off by Scot; never routed to outside AI tools. |
+| Compliance and privacy declarations | **Compliance review + Scot sign-off** | Privacy content is reviewed internally and signed off by Scot. PII-free posture declarations are Tier 2 (an approved reviewer may see them); identifiable or data-bearing content never goes to a no-BAA tool (the data-bearing-path guard is the boundary). |
 | Operations and procurement coordination | **Dominic** | Helps coordinate account setup, fees, and vendor admin. |
 
 ---

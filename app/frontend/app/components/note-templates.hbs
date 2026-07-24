@@ -1,4 +1,4 @@
-{{#modal-dialog action=this.onClose opening=this.onOpening closing=this.onClosing}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>&times;</button>
     <h3 class="md-modal-title">{{t "Note Templates" key="note_templates"}}</h3>
@@ -8,7 +8,7 @@
 
     <div class="md-org-settings-field__row" style="margin-bottom: 16px;">
       <div style="flex: 1;">
-        {{bound-select select_class="md-org-report-select" select_id="template" content=this.template_list selection=this.current_template_id action=(this.ctrlAction "updateTemplateId") }}
+        <BoundSelect @select_class="md-org-report-select" @select_id="template" @content={{this.template_list}} @selection={{this.current_template_id}} @action={{this.ctrlAction "updateTemplateId"}} />
       </div>
       <button type="button" class="md-modal-btn md-modal-btn--secondary" {{on "click" (this.ctrlAction "add_row")}}>{{t "Add New" key="add_new"}}</button>
     </div>
@@ -16,12 +16,16 @@
     {{#if this.current_template}}
       <div class="md-sc-form">
         <div class="md-org-settings-field">
-          <label class="md-org-settings-field__label">{{t "Template Name" key="template_name"}}</label>
-          <Input @value={{this.current_template.title}} class="md-org-settings-input" type="text" placeholder="Template Name" />
+          {{#let (unique-id) as |templateNameId|}}
+            <label for={{templateNameId}} class="md-org-settings-field__label">{{t "Template Name" key="template_name"}}</label>
+            <input id={{templateNameId}} value={{this.current_template.title}} class="md-org-settings-input" type="text" placeholder="Template Name" {{on "input" (set-field this "current_template.title")}} />
+          {{/let}}
         </div>
         <div class="md-org-settings-field">
-          <label class="md-org-settings-field__label">{{t "Template Contents" key="template_contents"}}</label>
-          <Textarea @value={{this.current_template.text}} rows={{8}} class="md-org-settings-textarea" placeholder="Template Contents" />
+          {{#let (unique-id) as |templateContentsId|}}
+            <label for={{templateContentsId}} class="md-org-settings-field__label">{{t "Template Contents" key="template_contents"}}</label>
+            <textarea id={{templateContentsId}} rows={{8}} class="md-org-settings-textarea" placeholder="Template Contents" {{on "input" (set-field this "current_template.text")}}>{{this.current_template.text}}</textarea>
+          {{/let}}
         </div>
         <div style="text-align: right; margin-top: 8px;">
           <button type="button" class="md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "remove" this.current_template)}}>{{t "Remove Template" key="remove_template"}}</button>
@@ -33,4 +37,4 @@
     <button type="button" class="md-modal-btn md-modal-btn--primary" {{on "click" (this.ctrlAction "confirm")}}>{{t "Update" key="update"}}</button>
     <button type="button" class="md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</button>
   </div>
-{{/modal-dialog}}
+</ModalDialog>

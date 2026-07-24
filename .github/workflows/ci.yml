@@ -69,24 +69,36 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node 20
+      - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
+      # The cache key MUST carry the Node major. node_modules holds native
+      # bindings (sqlite3) compiled against a specific Node ABI; restoring a
+      # Node-20-built tree into a Node 22 runner loads a binding built for the
+      # wrong ABI. Bump this suffix on every Node major bump.
       - name: Cache node_modules and Puppeteer Chrome
         uses: actions/cache@v4
         with:
           path: |
             app/frontend/node_modules
             ~/.cache/puppeteer
-          key: ${{ runner.os }}-node20-${{ hashFiles('app/frontend/package-lock.json') }}
+          key: ${{ runner.os }}-node22-${{ hashFiles('app/frontend/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-node20-
+            ${{ runner.os }}-node22-
 
       - name: Install frontend dependencies
         working-directory: app/frontend
         run: npm install
+
+      # Template lint gate: fails on any NEW ember-template-lint violation (incl.
+      # no-implicit-this bare-property refs that crash render in Ember 5.x).
+      # Pre-existing violations are grandfathered in .lint-todo (suppressed until
+      # their per-entry error date); this only blocks newly-introduced ones.
+      - name: Lint Ember templates
+        working-directory: app/frontend
+        run: npm run lint:hbs
 
       # Puppeteer downloads Chrome under ~/.cache/puppeteer, not inside node_modules.
       # Restoring only node_modules leaves executablePath() pointing at a missing binary.
@@ -133,8 +145,34 @@ jobs:
       - name: Verify document register render + git content hashes + bundle completeness
         run: ruby scripts/document-register-render.rb --check
 
+      - name: Verify attestedContentHash guards (drift + closed exemption set)
+        run: scripts/tests/attestation-hash-guard-test.sh
+
       - name: Verify compliance publication status report
         run: ruby scripts/compliance-publication-status.rb --check
+
+      - name: Verify capability ledger (currentEvidence resolves at HEAD; negativeEvidence scoping)
+        run: ruby scripts/capability-check.rb --check
+
+  codex-review-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Guards the codex-review envelope logic: status fail-closed mapping,
+      # the prompt-injection guard, the per-chunk convergence policy, and the
+      # cross-chunk fold. Stdlib-only (unittest), so no Python setup or
+      # dependencies are needed.
+      - name: Run codex-review envelope guard + convergence unit tests
+        run: python3 scripts/codex-review-build-envelope.test.py
+
+      # Guards the diff chunker: file-boundary splitting, per-chunk byte cap,
+      # UTF-8-safe truncation of an oversized single file, and the MAX_CHUNKS
+      # overflow report that keeps a too-large PR fail-closed.
+      - name: Run codex-review diff-chunker unit tests
+        run: python3 scripts/codex-review-chunk-diff.test.py
 
   security-scan:
     runs-on: ubuntu-latest
@@ -168,10 +206,10 @@ jobs:
           gem install bundler-audit
           bundle-audit check --update
 
-      - name: Setup Node 20
+      - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Run npm audit (frontend CVE check)
         working-directory: app/frontend
@@ -196,14 +234,21 @@ jobs:
 
       - name: Download gitleaks (CLI - no license required)
         run: |
-          GITLEAKS_DOWNLOAD_URL="$(curl -sSfL \
+          set -o pipefail
+          GITLEAKS_VERSION="8.30.1"
+          GITLEAKS_DOWNLOAD_URL="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          if LATEST_GITLEAKS_DOWNLOAD_URL="$(curl -sSfL \
             --retry 3 \
             --retry-delay 2 \
             --retry-all-errors \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ github.token }}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/gitleaks/gitleaks/releases/latest | python3 -c "import json, sys; release=json.load(sys.stdin); print(next(asset['browser_download_url'] for asset in release['assets'] if asset['name'].endswith('_linux_x64.tar.gz')))")"
+            https://api.github.com/repos/gitleaks/gitleaks/releases/latest | python3 -c "import json, sys; release=json.load(sys.stdin); print(next(asset['browser_download_url'] for asset in release['assets'] if asset['name'].endswith('_linux_x64.tar.gz')))")"; then
+            GITLEAKS_DOWNLOAD_URL="$LATEST_GITLEAKS_DOWNLOAD_URL"
+          else
+            echo "Falling back to pinned gitleaks ${GITLEAKS_VERSION} download URL"
+          fi
           curl -sSfL --retry 3 --retry-delay 2 --retry-all-errors "$GITLEAKS_DOWNLOAD_URL" | tar -xz gitleaks
 
       - name: Scan for newly-introduced secrets (blocking)

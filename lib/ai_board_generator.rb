@@ -4,6 +4,7 @@ require 'anthropic'
 require 'set'
 require_relative 'pii_scrubber'
 require_relative 'art50_marker'
+require_relative 'lingo_linq/article50_call_context'
 
 module AiBoardGenerator
   # Default model for board generation — Haiku is fast and cheap for structured output
@@ -41,6 +42,14 @@ module AiBoardGenerator
         err = { words: nil, name: nil, description: nil, error: 'AI features require parental consent for this account' }
         err.merge!(dev_diag(:coppa_consent_pending,
           'FeatureFlags.coppa_blocks_ai_for?(user) returned true. The user has settings["coppa"]["pending_parent_consent"] set without a parent_consent_granted_at timestamp.'))
+        return err
+      end
+
+      # EU under-16 AI parental-consent hard-gate.
+      if FeatureFlags.eu_under16_blocks_ai_for?(user)
+        err = { words: nil, name: nil, description: nil, error: 'AI features require parental consent for this account' }
+        err.merge!(dev_diag(:eu_ai_consent_pending,
+          'FeatureFlags.eu_under16_blocks_ai_for?(user) returned true. The user is eu_under_16 without eu_ai_parental_consent_active.'))
         return err
       end
 
@@ -241,6 +250,13 @@ module AiBoardGenerator
         err = { words: nil, title: nil, error: 'AI features require parental consent for this account' }
         err.merge!(dev_diag(:coppa_consent_pending,
           'FeatureFlags.coppa_blocks_ai_for?(user) returned true. The user has settings["coppa"]["pending_parent_consent"] set without a parent_consent_granted_at timestamp.'))
+        return err
+      end
+
+      if FeatureFlags.eu_under16_blocks_ai_for?(user)
+        err = { words: nil, title: nil, error: 'AI features require parental consent for this account' }
+        err.merge!(dev_diag(:eu_ai_consent_pending,
+          'FeatureFlags.eu_under16_blocks_ai_for?(user) returned true. The user is eu_under_16 without eu_ai_parental_consent_active.'))
         return err
       end
 
@@ -627,6 +643,10 @@ module AiBoardGenerator
       # unredacted (request_summary is already scrubbed upstream). nil passes through untouched
       # for the API-error paths that log no response body.
       safe_response_summary = response_summary.nil? ? nil : PiiScrubber.redact_for_ai(response_summary)[:payload]
+      # EU AI Act Article 50: resolve the jurisdiction + disclosure-shown call context from
+      # the in-scope data-subject `user` via the ONE shared helper (ENF-01). The helper owns
+      # the guarded reads + scrubbed logged fallback, so it never raises into this wrapper.
+      art50_ctx = LingoLinq::Article50CallContext.for(user)
       AiApiLog.log_ai_call(
         provider: provider,
         model: model,
@@ -645,7 +665,9 @@ module AiBoardGenerator
         # EU AI Act Article 50(2): record that the output was machine-readable marked
         # and link this audit row to the marked content via its content_id.
         ai_content_marked: ai_content_marked,
-        ai_generated_content_id: ai_generated_content_id
+        ai_generated_content_id: ai_generated_content_id,
+        jurisdiction: art50_ctx[:jurisdiction],
+        article_50_disclosure_shown: art50_ctx[:article_50_disclosure_shown]
       )
     rescue StandardError => e
       Rails.logger.warn "AiBoardGenerator: failed to log AI API call: #{e.message}"

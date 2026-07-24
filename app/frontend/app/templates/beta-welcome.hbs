@@ -71,7 +71,7 @@
         <div class="register-checkboxes beta-welcome-accept">
           <div class="checkbox big_checkbox">
             <label>
-              <Input @type="checkbox" @checked={{this.agreementAccepted}} />
+              <input type="checkbox" checked={{this.agreementAccepted}} {{on "change" (set-field this "agreementAccepted" "checkbox")}} />
               {{t "I have read and accept the Beta Test Agreement." key="beta_agreement_accept"}}
             </label>
           </div>

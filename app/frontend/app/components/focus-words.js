@@ -20,6 +20,7 @@ import i18n from '../utils/i18n';
 import persistence from '../utils/persistence';
 import editManager from '../utils/edit_manager';
 import sync from '../utils/sync';
+import aiFeatureGate from '../utils/ai_feature_gate';
 
 export default Component.extend({
   modal: service('modal'),
@@ -196,9 +197,16 @@ export default Component.extend({
     return this.get('search') || this.get('browse');
   }),
 
-  ai_focus_generation_enabled: computed('appState.feature_flags.focus_word_highlighting', 'appState.feature_flags.ai_board_generation', function() {
-    return !!(this.get('appState.feature_flags.focus_word_highlighting') && this.get('appState.feature_flags.ai_board_generation'));
-  }),
+  ai_focus_generation_enabled: computed(
+    'appState.feature_flags.focus_word_highlighting',
+    'appState.feature_flags.ai_board_generation',
+    'appState.currentUser.preferences.ai_features_enabled',
+    'appState.currentUser.preferences.ai_board_generation',
+    function() {
+      return !!(this.get('appState.feature_flags.focus_word_highlighting') &&
+        aiFeatureGate.aiFeatureEnabled(this.get('appState'), 'ai_board_generation'));
+    }
+  ),
 
   ai_generate_disabled: computed('ai_generating', 'ai_prompt', 'ai_word_count', function() {
     const count = parseInt(this.get('ai_word_count'), 10);

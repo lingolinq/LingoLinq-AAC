@@ -4,18 +4,128 @@ module SystemEmailRegistry
   PARENTAL_CONSENT_I18N_BLOCKS = [
     { key: 'parental_consent_mailer.subject', label: 'Subject line', placeholders: ['app_name'] },
     { key: 'parental_consent_mailer.greeting', label: 'Greeting' },
-    { key: 'parental_consent_mailer.intro', label: 'Introduction', placeholders: ['app_name'] },
+    { key: 'parental_consent_mailer.intro', label: 'Introduction', placeholders: ['app_name', 'consent_age'] },
+    { key: 'parental_consent_mailer.safety_notice', label: 'Safety notice' },
+    { key: 'parental_consent_mailer.ready_heading', label: 'Ready-to-approve heading' },
     { key: 'parental_consent_mailer.action_prompt', label: 'Action prompt' },
+    { key: 'parental_consent_mailer.cta_label', label: 'Approve link label' },
     { key: 'parental_consent_mailer.privacy_notice', label: 'Privacy notice' },
+    { key: 'parental_consent_mailer.privacy_link_label', label: 'Privacy Policy link label' },
+    { key: 'parental_consent_mailer.unexpected_heading', label: 'Unexpected-email heading' },
     { key: 'parental_consent_mailer.footer', label: 'Footer' }
   ].freeze
 
   PARENTAL_CONSENT_DYNAMIC_VARS = [
     { name: '@consent_url', description: 'One-time parental consent approval link sent to the parent.' },
     { name: '@privacy_url', description: 'Link to the Privacy Policy for COPPA direct notice.' },
+    { name: '@consent_age', description: 'Applicable consent age (13 or 16) for this account.' },
     { name: '@user', description: 'The child user account awaiting consent.' },
     { name: '@child_name', description: 'Display name of the child user, if provided at signup.' },
     { name: '@parent_email', description: 'Parent or guardian email address the message is sent to.' }
+  ].freeze
+
+  PARENTAL_CONSENT_CONFIRMATION_I18N_BLOCKS = [
+    { key: 'parental_consent_confirmation_mailer.subject', label: 'Subject line', placeholders: ['app_name'] },
+    { key: 'parental_consent_confirmation_mailer.greeting', label: 'Greeting' },
+    { key: 'parental_consent_confirmation_mailer.intro', label: 'Introduction', placeholders: ['app_name', 'child_username', 'registered_at'] },
+    { key: 'parental_consent_confirmation_mailer.privacy_notice', label: 'Privacy notice' },
+    { key: 'parental_consent_confirmation_mailer.privacy_link_label', label: 'Privacy Policy link label' },
+    { key: 'parental_consent_confirmation_mailer.revoke_heading', label: 'Changed-your-mind heading' },
+    { key: 'parental_consent_confirmation_mailer.revoke_notice', label: 'Revoke-anytime notice' },
+    { key: 'parental_consent_confirmation_mailer.revoke_prompt', label: 'Revoke link prompt' },
+    { key: 'parental_consent_confirmation_mailer.revoke_cta_label', label: 'Revoke link label' },
+    { key: 'parental_consent_confirmation_mailer.footer', label: 'Footer' },
+    { key: 'parental_consent_confirmation_mailer.contact_link_label', label: 'Contact Page link label' }
+  ].freeze
+
+  PARENTAL_CONSENT_CONFIRMATION_DYNAMIC_VARS = [
+    { name: '@revoke_url', description: 'Link for the parent to withdraw consent at any time.' },
+    { name: '@privacy_url', description: 'Link to the Privacy Policy.' },
+    { name: '@contact_url', description: 'Link to contact support.' },
+    { name: '@user', description: 'The child user account.' },
+    { name: '@child_name', description: 'Display name of the child user.' },
+    { name: '@child_username', description: 'Username of the child account.' },
+    { name: '@registered_at', description: 'Account registration date.' },
+    { name: '@granted_at', description: 'Timestamp when consent was recorded.' },
+    { name: '@parent_email', description: 'Parent or guardian email address.' }
+  ].freeze
+
+  PARENTAL_CONSENT_REVOKED_I18N_BLOCKS = [
+    { key: 'parental_consent_revoked_mailer.subject', label: 'Subject line', placeholders: ['app_name'] },
+    { key: 'parental_consent_revoked_mailer.greeting', label: 'Greeting' },
+    { key: 'parental_consent_revoked_mailer.intro', label: 'Introduction', placeholders: ['app_name'] },
+    { key: 'parental_consent_revoked_mailer.details', label: 'Account details', placeholders: ['child_name', 'child_username', 'revoked_at'] },
+    { key: 'parental_consent_revoked_mailer.footer', label: 'Footer' },
+    { key: 'parental_consent_revoked_mailer.contact_link_label', label: 'Contact Page link label' }
+  ].freeze
+
+  PARENTAL_CONSENT_REVOKED_DYNAMIC_VARS = [
+    { name: '@privacy_url', description: 'Link to the Privacy Policy.' },
+    { name: '@contact_url', description: 'Link to contact support.' },
+    { name: '@user', description: 'The child user account.' },
+    { name: '@child_name', description: 'Display name of the child user.' },
+    { name: '@child_username', description: 'Username of the child account.' },
+    { name: '@revoked_at', description: 'Timestamp when consent was withdrawn.' },
+    { name: '@parent_email', description: 'Parent or guardian email address.' }
+  ].freeze
+
+  EU_AI_PARENTAL_CONSENT_I18N_BLOCKS = [
+    { key: 'eu_ai_parental_consent_mailer.subject', label: 'Subject line', placeholders: ['app_name'] },
+    { key: 'eu_ai_parental_consent_mailer.greeting', label: 'Greeting' },
+    { key: 'eu_ai_parental_consent_mailer.intro', label: 'Introduction', placeholders: ['app_name'] },
+    { key: 'eu_ai_parental_consent_mailer.aac_notice', label: 'AAC-still-available notice', placeholders: ['app_name'] },
+    { key: 'eu_ai_parental_consent_mailer.action_prompt', label: 'Action prompt' },
+    { key: 'eu_ai_parental_consent_mailer.privacy_notice', label: 'Privacy notice' },
+    { key: 'eu_ai_parental_consent_mailer.footer', label: 'Footer' }
+  ].freeze
+
+  EU_AI_PARENTAL_CONSENT_DYNAMIC_VARS = [
+    { name: '@consent_url', description: 'One-time EU AI parental consent approval link.' },
+    { name: '@privacy_url', description: 'Link to the Privacy Policy.' },
+    { name: '@user', description: 'The user account awaiting AI parental consent.' },
+    { name: '@child_name', description: 'Display name of the account holder.' },
+    { name: '@parent_email', description: 'Parent or guardian email address.' }
+  ].freeze
+
+  EU_AI_PARENTAL_CONSENT_CONFIRMATION_I18N_BLOCKS = [
+    { key: 'eu_ai_parental_consent_confirmation_mailer.subject', label: 'Subject line', placeholders: ['app_name'] },
+    { key: 'eu_ai_parental_consent_confirmation_mailer.greeting', label: 'Greeting' },
+    { key: 'eu_ai_parental_consent_confirmation_mailer.intro', label: 'Introduction', placeholders: ['app_name'] },
+    { key: 'eu_ai_parental_consent_confirmation_mailer.details', label: 'Account details', placeholders: ['child_name', 'child_username', 'granted_at'] },
+    { key: 'eu_ai_parental_consent_confirmation_mailer.privacy_notice', label: 'Privacy notice' },
+    { key: 'eu_ai_parental_consent_confirmation_mailer.revoke_notice', label: 'Revoke-anytime notice' },
+    { key: 'eu_ai_parental_consent_confirmation_mailer.revoke_prompt', label: 'Revoke link prompt' },
+    { key: 'eu_ai_parental_consent_confirmation_mailer.footer', label: 'Footer', placeholders: ['contact_url'] }
+  ].freeze
+
+  EU_AI_PARENTAL_CONSENT_CONFIRMATION_DYNAMIC_VARS = [
+    { name: '@revoke_url', description: 'Link for the parent to withdraw AI consent.' },
+    { name: '@privacy_url', description: 'Link to the Privacy Policy.' },
+    { name: '@contact_url', description: 'Link to contact support.' },
+    { name: '@user', description: 'The user account.' },
+    { name: '@child_name', description: 'Display name of the account holder.' },
+    { name: '@child_username', description: 'Username of the account.' },
+    { name: '@granted_at', description: 'Timestamp when AI consent was recorded.' },
+    { name: '@parent_email', description: 'Parent or guardian email address.' }
+  ].freeze
+
+  EU_AI_PARENTAL_CONSENT_REVOKED_I18N_BLOCKS = [
+    { key: 'eu_ai_parental_consent_revoked_mailer.subject', label: 'Subject line', placeholders: ['app_name'] },
+    { key: 'eu_ai_parental_consent_revoked_mailer.greeting', label: 'Greeting' },
+    { key: 'eu_ai_parental_consent_revoked_mailer.intro', label: 'Introduction', placeholders: ['app_name'] },
+    { key: 'eu_ai_parental_consent_revoked_mailer.details', label: 'Account details', placeholders: ['child_name', 'child_username', 'revoked_at'] },
+    { key: 'eu_ai_parental_consent_revoked_mailer.aac_notice', label: 'AAC-still-available notice', placeholders: ['app_name'] },
+    { key: 'eu_ai_parental_consent_revoked_mailer.footer', label: 'Footer', placeholders: ['contact_url'] }
+  ].freeze
+
+  EU_AI_PARENTAL_CONSENT_REVOKED_DYNAMIC_VARS = [
+    { name: '@privacy_url', description: 'Link to the Privacy Policy.' },
+    { name: '@contact_url', description: 'Link to contact support.' },
+    { name: '@user', description: 'The user account.' },
+    { name: '@child_name', description: 'Display name of the account holder.' },
+    { name: '@child_username', description: 'Username of the account.' },
+    { name: '@revoked_at', description: 'Timestamp when AI consent was withdrawn.' },
+    { name: '@parent_email', description: 'Parent or guardian email address.' }
   ].freeze
 
   ENTRIES = [
@@ -35,6 +145,66 @@ module SystemEmailRegistry
       variables: COMMON_VARS + ['@consent_url', '@privacy_url', '@user', '@child_name', '@parent_email'],
       i18n_blocks: PARENTAL_CONSENT_I18N_BLOCKS,
       dynamic_variables: PARENTAL_CONSENT_DYNAMIC_VARS,
+      uses_i18n_subject: true
+    },
+    {
+      mailer: 'user_mailer',
+      action: 'parental_consent_confirmation',
+      name: 'Parental consent confirmation',
+      category: 'Account',
+      recipient_type: 'parent',
+      default_subject: 'Parental Consent Confirmed',
+      variables: COMMON_VARS + ['@revoke_url', '@privacy_url', '@contact_url', '@user', '@child_name', '@child_username', '@granted_at', '@parent_email'],
+      i18n_blocks: PARENTAL_CONSENT_CONFIRMATION_I18N_BLOCKS,
+      dynamic_variables: PARENTAL_CONSENT_CONFIRMATION_DYNAMIC_VARS,
+      uses_i18n_subject: true
+    },
+    {
+      mailer: 'user_mailer',
+      action: 'parental_consent_revoked',
+      name: 'Parental consent withdrawn',
+      category: 'Account',
+      recipient_type: 'parent',
+      default_subject: 'Parental Consent Withdrawn',
+      variables: COMMON_VARS + ['@privacy_url', '@contact_url', '@user', '@child_name', '@child_username', '@revoked_at', '@parent_email'],
+      i18n_blocks: PARENTAL_CONSENT_REVOKED_I18N_BLOCKS,
+      dynamic_variables: PARENTAL_CONSENT_REVOKED_DYNAMIC_VARS,
+      uses_i18n_subject: true
+    },
+    {
+      mailer: 'user_mailer',
+      action: 'eu_ai_parental_consent_request',
+      name: 'EU AI parental consent request',
+      category: 'Account',
+      recipient_type: 'parent',
+      default_subject: 'AI Feature Parental Consent',
+      variables: COMMON_VARS + ['@consent_url', '@privacy_url', '@user', '@child_name', '@parent_email'],
+      i18n_blocks: EU_AI_PARENTAL_CONSENT_I18N_BLOCKS,
+      dynamic_variables: EU_AI_PARENTAL_CONSENT_DYNAMIC_VARS,
+      uses_i18n_subject: true
+    },
+    {
+      mailer: 'user_mailer',
+      action: 'eu_ai_parental_consent_confirmation',
+      name: 'EU AI parental consent confirmation',
+      category: 'Account',
+      recipient_type: 'parent',
+      default_subject: 'AI Feature Consent Confirmed',
+      variables: COMMON_VARS + ['@revoke_url', '@privacy_url', '@contact_url', '@user', '@child_name', '@child_username', '@granted_at', '@parent_email'],
+      i18n_blocks: EU_AI_PARENTAL_CONSENT_CONFIRMATION_I18N_BLOCKS,
+      dynamic_variables: EU_AI_PARENTAL_CONSENT_CONFIRMATION_DYNAMIC_VARS,
+      uses_i18n_subject: true
+    },
+    {
+      mailer: 'user_mailer',
+      action: 'eu_ai_parental_consent_revoked',
+      name: 'EU AI parental consent withdrawn',
+      category: 'Account',
+      recipient_type: 'parent',
+      default_subject: 'AI Feature Consent Withdrawn',
+      variables: COMMON_VARS + ['@privacy_url', '@contact_url', '@user', '@child_name', '@child_username', '@revoked_at', '@parent_email'],
+      i18n_blocks: EU_AI_PARENTAL_CONSENT_REVOKED_I18N_BLOCKS,
+      dynamic_variables: EU_AI_PARENTAL_CONSENT_REVOKED_DYNAMIC_VARS,
       uses_i18n_subject: true
     },
     { mailer: 'user_mailer', action: 'badge_awarded', name: 'Badge awarded', category: 'Reports & engagement', recipient_type: 'user', default_subject: 'Badge Awarded', variables: COMMON_VARS + ['@recipient', '@user', '@badge', '@goal', '@for_self'] },

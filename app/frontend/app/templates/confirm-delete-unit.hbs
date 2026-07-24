@@ -1,4 +1,4 @@
-{{#modal-dialog action=(this.ctrlAction "close") opening=(this.ctrlAction "opening") closing=(this.ctrlAction "closing")}}
+<ModalDialog @action={{this.ctrlAction "close"}} @opening={{this.ctrlAction "opening"}} @closing={{this.ctrlAction "closing"}}>
   <div class="modal-header">
     <button type="button" class="close" {{on "click" (this.ctrlAction "close")}}>&times;</button>
     {{#if this.model.lesson}}
@@ -44,5 +44,5 @@
     </button>
     <button class='btn btn-default' {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
   </div>
-{{/modal-dialog}}
+</ModalDialog>
 

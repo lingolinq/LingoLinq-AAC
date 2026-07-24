@@ -43,7 +43,7 @@
               <span class="md-org-room-add-users__label">{{t "Supervisor" key="supervisor"}}</span>
               <div class="md-org-room-add-users__group-body">
                 <div class="md-org-room-add-users__select-wrap">
-                  {{bound-select select_class="md-org-report-select md-org-report-select--sm md-org-room-add-users__select" content=this.model.supervisor_options selection=unit.supervisor_user_name action=(mut unit.supervisor_user_name) }}
+                  <BoundSelect @select_class="md-org-report-select md-org-report-select--sm md-org-room-add-users__select" @content={{this.model.supervisor_options}} @selection={{unit.supervisor_user_name}} @action={{mut unit.supervisor_user_name}} />
                 </div>
                 <div class="md-org-room-add-users__btn-group">
                   <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{on "click" (this.ctrlAction "add_unit_user" unit "edit_supervisor")}}>
@@ -59,7 +59,7 @@
               <span class="md-org-room-add-users__label">{{t "Communicator" key="communicator"}}</span>
               <div class="md-org-room-add-users__group-body">
                 <div class="md-org-room-add-users__select-wrap">
-                  {{bound-select select_class="md-org-report-select md-org-report-select--sm md-org-room-add-users__select" content=this.model.communicator_options selection=unit.communicator_user_name action=(mut unit.communicator_user_name) }}
+                  <BoundSelect @select_class="md-org-report-select md-org-report-select--sm md-org-room-add-users__select" @content={{this.model.communicator_options}} @selection={{unit.communicator_user_name}} @action={{mut unit.communicator_user_name}} />
                 </div>
                 <button type="button" class="md-org-btn md-org-btn--outline md-org-btn--sm" {{on "click" (this.ctrlAction "add_unit_user" unit "communicator")}}>
                   {{t "Add Communicator" key="add_communicator"}}
@@ -75,7 +75,7 @@
           {{else if unit.weekly_stats.error}}
             <p class="md-org-error">{{t "Error loading activity data" key="error_loading_activity_data"}}</p>
           {{else}}
-            {{stats/user-weeks unit=unit user_type="total" users=unit.supervisors more_users=unit.communicators weeks=unit.supervisor_weeks more_weeks=unit.user_weeks max_session_count=this.max_session_count}}
+            <Stats::UserWeeks @unit={{unit}} @user_type="total" @users={{unit.supervisors}} @more_users={{unit.communicators}} @weeks={{unit.supervisor_weeks}} @more_weeks={{unit.user_weeks}} @max_session_count={{this.max_session_count}} />
             <button type="button" class="md-org-room-toggle" {{on "click" (this.ctrlAction "toggle_details" unit)}}>
               <svg class="md-org-room-toggle__icon {{if unit.expanded 'md-org-room-toggle__icon--open'}}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
               {{#if unit.expanded}}
@@ -90,11 +90,11 @@
             <div class="md-org-room-detail">
               <div class="md-org-room-detail__section">
                 <h4 class="md-org-room-detail__heading">{{t "Supervisors" key="supervisors"}}</h4>
-                {{stats/user-weeks unit=unit user_type="supervisor" users=unit.supervisors weeks=unit.supervisor_weeks refresh="refresh" delete_user="delete_unit_user" deletable=this.model.permissions.edit}}
+                <Stats::UserWeeks @unit={{unit}} @user_type="supervisor" @users={{unit.supervisors}} @weeks={{unit.supervisor_weeks}} @refresh="refresh" @delete_user="delete_unit_user" @deletable={{this.model.permissions.edit}} />
               </div>
               <div class="md-org-room-detail__section">
                 <h4 class="md-org-room-detail__heading">{{t "Communicators" key="communicators"}}</h4>
-                {{stats/user-weeks unit=unit user_type="communicator" org=this.model users=unit.communicators weeks=unit.user_weeks refresh="refresh" room_goal_id=unit.goal_id delete_user="delete_unit_user" deletable=this.model.permissions.edit max_session_count=this.max_session_count}}
+                <Stats::UserWeeks @unit={{unit}} @user_type="communicator" @org={{this.model}} @users={{unit.communicators}} @weeks={{unit.user_weeks}} @refresh="refresh" @room_goal_id={{unit.goal_id}} @delete_user="delete_unit_user" @deletable={{this.model.permissions.edit}} @max_session_count={{this.max_session_count}} />
               </div>
             </div>
           {{else}}
@@ -131,7 +131,7 @@
   <hr class="md-org-report-divider">
   <form class="md-org-room-add-form" {{on "submit" (this.ctrlAction "add_unit")}}>
     <span class="md-org-room-add-form__label">{{t "Add a Room" key="add_a_room"}}</span>
-    <Input type="text" @value={{this.new_unit_name}} placeholder="Room Name" class="md-org-report-input" />
+    <input value={{this.new_unit_name}} type="text" placeholder="Room Name" aria-label={{t "Room Name" key="room_name"}} class="md-org-report-input" {{on "input" (set-field this "new_unit_name")}} />
     <button type="submit" class="md-org-btn md-org-btn--outline">{{t "Add Room" key="add_room"}}</button>
   </form>
 {{/if}}

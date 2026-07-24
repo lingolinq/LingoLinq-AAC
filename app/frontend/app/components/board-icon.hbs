@@ -16,7 +16,12 @@
      The sibling .info Preview pill and .board-icon__info chip still
      capture their own clicks via `bubbles=false` on their actions, so
      clicking either of those does NOT trigger pick_board. --}}
-{{!-- template-lint-disable-tree no-nested-interactive --}}
+{{!-- template-lint-disable-tree no-nested-interactive require-presentational-children --}}
+{{!-- require-presentational-children disabled for the same reason as no-nested-interactive
+     below: the outer div is a deliberate WCAG role="button" tile, and the nested .info /
+     .board-icon__info <button>s are absolute-positioned chrome (bubbles=false), not semantic
+     children of the button. Removing role="button" or the nested buttons would break the
+     documented pick_board + native-drag behavior. --}}
 {{!-- no-nested-interactive disabled for the tree below: the outer
      div is a WCAG role="button" (so screen readers announce the
      whole tile as a button). The two nested <button>s inside —
@@ -30,7 +35,7 @@
      "nesting" is purely DOM-layout, not semantic. --}}
 <div role="button" tabindex="0"
      {{on "click" (this.ctrlAction "pick_board" this.board_record)}}
-     {{on "keydown" (this.ctrlAction "pickKeydown")}}
+     {{on "keydown" (this.eventAction "pickKeydown")}}
      class={{this.display_class}}
      style={{this.cursor_style}}
      aria-label={{this.tile_aria_label}}>

@@ -1,0 +1,304 @@
+import LingoLinq from '../app';
+import RSVP from 'rsvp';
+import Component from '@ember/component';
+import { inject as service } from '@ember/service';
+import modal from '../utils/modal';
+import i18n from '../utils/i18n';
+import { computed } from '@ember/object';
+
+/**
+ * New User modal (org portal People tab).
+ *
+ * Converted from the legacy outlet-era controller/template pair to the
+ * component-based modal system so it renders via modal-container. Mirrors
+ * components/add-supervisor.js: init() reads the options passed to
+ * modal.open('new-user', {...}) into `model`, and the old `opening()`
+ * lifecycle work now runs in didInsertElement().
+ */
+export default Component.extend({
+  modal: service('modal'),
+  store: service('store'),
+  tagName: '',
+
+  init() {
+    this._super(...arguments);
+    var self = this;
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+    const modalService = this.get('modal');
+    const options = (modalService && modalService.getSettingsFor && modalService.getSettingsFor('new-user')) ||
+                    this.get('model') || {};
+    this.set('model', options);
+  },
+
+  didInsertElement() {
+    this._super(...arguments);
+    var user = this.get('store').createRecord('user', {
+      preferences: {
+        registration_type: 'manually-added-org-user',
+        preferred_symbols: this.get('model.org.preferred_symbols') || 'original'
+      },
+      authored_organization_id: this.get('model.organization_id'),
+      org_management_action: 'add_manager'
+    });
+    this.set('external_device', null);
+    this.set('external_vocab', null);
+    this.set('external_vocab_size', null);
+    this.set('external_access_method', null);
+
+    this.set('linking', false);
+    this.set('error', null);
+    user.set('watch_user_name_and_cookies', true);
+    this.set('model.user', user);
+    this.set('model.user.org_management_action', this.get('model.default_org_management_action'));
+    this.apply_license_downgrade();
+  },
+  // NOTE: this getter is pure -- it only builds the option list and marks
+  // license-exhausted types `disabled`. The auto-downgrade of a disabled
+  // default selection lives in apply_license_downgrade() (called from
+  // didInsertElement), NOT here: mutating model.user.org_management_action
+  // from inside the getter that the template's bound-select consumes trips
+  // Ember 5's backtracking-rerender assertion.
+  user_types: computed('model.no_licenses', 'model.no_supervisor_licenses', 'model.no_eval_licenses', 'model.premium', function() {
+    var res = [];
+    res.push({id: '', name: i18n.t('select_user_type', "[ Add This User As ]")});
+    if(this.get('model.no_licenses')) {
+      res.push({id: 'add_user', disabled: true, name: i18n.t('add_sponsored_used', "Add this User As a Sponsored Communicator")});
+    } else {
+      res.push({id: 'add_user', name: i18n.t('add_sponsored_used', "Add this User As a Sponsored Communicator")});
+    }
+    res.push({id: 'add_unsponsored_user', name: i18n.t('add_unsponsored_used', "Add this User As an Unsponsored Communicator")});
+    if(this.get('model.premium')) {
+      res.push({id: 'add_external_user', name: i18n.t('add_third_party_user', "Add this User As an Third-Party App Communicator")});
+    }
+    if(this.get('model.no_supervisor_licenses')) {
+      res.push({id: 'add_premium_supervisor', disabled: true, name: i18n.t('add_as_premium_supervisor', "Add this User As a Premium Supervisor")});
+    } else {
+      res.push({id: 'add_premium_supervisor', name: i18n.t('add_as_premium_supervisor', "Add this User As a Premium Supervisor")});
+    }
+    res.push({id: 'add_supervisor', name: i18n.t('add_as_supervisor', "Add this User As a Supervisor")});
+    res.push({id: 'add_manager', name: i18n.t('add_as_manager', "Add this User As a Full Manager")});
+    res.push({id: 'add_assistant', name: i18n.t('add_as_assistant', "Add this User As a Management Assistant")});
+    if(this.get('model.no_eval_licenses')) {
+      res.push({id: 'add_eval', disabled: true, name: i18n.t('add_paid_eval', "Add this User As a Paid Eval Account")});
+    } else {
+      res.push({id: 'add_eval', name: i18n.t('add_paid_eval', "Add this User As a Paid Eval Account")});
+    }
+    return res;
+  }),
+  // Downgrade a default selection that lands on a license-exhausted (disabled)
+  // type, e.g. clicking "New User" under Communicators when the org has no
+  // sponsored-communicator licenses. Run once from didInsertElement instead of
+  // during render. Mirrors the branches that previously lived in user_types.
+  apply_license_downgrade() {
+    var action = this.get('model.user.org_management_action');
+    if(this.get('model.no_licenses') && action == 'add_user') {
+      this.set_unsponsored_action();
+    } else if(this.get('model.no_supervisor_licenses') && action == 'add_premium_supervisor') {
+      this.set_unsponsored_action('supervisor');
+    } else if(this.get('model.no_eval_licenses') && action == 'add_eval') {
+      this.set_unsponsored_action();
+    }
+  },
+  locale_list: computed(function() {
+    var list = i18n.get('locales');
+    var res = [{name: i18n.t('english_default', "English (default)"), id: 'en'}];
+    for(var key in list) {
+      if(!key.match(/-|_/)) {
+        var str = /* i18n.locales_localized[key] ||*/ i18n.locales[key] || key;
+        res.push({name: str, id: key});
+      }
+    }
+    return res;
+  }),
+  access_methods: computed(function() {
+    return [
+      {name: i18n.t('touch', "Touch"), id: 'touch'},
+      {name: i18n.t('partner_assisted_scanning', "Partner-Assisted Scanning"), id: 'partner_scanning'},
+      {name: i18n.t('auditory_or_visual_scanning', "Auditory/Visual Scanning"), id: 'scanning'},
+      {name: i18n.t('head_tracking', "Head Tracking"), id: 'head'},
+      {name: i18n.t('eye_gaze_tracking', "Eye Gaze Tracking"), id: 'gaze'},
+      {name: i18n.t('other', "Other"), id: 'other'},
+    ]
+  }),
+  symbols_list: computed(function() {
+    var list = [
+      {name: i18n.t('original_symbols', "Default symbols"), id: 'original'},
+      {name: i18n.t('use_opensymbols', "Opensymbols.org"), id: 'opensymbols'},
+
+      {name: i18n.t('use_lessonpix', "LessonPix symbol library"), id: 'lessonpix'},
+      {name: i18n.t('use_symbolstix', "SymbolStix Symbols"), id: 'symbolstix'},
+      {name: i18n.t('use_pcs', "PCS Symbols by Tobii Dynavox"), id: 'pcs'},
+
+      {name: i18n.t('use_twemoji', "Emoji icons (authored by Twitter)"), id: 'twemoji'},
+      {name: i18n.t('use_noun-project', "The Noun Project black outlines"), id: 'noun-project'},
+      {name: i18n.t('use_arasaac', "ARASAAC free symbols"), id: 'arasaac'},
+      {name: i18n.t('use_tawasol', "Tawasol"), id: 'tawasol'},
+    ];
+    return list;
+  }),
+  premium_symbol_library: computed('symbols_list', 'model.user.preferences.preferred_symbols', function() {
+    return ['pcs', 'lessonpix', 'symbolstix'].indexOf(this.get('model.user.preferences.preferred_symbols')) != -1;
+  }),
+  third_party_new_user: computed('model.user.org_management_action', function() {
+    return this.get('model.user.org_management_action') == 'add_external_user';
+  }),
+  boarded_new_user: computed('model.user.org_management_action', function() {
+    var action = this.get('model.user.org_management_action');
+    return ['add_user', 'add_unsponsored_user', 'add_supervisor', 'add_premium_supervisor', 'add_eval'].indexOf(action) != -1;
+  }),
+  board_options: computed('model.org.home_board_keys', 'boarded_new_user', function() {
+    if(!this.get('boarded_new_user')) { return null; }
+    var res = [];
+    (this.get('model.org.home_board_keys') || []).forEach(function(key) {
+      res.push({
+        name: i18n.t('copy_of_key', "Copy of %{key}", {key: key}),
+        id: key
+      })
+    });
+    res.push({
+      name: i18n.t('no_board_now', "[ Don't Set a Home Board Now ]"),
+      id: 'none'
+    });
+    return res;
+  }),
+  board_will_copy: computed('model.user.home_board_template', function() {
+    var template = this.get('model.user.home_board_template') || ((this.get('board_options') || [])[0] || {}).id;
+    return template != 'none';
+  }),
+  device_options: computed(function() {
+    return [].concat(LingoLinq.User.devices).concat({id: 'other', name: i18n.t('other', "Other")});
+  }),
+  vocab_options: computed('external_device', function() {
+    var str = this.get('external_device');
+    var device = LingoLinq.User.devices.find(function(d) { return d.name == str; });
+    var res = [];
+    if(device && device.vocabs && device.vocabs.length > 0) {
+      res = res.concat(device.vocabs);
+    }
+    return res.concat([{id: 'custom', name: i18n.t('custom_vocab', "Custom Vocabulary")}]);
+  }),
+  set_unsponsored_action(type) {
+    if(type == 'supervisor') {
+      this.set('model.user.org_management_action', 'add_supervisor');
+    } else {
+      this.set('model.user.org_management_action', 'add_unsponsored_user');
+    }
+  },
+  linking_or_exists: computed('linking', 'model.user.user_name_check.exists', function() {
+    return this.get('linking') || this.get('model.user.user_name_check.exists');
+  }),
+
+  actions: {
+    close() {
+      this.get('modal').close();
+    },
+    opening() {},
+    closing() {},
+    set_device: function(device) {
+      this.set('external_device', device.name);
+    },
+    set_vocab: function(vocab) {
+      this.set('external_vocab', vocab.name);
+      if(vocab.buttons) {
+        this.set('external_vocab_size', vocab.buttons);
+      }
+    },
+    add: function() {
+      var controller = this;
+      controller.set('linking', true);
+      var user = this.get('model.user');
+      if(!user.get('user_name') || user.get('user_name').length < 2) {
+        controller.set('linking', false);
+        return;
+      }
+
+      if(this.get('external_device')) {
+        var str = this.get('external_device');
+        var device = {device_name: this.get('external_device')};
+        var found_device = LingoLinq.User.devices.find(function(d) { return d.name == str; });
+        if(found_device) {
+          device.device_id = found_device.id;
+        }
+        if(this.get('external_vocab')) {
+          var str = this.get('external_vocab');
+          device.vocab_name = str;
+          var vocabs = (found_device || {vocabs: []}).vocabs || [];
+          var vocab = vocabs.find(function(v) { return v.name == str; });
+          if(vocab) {
+            device.vocab_id = vocab.id;
+          }
+        }
+        if(this.get('external_vocab_size')) {
+          device.size = parseInt(this.get('external_vocab_size'), 10);
+          if(!device.size) { delete device['size']; }
+        }
+        if(this.get('external_access_method')) {
+          device.access_method = this.get('external_access_method');
+        }
+        user.set('external_device', device);
+      }
+
+      user.set('watch_user_name_and_cookies', false);
+
+      if(this.get('third_party_new_user') && this.get('external_device.name')) {
+        var dev = this.get('external_device');
+        dev.vocab_id = this.get('external_vocab.id');
+        dev.vocab = this.get('external_vocab.name');
+        dev.vocab_size = parseInt(this.get('external_vocab_size'), 10) || null;
+        user.set('external_device', dev);
+      }
+      var home_board = null;
+      var symbols = null;
+      if(this.get('board_options.length')) {
+        home_board = user.get('home_board_template') || this.get('board_options')[0].id;
+        symbols = user.get('preferences.preferred_symbols');
+      }
+      var add_symbols = user.get('add_symbols') && this.get('model.org.extras_available');
+      var action = user.get('org_management_action');
+      var get_user_name = user.save().then(function(user) {
+        return user.get('user_name');
+      }, function() {
+        return RSVP.reject(i18n.t('creating_user_failed', "Failed to create a new user with the given settings"));
+      });
+
+      get_user_name.then(function(user_name) {
+        var user = controller.get('model.user');
+        if(add_symbols) {
+          action = action + "-plus_extras";
+        }
+        user.set('org_management_action', action);
+        user.set('home_board_template', home_board);
+        user.set('home_board_symbols', symbols);
+        if(controller.get('model.org') && add_symbols) {
+          controller.get('model.org').reload();
+        }
+        modal.close({
+          created: true,
+          user: user
+        });
+      }, function(err) {
+          controller.set('linking', false);
+          controller.set('error', err);
+      });
+    }
+  }
+});

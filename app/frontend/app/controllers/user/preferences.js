@@ -18,6 +18,7 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { htmlSafe } from '@ember/template';
 import editManager from '../../utils/edit_manager';
+import { art50DisclosureUrl } from '../../utils/article50_gate';
 
 var sidebarActionCodeTemplates = {
   ':timer': ':timer(30s)',
@@ -130,20 +131,37 @@ function mergeMissingDefaultSidebarBoards(stored, defaults) {
 
 export default Controller.extend({
   appState: service('app-state'),
+  session: service('session'),
   // Ember Data 5.x removed automatic `store` injection into controllers.
   store: service('store'),
   // Alias for template compatibility (template uses this.app_state)
   app_state: alias('appState'),
   router: service('router'),
 
+  // EU AI Act Article 50(1) notice URL for the passive Preferences affordance
+  // (03-UI-SPEC 7.3). A plain link, NOT the ai-disclosure modal: that modal is
+  // uncloseable BLOCK mode and would trap a user who opened it just to re-read
+  // the notice. Version and locale single-sourced from utils/article50_gate;
+  // assigned in init() rather than at module load because the locale is not
+  // resolved until initializers/attempt_lang has run.
+  article_50_disclosure_url: null,
+
   init() {
     this._super(...arguments);
+    this.set('article_50_disclosure_url', art50DisclosureUrl());
     var self = this;
     this.ctrlAction = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function(event) {
         if (event && event.preventDefault) { event.preventDefault(); }
         self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+    // AI enable checkboxes: read click before the toggle; when EU consent is
+    // required, preventDefault and open the parental-consent modal instead.
+    this.onAiFeatureClick = function(prefKey) {
+      return function(event) {
+        self.send('ai_feature_click', prefKey, event);
       };
     };
     this.onSavePreferences = function(event) {
@@ -183,8 +201,11 @@ export default Controller.extend({
       this.set('original_preferences.word_suggestion_position', 'side_rail');
     }
     this.set('phrase_categories_string', (this.get('pending_preferences.phrase_categories') || []).join(', '));
+    this.set('_substitution_string', undefined);
     this.set('advanced', true);
     this.set('skip_save_on_transition', false);
+    this.set('eu_ai_parent_email', this.get('model.eu_ai_parental_consent_parent_email') || '');
+    this.set('euAiConsentSendSuccess', false);
     var _this = this;
     _this.set('weblinger_enabled', !!window.weblinger);
     _this.set('weblinger_load_state', capabilities.weblinger_load_status());
@@ -274,6 +295,10 @@ export default Controller.extend({
     {name: i18n.t('word_prediction_pos_speak_bar', "Inside the speak bar"), id: "speak_bar"},
     {name: i18n.t('word_prediction_pos_side_rail', "To the right of the board"), id: "side_rail"}
   ],
+  // EU under-16 users need parental consent before any AI prefs can stay ON.
+  euAiConsentRequired: computed('model.eu_under_16', 'model.eu_ai_parental_consent_active', function() {
+    return !!this.get('model.eu_under_16') && !this.get('model.eu_ai_parental_consent_active');
+  }),
   dimLevelList: [
     {name: i18n.t('default_dimmed', "Default Dimmed"), id: "default_dim"},
     {name: i18n.t('barely_dimmed', "Barely Dimmed"), id: "barely_dim"},
@@ -623,8 +648,23 @@ export default Controller.extend({
     });
     return htmlSafe(div.innerHTML);
   }),
-  substitution_string: computed('pending_preferences.substitutions', function() {
-    return editManager.stringify_rules(this.get('pending_preferences.substitutions') || []);
+  // Writable: the Phrase Substitutions textarea two-way-binds @value to this
+  // property. A get-only computed crashes on every keystroke in Ember 5 (setting
+  // a setter-less computed throws; pre-4.0 it silently clobbered the computed,
+  // which is how this originally worked). Same pattern as
+  // organization/settings.js home_board_key_lines.
+  substitution_string: computed('pending_preferences.substitutions', {
+    get() {
+      var cached = this.get('_substitution_string');
+      if(cached !== undefined && cached !== null) {
+        return cached;
+      }
+      return editManager.stringify_rules(this.get('pending_preferences.substitutions') || []);
+    },
+    set(key, value) {
+      this.set('_substitution_string', value);
+      return value;
+    }
   }),
   set_auto_sync: observer('model.id', 'model.auto_sync', function() {
     if(this.get('pending_preferences.device')) {
@@ -1123,6 +1163,7 @@ export default Controller.extend({
         this.set('pending_preferences.logging_code', 'false');
       }
       this.set('pending_preferences.substitutions', editManager.parse_rules(this.get('substitution_string')));
+      this.set('_substitution_string', undefined);
       this.set('phrase_categories_string', (this.get('pending_preferences.phrase_categories') || []).join(', '));
 
       // Persist the sidebar list the user sees (active options), not a stale raw pref.
@@ -1136,6 +1177,12 @@ export default Controller.extend({
       this.set('pending_preferences.sidebar_boards', activeSidebar);
 
       var _this = this;
+      // Defense: never persist AI enable prefs for EU under-16 without active consent.
+      if(this.get('euAiConsentRequired')) {
+        ['ai_features_enabled', 'ai_board_generation', 'ai_word_prediction', 'ai_board_suggestions', 'ai_symbol_search'].forEach(function(key) {
+          _this.set('pending_preferences.' + key, false);
+        });
+      }
       ['debounce', 'device.dwell_release_distance', 'device.scanning_next_keycode', 'device.scanning_prev_keycode', 'device.scanning_region_columns', 'device.scanning_region_rows', 'device.scanning_select_keycode', 'device.scanning_interval'].forEach(function(key) {
         var val = _this.get('pending_preferences.' + key);
         if(val && val.match && val.match(/\d/)) {
@@ -1181,9 +1228,14 @@ export default Controller.extend({
           user.set('preferences.' + key, pending[key]);
         }
       }
+      // Ensure forced-off AI prefs are written even when orig was also false/nil.
+      if(this.get('euAiConsentRequired')) {
+        ['ai_features_enabled', 'ai_board_generation', 'ai_word_prediction', 'ai_board_suggestions', 'ai_symbol_search'].forEach(function(key) {
+          user.set('preferences.' + key, false);
+        });
+      }
       user.set('preferences.progress.preferences_edited', true);
       user.set('preferences.device.updated', true);
-      var _this = this;
       _this.set('status', {saving: true});
       user.save().then(function(user) {
         _this.check_core_words();
@@ -1197,6 +1249,49 @@ export default Controller.extend({
       }, function() {
         _this.set('status', {error: true});
       });
+    },
+    ai_feature_click: function(prefKey, event) {
+      // Without EU consent gate, allow the native checkbox toggle + sync Ember.
+      if(!this.get('euAiConsentRequired')) {
+        if(event && event.target && typeof event.target.checked === 'boolean') {
+          this.set('pending_preferences.' + prefKey, !!event.target.checked);
+        }
+        return;
+      }
+      // Consent required: stop the toggle. If they were turning ON, open modal.
+      if(event && event.preventDefault) { event.preventDefault(); }
+      if(event && event.stopPropagation) { event.stopPropagation(); }
+      var currentlyOn = !!this.get('pending_preferences.' + prefKey);
+      if(!currentlyOn) {
+        this.set('pending_preferences.' + prefKey, false);
+        this.send('open_eu_ai_parental_consent_modal', prefKey);
+      } else {
+        this.set('pending_preferences.' + prefKey, false);
+      }
+    },
+    open_eu_ai_parental_consent_modal: function(triggeredPref) {
+      var _this = this;
+      this.set('euAiConsentSendSuccess', false);
+      modal.open('eu-ai-parental-consent', {
+        user: this.get('model'),
+        triggeredPref: triggeredPref || 'ai_features_enabled',
+        parentEmail: this.get('eu_ai_parent_email') || this.get('model.eu_ai_parental_consent_parent_email') || ''
+      }).then(function(result) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if(result && result.sent) {
+          _this.set('model.eu_ai_parental_consent_pending', true);
+          _this.set('euAiConsentSendSuccess', true);
+          if(result.parent_email) {
+            _this.set('eu_ai_parent_email', result.parent_email);
+            _this.set('model.eu_ai_parental_consent_parent_email', result.parent_email);
+          }
+        }
+      }, function() {
+        // Cancelled / force closed — leave prefs off.
+      });
+    },
+    resend_eu_ai_parental_consent: function() {
+      this.send('open_eu_ai_parental_consent_modal', 'ai_features_enabled');
     },
     cancelSave: function() {
       this.set('advanced', false);

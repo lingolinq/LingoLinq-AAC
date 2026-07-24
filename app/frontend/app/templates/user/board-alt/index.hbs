@@ -1,4 +1,4 @@
-{{#button-listener computeHeight=(this.ctrlAction "compute_height") buttonEvent=(this.ctrlAction "button_event")}}
+<ButtonListener @computeHeight={{this.ctrlAction "compute_height"}} @buttonEvent={{this.ctrlAction "button_event"}}>
 {{#if this.model.integration}}
   {{#unless this.app_state.sessionUser.currently_premium_or_premium_supporter}}
     <!-- only show integrations for currently-premium users, or supervisors with at least one premium user? -->
@@ -10,7 +10,7 @@
       </div>
     {{/if}}
     {{#if this.model.embed_url}}
-      {{embed-frame board_style=this.board_style code=this.model.action embed_url=this.model.embed_url user_token=this.model.user_token}}
+      <EmbedFrame @board_style={{this.board_style}} @code={{this.model.action}} @embed_url={{this.model.embed_url}} @user_token={{this.model.user_token}} />
     {{else}}
       <p class='text-danger'>{{t "There was an error loading the tool's page, it appears to not be configured properly" key="misconfigured_integration"}}</p>
     {{/if}}
@@ -132,7 +132,7 @@
                             <span class="glyphicon glyphicon-volume-up"></span>
                           </div>
                         {{/if}}
-                        {{label-field value=button.label class="button-label" placeholder="enter label"}}
+                        <LabelField @value={{button.label}} class="button-label" placeholder="enter label" />
                         {{#if button.levels_list}}
                           <span class='levels' style='opacity: 0.7;'>{{button.levels_list}}</span>
                         {{/if}}
@@ -148,7 +148,7 @@
             {{/each}}
           {{else}}
             {{#if this.app_state.currentUser.preferences.device.canvas_render}}
-              {{board-canvas id="board_canvas" onInsert=(this.ctrlAction "redraw") tabindex="0"}}
+              <BoardCanvas id="board_canvas" @onInsert={{this.ctrlAction "redraw"}} tabindex="0" />
             {{else}}
               {{#each this.ordered_buttons as |row|}}
                 <div class="button_row">
@@ -157,7 +157,7 @@
                   {{/each}}
                 </div>
               {{/each}}
-              {{fast-html-grabber}}
+              <FastHtmlGrabber />
             {{/if}}
           {{/if}}
         {{else}}
@@ -182,4 +182,4 @@
     <a href="#" {{on "click" (this.ctrlAction "re_transition")}}>{{t "Try Again" key="try_again"}}</a>
   {{/if}}
 {{/if}}
-{{/button-listener}}
+</ButtonListener>

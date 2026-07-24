@@ -221,7 +221,16 @@ rake extras:desktop
 
 ### Frontend Architecture
 
-**Framework:** Ember.js 3.28 with Ember Data for models
+**Framework:** Ember.js **5.12** with Ember Data 5.3 for models (ember-cli 5.12).
+
+**Ember version history:** The app originally shipped on **Ember 3.28**, then was upgraded to
+**4.12** (PR #437) and finally to **5.12** (PR #490) — the current version. When touching frontend
+code, target 5.12 APIs. Note that the 5.12 upgrade set `EXTEND_PROTOTYPES: false`
+(`config/environment.js`), so Ember array/string prototype extensions (`.pushObject`, `.sortBy`,
+`.mapBy`, `.uniq`, `.compact`, etc.) are **not** available on native arrays/strings — call them only
+on an `A()`-wrapped array (`import { A } from '@ember/array'`) or an Ember-Data collection, or use
+native JS equivalents. Deprecation-audit status is tracked in
+`docs/task-management/2026-07-14-ember-5-12-full-deprecation-audit.md`.
 
 **jQuery removal:** Work to remove jQuery has been done on the develop branch. `jquery-integration` is disabled in `config/optional-features.json` to avoid `Component.reopen` deprecation from @ember/jquery. The app uses jQuery (`$`) for DOM manipulation where needed but does not use `this.$()` on components. When making changes, prefer native DOM APIs or Ember patterns over jQuery where practical.
 
@@ -325,19 +334,85 @@ New user-facing features MUST be added behind a feature flag (`lib/feature_flags
 - Console access: use `bin/audit_console` (sets `USER_KEY` so console record-writes are attributed to you via PaperTrail, and works from the Render Shell tab, a Cloud Run exec shell, or locally), not a bare `rails console`. NOTE: `USER_KEY` is self-asserted free text, not derived from an authenticated principal, so the attributed actor is spoofable and the wrapper is opt-in (a bare `rails console` bypasses it with no attribution). The per-session `AuditEvent` logging this is meant to feed is also currently non-operative on the Ruby 3.4 / Reline stack (Readline hook bypassed; `ARGV_COMMAND` undefined at boot so the un-keyed-console refusal never fires). All three gaps are tracked as open finding LL-7f7372e3eb
 - Protected IDs require nonce to prevent snooping
 
+## PR Preflight (MANDATORY before opening a PR or pushing to an open PR)
+
+### P1. Claim Verification Gate
+Every factual claim in the PR title, PR body, or any touched doc must be verified
+against the CURRENT head, not against the plan, memory, or a prior session.
+- Before writing "X is fixed/built/supported": open the file and confirm at HEAD.
+- Any claim about a provider, integration, or capability (Anthropic, Gemini, SES,
+  ZDR, BAA, encryption, retention) requires a fresh grep of runtime code first:
+  git grep -n -i "gemini\|anthropic\|ses_\|zdr" -- lib/ app/ config/ ':!spec'
+- BANNED phrases in PR bodies unless backed by a per-path test or trace:
+  "both paths", "all call sites", "fully fixed", "no longer possible".
+- Plans are hypotheses. If executing a plan written in another session, re-verify
+  every file-level claim in the plan before implementing. This extends the
+  Plans B/D read-first rule to ALL plans.
+
+### P2. Entry-Point Enumeration (any auth/access/visibility change)
+Before coding, enumerate every path to the resource:
+  1. fresh server-rendered navigation
+  2. client-side SPA transition (Ember)
+  3. direct API call (verify with curl using raw params)
+  4. offline/cached content
+Enforcement lives at the server/API (Rails) layer. Client-side Ember flags are UX
+polish, never the security boundary. The PR body must include:
+  | Entry point | Enforced at | Test |
+Any path not covered is listed under "Not covered", not omitted.
+
+### P3. Generated Artifacts + Git Metadata (compliance/register PRs)
+Run before every push (these mirror the CI job `audit-artifacts-integrity`, so a
+green preflight means that job will not block the PR):
+  ruby scripts/compliance-notion-publish.rb            # regenerates the Notion page on disk
+  ruby scripts/compliance-notion-publish.rb --check     # exit 1 if the page drifts from FINDINGS
+  ruby scripts/document-register-render.rb --check       # exit 1 on register / hash / bundle drift
+  ruby scripts/compliance-calendar-render.rb --check     # exit 1 if calendar render drifts
+  ruby scripts/compliance-publication-status.rb --check  # exit 1 if publication-status report drifts
+  ruby scripts/capability-check.rb --check               # exit 1 if capability-ledger currentEvidence fails to resolve at HEAD / negativeEvidence scoping drifts
+  git diff --check                                       # whitespace / conflict markers
+  # exec-bit: only for CHANGED scripts that a doc/skill invokes DIRECTLY (./script),
+  # not every non-exec file in scripts/ (most .rb/.py run via `ruby`/`python` and are
+  # correctly 100644). List the directly-invoked ones explicitly, e.g.:
+  #   for s in scripts/regen-ledger.sh; do
+  #     git ls-files -s "$s" | awk '$1 !~ /^100755/ {print "NOT EXECUTABLE: " $4}'
+  #   done
+If a doc instructs running a script directly (./script, no interpreter prefix), the
+executable bit is part of the PR. If a check fails, fix it in THIS PR before pushing.
+
+### P4. Cross-Doc Consistency Sweep (touching docs/legal/** or audit-reports/**)
+When changing any claim in one compliance doc:
+  git grep -n -i "<subject>" -- docs/legal/ audit-reports/
+Reconcile every instance in the same PR, OR list the known-stale files in the PR
+body as explicit follow-ups. A register/ledger row marked "built" needs its
+evidence resolvable at HEAD, never only at a historical SHA.
+
+### P5. Honest Status Block (required in every PR body)
+## Fix status
+| Item | Status (Fixed / Partial: <scope> / Not fixed) | Evidence (file:line or spec) |
+## Not covered by this PR
+- <explicit list; "none" is acceptable only after P2>
+## Author-Model: <fable-5 | sonnet-x | opus-x | haiku-x>
+
+### P6. Behavioral Definition of Done (UI flows)
+Done = the full lifecycle works: action completes, modal closes/resolves, caller
+callback fires, list refreshes, success AND failure states are visible. A persisted
+record with a stuck UI is a High bug, not a partial success. If you cannot execute
+the flow, say so in the PR body and request a manual click-test of the SPECIFIC
+steps, listed.
+
 ## Environment Setup
 
 **Required services:**
 - PostgreSQL (database)
 - Redis (background jobs, caching)
-- Node.js 20 (managed via nvm)
+- Node.js 22 (managed via nvm)
 - Ruby 3.4.3
 - ImageMagick (`convert`, `identify`, `montage`)
 - Ghostscript (`gs`)
 
 **Node Version Management:**
-- Both `/.nvmrc` and `app/frontend/.nvmrc` specify Node 20
-- `bin/ember-server` uses nvm to ensure Node 20 for the frontend dev server
+- Both `/.nvmrc` and `app/frontend/.nvmrc` specify Node 22
+- `bin/ember-server` uses nvm to ensure Node 22 for the frontend dev server
 
 **Environment variables:**
 - Copy `.env.example` to `.env`
@@ -445,11 +520,23 @@ Phase 2; their content was migrated into the `.claude/` layout below.
 Retired from the fan-out: `ember-stabilization` and `rails-upgrade` (migration-era, shipped)
 and the `mvp-readiness` 0-100 score (replaced by open Critical/High counts).
 
+### Ember Upgrade Audit (separate register, same machinery)
+The Ember 3.28 → 5.12 upgrade shipped under-migrated (see `docs/ember-5.12-migration-findings.md`);
+`/ember-audit-run` (`.claude/skills/ember-audit-run/SKILL.md`) hunts residual upgrade
+regressions. It fans out the read-only `ember-upgrade-auditor` finder across seven codebase
+slices (checklist: `.claude/skills/ember-upgrade-audit/SKILL.md`; knowledge base:
+`docs/ember-upgrade/KNOWN-ISSUES.md`), optionally ingests a Playwright runtime crawl
+(`scripts/ember-route-crawl.mjs`), and reconciles into
+`audit-reports/ember-upgrade/FINDINGS-EMBER.json` — a **separate register** from the
+compliance one (engineering findings must not pollute the compliance Critical/High headline)
+using the same `audit-merge.rb`/`citation-check.rb` machinery and the same governance
+(only Scot closes/downgrades/accepts).
+
 ### Audit Rules
 - Finders are read-only by construction: `tools: Read, Grep, Glob, Bash` (no Edit/Write) plus a
   PreToolUse hook that blocks mutating Bash. They report; they never fix.
 - The register (`audit-reports/FINDINGS.json`) is the single source of truth. `audit-merge.rb`
   only ever ADDS findings or marks them `open`; it never closes or downgrades.
 - No student/patient data ever appears in findings; evidence snippets are code only.
-- Compliance content is Claude-only, never routed to Codex/DeepSeek.
+- Compliance content is **Tier 2**: the register is PII-free (code evidence only), so any approved reviewer is permitted; the data-bearing-path guard (`codex-review-guard.sh`), not a Claude-only rule, is the boundary.
 - All findings include file paths and line numbers, anchored to the audited commit SHA.

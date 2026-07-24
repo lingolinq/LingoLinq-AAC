@@ -25,8 +25,7 @@
 #   * Accepts CODE/PATH evidence ONLY. A finding must carry evidence.file + evidence.snippet that
 #     resolves at evidence.sha (so scripts/citation-check.rb stays green), and must NOT carry any
 #     PII or secret shape in any text field -- such a finding is REFUSED outright (skipped, never
-#     redacted-in), because the register is code/path evidence only and is a Claude-only
-#     compliance surface.
+#     redacted-in), because the register is code/path evidence only (PII-free, Tier 2 content).
 #   * Adds genuinely new findings as status "open", disposition "untriaged", with PR provenance.
 #   * For a known id still "open"/"remediated-unverified": refreshes lastSeen, records the PR
 #     provenance in notes, re-anchors evidence to the finding's sha only if it still verifies.
@@ -34,9 +33,10 @@
 #     Scot-owned status UNTOUCHED, sets regression:true with a loud note, lists it in the summary.
 #
 # WHY a manual command and not a hook / an n8n auto-promote step (the trigger decision):
-#   1. The n8n PR bot runs a DeepSeek pass via OpenRouter (no BAA). FINDINGS.json is a Claude-only
-#      compliance surface; auto-promoting from the bot would route DeepSeek-curated content into
-#      the compliance SSOT AND require giving the n8n service write access to the repo register --
+#   1. The n8n PR bot runs a DeepSeek pass via OpenRouter (no BAA). FINDINGS.json is the compliance
+#      SSOT (PII-free, Tier 2). The concern is not a reviewer *seeing* the register -- under the
+#      two-tier policy an approved reviewer may -- it is auto-promoting bot-curated content INTO
+#      the SSOT, which would require giving the n8n service write access to the repo register --
 #      a governance and attack-surface violation. So promotion is operated from a trusted Claude
 #      session, never by the bot.
 #   2. AI reviewers carry a 5-15% false-positive rate. Auto-promoting every Critical/High would

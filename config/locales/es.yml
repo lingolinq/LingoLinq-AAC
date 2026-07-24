@@ -1,0 +1,35 @@
+# Spanish translation for the EU AI Act Article 50(1) transparency disclosure
+# (VPC Phase 3, A50-DISC-01). This file exists ONLY for the art50_disclosures.v1
+# key set, making :es an available locale for the first time in this app.
+# Nothing in app/, lib/, or config/ currently iterates I18n.available_locales
+# (verified on this branch), so adding a partial locale file here is additive
+# and does not change behavior for any other page. Do not add non-art50 keys
+# to this file without first confirming nothing assumes es is a complete
+# translation set.
+es:
+  art50_disclosures:
+    v1:
+      page_title: "Aviso de transparencia sobre IA"
+      heading: "Usted está interactuando con un sistema de inteligencia artificial"
+      intro: "Algunas funciones de LingoLinq usan inteligencia artificial. Este aviso explica qué funciones usan IA, quién recibe su información cuando se usan, cuánto tiempo se conservan los registros, y cómo se marca el contenido generado por IA, según lo exige el Artículo 50(1) de la Ley de IA de la UE."
+      ai_system_heading: "Qué significa esto"
+      ai_system_body: "Un sistema de inteligencia artificial, en lenguaje sencillo, es un programa que genera sugerencias, borradores o contenido por sí mismo, a partir de una solicitud, en lugar de seguir un conjunto fijo de reglas escritas de antemano por LingoLinq. Cuando se usa una de las funciones descritas a continuación, la sugerencia, palabra o borrador que usted ve fue producido por ese tipo de sistema, no escrito por un empleado de LingoLinq."
+      features_heading: "Qué funciones de LingoLinq usan IA"
+      features_intro: "Esto incluye la generación de tableros con IA, que sugiere palabras de vocabulario, un nombre de tablero y una breve descripción al crear un tablero nuevo, junto con las demás funciones de IA que se enumeran aquí."
+      who_heading: "Quién recibe esta información"
+      who_intro: "Las funciones de IA de LingoLinq se basan en la siguiente empresa y modelos."
+      marking_heading: "Cómo se marca el contenido generado por IA"
+      marking_body: "El contenido producido por estas funciones de IA se marca de forma legible por máquina, según lo exige el Artículo 50(2) de la Ley de IA de la UE. Este marcado siempre ocurre para el contenido generado por IA que se produce con éxito. No depende de si se le muestra este aviso, de la jurisdicción de su cuenta, ni de ninguna configuración de funciones."
+      retention_heading: "Cuánto tiempo se conservan los registros"
+      retention_vendor_intro: "La empresa de IA en sí:"
+      retention_lingolinq_intro: "El propio registro de LingoLinq de una solicitud de IA, que se conserva por separado con fines de auditoría, sigue una regla escalonada en lugar de un único período:"
+      retention_general: "Para la mayoría de las cuentas: %{months} meses. Las reglas de la UE y de la HIPAA que se describen a continuación pueden extender este período, por lo que no es una regla fija para todas las cuentas."
+      retention_children: "Para cuentas que pertenecen a un menor de 13 años: un período continuo de %{months} meses, independientemente de si la cuenta permanece abierta o cerrada. Las reglas de la UE y de la HIPAA que se describen a continuación pueden extender este período."
+      retention_eu: "Para cuentas en la jurisdicción de la UE: hasta %{years} años, como parte del mantenimiento de registros que describe este aviso."
+      retention_hipaa: "Para cuentas sujetas al requisito de registros de auditoría de la HIPAA (45 CFR 164.316(b)(2)): hasta %{years} años. Este es un límite mínimo obligatorio. Siempre extiende los períodos anteriores, y nunca se reduce por ellos."
+      retention_ip: "La dirección IP en cualquier registro de solicitud de IA se elimina después de %{days} días, para todas las cuentas."
+      retention_account_deletion: "El registro de solicitudes de IA vinculado a una cuenta se elimina cuando se elimina la cuenta misma."
+      privacy_heading: "Política de privacidad completa"
+      privacy_intro: "Este aviso cubre únicamente la transparencia sobre IA. Para todo lo demás que LingoLinq recopila y cómo se protege, lea la"
+      privacy_link_text: "Política de privacidad de LingoLinq"
+      version_footer: "Versión del aviso %{version}, vigente desde %{effective_date}."

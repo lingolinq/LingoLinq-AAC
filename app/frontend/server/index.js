@@ -1,9 +1,9 @@
 'use strict';
 
-// Proxy /auth/* to Rails BEFORE Ember's SPA history fallback.
-// Full-page navigations (window.location) send Accept: text/html, which Ember
-// otherwise answers with index.html — so /auth/google/start never reached Rails
-// and the app routed to /login instead of Google OAuth.
+// Proxy /auth/*, /parental_consent/*, and /eu_ai_parental_consent/* to Rails BEFORE
+// Ember's SPA history fallback. Full-page navigations (window.location) send
+// Accept: text/html, which Ember otherwise answers with index.html — so OAuth and
+// parental-consent email links never reached Rails.
 module.exports = function(app) {
   var frontendHost = process.env.EMBER_DEV_HOST || process.env.FRONTEND_HOST || 'localhost:8184';
   var frontendOrigin = process.env.FRONTEND_ORIGIN || ('http://' + frontendHost);
@@ -29,6 +29,12 @@ module.exports = function(app) {
   function migrationPath(url) {
     var path = (url || '').split('?')[0];
     return path === '/migration' || path.indexOf('/migration/') === 0;
+  }
+
+  function parentalConsentPath(url) {
+    var path = (url || '').split('?')[0];
+    return path === '/parental_consent/complete' || path === '/parental_consent/revoke' ||
+      path === '/eu_ai_parental_consent/complete' || path === '/eu_ai_parental_consent/revoke';
   }
 
   var proxy = require('http-proxy').createProxyServer({
@@ -66,7 +72,7 @@ module.exports = function(app) {
   });
 
   app.use(function(req, res, next) {
-    if(!authPath(req.url) && !migrationPath(req.url)) {
+    if(!authPath(req.url) && !migrationPath(req.url) && !parentalConsentPath(req.url)) {
       return next();
     }
     proxy.web(req, res, { target: 'http://127.0.0.1:5000' });

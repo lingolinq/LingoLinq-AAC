@@ -1,0 +1,367 @@
+name: Codex Review
+
+# Dispatched by the n8n W1 "codex-orchestrator" workflow (see
+# .github/codex/README.md) via workflow_dispatch, never by a GitHub event
+# directly. n8n owns dedupe, debounce, and the loop counter; this workflow
+# owns everything that needs a real checkout: gathering live state, running
+# the reviewer, and reporting a fail-closed commit status.
+#
+# Fail-closed anchor (build spec section 1/6): `codex-review/deep-pass` is a
+# required branch-protection status check. This workflow sets it `pending`
+# as its FIRST step. Only a successful POST-and-verify to n8n W2 (job
+# success) or codex-watchdog.yml (on failure/timeout) ever resolves it away
+# from pending. A dead/crashed/timed-out run therefore blocks merge instead
+# of silently passing it.
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to review"
+        required: true
+        type: string
+      head_sha:
+        description: "Head SHA to set the commit status on"
+        required: true
+        type: string
+      base_sha:
+        description: "Base SHA to diff against"
+        required: true
+        type: string
+      loop_n:
+        description: "Review loop counter (0 on first pass, 1 after one claude-fix cycle)"
+        required: true
+        type: string
+      reviewer_route:
+        description: "codex | claude-deep, as classified by n8n W1 (re-verified here, fail-safe)"
+        required: true
+        type: string
+
+jobs:
+  codex-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      statuses: write
+      pull-requests: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ inputs.pr_number }}
+      HEAD_SHA: ${{ inputs.head_sha }}
+      BASE_SHA: ${{ inputs.base_sha }}
+      LOOP_N: ${{ inputs.loop_n }}
+    steps:
+      # Codex review of this pipeline (PR #607) caught that the fail-closed
+      # anchor was not actually first: the old single validate-inputs step
+      # ran before the pending status existed, so a malformed dispatch input
+      # meant NO status was ever posted -- silently invisible to the 30-min
+      # watchdog sweep, which only detects a status stuck at `pending`. Fix:
+      # validate only what's needed to safely address the status API
+      # (head_sha), set pending, THEN validate everything else -- flipping
+      # the status straight to `failure` on bad input instead of leaving it
+      # for the watchdog to notice half an hour later.
+      - name: Validate head_sha (minimum needed before it is safe to use in the status API)
+        run: |
+          if ! [[ "$HEAD_SHA" =~ ^[0-9a-f]{7,40}$ ]]; then
+            echo "::error::head_sha is not a hex SHA: no status can be posted for an unverified ref, refusing to proceed" >&2
+            exit 1
+          fi
+
+      - name: Set codex-review/deep-pass = pending (fail-closed anchor, first step able to act)
+        run: |
+          gh api "repos/${{ github.repository }}/statuses/${HEAD_SHA}" \
+            -f state=pending \
+            -f context=codex-review/deep-pass \
+            -f description="Codex review running (loop ${LOOP_N})" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: Validate remaining inputs (flip status to failure on bad input, don't just leave it pending)
+        run: |
+          fail() {
+            gh api "repos/${{ github.repository }}/statuses/${HEAD_SHA}" \
+              -f state=failure \
+              -f context=codex-review/deep-pass \
+              -f description="$1" \
+              -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "::error::$1" >&2
+            exit 1
+          }
+          [[ "$PR_NUMBER" =~ ^[0-9]+$ ]] || fail "pr_number is not numeric"
+          [[ "$BASE_SHA" =~ ^[0-9a-f]{7,40}$ ]] || fail "base_sha is not a hex SHA"
+          [[ "$LOOP_N" =~ ^[0-9]+$ ]] || fail "loop_n is not numeric"
+          [[ "$REVIEWER_ROUTE" =~ ^(codex|claude-deep)$ ]] || fail "reviewer_route must be codex or claude-deep"
+        env:
+          REVIEWER_ROUTE: ${{ inputs.reviewer_route }}
+
+      - name: Bind pr_number to head_sha (refuse a stale/mismatched W1 dispatch)
+        # Codex review flagged that pr_number and head_sha were trusted
+        # independently with no cross-check they name the same commit. A
+        # stale or wrong W1 dispatch (e.g. a race between two pushes) could
+        # otherwise gather live state / comment on one PR while setting the
+        # commit status, and now the W2 envelope, on a different SHA. Refuse
+        # to proceed -- and flip the status to failure -- if pr_number's
+        # actual current head doesn't match the dispatched head_sha.
+        run: |
+          ACTUAL_HEAD="$(gh pr view "$PR_NUMBER" -R "${{ github.repository }}" --json headRefOid --jq '.headRefOid')"
+          if [ "$ACTUAL_HEAD" != "$HEAD_SHA" ]; then
+            gh api "repos/${{ github.repository }}/statuses/${HEAD_SHA}" \
+              -f state=failure \
+              -f context=codex-review/deep-pass \
+              -f description="pr_number ${PR_NUMBER}'s current head (${ACTUAL_HEAD}) does not match dispatched head_sha" \
+              -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "::error::pr_number ${PR_NUMBER} head is ${ACTUAL_HEAD}, but dispatch head_sha was ${HEAD_SHA}: refusing to bind review/comment routing to the wrong PR" >&2
+            exit 1
+          fi
+
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.head_sha }}
+          fetch-depth: 0
+
+      - name: Restore Codex review helpers from workflow ref
+        # Older PR heads predate this pipeline, and any PR can modify or
+        # delete these helper files. Run the review using the trusted helper
+        # versions from the workflow ref that GitHub dispatched, while still
+        # reviewing the PR head checkout.
+        run: |
+          git checkout "${{ github.workflow_sha }}" -- \
+            .github/codex \
+            scripts/codex-review-assemble-prompt.py \
+            scripts/codex-review-chunk-diff.py \
+            scripts/codex-review-one-chunk.sh \
+            scripts/codex-review-assemble-manifest.py \
+            scripts/codex-review-build-envelope.py \
+            scripts/codex-review-claude-deep.sh \
+            scripts/codex-review-path-classifier.sh
+
+      - name: Re-classify paths in CI (fail-safe; n8n's classification is not trusted alone)
+        id: classify
+        run: scripts/codex-review-path-classifier.sh "${BASE_SHA}" "${HEAD_SHA}"
+        env:
+          CODEX_COMPLIANCE_PATHS: ${{ vars.CODEX_COMPLIANCE_PATHS || 'allow' }}
+
+      - name: Gather live state
+        id: live_state
+        run: |
+          {
+            echo "live_state<<LIVE_STATE_EOF"
+            echo "### gh pr view"
+            gh pr view "$PR_NUMBER" -R "${{ github.repository }}" --json mergeable,mergeStateStatus,headRefOid,title,body
+            echo ""
+            echo "### gh pr checks"
+            gh pr checks "$PR_NUMBER" -R "${{ github.repository }}" || true
+            echo ""
+            echo "### changed files (git mode at PR head ${HEAD_SHA})"
+            # Source of truth is the PR head COMMIT, so this list agrees with the
+            # injected BASE...HEAD diff. Do NOT use `git ls-files -s` here: it
+            # reads the INDEX, and the later "Restore Codex review helpers from
+            # workflow ref" step rewrites the index/working-tree for helper files
+            # to the workflow-ref blobs. That made the mode/blob evidence for
+            # helper files disagree with the diff, which the reviewer correctly
+            # flagged as an evidence mismatch (CR-1). `git ls-tree HEAD_SHA`
+            # reads the head commit's tree object directly and is immune to the
+            # restore regardless of step ordering.
+            git diff --name-only "${BASE_SHA}...${HEAD_SHA}" | while read -r f; do
+              entry="$(git ls-tree "${HEAD_SHA}" -- "$f" 2>/dev/null)"
+              if [ -n "$entry" ]; then
+                printf '%s\n' "$entry"
+              else
+                printf '(deleted at head)\t%s\n' "$f"
+              fi
+            done
+            echo "LIVE_STATE_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Gather PR diff and split into review chunks
+        # The reviewer runs read-only and its in-sandbox shell may be
+        # unavailable (bwrap can fail to initialize on the runner), so it
+        # cannot compute the diff itself. Precompute it here and inject it so
+        # the review has real evidence to work from.
+        #
+        # A large PR used to be TRUNCATED to the first MAX_BYTES and the unseen
+        # hunks marked unverified, which correctly drove the reviewer to
+        # NEEDS_HUMAN and turned this required, fail-closed gate red (see
+        # PR #665: a ~644 KB diff vs a 60 KB cap). Instead of truncating, split
+        # the diff into file-boundary chunks each within the (raised) per-chunk
+        # cap and review them across passes; the per-chunk verdicts are folded
+        # fail-closed in build-envelope (APPROVE only if every chunk approves).
+        # Only a single file larger than the cap stays partially truncated, and
+        # only for its own chunk. MAX_CHUNKS bounds runner cost: files past the
+        # cap become a synthetic fail-closed chunk (a truly enormous PR still
+        # routes to a human, as before -- just the tail past the cap).
+        id: pr_diff
+        env:
+          MAX_BYTES: ${{ vars.CODEX_MAX_DIFF_BYTES || '150000' }}
+          MAX_CHUNKS: ${{ vars.CODEX_MAX_DIFF_CHUNKS || '16' }}
+        run: |
+          mkdir -p /tmp/pr_chunks /tmp/reviews
+          git diff "${BASE_SHA}...${HEAD_SHA}" > /tmp/pr_diff_raw.txt
+          CHUNK_COUNT="$(python3 scripts/codex-review-chunk-diff.py \
+            --diff /tmp/pr_diff_raw.txt \
+            --out-dir /tmp/pr_chunks \
+            --max-bytes "$MAX_BYTES" \
+            --max-chunks "$MAX_CHUNKS" \
+            --manifest /tmp/chunk-manifest.json)"
+          echo "chunk_count=${CHUNK_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "Split PR diff into ${CHUNK_COUNT} chunk(s) (per-chunk cap ${MAX_BYTES} bytes, max ${MAX_CHUNKS} chunks)."
+
+      - name: Install Codex CLI
+        if: steps.classify.outputs.reviewer_route == 'codex'
+        run: npm install -g @openai/codex
+
+      - name: Authenticate Codex CLI
+        if: steps.classify.outputs.reviewer_route == 'codex'
+        env:
+          OPENAI_API_KEY: ${{ secrets.CODEX_OPENAI_API_KEY }}
+          CODEX_HOME: ${{ runner.temp }}/codex-home
+        run: |
+          echo "::add-mask::$OPENAI_API_KEY"
+          mkdir -p "$CODEX_HOME"
+          printf '%s' "$OPENAI_API_KEY" | codex login --with-api-key
+
+      # Both reviewer routes review each chunk on its own pass via the SAME
+      # per-chunk script (codex-review-one-chunk.sh), run in a BOUNDED-PARALLEL
+      # pool so a large PR's chunks are reviewed in a few concurrent waves
+      # instead of one long serial run that could brush the 30-min
+      # codex-watchdog limit. Each chunk is independent (unique prompt/review
+      # filenames keyed by index, no shared mutable state), so parallelism is
+      # safe; the pool size is capped (CODEX_REVIEW_CONCURRENCY, default 4)
+      # because several concurrent `codex exec` sandboxes share one small
+      # runner. `find -print0 | xargs -0` runs nothing on an empty diff (0
+      # chunks) and never word-splits paths; xargs returns non-zero if ANY
+      # chunk's review crashes, failing the step -> fail-closed. A legitimate
+      # REQUEST_CHANGES review exits 0 (it just writes JSON) and is decided by
+      # the cross-chunk fold, not by this step's exit code.
+      - name: Review chunks (codex exec, converge per chunk, bounded-parallel)
+        id: review_codex
+        if: steps.classify.outputs.reviewer_route == 'codex'
+        env:
+          REVIEWER_ROUTE: ${{ steps.classify.outputs.reviewer_route }}
+          CODEX_HOME: ${{ runner.temp }}/codex-home
+          LIVE_STATE: ${{ steps.live_state.outputs.live_state }}
+          LOOP_N: ${{ inputs.loop_n }}
+          CONCURRENCY: ${{ vars.CODEX_REVIEW_CONCURRENCY || '4' }}
+        run: |
+          find /tmp/pr_chunks -maxdepth 1 -name 'chunk-*.txt' -print0 \
+            | xargs -0 -P "$CONCURRENCY" -I{} bash scripts/codex-review-one-chunk.sh {}
+
+      - name: Review chunks (Claude Sonnet 4.6 API, Tier 2 claude-deep, bounded-parallel)
+        id: review_claude_deep
+        if: steps.classify.outputs.reviewer_route == 'claude-deep'
+        env:
+          REVIEWER_ROUTE: ${{ steps.classify.outputs.reviewer_route }}
+          ANTHROPIC_API_KEY: ${{ secrets.CLAUDE_REVIEW_API_KEY }}
+          LIVE_STATE: ${{ steps.live_state.outputs.live_state }}
+          LOOP_N: ${{ inputs.loop_n }}
+          CONCURRENCY: ${{ vars.CODEX_REVIEW_CONCURRENCY || '4' }}
+        run: |
+          echo "::add-mask::$ANTHROPIC_API_KEY"
+          find /tmp/pr_chunks -maxdepth 1 -name 'chunk-*.txt' -print0 \
+            | xargs -0 -P "$CONCURRENCY" -I{} bash scripts/codex-review-one-chunk.sh {}
+
+      - name: Reviewer blocked (Tier 1 data-bearing path)
+        id: review_blocked
+        if: steps.classify.outputs.reviewer_route == 'blocked'
+        run: |
+          mkdir -p /tmp/reviews
+          cat > /tmp/reviews/blocked.json <<JSONEOF
+          {
+            "verdict": "NEEDS_HUMAN",
+            "head_sha": "${HEAD_SHA}",
+            "findings": [{
+              "id": "GUARD-1",
+              "severity": "HIGH",
+              "category": "path_coverage",
+              "file": "(diff-wide)",
+              "line": null,
+              "description": "This PR touches a data-bearing path (fixtures/seeds/factories/migrations/cassettes/raw data). Per the Tier 1/Tier 2 policy, no external reviewer (Codex or Claude-deep) may see this diff.",
+              "evidence": "scripts/codex-review-path-classifier.sh flagged data_bearing=true",
+              "suggested_fix": "A human must review this PR directly; do not re-run /codex-review on it.",
+              "verifiable_check": "scripts/codex-review-path-classifier.sh ${BASE_SHA} ${HEAD_SHA}"
+            }],
+            "checks_run": { "register_drift": "n/a", "modes": "n/a", "ci": "n/a" },
+            "resolved_from_prior_loop": []
+          }
+          JSONEOF
+
+      - name: Assemble envelope manifest (per-chunk review files -> fold input)
+        # Turn the per-chunk review files on disk into the manifest
+        # build-envelope --manifest folds over: one entry per chunk, each with
+        # that chunk's diff (for the per-chunk injection guard) and its
+        # convergence runs in order. Also synthesizes the fail-closed edge
+        # chunks -- the overflow tail past MAX_CHUNKS and (blocked route) the
+        # data-bearing refusal -- so the fold step needs no special-casing.
+        run: |
+          python3 scripts/codex-review-assemble-manifest.py \
+            --route "${REVIEWER_ROUTE}" \
+            --out /tmp/envelope-manifest.json \
+            --chunk-manifest /tmp/chunk-manifest.json \
+            --reviews-dir /tmp/reviews \
+            --blocked-review /tmp/reviews/blocked.json
+        env:
+          REVIEWER_ROUTE: ${{ steps.classify.outputs.reviewer_route }}
+
+      - name: Build W2 envelope (CI-trusted routing fields wrap the model's review JSON)
+        # Codex review of this pipeline (PR #607) flagged that POSTing
+        # /tmp/review.json alone means W2 would have to trust the model's
+        # OWN self-reported head_sha/etc. for routing (which PR to comment
+        # on, which status to resolve). Wrap it in an envelope of
+        # Actions-validated values instead, so W2 routes off CI ground
+        # truth, not model output.
+        run: |
+          # Fold: converge each chunk's runs, then fold across chunks
+          # fail-closed (APPROVE only if every chunk approves). The injection
+          # guard runs per chunk against that chunk's own diff.
+          python3 scripts/codex-review-build-envelope.py \
+            --manifest /tmp/envelope-manifest.json --out /tmp/envelope.json
+        env:
+          REVIEWER_ROUTE: ${{ steps.classify.outputs.reviewer_route }}
+          RUN_ID: ${{ github.run_id }}
+
+      - name: POST result to n8n W2 and resolve status
+        run: |
+          RESULT_JSON="$(cat /tmp/envelope.json)"
+          HTTP_STATUS="$(curl -sS -o /tmp/w2-response.json -w '%{http_code}' \
+            -X POST "${{ secrets.N8N_CODEX_RESULTS_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -H "X-Codex-Signature: $(printf '%s' "$RESULT_JSON" | openssl dgst -sha256 -hmac "${{ secrets.N8N_CODEX_RESULTS_HMAC_SECRET }}" | awk '{print $2}')" \
+            -d "$RESULT_JSON")"
+
+          if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
+            echo "POST to n8n W2 failed with HTTP $HTTP_STATUS" >&2
+            cat /tmp/w2-response.json >&2
+            exit 1
+          fi
+
+          FINAL_STATE="$(python3 -c "import json; print(json.load(open('/tmp/envelope.json'))['status']['state'])")"
+          DESCRIPTION="$(python3 -c "import json; print(json.load(open('/tmp/envelope.json'))['status']['description'])")"
+
+          # W2 owns the sticky comment; Actions owns the commit status
+          # because this job already has statuses:write and n8n's comment
+          # credential intentionally does not need that scope.
+          gh api "repos/${{ github.repository }}/statuses/${HEAD_SHA}" \
+            -f state="$FINAL_STATE" \
+            -f context=codex-review/deep-pass \
+            -f description="$DESCRIPTION" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          # Success condition (literal, per build spec section 1): do not
+          # exit success unless a follow-up GET confirms deep-pass is no
+          # longer pending for THIS run's status entry. Another in-flight
+          # dispatch can post the same context on the same SHA, so key the
+          # verification by target_url instead of taking the newest context.
+          # codex-watchdog.yml is the independent backstop if this check
+          # itself never runs (job killed before this line).
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          for i in $(seq 1 6); do
+            sleep 5
+            gh api "repos/${{ github.repository }}/commits/${HEAD_SHA}/statuses" > /tmp/codex-statuses.json
+            STATE="$(python3 -c 'import json, sys; run_url = sys.argv[1]; statuses = json.load(open("/tmp/codex-statuses.json")); print(next((status["state"] for status in statuses if status.get("context") == "codex-review/deep-pass" and status.get("target_url") == run_url), ""))' "$RUN_URL")"
+            if [ "$STATE" != "pending" ] && [ -n "$STATE" ]; then
+              echo "codex-review/deep-pass resolved to: $STATE"
+              exit 0
+            fi
+          done
+
+          echo "codex-review/deep-pass still pending 30s after W2 POST succeeded; failing this job so it does not report false success. codex-watchdog.yml's workflow_run trigger will flip the status to failure." >&2
+          exit 1

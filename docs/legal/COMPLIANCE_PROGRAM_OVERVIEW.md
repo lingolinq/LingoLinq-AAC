@@ -1,13 +1,29 @@
 # LingoLinq Security, Privacy & Compliance Overview
 
-> **Attested for external release by Scot Wahlquist (CEO) on 2026-07-09 (rev. 2026-07-09-c).**
-> This attestation covers the version corrected after the Codex senior-dev re-review: the Sentry
-> scrubber, password-hashing, right-to-erasure, WCAG, vendor-list, and text-to-speech statements
-> were reconciled with the live code before this attestation, including the final recording-delete
-> and IP-geolocation processor scoping corrections. Reflects the current
-> production build. Present tense describes controls that exist in the product today. The
-> "Planned" section describes controls we intend to add and is written in the future tense on
-> purpose. This document deliberately claims only what we actually do.
+> **Re-attested for external release by Scot Wahlquist (CEO) on 2026-07-23 (rev. 2026-07-23-a).**
+> Reflects the current production build. Present tense describes controls that exist in the product
+> today. The "Planned" section describes controls we intend to add and is written in the future tense
+> on purpose. This document deliberately claims only what we actually do.
+>
+> **Attestation history.** First attested for external release 2026-07-09 (rev. 2026-07-09-c), after
+> a Codex senior-dev re-review reconciled the Sentry scrubber, password-hashing, right-to-erasure,
+> WCAG, vendor-list, text-to-speech, recording-delete, and IP-geolocation statements against live
+> code. That revision was then superseded by two edits on 2026-07-21: PR #649 rewrote the COPPA
+> offboarding section from an open gap to an implemented control, and PR #652 rewrote the
+> subprocessor and hosting posture for the Google Cloud cutover. Because this document is externally
+> shareable, it was held as unattested in the document register until those newer claims were
+> re-verified against live code on 2026-07-22:
+> `Organization#remove_user` (`app/models/organization.rb`) calls
+> `User#begin_family_offboarding_consents!` (`app/models/user.rb`); parent email is collected at next
+> login via `submit_parental_consent_email` (`app/controllers/api/users_controller.rb`,
+> `app/models/user.rb`); and full login is genuinely blocked while consent is pending, because the
+> device token is only issued `unless coppa_pending`. That re-attestation covered rev. 2026-07-22-a.
+>
+> **2026-07-23 re-attestation (rev. 2026-07-23-a).** Corrected the text-to-speech statement: Irish
+> (Gaeilge) TTS via Abair (`abair.ie`, Trinity College Dublin / ADAPT) was **disabled 2026-07-23**
+> (PR #674) because there is no DPA on file, so spoken text is no longer sent to Abair. Google Cloud
+> Text-to-Speech has no Irish voice, so there is no covered replacement; Irish cloud TTS is off until
+> a DPA/SCCs exists. See the text-to-speech bullet below and `docs/legal/SUBPROCESSORS.md` #17.
 >
 > **Purpose:** this is the short, externally shareable overview of our program. It is the
 > honest, right-sized replacement for the aspirational 85-page draft. It does not replace the
@@ -16,8 +32,8 @@
 > district, or a partner. Status of every implemented claim is verifiable against live code and
 > the findings register (`audit-reports/FINDINGS.json`).
 >
-> **Owner:** Scot Wahlquist, CEO. **Authorized for external sharing** as of the 2026-07-09 CEO
-> attestation of this version.
+> **Owner:** Scot Wahlquist, CEO. **Authorized for external sharing** as of the 2026-07-22 CEO
+> re-attestation of this version.
 
 ---
 
@@ -98,9 +114,10 @@ Everything in this section is live in the product.
   describe it accurately: the result is scrubbed data that we still treat as personal data. We do
   not call it de-identified or anonymized.
 - Text-to-speech is a separate voice/audio feature. To synthesize spoken audio, the text being
-  spoken is sent to the configured TTS provider (Google Text-to-Speech, or Abair for Irish-language
-  voices). This path does not run the LLM PII scrubber, because the text to be spoken is itself the
-  payload.
+  spoken is sent to the configured TTS provider (Google Text-to-Speech). Irish (Gaeilge) TTS via
+  Abair was disabled 2026-07-23 (no DPA on file), so no spoken text is sent to a third-party Irish
+  TTS service. This path does not run the LLM PII scrubber, because the text to be spoken is itself
+  the payload.
 - Our production AI vendors operate under Data Processing Agreements. The Anthropic models we use
   are eligible for zero data retention (no ZDR contract is signed today; see Section 3).
 - Every runtime, user-facing AI call (word prediction, board generation, and eval narration) is
@@ -157,13 +174,15 @@ Everything in this section is live in the product.
 
 **Vendors and subprocessors**
 - We maintain a subprocessor list and sign agreements only with vendors that actually handle our
-  data. These include AWS (storage, BAA signed), Anthropic (AI, under a DPA), Google (sign-in and AI
-  fallback), our application host (Render today, moving to Google Cloud at the in-progress
-  migration), Sentry (error monitoring, configured with the child-data scrubber above), and HubSpot
-  (marketing CRM and support, handling customer and prospect records only, no student data). When IP
-  geolocation is enabled for registration, subscription, or supporter-routing context, iplocate.io
-  receives the IP address for lookup. `docs/legal/SUBPROCESSORS.md` is the authoritative register and
-  is updated as services are enabled or retired.
+  data. These include AWS (storage, BAA signed), Anthropic (AI, HIPAA-ready BAA executed), Google
+  Cloud Platform (live production hosting on Cloud Run, Cloud SQL, and Memorystore under the
+  accepted GCP CDPA / HIPAA BAA / SCCs), Render (superseded primary host, retained temporarily as a
+  write-frozen rollback fallback pending decommission), Sentry (error monitoring, configured with
+  the child-data scrubber above), and HubSpot (marketing CRM and support, handling customer and
+  prospect records only, no student data). When IP geolocation is enabled for registration,
+  subscription, or supporter-routing context, iplocate.io receives the IP address for lookup.
+  `docs/legal/SUBPROCESSORS.md` is the authoritative register and is updated as services are enabled
+  or retired.
 
 **Breach response**
 - We maintain a breach runbook (`docs/legal/BREACH_RUNBOOK.md`) and notify affected parties and
@@ -206,14 +225,12 @@ requires them, not before.
   profiles with an export-first, delete-later flow.
 - Harden console and privileged-access session auditing so every administrative session is
   attributably logged.
-- **Add the missing parental re-consent at offboarding.** When a district reclaims a seat, the
-  child's account currently converts to a family trial with no verifiable parental consent captured
-  and no parent notice (confirmed: `license.rb` `release_user!` sets a 2-month trial and drops the
-  org link but captures no consent). Because district-created minors are set up under the
-  school-official exception with no direct parental consent on file (the COPPA gate in `user.rb` is
-  skipped for a validated org), the resulting family relationship has no COPPA-valid consent. Add a
-  parent/guardian notice-and-consent step at that transition, with export-then-delete if the family
-  declines.
+- **Parental re-consent at offboarding (implemented 2026-07-16).** When a district reclaims a seat,
+  `Organization#remove_user` → `User#begin_family_offboarding_consents!` stamps COPPA pending for
+  school-authorized / under-13 communicators (optional parent email at remove; otherwise collected
+  at next login via `submit_parental_consent_email`) and resets EU under-16 AI consent/prefs.
+  Full login stays blocked until a parent grants COPPA consent. **Follow-up:** export-then-delete
+  if the family declines or never responds.
 - Publish an accurate VPAT and complete the EU AI Act Article 50 transparency disclosures for AI
   features (target early August 2026).
 
@@ -276,11 +293,11 @@ Two points we state honestly so the model holds up under a district's own agreem
   their own account as consumers at offboarding; it is not a claim that a district can never require
   deletion during the school relationship.
 - Continuing to process a child's data after the school's authorization ends shifts the lawful basis
-  to **parental consent**. The offboarding-to-family transition therefore requires clear parent or
-  guardian notice and consent to continue, with export-then-delete if the family declines. **This
-  step is not yet implemented** (verified: `release_user!` retains the account and starts a 2-month
-  trial but captures no consent and sends no notice), and it is tracked as a near-term control in
-  Section 4.
+  to **parental consent**. The offboarding-to-family transition now stamps COPPA pending (and resets
+  EU AI consent when applicable) via `User#begin_family_offboarding_consents!` on
+  `Organization#remove_user` (both license `release_user!` and legacy detach paths). Parent email may
+  be supplied at remove or at the child's next login. **Follow-up:** export-then-delete if the family
+  declines (Section 4).
 
 **Contracts we sign.** In practice districts and hospitals provide their own paper: we sign the
 **district's DPA** and operate under its guidelines, and we provide a **BAA to a clinical
@@ -303,7 +320,8 @@ schools or agencies. GDPR therefore moves from "someday" to near-term. In that m
 - **EU representative.** We appoint an Article 27 EU representative (a purchased service, not a hire)
   before going live.
 - **Transfers.** The EU data-transfer mechanism (Standard Contractual Clauses, and reliance on the
-  Data Privacy Framework where applicable) couples to the GCP cutover and to the vendor DPAs.
+  Data Privacy Framework where applicable) is now tied to the live GCP hosting posture and vendor
+  DPAs.
 - **AI transparency.** EU AI Act Article 50 transparency disclosures for AI features are due
   2026-08-02 and are tracked separately (`docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md`).
 - **Documents.** The detailed EU controller privacy notice for Polish families and the EU processor

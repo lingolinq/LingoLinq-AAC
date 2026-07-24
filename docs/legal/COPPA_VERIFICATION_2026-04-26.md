@@ -1,5 +1,19 @@
 # COPPA Final Rule Code Verification
 
+> **THIS IS A POINT-IN-TIME RECORD. Do not read it as current state.** Every finding, file path,
+> and line number below describes the code as it stood on 2026-04-27. Attesting this document
+> attests that it is a faithful record of that verification, not that its findings are still open
+> or that its citations still resolve. Several have since been remediated - for example, section 10
+> records `AiApiLog.redact_old_ip_addresses!` as defined but never called, which was wired into
+> `lib/tasks/scheduler.rake` by PR #222 and runs daily today. Current status for anything here lives
+> in `audit-reports/FINDINGS.json`, which is the source of truth; this file is evidence of what was
+> found, when.
+>
+> **Attestation history:** first attested 2026-06-21. PR #597 (2026-07-13) corrected one line (the
+> COPPA parental-consent default is ON, not opt-in), so the attested revision no longer existed.
+> Re-attested 2026-07-23 by Scot Wahlquist, CEO, against the current revision, with this
+> point-in-time framing added.
+
 **Date:** 2026-04-27
 **Auditor:** Claude Code (Opus 4.7), routed via /lingo
 **Branch:** compliance/coppa-final-rule-audit-2026-04-27
@@ -235,7 +249,7 @@ if !self.id && JsonApi::Json.coppa_parental_consent_enabled? && params['authored
 
 **This is the bypass:** when an Organization with `edit` permission seeds the user (`authored_organization_id` present, lines 992-998 set `settings['authored_organization_id']` and `settings['pending'] = false`), the entire COPPA branch (the under-13 check at lines 960-988 that sets `pending_parent_consent`, `parent_email`, `parent_consent_token`) is **skipped**. The user is created with no `settings['coppa']` hash at all, so `coppa_parental_consent_pending?` returns `false` permanently - appearing "consented" without VPC ever being recorded. **This is the school-official substitute pattern, implemented as an org-authored signup short-circuit.**
 
-`JsonApi::Json.coppa_parental_consent_enabled?` (`lib/json_api/json.rb:127-128`) further requires the current domain to opt in. `JsonApi::User#as_json` at `lib/json_api/user.rb:448` only emits `coppa_parental_consent_pending` when true. `grant_parental_consent!` (`user.rb:378-408`) is the only path that flips the flag for non-org users.
+`JsonApi::Json.coppa_parental_consent_enabled?` (`lib/json_api/json.rb:127-128`) reads the domain setting (default **ON** via env; disable with `COPPA_PARENTAL_CONSENT=0|false|no|off`, or per-org override). `JsonApi::User#as_json` at `lib/json_api/user.rb:448` only emits `coppa_parental_consent_pending` when true. `grant_parental_consent!` (`user.rb:378-408`) is the only path that flips the flag for non-org users.
 
 ### Item 5 - Pre-Consent Bootstrap Init
 

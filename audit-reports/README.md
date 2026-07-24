@@ -48,9 +48,9 @@ their output used to evaporate after the PR comment. The `/promote-finding` skil
 register via `scripts/promote-finding.rb`, so it is tracked and triaged instead of just logged.
 
 Promotion is **manual and Claude-operated, never automatic** (not a hook, not an n8n step):
-`FINDINGS.json` is a Claude-only compliance surface, the n8n bot's DeepSeek pass runs on a no-BAA
-endpoint, and AI reviewers carry a 5-15% false-positive rate, so a human decides which findings are
-real enough to track. `promote-finding.rb` obeys the same governance as `audit-merge.rb`: it
+`FINDINGS.json` is the compliance SSOT (PII-free, Tier 2), and AI reviewers carry a 5-15%
+false-positive rate, so a human decides which findings are real enough to track (and the n8n bot
+is never given write access to the register). `promote-finding.rb` obeys the same governance as `audit-merge.rb`: it
 promotes Critical/High only, accepts **code/path evidence only** (a finding whose text carries a
 PII or secret shape is REFUSED, never redacted-in), adds findings as `open` with disposition
 `untriaged`, flags regressions of Scot-closed findings, and never closes, downgrades, or triages.

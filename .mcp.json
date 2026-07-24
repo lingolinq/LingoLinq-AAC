@@ -8,14 +8,6 @@
         "description": "Semantic code search and architecture understanding for LingoLinq-AAC"
       }
     },
-    "filesystem": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem"],
-      "env": {
-        "ALLOWED_DIRECTORIES": "/workspaces/LingoLinq-AAC"
-      }
-    },
     "github": {
       "type": "stdio",
       "command": "npx",
@@ -31,10 +23,10 @@
     },
     "postgres-dev": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-postgres@0.6.2", "postgresql:///lingolinq-development?host=/var/run/postgresql"],
+      "command": "bash",
+      "args": ["-lc", "set -euo pipefail; : \"$LINGOLINQ_MCP_READONLY_DATABASE_URL\"; exec npx -y @modelcontextprotocol/server-postgres@0.6.2 \"$LINGOLINQ_MCP_READONLY_DATABASE_URL\""],
       "metadata": {
-        "description": "Development PostgreSQL access, scoped to this repo only. INTENDED read-only (every query is wrapped in BEGIN TRANSACTION READ ONLY, then rolled back) but this is NOT an enforced security boundary: a multi-statement query (e.g. `SELECT 1; COMMIT; DROP TABLE x;`) can issue COMMIT mid-string, ending the read-only transaction early, and run subsequent statements in autocommit mode before the wrapper's own ROLLBACK -- treat this server as write-capable for risk purposes until a real read-only Postgres role replaces the current connection (not yet done). Also NOTE: this npm package is marked deprecated/no-longer-supported upstream; treat as a candidate for replacement, not a long-term dependency. Before approving on first load, self-verify YOUR OWN local `lingolinq-development` DB holds no real student/patient rows -- Scot confirmed his was synthetic-only on 2026-06-14, but that confirmation is per-machine and does not carry over to any other checkout or clone. If your local DB is ever seeded from prod, do not approve it."
+        "description": "Development PostgreSQL access, scoped to this repo only. MUST use LINGOLINQ_MCP_READONLY_DATABASE_URL, provisioned by scripts/provision-postgres-dev-readonly.sh, so postgres-dev authenticates as a dedicated SELECT-only Postgres role. The MCP package still wraps queries in BEGIN TRANSACTION READ ONLY + ROLLBACK as defense-in-depth, but DB grants are the actual security boundary. Also NOTE: this npm package is marked deprecated/no-longer-supported upstream; treat as a candidate for replacement, not a long-term dependency. Before approving on first load, self-verify YOUR OWN local `lingolinq-development` DB holds no real student/patient rows. Scot confirmed his was synthetic-only on 2026-06-14, but that confirmation is per-machine and does not carry over to any other checkout or clone. If your local DB is ever seeded from prod, do not approve it."
       }
     }
   }

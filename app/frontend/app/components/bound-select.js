@@ -151,6 +151,14 @@ export default Component.extend({
     },
     toggle(ev) {
       if (ev && ev.stopPropagation) { ev.stopPropagation(); }
+      // In a modal, one physical click reaches this toggle TWICE (raw_events
+      // synthesizes a pass-through click for Ember-5 co-located modal components,
+      // and the browser's own native click fires too), which would open the
+      // dropdown then instantly re-close it. Collapse a duplicate toggle from the
+      // same gesture. Scoped to the toggle only, so it never affects choose/close.
+      var now = (window.performance && performance.now) ? performance.now() : Date.now();
+      if (this._lastToggleAt != null && (now - this._lastToggleAt) < 250) { return; }
+      this._lastToggleAt = now;
       this.toggleProperty('isOpen');
       if (this.get('isOpen')) {
         const self = this;
@@ -216,33 +224,39 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
-var self = this;
-this.ctrlAction = function(actionName) {
-  var bound = Array.prototype.slice.call(arguments, 1);
-  return function() {
-    var args = bound.concat(Array.prototype.slice.call(arguments));
-    var evt = args[args.length - 1];
-    if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
-      if (evt.preventDefault) { evt.preventDefault(); }
-      args.pop();
-    }
-    self.send.apply(self, [actionName].concat(args));
-  };
-};
-this.ctrlActionNoBubble = function(actionName) {
-  var bound = Array.prototype.slice.call(arguments, 1);
-  return function(event) {
-    if (event && event.stopPropagation) { event.stopPropagation(); }
-    if (event && event.preventDefault) { event.preventDefault(); }
-    self.send.apply(self, [actionName].concat(bound));
-  };
-};
-this.ctrlActionEventValue = function(actionName, targetProp) {
-  return function(event) {
-    var value = event && event.target ? event.target[targetProp] : undefined;
-    self.send(actionName, value);
-  };
-};
+    var self = this;
+    // Stable handlers (same pattern as modern-select). The old ctrlAction
+    // helper called preventDefault then *dropped* the event before send(),
+    // so toggle/choose never got stopPropagation — clicks bubbled into
+    // modal-dialog / form parents and could immediately undo the open.
+    this.ctrlAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          if (evt.stopPropagation) { evt.stopPropagation(); }
+          // Keep the event on the args list so actions like toggle/choose
+          // can also stopPropagation defensively.
+        }
+        self.send.apply(self, [actionName].concat(args));
+      };
+    };
+    this.ctrlActionNoBubble = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function(event) {
+        if (event && event.stopPropagation) { event.stopPropagation(); }
+        if (event && event.preventDefault) { event.preventDefault(); }
+        self.send.apply(self, [actionName].concat(bound));
+      };
+    };
+    this.ctrlActionEventValue = function(actionName, targetProp) {
+      return function(event) {
+        var value = event && event.target ? event.target[targetProp] : undefined;
+        self.send(actionName, value);
+      };
+    };
   },
 
 });

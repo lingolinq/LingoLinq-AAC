@@ -183,13 +183,13 @@
         {{#if this.googleLinkNeedsUsernameField}}
           <div class="form-group">
             <label for="google_link_user_name">{{t "Username" key="username"}}</label>
-            {{lowercase-text-field id="google_link_user_name" class="form-control input-lg touchy" value=this.google_link_selected_user_name placeholder="username" autocomplete="username"}}
+            <LowercaseTextField @id="google_link_user_name" @class="form-control input-lg touchy" @value={{this.google_link_selected_user_name}} @onChange={{set-value this "google_link_selected_user_name"}} @placeholder="username" @autocomplete="username" />
           </div>
         {{/if}}
         {{#if this.googleLinkNeedsPassword}}
           <div class="form-group">
             <label for="google_link_password">{{t "Please enter the password for this account to link your account with Google. You only need to enter it once to link." key="google_link_password_prompt"}}</label>
-            {{password-field id="google_link_password" class="form-control input-lg touchy" value=this.google_link_password autocomplete="current-password"}}
+            <PasswordField @id="google_link_password" @class="form-control input-lg touchy" @value={{this.google_link_password}} @onChange={{set-value this "google_link_password"}} @autocomplete="current-password" />
           </div>
         {{/if}}
         {{#if this.google_link_error}}
@@ -224,12 +224,12 @@
       </div>
       {{#if this.prompt_2fa.uri}}
         <p>{{t "Your account requires two-factor authentication. Please scan the QR code in your authenticator app and enter the generated code to continue." key="required_code_for_2fa"}}</p>
-        {{qr-code text=this.prompt_2fa.uri size=300}}
+        <QrCode @text={{this.prompt_2fa.uri}} @size={{300}} />
       {{else}}
         <p>{{t "Please enter the confirmation code provided by your two-factor authentication app:" key="enter_2fa_code"}}</p>
       {{/if}}
       <div class="form-group">
-        <Input @type="number" class="form-control" @value={{this.code_2fa}} placeholder="# # # # # #" style="text-align: center;" />
+        <input type="number" value={{this.code_2fa}} class="form-control" placeholder="# # # # # #" aria-label={{t "Two-factor authentication code" key="two_factor_code"}} style="text-align: center;" {{on "input" (set-field this "code_2fa")}} />
       </div>
       <button {{on "click" this.onConfirm2fa}} disabled={{this.status_2fa.loading}} class='login-btn' style='width: 100%;'>
         <div style='font-size: 20px;'>
@@ -263,17 +263,17 @@
         {{/unless}}
         <div class="form-group">
           <label for="identification">{{t "Username" key="username"}}</label>
-          {{lowercase-text-field id="identification" class="form-control input-lg touchy" value=this.identification placeholder="username" autocomplete="username"}}
+          <LowercaseTextField @id="identification" @class="form-control input-lg touchy" @value={{this.identification}} @onChange={{set-value this "identification"}} @placeholder="username" @autocomplete="username" />
         </div>
         <div class="form-group">
           <label for="password">{{t "Password" key="password"}}</label>
-          {{password-field id="password" class="form-control input-lg touchy" value=this.password placeholder="password" autocomplete="current-password"}}
+          <PasswordField @id="password" @class="form-control input-lg touchy" @value={{this.password}} @onChange={{set-value this "password"}} @placeholder="password" @autocomplete="current-password" />
         </div>
         {{#unless this.browserless}}
           <div class="form-group" style='display: none;'>
             <div class="checkbox big_checkbox">
               <label>
-                <Input @type="checkbox" @checked={{this.long_token}} id="long_token" />
+                <input type="checkbox" checked={{this.long_token}} id="long_token" {{on "change" (set-field this "long_token" "checkbox")}} />
                 Keep me logged in on this device
               </label>
             </div>
@@ -282,6 +282,22 @@
         {{#if this.login_error}}
           <div class="login-error">
             {{ this.login_error }}
+          </div>
+        {{/if}}
+        {{#if this.coppa_needs_parent_email}}
+          <div class="form-group" style="margin-top: 12px;">
+            <label for="login_parent_consent_email">{{t "Parent or guardian email" key="coppa_parent_email_label"}}</label>
+            <input type="email" value={{this.parent_consent_email}} class="form-control input-lg" id="login_parent_consent_email" placeholder={{t "Parent's email address (must differ from account email)" key="coppa_parent_email_placeholder"}} autocomplete="email" inputmode="email" {{on "input" (set-field this "parent_consent_email")}} />
+            <button type="button" class="login-btn login-btn--outline" style="width: 100%; margin-top: 10px;" disabled={{this.coppaSubmitParentEmailDisabled}} {{on "click" this.onSubmitParentConsentEmail}}>
+              {{#if this.coppa_submit_parent_busy}}
+                {{t "Sending Email..." key="sending_email"}}
+              {{else}}
+                {{t "Send approval email to parent" key="coppa_submit_parent_email"}}
+              {{/if}}
+            </button>
+            {{#if this.coppa_submit_parent_notice}}
+              <p class="text-muted" style="margin-top: 10px; font-size: 14px;">{{this.coppa_submit_parent_notice}}</p>
+            {{/if}}
           </div>
         {{/if}}
         {{#if this.coppa_awaiting_parent}}

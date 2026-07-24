@@ -658,6 +658,54 @@ describe User, :type => :model do
       expect(u2.coppa_parental_consent_pending?).to eq(true)
     end
 
+    it "stores a revoke token when parental consent is granted" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      u = User.new
+      u.process_params({
+        'name' => 'coppa_kid_revoke_token',
+        'email' => 'kidrevoketok@example.com',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parentrevoketok@example.com'
+      }, {})
+      u.save!
+      token = u.settings['coppa']['parent_consent_token']
+      expect(u.grant_parental_consent!(token)).to eq(true)
+      expect(u.settings['coppa']['parent_consent_revoke_token']).to be_present
+      expect(u.coppa_parental_consent_active?).to eq(true)
+      expect(u.valid_parent_consent_grant_link_token?(token)).to eq(true)
+    end
+
+    it "revoke_parental_consent! records an immutable AuditEvent and blocks access" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      AuditEvent.delete_all
+      u = User.new
+      u.process_params({
+        'name' => 'coppa_kid_revoke',
+        'email' => 'kidrevoke@example.com',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parentrevoke@example.com'
+      }, {})
+      u.save!
+      token = u.settings['coppa']['parent_consent_token']
+      expect(u.grant_parental_consent!(token)).to eq(true)
+      revoke_tok = u.settings['coppa']['parent_consent_revoke_token']
+      expect(u.valid_parent_consent_revoke_link_token?(revoke_tok)).to eq(true)
+      expect(u.valid_parent_consent_revoke_link_token?('wrong')).to eq(false)
+      expect {
+        expect(u.revoke_parental_consent!(revoke_tok, ip: '203.0.113.8', user_agent: 'TestAgent/2.0')).to eq(true)
+      }.to change { AuditEvent.where(event_type: 'parental_consent_revoke', user_key: u.global_id).count }.by(1)
+      u.reload
+      expect(u.coppa_parental_consent_revoked?).to eq(true)
+      expect(u.coppa_parental_consent_blocks_access?).to eq(true)
+      expect(u.coppa_parental_consent_active?).to eq(false)
+      expect(u.valid_parent_consent_revoke_link_token?(revoke_tok)).to eq(true)
+      ae = AuditEvent.where(event_type: 'parental_consent_revoke', user_key: u.global_id).last
+      expect(ae.data['ip']).to eq('203.0.113.8')
+      expect(ae.data['user_agent']).to eq('TestAgent/2.0')
+    end
+
     it "should coerce preferences cookies to boolean" do
       u = User.new
       u.settings = {'preferences' => {}}
@@ -665,6 +713,26 @@ describe User, :type => :model do
       expect(u.settings['preferences']['cookies']).to eq(false)
       u.process_params({'preferences' => {'cookies' => 'true'}}, {})
       expect(u.settings['preferences']['cookies']).to eq(true)
+    end
+
+    it "preserves supporter dashboard sections rooms and attention on write" do
+      u = User.new
+      u.settings = {'preferences' => {}}
+      u.process_params({'preferences' => {
+        'dashboard_sections' => {
+          'boards' => true,
+          'rooms' => true,
+          'attention' => false,
+          'not_a_section' => true
+        },
+        'dashboard_order' => ['boards', 'rooms', 'attention', 'bogus']
+      }}, {})
+      expect(u.settings['preferences']['dashboard_sections']).to eq({
+        'boards' => true,
+        'rooms' => true,
+        'attention' => false
+      })
+      expect(u.settings['preferences']['dashboard_order']).to eq(['boards', 'rooms', 'attention'])
     end
 
     it "should persist require_sidebar_edit_pin (whitelisted) and coerce to boolean" do
@@ -4422,6 +4490,109 @@ describe User, :type => :model do
       u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
       u.reload
       expect(u.ai_consent_granted?(disclosures_version: nil)).to eq(false)
+    end
+  end
+
+  describe '#article_50_disclosure_shown? / #mark_article_50_disclosure_shown!' do
+    # AuditEvent.create! fires inside the writer under with_lock(requires_new: true)
+    # and commits outside the per-example fixture transaction, so rows leak across
+    # examples and break the AuditEvent.count baselines. Scope the clean to this block.
+    before(:each) { AuditEvent.delete_all }
+
+    it 'reader defaults to false for a newly created user with no ai_transparency key' do
+      u = User.create
+      expect(u.settings).to be_a(Hash)
+      expect(u.article_50_disclosure_shown?(disclosures_version: 1)).to eq(false)
+    end
+
+    it 'reader returns false when settings hash exists but ai_transparency key is absent' do
+      u = User.create
+      u.settings = {}
+      expect(u.article_50_disclosure_shown?(disclosures_version: 1)).to eq(false)
+    end
+
+    it 'defaults disclosures_version: to LingoLinq::Article50Disclosures::CURRENT_VERSION (PN-02, its OWN source)' do
+      expect(LingoLinq::Article50Disclosures::CURRENT_VERSION).to eq(1)
+      u = User.create
+      u.mark_article_50_disclosure_shown!(disclosures_version: 1, source: 'modal_ack')
+      u.reload
+      expect(u.article_50_disclosure_shown?).to eq(true)
+    end
+
+    it 'reader returns true after the writer marks it at the same version' do
+      u = User.create
+      u.mark_article_50_disclosure_shown!(disclosures_version: 1, source: 'modal_ack')
+      u.reload
+      expect(u.article_50_disclosure_shown?(disclosures_version: 1)).to eq(true)
+    end
+
+    it 'reader returns false when queried at a bumped version (re-prompt semantics)' do
+      u = User.create
+      u.mark_article_50_disclosure_shown!(disclosures_version: 1, source: 'modal_ack')
+      u.reload
+      expect(u.article_50_disclosure_shown?(disclosures_version: 2)).to eq(false)
+    end
+
+    it 'writer sets shown_at, disclosures_version, source, and a UUID-shaped record_id' do
+      u = User.create
+      res = u.mark_article_50_disclosure_shown!(disclosures_version: 1, source: 'modal_ack')
+      expect(res).to be_truthy
+      u.reload
+      c = u.settings['ai_transparency']
+      expect(c).to be_a(Hash)
+      expect(c['shown_at']).to be_present
+      expect(c['disclosures_version']).to eq(1)
+      expect(c['source']).to eq('modal_ack')
+      # Assert the record_id CONTRACT (UUID shape), not the generator.
+      expect(c['record_id']).to match(/\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/)
+    end
+
+    it "fires exactly one AuditEvent with event_type 'article_50_disclosure_shown' and the expected payload" do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      expect(AuditEvent.count).to eq(0)
+      res = u.mark_article_50_disclosure_shown!(disclosures_version: 1, source: 'modal_ack')
+      expect(res).to be_truthy
+      expect(AuditEvent.count).to eq(1)
+      ae = AuditEvent.last
+      expect(ae.event_type).to eq('article_50_disclosure_shown')
+      expect(ae.data['type']).to eq('article_50_disclosure_shown')
+      expect(ae.data['disclosures_version']).to eq(1)
+      expect(ae.data['source']).to eq('modal_ack')
+      expect(ae.data['record_id']).to be_present
+      u.reload
+      expect(ae.data['record_id']).to eq(u.settings['ai_transparency']['record_id'])
+    end
+
+    it 'is idempotent on same-version re-call: returns false and fires no second AuditEvent' do
+      expect(AuditEvent.count).to eq(0)
+      u = User.create
+      u.mark_article_50_disclosure_shown!(disclosures_version: 1, source: 'modal_ack')
+      expect(AuditEvent.count).to eq(1)
+      pre_count = AuditEvent.count
+      res = u.mark_article_50_disclosure_shown!(disclosures_version: 1, source: 'modal_ack')
+      expect(res).to eq(false)
+      expect(AuditEvent.count - pre_count).to eq(0)
+    end
+
+    it 'preserves record_id across a version bump re-record' do
+      u = User.create
+      u.mark_article_50_disclosure_shown!(disclosures_version: 1, source: 'modal_ack')
+      u.reload
+      original_record_id = u.settings['ai_transparency']['record_id']
+      expect(original_record_id).to be_present
+      res = u.mark_article_50_disclosure_shown!(disclosures_version: 2, source: 'modal_ack')
+      expect(res).to be_truthy
+      u.reload
+      expect(u.settings['ai_transparency']['disclosures_version']).to eq(2)
+      expect(u.settings['ai_transparency']['record_id']).to eq(original_record_id)
+    end
+
+    it 'raises ArgumentError invalid_source for a non-allowlisted source' do
+      u = User.create
+      expect {
+        u.mark_article_50_disclosure_shown!(disclosures_version: 1, source: 'sneaky')
+      }.to raise_error(ArgumentError, 'invalid_source')
     end
   end
 

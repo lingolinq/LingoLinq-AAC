@@ -37,7 +37,7 @@ NOTE: as a standardized convention for the codebase, all user-facing strings sho
 
 #### Backend Setup
 
-Dev dependencies: Ruby, Postgres, Redis, Node 20, ember-cli, AWS, Google API
+Dev dependencies: Ruby, Postgres, Redis, Node 22, ember-cli, AWS, Google API
 
 The backend relies on Redis and Postgres both being installed. Both are required in development and production. If you have ruby installed in your environment, you'll need the bundler gem:
 
@@ -72,6 +72,25 @@ rails db:seed
 
 You can skip the last command if you want, it'll populate with some bootstrap data including a login, `example` and `password` to get you started.
 
+#### postgres-dev MCP readonly role
+
+The project-scoped `postgres-dev` MCP server must not use the normal app or local
+owner database role. Provision a dedicated SELECT-only role before approving that
+MCP in Claude Code:
+
+```
+./scripts/provision-postgres-dev-readonly.sh
+export LINGOLINQ_MCP_READONLY_DATABASE_URL='postgresql://lingolinq_mcp_readonly@/lingolinq-development?host=/var/run/postgresql'
+```
+
+If your local Postgres requires password auth, set
+`LINGOLINQ_MCP_READONLY_PASSWORD` before running the script, then keep the
+password-bearing `LINGOLINQ_MCP_READONLY_DATABASE_URL` only in your private
+`.env` or shell profile. The script verifies that SELECT works and that DML,
+DDL, and sequence writes fail at the Postgres permission layer. This is per
+developer and does not replace the rule that local databases used with
+postgres-dev must contain synthetic data only.
+
 You can use the rake task with environment variables to customize:
 
 #### Basic usage (default: "Sample Organization")
@@ -90,7 +109,7 @@ Once the database is created, you can start the server. If you run `rails server
 
 #### Frontend Setup
 
-The frontend is an Ember app. Install ember-cli (<https://ember-cli.com/user-guide/>) and make sure you are running **Node 20** (`nvm use 20`). Then run:
+The frontend is an Ember app. Install ember-cli (<https://ember-cli.com/user-guide/>) and make sure you are running **Node 22** (`nvm use 22`). Then run:
 
 ```
 cd app/frontend

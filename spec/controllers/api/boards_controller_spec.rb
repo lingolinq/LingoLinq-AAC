@@ -1433,6 +1433,72 @@ describe Api::BoardsController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['error']).to eq('Feature not available')
     end
+
+    describe "article_50_disclosure backstop (Phase 3 Plan 03-04, T-03-04-01)" do
+      it "should proceed normally with the flag NOT enabled, regardless of jurisdiction or acknowledgement (primary flag-off no-change regression)" do
+        token_user
+        expect(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
+        # article_50_disclosure is not in AVAILABLE_FRONTEND_FEATURES on this branch, so
+        # feature_enabled_for? returns false for real (no stub) -- this is the shipping
+        # state. Any jurisdiction/acknowledgement combination must be unaffected.
+        allow(EuJurisdiction).to receive(:disclosure_required?).and_return(true)
+        allow_any_instance_of(User).to receive(:article_50_disclosure_shown?).and_return(false)
+        allow(AiBoardGenerator).to receive(:generate_words).and_return(
+          { words: %w[apple banana carrot drink], name: 'Snacks', description: 'Snack words', error: nil }
+        )
+        request.headers['Content-Type'] = 'application/json'
+        post :generate_labels, params: {}, body: { prompt: 'snacks', rows: 2, columns: 2 }.to_json
+        expect(response).to be_successful
+        expect(AiBoardGenerator).to have_received(:generate_words)
+      end
+
+      it "should return 403 with a distinguishable error code and never call the generator when the flag is enabled, the user is in scope, and unacknowledged" do
+        token_user
+        expect(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
+        allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+        allow(FeatureFlags).to receive(:feature_enabled_for?).with('article_50_disclosure', anything).and_return(true)
+        allow(EuJurisdiction).to receive(:disclosure_required?).and_return(true)
+        allow_any_instance_of(User).to receive(:article_50_disclosure_shown?).and_return(false)
+        expect(AiBoardGenerator).not_to receive(:generate_words)
+        request.headers['Content-Type'] = 'application/json'
+        post :generate_labels, params: {}, body: { prompt: 'snacks', rows: 2, columns: 2 }.to_json
+        expect(response).to have_http_status(:forbidden)
+        json = JSON.parse(response.body)
+        expect(json['error']).to eq('article_50_disclosure_required')
+      end
+
+      it "should proceed normally when the flag is enabled and the user has already acknowledged at the current version" do
+        token_user
+        expect(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
+        allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+        allow(FeatureFlags).to receive(:feature_enabled_for?).with('article_50_disclosure', anything).and_return(true)
+        allow(EuJurisdiction).to receive(:disclosure_required?).and_return(true)
+        allow_any_instance_of(User).to receive(:article_50_disclosure_shown?).and_return(true)
+        allow(AiBoardGenerator).to receive(:generate_words).and_return(
+          { words: %w[apple banana carrot drink], name: 'Snacks', description: 'Snack words', error: nil }
+        )
+        request.headers['Content-Type'] = 'application/json'
+        post :generate_labels, params: {}, body: { prompt: 'snacks', rows: 2, columns: 2 }.to_json
+        expect(response).to be_successful
+        expect(AiBoardGenerator).to have_received(:generate_words)
+      end
+
+      it "should proceed normally when the flag is enabled but the user is authoritatively non-EU" do
+        token_user
+        expect(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
+        allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+        allow(FeatureFlags).to receive(:feature_enabled_for?).with('article_50_disclosure', anything).and_return(true)
+        allow(EuJurisdiction).to receive(:disclosure_required?).and_return(false)
+        allow_any_instance_of(User).to receive(:article_50_disclosure_shown?).and_return(false)
+        allow(AiBoardGenerator).to receive(:generate_words).and_return(
+          { words: %w[apple banana carrot drink], name: 'Snacks', description: 'Snack words', error: nil }
+        )
+        request.headers['Content-Type'] = 'application/json'
+        post :generate_labels, params: {}, body: { prompt: 'snacks', rows: 2, columns: 2 }.to_json
+        expect(response).to be_successful
+        expect(AiBoardGenerator).to have_received(:generate_words)
+      end
+    end
   end
   
   describe "update" do
@@ -3212,6 +3278,17 @@ describe Api::BoardsController, :type => :controller do
       json = assert_success_json
       expect(json['root']['board']['id']).to eq(root.global_id)
       expect(json['descendants'].map { |d| d['board']['id'] }.sort).to eq(children.map(&:global_id).sort)
+    end
+
+    it "returns root only when root_only=1 (skips descendant serialize)" do
+      token_user
+      root, children = build_owned_tree(@user, 3)
+      expect(Board).to_not receive(:find_all_by_global_id)
+      get :tree, params: { board_id: root.global_id, root_only: '1' }
+      json = assert_success_json
+      expect(json['root']['board']['id']).to eq(root.global_id)
+      expect(json['descendants']).to eq([])
+      expect(children.length).to eq(3) # fixture guard; full tree covered by sibling examples
     end
 
     it "404s when the board is missing" do

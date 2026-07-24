@@ -1,0 +1,162 @@
+<ModalDialog @action={{this.ctrlAction "close"}} @opening={{this.ctrlAction "opening"}} @closing={{this.ctrlAction "closing"}}>
+  <div class="modal-header">
+    <button type="button" class="close" {{on "click" (this.ctrlAction "close")}}>&times;</button>
+    <h3>{{t "New User" key="new_user"}}</h3>
+  </div>
+  <div class="modal-body">
+    <form class="form-horizontal" {{on "submit" (this.ctrlAction "add")}}>
+      <div class="form-group">
+        <label for="name" class="col-sm-4 control-label">{{t "Full Name" key="full_name"}}</label>
+        <div class="col-sm-6">
+          <input value={{this.model.user.name}} class="form-control" id="name" placeholder="Full name" autocomplete="name" {{on "input" (set-field this "model.user.name")}} />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="user_name" class="col-sm-4 control-label">{{t "User Name" key="uesr_name"}}</label>
+        <div class="col-sm-6">
+          <input value={{this.model.user.user_name}} class="form-control" id="user_name" placeholder="User name" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" {{on "input" (set-field this "model.user.user_name")}} />
+          {{#if this.model.user.user_name_check.checking}}
+          {{else if this.model.user.user_name_check.exists}}
+            <span class='text-danger'>{{t "%{user_name} already exists" user_name=this.model.user.user_name}}</span>
+          {{/if}}
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="email" class="col-sm-4 control-label">{{t "Email" key="email"}}</label>
+        <div class="col-sm-6">
+          <input type="email" value={{this.model.user.email}} class="form-control" id="email" placeholder="Email address" autocomplete="email" inputmode="email" {{on "input" (set-field this "model.user.email")}} />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="password" class="col-sm-4 control-label">{{t "Password" key="password"}}</label>
+        <div class="col-sm-6">
+          <input type="password" value={{this.model.user.password}} class="form-control" id="password" placeholder="Password" autocomplete="new-password" {{on "input" (set-field this "model.user.password")}} />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="user_type" class="col-sm-4 control-label">{{t "User Type" key="user_type"}}</label>
+        <div class="col-sm-6">
+          <BoundSelect @select_class="form-control" @select_id="user_type" @content={{this.user_types}} @selection={{this.model.user.org_management_action}} @action={{mut this.model.user.org_management_action}} />
+        </div>
+      </div>
+      {{#if this.boarded_new_user}}
+        {{#if this.model.org.extras_available}}
+          <div class="form-group">
+            <label for="extras" class="col-sm-4 control-label">{{t "Premium Symbols" key="premium_symbols"}}</label>
+            <div class="col-sm-6">
+              <div class="checkbox big_checkbox">
+                <label>
+                  <input type="checkbox" id="extras" checked={{this.model.user.add_symbols}} {{on "change" (set-field this "model.user.add_symbols" "checkbox")}} />
+                  {{t "Grant user premium symbol access" key="grand_premium_symbols"}}
+                  <br>({{this.model.org.extras_available_count}} {{t "left" key="left"}})
+                </label>
+              </div>
+            </div>
+          </div>
+        {{/if}}
+        {{#if this.board_options}}
+          <div class="form-group">
+            <label for="home_board" class="col-sm-4 control-label">{{t "Home Board" key="home_board"}}</label>
+            <div class="col-sm-6">
+              <BoundSelect @select_class="form-control" @select_id="home_board" @content={{this.board_options}} @selection={{this.model.user.home_board_template}} @action={{mut this.model.user.home_board_template}} />
+            </div>
+          </div>
+          {{#if this.board_will_copy}}
+            <div class="form-group">
+              <label for="symbols" class="col-sm-4 control-label">{{t "Preferred Symbols" key="preferred_symbols"}}</label>
+              <div class="col-sm-6">
+                <BoundSelect @select_class="form-control" @select_id="preferred_symbols" @content={{this.symbols_list}} @selection={{this.model.user.preferences.preferred_symbols}} @action={{mut this.model.user.preferences.preferred_symbols}} />
+                {{#if this.premium_symbol_library}}
+                  {{#unless this.model.user.add_symbols}}
+                    <div class='text-danger' style='margin-left: 10px;'>
+                      {{t "(will not apply without premium symbols access)" key="wont_apply_without_premium_symbols"}}
+                    </div>
+                  {{/unless}}
+                {{/if}}
+              </div>
+            </div>
+          {{/if}}
+        {{/if}}
+      {{else if this.third_party_new_user}}
+        <div class="form-group">
+          <label for="locale" class="col-sm-4 control-label">{{t "Preferred Language" key="preferred_language"}}</label>
+          <div class="col-sm-6">
+            <BoundSelect @select_class="form-control" @select_id="locale" @content={{this.locale_list}} @selection={{this.model.user.preferences.locale}} @action={{mut this.model.user.preferences.locale}} />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="device_type" class="col-sm-4 control-label">{{t "App/Device" key="app_device"}}</label>
+          <div class="col-sm-6">
+            <input value={{this.external_device}} class="form-control" id="device_type" placeholder="third-party app or device name" {{on "input" (set-field this "external_device")}} />
+          </div>
+          <div class="col-sm-1" style='margin-left: -35px;'>
+            <div class='btn-group dropup'>
+              <button class='btn btn-default dropdown-toggle' style='border-top-left-radius: 0; border-bottom-left-radius: 0;' data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                {{t "Device" key="device"}} <span class="caret"></span>
+              </button>
+              <ul class='dropdown-menu' style="right: 0; left: inherit; text-align: left; max-height: 183px; overflow: auto;">
+                {{#each this.device_options as |option|}}
+                  <li><a href='#' {{on "click" (this.ctrlAction "set_device" option)}}>{{option.name}}</a></li>
+                {{/each}}
+              </ul>
+            </div>
+          </div>
+        </div>
+        {{#if this.external_device}}
+          <div class="form-group">
+            <label for="vocabulary_type" class="col-sm-4 control-label">{{t "Vocabulary" key="vocabulary"}}</label>
+            <div class="col-sm-6">
+              <input value={{this.external_vocab}} class="form-control" id="vocabulary_type" placeholder="vocabulary used" {{on "input" (set-field this "external_vocab")}} />
+            </div>
+            <div class="col-sm-1" style='margin-left: -35px;'>
+              <div class='btn-group dropup' style='max-height: 183px;'>
+                <button class='btn btn-default dropdown-toggle' style='border-top-left-radius: 0; border-bottom-left-radius: 0;' data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  {{t "Vocab" key="vocab"}} <span class="caret"></span>
+                </button>
+                <ul class='dropdown-menu' style="right: 0; left: inherit; text-align: left; max-height: 183px; overflow: auto;">
+                  {{#each this.vocab_options as |option|}}
+                    <li><a href='#' {{on "click" (this.ctrlAction "set_vocab" option)}}>{{option.name}}</a></li>
+                  {{/each}}
+                </ul>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="vocab_size" class="col-sm-4 control-label">{{t "Vocab Size" key="vocab_size"}}</label>
+            <div class="col-sm-2">
+              <input type="number" value={{this.external_vocab_size}} class="form-control" id="vocab_size" placeholder="typical buttons per board" {{on "input" (set-field this "external_vocab_size")}} />
+            </div>
+            <div class='col-sm-4'>
+              <p class='form-control-static'>{{t "average buttons per board" key="average_buttons_per_view"}}</p>
+            </div>
+          </div>
+        {{/if}}
+        <div class="form-group">
+          <label for="external_access_method" class="col-sm-4 control-label">{{t "Access Method" key="access_method"}}</label>
+          <div class="col-sm-6">
+            <BoundSelect @select_class="form-control" @select_id="external_access_method" @content={{this.access_methods}} @selection={{this.external_access_method}} @action={{mut this.external_access_method}} />
+          </div>
+        </div>
+      {{/if}}
+      <div class="form-group">
+        <div class="col-sm-9 col-sm-offset-3">
+          <button type="submit" class='btn btn-primary' disabled={{this.linking_or_exists}}>
+            {{#if this.linking}}
+              {{t "Creating User..." key="adding_user"}}
+            {{else}}
+              {{#if this.error}}
+                {{t "Creating User Failed" key="adding_user_failed"}}
+              {{else}}
+                {{t "Create User" key="add_user"}}
+              {{/if}}
+            {{/if}}
+          </button>
+          <a href="#" class="btn btn-default" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</a>
+          {{#if this.error}}
+            <p class="text-danger">{{this.error}}</p>
+          {{/if}}
+        </div>
+      </div>
+    </form>
+  </div>
+</ModalDialog>

@@ -577,6 +577,58 @@ describe SessionController, :type => :controller do
       expect(json['coppa_parental_consent_pending']).to eq(true)
       expect(json['access_token']).to eq(nil)
     end
+
+    it "rejects password token when COPPA parent email is still required after offboarding" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      JsonApi::Json.load_domain('test.host')
+      token = GoSecure.browser_token
+      u = User.process_new({
+        'user_name' => 'coppa_need_email_kid',
+        'name' => 'COPPA Need Email Kid',
+        'email' => 'child_coppa_need_email@example.com',
+        'password' => 'seashell',
+        'terms_agree' => true
+      })
+      u.settings['school_authorization'] = {
+        'basis' => 'school_official',
+        'organization_id' => '1_1',
+        'authorized_at' => Time.now.utc.iso8601
+      }
+      u.save!
+      u.begin_family_offboarding_consents!(org: nil, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 10)
+      expect(u.reload.coppa_needs_parent_email?).to eq(true)
+
+      post :token, params: {:grant_type => 'password', :client_id => 'browser', :client_secret => token, :username => 'coppa_need_email_kid', :password => 'seashell'}
+      expect(response.status).to eq(400)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('parent email required')
+      expect(json['coppa_parent_email_required']).to eq(true)
+      expect(json['access_token']).to eq(nil)
+    end
+
+    it "rejects password token when COPPA parental consent was revoked" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      JsonApi::Json.load_domain('test.host')
+      token = GoSecure.browser_token
+      u = User.process_new({
+        'user_name' => 'coppa_revoked_kid',
+        'name' => 'COPPA Revoked Kid',
+        'email' => 'child_coppa_revoked@example.com',
+        'password' => 'seashell',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_coppa_revoked@example.com'
+      }, {:pending => true})
+      expect(u.grant_parental_consent!(u.settings['coppa']['parent_consent_token'])).to eq(true)
+      expect(u.revoke_parental_consent!(u.settings['coppa']['parent_consent_revoke_token'])).to eq(true)
+
+      post :token, params: {:grant_type => 'password', :client_id => 'browser', :client_secret => token, :username => 'coppa_revoked_kid', :password => 'seashell'}
+      expect(response.status).to eq(400)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('parental consent revoked')
+      expect(json['coppa_parental_consent_revoked']).to eq(true)
+      expect(json['access_token']).to eq(nil)
+    end
     
 #     it "should not respect expired browser token" do
 #       token = 15.days.ago.strftime('%Y%j')

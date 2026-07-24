@@ -38,7 +38,7 @@
       <div class="beta-welcome-footer">
         <div class="register-checkboxes beta-welcome-accept">
           <div class="checkbox big_checkbox">
-            <Input @type="checkbox" @checked={{this.agreementAccepted}} id="beta_agreement_accept_check" aria-labelledby="beta_agreement_accept_text" />
+            <input type="checkbox" checked={{this.agreementAccepted}} id="beta_agreement_accept_check" aria-labelledby="beta_agreement_accept_text" {{on "change" (set-field this "agreementAccepted" "checkbox")}} />
             <span id="beta_agreement_accept_text" class="big_checkbox__consent">
               {{t "I have read and accept the " key="beta_agreement_accept_prefix"}}<LinkTo @route="beta-welcome">{{t "Beta Test Agreement" key="beta_agreement_link"}}</LinkTo>{{t "." key="beta_agreement_accept_suffix"}}
             </span>

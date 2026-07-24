@@ -11,6 +11,7 @@ import { filterBrandRoots } from '../utils/board-brands';
    Find Boards grid grouping and this panel classify brands identically.
    Array order drives the rendered section order. */
 import { BRAND_FAMILIES } from '../utils/board-brands';
+import buildEventAction from '../utils/event_action';
 
 /* Static i18n declarations — the section headers render via dynamic
    `{{t section.default_label key=section.label_key}}` in the template,
@@ -400,6 +401,10 @@ this.ctrlAction = function(actionName) {
     self.send.apply(self, [actionName].concat(args));
   };
 };
+// For `input` bindings: the handler reads event.target.value, which the
+// generic ctrlAction above discards (5.12 upgrade #490), so the search
+// box never filtered. ctrlAction is unchanged for clicks.
+this.eventAction = buildEventAction(this);
 this.ctrlActionNoBubble = function(actionName) {
   var bound = Array.prototype.slice.call(arguments, 1);
   return function(event) {

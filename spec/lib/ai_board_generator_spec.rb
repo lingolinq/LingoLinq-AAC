@@ -197,4 +197,38 @@ describe AiBoardGenerator do
       expect(described_class).not_to have_received(:call_anthropic)
     end
   end
+
+  describe "Article 50 jurisdiction + disclosure stamping" do
+    let(:complete) { "WORDS: apple, banana, carrot, drink\nNAME: Snacks\nDESCRIPTION: Snack words." }
+
+    before do
+      allow(described_class).to receive(:call_anthropic).and_return(anthropic_response(complete))
+      allow(FeatureFlags).to receive(:coppa_blocks_ai_for?).and_return(false)
+      allow(FeatureFlags).to receive(:eu_under16_blocks_ai_for?).and_return(false)
+    end
+
+    it "stamps jurisdiction 'EU' + article_50_disclosure_shown false for a confirmed EU user" do
+      eu_user = User.new(settings: { 'preferences' => { 'jurisdiction' => 'FR' } })
+
+      described_class.generate_words(prompt: 'snacks', rows: 2, columns: 2, user: eu_user)
+
+      expect(AiApiLog).to have_received(:log_ai_call).with(hash_including(
+        jurisdiction: 'EU', article_50_disclosure_shown: false
+      ))
+    end
+
+    it "leaves jurisdiction nil for a non-EU/unknown user (D-01 retention fail-safe)" do
+      # An authoritative US signal AND an :unknown user must both stamp nil, never 'EU' --
+      # stamping an unsure (potentially HIPAA-covered) row 'EU' would delete it early.
+      non_eu_user = User.new(settings: { 'preferences' => { 'jurisdiction' => 'US' } })
+      unknown_user = User.new(settings: { 'preferences' => { 'locale' => 'en' } })
+
+      described_class.generate_words(prompt: 'snacks', rows: 2, columns: 2, user: non_eu_user)
+      described_class.generate_words(prompt: 'snacks', rows: 2, columns: 2, user: unknown_user)
+
+      expect(AiApiLog).to have_received(:log_ai_call).with(hash_including(
+        jurisdiction: nil, article_50_disclosure_shown: false
+      )).twice
+    end
+  end
 end

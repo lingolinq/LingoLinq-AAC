@@ -45,13 +45,8 @@ regexes = [
   '''trends_explainer2''',
 ]
 
-# Surfaced by PR #584 (the staging->main release catch-up): the first PR to
-# ever scan the FULL main..staging commit range in one gitleaks pass, since
-# this file doesn't exist on `main` at all. This pre-existing, weeks-old
-# prose line had simply never been diffed against `main` before; it is not
-# new and not related to that PR's actual changes.
 [[allowlists]]
-description = "Prose phrase 'Render/AWS/GCP' in .claude/agents/infra-auditor.md's audit checklist ('no secrets in git history, Render/AWS/GCP ... least-privilege') trips generic-api-key because the word 'secrets' sits next to a slash-delimited capitalized token. Not a credential. Narrowest possible scope: matched by the exact literal via regexes, only generic-api-key relaxed."
+description = "Prose literal 'Render/AWS/GCP' in .claude/agents/infra-auditor.md trips generic-api-key. The rule's keyword heuristic fires on the word 'secrets' and then treats the adjacent slash-separated platform list as a high-entropy value (entropy 3.52), so the sentence 'no secrets in git history, Render/AWS/GCP least-privilege' is flagged as if it contained one. It is the auditor agent's own scan checklist, not a credential. This must be an allowlist rather than a reword: gitleaks scans a COMMIT RANGE, so the string persists at d294d4c941f4 no matter what HEAD says, and every wide-range release PR (staging -> main) re-surfaces it. Same narrowest-possible scope as the entries above: matched by the exact literal via regexes, and only generic-api-key is relaxed, so every other rule (AWS keys, private keys, tokens) still scans that file and every other value is still scanned by every rule."
 targetRules = ["generic-api-key"]
 regexes = [
   '''Render/AWS/GCP''',

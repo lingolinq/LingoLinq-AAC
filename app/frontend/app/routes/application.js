@@ -45,6 +45,16 @@ export default Route.extend({
   beforeModel: function() {
     if(typeof window === 'undefined') { return; }
     var path = window.location.pathname;
+    if(path.indexOf('/parental_consent/') === 0 || path.indexOf('/eu_ai_parental_consent/') === 0) {
+      // COPPA / EU AI parental-consent email links must hit Rails, not the Ember SPA
+      // (see server/index.js proxy).
+      if(window.location.port === '8184') {
+        var qs = window.location.search || '';
+        window.location.replace(window.location.protocol + '//' + window.location.hostname + ':5000' + path + qs);
+        return new RSVP.Promise(function() { /* wait for full-page navigation */ });
+      }
+      return;
+    }
     if(path !== '/auth' && path.indexOf('/auth/') !== 0) { return; }
     // OAuth paths must be handled by Rails, not the Ember SPA. If the app
     // booted here, the /auth proxy did not run — fall back to Rails on :5000.
@@ -157,6 +167,15 @@ export default Route.extend({
     didTransition: function() {
       this.appState.finish_global_transition();
       this.telemetry.trackRoute(this.router.currentRouteName);
+      // Google Analytics pageview. Moved here from the Router-class
+      // `on('didTransition')` handler in router.js, which stopped firing after
+      // the Ember 5.12 upgrade (LL-ae11e67651). This route-action didTransition
+      // is the live per-transition hook (it already drives trackRoute + scroll),
+      // and currentURL is the canonical post-transition URL.
+      if(window.ga) {
+        var ga_url = this.router.currentURL;
+        window.ga('send', 'pageview', { 'page': ga_url, 'title': ga_url });
+      }
       if (!this.appState.get('skip_scroll_to_top')) {
         window.scrollTo(0, 0);
         var content = document.getElementById('content');
