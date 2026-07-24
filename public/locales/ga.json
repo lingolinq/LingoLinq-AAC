@@ -2124,6 +2124,7 @@
   "ai_disclosure_pref_view_again": "*** View Notice Again",
   "ai_disclosure_pref_status_unacknowledged": "*** Not yet acknowledged. AI word suggestions are using the standard, non-AI fallback until you review this.",
   "ai_disclosure_pref_review_button": "*** Review Notice",
+  "board_detail_highlight_labels": "*** Highlight Labels",
   "==== lvl7 ============": "Below are all words for priority level 7 (this string does not need to be translated)",
   "no_valid_image_found": "Níor aimsíodh íomhá bhailí [[ No valid image found",
   "no_valid_sound_found": "Níor aimsíodh aon fhuaim bhailí [[ No valid sound found",

@@ -376,6 +376,12 @@ export default Controller.extend(prefClasses, {
     var card = cell.querySelector('.md-board-detail-symbol-card') || cell;
     var cardRect = card.getBoundingClientRect();
     if(!cardRect || cardRect.width < 1 || cardRect.height < 1) { return; }
+    // Publish the ACTUAL rendered button width so the "Landscape mode
+    // recommended" overlay can trigger on real button size (below ~45px is too
+    // small for reliable AAC targeting), not just the viewport×column heuristics.
+    // This runs debounced inside runLater on every grid resize / layout change,
+    // so it stays live and never mutates state mid-render.
+    this.set('board_cell_width', Math.round(cardRect.width));
     var grid = document.querySelector('.md-board-detail-grid');
     var gridStyle = grid ? window.getComputedStyle(grid) : null;
     var colGap = gridStyle ? (parseFloat(gridStyle.columnGap) || 0) : 0;
@@ -387,8 +393,18 @@ export default Controller.extend(prefClasses, {
     // which the rail (a sibling) can't inherit, so publish the measured gaps as
     // vars on .md-board-detail-main that the rail CSS reads. Set BEFORE the width
     // calc below so it reads the updated (column-gap) left margin.
+    // The rail is a CSS grid with the SAME row structure as the board (see
+    // .md-board-detail-prediction-rail): --prediction-rows rows of minmax(0,1fr),
+    // the board's EXACT row gap, pinned to the board grid's measured height. Each
+    // prediction tile then sits in the SAME row band as the board button beside it,
+    // so they line up 1:1 at every screen size WITHOUT per-tile height measurement
+    // (the old flex column shrank tiles to fit its max-height and drifted out of
+    // line). Matching gaps keep the row bands identical, so use the board's exact
+    // row gap — a folder-overhang fudge would change the row heights and break it.
     main.style.setProperty('--prediction-tile-gap', rowGap + 'px');
     main.style.setProperty('--prediction-rail-gap-left', colGap + 'px');
+    main.style.setProperty('--prediction-rows', String(parseInt(this.get('current_grid.rows'), 10) || 4));
+    main.style.setProperty('--prediction-grid-h', Math.round(grid.getBoundingClientRect().height) + 'px');
     // WIDTH. The rail is a fixed-width sibling of the FLEXIBLE board grid, so
     // setting the rail to the measured card width is circular: the rail steals
     // that width back from the grid, the cards resize, and the two stay one step
@@ -414,16 +430,10 @@ export default Controller.extend(prefClasses, {
     // Trim 4px off the computed width (per design) so the rail tiles sit just
     // inside the board column width rather than flush to it.
     main.style.setProperty('--prediction-tile-w', Math.max(0, tileW - 4) + 'px');
-    main.style.setProperty('--prediction-tile-h', Math.round(cardRect.height) + 'px');
-    // Align the first rail tile's top with the first board row. The rail is a
-    // flex child of grid-sidebar-wrap (align-items:flex-start), so it naturally
-    // starts at the wrap's content top; pad it down to the first card. Measured
-    // against the (stable) wrap, not the rail, so it can't feed back on itself.
-    var wrap = document.querySelector('.md-board-detail-grid-sidebar-wrap');
-    if(wrap) {
-      var wrapTop = wrap.getBoundingClientRect().top + (parseFloat(window.getComputedStyle(wrap).paddingTop) || 0);
-      main.style.setProperty('--prediction-rail-pad-top', Math.max(0, Math.round(cardRect.top - wrapTop)) + 'px');
-    }
+    // No per-tile height or top-inset measurement needed: the rail grid's rows
+    // (--prediction-rows × minmax(0,1fr)), pinned to the board grid height above
+    // with a matching 4px top inset, place each tile in its board row band
+    // automatically. (--prediction-grid-h drives the rail height; see above.)
     // FONT: match the rail words to the board labels EXACTLY by copying the
     // board label's computed font-size. A `cqw`-based match is fragile here —
     // cqw resolves against the container's CONTENT box, and the rail tile has
@@ -2951,6 +2961,25 @@ export default Controller.extend(prefClasses, {
     return this.get('app_state.currentUser');
   },
 
+  // Debounced persist for the toolbar display-pref steppers (border / text /
+  // spacing). set_display_pref applies the live preview immediately; this
+  // coalesces the user.save() so a burst of clicks results in ONE save of the
+  // FINAL value — avoiding the concurrent-save race where an earlier save's
+  // server echo lands after a later click and reverts the value. The dirty-bit
+  // poke (preferences.device.updated) that forces the raw `preferences` attr to
+  // ship is (re)applied at flush time.
+  _schedule_display_pref_save: function(user) {
+    var _this = this;
+    if(this._display_pref_save_timer) { runCancel(this._display_pref_save_timer); }
+    this._display_pref_save_timer = runLater(function() {
+      _this._display_pref_save_timer = null;
+      if(user && user.save && !user.get('isDestroyed') && !user.get('isDestroying')) {
+        user.set('preferences.device.updated', true);
+        user.save();
+      }
+    }, 400);
+  },
+
   // Map of pending-prefs key → user.preferences path
   _display_prefs_paths: {
     button_spacing:       'preferences.device.button_spacing',
@@ -3257,9 +3286,16 @@ export default Controller.extend(prefClasses, {
   //   • >4 columns → gate at ≤375px
   portrait_overlay_dismissed: false,
   quick_actions_open: false,
+  // Live-measured rendered button width, published by _sync_prediction_tile_size.
+  board_cell_width: 0,
 
-  portrait_overlay_eligible: computed('app_state.feature_flags.portrait_orientation_overlay', 'viewport_narrow', 'viewport_very_narrow', 'viewport_ultra_narrow', 'current_grid.columns', function() {
+  portrait_overlay_eligible: computed('app_state.feature_flags.portrait_orientation_overlay', 'viewport_narrow', 'viewport_very_narrow', 'viewport_ultra_narrow', 'current_grid.columns', 'board_cell_width', function() {
     if(!this.get('app_state.feature_flags.portrait_orientation_overlay')) { return false; }
+    // Direct signal: if the buttons actually render below the 45px minimum for
+    // reliable AAC targeting, recommend landscape regardless of the column/
+    // viewport heuristics below (which are only a proxy for "buttons too small").
+    var cell_w = this.get('board_cell_width') || 0;
+    if(cell_w > 0 && cell_w < 45) { return true; }
     var cols = this.get('current_grid.columns') || 0;
     if(this.get('viewport_narrow') && cols > 8) { return true; }
     if(this.get('viewport_very_narrow') && cols > 6) { return true; }
@@ -5718,17 +5754,14 @@ export default Controller.extend(prefClasses, {
         }
       }
       if(!pending && user && user.save) {
-        // Toolbar use (no pending session): persist immediately, like
-        // set_folder_style. No Save button is in scope here.
-        // Ember Data doesn't reliably mark `preferences` (DS.attr('raw'))
-        // as dirty when only sub-properties are mutated, so a plain
-        // user.save() can ship the OLD preferences blob and the server
-        // echo overwrites our local change. The center's
-        // save_display_preferences uses this same trick on line 3732 —
-        // setting any sub-property of `preferences.device` forces the
-        // raw attribute's dirty bit on so the new full blob is sent.
-        user.set('preferences.device.updated', true);
-        user.save();
+        // Toolbar use (no pending session): persist. The live preview already
+        // applied above (user.set). DEBOUNCE the save: firing a user.save() on
+        // every stepper click let an earlier save's server echo land AFTER a
+        // later click and snap the value back ("sometimes reverts"). Coalescing
+        // to one save of the FINAL value after the clicks settle removes that
+        // race. The dirty-bit poke (preferences.device.updated) that forces the
+        // raw `preferences` attr to ship is (re)applied at flush time.
+        this._schedule_display_pref_save(user);
       }
       if(this._display_pref_render_keys.indexOf(key) >= 0 && this._last_raw) {
         var rebuild_token = this._last_raw.key || this._last_raw.id;
@@ -5804,6 +5837,20 @@ export default Controller.extend(prefClasses, {
     },
 
     step_display_pref: function(key, direction) {
+      // De-dupe a single physical click that arrives as TWO dispatches. On
+      // board-detail the AAC pointer layer (raw_events) can re-fire a chrome
+      // button's click (its mouseup dispatch doesn't cancel the browser's
+      // follow-up click), so this {{on "click"}} runs twice — now visible as the
+      // stepper skipping two levels per click (the old value-jump bug masked it).
+      // Ignore an identical step (same key + direction) within a short window;
+      // the re-fire arrives ~instantly, while intentional repeat clicks are far
+      // slower, so they still register.
+      var step_id = key + ':' + (direction > 0 ? 1 : -1);
+      var now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      if(this._last_step_pref_id === step_id && (now - (this._last_step_pref_at || 0)) < 100) { return; }
+      this._last_step_pref_id = step_id;
+      this._last_step_pref_at = now;
+
       var ladders = {
         button_text:     ['small', 'medium', 'large', 'huge'],
         button_border:   ['none', 'small', 'medium', 'large', 'huge'],
@@ -5811,20 +5858,18 @@ export default Controller.extend(prefClasses, {
       };
       var ladder = ladders[key];
       if(!ladder) { return; }
-      // Read the current value from pending (More Settings open) OR from
-      // the live user pref (toolbar use). Either source resolves the same
-      // semantic "current value" — set_display_pref handles propagation
-      // back to both places + auto-save when called outside pending.
-      var pending = this.get('pending_display_prefs');
-      var current;
-      if(pending) {
-        current = pending[key];
-      } else {
-        var user = this.get('app_state.currentUser');
-        var path = this._display_prefs_paths[key];
-        if(user && path) { current = user.get(path); }
-      }
+      // Step from the SAME value the UI displays (current_display_prefs), so a
+      // click always advances exactly one level from what the user sees.
+      // Reading currentUser directly diverged from the displayed value: unset
+      // prefs fall back to 'medium' in current_display_prefs, but the old
+      // midpoint fallback below landed on a DIFFERENT ladder index for the
+      // 4-item text / 7-item spacing ladders ('large' / 'small'), so a single
+      // click "jumped" a level. current_display_prefs already resolves pending
+      // (More Settings open) vs the live user pref, with the right fallbacks.
+      var displayed = this.get('current_display_prefs') || {};
+      var current = displayed[key];
       var idx = ladder.indexOf(current);
+      if(idx < 0) { idx = ladder.indexOf('medium'); }
       if(idx < 0) { idx = Math.floor(ladder.length / 2); }
       var dir = direction > 0 ? 1 : -1;
       var next_idx = dir > 0 ? Math.min(idx + 1, ladder.length - 1) : Math.max(idx - 1, 0);

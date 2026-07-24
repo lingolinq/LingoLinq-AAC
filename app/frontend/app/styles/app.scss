@@ -9133,7 +9133,11 @@ body.pretty_loader #loading_box {
   margin-top: calc(100px - 3.75rem + var(--speak-bar-extra, 0px)) !important; /* override header + #content + #sidebar { margin-top } from legacy header_sizing.scss */
   position: absolute;
   right: 0;
-  width: 100px;
+  /* Width is published by board/index.js computeHeight as --sidebar-width: it
+     tracks the button size when buttons are small (~10% wider than a button,
+     capped at 100px). Fallback 100px = the pre-JS / non-skinny width. The JS
+     board-width reservation reads the same value, so grid + sidebar stay flush. */
+  width: var(--sidebar-width, 100px);
   z-index: 2;
   background: #fff;
   overflow-y: auto;
@@ -17970,7 +17974,9 @@ body:-ms-fullscreen {
     }
   }
   #sidebar {
-    width: 75px;
+    /* Same --sidebar-width var as the base rule; JS caps it at 75 on ≤768px,
+       so this fallback only applies to the pre-JS paint on small screens. */
+    width: var(--sidebar-width, 75px);
     .sidebar_item {
       font-size: 14px;
     }
@@ -67350,13 +67356,34 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   position: relative;
   transition: width 0.25s ease, padding 0.25s ease, opacity 0.2s ease;
   overflow: hidden;
+  /* Glassy glossy scroll surface (2026-07) — same recipe as the speak bar, so the
+     sidebar scroll area reads as one glass panel. LIGHT mode; the dark override
+     below keeps dark transparent. */
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 255, 255, 0.74) 50%,
+    rgba(238, 244, 251, 0.64) 100%
+  );
+  backdrop-filter: blur(20px) saturate(185%);
+  -webkit-backdrop-filter: blur(20px) saturate(185%);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 16px;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.98),
+    inset 0 14px 22px -16px rgba(255, 255, 255, 0.65),
+    inset 0 -10px 22px -18px rgba($la-navy, 0.06),
+    0 1px 2px rgba($la-navy, 0.05),
+    0 12px 30px rgba($la-navy, 0.12);
+  margin: 4px 8px 4px 4px;
+}
+.md-board-detail--dark .md-board-detail-sidebar {
   background: transparent;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   border: none;
   border-radius: 0;
   box-shadow: none;
-  margin: 4px 8px 4px 4px;
 }
 .md-board-detail-sidebar--collapsed {
   width: 0 !important;
@@ -67467,17 +67494,21 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    cards feel alive when scanned. This keeps the sidebar consistent
    with the other modern speak-mode surfaces. */
 .md-board-detail-sidebar__section {
-  background: #fff;
-  border: 1px solid rgba($brand-blue-black, 0.08);
-  border-top: 3px solid rgba($brand-teal, 0.32);
+  /* The sidebar CONTAINER (.md-board-detail-sidebar) now carries the glass, so
+     the sections are quiet groupings ON that one glass surface — NOT their own
+     glass panels. No second backdrop-filter (which would frost the container
+     instead of the board and read as glass-on-glass); just a faint white tint +
+     hairline to delineate the grouping. */
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 12px;
   padding: 10px 10px 8px;
   margin-bottom: 12px;
-  box-shadow: 0 1px 4px rgba($brand-blue-black, 0.06), 0 4px 16px rgba($brand-blue-black, 0.04);
-  transition: box-shadow 0.18s ease, border-top-color 0.18s ease;
+  box-shadow: none;
+  transition: background 0.18s ease;
 }
 .md-board-detail-sidebar__section:hover {
-  border-top-color: rgba($brand-teal, 0.50);
+  background: rgba(255, 255, 255, 0.30);
 }
 .md-board-detail-sidebar__section:last-child {
   margin-bottom: 0;
@@ -67598,15 +67629,16 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   /* Keep the top of the board clear of the scroll-viewport edge so a
      scrolled-to button row is never clipped flush at the top. */
   scroll-padding-top: 16px;
-  /* Soft light-gray from the surface scale instead of pure white — the
-     all-white canvas read as too stark behind the board. Taken 15% darker (per
-     design pass) so the board grid reads with more contrast against its canvas.
-     LIGHT mode only — dark mode overrides this background (see
+  /* Brand dark-charcoal slate surface behind the board (design pass 2026-07-23) —
+     replaces the earlier light-gray wash so the board grid reads with strong
+     contrast against a solid dark canvas (matches the classic board-alt speak
+     surface). LIGHT mode only — dark mode overrides this background (see
      `.md-board-detail--dark .md-board-detail-main`). This is the SPEAK-mode page
-     surface; EDIT mode keeps the centered board panel at $surface-200 and moves
-     the darker surface onto .md-board-detail-layout instead (see the
+     surface (also inherited by the non-edit integration/collection board views);
+     EDIT mode keeps the centered board panel at $surface-200 and moves its surface
+     onto .md-board-detail-layout instead (see the
      `.md-shell--board-detail-edit:not(.md-board-detail--dark)` rules below). */
-  background: color.adjust($surface-200, $lightness: -15%);
+  background: $brand-charcoal-dark;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   /* Unified hairline (.06 alpha) matching the rails + toolbar — was
@@ -68046,82 +68078,88 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 .md-board-detail--dark .md-board-detail-home-btn {
   color: #fff;
 }
-/* Left nav stack — Home button, plus (inside a folder) a Back button
-   beneath it. Mirrors the right-side
-   .md-board-detail-sentence-bar__actions-wrap--stacked column so the row
-   reads symmetric: stacked controls | sentence bar | stacked controls.
-   Owns the home button's former -8px right margin so the gap to the
-   sentence bar stays tight. */
+/* Left nav cluster — Home, plus (inside a folder) a Back button to its RIGHT.
+   Horizontal (not stacked): Back sits beside Home and widens the cluster, pushing
+   the sentence bar right when it appears, instead of dropping beneath Home where
+   users read it as a second "home". `align-items: stretch` sizes both buttons to
+   the sentence-bar row height. Owns the home button's former -8px right margin so
+   the gap to the sentence bar stays tight. */
 .md-board-detail-nav-stack {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: stretch;
-  gap: 2px;
+  gap: 6px;
   flex-shrink: 0;
   margin-right: -8px;
 }
-/* Home fills the column on its own (no folder). When a Back button joins
-   it (`--with-back`), the two split the row height evenly — ~44px each at
-   the default size — so Home visually shrinks to make room for Back. */
-.md-board-detail-nav-stack .md-board-detail-home-btn {
-  flex: 1;
+/* Shared layout for BOTH nav buttons: a compact icon-above-label control. Fixed
+   width so Home + Back read as a matched pair; height comes from the row (stretch),
+   and the icon+label stay centered at a fixed size so they don't balloon on tall
+   sentence-bar presets or overflow the shortest one. Overrides the base home-btn's
+   row direction / 56px width / -8px margin / 10px padding. */
+.md-board-detail-nav-stack .md-board-detail-home-btn,
+.md-board-detail-nav-stack__back {
+  flex: 0 0 auto;
+  width: 60px;
   min-height: 0;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 8px;
   margin-right: 0;
 }
-/* When the Back button is present, Home ALSO caps at 44×44 (matching Back) so the
-   stacked pair fits the user's sentence-bar height preset instead of forcing the
-   row taller. Home only grows to fill the bar when it's ALONE (back absent — the
-   flex:1 rule above stays in effect). Equal specificity to that rule, placed after
-   so it wins when --with-back is present. */
-.md-board-detail-nav-stack--with-back .md-board-detail-home-btn {
-  flex: 0 0 auto;
-  width: 44px;
-}
-.md-board-detail-nav-stack--with-back .md-board-detail-home-btn svg {
-  width: 22px;
-  height: 22px;
-}
-/* Back button under Home — only inside a folder. Styled to mirror the
-   right-side sidebar dropdown button (.md-board-detail-sidebar-toggle
-   --stacked): translucent blue-grey tint, charcoal icon, 12px radius —
-   but carries the back chevron and matches Home's 56px width so the two
-   stack as one coordinated column. */
-.md-board-detail-nav-stack__back {
-  /* Fixed 44×44 touch target — NOT flex:1. When Back shows, Home + Back stack in
-     this column; if each GREW to fill the row (flex:1), the pair's intrinsic
-     height (~2×55px with a 33px svg) would push the sentence row TALLER than the
-     user's chosen sentence-bar height (small=90px = 44 + 2 gap + 44), silently
-     overriding their `vocalization_height` preference. `flex: 0 0 auto` + a 22px
-     svg sizes each button to exactly 44px (border-box: 22 svg + 20 padding + 2
-     border), so the pair fits inside the preset and the row stays at the chosen
-     height — mirroring the right-side stacked toggle pair. */
-  flex: 0 0 auto;
-  width: 44px;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px;
-  border-radius: 12px;
-  border: 1px solid rgba($brand-charcoal-blue, 0.2);
-  background: rgba($brand-blue-grey, 0.15);
-  color: $brand-charcoal-blue;
-  cursor: pointer;
-  transition: background 0.12s ease, transform 0.12s ease;
-}
+.md-board-detail-nav-stack .md-board-detail-home-btn svg,
 .md-board-detail-nav-stack__back svg {
   flex-shrink: 0;
   width: 22px;
   height: 22px;
+  /* Unify the two icons' stroke (house shipped at 1.25, chevron at 2.5) so the
+     pair reads as one icon set. CSS beats the SVG's presentation attribute. */
+  stroke-width: 2;
+}
+/* Small label under each icon (Home / Back). */
+.md-board-detail-nav-btn__label {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+/* Back button — the secondary control beside the primary (glass) Home. Mirrors
+   the right-side sidebar toggle: translucent blue-grey, charcoal icon+label,
+   rounded to match Home. Only rendered inside a folder. */
+.md-board-detail-nav-stack__back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  /* Same surface as the Home button (mirrors .md-board-detail-home-btn): frosted
+     chip in base/non-speak, white glass in speak (the two share the speak re-skin
+     below). Was a blue-grey tint that read as a different control. */
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(110, 122, 140, 0.32);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  color: $indigo;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.12s ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 4px 14px rgba($la-navy, 0.10);
 }
 .md-board-detail-nav-stack__back:hover {
-  background: rgba($brand-blue-grey, 0.3);
+  background: rgba(110, 122, 140, 0.42);
 }
 .md-board-detail-nav-stack__back:active {
   transform: scale(var(--md-tap, 0.97));
 }
+.md-board-detail-nav-stack__back:focus-visible {
+  outline: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 4px 14px rgba($la-navy, 0.10),
+    0 0 0 3px $brand-verdigris;
+}
 .md-board-detail--dark .md-board-detail-nav-stack__back {
-  color: #e1e5eb;
+  color: #fff;
 }
 
 .md-board-detail-sentence-bar {
@@ -69005,26 +69043,29 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    the side_rail preference at ANY width. */
 .md-board-detail-prediction-rail {
   display: none;
-  flex-direction: column;
+  /* Single column that MIRRORS THE BOARD'S ROW STRUCTURE: the same number of rows
+     as the board (--prediction-rows) as minmax(0,1fr) tracks, the board's EXACT
+     row gap, and the rail pinned to the board grid's height (--prediction-grid-h)
+     with the same 4px top inset the grid has. So each prediction tile lands in the
+     SAME row band as the board button beside it and the two line up 1:1 at every
+     screen size — no per-tile height measurement (all published by
+     _sync_prediction_tile_size in controllers/user/board-detail.js). A GRID, not a
+     flex column: the flex column shrank its tiles to fit a max-height and they
+     drifted out of line with the board rows. The suggestion list is capped to the
+     row count (prediction_rail_suggestions) so tiles never overflow the tracks.
+     Width matches one board cell; left margin matches the board's COLUMN gap.
+     Fixed fallbacks keep a sensible column if measurement hasn't run yet. */
+  grid-template-rows: repeat(var(--prediction-rows, 4), minmax(0, 1fr));
   flex-shrink: 0;
-  align-self: stretch;
-  align-items: stretch;
-  /* Width, inter-tile gap, left margin, and top inset all track the live board
-     grid (measured by _sync_prediction_tile_size in controllers/user/
-     board-detail.js) so the rail reads as another board column: the width
-     matches one board cell, the gap matches the board's ROW gap, and the left
-     margin matches its COLUMN gap (the user's grid-gap preference), so the tiles
-     line up with the board rows. Fixed fallbacks keep a sensible column if
-     measurement hasn't run yet. */
+  align-self: flex-start;
   width: var(--prediction-tile-w, 84px);
+  height: var(--prediction-grid-h, 100%);
   gap: var(--prediction-tile-gap, 8px);
-  /* No left/right padding — tiles fill the rail edge-to-edge so a tile matches
-     the board cell width exactly. Keep the measured top inset (aligns the first
-     tile with the first board row) and the 4px bottom. */
-  padding: var(--prediction-rail-pad-top, 4px) 0 4px;
+  /* No left/right padding — tiles fill the rail edge-to-edge so a tile matches the
+     board cell width exactly. 4px top inset matches the board grid's padding-top so
+     row 1 aligns; no bottom inset so the last row aligns too. */
+  padding: 4px 0 0;
   margin-left: var(--prediction-rail-gap-left, 8px);
-  max-height: 100%;
-  overflow-y: auto;
 }
 /* Tiles match the board button box (measured vars, fixed fallbacks). */
 .md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction {
@@ -69042,14 +69083,13 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
      removes the overflow, so nothing is clipped. The image scales with the tile
      (see the rail __prediction-img rule below), so a sub-44px tile stays legible. */
   min-width: 0;
-  height: var(--prediction-tile-h, 78px);
-  /* Pin the tile to EXACTLY the measured board-button height. Flex items default
-     to `min-height: auto`, which lets the image + label grow the tile PAST
-     `height` (so on dense boards, where the measured card height is small, the
-     rail tiles ended up taller than the board buttons). `min-height: 0` makes the
-     tile honor the measured height, so prediction tiles always match the board
-     buttons. The image (height:52%) + clamped label scale with the tile, so they
-     still fit. */
+  /* Fill the grid row: the rail's minmax(0,1fr) tracks mirror the board rows, so
+     height:100% makes each tile fill its row band and match the board button
+     height. REQUIRED to override the base in-bar pill's fixed `height: 78px` — with
+     that leaking through, tiles stayed 78px tall and floated in the (correctly
+     tall) rows, leaving big gaps. min-height:0 lets the image + label shrink to
+     honor the row height on dense boards instead of growing the tile past it. */
+  height: 100%;
   min-height: 0;
   /* Give the label breathing room from the image (the base gap:1px read as
      cramped). */
@@ -69077,12 +69117,10 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    measurement lands. */
 .md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction-label {
   font-size: var(--prediction-label-font, clamp(10px, 14cqw, var(--bd-button-text-size, 15px)));
-  /* The rail sits on a LIGHT surface in light mode (unlike the dark speak bar the
-     base white label is tuned for), so the white base label is invisible here —
-     use dark text for legibility. Dark mode keeps white via the later
-     `.md-board-detail--dark ...prediction-label` rule (equal specificity, wins on
-     source order). */
-  color: $la-navy;
+  /* The rail sits on the DARK board surface in light mode too — the prediction
+     tiles show the dark canvas through — so dark text is unreadable here. Use
+     light text for legibility (matches the dark-mode rule below). */
+  color: rgba(255, 255, 255, 0.95);
 }
 /* Match the board buttons' text POSITION (the rail carries the board's text-pos
    class). DOM order is image-then-label, so flip flex-direction: top → label
@@ -69114,7 +69152,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     display: none;
   }
   .md-shell--board-detail:not(.md-shell--wordpred-speak-bar) .md-board-detail-prediction-rail {
-    display: flex;
+    display: grid;
   }
   /* Let the grid yield width so the rail + sidebar + gaps fit inside main
      (overflow-x:hidden). Unconditional at <=1024 — the sidebar needs it even
@@ -69125,7 +69163,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 /* Pinned SIDE RAIL — show the rail and hide the in-bar group at ALL widths. */
 .md-shell--wordpred-side-rail .md-board-detail-prediction-rail {
-  display: flex;
+  display: grid;
 }
 .md-shell--wordpred-side-rail .md-board-detail-sentence-bar__prediction-group {
   display: none;
@@ -69959,23 +69997,18 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px 16px;
-  /* Positioning anchor for the floated "Take a tour" trigger
-     (.md-board-edit-session__tour), which sits below-right of this bar.
-     z-index: this bar's `backdrop-filter` makes it a STACKING CONTEXT, which traps
-     the floated trigger's z-index inside it. Without a positive z-index here, the
-     bar sits at z:auto and the board-details title row (.md-board-detail-header__
-     title-row--edit, position:relative, later in the DOM) paints OVER the trigger
-     and swallows its clicks. A positive z-index lifts the whole bar (trigger
-     included) above that row so the button is actually clickable. */
+  /* Lift the session bar into its own layer above the board content below it.
+     (Its backdrop-filter already makes it a stacking context; a positive z-index
+     keeps it above later position:relative rows in the header.) */
   position: relative;
   z-index: 5;
-  /* More separation from the board content card below (Layer 1 vs Layer 2) + a
-     slightly brighter surface so the session bar reads as the upper editing layer.
+  /* Slightly brighter surface so the session bar reads as the upper editing layer.
      Vertical padding trimmed (10 → 7) so the bar isn't taller than it needs — the
-     44px buttons (touch targets) are untouched. margin-bottom bumped 22→30 so the
-     "Editing Board" bar and the board-metadata card below read as distinct layers
-     (their dark gradients are similar; the extra gap restores scan segmentation). */
-  margin-bottom: 30px;
+     44px buttons (touch targets) are untouched. No bottom margin — the bar sits
+     flush (per request). Full width of the center panel (the title column it lives
+     in is stretched in edit mode — see the .md-shell--board-detail-edit rule below). */
+  margin-bottom: 0;
+  width: 100%;
   padding: 7px 12px 7px 16px;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.68);
@@ -69992,6 +70025,15 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   will-change: transform;
   transform: translateZ(0);
 }
+/* Edit mode: the session bar spans the FULL center-panel width. It lives in a plain
+   column div (.md-board-detail-header__title-col) inside the header title-group; in
+   edit mode that column is the group's only child (the nav btns + board icon aren't
+   rendered), so let it grow to the group's full width — the group itself already
+   fills the header row (flex: 1 1 320px), so the bar reaches the panel edges. */
+.md-shell--board-detail-edit .md-board-detail-header__title-col {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 .md-board-detail--dark .md-board-edit-session {
   background: rgba(143, 228, 223, 0.11);
   border-color: rgba(143, 228, 223, 0.34);
@@ -70001,24 +70043,21 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     0 6px 18px rgba(0, 0, 0, 0.22),
     0 0 34px rgba(143, 228, 223, 0.22);
 }
-/* Float the "Take a tour" trigger below-RIGHT of the editing session bar — about
-   10rem below the Done Editing button. The WRAPPER carries the positioning:
-   `position: absolute` takes it OUT of the bar's space-between flex flow (so it
-   doesn't claim a slot and shove the Discard/Done Editing actions to the centre),
-   anchored to the session bar (position:relative); z-index lifts it above the
-   board-details card directly below. */
-.md-board-edit-session__tour {
-  position: absolute;
-  top: 10rem;
-  right: 12px;
-  z-index: 15;
+/* "Take a tour" — the LAST Board Action, in NORMAL FLOW at the end of the Board
+   Actions list (after "Other Actions"), so it pushes the Search & Filter section
+   below it down instead of floating over the expanded menu. Centered as a pill so
+   it reads as a distinct helper affordance rather than another list row; a small
+   top margin separates it from the last action row. */
+.md-board-edit-panel__tour {
+  display: flex;
+  justify-content: center;
+  margin: 8px 0 2px;
 }
 /* The trigger pill is `position: fixed` by default (its dashboard placement). Reset
-   it to `static` so it simply flows inside the absolutely-positioned wrapper above —
-   the WHOLE pill is then a normal in-flow button, fully clickable (icon + text +
-   edges alike); an absolutely-positioned trigger left dead spots over its contents.
-   The 0,2,0 selector beats the trigger's base/per-breakpoint position rules. */
-.md-board-edit-session__tour .md-tour__trigger {
+   it to `static` so the WHOLE pill flows in the list and is fully clickable (icon +
+   text + edges alike); an absolutely-positioned trigger left dead spots over its
+   contents. The 0,2,0 selector beats the trigger's base/per-breakpoint position. */
+.md-board-edit-panel__tour .md-tour__trigger {
   position: static;
 }
 /* Speak-mode guided-tour host carries NO on-screen button — its only purpose is
@@ -70061,6 +70100,28 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 .md-board-detail--dark .md-board-edit-session__state-label {
   color: #8fe4df;
+}
+/* Board icon + name shown in the session bar (replaced the pencil + "Editing
+   Board" status). Icon is a small board thumbnail; the name uses the standard
+   title ink (not the teal status colour) and truncates on overflow. */
+.md-board-edit-session__board-icon {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  object-fit: cover;
+  border: 1px solid rgba($la-navy, 0.12);
+}
+.md-board-edit-session__board-title {
+  color: $brand-charcoal-dark;
+  min-width: 0;
+  max-width: 42ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.md-board-detail--dark .md-board-edit-session__board-title {
+  color: #fff;
 }
 .md-board-edit-session__badge--copying {
   font-size: 12px;
@@ -71919,35 +71980,68 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sentence-bar {
   padding: 2px 18px;
   gap: 18px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(241, 244, 248, 0.78) 100%);
-  backdrop-filter: blur(12px) saturate(140%);
-  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  /* Glassy glossy (2026-07 rework): the old flat 0.78 near-opaque white read as
+     plain light gray over the dark board. Now a lighter, more translucent glass
+     (bright reflective top half fading to a cooler, see-through lower half so the
+     blurred board shows through) with a stronger blur + saturation, and a real
+     GLOSS — a crisp specular top edge plus an upper sheen bloom. */
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 255, 255, 0.74) 50%,
+    rgba(238, 244, 251, 0.64) 100%
+  );
+  backdrop-filter: blur(20px) saturate(185%);
+  -webkit-backdrop-filter: blur(20px) saturate(185%);
   /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
   will-change: transform;
   transform: translateZ(0);
-  border: 1px solid rgba($la-navy, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.55);
   box-shadow:
-    0 1px 2px rgba($la-navy, 0.04),
-    0 8px 24px rgba($la-navy, 0.07),
-    0 24px 60px rgba($la-navy, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.98),        /* crisp specular top edge (the gloss line) */
+    inset 0 14px 22px -16px rgba(255, 255, 255, 0.65), /* upper sheen bloom — light reflecting off the glass */
+    inset 0 -10px 22px -18px rgba($la-navy, 0.06),     /* faint lower depth so the glass has thickness */
+    0 1px 2px rgba($la-navy, 0.05),
+    0 12px 30px rgba($la-navy, 0.12);                  /* soft outer elevation */
   color: $la-navy;
 }
 
-/* 2. Home button — same translucent-white treatment so the home
-   button + bar read as one coordinated rail on the bright canvas. */
-.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-home-btn {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(241, 244, 248, 0.78) 100%);
-  border: 1px solid rgba($la-navy, 0.06);
+/* 2. Home + Back buttons — same translucent-white treatment so the nav
+   buttons + bar read as one coordinated rail on the bright canvas. */
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-home-btn,
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-nav-stack__back {
+  /* Same glassy glossy language as the bar, scaled for a button (smaller sheen
+     bloom). */
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 255, 255, 0.72) 55%,
+    rgba(238, 244, 251, 0.62) 100%
+  );
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.55);
   color: $la-navy;
   box-shadow:
-    0 1px 2px rgba($la-navy, 0.04),
-    0 4px 14px rgba($la-navy, 0.07),
-    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.98),
+    inset 0 8px 12px -9px rgba(255, 255, 255, 0.6),
+    0 1px 2px rgba($la-navy, 0.05),
+    0 4px 14px rgba($la-navy, 0.10);
 }
-.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-home-btn:hover {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(241, 244, 248, 0.92) 100%);
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-home-btn:hover,
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-nav-stack__back:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(255, 255, 255, 0.80) 55%,
+    rgba(240, 246, 252, 0.70) 100%
+  );
   color: $la-navy;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 1),
+    inset 0 8px 12px -8px rgba(255, 255, 255, 0.68),
+    0 1px 2px rgba($la-navy, 0.06),
+    0 6px 18px rgba($la-navy, 0.13);
 }
 
 /* 3. Tool buttons (backspace / clear / options chevron) — smaller
@@ -71967,22 +72061,70 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    toggle--stacked rule uses !important everywhere (~app.scss:62234);
    these overrides match with !important to win. */
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-actions-toggle {
-  background: rgba(255, 255, 255, 0.55) !important;
-  border-color: rgba($la-navy, 0.08) !important;
+  /* Same glassy glossy language as the bar / nav buttons. !important to beat the
+     base actions-toggle rule (which is all !important). */
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 255, 255, 0.72) 55%,
+    rgba(238, 244, 251, 0.62) 100%
+  ) !important;
+  backdrop-filter: blur(18px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(180%) !important;
+  border-color: rgba(255, 255, 255, 0.55) !important;
   color: rgba($la-navy, 0.78) !important;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.98),
+    inset 0 8px 12px -9px rgba(255, 255, 255, 0.6),
+    0 1px 2px rgba($la-navy, 0.05),
+    0 4px 14px rgba($la-navy, 0.10) !important;
 }
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-actions-toggle:hover {
-  background: rgba(255, 255, 255, 0.85) !important;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(255, 255, 255, 0.80) 55%,
+    rgba(240, 246, 252, 0.70) 100%
+  ) !important;
   color: $la-navy !important;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 1),
+    inset 0 8px 12px -8px rgba(255, 255, 255, 0.68),
+    0 1px 2px rgba($la-navy, 0.06),
+    0 6px 18px rgba($la-navy, 0.13) !important;
 }
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sidebar-toggle--stacked {
-  background: rgba(255, 255, 255, 0.55) !important;
-  border-color: rgba($la-navy, 0.08) !important;
+  /* Same glassy glossy language as the bar / nav buttons, scaled for a button.
+     !important to beat the --stacked base rule (which is all !important). */
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 255, 255, 0.72) 55%,
+    rgba(238, 244, 251, 0.62) 100%
+  ) !important;
+  backdrop-filter: blur(18px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(180%) !important;
+  border-color: rgba(255, 255, 255, 0.55) !important;
   color: rgba($la-navy, 0.78) !important;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.98),
+    inset 0 8px 12px -9px rgba(255, 255, 255, 0.6),
+    0 1px 2px rgba($la-navy, 0.05),
+    0 4px 14px rgba($la-navy, 0.10) !important;
 }
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sidebar-toggle--stacked:hover {
-  background: rgba(255, 255, 255, 0.85) !important;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(255, 255, 255, 0.80) 55%,
+    rgba(240, 246, 252, 0.70) 100%
+  ) !important;
   color: $la-navy !important;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 1),
+    inset 0 8px 12px -8px rgba(255, 255, 255, 0.68),
+    0 1px 2px rgba($la-navy, 0.06),
+    0 6px 18px rgba($la-navy, 0.13) !important;
 }
 
 /* ──────────────────────────────────────────────────────────────────
@@ -74300,20 +74442,42 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail-options-btn {
   width: 32px;
   border-radius: 14px;
-  border: 1px solid rgba($la-navy, 0.15);
-  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  /* Same glassy glossy language as the bar / nav buttons, scaled for a button. */
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 255, 255, 0.72) 55%,
+    rgba(238, 244, 251, 0.62) 100%
+  );
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
   color: $brand-slate-gray;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.98),
+    inset 0 8px 12px -9px rgba(255, 255, 255, 0.6),
+    0 1px 2px rgba($la-navy, 0.05),
+    0 4px 14px rgba($la-navy, 0.10);
   transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 .md-board-detail-options-btn:hover {
-  background: #fff;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(255, 255, 255, 0.80) 55%,
+    rgba(240, 246, 252, 0.70) 100%
+  );
   color: $brand-charcoal-dark;
-  box-shadow: 0 2px 6px rgba($la-navy, 0.12);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 1),
+    inset 0 8px 12px -8px rgba(255, 255, 255, 0.68),
+    0 1px 2px rgba($la-navy, 0.06),
+    0 6px 18px rgba($la-navy, 0.13);
 }
 .md-board-detail-options-menu {
   position: absolute;
@@ -74622,6 +74786,13 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   display: grid;
   grid-template-columns: repeat(var(--board-columns), minmax(0, 1fr));
   grid-template-rows: repeat(var(--board-rows), minmax(0, 1fr));
+  /* Gap = the user's grid-gap preference. KEEP THIS A PLAIN LENGTH: the
+     prediction rail measures getComputedStyle(grid).rowGap / columnGap
+     (_sync_prediction_tile_size) and parseFloat's the result, so a
+     min()/percentage gap serializes to a value parseFloat can't read and the
+     rail's tile spacing breaks (regressed 2026-07 by a button-size gap cap that
+     lived here). Button-size gap scaling belongs in board-alt's JS extra_pad,
+     which publishes a plain px value — not in this CSS grid gap. */
   gap: var(--bd-button-gap, 8px) !important;
   /* Smooth the grid-gap transition when the user adjusts the Grid
      Gap stepper in the create-board-new / board-detail Edit Tools
@@ -74652,18 +74823,15 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail-grid__row {
   display: contents;
 }
-/* Narrow screens (<=768px): override the user's grid-gap preference
-   (--bd-button-gap) with a tight, fixed gap so the board fits more comfortably —
-   8px for most folder styles, but a tighter 2px when the folder style is
-   "colored corner" (the corner indicator reads better with the buttons close).
-   The prediction rail measures the board's computed gap
+/* Narrow screens (<=768px): "colored corner" folders want the buttons extra
+   close (2px) so the corner indicator reads well — tighter than the general
+   proportional cap on the base rule. Other folder styles are already handled by
+   the base `gap: min(--bd-button-gap, proportional)` rule above, which scales
+   the gap down with the button width on narrow screens (that replaced the old
+   flat 8px override here). The prediction rail measures the board's computed gap
    (_sync_prediction_tile_size), so it tightens to match and stays lined up.
-   `!important` is required to beat the base `gap: var(--bd-button-gap) !important`
-   above. */
+   `!important` is required to beat the base gap rule above. */
 @media (max-width: 768px) {
-  .md-board-detail-grid:not(.md-board-detail-grid--folder-colored-corner) {
-    gap: 8px !important;
-  }
   .md-board-detail-grid.md-board-detail-grid--folder-colored-corner {
     gap: 2px !important;
   }
@@ -74678,12 +74846,11 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-shell--board-detail-edit .md-board-detail-grid-sidebar-wrap .md-board-detail-grid {
   height: calc(100dvh - 180px) !important;
 }
-/* Short-VIEWPORT-HEIGHT handling for the board grid lives in the square-collapse
-   block below (the `@media (max-width: 1024px), (max-height: …)` rule): it makes
-   the buttons square, collapses the grid to the squares' natural height (so there
-   are NO inter-row gaps), and lets <main> scroll. We deliberately do NOT floor the
-   grid height here — an earlier attempt did and it forced the 1fr rows taller than
-   the square cards, opening exactly the inter-row gaps we want to avoid. */
+/* The board grid fills the viewport height at ALL sizes (base
+   `.md-board-detail-grid { flex: 1 1 0 }`), so it always stays on ONE PAGE with no
+   scroll. Short/small viewports previously swapped to a "square-collapse" (square
+   cards + grid height:auto, which let <main> scroll); that was removed on purpose so
+   the grid never scrolls — shape-square cards now fill their cell at every size. */
 
 /* Inflections / raw_events: grid uses legacy `.board` + `.button` hooks; cancel global `.board` rules */
 #within_ember.board-detail-view .md-board-detail-grid.board {
@@ -74753,26 +74920,6 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    above for the square case only; tall and wide still need the
    fixed flex: 0 0 auto so their fractional widths/heights sit
    centered without growing. */
-/* Shape-square = "Fit cell" → SQUARE cells. The card is sized to the column
-   width (aspect-ratio 1 + width:100%); the grid rule below is height:auto +
-   flex:0 0 auto so its rows resolve to those square cards. Net: every cell is a
-   square the card fills edge-to-edge, so the ONLY spacing is the symmetric grid
-   gap — equal horizontally AND vertically. (Previously this filled the 1fr rows
-   of a FIXED-height grid; on a wider-than-tall cell the square card then left
-   horizontal centering slack that read as a bigger horizontal gap than the
-   vertical one.) Tradeoff: with few rows the grid no longer stretches to fill
-   the viewport height — empty space sits below, and <main> scrolls when the
-   squares exceed the viewport. */
-@media (max-width: 1024px), (max-height: 700px) {
-  .md-board-detail-grid.md-board-detail-grid--shape-square .md-board-detail-symbol-card {
-    flex: 0 0 auto !important;
-    aspect-ratio: 1 / 1;
-    width: 100% !important;
-    height: auto !important;
-    min-height: 0 !important;
-    margin: 0 !important;
-  }
-}
 .md-board-detail-grid.md-board-detail-grid--shape-tall .md-board-detail-symbol-card {
   width: 66.6667%;
   height: 100%;
@@ -74782,31 +74929,6 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   width: 100%;
   height: 66.6667%;
   margin: auto 0;
-}
-/* The shape-square grid sizes to the square cards (above) instead of stretching
-   to the viewport — this is what keeps the cells square so the gap stays equal
-   on both axes:
-   - height:auto lets the `minmax(0,1fr)` rows resolve to each card's definite
-     aspect-height (column width) rather than splitting a fixed grid height.
-   - flex:0 0 auto stops the grid (a flex item) from GROWING to fill its flex
-     parent on tall screens — without it the grid would re-stretch the 1fr rows
-     taller than the squares and re-open the vertical/horizontal slack mismatch.
-   - align-content:start packs the rows at the top; <main> (overflow-y:auto)
-     scrolls when the squares exceed the viewport.
-   Shape comes from the user's `stretch_buttons` preference (none → shape-square);
-   tall/wide prefs keep their own fractional aspect + fill and are NOT affected.
-   Shell-prefixed (0,3,0) + !important so it beats the speak base height and
-   edit's own !important calc (later in source than both). SCOPED to small/short
-   viewports (`max-width:1024` / `max-height:700`): on larger screens the board
-   keeps its viewport-filling base height and does NOT scroll. Square sizing (which
-   sizes to content and can exceed the viewport, forcing a scroll) only kicks in on
-   the small/short screens where the board would otherwise be cramped. */
-@media (max-width: 1024px), (max-height: 700px) {
-  .md-shell--board-detail .md-board-detail-grid.md-board-detail-grid--shape-square {
-    height: auto !important;
-    flex: 0 0 auto !important;
-    align-content: start;
-  }
 }
 
 .md-board-detail-symbol-card {
@@ -78784,18 +78906,21 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   left: -2px;
   right: -2px;
   bottom: -3px;
-  // 30% lighter than the base charcoal-blue in light mode so the
-  // folder body reads softer (default + Show-Labels-on-Tab modes;
-  // colored-corner hides the back, dark mode overrides below).
-  // Tab tracks this same value so the two stay visually paired.
-  background: color.adjust($brand-charcoal-blue, $lightness: 30%);
-  border-radius: 14px 14px 20px 20px;
+  // Notebook-tab feel (2026-07): 16% lighter than charcoal-blue (was +30%) so
+  // the folder body sits CLOSER to the board and reads as a quiet, integrated
+  // backdrop rather than a high-contrast card (default + Show-Labels-on-Tab
+  // modes; colored-corner hides the back, dark mode overrides below). Tab tracks
+  // this same value so the two stay visually paired.
+  background: color.adjust($brand-charcoal-blue, $lightness: 16%);
+  // All four corners match the symbol card's front radius (clamp(6px,1.2vw,16px),
+  // the .md-board-detail-symbol-card value) so the back reads as the same
+  // roundness as the card face.
+  border-radius: clamp(6px, 1.2vw, 16px);
   z-index: 0;
   pointer-events: none;
-  box-shadow:
-    0 4px 16px rgba(27, 42, 65, 0.20),
-    0 8px 32px rgba(27, 42, 65, 0.10),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  // Flat: dropped the heavy two-layer blue drop-shadow that made the folder
+  // "hang" off the board; a single soft hairline keeps just a hint of lift.
+  box-shadow: 0 1px 3px rgba(27, 42, 65, 0.14);
   transition: box-shadow 0.25s ease, transform 0.25s ease;
 }
 
@@ -78841,20 +78966,16 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   position: absolute;
   top: -4px;
   left: 10px;
-  // Default-mode folder tab width as a percentage of the backdrop
-  // (.md-folder-back), so it tracks the backdrop — and thus the button —
-  // width automatically. Single authoritative tab width: the old per-breakpoint
-  // overrides (28/34/37.5/51%) were removed so it stays consistent at every size.
-  width: 40%;
-  // 6px → 6.6px (+10%) — bumped across every tab size variant
-  // so all modes get the taller tab proportionally.
+  // Narrower notebook tab (was 40%): a small tab at the corner rather than a
+  // wide hanging-file tab, as a percentage of the backdrop so it tracks the
+  // button width. (Show-Labels-on-Tab overrides this to a wide tab for the text.)
+  width: 26%;
   height: 6.6px;
-  // Tracks .md-folder-back's light-mode value (+30% lightness) so the
-  // tab and back read as one continuous shape; dark mode overrides below.
-  background: color.adjust($brand-charcoal-blue, $lightness: 30%);
-  border-radius: 5px 5px 0 0;
+  // Tracks .md-folder-back's quieter value (+16% lightness) so the tab and back
+  // read as one continuous shape; dark mode overrides below.
+  background: color.adjust($brand-charcoal-blue, $lightness: 16%);
+  border-radius: 4px 4px 0 0;
   pointer-events: none;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10);
   transition: background 0.25s ease, width 0.25s ease, height 0.25s ease;
   overflow: hidden;
 }
@@ -79099,9 +79220,15 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   /* Fan-shaped corner: a symmetric quarter-circle wedge whose curved
      edge fans inward toward the button center. Square footprint +
      full bottom-left radius = a clean quarter-disc "fan" in the
-     top-right corner. */
-  width: 20px;
-  height: 20px;
+     top-right corner.
+     Sized in container-query units so it scales WITH the button instead of
+     staying a fixed px that reads oversized on small cards. The card is
+     `container-type: size` (line ~74778), so cqmin = 1% of the card's smaller
+     side; ~22% of the card, clamped so it neither disappears on tiny cards nor
+     overpowers large ones. This one proportional rule replaces the old fixed
+     20/24/15px breakpoint steps (same cqw-scaling structure the card labels use). */
+  width: clamp(13px, 22cqmin, 26px);
+  height: clamp(13px, 22cqmin, 26px);
   /* Glass-modern surface treatment — replaces the previous flat
      solid quarter-disc. The categorical color (--btn-border with
      --btn-bg fallback, matching the rest of the grid) is now the
@@ -79149,19 +79276,6 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   z-index: 3;
   pointer-events: none;
 }
-/* On larger screens (tablet-landscape / desktop and up) bump the
-   corner-tab footprint by 20% (20px → 24px). At narrower widths the
-   card itself is smaller and 20px reads as a proportional corner;
-   at 1024px+ the card grows but the fixed 20px corner became visually
-   underweight relative to the rest of the button face. 1024px is the
-   project's canonical tablet-landscape / desktop threshold (matches
-   other board-detail responsive rules nearby). */
-@media (min-width: 1024px) {
-  .md-board-detail-grid--folder-colored-corner .md-board-detail-symbol-card--folder::after {
-    width: 24px;
-    height: 24px;
-  }
-}
 /* On narrow screens (≤640px — phone-portrait threshold), make the
    corner tabs ~50% more transparent (opacity 0.92 → 0.46). At small
    viewport widths the cards are denser and the categorical-color
@@ -79172,16 +79286,6 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 @media (max-width: 640px) {
   .md-board-detail-grid--folder-colored-corner .md-board-detail-symbol-card--folder::after {
     opacity: 0.46;
-  }
-}
-/* At <=500px viewport height (short / landscape), shrink the colored-corner
-   folder tab (20px -> 15px, width + height) so it stays proportional on the
-   shrunk short-screen board-detail layout. Placed after the base and the
-   min-width:1024 rule so it wins at short heights regardless of width. */
-@media (max-height: 500px) {
-  .md-board-detail-grid--folder-colored-corner .md-board-detail-symbol-card--folder::after {
-    width: 15px;
-    height: 15px;
   }
 }
 .md-board-detail-grid--folder-colored-corner .md-board-detail-symbol-card__folder-badge {
@@ -79519,14 +79623,13 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     bottom: -3px;
   }
   .md-folder-tab {
-    // Tab height is 12% of the backdrop (.md-folder-back) height, so it scales
-    // with the button/backdrop height. Keep the prior 4px overlap into the
-    // backdrop (top = -(height - 4px) = 4px - 12%) so the tab stays connected
-    // to the folder body; the protrusion above is the responsive remainder.
-    // NOTE: only governs DEFAULT folder mode — the Show-Labels-on-Tab variant
-    // overrides this tab height/top further down (font-scaled).
-    top: calc(4px - 12%);
-    height: 12%;
+    // Shorter tab: 8% of the backdrop height (was 12%) so it reads as a subtle
+    // notebook tab, scaling with the button. Keep the 4px overlap into the
+    // backdrop (top = -(height - 4px) = 4px - 8%) so the tab stays connected to
+    // the folder body. NOTE: only governs DEFAULT folder mode — the
+    // Show-Labels-on-Tab variant overrides this tab height/top further down.
+    top: calc(4px - 8%);
+    height: 8%;
   }
   .md-board-detail-grid__cell--folder {
     padding-top: $cell-padding;
@@ -79536,13 +79639,15 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   }
 }
 
-/* Default mode (no tab-labels, no colored-corner): 10px visible
-   tab — small protrusion, mostly invisible chrome. */
+/* Default mode (no tab-labels, no colored-corner): 6px visible tab (was 10px).
+   Tightened to match the shorter tab (height 8% of the backdrop, down from 12%):
+   the tab now protrudes ~4px less, so the row space reserved above each card
+   drops with it. */
 .md-board-detail-grid:not(.md-board-detail-grid--folder-tab-labels):not(.md-board-detail-grid--folder-colored-corner) {
-  /* Default folder view: button top padding 14px (back-top 12px + 2px)
-     instead of the prior 16px (+4px). Scoped to this invocation only —
-     the Show-Labels-on-Tab variant below keeps its 4px default. */
-  @include folder-tab-geometry(10px, 2px);
+  /* Default folder view: button top padding 10px (back-top 8px + 2px), down from
+     14px — the ~4px the shorter tab reclaimed. Scoped to this invocation only —
+     the Show-Labels-on-Tab variant below keeps its own default. */
+  @include folder-tab-geometry(6px, 2px);
 }
 
 /* Larger boards on smaller viewports: at ≤1024px, for the DEFAULT

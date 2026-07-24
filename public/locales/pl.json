@@ -8646,5 +8646,6 @@
   "org_name_required": "*** Organization name is required",
   "org_jurisdiction_required": "*** Please choose United States or European Union for the organization location",
   "org_jurisdiction_label": "*** Organization location",
-  "org_jurisdiction_hint": "*** Used when a communicator leaves this organization so under-13 and under-16 protections follow US or EU rules."
+  "org_jurisdiction_hint": "*** Used when a communicator leaves this organization so under-13 and under-16 protections follow US or EU rules.",
+  "board_detail_highlight_labels": "*** Highlight Labels"
 }
