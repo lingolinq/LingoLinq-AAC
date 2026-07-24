@@ -726,13 +726,13 @@
       "attestation": {
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-23",
-        "attestedContentHash": "44e26b05b12c9e0c176896f0c408e1ac578127d10a8ec33dfbf7bab117921938",
+        "attestedContentHash": "1e404832da3df838571d75ad29c0f3f5385a7e6a9d027c39e54b579e25ad4dc7",
         "priorAttestations": [
           "2026-07-06"
         ],
         "note": "Re-attested 2026-07-23 against the current revision after verification against live code and infrastructure state. The prior attestation covered a revision that no longer exists; see the document banner for what changed."
       },
-      "contentHash": "44e26b05b12c9e0c176896f0c408e1ac578127d10a8ec33dfbf7bab117921938",
+      "contentHash": "1e404832da3df838571d75ad29c0f3f5385a7e6a9d027c39e54b579e25ad4dc7",
       "bundles": [
         "school-dpa-package",
         "soc2-evidence",
