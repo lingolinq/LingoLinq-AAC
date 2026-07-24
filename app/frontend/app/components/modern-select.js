@@ -171,6 +171,12 @@ export default Component.extend({
       if (ev && ev.stopPropagation) {
         ev.stopPropagation();
       }
+      // Collapse a duplicate toggle from one modal click (raw_events synthetic +
+      // native click both fire) that would open then instantly re-close the
+      // dropdown. Scoped to the toggle only, so choose/close are untouched.
+      var now = (window.performance && performance.now) ? performance.now() : Date.now();
+      if (this._lastToggleAt != null && (now - this._lastToggleAt) < 250) { return; }
+      this._lastToggleAt = now;
       this.toggleProperty('isOpen');
       if (this.get('isOpen')) {
         const self = this;

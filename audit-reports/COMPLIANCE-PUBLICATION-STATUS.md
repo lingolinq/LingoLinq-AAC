@@ -3,13 +3,13 @@
 > Generated from `audit-reports/FINDINGS.json` and `audit-reports/DOCUMENT-REGISTER.json` by `scripts/compliance-publication-status.rb`.
 > Do not hand-edit; update the registers and re-render.
 
-**Generated:** 2026-07-22
+**Generated:** 2026-07-23
 
-**Latest source date:** 2026-07-22
+**Latest source date:** 2026-07-23
 
 **Findings audited date:** 2026-07-08
 
-**Document register generated date:** 2026-07-22
+**Document register generated date:** 2026-07-23
 
 ## What Updates Automatically
 
@@ -28,59 +28,64 @@
 
 | Title | System | Location | Last reviewed | Status | Why |
 |---|---|---|---|---|---|
-| AI Governance Memo (branded) | drive | [open](https://docs.google.com/document/d/1HEuWT7cS5zPmGI-o9SB2zsc1DJgArEAlCgJz0ECJK9U/edit) | 2026-06-19 | published | Review date is older than 2026-07-22. |
-| Access Control Policy | drive | [open](https://docs.google.com/document/d/1yyibyEBfMiaS8NoHVVW629SkK61C0jo5P5OjUGojOck/edit) | 2026-06-19 | published | Review date is older than 2026-07-22. |
-| Accessibility Conformance Report (ACR / VPAT) (branded) | drive | [open](https://docs.google.com/document/d/1ez60NG2PVKnkcjjbz4NgHOeL_0OcQtVkdhToImcnihs/edit) | 2026-06-19 | draft | Review date is older than 2026-07-22. |
-| Audit Results Report | drive | [open](https://docs.google.com/document/d/1n6z-76-awsAtWq-2clQ340vfcn_gAtJbkCmVnIxL4tY/edit) | 2026-06-19 | published | Review date is older than 2026-07-22. |
-| Business Continuity and Disaster Recovery Plan | drive | [open](https://docs.google.com/document/d/1WIr3aBuFjworFtv9EOisOCSdfLvMSMFWQrFMzkhda00/edit) | 2026-06-19 | published | Review date is older than 2026-07-22. |
-| COPPA Final-Rule Verification (branded) | drive | [open](https://docs.google.com/document/d/1p_pPVDr6FocvdQ7UjK3ElmPXOlQvRX9n2XdFpiqZeXY/edit) | 2026-06-19 | published | Review date is older than 2026-07-22. |
-| Compliance & Security - Semi-Annual Program Report (H1 2026) | drive | [open](https://docs.google.com/document/d/1VKTOxmGjLiRYy9U3_Y4gzQ2gsmfnZZTeq5RZ7mkHAIM/edit) | 2026-06-19 | published | Review date is older than 2026-07-22. |
-| Compliance & Security Overhaul - Completion Report | drive | [open](https://docs.google.com/document/d/1en3MCE47qKj1nwg6wb_MA7h3TwwsDMs33oUM-0GhdEM/edit) | 2026-06-19 | published | Review date is older than 2026-07-22. |
-| Compliance & Security Program v1.0 (Attested) | drive | [open](https://docs.google.com/document/d/1bvVQClfhbNUCCPnmFZoDABlBA9hGNCEHQnWA2Z-r9Dg/edit) | 2026-06-19 | published | Review date is older than 2026-07-22. |
-| Compliance Calendar (branded) | drive | [open](https://docs.google.com/document/d/19IT_GKK1PzC7zLnGNr-RNT0Rw1fFR68syUvnuBBA2CI/edit) | 2026-06-19 | published | Review date is older than 2026-07-22. |
-| Compliance Program - Claim vs Code Review | drive | [open](https://docs.google.com/document/d/1IHQ5yFkoU39N01wyTt5SRXM-Q71aKa9wuXvnGVWnbRg/edit) | 2026-06-19 | published | Review date is older than 2026-07-22. |
-| Data & Compliance Pipeline - Build Inventory (dated) | drive | [open](https://docs.google.com/document/d/1xxLsESUXKm6rDWuqr_Z-Ob5kWzUZUbFD3gTKZWfLMnY/edit) | 2026-06-22 | approved | Review date is older than 2026-07-22. |
-| Data Retention Schedule (branded) | drive | [open](https://docs.google.com/document/d/1GRFuvaacbUbcAixhaOAOsdGKhOfclAByYS53bWap14k/edit) | 2026-06-19 | published | Review date is older than 2026-07-22. |
-| Incident Log (branded) | drive | [open](https://docs.google.com/document/d/1i5XFqAtgbxpDMLMdd80KS09WP7kWQ-GnTJU0ox7JGqQ/edit) | 2026-06-19 | published | Review date is older than 2026-07-22. |
-| Incident Response and Breach Runbook (branded) | drive | [open](https://docs.google.com/document/d/1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po/edit) | 2026-06-19 | published | Review date is older than 2026-07-22. |
-| Parental Consent (COPPA / under-13) (branded) | drive | [open](https://docs.google.com/document/d/1ljRwXPEAkQdJT81iGgAMHkfZTdbJ3EZPkIbHNuDtNxE/edit) | 2026-06-19 | published | Review date is older than 2026-07-22. |
-| Records of Processing Activities (RoPA) and Data Map | drive | [open](https://docs.google.com/document/d/1x6F8qiqR_7Ojc6-TQGYp2HYBMxjIUTzH0EGCQj8R-qg/edit) | 2026-06-19 | published | Review date is older than 2026-07-22. |
-| Roadmap - What's Left (2026-06-19) | drive | [open](https://docs.google.com/document/d/1f9haDNHifkZQ4qDbZBYMODaWO2KiuwEkrBpUq2Edq4E/edit) | 2026-06-19 | approved | Review date is older than 2026-07-22. |
-| Security Risk Assessment 2026 Q2 | drive | [open](https://docs.google.com/document/d/1bvdVI_ftFaUu7CFVR8ajVZAQleruaIlqKxwI50iBRrc/edit) | 2026-06-19 | published | Review date is older than 2026-07-22. |
-| Subprocessor Register (branded) | drive | [open](https://docs.google.com/document/d/13i7PUAZO-_lyUrObdB3CLDQ5KB9s5GNL7XHpcBCRn_M/edit) | 2026-06-19 | published | Review date is older than 2026-07-22. |
-| Vendor and Subprocessor Management Policy | drive | [open](https://docs.google.com/document/d/1fmBOfw-peYUpdwmttHC3hqzU_5c3OMNgBSN4NDK7mAM/edit) | 2026-06-19 | published | Review date is older than 2026-07-22. |
-| Written Information Security Program (WISP) | drive | [open](https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit) | 2026-06-19 | published | Review date is older than 2026-07-22. |
-| AI Data-Sharing Consent: Rationale and Policy | git | `docs/legal/AI_DATA_SHARING_CONSENT.md` | 2026-07-09 | approved | Review date is older than 2026-07-22. |
-| AWS BAA Acceptance Record | git | `docs/legal/AWS_BAA_ACCEPTED.md` | 2026-05-11 | approved | Review date is older than 2026-07-22. |
-| AWS Business Associate Agreement (signed PDF) | git | `docs/legal/AWS_BAA_2026-02.pdf` | 2026-05-11 | published | Review date is older than 2026-07-22. |
-| Accessibility Conformance Report (ACR / VPAT) | git | `docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md` | 2026-06-16 | draft | Review date is older than 2026-07-22. |
-| Anthropic HIPAA-Ready BAA Acceptance Record | git | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` | 2026-07-18 | approved | Review date is older than 2026-07-22. |
-| Audit Reports Index (audit-reports/README.md) | git | `audit-reports/README.md` | 2026-06-16 | published | Review date is older than 2026-07-22. |
-| COPPA Final-Rule Verification | git | `docs/legal/COPPA_VERIFICATION_2026-04-26.md` | 2026-04-26 | approved | Review date is older than 2026-07-22. |
-| Compliance & Data Governance (COMPLIANCE.md) | git | `COMPLIANCE.md` | 2026-07-06 | approved | Review date is older than 2026-07-22. |
-| Compliance Calendar (compliance-calendar.json) | git | `audit-reports/compliance-calendar.json` | 2026-06-16 | published | Review date is older than 2026-07-22. |
-| Compliance Docs Guide (runbook) | git | `docs/legal/COMPLIANCE_DOCS_GUIDE.md` | 2026-06-21 | published | Review date is older than 2026-07-22. |
-| Compliance Posture Report | git | `docs/legal/COMPLIANCE_POSTURE_REPORT.md` | 2026-07-16 | published | Review date is older than 2026-07-22. |
-| Data Retention Schedule | git | `docs/legal/DATA_RETENTION.md` | 2026-06-18 | approved | Review date is older than 2026-07-22. |
-| Document Register (this file) | git | `audit-reports/DOCUMENT-REGISTER.json` | 2026-06-21 | published | Review date is older than 2026-07-22. |
-| EU AI Act Article 50 Transparency: Implementation Milestone Plan | git | `docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md` | 2026-07-14 | draft | Review date is older than 2026-07-22. |
-| Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | 2026-06-19 | published | Review date is older than 2026-07-22. |
-| Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record | git | `docs/legal/GCP_BAA_ACCEPTED.md` | 2026-07-16 | approved | Review date is older than 2026-07-22. |
-| Incident Log | git | `docs/legal/INCIDENT_LOG.md` | 2026-05-27 | approved | Review date is older than 2026-07-22. |
-| Incident Response and Breach Runbook | git | `docs/legal/BREACH_RUNBOOK.md` | 2026-05-27 | approved | Review date is older than 2026-07-22. |
-| LingoLinq Capability Ledger (rendered) | git | `docs/legal/CAPABILITY_LEDGER.md` | 2026-07-12 | published | Review date is older than 2026-07-22. |
-| Parental Consent Email (COPPA / under-13) | git | `docs/legal/PARENTAL_CONSENT_EMAIL.md` | 2026-06-11 | approved | Review date is older than 2026-07-22. |
-| Subprocessor Register | git | `docs/legal/SUBPROCESSORS.md` | 2026-06-18 | approved | Review date is older than 2026-07-22. |
-| accessibility-auditor agent definition | git | `.claude/agents/accessibility-auditor.md` | 2026-06-21 | published | Review date is older than 2026-07-22. |
-| api-auditor agent definition | git | `.claude/agents/api-auditor.md` | 2026-06-21 | published | Review date is older than 2026-07-22. |
-| compliance-officer agent definition | git | `.claude/agents/compliance-officer.md` | 2026-06-21 | published | Review date is older than 2026-07-22. |
-| dependency-auditor agent definition | git | `.claude/agents/dependency-auditor.md` | 2026-06-21 | published | Review date is older than 2026-07-22. |
-| infra-auditor agent definition | git | `.claude/agents/infra-auditor.md` | 2026-06-21 | published | Review date is older than 2026-07-22. |
-| privacy-auditor agent definition | git | `.claude/agents/privacy-auditor.md` | 2026-06-21 | published | Review date is older than 2026-07-22. |
-| Notion - Compliance & Audits hub | notion | [open](https://www.notion.so/3655fe8215c2815a949ec8ed971d5580) | 2026-06-19 | published | Review date is older than 2026-07-22. |
-| Notion - Compliance Documents board (LL) | notion | [open](https://www.notion.so/3865fe8215c28174aef3ce32239ced5c) | 2026-06-21 | published | Review date is older than 2026-07-22. |
-| Notion - Compliance Engineering Onboarding/Handoff | notion | [open](https://www.notion.so/3845fe8215c28139aa9ec40eda1431c6) | 2026-06-19 | published | Review date is older than 2026-07-22. |
-| Notion - Compliance Findings board (LL) | notion | [open](https://app.notion.com/p/1f8451c4a17b4f5b868878ac4386b805) | 2026-06-20 | published | Review date is older than 2026-07-22. |
+| AI Governance Memo (branded) | drive | [open](https://docs.google.com/document/d/1HEuWT7cS5zPmGI-o9SB2zsc1DJgArEAlCgJz0ECJK9U/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
+| Access Control Policy | drive | [open](https://docs.google.com/document/d/1yyibyEBfMiaS8NoHVVW629SkK61C0jo5P5OjUGojOck/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
+| Accessibility Conformance Report (ACR / VPAT) (branded) | drive | [open](https://docs.google.com/document/d/1ez60NG2PVKnkcjjbz4NgHOeL_0OcQtVkdhToImcnihs/edit) | 2026-06-19 | draft | Review date is older than 2026-07-23. |
+| Annex A - Clinical BAA Template (DRAFT) | drive | [open](https://docs.google.com/document/d/1Q6hDhooIQVMArkpn4ppxr4om3-Hx64QmYiIQe0sSWmY/edit) | 2026-07-22 | draft | Review date is older than 2026-07-23. |
+| Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT) | drive | [open](https://docs.google.com/document/d/1vPwlcZwllRPuTU1TlqFeSwxJZ445pxsh6O0cBrGyE6M/edit) | 2026-07-22 | draft | Review date is older than 2026-07-23. |
+| Anthropic Business Associate Agreement (2026-05-06) | drive | [open](https://drive.google.com/file/d/1sL3di9GRP4hlids-baZDT26n3SKjzwD5/view) | 2026-07-22 | draft | Review date is older than 2026-07-23. |
+| Audit Results Report | drive | [open](https://docs.google.com/document/d/1n6z-76-awsAtWq-2clQ340vfcn_gAtJbkCmVnIxL4tY/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
+| Business Continuity and Disaster Recovery Plan | drive | [open](https://docs.google.com/document/d/1WIr3aBuFjworFtv9EOisOCSdfLvMSMFWQrFMzkhda00/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
+| COPPA Final-Rule Verification (branded) | drive | [open](https://docs.google.com/document/d/1p_pPVDr6FocvdQ7UjK3ElmPXOlQvRX9n2XdFpiqZeXY/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
+| Compliance & Security - Semi-Annual Program Report (H1 2026) | drive | [open](https://docs.google.com/document/d/1VKTOxmGjLiRYy9U3_Y4gzQ2gsmfnZZTeq5RZ7mkHAIM/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
+| Compliance & Security Overhaul - Completion Report | drive | [open](https://docs.google.com/document/d/1en3MCE47qKj1nwg6wb_MA7h3TwwsDMs33oUM-0GhdEM/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
+| Compliance & Security Program v1.0 (Attested) | drive | [open](https://docs.google.com/document/d/1bvVQClfhbNUCCPnmFZoDABlBA9hGNCEHQnWA2Z-r9Dg/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
+| Compliance Calendar (branded) | drive | [open](https://docs.google.com/document/d/19IT_GKK1PzC7zLnGNr-RNT0Rw1fFR68syUvnuBBA2CI/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
+| Compliance Posture Report (branded, 2026-07-16 re-attest) | drive | [open](https://docs.google.com/document/d/1yx-jVYesJ0ZQM0myir6d0rRMMzGEoH5EL5_luicucYo/edit) | 2026-07-22 | draft | Review date is older than 2026-07-23. |
+| Compliance Program - Claim vs Code Review | drive | [open](https://docs.google.com/document/d/1IHQ5yFkoU39N01wyTt5SRXM-Q71aKa9wuXvnGVWnbRg/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
+| Data & Compliance Pipeline - Build Inventory (dated) | drive | [open](https://docs.google.com/document/d/1xxLsESUXKm6rDWuqr_Z-Ob5kWzUZUbFD3gTKZWfLMnY/edit) | 2026-06-22 | approved | Review date is older than 2026-07-23. |
+| Data Retention Schedule (branded) | drive | [open](https://docs.google.com/document/d/1GRFuvaacbUbcAixhaOAOsdGKhOfclAByYS53bWap14k/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
+| Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14) | drive | [open](https://docs.google.com/document/d/1CcyQpNfg8aiuY5VA7RHYbYqQEQtzHAdEkjpxcQIhNmM/edit) | 2026-07-22 | draft | Review date is older than 2026-07-23. |
+| Incident Log (branded) | drive | [open](https://docs.google.com/document/d/1i5XFqAtgbxpDMLMdd80KS09WP7kWQ-GnTJU0ox7JGqQ/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
+| Incident Response and Breach Runbook (branded) | drive | [open](https://docs.google.com/document/d/1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
+| Parental Consent (COPPA / under-13) (branded) | drive | [open](https://docs.google.com/document/d/1ljRwXPEAkQdJT81iGgAMHkfZTdbJ3EZPkIbHNuDtNxE/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
+| Records of Processing Activities (RoPA) and Data Map | drive | [open](https://docs.google.com/document/d/1x6F8qiqR_7Ojc6-TQGYp2HYBMxjIUTzH0EGCQj8R-qg/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
+| Roadmap - What's Left (2026-06-19) | drive | [open](https://docs.google.com/document/d/1f9haDNHifkZQ4qDbZBYMODaWO2KiuwEkrBpUq2Edq4E/edit) | 2026-06-19 | approved | Review date is older than 2026-07-23. |
+| Security Risk Assessment 2026 Q2 | drive | [open](https://docs.google.com/document/d/1bvdVI_ftFaUu7CFVR8ajVZAQleruaIlqKxwI50iBRrc/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
+| Subprocessor Register (branded) | drive | [open](https://docs.google.com/document/d/13i7PUAZO-_lyUrObdB3CLDQ5KB9s5GNL7XHpcBCRn_M/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
+| Vendor and Subprocessor Management Policy | drive | [open](https://docs.google.com/document/d/1fmBOfw-peYUpdwmttHC3hqzU_5c3OMNgBSN4NDK7mAM/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
+| Written Information Security Program (WISP) | drive | [open](https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
+| AI Data-Flow Classification | git | `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md` | 2026-07-22 | approved | Review date is older than 2026-07-23. |
+| AI Data-Sharing Consent: Rationale and Policy | git | `docs/legal/AI_DATA_SHARING_CONSENT.md` | 2026-07-09 | approved | Review date is older than 2026-07-23. |
+| AI Governance Memo | git | `docs/legal/AI_GOVERNANCE_MEMO.md` | 2026-07-22 | published | Review date is older than 2026-07-23. |
+| AWS BAA Acceptance Record | git | `docs/legal/AWS_BAA_ACCEPTED.md` | 2026-05-11 | approved | Review date is older than 2026-07-23. |
+| AWS Business Associate Agreement (signed PDF) | git | `docs/legal/AWS_BAA_2026-02.pdf` | 2026-05-11 | published | Review date is older than 2026-07-23. |
+| Accessibility Conformance Report (ACR / VPAT) | git | `docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md` | 2026-06-16 | draft | Review date is older than 2026-07-23. |
+| Agent config - diff-compliance-check | git | `.claude/agents/diff-compliance-check.md` | 2026-07-22 | published | Review date is older than 2026-07-23. |
+| Agent config - ember-upgrade-auditor | git | `.claude/agents/ember-upgrade-auditor.md` | 2026-07-22 | published | Review date is older than 2026-07-23. |
+| Agent config - rails-implementer | git | `.claude/agents/rails-implementer.md` | 2026-07-22 | published | Review date is older than 2026-07-23. |
+| Agent config - security-reviewer | git | `.claude/agents/security-reviewer.md` | 2026-07-22 | published | Review date is older than 2026-07-23. |
+| Anthropic HIPAA-Ready BAA Acceptance Record | git | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` | 2026-07-18 | approved | Review date is older than 2026-07-23. |
+| Audit Reports Index (audit-reports/README.md) | git | `audit-reports/README.md` | 2026-06-16 | published | Review date is older than 2026-07-23. |
+| Compliance Calendar (compliance-calendar.json) | git | `audit-reports/compliance-calendar.json` | 2026-06-16 | published | Review date is older than 2026-07-23. |
+| Compliance Docs Guide (runbook) | git | `docs/legal/COMPLIANCE_DOCS_GUIDE.md` | 2026-06-21 | published | Review date is older than 2026-07-23. |
+| Compliance Program | git | `docs/legal/COMPLIANCE_PROGRAM.md` | 2026-07-22 | approved | Review date is older than 2026-07-23. |
+| Document Register (this file) | git | `audit-reports/DOCUMENT-REGISTER.json` | 2026-06-21 | published | Review date is older than 2026-07-23. |
+| EU AI Act Article 50 Transparency: Implementation Milestone Plan | git | `docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md` | 2026-07-14 | draft | Review date is older than 2026-07-23. |
+| Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | 2026-06-19 | published | Review date is older than 2026-07-23. |
+| Incident Log | git | `docs/legal/INCIDENT_LOG.md` | 2026-05-27 | approved | Review date is older than 2026-07-23. |
+| LingoLinq Capability Ledger (rendered) | git | `docs/legal/CAPABILITY_LEDGER.md` | 2026-07-12 | published | Review date is older than 2026-07-23. |
+| accessibility-auditor agent definition | git | `.claude/agents/accessibility-auditor.md` | 2026-06-21 | published | Review date is older than 2026-07-23. |
+| api-auditor agent definition | git | `.claude/agents/api-auditor.md` | 2026-06-21 | published | Review date is older than 2026-07-23. |
+| compliance-officer agent definition | git | `.claude/agents/compliance-officer.md` | 2026-06-21 | published | Review date is older than 2026-07-23. |
+| dependency-auditor agent definition | git | `.claude/agents/dependency-auditor.md` | 2026-06-21 | published | Review date is older than 2026-07-23. |
+| docs/legal README (folder charter) | git | `docs/legal/README.md` | 2026-07-22 | published | Review date is older than 2026-07-23. |
+| infra-auditor agent definition | git | `.claude/agents/infra-auditor.md` | 2026-06-21 | published | Review date is older than 2026-07-23. |
+| privacy-auditor agent definition | git | `.claude/agents/privacy-auditor.md` | 2026-06-21 | published | Review date is older than 2026-07-23. |
+| Notion - Compliance & Audits hub | notion | [open](https://www.notion.so/3655fe8215c2815a949ec8ed971d5580) | 2026-06-19 | published | Review date is older than 2026-07-23. |
+| Notion - Compliance Documents board (LL) | notion | [open](https://www.notion.so/3865fe8215c28174aef3ce32239ced5c) | 2026-06-21 | published | Review date is older than 2026-07-23. |
+| Notion - Compliance Engineering Onboarding/Handoff | notion | [open](https://www.notion.so/3845fe8215c28139aa9ec40eda1431c6) | 2026-06-19 | published | Review date is older than 2026-07-23. |
+| Notion - Compliance Findings board (LL) | notion | [open](https://app.notion.com/p/1f8451c4a17b4f5b868878ac4386b805) | 2026-06-20 | published | Review date is older than 2026-07-23. |
 
 ## Drive Refresh Queue
 
@@ -89,6 +94,9 @@
 | AI Governance Memo (branded) | [open](https://docs.google.com/document/d/1HEuWT7cS5zPmGI-o9SB2zsc1DJgArEAlCgJz0ECJK9U/edit) | 2026-06-19 | published | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
 | Access Control Policy | [open](https://docs.google.com/document/d/1yyibyEBfMiaS8NoHVVW629SkK61C0jo5P5OjUGojOck/edit) | 2026-06-19 | published | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
 | Accessibility Conformance Report (ACR / VPAT) (branded) | [open](https://docs.google.com/document/d/1ez60NG2PVKnkcjjbz4NgHOeL_0OcQtVkdhToImcnihs/edit) | 2026-06-19 | draft | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
+| Annex A - Clinical BAA Template (DRAFT) | [open](https://docs.google.com/document/d/1Q6hDhooIQVMArkpn4ppxr4om3-Hx64QmYiIQe0sSWmY/edit) | 2026-07-22 | draft | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
+| Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT) | [open](https://docs.google.com/document/d/1vPwlcZwllRPuTU1TlqFeSwxJZ445pxsh6O0cBrGyE6M/edit) | 2026-07-22 | draft | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
+| Anthropic Business Associate Agreement (2026-05-06) | [open](https://drive.google.com/file/d/1sL3di9GRP4hlids-baZDT26n3SKjzwD5/view) | 2026-07-22 | draft | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
 | Audit Results Report | [open](https://docs.google.com/document/d/1n6z-76-awsAtWq-2clQ340vfcn_gAtJbkCmVnIxL4tY/edit) | 2026-06-19 | published | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
 | Business Continuity and Disaster Recovery Plan | [open](https://docs.google.com/document/d/1WIr3aBuFjworFtv9EOisOCSdfLvMSMFWQrFMzkhda00/edit) | 2026-06-19 | published | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
 | COPPA Final-Rule Verification (branded) | [open](https://docs.google.com/document/d/1p_pPVDr6FocvdQ7UjK3ElmPXOlQvRX9n2XdFpiqZeXY/edit) | 2026-06-19 | published | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
@@ -96,9 +104,11 @@
 | Compliance & Security Overhaul - Completion Report | [open](https://docs.google.com/document/d/1en3MCE47qKj1nwg6wb_MA7h3TwwsDMs33oUM-0GhdEM/edit) | 2026-06-19 | published | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
 | Compliance & Security Program v1.0 (Attested) | [open](https://docs.google.com/document/d/1bvVQClfhbNUCCPnmFZoDABlBA9hGNCEHQnWA2Z-r9Dg/edit) | 2026-06-19 | published | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
 | Compliance Calendar (branded) | [open](https://docs.google.com/document/d/19IT_GKK1PzC7zLnGNr-RNT0Rw1fFR68syUvnuBBA2CI/edit) | 2026-06-19 | published | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
+| Compliance Posture Report (branded, 2026-07-16 re-attest) | [open](https://docs.google.com/document/d/1yx-jVYesJ0ZQM0myir6d0rRMMzGEoH5EL5_luicucYo/edit) | 2026-07-22 | draft | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
 | Compliance Program - Claim vs Code Review | [open](https://docs.google.com/document/d/1IHQ5yFkoU39N01wyTt5SRXM-Q71aKa9wuXvnGVWnbRg/edit) | 2026-06-19 | published | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
 | Data & Compliance Pipeline - Build Inventory (dated) | [open](https://docs.google.com/document/d/1xxLsESUXKm6rDWuqr_Z-Ob5kWzUZUbFD3gTKZWfLMnY/edit) | 2026-06-22 | approved | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
 | Data Retention Schedule (branded) | [open](https://docs.google.com/document/d/1GRFuvaacbUbcAixhaOAOsdGKhOfclAByYS53bWap14k/edit) | 2026-06-19 | published | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
+| Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14) | [open](https://docs.google.com/document/d/1CcyQpNfg8aiuY5VA7RHYbYqQEQtzHAdEkjpxcQIhNmM/edit) | 2026-07-22 | draft | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
 | Incident Log (branded) | [open](https://docs.google.com/document/d/1i5XFqAtgbxpDMLMdd80KS09WP7kWQ-GnTJU0ox7JGqQ/edit) | 2026-06-19 | published | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
 | Incident Response and Breach Runbook (branded) | [open](https://docs.google.com/document/d/1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po/edit) | 2026-06-19 | published | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
 | Parental Consent (COPPA / under-13) (branded) | [open](https://docs.google.com/document/d/1ljRwXPEAkQdJT81iGgAMHkfZTdbJ3EZPkIbHNuDtNxE/edit) | 2026-06-19 | published | Refresh or explicitly mark frozen/point-in-time, then update `lastReviewed` and `contentHash` if available. |
@@ -199,6 +209,14 @@ No retention rule has been approved. Nothing in this register is eligible for di
 
 _No record is under legal hold. A hold suspends all disposition for the rows it covers, and only Scot flips it._
 
+## Attestation Integrity
+
+17 attested git record(s). `attestation.attestedContentHash` pins the bytes that were attested; `ruby scripts/document-register-render.rb --check` fails when a pinned hash stops matching the file. Drive and Notion rows are out of scope: their hashes are operator-supplied, so there is nothing CI can verify.
+
+**No pinned attestation has drifted.** Every record that pins a hash still matches the attested bytes.
+
+Every attested git record pins the bytes it was attested against.
+
 ## Supersession Chains
 
 A superseded record is never edited, renamed, or moved. It keeps its row and its membership in any frozen point-in-time binder; only the pointer is added.
@@ -258,4 +276,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_70 documents tracked. 53 stale review item(s). 22 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 1 superseded record(s). 23 bundle gap(s) across 6 bundle(s)._
+_70 documents tracked. 58 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 1 superseded record(s). 0 drifted attestation(s), 0 awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._

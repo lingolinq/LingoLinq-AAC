@@ -29,15 +29,9 @@ describe Tts do
       end
     end
 
-    it 'routes Irish (ga) locales to the Abair endpoint, not Google' do
-      obj = OpenStruct.new(body: 'irishaudio', headers: { 'Content-Type' => 'audio/wav' })
-      allow(obj).to receive(:success?).and_return(true)
-      expect(Typhoeus).to receive(:post).with(
-        'https://abair.ie/aac_irish',
-        hash_including(body: { text: 'Dia dhuit', voice: 'Ulster' })
-      ).and_return(obj)
-      res = Tts.generate_audio('Dia dhuit', locale: 'ga')
-      expect(res[:body]).to eq('irishaudio')
+    it 'returns nil for Irish (ga) locales without making any external call (Abair disabled, no DPA -- LL-a167848115)' do
+      expect(Typhoeus).not_to receive(:post)
+      expect(Tts.generate_audio('Dia dhuit', locale: 'ga')).to be_nil
     end
   end
 end

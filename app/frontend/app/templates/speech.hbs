@@ -18,6 +18,7 @@
 
     {{!-- ======== SIDEBAR ======== --}}
     <aside class="sidebar" role="navigation" aria-label={{t "Main navigation" key='main_navigation'}}>
+      <div role="menu" aria-label={{t "Main navigation" key='main_navigation'}}>
 
       <div class="sidebar-section-label">{{t "Communicate" key='communicate'}}</div>
       <div class="nav-item active" role="menuitem" aria-current="page">
@@ -55,6 +56,7 @@
         <span class="nav-icon" aria-hidden="true">🔊</span>{{t "Voice & Output" key='voice_output'}}
       </div>
 
+      </div>
     </aside>
 
     {{!-- ======== MAIN CONTENT ======== --}}
@@ -94,69 +96,69 @@
       </div>
 
       {{!-- Symbol Grid --}}
-      <div class="symbol-grid" role="grid" aria-label={{t "All symbols" key='all_symbols'}}>
+      <div class="symbol-grid" role="group" aria-label={{t "All symbols" key='all_symbols'}}>
 
-        <div class="symbol-card people" role="gridcell" tabindex="0" aria-label={{t "Mom" key='sym_mom'}}>
+        <div class="symbol-card people" role="button" tabindex="0" aria-label={{t "Mom" key='sym_mom'}}>
           <div class="symbol-icon bg-people">👩</div>
           <div class="symbol-label">{{t "Mom" key='sym_mom'}}</div>
         </div>
-        <div class="symbol-card people" role="gridcell" tabindex="0" aria-label={{t "Doctor" key='sym_doctor'}}>
+        <div class="symbol-card people" role="button" tabindex="0" aria-label={{t "Doctor" key='sym_doctor'}}>
           <div class="symbol-icon bg-people">👩‍⚕️</div>
           <div class="symbol-label">{{t "Doctor" key='sym_doctor'}}</div>
         </div>
-        <div class="symbol-card actions" role="gridcell" tabindex="0" aria-label={{t "Want" key='sym_want'}}>
+        <div class="symbol-card actions" role="button" tabindex="0" aria-label={{t "Want" key='sym_want'}}>
           <div class="symbol-icon bg-actions">🤲</div>
           <div class="symbol-label">{{t "Want" key='sym_want'}}</div>
         </div>
-        <div class="symbol-card actions" role="gridcell" tabindex="0" aria-label={{t "Go" key='sym_go'}}>
+        <div class="symbol-card actions" role="button" tabindex="0" aria-label={{t "Go" key='sym_go'}}>
           <div class="symbol-icon bg-actions">🚶</div>
           <div class="symbol-label">{{t "Go" key='sym_go'}}</div>
         </div>
-        <div class="symbol-card actions" role="gridcell" tabindex="0" aria-label={{t "Sleep" key='sym_sleep'}}>
+        <div class="symbol-card actions" role="button" tabindex="0" aria-label={{t "Sleep" key='sym_sleep'}}>
           <div class="symbol-icon bg-actions">😴</div>
           <div class="symbol-label">{{t "Sleep" key='sym_sleep'}}</div>
         </div>
-        <div class="symbol-card feelings" role="gridcell" tabindex="0" aria-label={{t "Happy" key='sym_happy'}}>
+        <div class="symbol-card feelings" role="button" tabindex="0" aria-label={{t "Happy" key='sym_happy'}}>
           <div class="symbol-icon bg-feelings">😊</div>
           <div class="symbol-label">{{t "Happy" key='sym_happy'}}</div>
         </div>
-        <div class="symbol-card feelings" role="gridcell" tabindex="0" aria-label={{t "Sad" key='sym_sad'}}>
+        <div class="symbol-card feelings" role="button" tabindex="0" aria-label={{t "Sad" key='sym_sad'}}>
           <div class="symbol-icon bg-feelings">😢</div>
           <div class="symbol-label">{{t "Sad" key='sym_sad'}}</div>
         </div>
-        <div class="symbol-card feelings" role="gridcell" tabindex="0" aria-label={{t "Pain" key='sym_pain'}}>
+        <div class="symbol-card feelings" role="button" tabindex="0" aria-label={{t "Pain" key='sym_pain'}}>
           <div class="symbol-icon bg-feelings">😣</div>
           <div class="symbol-label">{{t "Pain" key='sym_pain'}}</div>
         </div>
-        <div class="symbol-card food" role="gridcell" tabindex="0" aria-label={{t "Water" key='sym_water'}}>
+        <div class="symbol-card food" role="button" tabindex="0" aria-label={{t "Water" key='sym_water'}}>
           <div class="symbol-icon bg-food">💧</div>
           <div class="symbol-label">{{t "Water" key='sym_water'}}</div>
         </div>
-        <div class="symbol-card food" role="gridcell" tabindex="0" aria-label={{t "Apple" key='sym_apple'}}>
+        <div class="symbol-card food" role="button" tabindex="0" aria-label={{t "Apple" key='sym_apple'}}>
           <div class="symbol-icon bg-food">🍎</div>
           <div class="symbol-label">{{t "Apple" key='sym_apple'}}</div>
         </div>
-        <div class="symbol-card food" role="gridcell" tabindex="0" aria-label={{t "Breakfast" key='sym_breakfast'}}>
+        <div class="symbol-card food" role="button" tabindex="0" aria-label={{t "Breakfast" key='sym_breakfast'}}>
           <div class="symbol-icon bg-food">🥣</div>
           <div class="symbol-label">{{t "Breakfast" key='sym_breakfast'}}</div>
         </div>
-        <div class="symbol-card places" role="gridcell" tabindex="0" aria-label={{t "Home" key='sym_home'}}>
+        <div class="symbol-card places" role="button" tabindex="0" aria-label={{t "Home" key='sym_home'}}>
           <div class="symbol-icon bg-places">🏠</div>
           <div class="symbol-label">{{t "Home" key='sym_home'}}</div>
         </div>
-        <div class="symbol-card places" role="gridcell" tabindex="0" aria-label={{t "Hospital" key='sym_hospital'}}>
+        <div class="symbol-card places" role="button" tabindex="0" aria-label={{t "Hospital" key='sym_hospital'}}>
           <div class="symbol-icon bg-places">🏥</div>
           <div class="symbol-label">{{t "Hospital" key='sym_hospital'}}</div>
         </div>
-        <div class="symbol-card descr" role="gridcell" tabindex="0" aria-label={{t "Hot" key='sym_hot'}}>
+        <div class="symbol-card descr" role="button" tabindex="0" aria-label={{t "Hot" key='sym_hot'}}>
           <div class="symbol-icon bg-descr">🔴</div>
           <div class="symbol-label">{{t "Hot" key='sym_hot'}}</div>
         </div>
-        <div class="symbol-card descr" role="gridcell" tabindex="0" aria-label={{t "Cold" key='sym_cold'}}>
+        <div class="symbol-card descr" role="button" tabindex="0" aria-label={{t "Cold" key='sym_cold'}}>
           <div class="symbol-icon bg-descr">🔵</div>
           <div class="symbol-label">{{t "Cold" key='sym_cold'}}</div>
         </div>
-        <div class="symbol-card descr" role="gridcell" tabindex="0" aria-label={{t "More" key='sym_more'}}>
+        <div class="symbol-card descr" role="button" tabindex="0" aria-label={{t "More" key='sym_more'}}>
           <div class="symbol-icon bg-descr">➕</div>
           <div class="symbol-label">{{t "More" key='sym_more'}}</div>
         </div>

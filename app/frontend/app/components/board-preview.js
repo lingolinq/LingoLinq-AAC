@@ -134,6 +134,12 @@ export default Component.extend({
   select_option: computed('option', function() {
     return this.get('option') == 'select';
   }),
+  // Opened from another modal (e.g. button-settings) that stays open underneath.
+  // The preview is view-only: its only footer action is Close, which closes this
+  // overlay and returns the user to that modal. See board-preview.hbs footer.
+  return_only: computed('option', function() {
+    return this.get('option') == 'return';
+  }),
   // True when this preview was opened from the board-picker TOUR modal (flag set
   // by tour-board-picker). In that mode the "Try This Board" + "Board Actions"
   // buttons are replaced by a single "Pick this Board" CTA (see the template).

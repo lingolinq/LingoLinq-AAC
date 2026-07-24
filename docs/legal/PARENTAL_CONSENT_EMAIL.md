@@ -110,12 +110,6 @@ After a successful revoke, the parent receives `UserMailer#parental_consent_revo
 2. **Delivery method** — In `config/environments/development.rb`, Action Mailer uses **`:ses`** (Amazon SES). You need valid **`SES_KEY` / `SES_SECRET`** (or `AWS_KEY` / `AWS_SECRET`) and region. With `raise_delivery_errors = false`, SES failures may not surface as obvious UI errors—check **Rails logs** and the worker log.
 3. **Optional: send during the HTTP request (development only)** — Set **`INLINE_PARENTAL_CONSENT_EMAIL=1`** (or `true` / `yes` / `on`) in the environment for the Rails process. Then all parent-facing COPPA mailers (`parental_consent_request`, `parental_consent_confirmation`, `parental_consent_revoked`) call `UserMailer.deliver_message` immediately instead of queuing. You still need SES (or change development delivery to `:test` / Letter Opener locally if your team uses that).
 
-## Why the parent may not receive mail on localhost
-
-1. **Queued mail** — `UserMailer.schedule_delivery` enqueues `UserMailer.deliver_message` on the **Resque `priority` queue** (`app/mailers/concerns/general.rb`). If no **Resque worker** is running, the job never runs and nothing is sent.
-2. **Delivery method** — In `config/environments/development.rb`, Action Mailer uses **`:ses`** (Amazon SES). You need valid **`SES_KEY` / `SES_SECRET`** (or `AWS_KEY` / `AWS_SECRET`) and region. With `raise_delivery_errors = false`, SES failures may not surface as obvious UI errors—check **Rails logs** and the worker log.
-3. **Optional: send during the HTTP request (development only)** — Set **`INLINE_PARENTAL_CONSENT_EMAIL=1`** (or `true` / `yes` / `on`) in the environment for the Rails process. Then all parent-facing COPPA mailers (`parental_consent_request`, `parental_consent_confirmation`, `parental_consent_revoked`) call `UserMailer.deliver_message` immediately instead of queuing. You still need SES (or change development delivery to `:test` / Letter Opener locally if your team uses that).
-
 ## Local dev: consent link on port 8184
 
 Parent email links use `DEFAULT_HOST` (often `http://localhost:8184`). The Ember dev server must **proxy** `/parental_consent/complete`, `/parental_consent/revoke`, `/eu_ai_parental_consent/complete`, and `/eu_ai_parental_consent/revoke` to Rails (see `app/frontend/server/index.js`, same pattern as `/auth/*`). Without that proxy, the browser gets the Ember SPA shell and the page looks blank. Restart `ember serve` after changing that file. You can also open the link on **`http://localhost:5000/...`** directly to hit Rails.
@@ -124,6 +118,8 @@ This is **not** because the parent address is wrong: `UserMailer#parental_consen
 
 ## Changelog
 
+- **2026-07-23** — Removed a duplicated copy of the "Why the parent may not receive mail on localhost" section (introduced during the 2026-07-13 / 2026-07-15 edits; the two blocks were byte-identical). Re-attested against the current revision.
+- **2026-07-15** — EU AI parental-consent flow added alongside the COPPA flow (PR #616): `/eu_ai_parental_consent/complete` and `/eu_ai_parental_consent/revoke` routes, Ember dev-server proxy entries, and AI-preference gating.
 - **2026-07-10** — Added post-approval parent confirmation email and tokenized revoke flow (COPPA email-plus).
 - **2026-04-13** — Initial engineering defaults added with COPPA parental consent feature.
 - **2026-04-14** — Documented Resque + SES and `INLINE_PARENTAL_CONSENT_EMAIL` for local testing.

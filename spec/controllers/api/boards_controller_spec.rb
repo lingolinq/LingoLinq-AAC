@@ -3280,6 +3280,17 @@ describe Api::BoardsController, :type => :controller do
       expect(json['descendants'].map { |d| d['board']['id'] }.sort).to eq(children.map(&:global_id).sort)
     end
 
+    it "returns root only when root_only=1 (skips descendant serialize)" do
+      token_user
+      root, children = build_owned_tree(@user, 3)
+      expect(Board).to_not receive(:find_all_by_global_id)
+      get :tree, params: { board_id: root.global_id, root_only: '1' }
+      json = assert_success_json
+      expect(json['root']['board']['id']).to eq(root.global_id)
+      expect(json['descendants']).to eq([])
+      expect(children.length).to eq(3) # fixture guard; full tree covered by sibling examples
+    end
+
     it "404s when the board is missing" do
       token_user
       get :tree, params: { board_id: 'no/such-board' }

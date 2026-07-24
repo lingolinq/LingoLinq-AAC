@@ -27,8 +27,10 @@ file (see [README.md](README.md)).
 - [Gotcha: serialize rapid model saves — overlapping user.save() lose updates / trip "in flight"](#gotcha-serialize-rapid-model-saves--overlapping-usersave-lose-updates--trip-in-flight)
 - [Pattern: dedup an "already-owned copy" by parent lineage, never by slug convention](#pattern-dedup-an-already-owned-copy-by-parent-lineage-never-by-slug-convention)
 - [Pattern: phased board prefetch — shared planner, dual persistence files](#pattern-phased-board-prefetch--shared-planner-dual-persistence-files)
+- [Pattern: board-detail `/tree` blocks paint on the full descendant payload](#pattern-board-detail-tree-blocks-paint-on-the-full-descendant-payload)
 - [Pattern: board-preview latency is cold-cache, not the loading gate — warm on intent](#pattern-board-preview-latency-is-cold-cache-not-the-loading-gate--warm-on-intent)
 - [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
+- [Gotcha: sync double `modal.open` — the *second* template wins; do not invent write-loss on the winner](#gotcha-sync-double-modalopen--the-second-template-wins-do-not-invent-write-loss-on-the-winner)
 - [Gotcha: Shepherd modal overlay is VISUAL-ONLY; canClickTarget:false makes the target click "fall through"](#gotcha-shepherd-modal-overlay-is-visual-only-canclicktargetfalse-makes-the-target-click-fall-through)
 - [Pattern: supervisor caseload session prefetch reuses board_detail_cache, not offline sync](#pattern-supervisor-caseload-session-prefetch-reuses-board_detail_cache-not-offline-sync)
 - [Pattern: encrypted buttonset JSON cache must carry parsed payloads](#pattern-encrypted-buttonset-json-cache-must-carry-parsed-payloads)
@@ -103,6 +105,7 @@ file (see [README.md](README.md)).
 - [Pattern: reuse the speak-mode-pin modal as a generic PIN gate for any action](#pattern-reuse-the-speak-mode-pin-modal-as-a-generic-pin-gate-for-any-action)
 - [Gotcha: async schedule_for on an unsaved record enqueues id:null and class-dispatches to a nonexistent method](#gotcha-async-schedule_for-on-an-unsaved-record-enqueues-idnull-and-class-dispatches-to-a-nonexistent-method)
 - [Gotcha: safely cleaning up Resque failed jobs — origination is chain::, not scheduled; count-check destructive removes](#gotcha-safely-cleaning-up-resque-failed-jobs--origination-is-chain-not-scheduled-count-check-destructive-removes)
+- [Gotcha: `Worker.process_queues` destroys RemoteActions — assert RA rows after one wave, not two](#gotcha-workerprocess_queues-destroys-remoteactions--assert-ra-rows-after-one-wave-not-two)
 - [Gotcha: a single-quoted `i18n.t` default silently DELETES the key on the next generator run](#gotcha-a-single-quoted-i18nt-default-silently-deletes-the-key-on-the-next-generator-run)
 
 ---
@@ -269,6 +272,18 @@ Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` c
 **Flags:** Phase 1 (home) is unconditional; phases 2–4 run when `background_board_prefetch` is enabled (shipped in `ENABLED_FRONTEND_FEATURES`). Phase 4 also honors legacy `catalog_board_prefetch`.
 
 **First seen in:** [2026-05-30-phased-online-board-caching.md](./2026-05-30-phased-online-board-caching.md)
+
+## Pattern: board-detail `/tree` blocks paint on the full descendant payload
+
+**Surface:** cold / TTL-miss opens of modern speak (`user.board-detail` → `GET /api/v1/boards/:key/tree`).
+
+**Gotcha:** Route comments say “resolve when the root is ready; cache descendants in the background,” but `model()` only calls `handleRoot` / `resolve` inside the `/tree` AJAX success handler — after root **and** all descendants have been downloaded and parsed. For a large vocab (e.g. home with ~96 downstream boards) lite serialize alone was ~2s and ~84MB JSON locally; root-only was ~50ms / ~1.5MB. Session `boardDetailCache` (5 min) and `background_board_prefetch` only help *after* that warm; they do not remove the first-open cliff. Prefetch of the home root pays the same full-tree cost in the background.
+
+**Fix recipe:** Two-phase load — `GET …/tree?root_only=1` first (lite root), paint, then ingest full `/tree` in the background via `ingest_tree(..., { force: false, warm_root_images: false })`. Server skips descendant load when `root_only` is set. Do not “fix” slow opens by only extending TTL or prefetch coverage.
+
+**Diag:** `localStorage.ll_board_cache_diag=1` → [`board_cache_diag.js`](../../app/frontend/app/utils/board_cache_diag.js) marks on board-detail.
+
+**First seen in:** [2026-07-23-speak-mode-board-cache-latency.md](./2026-07-23-speak-mode-board-cache-latency.md)
 
 ## Pattern: supervisor caseload session prefetch reuses board_detail_cache, not offline sync
 
@@ -6483,6 +6498,10 @@ count against what the prior analysis predicted and abort on a large gap
 undo: `Resque::Failure.remove` is irreversible, and the dev Redis has no AOF and
 auto-BGSAVEs on churn, so the pre-delete RDB is overwritten within minutes.
 
+## Gotcha: `Worker.process_queues` destroys RemoteActions — assert RA rows after one wave, not two
+
+`Worker.process_queues` (`lib/worker.rb`) always calls `RemoteAction.process_all` before draining Resque, and `process_all` destroys every row it processes. After synchronous `track_downstream_boards!`, board-level `schedule_update_available_boards` RAs already exist; the first `process_queues` turns those into user-level `update_available_boards` RAs. A second `process_queues` immediately consumes/destroys those user RAs — so `expect(RemoteAction.where(...).count).to be >= 1` after two waves flakes as `got: 0`. Assert after one wave when the setup already called `track_downstream_boards!`. Deferred-track examples (no sync track, only `process`) still need two waves because track itself arrives as a RemoteAction. See [`2026-07-23-board-caching-remote-action-flake.md`](./2026-07-23-board-caching-remote-action-flake.md).
+
 ## Pattern: privacy classification language in docs/legal/* is load-bearing and drifts across repos
 
 "De-identified", "anonymous", and "pseudonymized" are legally distinct terms, not synonyms.
@@ -6644,6 +6663,38 @@ the cheap fallback to confirm controller/route syntax.
 ## Gotcha: persistence-sync Jasmine harness — wait for `sync_boards` tail / `syncSettled`, not only the `sync()` promise
 
 Recurring Ember CI flakes (timeout / async-work-not-finished) in `persistence-sync-test.js` often look like PR regressions but are harness races: `persistence.sync()` can resolve while real board traversal (`enableRealSyncBoards` / `sync_boards`) and remap/tail work are still running. Passing siblings already use `primeBoardRevisionsSyncHarness(function(){ tailDone = true; })` and wait `done && tailDone`; tests that call the harness with no callback and wait only on `done` assert/cleanup early. Post-`sync()` fixed `later(..., 50)` plus immediate `cancelSyncTailWork()` has the same shape for temp-id rewrite. Prefer `waitForSyncDoneAndSettled(done)` (`done && syncSettled()`) plus the board-sync completion callback, and only cancel tail work after permanent IDs are visible. See `docs/task-management/2026-07-13-ember-ci-persistence-sync-harness-wait.md`. (2026-07-13)
+
+**UPDATE (2026-07-22) — the `waitForSyncDoneAndSettled` gate is NECESSARY but NOT SUFFICIENT; the
+flake is deeper (still live).** Deep re-investigation: the flake survives even on FULLY-gated tests
+(e.g. `not try to download boards that match the fresh revision`). Runtime evidence on a failing
+`persist important ids`: `syncDone=true settled=true important_ids=null` — and since `important_ids`
+is set only on the sync SUCCESS path (`persistence.js:2335`), this proves **the victim test's own
+`persistence.sync()` intermittently REJECTS.** Root cause: a PRIOR test's late-resolving async
+(`store_url`/`find`/`save` promise) bleeds into the shared `persistence` singleton and corrupts a
+LATER test's sync into rejection / never-settling. No per-test wait predicate can fix this — the
+singleton is dirtied BEFORE the victim runs. What DIDN'T work (tried & reverted): a
+drain-before-teardown in the shared `tests/helpers/jasmine.js`, a defensive `beforeEach`
+`cancelSyncTailWork()`, and adding `refresh_after_eventual_stores.waiting` to `syncSettled()` — the
+last made it WORSE (that flag sticks `true`, so `syncSettled()` never returns true and HANGS gated
+tests). Across batches the rate stayed ~17–33% regardless. The fix is EPOCH-FENCING the async tail (a
+promise resolving after its test ended must no-op, not touch the next test's state). SHIPPED as
+TEST-HARNESS ONLY (persistence.js unchanged): a per-test `LingoLinq.sync_epoch` stamped in the
+jasmine shim + a stub-traversal fence in `sync-test-cleanup.js` that no-ops stale `findRecord.then`/
+`store_url` work + the real-boards wait-gate completion. This cut the flake from ~25% to low single
+digits (residual: one real-boards test, `not try to download … fresh revision`, whose own sync
+promise is intermittently orphaned by the REAL sync_boards in-flight race — not harness-fixable
+without prod surgery). That residual is then ABSORBED by a module-scoped auto-retry in the jasmine
+shim (`test_wrap`): persistence-sync tests ONLY (name-gated; all other modules keep the original
+path — zero blast radius) run up to 3 attempts, buffering QUnit results and reporting only the final
+one, with a per-attempt hang cap under a raised `assert.timeout`. Abandoned attempts self-terminate
+via the existing `runs()` `id == current_test_id` guard. Net: 0 failures across ~40+ module runs,
+production code untouched. (Retry masks only a proven-timing flake — a genuinely broken test fails
+all 3 attempts and is still reported.) DEAD ENDS (reverted): guarding
+`schedule_sync_board_step` (no-op'd a scheduled nextBoard → hung the real sync); adding
+`refresh_after_eventual_stores.waiting` to `syncSettled()` (flag sticks true → hangs gated tests);
+a defensive `beforeEach cancelSyncTailWork()` (pre-cancel can orphan the next sync). Verify any flake
+fix over ≥30 iterations AND on the full suite — variance is huge, 15 green runs prove nothing.
+(2026-07-22)
 
 ## Gotcha: `EXTEND_PROTOTYPES: false` (set by the 5.12 upgrade) — Ember array/string methods on NATIVE receivers throw
 
@@ -6925,9 +6976,18 @@ targeted console logs before concluding.
 
 Org Settings → Home Boards bound `<Textarea @value={{this.home_board_key_lines}}>` to a **get-only** computed that joined `model.home_board_keys`. Typing tried to `set('home_board_key_lines', …)` and threw `Cannot read properties of undefined (reading 'call')` (missing Ember computed setter). Fix: writable computed with a `_home_board_key_lines` edit cache, cleared in `opening()` / after save. Related: pasted modern board URLs (`/:user/board-detail/:slug`) are not board keys until host + `board-detail`/`board` segments are stripped to `owner/slug` — do that in both the settings save normalize and `Organization#process`. See `docs/task-management/2026-07-16-org-home-board-key-lines.md`. (2026-07-16)
 
+**Decide by whether the field is actually edited (2026-07-20, "Class 11" sweep — 3 more of these found & fixed).** The same crash appears wherever the input-codemod stapled a `set-field`/`set-value` write-back onto a get-only computed. There are TWO correct fixes, and picking the wrong one adds dead machinery:
+- **Field IS edited** (user types, value is consumed) → `{get,set}` computed with a `_`-prefixed edit cache, mirroring `substitution_string` (`controllers/user/preferences.js:645`) and `word_lines` (`components/modify-core-words.js:85`). The getter returns the cache once set, else derives from source; the setter stashes raw text. Accept the `require-computed-property-dependencies` eslint WARNING on the `_`-cache — declaring it as a dep would defeat the cache (same warning rides `substitution_string`). Trace that downstream consumers still work: for `word_lines`, `parsed_words`→`save()` reads the cache while `save_disabled` still keys off the untouched source array — behavior-identical to the pre-4.0 clobber.
+- **Field is display-only** (iframe embed snippet, off-screen clipboard mirror) → do NOT add a setter. Make it one-way: drop `@onChange`/the `{{on "input" (set-field …)}}` and add `readonly`. `FocusInput` guards with `this.args.onChange?.()` so dropping `@onChange` is safe; `readonly` inputs still `.focus().select()`+`.val()` for copy. Fixed this way: `share-board.hbs:43` (`board.embed_code`), `share-utterance.hbs:20` (`sentence`).
+- The crash only fires on a REAL keystroke; Glimmer components can't be render-tested in this app (see the DDAU/untestable learning), so `ember test` green is necessary but not sufficient — a manual open-modal-and-type is still owed. See `docs/task-management/2026-07-15-template-lint-convention-migration.md` (Session 4). (2026-07-20)
+
 ## Gotcha: Ember `<Input>` checkboxes need `@type`, and bound-select must stopPropagation
 
 `<Input type="checkbox" @checked={{…}}>` renders as a text field (`ember-text-field`, `type="text"`) — the HTML `type` attr is not the component arg. Use `@type="checkbox"` (as organization/settings already does). Separately, `bound-select`'s `ctrlAction` helper used to `preventDefault` then **pop the event** before `send`, so `toggle`/`choose` never received it and never `stopPropagation`'d — clicks bubbled into `modal-dialog` and selects looked dead. Match `modern-select`: keep the event, stopPropagation, and make `.md-org-settings-field > span` `display:block` so the `tagName:span` wrapper doesn't shrink the hit target. See `docs/task-management/2026-07-16-org-home-board-key-lines.md`. (2026-07-16)
+
+## Gotcha: sync double `modal.open` — the *second* template wins; do not invent write-loss on the winner
+
+When `setupController` opens `terms-agree` then falls through to `modal.open('intro')` in the same run loop, Ember’s final `currentTemplate` is `intro`: the *first* modal never mounts; the *second* does, so its `init()` side effects (`show_intro` clear, `intro_watched` save) still run. Claiming “durable write loss” on the winner inverts the victim. Remaining real defect is consent *presentation* (terms skipped that visit; `terms_agree` stays false — no false-positive record). Same fall-through exists in `routes/bento.js`. See `docs/task-management/2026-07-23-terms-agree-intro-finding-correction.md` and register `LL-53cb93fab1`. (2026-07-23)
 
 ## Pattern: EU AI under-16 consent is a third blob, not COPPA signup
 
@@ -6987,3 +7047,187 @@ version strings) or `NNN_NNN` underscore-digit tokens (global_id scrubber — av
 numeric literals like `100_000` in snippets); and runtime findings (no file anchor)
 id-anchor on `ruleKey` with `evidence.source`, exempt from the snippet-at-SHA citation
 gate. (2026-07-16)
+
+## Gotcha: template-lint migration — verify the defect is REAL before "fixing"; disable syntax; `.lint-todo` count is `adds − removes`, not `wc -l`
+
+Three hard-won rules for clearing `.lint-todo` (Ember 5.12 recommended-rule migration),
+all learned the same way — static analysis being wrong about the runtime (cf. the folders
+`(fn sendAction)` false positive and the 22 `require-input-label` id-count false positives):
+
+1. **Test-first: confirm the flagged defect actually exists in the live DOM before touching
+   code.** `no-duplicate-id` flagged `#board_upload` (create-board-new.hbs) and `#board_upload`
+   (new-board.hbs) — but a Puppeteer check on the live route showed `document.querySelectorAll('#board_upload').length === 1`: the two occurrences are **mutually-exclusive template branches**
+   (`{{#if standalone}}` header vs `{{#unless standalone}}` body), so only one ever renders.
+   "Fixing" by renaming would have broken the JS that targets `#board_upload`
+   (`getElementById` + content-grabbers `event.target.id`) and the `aria-describedby` pairing —
+   degrading working code to satisfy a linter wrong about the runtime. Harness pattern:
+   `scratchpad/verify-defect-duplicate-id.mjs` (login → goto route → count in live DOM). Use
+   **DOM queries** for structural rules (duplicate-id, nested-interactive, duplicate-landmark),
+   **axe-core** (inject at runtime, no dep) for semantic-a11y rules (require-context-role,
+   require-input-accessible-name), and **drive the interaction** for behavior rules (autofocus,
+   pointer-down). If/unless on the SAME boolean is provably mutually exclusive — no live check
+   needed.
+
+2. **`template-lint-disable-next-line` does NOT exist in ember-template-lint 6.1.0** (that's
+   ESLint syntax; an earlier handoff assumed it and was wrong → `error: unrecognized template-lint
+   instruction`). The only instructions are `template-lint-disable` / `template-lint-enable`.
+   To suppress ONE element, wrap it:
+   `{{! template-lint-disable no-duplicate-id }}` / `<el>` / `{{! template-lint-enable no-duplicate-id }}`.
+   Rationale comments with mustache tokens must use `{{!-- --}}` (the short `{{! }}` form ends at
+   the first `}}`). Disabling a **verified false positive** is NOT the banned "suppress a real
+   defect" — it's documenting that the linter is wrong; cite the runtime evidence in the comment.
+
+3. **`.lint-todo` is append-only add/remove pairs; the real count is `grep -c '^add|' − grep -c
+   '^remove|'`, NOT `wc -l`.** Resolving/suppressing a violation appends a `remove|<fingerprint>`
+   line that cancels its `add|` — it does not delete the `add`. So `wc -l` grows while the
+   effective count drops. Incremental `--update-todo` gives a clean minimal diff (+N remove lines)
+   but leaves tombstones; a clean rebaseline (`rm .lint-todo && --update-todo`) collapses tombstones
+   but reorders the whole file (~365-line diff — append-order vs sorted regen) and is merge-hostile.
+   Convention: **incremental for feature PRs** (minimal diff), measure progress by effective count,
+   and do a clean rebaseline only as an isolated housekeeping commit. Editing a template near a
+   deferred violation re-fingerprints/renumbers its entry (a 1-line `input` edit re-keyed its
+   `require-input-accessible-name` entry) — expected, commit it with the template change. (2026-07-20)
+
+## Template action-chains fail SILENTLY on a wrong/missing model-computed name (2026-07-21)
+Button Settings modal: selecting "Open a web site" or "Launch an application" showed
+NOTHING below the Action dropdown. Reported as "selecting an action doesn't save."
+Root cause was purely in `button-settings.hbs`: the `{{#if}}/{{else if}}` chain that
+renders per-action config branched on `this.model.openUrlAction` — **a computed that
+exists nowhere** (real name `linkAction`, `utils/button.js:240`) — and had **no
+`appAction` branch at all** (computed exists, `button.js:243`; all supporting JS —
+`find_app`/`pick_app`/`set_app_find_mode`, `ios_search`/`*_status_class`,
+`contentGrabbers.setup(btn, this)` — was already present). A bad `{{else if this.model.X}}`
+produces no error/warning; the pane just stays blank.
+- **Diagnostic pattern:** when a modal pane "does nothing / won't save," first check whether
+  the config UI even RENDERS. Extract every `this.model.<x>Action` the hbs references and grep
+  each against the model's actual computed definitions; cross-check dropdown option `id`s
+  (`buttonActions`: talk/folder/link/app/integration) against the `== 'id'` checks in the
+  computeds. Mismatch = dead branch.
+- **Recovery:** original working markup lived in the pre-component template
+  (`git show 869c59c2f:app/frontend/app/templates/button-settings-action.hbs`); port faithfully
+  rather than invent, adapting to current conventions (native `<input>`+`set-field`,
+  `{{on "click" (this.ctrlAction ...)}}`, `this.` prefixes, `{{t "..." key='...'}}`).
+- **i18n gotcha:** a reused key with two different default strings ("custom_launch" for iOS vs
+  Android) → generator aborts with `DUPLICATE`. Give each string a distinct key. After adding
+  `{{t}}` helpers, `ruby i18n_generator.rb --generate` (syncs en.json to template usage; prunes
+  0-reference orphans) then `--merge` (propagates to 12 locales in the `"<trans> [[ <English>"`
+  convention). Validate all locale JSON parses after.
+
+## Driving the button-settings modal headlessly (Puppeteer) — it CAN be automated
+Prior handoffs claimed the button-settings modal "can't be driven headless." It can.
+- **Auth without a password:** mint a token in Rails (`Device.generate_token!` → the value is
+  `device.settings['keys'].last['value']`), then in the browser BEFORE app boot set
+  `localStorage['lingolinqStash-auth_settings'] = JSON.stringify({access_token, token_type:'bearer',
+  user_name, user_id})` and `localStorage['lingolinqStash-prior_login']='"true"'`. `stashes.setup()`
+  reads `lingolinqStash-*` keys on boot; `capabilities.access_token` syncs from auth_settings.
+- **Speak-mode board URL:** `/:user/board-detail/:boardname` (board-detail defaults to speak mode).
+  Edit mode: append `/edit`. Clicking a symbol card in edit mode opens button-settings.
+- **Modal internals:** nav pills are `#button_settings .nav-pills a` (match EXACT text — "Action"
+  vs "Quick Actions"). The action `<BoundSelect>` trigger is `#action`; its options are
+  `.bound-select__option` (click by text). The destination picker is `.md-board-collection` with
+  `.md-board-collection__item` rows grouped in `.md-board-collection__section` (My Boards first,
+  then brand groups = community). A cross-author pick raises the confirm card
+  (`.md-bs-card--selected` eyebrow "Choose how to use this board"); `.md-bs-choose__btn` "Use
+  original board" links directly. Selected link shows in `.md-bs-dest__name`.
+- **Save path:** closing button-settings does NOT save the board. Click "Done Editing"
+  (`.md-board-edit-session__btn--save`, action `back_to_boards`) → it opens the `confirm-leave-edit`
+  modal → click `.md-leave-edit-btn--save` to actually persist. Missing this step = edits lost.
+- **Folder-link navigation is sound:** verified own + community links persist with `load_board.key`
+  and navigate in speak mode. `load_board` is dropped at runtime ONLY when `link_disabled` is true
+  (`app-state.js:3764`) or the whole hash is server-deleted for an unviewable/missing target.
+
+## `.lint-todo` raw line count ≠ open violations (it's an add/remove append-log)
+
+`app/frontend/.lint-todo` is NOT a flat list of current violations — it is an append-log of
+`add|…` and `remove|…` operations keyed by (rule, content-hash, file, line). A violation is
+**open only if its `add` has no matching `remove`**. A naive `grep -c "<rule>"` counts both and
+massively overcounts: a 2026-07 handoff claimed "68 require-context-role violations" (raw
+`add` count) when only **2** were actually open — prior migration commits had already appended
+`remove` lines for ~66.
+
+To get the TRUE current set, never trust the raw count or a stale figure:
+- `npx ember-template-lint --include-todo <path>` re-evaluates at HEAD and reports every current
+  violation (whether it would be an error or a suppressed todo). A stale todo shows nothing.
+- Or compute net-active = (# add − # matching remove) by hash in a script.
+
+After fixing, `ember-template-lint . --update-todo` appends only the `remove` lines for the
+now-passing violations (a clean, minimal diff) — you do NOT need to hand-edit `.lint-todo`, and
+you should NOT wholesale re-baseline unless you intend to churn every rule's tracked state.
+
+## `require-context-role`: fix grid→gridcell with a `display:contents` row wrapper
+
+The rule (see the installed `node_modules/ember-template-lint/lib/rules/require-context-role.js`)
+walks UP from the child-role element, **skips** `role="presentation"`/`role="none"` ancestors,
+bails (no violation) if any ancestor is `aria-hidden`, and checks the FIRST real ancestor's role.
+So `role="option"` inside `<li role="presentation">` inside `<ul role="listbox">` is VALID
+(the presentation li is skipped). The common real violation is a `role="grid"` whose `{{#each}}`
+renders `role="gridcell"` divs with no `role="row"` between them.
+
+Fix without breaking CSS: wrap each row's cells in `<div role="row">` carrying
+`display: contents` (a dedicated `…__row` class). `display:contents` generates no layout box, so
+cells keep participating in the parent CSS grid. **Safe precondition (verify first):** the grid
+lays out via `display:grid` + `grid-template-columns/rows` with auto-placed cells and uses only
+descendant (space) selectors — NO `>` direct-child or `:nth-child` cell selectors and no
+`grid-template-areas` targeting direct children. Under those conditions the wrapper is
+layout-invisible; verified byte-identical on create-board-new + new-board preview grids.
+
+## Synthetic `@each` reactivity tests don't reproduce the real Class 2 native-array staleness
+
+The Ember 5.12 Class 2 bug (in-place element mutation not refiring `foo.@each.prop` on a native
+array) does NOT reproduce in a minimal QUnit repro: Ember 5.12 STILL fires `@each` for
+`EmberObject` elements `set()` in place even on a raw `[]`. A "native array won't refire"
+negative-control assertion FAILS (recomputes to 1, not 0). The production staleness only manifests
+under the real controllers' build path (array of records, `emberSet`, no wholesale re-set). So a
+unit test can validly guard the FIX's A()-array reactivity contract, but a faithful bug repro needs
+controller-level integration coverage — don't ship a false negative control. (Ref:
+`tests/unit/ember-5-12-regression-test.js`.)
+
+## npm install must run under the project's Node (22 via nvm), not the shell default
+
+The machine's default node is 16; running `npm install` there (npm 8) mangled
+`app/frontend/package-lock.json` (300-line diff, "removed 45 packages") even for a 6-dep add.
+Always `export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use 22` first. If a lockfile got
+mangled, `git checkout -- package.json package-lock.json` and redo under Node 22 (clean diff =
+only the intended deps).
+
+## Oversized-PR review: chunk the diff across passes, fold fail-closed (never truncate-and-defer)
+
+`codex-review/deep-pass` (Scot's required, fail-closed gate) injected only the first
+`MAX_BYTES=60000` of the diff. A large PR (#665: ~644 KB) was truncated, the reviewer correctly
+refused a verdict over unverified hunks, and the fail-closed policy turned that into a red required
+check. **Truncation is the wrong lever for a required gate** — it converts "too big" into
+"unreviewable → blocked" instead of "reviewed across passes".
+
+**Fix pattern (reusable for any prompt-budget-bound reviewer):**
+- Split the raw `git diff BASE...HEAD` on **file-boundary headers** (`^diff --git `) into chunks
+  each ≤ a raised per-chunk cap; never split one file across chunks. Only a single file bigger than
+  the cap stays truncated, and only for its own chunk (truncate on a **line** boundary — a byte cut
+  splits multibyte UTF-8 in `public/locales/*.json` and makes the prompt undecodable; mirror the
+  workflow's `head -c | sed '$d'`).
+- Review each chunk on its own pass; keep the existing per-chunk convergence ("confirm both
+  directions").
+- Fold **across** chunks as a **conjunction, not a vote**: APPROVE only if every chunk approves;
+  any blocked chunk blocks the PR; surface the highest-priority blocker. (Contrast: convergence
+  *within* a chunk is a majority vote across non-deterministic runs.)
+- Bound fan-out with `MAX_CHUNKS`; the overflow tail becomes a **synthetic fail-closed chunk** so a
+  truly enormous PR still routes to a human — preserving the original safe behavior for just the
+  tail, not the whole PR. Never silently drop the overflow.
+- Keep normal PRs free: a diff under the cap = exactly one chunk = unchanged cost.
+
+**Gotchas:** (1) GitHub Actions `run:` bash is `set -eo pipefail` by default — `ls glob | sort`
+crashes the step on an empty diff. `find <dir> -maxdepth 1 -name 'chunk-*.txt' -print0 | xargs -0`
+is the robust idiom: it runs **nothing** (exit 0) on 0 matches, never word-splits paths, and adding
+`-P N -I{}` turns it into a **bounded-parallel pool** in one line — GNU xargs (ubuntu-latest) honors
+`-P` with `-I{}` (BSD xargs does not, but the runner is GNU). A pooled worker that exits non-zero
+fails the step → fail-closed; a legitimate REQUEST_CHANGES review must exit 0 (write JSON, let the
+downstream fold decide), or every blocking review would false-fail the step. Keep the per-worker
+body in its own script so the pool invokes `bash script.sh {}` (no exec-bit needed) and both routes
+share one code path. (2) The prompt-injection guard must scan **each chunk's own diff** (the text
+that chunk's reviewer actually saw), not a single global diff. (3) Make the cap/limit/concurrency
+repo `vars.` (`CODEX_MAX_DIFF_BYTES`, `CODEX_MAX_DIFF_CHUNKS`, `CODEX_REVIEW_CONCURRENCY`) so the
+tooling owner can tune runner cost/time without a code change. (4) Parallelizing the chunk loop is
+what keeps a large PR under the 30-min watchdog — serial passes (up to MAX_CHUNKS × 3 codex runs)
+can otherwise time out, which is still fail-closed but defeats the point of reviewing the big PR.
+Files: `scripts/codex-review-chunk-diff.py`, `codex-review-one-chunk.sh` (per-chunk worker, both
+routes), `codex-review-assemble-manifest.py`, `codex-review-build-envelope.py` (`fold_across_chunks`
++ `--manifest`), `.github/workflows/codex-review.yml`.

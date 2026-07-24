@@ -23,7 +23,7 @@
                 <img src={{path "images/upload.svg"}} style="height: 30px; margin: -10px -6px -6px;" alt="upload">
                 {{t "Upload Sound" key="upload_sound"}}
               </button>
-              <input type="file" name="sound_upload" id="sound_upload" accept="audio/*" tabindex="-1">
+              <input type="file" name="sound_upload" id="sound_upload" accept="audio/*" tabindex="-1" aria-label={{t "Upload Sound" key="upload_sound"}}>
             </span>
         </div>
         {{#if this.sound_preview}}

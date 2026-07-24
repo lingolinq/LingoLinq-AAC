@@ -18,7 +18,7 @@
           <p>{{t "No data available" key="no_data_available"}}</p>
         {{/if}}
         <div>
-          <input value={{this.blocked_email_address}} placeholder="email address" class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "blocked_email_address")}} />
+          <input value={{this.blocked_email_address}} placeholder="email address" aria-label={{t "Blocked email address" key="blocked_email_address"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "blocked_email_address")}} />
           <button class="btn btn-default btn-sm" {{on "click" (this.ctrlAction "block_email")}}>{{t "Block Email Address" key="block_email_address"}}</button>
         </div>
       </div>
@@ -66,7 +66,7 @@
     {{else}}
       {{#if this.gifts.length}}
       <div style='max-width: 400px; margin-bottom: 2px;'>
-        <input value={{this.code_lookup}} type="text" placeholder="Find code" class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "code_lookup")}} />
+        <input value={{this.code_lookup}} type="text" placeholder="Find code" aria-label={{t "Find code" key="find_code"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "code_lookup")}} />
         <button {{on "click" (this.ctrlAction "find_code")}} class='btn btn-default'>{{t "Find" key="find"}}</button>
       </div>
       <div class='list-group' style='max-width: 400px; margin-bottom: 5px;'>
@@ -172,19 +172,19 @@
       </div>
       {{#if this.current_gift_type.user_gift}}
         <div style='margin-top: 15px;'>
-          <input value={{this.gift_name}} placeholder="gift name" class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "gift_name")}} />
-          <input value={{this.duration}} placeholder="# of years" class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "duration")}} />
+          <input value={{this.gift_name}} placeholder="gift name" aria-label={{t "Gift name" key="gift_name"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "gift_name")}} />
+          <input value={{this.duration}} placeholder="# of years" aria-label={{t "Number of years" key="number_of_years"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "duration")}} />
           <button class="btn btn-default btn-sm" {{on "click" (this.ctrlAction "add_gift" "gift")}}>{{t "Create Gift Code" key="create_gift_code"}}</button>
         </div>
       {{else if this.current_gift_type.bulk_purchase}}
         <div style='margin-top: 15px;'>
           <div style='margin-bottom: 5px;'>
-            <input value={{this.org}} placeholder="client name" class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "org")}} />
-            <input value={{this.email}} placeholder="client email" class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "email")}} />
+            <input value={{this.org}} placeholder="client name" aria-label={{t "Client name" key="client_name"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "org")}} />
+            <input value={{this.email}} placeholder="client email" aria-label={{t "Client email" key="client_email"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "email")}} />
           </div>
           <div style='margin-bottom: 5px;'>
-            <input value={{this.amount}} placeholder="dollars" class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "amount")}} />
-            <input value={{this.licenses}} placeholder="# of licenses" class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "licenses")}} />
+            <input value={{this.amount}} placeholder="dollars" aria-label={{t "Amount in dollars" key="amount_dollars"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "amount")}} />
+            <input value={{this.licenses}} placeholder="# of licenses" aria-label={{t "Number of licenses" key="number_of_licenses"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "licenses")}} />
           </div>
           <div style='margin-top: -15px;'>
             <div class="checkbox big_checkbox">
@@ -195,42 +195,42 @@
             </div>
           </div>
           <span style='display: inline-block; width: 304px;'>
-            <input value={{this.memo}} placeholder="memo" class="form-control inline input-sm" {{on "input" (set-field this "memo")}} />
+            <input value={{this.memo}} placeholder="memo" aria-label={{t "Memo" key="memo"}} class="form-control inline input-sm" {{on "input" (set-field this "memo")}} />
           </span>
           <button class="btn btn-default btn-sm" {{on "click" (this.ctrlAction "add_gift" "purchase")}}>{{t "Create Purchase Page" key="create_purchase_page"}}</button>
         </div>
       {{else if this.current_gift_type.discount}}
         <div style='margin-top: 15px;'>
           <div style='margin-bottom: 5px;'>
-            <input value={{this.org}} placeholder="org name" class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "org")}} />
-            <input value={{this.email}} placeholder="org email" class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "email")}} />
+            <input value={{this.org}} placeholder="org name" aria-label={{t "Organization name" key="organization_name"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "org")}} />
+            <input value={{this.email}} placeholder="org email" aria-label={{t "Organization email" key="organization_email"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "email")}} />
           </div>
           <div style='margin-bottom: 5px;'>
-            <input value={{this.code}} placeholder="code" class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "code")}} />
-            <input value={{this.discount_pct}} placeholder="10%" class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "discount_pct")}} />
+            <input value={{this.code}} placeholder="code" aria-label={{t "Code" key="code"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "code")}} />
+            <input value={{this.discount_pct}} placeholder="10%" aria-label={{t "Discount percent" key="discount_percent"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "discount_pct")}} />
           </div>
           <div style='margin-bottom: 5px;'>
-            <input value={{this.limit}} placeholder="limit # of uses" class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "limit")}} />
+            <input value={{this.limit}} placeholder="limit # of uses" aria-label={{t "Limit number of uses" key="limit_number_of_uses"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "limit")}} />
           </div>
           <span style='display: inline-block; width: 304px;'>
             <span style='width: 150px; display: inline-block; text-align: right; padding-right: 5px;'>{{t "expires (optional)" key="expires_optional"}}</span>
-            <input value={{this.expires}} type="date" placeholder="(optional)" class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "expires")}} />
+            <input value={{this.expires}} type="date" placeholder="(optional)" aria-label={{t "Expiration date" key="expiration_date"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "expires")}} />
           </span>
           <button class="btn btn-default btn-sm" {{on "click" (this.ctrlAction "add_gift" "discount")}}>{{t "Create Discount Code" key="create_discount_code"}}</button>
         </div>
       {{else if this.current_gift_type.multi_code}}
         <div style='margin-top: 15px;'>
           <div style='margin-bottom: 5px;'>
-            <input value={{this.org}} placeholder="org name" class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "org")}} />
-            <input value={{this.email}} placeholder="org email" class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "email")}} />
+            <input value={{this.org}} placeholder="org name" aria-label={{t "Organization name" key="organization_name"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "org")}} />
+            <input value={{this.email}} placeholder="org email" aria-label={{t "Organization email" key="organization_email"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "email")}} />
           </div>
           <div style='margin-bottom: 5px;'>
-            <input value={{this.total_codes}} placeholder="# of codes" class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "total_codes")}} />
-            <input value={{this.years}} placeholder="years" class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "years")}} />
+            <input value={{this.total_codes}} placeholder="# of codes" aria-label={{t "Number of codes" key="number_of_codes"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "total_codes")}} />
+            <input value={{this.years}} placeholder="years" aria-label={{t "Years" key="years"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "years")}} />
           </div>
           <div style='margin-bottom: 5px;'>
-            <input value={{this.org_id}} placeholder="org_id" class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "org_id")}} />
-            <input value={{this.memo}} placeholder="memo" class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "memo")}} />
+            <input value={{this.org_id}} placeholder="org_id" aria-label={{t "Organization ID" key="organization_id"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "org_id")}} />
+            <input value={{this.memo}} placeholder="memo" aria-label={{t "Memo" key="memo"}} class="form-control inline inline-masquerade input-sm" {{on "input" (set-field this "memo")}} />
             <button class="btn btn-default btn-sm" {{on "click" (this.ctrlAction "add_gift" "multi_code")}}>{{t "Create Multi-Code Batch" key="create_multi_code_batch"}}</button>
           </div>
         </div>

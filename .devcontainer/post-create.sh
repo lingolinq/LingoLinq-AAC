@@ -17,9 +17,9 @@ fi
 echo "Node version: $(node -v)"
 echo "NPM version: $(npm -v)"
 
-# Set Node 20 as default
-nvm use 20
-nvm alias default 20
+# Set Node 22 as default (matches /.nvmrc and app/frontend/.nvmrc)
+nvm use 22
+nvm alias default 22
 
 # Install CLIs globally
 echo "Installing Gemini, Claude Code CLI, and Anthropic SDK..."
@@ -55,5 +55,5 @@ sudo -u postgres psql -c "CREATE USER $(whoami) WITH SUPERUSER CREATE DATABASE $
 
 echo "=== Post-Create Script Complete ==="
 
-nvm use 20
+nvm use 22
 

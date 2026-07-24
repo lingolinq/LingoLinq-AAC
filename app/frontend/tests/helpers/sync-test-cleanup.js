@@ -332,12 +332,21 @@ export function stubTraversalSyncBoards(stubFn) {
   stubFn('sync_boards', function(user, importantIds, synced_boards) {
     var target = persistenceTarget();
     var visited = {};
+    // Test-only async fence (issue #589): capture the test epoch when this stubbed
+    // traversal starts. If the epoch advances (this test ended) before a late
+    // findRecord resolves, no-op instead of pushing ids / calling store_url — which
+    // would mutate the shared persistence singleton and corrupt the NEXT test's sync.
+    var scheduledEpoch = (typeof LingoLinq !== 'undefined') ? LingoLinq.sync_epoch : undefined;
+    var stale = function() {
+      return typeof LingoLinq !== 'undefined' && LingoLinq.sync_epoch !== scheduledEpoch;
+    };
     function visitBoard(id) {
-      if (visited[id]) {
+      if (stale() || visited[id]) {
         return RSVP.resolve();
       }
       visited[id] = true;
       return LingoLinq.store.findRecord('board', id).then(function(board) {
+        if (stale()) { return RSVP.resolve(); }
         synced_boards.push(board);
         importantIds.push('board_' + id);
         var jobs = [];
@@ -355,6 +364,7 @@ export function stubTraversalSyncBoards(stubFn) {
               jobs.push(target.store_url(img.get('url'), 'image'));
             } else {
               jobs.push(LingoLinq.store.findRecord('image', String(btn.image_id)).then(function(image) {
+                if (stale()) { return RSVP.resolve(); }
                 if (image && image.get('url')) {
                   importantIds.push('dataCache_' + image.get('url'));
                   return target.store_url(image.get('url'), 'image');
@@ -370,6 +380,7 @@ export function stubTraversalSyncBoards(stubFn) {
               jobs.push(target.store_url(snd.get('url'), 'sound'));
             } else {
               jobs.push(LingoLinq.store.findRecord('sound', String(btn.sound_id)).then(function(sound) {
+                if (stale()) { return RSVP.resolve(); }
                 if (sound && sound.get('url')) {
                   importantIds.push('dataCache_' + sound.get('url'));
                   return target.store_url(sound.get('url'), 'sound');

@@ -37,7 +37,7 @@ NOTE: as a standardized convention for the codebase, all user-facing strings sho
 
 #### Backend Setup
 
-Dev dependencies: Ruby, Postgres, Redis, Node 20, ember-cli, AWS, Google API
+Dev dependencies: Ruby, Postgres, Redis, Node 22, ember-cli, AWS, Google API
 
 The backend relies on Redis and Postgres both being installed. Both are required in development and production. If you have ruby installed in your environment, you'll need the bundler gem:
 
@@ -109,7 +109,7 @@ Once the database is created, you can start the server. If you run `rails server
 
 #### Frontend Setup
 
-The frontend is an Ember app. Install ember-cli (<https://ember-cli.com/user-guide/>) and make sure you are running **Node 20** (`nvm use 20`). Then run:
+The frontend is an Ember app. Install ember-cli (<https://ember-cli.com/user-guide/>) and make sure you are running **Node 22** (`nvm use 22`). Then run:
 
 ```
 cd app/frontend

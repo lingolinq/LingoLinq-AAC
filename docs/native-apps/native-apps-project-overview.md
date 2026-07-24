@@ -62,7 +62,7 @@ Three core strategy decisions (already confirmed):
   add no user value.
 - **Mobile moves from Cordova to Capacitor 7.** Capacitor is the modern, maintained successor
   to Cordova and reuses our existing web build. (Capacitor 7 specifically, because it is
-  compatible with the Node 20 version our app is pinned to.)
+  compatible with the Node 22 version our app is pinned to.)
 - **Desktop stays on Electron.** Capacitor has no desktop path, and Electron is already in our
   codebase. We refresh it for Windows.
 

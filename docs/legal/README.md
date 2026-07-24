@@ -37,7 +37,15 @@ Also acceptable here: executed instruments that have no better home and are smal
 3. **Attestation freezes the artifact.** Once Scot attests a document, its bytes, filename, and
    location are immutable. Supersede it with a new dated file plus two-way `supersedes` /
    `supersededBy` pointers. Do not edit or rename it, and do not move it to tidy up.
-4. **Only Scot attests**, and only Scot moves a row to `approved` or `published`, records or changes
+4. **An attestation pins the bytes it covered.** `attestation.attestedContentHash` records the
+   sha256 of the file as attested; `contentHash` tracks it as it is now. `--check` fails when the
+   two diverge, which is what makes rule 3 enforceable rather than aspirational: before this
+   existed, an attested document could be rewritten with a green build, and twice was. The pin is
+   never backfilled by the render (that would make every attestation self-certifying) and never
+   edited to clear a failure. A mismatch means re-attestation is owed, and only Scot re-attests.
+   Records attested before the check landed are grandfathered on
+   `meta.attestationBackfillExemptions` with the commits that moved them; that list only shrinks.
+5. **Only Scot attests**, and only Scot moves a row to `approved` or `published`, records or changes
    an attestation, flips `legalHold`, or moves a retention rule to `approved`. Note that attestation
    is a separate block on the row, not a value in `statusEnum` (`draft`, `approved`, `published`,
    `superseded`, `archived`): a row can be attested at any of those statuses. Agents propose
