@@ -1,10 +1,11 @@
 # LingoLinq Data Breach Response Runbook
 
-**Version:** v2 (2026-05-19)
+**Version:** v2.1 (2026-07-23)
 **Owner:** Privacy Office (privacy@lingolinq.com)
-**Last reviewed:** 2026-05-19
-**Next review:** 2027-05-19
+**Last reviewed:** 2026-07-23
+**Next review:** 2027-06-28
 **Classification:** Internal, share with counsel on demand
+**Attestation:** Re-attested 2026-07-23 by Scot Wahlquist, CEO. The prior attestation was 2026-06-21.
 
 > If you are reading this during an active incident, jump to §4.0 Detection Sources, then §4.1 Detect and Triage. Page Scot first via the escalation tree in §3.
 
@@ -202,7 +203,10 @@ See section 6.
 
 1. Deploy fixes through the standard staging to production pipeline; emergency hotfixes follow the security-hotfix skill.
 2. Validate that the root cause is resolved in a production replica before cutting over.
-3. Restore any lost data from the most recent clean backup (Render PostgreSQL rolling 35 day).
+3. Restore any lost data from the most recent clean backup in Google Cloud SQL (`lingolinq-prod-pg`,
+   `us-central1`). The live instance has 7 retained automated daily backups and 7 days of point-in-time
+   recovery. Use the Render write-frozen database only as the authorized rollback fallback while it
+   remains available; see `DATA_RETENTION.md` and `SUBPROCESSORS.md` section 5.2.
 4. Confirm tenant isolation is intact: run the data-policy audit job.
 
 ### 4.6 Post-Incident (Week 2 onward)
@@ -502,6 +506,12 @@ These are infrastructure deltas the runbook now drives. They are not runbook def
 4. **Feature flag coverage for `log_sessions` and other high-risk endpoints.** §4.2 step 6 documents the router-guard fallback, but every high-risk endpoint should have a real flag in `lib/feature_flags.rb` to make the emergency kill fast. Owner: Melissa. Target: next compliance sprint.
 
 ## 13. Changelog
+
+- **v2.1 (2026-07-23).** Updated section 4.5 step 3 to name the live Google Cloud SQL instance as the
+  primary recovery source after the Gate 1 cutover. Preserved the Render write-frozen database as the
+  rollback fallback. Verified the live backup configuration: 7 retained daily backups, 08:00 UTC start
+  time, and 7 days of point-in-time recovery. The RPO target is not yet established; this edit does not
+  assert that the current recovery capability meets an RPO target.
 
 - **v2 (2026-05-19).** Added §3.1 within-1-hour escalation tree with pager order, fallbacks, Google Chat page template, and placeholder IC scope limits. Added §4.0 Detection Sources table. Expanded §4.1 step 4 with explicit evidence snapshot list, the `s3://lingolinq-incident-evidence/<INC-ID>/` write-once bucket, and a chain-of-custody requirement (SHA-256 hashes plus custody log). Added §4.1 step 5 for cyber insurance carrier engagement, written as provisional pending an Annex A populated when a policy is bound. Added §4.2 step 6 for emergency feature kill switches referencing `lib/feature_flags.rb`, with a "snapshot before kill" ordering rule. Added §5 explicit definition of "highly sensitive" data with an auto-escalation rule from SEV-1 to SEV-0. Added §6.5 Regulator Submission Procedures with live URLs for HHS, EDPB, ICO, and state AGs (CA, NY with SHIELD Act DFS coverage, IL, TX). Added §6.7 Public Statement Decision Tree with approval chain and a self-filing exclusion. Added §9.4 Hospital / HIPAA Covered Entity Notice template. Expanded §4.6 step 1 to require published postmortem within 14 days, linked from the Compliance & Audits hub Audit History. Added §10.5 Tabletop Exercise Script with default hypothetical scenario and Clocks Sheet pass criterion. Added §12 Validation Log and §13 Changelog sections. Authored against an adversary review of the v2 draft; see §12 row 2 for the full list of post-review hardening.
 - **v1 (2026-04-20).** Initial draft. Sections 1 through 11. Authored against FERPA, HIPAA, GDPR, COPPA framework requirements with state-law table for IL, CA, NY, TX student data laws.

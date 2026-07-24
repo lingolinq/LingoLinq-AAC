@@ -23,7 +23,7 @@
 | AI Data-Sharing Consent: Rationale and Policy | git | `docs/legal/AI_DATA_SHARING_CONSENT.md` | approved | FERPA, COPPA, GDPR | Scot Wahlquist | 2026-07-09 | 2027-07-09 | 2026-07-09 | `c77ebb0dc5c8` |  |
 | Business Continuity and Disaster Recovery Plan | Drive | [open](https://docs.google.com/document/d/1WIr3aBuFjworFtv9EOisOCSdfLvMSMFWQrFMzkhda00/edit) | published | SOC2 | Scot Wahlquist | 2026-06-19 | 2026-12-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
 | Compliance & Data Governance (COMPLIANCE.md) | git | `COMPLIANCE.md` | approved | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-07-23 | 2027-07-10 | 2026-07-23 | `4afee21c69b0` | soc2-evidence |
-| Data Retention Schedule | git | `docs/legal/DATA_RETENTION.md` | approved | FERPA, GDPR, HIPAA, COPPA | Scot Wahlquist | 2026-07-23 | 2027-07-23 | 2026-07-23 | `30bd1f472cf5` | soc2-evidence, school-dpa-package, security-review, dsar |
+| Data Retention Schedule | git | `docs/legal/DATA_RETENTION.md` | approved | FERPA, GDPR, HIPAA, COPPA | Scot Wahlquist | 2026-07-23 | 2027-07-23 | 2026-07-23 | `096688f0345a` | soc2-evidence, school-dpa-package, security-review, dsar |
 | Data Retention Schedule (branded) | Drive | [open](https://docs.google.com/document/d/1GRFuvaacbUbcAixhaOAOsdGKhOfclAByYS53bWap14k/edit) | published | FERPA, GDPR, HIPAA, COPPA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence, school-dpa-package |
 | EU AI Act Article 50 Transparency: Implementation Milestone Plan | git | `docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md` | draft | GDPR | Scot Wahlquist | 2026-07-14 | 2026-08-02 | no | `1a557d9d5b3d` |  |
 | Subprocessor Register | git | `docs/legal/SUBPROCESSORS.md` | approved | GDPR, FERPA, HIPAA | Scot Wahlquist | 2026-07-23 | 2027-07-23 | 2026-07-23 | `fc535a9105ed` | school-dpa-package, soc2-evidence, security-review |
@@ -91,7 +91,7 @@
 |---|---|---|---|---|---|---|---|---|---|---|
 | Compliance Docs Guide (runbook) | git | `docs/legal/COMPLIANCE_DOCS_GUIDE.md` | published |  | Scot Wahlquist | 2026-06-21 | 2027-06-21 | no | `05c98f8f40f8` |  |
 | docs/legal README (folder charter) | git | `docs/legal/README.md` | published |  | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | `e9f92d18c061` |  |
-| Incident Response and Breach Runbook | git | `docs/legal/BREACH_RUNBOOK.md` | approved | HIPAA, GDPR, FERPA | Scot Wahlquist | 2026-05-27 | 2027-05-27 | 2026-06-21 | `3efcaaf4a7c5` | soc2-evidence, school-dpa-package, security-review, baa |
+| Incident Response and Breach Runbook | git | `docs/legal/BREACH_RUNBOOK.md` | approved | HIPAA, GDPR, FERPA | Scot Wahlquist | 2026-07-23 | 2027-06-28 | 2026-07-23 | `6e15aefd70ac` | soc2-evidence, school-dpa-package, security-review, baa |
 | Incident Response and Breach Runbook (branded) | Drive | [open](https://docs.google.com/document/d/1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po/edit) | published | HIPAA, GDPR, FERPA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
 | Notion - Compliance Engineering Onboarding/Handoff | Notion | [open](https://www.notion.so/3845fe8215c28139aa9ec40eda1431c6) | published |  | Scot Wahlquist | 2026-06-19 | 2026-12-19 | no | (supplied) |  |
 
@@ -268,10 +268,10 @@ green build. Verified for git rows only; Drive and Notion hashes are operator-su
 | Compliance Posture Report | 2026-07-23 | `b29b1cd0d5ca` | verified |
 | Compliance Program | 2026-07-22 | `1d1f81b0eeab` | verified |
 | COPPA Final-Rule Verification | 2026-07-23 | `35a6298e2df5` | verified |
-| Data Retention Schedule | 2026-07-23 | `30bd1f472cf5` | verified |
+| Data Retention Schedule | 2026-07-23 | `096688f0345a` | verified |
 | Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record | 2026-07-23 | `3e8f43b12186` | verified |
 | Incident Log | 2026-06-21 | `e4e7c0b98d3f` | verified |
-| Incident Response and Breach Runbook | 2026-06-21 | `3efcaaf4a7c5` | verified |
+| Incident Response and Breach Runbook | 2026-07-23 | `6e15aefd70ac` | verified |
 | LingoLinq Security, Privacy & Compliance Overview | 2026-07-22 | `71577f49b16e` | verified |
 | Parental Consent Email (COPPA / under-13) | 2026-07-23 | `d7c935ce4743` | verified |
 | Subprocessor Register | 2026-07-23 | `fc535a9105ed` | verified |
