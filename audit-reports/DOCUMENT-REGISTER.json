@@ -679,13 +679,13 @@
       "attestation": {
         "attestedBy": "Scot Wahlquist, CEO",
         "attestedDate": "2026-07-23",
-        "attestedContentHash": "30bd1f472cf53b1043cce268e644cdf49426fdf0e02534d8a9526c22877bb399",
+        "attestedContentHash": "0c748cadd7442821d768c475f64e32036dd1a8b3a86a9f3557a0f3a4aba84858",
         "priorAttestations": [
           "2026-06-21"
         ],
-        "note": "Re-attested 2026-07-23 against the current revision after verification against live code and infrastructure state. The prior attestation covered a revision that no longer exists; see the document banner for what changed."
+        "note": "Re-attested 2026-07-23 against the current revision after live Cloud SQL verification. The RPO target is not established, so this attestation does not assert that the current recovery capability meets an RPO target. The prior attestation covered a revision that no longer exists. (Re-pinned after a same-day follow-up removed a stray blank line that had split the retention table; no substantive content change.)"
       },
-      "contentHash": "30bd1f472cf53b1043cce268e644cdf49426fdf0e02534d8a9526c22877bb399",
+      "contentHash": "0c748cadd7442821d768c475f64e32036dd1a8b3a86a9f3557a0f3a4aba84858",
       "bundles": [
         "soc2-evidence",
         "school-dpa-package",
@@ -852,14 +852,18 @@
         "GDPR",
         "FERPA"
       ],
-      "lastReviewed": "2026-05-27",
-      "nextReviewDue": "2027-05-27",
+      "lastReviewed": "2026-07-23",
+      "nextReviewDue": "2027-06-28",
       "attestation": {
-        "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-06-21",
-        "attestedContentHash": "3efcaaf4a7c53016237527a5202a370bf74852f4b3e26e4346db5f418c5e263b"
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-07-23",
+        "attestedContentHash": "f7a73ebacab3d22e58a8e918cf8bccad0dd95b6afdf826a0b21c5eaf6102df8e",
+        "priorAttestations": [
+          "2026-06-21"
+        ],
+        "note": "Re-attested 2026-07-23 against the current revision after live Cloud SQL verification. The prior attestation covered a revision that no longer exists; the runbook now names Cloud SQL as primary recovery and Render only as the rollback fallback in both §4.5 step 3 and the §4.1 step 4 evidence snapshot. Other Render references (application logs, alerts, Render-hosted service surfaces) are intentionally retained, as the Render fallback remains online."
       },
-      "contentHash": "3efcaaf4a7c53016237527a5202a370bf74852f4b3e26e4346db5f418c5e263b",
+      "contentHash": "f7a73ebacab3d22e58a8e918cf8bccad0dd95b6afdf826a0b21c5eaf6102df8e",
       "bundles": [
         "soc2-evidence",
         "school-dpa-package",
