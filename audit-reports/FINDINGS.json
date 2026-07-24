@@ -656,7 +656,7 @@
       },
       "notes": "Split out of LL-6619cc1811 at its 2026-07-22 closure so the Render half is not absorbed into a production-scoped close. LIVE CHECK 2026-07-22 (render MCP list_key_value / list_services): exactly one Key Value instance in the LingoLinq workspace, lingolinq-redis (red-d46rhqer433s738dha9g, starter, oregon, ipAllowList=null); render.yaml wires it by fromService/connectionString to both web (:26-30) and worker (:79-83), and every Render environment in the account draws on that single instance. Connection string is redis:// (plaintext) -- RedisInit.redis_options returns the historical host/port/password hash with no :ssl key for a redis:// URI (config/initializers/resque.rb:16-23), so no TLS is negotiated. Severity medium rather than high because production traffic no longer routes here (DNS cut to GCP 2026-07-22, lingolinq-prod-worker and lingolinq-prod-scheduler suspended, WRITE_FREEZE armed on Render web) and prod carries no real users (project_prod_no_real_users). It is NOT low: lingolinq-prod web (srv-d510bsemcj7s73966i60) is still un-suspended as the rollback fallback, so exercising a rollback returns the production path to plaintext shared Redis until Render is torn down.",
       "disposition": {
-        "state": "proposed",
+        "state": "untriaged",
         "decidedBy": "",
         "decidedDate": "",
         "rationale": "Awaiting Scot's triage: accept as a Render-decommission-gated residual, or re-rank."
