@@ -597,7 +597,7 @@
       "frameworks": [
         "HIPAA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "config/initializers/resque.rb",
@@ -606,23 +606,60 @@
         "sha": "56da75814c2c88216404f08352e4fe9f6bbbaa8a"
       },
       "firstSeen": "2026-04-09",
-      "lastSeen": "2026-06-21",
+      "lastSeen": "2026-07-22",
       "owner": "unassigned",
       "remediation": {
-        "options": "Use TLS (rediss) and per-environment instances. Being overtaken by the GCP Memorystore migration (private VPC egress); reconcile rather than fix twice.",
-        "timeframe": "tracked-with-gcp-migration"
+        "options": "Use TLS (rediss) and per-environment instances. Resolved for the production path by the GCP Memorystore cutover (private VPC, SERVER_AUTHENTICATION transit encryption, AUTH enabled). Non-prod / Render-fallback sharing tracked separately as LL-7314b5a8ea.",
+        "timeframe": "done"
+      },
+      "closureEvidence": {
+        "sha": "3cafc72ccd72a4e645c5506ce719b79443c1144e",
+        "verifierNote": "Verified live 2026-07-22 against the post-cutover production stack (GCP project lingolinq-prod), four independent checks: (1) Memorystore instance lingolinq-prod-redis reports transitEncryptionMode=SERVER_AUTHENTICATION, authEnabled=True, connectMode=PRIVATE_SERVICE_ACCESS, host 10.160.1.3 port 6378 (TLS port) [gcloud redis instances list --region=us-central1]. (2) Secret Manager REDIS_URL resolves to scheme=rediss host=10.160.1.3 port=6378 with AUTH credentials (credentials not recorded). (3) Code path: RedisInit.redis_options sets :ssl=>true and :ssl_params for a rediss:// URI, and redis_ssl_params builds an OpenSSL::X509::Store from REDIS_CA_CERT with VERIFY_PEER on (config/initializers/resque.rb:16-23, :35+); REDIS_CA_CERT is mounted on the lingolinq-web service. verify_hostname is off (REDIS_TLS_VERIFY_HOSTNAME=false) because Memorystore presents an instance-scoped cert while redis-client sets SNI to the private IP; CA-chain verification remains enforced. (4) Live probe: Cloud Run job lingolinq-redischeck execution lingolinq-redischeck-l5skk (2026-07-22) returned REDIS_PING=PONG, REDIS_RW=ok, CA_BLOCKS=1 -- a successful PING over rediss:// proves the TLS handshake completed against the supplied CA, so this is TLS-in-force, not capability-only. Dedicated-instance half: lingolinq-prod-redis is the only Memorystore instance in the project and is reachable only from the prod VPC, so the production path is no longer shared with staging/dev. RESIDUAL (not part of this closure): Render still runs exactly one Key Value instance, lingolinq-redis (red-d46rhqer433s738dha9g), shared by lingolinq-prod, lingolinq-staging, lingolinq-dev and PR previews, over plaintext redis://. lingolinq-prod web on Render is still un-suspended as the cutover rollback fallback. Tracked as LL-7314b5a8ea; a rollback to Render re-exposes the production path until Render is decommissioned.",
+        "attestation": "Scot Wahlquist 2026-07-22: attested verified-closed for the production path; Memorystore cutover verified live (rediss://, SERVER_AUTHENTICATION, AUTH enabled, private VPC, PONG over a CA-verified handshake). Render residual carried as LL-7314b5a8ea."
+      },
+      "notes": "Verified still open 2026-06-12: Redis.new without ssl options (resque.rb:23,26,60,110). NOTE: prod Redis is moving to GCP Memorystore over private VPC (project_render_cloud_migration Phase 3); resolution should land with that cutover. | 2026-06-17 reconcile (staging tip d72463c75, RULE #0 re-verified): #410 shipped the app-side TLS CAPABILITY but NOT live closure. redis_options now enables :ssl + :ssl_params for rediss:// URIs (config/initializers/resque.rb:16-21; redis_ssl_params at :35) and every Redis.new routes through redis_options (resque.rb:79,82,116,166). A plain redis:// URI returns the option hash with no :ssl key, so live Render Redis remains plaintext (resque.rb:12 comment: 'the Render environment is unchanged'). Enabler only; NOT verified-closed. Full closure gated on the GCP Memorystore cutover (Cloud Run migration Phase 3). Disposition (Scot 2026-06-17): keep open / severity high; do not close until the rediss:// cutover lands. | LIVE CHECK 2026-06-21 (render-MCP list_key_value): managed lingolinq-redis (red-d46rhqer433s738dha9g, starter plan, ipAllowList=null) present; instance metadata does not expose the REDIS_URL scheme, so TLS-in-force is unconfirmed. Consistent with enabler-only status; remains open, gated on the Memorystore cutover. | CLOSURE 2026-07-22 (post-cutover): the closure condition recorded in the 2026-06-18 disposition (\"full closure lands at the GCP Memorystore cutover\") is met. GATE 1 DNS cutover executed 2026-07-22; app.lingolinq.com now serves from Cloud Run against Memorystore over rediss://. See closureEvidence for the four live checks. Scoped closure: production path only; the Render shared-plaintext instance that backs the rollback fallback and all non-prod environments is carried forward as LL-7314b5a8ea rather than being silently absorbed into this close.",
+      "disposition": {
+        "state": "fixed",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-06-18",
+        "rationale": "App-side rediss:// TLS capability shipped (#410). Full closure lands at the GCP Memorystore cutover (Cloud Run migration Phase 3); do not fix twice. Status stays open until the cutover."
+      }
+    },
+    {
+      "id": "LL-7314b5a8ea",
+      "ruleKey": "redis-shared-plaintext-render-fallback",
+      "title": "Render Key Value instance is plaintext and shared by prod-fallback, staging, dev, and PR previews",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "render.yaml",
+        "line": 107,
+        "snippet": "  - name: lingolinq-redis",
+        "sha": "3cafc72ccd72a4e645c5506ce719b79443c1144e"
+      },
+      "firstSeen": "2026-07-22",
+      "lastSeen": "2026-07-22",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Retires by decommissioning Render once the cutover rollback window closes (Render teardown is deliberately deferred and needs its own go). If Render is kept beyond that window, split it into per-environment Key Value instances and move to rediss:// -- the app already supports this with no code change (RedisInit.redis_options enables TLS purely from the URI scheme).",
+        "timeframe": "tracked-with-render-decommission"
       },
       "closureEvidence": {
         "sha": "",
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Verified still open 2026-06-12: Redis.new without ssl options (resque.rb:23,26,60,110). NOTE: prod Redis is moving to GCP Memorystore over private VPC (project_render_cloud_migration Phase 3); resolution should land with that cutover. | 2026-06-17 reconcile (staging tip d72463c75, RULE #0 re-verified): #410 shipped the app-side TLS CAPABILITY but NOT live closure. redis_options now enables :ssl + :ssl_params for rediss:// URIs (config/initializers/resque.rb:16-21; redis_ssl_params at :35) and every Redis.new routes through redis_options (resque.rb:79,82,116,166). A plain redis:// URI returns the option hash with no :ssl key, so live Render Redis remains plaintext (resque.rb:12 comment: 'the Render environment is unchanged'). Enabler only; NOT verified-closed. Full closure gated on the GCP Memorystore cutover (Cloud Run migration Phase 3). Disposition (Scot 2026-06-17): keep open / severity high; do not close until the rediss:// cutover lands. | LIVE CHECK 2026-06-21 (render-MCP list_key_value): managed lingolinq-redis (red-d46rhqer433s738dha9g, starter plan, ipAllowList=null) present; instance metadata does not expose the REDIS_URL scheme, so TLS-in-force is unconfirmed. Consistent with enabler-only status; remains open, gated on the Memorystore cutover.",
+      "notes": "Split out of LL-6619cc1811 at its 2026-07-22 closure so the Render half is not absorbed into a production-scoped close. LIVE CHECK 2026-07-22 (render MCP list_key_value / list_services): exactly one Key Value instance in the LingoLinq workspace, lingolinq-redis (red-d46rhqer433s738dha9g, starter, oregon, ipAllowList=null); render.yaml wires it by fromService/connectionString to both web (:26-30) and worker (:79-83), and every Render environment in the account draws on that single instance. Connection string is redis:// (plaintext) -- RedisInit.redis_options returns the historical host/port/password hash with no :ssl key for a redis:// URI (config/initializers/resque.rb:16-23), so no TLS is negotiated. Severity medium rather than high because production traffic no longer routes here (DNS cut to GCP 2026-07-22, lingolinq-prod-worker and lingolinq-prod-scheduler suspended, WRITE_FREEZE armed on Render web) and prod carries no real users (project_prod_no_real_users). It is NOT low: lingolinq-prod web (srv-d510bsemcj7s73966i60) is still un-suspended as the rollback fallback, so exercising a rollback returns the production path to plaintext shared Redis until Render is torn down.",
       "disposition": {
-        "state": "fixed",
-        "decidedBy": "Scot Wahlquist",
-        "decidedDate": "2026-06-18",
-        "rationale": "App-side rediss:// TLS capability shipped (#410). Full closure lands at the GCP Memorystore cutover (Cloud Run migration Phase 3); do not fix twice. Status stays open until the cutover."
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": "Awaiting Scot's triage: accept as a Render-decommission-gated residual, or re-rank."
       }
     },
     {
