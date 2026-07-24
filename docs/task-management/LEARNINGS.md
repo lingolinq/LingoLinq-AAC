@@ -30,6 +30,7 @@ file (see [README.md](README.md)).
 - [Pattern: board-detail `/tree` blocks paint on the full descendant payload](#pattern-board-detail-tree-blocks-paint-on-the-full-descendant-payload)
 - [Pattern: board-preview latency is cold-cache, not the loading gate — warm on intent](#pattern-board-preview-latency-is-cold-cache-not-the-loading-gate--warm-on-intent)
 - [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
+- [Gotcha: sync double `modal.open` — the *second* template wins; do not invent write-loss on the winner](#gotcha-sync-double-modalopen--the-second-template-wins-do-not-invent-write-loss-on-the-winner)
 - [Gotcha: Shepherd modal overlay is VISUAL-ONLY; canClickTarget:false makes the target click "fall through"](#gotcha-shepherd-modal-overlay-is-visual-only-canclicktargetfalse-makes-the-target-click-fall-through)
 - [Pattern: supervisor caseload session prefetch reuses board_detail_cache, not offline sync](#pattern-supervisor-caseload-session-prefetch-reuses-board_detail_cache-not-offline-sync)
 - [Pattern: encrypted buttonset JSON cache must carry parsed payloads](#pattern-encrypted-buttonset-json-cache-must-carry-parsed-payloads)
@@ -6983,6 +6984,10 @@ Org Settings → Home Boards bound `<Textarea @value={{this.home_board_key_lines
 ## Gotcha: Ember `<Input>` checkboxes need `@type`, and bound-select must stopPropagation
 
 `<Input type="checkbox" @checked={{…}}>` renders as a text field (`ember-text-field`, `type="text"`) — the HTML `type` attr is not the component arg. Use `@type="checkbox"` (as organization/settings already does). Separately, `bound-select`'s `ctrlAction` helper used to `preventDefault` then **pop the event** before `send`, so `toggle`/`choose` never received it and never `stopPropagation`'d — clicks bubbled into `modal-dialog` and selects looked dead. Match `modern-select`: keep the event, stopPropagation, and make `.md-org-settings-field > span` `display:block` so the `tagName:span` wrapper doesn't shrink the hit target. See `docs/task-management/2026-07-16-org-home-board-key-lines.md`. (2026-07-16)
+
+## Gotcha: sync double `modal.open` — the *second* template wins; do not invent write-loss on the winner
+
+When `setupController` opens `terms-agree` then falls through to `modal.open('intro')` in the same run loop, Ember’s final `currentTemplate` is `intro`: the *first* modal never mounts; the *second* does, so its `init()` side effects (`show_intro` clear, `intro_watched` save) still run. Claiming “durable write loss” on the winner inverts the victim. Remaining real defect is consent *presentation* (terms skipped that visit; `terms_agree` stays false — no false-positive record). Same fall-through exists in `routes/bento.js`. See `docs/task-management/2026-07-23-terms-agree-intro-finding-correction.md` and register `LL-53cb93fab1`. (2026-07-23)
 
 ## Pattern: EU AI under-16 consent is a third blob, not COPPA signup
 
