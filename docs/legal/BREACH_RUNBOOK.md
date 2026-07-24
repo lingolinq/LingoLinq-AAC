@@ -151,7 +151,7 @@ Anything that does not fit these rows but a reasonable privacy professional woul
    - Render audit log for the rolling 30-day window
    - AWS CloudTrail event history for the affected accounts and regions
    - S3 access logs and S3 server access logging records
-   - PostgreSQL database snapshot via Render's point-in-time recovery (do not use the standard backup channel)
+   - PostgreSQL forensic snapshot of the live production database, Google Cloud SQL `lingolinq-prod-pg` (us-central1): take an on-demand backup or a point-in-time clone into an isolated instance (`gcloud sql instances clone lingolinq-prod-pg <forensic-copy> --point-in-time <timestamp>`), recovering to any moment inside the 7 day transaction-log window; do not restore over production. The superseded Render database holds write-frozen pre-cutover data only and is not the source for live-incident recovery (see §4.5 step 3)
    - Sentry events tagged with the incident window, exported as JSON
    - Code at HEAD: `git rev-parse HEAD` and a tarball of the working tree
    - Worker queue state if Sidekiq or any background processor is implicated
@@ -511,7 +511,11 @@ These are infrastructure deltas the runbook now drives. They are not runbook def
   primary recovery source after the Gate 1 cutover. Preserved the Render write-frozen database as the
   rollback fallback. Verified the live backup configuration: 7 retained daily backups, 08:00 UTC start
   time, and 7 days of point-in-time recovery. The RPO target is not yet established; this edit does not
-  assert that the current recovery capability meets an RPO target.
+  assert that the current recovery capability meets an RPO target. Also corrected the §4.1 step 4
+  evidence-snapshot bullet, which still pointed the PostgreSQL forensic snapshot at Render's PITR, to
+  the live Cloud SQL instance. The other Render references in this runbook (application logs, the §4.0
+  alert row, and Render-hosted service surfaces) are deliberately left in place: the Render fallback
+  remains online, so those surfaces stay valid; only the production database recovery source moved.
 
 - **v2 (2026-05-19).** Added §3.1 within-1-hour escalation tree with pager order, fallbacks, Google Chat page template, and placeholder IC scope limits. Added §4.0 Detection Sources table. Expanded §4.1 step 4 with explicit evidence snapshot list, the `s3://lingolinq-incident-evidence/<INC-ID>/` write-once bucket, and a chain-of-custody requirement (SHA-256 hashes plus custody log). Added §4.1 step 5 for cyber insurance carrier engagement, written as provisional pending an Annex A populated when a policy is bound. Added §4.2 step 6 for emergency feature kill switches referencing `lib/feature_flags.rb`, with a "snapshot before kill" ordering rule. Added §5 explicit definition of "highly sensitive" data with an auto-escalation rule from SEV-1 to SEV-0. Added §6.5 Regulator Submission Procedures with live URLs for HHS, EDPB, ICO, and state AGs (CA, NY with SHIELD Act DFS coverage, IL, TX). Added §6.7 Public Statement Decision Tree with approval chain and a self-filing exclusion. Added §9.4 Hospital / HIPAA Covered Entity Notice template. Expanded §4.6 step 1 to require published postmortem within 14 days, linked from the Compliance & Audits hub Audit History. Added §10.5 Tabletop Exercise Script with default hypothetical scenario and Clocks Sheet pass criterion. Added §12 Validation Log and §13 Changelog sections. Authored against an adversary review of the v2 draft; see §12 row 2 for the full list of post-review hardening.
 - **v1 (2026-04-20).** Initial draft. Sections 1 through 11. Authored against FERPA, HIPAA, GDPR, COPPA framework requirements with state-law table for IL, CA, NY, TX student data laws.
