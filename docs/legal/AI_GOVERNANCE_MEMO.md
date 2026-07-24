@@ -407,3 +407,25 @@ retention-class marker; HIPAA 6-year floor open). No new external data egress or
 introduced. This is a **substantive** change to the attested Article 50 position; per section 6 (AI
 drafts and flags, humans attest and accept risk), Scot reviewed and re-attested it on 2026-07-22.
 Nothing in this refresh goes live in production until Phases 3-5 deploy and the flag is enabled._
+
+## Runtime routing update - 2026-07-24 (re-attestation owed)
+
+_Runtime AI egress moved from the direct `api.anthropic.com` endpoint to **Claude on AWS Bedrock**
+(`lib/ai_client.rb`, the Bedrock Mantle Messages API). This is a routing change, not a change of
+model provider or model: the same Anthropic models (Claude Haiku 4.5, Claude Opus 4.7) are used._
+
+- **Governing BAA for runtime egress is now the AWS account BAA** (`docs/legal/AWS_BAA_ACCEPTED.md`),
+  because Amazon Bedrock is a HIPAA-eligible AWS service (excluding Fable/Mythos) and inference stays
+  inside AWS's HIPAA boundary. The executed Anthropic HIPAA-Ready BAA (2026-07-18,
+  `docs/legal/ANTHROPIC_BAA_ACCEPTED.md`) remains on file as a still-available direct path but is no
+  longer the active runtime route.
+- The **runtime inventory table above is superseded for routing/credential detail**: runtime seams no
+  longer require `ANTHROPIC_API_KEY` and no longer construct a direct Anthropic client (enforced by
+  `scripts/ai-endpoint-guard.sh` in CI); model ids egress in Bedrock form
+  (`anthropic.claude-haiku-4-5`, `anthropic.claude-opus-4-7`). The scrub / allowlist / COPPA / opt-out
+  / AiApiLog controls in that table are unchanged.
+- Operative condition: Bedrock calls must run under the BAA'd AWS account (2390-4478-5114).
+
+_Per section 6, this AI-drafted routing note is subject to Scot's review and re-attestation; the edit
+changes the attested bytes, so `document-register-render.rb --check` reports re-attestation owed for
+this row until re-attested._
