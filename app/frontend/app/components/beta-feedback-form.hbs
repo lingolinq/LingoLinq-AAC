@@ -91,7 +91,7 @@
   </div>
   <div class="la-contact-form__row {{if this.errors.details "la-contact-form__row--error"}}">
     <label for="beta_general" class="la-contact-form__label">{{t "What happened, or what would you like us to know?" key="beta_feedback_main_prompt_label"}}</label>
-    <textarea class={{if this.errors.details "la-contact-input la-contact-input--textarea la-contact-input--invalid" "la-contact-input la-contact-input--textarea"}} id="beta_general" placeholder={{t "Tell us what you tried, what felt confusing, or what worked well." key="beta_feedback_main_prompt_placeholder"}} rows={{5}} maxlength="20000" aria-invalid={{if this.errors.details "true" "false"}} {{on "input" this.onClearFieldErrorDetails}}>{{this.general_feedback}}</textarea>
+    <textarea class={{if this.errors.details "la-contact-input la-contact-input--textarea la-contact-input--invalid" "la-contact-input la-contact-input--textarea"}} id="beta_general" placeholder={{t "Tell us what you tried, what felt confusing, or what worked well." key="beta_feedback_main_prompt_placeholder"}} rows={{5}} maxlength="20000" aria-invalid={{if this.errors.details "true" "false"}} {{on "input" (set-field this "general_feedback")}} {{on "input" this.onClearFieldErrorDetails}}>{{this.general_feedback}}</textarea>
     {{#if this.errors.details}}
       <p class="la-contact-form__field-error" id="beta_details_error">{{t "Please add at least a few words about what happened." key="beta_feedback_validation_details_simple"}}</p>
     {{/if}}

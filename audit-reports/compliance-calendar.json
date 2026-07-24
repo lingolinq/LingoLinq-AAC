@@ -175,9 +175,9 @@
       "status": "upcoming",
       "title": "EU AI Act Article 50 transparency obligations apply",
       "obligation": "Disclose AI interaction to users; label synthetic/AI-generated content; deepfake identification. Applies to ANY in-scope AI system, not only high-risk. For an AAC predictor, the relevant question is whether output meets the synthetic-content marking trigger.",
-      "action": "Article 50 transparency plan (applicability analysis for the AAC predictor + user-facing AI-interaction disclosure) is DRAFTED and adversary-reviewed; implementation is gated on the Render-to-GCP VPC cutover (migration thread). Before 2026-08-02: finalize the applicability memo in the AI Governance Memo and ship the disclosure once the cutover lands.",
+      "action": "Applicability memo finalized (AI_GOVERNANCE_MEMO section 5). 50(2) marking on prod (PR #584). 50(1) disclosure now BUILT and STAGED, gated OFF: modal + ack endpoint + first-AI-use gate (PR #646, Phase 3) and jurisdiction stamping (PR #635, Phase 4) are on staging; the article_50_disclosure flag is registered AVAILABLE-only (Phase 5, RLL-01), so nothing is shown to any user yet. Remaining before 2026-08-02: (1) production deploy of Phases 3-5; (2) on Scot's sign-off, enable the flag for EU accounts; (3) clear the pre-enable accessibility blocker (finding disclosure-full-notice-link-low-contrast-token, WCAG 1.4.3). Not live in production until the deploy + enable happen.",
       "source": "https://artificialintelligenceact.eu/article/50/",
-      "verifiedOn": "2026-06-23"
+      "verifiedOn": "2026-07-22"
     },
     {
       "id": "fix-euaiact-art50-2-2026-12-02",

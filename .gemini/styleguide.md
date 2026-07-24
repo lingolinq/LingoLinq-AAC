@@ -4,7 +4,7 @@
 
 LingoLinq is an AI-first AAC (Augmentative and Alternative Communication) SaaS
 platform used by US school districts, hospitals, and European clients. It is a
-Rails 7.2 backend with an Ember 3.28 frontend, deployed on Render.
+Rails 7.2 backend with an Ember 5.12 frontend, deployed on Render.
 
 ## Compliance (flag violations immediately)
 
@@ -35,7 +35,7 @@ Rails 7.2 backend with an Ember 3.28 frontend, deployed on Render.
 
 ## Frontend (Ember)
 
-- The entire project uses Node 20. Do not suggest or reference Node 18
+- The entire project uses Node 22. Do not suggest or reference Node 18 or 20
 - Prefer tracked properties and computed macros over observers
 - Flag any use of jQuery or direct DOM manipulation
 - Flag Ember deprecation warnings (sendAction, Ember.run, etc.)
@@ -65,4 +65,4 @@ Rails 7.2 backend with an Ember 3.28 frontend, deployed on Render.
 - Do not suggest adding TypeScript. This is a JavaScript project
 - Do not suggest switching from Ember to React or other frameworks
 - Do not flag the use of Ember classic components (migration is in progress)
-- Do not suggest downgrading Node. Node 20 is the project standard
+- Do not suggest downgrading Node. Node 22 is the project standard

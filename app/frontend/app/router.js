@@ -1,4 +1,3 @@
-import { on } from '@ember/object/evented';
 import EmberRouter from '@ember/routing/router';
 import { isTesting } from '@ember/debug';
 import config from './config/environment';
@@ -30,17 +29,6 @@ const Router = EmberRouter.extend({
       this.location = 'none';
     }
   }
-});
-
-Router.reopen({
-  notifyGoogleAnalytics: on('didTransition', function() {
-    if(window.ga) {
-      return window.ga('send', 'pageview', {
-        'page': this.get('url'),
-        'title': this.get('url')
-      });
-    }
-  })
 });
 
 Router.map(function() {

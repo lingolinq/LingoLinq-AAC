@@ -59,7 +59,7 @@ If you don't see a notification after running sync with `--apply` but expected o
 - **1Password CLI** (`op`): https://1password.com/downloads/command-line. Sign in with your existing 1Password account.
 - **Render sync token**: a 1Password service-account token that lets `sync-render-env.js` read 1Password and push to Render. Ask Scot or Dominic for the value (they'll share via 1Password). Add to your local `.env` as `OP_RENDER_SYNC_TOKEN=...`.
 - **Render API key**: the same value stored in 1Password Admin (Render API key item). Add to your local `.env` as `RENDER_API_KEY=...`.
-- **Node 20**: matches Rails app's Ember setup. `nvm use 20`.
+- **Node 22**: matches Rails app's Ember setup. `nvm use 22`.
 
 ## Personal vs shared keys
 

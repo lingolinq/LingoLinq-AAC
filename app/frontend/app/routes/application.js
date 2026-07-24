@@ -167,6 +167,15 @@ export default Route.extend({
     didTransition: function() {
       this.appState.finish_global_transition();
       this.telemetry.trackRoute(this.router.currentRouteName);
+      // Google Analytics pageview. Moved here from the Router-class
+      // `on('didTransition')` handler in router.js, which stopped firing after
+      // the Ember 5.12 upgrade (LL-ae11e67651). This route-action didTransition
+      // is the live per-transition hook (it already drives trackRoute + scroll),
+      // and currentURL is the canonical post-transition URL.
+      if(window.ga) {
+        var ga_url = this.router.currentURL;
+        window.ga('send', 'pageview', { 'page': ga_url, 'title': ga_url });
+      }
       if (!this.appState.get('skip_scroll_to_top')) {
         window.scrollTo(0, 0);
         var content = document.getElementById('content');

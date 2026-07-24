@@ -97,7 +97,7 @@
           {{t "Upload Recording(s)" key="upload_recordings"}}
         {{/if}}
       </button>
-      <input type="file" name="recording_upload" id="recording_upload" tabindex="-1">
+      <input type="file" name="recording_upload" id="recording_upload" tabindex="-1" aria-label={{t "Upload Recording(s)" key="upload_recordings"}}>
     </span>
     {{#if this.recordings.length}}
       <button class='btn btn-default' {{on "click" (this.ctrlAction "download_recordings")}}>{{t "Download All Recordings" key="download_all_recordings"}}</button>

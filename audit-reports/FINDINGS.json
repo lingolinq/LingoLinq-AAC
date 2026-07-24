@@ -3859,7 +3859,7 @@
         "sha": "c595f6304a545a6a10de80924edd99951eb41aa5"
       },
       "firstSeen": "2026-07-09",
-      "lastSeen": "2026-07-09",
+      "lastSeen": "2026-07-23",
       "owner": "Scot Wahlquist",
       "remediation": {
         "options": "Three TTS code paths post the text being spoken to an external provider with no PiiScrubber pass: lib/tts.rb#generate_irish (line 29-30) POSTs {text: text} to https://abair.ie/aac_irish (Trinity College Dublin / ADAPT academic endpoint), lib/tts.rb#generate_google (line 56-60) POSTs {input:{text:text}} to Google Cloud Text-to-Speech, and app/controllers/api/search_controller.rb:394-397 POSTs {input:{text:params['text']}} to the same Google endpoint. Board auto-sound generation routes through Tts.generate_audio. The spoken text is AAC utterance content that can contain a user's typed identifiers. Subprocessor gap: docs/legal/SUBPROCESSORS.md lists Google (Gemini API, #5) and Google Workspace (#12) but NO Google Text-to-Speech data flow, and does NOT list Abair/Trinity College Dublin at all, an undisclosed subprocessor with no DPA on file. Options: (1) add a Google TTS row and an Abair row to SUBPROCESSORS.md with the transfer basis (Google Cloud DPA covers the Google entity; Abair needs its own DPA/SCCs or a documented no-PII basis); (2) execute a DPA with the Abair operator or disable Irish TTS until one exists; (3) assess whether TTS text for COPPA-consent-pending children needs a consent gate or scrub before egress. The program overview's PII-scrubber sentence was scoped away from TTS in the same review (COMPLIANCE_PROGRAM_OVERVIEW.md, branch scot/compliance/right-sized-program-overview), which is disclosure, not remediation of the underlying subprocessor gap.",
@@ -3882,7 +3882,7 @@
         "reviewer": "claude-compliance-review",
         "promotedDate": "2026-07-09"
       },
-      "notes": "Surfaced 2026-07-09 during the PR #561 program-overview review (Codex senior-dev re-review pass), code-verified by direct trace at staging tip c595f6304. Not wording-only: TTS is a real external egress path for user utterance text that bypasses the LLM PII scrubber and reaches providers not fully captured in the subprocessor register (Abair undisclosed and DPA-less; Google TTS flow unrowed). Disposition left untriaged for Scot. Filed on branch scot/compliance/tts-undisclosed-subprocessor."
+      "notes": "Surfaced 2026-07-09 during the PR #561 program-overview review (Codex senior-dev re-review pass), code-verified by direct trace at staging tip c595f6304. Not wording-only: TTS is a real external egress path for user utterance text that bypasses the LLM PII scrubber and reaches providers not fully captured in the subprocessor register (Abair undisclosed and DPA-less; Google TTS flow unrowed). Disposition left untriaged for Scot. Filed on branch scot/compliance/tts-undisclosed-subprocessor. | REMEDIATION IN PROGRESS 2026-07-21: the register-documentation half is drafted in docs/legal/SUBPROCESSORS.md (rows #15 Cloud Translation, #16 Cloud TTS, #17 Abair, plus data-flow note §5.8), DRAFT pending Scot sign-off. This does NOT fully remediate the finding: the egress-control half (translate/speech-specific identifier allowlist vs consent gate vs accepted raw-egress posture) remains an open CEO decision, so status stays open. | SCOPE WIDENED 2026-07-22: a full egress-surface trace found a 5th, higher-sensitivity sink now filed as LL-1eb9a2435b (Google Cloud Speech-to-Text, app/models/button_sound.rb -- automatic upload of a raw user VOICE RECORDING, which cannot be scrubbed). Triage this cluster (LL-c38e7da48e, LL-a167848115, LL-1eb9a2435b) together. SUBPROCESSORS.md §5.8 was also corrected: for the Google flows the primary control is BAA covered-service confirmation, not a text scrubber. | COVERED-SERVICE CONFIRMED 2026-07-22: Google's canonical HIPAA covered-products list (cloud.google.com/security/compliance/hipaa, independently verified, corroborated by a Codex review of the executed BAA) lists Cloud Translation, Speech-to-Text, and Text-to-Speech as covered products. Under the executed Google Cloud BAA (§5.7) raw covered-service processing is contractually permitted for PHI. Google's BAA EXCLUDES Pre-GA offerings from PHI. CONCRETE RESIDUAL FOR THIS FINDING: all six Cloud Text-to-Speech call sites use the Pre-GA v1beta1 endpoint (lib/tts.rb:57/83/90, app/controllers/api/search_controller.rb:367/370/394), which the BAA excludes for PHI. Remediation = drop-in repoint to the GA v1 endpoint (texttospeech.googleapis.com/v1/text:synthesize and /v1/voices), verified shape-compatible for the input/voice/audioConfig fields and voices.list?languageCode used. Separately, Abair (abair.ie) still has NO DPA and the consumer translate_tts fallback (search_controller.rb:408) has no basis and is dead in prod -- both are removals independent of the Google covered-service question. Status stays open for Scot. | TTS PRE-GA RESIDUAL REMEDIATED 2026-07-23 (PR #667, merged to staging): all six Cloud TTS call sites repointed from the Pre-GA v1beta1 endpoint to GA v1 (lib/tts.rb, app/controllers/api/search_controller.rb), and the unauthenticated consumer translate.google.com/translate_tts fallback was removed (audio endpoint now returns 400 'no tts provider configured' when no contracted provider is set). Google TTS therefore now rides a GA covered-service endpoint within the Google Cloud BAA. New regression guard: spec/lib/tts_spec.rb + updated search_controller audio specs. REMAINING OPEN SCOPE for this finding: Abair (abair.ie, #17) still has NO DPA and needs a DPA/SCCs or an Irish-TTS disable (product tradeoff, CEO call). Status stays OPEN for Scot to triage the Abair decision + the cross-cluster consent/flag posture."
     },
     {
       "id": "LL-3a1c317a88",
@@ -4000,6 +4000,219 @@
         "promotedDate": "2026-07-20"
       },
       "notes": "Promoted 2026-07-20 from the GCP cutover Gate 1 rehearsal. Scoped deliberately NARROW so it does not duplicate LL-42a24ee911 (verified-closed), which covered whether a diagnostic SES send ARRIVED. Arrival is settled; this finding covers only the two residuals that arrival did not prove -- Authentication-Results header capture and SPF/MAIL FROM alignment. An earlier draft finding LL-2c47df5d21 was removed from PR #624 during review as a duplicate of LL-42a24ee911; that removal was correct on its wording, but it left these two residuals with no tracker, which scripts/gcp/PHASE5-CUTOVER-RUNBOOK.md still referred to as 'promotion pending in PR #624'. This finding is that tracker. Manual promotion (low severity is below promote-finding.rb's Critical/High threshold, so hand-added as status open / disposition untriaged). Only Scot triages/closes."
+    },
+    {
+      "id": "LL-a9d6d5a46b",
+      "ruleKey": "disclosure-full-notice-link-low-contrast-token",
+      "title": "AI disclosure full-notice link uses the low-contrast verdigris token for text on the near-white modal surface",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/styles/app.scss",
+        "line": 38150,
+        "snippet": "color: var(--md-teal);",
+        "sha": "3cafc72ccd72a4e645c5506ce719b79443c1144e"
+      },
+      "firstSeen": "2026-07-22",
+      "lastSeen": "2026-07-22",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "The .la-terms-agree-link rule (the class on the Article 50(1) disclosure modal's full-notice link, app/frontend/app/components/ai-disclosure.hbs:48) colors normal-size link text with var(--md-teal) = brand-verdigris (~3.32:1 on white per the codebase's own WCAG note at app.scss:533). The modal surface is a near-white gradient. Recolor this link text to the AA-safe brand-verdigris-aa token (>4.5:1 on white) or point a text-role variable at the AA token; do not inline a hex. The class is shared with terms-agree, so the fix benefits both. Pre-enable blocker for the 2026-08-02 Article 50 flag enable; frontend/styling owner (Traci) domain.",
+        "timeframe": "30 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": null,
+        "reviewer": "accessibility-auditor",
+        "promotedDate": "2026-07-22"
+      },
+      "notes": "Promoted from accessibility-auditor review on 2026-07-22. WCAG 1.4.3 (EN 301 549 clause 9.1.4). Surfaced by the accessibility-auditor on 2026-07-22 during Art50 Phase 5 review of the blocking AI-disclosure modal. The modal's structural a11y contract (name/role/description, keyboard, focus trap, focus restore, no auto-speak) is otherwise sound. Icon use of --md-teal is non-text/aria-hidden and out of scope."
+    },
+    {
+      "id": "LL-c38e7da48e",
+      "ruleKey": "translation-api-undisclosed-subprocessor",
+      "title": "Board/word translation posts raw, unscrubbed user-authored button labels to Google Cloud Translation API v2, a data flow absent from the subprocessor register (GDPR Art. 28/44)",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "FERPA",
+        "COPPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/word_data.rb",
+        "line": 670,
+        "snippet": "      url = \"https://translation.googleapis.com/language/translate/v2?key=#{key}&target=#{dest_lang}&source=#{source_lang}&format=text\"",
+        "sha": "0848ce7e873c92a848300c257d37342615079519"
+      },
+      "firstSeen": "2026-07-21",
+      "lastSeen": "2026-07-22",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "WordData.query_translations (app/models/word_data.rb:645-684) GETs user-authored strings to https://translation.googleapis.com/language/translate/v2 with no PiiScrubber pass, gated only on ENV['GOOGLE_TRANSLATE_TOKEN']. Reached from Board#translate_set (app/models/board.rb:2566), Api::BoardsController#translate (app/controllers/api/boards_controller.rb:937) and Api::UsersController#translate (app/controllers/api/users_controller.rb:1001), plus the Spanish library-board build (lib/spanish_library_boards.rb:89). The payload is board BUTTON LABELS, which on a personalized board routinely carry a child's name, a family member, a teacher, or a school. Translations are then persisted server-side (WordData.persist_translation). Subprocessor gap: docs/legal/SUBPROCESSORS.md rows Google LLC only twice, for the Gemini API (#5, runtime path disabled 2026-07-09) and Google Workspace (#12, corporate productivity, 'reaches student data: No'). There is no row for Google Cloud Translation, so the register currently implies no Google flow touches student content when one does. Options: (1) add a Google Cloud Translation row to SUBPROCESSORS.md with the transfer basis (the Google Cloud DPA already covers the Google entity; the FLOW is what is unrowed) and record it in the section 8 change log; (2) apply PiiScrubber.redact_for_ai, or a narrower direct-identifier pass, before egress, noting that scrubbing a button label also degrades the translation, so a translate-only allowlist may fit better than the AI scrubber; (3) decide whether translation belongs behind the org-level disable_ai_features opt-out or a separate flag, given it is machine translation and NOT an AI-generation feature (it is deliberately out of scope for the second-tier AI consent in lib/lingo_linq/ai_consent_disclosures.rb, which is correct and should stay that way); (4) confirm the live provisioning state, see notes.",
+        "timeframe": "medium 30-60d (subprocessor-register gap; prod carries only test accounts per PR #483)"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": null,
+        "reviewer": "eval-anthropic-scoping-review",
+        "promotedDate": "2026-07-21"
+      },
+      "notes": "Surfaced 2026-07-21 while scoping which features actually reach Anthropic (the answer: only ai_board_generator, ai_word_predictor, eval_narrator). The translation path turned up as a Google flow that no compliance artifact currently describes. Code-verified by direct trace at staging tip 0848ce7e8. DELIBERATELY SCOPED NARROW so it does not duplicate LL-a167848115 (open, medium), which covers the TEXT-TO-SPEECH egress paths (lib/tts.rb Abair + Google TTS, and api/search_controller.rb TTS). That finding does not mention app/models/word_data.rb or the Translation API, and its remediation text is TTS-specific; this finding covers only the translation flow. The two are the same CLASS of gap (unrowed subprocessor receiving unscrubbed user text) and should probably be triaged together, but closing one does not close the other. LIVENESS CONFIRMED 2026-07-21: GOOGLE_TRANSLATE_TOKEN is present with a stored (masked) value in the deployed environment's variables (operator-confirmed via the Render/GCP env panel), so the flow is NOT dormant -- query_translations does not short-circuit at line 646 and unscrubbed button labels do reach Google Cloud Translation. Two limits on this confirmation: the panel masks the value, so non-empty is inferred from the row's presence rather than read directly; and the environment shown was not explicitly labeled prod vs staging (both are test-accounts-only pre-MVP per PR #483, so either way this is a live DATA FLOW, not yet a confirmed real-student EXPOSURE). This supersedes the earlier 'liveness not verified' note. The finding stays medium: the flow is live but the subprocessor-register gap is the defect, and no real student content transits prod today. Provisioning refs unchanged: sync-render-env.js:106, phase4-seed-app-secrets.sh:80. Related but separate: app/controllers/api/search_controller.rb:408 hits the unscraped consumer translate.google.com/translate_tts endpoint, which belongs to LL-a167848115's TTS scope, not this one. Manual promotion (medium severity is below promote-finding.rb's Critical/High threshold, so hand-added as status open / disposition untriaged). Only Scot triages/closes. | REMEDIATION IN PROGRESS 2026-07-21: the register-documentation half is drafted in docs/legal/SUBPROCESSORS.md (rows #15 Cloud Translation, #16 Cloud TTS, #17 Abair, plus data-flow note §5.8), DRAFT pending Scot sign-off. This does NOT fully remediate the finding: the egress-control half (translate/speech-specific identifier allowlist vs consent gate vs accepted raw-egress posture) remains an open CEO decision, so status stays open. | SCOPE WIDENED 2026-07-22: a full egress-surface trace found a 5th, higher-sensitivity sink now filed as LL-1eb9a2435b (Google Cloud Speech-to-Text, app/models/button_sound.rb -- automatic upload of a raw user VOICE RECORDING, which cannot be scrubbed). Triage this cluster (LL-c38e7da48e, LL-a167848115, LL-1eb9a2435b) together. SUBPROCESSORS.md §5.8 was also corrected: for the Google flows the primary control is BAA covered-service confirmation, not a text scrubber. | COVERED-SERVICE CONFIRMED 2026-07-22: Google's canonical HIPAA covered-products list (cloud.google.com/security/compliance/hipaa, independently verified, corroborated by a Codex review of the executed BAA) lists Cloud Translation, Speech-to-Text, and Text-to-Speech as covered products. Under the executed Google Cloud BAA (§5.7) raw covered-service processing is contractually permitted for PHI. Google's BAA EXCLUDES Pre-GA offerings from PHI. This flow calls Translation API v2 (translation.googleapis.com/language/translate/v2), which is GA -- no Pre-GA caveat. Residual for this finding is now disclosure-only (drafted) + the COPPA-consent/flag posture; status stays open for Scot to triage/close."
+    },
+    {
+      "id": "LL-1eb9a2435b",
+      "ruleKey": "speech-to-text-raw-audio-undisclosed-subprocessor",
+      "title": "ButtonSound auto-uploads raw user VOICE-RECORDING audio to Google Cloud Speech-to-Text (speech:recognize) on every save, a data flow absent from the subprocessor register; audio cannot be PII-scrubbed (GDPR Art. 9/28/44, FERPA, COPPA)",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "FERPA",
+        "COPPA",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/button_sound.rb",
+        "line": 64,
+        "snippet": "        url = \"https://speech.googleapis.com/v1/speech:recognize?key=#{key}\"",
+        "sha": "6a6a53bfcef671e724ea10dcce7843e2ab84f6bf"
+      },
+      "firstSeen": "2026-07-22",
+      "lastSeen": "2026-07-22",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "ButtonSound#schedule_transcription (app/models/button_sound.rb:43-89) POSTs a base64-encoded copy of the user's recorded WAV button-sound to https://speech.googleapis.com/v1/speech:recognize, keyed by ENV['GOOGLE_TRANSLATE_TOKEN']. It is fired AUTOMATICALLY by the after_save :schedule_transcription hook (line 14) whenever a ButtonSound has a secondary_url and no transcription yet (schedule_once(:schedule_transcription, true), lines 86/89) -- no user action or consent step. The payload is a whole VOICE RECORDING (a communicator's or caregiver's actual voice), which is biometric-adjacent and may be GDPR Art. 9 special-category data, and cannot be run through lib/pii_scrubber.rb (the scrubber redacts text, not audio). Subprocessor gap: docs/legal/SUBPROCESSORS.md had no Google Cloud Speech-to-Text row before 2026-07-22. Options: (1) add the subprocessor row (done in DRAFT, #18) and record it in the change log; (2) confirm Speech-to-Text is a COVERED SERVICE under the existing Google Cloud BAA (§5.7) -- this is the primary control, since scrubbing is impossible for audio and the BAA is what makes raw covered-service processing permissible; (3) gate transcription behind a feature flag / disable_ai_features org opt-out, or behind COPPA consent, or disable it entirely until covered-service status is confirmed; (4) note it shares the GOOGLE_TRANSLATE_TOKEN with the translation flow (LL-c38e7da48e), so token liveness is already confirmed.",
+        "timeframe": "medium 30-60d (subprocessor-register gap + covered-service confirmation; prod carries only test accounts per PR #483)"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": null,
+        "reviewer": "egress-surface-trace",
+        "promotedDate": "2026-07-22"
+      },
+      "notes": "Surfaced 2026-07-22 during a full egress-surface trace while designing the localization/speech egress control requested off LL-c38e7da48e. This is the SAME CLASS of gap as LL-c38e7da48e (Cloud Translation, text) and LL-a167848115 (TTS, text) -- an unrowed Google subprocessor receiving raw user content -- but is a DISTINCT sink (app/models/button_sound.rb, Speech-to-Text API) and the HIGHEST-SENSITIVITY of the set: the payload is a raw voice-recording audio blob, not text, so (a) it cannot be scrubbed at all and (b) it is uploaded automatically by an after_save hook with no user/consent step. Code-verified by direct trace at HEAD 6a6a53bfc. This finding materially widens the original 'undisclosed Google Translate subprocessor' scope; register-documentation half drafted in docs/legal/SUBPROCESSORS.md (#18 + §5.8 rewrite), DRAFT pending Scot sign-off. Does NOT fully remediate: the covered-service confirmation under the Google BAA and the consent/flag/disable posture remain open CEO decisions. Manual promotion (medium is below promote-finding.rb's Critical/High threshold). Only Scot triages/closes. | COVERED-SERVICE CONFIRMED 2026-07-22: Google's canonical HIPAA covered-products list (cloud.google.com/security/compliance/hipaa, independently verified, corroborated by a Codex review of the executed BAA) lists Cloud Translation, Speech-to-Text, and Text-to-Speech as covered products. Under the executed Google Cloud BAA (§5.7) raw covered-service processing is contractually permitted for PHI. Google's BAA EXCLUDES Pre-GA offerings from PHI. This flow calls Speech-to-Text v1 (speech.googleapis.com/v1/speech:recognize), which is GA -- no Pre-GA caveat. Residual is disclosure-only (drafted) + the COPPA-consent/flag posture for an automatic voice-audio upload; status stays open for Scot."
+    },
+    {
+      "id": "LL-104bfa61dc",
+      "ruleKey": "terms-agree-modal-not-scannable",
+      "title": "Terms-agree modal is unreachable by switch scanning (no .modal_targets / .btn, opened without scannable)",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/components/terms-agree.hbs",
+        "line": 27,
+        "sha": "2a10027a1fb4eddd503230ff9174be258a165dc7",
+        "snippet": "<button type=\"button\" class=\"la-btn la-btn--primary\" {{on \"click\" (this.ctrlAction \"confirm\")}}>{{t \"Agree and Continue\" key=\"accept_and_continue\"}}</button>"
+      },
+      "firstSeen": "2026-07-20",
+      "lastSeen": "2026-07-20",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Two changes, both required. (1) In terms-agree.hbs, wrap the action buttons in a .modal_targets container and give each control the .btn class so the scanner selector at app/frontend/app/utils/modal.js:255 (\".modal-dialog .modal_targets .btn, .modal-dialog .modal_targets a, ...\") can find them. The existing la-btn / la-btn--primary / la-btn--ghost classes match none of those selectors. (2) Pass scannable: true at all four call sites: app/frontend/app/routes/index.js:123, index.js:132, app/frontend/app/routes/bento.js:51, bento.js:55 -- every one currently calls modal.open('terms-agree') with no options object, so scanning is never enabled for this modal even if the markup is fixed. Verify with a switch-scanning walkthrough, not markup inspection alone.",
+        "timeframe": "30 days"
+      },
+      "notes": "Discovered 2026-07-20 during VPC Phase 3 (EU AI Act Art.50 disclosure modal) planning, while cloning terms-agree as the acknowledge-gate exemplar. Independently confirmed against source by two agents plus the coordinator. PRE-EXISTING defect, not introduced by Phase 3; deliberately scoped OUT of Phase 3 so the Art.50 modal does not inherit the same gap (Phase 3's ai-disclosure component specifies .modal_targets + .btn + scannable: true as mechanically-checkable MUSTs). Impact is population-specific and severe: a switch-scanning AAC user -- a core LingoLinq user population -- cannot operate the Terms modal at all, and the modal is uncloseable, so the app is not merely degraded but unusable for them at that point. Rated high on that basis despite being a markup-level fix. WCAG 2.1 AA 2.1.1 Keyboard / 2.4.3 Focus Order operability."
+    },
+    {
+      "id": "LL-53cb93fab1",
+      "ruleKey": "terms-agree-modal-replaced-before-consent",
+      "title": "Terms-agree modal can be silently replaced by intro before the user agrees",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/routes/index.js",
+        "line": 132,
+        "sha": "2a10027a1fb4eddd503230ff9174be258a165dc7",
+        "snippet": "modal.open('terms-agree');"
+      },
+      "firstSeen": "2026-07-20",
+      "lastSeen": "2026-07-23",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "In routes/index.js#setupController (and the parallel routes/bento.js path), the terms_agree-missing branch has no return, so execution falls through to modal.open('intro') when show_intro is set. On the synchronous fresh-model path that replaces terms-agree before it mounts (final currentTemplate is intro; utils/modal.js:138 and services/modal.js:92 resolve the first open with {replaced: true}). Fix by making the terms_agree gate authoritative: return after opening terms-agree, or defer intro until the terms-agree promise resolves with a genuine (non-replaced) result. Add a regression test covering really_fresh + show_intro true.",
+        "timeframe": "30 days"
+      },
+      "notes": "Discovered 2026-07-20 during VPC Phase 3 planning. Corrected 2026-07-23 after Codex review of PR #642: removed an inverted second-impact claim. CONSENT PRESENTATION (confirmed): when show_intro is true (set via routes/intro.js) and the fresh-model path opens terms-agree then intro in one run loop, Ember renders only the final currentTemplate (intro), so terms-agree never mounts and the user does not see or confirm Terms that visit; terms_agree stays false (no false-positive consent record). On the reload path, intro opens first — its init() clears show_intro and saves intro_watched — and the async reload may later open terms-agree. The previously claimed DURABLE WRITE LOSS / recurring intro (intro init skipped) does not occur: intro is the winner of the sync bump, not the victim. High rating remains for the consent-presentation gap on the sync path. PRE-EXISTING; scoped OUT of VPC Phase 3, which instead guards its own Art.50 chain against the bump by checking result.replaced rather than repairing this."
+    },
+    {
+      "id": "LL-58130aaefe",
+      "ruleKey": "modal-dialog-missing-aria-labelledby",
+      "title": "Shared modal-dialog shell declares role=dialog aria-modal without aria-labelledby or aria-describedby",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/components/modal-dialog.hbs",
+        "line": 6,
+        "sha": "2a10027a1fb4eddd503230ff9174be258a165dc7",
+        "snippet": "<div class=\"modal fade in\" style=\"display: block;\" data-uncloseable={{this.uncloseable}} role=\"dialog\" aria-modal=\"true\">"
+      },
+      "firstSeen": "2026-07-20",
+      "lastSeen": "2026-07-20",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add optional labelledBy / describedBy arguments to the modal-dialog component and bind them as aria-labelledby / aria-describedby on the dialog element. Ember omits a bound attribute whose value is undefined, so defaulting both to undefined is a verified no-op for the roughly 140 existing callers that do not pass them -- the change is additive and carries no regression risk to current modals. Then retrofit callers in priority order (terms-agree and any consent- or compliance-bearing modal first) so each dialog has a programmatically determined accessible name. WCAG 2.1 AA 4.1.2 Name, Role, Value.",
+        "timeframe": "90 days"
+      },
+      "notes": "Discovered 2026-07-20 during VPC Phase 3 planning. PRE-EXISTING and system-wide (~140 callers). VPC Phase 3 adds the optional labelledBy/describedBy arguments to the shell as part of building its own ai-disclosure accessibility contract, but deliberately does NOT retrofit existing callers -- that retrofit is this finding and remains separate prioritized work. Rated medium rather than high because affected modals are still operable; the defect is that a screen-reader user gets no accessible name for the dialog, not that the dialog is unusable."
     }
   ]
 }
