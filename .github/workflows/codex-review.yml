@@ -128,6 +128,7 @@ jobs:
             .github/codex \
             scripts/codex-review-assemble-prompt.py \
             scripts/codex-review-chunk-diff.py \
+            scripts/codex-review-one-chunk.sh \
             scripts/codex-review-assemble-manifest.py \
             scripts/codex-review-build-envelope.py \
             scripts/codex-review-claude-deep.sh \
@@ -218,79 +219,45 @@ jobs:
           mkdir -p "$CODEX_HOME"
           printf '%s' "$OPENAI_API_KEY" | codex login --with-api-key
 
-      - name: Review chunks (codex exec, converge across runs per chunk)
+      # Both reviewer routes review each chunk on its own pass via the SAME
+      # per-chunk script (codex-review-one-chunk.sh), run in a BOUNDED-PARALLEL
+      # pool so a large PR's chunks are reviewed in a few concurrent waves
+      # instead of one long serial run that could brush the 30-min
+      # codex-watchdog limit. Each chunk is independent (unique prompt/review
+      # filenames keyed by index, no shared mutable state), so parallelism is
+      # safe; the pool size is capped (CODEX_REVIEW_CONCURRENCY, default 4)
+      # because several concurrent `codex exec` sandboxes share one small
+      # runner. `find -print0 | xargs -0` runs nothing on an empty diff (0
+      # chunks) and never word-splits paths; xargs returns non-zero if ANY
+      # chunk's review crashes, failing the step -> fail-closed. A legitimate
+      # REQUEST_CHANGES review exits 0 (it just writes JSON) and is decided by
+      # the cross-chunk fold, not by this step's exit code.
+      - name: Review chunks (codex exec, converge per chunk, bounded-parallel)
         id: review_codex
         if: steps.classify.outputs.reviewer_route == 'codex'
         env:
+          REVIEWER_ROUTE: ${{ steps.classify.outputs.reviewer_route }}
           CODEX_HOME: ${{ runner.temp }}/codex-home
           LIVE_STATE: ${{ steps.live_state.outputs.live_state }}
           LOOP_N: ${{ inputs.loop_n }}
+          CONCURRENCY: ${{ vars.CODEX_REVIEW_CONCURRENCY || '4' }}
         run: |
-          run_codex() {
-            # $1 = prompt file, $2 = output path for this run's review JSON
-            codex exec \
-              --sandbox read-only \
-              -m gpt-5.5 \
-              --output-schema .github/codex/review-schema.json \
-              --output-last-message "$2" \
-              < "$1"
-            # Fallback per build spec section 6: one retry with a stricter
-            # instruction if the model still emitted invalid JSON despite
-            # --output-schema.
-            if ! python3 -c "import json, sys; json.load(open(sys.argv[1]))" "$2" 2>/dev/null; then
-              echo "Run produced invalid JSON; retrying with stricter instruction." >&2
-              { cat "$1"; echo ""; echo "Output ONLY the JSON object. No prose, no markdown fences."; } \
-                | codex exec --sandbox read-only -m gpt-5.5 \
-                    --output-schema .github/codex/review-schema.json \
-                    --output-last-message "$2"
-            fi
-          }
-          # Each chunk is reviewed on its own pass. Within a chunk, apply the
-          # convergence policy ("confirm both directions"): the model is
-          # non-deterministic, so a lone run is not a repeatable gate. Run twice
-          # and require agreement; on disagreement run a third tiebreaker
-          # (majority decides). build-envelope.py --need-third makes the
-          # agreement decision against THIS chunk's diff (it also applies the
-          # injection guard, so two APPROVEs over an injection-bearing chunk both
-          # become blocks and agree, converging straight to fail-closed without a
-          # wasted third run). Across chunks, build-envelope folds fail-closed.
-          # nullglob: an empty diff (0 chunks) skips the loop cleanly instead of
-          # crashing under `set -e`; build-envelope then folds 0 chunks to
-          # fail-closed. The glob already yields chunk-01, chunk-02, ... in order.
-          shopt -s nullglob
-          for chunk in /tmp/pr_chunks/chunk-*.txt; do
-            idx="$(basename "$chunk" .txt | sed 's/^chunk-//')"
-            PR_DIFF="$(cat "$chunk")" python3 scripts/codex-review-assemble-prompt.py "/tmp/prompt-${idx}.md"
-            run_codex "/tmp/prompt-${idx}.md" "/tmp/reviews/chunk-${idx}-run-1.json"
-            run_codex "/tmp/prompt-${idx}.md" "/tmp/reviews/chunk-${idx}-run-2.json"
-            NEED_THIRD="$(python3 scripts/codex-review-build-envelope.py --need-third --diff "$chunk" \
-              "/tmp/reviews/chunk-${idx}-run-1.json" "/tmp/reviews/chunk-${idx}-run-2.json")"
-            echo "chunk ${idx}: third tiebreaker needed? ${NEED_THIRD}"
-            if [ "$NEED_THIRD" = "yes" ]; then
-              run_codex "/tmp/prompt-${idx}.md" "/tmp/reviews/chunk-${idx}-run-3.json"
-            fi
-          done
+          find /tmp/pr_chunks -maxdepth 1 -name 'chunk-*.txt' -print0 \
+            | xargs -0 -P "$CONCURRENCY" -I{} bash scripts/codex-review-one-chunk.sh {}
 
-      - name: Review chunks (Claude Sonnet 4.6 API, Tier 2 claude-deep route)
+      - name: Review chunks (Claude Sonnet 4.6 API, Tier 2 claude-deep, bounded-parallel)
         id: review_claude_deep
         if: steps.classify.outputs.reviewer_route == 'claude-deep'
         env:
+          REVIEWER_ROUTE: ${{ steps.classify.outputs.reviewer_route }}
           ANTHROPIC_API_KEY: ${{ secrets.CLAUDE_REVIEW_API_KEY }}
           LIVE_STATE: ${{ steps.live_state.outputs.live_state }}
           LOOP_N: ${{ inputs.loop_n }}
+          CONCURRENCY: ${{ vars.CODEX_REVIEW_CONCURRENCY || '4' }}
         run: |
           echo "::add-mask::$ANTHROPIC_API_KEY"
-          # Single run per chunk: the claude-deep route is the compliance-path
-          # fallback and is not convergence-looped. build-envelope treats one
-          # review file per chunk as a no-op convergence (its outcome passes
-          # through), applies the injection guard per chunk, and folds across
-          # chunks fail-closed.
-          shopt -s nullglob
-          for chunk in /tmp/pr_chunks/chunk-*.txt; do
-            idx="$(basename "$chunk" .txt | sed 's/^chunk-//')"
-            PR_DIFF="$(cat "$chunk")" python3 scripts/codex-review-assemble-prompt.py "/tmp/prompt-${idx}.md"
-            scripts/codex-review-claude-deep.sh "/tmp/prompt-${idx}.md" .github/codex/review-schema.json "/tmp/reviews/chunk-${idx}-run-1.json"
-          done
+          find /tmp/pr_chunks -maxdepth 1 -name 'chunk-*.txt' -print0 \
+            | xargs -0 -P "$CONCURRENCY" -I{} bash scripts/codex-review-one-chunk.sh {}
 
       - name: Reviewer blocked (Tier 1 data-bearing path)
         id: review_blocked
