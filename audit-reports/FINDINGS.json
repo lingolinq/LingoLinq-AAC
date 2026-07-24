@@ -4097,6 +4097,85 @@
         "promotedDate": "2026-07-22"
       },
       "notes": "Surfaced 2026-07-22 during a full egress-surface trace while designing the localization/speech egress control requested off LL-c38e7da48e. This is the SAME CLASS of gap as LL-c38e7da48e (Cloud Translation, text) and LL-a167848115 (TTS, text) -- an unrowed Google subprocessor receiving raw user content -- but is a DISTINCT sink (app/models/button_sound.rb, Speech-to-Text API) and the HIGHEST-SENSITIVITY of the set: the payload is a raw voice-recording audio blob, not text, so (a) it cannot be scrubbed at all and (b) it is uploaded automatically by an after_save hook with no user/consent step. Code-verified by direct trace at HEAD 6a6a53bfc. This finding materially widens the original 'undisclosed Google Translate subprocessor' scope; register-documentation half drafted in docs/legal/SUBPROCESSORS.md (#18 + §5.8 rewrite), DRAFT pending Scot sign-off. Does NOT fully remediate: the covered-service confirmation under the Google BAA and the consent/flag/disable posture remain open CEO decisions. Manual promotion (medium is below promote-finding.rb's Critical/High threshold). Only Scot triages/closes. | COVERED-SERVICE CONFIRMED 2026-07-22: Google's canonical HIPAA covered-products list (cloud.google.com/security/compliance/hipaa, independently verified, corroborated by a Codex review of the executed BAA) lists Cloud Translation, Speech-to-Text, and Text-to-Speech as covered products. Under the executed Google Cloud BAA (§5.7) raw covered-service processing is contractually permitted for PHI. Google's BAA EXCLUDES Pre-GA offerings from PHI. This flow calls Speech-to-Text v1 (speech.googleapis.com/v1/speech:recognize), which is GA -- no Pre-GA caveat. Residual is disclosure-only (drafted) + the COPPA-consent/flag posture for an automatic voice-audio upload; status stays open for Scot. | CEO TRIAGE 2026-07-23: disposition ACCEPTED / status accepted-risk. Disclosure remediated (#648 draft, #18) + covered-service confirmed (GA v1 speech:recognize). The automatic voice-audio upload without a consent step is accepted for the pre-MVP test-only window (BAA covers it; audio cannot be scrubbed), to revisit before real tenant onboarding. Decided by Scot 2026-07-23."
+    },
+    {
+      "id": "LL-104bfa61dc",
+      "ruleKey": "terms-agree-modal-not-scannable",
+      "title": "Terms-agree modal is unreachable by switch scanning (no .modal_targets / .btn, opened without scannable)",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/components/terms-agree.hbs",
+        "line": 27,
+        "sha": "2a10027a1fb4eddd503230ff9174be258a165dc7",
+        "snippet": "<button type=\"button\" class=\"la-btn la-btn--primary\" {{on \"click\" (this.ctrlAction \"confirm\")}}>{{t \"Agree and Continue\" key=\"accept_and_continue\"}}</button>"
+      },
+      "firstSeen": "2026-07-20",
+      "lastSeen": "2026-07-20",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Two changes, both required. (1) In terms-agree.hbs, wrap the action buttons in a .modal_targets container and give each control the .btn class so the scanner selector at app/frontend/app/utils/modal.js:255 (\".modal-dialog .modal_targets .btn, .modal-dialog .modal_targets a, ...\") can find them. The existing la-btn / la-btn--primary / la-btn--ghost classes match none of those selectors. (2) Pass scannable: true at all four call sites: app/frontend/app/routes/index.js:123, index.js:132, app/frontend/app/routes/bento.js:51, bento.js:55 -- every one currently calls modal.open('terms-agree') with no options object, so scanning is never enabled for this modal even if the markup is fixed. Verify with a switch-scanning walkthrough, not markup inspection alone.",
+        "timeframe": "30 days"
+      },
+      "notes": "Discovered 2026-07-20 during VPC Phase 3 (EU AI Act Art.50 disclosure modal) planning, while cloning terms-agree as the acknowledge-gate exemplar. Independently confirmed against source by two agents plus the coordinator. PRE-EXISTING defect, not introduced by Phase 3; deliberately scoped OUT of Phase 3 so the Art.50 modal does not inherit the same gap (Phase 3's ai-disclosure component specifies .modal_targets + .btn + scannable: true as mechanically-checkable MUSTs). Impact is population-specific and severe: a switch-scanning AAC user -- a core LingoLinq user population -- cannot operate the Terms modal at all, and the modal is uncloseable, so the app is not merely degraded but unusable for them at that point. Rated high on that basis despite being a markup-level fix. WCAG 2.1 AA 2.1.1 Keyboard / 2.4.3 Focus Order operability."
+    },
+    {
+      "id": "LL-53cb93fab1",
+      "ruleKey": "terms-agree-modal-replaced-before-consent",
+      "title": "Terms-agree modal can be silently replaced by intro before the user agrees",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/routes/index.js",
+        "line": 132,
+        "sha": "2a10027a1fb4eddd503230ff9174be258a165dc7",
+        "snippet": "modal.open('terms-agree');"
+      },
+      "firstSeen": "2026-07-20",
+      "lastSeen": "2026-07-23",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "In routes/index.js#setupController (and the parallel routes/bento.js path), the terms_agree-missing branch has no return, so execution falls through to modal.open('intro') when show_intro is set. On the synchronous fresh-model path that replaces terms-agree before it mounts (final currentTemplate is intro; utils/modal.js:138 and services/modal.js:92 resolve the first open with {replaced: true}). Fix by making the terms_agree gate authoritative: return after opening terms-agree, or defer intro until the terms-agree promise resolves with a genuine (non-replaced) result. Add a regression test covering really_fresh + show_intro true.",
+        "timeframe": "30 days"
+      },
+      "notes": "Discovered 2026-07-20 during VPC Phase 3 planning. Corrected 2026-07-23 after Codex review of PR #642: removed an inverted second-impact claim. CONSENT PRESENTATION (confirmed): when show_intro is true (set via routes/intro.js) and the fresh-model path opens terms-agree then intro in one run loop, Ember renders only the final currentTemplate (intro), so terms-agree never mounts and the user does not see or confirm Terms that visit; terms_agree stays false (no false-positive consent record). On the reload path, intro opens first — its init() clears show_intro and saves intro_watched — and the async reload may later open terms-agree. The previously claimed DURABLE WRITE LOSS / recurring intro (intro init skipped) does not occur: intro is the winner of the sync bump, not the victim. High rating remains for the consent-presentation gap on the sync path. PRE-EXISTING; scoped OUT of VPC Phase 3, which instead guards its own Art.50 chain against the bump by checking result.replaced rather than repairing this."
+    },
+    {
+      "id": "LL-58130aaefe",
+      "ruleKey": "modal-dialog-missing-aria-labelledby",
+      "title": "Shared modal-dialog shell declares role=dialog aria-modal without aria-labelledby or aria-describedby",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/components/modal-dialog.hbs",
+        "line": 6,
+        "sha": "2a10027a1fb4eddd503230ff9174be258a165dc7",
+        "snippet": "<div class=\"modal fade in\" style=\"display: block;\" data-uncloseable={{this.uncloseable}} role=\"dialog\" aria-modal=\"true\">"
+      },
+      "firstSeen": "2026-07-20",
+      "lastSeen": "2026-07-20",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add optional labelledBy / describedBy arguments to the modal-dialog component and bind them as aria-labelledby / aria-describedby on the dialog element. Ember omits a bound attribute whose value is undefined, so defaulting both to undefined is a verified no-op for the roughly 140 existing callers that do not pass them -- the change is additive and carries no regression risk to current modals. Then retrofit callers in priority order (terms-agree and any consent- or compliance-bearing modal first) so each dialog has a programmatically determined accessible name. WCAG 2.1 AA 4.1.2 Name, Role, Value.",
+        "timeframe": "90 days"
+      },
+      "notes": "Discovered 2026-07-20 during VPC Phase 3 planning. PRE-EXISTING and system-wide (~140 callers). VPC Phase 3 adds the optional labelledBy/describedBy arguments to the shell as part of building its own ai-disclosure accessibility contract, but deliberately does NOT retrofit existing callers -- that retrofit is this finding and remains separate prioritized work. Rated medium rather than high because affected modals are still operable; the defect is that a screen-reader user gets no accessible name for the dialog, not that the dialog is unusable."
     }
   ]
 }
