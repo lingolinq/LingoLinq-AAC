@@ -7231,3 +7231,13 @@ can otherwise time out, which is still fail-closed but defeats the point of revi
 Files: `scripts/codex-review-chunk-diff.py`, `codex-review-one-chunk.sh` (per-chunk worker, both
 routes), `codex-review-assemble-manifest.py`, `codex-review-build-envelope.py` (`fold_across_chunks`
 + `--manifest`), `.github/workflows/codex-review.yml`.
+
+## Pattern: Compliance Kernel is feature-gated and additive — never replace eu_consent_age in the same PR
+
+The Section 1 kernel (`lib/compliance/`, flag `compliance_workflow_kernel`) computes segment,
+jurisdiction, per-member digital consent age, and HCD framework merge into a `Compliance::Profile`.
+It must ship AVAILABLE-only (OFF by default). When OFF: no `settings['compliance']` stamp, no
+`compliance` key on user JSON, no `compliance_kernel` in domain_settings. Leave
+`eu_consent_age` / `JsonApi::Json.coppa_consent_age` and existing COPPA signup paths untouched
+so consumers migrate deliberately. Jurisdiction priority for this phase: declaration > org >
+user country > locale (IP geolocation deferred). Quebec is `CA-QC` → age 14 (Law 25).
