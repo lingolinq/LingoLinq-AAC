@@ -1054,7 +1054,29 @@ export default Component.extend({
     updateModelPartOfSpeech(value) { this.set('model.part_of_speech', value); },
     updateImageLibrary(value) { this.set('image_library', value); },
     updateSkinPreference(value) { this.set('skin_preference', value); },
-    updateModelButtonAction(value) { this.set('model.buttonAction', value); },
+    updateModelButtonAction(value) {
+      // The button's action is DERIVED from its fields (utils/button.js
+      // `updateAction`, which prioritizes load_board), and board-detail's
+      // `select_button` navigates ANY button that still has a load_board. So
+      // switching the action TYPE must clear the OTHER action fields — otherwise a
+      // stale field wins. Reported bug: a folder button changed to "Open a web site
+      // in a browser tab" kept its load_board, so tapping it navigated to the old
+      // board (404 → "player never initialized") instead of opening the URL. Clear
+      // every action field except the chosen one, mirroring change_linked_board:
+      // update the model AND the board's button data (editManager), then re-assert
+      // buttonAction LAST because clearing a field re-fires updateAction (which
+      // would otherwise reset buttonAction to the newly-derived value).
+      var _this = this;
+      var id = this.get('model.id');
+      var clears = {};
+      if(value !== 'folder')      { clears.load_board = null; }
+      if(value !== 'link')        { clears.url = null; }
+      if(value !== 'app')         { clears.apps = null; }
+      if(value !== 'integration') { clears.integration = null; }
+      Object.keys(clears).forEach(function(k) { _this.set('model.' + k, clears[k]); });
+      if(id && Object.keys(clears).length) { editManager.change_button(id, clears); }
+      this.set('model.buttonAction', value);
+    },
     updateBoardSearchType(value) { this.set('board_search_type', value); },
     updatePendingBoardForUserId(value) {
       var p = this.get('pending_board');

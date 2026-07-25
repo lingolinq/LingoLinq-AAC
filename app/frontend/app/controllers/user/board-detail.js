@@ -20,6 +20,7 @@ import speecher from '../../utils/speecher';
 import utterance from '../../utils/utterance';
 import editManager from '../../utils/edit_manager';
 import contentGrabbers from '../../utils/content_grabbers';
+import capabilities from '../../utils/capabilities';
 import boundClasses from '../../utils/bound_classes';
 import actionLock from '../../utils/action-lock';
 import aiPredictor from '../../utils/ai_word_predictor';
@@ -5409,6 +5410,13 @@ export default Controller.extend(prefClasses, {
     },
 
     toggle_dark_mode: function() {
+      // De-dupe the AAC pointer layer's synthetic click re-fire (same pattern as
+      // `library_options`): without this, a single tap on the collapsed-rail
+      // theme pill fires twice and the flip cancels itself (ON then OFF), so the
+      // toggle looked dead. Ignore a repeat call within 250ms.
+      var now = Date.now();
+      if(this._lastDarkToggle && (now - this._lastDarkToggle) < 250) { return; }
+      this._lastDarkToggle = now;
       this.set('show_options_menu', false);
       this.toggleProperty('dark_mode');
       this._persist_board_dark_mode(this.get('dark_mode'));
@@ -6272,6 +6280,17 @@ export default Controller.extend(prefClasses, {
           }, {timeout: 5000});
           return;
         }
+      }
+
+      // URL action ("Open a web site in a browser tab"): board-detail renders
+      // buttons as <button> (not the classic <a target="_blank" href>), so the
+      // anchor-open path in raw_events never fires here. Open the link explicitly.
+      // (Guarded by !load_board, though the folder branch above already returned
+      // for load_board buttons — belt-and-suspenders in case both are somehow set.)
+      var link_url = _get(button, 'url');
+      if(link_url && !_get(button, 'load_board')) {
+        capabilities.window_open(link_url, '_blank');
+        return;
       }
 
       // Route the activation through the application controller, which

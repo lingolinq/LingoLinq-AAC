@@ -7208,3 +7208,79 @@ a surface with NO synthetic transparency you introduced — never the same canva
   bogus-external-url server rejection doesn't muddy the passthrough proof.
 - size_image early-returns UNoptimized when BOTH dims <300px (`default_size`). Acceptable: sub-300
   images are already tiny and JPEG artifacts on small symbols look worse than the KB saved.
+
+## Board-detail sentence bar / grid: one authoritative scaling variable, hardcoded px is the bug
+The board-detail redesign scales the sentence-bar controls with a set of size-class CSS variables
+(`--nb-sb-btnh`, `--nb-sb-btnw`, `--nb-sb-sbtn`, …) defined per `.md-board-detail-sentence-bar--<size>`
+AND redefined smaller inside `@media (max-height:500px),(max-width:600px)`. Any control that hardcodes
+a px size instead of reading these vars silently stops scaling. The mic `__btn--speak` did exactly
+this (`width/height/min-width:55px`) and froze while the sibling tool buttons shrank on small screens.
+Fix pattern: a circular control's diameter should equal the tool-button height, so use
+`var(--nb-sb-btnh, 55px)` (the 55px fallback = the medium base, so desktop is unchanged). When a
+"button isn't scaling" report comes in, grep the element's rule for literal px and compare against
+the sibling that DOES scale — the sibling shows which `--nb-sb-*` var to adopt.
+
+## `!important` + non-important media overrides = the media rules are DEAD (verify, don't assume)
+`.md-board-detail-grid` had `gap: var(--bd-button-gap,8px) !important` while the responsive
+`@media{.md-board-detail-grid{gap:2px}}` rules were NON-important — so the base `!important` wins at
+every breakpoint and the media gaps never apply. Before "fixing responsive gap at small screens",
+check importance: a base `!important` can make a whole ladder of media rules inert, so the real fix
+is the base rule (one edit), not the media blocks. Confirmed by measuring getComputedStyle at each
+width.
+
+## Board-detail grid gap: the prediction rail reads rowGap and needs it parseFloat-readable
+`_sync_prediction_tile_size` (controllers/user/board-detail.js:387) does
+`parseFloat(getComputedStyle(grid).rowGap)` (and columnGap) to align prediction tiles to board rows,
+publishing them as `--prediction-tile-gap` / `--prediction-rail-gap-left`. So any change to the grid
+gap MUST leave row-gap resolving to a plain px — the code explicitly warns that `min()`/percentage
+gaps serialize to something parseFloat can't read (a real 2026-07 regression). Note for future gap
+work: `calc(var(--bd-button-gap,8px)*0.5)` DOES resolve to a plain px in computed style (verified
+in-browser: pref 8px→rowGap "4px", 16px→"8px"), so a proportional row-gap would be rail-safe IF such
+a change is ever wanted. (A 2026-07-25 request to reduce the board-detail vertical gap this way was
+started then withdrawn by Traci — no gap change shipped; this entry is kept only for the rail
+contract + calc-serialization facts.)
+
+## Inline sidebar (Keyboard/Crisis) in speak mode is `md-board-detail-inline-sidebar__name`
+The speak-mode board shortcuts on board-detail are the INLINE sidebar
+(`.md-board-detail-inline-sidebar__item/__name/__img` inside `.md-board-detail-grid-sidebar-wrap`),
+NOT the classic `#sidebar` (which is `display:none !important` on the board-detail layout — app.scss
+72241 / 78778) and NOT the edit-nav `md-board-detail-sidebar__item` (horizontal, emoji icons,
+Communicate/Clinical/Settings). Its label font ladder had unreadably small ≤768/≤400h tiers (8px/7px)
+— below the AAC label floor. When a board-detail speak-mode "sidebar" styling report comes in, it's
+the inline-sidebar classes.
+
+## Board-detail board grid height is a load-bearing magic-number calc; don't flex-fill it
+The speak-mode board grid uses `height: calc(100dvh - 120px)` (top-aligned in its flex wrap), NOT
+flexbox fill. This is DELIBERATE and load-bearing: a CSS-grid container with
+`grid-template-rows: repeat(N, minmax(0,1fr))` collapses to min-content when it has no definite
+height, so align-self:stretch / height:100% / flex:1 all either collapse the board to ~118px or
+introduce scroll (verified across attempts). computeHeight() is a no-op — the layout is pure CSS.
+The 120 offset = the chrome above the grid (sentence bar ~90 + ~30 padding), tuned for the MEDIUM
+bar. On ≤500px-tall screens the sentence bar shrinks ~27px (the --nb-sb var block) but 120 didn't
+follow → a dead gap below the last row. Fix by matching the offset to the shrunk chrome in the SAME
+height breakpoint (`@media (max-height:500px)` → `calc(100dvh - 93px)`), scoped to max-HEIGHT only
+(narrow-width has taller chrome and would scroll). To compact short screens (tight gap + top),
+override `gap`/`padding-top` in a `@media (max-height:Npx)` block — rows are 1fr so a smaller gap
+just makes buttons taller; the grid still fills. Keep gap a plain px (the prediction rail parseFloats
+getComputedStyle(grid).rowGap).
+
+## Render board-detail headless: seed the session before boot
+The board-detail route needs an authenticated user session, not just an API token. To get the real
+board rendering in Puppeteer: `page.evaluateOnNewDocument(() => localStorage.setItem(
+'lingolinqStash-auth_settings', JSON.stringify({access_token: TOK, user_name: 'tracitest'})))` BEFORE
+`page.goto(...)`, then also set window.capabilities.access_token + a no-op sync_access_token after
+load. Navigate to `/<user>/board-detail/<boardname>` (speak) — the grid renders once the model loads
+(poll for `.md-board-detail-grid__cell`). This unlocks real computed-style measurement for any
+board-detail layout work.
+
+## Board-detail default-folder mode reserves ~10px top padding on EVERY cell (the "folder setting")
+Asymmetric row spacing on the board grid (bigger vertical gap than horizontal) is usually the folder
+reserve, NOT the grid gap. The `folder-tab-geometry($visible,$offset)` mixin (app.scss ~80053) drives
+default folder mode and sets `padding-top` on BOTH `.md-board-detail-grid__cell--folder` AND
+`.md-board-detail-grid__cell:not(--folder)` (so folder + non-folder card tops align) — default is
+`(6px,2px)` → ~10px per cell. That reserve stacks ON TOP of the grid gap, so card-to-card row gap =
+gap + 10px while the sides = gap. To make gaps symmetric (e.g. on short screens): scope to the
+default-folder selector `.md-board-detail-grid:not(--folder-tab-labels):not(--folder-colored-corner)`
+and zero `.md-board-detail-grid__cell` padding-top + `.md-folder-back` top/bottom. The visible tab
+tucks behind the card; folders stay identified by the bottom-right corner glyph. Verify with the
+CARD (not cell) rects: cardRowGap between row N and N+1 should equal the grid gap.

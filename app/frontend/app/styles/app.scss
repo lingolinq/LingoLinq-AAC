@@ -13042,6 +13042,12 @@ video.button_image {
   margin: 0;
   justify-content: flex-start;
 }
+/* Search section — groups the "Search" header + the search options (skin / safe
+   search filters) + the results into one block, set off from the "Hide label"
+   row and webcam above it. The inner results surface keeps its own card. */
+.md-bs-picture__search-section {
+  margin-top: 20px;
+}
 /* "Hide the label when the picture is shown" — moved under the Find a Picture card. */
 .md-bs-picture__hide-label {
   display: flex;
@@ -70047,15 +70053,37 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   border-radius: 999px;
   font-weight: 600;
   box-shadow: 0 1px 4px rgba($la-navy, 0.06);
-  width: 55px;
-  height: 55px;
-  min-width: 55px;
+  /* Circular mic — diameter tracks --nb-sb-btnh so it scales with the size
+     class AND the responsive @media var block, exactly like the tool buttons'
+     height (which also read --nb-sb-btnh). Hardcoded 55px froze it while the
+     tools shrank on small screens / grew on large. 55px is the medium base. */
+  width: var(--nb-sb-btnh, 55px);
+  height: var(--nb-sb-btnh, 55px);
+  min-width: var(--nb-sb-btnh, 55px);
   padding: 0;
   justify-content: center;
 }
 .md-board-detail-sentence-bar__btn--speak:hover {
   background: rgba(255, 255, 255, 1);
   box-shadow: 0 2px 8px rgba($la-navy, 0.10);
+}
+/* Keep the mic glyph DARK in light mode. The svg strokes with `currentColor` off
+   the button's `color: $la-navy`; force the stroke explicitly (scoped to light —
+   dark mode keeps its own light glyph via the .md-board-detail--dark rule) so no
+   inherited/overriding `color` can wash the icon out on the light button. */
+.md-shell--board-detail:not(.md-board-detail--dark) .md-board-detail-sentence-bar__btn--speak svg {
+  stroke: $la-navy;
+}
+/* The mic svg is the lone flex child of the circular __btn--speak. On very short
+   screens (≤400px tall, where the icon var drops to 11px) it was collapsing to
+   0px WIDE while keeping its height (a 0×11 box) — the classic main-axis flex
+   shrink: the svg's automatic min-width let flexbox squeeze it to nothing. Pin it
+   with `flex: none` (never grow/shrink) + an explicit min-width equal to its
+   intended size so the glyph always renders at full width. Applies at all sizes
+   (harmless where it already fit); the icon dimension still tracks --nb-sb-sbtn. */
+.md-board-detail-sentence-row .md-board-detail-sentence-bar__btn--speak svg {
+  flex: none;
+  min-width: var(--nb-sb-sbtn, 18px);
 }
 
 /* Board header */
@@ -73190,14 +73218,18 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   }
   .md-board-detail-inline-sidebar__item {
     padding: 5px 3px;
-    font-size: 8px;
+    font-size: 11px;
   }
   .md-board-detail-inline-sidebar__img {
     width: 28px;
     height: 28px;
   }
+  /* Was 8px — far below the AAC label-readability floor and a
+     disproportionate drop from the ≤1024 tier (12px) for only a 80→70px
+     width change. 11px stays legible; over-long labels ellipsis-truncate
+     as they already do at ≤1024. */
   .md-board-detail-inline-sidebar__name {
-    font-size: 8px;
+    font-size: 11px;
   }
 }
 /* At <=500px viewport height (short / landscape), shrink the sidebar's board
@@ -73205,7 +73237,13 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    it stays proportional on the shrunk short-screen layout. The sidebar width is
    fixed (base rule) — only the content shrinks. Pin control left alone (own
    sizing). */
-@media (max-height: 500px) {
+/* NOTE: `and (max-width: 1024px)` — the sidebar only NARROWS on narrow viewports
+   (112px >1024, 80px ≤1024, 70px ≤768); its width does NOT change with height. So
+   this height-based content-shrink must ONLY fire when the sidebar is actually
+   narrow. Without the width guard, a WIDE + short screen (e.g. 1227×389) kept the
+   112px sidebar but shrank the label/icon to 10px/26px — tiny content in a big
+   card. The guard keeps the full-size (15px) label on the wide sidebar. */
+@media (max-height: 500px) and (max-width: 1024px) {
   .md-board-detail-inline-sidebar__scroll {
     /* Top/bottom padding halved (8/10 -> 4/5); 4px back on the sides. */
     padding: 4px 4px 5px;
@@ -73223,31 +73261,37 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   }
   .md-board-detail-inline-sidebar__item {
     padding: 5px 3px;
-    font-size: 9px;
+    font-size: 11px;
   }
   .md-board-detail-inline-sidebar__img {
     width: 32px;
     height: 32px;
   }
+  /* Was 9px — bumped to 11px for AAC label readability on short screens
+     (the 80px sidebar has room; matches the ≤768 name size). */
   .md-board-detail-inline-sidebar__name {
-    font-size: 9px;
+    font-size: 11px;
   }
 }
 /* <=400px height: shrink the sidebar content another 20% from the <=500h sizes
    (img/name/item) so it stays proportional on the even-shorter row. The sidebar
    width is fixed (base rule) and the pin is left alone. After the <=500h block so
-   it overrides (both match at <=400px). */
-@media (max-height: 400px) {
+   it overrides (both match at <=400px). `and (max-width: 1024px)` for the same
+   reason as the <=500h block above — only shrink when the sidebar is narrow, so a
+   wide+short screen keeps its full-size label. */
+@media (max-height: 400px) and (max-width: 1024px) {
   .md-board-detail-inline-sidebar__item {
     padding: 4px 2px;
-    font-size: 7px;
+    font-size: 10px;
   }
   .md-board-detail-inline-sidebar__img {
     width: 26px;
     height: 26px;
   }
+  /* Was 7px — unreadably small; 10px keeps AAC labels legible on the
+     shortest rows (slightly under the ≤500h size since the row is tighter). */
   .md-board-detail-inline-sidebar__name {
-    font-size: 7px;
+    font-size: 10px;
   }
 }
 /* Add Button (+) toggle and dropdown */
@@ -75150,8 +75194,128 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
      rather than growing the grid, so it doesn't add overflow.) */
   padding-top: 4px;
   /* See .md-board-detail-layout — 100dvh prevents bottom-row clipping on
-     Android Chrome/Edge where 100vh extends past the actual visible viewport. */
+     Android Chrome/Edge where 100vh extends past the actual visible viewport.
+     The 120px offset = the chrome above the grid (sentence bar ~90px + the
+     ~30px of surrounding padding), tuned for the full-height MEDIUM sentence
+     bar. On short/narrow viewports the bar shrinks (see the matching offset
+     override below), so 120 would over-reserve and leave a dead gap. */
   height: calc(100dvh - 120px);
+}
+/* SHORT viewports (≤500px tall): the sentence bar shrinks ~27px here (the
+   --nb-sb var block also fires at this height — app.scss ~68633), but the grid's
+   fixed 120px offset above did not follow, so the top-aligned grid ended ~27px
+   short of its container and a dead gap opened below the last button row. Drop
+   the offset to 93px (= shrunk bar 63px + the same ~30px chrome) so the board
+   fills to the same small bottom residual (~16px) as full-height screens.
+   Scoped to max-HEIGHT only (NOT the var block's `(max-width:600px)` arm): at
+   narrow widths the chrome above the grid is taller (bar wraps / layout padding
+   differs), so 93px would over-shoot there and push the last row into a small
+   scroll — narrow-width keeps the 120px offset. Speak mode only — edit mode
+   hides the live sentence row (its grid keeps 120px via the edit-scoped rule). */
+@media (max-height: 500px) {
+  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid-sidebar-wrap .md-board-detail-grid {
+    height: calc(100dvh - 93px);
+  }
+}
+/* EVEN SHORTER viewports (≤400px tall): the sentence bar shrinks a SECOND step
+   here (the --nb-sb var block fires again at max-height:400 — app.scss ~68715),
+   so the 93px offset over-reserves once more and the bottom gap returns on short
+   wide screens. Drop to 72px so the grid flushes to the ~8px structural bottom
+   padding (main 4 + wrap 4). Must come AFTER the ≤500 rule (same specificity) to
+   win where both queries match. Tuned so small/medium sentence bars fill cleanly;
+   a giant (large/huge) bar on a ≤400px screen is an extreme edge that can still
+   scroll a few px. Speak mode only. */
+@media (max-height: 400px) {
+  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid-sidebar-wrap .md-board-detail-grid {
+    height: calc(100dvh - 72px);
+  }
+}
+/* SHORT viewports (≤700px tall): compact the board so a short screen isn't
+   dominated by button spacing. The grid gap drops to a tight 4px (overriding a
+   larger button-gap preference at this height ONLY — the full preference gap
+   returns on taller screens) and the grid's 4px top inset collapses, so the
+   first row sits close under the sentence bar and the rows pack together (per
+   request). Rows are 1fr, so the tighter gap just makes each button slightly
+   taller — the grid still fills its height (the ≤500 offset above / the base
+   offset keep the bottom flush). Speak mode only. The prediction rail reads the
+   grid's rowGap (parseFloat) so it tightens to match — 4px is a plain length. */
+@media (max-height: 700px) {
+  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid-sidebar-wrap .md-board-detail-grid {
+    gap: 4px !important;
+    padding-top: 0;
+  }
+  /* Default folder mode reserves ~10px of top padding on EVERY cell (folder +
+     non-folder alike — see the folder-tab-geometry mixin) to make room for the
+     notebook tab and keep rows aligned. On a short screen that reserve stacks
+     ON TOP of the 4px grid gap, so the visual gap between button rows becomes
+     ~14px while the sides stay 4px — asymmetric, wasted vertical space. Collapse
+     the reserve here so the card-to-card gap equals the 4px grid gap on all four
+     sides (per request). The subtle tab tucks against the card top; folders stay
+     identified by their corner glyph. Folder-back bottom overhang zeroed too so
+     folder rows don't gain a 3px bottom peek the non-folder rows lack. Matched to
+     the default-folder selector (:not tab-labels / colored-corner) so the other
+     folder display modes are untouched. Speak mode only. */
+  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid:not(.md-board-detail-grid--folder-tab-labels):not(.md-board-detail-grid--folder-colored-corner) .md-board-detail-grid__cell {
+    padding-top: 0 !important;
+  }
+  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid:not(.md-board-detail-grid--folder-tab-labels):not(.md-board-detail-grid--folder-colored-corner) .md-folder-back {
+    top: 0;
+    bottom: 0;
+  }
+  /* Reclaim the board area's outer chrome on short screens: the center board
+     panel's padding (base 8/12/7, up to 24 bottom in some states) collapses to a
+     uniform 4px so the grid uses the full width/height between the sentence bar
+     and the side rails (per request). */
+  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-main {
+    padding: 4px !important;
+  }
+  /* Tighten the gutter between the board grid and the inline sidebar from 6px to
+     4px so it matches the symmetric 4px board spacing — a small, even gap rather
+     than flush (per request). */
+  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-inline-sidebar {
+    margin-left: 4px;
+  }
+}
+/* EDIT page — mirror the speak-page short-screen compaction so the board PREVIEW
+   grid gets more room on short screens (per request): 4px grid gap, collapsed top
+   inset, folder-tab reserve removed (symmetric 4px rows), and the center panel
+   padding collapsed from 8/16/28 to a uniform 4px. The edit grid keeps its own
+   height offset (edit-scoped rule) — retuned for short screens just below so the
+   reclaimed space goes to the buttons, not a bottom gap. (No inline-sidebar rule:
+   edit mode hides it; the left/right rails are separate layout tracks.) */
+@media (max-height: 700px) {
+  /* Extra `.md-board-detail-layout` class → (0,4,0), so this beats BOTH edit-grid
+     height rules (base 100dvh-120, both 0,3,0 !important) regardless of source
+     order. Fill the reclaimed space: the base offset left a ~30px dead gap below
+     the last row (edit chrome above the grid is a constant ~82px); 92px drops the
+     grid to the panel's 4px bottom padding. gap/padding-top ride the same selector. */
+  .md-shell--board-detail-edit .md-board-detail-layout .md-board-detail-grid-sidebar-wrap .md-board-detail-grid {
+    gap: 4px !important;
+    padding-top: 0;
+    height: calc(100dvh - 98px) !important;
+  }
+  /* Zero the wrap's ~10px bottom padding on short screens — it was the last bit of
+     content pushing the grid past the visible panel (a small scroll on a page
+     designed to fit on ONE screen). With it gone, the 98px offset fills to a ~8px
+     residual with no scroll. (0,3,0 !important to beat the base wrap rule.) */
+  .md-shell--board-detail-edit .md-board-detail-layout .md-board-detail-grid-sidebar-wrap {
+    padding-bottom: 0 !important;
+  }
+  .md-shell--board-detail-edit .md-board-detail-grid:not(.md-board-detail-grid--folder-tab-labels):not(.md-board-detail-grid--folder-colored-corner) .md-board-detail-grid__cell {
+    padding-top: 0 !important;
+  }
+  .md-shell--board-detail-edit .md-board-detail-grid:not(.md-board-detail-grid--folder-tab-labels):not(.md-board-detail-grid--folder-colored-corner) .md-folder-back {
+    top: 0;
+    bottom: 0;
+  }
+  /* Collapse the center panel padding from 8/16/28 to a uniform 4px. Extra
+     `.md-board-detail-layout` class so this (0,3,0) beats the base edit-main rule
+     `.md-shell--board-detail-edit .md-board-detail-main {padding:8/16/28!important}`
+     (0,2,0) which is later in source — without the bump, equal specificity + later
+     source would keep the heavy padding. */
+  .md-shell--board-detail-edit .md-board-detail-layout .md-board-detail-main {
+    padding: 4px !important;
+  }
 }
 /* ARIA row wrapper for the board grid (grid → row → gridcell). `display: contents`
    generates no layout box, so the gridcells inside it keep participating in the
@@ -91446,13 +91610,12 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   text-align: center;
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  /* Sub-label color — neutral white-ish per request ("set back to
-     white"). Light mode uses navy, dark mode (paired rule below)
-     uses white. Alpha pinned to .85 per latest request — bumped
-     up from .40 / .55 so the captions read clearly against the
-     panel surface while still sitting visibly quieter than the
-     ACTIONS / SETTINGS headers (which are full-strength teal). */
-  color: rgba($la-navy, 0.85) !important;
+  /* Sub-label color. Light mode uses navy, dark mode (paired rule below)
+     uses white. Full-strength, darkened navy (was rgba .85, which read washed
+     out against the bright glass — per request the collapsed captions need to be
+     darker); still visibly quieter than the ACTIONS / SETTINGS headers because
+     those are teal, not navy. */
+  color: color.adjust($la-navy, $lightness: -14%) !important;
   /* Allow longer captions ("DOWNLOAD", etc.) to render fully — the
      tile's 40px footprint was clipping them to "DOWNL...". Letting
      the label overflow into the rail's outer 56px width via
@@ -92429,12 +92592,31 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* Light mode: darken the side-panel labels a touch for stronger contrast on the
-   bright glass rails (per request). Covers both the left (Action) rail rows and the
-   right (Settings) rail section headers. Dark mode keeps its own lighter label. */
+/* Light mode: darken the side-panel labels for stronger contrast on the bright
+   glass rails (per request — the earlier -8% wasn't dark enough). Covers both the
+   left (Action) rail rows and the right (Settings) rail section headers. Dark mode
+   keeps its own lighter label. */
 .md-shell--board-detail-edit:not(.md-board-detail--dark) .md-board-edit-panel__label,
 .md-shell--board-detail-edit:not(.md-board-detail--dark) .md-board-edit-right-panel__section-label {
-  color: color.adjust($la-navy, $lightness: -8%);
+  color: color.adjust($la-navy, $lightness: -14%);
+}
+/* Light mode: brighten the glass gradient on the three EDIT-mode rails ~15% (per
+   request) — the session bar (header), the left Action panel, and the right
+   Settings panel. They share the `glass-bar-surface` mixin, but so does the
+   SPEAK-mode sentence bar (which was NOT asked to change), so override here on the
+   edit surfaces only rather than editing the mixin. Brightness = alpha of the
+   translucent-white stops over the dark canvas; each stop bumped ~15% (top clamps
+   at opaque). Only the background gradient changes — border/sheen/shadow stay from
+   the mixin so the rails still read as one system with the header. */
+.md-shell--board-detail-edit:not(.md-board-detail--dark) .md-board-edit-session,
+.md-shell--board-detail-edit:not(.md-board-detail--dark) .md-board-edit-panel,
+.md-shell--board-detail-edit:not(.md-board-detail--dark) .md-board-edit-right-panel {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(255, 255, 255, 0.85) 50%,
+    rgba(240, 246, 252, 0.74) 100%
+  );
 }
 .md-board-detail--dark .md-board-edit-panel__row {
   color: #e5ecf8;
