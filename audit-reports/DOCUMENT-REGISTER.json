@@ -600,8 +600,12 @@
       "nextReviewDue": "2026-10-22",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-22",
-        "attestedContentHash": "34b0b857f494864186d1305a40e5ce22a17b2265340a81436161dae2d87efafc"
+        "attestedDate": "2026-07-24",
+        "attestedContentHash": "ed1d4a73949dd4ab37b47100b1850ca09d35d714c4c39209b91dbdba9721879e",
+        "priorAttestations": [
+          "2026-07-22"
+        ],
+        "note": "Re-attested 2026-07-24: runtime AI egress moved from direct api.anthropic.com to Claude on AWS Bedrock (lib/ai_client.rb); the dated supersession banner in this document was added under the same change. Prior attestation covered the pre-banner revision."
       },
       "contentHash": "ed1d4a73949dd4ab37b47100b1850ca09d35d714c4c39209b91dbdba9721879e",
       "bundles": [
@@ -1014,8 +1018,12 @@
       "nextReviewDue": "2027-07-18",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-18",
-        "attestedContentHash": "5adbe44783d9d74797498415714bb0c84c81dc943ffcd7911ac4284624f9b0d4"
+        "attestedDate": "2026-07-24",
+        "attestedContentHash": "ac35aaa7fb98f14a38d6db89c4b6611b602fdfcd0504a887324cf86c9d54f5a7",
+        "priorAttestations": [
+          "2026-07-18"
+        ],
+        "note": "Re-attested 2026-07-24: runtime AI egress moved from direct api.anthropic.com to Claude on AWS Bedrock (lib/ai_client.rb); the dated supersession banner in this document was added under the same change. Prior attestation covered the pre-banner revision."
       },
       "bundles": [
         "baa"
@@ -1057,8 +1065,12 @@
       "nextReviewDue": "2027-05-11",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-06-21",
-        "attestedContentHash": "dc6a2ba9fa167f3f2bff6ec356bbd2b8bd9f9bafcd680b15362225aeca023f3e"
+        "attestedDate": "2026-07-24",
+        "attestedContentHash": "15ea9e8ad09be513705276f42134dc0371da73f5b678c1487cde2711382b3734",
+        "priorAttestations": [
+          "2026-06-21"
+        ],
+        "note": "Re-attested 2026-07-24: runtime AI egress moved from direct api.anthropic.com to Claude on AWS Bedrock (lib/ai_client.rb); the dated supersession banner in this document was added under the same change. Prior attestation covered the pre-banner revision."
       },
       "contentHash": "15ea9e8ad09be513705276f42134dc0371da73f5b678c1487cde2711382b3734",
       "bundles": [
