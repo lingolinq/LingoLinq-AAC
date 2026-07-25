@@ -7166,3 +7166,22 @@ The machine's default node is 16; running `npm install` there (npm 8) mangled
 Always `export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use 22` first. If a lockfile got
 mangled, `git checkout -- package.json package-lock.json` and redo under Node 22 (clean diff =
 only the intended deps).
+
+## Client image uploads: `remote_upload` params live in a 1-second shared meta cache
+When a create returns S3 upload params, they're stashed in `lingoLinqExtras`/`$.ajax.metas`
+(extras.js) keyed by method+model+url, pushed at RESPONSE time (extras.js:341) and read back by
+`content-grabbers.js#save_record` right after `object.save()` resolves. This cache prunes on every
+`meta_push` and is shared across ALL in-flight requests — so anything that delays or races between
+the create response and the meta read (concurrent board-image GETs, a slow/large POST body) can
+drop the params, and `save_record` then silently bails at `reject('remote_upload parameters
+required')`, leaving the image `pending` with a null `url`. Symptom: image shows locally (data-URL
+cache) then vanishes on reload; secondary symptom: un-uploaded images keep ~700KB base64 inline and
+the board-save payload trips Rack's 4MB `QueryParser::QueryLimitError`.
+- Diagnose with the DB, not guesses: `button_images.url IS NULL` + `pending_upload? = true` means
+  the browser→S3 upload never completed (Rails never wrote the url). Server S3 creds are fine if the
+  log shows `Aws::S3::Client 200 head_object`. Watch UTC vs local when reading `created_at`.
+- The prune condition was inverted (kept stale, dropped fresh). When touching short-lived shared
+  caches, confirm the keep-vs-drop sign — an inverted TTL fails intermittently under load only.
+- Optimize captured/uploaded photos to JPEG (opaque → JPEG w/ white letterbox backfill; keep PNG
+  only when the drawn region has alpha). `size_image` only processes same-origin data: URLs
+  (http/gif bypass), so getImageData is safe there. Smaller uploads also widen the timing margin.

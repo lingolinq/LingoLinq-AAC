@@ -3,7 +3,19 @@
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
-    <h3>{{t "Button Settings" key="button_settings"}} - {{this.model.label}}</h3>
+    <div class="md-bs-header__title-row">
+      <h3>{{t "Button Settings" key="button_settings"}}</h3>
+      {{!-- A live copy of the button as it looks in speak mode (fill + border
+           colour, symbol, label) instead of just the text label. --}}
+      <span class="md-bs-header__button {{if this.preview_text_only 'md-bs-preview--text-only'}} {{if this.preview_text_on_top 'md-bs-preview--text-top'}}" style={{safe-style (concat "background-color:" this.model.background_color "; border-color:" this.model.border_color ";")}} aria-label={{concat (t "Button preview" key="button_preview") ": " this.model.label}}>
+        {{#unless this.preview_text_only}}
+          {{#if this.model.local_image_url}}
+            <img class="md-bs-header__button-img" src={{this.model.local_image_url}} alt="" onerror="button_broken_image(this);">
+          {{/if}}
+        {{/unless}}
+        <span class="md-bs-header__button-label">{{this.model.label}}</span>
+      </span>
+    </div>
   </div>
   <div class="modal-body md-modal-body" id="button_settings">
     <div class="row">
@@ -88,16 +100,6 @@
               <input value={{this.model.label}} class="form-control" id="label" {{on "input" (set-field this "model.label")}} />
             </div>
           </div>
-          <div class="form-group" style='margin-top: -20px;'>
-            <div class="col-sm-10 col-sm-offset-2">
-              <div class="checkbox big_checkbox">
-                <label>
-                  <input type="checkbox" checked={{this.model.hide_label}} {{on "change" (this.ctrlActionEventValue "updateHideLabel" "checked")}} {{on "change" (set-field this "model.hide_label" "checkbox")}} />
-                  {{t "Hide the label when the picture is shown" key="hide_label"}}
-                </label>
-              </div>
-            </div>
-          </div>
           <div class="form-group">
             <label for="part_of_speech" class="col-sm-2 control-label">{{t "Word" key="part_of_speech"}}</label>
             <div class="col-sm-10">
@@ -159,10 +161,12 @@
             <div class="md-bs-card__eyebrow">{{t "Color" key="color"}}</div>
             <div class="md-bs-card__sep" aria-hidden="true"></div>
             <div class="md-bs-color__preview-wrap">
-              <div class="md-bs-color__preview" style={{safe-style (concat "background-color: " this.model.background_color "; border-color: " this.model.border_color ";")}}>
-                {{#if this.model.local_image_url}}
-                  <img class="md-bs-color__preview-img" src={{this.model.local_image_url}} alt="" onerror="button_broken_image(this);">
-                {{/if}}
+              <div class="md-bs-color__preview {{if this.preview_text_only 'md-bs-preview--text-only'}} {{if this.preview_text_on_top 'md-bs-preview--text-top'}}" style={{safe-style (concat "background-color: " this.model.background_color "; border-color: " this.model.border_color ";")}}>
+                {{#unless this.preview_text_only}}
+                  {{#if this.model.local_image_url}}
+                    <img class="md-bs-color__preview-img" src={{this.model.local_image_url}} alt="" onerror="button_broken_image(this);">
+                  {{/if}}
+                {{/unless}}
                 <span class="md-bs-color__preview-label">{{this.model.label}}</span>
               </div>
             </div>
@@ -201,76 +205,104 @@
 
         {{!-- Picture tab content (inlined) --}}
         <form class="form-horizontal" {{on "submit" this.onNothing}}>
-        <div class={{if this.pictureState "active" "hidden"}}>
-  {{#if this.show_libraries}}
-    {{#if this.image_libraries}}
-      <div style='float: left; width: 55px; font-size: 14px;'>{{t "Library: " key="library_colon"}}</div>
-      <div style='margin-top: -5px; width: 200px; float: left;'>
-        <BoundSelect @select_class="form-control skip_select" @select_id="image_library" @short={{true}} @content={{this.image_libraries}} @selection={{this.image_library}} @action={{this.ctrlAction "updateImageLibrary"}} />
-      </div>
-    {{else}}
-      <div style='float: left; width: 255px; font-size: 14px;'>{{t "Library: opensymbols.org" key="library_open_symbols"}}</div>
-    {{/if}}
-    {{#if this.appState.feature_flags.skin_tones}}
-      <div style='float: left; width: 50px; margin-top: -5px; margin-left: 5px;'><button type="button" class='btn btn-sm btn-default' {{on "click" (this.ctrlAction "library_options")}} style='height: 25px; padding-top: 3px;'>{{t "options" key="options"}}</button></div>
-    {{/if}}
-    <div style="clear: left;"></div>
-    {{#if this.premium_symbol_library}}
-      {{#if this.appState.currentUser.subscription.grace_trial_period}}
-        <div class='text-danger'>
-          {{t "(requires extra fee after trial period)" key="extra_fee_at_purchase"}}            
+        <div class="md-bs-picture {{if this.pictureState "active" "hidden"}}">
+  {{!-- Current picture at the TOP (replaces the PICTURE section header) — shows the
+       button's existing image before the find/choose workflow below. --}}
+  {{#if this.model.image.url}}
+    {{#unless this.image_preview}}
+      <div class="md-bs-card__eyebrow md-bs-picture__current-eyebrow">{{t "Current Picture" key="current_picture"}}</div>
+      <section class="md-bs-card md-bs-picture__current">
+        <div class="md-bs-picture__current-thumb">
+          <img src={{or this.fresh_picture_url this.model.image.url this.model.image.best_url_without_preferred_symbols}} alt="">
         </div>
-      {{/if}}
-    {{/if}}
-    <div style='font-size: 14px; margin-top: 5px;' class='text-muted'>
-      <em>{{t "Enter a search term, or paste a URL or file" key="search_or_paste"}}</em>
-    </div>
+        <div class="md-bs-picture__current-meta">
+          <div class="md-bs-picture__current-title">{{t "Current image" key="current_image"}}</div>
+          {{#if this.model.label}}
+            <div class="md-bs-picture__current-sub">{{t "Used for" key="used_for_label"}} “{{this.model.label}}”</div>
+          {{/if}}
+        </div>
+      </section>
+    {{/unless}}
   {{/if}}
-  <div style="margin-bottom: 10px;" class="options">
-    <span class="picture_search_field">
-      <span class={{if this.multi_locales "picture_search_input_with_locale" "picture_search_input_full"}}>
-        <input id="find_picture" value={{this.model.image_field}} {{on "input" (set-field this "model.image_field")}} {{on-enter (this.ctrlAction "find_picture")}} placeholder={{this.search_prompt}} aria-label={{this.search_prompt}} class="form-control inline select_on_click" />
-      </span>
-      {{#if this.multi_locales}}
-        <span style='display: inline-block; width: 55px; vertical-align: middle;'>
-          <div class="btn-group" style='vertical-align: middle;'>
-            <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style='width: 100%;'>
-              <span style='vertical-align: middle; max-width: 20px; overflow: hidden; display: inline-block;'>{{this.search_locale}}</span> 
-              <span class="caret"></span>
-            </button>
-            <ul class="dropdown-menu">
-              {{#each this.locales as |loc|}}
-                <li><a href="#" {{on "click" (this.ctrlAction "set_locale" loc.id)}}>{{loc.name}}</a></li>
-              {{/each}}
-            </ul>
-          </div>        
-        </span>
+
+  {{!-- One unified "Find a picture" card: library, search, own-image sources. --}}
+  <section class="md-bs-card md-bs-picture__find">
+    <div class="md-bs-card__eyebrow">{{t "Find a Picture" key="find_a_picture"}}</div>
+    {{#if this.show_libraries}}
+      <label class="md-bs-picture__field-label" for="image_library">{{t "Library" key="library"}}</label>
+      {{#if this.image_libraries}}
+        <BoundSelect @select_class="form-control skip_select md-bs-picture__library" @select_id="image_library" @short={{true}} @content={{this.image_libraries}} @selection={{this.image_library}} @action={{this.ctrlAction "updateImageLibrary"}} />
+      {{else}}
+        <div class="md-bs-picture__library-static">{{t "opensymbols.org" key="library_open_symbols_short"}}</div>
       {{/if}}
-    </span>
-    <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "find_picture")}}>{{t "Search" key="search"}}</button>
-    <button type="button" {{on "click" (this.ctrlAction "webcamPicture")}} disabled={{this.webcam_unavailable}} class="btn btn-default" style='width: 42px; height: 34px; overflow: hidden;'>
-      <img src={{path "images/camera.svg"}} style="height: 42px; margin: -13px;" alt="take a picture">
-    </button>
-    <span class="file_select_holder">
-      <button type="button" class='btn btn-default' style='width: 44px; height: 34px; overflow: hidden;'>
-        <img src={{path "images/upload.svg"}} style="height: 30px; margin: -10px -6px -6px;" alt="upload">
-      </button>
-      <input type="file" name="image_upload" id="image_upload" accept="image/*" tabindex="-1" aria-label={{t "Upload image" key="upload_image"}}>
-    </span>
-    {{#if this.show_library_options}}
-      <div style='margin-top: 3px;'>
-        <div style='width: calc(100% - 170px); float: left;'>
-          <BoundSelect @select_class="form-control skip_select" @select_id="skin_preference" @short={{true}} @content={{this.skin_options}} @selection={{this.skin_preference}} @action={{this.ctrlAction "updateSkinPreference"}} />
-        </div>
-        <div style='width: 150px; float: left; margin-left: 5px;'>
-          <div class='checkbox big_checkbox' style='margin-top: -8px; padding-top: 10px;'>
-            <label><input type="checkbox" checked={{this.safe_search}} {{on "change" (set-field this "safe_search" "checkbox")}} /> {{t "safe search" key="safe_search"}}</label>
-          </div>
-        </div>
-      </div>
-      <div style='clear: left;'></div>
+      {{#if this.premium_symbol_library}}
+        {{#if this.appState.currentUser.subscription.grace_trial_period}}
+          <div class='text-danger md-bs-picture__premium-note'>{{t "(requires extra fee after trial period)" key="extra_fee_at_purchase"}}</div>
+        {{/if}}
+      {{/if}}
     {{/if}}
-  </div>
+    <div class="md-bs-picture__search-row">
+      <span class="picture_search_field">
+        <span class={{if this.multi_locales "picture_search_input_with_locale" "picture_search_input_full"}}>
+          <input id="find_picture" value={{this.model.image_field}} {{on "input" (set-field this "model.image_field")}} {{on-enter (this.ctrlAction "find_picture")}} placeholder={{this.search_prompt}} aria-label={{this.search_prompt}} class="form-control inline select_on_click" />
+        </span>
+        {{#if this.multi_locales}}
+          <span style='display: inline-block; width: 55px; vertical-align: middle;'>
+            <div class="btn-group" style='vertical-align: middle;'>
+              <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style='width: 100%;'>
+                <span style='vertical-align: middle; max-width: 20px; overflow: hidden; display: inline-block;'>{{this.search_locale}}</span>
+                <span class="caret"></span>
+              </button>
+              <ul class="dropdown-menu">
+                {{#each this.locales as |loc|}}
+                  <li><a href="#" {{on "click" (this.ctrlAction "set_locale" loc.id)}}>{{loc.name}}</a></li>
+                {{/each}}
+              </ul>
+            </div>
+          </span>
+        {{/if}}
+      </span>
+      <button type="button" class='btn btn-default md-bs-picture__search-btn' {{on "click" (this.ctrlAction "find_picture")}}>{{t "Search" key="search"}}</button>
+    </div>
+
+    {{!-- Advanced search options — progressive disclosure under the search row. --}}
+    {{#if this.appState.feature_flags.skin_tones}}
+      <button type="button" class="md-bs-picture__disclosure {{if this.show_library_options 'is-open'}}" {{on "click" (this.ctrlAction "library_options")}} aria-expanded={{if this.show_library_options "true" "false"}}>
+        <svg class="md-bs-picture__disclosure-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
+        {{t "Search options" key="search_options"}}
+      </button>
+      {{#if this.show_library_options}}
+        <div class="md-bs-picture__options-body">
+          <BoundSelect @select_class="form-control skip_select" @select_id="skin_preference" @short={{true}} @content={{this.skin_options}} @selection={{this.skin_preference}} @action={{this.ctrlAction "updateSkinPreference"}} />
+          <label class="md-bs-picture__checkbox"><input type="checkbox" checked={{this.safe_search}} {{on "change" (set-field this "safe_search" "checkbox")}} /> {{t "safe search" key="safe_search"}}</label>
+        </div>
+      {{/if}}
+    {{/if}}
+
+    {{!-- Other ways to add a picture (labeled, not icon-only). --}}
+    <div class="md-bs-picture__field-label md-bs-picture__sources-label">{{t "Or add your own" key="or_add_your_own"}}</div>
+    <div class="md-bs-picture__sources">
+      <button type="button" class="md-bs-picture__source-btn" {{on "click" (this.ctrlAction "webcamPicture")}} disabled={{this.webcam_unavailable}}>
+        <img src={{path "images/camera.svg"}} class="md-bs-picture__source-icon" alt=""> {{t "Take photo" key="take_photo"}}
+      </button>
+      <span class="file_select_holder md-bs-picture__source-file">
+        <button type="button" class="md-bs-picture__source-btn">
+          <img src={{path "images/upload.svg"}} class="md-bs-picture__source-icon" alt=""> {{t "Upload image" key="upload_image"}}
+        </button>
+        <input type="file" name="image_upload" id="image_upload" accept="image/*" tabindex="-1" aria-label={{t "Upload image" key="upload_image"}}>
+      </span>
+      <button type="button" class="md-bs-picture__source-btn" {{on "click" (this.ctrlAction "word_art")}}>
+        <span class="md-bs-picture__source-icon md-bs-picture__source-icon--wordart" aria-hidden="true">T</span> {{t "Create word art" key="create_word_art"}}
+      </button>
+    </div>
+  </section>
+
+  {{!-- Per-button label option — below the Find a Picture card (moved here from the
+       General tab; it governs how THIS button renders its picture vs. label). --}}
+  <label class="md-bs-picture__hide-label">
+    <input type="checkbox" checked={{this.model.hide_label}} {{on "change" (this.ctrlActionEventValue "updateHideLabel" "checked")}} {{on "change" (set-field this "model.hide_label" "checkbox")}} />
+    {{t "Hide the label when the picture is shown" key="hide_label"}}
+  </label>
 
   <div style="text-align: center;" class={{if this.webcam "shown" "hidden"}}>
     {{#if this.webcam.error}}
@@ -289,14 +321,6 @@
     {{/if}}
   </div>
 
-  {{#if this.model.image.url}}
-    {{#unless this.image_preview}}
-      <div style="text-align: center; margin-bottom: 15px; margin-top: 5px;">
-        <div style="font-size: 14px; color: #666; margin-bottom: 5px;">{{t "Current picture" key="current_picture"}}</div>
-        <img src={{or this.fresh_picture_url this.model.image.url this.model.image.best_url_without_preferred_symbols}} class="button_image" alt="">
-      </div>
-    {{/unless}}
-  {{/if}}
   {{#if this.image_preview}}
     {{#if this.image_preview.error}}
       {{this.image_preview.error}}
@@ -367,8 +391,6 @@
     {{#if this.image_search.error}}
       <p class='text-danger' style='margin: 15px 0;'>{{this.image_search.error}}</p>
       <div style='margin-top: 10px;'>
-        <button type='button' class='btn btn-default' {{on "click" (this.ctrlAction "word_art")}}>{{t "Make Word Art" key="make_word_art"}}</button>
-        <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "clearImageWork")}}>{{t "Cancel" key="cancel"}}</button>
       </div>
     {{else}}
       {{#if this.missing_library}}
@@ -388,31 +410,32 @@
             {{t "Premium symbol support required" key="premium_symbols_required"}}
           {{/if}}
         </div>
-        <button type='button' class='btn btn-default' {{on "click" (this.ctrlAction "word_art")}}>{{t "Make Word Art" key="make_word_art"}}</button>
-        <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "clearImageWork")}}>{{t "Cancel" key="cancel"}}</button>
       {{else if this.image_search.previews}}
-        <div style="margin: 10px 0 10px 0;">
-          {{#each this.image_search.previews as |image|}}
-            <img src={{image.thumbnail_url}} {{on "click" (this.ctrlAction "pick_preview" image)}} style="height: 50px; max-width: 100px; border: 1px solid #ccc; padding: 1px; margin-bottom: 4px;">
-          {{/each}}
+        <div class="md-bs-card__eyebrow md-bs-picture__results-eyebrow">
+          <span>{{t "Search Results" key="search_results"}}</span>
+          <span class="md-bs-picture__results-count">{{this.image_search.previews.length}} {{t "results" key="results_count"}}</span>
         </div>
-        {{#if this.current_library.giphy_asl}}
-          <img src={{path "images/logos/giphy.png"}} style='padding-bottom: 10px; margin-left: -10px;'><br>
-        {{/if}}
-
-        <button type='button' class='btn btn-default' {{on "click" (this.ctrlAction "word_art")}}>{{t "Make Word Art" key="make_word_art"}}</button>
-        <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "clearImageWork")}}>{{t "Cancel" key="cancel"}}</button>
+        <p class="md-bs-picture__results-sub">{{t "Select an image to use for this button." key="select_image_for_button"}}</p>
+        <section class="md-bs-card md-bs-picture__results-surface">
+          <div class="md-bs-picture__results">
+            {{#each this.image_search.previews as |image|}}
+              <button type="button" class="md-bs-picture__result" {{on "click" (this.ctrlAction "pick_preview" image)}} aria-label={{t "Choose this picture" key="choose_this_picture"}}>
+                <img src={{image.thumbnail_url}} alt="">
+              </button>
+            {{/each}}
+          </div>
+          {{#if this.current_library.giphy_asl}}
+            <img src={{path "images/logos/giphy.png"}} style='padding-bottom: 10px; margin-left: -10px;'><br>
+          {{/if}}
+        </section>
       {{else if this.image_search.previews_loaded}}
         <div style="margin: 10px 0 10px 0;">
           {{t "No results found for %{term}" key="no_image_results_for" term=this.image_search.term}}
         </div>
-        <button type='button' class='btn btn-default' {{on "click" (this.ctrlAction "word_art")}}>{{t "Make Word Art" key="make_word_art"}}</button>
-        <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "clearImageWork")}}>{{t "Cancel" key="cancel"}}</button>
       {{else}}
         {{#if this.current_library.giphy_asl}}
           <img src={{path "images/logos/giphy.png"}} style='padding-bottom: 10px; margin-left: -10px;'><br>
         {{/if}}
-        <button type='button' class='btn btn-default' {{on "click" (this.ctrlAction "word_art")}}>{{t "Make Word Art" key="make_word_art"}}</button>
       {{/if}}
     {{/if}}
   {{/if}}

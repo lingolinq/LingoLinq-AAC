@@ -64,6 +64,32 @@
    each surface's bespoke declarations regardless of source order. Dark/
    themed shells (e.g. bento --dark / --midday) re-assert their own bg +
    text colors after including this. */
+// Shared "glass bar" surface — the translucent-white glossy panel used by BOTH the
+// speak-mode compose bar (.md-board-detail-sentence-bar) and the edit-mode session
+// bar (.md-board-edit-session) so the two ALWAYS match (one source of truth). Only
+// the surface look lives here; each rule keeps its own layout (padding, radius, flex).
+@mixin glass-bar-surface {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 255, 255, 0.74) 50%,
+    rgba(238, 244, 251, 0.64) 100%
+  );
+  -webkit-backdrop-filter: blur(20px) saturate(185%);
+  backdrop-filter: blur(20px) saturate(185%);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.98),        /* crisp specular top edge (gloss line) */
+    inset 0 14px 22px -16px rgba(255, 255, 255, 0.65), /* upper sheen bloom */
+    inset 0 -10px 22px -18px rgba($la-navy, 0.06),     /* faint lower depth */
+    0 1px 2px rgba($la-navy, 0.05),
+    0 12px 30px rgba($la-navy, 0.12);                  /* soft outer elevation */
+  color: $la-navy;
+  // GPU layer — prevents backdrop-filter recompute flash on scroll.
+  will-change: transform;
+  transform: translateZ(0);
+}
+
 @mixin board-card-modern {
   position: relative;
   border-radius: 28px !important;
@@ -11870,14 +11896,26 @@ video.button_image {
 }
 #button_settings .btn-primary {
   border-radius: 10px;
-  background: linear-gradient(135deg, $brand-verdigris, $brand-dusty-denim);
+  /* Same SILVERY-GLASS verdigris→denim tint as the active side-panel tab (per
+     request) instead of the darker solid gradient — one shared "primary" look
+     across the modal. Navy label keeps AA contrast on the light gradient. */
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.14) 42%, rgba(255, 255, 255, 0) 62%),
+    linear-gradient(135deg, rgba($brand-verdigris, 0.50), rgba($brand-dusty-denim, 0.52)),
+    #fff;
   border: none;
-  color: #fff;
+  color: $la-navy;
   font-weight: 600;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba($la-navy, 0.06),
+    0 1px 3px rgba($la-navy, 0.08);
   transition: box-shadow 0.12s ease, transform 0.1s ease;
 }
 #button_settings .btn-primary:hover {
-  box-shadow: 0 2px 10px rgba($brand-verdigris, 0.3);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 4px 12px rgba($brand-dusty-denim, 0.22);
   transform: translateY(-1px);
 }
 
@@ -12114,6 +12152,12 @@ video.button_image {
   text-align: center;
   line-height: 1.15;
   word-break: break-word;
+}
+/* Label on top (text-position preference) — flip the column so the label sits ABOVE
+   the symbol. Id-scoped to match the base `#button_settings .md-bs-color__preview`
+   specificity. "Text only" omits the <img> in the template, so no rule needed. */
+#button_settings .md-bs-color__preview.md-bs-preview--text-top {
+  flex-direction: column-reverse;
 }
 #button_settings .md-bs-color__field-label {
   font-size: 14px;
@@ -12685,6 +12729,338 @@ video.button_image {
 #button_settings .image_search,
 #button_settings .sound_search {
   border-radius: 12px;
+}
+
+/* ── Picture tab — modern, spacious layout ──────────────────────────────────
+   The picture content was legacy float/inline markup (cramped rows, tiny inline
+   thumbnails). This adds breathing room and a professional modern feel: a larger
+   rounded search field, modern icon buttons, a framed current-picture card, and a
+   spaced grid of uniform rounded thumbnail cards with a hover lift. */
+.md-bs-picture {
+  padding: 2px 2px 14px;
+  font-size: 14px;
+  color: $brand-charcoal-dark;
+}
+.md-bs-picture .options {
+  margin-top: 14px;
+}
+/* Search-term hint — quieter + centered. */
+.md-bs-picture .text-muted {
+  font-size: 13px;
+  color: rgba($la-navy, 0.55);
+  text-align: center;
+  margin-top: 12px;
+}
+/* Search input — larger, rounded, modern focus ring. */
+.md-bs-picture #find_picture {
+  border-radius: 12px;
+  border: 1px solid rgba($la-navy, 0.15);
+  padding: 11px 16px;
+  font-size: 15px;
+  height: auto;
+  box-shadow: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.md-bs-picture #find_picture:focus {
+  border-color: $brand-verdigris;
+  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.12);
+  outline: none;
+}
+/* Search / camera / upload / options buttons — modern rounded, consistent. */
+.md-bs-picture .btn-default {
+  border-radius: 10px;
+  border: 1px solid rgba($la-navy, 0.15);
+  background: #ffffff;
+  font-weight: 500;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.md-bs-picture .btn-default:hover {
+  border-color: $brand-verdigris;
+  box-shadow: 0 2px 8px rgba($la-navy, 0.10);
+}
+/* Current-picture card. */
+.md-bs-picture .button_image {
+  border: 1px solid rgba($la-navy, 0.12);
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: 0 2px 12px rgba($la-navy, 0.08);
+  background: #ffffff;
+}
+/* Results — a spaced grid of uniform rounded thumbnail cards with a hover lift. */
+.md-bs-picture__results {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+.md-bs-picture__result {
+  width: 68px;
+  height: 68px;
+  padding: 5px;
+  border: 1px solid rgba($la-navy, 0.12);
+  border-radius: 12px;
+  background: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.12s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.md-bs-picture__result img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.md-bs-picture__result:hover,
+.md-bs-picture__result:focus-visible {
+  transform: translateY(-2px);
+  border-color: $brand-verdigris;
+  box-shadow: 0 5px 14px rgba($la-navy, 0.16);
+  outline: none;
+}
+
+/* Section header — navy eyebrow + subtitle, centered (matches the Action tab). */
+.md-bs-picture__head {
+  text-align: center;
+  margin-bottom: 18px;
+}
+.md-bs-picture__head .md-bs-card__eyebrow {
+  justify-content: center;
+}
+.md-bs-picture__subtitle {
+  margin: 4px 0 0;
+  font-size: 15px;
+  color: rgba($la-navy, 0.62);
+}
+/* "Find a picture" card. */
+.md-bs-picture__find {
+  display: block;
+  padding: 18px 20px 20px;
+  margin-bottom: 22px;
+}
+.md-bs-picture__field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: rgba($la-navy, 0.55);
+  margin: 14px 0 6px;
+}
+.md-bs-picture__find > .md-bs-card__eyebrow + .md-bs-picture__field-label {
+  margin-top: 4px;
+}
+.md-bs-picture__library {
+  max-width: 320px;
+}
+.md-bs-picture__library-static {
+  font-size: 15px;
+  font-weight: 600;
+  color: $brand-charcoal-dark;
+}
+.md-bs-picture__premium-note {
+  font-size: 12.5px;
+  margin-top: 6px;
+}
+/* Search row — input grows, Search button fixed. */
+.md-bs-picture__search-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 14px;
+}
+.md-bs-picture__search-row .picture_search_field {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+}
+.md-bs-picture__search-btn {
+  flex: 0 0 auto;
+}
+/* Progressive-disclosure "Search options". */
+.md-bs-picture__disclosure {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 4px 2px;
+  background: none;
+  border: none;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: $brand-verdigris-aa;
+  cursor: pointer;
+}
+.md-bs-picture__disclosure-chevron {
+  transition: transform 0.15s ease;
+}
+.md-bs-picture__disclosure.is-open .md-bs-picture__disclosure-chevron {
+  transform: rotate(90deg);
+}
+.md-bs-picture__options-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba($la-navy, 0.03);
+}
+.md-bs-picture__options-body .form-control {
+  max-width: 240px;
+}
+.md-bs-picture__checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0;
+}
+/* Own-image sources — labeled buttons (icon + text). */
+.md-bs-picture__sources-label {
+  margin-top: 18px;
+}
+.md-bs-picture__sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.md-bs-picture__source-file {
+  position: relative;
+  display: inline-flex;
+}
+.md-bs-picture__source-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba($la-navy, 0.15);
+  background: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  color: $brand-charcoal-dark;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+.md-bs-picture__source-btn:hover:not(:disabled),
+.md-bs-picture__source-btn:focus-visible {
+  border-color: $brand-verdigris;
+  box-shadow: 0 2px 8px rgba($la-navy, 0.10);
+  outline: none;
+}
+.md-bs-picture__source-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.md-bs-picture__source-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+.md-bs-picture__source-icon--wordart {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 16px;
+  color: $brand-verdigris-aa;
+}
+/* Compact CURRENT PICTURE card — small thumbnail + label, horizontal. */
+.md-bs-picture__current-eyebrow {
+  margin: 6px 0 8px;
+}
+.md-bs-picture__current {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 14px 18px;
+  margin-bottom: 24px;
+}
+.md-bs-picture__current-thumb {
+  flex: 0 0 auto;
+  width: 130px;
+  height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  border: 1px solid rgba($la-navy, 0.12);
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba($la-navy, 0.08);
+}
+.md-bs-picture__current-thumb img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.md-bs-picture__current-meta {
+  min-width: 0;
+}
+.md-bs-picture__current-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: $brand-charcoal-dark;
+}
+.md-bs-picture__current-sub {
+  font-size: 14px;
+  color: rgba($la-navy, 0.55);
+  margin-top: 3px;
+}
+/* SEARCH RESULTS — eyebrow + count, subtitle, glass surface around the grid. */
+.md-bs-picture__results-eyebrow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+}
+.md-bs-picture__results-count {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba($la-navy, 0.5);
+  text-transform: none;
+}
+.md-bs-picture__results-sub {
+  margin: 4px 0 12px;
+  font-size: 14px;
+  color: rgba($la-navy, 0.55);
+}
+.md-bs-picture__results-surface {
+  padding: 16px;
+  background: linear-gradient(135deg, rgba($brand-verdigris, 0.05), rgba($brand-dusty-denim, 0.05));
+  border: 1px solid rgba($la-navy, 0.07);
+  border-radius: 16px;
+}
+.md-bs-picture__results-surface .md-bs-picture__results {
+  margin: 0;
+  justify-content: flex-start;
+}
+/* "Hide the label when the picture is shown" — moved under the Find a Picture card. */
+.md-bs-picture__hide-label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 22px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba($la-navy, 0.03);
+  font-size: 14px;
+  font-weight: 500;
+  color: $brand-charcoal-dark;
+  cursor: pointer;
+}
+.md-bs-picture__hide-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  cursor: pointer;
 }
 
 /* Close button — fixed top-right corner of the modal */
@@ -67182,36 +67558,15 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   overflow: hidden;
   min-height: 0;
 }
-/* LIGHT-mode EDIT page: the 15%-darker page surface goes on the LAYOUT (the whole
-   edit canvas), while the centered board panel (.md-board-detail-main) stays at
-   the lighter $surface-200 so it reads as a distinct panel above the canvas.
-   (Speak mode instead darkens .md-board-detail-main — see its base rule above.)
-   Scoped `:not(.md-board-detail--dark)` so dark mode keeps its own treatment. */
+/* EDIT page center panel — SAME dark surface as speak mode (per request): the
+   $brand-charcoal-dark board surface lives on .md-board-detail-main (its base rule),
+   flush (no border/radius/shadow via the broadened `:not(.md-board-detail--dark)
+   .md-board-detail-main` rule below). The LAYOUT carries that SAME dark surface (per
+   request) so the whole edit canvas — center board + the side-panel gutters — reads
+   as one continuous dark surface (main is flush, so it blends into the layout).
+   Light-scoped; dark mode keeps its own main treatment. */
 .md-shell--board-detail-edit:not(.md-board-detail--dark) .md-board-detail-layout {
-  background: color.adjust($surface-200, $lightness: -15%);
-}
-.md-shell--board-detail-edit:not(.md-board-detail--dark) .md-board-detail-main {
-  background: $surface-200;
-}
-/* Edit page: the board area (.md-board-detail-main) is a fixed-height
-   scroll viewport with a 24px radius on ALL corners. The rounded BOTTOM
-   on the scroll viewport always shows mid-scroll, which (a) makes the
-   content look like it ends there and (b) curve-clips the last visible
-   button row. Square the bottom corners in edit mode so the cut-off
-   bottom edge reads as "there's more — scroll". Top corners keep the
-   24px card radius. 2-class selector beats the base single-class
-   `.md-board-detail-main { border-radius: 24px }` (and any duplicate)
-   regardless of source order. (Rounding the bottom ONLY at the true
-   content end is a scroll-state behavior that needs a JS hook — see
-   note to the user; not done here to avoid a fragile mechanism.) */
-/* Edit page board container: round the BOTTOM corners to match the
-   top (the base `.md-board-detail-main` is 24px all round). Paired
-   with the extra bottom padding added to the `padding` rule below so
-   the last button row clears the rounded corner instead of being
-   pinched by it. */
-.md-shell--board-detail-edit .md-board-detail-main {
-  border-bottom-left-radius: 24px;
-  border-bottom-right-radius: 24px;
+  background: $brand-charcoal-dark;
 }
 
 /* ── Empty-board state: shown when board has no visible buttons (not in edit mode) ───────── */
@@ -67654,16 +68009,15 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     0 24px 60px rgba($la-navy, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
-/* SPEAK / viewing mode (light): the board canvas reads as a flush surface that
+/* SPEAK **and EDIT** mode (light): the board canvas reads as a flush surface that
    fills its column, not a floating rounded card — drop the rounded corners,
    hairline border, and drop shadow the base rule gives it. The left nav + right
    activity panels stay (the 194px grid columns are unchanged); only the board's
-   own card framing is removed. Scoped to speak + light so EDIT mode keeps its
-   rounded board panel and dark mode keeps its own treatment. The 0,4,0 selector
-   beats the base .md-board-detail-main (0,1,0) regardless of source order — this
-   is the same mode-scoping pattern the edit/dark variants already use, not a
-   specificity patch. */
-.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-main {
+   own card framing is removed. Now scoped to BOTH modes (light) so edit mode
+   matches speak (per request — was speak-only); dark keeps its own treatment. The
+   0,2,0 selector beats the base .md-board-detail-main (0,1,0) regardless of source
+   order — the same mode-scoping pattern the dark variants use, not a patch. */
+.md-shell--board-detail:not(.md-board-detail--dark) .md-board-detail-main {
   border: none;
   border-radius: 0;
   box-shadow: none;
@@ -67773,19 +68127,15 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     0 4px 10px rgba($la-navy, 0.08);
 }
 .md-shell--board-detail-edit .md-board-detail-grid-sidebar-wrap {
-  /* Background canvas tier — sits one step DEEPER than the strip
-     above. Softer bg alpha (.06 → .03) so the strip reads as
-     visibly raised above it; still visible enough to envelop the
-     board buttons. */
-  padding: 10px 12px 10px;
+  /* Match speak mode: NO recessed "well" — transparent so the dark board surface
+     on .md-board-detail-main shows through exactly like speak+light. Keeps only the
+     spacing; the light bg / border / radius / shadow that made it a distinct panel
+     are removed so edit and speak read identically. */
+  padding: 0 12px 10px;
   margin: 0 4px 4px 4px;
-  background: rgba($la-navy, 0.03);
-  border: 1px solid rgba($la-navy, 0.04);
-  border-top: none;
-  border-radius: 0 0 14px 14px;
-  box-shadow:
-    inset 0 -1px 0 rgba(255, 255, 255, 0.45),
-    0 1px 0 rgba(255, 255, 255, 0.50);
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 /* "Hide speak bar" — when the preview-row strip above the wrap
    is removed (display:none via .md-board-detail-sentence-row--hide-bar),
@@ -67838,15 +68188,11 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     0 4px 12px rgba(0, 0, 0, 0.20);
 }
 .md-shell--board-detail-edit.md-board-detail--dark .md-board-detail-grid-sidebar-wrap {
-  /* Background canvas tier — softer alpha (.12 → .08) so the strip
-     above reads as one step raised above it. Still clearly visible
-     enough to envelop the buttons. */
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.06),
-    0 8px 24px rgba(0, 0, 0, 0.10);
+  /* Match speak mode in dark too: no recessed "well" — transparent so the dark
+     board surface shows through (per request, edit always matches speak). */
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
 }
 /* "Hide speak bar" — dark-mode parallel of the light rule above.
    The wrap's hide-bar rule sets a fresh top border with the
@@ -68113,13 +68459,16 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   width: 22px;
   height: 22px;
   /* Unify the two icons' stroke (house shipped at 1.25, chevron at 2.5) so the
-     pair reads as one icon set. CSS beats the SVG's presentation attribute. */
-  stroke-width: 2;
+     pair reads as one icon set. CSS beats the SVG's presentation attribute.
+     Thinned 2 → 1.5 so the Home/Back icons read lighter (per request). */
+  stroke-width: 1.5;
 }
 /* Small label under each icon (Home / Back). */
 .md-board-detail-nav-btn__label {
   font-size: 11px;
-  font-weight: 600;
+  /* Lighter weight (600 → 500) so the label reads thinner alongside the thinner
+     icon (per request). */
+  font-weight: 500;
   line-height: 1;
   letter-spacing: 0.01em;
 }
@@ -68274,12 +68623,14 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 .md-board-detail-sentence-row.md-board-detail-sentence-bar--huge .md-board-detail-sentence-bar {
   min-height: 200px;
 }
-/* Short viewports (<=500px tall, e.g. landscape phones): shrink the sentence
-   bar ~30% — bar height AND all inner content (heights, widths, fonts, images,
-   icons) scaled to 0.7 of each size preset so the bar doesn't eat a short
-   screen. libsass can't evaluate calc(px * var()), so each reduced value is
-   precomputed (= round(original * 0.7)). */
-@media (max-height: 500px) {
+/* Smaller screens — SHORT (<=500px tall, e.g. landscape phones) OR NARROW
+   (<=600px wide, e.g. portrait phones / small tablets): shrink the sentence bar
+   ~30% — bar height AND all inner content (heights, widths, fonts, images, icons)
+   scaled to 0.7 of each size preset so the row doesn't eat the screen. The user's
+   size preference is used at full size; this scales it DOWN on smaller viewports in
+   EITHER dimension (so both a short landscape screen and a narrow portrait one are
+   covered). Each reduced value is precomputed (= round(original * 0.7)). */
+@media (max-height: 500px), (max-width: 600px) {
   .md-board-detail-sentence-row.md-board-detail-sentence-bar--small {
     --nb-sb-h: 60px;  --nb-sb-h2: 120px; --nb-sb-ph: 55px;  --nb-sb-ph2: 109px;
     --nb-sb-font: 14px; --nb-sb-lbl: 10px; --nb-sb-img: 35px; --nb-sb-pimg: 34px; --nb-sb-minw: 31px; --nb-sb-sbtn: 13px;
@@ -68358,8 +68709,11 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    heights, images, fonts, icons) by each class's own height ratio so the row
    adjusts to the shorter bar instead of clipping. After the <=500h block so it
    overrides at equal specificity (both media queries match at <=400px). The
-   <=500h toggle/home/svg shrink still applies here and stretches to the row. */
-@media (max-height: 400px) {
+   <=500h toggle/home/svg shrink still applies here and stretches to the row.
+   Also fires on very NARROW widths (<=420px, portrait phones), mirroring the
+   <=600px width added to the <=500h block above; the width thresholds nest the
+   same way the height ones do (420 < 600), so a narrow phone lands on 0.65. */
+@media (max-height: 400px), (max-width: 420px) {
   .md-board-detail-sentence-row.md-board-detail-sentence-bar--small {
     --nb-sb-h: 50px;  --nb-sb-h2: 100px; --nb-sb-ph: 46px;  --nb-sb-ph2: 91px;
     --nb-sb-font: 12px; --nb-sb-lbl: 8px; --nb-sb-img: 29px; --nb-sb-pimg: 28px; --nb-sb-minw: 26px; --nb-sb-sbtn: 11px;
@@ -69109,6 +69463,16 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   min-height: 0;
   height: auto;
   max-width: 80%;
+}
+/* Placeholder (missing-image) symbol on the rail: square.svg is a translucent
+   brand-coloured photo glyph, which reads DIM on the dark board surface the rail
+   sits on (base tiles are 0.85 opacity with no backing). Give the placeholder full
+   opacity + a light frosted backing (mirrors the dark-mode lift) so the glyph
+   composites over white and reads bright and clear instead of muddy. */
+.md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction-img[src$="square.svg"] {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, 0.55);
 }
 /* Predicted-word font must EXACTLY match the board button label.
    --prediction-label-font is the board label's RENDERED font-size, copied in
@@ -70011,19 +70375,10 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   width: 100%;
   padding: 7px 12px 7px 16px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.68);
-  /* Teal-tinted border + soft glow (matching the panel-header accent) so the session
-     bar reads as a distinct, active editing region — gentle per the calm design. */
-  border: 1px solid rgba($brand-verdigris, 0.22);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.6),
-    0 4px 14px rgba($la-navy, 0.05),
-    0 0 26px rgba($brand-verdigris, 0.18);
-  -webkit-backdrop-filter: blur(8px) saturate(1.2);
-  backdrop-filter: blur(8px) saturate(1.2);
-  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
-  will-change: transform;
-  transform: translateZ(0);
+  /* SAME glass surface as the speak-mode compose bar (.md-board-detail-sentence-bar)
+     — shared via the glass-bar-surface mixin so the two always match (per request).
+     Layout above stays session-bar-specific. */
+  @include glass-bar-surface;
 }
 /* Edit mode: the session bar spans the FULL center-panel width. It lives in a plain
    column div (.md-board-detail-header__title-col) inside the header title-group; in
@@ -70106,9 +70461,10 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    title ink (not the teal status colour) and truncates on overflow. */
 .md-board-edit-session__board-icon {
   flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
+  /* 25% larger than the prior 34px (per request); radius scaled to match. */
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
   object-fit: cover;
   border: 1px solid rgba($la-navy, 0.12);
 }
@@ -71980,30 +72336,12 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sentence-bar {
   padding: 2px 18px;
   gap: 18px;
-  /* Glassy glossy (2026-07 rework): the old flat 0.78 near-opaque white read as
-     plain light gray over the dark board. Now a lighter, more translucent glass
-     (bright reflective top half fading to a cooler, see-through lower half so the
-     blurred board shows through) with a stronger blur + saturation, and a real
-     GLOSS — a crisp specular top edge plus an upper sheen bloom. */
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(255, 255, 255, 0.74) 50%,
-    rgba(238, 244, 251, 0.64) 100%
-  );
-  backdrop-filter: blur(20px) saturate(185%);
-  -webkit-backdrop-filter: blur(20px) saturate(185%);
-  /* GPU layer — prevents backdrop-filter recompute flash on scroll (see .la-pricing-card ~27720) */
-  will-change: transform;
-  transform: translateZ(0);
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  box-shadow:
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.98),        /* crisp specular top edge (the gloss line) */
-    inset 0 14px 22px -16px rgba(255, 255, 255, 0.65), /* upper sheen bloom — light reflecting off the glass */
-    inset 0 -10px 22px -18px rgba($la-navy, 0.06),     /* faint lower depth so the glass has thickness */
-    0 1px 2px rgba($la-navy, 0.05),
-    0 12px 30px rgba($la-navy, 0.12);                  /* soft outer elevation */
-  color: $la-navy;
+  /* Glassy glossy surface — SHARED with the edit-mode session bar
+     (.md-board-edit-session) via the glass-bar-surface mixin so the two always
+     match (per request). The mixin is the translucent-white gloss formula (bright
+     reflective top fading to a see-through lower half, strong blur + saturation, a
+     crisp specular top edge + upper sheen bloom). */
+  @include glass-bar-surface;
 }
 
 /* 2. Home + Back buttons — same translucent-white treatment so the nav
@@ -74844,7 +75182,12 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    base `.md-board-detail-grid` rules. Edit mode only — speak/other
    views keep calc(100dvh - 120px). */
 .md-shell--board-detail-edit .md-board-detail-grid-sidebar-wrap .md-board-detail-grid {
-  height: calc(100dvh - 180px) !important;
+  /* Same offset as speak mode (base 120px) so the edit board fits on ONE PAGE
+     with no vertical scroll. The old 180px reserved ~60px extra for the edit-only
+     chrome above the grid (edit-card + speak-bar preview row) — both since
+     removed, so the edit chrome (just the sticky session bar) is now LESS than
+     speak's (title + sentence row). Matching 120px therefore guarantees the fit. */
+  height: calc(100dvh - 120px) !important;
 }
 /* The board grid fills the viewport height at ALL sizes (base
    `.md-board-detail-grid { flex: 1 1 0 }`), so it always stays on ONE PAGE with no
@@ -75341,6 +75684,34 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   padding: 4px 8px;
   word-break: break-word;
   line-height: 1.3;
+}
+/* "Hide the label when the picture is shown" (button.hide_label) on the modern grid.
+   Unconditional (matches the classic board's `.hide-label`, which hides whenever the
+   flag is set) rather than gated on `:has(img.symbol)`, so it doesn't hinge on :has
+   support or image-load timing. The class is only added when btn.hide_label is set. */
+.md-board-detail-symbol-card__label.hide-label {
+  display: none;
+}
+/* When "hide the label" is set the picture becomes the button: drop the 4px card
+   padding so the symbol grows as large as it can in the space it no longer shares
+   with the label. `object-fit: contain` (kept from the base rule) means the WHOLE
+   symbol stays visible — no cropping — it just scales up to fill the freed room.
+   Opt-in per button (btn.hide_label → `--hide-label` on the card); scoped to
+   raster/loaded `img.symbol` so folder-placeholder svgs and empty cells are untouched. */
+.md-board-detail-symbol-card--hide-label {
+  padding: 0;
+}
+.md-board-detail-symbol-card--hide-label .md-board-detail-symbol-card__image {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+.md-board-detail-symbol-card--hide-label .md-board-detail-symbol-card__image img.symbol {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 .md-board-detail-symbol-card__label {
   // Default: hold the user's chosen font size and wrap long phrases
@@ -76098,50 +76469,64 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 
 .md-shell--board-detail-edit .md-board-detail-header {
-  /* Edit-mode header used to zero ALL padding so the toolbar can hug
-     the column edges, but that left the title cramped against the top
-     of the panel. Restore vertical breathing room (12px top, 8px
-     bottom) — horizontal stays 0 so the edit-toolbar still spans
-     edge-to-edge with the center stage. */
+  /* No padding — the session bar sits flush to the top of the scroll area AND flush
+     to the grid-sidebar-wrap below (no vertical gap, per request). */
   margin-bottom: 0;
-  padding-top: 4px;
-  padding-right: 0;
-  padding-bottom: 8px;
-  padding-left: 0;
-  position: relative;
+  padding: 0;
+  /* STICK the session bar to the top while the board scrolls beneath.
+     .md-board-detail-main is the scroll container and this header is a DIRECT child
+     of it, so the header stays pinned the whole scroll. (Sticky on the deeply-nested
+     session bar itself fails: a sticky element only holds while its PARENT is in
+     view, and the bar's short title column scrolls away.) TRANSPARENT background
+     (per request) — the dark board surface shows through, and the session bar is
+     translucent glass, so the board scrolls under it with the frosted-glass blur
+     (mirrors the speak compose bar over the board). Zero padding = no strips to
+     bleed. */
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: transparent;
 }
 /* ── Edit mode pill badge ── */
+/* "Editing" status badge — absolutely centered in the sticky session bar (which is
+   position:relative), so it sits at the TOP CENTER of the edit page. Styled like the
+   Take-a-tour pill (.md-tour__trigger): white rim + frosted backdrop over a
+   denim→verdigris glass tint. But it's an INFO BADGE, not a button — flatter shadow,
+   no cursor/hover, and pointer-events:none so clicks pass through to the bar. */
 .md-board-detail-edit-pill {
   position: absolute;
-  top: calc(50% - 2rem);
   left: 50%;
+  top: 50%;
   transform: translate(-50%, -50%);
+  z-index: 6;
   display: inline-flex;
   align-items: center;
-  padding: 6px 20px;
-  background: linear-gradient(135deg, $brand-verdigris, $brand-dusty-denim);
-  color: #fff;
+  gap: 7px;
+  padding: 5px 14px 5px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
   border-radius: 999px;
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  background:
+    radial-gradient(125% 125% at 30% 18%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 52%),
+    linear-gradient(150deg, rgba($brand-dusty-denim, 0.32) 0%, rgba($brand-verdigris, 0.28) 100%);
+  -webkit-backdrop-filter: blur(8px) saturate(1.4);
+  backdrop-filter: blur(8px) saturate(1.4);
+  color: $indigo;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1;
   white-space: nowrap;
-  z-index: 1;
+  /* Gentle badge lift — NOT the raised-button shadow the tour trigger uses. */
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.85),
+    0 2px 7px rgba($brand-dusty-denim, 0.14);
+  pointer-events: none;
 }
-/* Edit-mode pill positioning (formerly gated to <=1024px): hide the title-row
-   inline variant and show the "mobile" variant (positioned statically, right-
-   aligned next to board actions) at all screen widths so the pill lands in a
-   consistent spot regardless of viewport size. */
-.md-board-detail-header__title-row .md-board-detail-edit-pill {
-  display: none;
+.md-board-detail-edit-pill__icon {
+  flex: 0 0 auto;
 }
-.md-board-detail-edit-pill--mobile {
-  display: inline-flex;
-  position: static;
-  transform: none;
-  margin: 0 0 8px 0;
-  align-self: flex-end;
+.md-board-detail-edit-pill__label {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 /* ── Modern tooltips for edit toolbar ── */
@@ -78394,10 +78779,10 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   padding-top: 0 !important;
 }
 .md-shell--board-detail-edit .md-board-detail-main {
-  /* Extra bottom padding (28px > the 24px corner radius) so the last
-     button row clears the now-rounded bottom corners instead of being
-     pinched against them. Top padding removed per request; sides 16px. */
-  padding: 0 16px 28px !important;
+  /* 8px top padding (matches speak mode's .md-board-detail-main) so the sticky
+     session bar has breathing room at the top of the board area (per request);
+     sides 16px; bottom 28px for a comfortable last-row clearance. */
+  padding: 8px 16px 28px !important;
   /* CRITICAL for the 15/70/15 grid: a grid item defaults to
      min-width:auto (= min-content). The board grid is wide, so without
      this the centre refuses to shrink to its 70% track, inflates, and
@@ -78974,7 +79359,13 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   // Tracks .md-folder-back's quieter value (+16% lightness) so the tab and back
   // read as one continuous shape; dark mode overrides below.
   background: color.adjust($brand-charcoal-blue, $lightness: 16%);
-  border-radius: 4px 4px 0 0;
+  /* Trapezoid tab (per request): the sides ANGLE INWARD toward the top — wider at
+     the base where it meets the folder back, narrower at the top edge — like a real
+     notebook/file tab. The clip-path defines the silhouette (top corners at 16%/84%,
+     bottom flush at the full width); the top border-radius softens the two top
+     corners that the clip leaves. */
+  clip-path: polygon(16% 0, 84% 0, 100% 100%, 0 100%);
+  border-radius: 7px 7px 0 0;
   pointer-events: none;
   transition: background 0.25s ease, width 0.25s ease, height 0.25s ease;
   overflow: hidden;
@@ -78989,6 +79380,9 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 .md-board-detail-grid--folder-tab-labels .md-folder-tab {
   pointer-events: auto;
+  /* Show-Labels-on-Tab uses a WIDE tab for the label text — keep it rectangular so
+     the inward-angled trapezoid (default tab) doesn't clip the label at the edges. */
+  clip-path: none;
 }
 /* Tab label — hidden by default */
 .md-folder-tab__label {
@@ -81074,6 +81468,64 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   border-bottom: 1px solid rgba($la-navy, 0.08);
   padding: 32px 24px;
   position: relative;
+}
+/* Button Settings header: the modal title + a live COPY of the button as it
+   appears in speak mode (colour, symbol, label) — replaces the plain "- label"
+   text so the user sees exactly which button they're editing. */
+.md-bs-header__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.md-bs-header__title-row h3 {
+  margin: 0;
+}
+/* Text-position preference (shared by the header + Color-tab mockups): label on top
+   flips the flex column so the label sits ABOVE the symbol (DOM order is
+   symbol-then-label = "text on bottom"); "text only" hides the symbol entirely (the
+   template omits the <img>), matching how the board renders in speak mode. */
+.md-bs-header__button.md-bs-preview--text-top {
+  flex-direction: column-reverse;
+}
+.md-bs-header__button {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  /* Matches the ACTUAL board button's speak-mode size — didInsertElement measures a
+     live board card and publishes --bs-preview-w / --bs-preview-h (60px fallback). */
+  width: var(--bs-preview-w, 60px);
+  height: var(--bs-preview-h, 60px);
+  padding: 6px;
+  border-radius: 12px;
+  /* Colour comes from the inline style (button's fill + border); this sets the
+     width/style + a neutral fallback so a colourless button still frames. */
+  border: 2px solid #cbd3de;
+  box-shadow: 0 1px 4px rgba($la-navy, 0.14);
+  overflow: hidden;
+  /* Size container so the symbol + label scale WITH the button (mirrors the board
+     card's `container-type: size`), so a big button gets a big symbol/label. */
+  container-type: size;
+}
+.md-bs-header__button-img {
+  max-width: 78cqmin;
+  max-height: 55cqmin;
+  object-fit: contain;
+}
+.md-bs-header__button-label {
+  font-size: clamp(11px, 15cqmin, 22px);
+  font-weight: 600;
+  color: #222222;
+  line-height: 1.05;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 .md-modal-header .close,
 .md-modal-header .la-modal-close {
@@ -90694,27 +91146,12 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   overflow-x: hidden;
   position: sticky;
   top: 8px;
-  /* Rail panel-surface — now translucent (.78 alpha) so the
-     atmospheric canvas halos bleed through via the backdrop-filter
-     blur on the rail. Embeds the rail in the page instead of
-     stamping it on top. */
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(241, 244, 248, 0.78) 100%);
-  backdrop-filter: blur(12px) saturate(140%);
-  -webkit-backdrop-filter: blur(12px) saturate(140%);
-  /* Atmospheric depth instead of a hard stroke: drop the border alpha
-     from .10 → .06 (becomes a barely-there hairline), then build the
-     rail's separation via layered shadows — close 1px lift, mid 24px
-     drop, broad 60px ambient haze that bleeds into the canvas — plus
-     a bright inset top-edge highlight that reads as "lit from above"
-     (mirrors the boards-page card pattern). */
-  border: 1px solid rgba($la-navy, 0.06);
+  /* SAME glass surface as the header session bar (.md-board-edit-session), shared
+     via the glass-bar-surface mixin so the rails match the header — background,
+     white border, top-highlight sheen, and layered shadow all from ONE source.
+     Keeps the rail's own 14px radius. */
+  @include glass-bar-surface;
   border-radius: 14px;
-  box-shadow:
-    0 1px 2px rgba($la-navy, 0.04),
-    0 8px 24px rgba($la-navy, 0.07),
-    0 24px 60px rgba($la-navy, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.65);
-  color: $la-navy;
   box-sizing: border-box;
   z-index: 5;
 }
@@ -91060,7 +91497,9 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   text-align: center;
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  color: rgba($la-navy, 0.85) !important;
+  /* Darkened a touch (was rgba .85) to match the expanded-panel label darkening,
+     so the collapsed-rail content labels read the same depth (per request). */
+  color: color.adjust($la-navy, $lightness: -8%) !important;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -91345,8 +91784,10 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   padding: 1px;
   box-sizing: content-box;
   border-radius: 50%;
-  background: rgba($la-navy, 0.05);
-  border: 1px solid rgba($la-navy, 0.08);
+  /* Match the right panel's section-icon chip: a translucent-white disc instead of
+     the faint navy tint, so the two rails' icon backgrounds are identical. */
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.6);
   flex: 0 0 auto;
   aspect-ratio: 1 / 1;
   transition: background 0.18s ease, border-color 0.18s ease;
@@ -91987,6 +92428,13 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* Light mode: darken the side-panel labels a touch for stronger contrast on the
+   bright glass rails (per request). Covers both the left (Action) rail rows and the
+   right (Settings) rail section headers. Dark mode keeps its own lighter label. */
+.md-shell--board-detail-edit:not(.md-board-detail--dark) .md-board-edit-panel__label,
+.md-shell--board-detail-edit:not(.md-board-detail--dark) .md-board-edit-right-panel__section-label {
+  color: color.adjust($la-navy, $lightness: -8%);
 }
 .md-board-detail--dark .md-board-edit-panel__row {
   color: #e5ecf8;
@@ -92784,27 +93232,12 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   overflow-x: hidden;
   position: sticky;
   top: 8px;
-  /* Rail panel-surface — now translucent (.78 alpha) so the
-     atmospheric canvas halos bleed through via the backdrop-filter
-     blur on the rail. Embeds the rail in the page instead of
-     stamping it on top. */
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(241, 244, 248, 0.78) 100%);
-  backdrop-filter: blur(12px) saturate(140%);
-  -webkit-backdrop-filter: blur(12px) saturate(140%);
-  /* Atmospheric depth instead of a hard stroke: drop the border alpha
-     from .10 → .06 (becomes a barely-there hairline), then build the
-     rail's separation via layered shadows — close 1px lift, mid 24px
-     drop, broad 60px ambient haze that bleeds into the canvas — plus
-     a bright inset top-edge highlight that reads as "lit from above"
-     (mirrors the boards-page card pattern). */
-  border: 1px solid rgba($la-navy, 0.06);
+  /* SAME glass surface as the header session bar (.md-board-edit-session), shared
+     via the glass-bar-surface mixin so the rails match the header — background,
+     white border, top-highlight sheen, and layered shadow all from ONE source.
+     Keeps the rail's own 14px radius. */
+  @include glass-bar-surface;
   border-radius: 14px;
-  box-shadow:
-    0 1px 2px rgba($la-navy, 0.04),
-    0 8px 24px rgba($la-navy, 0.07),
-    0 24px 60px rgba($la-navy, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.65);
-  color: $la-navy;
   box-sizing: border-box;
   z-index: 5;
   transition: width 0.2s ease, padding 0.2s ease;
@@ -93507,8 +93940,10 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   padding: 1px;
   box-sizing: border-box;
   border-radius: 50%;
-  background: rgba($la-navy, 0.05);
-  border: 1px solid rgba($la-navy, 0.08);
+  /* Lighter chip on the bright glass rail (per request): a translucent-white disc
+     instead of the faint navy tint, so the icon sits on a light background. */
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.6);
   color: rgba($la-navy, 0.65);
   transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
 }

@@ -1402,6 +1402,17 @@
                       <span class="md-board-edit-session__badge md-board-edit-session__badge--copying">{{t "Creating a Copy of This Board" key="board_detail_creating_copy_badge"}}</span>
                     {{/if}}
                   </div>
+                  {{!-- Top-center "Editing" status badge — styled like the Take-a-tour
+                       glass pill but non-interactive (a status indicator, not a button).
+                       Absolutely centered in the sticky session bar = top-center of the
+                       edit page. --}}
+                  <span class="md-board-detail-edit-pill" role="status" aria-label={{t "Editing" key="board_detail_editing"}}>
+                    <svg class="md-board-detail-edit-pill__icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#46505F"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="#2A9D8F"/>
+                    </svg>
+                    <span class="md-board-detail-edit-pill__label">{{t "Editing" key="board_detail_editing"}}</span>
+                  </span>
                   <div class="md-board-edit-session__actions">
                     <button type="button"
                       class="md-board-edit-session__btn md-board-edit-session__btn--discard"
@@ -1687,109 +1698,6 @@
 
       {{!-- Saving indicator now lives above the header (top of page). --}}
 
-      {{#if this.edit_mode}}
-        {{!-- Speak Bar PREVIEW (edit mode only). The live #speak bar
-             is hidden by CSS while editing, so this non-interactive
-             copy sits above the board grid and lets the user see the
-             Speak Bar settings (size via sentence_bar_height_class,
-             words-only via utterance_show_symbols) applied live. It
-             shows the current utterance if any, else the board's
-             first five buttons (preview_sentence_parts). The
-             --preview modifier overrides the edit-mode display:none
-             that hides the real sentence row.
-             The "Editing" pill that used to live above this preview
-             row was moved into the title-row-center column (header
-             area) so the editing-state indicator sits next to the
-             board title + discard/save tiles instead of inside the
-             preview-well. With the pill gone the preview row now
-             owns the top of the well visually — see the SCSS
-             `.md-board-detail-sentence-row--preview` rule for the
-             border-top + rounded-top-corners that picked up that
-             role. --}}
-        {{!-- Preview sentence row was previously aria-hidden + non-
-             interactive (a static mock of the speak bar) because the
-             real #speak row above handled navigation. In edit mode
-             the real row is display:none-d, so the home button + back
-             button here were inert — clicking them did nothing. Wired
-             up to the same go_home / go_back actions the real row
-             uses, and home is now a real <button> instead of a <div>
-             so it accepts the click. The back button (gated on
-             show_board_back_nav, same as the real row) is rendered
-             after the home button. aria-hidden removed since the
-             buttons are now real interactive controls. --}}
-        <div class="md-board-detail-sentence-row md-board-detail-sentence-row--preview {{this.sentence_bar_height_class}} {{if this.hide_speak_bar 'md-board-detail-sentence-row--hide-bar'}}">
-          <div class="md-board-detail-nav-stack">
-            <button type="button" class="md-board-detail-home-btn" data-bd-action="go_home" {{on "click" (this.ctrlAction "go_home")}} aria-label={{t "Home" key="board_detail_home"}} title={{t "Home" key="board_detail_home"}}>
-              <svg width="33" height="33" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M3 12 12 3l9 9"/>
-                <path d="M5 10v10a1 1 0 0 0 1 1h3v-6h6v6h3a1 1 0 0 0 1-1V10"/>
-              </svg>
-              <span class="md-board-detail-nav-btn__label">{{t "Home" key="board_detail_home"}}</span>
-            </button>
-            {{#if this.show_board_back_nav}}
-              <button type="button" class="md-board-detail-nav-stack__back" data-bd-action="go_back" {{on "click" (this.ctrlAction "go_back")}} aria-label={{t "Go back to previous board" key="board_detail_go_back"}}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <polyline points="15 18 9 12 15 6" stroke="currentColor"/>
-                </svg>
-                <span class="md-board-detail-nav-btn__label">{{t "Back" key="board_detail_back"}}</span>
-              </button>
-            {{/if}}
-          </div>
-          <div class="md-board-detail-sentence-bar" role="region" aria-label={{t "Speak bar preview" key="board_detail_speak_bar_preview"}}>
-            <div class="md-board-detail-sentence-bar__text {{if this.utterance_show_symbols "md-board-detail-sentence-bar__text--with-symbols"}}">
-              {{#if this.utterance_show_symbols}}
-                {{#each this.preview_sentence_parts as |part|}}
-                  <span class="md-board-detail-sentence-bar__chip {{if this.utterance_text_on_top "md-board-detail-sentence-bar__chip--text-top"}}">
-                    {{#if this.utterance_text_on_top}}
-                      <span class="md-board-detail-sentence-bar__chip-label">{{part.label}}</span>
-                    {{/if}}
-                    {{#if part.image_url}}
-                      <img src={{part.image_url}} alt="" class="md-board-detail-sentence-bar__chip-img" decoding="async" loading="eager">
-                    {{/if}}
-                    {{#unless this.utterance_text_on_top}}
-                      <span class="md-board-detail-sentence-bar__chip-label">{{part.label}}</span>
-                    {{/unless}}
-                  </span>
-                {{/each}}
-              {{else}}
-                {{this.preview_sentence_text}}
-              {{/if}}
-            </div>
-            <div class="md-board-detail-sentence-bar__actions">
-              <span class="md-board-detail-sentence-bar__btn md-board-detail-sentence-bar__btn--speak" aria-hidden="true">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                  <line x1="12" y1="19" x2="12" y2="23"/>
-                  <line x1="8" y1="23" x2="16" y2="23"/>
-                </svg>
-              </span>
-              <div class="md-board-detail-sentence-bar__tools">
-                <span class="md-board-detail-sentence-bar__tool-btn" aria-hidden="true">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
-                    <line x1="18" y1="9" x2="12" y2="15"/>
-                    <line x1="12" y1="9" x2="18" y2="15"/>
-                  </svg>
-                </span>
-                <span class="md-board-detail-sentence-bar__tool-btn" aria-hidden="true">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <polyline points="3 6 5 6 21 6"/>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    <line x1="10" y1="11" x2="10" y2="17"/>
-                    <line x1="14" y1="11" x2="14" y2="17"/>
-                  </svg>
-                </span>
-                <span class="md-board-detail-sentence-bar__tool-btn" aria-hidden="true">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <polyline points="6 9 12 15 18 9"/>
-                  </svg>
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      {{/if}}
 
       {{!-- Grid + Sidebar wrapper --}}
       <div class="md-board-detail-grid-sidebar-wrap">

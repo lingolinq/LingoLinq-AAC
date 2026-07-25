@@ -405,31 +405,21 @@ export default Controller.extend(prefClasses, {
     main.style.setProperty('--prediction-rail-gap-left', colGap + 'px');
     main.style.setProperty('--prediction-rows', String(parseInt(this.get('current_grid.rows'), 10) || 4));
     main.style.setProperty('--prediction-grid-h', Math.round(grid.getBoundingClientRect().height) + 'px');
-    // WIDTH. The rail is a fixed-width sibling of the FLEXIBLE board grid, so
-    // setting the rail to the measured card width is circular: the rail steals
-    // that width back from the grid, the cards resize, and the two stay one step
-    // out of sync forever (the rail renders NARROWER than the buttons). Solve
-    // for the convergent width instead. The grid + rail share a horizontal
-    // budget S = gridFadeWidth + railMargin + railWidth that is INVARIANT under
-    // how it's split (the flex:1 grid absorbs whatever the rail takes; the
-    // sidebar is a separate fixed sibling). At the width W where one board
-    // column == the rail:  S = (N+1)*W + (N-1)*colGap + railMargin  →
-    //   W = (S - (N-1)*colGap - railMargin) / (N+1).
-    // One measurement at ANY current rail width yields the right W. Falls back
-    // to the plain card width when the rail is hidden (>1200px in-bar layout).
+    // WIDTH — match the speak-mode sidebar EXACTLY (per request). The rail and the
+    // inline sidebar are both fixed-width siblings of the FLEXIBLE board grid (which
+    // absorbs the remaining width); the sidebar's width is set by CSS per breakpoint
+    // (112 / 80 / 70px …), so reading its RENDERED width keeps the rail matched to it
+    // at every screen size. Non-circular: the sidebar width doesn't depend on the
+    // rail, so the grid just absorbs whatever the rail takes and the value settles in
+    // one pass. Falls back to the board card width when the sidebar isn't present
+    // (quick-sidebar disabled / collapsed).
     var tileW = Math.round(cardRect.width);
-    var rail = document.querySelector('.md-board-detail-prediction-rail');
-    var gridFade = document.querySelector('.md-board-detail-grid-fade');
-    var cols = parseInt(this.get('current_grid.columns'), 10) || 0;
-    if(rail && gridFade && cols > 0 && window.getComputedStyle(rail).display !== 'none') {
-      var railMarginLeft = parseFloat(window.getComputedStyle(rail).marginLeft) || 0;
-      var shared = gridFade.getBoundingClientRect().width + railMarginLeft + rail.getBoundingClientRect().width;
-      var w = (shared - (cols - 1) * colGap - railMarginLeft) / (cols + 1);
-      if(w > 1) { tileW = Math.round(w); }
+    var inlineSidebar = document.querySelector('.md-board-detail-inline-sidebar');
+    if(inlineSidebar) {
+      var sbw = Math.round(inlineSidebar.getBoundingClientRect().width);
+      if(sbw > 1) { tileW = sbw; }
     }
-    // Trim 4px off the computed width (per design) so the rail tiles sit just
-    // inside the board column width rather than flush to it.
-    main.style.setProperty('--prediction-tile-w', Math.max(0, tileW - 4) + 'px');
+    main.style.setProperty('--prediction-tile-w', Math.max(0, tileW) + 'px');
     // No per-tile height or top-inset measurement needed: the rail grid's rows
     // (--prediction-rows × minmax(0,1fr)), pinned to the board grid height above
     // with a matching 4px top inset, place each tile in its board row band
@@ -700,21 +690,17 @@ export default Controller.extend(prefClasses, {
     }
   },
 
-  // Auto-collapse panels whenever edit_mode flips on at a narrow
-  // viewport (e.g. user clicks "Edit Board" while viewport is
-  // already ≤1200px — matchMedia doesn't fire since the viewport
-  // didn't change). The enterEditNow action handles this for the
-  // in-app click path, but this observer is the catch-all for any
-  // other path that sets edit_mode true. Gated on the narrow
-  // viewport check so wider screens are unaffected.
-  _auto_collapse_panels_on_edit_at_narrow: observer('edit_mode', function() {
+  // Auto-collapse BOTH side panels whenever edit_mode flips on, at ANY viewport
+  // size (per request: the edit page should always open with the side panels
+  // collapsed so the board grid gets the room). The enterEditNow action also
+  // collapses on the in-app click path; this observer is the catch-all for every
+  // other path that sets edit_mode true (direct load, deep link, refresh). Fires
+  // only on entry — a manual expand afterward is preserved (the observer doesn't
+  // run again until edit_mode next flips).
+  _auto_collapse_panels_on_edit: observer('edit_mode', function() {
     if(!this.get('edit_mode')) { return; }
-    if(typeof window === 'undefined' || !window.matchMedia) { return; }
-    var mql = this._narrowViewportMql || window.matchMedia('(max-width: 1200px)');
-    if(mql.matches) {
-      this.set('left_panel_collapsed', true);
-      this.set('right_panel_collapsed', true);
-    }
+    this.set('left_panel_collapsed', true);
+    this.set('right_panel_collapsed', true);
   }),
 
   willDestroy: function() {
@@ -1687,6 +1673,7 @@ export default Controller.extend(prefClasses, {
       image_id: btn.image_id,
       load_board: btn.load_board,
       hidden: btn.hidden,
+      hide_label: !!btn.hide_label,
       display_as_hidden: display_as_hidden,
       part_of_speech: btn.part_of_speech || btn.painted_part_of_speech || btn.suggested_part_of_speech,
       background_color: btn.background_color || null,
@@ -1715,6 +1702,12 @@ export default Controller.extend(prefClasses, {
     var more_args = { board: board };
     if(img_url) { more_args.image_url = img_url; }
     var button = editManager.Button.create(btn, more_args);
+    // Explicitly carry hide_label onto the Ember button so the modern grid can hide
+    // the label ("Hide the label when the picture is shown"). Without this the class
+    // flashed via the classic fast-HTML paint, then the Ember grid re-rendered without
+    // it (Button.create doesn't reliably propagate it — same reason the level path in
+    // edit_manager sets it explicitly).
+    button.set('hide_label', !!btn.hide_label);
     if(btn.background_color && window.tinycolor) {
       button.set('border_color', window.tinycolor(btn.background_color).darken(20).toRgbString());
     }
@@ -5017,14 +5010,11 @@ export default Controller.extend(prefClasses, {
         _this.set('show_color_legend', false);
         _this.set('board_collapsed', false);
         _this.set('panels_collapsed', true);
-        // On smaller screens (<=1024px) start the edit page with BOTH
-        // side panels collapsed to their rail — the board grid needs
-        // the room there. Set on entry only (matches how the rest of
-        // the collapse state is purely user-toggled; no resize hook).
-        var vw = (typeof window !== 'undefined' && window.innerWidth) || 0;
-        var collapse_sides = vw > 0 && vw <= 1200;
-        _this.set('left_panel_collapsed', collapse_sides);
-        _this.set('right_panel_collapsed', collapse_sides);
+        // Start the edit page with BOTH side panels collapsed to their rail, at
+        // ANY screen size (per request) — the board grid gets the room and the
+        // user can expand either panel manually. Set on entry only.
+        _this.set('left_panel_collapsed', true);
+        _this.set('right_panel_collapsed', true);
         _this.get('router').transitionTo('user.board-detail.edit', _this.get('user.user_name'), _this.get('boardname'));
       };
       ready.then(function(res) {
@@ -5261,9 +5251,9 @@ export default Controller.extend(prefClasses, {
     },
 
     /* Edit-panel Board Actions section toggle. On the COLLAPSED rail
-       (auto-engaged at viewports <1024px — see
-       `_auto_collapse_panels_on_edit_at_narrow` and the resize handler
-       around line 4214) the section's content (`.md-board-edit-panel__collapse`)
+       (auto-engaged on entering edit mode at ANY viewport — see
+       `_auto_collapse_panels_on_edit` and the resize handler)
+       the section's content (`.md-board-edit-panel__collapse`)
        is hidden by `display: none !important` in app.scss (~line 85200).
        Just flipping `board_actions_collapsed` while the panel is still a
        rail toggles invisible state — the user taps the gear icon and

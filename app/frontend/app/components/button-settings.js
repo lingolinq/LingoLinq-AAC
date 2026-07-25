@@ -38,6 +38,20 @@ export default Component.extend({
   is_modern: computed('appState.currentUser.preferences.board_view_style', function() {
     return this.get('appState.currentUser.preferences.board_view_style') !== 'classic';
   }),
+  // Text-position preference (top / bottom / text_only) for the button-mockup
+  // previews (header + Color tab) so they render the label/symbol the same way the
+  // board does in speak mode. Mirrors board-detail's `button_text_position` default
+  // of 'top'. Prefer the referenced communicator's pref; fall back to the editor's.
+  button_text_position: computed('appState.referenced_user.preferences.device.button_text_position', 'appState.currentUser.preferences.device.button_text_position', function() {
+    return this.get('appState.referenced_user.preferences.device.button_text_position') ||
+           this.get('appState.currentUser.preferences.device.button_text_position') || 'top';
+  }),
+  preview_text_only: computed('button_text_position', function() {
+    return this.get('button_text_position') == 'text_only';
+  }),
+  preview_text_on_top: computed('button_text_position', function() {
+    return this.get('button_text_position') == 'top';
+  }),
 
   init() {
     this._super(...arguments);
@@ -99,6 +113,22 @@ export default Component.extend({
     this.set('fresh_picture_url', null);
     contentGrabbers.setup(button, this);
     var _this = this;
+
+    // Size the header button-preview mockup to the ACTUAL board button (its speak-mode
+    // width/height). The board is still rendered behind the modal and every grid
+    // button is the same size, so measure one and publish its dimensions as CSS vars
+    // the preview reads; falls back to the CSS default when no modern board button is
+    // on the page. Measured synchronously — the board rendered before this modal opened.
+    try {
+      var _card = document.querySelector('.md-board-detail-symbol-card');
+      if(_card && this.element) {
+        var _r = _card.getBoundingClientRect();
+        if(_r.width > 1 && _r.height > 1) {
+          this.element.style.setProperty('--bs-preview-w', Math.round(_r.width) + 'px');
+          this.element.style.setProperty('--bs-preview-h', Math.round(_r.height) + 'px');
+        }
+      }
+    } catch(e) { /* preview keeps its CSS-default size */ }
 
     if(button.get('folderAction')) { this.load_board_collection(); }
     // Snapshot the button's colors so the Color tab's "Revert Color" can restore
@@ -1168,6 +1198,13 @@ export default Component.extend({
       contentGrabbers.pictureGrabber.swap_streams();
     },
     webcamToggle: function(takePic) {
+      // toggle_webcam() is a pure toggle on webcam.snapshot (capture ⇄ clear); the
+      // modal re-fire's duplicate click would CAPTURE then immediately CLEAR the photo.
+      // De-dupe HERE (not by swallowing the native click — that breaks the
+      // getUserMedia gesture on the "Take photo" open). Ignore a repeat within 250ms.
+      var now = Date.now();
+      if(this._lastWebcamToggle && (now - this._lastWebcamToggle) < 250) { return; }
+      this._lastWebcamToggle = now;
       contentGrabbers.pictureGrabber.toggle_webcam(!takePic);
     },
     find_board: function() {
@@ -1351,6 +1388,15 @@ export default Component.extend({
       contentGrabbers.pictureGrabber.select_image_preview(url);
     },
     library_options: function() {
+      // The modal's AAC pointer layer (raw_events.modalDialogClickRelease) re-fires a
+      // synthetic click on top of the native one, so a plain toggle flips ON then OFF
+      // and appears to do nothing. De-dupe the duplicate HERE (at the action) — NOT by
+      // swallowing the native click, which breaks user-gesture-gated actions like
+      // getUserMedia / the file picker that need the trusted native click. Ignore a
+      // repeat call within 250ms.
+      var now = Date.now();
+      if(this._lastLibToggle && (now - this._lastLibToggle) < 250) { return; }
+      this._lastLibToggle = now;
       this.set('show_library_options', !this.get('show_library_options'));
     },
     testVocalization: function() {

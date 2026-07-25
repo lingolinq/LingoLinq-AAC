@@ -339,6 +339,18 @@ import app_state from './app_state';
           data.meta.fakeXHR = fakeXHR(xhr);
           delete data.meta.fakeXHR['responseJSON'];
           $.ajax.meta_push({url: options.url, method: options.type, meta: data.meta});
+          if(data.meta.remote_upload) {
+            // Stash the create response's single-use upload params keyed by the new
+            // record's id, so save_record can look up ITS create's params directly
+            // (deterministic, no timer). The response shape is {<model>: {id}, meta};
+            // find the model object and key on its id. Consumed (deleted) on read.
+            for(var _mk in data) {
+              if(_mk !== 'meta' && data[_mk] && data[_mk].id) {
+                $.ajax.upload_params_by_id[data[_mk].id] = data.meta.remote_upload;
+                break;
+              }
+            }
+          }
           if(success) {
             success.call(this, data, message, xhr);
           }
@@ -392,6 +404,12 @@ import app_state from './app_state';
     });
   };
   $.ajax.metas = [];
+  // Deterministic, timer-free store of single-use S3 upload params, keyed by the
+  // created record's id. Populated at response time (below), consumed by
+  // content-grabbers#save_record via the exact record id — so no clock is involved
+  // and it never fails on a slow machine or a busy runloop the way the time-windowed
+  // `metas` slot did. Never reassigned (only mutated) so the exported alias stays live.
+  $.ajax.upload_params_by_id = {};
   $.ajax.meta_push = function(opts) {
     var now = (new Date()).getTime();
     opts.ts = now;
@@ -403,7 +421,26 @@ import app_state from './app_state';
     var new_list = [];
     var res = null;
     metas.forEach(function(meta) {
-      if(!meta.ts || meta.ts < now - 1000) {
+      // Keep FRESH entries; drop stale ones. The prior condition was inverted
+      // (`meta.ts < now - 1000` KEPT entries OLDER than the window and discarded
+      // FRESH ones), so a just-received response's meta was wiped out by the very
+      // next response's meta_push. That silently broke image uploads: save_record
+      // reads the create response's `remote_upload` params from here right after
+      // `object.save()` resolves, but a concurrent board-image response pruned them
+      // first — leaving the image `pending` with no S3 url (the photo showed from
+      // local cache, then vanished on reload).
+      //
+      // Upload-param metas (create responses carrying `remote_upload`) get a much
+      // longer window: save_record's read can be delayed well past a second when the
+      // runloop is saturated by a board render or the create payload is large (a full
+      // word-art / webcam data URL), and losing the params there is exactly what
+      // stranded images as `pending`. These metas are rare (user-driven data-URL
+      // creates, never the parallel http-image suggestions), so the longer retention
+      // costs almost nothing. Everything else keeps the original 1s window so we
+      // don't hold each response's fakeXHR around. See
+      // docs/task-management/2026-07-24-webcam-image-upload-null-url.md.
+      var keep_ms = (meta.meta && meta.meta.remote_upload) ? 30000 : 1000;
+      if(!meta.ts || meta.ts >= now - keep_ms) {
         new_list.push(meta);
       }
     });
@@ -443,6 +480,7 @@ import app_state from './app_state';
   };
   extras.meta = $.ajax.meta;
   extras.meta_push = $.ajax.meta_push;
+  extras.upload_params_by_id = $.ajax.upload_params_by_id;
 
   window.lingoLinqExtras = extras;
   if(!extras.storage && extras.prototype && extras.prototype.storage) {

@@ -195,9 +195,27 @@ var contentGrabbers = Service.extend({
         if(!object.get('url') && object.get('data_url')) {
           object.set('url', object.get('data_url'));
         }
-        if(object.get('pending')) {
-          var meta = persistenceService.meta(object.constructor.modelName, null); //object.store.metadataFor(object.constructor.modelName);
-          if(!meta || !meta.remote_upload) { return reject({error: 'remote_upload parameters required'}); }
+          // Trigger the S3 upload on the PRESENCE of upload params, not on the
+          // `pending` flag. The server hands back `remote_upload` params exactly when
+          // a client upload is required, but its create response serializes
+          // `image.pending` as null even then (the pending flag is set just after the
+          // response is built), so gating on `object.get('pending')` skipped the
+          // upload entirely and stranded the image with no url — showing locally from
+          // the data URL, then vanishing on reload. [Server-side: json_api/image.rb
+          // build_json emits pending from settings_for, which is null at create time
+          // while `meta.remote_upload` (image.pending_upload?) is already set — worth
+          // reconciling, tracked separately.]
+          //
+          // Params come from the deterministic per-record store keyed by THIS image's
+          // exact id (captured at response time — no timer, no shared-slot race);
+          // consumed on read. The time-windowed meta slot is only a fallback, and
+          // only when the server also flagged `pending`, so a stale slot entry from a
+          // previous create can't trigger a spurious upload.
+          var _rup_map = (window.lingoLinqExtras && window.lingoLinqExtras.upload_params_by_id) || null;
+          var _rup = (_rup_map && object.get('id')) ? _rup_map[object.get('id')] : null;
+          if(_rup && _rup_map) { delete _rup_map[object.get('id')]; }
+          var meta = _rup ? {remote_upload: _rup} : (object.get('pending') ? persistenceService.meta(object.constructor.modelName, null) : null);
+        if(meta && meta.remote_upload) {
           // upload to S3
           var get_data_url = RSVP.resolve(object.get('data_url'));
           if(!object.get('data_url') && original_url) {
@@ -223,6 +241,9 @@ var contentGrabbers = Service.extend({
           }, function(err) {
             reject(err);
           });
+        } else if(object.get('pending')) {
+          // Server flagged pending but handed us no upload params to work with.
+          return reject({error: 'remote_upload parameters required'});
         } else {
           resolve(object);
         }
@@ -680,7 +701,40 @@ var pictureGrabber = EmberObject.extend({
           context.clearRect(0, 0, canvas.width, canvas.height);
           context.drawImage(img, x, y, width, height);
           try {
-            result = canvas.toDataURL();
+            // Optimize storage/bandwidth: photographs (webcam captures, uploaded
+            // photos) compress ~10-15x smaller as JPEG than as PNG, and an
+            // un-optimized 700KB+ data URL both slows the S3 upload and bloats the
+            // board-save payload (which can exceed the 4MB request limit). Only the
+            // drawn image region (not the letterbox margins) is sampled for alpha:
+            // if the source is fully opaque we backfill the letterbox white and
+            // export JPEG; if it has any transparency (line-art symbol PNGs) we keep
+            // PNG so we never flatten alpha to black. size_image only runs on
+            // same-origin data: URLs (http/gif bypass above) so getImageData is not
+            // tainted; any read error falls back to lossless PNG.
+            var srcHasAlpha = false;
+            try {
+              var rx = Math.max(0, Math.floor(x));
+              var ry = Math.max(0, Math.floor(y));
+              var rw = Math.min(canvas.width - rx, Math.ceil(width));
+              var rh = Math.min(canvas.height - ry, Math.ceil(height));
+              if(rw > 0 && rh > 0) {
+                var px = context.getImageData(rx, ry, rw, rh).data;
+                for(var ai = 3; ai < px.length; ai += 4) {
+                  if(px[ai] < 255) { srcHasAlpha = true; break; }
+                }
+              } else { srcHasAlpha = true; }
+            } catch(e) { srcHasAlpha = true; }
+            if(srcHasAlpha) {
+              result = canvas.toDataURL('image/png');
+            } else {
+              // Paint white behind the existing pixels so JPEG's opaque letterbox
+              // reads white, not black, then export at quality 0.82.
+              context.globalCompositeOperation = 'destination-over';
+              context.fillStyle = '#fff';
+              context.fillRect(0, 0, canvas.width, canvas.height);
+              context.globalCompositeOperation = 'source-over';
+              result = canvas.toDataURL('image/jpeg', 0.82);
+            }
           } catch(e) { }
           if(result) {
             resolve({url: result, width: canvas.width, height: canvas.height});
@@ -802,7 +856,7 @@ var pictureGrabber = EmberObject.extend({
     this.controller.set('webcam', null);
     this.controller.set('webcam', null);
     var vid = document.getElementById('webcam_video');
-    if(vid) { vid.setAttribute('src', ''); }
+    if(vid) { vid.srcObject = null; vid.removeAttribute('src'); }
     var upload = document.getElementById('image_upload');
     if(upload) { upload.value = ''; }
   },
@@ -1609,7 +1663,11 @@ var pictureGrabber = EmberObject.extend({
     var video = document.querySelector('#webcam_video');
     var _this = this;
     if(video) {
-      video.src = window.URL.createObjectURL(stream);
+      // Modern API: attach the MediaStream directly. URL.createObjectURL(MediaStream)
+      // was removed from browsers ("Overload resolution failed"), which left the
+      // <video> with no source so the camera preview never appeared. `autoplay` on
+      // the element starts playback once the stream is assigned.
+      video.srcObject = stream;
     }
     if(stream_id) {
       stashesService.persist('last_stream_id', stream_id);
@@ -1623,6 +1681,16 @@ var pictureGrabber = EmberObject.extend({
       stream_id: stream_id,
       video_streams: streams
     });
+    // The camera preview renders near the BOTTOM of the modal, below the fold, so
+    // without this the user can't tell the camera turned on. Scroll it into view once
+    // the "shown" layout has settled (deferred two frames).
+    if(video && video.scrollIntoView && typeof window !== 'undefined' && window.requestAnimationFrame) {
+      window.requestAnimationFrame(function() {
+        window.requestAnimationFrame(function() {
+          video.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+      });
+    }
     var enumerator = window.enumerateMediaDevices || (window.navigator && window.navigator.mediaDevices && window.navigator.mediaDevices.enumerateDevices);
     if(!enumerator && window.MediaStreamTrack && window.MediaStreamTrack.getSources) {
       enumerator = function() {
@@ -1769,8 +1837,25 @@ var pictureGrabber = EmberObject.extend({
       this.controller.set('image_preview', null);
       this.controller.set('webcam.snapshot', false);
     } else if(this.controller.get('webcam.stream')) {
-      ctx.drawImage(video, 0, 100, 800, 600);
-      var data = canvas.toDataURL('image/png');
+      // Center-crop the largest square region of the live video and draw it to fill
+      // the whole square (800x800) canvas — "cover" framing. The old draw placed the
+      // video at a 100px vertical offset and squished it to 800x600 inside the square
+      // canvas, which left empty top/bottom bands (and distorted the aspect). Covering
+      // the full canvas paints every pixel with video, so there are no bands (no white
+      // backfill needed) and the square image fills the square button.
+      var vw = video.videoWidth || 800;
+      var vh = video.videoHeight || 600;
+      var side = Math.min(vw, vh);
+      var sx = (vw - side) / 2;
+      var sy = (vh - side) / 2;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(video, sx, sy, side, side, 0, 0, canvas.width, canvas.height);
+      // Webcam frames are opaque photos — export JPEG (~10x smaller than PNG) so the
+      // capture is a ~70KB data URL instead of ~700KB. That keeps the S3 upload fast
+      // and the board-save payload small (a stack of un-optimized PNG captures could
+      // push the save past the 4MB request limit). content_type is inferred from the
+      // data: URL downstream, so this stays consistent through save + upload.
+      var data = canvas.toDataURL('image/jpeg', 0.82);
       this.controller.set('image_preview', {
         url: data
       });
