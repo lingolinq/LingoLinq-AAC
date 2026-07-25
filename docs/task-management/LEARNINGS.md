@@ -7185,3 +7185,26 @@ the board-save payload trips Rack's 4MB `QueryParser::QueryLimitError`.
 - Optimize captured/uploaded photos to JPEG (opaque → JPEG w/ white letterbox backfill; keep PNG
   only when the drawn region has alpha). `size_image` only processes same-origin data: URLs
   (http/gif bypass), so getImageData is safe there. Smaller uploads also widen the timing margin.
+
+## `size_image` alpha detection must probe the SOURCE, not the letterboxed canvas
+`content-grabbers.js#size_image` contain-fits the source into a square canvas, leaving transparent
+letterbox bands. The original opaque/transparent test sampled `getImageData` of the *drawn region*
+on that canvas — but the anti-aliased boundary between image and transparent letterbox reads
+alpha<255, so EVERY opaque non-square photo was misclassified as "has alpha" and wrongly kept as
+PNG (never JPEG'd). Our own testing caught this only because we checked the actual output MIME, not
+just "did it produce a url". Fix: probe alpha by drawing the SOURCE `img` stretched to fill a tiny
+throwaway 24x24 canvas (no letterbox), threshold alpha<250. Lesson: when classifying pixels, sample
+a surface with NO synthetic transparency you introduced — never the same canvas you letterboxed.
+- Verification pattern that works here: all four custom-image callers (create-board-new
+  `_applyDroppedImageToLabel`, board-detail `file_selected`/`web_image_dropped`/`edit_image`) route
+  through the ONE shared `size_image`, so exhaustively proving `size_image`'s input-class matrix
+  (opaque→JPEG, transparent→PNG, http/gif→passthrough, <300px→early-return, >4MB→JPEG) + proving the
+  shared `save_image_preview`/`save_record` persists once, covers every path. Confirm each caller
+  passes the right URL in and uses the result — statically + a stub-controller dynamic check.
+- DOM drop handlers (`cellDrop`) are thin `event.dataTransfer` pass-throughs, so a synthetic
+  `DataTransfer` (File via canvas.toBlob→new File; http via `items.add(url,'text/uri-list')`) in
+  headless Puppeteer faithfully exercises the real UI drag. Wrap `save_image_preview` to capture the
+  exact URL fed to persistence — that isolates "optimizer output" from "server round-trip", so a
+  bogus-external-url server rejection doesn't muddy the passthrough proof.
+- size_image early-returns UNoptimized when BOTH dims <300px (`default_size`). Acceptable: sub-300
+  images are already tiny and JPEG artifacts on small symbols look worse than the KB saved.

@@ -704,25 +704,25 @@ var pictureGrabber = EmberObject.extend({
             // Optimize storage/bandwidth: photographs (webcam captures, uploaded
             // photos) compress ~10-15x smaller as JPEG than as PNG, and an
             // un-optimized 700KB+ data URL both slows the S3 upload and bloats the
-            // board-save payload (which can exceed the 4MB request limit). Only the
-            // drawn image region (not the letterbox margins) is sampled for alpha:
-            // if the source is fully opaque we backfill the letterbox white and
-            // export JPEG; if it has any transparency (line-art symbol PNGs) we keep
-            // PNG so we never flatten alpha to black. size_image only runs on
-            // same-origin data: URLs (http/gif bypass above) so getImageData is not
-            // tainted; any read error falls back to lossless PNG.
+            // board-save payload (which can exceed the 4MB request limit). If the
+            // source is fully opaque we backfill the letterbox white and export JPEG;
+            // if it has any transparency (line-art symbol PNGs) we keep PNG so we
+            // never flatten alpha to black. Alpha is probed by drawing the SOURCE
+            // stretched to fill a tiny canvas (no letterbox), so the contain-fit
+            // canvas's anti-aliased transparent margins can't be misread as source
+            // transparency (that false positive kept opaque photos as PNG). size_image
+            // only runs on same-origin data: URLs (http/gif bypass above) so
+            // getImageData is not tainted; any read error falls back to lossless PNG.
             var srcHasAlpha = false;
             try {
-              var rx = Math.max(0, Math.floor(x));
-              var ry = Math.max(0, Math.floor(y));
-              var rw = Math.min(canvas.width - rx, Math.ceil(width));
-              var rh = Math.min(canvas.height - ry, Math.ceil(height));
-              if(rw > 0 && rh > 0) {
-                var px = context.getImageData(rx, ry, rw, rh).data;
-                for(var ai = 3; ai < px.length; ai += 4) {
-                  if(px[ai] < 255) { srcHasAlpha = true; break; }
-                }
-              } else { srcHasAlpha = true; }
+              var probe = document.createElement('canvas');
+              probe.width = 24; probe.height = 24;
+              var pctx = probe.getContext('2d');
+              pctx.drawImage(img, 0, 0, 24, 24);
+              var pd = pctx.getImageData(0, 0, 24, 24).data;
+              for(var ai = 3; ai < pd.length; ai += 4) {
+                if(pd[ai] < 250) { srcHasAlpha = true; break; }
+              }
             } catch(e) { srcHasAlpha = true; }
             if(srcHasAlpha) {
               result = canvas.toDataURL('image/png');
