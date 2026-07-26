@@ -7323,3 +7323,19 @@ user country > locale (IP geolocation deferred). Quebec is `CA-QC` → age 14 (L
   own the transitionTo and RETURN it; the action delegates to it (still reached via raw_events
   data-bd-action). Lesson: to clear a loading overlay when a route transition settles, the handler must
   RETURN the Transition — `send()` won't give it back.
+- Button-set (find-a-button) generation — and board copy, and any Uploader.remote_upload —
+  failing for ALL boards in dev was NOT a code bug: `Uploader.remote_upload_params` sets
+  `acl=public-read` on the S3 upload unless `ENV['UPLOADS_S3_NO_ACL']` is truthy
+  (lib/uploader.rb:332,341), and the `lingolinq-dev-uploads` bucket has Object Ownership =
+  "Bucket owner enforced" (ACLs disabled). S3 rejects the acl param with
+  `AccessControlListNotSupported: The bucket does not allow ACLs`. Fix: set
+  `UPLOADS_S3_NO_ACL=1` (documented in `.env.example`); we added it to `.env.op.local`.
+  Diagnostic technique that nailed it: read the LIVE failure from the running worker via
+  `Resque::Failure.all(start, n)` (rails runner) — that reflects the app's real resolved-cred
+  environment, unlike a bare `rails runner` which loads unresolved `op://…` creds
+  (`config/application.rb` dotenv order is FIRST-wins: .env.op.template, .env.op.local, .env,
+  .env.local) and fails earlier with `InvalidArgument: the Credential is mal-formed`. Two
+  different S3 errors from the same upload code depending on whether you booted under `op run`.
+  Gotcha: macOS blocks `ps eww` env inspection of other processes, so you can't scrape the
+  running app's resolved creds to reproduce; verify via the worker's failure log instead, and
+  confirm end-to-end after a restart (env loads at boot).
