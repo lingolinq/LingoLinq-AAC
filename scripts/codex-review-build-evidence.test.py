@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import importlib.util
+import json
 import pathlib
 import tempfile
 import unittest
@@ -13,6 +14,9 @@ SPEC.loader.exec_module(build_evidence)
 
 
 POLICY = [(build_evidence.re.compile(r"(^|/)db/schema\.rb$"), "generated schema")]
+TRUSTED_POLICY_MAX_CHUNKS = json.loads(
+    pathlib.Path(".github/codex/evidence-policy.json").read_text()
+)["max_chunks"]
 
 
 def section(path, body):
@@ -76,6 +80,39 @@ class EvidenceChunkingTest(unittest.TestCase):
         self.assertFalse(incomplete)
         covered = {item["path"] for chunk in chunks for item in chunk["coverage"]}
         self.assertEqual(covered, {f"app/models/file_{i}.rb" for i in range(5)})
+
+    def test_nine_chunk_diff_that_exceeded_old_cap_is_complete_under_trusted_cap(self):
+        sections = [
+            section(f"app/models/file_{i}.rb", "@@ -1,1 +1,1 @@\n-old\n+" + ("x" * 20) + "\n")
+            for i in range(9)
+        ]
+        chunks, _, incomplete, _ = build_evidence.build_chunks(
+            sections,
+            [],
+            260,
+            TRUSTED_POLICY_MAX_CHUNKS,
+        )
+        self.assertEqual(TRUSTED_POLICY_MAX_CHUNKS, 16)
+        self.assertEqual(len(chunks), 9)
+        self.assertFalse(incomplete)
+        covered = {item["path"] for chunk in chunks for item in chunk["coverage"]}
+        self.assertEqual(covered, {f"app/models/file_{i}.rb" for i in range(9)})
+
+    def test_diff_exceeding_trusted_cap_still_marks_too_many_chunks_incomplete(self):
+        sections = [
+            section(f"app/models/file_{i}.rb", "@@ -1,1 +1,1 @@\n-old\n+" + ("x" * 20) + "\n")
+            for i in range(TRUSTED_POLICY_MAX_CHUNKS + 1)
+        ]
+        chunks, _, incomplete, _ = build_evidence.build_chunks(
+            sections,
+            [],
+            260,
+            TRUSTED_POLICY_MAX_CHUNKS,
+        )
+        self.assertEqual(len(chunks), TRUSTED_POLICY_MAX_CHUNKS)
+        self.assertEqual(incomplete[-1]["reason"], "too_many_chunks")
+        self.assertEqual(incomplete[-1]["chunks"], TRUSTED_POLICY_MAX_CHUNKS + 1)
+        self.assertEqual(incomplete[-1]["max_chunks"], TRUSTED_POLICY_MAX_CHUNKS)
 
     def test_oversized_single_hunk_is_incomplete(self):
         giant = "@@ -1,1 +1,1 @@\n-old\n+" + ("x" * 500) + "\n"
