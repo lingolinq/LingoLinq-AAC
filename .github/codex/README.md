@@ -58,13 +58,22 @@ objects (`git diff BASE...HEAD` and `git ls-tree HEAD_SHA`), not the index.
 
 Limits are intentionally explicit:
 
-- maximum chunks: 8
+- maximum chunks: 16
 - target raw bytes per chunk: 40 KB
 - synthesis calls: up to 3 successful model runs
 - approving chunk calls: up to 3 successful model runs per chunk
 - structural retry: one retry only for invalid JSON, schema failure, missing
   output, or transient CLI/API failure
 - current serial timeout: 90 minutes
+
+Worst-case model-call budget is 51 serial calls: up to 16 chunks times 3
+chunk-review runs, plus up to 3 synthesis runs. This is a larger budget than
+the first canary's 27-call ceiling, but it preserves the same convergence and
+fail-closed envelope checks. The raised cap is required for #686-class large
+frontend PRs, where about 298 KB across 29 SCSS, template, and i18n-heavy files
+produced 8 chunks and then failed coverage as `(diff-wide): too_many_chunks`
+under the old cap. A PR that needs a 17th chunk still records
+`too_many_chunks`, marks coverage incomplete, and cannot approve.
 
 A blocking chunk verdict is not rerun for confirmation, but the remaining
 chunks still run so the author receives complete findings and CI can attest
@@ -148,6 +157,15 @@ Measured smoke timing:
   `scripts/codex-review-run-chunks.py`.
 - Heartbeats fired about every 5-6 seconds, far inside the 30-minute watchdog
   window.
+
+The 16-chunk worst case has not been live-smoked yet. Using the #685 timing as
+a rough lower-bound throughput check, 51 calls would be about 4.5 minutes of
+reviewer-step time at the current `reasoning effort: none` setting, before
+ordinary GitHub runner and API variance. That remains well inside the 90-minute
+job timeout, and each model call still posts a pending-status heartbeat before
+it starts. If real timings approach the watchdog threshold, keep the fail-closed
+status behavior and revisit chunk parallelism or job boundaries as a separate
+design.
 
 This timing is valid only for the current `reasoning effort: none` config. If
 production changes to a higher reasoning effort, re-run the controlled smoke and
