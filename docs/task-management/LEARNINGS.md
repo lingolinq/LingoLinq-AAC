@@ -7294,3 +7294,15 @@ It must ship AVAILABLE-only (OFF by default). When OFF: no `settings['compliance
 `eu_consent_age` / `JsonApi::Json.coppa_consent_age` and existing COPPA signup paths untouched
 so consumers migrate deliberately. Jurisdiction priority for this phase: declaration > org >
 user country > locale (IP geolocation deferred). Quebec is `CA-QC` → age 14 (Law 25).
+- Ember 5.x reactivity: a full-viewport loading overlay (`<AppLoadingOverlay>`) silently stopped
+  rendering after the 5.12 upgrade. Cause: the `tagName:''` classic component observed
+  `app_state.loading_overlay_message` through a classic `computed('app_state.loading_overlay_message')`,
+  but that property was NEVER declared on the `Service.extend({...})` (only `.set()` later). Under
+  Ember 5.x an undeclared, set-later property + classic computed in a tagless component can fail to
+  notify the Glimmer template — `{{#if this.show}}` never flips true. VERIFIED FIX (3 parts):
+  (1) declare `loading_overlay_message: null` on the service so it's a known trackable field;
+  (2) bind the template DIRECTLY to the service prop (`{{#if this.app_state.loading_overlay_message}}`)
+  — Glimmer auto-tracks direct property access reliably; (3) drop the now-dead show/message computeds.
+  Lesson: for Ember 5.x reactivity, prefer declaring observed props + binding templates directly to
+  the tracked source over a classic computed indirection, especially in `tagName:''` components. A
+  leftover `data-show` DEBUG probe in the co-located .hbs was the tell that this area was known-broken.
