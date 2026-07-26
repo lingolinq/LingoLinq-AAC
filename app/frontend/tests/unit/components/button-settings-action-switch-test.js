@@ -148,6 +148,27 @@ module('Unit | Component | button-settings action switch', function(hooks) {
     );
   });
 
+  // "Also speak & add" checkbox binds `speak_and_add`, which reads the EFFECTIVE
+  // preference (activate_button uses `add_vocalization ?? add_to_vocalization`; legacy
+  // boards store these as the STRINGS "true"/"false"). Reading model.add_to_vocalization
+  // alone showed the box unchecked for a button whose value lived in add_vocalization.
+  test('speak_and_add reads the effective pref (legacy add_vocalization string) and set() migrates it', function(assert) {
+    var btn = Button.create({ id: '5', label: 'x', add_vocalization: 'true', add_to_vocalization: null });
+    this.component.set('model', btn);
+    assert.equal(this.component.get('speak_and_add'), true, 'reads add_vocalization "true" as checked');
+
+    this.component.set('speak_and_add', false);
+    assert.strictEqual(btn.get('add_vocalization'), null, 'set() clears the legacy add_vocalization override');
+    assert.strictEqual(btn.get('add_to_vocalization'), false, 'set() writes add_to_vocalization');
+    assert.equal(this.component.get('speak_and_add'), false, 'now reads unchecked');
+  });
+
+  test('speak_and_add reflects add_to_vocalization when add_vocalization is unset', function(assert) {
+    var btn = Button.create({ id: '6', label: 'y', add_to_vocalization: true });
+    this.component.set('model', btn);
+    assert.equal(this.component.get('speak_and_add'), true, 'checked from add_to_vocalization');
+  });
+
   test('quick_action("folder") clears a stale url (inverse direction)', function(assert) {
     var btn = Button.create({ id: '9', label: 'y', url: 'https://old.link' });
     this.component.set('model', btn);

@@ -680,7 +680,7 @@
     {{/if}}
     <section class="md-bs-card md-bs-card--config">
       <label class="md-bs-check">
-        <input type="checkbox" checked={{this.model.add_to_vocalization}} {{on "change" (set-field this "model.add_to_vocalization" "checkbox")}} />
+        <input type="checkbox" checked={{this.speak_and_add}} {{on "change" (set-field this "speak_and_add" "checkbox")}} />
         {{t "Also speak & add to the vocalization box" key="also_speak_and_add"}}
       </label>
       <label class="md-bs-check">
@@ -956,7 +956,7 @@
       {{/if}}
 
       <label class="md-bs-check">
-        <input type="checkbox" checked={{this.model.add_to_vocalization}} {{on "change" (set-field this "model.add_to_vocalization" "checkbox")}} />
+        <input type="checkbox" checked={{this.speak_and_add}} {{on "change" (set-field this "speak_and_add" "checkbox")}} />
         {{t "Also speak & add to the vocalization box" key="also_speak_and_add"}}
       </label>
       <label class="md-bs-check">

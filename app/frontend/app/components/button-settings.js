@@ -351,11 +351,12 @@ export default Component.extend({
   // the button to the vocalization box), and link_disabled (skip the link action).
   // link_disabled is also mirrored by update_hidden below; syncing here too keeps
   // board.buttons authoritative for select_button regardless of which path ran.
-  linkOptionsChanged: observer('model.home_lock', 'model.add_to_vocalization', 'model.link_disabled', function() {
+  linkOptionsChanged: observer('model.home_lock', 'model.add_to_vocalization', 'model.add_vocalization', 'model.link_disabled', function() {
     if(!this.get('handle_updates')) { return; }
     editManager.change_button(this.get('model.id'), {
       home_lock: this.get('model.home_lock'),
       add_to_vocalization: this.get('model.add_to_vocalization'),
+      add_vocalization: this.get('model.add_vocalization'),
       link_disabled: this.get('model.link_disabled')
     });
   }),
@@ -429,6 +430,27 @@ export default Component.extend({
   }),
   non_https: computed('model.url', function() {
     return (this.get('model.url') || '').match(/^http:/);
+  }),
+  // "Also speak & add to the vocalization box" checkbox — reads the EFFECTIVE preference,
+  // which activate_button computes as `add_vocalization ?? add_to_vocalization`. Legacy/
+  // copied boards persist these bool fields as the STRINGS "true"/"false", so coerce both.
+  // Binding the checkbox to model.add_to_vocalization alone showed it UNCHECKED for a
+  // button whose value lives in add_vocalization (even though speak & add works). set()
+  // writes add_to_vocalization and clears add_vocalization so the field is authoritative
+  // going forward; both are synced to board.buttons by linkOptionsChanged.
+  speak_and_add: computed('model.add_vocalization', 'model.add_to_vocalization', {
+    get() {
+      var av = this.get('model.add_vocalization');
+      if(av != null) { return av === true || av === 'true'; }
+      var atv = this.get('model.add_to_vocalization');
+      return atv === true || atv === 'true';
+    },
+    set(key, value) {
+      value = !!value;
+      this.set('model.add_vocalization', null);
+      this.set('model.add_to_vocalization', value);
+      return value;
+    }
   }),
   vocalization_sound_conflict: computed('model.vocalization', 'model.sound_id', function() {
     return this.get('model.vocalization') && this.get('model.sound_id');

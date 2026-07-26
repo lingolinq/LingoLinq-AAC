@@ -7436,3 +7436,20 @@ Two compounding root causes worth remembering for board-detail:
    never reaches the authoritative board.buttons array (unlike labelChanged, which does). Any field
    that must survive a re-render / drive activation needs a `change_button` sync observer mirroring
    labelChanged. Check `Button.attributes` includes the key or change_button won't sync it to board.buttons.
+
+## Pattern: board-detail `_make_btn` is a hand-picked field subset — omitted fields vanish on every speak re-render
+
+board-detail builds its speak-mode display buttons with `_make_btn` (controllers/user/board-detail.js),
+which returns a HAND-PICKED object literal — NOT a full button copy (edit mode uses `_make_ember_btn`,
+which does `Button.create(btn)` and keeps everything). Any Button attribute NOT explicitly listed in
+`_make_btn`'s return is silently dropped on every speak-mode rebuild (mode switch, redraw, cache
+refresh). Symptoms this caused: a URL/video link tapped in speak mode navigated/stale because the
+display copy lost `url`/`video`; and Button Settings' "Also speak & add" (add_to_vocalization) checkbox
+"cleared after Done" because reopening the modal reads the display copy via `find_button`, which had
+lost the field. Verified: board.buttons + contextualized_buttons both KEEP the field; `_make_btn`
+DROPPED it. Fix: carry the action/option fields through `_make_btn` (url, video, book, apps,
+integration, add_to_vocalization, add_vocalization, home_lock, link_disabled, sound_id). Rule: when a
+button field must survive a speak-mode re-render or be editable in the modal, it MUST be in `_make_btn`'s
+output — grep that return object before assuming board.buttons is enough. (`select_button` reading the
+authoritative board.buttons entry is a belt-and-suspenders complement, but the modal/find_button path
+still needs the display copy to be complete.)

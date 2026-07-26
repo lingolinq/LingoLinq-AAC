@@ -1673,6 +1673,23 @@ export default Controller.extend(prefClasses, {
       image_fallback_url: image_fallback_url,
       image_id: btn.image_id,
       load_board: btn.load_board,
+      // Action + option fields — MUST be carried onto the speak-mode display button.
+      // This object is a hand-picked subset (unlike edit-mode's _make_ember_btn, which
+      // Button.create()s the full button), so anything omitted here silently vanishes on
+      // every speak-mode re-render: the tapped button loses its url/video/action, and
+      // reopening Button Settings (which reads this display copy via find_button) shows
+      // the field cleared. Keep this list in sync with the Button action attributes the
+      // modal edits and select_button/activation reads.
+      url: btn.url,
+      video: btn.video,
+      book: btn.book,
+      apps: btn.apps,
+      integration: btn.integration,
+      add_to_vocalization: btn.add_to_vocalization,
+      add_vocalization: btn.add_vocalization,
+      home_lock: btn.home_lock,
+      link_disabled: btn.link_disabled,
+      sound_id: btn.sound_id,
       hidden: btn.hidden,
       hide_label: !!btn.hide_label,
       display_as_hidden: display_as_hidden,
@@ -6250,6 +6267,24 @@ export default Controller.extend(prefClasses, {
         if(_this.get('stashes').get('sticky_board')) {
           modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
           return;
+        }
+        // "Also speak & add to the vocalization box" (add_to_vocalization/add_vocalization)
+        // and "Set as temporary home when loaded" (home_lock) are handled by the canonical
+        // app_state.activate_button — it adds the word to the sentence box (utterance.add_button)
+        // and applies the temporary-home lock via jump_to_board, then navigates through
+        // transitionToBoardForCurrentUiStyle, which lands back on board-detail. board-detail's
+        // fast custom routing below does neither, so when either option is set on this folder
+        // button we delegate the whole activation to the app controller (the same path board-alt
+        // uses). Plain folder buttons keep the optimized cached routing below.
+        var _add_voc = _get(_action_src, 'add_vocalization');
+        _add_voc = (_add_voc == null) ? _get(_action_src, 'add_to_vocalization') : _add_voc;
+        if(_add_voc || _get(_action_src, 'home_lock')) {
+          var _em_for_action = editManager.find_button(btn_id);
+          var _appCtrl = _this.get('app_state.controller');
+          if(_em_for_action && _appCtrl && _appCtrl.activateButton) {
+            _appCtrl.activateButton(_em_for_action, { board: _this.get('model'), trigger_source: 'click' });
+            return;
+          }
         }
         var board_key = load_board.key;
         if(board_key && board_key.indexOf('/') !== -1) {
