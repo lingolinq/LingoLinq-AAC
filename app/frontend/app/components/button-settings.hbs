@@ -678,6 +678,20 @@
       </div>
     </section>
     {{/if}}
+    <section class="md-bs-card md-bs-card--config">
+      <label class="md-bs-check">
+        <input type="checkbox" checked={{this.model.add_to_vocalization}} {{on "change" (set-field this "model.add_to_vocalization" "checkbox")}} />
+        {{t "Also speak & add to the vocalization box" key="also_speak_and_add"}}
+      </label>
+      <label class="md-bs-check">
+        <input type="checkbox" checked={{this.model.home_lock}} {{on "change" (set-field this "model.home_lock" "checkbox")}} />
+        {{t "Set as temporary home when loaded" key="set_home_lock"}}
+      </label>
+      <label class="md-bs-check">
+        <input type="checkbox" checked={{this.model.link_disabled}} {{on "change" (set-field this "model.link_disabled" "checkbox")}} />
+        {{t "Disable this link action for now" key="disable_link_action"}}
+      </label>
+    </section>
   {{else if this.model.integrationOrWebhookAction}}
     <section class="md-bs-card md-bs-card--config">
       <div class="md-bs-card__eyebrow">{{t "Connected tool" key="connected_tool"}}</div>
@@ -904,6 +918,51 @@
       <div class="md-bs-card__eyebrow">{{t "Web address" key="web_address"}}</div>
       <label for="url" class="md-bs-field-label">{{t "URL" key="url"}}</label>
       <input value={{this.model.url}} class="form-control md-bs-select" id="url" placeholder="https://" {{on "input" (set-field this "model.url")}} />
+      <p class="md-bs-card__hint">{{t "%app_name% works great with YouTube and TarHeel Reader links!" key="youtube_and_tarheel_reader_compatible"}}</p>
+
+      {{!-- Video links (YouTube): resource_from_url derives model.video. "Show video in
+            a popup" toggles model.video.popup — ON opens an in-app video pane in speak
+            mode (app_state.launch_url → inline-video), OFF opens the link in a browser
+            tab. The preview iframe carries id="link_video_preview" so the track_video
+            observer's LingoLinq.Videos.track('link_video_preview') resolves a player. --}}
+      {{#if this.model.video}}
+        <label class="md-bs-check">
+          <input type="checkbox" checked={{this.model.video.popup}} {{on "change" (set-field this "model.video.popup" "checkbox")}} />
+          {{t "Show video in a popup" key="show_video_popup"}}
+        </label>
+        {{#if this.model.video.popup}}
+          <div class="md-bs-video-preview">
+            {{#if this.video_test_url}}
+              <iframe src={{this.video_test_url}} id="link_video_preview" frameborder="0" allow="autoplay; fullscreen; encrypted-media" title={{t "Video preview" key="video_preview"}}></iframe>
+            {{/if}}
+          </div>
+          {{#if this.model.video.thumbnail_url}}
+            <button type="button" class="md-bs-linkish" {{on "click" (this.ctrlAction "set_as_button_image" this.model.video.thumbnail_url this.model.video.thumbnail_content_type)}}>{{t "set thumbnail as button image" key="set_thumbnail_as_button_image"}}</button>
+          {{/if}}
+          <div class="md-bs-video__times">
+            <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "set_time" "start")}}>{{t "Set Start" key="set_start"}}</button>
+            <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "set_time" "end")}}>{{t "Set End" key="set_end"}}</button>
+            <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "clear_times")}}>{{t "Clear Times" key="clear_times"}}</button>
+          </div>
+          <div class="md-bs-video__time-fields">
+            <label class="md-bs-field-label" for="video_start">{{t "Start" key="start_at"}}</label>
+            <input id="video_start" class="form-control md-bs-select md-bs-video__time-input" value={{this.model.video.start}} placeholder="0" {{on "input" (set-field this "model.video.start")}} />
+            <span class="md-bs-video__time-unit">{{t "seconds" key="seconds"}}</span>
+            <label class="md-bs-field-label" for="video_end">{{t "End" key="end_at"}}</label>
+            <input id="video_end" class="form-control md-bs-select md-bs-video__time-input" value={{this.model.video.end}} placeholder={{t "ending" key="ending"}} {{on "input" (set-field this "model.video.end")}} />
+            <span class="md-bs-video__time-unit">{{t "seconds" key="seconds"}}</span>
+          </div>
+        {{/if}}
+      {{/if}}
+
+      <label class="md-bs-check">
+        <input type="checkbox" checked={{this.model.add_to_vocalization}} {{on "change" (set-field this "model.add_to_vocalization" "checkbox")}} />
+        {{t "Also speak & add to the vocalization box" key="also_speak_and_add"}}
+      </label>
+      <label class="md-bs-check">
+        <input type="checkbox" checked={{this.model.link_disabled}} {{on "change" (set-field this "model.link_disabled" "checkbox")}} />
+        {{t "Disable this link action for now" key="disable_link_action"}}
+      </label>
     </section>
   {{else if this.model.appAction}}
     <section class="md-bs-card md-bs-card--config">

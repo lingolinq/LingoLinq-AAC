@@ -12005,6 +12005,84 @@ video.button_image {
   min-height: 50px;
 }
 
+/* Link/video action controls (modern) — checkbox rows, YouTube preview, time controls.
+   Shares the card's brand palette so the ported video-popup section reads as native. */
+#button_settings .md-bs-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: $brand-charcoal-dark;
+  cursor: pointer;
+}
+#button_settings .md-bs-check input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  accent-color: $brand-verdigris;
+  cursor: pointer;
+}
+/* 16:9 YouTube preview pane, rounded to match the card surfaces */
+#button_settings .md-bs-video-preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin: 14px 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: $brand-charcoal-dark;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 4px 14px rgba($la-navy, 0.14);
+}
+#button_settings .md-bs-video-preview iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+/* Text-link affordance (e.g. "set thumbnail as button image") as a real <button> */
+#button_settings .md-bs-linkish {
+  display: inline-block;
+  margin: 2px 0 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: $brand-dusty-denim-aa;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+#button_settings .md-bs-linkish:hover,
+#button_settings .md-bs-linkish:focus-visible {
+  color: color.adjust($brand-dusty-denim-aa, $lightness: -12%);
+}
+#button_settings .md-bs-video__times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+#button_settings .md-bs-video__time-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+#button_settings .md-bs-video__time-fields .md-bs-field-label {
+  margin: 0;
+}
+#button_settings .md-bs-video__time-input {
+  width: 90px;
+  flex: none;
+}
+#button_settings .md-bs-video__time-unit {
+  font-size: 14px;
+  color: $brand-slate-gray;
+}
+
 /* Selected-board card (verdigris "chosen" state) */
 #button_settings .md-bs-dest__selected {
   display: flex;
@@ -67491,19 +67569,22 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   padding-top: 0;
   position: relative;
 }
-.md-shell.md-shell--board-detail:not(.md-shell--board-detail-edit) {
+.md-shell.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) {
   padding-top: 2px !important;
   /* SPEAK mode: flatten the atmospheric shell gradient (defined on
      .md-shell--board-detail below) to the SAME flat surface as
-     .md-board-detail-main (color.adjust($surface-200, -15%), line ~66802).
-     The main's 8px top padding exposes a band of the main's flat gray at the
-     very top; with the shell behind/around it kept as the bluish gradient
-     (this rule's 2px top strip + the side grid columns), that gray band met
-     the gradient and read as a color seam. Matching the shell to the main
-     removes the seam — the top band and the surround are now one surface.
-     The 0,4,0 selector out-specifies the 0,1,0 gradient rule regardless of
-     source order; EDIT mode is excluded so it keeps its atmospheric page bg. */
-  background: color.adjust($surface-200, $lightness: -15%);
+     .md-board-detail-main. The main is now $brand-charcoal-dark (design pass) —
+     this rule used to match an OLDER main color (color.adjust($surface-200,-15%)),
+     so after the main went dark, the shell's 2px top strip + side surround stayed
+     light and read as a thin lighter seam at the top. Match the shell to the main's
+     ACTUAL color so every surface behind/around the board is one flat surface (no
+     seam). EDIT mode is excluded so it keeps its atmospheric page bg; dark mode is
+     excluded so its atmospheric canvas rule (.md-board-detail--dark.md-shell--board-detail,
+     !important) still wins. !important is REQUIRED here: the global app-shell rule
+     `.md-shell { background: <gradient> !important }` (~L42990, shared by every
+     authenticated view — do NOT edit it) paints the shell via !important, so only an
+     !important on this higher-specificity board-detail-scoped selector can override it. */
+  background: $brand-charcoal-dark !important;
 }
 /* Layer 1: Background — same as authenticated-view home page.
    Halo alphas bumped ~30% over the prior version to strengthen the
@@ -68137,8 +68218,11 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
      on .md-board-detail-main shows through exactly like speak+light. Keeps only the
      spacing; the light bg / border / radius / shadow that made it a distinct panel
      are removed so edit and speak read identically. */
-  padding: 0 12px 10px;
-  margin: 0 4px 4px 4px;
+  /* Left/right padding + margin removed (were 12px pad / 4px margin) so the board
+     grid runs edge-to-edge to the side rails in edit mode — reclaims ~16px each
+     side. Top/bottom kept (0 top; bottom pad 10 / margin 4). */
+  padding: 0 0 10px;
+  margin: 0 0 4px;
   background: transparent;
   border: none;
   box-shadow: none;

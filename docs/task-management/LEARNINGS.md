@@ -7358,3 +7358,81 @@ It must ship AVAILABLE-only (OFF by default). When OFF: no `settings['compliance
 `eu_consent_age` / `JsonApi::Json.coppa_consent_age` and existing COPPA signup paths untouched
 so consumers migrate deliberately. Jurisdiction priority for this phase: declaration > org >
 user country > locale (IP geolocation deferred). Quebec is `CA-QC` → age 14 (Law 25).
+
+## Pattern: a scoped rule that "loses despite higher specificity" → hunt a bare-class `!important`, don't guess specificity
+
+Symptom: a board-detail-scoped SCSS rule (e.g. `.md-shell.md-shell--board-detail:not(...)`, 0,4,0)
+sets `background: X` but the element keeps rendering a different value from a LOWER-specificity
+selector. Specificity math says you should win; you don't.
+
+Root cause in this codebase: a GLOBAL bare-class rule paints via `!important` —
+`.md-shell { background: <gradient> !important }` (~app.scss L42990, shared by every authenticated
+view). A non-important declaration can NEVER beat an `!important` one, regardless of specificity or
+source order. The bare `.md-shell` selector contains no view-specific token, so
+`grep "md-shell--board-detail"` is blind to it — that's why it stays hidden.
+
+Diagnosis technique (fast, definitive, no guessing — satisfies RULE #0): drive headless Chrome via
+Puppeteer's CDP session and call `CSS.getMatchedStylesForNode` on the element. It returns EVERY
+matched rule in cascade order with each declaration's `important` flag and its media context — so
+the actual winner (and its `!important`) is unambiguous. Beats staring at specificity or `!important`-
+grepping a 90k-line compiled file. Harness pattern:
+`page.target().createCDPSession()` → `DOM.enable`/`CSS.enable` → `DOM.querySelector` → `CSS.getMatchedStylesForNode`.
+
+Fix rule: when the blocker is an existing GLOBAL `!important` you must not edit (shared across views —
+Traci-scope + RULE #0.3 "don't break working functionality"), adding `!important` to a properly
+SCOPED, higher-specificity selector is the SANCTIONED exception to "no !important patches"
+(CLAUDE.md #0.7) — you're overriding an existing `!important`, not winning a specificity war against a
+plain rule. Document WHY (name the global rule + line) in a comment so the next reader doesn't strip it.
+
+Corollary — redesign color drift: when a base surface (`.md-board-detail-main`) is re-themed to a new
+color, every "flatten/seam/surround" rule that HARDCODED the old color silently becomes a visible
+seam. After changing a surface token, grep for sibling rules that reference the OLD literal/token and
+re-point them to the new one.
+
+Also caught this session: a headless "the fix didn't apply" reading was a STALE ember build — always
+confirm the LIVE compiled asset (`curl :8184/assets/frontend.css | grep <your selector>`) contains
+your change BEFORE concluding the cascade is wrong. `sleep 6` is not enough; poll the asset until it
+reflects the edit.
+
+## Pattern: a DERIVED field with MULTIPLE entry points — fix the shared mutator, not one caller
+
+Bug class: a model field is DERIVED from other fields via an observer (e.g. button.js `updateAction`
+sets `buttonAction` from load_board/url/apps, with load_board winning). Switching the "type" must CLEAR
+the conflicting source fields or the derived value silently reverts. If there are several UI entry
+points that set the type (a dropdown AND quick-action shortcut buttons), fixing ONE (the dropdown's
+`updateModelButtonAction`) leaves the others (`quick_action('url')` did a bare
+`set('model.buttonAction','link')`) still broken — and the user re-reports the SAME symptom.
+
+Rule: when a fix clears/normalizes fields on action-type switch, extract it into ONE shared method
+(`_apply_button_action`) and route EVERY entry point through it. Before declaring such a bug fixed,
+enumerate every caller that sets the derived field (`grep` the field name + every quick-action/shortcut),
+not just the one the report mentioned. Codebase-specific: board-detail speak-mode `select_button`
+navigates ANY button with `load_board` (returns before the url branch), so a stale load_board = a
+folder nav ("player never initialized" is a *separate* video-player timeout, app.js:686 — don't be
+misled by it). Verify with the REAL click entry point (`ctrl.send('buttonSelect', id)` → find_button →
+select_button), not by hand-passing a raw board.buttons object (whose url isn't synced by set-field —
+only the Button model is), or the assertion silently no-ops.
+
+## Pattern: verify UI-event fixes through the REAL event path — a stale rendered copy ≠ the model
+
+Trap that cost two "fixed but not fixed" cycles on the board-detail URL-link bug: the headless repro
+called `ctrl.send('buttonSelect', id)`, which resolves the button via `editManager.find_button` (fresh
+from the model). A REAL mouse click goes through the grid's `{{on "click" (invokeAttr "selectButton" btn)}}`
+and hands `select_button` the DISPLAY copy — a plain object board-detail rebuilt from
+`board.contextualized_buttons`, which can LAG the model after an in-place edit. So the repro passed
+while the app still broke. Lesson: reproduce UI-event bugs by dispatching a real DOM event on the
+actual bound element (`[data-id=…]`) and instrument the handler to log the object it ACTUALLY received
+(`typeof obj.load_image === 'function'` tells you Button-instance vs plain display copy) — don't call
+the action with a hand-fetched fresh object.
+
+Two compounding root causes worth remembering for board-detail:
+1. **Display copies lag the model.** board-detail renders from `contextualized_buttons` (plain-object
+   copies); `editManager.process_for_displaying` early-returns for board-detail speak mode, so its
+   rebuild uses a different path. A click handler that trusts the passed button can act on pre-edit
+   data. Fix: resolve authoritative action fields from `board.get('buttons')` (the raw array
+   change_button keeps current) by id inside the handler, not from the passed render copy.
+2. **`set-field model.X` updates only the model, never board.buttons.** Bound inputs like the URL
+   field (`{{on "input" (set-field this "model.url")}}`) don't call `change_button`, so the field
+   never reaches the authoritative board.buttons array (unlike labelChanged, which does). Any field
+   that must survive a re-render / drive activation needs a `change_button` sync observer mirroring
+   labelChanged. Check `Button.attributes` includes the key or change_button won't sync it to board.buttons.

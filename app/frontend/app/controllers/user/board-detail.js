@@ -6226,9 +6226,26 @@ export default Controller.extend(prefClasses, {
         return;
       }
 
+      // The button object handed to us can be a STALE display copy: board-detail
+      // rebuilds its display buttons from board.contextualized_buttons, and an
+      // in-place edit (Button Settings) updates board.buttons + the model but the
+      // rebuilt display copy can still carry the pre-edit action fields. Resolve the
+      // ACTION fields (load_board / link_disabled / url) from the authoritative
+      // board.buttons entry by id so a just-changed action takes effect on the very
+      // next tap (e.g. a folder switched to a URL link opens the URL, not the old
+      // board). Falls back to the passed button when the board array lacks it.
+      var _action_src = button;
+      var _board_model = _this.get('model');
+      if(_board_model && _board_model.get && btn_id != null) {
+        var _bb = _board_model.get('buttons') || [];
+        for(var _bi = 0; _bi < _bb.length; _bi++) {
+          if(_bb[_bi] && String(_bb[_bi].id) === String(btn_id)) { _action_src = _bb[_bi]; break; }
+        }
+      }
+
       // Folder navigation — intercept for board-detail routing
-      var load_board = _get(button, 'load_board');
-      if(load_board && !_get(button, 'link_disabled')) {
+      var load_board = _get(_action_src, 'load_board');
+      if(load_board && !_get(_action_src, 'link_disabled')) {
         // Board lock: prevent navigation when sticky_board is enabled
         if(_this.get('stashes').get('sticky_board')) {
           modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
@@ -6282,14 +6299,24 @@ export default Controller.extend(prefClasses, {
         }
       }
 
-      // URL action ("Open a web site in a browser tab"): board-detail renders
-      // buttons as <button> (not the classic <a target="_blank" href>), so the
-      // anchor-open path in raw_events never fires here. Open the link explicitly.
-      // (Guarded by !load_board, though the folder branch above already returned
-      // for load_board buttons — belt-and-suspenders in case both are somehow set.)
-      var link_url = _get(button, 'url');
-      if(link_url && !_get(button, 'load_board')) {
-        capabilities.window_open(link_url, '_blank');
+      // URL action: board-detail renders buttons as <button> (not the classic
+      // <a target="_blank" href>), so the anchor-open path in raw_events never fires
+      // here. Delegate to the canonical launcher (app_state.launch_url) rather than
+      // window_open-ing the raw URL: a URL link can resolve to an in-app POPUP —
+      // launch_url opens a video PANE (inline-video) for a video.popup link and a book
+      // pane for a Tarheel book, and only falls back to a browser tab for a plain web
+      // link (honoring the user's confirm-external-links pref). window_open here sent
+      // video links to youtube.com instead of the in-app pane. Read from the
+      // authoritative board.buttons entry (_action_src) so a just-edited url/video takes
+      // effect; fall back to window_open only if the launcher is somehow unavailable.
+      var link_url = _get(_action_src, 'url');
+      if(link_url && !_get(_action_src, 'load_board')) {
+        var app_state_svc = _this.get('app_state');
+        if(app_state_svc && typeof app_state_svc.launch_url === 'function') {
+          app_state_svc.launch_url(_action_src, null, _this.get('model'));
+        } else {
+          capabilities.window_open(link_url, '_blank');
+        }
         return;
       }
 
