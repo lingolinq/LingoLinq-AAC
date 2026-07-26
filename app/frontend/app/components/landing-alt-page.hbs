@@ -67,7 +67,7 @@
             <div class="la-chip-icon la-chip-icon--teal">🌐</div>
             <div>
               <div class="la-chip-title">{{t "AI Language Support" key='landing_ai_language_support'}}</div>
-              <div class="la-chip-sub">{{t "multiple languages" key='landing_10_plus_languages'}}</div>
+              <div class="la-chip-sub">{{t "Multiple languages" key='landing_10_plus_languages'}}</div>
             </div>
           </div>
 
@@ -130,6 +130,15 @@
                  breakpoints stop showing different photos. --}}
             <div class="la-slp-spotlight__image" role="img" aria-label={{t "A smiling child points to a symbol on an AAC communication board displayed on a tablet" key='fsa_slp_spotlight_image_alt'}}></div>
           </div>
+        </div>
+      </section>
+
+      {{!-- ── Our Mission ── --}}
+      <section id="la-mission" class="la-section">
+        <div class="la-section-header">
+          <span class="la-section-eyebrow-badge">{{t "Our Mission" key='landing_mission_eyebrow'}}</span>
+          <h2 class="la-section-title">{{t "Your Voice, Safe and" key='landing_mission_title_1'}} <em>{{t "Supported" key='landing_mission_title_2'}}</em></h2>
+          <p class="la-section-subtitle">{{t "Removing barriers to communication means more than making AAC accessible. It means making communication easier and faster, while preserving each person's voice, personality, and intent. We build for safety, trust, and privacy, so communicators and the people who support them can focus on what matters most: connecting with each other." key='landing_mission_statement'}}</p>
         </div>
       </section>
 
@@ -240,9 +249,10 @@
       <section id="la-testimonial" class="la-testimonial-section">
         <div class="la-parallax-card-outer">
         <div class="la-parallax-card-inner">
-        <span class="la-section-eyebrow-badge">{{t "Your privacy" key='landing_privacy_eyebrow'}}</span>
-        <div class="la-testimonial-display">
-          <p class="la-testimonial-display-text">{{t "Your privacy is fundamental to how we build LingoLinq. We never sell or share your information, and we never use your data to train AI models. Our AI tools and analytics — including Real Analytics for IEPs — are strictly opt-in: they run only when you choose to enable them, and any reporting data is gathered solely for the features you turn on. Every data-related feature is a choice you control, and you can turn it off at any time." key='landing_privacy_statement'}}</p>
+        <div class="la-plan-text">
+          <span class="la-section-eyebrow-badge">{{t "Your privacy" key='landing_privacy_eyebrow'}}</span>
+          <h2 class="la-plan-title">{{t "Your data stays" key='landing_privacy_title_1'}} <em>{{t "yours" key='landing_privacy_title_2'}}</em></h2>
+          <p class="la-a11y-display-text">{{t "We never sell or share your information, and we never use it to train AI models. Our AI tools and analytics — including Real Analytics for IEPs — are strictly opt-in, and you can turn any of them off at any time." key='landing_privacy_statement'}}</p>
         </div>
         </div>
         </div>
@@ -334,13 +344,6 @@
             </div>
             <div class="la-footer-bottom">
               <span class="la-footer-bottom__copy">{{t "© 2026 LingoLinq AAC. All rights reserved." key='landing_copyright'}}</span>
-              <div class="la-footer-bottom-trailing">
-                <a href="https://www.w3.org/WAI/WCAG21/Understanding/conformance" target="_blank" rel="noopener noreferrer" class="la-footer-bottom-a11y-wcag" title={{t "Read about what accessibility compliance means and how WCAG 2.1 AA is defined (opens in new tab)." key="landing_footer_a11y_wcag_pill_title"}} aria-label={{t "Accessibility and WCAG 2.1 AA: W3C conformance and testing guidance (opens in new tab)" key="landing_footer_a11y_wcag_link_aria"}}>
-                  <span class="la-footer-bottom-a11y-wcag__label">{{t "Accessibility" key='landing_footer_accessibility'}}</span>
-                  <span class="la-badge la-badge--wcag la-badge--in-a11y-wcag-pill">{{t "WCAG 2.1 AA" key='landing_wcag_badge'}}</span>
-                </a>
-                {{!-- Open Source badge omitted (la-badge--oss / landing_oss_badge) --}}
-              </div>
             </div>
           </div>
           <LaFooterDrawer as |f|>
@@ -362,12 +365,6 @@
             <LinkTo @route="contact" class="la-mobile-drawer__link" {{on "click" f.closeDrawer}}>{{t "Contact" key='landing_footer_contact'}}</LinkTo>
             <LinkTo @route="terms" class="la-mobile-drawer__link" {{on "click" f.closeDrawer}}>{{t "Terms of Service" key="landing_footer_terms"}}</LinkTo>
             <LinkTo @route="privacy" class="la-mobile-drawer__link" {{on "click" f.closeDrawer}}>{{t "Privacy" key="privacy"}}</LinkTo>
-            <div class="la-mobile-drawer__divider"></div>
-            <a href="https://www.w3.org/WAI/WCAG21/Understanding/conformance" target="_blank" rel="noopener noreferrer" class="la-footer-bottom-a11y-wcag la-mobile-drawer-a11y-wcag" title={{t "Read about what accessibility compliance means and how WCAG 2.1 AA is defined (opens in new tab)." key="landing_footer_a11y_wcag_pill_title"}} aria-label={{t "Accessibility and WCAG 2.1 AA: W3C conformance and testing guidance (opens in new tab)" key="landing_footer_a11y_wcag_link_aria"}} {{on "click" f.closeDrawer}}>
-              <span class="la-footer-bottom-a11y-wcag__label">{{t "Accessibility" key='landing_footer_accessibility'}}</span>
-              <span class="la-badge la-badge--wcag la-badge--in-a11y-wcag-pill">{{t "WCAG 2.1 AA" key='landing_wcag_badge'}}</span>
-            </a>
-            {{!-- Open Source footer badge: <span class="la-badge la-badge--oss">landing_oss_badge</span> --}}
             <div class="la-mobile-drawer__divider"></div>
             <span class="la-mobile-drawer__footer-note">{{t "© 2026 LingoLinq AAC. All rights reserved." key='landing_copyright'}}</span>
           </LaFooterDrawer>

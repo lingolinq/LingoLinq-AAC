@@ -32978,6 +32978,7 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   color: $brand-smart-blue;
 }
 #la-features .la-section-header .la-section-title,
+#la-mission .la-section-header .la-section-title,
 #about-hero .la-section-header .la-section-title,
 .la-features-modal-body .la-section-header .la-section-title {
   font-weight: normal;
@@ -35216,7 +35217,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 }
 
 /* Landing-alt: "Built for how schools..." same size as "Everything you need..." */
-#la-features .la-section-header .la-section-title {
+#la-features .la-section-header .la-section-title,
+#la-mission .la-section-header .la-section-title {
   font-size: 32px;
 }
 
@@ -35360,6 +35362,21 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   text-align: center;
   padding: $aac-spacing-40 $aac-spacing-40 $aac-spacing-48;
   position: relative;
+}
+
+/* Privacy card content matches the Accessibility card's content width
+   (.la-a11y-display = 1008px) so the two sibling parallax cards read at the same
+   width. The .la-plan-text cluster otherwise caps its title/subtitle at 90%, which
+   is narrower than the a11y block. */
+.la-testimonial-section .la-plan-text {
+  max-width: 1008px;
+  margin-left: auto;
+  margin-right: auto;
+
+  .la-plan-title,
+  .la-a11y-display-text {
+    max-width: 100%;
+  }
 }
 
 .la-testimonial-display {
@@ -40575,7 +40592,8 @@ a.la-footer-bottom-a11y-wcag {
     font-size: 24px;
   }
 
-  #la-features .la-section-header .la-section-title {
+  #la-features .la-section-header .la-section-title,
+  #la-mission .la-section-header .la-section-title {
     font-size: 24px;
   }
 }
