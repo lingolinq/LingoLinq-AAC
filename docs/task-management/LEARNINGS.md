@@ -7306,3 +7306,20 @@ user country > locale (IP geolocation deferred). Quebec is `CA-QC` → age 14 (L
   Lesson: for Ember 5.x reactivity, prefer declaring observed props + binding templates directly to
   the tracked source over a classic computed indirection, especially in `tagName:''` components. A
   leftover `data-show` DEBUG probe in the co-located .hbs was the tell that this area was known-broken.
+- Slow board open (~4s) from the My Board Collection panel was NOT the board fetch/render — the
+  `ll_board_cache_diag` log (enable via `localStorage.setItem('ll_board_cache_diag','1')`, reads on
+  `window.__LL_BOARD_CACHE_LOG`) showed `model:cache_hit ms:6` + `grid_built ms:12` but
+  `setup:buttonset_fail ms:3621`. Two independent causes, both fixed:
+  (1) `routes/user/board-detail.js#setupController` called `model.load_button_set()` on the open path;
+  for an uncached set that hits `POST /buttonsets/:id/generate` (server-generates the whole
+  find-a-button hierarchy, `BoardDownstreamButtonSet.update_for`) — seconds on a large board. Fix:
+  defer it via `runLater` after paint (mirrors the deferred `warm_images`/`prefetch_linked` pattern),
+  guarded to skip if destroyed or the user navigated away. find-a-button is user-invoked; no need to
+  generate eagerly on every open.
+  (2) The collection panel's "Opening your board" overlay cleared via `onSelect(board).then(done)`, but
+  `onSelectBoardFromCollection` used `_this.send('select_board_from_collection', board)` — and Ember's
+  `send()` does NOT propagate an action's return value, so `onSelect` returned undefined, no transition
+  to hook, and the overlay only cleared via its 8s safety timeout. Fix: make onSelectBoardFromCollection
+  own the transitionTo and RETURN it; the action delegates to it (still reached via raw_events
+  data-bd-action). Lesson: to clear a loading overlay when a route transition settles, the handler must
+  RETURN the Transition — `send()` won't give it back.

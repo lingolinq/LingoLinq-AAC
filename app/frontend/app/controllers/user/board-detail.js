@@ -532,8 +532,26 @@ export default Controller.extend(prefClasses, {
     _this.onCloseSidebarEditor = function() {
       _this.send('close_sidebar_editor');
     };
-    _this.onSelectBoardFromCollection = function(board) {
-      _this.send('select_board_from_collection', board);
+    // Opens the chosen board and RETURNS the Transition so the collection panel
+    // (BoardCollection) can clear its "Opening your board" overlay when the board
+    // finishes loading (the transition settles / board is painted), instead of only via
+    // its 8s safety timeout. Ember's send() does not propagate an action's return value,
+    // so the transition is performed here and returned; the select_board_from_collection
+    // action (also reached via raw_events chrome clicks) delegates here.
+    _this.onSelectBoardFromCollection = function(boardOrKey) {
+      if(!boardOrKey) { return; }
+      var key = typeof boardOrKey === 'string' ? boardOrKey : ((boardOrKey.get && boardOrKey.get('key')) || boardOrKey.key);
+      // Keep the collection PINNED (do NOT clear board_collection_open) so the drawer
+      // stays open while the chosen board loads in the grid on the left.
+      _this.set('show_options_menu', false);
+      if(key && _this.router) {
+        var parts = key.split('/');
+        if(parts.length >= 2) {
+          return _this.router.transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+        }
+        // Defensive fallback: keys SHOULD always be `<user>/<slug>`.
+        return _this.router.transitionTo('board', key);
+      }
     };
     this._closeDropdownsHandler = function(e) {
       if(_this.get('details_dropdown_open') && !e.target.closest('.md-board-detail-details-dropdown-wrap')) {
@@ -6121,29 +6139,12 @@ export default Controller.extend(prefClasses, {
        both pieces. Anything after the first `/` rejoins so multi-
        segment slugs survive (e.g. `quick-core-112/categories/food`). */
     select_board_from_collection: function(boardOrKey) {
-      if(!boardOrKey) { return; }
-      var key = typeof boardOrKey === 'string' ? boardOrKey : ((boardOrKey.get && boardOrKey.get('key')) || boardOrKey.key);
-      // Keep the collection PINNED (do NOT clear board_collection_open) so the
-      // drawer stays open while the chosen board loads in the grid on the left.
-      // board-detail's controller is a singleton across board-detail routes, so
-      // the pinned state survives the transition. "Back to Speak Mode" (the
-      // drawer's back button → close_board_collection) unpins onto whatever board
-      // is showing — i.e. the last one selected.
-      this.set('show_options_menu', false);
-      // Return the Transition (thenable) so BoardCollection can keep its
-      // in-place loading overlay up until the chosen board has finished
-      // loading on the left, then clear it.
-      if(key && this.router) {
-        var parts = key.split('/');
-        if(parts.length >= 2) {
-          return this.router.transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
-        } else {
-          /* Defensive fallback: keys SHOULD always be `<user>/<slug>`,
-             but if somehow not, fall back to the classic splat route
-             rather than hard-failing the transition. */
-          return this.router.transitionTo('board', key);
-        }
-      }
+      // Single source of truth for the transition lives in onSelectBoardFromCollection
+      // (assigned in init), which returns the Transition so BoardCollection can clear its
+      // "Opening your board" overlay when the board settles. This action is reached via
+      // raw_events chrome clicks (data-bd-action="select_board_from_collection"); it
+      // delegates and returns the Transition so any thenable consumer still works.
+      return this.onSelectBoardFromCollection(boardOrKey);
     },
 
     // ── Button Interaction ──
