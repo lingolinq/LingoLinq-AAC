@@ -7208,3 +7208,15 @@ a surface with NO synthetic transparency you introduced — never the same canva
   bogus-external-url server rejection doesn't muddy the passthrough proof.
 - size_image early-returns UNoptimized when BOTH dims <300px (`default_size`). Acceptable: sub-300
   images are already tiny and JPEG artifacts on small symbols look worse than the KB saved.
+- Login 400 "Invalid client_secret for client_id" is NOT a wrong-password error — `/token` rejects the
+  browser token (used as `client_secret`) BEFORE checking the password (`SessionController#token`:
+  `GoSecure.valid_browser_token?`). The token is time-boxed (`GoSecure.browser_token`, format
+  `<counter>-<hmac>`) and the server returns a fresh one in the `BROWSER_TOKEN` response header on
+  EVERY response (even the 400). The frontend captures it (`extras.js` → `fakeXHR.browserToken`) but
+  only persisted it in `session.js#check_token` — which runs only when the login form has NO stored
+  token. So a stale token in IndexedDB wedges login and a reload doesn't help (it reads the same stale
+  token back). Fix = refresh the stored token from `fakeXHR.browserToken` centrally in
+  `persistence.ajax` (both success `data.meta.fakeXHR` and error `rejection.fakeXHR`) so it never goes
+  stale, plus a one-shot login retry in `session.js#authenticate` on the `client_secret` error.
+  Debug tip: `curl -D - -X POST localhost:5000/token ...` shows both the JSON error and the fresh
+  `browser_token:` header; generate a valid one with `rails runner 'print GoSecure.browser_token'`.

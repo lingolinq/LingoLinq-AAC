@@ -67,7 +67,7 @@
             <div class="la-chip-icon la-chip-icon--teal">🌐</div>
             <div>
               <div class="la-chip-title">{{t "AI Language Support" key='landing_ai_language_support'}}</div>
-              <div class="la-chip-sub">{{t "10+ languages" key='landing_10_plus_languages'}}</div>
+              <div class="la-chip-sub">{{t "multiple languages" key='landing_10_plus_languages'}}</div>
             </div>
           </div>
 
@@ -79,7 +79,7 @@
             </div>
           </div>
 
-          <div class="la-mockup">
+          <div class="la-mockup" role="img" aria-label={{t "An illustrative LingoLinq communication board with symbol buttons — feel, eat, go, hi, want, play, read, more — and a sentence bar reading 'I want to play'." key='landing_hero_mockup_alt'}}>
             <div class="la-mockup-bar">
               <div class="la-mockup-dot la-mockup-dot--r"></div>
               <div class="la-mockup-dot la-mockup-dot--y"></div>
@@ -149,12 +149,12 @@
           <div class="la-feature-card">
             <div class="la-feature-icon la-feature-icon--coral" aria-hidden="true">🤖</div>
             <h3>{{t "AI-Powered Board Generation" key='landing_feature_ai_title'}}</h3>
-            <p>{{t "Describe a topic and LingoLinq builds communication boards automatically. What used to take hours now takes minutes." key='landing_feature_ai_desc'}}</p>
+            <p>{{t "Describe a topic and LingoLinq's opt-in AI builds communication boards automatically — what used to take hours now takes minutes. Your content is never used to train AI models." key='landing_feature_ai_desc'}}</p>
           </div>
           <div class="la-feature-card">
             <div class="la-feature-icon la-feature-icon--teal" aria-hidden="true">🌍</div>
             <h3>{{t "Multilingual from Day One" key='landing_feature_multilingual_title'}}</h3>
-            <p>{{t "AI-driven language expansion supports 10+ languages with proper grammar — not word-for-word translation." key='landing_feature_multilingual_desc'}}</p>
+            <p>{{t "AI-driven language expansion supports multiple languages with proper grammar — not word-for-word translation." key='landing_feature_multilingual_desc'}}</p>
           </div>
           <div class="la-feature-card">
             <div class="la-feature-icon la-feature-icon--navy" aria-hidden="true">🏫</div>
@@ -169,7 +169,7 @@
           <div class="la-feature-card">
             <div class="la-feature-icon la-feature-icon--coral" aria-hidden="true">📊</div>
             <h3>{{t "Real Analytics for IEPs" key='landing_feature_analytics_title'}}</h3>
-            <p>{{t "Track vocabulary growth, usage, and communication attempts. Reports map directly to IEP goals." key='landing_feature_analytics_desc'}}</p>
+            <p>{{t "Opt in to track vocabulary growth, usage, and communication attempts. When you enable it, reports map directly to IEP goals — and you can turn analytics off at any time." key='landing_feature_analytics_desc'}}</p>
           </div>
           <div class="la-feature-card">
             <div class="la-feature-icon la-feature-icon--navy" aria-hidden="true">👨‍👩‍👧</div>
@@ -198,7 +198,7 @@
             </li>
             <li class="la-plan-item">
               <span class="la-plan-check" aria-hidden="true">✓</span>
-              <span>{{t "10+ language support" key='fsa_check_langs'}}</span>
+              <span>{{t "multiple language support" key='fsa_check_langs'}}</span>
             </li>
             <li class="la-plan-item">
               <span class="la-plan-check" aria-hidden="true">✓</span>
@@ -214,7 +214,7 @@
             </li>
             <li class="la-plan-item">
               <span class="la-plan-check" aria-hidden="true">✓</span>
-              <span>{{t "WCAG 2.1 AA compliant" key='fsa_check_wcag'}}</span>
+              <span>{{t "Working toward WCAG 2.1 AA" key='fsa_check_wcag'}}</span>
             </li>
           </ul>
         </div>
@@ -236,18 +236,13 @@
         </div>
       </section>
 
-      {{!-- ── What Educators Say ── --}}
+      {{!-- ── Privacy Commitment ── --}}
       <section id="la-testimonial" class="la-testimonial-section">
         <div class="la-parallax-card-outer">
         <div class="la-parallax-card-inner">
-        <span class="la-section-eyebrow-badge">{{t "What educators say" key='fsa_what_educators_say'}}</span>
-        <blockquote class="la-testimonial-display">
-          <span class="la-testimonial-mark" aria-hidden="true">&ldquo;</span>
-          <p class="la-testimonial-display-text">{{t "LingoLinq changed how our entire district approaches AAC. The AI board generation alone saved our team dozens of hours in the first month, and the families love being able to access boards at home without buying expensive apps." key='landing_testimonial'}}</p>
-        </blockquote>
-        <div class="la-testimonial-attribution">
-          <div class="la-testimonial-author-name">{{t "Sarah Chen, M.S., CCC-SLP" key='landing_testimonial_author'}}</div>
-          <div class="la-testimonial-author-role">{{t "Lead Speech-Language Pathologist, Marin County Schools" key='landing_testimonial_role'}}</div>
+        <span class="la-section-eyebrow-badge">{{t "Your privacy" key='landing_privacy_eyebrow'}}</span>
+        <div class="la-testimonial-display">
+          <p class="la-testimonial-display-text">{{t "Your privacy is fundamental to how we build LingoLinq. We never sell or share your information, and we never use your data to train AI models. Our AI tools and analytics — including Real Analytics for IEPs — are strictly opt-in: they run only when you choose to enable them, and any reporting data is gathered solely for the features you turn on. Every data-related feature is a choice you control, and you can turn it off at any time." key='landing_privacy_statement'}}</p>
         </div>
         </div>
         </div>
@@ -259,10 +254,10 @@
         <div class="la-parallax-card-inner">
         <span class="la-section-eyebrow-badge">{{t "Accessibility First" key='accessibility_first'}}</span>
         <div class="la-a11y-display">
-          <p class="la-a11y-display-text">{{t "This site meets" key='landing_a11y_meets'}} <strong>{{t "WCAG 2.1 AA" key='landing_a11y_wcag'}}</strong> {{t "standards. We use Atkinson Hyperlegible (designed by the Braille Institute) and Lexend (optimized for reading fluency) because we believe our tools should be accessible to everyone, including our website." key='landing_a11y_standards'}}</p>
+          <p class="la-a11y-display-text">{{t "We are continually working to meet" key='landing_a11y_meets'}} <strong>{{t "WCAG 2.1 AA" key='landing_a11y_wcag'}}</strong> {{t "standards. We use Atkinson Hyperlegible (designed by the Braille Institute) and Lexend (optimized for reading fluency) because we believe our tools should be accessible to everyone, including our website." key='landing_a11y_standards'}}</p>
         </div>
         <ul class="la-a11y-trust-badges" aria-label="{{t "Accessibility highlights" key='landing_a11y_highlights_label'}}">
-          <li class="la-a11y-trust-item"><span class="la-a11y-trust-check" aria-hidden="true"></span><span>{{t "WCAG 2.1 AA compliant" key='fsa_check_wcag'}}</span></li>
+          <li class="la-a11y-trust-item"><span class="la-a11y-trust-check" aria-hidden="true"></span><span>{{t "Working toward WCAG 2.1 AA" key='fsa_check_wcag'}}</span></li>
           <li class="la-a11y-trust-item"><span class="la-a11y-trust-check" aria-hidden="true"></span><span>{{t "Accessible typography" key='landing_a11y_typography'}}</span></li>
           <li class="la-a11y-trust-item"><span class="la-a11y-trust-check" aria-hidden="true"></span><span>{{t "Designed for neurodivergent users" key='landing_a11y_neurodivergent'}}</span></li>
         </ul>
