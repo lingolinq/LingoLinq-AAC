@@ -38,8 +38,8 @@ Default retention windows apply unless a customer data processing addendum speci
 | Analytics events (`WeeklyStatsSummary` and similar aggregates) | Indefinite once aggregated; raw events 2 years | Legitimate interest (GDPR); aggregates are non-identifiable | Raw-event purge job; aggregates retained | Aggregates do not re-identify individuals |
 | Session cookies and device fingerprints | Session lifetime plus 14 days | GDPR consent or legitimate interest; ePrivacy | Browser expiry plus server-side session purge | EU users require opt-in consent before non-essential cookies |
 | ClusterLocation (IP and geolocation) | 90 days | GDPR data minimization; HIPAA audit | Nightly job trims older records | Geo coordinates are precise; treat as sensitive |
-| Backups (Google Cloud SQL, live production) | 7 most-recent automated daily backups, plus point-in-time recovery over a 7 day transaction-log window | Operational recovery | Managed automatically by Cloud SQL (`lingolinq-prod-pg`, us-central1; daily backup at 08:00 UTC, PITR enabled) | Verified against the live instance 2026-07-23. This replaces the pre-cutover Render 35 day window: the recovery window is now **shorter**. Whether it meets the RPO target has **not** been reviewed post-cutover; that review is owed and is not asserted by this attestation. Restoring from backup does not defeat deletion; we re-run deletion jobs post-restore |
-| Backups (Render managed PostgreSQL, superseded) | 35 day rolling window, retained only while the write-frozen rollback fallback exists | Operational rollback for the 2026-07-22 cutover | Managed automatically by Render until the fallback is deleted or restricted | Frozen copy of pre-cutover production data. Ends when the Render fallback is decommissioned (see `SUBPROCESSORS.md` §5.2); `BREACH_RUNBOOK.md` step 3 still names Render as the restore source and is stale pending its own re-attestation |
+| Backups (Google Cloud SQL, live production) | 7 most-recent automated daily backups, plus point-in-time recovery over a 7 day transaction-log window | Operational recovery | Managed automatically by Cloud SQL (`lingolinq-prod-pg`, us-central1; daily backup at 08:00 UTC, PITR enabled) | Verified against the live instance 2026-07-23. This replaces the pre-cutover Render 35 day window: the recovery window is now **shorter**. No approved RPO target is recorded in the current runbook or schedule, so this attestation does not assert that the window meets an RPO target. Restoring from backup does not defeat deletion; we re-run deletion jobs post-restore |
+| Backups (Render managed PostgreSQL, superseded) | 35 day rolling window, retained only while the write-frozen rollback fallback exists | Operational rollback for the 2026-07-22 cutover | Managed automatically by Render until the fallback is deleted or restricted | Frozen copy of pre-cutover production data. Ends when the Render fallback is decommissioned (see `SUBPROCESSORS.md` §5.2). `BREACH_RUNBOOK.md` now names Cloud SQL as the primary recovery source and retains Render only as the rollback fallback |
 | Incident log (`docs/legal/INCIDENT_LOG.md`) | 7 years minimum from incident close | HIPAA; state breach statutes; legal hold | Manual, only with Privacy Contact approval | Append-only; no deletion without legal review |
 | Support tickets | 3 years from last activity | Legitimate interest; tax defense | Help-desk tool retention policy | Tickets referencing PHI follow HIPAA audit retention |
 | Billing and tax records | 7 years | IRS recordkeeping guidance; state tax rules | Accounting system scheduled purge | Includes invoices, payment records, purchase orders |
@@ -50,6 +50,22 @@ Default retention windows apply unless a customer data processing addendum speci
 | Children's data (users under 13) | Parent-controllable at any time; automatic purge at age 18 or after 2 years of inactivity, whichever is sooner | COPPA 16 CFR § 312.10 | `Flusher` with child-flag path; age-threshold sweeper | Parental deletion requests processed within 30 days |
 | Supervisor consent records (`SupervisorConsentService`) | Life of the relationship plus 2 years | COPPA, FERPA; accountability | Flusher cascade when parent user is deleted | Token-based, 14 day token TTL |
 | Deleted-user tombstones | Indefinite (identifier only, no PII) | Integrity, prevent replay | Tombstones stored outside live tables | Used to prevent recreating deleted identifiers |
+
+### Backup and RPO review (2026-07-23)
+
+The live Cloud SQL configuration was verified with `gcloud sql instances describe lingolinq-prod-pg`:
+
+- Region: `us-central1`
+- Automated backups: enabled, 7 retained backups, daily start time 08:00 UTC
+- Point-in-time recovery: enabled, with 7 days of transaction-log retention
+
+No approved recovery point objective (RPO) target was found in this schedule, the breach runbook, or
+the repository's current infrastructure documentation. The current capability is therefore verified,
+but whether it meets the organization's RPO is undetermined and is not asserted by this attestation.
+The infrastructure owner must set the target and validate it with a restore exercise. If the target
+requires recovery beyond the current 7-day PITR window, increase transaction-log retention and review
+backup retention. If the target requires less potential data loss than the tested Cloud SQL recovery
+path supports, shorten the backup interval and validate the resulting restore procedure.
 
 ## 3. Deletion Mechanism
 

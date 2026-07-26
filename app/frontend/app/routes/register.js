@@ -52,6 +52,15 @@ export default Route.extend({
       }
       var country = (controller.get('registration_country') || '').trim().toUpperCase();
       user.set('country', country || null);
+      // Compliance Kernel: send birth month/year + jurisdiction when flag ON.
+      // Server ignores these when the flag is OFF.
+      if(controller.get('appState.feature_flags.compliance_workflow_kernel')) {
+        var bm = parseInt(controller.get('birth_month'), 10);
+        var by = parseInt(controller.get('birth_year'), 10);
+        if(bm >= 1 && bm <= 12) { user.set('birth_month', bm); }
+        if(by >= 1900) { user.set('birth_year', by); }
+        user.set('jurisdiction_declaration', country || null);
+      }
       var isCommunicator = user.get('preferences.registration_type') === 'communicator';
       if(isCommunicator) {
         user.set('under_16', !!controller._classifyUnder16());

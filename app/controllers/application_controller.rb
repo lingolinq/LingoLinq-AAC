@@ -47,6 +47,22 @@ class ApplicationController < ActionController::Base
   end
   helper_method :coppa_consent_age_injection
 
+  # Compliance Kernel: inject anonymous signup routing hints into domain_settings
+  # when the flag is ON. Returns {} when OFF so payloads stay identical to today.
+  def compliance_kernel_injection
+    return {} unless FeatureFlags.compliance_workflow_kernel_enabled?
+
+    profile = Compliance::Profile.for(nil, request: request, declaration: params[:jurisdiction].presence)
+    {
+      'compliance_kernel' => {
+        'digital_consent_age' => profile.digital_consent_age,
+        'jurisdiction' => profile.jurisdiction,
+        'effective_rules' => profile.effective_rules
+      }
+    }
+  end
+  helper_method :compliance_kernel_injection
+
   # Best jurisdiction signal available for THIS request, using only signals that
   # already exist (no IP geolocation). This is best-effort BROWSER-LOCALE
   # detection: an explicit ?locale= param, then the Accept-Language header.

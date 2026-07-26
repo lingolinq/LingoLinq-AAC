@@ -397,6 +397,65 @@ class User < ApplicationRecord
     coppa_parental_consent_pending? || coppa_parental_consent_revoked?
   end
 
+  # Compliance Kernel profile for this user (nil when flag OFF).
+  def compliance_profile(request: nil)
+    return nil unless FeatureFlags.compliance_workflow_kernel_enabled?
+
+    Compliance::Profile.for(self, request: request)
+  end
+
+  # Persist settings['compliance'] from registration params (create only).
+  # Accepts birth_month / birth_year / jurisdiction_declaration (and camelCase /
+  # dasherized variants). Declared jurisdiction wins over registration country.
+  def stamp_compliance_profile_from_params!(params, country: nil)
+    declaration = (
+      params['jurisdiction_declaration'] ||
+      params['jurisdiction-declaration'] ||
+      params['jurisdictionDeclaration'] ||
+      params['jurisdiction'] ||
+      country
+    )
+    birth_month = params['birth_month'] || params['birth-month'] || params['birthMonth']
+    birth_year = params['birth_year'] || params['birth-year'] || params['birthYear']
+
+    profile = Compliance::Profile.for(
+      self,
+      declaration: declaration,
+      birth_month: birth_month,
+      birth_year: birth_year,
+      segment_opts: {
+        authored_organization_id: params['authored_organization_id']
+      }
+    )
+
+    blob = {
+      'segment' => profile.segment,
+      'jurisdiction' => profile.jurisdiction,
+      'digital_consent_age' => profile.digital_consent_age,
+      'frameworks' => profile.effective_rules['frameworks'],
+      'stamped_at' => Time.now.utc.iso8601
+    }
+    month_i = birth_month.to_i
+    year_i = birth_year.to_i
+    blob['birth_month'] = month_i if month_i >= 1 && month_i <= 12
+    blob['birth_year'] = year_i if year_i >= 1900 && year_i <= Time.now.utc.year
+    blob['age_band'] = profile.age_band if profile.age_band
+
+    self.settings['compliance'] = blob
+    # Keep preferences.jurisdiction in sync for EuJurisdiction / LingoLinq::Jurisdiction.
+    code = profile.jurisdiction && profile.jurisdiction['code']
+    if code.present?
+      self.settings['preferences'] ||= {}
+      # Store country portion for consumers that expect ISO alpha-2 only.
+      country_code = code.to_s.split('-', 2).first
+      self.settings['preferences']['jurisdiction'] = country_code if country_code.match?(/\A[A-Z]{2}\z/)
+      if self.settings['country'].blank? && country_code.match?(/\A[A-Z]{2}\z/)
+        self.settings['country'] = country_code
+      end
+    end
+    true
+  end
+
   # True when login must collect a parent email before (re)sending the COPPA
   # consent request: offboarding without email yet, pending with blank parent
   # email, or revoked (re-request).
@@ -2025,6 +2084,11 @@ class User < ApplicationRecord
         'eu_under_16' => eu_under_16,
         'registered_at' => Time.now.utc.iso8601
       }
+      # Compliance Kernel: persist birth month/year + jurisdiction declaration when
+      # the flag is ON. Flag OFF ⇒ this block is skipped (byte-identical to prior).
+      if FeatureFlags.compliance_workflow_kernel_enabled?
+        stamp_compliance_profile_from_params!(params, country: country)
+      end
     end
     self.settings['referrer'] ||= params['referrer'] if params['referrer']
     self.settings['ad_referrer'] ||= params['ad_referrer'] if params['ad_referrer']

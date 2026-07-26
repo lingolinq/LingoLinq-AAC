@@ -49,6 +49,7 @@
 | 2027-04-24 | upcoming | WCAG 2.1 AA for web content of large public entities (April-2026 IFR extended the date). Small entities: 2028-04. Lin... | WCAG |
 | 2027-12-02 | upcoming | High-risk obligations for Annex III systems (deferred from earlier by the Digital Omnibus). An AAC word predictor is ... | EU AI Act |
 | (conditional) | conditional | EAA enforceable since 2025-06. LingoLinq is likely inside the microenterprise exemption (<10 staff AND <EUR 2M turnov... | EAA |
+| (conditional) | conditional | docs/legal/SUBPROCESSORS.md §2 commits to 30 days advance notice before any subprocessor change that affects a tenant... | GDPR |
 
 ## How to read this
 

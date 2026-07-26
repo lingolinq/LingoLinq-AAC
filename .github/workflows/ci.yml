@@ -171,11 +171,17 @@ jobs:
       - name: Run codex-review envelope guard + convergence unit tests
         run: python3 scripts/codex-review-build-envelope.test.py
 
-      # Guards the diff chunker: file-boundary splitting, per-chunk byte cap,
-      # UTF-8-safe truncation of an oversized single file, and the MAX_CHUNKS
-      # overflow report that keeps a too-large PR fail-closed.
-      - name: Run codex-review diff-chunker unit tests
-        run: python3 scripts/codex-review-chunk-diff.test.py
+      # Guards the chunked-evidence builder: deterministic diff, structural
+      # index (added + removed symbols with real source lines), sub-cap chunk
+      # packing, and the MAX_CHUNKS hard-stop that keeps a too-large PR
+      # fail-closed.
+      - name: Run codex-review evidence-builder unit tests
+        run: python3 scripts/codex-review-build-evidence.test.py
+
+      # Guards the per-chunk runner: per-chunk approve convergence, the single
+      # decisive path fed to synthesis, and non-fatal heartbeat/retry handling.
+      - name: Run codex-review chunk-runner unit tests
+        run: python3 scripts/codex-review-run-chunks.test.py
 
   security-scan:
     runs-on: ubuntu-latest
