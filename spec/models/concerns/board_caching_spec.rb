@@ -196,7 +196,7 @@ describe BoardCaching, :type => :model do
       b.reload.track_downstream_boards!
       b2.reload.track_downstream_boards!
       RedisInit.permissions.keys.each{|k| RedisInit.permissions.del(k) }
-      Worker.process_queues
+      # One wave only: a second process_queues runs process_all and destroys these user RAs.
       Worker.process_queues
 
       expect(RemoteAction.where(action: 'update_available_boards', path: u3.global_id).count).to be >= 1

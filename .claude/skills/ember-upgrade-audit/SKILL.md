@@ -5,7 +5,7 @@ description: Ember 3.28->5.12 upgrade-regression checklist for LingoLinq-AAC. Br
 
 # Ember 3.28 → 5.12 upgrade-regression audit checklist
 
-Context: ember-source/cli `~5.12.0`, ember-data `~5.3.8`, Node 20,
+Context: ember-source/cli `~5.12.0`, ember-data `~5.3.8`, Node 22,
 `EXTEND_PROTOTYPES: false` (`config/environment.js`), `jquery-integration: false`
 (`config/optional-features.json`). Frontend root: `app/frontend/app/`.
 Deep background + references: `docs/ember-upgrade/KNOWN-ISSUES.md`.
@@ -141,7 +141,10 @@ ordering bugs, "works when I click slowly".
 ### Class 9 — Build pipeline / addon compatibility
 package.json addon version bands vs Ember 5.12, ember-auto-import v2/webpack, sass
 pipeline, `optional-features.json` flag consequences, deprecation-workflow config,
-Node-engine mismatches. (Node 20 is supported by ember-cli 5.12.) Checklist +
+Node-engine mismatches. (The repo runs Node 22 on ember-cli 5.12. ember-cli 5.12
+declares `engines: node >= 18`, so nothing blocks it, but Node 22 enters ember-cli's
+officially tested matrix only at 6.2 — treat Node-related build oddities as in-scope
+rather than assuming a supported configuration.) Checklist +
 version-band table: KNOWN-ISSUES.md §Build.
 
 ### Class 11 — Two-way template binds to non-settable / mis-typed targets

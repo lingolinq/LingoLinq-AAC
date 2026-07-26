@@ -197,12 +197,10 @@ var speecher = EmberObject.extend({
         voiceURI: "remote:uk-UA:female"
       });
     }
-    list.push({
-      name: i18n.t('irish_female_internet_required', "Irish Female *Internet Required*"),
-      lang: 'ga-IE',
-      remote_voice: true,
-      voiceURI: "remote:ga-IE:Ulster"
-    });
+    // Irish (ga-IE) remote voice removed: the server-side Abair TTS endpoint was disabled
+    // 2026-07-23 (no DPA -- finding LL-a167848115), so /api/v1/search/audio now returns 400
+    // for `ga` locales. Offering it here would give Irish users a voice that can never
+    // succeed. Restore this option only if Irish TTS is re-enabled behind a DPA/SCCs.
     if(add_low) {
       var locale = ((i18n.langs || {}).preferred || window.navigator.language).replace(/_/, '-');
       var loc = 'en-us';

@@ -6,6 +6,9 @@
 **GCP Project:** LingoLinq Prod (`lingolinq-prod`)
 **Accepted by:** scot@lingolinq.com (Google Cloud console, Privacy & Security)
 **Status:** **ACTIVE** (agreements accepted in-console)
+**Attested:** 2026-07-16; **re-attested 2026-07-23** by Scot Wahlquist, CEO, against the current
+revision. The 2026-07-16 attestation predated this file's creation on 2026-07-17 (PR #622) and the
+later Vertex-scope correction, Anthropic-BAA cross-reference, and cutover subprocessor update.
 **Formalizes:** the org-wide Google BAA previously recorded as accepted 2026-06-08
 
 ## Agreements Accepted
@@ -58,8 +61,9 @@ from the AWS BAA, which has a countersigned PDF (`docs/legal/AWS_BAA_2026-02.pdf
 > services covered by the infrastructure BAA and stated Vertex AI was "in scope." Google's HIPAA
 > BAA covers only products on its published Covered Products list, which does not include Vertex AI
 > as a whole (only specific products such as Vertex AI Workbench). The scope language above was
-> narrowed accordingly. This correction post-dates the 2026-07-16 attestation and is flagged for
-> re-attestation.
+> narrowed accordingly. This correction post-dated the 2026-07-16 attestation; it is covered by the
+> 2026-07-23 re-attestation recorded below, along with the Anthropic BAA and Gate 1 cutover updates
+> made on 2026-07-19 and 2026-07-21.
 
 ## Subprocessor Status
 
