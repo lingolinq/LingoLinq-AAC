@@ -1,5 +1,19 @@
 # COPPA Final Rule Code Verification
 
+> **THIS IS A POINT-IN-TIME RECORD. Do not read it as current state.** Every finding, file path,
+> and line number below describes the code as it stood on 2026-04-27. Attesting this document
+> attests that it is a faithful record of that verification, not that its findings are still open
+> or that its citations still resolve. Several have since been remediated - for example, section 10
+> records `AiApiLog.redact_old_ip_addresses!` as defined but never called, which was wired into
+> `lib/tasks/scheduler.rake` by PR #222 and runs daily today. Current status for anything here lives
+> in `audit-reports/FINDINGS.json`, which is the source of truth; this file is evidence of what was
+> found, when.
+>
+> **Attestation history:** first attested 2026-06-21. PR #597 (2026-07-13) corrected one line (the
+> COPPA parental-consent default is ON, not opt-in), so the attested revision no longer existed.
+> Re-attested 2026-07-23 by Scot Wahlquist, CEO, against the current revision, with this
+> point-in-time framing added.
+
 **Date:** 2026-04-27
 **Auditor:** Claude Code (Opus 4.7), routed via /lingo
 **Branch:** compliance/coppa-final-rule-audit-2026-04-27

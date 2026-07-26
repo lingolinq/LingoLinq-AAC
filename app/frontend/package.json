@@ -23,7 +23,7 @@
     "postinstall": "patch-package"
   },
   "engines": {
-    "node": ">= 22.0.0"
+    "node": ">=22.0.0 <23.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",

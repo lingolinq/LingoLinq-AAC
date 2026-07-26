@@ -15,10 +15,11 @@ produce findings, never install/update anything.
   if present).
 
 ## Constraints that shape recommendations
-- **Node 20 and Ember 3.28 are pinned by design.** Do NOT recommend bumping Node past 20 or
-  jumping Ember majors as a fix; the Ember 3.28 -> 5.x migration is a separate multi-month
-  effort and is the prerequisite for any Node bump. Flag CVEs and EOL risk, but frame upgrade
-  options within these constraints (e.g. backport, patch pin, or "blocked on Ember 5 migration").
+- **Node 22 and Ember 5.12 are the current pins.** (Ember 3.28 -> 5.12 shipped in #490,
+  2026-07-08; Node 20 -> 22 in #643.) Do NOT recommend jumping Ember majors as a fix; 5.x ->
+  6.x is a separate migration effort, and Node 24 is gated behind it (ember-cli adds Node 24
+  at 6.7). Flag CVEs and EOL risk, but frame upgrade options within these constraints
+  (e.g. backport, patch pin, or "blocked on the Ember 6 migration").
 
 ## Checklist
 - [ ] List all Ruby gems: current vs latest; flag outdated.
@@ -50,7 +51,7 @@ or any mutating command; the PreToolUse guard blocks them.
   "status": "open",
   "evidence": { "type": "code", "file": "Gemfile.lock", "line": 88,
                 "snippet": "verbatim lockfile line at the audited SHA", "sha": "<auditedSha>" },
-  "remediation": { "options": "target version + constraint (respect Node 20 / Ember 3.28)",
+  "remediation": { "options": "target version + constraint (respect Node 22 / Ember 5.12)",
                    "timeframe": "advisory" },
   "notes": "advisory link / CVE id"
 }

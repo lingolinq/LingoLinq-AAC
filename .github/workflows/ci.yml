@@ -74,6 +74,10 @@ jobs:
         with:
           node-version: 22
 
+      # The cache key MUST carry the Node major. node_modules holds native
+      # bindings (sqlite3) compiled against a specific Node ABI; restoring a
+      # Node-20-built tree into a Node 22 runner loads a binding built for the
+      # wrong ABI. Bump this suffix on every Node major bump.
       - name: Cache node_modules and Puppeteer Chrome
         uses: actions/cache@v4
         with:
@@ -158,10 +162,17 @@ jobs:
         uses: actions/checkout@v4
 
       # Guards the codex-review envelope logic: status fail-closed mapping,
-      # the prompt-injection guard, and the convergence policy. Stdlib-only
-      # (unittest), so no Python setup or dependencies are needed.
+      # the prompt-injection guard, the per-chunk convergence policy, and the
+      # cross-chunk fold. Stdlib-only (unittest), so no Python setup or
+      # dependencies are needed.
       - name: Run codex-review envelope guard + convergence unit tests
         run: python3 scripts/codex-review-build-envelope.test.py
+
+      # Guards the diff chunker: file-boundary splitting, per-chunk byte cap,
+      # UTF-8-safe truncation of an oversized single file, and the MAX_CHUNKS
+      # overflow report that keeps a too-large PR fail-closed.
+      - name: Run codex-review diff-chunker unit tests
+        run: python3 scripts/codex-review-chunk-diff.test.py
 
   security-scan:
     runs-on: ubuntu-latest

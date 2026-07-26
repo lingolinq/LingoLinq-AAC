@@ -1,16 +1,17 @@
 # LingoLinq AAC Compliance Posture Report
 
-> **ATTESTED 2026-06-19 by Scot Wahlquist, CEO. RE-ATTESTED 2026-07-16** after a counts refresh to
-> the 2026-07-08 register. This is a Phase 3 report generated from the findings register. The
+> **ATTESTED 2026-06-19 by Scot Wahlquist, CEO. RE-ATTESTED 2026-07-16, and again 2026-07-23**
+> after a counts refresh to the register as committed at HEAD. This is a Phase 3 report generated from the findings register. The
 > headline counts are read directly from `audit-reports/FINDINGS.json`; every other report in
 > `audit-reports/` is a point-in-time snapshot and is not authoritative for status. Drafted by the
 > compliance-officer; adversary-reviewed; attested by the CEO.
 >
 > Register audited SHA: `20953ab3` (auditedDate 2026-07-08, ref `scot/compliance/audit-refresh-2026-07-07`).
-> Counts in this report were re-derived from the register at that SHA prior to re-attestation, using
-> the publisher convention (`open` + `remediated-unverified` findings by severity, per
-> `scripts/compliance-notion-publish.rb`). Do not hand-edit the figures; refresh them from the
-> register.
+> That stamp records the last full audit RUN. The register has been amended by remediation and
+> disclosure PRs since, so the counts below are re-derived from `audit-reports/FINDINGS.json` **as
+> committed at HEAD**, not from a re-run audit, using the publisher convention (`open` +
+> `remediated-unverified` findings by severity, per `scripts/compliance-notion-publish.rb`). Do not
+> hand-edit the figures; refresh them from the register.
 
 ### Changes since the prior draft (2026-06-13)
 
@@ -36,6 +37,14 @@
   with Cloud SQL and Memorystore. Render remains online as a write-frozen rollback fallback pending
   explicit decommission. This report's headline counts remain register-derived; no finding is
   marked closed here.
+- **Counts refreshed and re-attested 2026-07-23.** The 2026-07-16 figures had drifted: findings
+  opened by the localization/speech egress trace (LL-c38e7da48e, LL-1eb9a2435b), the Article 50
+  Phase 5 accessibility pass (LL-a9d6d5a46b), and the TTS endpoint work (LL-a167848115) post-date
+  them. Re-derived at HEAD, the publisher convention gives **0 Critical / 8 High / 27 Medium /
+  25 Low** (60 open), against 7 / 24 / 23 (54) at the prior re-attestation. Open Critical remains
+  **0**, the gating metric. The framework table below is refreshed to match. The WCAG row gains its
+  first open High (LL-a9d6d5a46b, a low-contrast token on the Article 50 disclosure link), which is
+  a pre-enable blocker for that feature rather than a live-surface regression.
 - **Counts refreshed and re-attested 2026-07-16.** The register was restamped to auditedSha
   `20953ab3` (auditedDate 2026-07-08) after the 2026-07-07 audit refresh, which the 2026-06-19
   figures predated. Recomputing per the publisher convention (open + remediated-unverified by
@@ -50,8 +59,8 @@
 | Metric | Count |
 |---|---|
 | **Open Critical findings** | **0** |
-| **Open High findings** | **7** |
-| Open Medium / Low | 24 / 23 |
+| **Open High findings** | **8** |
+| Open Medium / Low | 27 / 25 |
 | Verified closed (Scot attested) | 49 |
 | Accepted risk | 3 |
 | Superseded | 2 |
@@ -89,14 +98,14 @@ one framework):
 
 | Framework | Open findings | Open High | Context |
 |---|---:|---:|---|
-| FERPA (US schools) | 12 | 2 | Student data isolation, access scoping, audit trail. |
-| HIPAA (US hospitals) | 6 | 2 | PHI handling, minimum necessary, BAA coverage. AWS BAA on file (2026-02); GCP HIPAA BAA accepted (project `lingolinq-prod` 2026-07-12; org-wide 2026-06-08). |
-| GDPR (EU clients) | 10 | 2 | Data residency, subprocessor posture, deletion and export paths. GCP SCCs certified (2026-07-14, project `lingolinq-prod`). |
-| COPPA (under-13 users) | 4 | 2 | Amended Rule enforceable since 2026-04-22. Open High items include the eval-narration consent-binding residual (LL-11db0dc848). Product controls below. |
-| WCAG (accessibility) | 9 | 0 | Tracked as a standing domain because it is product-existential for an AAC tool. See Accessibility below. |
-| SOC 2 (in progress) | 21 | 3 | Control-evidence and audit-system hardening items. |
+| FERPA (US schools) | 15 | 2 | Student data isolation, access scoping, audit trail. |
+| HIPAA (US hospitals) | 8 | 2 | PHI handling, minimum necessary, BAA coverage. AWS BAA on file (2026-02); GCP HIPAA BAA accepted (project `lingolinq-prod` 2026-07-12; org-wide 2026-06-08). |
+| GDPR (EU clients) | 12 | 2 | Data residency, subprocessor posture, deletion and export paths. GCP SCCs certified (2026-07-14, project `lingolinq-prod`). |
+| COPPA (under-13 users) | 6 | 2 | Amended Rule enforceable since 2026-04-22. Open High items include the eval-narration consent-binding residual (LL-11db0dc848). Product controls below. |
+| WCAG (accessibility) | 10 | 1 | Tracked as a standing domain because it is product-existential for an AAC tool. See Accessibility below. |
+| SOC 2 (in progress) | 23 | 3 | Control-evidence and audit-system hardening items. |
 
-A single finding can map to more than one framework, so these rows do not sum to the 54 open total
+A single finding can map to more than one framework, so these rows do not sum to the 60 open total
 (open + remediated-unverified). 9 of those findings carry no framework tag (engineering-quality and
 API-contract items).
 
@@ -180,9 +189,9 @@ EU AI Act classification analysis are documented in the AI Governance Memo
 | Prepared by | compliance-officer agent (draft) |
 | Reviewed by | adversary agent |
 | Attested by | **Scot Wahlquist, CEO** |
-| Attestation date | **2026-06-19; re-attested 2026-07-16** |
+| Attestation date | **2026-06-19; re-attested 2026-07-16; re-attested 2026-07-23** |
 
 _Phase 3 deliverable of the Audit/Compliance System Modernization (plan section 6). Counts
-re-derived from the register at SHA `20953ab3` (auditedDate 2026-07-08) prior to the 2026-07-16
-re-attestation. The one-way Notion publish of this report is a separate, human-initiated step into
+re-derived from `audit-reports/FINDINGS.json` as committed at HEAD prior to the 2026-07-23
+re-attestation (the auditedSha stamp records the last full audit run, not the last register edit). The one-way Notion publish of this report is a separate, human-initiated step into
 the Master Inbox._
