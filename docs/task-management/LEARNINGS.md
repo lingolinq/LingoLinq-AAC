@@ -7329,7 +7329,8 @@ user country > locale (IP geolocation deferred). Quebec is `CA-QC` → age 14 (L
   (lib/uploader.rb:332,341), and the `lingolinq-dev-uploads` bucket has Object Ownership =
   "Bucket owner enforced" (ACLs disabled). S3 rejects the acl param with
   `AccessControlListNotSupported: The bucket does not allow ACLs`. Fix: set
-  `UPLOADS_S3_NO_ACL=1` (documented in `.env.example`); we added it to `.env.op.local`.
+  `UPLOADS_S3_NO_ACL=1` (documented in `.env.example`); we added it to the committed
+  `.env.op.template` so every dev environment inherits it (and to gitignored `.env.op.local`).
   Diagnostic technique that nailed it: read the LIVE failure from the running worker via
   `Resque::Failure.all(start, n)` (rails runner) — that reflects the app's real resolved-cred
   environment, unlike a bare `rails runner` which loads unresolved `op://…` creds

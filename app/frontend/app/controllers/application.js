@@ -423,6 +423,10 @@ export default Controller.extend({
     if(buttons && buttons != 'resume') {
       this.set('button_highlights', buttons);
       this.set('button_highlights_button_set', button_set);
+      // Reset the board-detail resume tracker (see edit_manager.process_for_displaying) so the
+      // first navigation of this new sequence always resumes even if it lands on the same board
+      // a previous sequence last resumed on.
+      if(this.appState) { this.appState.set('_bd_highlight_resume_board', null); }
       this.set('last_highlight_selection', null);
       this.set('last_highlight_explore_action', (new Date()).getTime());
       this.set('last_highlight_options', options);
@@ -1458,7 +1462,10 @@ export default Controller.extend({
                 // step back up to the parent board the sequence came from instead of jumping
                 // to the (possibly unrelated) session home board.
                 buttons.shift();
-                try { var _bk = $bd_back_btn[0]; if(_bk) { _bk.click(); } } catch(e) {}
+                // Re-query at click time rather than reusing the reference captured before the
+                // user tap — the board can re-render in between, detaching the earlier node so
+                // its click would no longer fire the go_back handler (stalling the sequence).
+                try { var _bk = $("[data-bd-action='go_back']:visible")[0]; if(_bk) { _bk.click(); } } catch(e) {}
               } else {
                 var has_temporary_home = !!_this.stashes.get('temporary_root_board_state');
                 var already_on_temporary_home = _this.stashes.get('temporary_root_board_state.id') == _this.appState.get('currentBoardState.id');

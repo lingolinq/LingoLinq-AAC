@@ -1896,10 +1896,17 @@ var editManager = EmberObject.extend({
       // board-detail components, not the fast_html canvas), so — unlike the non-board-detail
       // path below — it never reaches resume_scanning(). Without this, a find-a-button
       // guided highlight sequence stalls the instant it navigates INTO a sub-board, because
-      // highlight_button('resume') is never called after the sub-board renders. Trigger it
-      // here, guarded on an active highlight queue so normal navigation is unaffected.
+      // highlight_button('resume') is never called after the sub-board renders. Trigger it here,
+      // guarded on an active highlight queue AND on an actual board CHANGE — firing on every
+      // incidental re-render of the same board (e.g. a language switch mid-sequence) would
+      // re-call highlight_button('resume'), which rejects and rebuilds the pending highlight
+      // overlay and flickers. The tracker is cleared when a new sequence starts (application.js
+      // highlight_button method), so the first navigation of every sequence always resumes.
       var _hl_ctrl = appState && appState.controller;
-      if(_hl_ctrl && !_hl_ctrl.isDestroyed && (_hl_ctrl.get('button_highlights') || []).length > 0) {
+      var _bd_cur_board_id = board.get('id');
+      if(_hl_ctrl && !_hl_ctrl.isDestroyed && (_hl_ctrl.get('button_highlights') || []).length > 0
+          && appState.get('_bd_highlight_resume_board') != _bd_cur_board_id) {
+        appState.set('_bd_highlight_resume_board', _bd_cur_board_id);
         (function resume_board_detail_highlight(attempts) {
           attempts = attempts || 0;
           if(!appState || appState.isDestroyed) { return; }
