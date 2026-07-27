@@ -86,10 +86,18 @@ LingoLinq.User = BaseModel.extend({
   coppa_parental_consent_pending: attr('boolean'),
   /** ISO 3166-1 alpha-2 registration country (client-supplied, server-trusted). */
   country: attr('string'),
+  /** Birth month 1-12 at registration (Compliance Kernel; persisted when flag ON). */
+  birth_month: attr('number'),
+  /** Birth year at registration (Compliance Kernel; persisted when flag ON). */
+  birth_year: attr('number'),
+  /** Jurisdiction declaration e.g. US or CA-QC (Compliance Kernel). */
+  jurisdiction_declaration: attr('string'),
   /** Under 16 from DOB at registration (used with country to compute eu_under_16). */
   under_16: attr('boolean'),
   /** Response-only: EU country + under_16 (server recomputes; never POST). */
   eu_under_16: attr('boolean'),
+  /** Response-only: Compliance::Profile snapshot when compliance_workflow_kernel is ON. */
+  compliance: attr('raw'),
   /** Response-only: EU AI parental consent email outstanding. */
   eu_ai_parental_consent_pending: attr('boolean'),
   /** Response-only: EU AI parental consent currently granted. */

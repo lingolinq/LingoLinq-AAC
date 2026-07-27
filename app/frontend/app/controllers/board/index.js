@@ -6,7 +6,7 @@ import word_suggestions from '../../utils/word_suggestions';
 import editManager, { fastHtmlHasRenderableContent } from '../../utils/edit_manager';
 import LingoLinq from '../../app';
 import capabilities from '../../utils/capabilities';
-import { buttonSpacingHalfPx, buttonBorderPx } from '../../utils/display_prefs';
+import { buttonSpacingScaledHalfPx, buttonBorderPx } from '../../utils/display_prefs';
 import { inject as service } from '@ember/service';
 import i18n from '../../utils/i18n';
 import modal from '../../utils/modal';
@@ -430,9 +430,30 @@ export default Controller.extend(prefClasses, {
         inner_width = $("header").width() || window.innerWidth;
       }
       var width = inner_width;
-      var sidebar_width = window.innerWidth <= 767 ? 75 : 100;
+      // Sidebar width tracks the buttons when they are small. "Small" is measured
+      // by column_width (full width / columns) — the same signal skinny_sidebar
+      // already uses. The sidebar is sized ~10% wider than a button but never
+      // wider than the per-breakpoint cap (75 ≤768px, else 100), so it only ever
+      // narrows below the cap, never grows past the sizes we already ship.
+      // Tracking column_width (not the post-subtraction button width) avoids a
+      // feedback loop: a narrower sidebar widens the board, but column_width is
+      // independent of the sidebar. Published as --sidebar-width so #sidebar (CSS)
+      // and the board-width reservation below stay in lockstep off one value
+      // (resolves the old "make sidebar size configurable" TODO).
+      var columns = this.get('current_grid.columns') || this.get('model.grid.columns') || 1;
+      var column_width = inner_width / columns;
+      this.appState.set('skinny_sidebar', column_width < 160);
+      var sidebar_cap = window.innerWidth <= 767 ? 75 : 100;
+      // Floor at 44px. The sidebar holds real tap targets, so tracking the button
+      // width all the way down produces an unusable rail on many-column boards (a
+      // 24-column board at 768px would otherwise give a ~35px sidebar). 44px is the
+      // WCAG 2.5.5 / AAC minimum touch target — the same reasoning behind
+      // board-detail's 45px "buttons are too small" landscape prompt. Clamped below
+      // the cap so the floor can never push the sidebar wider than we already ship.
+      var sidebar_width = Math.min(Math.max(Math.round(column_width * 1.1), 44), sidebar_cap);
+      document.documentElement.style.setProperty('--sidebar-width', sidebar_width + 'px');
       if(this.appState.get('sidebar_pinned') && this.appState.get('sidebar_visible')) {
-        width = inner_width - sidebar_width; // TODO: make sidebar size configurable, or have it match top bar
+        width = inner_width - sidebar_width;
       }
       this.set('window_inner_width', inner_width);
       this.appState.set('window_inner_width', inner_width);
@@ -480,10 +501,6 @@ export default Controller.extend(prefClasses, {
       if(this.appState.controller && this.appState.controller.get('setup_footer')) {
         height = height - 56;
       }
-      var columns = this.get('current_grid.columns') || this.get('model.grid.columns') || 1;
-      var column_width = inner_width / columns;
-      this.appState.set('skinny_sidebar', column_width < 160);
-
       if((!this.get('model.public') || this.get('model.license.type') != 'private') && !this.appState.get('edit_mode') && this.stashes.get('current_mode') != 'speak') {
         show_description = show_description || this.get('model.name');
         if(!this.get('model.public')) {
@@ -1058,16 +1075,24 @@ export default Controller.extend(prefClasses, {
   extra_pad: computed(
     'appState.currentUser.preferences.device.button_spacing',
     'appState.window_inner_width',
+    'current_grid.columns',
+    'model.grid.columns',
     function() {
-      // Board-alt grid gap. Reads from the canonical display-prefs
-      // map in utils/display_prefs.js so the SAME user preference
-      // produces the SAME visual gap on both board-alt and board-
-      // detail. `buttonSpacingHalfPx` returns half the canonical px
-      // because each button on board-alt has `extra_pad` of empty
-      // space on every side (position math at ~line 700) — adjacent
-      // buttons add up to 2 * extra_pad of rendered gap.
+      // Board-alt grid gap. Reads from the canonical display-prefs map in
+      // utils/display_prefs.js so the SAME user preference produces the SAME
+      // visual gap on both board-alt and board-detail. `buttonSpacingScaledHalfPx`
+      // returns half the canonical px (each button on board-alt has `extra_pad`
+      // of empty space on every side — position math at ~line 700 — so adjacent
+      // buttons add up to 2 * extra_pad of rendered gap), but caps it at
+      // GAP_BUTTON_FRACTION of the button width so the gap scales DOWN when the
+      // buttons are small (small screens or many columns) instead of leaving too
+      // much space between them. column_width (full width / columns) is the same
+      // button-size proxy skinny_sidebar uses; board-detail applies the identical
+      // cap in CSS via `100% / --board-columns`.
       var spacing = this.appState.get('currentUser.preferences.device.button_spacing') || (window.user_preferences && window.user_preferences.device && window.user_preferences.device.button_spacing);
-      return buttonSpacingHalfPx(spacing);
+      var inner_width = this.appState.get('window_inner_width') || window.innerWidth;
+      var columns = this.get('current_grid.columns') || this.get('model.grid.columns') || 1;
+      return buttonSpacingScaledHalfPx(spacing, inner_width / columns);
     }
   ),
   inner_pad: computed(
