@@ -57,15 +57,12 @@
 | Written Information Security Program (WISP) | drive | [open](https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
 | AI Data-Flow Classification | git | `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md` | 2026-07-22 | approved | Review date is older than 2026-07-23. |
 | AI Data-Sharing Consent: Rationale and Policy | git | `docs/legal/AI_DATA_SHARING_CONSENT.md` | 2026-07-09 | approved | Review date is older than 2026-07-23. |
-| AI Governance Memo | git | `docs/legal/AI_GOVERNANCE_MEMO.md` | 2026-07-22 | published | Review date is older than 2026-07-23. |
-| AWS BAA Acceptance Record | git | `docs/legal/AWS_BAA_ACCEPTED.md` | 2026-05-11 | approved | Review date is older than 2026-07-23. |
 | AWS Business Associate Agreement (signed PDF) | git | `docs/legal/AWS_BAA_2026-02.pdf` | 2026-05-11 | published | Review date is older than 2026-07-23. |
 | Accessibility Conformance Report (ACR / VPAT) | git | `docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md` | 2026-06-16 | draft | Review date is older than 2026-07-23. |
 | Agent config - diff-compliance-check | git | `.claude/agents/diff-compliance-check.md` | 2026-07-22 | published | Review date is older than 2026-07-23. |
 | Agent config - ember-upgrade-auditor | git | `.claude/agents/ember-upgrade-auditor.md` | 2026-07-22 | published | Review date is older than 2026-07-23. |
 | Agent config - rails-implementer | git | `.claude/agents/rails-implementer.md` | 2026-07-22 | published | Review date is older than 2026-07-23. |
 | Agent config - security-reviewer | git | `.claude/agents/security-reviewer.md` | 2026-07-22 | published | Review date is older than 2026-07-23. |
-| Anthropic HIPAA-Ready BAA Acceptance Record | git | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` | 2026-07-18 | approved | Review date is older than 2026-07-23. |
 | Audit Reports Index (audit-reports/README.md) | git | `audit-reports/README.md` | 2026-06-16 | published | Review date is older than 2026-07-23. |
 | Compliance Calendar (compliance-calendar.json) | git | `audit-reports/compliance-calendar.json` | 2026-06-16 | published | Review date is older than 2026-07-23. |
 | Compliance Docs Guide (runbook) | git | `docs/legal/COMPLIANCE_DOCS_GUIDE.md` | 2026-06-21 | published | Review date is older than 2026-07-23. |
@@ -276,4 +273,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_70 documents tracked. 58 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 1 superseded record(s). 0 drifted attestation(s), 0 awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
+_70 documents tracked. 55 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 1 superseded record(s). 0 drifted attestation(s), 0 awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._

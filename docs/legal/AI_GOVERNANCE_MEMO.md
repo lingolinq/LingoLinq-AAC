@@ -1,6 +1,6 @@
 # LingoLinq AAC AI Governance Memo
 
-> **ATTESTED 2026-06-19; RE-ATTESTED 2026-07-22 by Scot Wahlquist, CEO.** Phase 3 deliverable. This memo documents how
+> **ATTESTED 2026-06-19; RE-ATTESTED 2026-07-27 by Scot Wahlquist, CEO.** Phase 3 deliverable. This memo documents how
 > LingoLinq uses AI models, the controls that keep identifiable data out of external models, and
 > the EU AI Act classification analysis. It is a living document; model ids and code citations are
 > point-in-time and were re-verified against live code on 2026-06-19 prior to original attestation
@@ -121,12 +121,15 @@ The governing rule is simple and enforced in code, not just in policy:
   Determination, and under GDPR/UK-GDPR pseudonymized data is still personal data. So the scrubber
   is retained as the GDPR data-minimization control and defense-in-depth, not as the HIPAA legal
   basis (which is now the BAA).
-- **Coverage boundaries.** The AWS BAA on file (2026-02) covers AWS **infrastructure** (S3, KMS,
-  RDS), not model-provider egress; the Google Cloud BAA (2026-07-12) likewise covers Google
-  **infrastructure**, not a model-provider egress path. **Google (Gemini) as a model provider has
-  no BAA**, but its runtime fallback was disabled 2026-07-09 (no AI inference reaches Google today);
-  if it is ever reactivated, a covered-service / BAA check is required first (see section 7,
-  `rev-gemini-baa-annual`). No un-BAA'd model-provider egress path is live.
+- **Coverage boundaries.** The AWS BAA on file (2026-02) covers HIPAA-eligible AWS services in use
+  under account 2390-4478-5114, including S3/KMS/RDS **and Amazon Bedrock** (the active runtime AI
+  route as of 2026-07-24; Fable/Mythos excluded). It does **not** by itself cover a *direct*
+  third-party model endpoint outside AWS (e.g. `api.anthropic.com`); that direct path is covered by
+  the Anthropic HIPAA-Ready BAA when used, and is unused at runtime today. The Google Cloud BAA
+  (2026-07-12) covers Google **infrastructure**, not a model-provider egress path. **Google (Gemini)
+  as a model provider has no BAA**, but its runtime fallback was disabled 2026-07-09 (no AI inference
+  reaches Google today); if it is ever reactivated, a covered-service / BAA check is required first
+  (see section 7, `rev-gemini-baa-annual`). No un-BAA'd model-provider egress path is live.
 - **`AiApiLog`** records external model calls for audit. **`AuditEvent`** records privileged
   console access.
 
@@ -324,7 +327,7 @@ Tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`,
 | Reviewed by | adversary agent |
 | Attested by | **Scot Wahlquist, CEO** |
 | Original attestation date | **2026-06-19** |
-| Latest re-attestation date | **2026-07-22** |
+| Latest re-attestation date | **2026-07-24** |
 
 _Phase 3 deliverable of the Audit/Compliance System Modernization (plan section 6, sections 1.3
 and 1.8). Model ids and code citations were re-verified against live code on 2026-06-19 prior to
@@ -407,3 +410,29 @@ retention-class marker; HIPAA 6-year floor open). No new external data egress or
 introduced. This is a **substantive** change to the attested Article 50 position; per section 6 (AI
 drafts and flags, humans attest and accept risk), Scot reviewed and re-attested it on 2026-07-22.
 Nothing in this refresh goes live in production until Phases 3-5 deploy and the flag is enabled._
+
+## Runtime routing update - 2026-07-24 (re-attested 2026-07-24)
+
+_Runtime AI egress moved from the direct `api.anthropic.com` endpoint to **Claude on AWS Bedrock**
+(`lib/ai_client.rb`, the Bedrock Mantle Messages API). This is a routing change, not a change of
+model provider or model: the same Anthropic models (Claude Haiku 4.5, Claude Opus 4.7) are used._
+
+- **Governing BAA for runtime egress is now the AWS account BAA** (`docs/legal/AWS_BAA_ACCEPTED.md`),
+  because Amazon Bedrock is a HIPAA-eligible AWS service (excluding Fable/Mythos) and inference stays
+  inside AWS's HIPAA boundary. The executed Anthropic HIPAA-Ready BAA (2026-07-18,
+  `docs/legal/ANTHROPIC_BAA_ACCEPTED.md`) remains on file as a still-available direct path but is no
+  longer the active runtime route.
+- The **runtime inventory table above is superseded for routing/credential detail**: runtime seams no
+  longer require `ANTHROPIC_API_KEY` and no longer construct a direct Anthropic client (enforced by
+  `scripts/ai-endpoint-guard.sh` in CI); model ids egress in Bedrock form
+  (`anthropic.claude-haiku-4-5`, `anthropic.claude-opus-4-7`). The scrub / allowlist / COPPA / opt-out
+  / AiApiLog controls in that table are unchanged.
+- Operative condition: Bedrock calls must run under the BAA'd AWS account (2390-4478-5114).
+- Section 3's older "AWS BAA covers infrastructure only, not model-provider egress" wording is
+  superseded for the **active** runtime path by this Bedrock routing: Bedrock inference is an
+  in-AWS HIPAA-eligible service under the account BAA. That older wording still correctly describes
+  the *direct* third-party Anthropic endpoint (now unused at runtime; covered by the Anthropic BAA
+  if re-enabled) and any non-AWS model provider.
+
+_Re-attested 2026-07-24 by Scot Wahlquist, CEO (Bedrock runtime routing). Prose corrected 2026-07-27
+to remove a contradictory "re-attestation owed" banner left in the bytes that attestation covered._

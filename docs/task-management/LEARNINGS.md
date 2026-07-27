@@ -7655,3 +7655,22 @@ When reading a tag that may exist under symbol or string keys, do not do
 (e.g. `'false'`, `'yes'`) short-circuits and shadows a string-key `true`/`'true'`. Evaluate
 each key through the same coercion helper. Hit in `keep_cache_error_tag?` after the L1
 string-coercion change. Ref: `config/initializers/sentry.rb`.
+
+## Pattern: Bedrock AI credentials are a dedicated atomic pair — never fall back to AWS_KEY/AWS_SECRET
+
+Cloud Run mounts `AWS_KEY`/`AWS_SECRET` from the S3/SES least-privilege user
+(`scripts/gcp/iam/lingolinq-cloudrun-s3-ses-policy.json`). That principal has **no** Bedrock Mantle
+actions. If `AiClient.configured?` treats those keys (plus `AWS_REGION`) as sufficient, every AI
+feature reports "configured" then fails AccessDenied at invoke time.
+
+**Rules:**
+1. Resolve credentials as **atomic pairs** (`BEDROCK_AWS_KEY`+`BEDROCK_AWS_SECRET`, else
+   `AWS_ACCESS_KEY_ID`+`AWS_SECRET_ACCESS_KEY`). Never combine halves from different families.
+2. Do **not** fall back to `AWS_KEY`/`AWS_SECRET` for Bedrock — keep the two-tier split.
+3. Mantle client kwargs use `aws_secret_access_key` (anthropic Mantle). The older
+   `Bedrock::Client` uses `aws_secret_key` — do not rename based on that older API.
+4. Provision a separate Bedrock Mantle IAM user + policy
+   (`scripts/gcp/iam/lingolinq-bedrock-mantle-policy.json`); do not bolt invoke onto the S3/SES policy.
+
+Evidence: `lib/ai_client.rb`, `spec/lib/ai_client_spec.rb`,
+`docs/task-management/2026-07-27-ai-client-bedrock-credential-review.md`.
