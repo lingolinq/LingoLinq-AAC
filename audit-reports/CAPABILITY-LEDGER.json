@@ -154,16 +154,16 @@
     },
     {
       "id": "aws-s3-baa",
-      "capability": "Signed AWS S3 Business Associate Agreement (storage)",
+      "capability": "Signed AWS Business Associate Agreement (HIPAA-eligible AWS services in use)",
       "status": "built",
       "domain": "vendor-contracts",
-      "claimLanguage": "A signed BAA is in place with AWS covering S3 storage.",
-      "antiClaim": "The AWS BAA covers storage infrastructure; it does NOT cover the AI model-provider egress path (see cap no-model-provider-baa).",
-      "currentEvidence": { "file": "docs/legal/AWS_BAA_ACCEPTED.md", "line": 1, "snippet": "AWS Business Associate Addendum (BAA) - ACCEPTED" },
+      "claimLanguage": "A signed BAA is in place with AWS covering HIPAA-eligible services in use under the BAA'd account, including S3 storage and Amazon Bedrock runtime AI inference.",
+      "antiClaim": "The AWS BAA does NOT cover a direct third-party model endpoint outside AWS (e.g. api.anthropic.com). That direct path is unused at runtime today; when used it is covered by the Anthropic HIPAA-Ready BAA (see cap anthropic-model-provider-baa). Fable/Mythos models are excluded from Bedrock HIPAA eligibility.",
+      "currentEvidence": { "file": "docs/legal/AWS_BAA_ACCEPTED.md", "line": 65, "snippet": "## Runtime AI on Amazon Bedrock - 2026-07-24 (re-attested 2026-07-24)" },
       "evidenceType": "attestation",
       "frameworks": ["HIPAA"],
-      "notes": "Signed 2026-02-07. Attestation-type evidence (document, not code).",
-      "lastVerified": "2026-07-12"
+      "notes": "AWS BAA signed 2026-02-07 (account 2390-4478-5114). Bedrock runtime routing recorded 2026-07-24. Attestation-type evidence (document, not code).",
+      "lastVerified": "2026-07-27"
     },
     {
       "id": "art50-1-disclosure-modal",
@@ -215,7 +215,7 @@
       "status": "built",
       "domain": "ai-privacy",
       "claimLanguage": "The Anthropic models used at runtime (Claude Haiku 4.5 for board suggestions/prediction, Claude Opus 4.7 for eval narration) are ZDR-confirmed per Anthropic's data-retention documentation (verified 2026-07-06).",
-      "antiClaim": "ZDR is confirmed ONLY for these two specific models; it does NOT extend to any other/future Anthropic model outside the ZDR-eligible tier, and NOT to any non-Anthropic provider. ZDR is NOT a substitute for a HIPAA BAA (see cap no-model-provider-baa). Fable 5 / Mythos-class models are explicitly NOT ZDR-eligible and never receive identifiable payloads.",
+      "antiClaim": "ZDR is confirmed ONLY for these two specific models; it does NOT extend to any other/future Anthropic model outside the ZDR-eligible tier, and NOT to any non-Anthropic provider. ZDR is NOT a substitute for a HIPAA BAA (see cap anthropic-model-provider-baa for the executed Anthropic BAA and cap aws-s3-baa for Bedrock under the AWS BAA). Fable 5 / Mythos-class models are explicitly NOT ZDR-eligible and never receive identifiable payloads.",
       "currentEvidence": { "file": "docs/legal/AI_DATA_SHARING_CONSENT.md", "line": 50, "snippet": "Zero-data-retention (ZDR) status:" },
       "evidenceType": "attestation",
       "frameworks": ["GDPR", "HIPAA"],
@@ -261,21 +261,17 @@
       "lastVerified": "2026-07-12"
     },
     {
-      "id": "no-model-provider-baa",
-      "capability": "Signed BAA covering the AI model-provider (Anthropic/Google) egress path",
-      "status": "deliberately-not-done",
+      "id": "anthropic-model-provider-baa",
+      "capability": "Signed BAA covering the AI model-provider (Anthropic) egress path",
+      "status": "built",
       "domain": "vendor-contracts",
-      "claimLanguage": null,
-      "antiClaim": "No signed BAA currently covers the model-provider AI egress path (the AWS BAA is storage infrastructure only). HIPAA posture on the AI path is provisional pending CEO review.",
-      "negativeEvidence": {
-        "absentFileGlobs": ["docs/legal/*anthropic*baa*", "docs/legal/*gemini*baa*", "docs/legal/*model*provider*baa*"],
-        "reviewedSurfaces": ["docs/legal/ (no model-provider BAA artifact; AWS_BAA is storage only)", "docs/legal/AI_GOVERNANCE_MEMO.md (HIPAA conclusion marked provisional)"],
-        "expectedMatches": 0,
-        "reviewTriggers": "an executed Anthropic/Google model-provider BAA file landing in docs/legal/"
-      },
+      "claimLanguage": "A signed Anthropic HIPAA-Ready BAA covers the Anthropic model-provider path; active runtime AI uses Claude on AWS Bedrock under the AWS account BAA instead.",
+      "antiClaim": "Google (Gemini) as a model provider still has no BAA; its runtime fallback remains disabled (2026-07-09). The Anthropic BAA is the still-available direct-path basis, not the active Bedrock route.",
+      "currentEvidence": { "file": "docs/legal/ANTHROPIC_BAA_ACCEPTED.md", "line": 144, "snippet": "## Runtime routing update - 2026-07-24 (re-attested 2026-07-24)" },
+      "evidenceType": "attestation",
       "frameworks": ["HIPAA"],
-      "notes": "Decision surface for Scot: pursue a model-provider BAA, keep PHI accounts off AI, or accept scrubber-only posture.",
-      "lastVerified": "2026-07-12"
+      "notes": "Supersedes the former deliberately-not-done cap no-model-provider-baa. Anthropic HIPAA-Ready BAA executed 2026-07-18; runtime moved to Bedrock 2026-07-24 under the AWS BAA. Id retained as anthropic-model-provider-baa so inbound references to the closed gap resolve.",
+      "lastVerified": "2026-07-27"
     }
   ]
 }

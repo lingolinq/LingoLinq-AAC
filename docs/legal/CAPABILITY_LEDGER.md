@@ -9,7 +9,7 @@
 > capability is a present-tense claim: if the backing code is removed, the check goes red.
 > Verified against `staging`; generated 2026-07-12.
 
-## Built (13)
+## Built (14)
 
 | Capability | Evidence (HEAD) | Anti-claim / note |
 |---|---|---|
@@ -22,10 +22,11 @@
 | AiApiLog audit trail with scrubbed summary columns / IP redaction | `app/models/ai_api_log.rb:30` | Redaction is pseudonymization of the log record, not anonymization. |
 | AI board generation + word prediction via Anthropic Claude on AWS Bedrock (Anthropic-only runtime) | `lib/ai_word_predictor.rb:168` | The prior Google Gemini fallback was DISABLED 2026-07-09 (Gemini Developer/AI-Studio endpoint data-handling terms inadequate for child data); there is no runtime Gemini path today. Runtime AI egresses to Claude on AWS Bedrock (the Bedrock Mantle Messages API via lib/ai_client.rb), not the direct api.anthropic.com endpoint; enforced in CI by scripts/ai-endpoint-guard.sh. Only pseudonymized data is sent (see cap pii-scrubber-pseudonymization). |
 | Message banking retains the user's OWN voice recordings for playback | `app/models/button_sound.rb:11` | These are the user's own communication recordings, NOT voiceprints/speaker-ID/biometrics (see cap no-voiceprints). |
-| Signed AWS S3 Business Associate Agreement (storage) | `docs/legal/AWS_BAA_ACCEPTED.md:1` | The AWS BAA covers storage infrastructure; it does NOT cover the AI model-provider egress path (see cap no-model-provider-baa). |
+| Signed AWS Business Associate Agreement (HIPAA-eligible AWS services in use) | `docs/legal/AWS_BAA_ACCEPTED.md:65` | The AWS BAA does NOT cover a direct third-party model endpoint outside AWS (e.g. api.anthropic.com). That direct path is unused at runtime today; when used it is covered by the Anthropic HIPAA-Ready BAA (see cap anthropic-model-provider-baa). Fable/Mythos models are excluded from Bedrock HIPAA eligibility. |
 | EU AI Act Article 50(1) user-facing AI-interaction disclosure modal | `app/frontend/app/components/ai-disclosure.js:8` | Built and staged, but gated OFF: the `article_50_disclosure` frontend flag is registered in AVAILABLE_FRONTEND_FEATURES only (not enabled for any user), so the modal is shown to no one yet. Do not claim a LIVE or enabled Art. 50(1) disclosure in production. Enabling the flag is the 2026-08-02 release gate, on Scot's sign-off, after the production deploy. |
 | Jurisdiction-aware under-16 (EU GDPR Art. 8) block on the AI generation path | `lib/feature_flags.rb:231` | This gate is NOT the same as signup COPPA (settings['coppa']) or second-tier AI data-sharing VPC (settings['ai_consent'] / government-ID). It only covers EU under-16 AI enablement. |
-| Zero-data-retention (ZDR) confirmed for the two active Anthropic models | `docs/legal/AI_DATA_SHARING_CONSENT.md:50` | ZDR is confirmed ONLY for these two specific models; it does NOT extend to any other/future Anthropic model outside the ZDR-eligible tier, and NOT to any non-Anthropic provider. ZDR is NOT a substitute for a HIPAA BAA (see cap no-model-provider-baa). Fable 5 / Mythos-class models are explicitly NOT ZDR-eligible and never receive identifiable payloads. |
+| Zero-data-retention (ZDR) confirmed for the two active Anthropic models | `docs/legal/AI_DATA_SHARING_CONSENT.md:50` | ZDR is confirmed ONLY for these two specific models; it does NOT extend to any other/future Anthropic model outside the ZDR-eligible tier, and NOT to any non-Anthropic provider. ZDR is NOT a substitute for a HIPAA BAA (see cap anthropic-model-provider-baa for the executed Anthropic BAA and cap aws-s3-baa for Bedrock under the AWS BAA). Fable 5 / Mythos-class models are explicitly NOT ZDR-eligible and never receive identifiable payloads. |
+| Signed BAA covering the AI model-provider (Anthropic) egress path | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md:144` | Google (Gemini) as a model provider still has no BAA; its runtime fallback remains disabled (2026-07-09). The Anthropic BAA is the still-available direct-path basis, not the active Bedrock route. |
 
 ## Partial (2)
 
@@ -34,14 +35,13 @@
 | TOTP two-factor authentication (ROTP), currently OPTIONAL | `app/models/concerns/passwords.rb:95` | NOT mandatory; do not claim enforced MFA for all users or admins. |
 | EU AI Act Article 50(2) machine-readable output marking -- board-generation slice only | `lib/ai_board_generator.rb:134` | The Art. 50(2) obligation is NOT closed: this slice marks board generation ONLY. Other AI-output surfaces (generate_focus_words, AiWordPredictor.predict, eval narration, AiPredictionGenerator) are not yet marked, and durable persistence of the marker (board.settings + relinking copy_for) is follow-up. Also distinct from the Art. 50(1) disclosure modal (see cap art50-1-disclosure-modal). |
 
-## Deliberately not done -- out-of-scope by design (4)
+## Deliberately not done -- out-of-scope by design (3)
 
 | Capability | Negative-evidence scope | Expected |
 |---|---|---|
 | End-to-end encryption / zero-readable-keys | app/**/*.rb, lib/**/*.rb for end_to_end/e2ee/zero_knowledge/client_side_encrypt | 0 matches |
 | Voiceprints / speaker-identification / voice-cloning of training audio | app/**/*.rb, lib/**/*.rb for voiceprint/speaker_id/speaker_recognition/voice_clone | 0 matches |
 | Diagnosis / disability / IEP / 504 / medical-condition data fields | db/schema.rb for disabilit/diagnos/\biep\b/\b504\b/impair/medical_condition | 0 matches |
-| Signed BAA covering the AI model-provider (Anthropic/Google) egress path | absent files: docs/legal/*anthropic*baa*, docs/legal/*gemini*baa*, docs/legal/*model*provider*baa* | 0 matches |
 
 ---
 

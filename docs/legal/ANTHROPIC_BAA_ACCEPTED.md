@@ -141,7 +141,7 @@ the model allowlist + etiology minimization ship in the eval-narrator runtime-ga
 scope review (superseded on the eval-narration classification by this record) for how this is
 reflected in the posture.
 
-## Runtime routing update - 2026-07-24 (re-attestation owed)
+## Runtime routing update - 2026-07-24 (re-attested 2026-07-24)
 
 Runtime AI egress moved from the direct `api.anthropic.com` endpoint to **Claude on AWS Bedrock**
 (the Bedrock Mantle Messages API, constructed in `lib/ai_client.rb`). All four seams above (word
@@ -162,5 +162,6 @@ in-scope models (Haiku 4.5, Opus 4.7).
 - Statements above that name the direct `/v1/messages` endpoint or `ANTHROPIC_API_KEY` as the
   endpoint/credential "all runtime AI seams use" are superseded by this section for runtime routing.
 
-**Attestation:** this edit changes the attested bytes; `document-register-render.rb --check` will
-report re-attestation owed for this row until Scot re-attests.
+**Attestation:** Re-attested 2026-07-24 by Scot Wahlquist, CEO (Bedrock runtime routing). Prose
+corrected 2026-07-27 to remove a contradictory "re-attestation owed" banner left in the bytes that
+attestation covered.

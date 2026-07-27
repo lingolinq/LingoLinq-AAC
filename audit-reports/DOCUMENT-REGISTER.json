@@ -596,18 +596,19 @@
         "GDPR",
         "COPPA"
       ],
-      "lastReviewed": "2026-07-22",
+      "lastReviewed": "2026-07-27",
       "nextReviewDue": "2026-10-22",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-24",
-        "attestedContentHash": "ed1d4a73949dd4ab37b47100b1850ca09d35d714c4c39209b91dbdba9721879e",
+        "attestedDate": "2026-07-27",
+        "attestedContentHash": "74ec247f35dd8af99a17825e22df86cf34105a6ce6968c86d899bc12ddbe883e",
         "priorAttestations": [
+          "2026-07-24",
           "2026-07-22"
         ],
-        "note": "Re-attested 2026-07-24: runtime AI egress moved from direct api.anthropic.com to Claude on AWS Bedrock (lib/ai_client.rb); the dated supersession banner in this document was added under the same change. Prior attestation covered the pre-banner revision."
+        "note": "Re-attested 2026-07-27 (Path B recovery on Scot/feat/bedrock-runtime-ai): removed contradictory \"re-attestation owed\" banners that remained after the 2026-07-24 Bedrock routing attestation, and reconciled section 3 AWS BAA coverage wording with the active Bedrock runtime route. Prior 2026-07-24 attestation covered the Bedrock routing bytes that still incorrectly said attestation was owed."
       },
-      "contentHash": "ed1d4a73949dd4ab37b47100b1850ca09d35d714c4c39209b91dbdba9721879e",
+      "contentHash": "74ec247f35dd8af99a17825e22df86cf34105a6ce6968c86d899bc12ddbe883e",
       "bundles": [
         "compliance-records-set-2026-06",
         "security-review"
@@ -1019,16 +1020,17 @@
         "HIPAA",
         "GDPR"
       ],
-      "lastReviewed": "2026-07-18",
+      "lastReviewed": "2026-07-27",
       "nextReviewDue": "2027-07-18",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-24",
-        "attestedContentHash": "ac35aaa7fb98f14a38d6db89c4b6611b602fdfcd0504a887324cf86c9d54f5a7",
+        "attestedDate": "2026-07-27",
+        "attestedContentHash": "21179eb31560cc33812909b7bc8ca36fc47f4e3a7a18240b0d57479534f6794e",
         "priorAttestations": [
+          "2026-07-24",
           "2026-07-18"
         ],
-        "note": "Re-attested 2026-07-24: runtime AI egress moved from direct api.anthropic.com to Claude on AWS Bedrock (lib/ai_client.rb); the dated supersession banner in this document was added under the same change. Prior attestation covered the pre-banner revision."
+        "note": "Re-attested 2026-07-27 (Path B recovery): removed contradictory \"re-attestation owed\" banner left after the 2026-07-24 Bedrock routing attestation. Prior 2026-07-24 attestation covered those Bedrock routing bytes."
       },
       "bundles": [
         "baa"
@@ -1045,7 +1047,7 @@
       ],
       "notes": "Parity with the AWS (docs/legal/AWS_BAA_ACCEPTED.md) and GCP (docs/legal/GCP_BAA_ACCEPTED.md) acceptance records. Model-provider BAA for the Anthropic runtime egress path; supersedes the prior 'no model-provider BAA / provisional pending CEO review' posture in COMPLIANCE.md, SUBPROCESSORS.md row 4, GCP_BAA_ACCEPTED.md, and AI_GOVERNANCE_MEMO.md (all reconciled in the same PR). Live enablement verified 2026-07-18 (Messages API 200; Files API 400 'not available for HIPAA-regulated organizations without Zero Data Retention'). Attested by Scot Wahlquist 2026-07-18 per explicit confirmation; git contentHash computed and CI-verified. The broader AI_GOVERNANCE_MEMO body was fully updated and re-attested by Scot Wahlquist on 2026-07-19 in the AI governance memo re-attestation PR.",
       "id": "DOC-ab3a8c3ed4",
-      "contentHash": "ac35aaa7fb98f14a38d6db89c4b6611b602fdfcd0504a887324cf86c9d54f5a7",
+      "contentHash": "21179eb31560cc33812909b7bc8ca36fc47f4e3a7a18240b0d57479534f6794e",
       "retention": {
         "class": "executed-agreement",
         "rule": "term + 7 years",
@@ -1066,18 +1068,19 @@
       "frameworks": [
         "HIPAA"
       ],
-      "lastReviewed": "2026-05-11",
+      "lastReviewed": "2026-07-27",
       "nextReviewDue": "2027-05-11",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-24",
-        "attestedContentHash": "15ea9e8ad09be513705276f42134dc0371da73f5b678c1487cde2711382b3734",
+        "attestedDate": "2026-07-27",
+        "attestedContentHash": "534322a344c6c619069624504d3d7c077d7ed96824e848fc432398df7583dd2a",
         "priorAttestations": [
+          "2026-07-24",
           "2026-06-21"
         ],
-        "note": "Re-attested 2026-07-24: runtime AI egress moved from direct api.anthropic.com to Claude on AWS Bedrock (lib/ai_client.rb); the dated supersession banner in this document was added under the same change. Prior attestation covered the pre-banner revision."
+        "note": "Re-attested 2026-07-27 (Path B recovery): removed contradictory \"re-attestation owed\" banner left after the 2026-07-24 Bedrock routing attestation. Prior 2026-07-24 attestation covered those Bedrock routing bytes."
       },
-      "contentHash": "15ea9e8ad09be513705276f42134dc0371da73f5b678c1487cde2711382b3734",
+      "contentHash": "534322a344c6c619069624504d3d7c077d7ed96824e848fc432398df7583dd2a",
       "bundles": [
         "baa"
       ],
@@ -2617,7 +2620,7 @@
       "lastReviewed": "2026-07-12",
       "nextReviewDue": "2027-01-12",
       "attestation": {},
-      "contentHash": "15aaa7e0779500e87e87b142111281dac970f4a7317d4925e43fa46fce19067a",
+      "contentHash": "97a6b448666cda860afb7f72bf503875bacc7b66705ccec8e05c7e6a334f4ee4",
       "bundles": [],
       "mirrors": [
         {

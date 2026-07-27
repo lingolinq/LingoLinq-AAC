@@ -62,7 +62,7 @@ Now that the BAA is active, we can proceed with:
 
 ---
 
-## Runtime AI on Amazon Bedrock - 2026-07-24 (re-attestation owed)
+## Runtime AI on Amazon Bedrock - 2026-07-24 (re-attested 2026-07-24)
 
 Runtime AI model inference (word prediction, prediction seeding, board generation, eval narration)
 now runs on **Amazon Bedrock** under this account-level BAA, replacing the prior direct
@@ -78,5 +78,6 @@ now runs on **Amazon Bedrock** under this account-level BAA, replacing the prior
 - **Bedrock model-invocation logging** (optional; CloudWatch/S3) captures prompts. For PHI, keep it
   disabled or route it to HIPAA-controlled, access-logged storage. (Default is off.)
 
-**Attestation:** this edit changes the attested bytes; re-attestation owed until Scot re-attests this
-row.
+**Attestation:** Re-attested 2026-07-24 by Scot Wahlquist, CEO (Bedrock runtime routing under this
+account-level BAA). Prose corrected 2026-07-27 to remove a contradictory "re-attestation owed"
+banner left in the bytes that attestation covered.
