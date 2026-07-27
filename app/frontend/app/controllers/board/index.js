@@ -444,7 +444,13 @@ export default Controller.extend(prefClasses, {
       var column_width = inner_width / columns;
       this.appState.set('skinny_sidebar', column_width < 160);
       var sidebar_cap = window.innerWidth <= 767 ? 75 : 100;
-      var sidebar_width = Math.min(Math.round(column_width * 1.1), sidebar_cap);
+      // Floor at 44px. The sidebar holds real tap targets, so tracking the button
+      // width all the way down produces an unusable rail on many-column boards (a
+      // 24-column board at 768px would otherwise give a ~35px sidebar). 44px is the
+      // WCAG 2.5.5 / AAC minimum touch target — the same reasoning behind
+      // board-detail's 45px "buttons are too small" landscape prompt. Clamped below
+      // the cap so the floor can never push the sidebar wider than we already ship.
+      var sidebar_width = Math.min(Math.max(Math.round(column_width * 1.1), 44), sidebar_cap);
       document.documentElement.style.setProperty('--sidebar-width', sidebar_width + 'px');
       if(this.appState.get('sidebar_pinned') && this.appState.get('sidebar_visible')) {
         width = inner_width - sidebar_width;

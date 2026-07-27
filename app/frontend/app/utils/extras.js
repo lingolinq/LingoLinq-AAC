@@ -346,7 +346,7 @@ import app_state from './app_state';
             // find the model object and key on its id. Consumed (deleted) on read.
             for(var _mk in data) {
               if(_mk !== 'meta' && data[_mk] && data[_mk].id) {
-                $.ajax.upload_params_by_id[data[_mk].id] = data.meta.remote_upload;
+                $.ajax.upload_params_push(data[_mk].id, data.meta.remote_upload);
                 break;
               }
             }
@@ -408,8 +408,48 @@ import app_state from './app_state';
   // created record's id. Populated at response time (below), consumed by
   // content-grabbers#save_record via the exact record id — so no clock is involved
   // and it never fails on a slow machine or a busy runloop the way the time-windowed
-  // `metas` slot did. Never reassigned (only mutated) so the exported alias stays live.
-  $.ajax.upload_params_by_id = {};
+  // `metas` slot did.
+  //
+  // The map and its LRU order live in CLOSURE variables, not on `$.ajax`. Specs
+  // replace `$.ajax` wholesale with a stub, which drops any state parked on it — a
+  // `take` that re-read `$.ajax.upload_params_by_id` on each call then blew up on
+  // `undefined[id]` under test. Closing over them keeps push/take working against the
+  // same store no matter what happens to `$.ajax`.
+  //
+  // Entries are normally consumed (deleted) on read, but a create whose upload never
+  // runs — a rejected save, a closed modal, an offline blip — would otherwise leave
+  // its params here for the rest of the session. These are SIGNED S3 credentials, so
+  // retaining them indefinitely in a page-reachable object is worth avoiding on its
+  // own, quite apart from the leak. Evict oldest-first past a small cap; an id that
+  // falls out just takes the `pending` + time-windowed meta fallback in save_record,
+  // which is the same path as before this store existed.
+  var upload_params_by_id = {};
+  var upload_params_order = [];
+  var upload_params_max = 25;
+  // Exposed for debugging/back-compat only — never reassigned, so the alias below
+  // stays live. Read through `upload_params_take`, which is the supported accessor.
+  $.ajax.upload_params_by_id = upload_params_by_id;
+  $.ajax.upload_params_push = function(id, params) {
+    if(id == null) { return; }
+    if(!upload_params_by_id[id]) { upload_params_order.push(id); }
+    upload_params_by_id[id] = params;
+    while(upload_params_order.length > upload_params_max) {
+      var stale = upload_params_order.shift();
+      delete upload_params_by_id[stale];
+    }
+  };
+  // Single-use read: returns the params for `id` and forgets them (both the map and
+  // the eviction order), so callers never have to keep the two in sync themselves.
+  $.ajax.upload_params_take = function(id) {
+    if(id == null) { return null; }
+    var params = upload_params_by_id[id];
+    if(params) {
+      delete upload_params_by_id[id];
+      var idx = upload_params_order.indexOf(id);
+      if(idx !== -1) { upload_params_order.splice(idx, 1); }
+    }
+    return params || null;
+  };
   $.ajax.meta_push = function(opts) {
     var now = (new Date()).getTime();
     opts.ts = now;
@@ -481,6 +521,7 @@ import app_state from './app_state';
   extras.meta = $.ajax.meta;
   extras.meta_push = $.ajax.meta_push;
   extras.upload_params_by_id = $.ajax.upload_params_by_id;
+  extras.upload_params_take = $.ajax.upload_params_take;
 
   window.lingoLinqExtras = extras;
   if(!extras.storage && extras.prototype && extras.prototype.storage) {

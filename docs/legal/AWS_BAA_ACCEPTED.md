@@ -59,3 +59,25 @@ Now that the BAA is active, we can proceed with:
 ---
 
 **Status**: Ready to proceed with HIPAA-compliant infrastructure setup!
+
+---
+
+## Runtime AI on Amazon Bedrock - 2026-07-24 (re-attested 2026-07-24)
+
+Runtime AI model inference (word prediction, prediction seeding, board generation, eval narration)
+now runs on **Amazon Bedrock** under this account-level BAA, replacing the prior direct
+`api.anthropic.com` route (see `docs/legal/ANTHROPIC_BAA_ACCEPTED.md`).
+
+- **Amazon Bedrock is a HIPAA-eligible AWS service** (verified against AWS's HIPAA-eligible-services
+  reference, 2026-07-24), **excluding the Fable and Mythos models**. The runtime inventory (Claude
+  Haiku 4.5, Claude Opus 4.7) is on the eligible side of that exclusion; Fable/Mythos remain barred
+  by policy and by the runtime model allowlist.
+- **HIPAA-eligible services in use for PHI now include Amazon Bedrock** (in addition to S3, RDS, etc.).
+- **Operative condition:** Bedrock calls must run under this BAA'd account (2390-4478-5114). A
+  different account would need its own BAA.
+- **Bedrock model-invocation logging** (optional; CloudWatch/S3) captures prompts. For PHI, keep it
+  disabled or route it to HIPAA-controlled, access-logged storage. (Default is off.)
+
+**Attestation:** Re-attested 2026-07-24 by Scot Wahlquist, CEO (Bedrock runtime routing under this
+account-level BAA). Prose corrected 2026-07-27 to remove a contradictory "re-attestation owed"
+banner left in the bytes that attestation covered.

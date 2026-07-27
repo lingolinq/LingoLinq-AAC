@@ -211,9 +211,8 @@ var contentGrabbers = Service.extend({
           // consumed on read. The time-windowed meta slot is only a fallback, and
           // only when the server also flagged `pending`, so a stale slot entry from a
           // previous create can't trigger a spurious upload.
-          var _rup_map = (window.lingoLinqExtras && window.lingoLinqExtras.upload_params_by_id) || null;
-          var _rup = (_rup_map && object.get('id')) ? _rup_map[object.get('id')] : null;
-          if(_rup && _rup_map) { delete _rup_map[object.get('id')]; }
+          var _take = window.lingoLinqExtras && window.lingoLinqExtras.upload_params_take;
+          var _rup = _take ? _take(object.get('id')) : null;
           var meta = _rup ? {remote_upload: _rup} : (object.get('pending') ? persistenceService.meta(object.constructor.modelName, null) : null);
         if(meta && meta.remote_upload) {
           // upload to S3
@@ -713,18 +712,35 @@ var pictureGrabber = EmberObject.extend({
             // transparency (that false positive kept opaque photos as PNG). size_image
             // only runs on same-origin data: URLs (http/gif bypass above) so
             // getImageData is not tainted; any read error falls back to lossless PNG.
+            //
+            // Opacity alone is NOT sufficient to justify JPEG: a logo, screenshot or
+            // line-art symbol drawn on an opaque white background is fully opaque but
+            // is exactly the content JPEG ruins (ringing around hard edges). So the
+            // same probe also counts DISTINCT COLOURS — a photograph fills a 24x24
+            // sample with many unique values, while flat-colour artwork collapses to a
+            // handful. Only opaque AND photographic images take the lossy path;
+            // everything else stays lossless PNG.
             var srcHasAlpha = false;
+            var srcIsPhotographic = false;
             try {
               var probe = document.createElement('canvas');
               probe.width = 24; probe.height = 24;
               var pctx = probe.getContext('2d');
               pctx.drawImage(img, 0, 0, 24, 24);
               var pd = pctx.getImageData(0, 0, 24, 24).data;
-              for(var ai = 3; ai < pd.length; ai += 4) {
-                if(pd[ai] < 250) { srcHasAlpha = true; break; }
+              var colors = {};
+              var color_count = 0;
+              for(var ai = 0; ai < pd.length; ai += 4) {
+                if(pd[ai + 3] < 250) { srcHasAlpha = true; break; }
+                // Quantize to 5 bits/channel so photographic noise/gradients don't
+                // count as thousands of "colours" while flat fills still collapse.
+                var q = ((pd[ai] >> 3) << 10) | ((pd[ai + 1] >> 3) << 5) | (pd[ai + 2] >> 3);
+                if(!colors[q]) { colors[q] = true; color_count++; }
               }
+              // 576 sampled pixels; >64 distinct quantized colours reads as a photo.
+              srcIsPhotographic = color_count > 64;
             } catch(e) { srcHasAlpha = true; }
-            if(srcHasAlpha) {
+            if(srcHasAlpha || !srcIsPhotographic) {
               result = canvas.toDataURL('image/png');
             } else {
               // Paint white behind the existing pixels so JPEG's opaque letterbox
@@ -1843,8 +1859,13 @@ var pictureGrabber = EmberObject.extend({
       // canvas, which left empty top/bottom bands (and distorted the aspect). Covering
       // the full canvas paints every pixel with video, so there are no bands (no white
       // backfill needed) and the square image fills the square button.
-      var vw = video.videoWidth || 800;
-      var vh = video.videoHeight || 600;
+      // `video` can be null when no #webcam_video element is mounted (e.g. unit tests
+      // that exercise the snapshot path without rendering the modal). Guard the reads
+      // so the intrinsic-size lookup falls back to the 800x600 defaults instead of
+      // throwing on `null.videoWidth`. drawImage below already matched staging's
+      // behavior for a null video (a no-op on the mocked ctx).
+      var vw = (video && video.videoWidth) || 800;
+      var vh = (video && video.videoHeight) || 600;
       var side = Math.min(vw, vh);
       var sx = (vw - side) / 2;
       var sy = (vh - side) / 2;

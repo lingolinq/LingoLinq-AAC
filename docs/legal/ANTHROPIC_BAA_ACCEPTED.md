@@ -140,3 +140,28 @@ the model allowlist + etiology minimization ship in the eval-narrator runtime-ga
 `COMPLIANCE.md` section 4, `docs/legal/SUBPROCESSORS.md` row 4, and the 2026-07-18 eligible-services
 scope review (superseded on the eval-narration classification by this record) for how this is
 reflected in the posture.
+
+## Runtime routing update - 2026-07-24 (re-attested 2026-07-24)
+
+Runtime AI egress moved from the direct `api.anthropic.com` endpoint to **Claude on AWS Bedrock**
+(the Bedrock Mantle Messages API, constructed in `lib/ai_client.rb`). All four seams above (word
+prediction, prediction seeding, board generation, eval narration) route through Bedrock on the same
+in-scope models (Haiku 4.5, Opus 4.7).
+
+- **This executed Anthropic HIPAA-Ready BAA remains valid and on file.** It is no longer the *active
+  runtime route*; it documents a still-available, BAA-covered direct path. Runtime seams no longer
+  read `ANTHROPIC_API_KEY` or construct a direct Anthropic client (enforced by
+  `scripts/ai-endpoint-guard.sh` in CI).
+- **The active runtime route is covered by the AWS account BAA** (`docs/legal/AWS_BAA_ACCEPTED.md`):
+  Amazon Bedrock is a HIPAA-eligible AWS service **excluding Fable/Mythos models**, so
+  Anthropic-model inference on Bedrock stays inside AWS's HIPAA boundary. The runtime models (Haiku
+  4.5, Opus 4.7) are on the eligible side of that exclusion. Operative condition: Bedrock calls must
+  run under the BAA'd AWS account (2390-4478-5114).
+- The adjudicated seam classifications above (including eval narration not being a HIPAA Healthcare
+  Activity, Scot 2026-07-19) are unchanged by this routing move.
+- Statements above that name the direct `/v1/messages` endpoint or `ANTHROPIC_API_KEY` as the
+  endpoint/credential "all runtime AI seams use" are superseded by this section for runtime routing.
+
+**Attestation:** Re-attested 2026-07-24 by Scot Wahlquist, CEO (Bedrock runtime routing). Prose
+corrected 2026-07-27 to remove a contradictory "re-attestation owed" banner left in the bytes that
+attestation covered.

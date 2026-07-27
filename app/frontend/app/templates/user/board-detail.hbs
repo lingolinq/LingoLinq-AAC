@@ -510,7 +510,13 @@
               aria-checked={{if this.dark_mode "true" "false"}}
               aria-label={{t "Toggle light or dark mode" key="toggle_light_dark_mode"}}
               title={{t "Toggle light or dark mode" key="toggle_light_dark_mode"}}
-              {{on "click" (this.ctrlAction "set_dark_mode" (unless this.dark_mode true false))}}>
+              {{!-- Uses the flip action `toggle_dark_mode` (de-duped), NOT
+                   `set_dark_mode (unless dark_mode …)`. The AAC pointer layer
+                   re-fires a synthetic click on top of the native one, and the
+                   `unless` recomputed dark_mode BETWEEN the two clicks, so the
+                   pill toggled ON then straight back OFF and looked dead. The
+                   de-dupe guard in toggle_dark_mode swallows the duplicate. --}}
+              {{on "click" (this.ctrlAction "toggle_dark_mode")}}>
               <span class="new-board-mockup-toggle__icon new-board-mockup-toggle__icon--sun" aria-hidden="true">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
               </span>
@@ -621,11 +627,9 @@
       {{else}}
       {{!-- Sentence Bar — id="speak" lets the scanner find this row as the
            speak target on board-detail (mirrors board-alt's #speak element).
-           In edit mode the real #speak row is hidden by existing CSS
-           (the `--preview` variant further down takes over with a static
-           mock). The EDITING pill is placed adjacent to the visible
-           --preview row (not here) so it actually appears above the
-           speak-bar mock the user sees. --}}
+           Hidden in edit mode by `.md-shell--board-detail-edit
+           .md-board-detail-sentence-row { display: none }` in app.scss; the
+           editing state is shown by the session bar in the header instead. --}}
       <div id="speak" class="md-board-detail-sentence-row {{this.sentence_bar_height_class}} {{this.symbol_background_class}} {{if this.hide_speak_bar 'md-board-detail-sentence-row--hide-bar'}}">
       {{!-- Left nav column: Home on top; inside a folder the back button
            drops beneath it (styled like the right-side sidebar dropdown

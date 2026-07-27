@@ -3765,7 +3765,18 @@ export default Service.extend({
 
     this.set('last_activation', now);
     // update button attributes preemptively
-    if(button.link_disabled) {
+    //
+    // "Disable this link action for now" strips the link action off a COPY of the
+    // button (so the folder / url / app branches below find nothing to do) and forces
+    // add_vocalization, leaving it to behave as a plain talk button. This is the one
+    // place the flag is enforced — every renderer funnels its activation through
+    // activate_button — so it must not be duplicated at call sites.
+    //
+    // coerce_level_value, not a raw truthy test: legacy/copied boards persist this
+    // flag as the STRINGS "true"/"false" (Button.LEVEL_BOOL_ATTRS is the canonical
+    // list), and `!!"false"` is `true` — which silently stripped the link off buttons
+    // whose author had left the link ENABLED.
+    if(Button.coerce_level_value('link_disabled', button.link_disabled)) {
       button = $.extend({}, button);
       setProperties(button, {
         apps: null,

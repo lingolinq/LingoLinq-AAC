@@ -19,6 +19,7 @@ import { bg_class as computeBgClass, bg_style as computeBgStyle, bg_img_style as
 import speecher from '../../utils/speecher';
 import utterance from '../../utils/utterance';
 import editManager from '../../utils/edit_manager';
+import Button from '../../utils/button';
 import contentGrabbers from '../../utils/content_grabbers';
 import boundClasses from '../../utils/bound_classes';
 import actionLock from '../../utils/action-lock';
@@ -734,6 +735,14 @@ export default Controller.extend(prefClasses, {
       try { this._predictionGridRO.disconnect(); } catch(e) { /* noop */ }
       this._predictionGridRO = null;
     }
+    // Flush (don't just drop) any debounced display-pref save: the user's last
+    // stepper click must still reach the server when they navigate away inside the
+    // debounce window, otherwise the preference they just set is silently lost.
+    if(this._display_pref_save_timer) {
+      runCancel(this._display_pref_save_timer);
+      this._display_pref_save_timer = null;
+      this._flush_display_pref_save();
+    }
     if(this._narrowViewportMql && this._narrowViewportHandler) {
       if(this._narrowViewportMql.removeEventListener) {
         this._narrowViewportMql.removeEventListener('change', this._narrowViewportHandler);
@@ -1346,8 +1355,7 @@ export default Controller.extend(prefClasses, {
       _this._preferred_symbols = null;
     }
     var use_ember = _this.get('edit_mode');
-    var stashed_level = parseInt(_this.get('stashes.board_level'), 10);
-    var current_level = (stashed_level >= 1 && stashed_level <= 10) ? stashed_level : 10;
+    var current_level = _this._current_board_level();
     var board_has_levels = (raw.buttons || []).some(function(b) {
       return b && b.level_modifications && Object.keys(b.level_modifications).length > 0;
     });
@@ -1624,6 +1632,108 @@ export default Controller.extend(prefClasses, {
     return remote_url;
   },
 
+  // The board level the grid is currently filtered to, as an int 1..10 (10 = full
+  // vocab / filter off). Single source for the render path (_process_raw_board) and
+  // the activation path (_resolve_action_src) so a tapped button's link options are
+  // resolved at the SAME level the rendered button was filtered by.
+  _current_board_level: function() {
+    var stashed = parseInt(this.get('stashes.board_level'), 10);
+    return (stashed >= 1 && stashed <= 10) ? stashed : 10;
+  },
+
+  // Resolve a button's level-rule overrides at the current display level.
+  //
+  // Walks `pre` → 0..level → `override` over a working copy seeded from the raw
+  // button, so the returned object is "what this button's attributes actually are
+  // at this level". Level rules can override `hidden` (the level filter) but also
+  // the LINK attributes — `link_disabled` in particular is set this way by paint
+  // mode (edit_manager.js `paint_mode.level == 'link_disabled'`), plus
+  // `home_lock` / `add_to_vocalization` / `add_vocalization` (see
+  // Button.LEVEL_BOOL_ATTRS).
+  //
+  // Values are returned RAW (still possibly the strings "true"/"false" that
+  // legacy/copied boards persist) — callers coerce with
+  // `Button.coerce_level_value` for the attribute they care about, which is the
+  // single source of truth for which attributes are boolean-ish.
+  //
+  // Extracted from _make_btn so `select_button` resolves link actions through the
+  // SAME rules the rendered button was filtered by — reading the raw board.buttons
+  // entry directly would silently ignore every level rule.
+  _resolve_level_attrs: function(btn, level) {
+    var working = {
+      hidden: btn.hidden,
+      link_disabled: btn.link_disabled,
+      home_lock: btn.home_lock,
+      add_to_vocalization: btn.add_to_vocalization,
+      add_vocalization: btn.add_vocalization
+    };
+    var mods = btn && btn.level_modifications;
+    if(!mods || !level || level >= 10) { return working; }
+    var keys = ['pre'];
+    for(var k = 0; k <= level; k++) { keys.push(k); }
+    keys.push('override');
+    keys.forEach(function(key) {
+      if(mods[key]) {
+        for(var attr in mods[key]) { working[attr] = mods[key][attr]; }
+      }
+    });
+    return working;
+  },
+
+  // Authoritative action fields for the button the user just tapped.
+  //
+  // Prefers the raw `board.buttons` entry (updated in place by Button Settings via
+  // editManager.change_button, so it reflects a just-made edit before the display
+  // copies rebuild), then runs the LINK OPTION flags back through the level rules
+  // and the boolean coercion — the raw entry is un-levelled and may hold the
+  // strings "true"/"false", so consuming it directly would both ignore level rules
+  // (paint mode sets `link_disabled` that way) and invert on legacy boards.
+  //
+  // Returns a plain object; `load_board` / `url` / `video` / `book` come through
+  // untouched, only the four boolean-ish option flags are resolved.
+  _resolve_action_src: function(button, btn_id) {
+    var raw = null;
+    var board = this.get('model');
+    if(board && board.get && btn_id != null) {
+      var buttons = board.get('buttons') || [];
+      for(var i = 0; i < buttons.length; i++) {
+        if(buttons[i] && String(buttons[i].id) === String(btn_id)) { raw = buttons[i]; break; }
+      }
+    }
+    // No authoritative entry (board not loaded / id absent) — the display copy is
+    // already level-resolved and coerced by _make_btn, so use it as-is.
+    if(!raw) { return button; }
+    var level_attrs = this._resolve_level_attrs(raw, this._current_board_level());
+    var src = Object.assign({}, raw);
+    src.link_disabled = Button.coerce_level_value('link_disabled', level_attrs.link_disabled);
+    src.home_lock = Button.coerce_level_value('home_lock', level_attrs.home_lock);
+    src.add_to_vocalization = Button.coerce_level_value('add_to_vocalization', level_attrs.add_to_vocalization);
+    src.add_vocalization = (level_attrs.add_vocalization == null)
+      ? null
+      : Button.coerce_level_value('add_vocalization', level_attrs.add_vocalization);
+    return src;
+  },
+
+  // The editManager Button for `btn_id`, with its action fields refreshed from the
+  // authoritative source resolved by _resolve_action_src.
+  //
+  // editManager.find_button builds the Button from `ordered_buttons` (the rendered
+  // display copies), so after an in-place Button Settings edit it can still hold the
+  // pre-edit action. Overlaying the resolved fields means activate_button always
+  // acts on the button as it is NOW — a folder just switched to a URL link opens the
+  // URL on the very next tap instead of navigating to the old board.
+  _em_button_with_current_actions: function(btn_id, action_src) {
+    var em_button = editManager.find_button(btn_id);
+    if(!em_button || typeof em_button.set !== 'function' || !action_src || action_src === em_button) {
+      return em_button;
+    }
+    ['load_board', 'url', 'video', 'book', 'apps', 'integration',
+     'link_disabled', 'home_lock', 'add_to_vocalization', 'add_vocalization'].forEach(function(attr) {
+      em_button.set(attr, action_src[attr]);
+    });
+    return em_button;
+  },
+
   _make_btn: function(btn, image_map, level, board_has_levels) {
     var img_url = null;
     if(btn.image_id && image_map) {
@@ -1651,25 +1761,10 @@ export default Controller.extend(prefClasses, {
     // btn.hidden gets the original value. At level 10 (or no level)
     // the filter is off and display_as_hidden stays false.
     var display_as_hidden = false;
+    var level_attrs = this._resolve_level_attrs(btn, level);
     if(level && level < 10) {
       if(btn.level_modifications) {
-        // Walk pre → 0..level → override on a working copy. If the
-        // resolved hidden is true, the rule excludes this button.
-        // NOTE: rule values arrive as STRINGS ("true"/"false") in
-        // legacy/copied boards, not booleans — `!!"false"` is `true`,
-        // so a naive truthy check inverts the meaning. Use an explicit
-        // string-or-bool comparison instead.
-        var working = { hidden: btn.hidden };
-        var mods = btn.level_modifications;
-        var keys = ['pre'];
-        for(var k = 0; k <= level; k++) { keys.push(k); }
-        keys.push('override');
-        keys.forEach(function(key) {
-          if(mods[key]) {
-            for(var attr in mods[key]) { working[attr] = mods[key][attr]; }
-          }
-        });
-        display_as_hidden = (working.hidden === true || working.hidden === 'true');
+        display_as_hidden = Button.coerce_level_value('hidden', level_attrs.hidden);
       } else if(board_has_levels) {
         // Untagged at level < 10 on a board that DOES use levels — the
         // level filter excludes unpromoted buttons. Without this, picking
@@ -1690,6 +1785,27 @@ export default Controller.extend(prefClasses, {
       image_fallback_url: image_fallback_url,
       image_id: btn.image_id,
       load_board: btn.load_board,
+      // Action + option fields — MUST be carried onto the speak-mode display button.
+      // This object is a hand-picked subset (unlike edit-mode's _make_ember_btn, which
+      // Button.create()s the full button), so anything omitted here silently vanishes on
+      // every speak-mode re-render: the tapped button loses its url/video/action, and
+      // reopening Button Settings (which reads this display copy via find_button) shows
+      // the field cleared. Keep this list in sync with the Button action attributes the
+      // modal edits and select_button/activation reads.
+      url: btn.url,
+      video: btn.video,
+      book: btn.book,
+      apps: btn.apps,
+      integration: btn.integration,
+      // The four link OPTION flags are level-resolved and coerced here (not copied
+      // raw) so the display button carries the value that actually applies at the
+      // current level, already a real boolean — legacy/copied boards persist these
+      // as the strings "true"/"false", where `!!"false"` inverts the meaning.
+      add_to_vocalization: Button.coerce_level_value('add_to_vocalization', level_attrs.add_to_vocalization),
+      add_vocalization: (level_attrs.add_vocalization == null) ? null : Button.coerce_level_value('add_vocalization', level_attrs.add_vocalization),
+      home_lock: Button.coerce_level_value('home_lock', level_attrs.home_lock),
+      link_disabled: Button.coerce_level_value('link_disabled', level_attrs.link_disabled),
+      sound_id: btn.sound_id,
       hidden: btn.hidden,
       hide_label: !!btn.hide_label,
       display_as_hidden: display_as_hidden,
@@ -2931,32 +3047,6 @@ export default Controller.extend(prefClasses, {
     return 'md-board-detail-sentence-bar--' + current;
   }),
 
-  // Edit-mode Speak Bar PREVIEW content. The live #speak bar is
-  // hidden while editing, so this feeds a visible preview so Speak
-  // Bar settings can be seen. If the user has tapped anything into
-  // the speak bar, mirror that (sentence_parts); otherwise show the
-  // current board's first five real (non-empty) buttons as samples.
-  preview_sentence_parts: computed('sentence_parts.[]', 'ordered_buttons', function() {
-    var parts = this.get('sentence_parts');
-    if(parts && parts.length) { return parts; }
-    var rows = this.get('ordered_buttons') || [];
-    var out = [];
-    for(var i = 0; i < rows.length && out.length < 5; i++) {
-      var row = rows[i] || [];
-      for(var j = 0; j < row.length && out.length < 5; j++) {
-        var b = row[j];
-        if(b && !b.empty && (b.label || b.image_url)) {
-          out.push({ id: b.id, label: b.label || b.vocalization || '', image_url: b.image_url });
-        }
-      }
-    }
-    return out;
-  }),
-
-  preview_sentence_text: computed('preview_sentence_parts', function() {
-    return (this.get('preview_sentence_parts') || []).map(function(p) { return p.label; }).join(' ');
-  }),
-
   // Prefs that change symbol URLs or grid CSS — apply to referenced_user (communicator).
   _display_pref_render_keys: ['skin', 'preferred_symbols', 'symbol_background', 'high_contrast'],
 
@@ -2982,14 +3072,26 @@ export default Controller.extend(prefClasses, {
   _schedule_display_pref_save: function(user) {
     var _this = this;
     if(this._display_pref_save_timer) { runCancel(this._display_pref_save_timer); }
+    this._display_pref_save_user = user;
     this._display_pref_save_timer = runLater(function() {
       _this._display_pref_save_timer = null;
-      if(user && user.save && !user.get('isDestroyed') && !user.get('isDestroying')) {
-        user.set('preferences.device.updated', true);
-        user.save();
-      }
+      _this._flush_display_pref_save();
     }, 400);
   },
+
+  // Issue the coalesced save. Split out from the timer body so willDestroy can
+  // FLUSH a still-pending save instead of dropping it (the user's last click must
+  // not be lost by navigating away inside the debounce window). Idempotent: clears
+  // the stashed user so a flush followed by the timer can't double-save.
+  _flush_display_pref_save: function() {
+    var user = this._display_pref_save_user;
+    this._display_pref_save_user = null;
+    if(user && user.save && !user.get('isDestroyed') && !user.get('isDestroying')) {
+      user.set('preferences.device.updated', true);
+      user.save();
+    }
+  },
+
 
   // Map of pending-prefs key → user.preferences path
   _display_prefs_paths: {
@@ -5427,6 +5529,13 @@ export default Controller.extend(prefClasses, {
     },
 
     toggle_dark_mode: function() {
+      // De-dupe the AAC pointer layer's synthetic click re-fire (same pattern as
+      // `library_options`): without this, a single tap on the collapsed-rail
+      // theme pill fires twice and the flip cancels itself (ON then OFF), so the
+      // toggle looked dead. Ignore a repeat call within 250ms.
+      var now = Date.now();
+      if(this._lastDarkToggle && (now - this._lastDarkToggle) < 250) { return; }
+      this._lastDarkToggle = now;
       this.set('show_options_menu', false);
       this.toggleProperty('dark_mode');
       this._persist_board_dark_mode(this.get('dark_mode'));
@@ -6219,13 +6328,43 @@ export default Controller.extend(prefClasses, {
         return;
       }
 
+      // The button object handed to us can be a STALE display copy: board-detail
+      // rebuilds its display buttons from board.contextualized_buttons, and an
+      // in-place edit (Button Settings) updates board.buttons + the model but the
+      // rebuilt display copy can still carry the pre-edit action fields. Resolve the
+      // action fields from the authoritative board.buttons entry by id so a
+      // just-changed action takes effect on the very next tap (e.g. a folder switched
+      // to a URL link opens the URL, not the old board).
+      var _action_src = this._resolve_action_src(button, btn_id);
+
       // Folder navigation — intercept for board-detail routing
-      var load_board = _get(button, 'load_board');
-      if(load_board && !_get(button, 'link_disabled')) {
+      var load_board = _get(_action_src, 'load_board');
+      if(load_board && !_get(_action_src, 'link_disabled')) {
         // Board lock: prevent navigation when sticky_board is enabled
         if(_this.get('stashes').get('sticky_board')) {
           modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
           return;
+        }
+        // "Also speak & add to the vocalization box" (add_to_vocalization/add_vocalization)
+        // and "Set as temporary home when loaded" (home_lock) are handled by the canonical
+        // app_state.activate_button — it adds the word to the sentence box (utterance.add_button)
+        // and applies the temporary-home lock via jump_to_board, then navigates through
+        // transitionToBoardForCurrentUiStyle, which lands back on board-detail. board-detail's
+        // fast custom routing below does neither, so when either option is set on this folder
+        // button we delegate the whole activation to the app controller (the same path board-alt
+        // uses). Plain folder buttons keep the optimized cached routing below.
+        // `add_vocalization` is tri-state: null means "unset, fall back to
+        // add_to_vocalization"; false means "explicitly don't add". Both flags are
+        // already level-resolved and coerced to real booleans by _resolve_action_src.
+        var _add_voc = _get(_action_src, 'add_vocalization');
+        _add_voc = (_add_voc == null) ? _get(_action_src, 'add_to_vocalization') : _add_voc;
+        if(_add_voc || _get(_action_src, 'home_lock')) {
+          var _em_for_action = _this._em_button_with_current_actions(btn_id, _action_src);
+          var _appCtrl = _this.get('app_state.controller');
+          if(_em_for_action && _appCtrl && _appCtrl.activateButton) {
+            _appCtrl.activateButton(_em_for_action, { board: _this.get('model'), trigger_source: 'click' });
+            return;
+          }
         }
         var board_key = load_board.key;
         if(board_key && board_key.indexOf('/') !== -1) {
@@ -6275,17 +6414,28 @@ export default Controller.extend(prefClasses, {
         }
       }
 
-      // Route the activation through the application controller, which
-      // funnels into `app_state.activate_button` → `utterance.add_button`.
-      // That single global path handles speaking, sentence-bar entry,
-      // logging, suggestion lookups, and any specialty button behavior.
+      // Everything else — including URL / video / book links — routes through the
+      // application controller, which funnels into `app_state.activate_button` →
+      // `utterance.add_button`. That single global path handles speaking,
+      // sentence-bar entry, usage LOGGING (stashes.log + sync.send_update), the
+      // board-lock and `external_links: 'prevent'` guards, actionLock de-dup, the
+      // `link_disabled` suppression, and `launch_url` (which opens an in-app video
+      // pane for a video.popup link, a Tarheel book pane, or a browser tab honoring
+      // the confirm-external-links pref).
+      //
+      // board-detail deliberately does NOT hand-roll a launcher here. It used to,
+      // because board-detail's speak-mode display copies (_make_btn) dropped `url` /
+      // `video` / `apps` so activate_button's url branch never fired — but _make_btn
+      // now carries those fields, so the canonical path works and a bespoke branch
+      // would only re-introduce the guard/logging bypass.
+      //
       // Our `_sync_sentence_from_global` observer mirrors the resulting
-      // `app_state.button_list` change into our local `sentence_parts`,
-      // so the visible sentence bar updates without us doing a redundant
-      // (and divergence-prone) local push here.
+      // `app_state.button_list` change into our local `sentence_parts`, so the
+      // visible sentence bar updates without us doing a redundant (and
+      // divergence-prone) local push here.
       var appController = _this.get('app_state.controller');
       var board = _this.get('model');
-      var em_button = editManager.find_button(btn_id);
+      var em_button = _this._em_button_with_current_actions(btn_id, _action_src);
       var has_em = em_button && em_button.get && typeof em_button.get === 'function';
       // (Swap-mode replace is handled earlier, before folder navigation.)
       if(has_em && appController && appController.activateButton && board) {
