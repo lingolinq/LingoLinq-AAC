@@ -165,6 +165,11 @@ class WordData < ApplicationRecord
   FREQUENCY_RANK_TTL = 30.days.to_i
   FREQUENCY_RANK_LOCK_KEY = 'word_data/en/frequency_ranks/building'
   FREQUENCY_RANK_LOCK_TTL = 10.minutes.to_i
+  # The hash is written in slices, so it is built under a staging key and swapped
+  # in with an atomic RENAME. Readers therefore only ever observe the live key as
+  # absent or complete, never half-populated (a partially visible hash would hand
+  # back nil for words not yet written, and that nil gets persisted as a score).
+  FREQUENCY_RANK_BUILD_KEY = 'word_data/en/frequency_ranks/staging'
   # A truncated or failed download must never be cached, so a rebuild is only
   # accepted when it yields at least this many words.
   FREQUENCY_RANK_MIN_WORDS = 1000
@@ -230,12 +235,20 @@ class WordData < ApplicationRecord
         next if word.blank? || ranks.key?(word)
         ranks[word] = idx
       end
+      # Build under the staging key, then swap. A reader that arrives mid-build
+      # sees no live key, fails to take the lock, and falls back to an uncached
+      # lookup rather than reading a hash that is missing most of its words.
+      redis.del(FREQUENCY_RANK_BUILD_KEY)
       ranks.each_slice(5000) do |slice|
-        redis.mapped_hmset(FREQUENCY_RANK_KEY, slice.to_h)
+        redis.mapped_hmset(FREQUENCY_RANK_BUILD_KEY, slice.to_h)
       end
-      redis.expire(FREQUENCY_RANK_KEY, FREQUENCY_RANK_TTL)
+      # Set the TTL before the swap; RENAME carries it over, so the live key is
+      # never left without one.
+      redis.expire(FREQUENCY_RANK_BUILD_KEY, FREQUENCY_RANK_TTL)
+      redis.rename(FREQUENCY_RANK_BUILD_KEY, FREQUENCY_RANK_KEY)
       :ready
     ensure
+      redis.del(FREQUENCY_RANK_BUILD_KEY)
       redis.del(FREQUENCY_RANK_LOCK_KEY)
     end
   end

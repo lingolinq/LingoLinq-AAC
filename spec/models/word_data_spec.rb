@@ -1844,6 +1844,7 @@ RSpec.describe WordData, :type => :model do
     before(:each) do
       RedisInit.default.del(WordData::FREQUENCY_RANK_KEY)
       RedisInit.default.del(WordData::FREQUENCY_RANK_LOCK_KEY)
+      RedisInit.default.del(WordData::FREQUENCY_RANK_BUILD_KEY)
     end
 
     it "should return the rank of a word in the frequency list" do
@@ -1902,6 +1903,45 @@ RSpec.describe WordData, :type => :model do
       expect(WordData.frequency_rank('troixlet')).to eq(1)
       # The loser of the lock must not persist a half-built cache.
       expect(RedisInit.default.hlen(WordData::FREQUENCY_RANK_KEY)).to eq(0)
+    end
+
+    it "should never expose a partially populated cache to a concurrent reader" do
+      # The hash is written in slices. A reader arriving between slices must not
+      # see the live key as ready and get nil for a word that has not been
+      # written yet, because that nil is persisted as the word's score.
+      words = long_list('troixlet') + (0...6000).map{|i| "tail#{i}" }
+      expect(words.length).to be > 5000
+      stub_frequency_list(words)
+
+      seen_mid_build = []
+      allow(RedisInit.default).to receive(:mapped_hmset).and_wrap_original do |orig, *args|
+        seen_mid_build << RedisInit.default.hlen(WordData::FREQUENCY_RANK_KEY)
+        orig.call(*args)
+      end
+
+      expect(WordData.frequency_rank('tail5999')).to eq(words.index('tail5999'))
+      # More than one slice was written, and the live key was empty throughout.
+      expect(seen_mid_build.length).to be > 1
+      expect(seen_mid_build.uniq).to eq([0])
+      # After the swap the live key holds the whole list, not just the last slice.
+      expect(RedisInit.default.hlen(WordData::FREQUENCY_RANK_KEY)).to eq(words.uniq.length)
+    end
+
+    it "should leave no live cache behind if the build fails partway" do
+      words = long_list('troixlet') + (0...6000).map{|i| "tail#{i}" }
+      stub_frequency_list(words)
+      calls = 0
+      allow(RedisInit.default).to receive(:mapped_hmset).and_wrap_original do |orig, *args|
+        calls += 1
+        raise Redis::BaseError, 'boom' if calls > 1
+        orig.call(*args)
+      end
+
+      expect { WordData.frequency_rank('troixlet') }.to raise_error(Redis::BaseError)
+      expect(RedisInit.default.hlen(WordData::FREQUENCY_RANK_KEY)).to eq(0)
+      expect(RedisInit.default.hlen(WordData::FREQUENCY_RANK_BUILD_KEY)).to eq(0)
+      # The lock must not be orphaned, or the cache could never be rebuilt.
+      expect(RedisInit.default.get(WordData::FREQUENCY_RANK_LOCK_KEY)).to eq(nil)
     end
   end
 
