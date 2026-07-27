@@ -110,6 +110,8 @@ file (see [README.md](README.md)).
 - [Gotcha: safely cleaning up Resque failed jobs — origination is chain::, not scheduled; count-check destructive removes](#gotcha-safely-cleaning-up-resque-failed-jobs--origination-is-chain-not-scheduled-count-check-destructive-removes)
 - [Gotcha: `Worker.process_queues` destroys RemoteActions — assert RA rows after one wave, not two](#gotcha-workerprocess_queues-destroys-remoteactions--assert-ra-rows-after-one-wave-not-two)
 - [Gotcha: a single-quoted `i18n.t` default silently DELETES the key on the next generator run](#gotcha-a-single-quoted-i18nt-default-silently-deletes-the-key-on-the-next-generator-run)
+- [Gotcha: fail-closed Sentry filters must not collapse lookup failures to nil](#gotcha-fail-closed-sentry-filters-must-not-collapse-lookup-failures-to-nil)
+- [Gotcha: dual-key tag reads — check each key independently, never `a || b` before coercion](#gotcha-dual-key-tag-reads--check-each-key-independently-never-a--b-before-coercion)
 
 ---
 
@@ -7636,3 +7638,20 @@ passing is not the same as preserving the attested record.
 only for non-`docs/legal/**` git rows or explicit Scot-directed recovery after an already-landed
 in-place amend. Skill: `.claude/skills/re-attest-record/SKILL.md`. Example chain:
 `DOC-9f6a2412ad` → `DOC-ae3f9d06ef`.
+
+## Gotcha: fail-closed Sentry filters must not collapse lookup failures to nil
+
+`CoppaSentryScrub::TRANSACTION_FILTER` (and `#call`) treat `nil` as anonymous non-child by
+design. If `lookup_user` rescues `User.where` timeouts to `nil`, the outer fail-closed rescue
+never runs and a potentially-child event ships. Preserve a distinct failure signal
+(`LOOKUP_FAILED` sentinel) so `child_user?` can fail closed (scrub errors / drop transactions)
+while true anonymous `nil` stays unscrubbed. Ref: `config/initializers/sentry.rb`,
+[`2026-07-27-sentry-coppa-review-fixes.md`](./2026-07-27-sentry-coppa-review-fixes.md).
+
+## Gotcha: dual-key tag reads — check each key independently, never `a || b` before coercion
+
+When reading a tag that may exist under symbol or string keys, do not do
+`tags[:key] || tags['key']` before validating the value. A truthy non-true symbol value
+(e.g. `'false'`, `'yes'`) short-circuits and shadows a string-key `true`/`'true'`. Evaluate
+each key through the same coercion helper. Hit in `keep_cache_error_tag?` after the L1
+string-coercion change. Ref: `config/initializers/sentry.rb`.
