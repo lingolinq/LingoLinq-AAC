@@ -7674,3 +7674,48 @@ feature reports "configured" then fails AccessDenied at invoke time.
 
 Evidence: `lib/ai_client.rb`, `spec/lib/ai_client_spec.rb`,
 `docs/task-management/2026-07-27-ai-client-bedrock-credential-review.md`.
+
+## Ember until:6.0 deprecation inventory (2026-07-27)
+
+Prep target: clear `until: 6.0` deprecations on Ember 5.12 / Node 22 before any 6.x bump
+(Node 24 needs ember-cli 6.7+, not 6.2). Working log (gitignored dated file):
+`docs/task-management/2026-07-27-ember-until-6-deprecation-cleanup.md` on branch
+`chore/melissa-ember-until-6-deprecations`.
+
+**Inventory result (exercised paths):** zero until:6.0 ids in
+`deprecationWorkflow.deprecationLog.messages` and zero console `DEPRECATION` lines during
+cold boot (static `dist/`) and board-filtered QUnit / `ember test --filter=board`
+(# pass 403, # fail 0). Static checklist also clear for `template-action`,
+`component-template-resolving`, Ember barrel, transition-methods, legacy `ember-data/*`
+imports (except allowed `ember-data/store`). All `:foo_id` routes have explicit
+`model` / `model: function` hooks.
+
+**Gotchas:**
+1. Grepping only `model(` under-counts classic `model: function(params)` — dominant here.
+2. Headless Chrome against `ember serve` can stick at `readyState=loading` (curl still 200);
+   capture via **static `dist/` + Playwright** or Testem Chrome instead.
+3. `ember-cli-deprecation-workflow` v4 `flushDeprecations()` may throw
+   (`messages.values(...).filter` on a `Set`); read
+   `[...deprecationWorkflow.deprecationLog.messages]` instead.
+4. `DEPRECATE_STORE_EXTENDS_EMBER_OBJECT: false` in `ember-cli-build.js` is the RFC 1026
+   **fix** (Store no longer extends EmberObject) — not a silence opt-out. Do not reverse it.
+5. `package.json` can list `ember-cli-deprecation-workflow` while `node_modules` lacks it —
+   dependency-checker then blocks `ember serve` until `npm install`.
+
+**Still open before claiming fully clear:** ~~Rails-backed authenticated smoke~~ (done);
+enable `no-implicit-route-model` (done Phase 2); ~~reverse store-extends opt-out~~
+(**misframed** — `DEPRECATE_STORE_EXTENDS_EMBER_OBJECT: false` already *is* the RFC 1026
+fix); then `throwOnUnhandled: true` for test (Phase 3; watch `binding-style-attributes`).
+
+## Phase 2 until:6.0 hardening (2026-07-27)
+
+- Enabled `no-implicit-route-model: true` in `app/frontend/config/optional-features.json`
+  after verifying every `:foo_id` route has `model` / `model: function`. Board-filtered
+  `ember test` stayed green (# pass 403 / # fail 0).
+- **`DEPRECATE_STORE_EXTENDS_EMBER_OBJECT: false` is the fix, not a silence.** Per RFC 1026 /
+  deprecations.emberjs.com, setting the flag to `false` opts the Store out of extending
+  EmberObject and clears `ember-data:deprecate-store-extends-ember-object`. Do not "reverse"
+  it. This app already re-exports `ember-data/store` with no `Store.extend`.
+- `binding-style-attributes` (Ember v1.x warning) still fires on some org UI paths; it is
+  **not** until:6.0, but it will trip `throwOnUnhandled: true` unless fixed or logged
+  (never silenced) in the deprecation workflow before Phase 3 CI hardening.
