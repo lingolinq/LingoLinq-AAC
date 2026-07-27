@@ -1825,4 +1825,153 @@ RSpec.describe WordData, :type => :model do
       })
     end
   end
+
+  describe "frequency_rank" do
+    # The list is ordered highest-frequency first; rank is the 0-based index.
+    def frequency_body(words)
+      words.each_with_index.map{|w, i| "#{w}\t#{1000 - i}" }.join("\n")
+    end
+
+    def stub_frequency_list(words, times: 1)
+      response = double(body: frequency_body(words))
+      expect(Typhoeus).to receive(:get).exactly(times).times.and_return(response)
+    end
+
+    def long_list(*leading)
+      leading + (0...WordData::FREQUENCY_RANK_MIN_WORDS).map{|i| "filler#{i}" }
+    end
+
+    before(:each) do
+      RedisInit.default.del(WordData::FREQUENCY_RANK_KEY)
+      RedisInit.default.del(WordData::FREQUENCY_RANK_LOCK_KEY)
+      RedisInit.default.del(WordData::FREQUENCY_RANK_BUILD_KEY)
+    end
+
+    it "should return the rank of a word in the frequency list" do
+      stub_frequency_list(long_list('the', 'and', 'troixlet'))
+      expect(WordData.frequency_rank('the')).to eq(0)
+      expect(WordData.frequency_rank('and')).to eq(1)
+      expect(WordData.frequency_rank('troixlet')).to eq(2)
+    end
+
+    it "should return nil for a word that is not in the list" do
+      stub_frequency_list(long_list('the', 'and'))
+      expect(WordData.frequency_rank('chuckxflem')).to eq(nil)
+    end
+
+    it "should return nil for a blank word without downloading" do
+      expect(Typhoeus).to_not receive(:get)
+      expect(WordData.frequency_rank(nil)).to eq(nil)
+      expect(WordData.frequency_rank('')).to eq(nil)
+    end
+
+    it "should download the list only once across many lookups" do
+      # The regression this guards: the per-record path re-downloaded a ~1.7MB
+      # file for every word, which produced ~160GB/day of S3 egress.
+      stub_frequency_list(long_list('the', 'and', 'troixlet'), times: 1)
+      50.times do
+        expect(WordData.frequency_rank('troixlet')).to eq(2)
+      end
+    end
+
+    it "should use the first occurrence of a duplicated word" do
+      stub_frequency_list(long_list('the', 'troixlet', 'and', 'troixlet'))
+      expect(WordData.frequency_rank('troixlet')).to eq(1)
+    end
+
+    it "should not cache a failed or truncated download" do
+      empty = double(body: '')
+      expect(Typhoeus).to receive(:get).and_return(empty)
+      expect(WordData.frequency_rank('troixlet')).to eq(nil)
+      expect(RedisInit.default.hlen(WordData::FREQUENCY_RANK_KEY)).to eq(0)
+
+      # A later, healthy download is still allowed to populate the cache.
+      stub_frequency_list(long_list('troixlet'))
+      expect(WordData.frequency_rank('troixlet')).to eq(0)
+      expect(RedisInit.default.hlen(WordData::FREQUENCY_RANK_KEY)).to be > 0
+    end
+
+    it "should fall back to an uncached lookup when redis is unavailable" do
+      expect(RedisInit).to receive(:default).and_return(nil).at_least(1).times
+      stub_frequency_list(long_list('the', 'troixlet'))
+      expect(WordData.frequency_rank('troixlet')).to eq(1)
+    end
+
+    it "should fall back to an uncached lookup while another process is building" do
+      RedisInit.default.set(WordData::FREQUENCY_RANK_LOCK_KEY, '1')
+      stub_frequency_list(long_list('the', 'troixlet'))
+      expect(WordData.frequency_rank('troixlet')).to eq(1)
+      # The loser of the lock must not persist a half-built cache.
+      expect(RedisInit.default.hlen(WordData::FREQUENCY_RANK_KEY)).to eq(0)
+    end
+
+    it "should never expose a partially populated cache to a concurrent reader" do
+      # The hash is written in slices. A reader arriving between slices must not
+      # see the live key as ready and get nil for a word that has not been
+      # written yet, because that nil is persisted as the word's score.
+      words = long_list('troixlet') + (0...6000).map{|i| "tail#{i}" }
+      expect(words.length).to be > 5000
+      stub_frequency_list(words)
+
+      seen_mid_build = []
+      allow(RedisInit.default).to receive(:mapped_hmset).and_wrap_original do |orig, *args|
+        seen_mid_build << RedisInit.default.hlen(WordData::FREQUENCY_RANK_KEY)
+        orig.call(*args)
+      end
+
+      expect(WordData.frequency_rank('tail5999')).to eq(words.index('tail5999'))
+      # More than one slice was written, and the live key was empty throughout.
+      expect(seen_mid_build.length).to be > 1
+      expect(seen_mid_build.uniq).to eq([0])
+      # After the swap the live key holds the whole list, not just the last slice.
+      expect(RedisInit.default.hlen(WordData::FREQUENCY_RANK_KEY)).to eq(words.uniq.length)
+    end
+
+    it "should leave no live cache behind if the build fails partway" do
+      words = long_list('troixlet') + (0...6000).map{|i| "tail#{i}" }
+      stub_frequency_list(words)
+      calls = 0
+      allow(RedisInit.default).to receive(:mapped_hmset).and_wrap_original do |orig, *args|
+        calls += 1
+        raise Redis::BaseError, 'boom' if calls > 1
+        orig.call(*args)
+      end
+
+      expect { WordData.frequency_rank('troixlet') }.to raise_error(Redis::BaseError)
+      expect(RedisInit.default.hlen(WordData::FREQUENCY_RANK_KEY)).to eq(0)
+      expect(RedisInit.default.hlen(WordData::FREQUENCY_RANK_BUILD_KEY)).to eq(0)
+      # The lock must not be orphaned, or the cache could never be rebuilt.
+      expect(RedisInit.default.get(WordData::FREQUENCY_RANK_LOCK_KEY)).to eq(nil)
+    end
+  end
+
+  describe "assert_priority" do
+    it "should score a word by frequency, downloading the list only once" do
+      # Deliberately nonsense words: anything in the core/fringe lists scores on
+      # that basis and never reaches the frequency branch.
+      words = ['troixlet'] + (0...WordData::FREQUENCY_RANK_MIN_WORDS).map{|i| "filler#{i}" }
+      body = words.each_with_index.map{|w, i| "#{w}\t#{1000 - i}" }.join("\n")
+      RedisInit.default.del(WordData::FREQUENCY_RANK_KEY)
+      RedisInit.default.del(WordData::FREQUENCY_RANK_LOCK_KEY)
+      expect(Typhoeus).to receive(:get).exactly(1).times.and_return(double(body: body))
+
+      wd = WordData.create(:word => 'troixlet', :locale => 'en')
+      wd.assert_priority
+      # top 5,000 -> 5 points
+      expect(wd.reload.priority).to eq(5)
+
+      # A second record must reuse the cache rather than download again.
+      wd2 = WordData.create(:word => 'chuckxflem', :locale => 'en')
+      wd2.assert_priority
+      # absent from the list entirely -> no score
+      expect(wd2.reload.priority).to eq(0)
+    end
+
+    it "should use the counts passed in by the batch path" do
+      expect(Typhoeus).to_not receive(:get)
+      wd = WordData.create(:word => 'troixlet', :locale => 'en')
+      wd.assert_priority({'counts' => ['troixlet'], 'cores' => [], 'fringes' => []})
+      expect(wd.reload.priority).to eq(5)
+    end
+  end
 end
