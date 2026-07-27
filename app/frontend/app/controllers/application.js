@@ -1426,7 +1426,20 @@ export default Controller.extend({
         if(button.pre == 'home' || button.pre == 'true_home' || button.pre == 'home' || button.pre == 'sidebar') {
           // handle pre-buttons if there are any
           this.set('button_highlights', buttons);
-          var $button = $("#speak > button:first");
+          // On the board-detail page a true_home/home return step can't use the old
+          // "#speak > button:first" home target (it matches nothing there) and Home would
+          // navigate to the session root, not back up the tree the search is walking. Use the
+          // Back button instead (go_back → pops the nav-history pushed on the way in → returns
+          // to the parent board). Falls back to the classic home target off board-detail.
+          // Target ONE visible Back button — the board-detail page renders go_back in more than
+          // one place (speak-bar nav stack + nav-btns cluster); highlighting the whole jQuery set
+          // would size the overlay to the bounding box of all of them and sweep in the Home
+          // button. `.first()` on the visible set keeps the highlight on a single Back button.
+          var $bd_back_btn = $("[data-bd-action='go_back']:visible").first();
+          var bd_back = (button.pre == 'true_home' || button.pre == 'home')
+            && $(".md-board-detail-nav-stack").length > 0
+            && $bd_back_btn.length > 0;
+          var $button = bd_back ? $bd_back_btn : $("#speak > button:first");
           if(button.pre == 'sidebar') {
             $button = $("#sidebar a[data-key='" + button.linked_board_key + "']");
           }
@@ -1440,12 +1453,20 @@ export default Controller.extend({
             defer.not_first_action = true;
 
             if(button.pre == 'true_home' || button.pre == 'home') {
-              var has_temporary_home = !!_this.stashes.get('temporary_root_board_state');
-              var already_on_temporary_home = _this.stashes.get('temporary_root_board_state.id') == _this.appState.get('currentBoardState.id');
-              if(!has_temporary_home || already_on_temporary_home) {
+              if(bd_back) {
+                // board-detail: return via the Back button (go_back) rather than Home, so we
+                // step back up to the parent board the sequence came from instead of jumping
+                // to the (possibly unrelated) session home board.
                 buttons.shift();
+                try { var _bk = $bd_back_btn[0]; if(_bk) { _bk.click(); } } catch(e) {}
+              } else {
+                var has_temporary_home = !!_this.stashes.get('temporary_root_board_state');
+                var already_on_temporary_home = _this.stashes.get('temporary_root_board_state.id') == _this.appState.get('currentBoardState.id');
+                if(!has_temporary_home || already_on_temporary_home) {
+                  buttons.shift();
+                }
+                _this.send('home');
               }
-              _this.send('home');
             } else if(button.pre == 'temp_home') {
               buttons.shift();
               _this.send('home');
@@ -1493,6 +1514,22 @@ export default Controller.extend({
                   buttons.shift();
                   var found_button = editManager.find_button(button.id);
                   var board = _this.get('board.model');
+                  // If this step navigates INTO a sub-board on the board-detail page, mirror the
+                  // manual folder-tap's nav-history push (board-detail#_push_nav_history) so the
+                  // Back button renders — the guided activateButton path otherwise bypasses it,
+                  // leaving no in-session trail and no way to highlight/return via Back.
+                  if(found_button && emberGet(found_button, 'load_board') && board && $(".md-board-detail-nav-stack").length > 0) {
+                    try {
+                      var _hist = (_this.get('appState.board_detail_nav_history') || []).slice();
+                      var _key = board.get('key') || '';
+                      var _parts = _key.split('/');
+                      if(_parts.length >= 2 && !(_hist[_hist.length - 1] && _hist[_hist.length - 1].boardname === _parts.slice(1).join('/'))) {
+                        _hist.push({ user_name: _parts[0], boardname: _parts.slice(1).join('/'), title: board.get('name') || _key });
+                        if(_hist.length > 20) { _hist = _hist.slice(_hist.length - 20); }
+                        _this.set('appState.board_detail_nav_history', _hist);
+                      }
+                    } catch(e) {}
+                  }
                   _this.activateButton(found_button, {board: board, skip_highlight_check: true});
                   var next_button = buttons[0];
                   if(next_button && board && (next_button.board_id == board.id || next_button.pre)) {
@@ -1532,7 +1569,7 @@ export default Controller.extend({
         } else {
           // looks like we're on the wrong board...
           // pull hint buttons from the list until we find the next
-          // actual_button, 
+          // actual_button,
           button = buttons.shift();
           while(button && !button.actual_button) {
             button = buttons.shift();

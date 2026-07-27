@@ -515,7 +515,16 @@ LingoLinq.Buttonset = BaseModel.extend({
     from_board_id = from_board_id || _this.appState.get('currentBoardState.id');
     var button_sets = [_this];
     var lookups = [RSVP.resolve()];
-    var home_board_id = (_this.appState.get('speak_mode') && _this.stashes.get('root_board_state.id')) || (user && user.get('preferences.home_board.id'));
+    var home_board_id = (_this.appState.get('speak_mode') && (_this.stashes.get('temporary_root_board_state.id') || _this.stashes.get('root_board_state.id'))) || (user && user.get('preferences.home_board.id'));
+    // find_sequence searches THIS button set, whose tree root is `this.global_id`. When the
+    // board being searched is viewed outside the active speak-mode home tree (root_board_state
+    // points at a different board set — e.g. browsing another board, or no home board set), the
+    // session "home" is unreachable from here, so button_steps can never return to the root and
+    // every cross-board sentence gets dropped. Anchor navigation to the searched tree's own root
+    // when we're on it, so multi-word sentences that dip into sub-boards can step back up.
+    if(from_board_id && _this.get('global_id') && from_board_id == _this.get('global_id') && home_board_id != from_board_id) {
+      home_board_id = from_board_id;
+    }
     //    var buttons = this.get('buttons') || [];
 
     if(include_home_and_sidebar) {
