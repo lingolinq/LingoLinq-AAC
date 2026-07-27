@@ -3148,6 +3148,10 @@ export default Service.extend({
   // Shorter minimum when navigation is a known cache hit (raw JSON + Ember
   // record already in memory). Still long enough for click feedback.
   LOADING_OVERLAY_CACHE_HIT_MIN_MS: 150,
+  // Declared so the AppLoadingOverlay template's reactive binding tracks it
+  // reliably under Ember 5.x — an undeclared property that is only .set() later
+  // can fail to notify template consumers. null = overlay hidden; a message = shown.
+  loading_overlay_message: null,
 
   show_loading_overlay: function(message, opts) {
     opts = opts || {};
@@ -3215,6 +3219,10 @@ export default Service.extend({
         if(!_this.isDestroyed) { _this.set('loading_overlay_message', null); }
       }, 15000);
     } else if(this._loading_overlay_guard_timer) {
+      // Cancel the pending 15s guard when the overlay is hidden — nulling the handle
+      // alone orphaned a live run-loop timer (kept the loop alive up to 15s and trips
+      // Ember's pending-timers assertion in tests).
+      runCancel(this._loading_overlay_guard_timer);
       this._loading_overlay_guard_timer = null;
     }
   }),

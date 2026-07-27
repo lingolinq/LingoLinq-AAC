@@ -30317,12 +30317,6 @@ header #identity #identity_button.btn::after {
   opacity: 0.55;
   box-shadow: none;
 
-  &.la-badge--wcag {
-    background: rgba($cat-actions-text, 0.06);
-    color: $cat-actions-text;
-    border: 1px solid rgba($cat-actions-text, 0.08);
-  }
-
   &.la-badge--oss {
     background: rgba($cat-people-text, 0.06);
     color: $cat-people-text;
@@ -33062,6 +33056,7 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   color: $brand-smart-blue;
 }
 #la-features .la-section-header .la-section-title,
+#la-mission .la-section-header .la-section-title,
 #about-hero .la-section-header .la-section-title,
 .la-features-modal-body .la-section-header .la-section-title {
   font-weight: normal;
@@ -35300,7 +35295,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 }
 
 /* Landing-alt: "Built for how schools..." same size as "Everything you need..." */
-#la-features .la-section-header .la-section-title {
+#la-features .la-section-header .la-section-title,
+#la-mission .la-section-header .la-section-title {
   font-size: 32px;
 }
 
@@ -35444,6 +35440,21 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   text-align: center;
   padding: $aac-spacing-40 $aac-spacing-40 $aac-spacing-48;
   position: relative;
+}
+
+/* Privacy card content matches the Accessibility card's content width
+   (.la-a11y-display = 1008px) so the two sibling parallax cards read at the same
+   width. The .la-plan-text cluster otherwise caps its title/subtitle at 90%, which
+   is narrower than the a11y block. */
+.la-testimonial-section .la-plan-text {
+  max-width: 1008px;
+  margin-left: auto;
+  margin-right: auto;
+
+  .la-plan-title,
+  .la-a11y-display-text {
+    max-width: 100%;
+  }
 }
 
 .la-testimonial-display {
@@ -35991,82 +36002,6 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   white-space: nowrap;
 }
 
-.la-footer-bottom-trailing {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: $aac-spacing-10;
-  flex: 0 0 auto;
-}
-
-/* Hero-aligned pill: same radius, surface, and shadow as .la-hero-badge (Cloud-based, etc.) */
-a.la-footer-bottom-a11y-wcag {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 10px 3px 12px;
-  flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.98);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 12px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.95);
-  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-  text-decoration: none;
-  color: inherit;
-  cursor: pointer;
-
-  &:hover {
-    background: #ffffff;
-    border-color: rgba(0, 0, 0, 0.12);
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 1);
-
-    .la-footer-bottom-a11y-wcag__label {
-      color: $brand-teal;
-    }
-  }
-
-  &:focus-visible {
-    @include focus-ring($color: $brand-verdigris);
-    border-radius: 12px;
-  }
-
-  .la-badge--in-a11y-wcag-pill {
-    opacity: 1;
-    text-transform: none;
-    letter-spacing: 0.04em;
-    font-size: 14px;
-    font-weight: $aac-font-weight-semi;
-    padding: 4px 8px;
-    margin: 0;
-    border-radius: 8px;
-    background: rgba($brand-teal, 0.12);
-    color: #0d5c5f;
-    border: 1px solid rgba($brand-teal, 0.2);
-    box-shadow: none;
-  }
-
-  .la-footer-bottom-a11y-wcag__label {
-    font-size: $aac-font-size-sm;
-    font-weight: $aac-font-weight-semi;
-    color: rgba($la-navy, 0.88);
-    padding: 0;
-    margin: 0;
-    font-family: inherit;
-    text-align: left;
-    white-space: nowrap;
-    transition: color 0.2s ease;
-  }
-}
-
-.la-mobile-drawer-a11y-wcag {
-  margin: 6px 16px 10px;
-  align-self: flex-start;
-
-  .la-footer-bottom-a11y-wcag__label {
-    text-align: left;
-  }
-}
-
 /* la-footer responsive: industry collapsing (multi-col → 2-col → single-col) */
 @media (max-width: $aac-breakpoint-lg) {
   .la-footer {
@@ -36251,12 +36186,6 @@ a.la-footer-bottom-a11y-wcag {
     &:hover {
       opacity: 0.9;
     }
-  }
-
-  .la-badge--wcag {
-    background: rgba($brand-teal, 0.1);
-    color: #0d5c5f;
-    border: 1px solid rgba($brand-teal, 0.2);
   }
 
   .la-badge--oss {
@@ -40659,7 +40588,8 @@ a.la-footer-bottom-a11y-wcag {
     font-size: 24px;
   }
 
-  #la-features .la-section-header .la-section-title {
+  #la-features .la-section-header .la-section-title,
+  #la-mission .la-section-header .la-section-title {
     font-size: 24px;
   }
 }

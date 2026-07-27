@@ -8667,5 +8667,14 @@
   "select_image_for_button": "*** Select an image to use for this button.",
   "choose_this_picture": "*** Choose this picture",
   "also_speak_and_add": "*** Also speak & add to the vocalization box",
-  "ending": "*** ending"
+  "ending": "*** ending",
+  "landing_hero_mockup_alt": "*** An illustrative LingoLinq communication board with symbol buttons — feel, eat, go, hi, want, play, read, more — and a sentence bar reading 'I want to play'.",
+  "landing_mission_eyebrow": "*** Our Mission",
+  "landing_mission_title_1": "*** Your Voice, Safe and",
+  "landing_mission_title_2": "*** Supported",
+  "landing_mission_statement": "*** Removing barriers to communication means more than making AAC accessible. It means making communication easier and faster, while preserving each person's voice, personality, and intent. We build for safety, trust, and privacy, so communicators and the people who support them can focus on what matters most: connecting with each other.",
+  "landing_privacy_eyebrow": "*** Your privacy",
+  "landing_privacy_title_1": "*** Your data stays",
+  "landing_privacy_title_2": "*** yours",
+  "landing_privacy_statement": "*** We never sell or share your information, and we never use it to train AI models. Our AI tools and analytics — including Real Analytics for IEPs — are strictly opt-in, and you can turn any of them off at any time."
 }
