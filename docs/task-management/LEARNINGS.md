@@ -20,6 +20,9 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Pattern: before adding a guard, grep the canonical path for one that already exists — with the exact flag name, in that file alone](#pattern-before-adding-a-guard-grep-the-canonical-path-for-one-that-already-exists--with-the-exact-flag-name-in-that-file-alone)
+- [Pattern: deleting dead CSS is a text-surgery problem — `:not()` and multi-line selector lists are the two ways to silently break live styling](#pattern-deleting-dead-css-is-a-text-surgery-problem---not-and-multi-line-selector-lists-are-the-two-ways-to-silently-break-live-styling)
+- [Pattern: a "protected" flag on a media record is an ENTITLEMENT boundary — never relax its predicate to fix a rendering bug](#pattern-a-protected-flag-on-a-media-record-is-an-entitlement-boundary--never-relax-its-predicate-to-fix-a-rendering-bug)
 - [Gotcha: Textarea `@value` on a get-only computed crashes on keystroke — needs a setter/cache](#gotcha-textarea-value-on-a-get-only-computed-crashes-on-keystroke--needs-a-settercache)
 - [Gotcha: Ember `<Input>` checkboxes need `@type`, and bound-select must stopPropagation](#gotcha-ember-input-checkboxes-need-type-and-bound-select-must-stoppropagation)
 - [Gotcha: Ember strict-mode templates treat bare names as helpers — use `this.` for controller props](#gotcha-ember-strict-mode-templates-treat-bare-names-as-helpers--use-this-for-controller-props)
@@ -7453,3 +7456,165 @@ button field must survive a speak-mode re-render or be editable in the modal, it
 output — grep that return object before assuming board.buttons is enough. (`select_button` reading the
 authoritative board.buttons entry is a belt-and-suspenders complement, but the modal/find_button path
 still needs the display copy to be complete.)
+
+---
+
+## Pattern: before adding a guard, grep the canonical path for one that already exists — with the exact flag name, in that file alone
+
+**Surface:** any "feature flag X isn't being honored" fix, especially when the
+symptom is on one renderer (board-detail) but the flag is a Button attribute
+shared by all of them.
+
+`link_disabled` ("Disable this link action for now") looked unenforced on
+board-detail, so a guard went into `select_button`. It was redundant: the
+enforcement has always lived at
+[app-state.js `activate_button`](../../app/frontend/app/services/app-state.js), which
+strips the link action off a COPY of the button:
+
+```js
+if(button.link_disabled) {
+  button = $.extend({}, button);
+  setProperties(button, { apps: null, url: null, video: null,
+                          add_vocalization: true, load_board: null, user_integration: null })
+}
+```
+
+That is stronger than a branch guard — it neutralizes folder, url, app AND
+integration in one place, and forces `add_vocalization` so the button degrades to a
+plain talk button. Every renderer funnels through `activate_button`, so this is the
+only correct home for the flag.
+
+**Two traps this exposed:**
+
+1. **A guard at the call site is escapable and creates a false sense of coverage.**
+   board-detail's own guard was inert — its fall-through re-entered
+   `activate_button`, which was already handling the flag. Worse, a test asserting
+   "select_button falls through to activation" against a STUBBED `activateButton`
+   proves nothing about whether the link opens: the real function is where the
+   behavior lives. When testing a flag with one canonical enforcement point, the
+   test belongs at that point; call-site tests should only assert the flag is
+   passed DOWN intact.
+
+2. **Verify the "no enforcement exists" claim with a single-file grep.** The
+   original conclusion ("`app-state.js` has zero `link_disabled` references") came
+   from a multi-file grep whose output was misread. `grep -n "link_disabled"
+   app/services/app-state.js` — one file, one term, no other args — would have
+   shown line 3764 immediately. Never conclude "this is unhandled" from a grep with
+   several path arguments; re-run it against the single file you're about to edit.
+
+**The real bug in that block was narrower than "missing":** it used a raw truthy
+test on a flag the codebase documents as string-persisted. `Button.LEVEL_BOOL_ATTRS`
+(utils/button.js) is the canonical list of boolean-ish button attributes — `hidden`,
+`link_disabled`, `add_to_vocalization`, `add_vocalization`, `home_lock`,
+`hide_label`, `text_only`, `no_skin` — and legacy/copied boards persist them as the
+STRINGS `"true"`/`"false"`. `!!"false"` is `true`, so a board that left the link
+ENABLED had it silently stripped. Fix: `Button.coerce_level_value(attr, val)`, which
+is the single source of truth for that coercion. **Rule: any read of a
+LEVEL_BOOL_ATTRS attribute outside `_make_btn` must go through
+`coerce_level_value`.**
+
+**Related:** level rules can SET these attributes (paint mode writes
+`mods.pre.link_disabled`), so reading a raw `board.buttons` entry also skips the
+level resolution. board-detail now shares one `_resolve_level_attrs` helper between
+the render path (`_make_btn`) and the activation path (`_resolve_action_src`) so a
+tapped button's link options resolve at the same level the rendered button was
+filtered by.
+
+**First seen in:** [2026-07-26-adversarial-review-remediation.md](./2026-07-26-adversarial-review-remediation.md)
+
+---
+
+## Pattern: deleting dead CSS is a text-surgery problem — `:not()` and multi-line selector lists are the two ways to silently break live styling
+
+**Surface:** removing the SCSS left behind when a template stops rendering an
+element. app.scss is ~94k lines, so this is always scripted, never hand-edited.
+
+Two failure modes, both of which produce a file that still compiles and still has
+balanced braces — so neither is caught by a syntax check:
+
+1. **`:not(.dead-class)` is a LIVE selector.** A rule like
+   `.row:not(.row--preview) .text { cursor: pointer }` targets everything that
+   ISN'T the dead thing. Deleting it because it mentions the dead class removes
+   styling from the surviving elements. Strip `:not(...)` before testing a
+   selector for deadness; then simplify the survivor in place (drop the now-vacuous
+   negation) rather than leaving a reference to a class that no longer exists.
+
+2. **A multi-line comma-separated selector list must be removed WHOLE.** When
+   scanning line-by-line, the continuation lines are already consumed before the
+   `{` is reached. Removing only the `{` line and its body leaves the leading
+   selectors dangling, where they silently weld onto the NEXT rule in the file —
+   applying dead-element styling to a live one. Drop every line from the start of
+   the selector list (and its leading comment) through the closing brace.
+
+Also: only delete a rule when EVERY selector in its comma list is dead. If a rule is
+shared between a dead and a live selector, leave it and report it — a script that
+"helpfully" edits shared rules is unreviewable.
+
+**The verification that actually proves the deletion was surgical** (do this, not a
+visual diff of a 500-line removal): compile both revisions with `sass` and diff the
+resulting SELECTOR SETS.
+
+```
+git show <base>:app/frontend/app/styles/app.scss > /tmp/base.scss
+npx sass --no-source-map --load-path=app/styles /tmp/base.scss /tmp/base.css
+npx sass --no-source-map --load-path=app/styles app/styles/app.scss /tmp/new.css
+# then: removed = selectors(base) - selectors(new); assert every one matches a dead class
+# and assert added == 0
+```
+
+This caught the `:not()` mistake immediately (it showed a live selector in the
+removed set) and gave a reviewable one-line result: *52 selectors removed, all
+matching a dead class, 0 unexpected, 0 added*.
+
+**Companion to** [Removing a UI feature is incomplete until every coupled site is
+removed](#pattern-removing-a-ui-feature-is-incomplete-until-every-coupled-site-is-removed)
+— run that 7-site checklist FIRST. On this pass it turned up two live bugs that were
+not dead code at all: a guided-tour step whose `sel:` targeted a deleted element, and
+six tour strings still naming buttons that had been renamed. A "dead CSS cleanup"
+that skips the checklist ships those.
+
+**First seen in:** [2026-07-26-adversarial-review-remediation.md](./2026-07-26-adversarial-review-remediation.md)
+
+---
+
+## Pattern: a "protected" flag on a media record is an ENTITLEMENT boundary — never relax its predicate to fix a rendering bug
+
+**Surface:** `lib/json_api/image.rb` — deciding whether a viewer gets the real
+image or the unlicensed fallback.
+
+A user-uploaded image was rendering as the wrong symbol, and the fix relaxed the
+gate from `!allowed_sources.include?(settings['protected_source'])` to additionally
+require `settings['protected_source'].present?` — on the stated theory that a user's
+own upload is "protected with a blank source". **That theory is false**, and one
+console call disproves it:
+
+```ruby
+bi = ButtonImage.process_new({'url' => 'data:image/png;base64,AAA'}, {:user => u})
+bi.protected?                      # => false
+bi.settings['protected_source']    # => nil
+bi.settings['license']             # => {"type" => "private"}
+```
+
+`generate_defaults` gives an upload a *private LICENSE*; it never sets
+`settings['protected']`. `protected?` reads only `settings['protected']`, which is
+set exclusively from library-search params. So uploads never reach that branch at
+all — the change could not have been fixing the reported symptom, and what it DID do
+was serve gated library symbols (records with `protected => true` and no recorded
+source) to viewers with no subscription. `Board#track_protected_sources` treating a
+blank source as `'lessonpix'` is the codebase's own evidence that such records exist.
+
+**Rules:**
+- A predicate that decides "may this viewer see this asset" is a security boundary.
+  Widening it to fix a rendering bug is never in scope — diagnose the rendering bug
+  instead, and say plainly when it remains undiagnosed (CLAUDE.md rule 0.4).
+- **Prove the record shape before writing the fix.** One `process_new` call in a spec
+  settles what `protected?` / `protected_source` / `license` actually are. A comment
+  asserting a shape is a hypothesis until executed.
+- **A boundary spec suite that only tests non-blank values will stay green through a
+  blank-value regression.** All 13 pre-existing examples used
+  `protected_source => 'asdf'` / `'pcs'`, which is precisely why this landed. Add the
+  empty/nil case for any predicate keyed on a field that can be absent, and verify
+  the new spec FAILS against the broken version before trusting it
+  (see [Query-count specs must be verified to FAIL against the broken state](#pattern-query-count-specs-must-be-verified-to-fail-against-the-broken-state--otherwise-theyre-no-ops)).
+
+**First seen in:** [2026-07-26-adversarial-review-remediation.md](./2026-07-26-adversarial-review-remediation.md)

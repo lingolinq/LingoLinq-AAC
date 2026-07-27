@@ -51664,9 +51664,8 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 }
 
 /* ── AI mode header: status pill + "other methods" pill ────────────
-   The pill mirrors the board-detail edit "Editing…" badge
-   (.md-board-detail-header__editing-badge): verdigris rounded pill,
-   two-row column (icon+title row, caption row). The other-methods
+   The pill uses the same shape as the board-detail editing badge: verdigris
+   rounded pill, two-row column (icon+title row, caption row). The other-methods
    control sits below it and returns to the regular options. */
 .nb-ai-mode-wrap {
   display: inline-flex;
@@ -68191,28 +68190,6 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    borders only) → grid wrap (bottom of the sunken section, bottom
    corners rounded). Edit-mode-scoped under .md-shell--board-detail-
    edit so the speak-mode view is untouched. */
-/* (The `.md-board-detail-edit-mode-badge-wrap` rules that used to live
-   here were removed when the Editing pill moved into the title row.
-   The preview sentence row below now owns the well's top piece —
-   border-top + rounded top corners + the inset top-shadow that used
-   to live on the wrap. */
-.md-shell--board-detail-edit .md-board-detail-sentence-row--preview {
-  /* Background matched to the outer button div (the grid-sidebar
-     wrap) per request: same `rgba($la-navy, 0.03)` light tint so
-     the sentence bar reads as continuous with the button surface
-     below it instead of as a raised strip. The depth-cue shadows
-     below are kept so the strip still casts onto the wrap; only
-     the bg fill changed. */
-  padding: 8px 12px 8px;
-  margin: 0 4px 0 4px;
-  background: rgba($la-navy, 0.03);
-  border: 1px solid rgba($la-navy, 0.04);
-  border-bottom: none;
-  border-radius: 14px 14px 0 0;
-  box-shadow:
-    inset 0 2px 6px rgba($la-navy, 0.08),
-    0 4px 10px rgba($la-navy, 0.08);
-}
 .md-shell--board-detail-edit .md-board-detail-grid-sidebar-wrap {
   /* Match speak mode: NO recessed "well" — transparent so the dark board surface
      on .md-board-detail-main shows through exactly like speak+light. Keeps only the
@@ -68253,30 +68230,6 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    Editing pill moved into the header; the preview row picked up
    the wrap's dark inset-shadow treatment via the dedicated rule
    below. */
-/* Depth hierarchy (per design pass): the grid background (wrap) sits
-   one step DEEPER than the category strip above. The strip reads as
-   "slightly raised" via brighter bg + a soft outer drop shadow on
-   its BOTTOM edge that casts onto the wrap below. The wrap stays
-   visible (still envelops the buttons) but at a lower alpha — it
-   reads as the grid's "background canvas" tier. Tiles (already
-   carrying their own atmospheric chrome from a prior pass) remain
-   the primary interactive elevation. */
-.md-shell--board-detail-edit.md-board-detail--dark .md-board-detail-sentence-row--preview {
-  /* Dark-mode bg matched to the outer button div (grid-sidebar
-     wrap) per request: same `rgba(255, 255, 255, 0.08)` so the
-     sentence bar shares the wrap's surface tone instead of
-     reading as a lifted strip above it. */
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow:
-    /* Lit top edge — the strip catches light from above. */
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    inset 0 2px 8px rgba(0, 0, 0, 0.12),
-    /* NEW: outer drop on the bottom edge that visually CASTS onto
-       the grid wrap below, creating the "strip raised above grid
-       background" depth cue. */
-    0 4px 12px rgba(0, 0, 0, 0.20);
-}
 .md-shell--board-detail-edit.md-board-detail--dark .md-board-detail-grid-sidebar-wrap {
   /* Match speak mode in dark too: no recessed "well" — transparent so the dark
      board surface shows through (per request, edit always matches speak). */
@@ -68852,13 +68805,11 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 /* "Hide speak bar" preference — toggle in the right panel's Speak
    Bar section.
 
-   The two surfaces behave differently when the toggle is ON:
+   Only speak mode is affected: the edit page no longer renders a speak bar at
+   all (the whole row is display:none-d while editing), so there is nothing for
+   the toggle to hide there.
 
-   1. EDIT MODE preview row (`.md-board-detail-sentence-row--preview`):
-      removed entirely (display:none). It's a non-interactive mock of
-      the speak bar — nothing useful to keep visible.
-
-   2. SPEAK MODE live row (`#speak`): the bulky middle sentence-bar
+   SPEAK MODE live row (`#speak`): the bulky middle sentence-bar
       (chips / text / back / modeling badge / sentence-bar tools) is
       hidden, the row's full-width chrome strip is stripped, and the
       row is repositioned as a compact floating cluster anchored to
@@ -68868,12 +68819,6 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
       sidebar access without the vertical space cost of a full bar.
       The wrap below picks up rounded top corners + restored top
       border via the rule near app.scss:58541. */
-
-/* Edit-mode preview row: hidden entirely (chained class selector
-   beats single-class --hide-bar by specificity). */
-.md-board-detail-sentence-row--preview.md-board-detail-sentence-row--hide-bar {
-  display: none !important;
-}
 
 /* Speak-mode live row: floating top-right cluster. Scoped to non-edit
    shell so the edit-mode hide above isn't accidentally re-shown by
@@ -69132,11 +69077,11 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   align-items: center;
   color: $indigo;
 }
-/* The live sentence bar also carries the speak action — tapping the composed
-   message speaks it (a pointer bonus alongside the inline mic button). Scoped
-   to the live row only; the read-only edit-mode `--preview` mirror has no
-   action and keeps the default cursor. */
-.md-board-detail-sentence-row:not(.md-board-detail-sentence-row--preview) .md-board-detail-sentence-bar__text {
+/* The sentence bar also carries the speak action — tapping the composed message
+   speaks it (a pointer bonus alongside the inline mic button). This used to be
+   scoped away from a read-only edit-mode mirror of the row; that mirror is gone,
+   so the row is only ever rendered live. */
+.md-board-detail-sentence-row .md-board-detail-sentence-bar__text {
   cursor: pointer;
 }
 .md-board-detail-sentence-bar__text--with-symbols {
@@ -70376,83 +70321,10 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   gap: 12px;
 }
 
-/* Edit-mode unified header card — same glass/tint chrome as the
-   info-panel above so the title, Editing badge, action checklist,
-   and description editor all read as one container. The info-panel
-   toggle is gone in edit mode (the card is always shown). Stretches
-   to the full width of the title-group so the card spans the
-   header row instead of sizing to its content. */
-.md-board-detail-header__edit-card {
-  width: 100%;
-  box-sizing: border-box;
-  /* Top margin removed per request — the card now sits flush
-     against the element above it (was 10px). Roomier padding (14/16 →
-     16/20), larger radius (10 → 14) to match the info-panel and the
-     shared boards-page card vocabulary. */
-  margin: 0;
-  padding: 16px 20px;
-  background: rgba($la-navy, 0.04);
-  border: 1px solid rgba($la-navy, 0.08);
-  border-radius: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-/* The unclassed wrapper <div> between .md-board-detail-header__title-group
-   and the edit card is a flex item of the title-group; without an
-   explicit flex sizing it shrinks to its content, capping the card's
-   width. Force it to grow to fill the row when it contains the edit
-   card. min-width: 0 lets long titles wrap instead of forcing the
-   parent wider. */
-.md-board-detail-header__title-group > div:has(> .md-board-detail-header__edit-card) {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-.md-board-detail--dark .md-board-detail-header__edit-card {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.10);
-}
-
-/* Edit-mode title row uses a 3-column grid so the Editing pill +
-   Discard/Save cluster anchors to the page midline regardless of
-   left content width. Restored 1fr | auto | 1fr — left and right
-   slacks are equal, so the center column sits centered on the page.
-   (Was `1fr auto auto` + `justify-self: end` from an earlier design
-   where the centre slot held only the badge and we wanted it pushed
-   right; now the centre holds the pill + Discard/Save cluster and
-   the user wants it page-centered.) */
-.md-board-detail-header__title-row--edit {
-  display: grid;
-  /* Left column uses `fit-content(560px)` so it sizes to the
-     intrinsic max-content of its contents (board icon + title
-     identity) up to a 560px ceiling — the title's own
-     `max-width: 500px` plus ~60px for the icon + gap. The 1fr
-     left column previously capped the title at its 1fr fraction
-     of the row, which truncated long titles to "Vocal…" because
-     the column couldn't grow past its allotted share AND the
-     title's `overflow: hidden` zeros out the column's intrinsic
-     min-width (CSS Grid spec: `overflow: hidden|auto|scroll` sets
-     min-width: auto → 0 instead of min-content). Center column
-     stays `auto` for the Editing pill; right column takes
-     remaining 1fr space.
-     `position: relative` anchors the absolutely-positioned
-     Editing-pill column (rule below) so it centers within this
-     row (= within the page's content area between the side
-     rails), independently of the asymmetric grid track widths. */
-  grid-template-columns: fit-content(560px) auto 1fr;
-  /* Align grid items to the BOTTOM (was `center`) so when the
-     identity column grows tall, the Editing pill in the center
-     column sits at the bottom of the row alongside the bottom
-     edge of the title block, instead of floating in the middle
-     of a stretched row. */
-  align-items: end;
-  gap: 12px;
-  position: relative;
-}
-/* Editing pill floats centered in its own row ABOVE the edit card — the
-   markup is a sibling rendered before .md-board-detail-header__edit-card
-   (not inside the title row), so it reads as a top-center page badge on
-   EVERY screen size and never overlaps the title. */
+/* Editing pill floats centered in its own row at the top of the edit header —
+   the markup is a sibling of the title row rather than a child of it, so it
+   reads as a top-center page badge on EVERY screen size and never overlaps the
+   title. */
 .md-board-detail-header__editing-float {
   display: flex;
   justify-content: center;
@@ -70540,23 +70412,6 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   align-items: center;
   gap: 11px;
   min-width: 0;
-}
-.md-board-edit-session__state-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  /* Teal accent matching the Action/Settings panel headers — ties the session bar
-     into the editing-chrome colour language. */
-  color: $brand-verdigris-aa;
-  background: rgba($brand-verdigris, 0.14);
-}
-.md-board-detail--dark .md-board-edit-session__state-icon {
-  color: #8fe4df;
-  background: rgba(143, 228, 223, 0.16);
 }
 .md-board-edit-session__state-label {
   font-size: 16px;
@@ -70812,196 +70667,11 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   width: 15px;
   height: 15px;
 }
-/* Edit-mode title: allow extension up to 500px before wrapping.
-   The grid's 1fr left column otherwise capped the title to its
-   share of available width, so the natural-language title
-   wrapped onto a second line as soon as it exceeded the 1fr
-   allotment. Setting an explicit `max-width: 500px` on the title
-   span (combined with `white-space: nowrap; overflow: hidden;
-   text-overflow: ellipsis`) lets the identity column expand up
-   to 500px to keep the title on one line, then ellipsis-truncates
-   anything longer than 500px so the row never grows unboundedly
-   tall. Paired with the `align-items: end` rule above so the
-   Editing pill bottom-aligns alongside the taller title block. */
-.md-board-detail-header__title-row--edit .md-board-detail-header__title {
-  max-width: 500px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.md-board-detail-header__title-row-left {
-  /* Identity Block: 2-column layout — board icon + a vertical
-     identity stack (title row + metadata row). The single grid was
-     replaced because the old 3-column "title | license-in-row-1 |
-     pill-in-row-2" layout orphaned the license icon next to the
-     title and made the layout collapse unevenly on long titles,
-     localized text, or additional badges. The new structure groups
-     all metadata in a dedicated row and lets the title own its
-     row entirely. */
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  min-width: 0;
-  justify-self: start;
-  width: 100%;
-}
-.md-board-detail-header__identity {
-  display: flex;
-  flex-direction: column;
-  /* Vertical rhythm between title row and metadata row, per the
-     design pass. */
-  gap: 10px;
-  min-width: 0;
-  flex: 1 1 auto;
-}
-.md-board-detail-header__meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  min-width: 0;
-}
-/* Hide the meta row when its Ember-conditional contents render to
-   nothing (e.g. a public board with no license). Using :has(*) so
-   handlebars whitespace inside the wrapper doesn't keep the row
-   alive when it has no element children. */
-.md-board-detail-header__meta:not(:has(*)) {
-  display: none;
-}
-/* Compact metadata pill — smaller than the default 28px / 0 10px so
-   it reads as a sub-attribute of the title rather than a primary
-   control. Scoped to the metadata row so the pill style elsewhere
-   on the page is unaffected. */
-.md-board-detail-header__meta .md-board-detail-header__info-icon--private,
-.md-board-detail-header__meta .md-board-detail-header__info-icon--public,
-.md-board-detail-header__meta .md-board-detail-header__info-icon--lock {
-  height: 22px;
-  padding: 0 8px;
-  font-size: 14px;
-}
-.md-board-detail-header__meta .md-board-detail-header__info-icon--private svg,
-.md-board-detail-header__meta .md-board-detail-header__info-icon--public svg,
-.md-board-detail-header__meta .md-board-detail-header__info-icon--lock svg {
-  width: 13px;
-  height: 13px;
-}
-.md-board-detail-header__title-row-center {
-  justify-self: center;
-}
-.md-board-detail-header__title-row-right {
-  /* Explicit grid placement in column 3. Without this the row was
-     placing `__title-row-right` in column 2 (the auto Editing-pill
-     column) — because the absolutely-positioned `__title-row-center`
-     above doesn't consume a grid cell, CSS Grid auto-placement
-     falls THIS sibling into col 2 instead of col 3. The result was
-     the Discard/Save tiles rendering squished next to the title
-     block (visually to the LEFT of the centered Editing pill)
-     instead of at the row's far-right edge. Pinning to col 3
-     restores the intended layout.
-     `justify-self: end` then pins the container to the right edge
-     of col 3 (= the trailing edge of the title row, to the right
-     of the absolutely-centered Editing pill); `justify-content:
-     flex-end` right-aligns the children inside the container so
-     the Discard/Save tile pair hugs the right edge of the div
-     itself (matters when the optional `__editing-badge` is also
-     present — without flex-end the badge would push the tiles
-     leftward inside the container). */
-  grid-column: 3;
-  grid-row: 1;
-  justify-self: end;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-/* The edit-page Speak Bar PREVIEW is a static, non-interactive mockup
-   (not the live bar). The mic + tool cluster (backspace, clear,
-   speak-options chevron) is meaningless on a mockup, so hide that whole
-   actions group at ALL screen sizes. Scoped to --preview so the real
-   speak bar (and every other context) is untouched. */
-.md-board-detail-sentence-row--preview .md-board-detail-sentence-bar__actions {
-  display: none;
-}
-/* Editing-as-supervisee badge — top-right of the edit-mode header.
-   Visual style mirrors `.md-board-detail-sentence-bar__modeling-badge--paused`
-   (verdigris pill, two-row column layout) so the two informational chips
-   read as a coordinated set when both are present. */
-.md-board-detail-header__editing-badge {
-  /* Centered on the page: absolutely centered within the position:relative
-     edit title-row (.md-board-detail-header__title-row--edit) so it sits in
-     the middle of the content area instead of hugging the right edge of its
-     __title-row-right container. */
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 0;
-  flex-shrink: 0;
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 4px 14px 6px;
-  border-radius: 999px;
-  background: rgba($brand-verdigris, 0.10);
-  color: $brand-verdigris-aa;
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-}
-.md-board-detail-header__editing-badge__row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-  margin-left: -8px;
-}
-.md-board-detail-header__editing-badge__caption {
-  font-size: 15px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  line-height: 1.1;
-  width: 100%;
-  text-align: center;
-  /* Inherit the badge's own color (dark verdigris in light mode, lightened
-     verdigris in dark mode) instead of a hardcoded #fff — white was invisible
-     on the light (0.10-alpha) pill background in light mode. */
-  color: inherit;
-  opacity: 1;
-}
-.md-board-detail--dark .md-board-detail-header__editing-badge {
-  background: rgba($brand-verdigris, 0.22);
-  color: color.adjust($brand-verdigris, $lightness: 22%);
-}
-.md-board-detail--dark .md-board-detail-header__editing-badge__caption {
-  opacity: 1;
-}
 /* Privacy/protected indicator row — sits directly beneath the title
    row, flush left with no top spacing. */
 .md-board-detail-header__privacy-row {
   display: flex;
   align-items: center;
-}
-/* Save button when placed in the title-row-right cluster — sits
-   alongside the privacy pill. Inherits the toolbar btn--save
-   gradient/border via the shared classes; this rule just tunes the
-   inline spacing/height so it harmonizes with the pill next to it
-   instead of inheriting the toolbar's full-row min-height. */
-.md-board-detail-header__save-btn {
-  height: 36px;
-  padding: 0 14px;
-}
-
-/* Board icon when rendered inside the edit-card title row — smaller
-   than the standalone 81px tile so it sits inline with the title
-   without dominating the row. Sized ~30% larger than the previous
-   inline 44px tile per Traci's spec. */
-.md-board-detail-header__board-icon--in-card {
-  width: 66px;
-  height: 66px;
-  border-radius: 14px;
-  padding: 5px;
 }
 
 /* License icon sits directly inline to the right of the title (no
@@ -71199,107 +70869,6 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail-header__info-description--empty {
   font-style: italic;
   color: rgba($la-navy, 0.55);
-}
-/* Editable variant — shown in edit_mode. Inherits the typography of
-   the read-only paragraph but reads as a real input: 1px ring,
-   padding, focus highlight. Auto-sizes to content (field-sizing) so
-   short descriptions render as a compact single line and longer ones
-   grow up to 60px before scrolling. Width: 100% with max-width:
-   100% so the textarea always fits inside the card — without the
-   explicit max-width, field-sizing: content can grow the textarea
-   wider than its container when a long single-line word is typed,
-   spilling past the card's right edge on narrow viewports. Top
-   margin separates it from the action checklist above. Horizontal
-   padding bumped 10→14 per spec. */
-.md-board-detail-header__info-description--editable {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  /* Atmospheric inset description (was utility-textarea-feeling).
-     Border softened .08 → .04 hairline; radius 12 → 14 to match the
-     boards-page card vocabulary; layered shadow gives an embedded
-     glass feel — inset top-edge highlight + outer ambient drop —
-     instead of the prior bare textarea look. */
-  padding: 10px 16px;
-  border: 1px solid rgba($la-navy, 0.04);
-  border-radius: 14px;
-  /* Slightly translucent (was opaque #fff) — the center stage's
-     subtle tint bleeds through, giving the panel a softer
-     embedded-glass feel per the design pass. */
-  background: rgba(255, 255, 255, 0.78);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.85),
-    0 4px 14px rgba($la-navy, 0.08);
-  /* Remove the browser's default bottom-right resize handle on
-     <textarea> — we manage height via field-sizing + JS auto-resize,
-     and a draggable handle would imply a manual resize affordance
-     that doesn't exist. */
-  resize: none;
-  /* field-sizing: content makes the textarea auto-fit its content
-     (Chromium 123+, Safari 18.1+). Combined with max-height +
-     overflow-y, the textarea shrinks to fit when the description
-     is short and caps at THREE rows when long, then scrolls. Math:
-     font-size 15px × line-height 2.0 = 30px per line; padding-top
-     10 + padding-bottom 10 = 20px; 3 lines × 30 + 20 = 110px.
-     Browsers without field-sizing fall back to the rows="3"
-     attribute on the Textarea component for a matching 3-row
-     default height. line-height bumped 1.75 → 2.0 for fully
-     breathable editorial rhythm. Text color alpha lowered .9 → .7
-     so the description reads as supporting copy rather than
-     competing with the title above. */
-  field-sizing: content;
-  max-height: 110px;
-  overflow-y: auto;
-  /* Explicit system-font stack — the inherited "Helvetica Neue",
-     Helvetica, Arial stack has no 300-weight cut on most systems,
-     so font-weight: 300 was silently falling back to 400. System
-     fonts (SF Pro / Segoe UI / Roboto) all ship a Light variant. */
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
-  font-size: 15px;
-  font-weight: 300;
-  line-height: 2.0;
-  color: rgba($la-navy, 0.7);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-.md-board-detail-header__info-description--editable:focus {
-  outline: none;
-  border-color: rgba($brand-verdigris, 0.55);
-  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.15);
-  /* On focus, drop the 150px cap so the textarea auto-expands to fit
-     its full content (via field-sizing: content). The internal
-     scrollbar is no longer needed while the user is editing. When the
-     user blurs, the cap returns and overflow scrolls again. */
-  max-height: none;
-  overflow-y: visible;
-}
-.md-board-detail-header__info-description--editable::placeholder {
-  /* Raised from .45 → .62 so the placeholder clears WCAG AA contrast (the .45
-     hint failed against the input surface) while staying clearly secondary. */
-  color: rgba($la-navy, 0.62);
-  font-style: italic;
-}
-.md-board-detail--dark .md-board-detail-header__info-description--editable {
-  /* Atmospheric inset — translucent base, hairline border, layered
-     shadow stack. Bg alpha eased .04 → .03 per design pass so the
-     surface feels lighter / more breathable. Text color alpha
-     lowered .92 → .72 so the description reads as supporting copy
-     instead of competing with the title. */
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.72);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 4px 18px rgba(0, 0, 0, 0.16);
-}
-.md-board-detail--dark .md-board-detail-header__info-description--editable:focus {
-  border-color: rgba($brand-verdigris, 0.7);
-  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.22);
-}
-.md-board-detail--dark .md-board-detail-header__info-description--editable::placeholder {
-  /* .45 white on the dark input read ~4:1 (under AA). .62 lands ~6:1 — readable
-     but still a clear placeholder. */
-  color: rgba(255, 255, 255, 0.62);
 }
 /* When the board has no description, hide the privacy/license icons row
    above it so the panel doesn't show a stray indicator (e.g. the
@@ -75173,10 +74742,6 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   opacity: 0.9;
   animation: md-board-detail-saving-spin 0.9s linear infinite;
 }
-.md-board-detail-edit-toolbar__btn--saving {
-  opacity: 0.85;
-  cursor: progress;
-}
 @keyframes md-board-detail-saving-spin {
   to { transform: rotate(360deg); }
 }
@@ -77854,15 +77419,6 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   background: $brand-blue-grey;
   box-shadow: 0 3px 10px rgba($brand-charcoal-blue, 0.35);
 }
-.md-board-detail-edit-toolbar__btn--save {
-  background: linear-gradient(135deg, $brand-verdigris, $brand-dusty-denim);
-  color: #fff;
-  border-color: transparent;
-}
-.md-board-detail-edit-toolbar__btn--save:hover {
-  background: linear-gradient(135deg, #238b7f, #3e74c0);
-  box-shadow: 0 2px 10px rgba($brand-verdigris, 0.3);
-}
 .md-board-detail-edit-toolbar__btn--cancel {
   color: $brand-slate-gray;
   background: rgba($brand-slate-gray, 0.08);
@@ -77885,21 +77441,6 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   border-radius: 4px;
   border: 2px solid rgba($la-navy, 0.15);
   flex-shrink: 0;
-}
-.md-board-detail-edit-toolbar__label {
-  font-size: 15px;
-}
-/* Two-line stacked label (e.g. "Display" / "Settings" on the settings-toggle
-   button). Stacks its child spans vertically with a tight line-height so the
-   whole label matches the single-line Save/Cancel button height. */
-.md-board-detail-edit-toolbar__label--stacked {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  line-height: 1.05;
-  font-size: 15px;
-  font-weight: 600;
 }
 /* Stepper control for rows/cols */
 .md-board-detail-edit-toolbar__stepper {
@@ -78148,11 +77689,6 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   .md-board-detail-edit-toolbar {
     gap: 4px;
     padding: 8px;
-  }
-  /* Save / Cancel keep their word labels at every width — the rest of the
-     toolbar buttons collapse to icon-only on narrow viewports. */
-  .md-board-detail-edit-toolbar__btn:not(.md-board-detail-edit-toolbar__btn--save):not(.md-board-detail-edit-toolbar__btn--cancel) .md-board-detail-edit-toolbar__label {
-    display: none;
   }
   .md-board-detail-edit-toolbar__section-label {
     display: none;
@@ -78924,16 +78460,6 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   flex: 1;
   min-width: 8px;
 }
-.md-board-detail-edit-toolbar__btn--save {
-  background: $brand-verdigris;
-  color: #fff;
-  border-color: $brand-verdigris;
-}
-.md-board-detail-edit-toolbar__btn--save:hover:not(:disabled) {
-  background: color.adjust($brand-verdigris, $lightness: -5%);
-  border-color: color.adjust($brand-verdigris, $lightness: -5%);
-  color: #fff;
-}
 
 /* Dark-mode variant */
 .md-board-detail--dark .md-settings-icongroup,
@@ -79057,31 +78583,6 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-shell--board-detail-edit .md-board-detail-sentence-row {
   display: none;
 }
-/* …except the edit-mode Speak Bar PREVIEW, which is the whole point
-   of being visible while editing. Same specificity as the hide rule
-   above, so this must stay AFTER it in source order to win. */
-.md-shell--board-detail-edit .md-board-detail-sentence-row--preview {
-  display: flex;
-}
-/* Drop the right-side divider (::after) on the preview bar — it's a
-   static mockup, not the live speak bar (same treatment as the
-   create-board-new preview). ::before (left) is already off globally. */
-.md-board-detail-sentence-row--preview .md-board-detail-sentence-bar::after {
-  display: none;
-}
-/* It's a static, aria-hidden mockup — nothing in it is clickable.
-   pointer-events:none makes the buttons non-interactive AND stops
-   :hover from ever triggering (no hover target), so the inherited
-   hover/cursor styling on the speak/backspace/trash/chevron + home
-   "buttons" no longer makes them look actionable. */
-.md-board-detail-sentence-row--preview {
-  pointer-events: none;
-}
-.md-board-detail-sentence-row--preview .md-board-detail-sentence-bar__btn,
-.md-board-detail-sentence-row--preview .md-board-detail-sentence-bar__tool-btn,
-.md-board-detail-sentence-row--preview .md-board-detail-home-btn {
-  cursor: default;
-}
 /* At ≤1024px on the board-detail edit page, each expanded side
    panel claims horizontal real estate from the preview sentence
    bar — drop one rightmost chip per expanded panel so the bar's
@@ -79093,13 +78594,6 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    combined-`:has()` rule hides chips 1–2 when BOTH panels are
    expanded so the total reads as "one chip hidden per expansion". */
 @media (max-width: 1024px) {
-  .md-shell--board-detail-edit:has(.md-board-edit-panel:not(.md-board-edit-panel--collapsed)) .md-board-detail-sentence-row--preview .md-board-detail-sentence-bar__chip:last-of-type,
-  .md-shell--board-detail-edit:has(.md-board-edit-right-panel:not(.md-board-edit-right-panel--collapsed)) .md-board-detail-sentence-row--preview .md-board-detail-sentence-bar__chip:last-of-type {
-    display: none;
-  }
-  .md-shell--board-detail-edit:has(.md-board-edit-panel:not(.md-board-edit-panel--collapsed)):has(.md-board-edit-right-panel:not(.md-board-edit-right-panel--collapsed)) .md-board-detail-sentence-row--preview .md-board-detail-sentence-bar__chip:nth-last-of-type(-n+2) {
-    display: none;
-  }
 }
 .md-shell--board-detail-edit .md-board-detail-collapse-btn {
   display: none;
@@ -79116,19 +78610,6 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 .md-shell--board-detail-edit .md-board-detail-overlay-backdrop {
   display: none;
-}
-/* Save Changes button — matches the left edit panel's Back to Boards
-   gradient (line ~66459) so the page's two primary CTAs read with the
-   same visual weight. Slate-blue → charcoal-blue diagonal. */
-.md-board-detail-edit-toolbar__btn--save {
-  background: linear-gradient(135deg, $brand-slate-blue, $brand-charcoal-blue) !important;
-  border: 1px solid rgba($brand-charcoal-blue, 0.40) !important;
-  color: #ffffff !important;
-  box-shadow: 0 2px 6px rgba($brand-charcoal-blue, 0.25);
-}
-.md-board-detail-edit-toolbar__btn--save:hover:not(:disabled) {
-  background: linear-gradient(135deg, $brand-slate-blue, $brand-charcoal-blue) !important;
-  box-shadow: 0 3px 10px rgba($brand-charcoal-blue, 0.35);
 }
 
 /* ── Right panel ──────────────────────────────────────── */
@@ -81745,9 +81226,13 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   gap: 4px;
   flex: 0 0 auto;
   /* Matches the ACTUAL board button's speak-mode size — didInsertElement measures a
-     live board card and publishes --bs-preview-w / --bs-preview-h (60px fallback). */
-  width: var(--bs-preview-w, 60px);
-  height: var(--bs-preview-h, 60px);
+     live board card and publishes --bs-preview-w / --bs-preview-h (60px fallback).
+     CLAMPED: the measured value is a real board card, which on a 2x2 or 3x3 starter
+     board is 300-500px — unclamped that renders a half-screen "preview" that pushes
+     the modal title out of the header. The bounds keep it recognisable as a thumbnail
+     at both extremes (tiny on a 24-column board, huge on a 2x2). */
+  width: clamp(44px, var(--bs-preview-w, 60px), 120px);
+  height: clamp(44px, var(--bs-preview-h, 60px), 120px);
   padding: 6px;
   border-radius: 12px;
   /* Colour comes from the inline style (button's fill + border); this sets the

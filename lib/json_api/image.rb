@@ -20,16 +20,20 @@ module JsonApi::Image
     if settings && protected_source && args[:original_and_fallback]
       fb = settings['fallback'] || {}
       json['fallback_url'] = Uploader.fronted_url(fb['url'])
-    elsif settings && protected_source && settings['protected_source'].present? && !allowed_sources.include?(settings['protected_source'])
-      # Only swap in the library fallback for a genuine protected LIBRARY source the
-      # viewer can't access (lessonpix / pcs / symbolstix). Previously this fired for
-      # ANY protected image whose protected_source the allowed list didn't include —
-      # and a user's own uploaded image carries a 'private' license (protected? = true)
-      # with a BLANK protected_source, so `![].include?("")` was always true. That
-      # replaced the actual upload with the skin-lookup `fallback` (a library symbol
-      # for the button's word, e.g. arasaac "to"), making saved uploads render as the
-      # wrong image (or a blank/default when no library match existed). Requiring a
-      # present protected_source scopes this to real protected libraries only.
+    elsif settings && protected_source && !allowed_sources.include?(settings['protected_source'])
+      # A protected image is served to the viewer ONLY if its source is in their
+      # allowed list; otherwise they get the unlicensed fallback.
+      #
+      # NOTE: a BLANK `protected_source` must keep falling back. Records exist with
+      # `protected => true` and no recorded source, and the rest of the codebase
+      # treats those as lessonpix (Board#track_protected_sources does
+      # `settings['protected_source'] || 'lessonpix'`), so exempting them here would
+      # hand a gated library symbol to a viewer with no subscription. This was
+      # briefly relaxed to `protected_source.present?` on the theory that a user's
+      # own upload is protected-with-a-blank-source — it is not: `generate_defaults`
+      # gives an upload a 'private' LICENSE but never sets `settings['protected']`,
+      # so `protected?` is false for uploads and they never reach this branch at all.
+      # See the specs directly below, which pin both halves of that.
       settings = settings['fallback'] || {}
       json['url'] = Uploader.fronted_url(settings['url'])
       json['fallback'] = true

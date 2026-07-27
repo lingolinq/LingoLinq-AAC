@@ -47,6 +47,41 @@ describe JsonApi::Image do
       expect(hash['fallback']).to eq(true)
     end
 
+    # Regression guard. A protected image with NO recorded protected_source must
+    # still fall back — the rest of the codebase treats a blank source as lessonpix
+    # (Board#track_protected_sources), so exempting it here would serve a gated
+    # library symbol to a viewer with no subscription. Every other example in this
+    # file uses a non-blank source, which is exactly why a change that special-cased
+    # the blank one landed green.
+    it 'should revert to a fallback image when protected but the protected_source is BLANK' do
+      i = ButtonImage.new(url: 'http://www.example.com/pic.png', settings: {'protected' => true, 'fallback' => {'url' => 'http://www.example.com/fallback.png'}})
+      hash = JsonApi::Image.build_json(i, :allowed_sources => [])
+      expect(hash['url']).to eq('http://www.example.com/fallback.png')
+      expect(hash['protected']).to eq(false)
+      expect(hash['fallback']).to eq(true)
+    end
+
+    it 'should revert to a fallback image when protected with a blank protected_source and no allowed sources are known' do
+      u = User.create
+      i = ButtonImage.new(url: 'http://www.example.com/pic.png', settings: {'protected' => true, 'fallback' => {'url' => 'http://www.example.com/fallback.png'}})
+      hash = JsonApi::Image.build_json(i, :permissions => u)
+      expect(hash['url']).to eq('http://www.example.com/fallback.png')
+      expect(hash['fallback']).to eq(true)
+    end
+
+    # The other half of the same story: a user's own upload is NOT protected, so it
+    # never reaches the fallback branch and always serves its real url. `generate_defaults`
+    # gives it a 'private' LICENSE but leaves settings['protected'] unset.
+    it 'should serve the real url for a user upload (private license, not protected)' do
+      u = User.create
+      i = ButtonImage.process_new({'url' => 'http://www.example.com/my-photo.png', 'content_type' => 'image/png'}, {:user => u})
+      expect(i.protected?).to eq(false)
+      expect(i.settings['license']['type']).to eq('private')
+      hash = JsonApi::Image.build_json(i, :allowed_sources => [])
+      expect(hash['url']).to eq('http://www.example.com/my-photo.png')
+      expect(hash['fallback']).to eq(nil)
+    end
+
     it 'should revert to a fallback image if no list provided and the user does not have access to the protected_source' do
       u = User.create
       User.purchase_extras({'premium_symbols' => true, 'user_id' => u.global_id})

@@ -333,7 +333,12 @@ export default Component.extend({
   // (app_state.launch_url → inline-video / tarheel) instead of a browser tab. Like
   // urlChanged, sync them to the authoritative board button so select_button's
   // launcher sees the popup and opens the pane rather than window_open-ing the raw URL.
-  videoChanged: observer('model.video', function() {
+  // Observes `model.video.popup` (and `.start` / `.end`) as well as the object
+  // itself: the "Show video in a popup" checkbox and the start/end fields mutate
+  // properties ON the video object rather than replacing it, so a reference-only
+  // observer never refires and the change would reach board.buttons only by the
+  // accident of the two sharing an object identity.
+  videoChanged: observer('model.video', 'model.video.popup', 'model.video.start', 'model.video.end', function() {
     if(!this.get('handle_updates')) { return; }
     editManager.change_button(this.get('model.id'), {
       video: this.get('model.video')
@@ -1006,6 +1011,14 @@ export default Component.extend({
       var _this = this;
       LingoLinq.Videos.track('link_video_preview').then(function(player) {
         _this.set('player', player);
+      }, function() {
+        // LingoLinq.Videos.track rejects with "player never initialized" 5s after a
+        // preview iframe that never loads a player (offline, blocked embed, or the
+        // modal closed first). Without a rejection handler that surfaces as an
+        // UNHANDLED rejection: harmless at runtime, but under test QUnit attributes
+        // it to whichever unrelated test happens to be running 5s later, which reads
+        // as a random failing test somewhere else in the suite. Nothing to do but
+        // leave `player` unset — the preview simply stays inert.
       });
     }
   }),

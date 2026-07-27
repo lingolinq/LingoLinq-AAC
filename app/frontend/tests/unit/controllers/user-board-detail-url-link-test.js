@@ -41,23 +41,55 @@ module('Unit | Controller | user/board-detail URL-link select_button', function(
     if(this.controller) { this.controller.destroy(); this.controller = null; }
   });
 
-  test('a plain URL button routes to launch_url (which opens a tab), not window_open directly', function(assert) {
-    this.controller.send('select_button', { id: '1', label: 'web', url: 'https://site.test/page' });
+  test('a plain URL button routes through the canonical activation path, not a local launcher', function(assert) {
+    var orig_find = editManager.find_button;
+    editManager.find_button = () => EmberObject.create({ id: '1', label: 'web' });
+    var activated = [];
+    this.controller.set('model', EmberObject.create({
+      buttons: [ { id: '1', label: 'web', url: 'https://site.test/page' } ]
+    }));
+    this.controller.set('app_state', EmberObject.create({
+      launch_url: (btn) => this._launched.push({ url: btn && btn.url }),
+      controller: { activateButton: (btn) => activated.push(btn) }
+    }));
 
-    assert.equal(this._launched.length, 1, 'delegated to launch_url');
-    assert.equal(this._launched[0].url, 'https://site.test/page', 'with the button url');
-    assert.equal(this._opened.length, 0, 'did NOT window_open the raw url itself');
+    try {
+      this.controller.send('select_button', { id: '1', label: 'web', url: 'https://site.test/page' });
+    } finally {
+      editManager.find_button = orig_find;
+    }
+
+    // activate_button owns the board lock, the `external_links: 'prevent'` guard,
+    // actionLock de-dup, usage logging and "also speak & add" — board-detail calling
+    // launch_url itself would bypass every one of them.
+    assert.equal(activated.length, 1, 'delegated to activateButton');
+    assert.equal(activated[0].get('url'), 'https://site.test/page', 'carrying the url for activate_button to launch');
+    assert.equal(this._launched.length, 0, 'board-detail did NOT call launch_url itself');
+    assert.equal(this._opened.length, 0, 'and did NOT window_open the raw url');
   });
 
-  test('a VIDEO url button hands launch_url a video.popup button (→ in-app video pane, not youtube.com)', function(assert) {
-    this.controller.send('select_button', {
-      id: '1', label: 'clip',
-      url: 'https://www.youtube.com/watch?v=abc',
-      video: { type: 'youtube', id: 'abc', popup: true }
-    });
+  test('a VIDEO url button carries video.popup into activation (→ in-app pane, not youtube.com)', function(assert) {
+    var orig_find = editManager.find_button;
+    editManager.find_button = () => EmberObject.create({ id: '1', label: 'clip' });
+    var activated = [];
+    this.controller.set('model', EmberObject.create({
+      buttons: [ { id: '1', label: 'clip', url: 'https://www.youtube.com/watch?v=abc',
+                   video: { type: 'youtube', id: 'abc', popup: true } } ]
+    }));
+    this.controller.set('app_state', EmberObject.create({
+      launch_url: () => this._launched.push({}),
+      controller: { activateButton: (btn) => activated.push(btn) }
+    }));
 
-    assert.equal(this._launched.length, 1, 'delegated to launch_url');
-    assert.ok(this._launched[0].video && this._launched[0].video.popup, 'launch_url receives the video.popup so it opens the pane');
+    try {
+      this.controller.send('select_button', { id: '1', label: 'clip', url: 'https://www.youtube.com/watch?v=abc' });
+    } finally {
+      editManager.find_button = orig_find;
+    }
+
+    assert.equal(activated.length, 1, 'delegated to activateButton');
+    var v = activated[0].get('video');
+    assert.ok(v && v.popup, 'video.popup survives, so launch_url opens the pane rather than a tab');
     assert.equal(this._opened.length, 0, 'never window_open-ed the youtube url');
   });
 
@@ -67,12 +99,19 @@ module('Unit | Controller | user/board-detail URL-link select_button', function(
     assert.equal(this._opened.length, 0, 'nothing opened');
   });
 
-  // "Disable this link action for now" (link_disabled) must suppress the URL/video launch
-  // exactly as it suppresses folder navigation — the button falls through to normal
-  // activation (speak/add) instead of opening its tab/pane.
-  test('a URL button with link_disabled does NOT launch (falls through to activation)', function(assert) {
+  // "Disable this link action for now" (link_disabled) must suppress the URL/video
+  // launch exactly as it suppresses folder navigation.
+  //
+  // NOTE the shape of this test: asserting only that select_button "falls through to
+  // activation" is NOT enough, and asserting it against a stubbed activateButton is
+  // actively misleading — the real activate_button opens the url itself, so a
+  // fall-through with no guard downstream still launches the link. The enforcement
+  // lives in app_state.activate_button (the one path every renderer funnels through);
+  // its own coverage is in tests/unit/services/app-state-link-disabled-test.js. Here
+  // we only pin that board-detail hands the flag DOWN correctly.
+  test('a URL button with link_disabled does NOT launch, and passes link_disabled to activation', function(assert) {
     var orig_find = editManager.find_button;
-    editManager.find_button = () => EmberObject.create({ id: '1', label: 'web', url: 'https://site.test', link_disabled: true });
+    editManager.find_button = () => EmberObject.create({ id: '1', label: 'web', url: 'https://site.test' });
     var activated = [];
     this.controller.set('model', EmberObject.create({
       buttons: [ { id: '1', label: 'web', url: 'https://site.test', link_disabled: true } ]
@@ -88,25 +127,95 @@ module('Unit | Controller | user/board-detail URL-link select_button', function(
       editManager.find_button = orig_find;
     }
 
-    assert.equal(this._launched.length, 0, 'disabled link is NOT launched');
+    assert.equal(this._launched.length, 0, 'board-detail does not launch it itself');
     assert.equal(this._opened.length, 0, 'and NOT window_open-ed');
-    assert.equal(activated.length, 1, 'fell through to normal activation instead');
+    assert.equal(activated.length, 1, 'delegated to the canonical activation path');
+    assert.strictEqual(activated[0].get('link_disabled'), true,
+      'link_disabled reached the activated button, so activate_button can suppress the launch');
+  });
+
+  // Level rules can flip link_disabled (paint mode writes `mods.pre.link_disabled`),
+  // and legacy/copied boards persist those rule values as the STRINGS "true"/"false"
+  // — `!!"false"` is `true`, which would invert the guard. select_button must resolve
+  // through the level rules AND coerce.
+  test('link_disabled from a level rule is resolved and coerced, not read raw', function(assert) {
+    var orig_find = editManager.find_button;
+    editManager.find_button = () => EmberObject.create({ id: '1', label: 'web', url: 'https://site.test' });
+    var activated = [];
+    this.controller.set('stashes', EmberObject.create({ board_level: 3, sticky_board: false }));
+    this.controller.set('model', EmberObject.create({
+      buttons: [ { id: '1', label: 'web', url: 'https://site.test',
+                   level_modifications: { pre: { link_disabled: 'true' }, 5: { link_disabled: 'false' } } } ]
+    }));
+    this.controller.set('app_state', EmberObject.create({
+      launch_url: () => this._launched.push({}),
+      controller: { activateButton: (btn) => activated.push(btn) }
+    }));
+
+    try {
+      this.controller.send('select_button', { id: '1', label: 'web', url: 'https://site.test' });
+    } finally {
+      editManager.find_button = orig_find;
+    }
+
+    assert.equal(activated.length, 1, 'delegated to activation');
+    assert.strictEqual(activated[0].get('link_disabled'), true,
+      'at level 3 the `pre` rule applies, and the STRING "true" coerced to a real boolean');
+  });
+
+  test('a level rule that re-enables the link at the current level coerces "false" to false', function(assert) {
+    var orig_find = editManager.find_button;
+    editManager.find_button = () => EmberObject.create({ id: '1', label: 'web', url: 'https://site.test' });
+    var activated = [];
+    this.controller.set('stashes', EmberObject.create({ board_level: 5, sticky_board: false }));
+    this.controller.set('model', EmberObject.create({
+      buttons: [ { id: '1', label: 'web', url: 'https://site.test',
+                   level_modifications: { pre: { link_disabled: 'true' }, 5: { link_disabled: 'false' } } } ]
+    }));
+    this.controller.set('app_state', EmberObject.create({
+      launch_url: () => this._launched.push({}),
+      controller: { activateButton: (btn) => activated.push(btn) }
+    }));
+
+    try {
+      this.controller.send('select_button', { id: '1', label: 'web', url: 'https://site.test' });
+    } finally {
+      editManager.find_button = orig_find;
+    }
+
+    assert.strictEqual(activated[0].get('link_disabled'), false,
+      'level 5 overrides `pre`, and the STRING "false" is not treated as truthy');
   });
 
   // The crux of the reported bug: board-detail rebuilds display buttons from
   // contextualized_buttons, so the object handed to select_button can be a STALE copy
   // that still has the pre-edit load_board (and no url/video). select_button must
   // resolve the action fields from the AUTHORITATIVE board.buttons entry (by id).
-  test('a STALE display copy (still a folder) launches the url from the authoritative board button', function(assert) {
+  test('a STALE display copy (still a folder) activates with the authoritative board button fields', function(assert) {
+    var orig_find = editManager.find_button;
+    // The editManager button is built from the rendered (stale) copy too, so it also
+    // still looks like a folder — the overlay from board.buttons is what fixes it.
+    editManager.find_button = () => EmberObject.create({ id: '9', label: 'go', load_board: { key: 'me/old-board' } });
+    var activated = [];
     this.controller.set('model', EmberObject.create({
       buttons: [ { id: '9', label: 'go', load_board: null, url: 'https://site.test/x', video: { popup: true, type: 'youtube', id: 'x' } } ]
     }));
-    // ...but the passed (rendered) button is the stale copy that still looks like a folder.
-    this.controller.send('select_button', { id: '9', label: 'go', load_board: { key: 'me/old-board' } });
+    this.controller.set('app_state', EmberObject.create({
+      launch_url: () => this._launched.push({}),
+      controller: { activateButton: (btn) => activated.push(btn) }
+    }));
 
-    assert.equal(this._launched.length, 1, 'launched from the authoritative entry, not the stale copy');
-    assert.equal(this._launched[0].url, 'https://site.test/x', 'the current url');
-    assert.ok(this._launched[0].video && this._launched[0].video.popup, 'and the current video (opens the pane)');
+    try {
+      this.controller.send('select_button', { id: '9', label: 'go', load_board: { key: 'me/old-board' } });
+    } finally {
+      editManager.find_button = orig_find;
+    }
+
+    assert.equal(activated.length, 1, 'activated rather than navigating to the stale folder');
+    assert.equal(activated[0].get('load_board'), null, 'the stale load_board was cleared from the activated button');
+    assert.equal(activated[0].get('url'), 'https://site.test/x', 'the current url');
+    var v = activated[0].get('video');
+    assert.ok(v && v.popup, 'and the current video (opens the pane)');
   });
 
   // Regression: board-detail's speak-mode display builder (_make_btn) emits a
