@@ -119,6 +119,16 @@ describe CoppaSentryScrub do
       expect(event.request.data).to eq('sensitive')
     end
 
+    # F1: lookup_user used to rescue User.where failures to nil, which made
+    # child_user? treat the failure as anonymous and skip scrubbing. The
+    # LOOKUP_FAILED sentinel makes this path fail closed.
+    it 'scrubs when User.where raises during lookup (lookup-failure fail-closed)' do
+      allow(User).to receive(:where).and_raise(StandardError, 'simulated lookup timeout')
+      event = Event.new(user: { id: 1 }, request: Request.new(data: 'sensitive'))
+      expect { described_class.call(event, nil) }.not_to raise_error
+      expect(event.request.data).to eq('[REDACTED]')
+    end
+
     # Regression: the production set_sentry_user path stores
     # SHA-512(remote_ip) into Sentry.user.id for issue grouping. That hex
     # string never matches a User row, so before this fix the COPPA branch
@@ -274,6 +284,24 @@ describe CoppaSentryScrub do
       end
     end
 
+    # F2: joining keys with `||` before coercion lets a truthy non-true symbol
+    # value shadow a string-key true/'true' and miss the escape hatch.
+    it 'honors string-key true when symbol key is a truthy non-true value' do
+      event = Event.new(
+        exception: double('Exception', values: [double('SingleException', type: 'ActiveSupport::Cache::FetchError')]),
+        tags: { keep_cache_error: 'yes', 'keep_cache_error' => true }
+      )
+      expect(described_class.drop_cache_errors?(event)).to eq(false)
+    end
+
+    it 'honors string-key "true" when symbol key is a truthy non-true value' do
+      event = Event.new(
+        exception: double('Exception', values: [double('SingleException', type: 'ActiveSupport::Cache::FetchError')]),
+        tags: { keep_cache_error: 'false', 'keep_cache_error' => 'True' }
+      )
+      expect(described_class.drop_cache_errors?(event)).to eq(false)
+    end
+
     it 'returns false when event has no exception (message event)' do
       expect(described_class.drop_cache_errors?(Event.new(exception: nil))).to eq(false)
     end
@@ -314,6 +342,10 @@ describe CoppaSentryScrub do
         def coppa_parental_consent_pending?; raise 'corrupt settings blob'; end
       end.new
       expect(described_class.child_user?(bad)).to eq(true)
+    end
+
+    it 'returns TRUE (fail-closed) for the LOOKUP_FAILED sentinel' do
+      expect(described_class.child_user?(described_class::LOOKUP_FAILED)).to eq(true)
     end
   end
 
@@ -519,6 +551,15 @@ describe 'CoppaSentryScrub::TRANSACTION_FILTER' do
     RequestStore.store[CoppaSentryScrub::REQUEST_STORE_KEY] = child_user_record
     event = TransactionEventStub.new(user: { id: 7 })
     allow(CoppaSentryScrub).to receive(:child_user?).and_raise('boom')
+    expect(filter.call(event, nil)).to be_nil
+  end
+
+  # F1: the production failure mode — RequestStore empty, numeric event.user
+  # id, User.where raises (e.g. query timeout). lookup_user must NOT collapse
+  # that to nil (anonymous), or this filter ships the transaction.
+  it 'returns nil when User.where raises during lookup (lookup-failure fail-closed)' do
+    allow(User).to receive(:where).and_raise(StandardError, 'simulated lookup timeout')
+    event = TransactionEventStub.new(user: { id: 1 })
     expect(filter.call(event, nil)).to be_nil
   end
 end
