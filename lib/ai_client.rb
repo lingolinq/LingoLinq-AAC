@@ -31,25 +31,37 @@ module AiClient
      ENV['AWS_DEFAULT_REGION'].presence).to_s.strip
   end
 
-  # AWS access key id for SigV4 signing. Prefers a Bedrock-specific credential
-  # (the AI route uses dedicated creds, provisioned separately from the S3/SES
-  # keys per the two-tier policy) but accepts the app's standard names so local
-  # dev and existing deploys work without extra wiring.
+  # Resolves a complete AWS credential pair for Bedrock SigV4 signing.
+  #
+  # Pairs are selected atomically so a partial secret rollout cannot mix a
+  # dedicated Bedrock access key with a generic S3/SES secret (or vice versa).
+  # Preference order:
+  #   1. BEDROCK_AWS_KEY + BEDROCK_AWS_SECRET (dedicated AI principal)
+  #   2. AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY (standard SDK names for local)
+  #
+  # Intentionally does NOT fall back to AWS_KEY / AWS_SECRET. Those are the
+  # Cloud Run S3/SES least-privilege credentials
+  # (`scripts/gcp/iam/lingolinq-cloudrun-s3-ses-policy.json`) and lack Bedrock
+  # Mantle invoke permissions. Falling back to them made `configured?` true
+  # while every AI request was AccessDenied.
+  def aws_credentials
+    dedicated = credential_pair(ENV['BEDROCK_AWS_KEY'], ENV['BEDROCK_AWS_SECRET'])
+    return dedicated if dedicated
+
+    credential_pair(ENV['AWS_ACCESS_KEY_ID'], ENV['AWS_SECRET_ACCESS_KEY'])
+  end
+
   def aws_key
-    (ENV['BEDROCK_AWS_KEY'].presence ||
-     ENV['AWS_KEY'].presence ||
-     ENV['AWS_ACCESS_KEY_ID'].presence).to_s.strip
+    aws_credentials&.fetch(:access_key).to_s
   end
 
   def aws_secret
-    (ENV['BEDROCK_AWS_SECRET'].presence ||
-     ENV['AWS_SECRET'].presence ||
-     ENV['AWS_SECRET_ACCESS_KEY'].presence).to_s.strip
+    aws_credentials&.fetch(:secret_access_key).to_s
   end
 
   # True when enough AWS configuration is present to construct a Bedrock client.
   def configured?
-    bedrock_region.present? && aws_key.present? && aws_secret.present?
+    bedrock_region.present? && aws_credentials.present?
   end
 
   # Normalizes a model id to Bedrock form by prefixing `anthropic.` when it is
@@ -66,13 +78,29 @@ module AiClient
   # treat nil as "AI is not configured"). The Mantle client signs requests with
   # SigV4 via aws-sdk-core (already a transitive dependency of aws-sdk-s3); it
   # does not require aws-sdk-bedrockruntime.
+  #
+  # Keyword note: Anthropic::BedrockMantleClient (anthropic >= 1.36 Mantle path)
+  # takes `aws_secret_access_key`. The older Anthropic::Helpers::Bedrock::Client
+  # takes `aws_secret_key` — do not rename this arg to match that older client.
   def build
     return nil unless configured?
 
+    creds = aws_credentials
     Anthropic::BedrockMantleClient.new(
       aws_region: bedrock_region,
-      aws_access_key: aws_key,
-      aws_secret_access_key: aws_secret
+      aws_access_key: creds[:access_key],
+      aws_secret_access_key: creds[:secret_access_key]
     )
   end
+
+  # Returns {access_key:, secret_access_key:} only when BOTH halves are present
+  # and non-blank after strip; otherwise nil.
+  def credential_pair(access_key, secret_access_key)
+    key = access_key.to_s.strip
+    secret = secret_access_key.to_s.strip
+    return nil if key.empty? || secret.empty?
+
+    { access_key: key, secret_access_key: secret }
+  end
+  private_class_method :credential_pair
 end
