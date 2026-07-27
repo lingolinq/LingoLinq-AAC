@@ -67,6 +67,32 @@ module('Unit | Controller | user/board-detail URL-link select_button', function(
     assert.equal(this._opened.length, 0, 'nothing opened');
   });
 
+  // "Disable this link action for now" (link_disabled) must suppress the URL/video launch
+  // exactly as it suppresses folder navigation — the button falls through to normal
+  // activation (speak/add) instead of opening its tab/pane.
+  test('a URL button with link_disabled does NOT launch (falls through to activation)', function(assert) {
+    var orig_find = editManager.find_button;
+    editManager.find_button = () => EmberObject.create({ id: '1', label: 'web', url: 'https://site.test', link_disabled: true });
+    var activated = [];
+    this.controller.set('model', EmberObject.create({
+      buttons: [ { id: '1', label: 'web', url: 'https://site.test', link_disabled: true } ]
+    }));
+    this.controller.set('app_state', EmberObject.create({
+      launch_url: () => this._launched.push({}),
+      controller: { activateButton: (btn) => activated.push(btn) }
+    }));
+
+    try {
+      this.controller.send('select_button', { id: '1', label: 'web', url: 'https://site.test', link_disabled: true });
+    } finally {
+      editManager.find_button = orig_find;
+    }
+
+    assert.equal(this._launched.length, 0, 'disabled link is NOT launched');
+    assert.equal(this._opened.length, 0, 'and NOT window_open-ed');
+    assert.equal(activated.length, 1, 'fell through to normal activation instead');
+  });
+
   // The crux of the reported bug: board-detail rebuilds display buttons from
   // contextualized_buttons, so the object handed to select_button can be a STALE copy
   // that still has the pre-edit load_board (and no url/video). select_button must

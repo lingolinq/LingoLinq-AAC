@@ -1843,8 +1843,13 @@ var pictureGrabber = EmberObject.extend({
       // canvas, which left empty top/bottom bands (and distorted the aspect). Covering
       // the full canvas paints every pixel with video, so there are no bands (no white
       // backfill needed) and the square image fills the square button.
-      var vw = video.videoWidth || 800;
-      var vh = video.videoHeight || 600;
+      // `video` can be null when no #webcam_video element is mounted (e.g. unit tests
+      // that exercise the snapshot path without rendering the modal). Guard the reads
+      // so the intrinsic-size lookup falls back to the 800x600 defaults instead of
+      // throwing on `null.videoWidth`. drawImage below already matched staging's
+      // behavior for a null video (a no-op on the mocked ctx).
+      var vw = (video && video.videoWidth) || 800;
+      var vh = (video && video.videoHeight) || 600;
       var side = Math.min(vw, vh);
       var sx = (vw - side) / 2;
       var sy = (vh - side) / 2;

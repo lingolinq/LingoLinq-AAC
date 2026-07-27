@@ -321,9 +321,14 @@ function fakeMediaRecorder(stream, options) {
 
 function fakeCanvas() {
   return {
+    width: 800,
+    height: 800,
     getContext: function() {
       return {
-        drawImage: function() { }
+        drawImage: function() { },
+        // toggle_webcam's cover-crop draw clears the square canvas before painting
+        // (content-grabbers.js). Provide clearRect so the mock ctx supports it.
+        clearRect: function() { }
       };
     },
     toDataURL: function() { return 'picture'; }

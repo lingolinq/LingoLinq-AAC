@@ -6344,8 +6344,13 @@ export default Controller.extend(prefClasses, {
       // video links to youtube.com instead of the in-app pane. Read from the
       // authoritative board.buttons entry (_action_src) so a just-edited url/video takes
       // effect; fall back to window_open only if the launcher is somehow unavailable.
+      // `link_disabled` ("Disable this link action for now") must suppress the URL/video
+      // launch too, exactly as it suppresses the folder branch above — otherwise a
+      // disabled link still opens its tab/pane. When disabled, fall through so the button
+      // just speaks/adds like a plain button (matching the classic activate_button, which
+      // skips the url action when link_disabled and does nothing else special).
       var link_url = _get(_action_src, 'url');
-      if(link_url && !_get(_action_src, 'load_board')) {
+      if(link_url && !_get(_action_src, 'load_board') && !_get(_action_src, 'link_disabled')) {
         var app_state_svc = _this.get('app_state');
         if(app_state_svc && typeof app_state_svc.launch_url === 'function') {
           app_state_svc.launch_url(_action_src, null, _this.get('model'));
