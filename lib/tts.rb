@@ -11,7 +11,11 @@ module Tts
       return nil if text.blank?
 
       if locale.to_s.match(/^ga/)
-        return generate_irish(text, locale)
+        # Irish (Gaeilge) TTS via abair.ie is DISABLED. The Trinity College Dublin / ADAPT
+        # endpoint has no DPA/SCCs on file and would receive raw, unscrubbed user utterance
+        # text (finding LL-a167848115, docs/legal/SUBPROCESSORS.md #17). Disabled 2026-07-23
+        # per CEO decision rather than executing a DPA. Re-enable only once a DPA/SCCs exist.
+        return nil
       end
 
       if ENV['GOOGLE_TTS_TOKEN']
@@ -25,20 +29,6 @@ module Tts
     end
 
     private
-
-    def generate_irish(text, locale)
-      req = Typhoeus.post(
-        'https://abair.ie/aac_irish',
-        body: { text: text, voice: 'Ulster' },
-        timeout: 5,
-        connecttimeout: 3
-      )
-      return nil unless req.success? && req.body.present?
-      {
-        body: req.body,
-        content_type: req.headers['Content-Type'].to_s.split(';').first.presence || 'audio/wav'
-      }
-    end
 
     def generate_google(text, locale: 'en', mp3: true)
       json = voices_for_locale(locale)

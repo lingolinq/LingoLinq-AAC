@@ -411,6 +411,10 @@ class Api::BoardsController < ApplicationController
   # Capped at MAX_TREE descendants for safety — a healthy AAC vocab
   # tree is well under that ceiling; extremely large trees fall back
   # to the depth-1 prefetch on the client.
+  #
+  # root_only=1 skips descendant load/serialize so speak-mode can paint
+  # the visible board first, then call /tree again (without root_only)
+  # in the background to warm folder targets. Same lite root JSON either way.
   MAX_TREE = 500
   def tree
     # Member route is GET /api/v1/boards/:board_id/tree, so Rails supplies
@@ -425,19 +429,22 @@ class Api::BoardsController < ApplicationController
     return unless exists?(root)
     return unless allowed?(root, 'view')
 
-    descendant_ids = ((root.settings || {})['downstream_board_ids'] || []).first(MAX_TREE)
+    root_only = params['root_only'].to_s =~ /^(1|true|yes)$/i
     descendants = []
-    if descendant_ids.any?
-      ApplicationRecord.using(:master) do
-        descendants = Board.find_all_by_global_id(descendant_ids)
+    unless root_only
+      descendant_ids = ((root.settings || {})['downstream_board_ids'] || []).first(MAX_TREE)
+      if descendant_ids.any?
+        ApplicationRecord.using(:master) do
+          descendants = Board.find_all_by_global_id(descendant_ids)
+        end
+        # Permission filter. Use the Permissable model method `allows?`
+        # directly — NOT the controller's `allowed?`, which renders an
+        # error response as a side effect (it's designed for single-
+        # resource gates, not list filtering). `scopes` mirrors what
+        # `allowed?` computes internally via `api_permission_scopes`.
+        scopes = api_permission_scopes
+        descendants = descendants.select { |b| b && b.allows?(@api_user, 'view', scopes) }
       end
-      # Permission filter. Use the Permissable model method `allows?`
-      # directly — NOT the controller's `allowed?`, which renders an
-      # error response as a side effect (it's designed for single-
-      # resource gates, not list filtering). `scopes` mirrors what
-      # `allowed?` computes internally via `api_permission_scopes`.
-      scopes = api_permission_scopes
-      descendants = descendants.select { |b| b && b.allows?(@api_user, 'view', scopes) }
     end
 
     # as_lite drops the per-board N+1 enrichment (parent_board, find_copies_by,

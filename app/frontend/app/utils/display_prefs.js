@@ -115,6 +115,26 @@ export function buttonSpacingHalfPx(spacing, fallback) {
   return fallback != null ? fallback : Math.floor(BUTTON_SPACING_DEFAULT_PX / 2);
 }
 
+// The gap must never occupy more than this fraction of a button's width, so
+// small-button boards (small screens, or many columns) don't show an oversized
+// gap. The user's preference is the ceiling; this only ever pulls the gap
+// DOWN, never above the preference. board-detail applies the same fraction in
+// CSS (see the .md-board-detail-grid `gap: min(...)` rule) — keep the two in
+// sync if you tune this.
+export const GAP_BUTTON_FRACTION = 0.15;
+
+// Scaled half-gap for board-alt: the canonical gap, but capped at
+// GAP_BUTTON_FRACTION of the (approx) button width so it shrinks with the
+// buttons. `buttonWidthPx` is the column width (full width / columns). Returns
+// the HALF value board-alt's positioning model needs (see buttonSpacingHalfPx).
+export function buttonSpacingScaledHalfPx(spacing, buttonWidthPx, fallback) {
+  var full = buttonSpacingPx(spacing, fallback);
+  if (buttonWidthPx && buttonWidthPx > 0) {
+    full = Math.min(full, Math.round(buttonWidthPx * GAP_BUTTON_FRACTION));
+  }
+  return Math.floor(full / 2);
+}
+
 // ── Button border thickness ────────────────────────────────────────
 // Maps `preferences.device.button_border` to the px outline width
 // of each button card. Single source so board-detail's
@@ -170,6 +190,8 @@ export default {
   BUTTON_SPACING_OPTIONS,
   buttonSpacingPx,
   buttonSpacingHalfPx,
+  GAP_BUTTON_FRACTION,
+  buttonSpacingScaledHalfPx,
   BUTTON_BORDER_PX,
   BUTTON_BORDER_DEFAULT,
   BUTTON_BORDER_DEFAULT_PX,

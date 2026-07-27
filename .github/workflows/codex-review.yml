@@ -39,6 +39,7 @@ on:
 jobs:
   codex-review:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     permissions:
       contents: read
       statuses: write
@@ -49,6 +50,8 @@ jobs:
       HEAD_SHA: ${{ inputs.head_sha }}
       BASE_SHA: ${{ inputs.base_sha }}
       LOOP_N: ${{ inputs.loop_n }}
+      CODEX_REVIEW_REQUESTED_EVIDENCE_MODE: ${{ vars.CODEX_REVIEW_EVIDENCE_MODE || 'bounded' }}
+      CODEX_REVIEW_CHUNKED_SCOPE: ${{ vars.CODEX_REVIEW_CHUNKED_SCOPE || 'all' }}
     steps:
       # Codex review of this pipeline (PR #607) caught that the fail-closed
       # anchor was not actually first: the old single validate-inputs step
@@ -112,6 +115,48 @@ jobs:
             exit 1
           fi
 
+      - name: Resolve Codex review evidence mode
+        run: |
+          requested="${CODEX_REVIEW_REQUESTED_EVIDENCE_MODE}"
+          scope="${CODEX_REVIEW_CHUNKED_SCOPE}"
+          effective="bounded"
+          PR_AUTHOR="$(gh pr view "$PR_NUMBER" -R "${{ github.repository }}" --json author --jq '.author.login // ""')"
+          PR_HEAD_REF="$(gh pr view "$PR_NUMBER" -R "${{ github.repository }}" --json headRefName --jq '.headRefName // ""')"
+
+          if [ "$requested" = "chunked" ]; then
+            case "$scope" in
+              all)
+                effective="chunked"
+                ;;
+              scot)
+                if [ "$PR_AUTHOR" = "swahlquist" ] || [[ "$PR_HEAD_REF" == scot/* ]]; then
+                  effective="chunked"
+                fi
+                ;;
+              none|off|bounded)
+                effective="bounded"
+                ;;
+              *)
+                echo "::warning::Unknown CODEX_REVIEW_CHUNKED_SCOPE='${scope}'; using bounded evidence"
+                effective="bounded"
+                ;;
+            esac
+          elif [ "$requested" != "bounded" ]; then
+            echo "::warning::Unknown CODEX_REVIEW_EVIDENCE_MODE='${requested}'; using bounded evidence"
+          fi
+
+          {
+            echo "CODEX_REVIEW_EVIDENCE_MODE=${effective}"
+            echo "CODEX_REVIEW_SCOPE_PR_AUTHOR=${PR_AUTHOR}"
+            echo "CODEX_REVIEW_SCOPE_PR_HEAD_REF=${PR_HEAD_REF}"
+          } >> "$GITHUB_ENV"
+
+          echo "requested evidence mode: ${requested}"
+          echo "chunked scope: ${scope}"
+          echo "PR author: ${PR_AUTHOR}"
+          echo "PR head ref: ${PR_HEAD_REF}"
+          echo "effective evidence mode: ${effective}"
+
       - name: Checkout PR head
         uses: actions/checkout@v4
         with:
@@ -127,7 +172,9 @@ jobs:
           git checkout "${{ github.workflow_sha }}" -- \
             .github/codex \
             scripts/codex-review-assemble-prompt.py \
+            scripts/codex-review-build-evidence.py \
             scripts/codex-review-build-envelope.py \
+            scripts/codex-review-run-chunks.py \
             scripts/codex-review-claude-deep.sh \
             scripts/codex-review-path-classifier.sh
 
@@ -147,6 +194,13 @@ jobs:
             echo ""
             echo "### gh pr checks"
             gh pr checks "$PR_NUMBER" -R "${{ github.repository }}" || true
+            echo ""
+            echo "### codex review evidence mode"
+            echo "requested=${CODEX_REVIEW_REQUESTED_EVIDENCE_MODE}"
+            echo "scope=${CODEX_REVIEW_CHUNKED_SCOPE}"
+            echo "effective=${CODEX_REVIEW_EVIDENCE_MODE}"
+            echo "scope_pr_author=${CODEX_REVIEW_SCOPE_PR_AUTHOR}"
+            echo "scope_pr_head_ref=${CODEX_REVIEW_SCOPE_PR_HEAD_REF}"
             echo ""
             echo "### changed files (git mode at PR head ${HEAD_SHA})"
             # Source of truth is the PR head COMMIT, so this list agrees with the
@@ -168,8 +222,31 @@ jobs:
             done
             echo "LIVE_STATE_EOF"
           } >> "$GITHUB_OUTPUT"
+          {
+            echo "### gh pr view"
+            gh pr view "$PR_NUMBER" -R "${{ github.repository }}" --json mergeable,mergeStateStatus,headRefOid,title,body
+            echo ""
+            echo "### gh pr checks"
+            gh pr checks "$PR_NUMBER" -R "${{ github.repository }}" || true
+            echo ""
+            echo "### codex review evidence mode"
+            echo "requested=${CODEX_REVIEW_REQUESTED_EVIDENCE_MODE}"
+            echo "scope=${CODEX_REVIEW_CHUNKED_SCOPE}"
+            echo "effective=${CODEX_REVIEW_EVIDENCE_MODE}"
+            echo "scope_pr_author=${CODEX_REVIEW_SCOPE_PR_AUTHOR}"
+            echo "scope_pr_head_ref=${CODEX_REVIEW_SCOPE_PR_HEAD_REF}"
+          } > /tmp/live_state.txt
+          if [ "$LOOP_N" -gt 0 ]; then
+            {
+              echo "Loop ${LOOP_N}: see the PR's existing codex-review comment thread for the prior verdict JSON and resolved findings."
+              echo "The sticky comment carries marker <!-- codex-review loop:N sha:X -->."
+            } > /tmp/prior_loop.txt
+          else
+            echo "N/A (loop 0 - first pass)." > /tmp/prior_loop.txt
+          fi
 
       - name: Gather PR diff (bounded)
+        if: env.CODEX_REVIEW_EVIDENCE_MODE != 'chunked' || steps.classify.outputs.reviewer_route != 'codex'
         # The reviewer runs read-only and its in-sandbox shell may be
         # unavailable (bwrap can fail to initialize on the runner), so it
         # cannot compute the diff itself. Precompute it here and inject it so
@@ -214,7 +291,17 @@ jobs:
             echo "PR_DIFF_EOF"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Build chunked PR evidence
+        if: env.CODEX_REVIEW_EVIDENCE_MODE == 'chunked' && steps.classify.outputs.reviewer_route == 'codex'
+        run: |
+          python3 scripts/codex-review-build-evidence.py \
+            --base "${BASE_SHA}" \
+            --head "${HEAD_SHA}" \
+            --out-dir /tmp/codex-review-evidence \
+            --evidence-mode chunked
+
       - name: Assemble prompt
+        if: env.CODEX_REVIEW_EVIDENCE_MODE != 'chunked' || steps.classify.outputs.reviewer_route != 'codex'
         id: prompt
         run: python3 scripts/codex-review-assemble-prompt.py /tmp/prompt.md
         env:
@@ -238,7 +325,7 @@ jobs:
 
       - name: Run reviewer (codex exec, converge across runs)
         id: review_codex
-        if: steps.classify.outputs.reviewer_route == 'codex'
+        if: steps.classify.outputs.reviewer_route == 'codex' && env.CODEX_REVIEW_EVIDENCE_MODE != 'chunked'
         env:
           CODEX_HOME: ${{ runner.temp }}/codex-home
         run: |
@@ -275,6 +362,22 @@ jobs:
           if [ "$NEED_THIRD" = "yes" ]; then
             run_codex /tmp/review-3.json
           fi
+
+      - name: Run reviewer (codex exec, chunked evidence)
+        id: review_codex_chunked
+        if: steps.classify.outputs.reviewer_route == 'codex' && env.CODEX_REVIEW_EVIDENCE_MODE == 'chunked'
+        env:
+          CODEX_HOME: ${{ runner.temp }}/codex-home
+        run: |
+          python3 scripts/codex-review-run-chunks.py \
+            --evidence-dir /tmp/codex-review-evidence \
+            --live-state-file /tmp/live_state.txt \
+            --out-dir /tmp/codex-review-results \
+            --head-sha "${HEAD_SHA}" \
+            --prior-loop-file /tmp/prior_loop.txt \
+            --repository "${{ github.repository }}" \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --heartbeat
 
       - name: Run reviewer (Claude Sonnet 4.6 API, Tier 2 claude-deep route)
         id: review_claude_deep
@@ -327,7 +430,24 @@ jobs:
           REVIEWS=/tmp/review-1.json
           [ -f /tmp/review-2.json ] && REVIEWS="$REVIEWS /tmp/review-2.json"
           [ -f /tmp/review-3.json ] && REVIEWS="$REVIEWS /tmp/review-3.json"
-          python3 scripts/codex-review-build-envelope.py --diff /tmp/pr_diff.txt --out /tmp/envelope.json $REVIEWS
+          if [ "${CODEX_REVIEW_EVIDENCE_MODE}" = "chunked" ] && [ "${REVIEWER_ROUTE}" = "codex" ]; then
+            shopt -s nullglob
+            CHUNK_REVIEWS=(/tmp/codex-review-results/chunk-*-review-*.json)
+            SYNTHESIS_REVIEWS=(/tmp/codex-review-results/synthesis-*.json)
+            if [ "${#CHUNK_REVIEWS[@]}" -eq 0 ] || [ "${#SYNTHESIS_REVIEWS[@]}" -eq 0 ]; then
+              echo "::error::chunked review did not produce chunk and synthesis review files"
+              exit 1
+            fi
+            python3 scripts/codex-review-build-envelope.py \
+              --manifest /tmp/codex-review-evidence/manifest.json \
+              --evidence-dir /tmp/codex-review-evidence \
+              --full-diff /tmp/codex-review-evidence/full.diff \
+              --chunk-reviews "${CHUNK_REVIEWS[@]}" \
+              --synthesis-reviews "${SYNTHESIS_REVIEWS[@]}" \
+              --out /tmp/envelope.json
+          else
+            python3 scripts/codex-review-build-envelope.py --diff /tmp/pr_diff.txt --out /tmp/envelope.json $REVIEWS
+          fi
         env:
           REVIEWER_ROUTE: ${{ steps.classify.outputs.reviewer_route }}
           RUN_ID: ${{ github.run_id }}

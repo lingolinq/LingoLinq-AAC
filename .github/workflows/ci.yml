@@ -162,10 +162,23 @@ jobs:
         uses: actions/checkout@v4
 
       # Guards the codex-review envelope logic: status fail-closed mapping,
-      # the prompt-injection guard, and the convergence policy. Stdlib-only
-      # (unittest), so no Python setup or dependencies are needed.
+      # the prompt-injection guard, the per-chunk convergence policy, and the
+      # cross-chunk fold. Stdlib-only (unittest), so no Python setup or
+      # dependencies are needed.
       - name: Run codex-review envelope guard + convergence unit tests
         run: python3 scripts/codex-review-build-envelope.test.py
+
+      # Guards the chunked-evidence builder: deterministic diff, structural
+      # index (added + removed symbols with real source lines), sub-cap chunk
+      # packing, and the MAX_CHUNKS hard-stop that keeps a too-large PR
+      # fail-closed.
+      - name: Run codex-review evidence-builder unit tests
+        run: python3 scripts/codex-review-build-evidence.test.py
+
+      # Guards the per-chunk runner: per-chunk approve convergence, the single
+      # decisive path fed to synthesis, and non-fatal heartbeat/retry handling.
+      - name: Run codex-review chunk-runner unit tests
+        run: python3 scripts/codex-review-run-chunks.test.py
 
   security-scan:
     runs-on: ubuntu-latest

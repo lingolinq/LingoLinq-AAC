@@ -676,6 +676,10 @@ export default modal.ModalController.extend({
       var _this = this;
       LingoLinq.Videos.track('link_video_preview').then(function(player) {
         _this.set('player', player);
+      }, function() {
+        // Same unhandled-rejection guard as the button-settings COMPONENT's
+        // track_video — see the comment there. Kept in sync deliberately; these two
+        // observers are twins.
       });
     }
   }),

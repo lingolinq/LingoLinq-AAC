@@ -38,6 +38,20 @@ export default Component.extend({
   is_modern: computed('appState.currentUser.preferences.board_view_style', function() {
     return this.get('appState.currentUser.preferences.board_view_style') !== 'classic';
   }),
+  // Text-position preference (top / bottom / text_only) for the button-mockup
+  // previews (header + Color tab) so they render the label/symbol the same way the
+  // board does in speak mode. Mirrors board-detail's `button_text_position` default
+  // of 'top'. Prefer the referenced communicator's pref; fall back to the editor's.
+  button_text_position: computed('appState.referenced_user.preferences.device.button_text_position', 'appState.currentUser.preferences.device.button_text_position', function() {
+    return this.get('appState.referenced_user.preferences.device.button_text_position') ||
+           this.get('appState.currentUser.preferences.device.button_text_position') || 'top';
+  }),
+  preview_text_only: computed('button_text_position', function() {
+    return this.get('button_text_position') == 'text_only';
+  }),
+  preview_text_on_top: computed('button_text_position', function() {
+    return this.get('button_text_position') == 'top';
+  }),
 
   init() {
     this._super(...arguments);
@@ -99,6 +113,22 @@ export default Component.extend({
     this.set('fresh_picture_url', null);
     contentGrabbers.setup(button, this);
     var _this = this;
+
+    // Size the header button-preview mockup to the ACTUAL board button (its speak-mode
+    // width/height). The board is still rendered behind the modal and every grid
+    // button is the same size, so measure one and publish its dimensions as CSS vars
+    // the preview reads; falls back to the CSS default when no modern board button is
+    // on the page. Measured synchronously — the board rendered before this modal opened.
+    try {
+      var _card = document.querySelector('.md-board-detail-symbol-card');
+      if(_card && this.element) {
+        var _r = _card.getBoundingClientRect();
+        if(_r.width > 1 && _r.height > 1) {
+          this.element.style.setProperty('--bs-preview-w', Math.round(_r.width) + 'px');
+          this.element.style.setProperty('--bs-preview-h', Math.round(_r.height) + 'px');
+        }
+      }
+    } catch(e) { /* preview keeps its CSS-default size */ }
 
     if(button.get('folderAction')) { this.load_board_collection(); }
     // Snapshot the button's colors so the Color tab's "Revert Color" can restore
@@ -285,6 +315,56 @@ export default Component.extend({
       label: this.get('model.label')
     });
   }),
+  // The URL field is bound with a plain `set-field model.url`, which updates ONLY the
+  // in-modal Button model — it never reached board.buttons the way labelChanged does.
+  // board-detail speak mode rebuilds its display buttons from board.buttons (via
+  // contextualized_buttons), so an un-synced url meant the tapped button had no url
+  // (and, combined with a stale load_board, navigated instead of opening the link).
+  // Sync url through change_button so the authoritative board button carries it.
+  urlChanged: observer('model.url', function() {
+    if(!this.get('handle_updates')) { return; }
+    editManager.change_button(this.get('model.id'), {
+      url: this.get('model.url')
+    });
+  }),
+  // A URL link can resolve to an in-app popup resource: `resource_from_url`
+  // (utils/button.js) sets model.video for a YouTube link and model.book for a Tarheel
+  // book. Those popups are what let the link open a video/book PANE in speak mode
+  // (app_state.launch_url → inline-video / tarheel) instead of a browser tab. Like
+  // urlChanged, sync them to the authoritative board button so select_button's
+  // launcher sees the popup and opens the pane rather than window_open-ing the raw URL.
+  // Observes `model.video.popup` (and `.start` / `.end`) as well as the object
+  // itself: the "Show video in a popup" checkbox and the start/end fields mutate
+  // properties ON the video object rather than replacing it, so a reference-only
+  // observer never refires and the change would reach board.buttons only by the
+  // accident of the two sharing an object identity.
+  videoChanged: observer('model.video', 'model.video.popup', 'model.video.start', 'model.video.end', function() {
+    if(!this.get('handle_updates')) { return; }
+    editManager.change_button(this.get('model.id'), {
+      video: this.get('model.video')
+    });
+  }),
+  bookChanged: observer('model.book', function() {
+    if(!this.get('handle_updates')) { return; }
+    editManager.change_button(this.get('model.id'), {
+      book: this.get('model.book')
+    });
+  }),
+  // Folder/link action options edited via `set-field` (model-only) — sync to the
+  // authoritative board button so board-detail select_button honors them: home_lock
+  // (set the linked board as a temporary home on nav), add_to_vocalization (also add
+  // the button to the vocalization box), and link_disabled (skip the link action).
+  // link_disabled is also mirrored by update_hidden below; syncing here too keeps
+  // board.buttons authoritative for select_button regardless of which path ran.
+  linkOptionsChanged: observer('model.home_lock', 'model.add_to_vocalization', 'model.add_vocalization', 'model.link_disabled', function() {
+    if(!this.get('handle_updates')) { return; }
+    editManager.change_button(this.get('model.id'), {
+      home_lock: this.get('model.home_lock'),
+      add_to_vocalization: this.get('model.add_to_vocalization'),
+      add_vocalization: this.get('model.add_vocalization'),
+      link_disabled: this.get('model.link_disabled')
+    });
+  }),
   update_hidden: observer(
     'model',
     'model.id',
@@ -355,6 +435,27 @@ export default Component.extend({
   }),
   non_https: computed('model.url', function() {
     return (this.get('model.url') || '').match(/^http:/);
+  }),
+  // "Also speak & add to the vocalization box" checkbox — reads the EFFECTIVE preference,
+  // which activate_button computes as `add_vocalization ?? add_to_vocalization`. Legacy/
+  // copied boards persist these bool fields as the STRINGS "true"/"false", so coerce both.
+  // Binding the checkbox to model.add_to_vocalization alone showed it UNCHECKED for a
+  // button whose value lives in add_vocalization (even though speak & add works). set()
+  // writes add_to_vocalization and clears add_vocalization so the field is authoritative
+  // going forward; both are synced to board.buttons by linkOptionsChanged.
+  speak_and_add: computed('model.add_vocalization', 'model.add_to_vocalization', {
+    get() {
+      var av = this.get('model.add_vocalization');
+      if(av != null) { return av === true || av === 'true'; }
+      var atv = this.get('model.add_to_vocalization');
+      return atv === true || atv === 'true';
+    },
+    set(key, value) {
+      value = !!value;
+      this.set('model.add_vocalization', null);
+      this.set('model.add_to_vocalization', value);
+      return value;
+    }
   }),
   vocalization_sound_conflict: computed('model.vocalization', 'model.sound_id', function() {
     return this.get('model.vocalization') && this.get('model.sound_id');
@@ -910,6 +1011,14 @@ export default Component.extend({
       var _this = this;
       LingoLinq.Videos.track('link_video_preview').then(function(player) {
         _this.set('player', player);
+      }, function() {
+        // LingoLinq.Videos.track rejects with "player never initialized" 5s after a
+        // preview iframe that never loads a player (offline, blocked embed, or the
+        // modal closed first). Without a rejection handler that surfaces as an
+        // UNHANDLED rejection: harmless at runtime, but under test QUnit attributes
+        // it to whichever unrelated test happens to be running 5s later, which reads
+        // as a random failing test somewhere else in the suite. Nothing to do but
+        // leave `player` unset — the preview simply stays inert.
       });
     }
   }),
@@ -999,6 +1108,32 @@ export default Component.extend({
   //     return (previews && previews.length > 0) || this.get('image_search.previews_loaded') || this.get('image_search.error');
     }
   ),
+  // Switch the button's action TYPE, clearing every OTHER action field.
+  // The button's action is DERIVED from its fields (utils/button.js `updateAction`,
+  // which prioritizes load_board over url/apps/integration), and board-detail's
+  // `select_button` navigates ANY button that still has a load_board. So switching the
+  // action type MUST clear the conflicting fields — otherwise a stale field wins.
+  // Reported bug: a folder button switched to "Open a web site in a browser tab" kept
+  // its load_board, so tapping it navigated to the old board (404 → "player never
+  // initialized") instead of opening the URL; and once the user typed the URL,
+  // updateAction re-fired and (load_board still set) reset buttonAction back to 'folder'.
+  // Single source of truth for BOTH entry points — the action dropdown
+  // (updateModelButtonAction) and the "Quick actions" shortcuts (quick_action). Update
+  // the model AND the board's button data (editManager) so speak-mode select_button sees
+  // the cleared fields, then re-assert buttonAction LAST because clearing a field re-fires
+  // updateAction (which would otherwise reset buttonAction to the newly-derived value).
+  _apply_button_action: function(value) {
+    var _this = this;
+    var id = this.get('model.id');
+    var clears = {};
+    if(value !== 'folder')      { clears.load_board = null; }
+    if(value !== 'link')        { clears.url = null; }
+    if(value !== 'app')         { clears.apps = null; }
+    if(value !== 'integration') { clears.integration = null; }
+    Object.keys(clears).forEach(function(k) { _this.set('model.' + k, clears[k]); });
+    if(id && Object.keys(clears).length) { editManager.change_button(id, clears); }
+    this.set('model.buttonAction', value);
+  },
   actions: {
     updateHideLabel(checked) {
       if(!this.get('handle_updates') || !this.get('model.id')) { return; }
@@ -1024,7 +1159,11 @@ export default Component.extend({
     updateModelPartOfSpeech(value) { this.set('model.part_of_speech', value); },
     updateImageLibrary(value) { this.set('image_library', value); },
     updateSkinPreference(value) { this.set('skin_preference', value); },
-    updateModelButtonAction(value) { this.set('model.buttonAction', value); },
+    updateModelButtonAction(value) {
+      // Action dropdown (BoundSelect) → shared action-switch logic (clears conflicting
+      // fields; see _apply_button_action). The Quick-actions shortcuts route here too.
+      this._apply_button_action(value);
+    },
     updateBoardSearchType(value) { this.set('board_search_type', value); },
     updatePendingBoardForUserId(value) {
       var p = this.get('pending_board');
@@ -1168,6 +1307,13 @@ export default Component.extend({
       contentGrabbers.pictureGrabber.swap_streams();
     },
     webcamToggle: function(takePic) {
+      // toggle_webcam() is a pure toggle on webcam.snapshot (capture ⇄ clear); the
+      // modal re-fire's duplicate click would CAPTURE then immediately CLEAR the photo.
+      // De-dupe HERE (not by swallowing the native click — that breaks the
+      // getUserMedia gesture on the "Take photo" open). Ignore a repeat within 250ms.
+      var now = Date.now();
+      if(this._lastWebcamToggle && (now - this._lastWebcamToggle) < 250) { return; }
+      this._lastWebcamToggle = now;
       contentGrabbers.pictureGrabber.toggle_webcam(!takePic);
     },
     find_board: function() {
@@ -1351,6 +1497,15 @@ export default Component.extend({
       contentGrabbers.pictureGrabber.select_image_preview(url);
     },
     library_options: function() {
+      // The modal's AAC pointer layer (raw_events.modalDialogClickRelease) re-fires a
+      // synthetic click on top of the native one, so a plain toggle flips ON then OFF
+      // and appears to do nothing. De-dupe the duplicate HERE (at the action) — NOT by
+      // swallowing the native click, which breaks user-gesture-gated actions like
+      // getUserMedia / the file picker that need the trusted native click. Ignore a
+      // repeat call within 250ms.
+      var now = Date.now();
+      if(this._lastLibToggle && (now - this._lastLibToggle) < 250) { return; }
+      this._lastLibToggle = now;
       this.set('show_library_options', !this.get('show_library_options'));
     },
     testVocalization: function() {
@@ -1486,10 +1641,17 @@ export default Component.extend({
       } else if(action == 'sound') {
         _this.set('state', 'sound');
       } else if(action == 'folder') {
-        _this.set('model.buttonAction', 'folder');
+        // Route through the shared action-switch so conflicting fields (url/apps/
+        // integration) are cleared — NOT a bare set (which left stale fields, so the
+        // derived buttonAction could flip back). See _apply_button_action.
+        _this._apply_button_action('folder');
         _this.set('state', 'action');
       } else if(action == 'url') {
-        _this.set('model.buttonAction', 'link');
+        // Same shared path: clears load_board (and apps/integration) so the URL action
+        // actually takes effect. Without this, a folder button switched here kept its
+        // load_board and speak-mode tap navigated to the old board ("player never
+        // initialized") instead of opening the URL.
+        _this._apply_button_action('link');
         _this.set('state', 'action');
       } else if(action == 'hide') {
         _this.set('model.hidden', !(this.get('model.hidden')));

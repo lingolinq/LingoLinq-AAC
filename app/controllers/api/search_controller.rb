@@ -335,14 +335,11 @@ class Api::SearchController < ApplicationController
     req = nil
     content_type = 'audio/wav'
     if params['locale'] && params['locale'].match(/^ga/)
-      req = Typhoeus.post("https://abair.ie/aac_irish", body: {text: params['text'], voice: params['voice_id'] || 'Ulster'}, timeout: 5)
-      if req.success?
-        # src = Nokogiri(req.body).css('audio source')[0]['src']
-        # req = Typhoeus.get("https://abair.ie#{src}")
-      else
-        return api_error 400, {error: 'endpoint failed to respond'}
-        req = nil
-      end
+      # Irish (Gaeilge) TTS via abair.ie is DISABLED. The Trinity College Dublin / ADAPT
+      # endpoint has no DPA/SCCs on file and would receive raw, unscrubbed user utterance
+      # text (finding LL-a167848115, docs/legal/SUBPROCESSORS.md #17). Disabled 2026-07-23
+      # per CEO decision rather than executing a DPA. Re-enable only once a DPA/SCCs exist.
+      return api_error 400, {error: 'irish tts disabled'}
     # elsif params['locale'] && params['locale'].match(/^uk/)
     #   req = Typhoeus.post("https://hf.space/gradioiframe/robinhad/ukrainian-tts/+/api/predict/", body: {data: [params['text'], "uk/mai/vits-tts"]}.to_json, headers: {'Content-Type': 'application/json'})
     #   json = JSON.parse(req.body) rescue nil
