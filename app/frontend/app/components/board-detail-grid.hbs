@@ -45,7 +45,7 @@
            {{action bubbles=false}} on the component actions.
            aria-label and each inner button's own title. --}}
       <div
-        class="button md-board-detail-symbol-card md-board-detail-symbol-card--{{or btn.part_of_speech btn.painted_part_of_speech btn.suggested_part_of_speech 'default'}} {{if btn.empty 'md-board-detail-symbol-card--empty'}} {{unless (or btn.label btn.image_id btn.image_url btn.vocalization) 'md-board-detail-symbol-card--empty'}} {{if this.editMode (if btn.hidden 'md-board-detail-symbol-card--hidden') (if btn.display_as_hidden 'md-board-detail-symbol-card--hidden')}} {{if btn.for_swap 'md-board-detail-symbol-card--swapping'}} {{if btn.load_board 'md-board-detail-symbol-card--folder'}} {{unless btn.background_color 'md-board-detail-symbol-card--no-color'}} {{if btn.dim 'dim_button'}} {{if btn.focus_word_match 'focus_word_button'}}"
+        class="button md-board-detail-symbol-card md-board-detail-symbol-card--{{or btn.part_of_speech btn.painted_part_of_speech btn.suggested_part_of_speech 'default'}} {{if btn.empty 'md-board-detail-symbol-card--empty'}} {{unless (or btn.label btn.image_id btn.image_url btn.vocalization) 'md-board-detail-symbol-card--empty'}} {{if this.editMode (if btn.hidden 'md-board-detail-symbol-card--hidden') (if btn.display_as_hidden 'md-board-detail-symbol-card--hidden')}} {{if btn.for_swap 'md-board-detail-symbol-card--swapping'}} {{if btn.load_board 'md-board-detail-symbol-card--folder'}} {{unless btn.background_color 'md-board-detail-symbol-card--no-color'}} {{if btn.dim 'dim_button'}} {{if btn.focus_word_match 'focus_word_button'}} {{if btn.hide_label 'md-board-detail-symbol-card--hide-label'}}"
         role={{if this.editMode "group" "button"}}
         tabindex={{if this.editMode "-1" "0"}}
         aria-label={{or btn.label btn.vocalization}}
@@ -158,10 +158,10 @@
               <LabelField @value={{btn.label}} class="md-board-detail-symbol-card__label-input" placeholder="enter label" aria-label={{concat (t "Button label" key="board_detail_button_label_aria") " " btn.id}} />
             {{/if}}
           {{else}}
-            <span class="md-board-detail-symbol-card__label" style={{if btn.text_color (safe-style (concat "color:" btn.text_color))}}>{{btn.label}}</span>
+            <span class="md-board-detail-symbol-card__label {{if btn.hide_label 'hide-label'}}" style={{if btn.text_color (safe-style (concat "color:" btn.text_color))}}>{{btn.label}}</span>
           {{/if}}
         {{else}}
-          <span class="md-board-detail-symbol-card__label" style={{if btn.text_color (safe-style (concat "color:" btn.text_color))}}>{{btn.label}}</span>
+          <span class="md-board-detail-symbol-card__label {{if btn.hide_label 'hide-label'}}" style={{if btn.text_color (safe-style (concat "color:" btn.text_color))}}>{{btn.label}}</span>
         {{/if}}
         {{#if btn.load_board}}
           <span class="md-board-detail-symbol-card__folder-badge" aria-label={{t "Folder" key="folder"}}>

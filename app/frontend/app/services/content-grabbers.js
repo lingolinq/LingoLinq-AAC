@@ -195,9 +195,26 @@ var contentGrabbers = Service.extend({
         if(!object.get('url') && object.get('data_url')) {
           object.set('url', object.get('data_url'));
         }
-        if(object.get('pending')) {
-          var meta = persistenceService.meta(object.constructor.modelName, null); //object.store.metadataFor(object.constructor.modelName);
-          if(!meta || !meta.remote_upload) { return reject({error: 'remote_upload parameters required'}); }
+          // Trigger the S3 upload on the PRESENCE of upload params, not on the
+          // `pending` flag. The server hands back `remote_upload` params exactly when
+          // a client upload is required, but its create response serializes
+          // `image.pending` as null even then (the pending flag is set just after the
+          // response is built), so gating on `object.get('pending')` skipped the
+          // upload entirely and stranded the image with no url — showing locally from
+          // the data URL, then vanishing on reload. [Server-side: json_api/image.rb
+          // build_json emits pending from settings_for, which is null at create time
+          // while `meta.remote_upload` (image.pending_upload?) is already set — worth
+          // reconciling, tracked separately.]
+          //
+          // Params come from the deterministic per-record store keyed by THIS image's
+          // exact id (captured at response time — no timer, no shared-slot race);
+          // consumed on read. The time-windowed meta slot is only a fallback, and
+          // only when the server also flagged `pending`, so a stale slot entry from a
+          // previous create can't trigger a spurious upload.
+          var _take = window.lingoLinqExtras && window.lingoLinqExtras.upload_params_take;
+          var _rup = _take ? _take(object.get('id')) : null;
+          var meta = _rup ? {remote_upload: _rup} : (object.get('pending') ? persistenceService.meta(object.constructor.modelName, null) : null);
+        if(meta && meta.remote_upload) {
           // upload to S3
           var get_data_url = RSVP.resolve(object.get('data_url'));
           if(!object.get('data_url') && original_url) {
@@ -223,6 +240,9 @@ var contentGrabbers = Service.extend({
           }, function(err) {
             reject(err);
           });
+        } else if(object.get('pending')) {
+          // Server flagged pending but handed us no upload params to work with.
+          return reject({error: 'remote_upload parameters required'});
         } else {
           resolve(object);
         }
@@ -680,7 +700,57 @@ var pictureGrabber = EmberObject.extend({
           context.clearRect(0, 0, canvas.width, canvas.height);
           context.drawImage(img, x, y, width, height);
           try {
-            result = canvas.toDataURL();
+            // Optimize storage/bandwidth: photographs (webcam captures, uploaded
+            // photos) compress ~10-15x smaller as JPEG than as PNG, and an
+            // un-optimized 700KB+ data URL both slows the S3 upload and bloats the
+            // board-save payload (which can exceed the 4MB request limit). If the
+            // source is fully opaque we backfill the letterbox white and export JPEG;
+            // if it has any transparency (line-art symbol PNGs) we keep PNG so we
+            // never flatten alpha to black. Alpha is probed by drawing the SOURCE
+            // stretched to fill a tiny canvas (no letterbox), so the contain-fit
+            // canvas's anti-aliased transparent margins can't be misread as source
+            // transparency (that false positive kept opaque photos as PNG). size_image
+            // only runs on same-origin data: URLs (http/gif bypass above) so
+            // getImageData is not tainted; any read error falls back to lossless PNG.
+            //
+            // Opacity alone is NOT sufficient to justify JPEG: a logo, screenshot or
+            // line-art symbol drawn on an opaque white background is fully opaque but
+            // is exactly the content JPEG ruins (ringing around hard edges). So the
+            // same probe also counts DISTINCT COLOURS — a photograph fills a 24x24
+            // sample with many unique values, while flat-colour artwork collapses to a
+            // handful. Only opaque AND photographic images take the lossy path;
+            // everything else stays lossless PNG.
+            var srcHasAlpha = false;
+            var srcIsPhotographic = false;
+            try {
+              var probe = document.createElement('canvas');
+              probe.width = 24; probe.height = 24;
+              var pctx = probe.getContext('2d');
+              pctx.drawImage(img, 0, 0, 24, 24);
+              var pd = pctx.getImageData(0, 0, 24, 24).data;
+              var colors = {};
+              var color_count = 0;
+              for(var ai = 0; ai < pd.length; ai += 4) {
+                if(pd[ai + 3] < 250) { srcHasAlpha = true; break; }
+                // Quantize to 5 bits/channel so photographic noise/gradients don't
+                // count as thousands of "colours" while flat fills still collapse.
+                var q = ((pd[ai] >> 3) << 10) | ((pd[ai + 1] >> 3) << 5) | (pd[ai + 2] >> 3);
+                if(!colors[q]) { colors[q] = true; color_count++; }
+              }
+              // 576 sampled pixels; >64 distinct quantized colours reads as a photo.
+              srcIsPhotographic = color_count > 64;
+            } catch(e) { srcHasAlpha = true; }
+            if(srcHasAlpha || !srcIsPhotographic) {
+              result = canvas.toDataURL('image/png');
+            } else {
+              // Paint white behind the existing pixels so JPEG's opaque letterbox
+              // reads white, not black, then export at quality 0.82.
+              context.globalCompositeOperation = 'destination-over';
+              context.fillStyle = '#fff';
+              context.fillRect(0, 0, canvas.width, canvas.height);
+              context.globalCompositeOperation = 'source-over';
+              result = canvas.toDataURL('image/jpeg', 0.82);
+            }
           } catch(e) { }
           if(result) {
             resolve({url: result, width: canvas.width, height: canvas.height});
@@ -802,7 +872,7 @@ var pictureGrabber = EmberObject.extend({
     this.controller.set('webcam', null);
     this.controller.set('webcam', null);
     var vid = document.getElementById('webcam_video');
-    if(vid) { vid.setAttribute('src', ''); }
+    if(vid) { vid.srcObject = null; vid.removeAttribute('src'); }
     var upload = document.getElementById('image_upload');
     if(upload) { upload.value = ''; }
   },
@@ -1609,7 +1679,11 @@ var pictureGrabber = EmberObject.extend({
     var video = document.querySelector('#webcam_video');
     var _this = this;
     if(video) {
-      video.src = window.URL.createObjectURL(stream);
+      // Modern API: attach the MediaStream directly. URL.createObjectURL(MediaStream)
+      // was removed from browsers ("Overload resolution failed"), which left the
+      // <video> with no source so the camera preview never appeared. `autoplay` on
+      // the element starts playback once the stream is assigned.
+      video.srcObject = stream;
     }
     if(stream_id) {
       stashesService.persist('last_stream_id', stream_id);
@@ -1623,6 +1697,16 @@ var pictureGrabber = EmberObject.extend({
       stream_id: stream_id,
       video_streams: streams
     });
+    // The camera preview renders near the BOTTOM of the modal, below the fold, so
+    // without this the user can't tell the camera turned on. Scroll it into view once
+    // the "shown" layout has settled (deferred two frames).
+    if(video && video.scrollIntoView && typeof window !== 'undefined' && window.requestAnimationFrame) {
+      window.requestAnimationFrame(function() {
+        window.requestAnimationFrame(function() {
+          video.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+      });
+    }
     var enumerator = window.enumerateMediaDevices || (window.navigator && window.navigator.mediaDevices && window.navigator.mediaDevices.enumerateDevices);
     if(!enumerator && window.MediaStreamTrack && window.MediaStreamTrack.getSources) {
       enumerator = function() {
@@ -1769,8 +1853,30 @@ var pictureGrabber = EmberObject.extend({
       this.controller.set('image_preview', null);
       this.controller.set('webcam.snapshot', false);
     } else if(this.controller.get('webcam.stream')) {
-      ctx.drawImage(video, 0, 100, 800, 600);
-      var data = canvas.toDataURL('image/png');
+      // Center-crop the largest square region of the live video and draw it to fill
+      // the whole square (800x800) canvas — "cover" framing. The old draw placed the
+      // video at a 100px vertical offset and squished it to 800x600 inside the square
+      // canvas, which left empty top/bottom bands (and distorted the aspect). Covering
+      // the full canvas paints every pixel with video, so there are no bands (no white
+      // backfill needed) and the square image fills the square button.
+      // `video` can be null when no #webcam_video element is mounted (e.g. unit tests
+      // that exercise the snapshot path without rendering the modal). Guard the reads
+      // so the intrinsic-size lookup falls back to the 800x600 defaults instead of
+      // throwing on `null.videoWidth`. drawImage below already matched staging's
+      // behavior for a null video (a no-op on the mocked ctx).
+      var vw = (video && video.videoWidth) || 800;
+      var vh = (video && video.videoHeight) || 600;
+      var side = Math.min(vw, vh);
+      var sx = (vw - side) / 2;
+      var sy = (vh - side) / 2;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(video, sx, sy, side, side, 0, 0, canvas.width, canvas.height);
+      // Webcam frames are opaque photos — export JPEG (~10x smaller than PNG) so the
+      // capture is a ~70KB data URL instead of ~700KB. That keeps the S3 upload fast
+      // and the board-save payload small (a stack of un-optimized PNG captures could
+      // push the save past the 4MB request limit). content_type is inferred from the
+      // data: URL downstream, so this stays consistent through save + upload.
+      var data = canvas.toDataURL('image/jpeg', 0.82);
       this.controller.set('image_preview', {
         url: data
       });

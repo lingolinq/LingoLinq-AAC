@@ -77,14 +77,20 @@ function interiorSteps() {
       title: i18n.t('board_detail_tour_session_title', "You're in edit mode"),
       text: tourChecklist([
         i18n.t('board_detail_tour_session_b1', "This bar shows you're editing"),
-        i18n.t('board_detail_tour_session_b2', "Discard undoes all your changes"),
-        i18n.t('board_detail_tour_session_b3', "Done Editing saves your work")
+        i18n.t('board_detail_tour_session_b2', "Cancel undoes all your changes"),
+        i18n.t('board_detail_tour_session_b3', "Save keeps your work")
       ])
     },
     {
+      // Board name / description / privacy moved OUT of the edit header (the
+      // `__edit-card` this step used to spotlight was removed) and into the
+      // "Edit Board Details" Board Action, so point at that row instead. A step
+      // whose selector matches nothing is worse than a moved step: Shepherd
+      // resolves targets at show time, so it renders as an unanchored floating
+      // card mid-tour.
       id: 'board_detail_tour_details',
-      sel: '.md-board-detail-header__edit-card',
-      on: 'bottom',
+      sel: '[data-bd-action="board_details"]',
+      on: 'right',
       padded: true,
       title: i18n.t('board_detail_tour_details_title', "Name your board"),
       text: tourChecklist([
@@ -160,26 +166,26 @@ function interiorSteps() {
       on: 'bottom',
       title: i18n.t('board_detail_tour_save_title', "Save your work"),
       text: tourChecklist([
-        i18n.t('board_detail_tour_save_b1', "Press Done Editing to save"),
+        i18n.t('board_detail_tour_save_b1', "Press Save to keep your changes"),
         i18n.t('board_detail_tour_save_b2', "Your changes go live right away"),
         i18n.t('board_detail_tour_save_b3', "You can edit again anytime"),
-        i18n.t('board_detail_tour_finish_top_note', "Done Editing and Discard also sit at the top of the page for quick access")
+        i18n.t('board_detail_tour_finish_top_note', "Save and Cancel also sit at the top of the page for quick access")
       ])
     },
     {
-      // Discard counterpart, shown AFTER the Done Editing (save) showcase. The
-      // session bar pairs Done Editing with Discard, so spotlight Discard too.
+      // Cancel counterpart, shown AFTER the Save showcase. The session bar pairs
+      // Save with Cancel, so spotlight Cancel too.
       // `board_detail_tour_finish_top_note` is SHARED with the save step above —
       // both buttons are ALSO mirrored at the top of the page
       // (md-board-detail-header__edit-actions), so each step notes it.
       id: 'board_detail_tour_discard',
       sel: '.md-board-edit-session__btn--discard',
       on: 'bottom',
-      title: i18n.t('board_detail_tour_discard_title', "Discard your changes"),
+      title: i18n.t('board_detail_tour_discard_title', "Cancel your changes"),
       text: tourChecklist([
-        i18n.t('board_detail_tour_discard_b1', "Press Discard to undo all your edits"),
+        i18n.t('board_detail_tour_discard_b1', "Press Cancel to undo all your edits"),
         i18n.t('board_detail_tour_discard_b2', "The board goes back to how it was before"),
-        i18n.t('board_detail_tour_finish_top_note', "Done Editing and Discard also sit at the top of the page for quick access")
+        i18n.t('board_detail_tour_finish_top_note', "Save and Cancel also sit at the top of the page for quick access")
       ])
     }
   ];

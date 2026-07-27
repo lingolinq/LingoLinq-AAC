@@ -2519,7 +2519,7 @@ var buttonTracker = EmberObject.extend({
   },
   speak_bar_element_from_event: function($target) {
     var $row = $target.closest('#speak.md-board-detail-sentence-row');
-    if($row.length === 0 || $row.hasClass('md-board-detail-sentence-row--preview')) { return null; }
+    if($row.length === 0) { return null; }
     var elem = $target.closest('button, a, [role="button"], .md-board-detail-sentence-bar__text')[0];
     if(!elem || elem.disabled) { return null; }
     return buttonTracker.element_wrap(elem);
