@@ -7719,3 +7719,12 @@ fix); then `throwOnUnhandled: true` for test (Phase 3; watch `binding-style-attr
 - `binding-style-attributes` (Ember v1.x warning) still fires on some org UI paths; it is
   **not** until:6.0, but it will trip `throwOnUnhandled: true` unless fixed or logged
   (never silenced) in the deprecation workflow before Phase 3 CI hardening.
+
+## Phase 3 until:6.0 CI hardening (2026-07-27)
+
+- `app/deprecation-workflow.js`: `throwOnUnhandled: config.environment === 'test'`
+  (dev still logs; production skipped). `workflow: []` — no silence handlers.
+- Board-filtered `ember test` stayed green under throw-on-unhandled (# pass 403 / # fail 0).
+- `ember-htmlbars.style-xss-warning` (`binding-style-attributes` console text) is emitted via
+  Ember `warn()`, not `deprecate()`, so it does **not** enter `ember-cli-deprecation-workflow`
+  and does not require a workflow `log` entry to keep tests green.
