@@ -110,6 +110,8 @@ file (see [README.md](README.md)).
 - [Gotcha: safely cleaning up Resque failed jobs — origination is chain::, not scheduled; count-check destructive removes](#gotcha-safely-cleaning-up-resque-failed-jobs--origination-is-chain-not-scheduled-count-check-destructive-removes)
 - [Gotcha: `Worker.process_queues` destroys RemoteActions — assert RA rows after one wave, not two](#gotcha-workerprocess_queues-destroys-remoteactions--assert-ra-rows-after-one-wave-not-two)
 - [Gotcha: a single-quoted `i18n.t` default silently DELETES the key on the next generator run](#gotcha-a-single-quoted-i18nt-default-silently-deletes-the-key-on-the-next-generator-run)
+- [Gotcha: fail-closed Sentry filters must not collapse lookup failures to nil](#gotcha-fail-closed-sentry-filters-must-not-collapse-lookup-failures-to-nil)
+- [Gotcha: dual-key tag reads — check each key independently, never `a || b` before coercion](#gotcha-dual-key-tag-reads--check-each-key-independently-never-a--b-before-coercion)
 
 ---
 
@@ -7234,6 +7236,18 @@ a surface with NO synthetic transparency you introduced — never the same canva
   bogus-external-url server rejection doesn't muddy the passthrough proof.
 - size_image early-returns UNoptimized when BOTH dims <300px (`default_size`). Acceptable: sub-300
   images are already tiny and JPEG artifacts on small symbols look worse than the KB saved.
+- Login 400 "Invalid client_secret for client_id" is NOT a wrong-password error — `/token` rejects the
+  browser token (used as `client_secret`) BEFORE checking the password (`SessionController#token`:
+  `GoSecure.valid_browser_token?`). The token is time-boxed (`GoSecure.browser_token`, format
+  `<counter>-<hmac>`) and the server returns a fresh one in the `BROWSER_TOKEN` response header on
+  EVERY response (even the 400). The frontend captures it (`extras.js` → `fakeXHR.browserToken`) but
+  only persisted it in `session.js#check_token` — which runs only when the login form has NO stored
+  token. So a stale token in IndexedDB wedges login and a reload doesn't help (it reads the same stale
+  token back). Fix = refresh the stored token from `fakeXHR.browserToken` centrally in
+  `persistence.ajax` (both success `data.meta.fakeXHR` and error `rejection.fakeXHR`) so it never goes
+  stale, plus a one-shot login retry in `session.js#authenticate` on the `client_secret` error.
+  Debug tip: `curl -D - -X POST localhost:5000/token ...` shows both the JSON error and the fresh
+  `browser_token:` header; generate a valid one with `rails runner 'print GoSecure.browser_token'`.
 
 ## Board-detail sentence bar / grid: one authoritative scaling variable, hardcoded px is the bug
 The board-detail redesign scales the sentence-bar controls with a set of size-class CSS variables
@@ -7361,6 +7375,119 @@ It must ship AVAILABLE-only (OFF by default). When OFF: no `settings['compliance
 `eu_consent_age` / `JsonApi::Json.coppa_consent_age` and existing COPPA signup paths untouched
 so consumers migrate deliberately. Jurisdiction priority for this phase: declaration > org >
 user country > locale (IP geolocation deferred). Quebec is `CA-QC` → age 14 (Law 25).
+- Ember 5.x reactivity: a full-viewport loading overlay (`<AppLoadingOverlay>`) silently stopped
+  rendering after the 5.12 upgrade. Cause: the `tagName:''` classic component observed
+  `app_state.loading_overlay_message` through a classic `computed('app_state.loading_overlay_message')`,
+  but that property was NEVER declared on the `Service.extend({...})` (only `.set()` later). Under
+  Ember 5.x an undeclared, set-later property + classic computed in a tagless component can fail to
+  notify the Glimmer template — `{{#if this.show}}` never flips true. VERIFIED FIX (3 parts):
+  (1) declare `loading_overlay_message: null` on the service so it's a known trackable field;
+  (2) bind the template DIRECTLY to the service prop (`{{#if this.app_state.loading_overlay_message}}`)
+  — Glimmer auto-tracks direct property access reliably; (3) drop the now-dead show/message computeds.
+  Lesson: for Ember 5.x reactivity, prefer declaring observed props + binding templates directly to
+  the tracked source over a classic computed indirection, especially in `tagName:''` components. A
+  leftover `data-show` DEBUG probe in the co-located .hbs was the tell that this area was known-broken.
+- Slow board open (~4s) from the My Board Collection panel was NOT the board fetch/render — the
+  `ll_board_cache_diag` log (enable via `localStorage.setItem('ll_board_cache_diag','1')`, reads on
+  `window.__LL_BOARD_CACHE_LOG`) showed `model:cache_hit ms:6` + `grid_built ms:12` but
+  `setup:buttonset_fail ms:3621`. Two independent causes, both fixed:
+  (1) `routes/user/board-detail.js#setupController` called `model.load_button_set()` on the open path;
+  for an uncached set that hits `POST /buttonsets/:id/generate` (server-generates the whole
+  find-a-button hierarchy, `BoardDownstreamButtonSet.update_for`) — seconds on a large board. Fix:
+  defer it via `runLater` after paint (mirrors the deferred `warm_images`/`prefetch_linked` pattern),
+  guarded to skip if destroyed or the user navigated away. find-a-button is user-invoked; no need to
+  generate eagerly on every open.
+  (2) The collection panel's "Opening your board" overlay cleared via `onSelect(board).then(done)`, but
+  `onSelectBoardFromCollection` used `_this.send('select_board_from_collection', board)` — and Ember's
+  `send()` does NOT propagate an action's return value, so `onSelect` returned undefined, no transition
+  to hook, and the overlay only cleared via its 8s safety timeout. Fix: make onSelectBoardFromCollection
+  own the transitionTo and RETURN it; the action delegates to it (still reached via raw_events
+  data-bd-action). Lesson: to clear a loading overlay when a route transition settles, the handler must
+  RETURN the Transition — `send()` won't give it back.
+- Button-set (find-a-button) generation — and board copy, and any Uploader.remote_upload —
+  failing for ALL boards in dev was NOT a code bug: `Uploader.remote_upload_params` sets
+  `acl=public-read` on the S3 upload unless `ENV['UPLOADS_S3_NO_ACL']` is truthy
+  (lib/uploader.rb:332,341), and the `lingolinq-dev-uploads` bucket has Object Ownership =
+  "Bucket owner enforced" (ACLs disabled). S3 rejects the acl param with
+  `AccessControlListNotSupported: The bucket does not allow ACLs`. Fix: set
+  `UPLOADS_S3_NO_ACL=1` (documented in `.env.example`); we added it to the committed
+  `.env.op.template` so every dev environment inherits it (and to gitignored `.env.op.local`).
+  Diagnostic technique that nailed it: read the LIVE failure from the running worker via
+  `Resque::Failure.all(start, n)` (rails runner) — that reflects the app's real resolved-cred
+  environment, unlike a bare `rails runner` which loads unresolved `op://…` creds
+  (`config/application.rb` dotenv order is FIRST-wins: .env.op.template, .env.op.local, .env,
+  .env.local) and fails earlier with `InvalidArgument: the Credential is mal-formed`. Two
+  different S3 errors from the same upload code depending on whether you booted under `op run`.
+  Gotcha: macOS blocks `ps eww` env inspection of other processes, so you can't scrape the
+  running app's resolved creds to reproduce; verify via the worker's failure log instead, and
+  confirm end-to-end after a restart (env loads at boot).
+- Find-a-button multi-word sentence builder (find_multiple_buttons beta flag) was broken on the
+  Ember-5.12 board-detail speak page in three independent ways — the old guided-highlight system
+  predates the board-detail nav model and was never fully wired to it:
+  (1) SEARCH dropped cross-board words: `find_sequence` (buttonset.js) anchors return-navigation to
+      `home_board_id` = speak-mode `root_board_state`. When you view a board OUTSIDE the active home
+      tree (root_board_state points elsewhere, or no home board set), `button_steps` can't compute a
+      path back to the root, so every combo that dips into a sub-board is discarded — only same-board
+      results survive. Fix: when `from_board_id == this.global_id` (you're on the searched tree's
+      root), anchor `home_board_id` to it. Diagnosed by logging the combos array as they build.
+  (2) HIGHLIGHT didn't resume in sub-boards: `edit_manager.process_for_displaying` has a board-detail
+      speak-mode branch that returns EARLY (rendering is done by board-detail components, not the
+      fast_html canvas) BEFORE it reaches `resume_scanning()`. So `highlight_button('resume')` never
+      fired after navigating into a sub-board and the sequence stalled. Fix: trigger the resume in the
+      board-detail branch too, guarded on an active `button_highlights` queue.
+  (3) RETURN leg had no Back button: the `true_home` return step highlighted `#speak > button:first`
+      (matches nothing on board-detail; buttons are nested in `.md-board-detail-nav-stack`) and would
+      use Home (go_home → session root, the wrong board). The Back button (`data-bd-action=go_back`)
+      only renders when `board_detail_nav_history.length > 0`, but the guided `activateButton` path
+      bypasses board-detail#`_push_nav_history`. Fix: push nav-history when the guided highlight
+      navigates INTO a sub-board, and retarget the return step to `go_back`. Gotcha: there are TWO
+      go_back buttons in the DOM; `modal.highlight($set)` sizes its mask to the bounding box of the
+      whole jQuery set, so highlighting `$("[data-bd-action=go_back]")` swept in the adjacent Home
+      button — target `$("[data-bd-action=go_back]:visible").first()` (a single element).
+  Method for all three: add scoped `console.log` probes at the exact branch points (method entry vs
+  the send/action, the pre-step selector counts), reproduce once, read the log — NOT guess. The
+  guard-clears-the-queue and stale-cache hypotheses were both disproven this way before landing (2)/(3).
+
+## Pattern: find-a-button on a SUB-board must search from the nav ROOT, and client-built button sets MUST key on `global_id` (numeric), never ember-data `id`
+
+**Surface:** `find_multiple_buttons` on the board-detail speak page, invoked while the user is on a
+sub-board and searching a word that lives on a PARENT/root board (the "backward"/climb-up case).
+
+**Two coordinated pieces (both required):**
+1. **Search the whole tree, not the current sub-board.** `find-button.js#_buildLocalButtonSet` walks
+   DOWN from the board it's given, so a sub-board's set never contains parent/root words. Fix:
+   `_resolveSearchRoot` resolves `app_state.board_detail_nav_history[0]` (the board the user started
+   on = tree root) to a board model and builds the set from THAT; the search observer uses
+   `this.button_set` (root set) with the current board's id as `from_board_id`. And in
+   `buttonset.js#find_sequence`, in SPEAK mode anchor `home_board_id = this.get('global_id')` (the
+   searched tree's root) regardless of `from_board_id`, so `button_steps` emits a `true_home` step
+   (→ the board-detail Back button) to climb up. Forward search (on root, target deeper) is
+   preserved: on the root `home == global_id` is the same value the old `from==global_id` branch
+   produced, and `button_steps` finds a deeper target by walking UP to the current board, not via home.
+
+2. **THE ID-FORM TRAP (this is what makes the climb actually land).** The guided highlight matched
+   the target with `button.board_id == board.model.id`. A board resolved via
+   `store.findRecord('board', <key>)` (by KEY — how the nav root is looked up) has its ember-data
+   `id` == the KEY string (`"lingolinq/vocal-flair-112"`), and stashes the backend global_id in
+   `_actual_id`; the model's `global_id` computes `_actual_id || id`. DESCENDANTS fetched by numeric
+   `load_board.id` are already numeric. So stamping `board_id` from `board.get('id')` gave the ROOT's
+   buttons key-form ids while every descendant was numeric — and the runtime `board.model.id` is
+   ALWAYS numeric. Result: the climb reached the root, but `button.board_id ("…key…") == board.id
+   ("1_836")` failed → the WRONG_BOARD re-query found NO_PATH → "no path to highlighted button" and
+   the highlight silently stopped, even though the SEARCH worked (the set was internally consistent
+   in key-form, incl. `home_board_id`). Fix: use `board.get('global_id') || board.get('id')`
+   EVERYWHERE the client-built set is created/keyed/searched — `_buildLocalButtonSet` (set `root_id`
+   + per-button `board_id`), `_loadOrBuildButtonSet` (store peek key), and the search observer's
+   `from_board_id`. board-detail itself already uses `model.get('global_id') || model.get('id')` for
+   the same reason (`routes/user/board-detail.js`). Rule of thumb: **any id that will be compared
+   against a runtime `board.model.id` must be the numeric `global_id`, because `findRecord(key)`
+   yields a key-`id` record while `load_board.id` walks yield numeric ids.**
+
+**Method:** scoped `[ll-root]/[ll-fs]/[ll-fb]/[ll-hl]` console probes at the exact branch points
+(root resolution, find_sequence anchor + combos, results-received, and the highlight
+ON_BOARD/WRONG_BOARD/resume-hook branches), reproduce once, read the log. The "search is broken"
+theory was disproven this way — the search was fine; the log showed `board_id=<key>` vs
+`current_board=1_836` at the highlight step, pinning it to the id-form mismatch, not the resume path.
 
 ## Pattern: a scoped rule that "loses despite higher specificity" → hunt a bare-class `!important`, don't guess specificity
 
@@ -7618,3 +7745,57 @@ blank source as `'lessonpix'` is the codebase's own evidence that such records e
   (see [Query-count specs must be verified to FAIL against the broken state](#pattern-query-count-specs-must-be-verified-to-fail-against-the-broken-state--otherwise-theyre-no-ops)).
 
 **First seen in:** [2026-07-26-adversarial-review-remediation.md](./2026-07-26-adversarial-review-remediation.md)
+
+## Gotcha: re-attesting attested `docs/legal/**` must supersede, not overwrite `attestedContentHash`
+
+**Symptom:** A skill or agent "fixes" `document-register-render.rb --check` MISMATCH on an
+attested legal doc by setting `attestation.attestedContentHash = contentHash` on the same row.
+CI goes green; the prior attestation's byte pin is gone.
+
+**Root cause:** `docs/legal/README.md` rules 3–4 freeze attested artifacts (bytes, filename,
+location). `priorAttestations` stores dates only, not hashes, so same-row re-pin deletes the
+register's only link between the old attestation and those exact bytes. The integrity guard
+passing is not the same as preserving the attested record.
+
+**Fix recipe:** Path A — leave the attested file untouched; add
+`docs/legal/<YYYY-MM-DD>_<kebab-slug>_<status>.*`; new register row with `supersedes`; old row
+`status: superseded` + `supersededBy`; attest the **successor** only. Path B (same-row re-pin)
+only for non-`docs/legal/**` git rows or explicit Scot-directed recovery after an already-landed
+in-place amend. Skill: `.claude/skills/re-attest-record/SKILL.md`. Example chain:
+`DOC-9f6a2412ad` → `DOC-ae3f9d06ef`.
+
+## Gotcha: fail-closed Sentry filters must not collapse lookup failures to nil
+
+`CoppaSentryScrub::TRANSACTION_FILTER` (and `#call`) treat `nil` as anonymous non-child by
+design. If `lookup_user` rescues `User.where` timeouts to `nil`, the outer fail-closed rescue
+never runs and a potentially-child event ships. Preserve a distinct failure signal
+(`LOOKUP_FAILED` sentinel) so `child_user?` can fail closed (scrub errors / drop transactions)
+while true anonymous `nil` stays unscrubbed. Ref: `config/initializers/sentry.rb`,
+[`2026-07-27-sentry-coppa-review-fixes.md`](./2026-07-27-sentry-coppa-review-fixes.md).
+
+## Gotcha: dual-key tag reads — check each key independently, never `a || b` before coercion
+
+When reading a tag that may exist under symbol or string keys, do not do
+`tags[:key] || tags['key']` before validating the value. A truthy non-true symbol value
+(e.g. `'false'`, `'yes'`) short-circuits and shadows a string-key `true`/`'true'`. Evaluate
+each key through the same coercion helper. Hit in `keep_cache_error_tag?` after the L1
+string-coercion change. Ref: `config/initializers/sentry.rb`.
+
+## Pattern: Bedrock AI credentials are a dedicated atomic pair — never fall back to AWS_KEY/AWS_SECRET
+
+Cloud Run mounts `AWS_KEY`/`AWS_SECRET` from the S3/SES least-privilege user
+(`scripts/gcp/iam/lingolinq-cloudrun-s3-ses-policy.json`). That principal has **no** Bedrock Mantle
+actions. If `AiClient.configured?` treats those keys (plus `AWS_REGION`) as sufficient, every AI
+feature reports "configured" then fails AccessDenied at invoke time.
+
+**Rules:**
+1. Resolve credentials as **atomic pairs** (`BEDROCK_AWS_KEY`+`BEDROCK_AWS_SECRET`, else
+   `AWS_ACCESS_KEY_ID`+`AWS_SECRET_ACCESS_KEY`). Never combine halves from different families.
+2. Do **not** fall back to `AWS_KEY`/`AWS_SECRET` for Bedrock — keep the two-tier split.
+3. Mantle client kwargs use `aws_secret_access_key` (anthropic Mantle). The older
+   `Bedrock::Client` uses `aws_secret_key` — do not rename based on that older API.
+4. Provision a separate Bedrock Mantle IAM user + policy
+   (`scripts/gcp/iam/lingolinq-bedrock-mantle-policy.json`); do not bolt invoke onto the S3/SES policy.
+
+Evidence: `lib/ai_client.rb`, `spec/lib/ai_client_spec.rb`,
+`docs/task-management/2026-07-27-ai-client-bedrock-credential-review.md`.

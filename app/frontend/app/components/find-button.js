@@ -123,31 +123,79 @@ export default Component.extend({
     }
     const board = this.get('model.board');
     if (board) {
-      this._loadOrBuildButtonSet(board).then(function(bs) {
+      // On a sub-board in speak mode, search the WHOLE tree, not just the
+      // current board's descendants: resolve the navigation root (the board
+      // the user started on) and build ITS set. `_buildLocalButtonSet` walks
+      // DOWN from the given board, so passing the root yields the full tree —
+      // making words on parent/sibling/root boards searchable. `find_sequence`
+      // (anchored to the root via the speak-mode home_board_id change) then
+      // emits a `true_home` step so the guided highlight climbs up via Back.
+      this._resolveSearchRoot(board).then(function(rootBoard) {
         if (_this.isDestroyed || _this.isDestroying) { return; }
-        if (bs) {
-          // Mirror onto the board record so existing callers that read
-          // `board.button_set` (search observer, other code paths) keep working.
-          if (!board.get('button_set')) { board.set('button_set', bs); }
-          _this.set('button_set', bs);
-        }
-        // Kick off a background walk of the user's home board AND each
-        // sidebar board so the cross-board search paths inside
-        // `find_buttons` / `find_sequence` (when `include_other_boards`
-        // is true) find them via `peekRecord` instead of falling back to
-        // the broken server `load_button_set` call. Fire-and-forget —
-        // by the time the user types again, the store has the
-        // contributing button sets; the next search picks them up.
-        if (_this.get('model.include_other_boards')) {
-          _this._ensureCrossBoardSetsInStore();
-        }
-      }, function(err) {
-        if (_this.isDestroyed || _this.isDestroying) { return; }
-        _this.set('button_set', null);
-        _this.set('error', (err && err.error) || i18n.t('button_set_not_found', "Button set not downloaded, please try syncing or going online and reopening this board"));
+        _this._loadOrBuildButtonSet(rootBoard).then(function(bs) {
+          if (_this.isDestroyed || _this.isDestroying) { return; }
+          if (bs) {
+            _this.set('button_set', bs);
+            // Only mirror onto the board record when the set actually belongs
+            // to it (we're on the tree root). On a sub-board the set is the
+            // ROOT's whole-tree set; stamping it onto the sub-board record
+            // would make later reads of `sub-board.button_set` wrongly return
+            // the root's set. The search observer prefers `this.button_set`,
+            // so no mirror is needed for search to work on a sub-board.
+            if (rootBoard === board && !board.get('button_set')) { board.set('button_set', bs); }
+          }
+          // Kick off a background walk of the user's home board AND each
+          // sidebar board so the cross-board search paths inside
+          // `find_buttons` / `find_sequence` (when `include_other_boards`
+          // is true) find them via `peekRecord` instead of falling back to
+          // the broken server `load_button_set` call. Fire-and-forget —
+          // by the time the user types again, the store has the
+          // contributing button sets; the next search picks them up.
+          if (_this.get('model.include_other_boards')) {
+            _this._ensureCrossBoardSetsInStore();
+          }
+        }, function(err) {
+          if (_this.isDestroyed || _this.isDestroying) { return; }
+          _this.set('button_set', null);
+          _this.set('error', (err && err.error) || i18n.t('button_set_not_found', "Button set not downloaded, please try syncing or going online and reopening this board"));
+        });
       });
     }
     this._focusSearchInput();
+  },
+
+  /**
+   * Resolve the board whose whole-tree set find-a-button should search.
+   *
+   * In speak mode on the board-detail page, `app_state.board_detail_nav_history`
+   * tracks the path from the tree root down to the current sub-board; entry [0]
+   * is the board the user started on (the tree root). Building the set from that
+   * root walks DOWN over the entire tree, so words on parent/sibling/root boards
+   * become searchable and the guided highlight can climb up to them via Back.
+   *
+   * Falls back to the current board when:
+   *   - not in speak mode (single-board search — no nav trail to climb),
+   *   - the nav history is empty (e.g. a deep-linked sub-board — no known root),
+   *   - the root record can't be resolved.
+   */
+  _resolveSearchRoot(currentBoard) {
+    var appState = this.get('appState');
+    var store = (currentBoard && currentBoard.store) || LingoLinq.store;
+    if (!currentBoard || !appState || !appState.get('speak_mode')) {
+      return RSVP.resolve(currentBoard);
+    }
+    var history = appState.get('board_detail_nav_history') || [];
+    var root_entry = history[0];
+    if (!root_entry || !root_entry.user_name || !root_entry.boardname) {
+      return RSVP.resolve(currentBoard);
+    }
+    var key = root_entry.user_name + '/' + root_entry.boardname;
+    if (currentBoard.get('key') === key) { return RSVP.resolve(currentBoard); }
+    return store.findRecord('board', key).then(function(rootBoard) {
+      return rootBoard || currentBoard;
+    }, function() {
+      return currentBoard;
+    });
   },
 
   /**
@@ -262,7 +310,10 @@ export default Component.extend({
   _loadOrBuildButtonSet(board) {
     var _this = this;
     var store = board.store || LingoLinq.store;
-    var board_id = board.get('id');
+    // Key on the NUMERIC global_id so the store peek matches the id the built set is stored
+    // under (see _buildLocalButtonSet). A key-loaded root has `id` == key; peeking by key
+    // would always miss and needlessly rebuild.
+    var board_id = board.get('global_id') || board.get('id');
     var current_revision = board.get('full_set_revision');
 
     // (1) Already attached to the board.
@@ -308,7 +359,14 @@ export default Component.extend({
   _buildLocalButtonSet(rootBoard) {
     var _this = this;
     var store = rootBoard.store || LingoLinq.store;
-    var root_id = rootBoard.get('id');
+    // Use the canonical NUMERIC global_id, never the ember-data record `id`. A board
+    // loaded by key (e.g. the nav root resolved via findRecord(key)) has `id` == the key
+    // string and stashes the backend global_id in `_actual_id`; `global_id` computes
+    // `_actual_id || id`. Descendants fetched by `load_board.id` are already numeric. Stamping
+    // board_ids from `id` would give the ROOT key-form ids while every descendant is numeric,
+    // so the runtime `board.model.id` (always numeric) would fail to match the root's buttons
+    // during the guided highlight — the climb reaches the root but can't locate the target.
+    var root_id = rootBoard.get('global_id') || rootBoard.get('id');
     var root_revision = rootBoard.get('full_set_revision');
 
     var all_buttons = [];
@@ -318,7 +376,9 @@ export default Component.extend({
 
     // Extract buttons from a resolved board record into all_buttons.
     var process_board = function(board, depth) {
-      var board_id = board.get('id');
+      // NUMERIC global_id (see root_id note above) so every button's board_id matches the
+      // runtime board.model.id — including the nav root when it was loaded by key.
+      var board_id = board.get('global_id') || board.get('id');
       if (visited[board_id]) { return []; }
       visited[board_id] = true;
 
@@ -467,9 +527,14 @@ export default Component.extend({
       }
       _this.set('error', null);
       const include_other_boards = this.get('model.include_other_boards');
+      // Prefer `this.button_set` — on a sub-board that is the navigation ROOT's
+      // whole-tree set (see runOpeningSetup/_resolveSearchRoot), so the search
+      // covers parent/sibling/root boards. `board.get('id')` is still passed as
+      // `from_board_id` (the user's actual position) so return-nav is computed
+      // from where they really are. Do NOT stamp the root set onto the
+      // sub-board record here — it would shadow the sub-board's own set.
       var bs = this.get('button_set') || board.get('button_set');
       if (board && bs) {
-        if (!board.get('button_set')) { board.set('button_set', bs); }
         const user = this.get('appState').get('currentUser');
         const include_home = this.get('appState').get('speak_mode');
         const now = (new Date()).getTime();
@@ -479,10 +544,14 @@ export default Component.extend({
         runLater(function() {
           if (_this.get('search_id') !== search_id) { _this.set('loading', true); return; }
           let search = null;
+          // Pass the NUMERIC global_id as from_board_id so it matches the built set's numeric
+          // board_ids (see _buildLocalButtonSet); board.get('id') would be a key string if this
+          // board were ever key-loaded, breaking the board_map match.
+          var from_board_id = board.get('global_id') || board.get('id');
           if (_this.get('appState').get('feature_flags.find_multiple_buttons')) {
-            search = board.get('button_set').find_sequence(_this.get('searchString'), board.get('id'), user, include_home);
+            search = bs.find_sequence(_this.get('searchString'), from_board_id, user, include_home);
           } else {
-            search = board.get('button_set').find_buttons(_this.get('searchString'), board.get('id'), user, include_home);
+            search = bs.find_buttons(_this.get('searchString'), from_board_id, user, include_home);
           }
           search.then(function(results) {
             const timing = (new Date()).getTime() - now;

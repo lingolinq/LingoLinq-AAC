@@ -5,25 +5,14 @@
     <span class="la-bg-orb la-bg-orb--c"></span>
     <span class="la-bg-orb la-bg-orb--d"></span>
   </div>
-  <div class="beta-mode-toggle {{if this.showShort 'beta-mode-toggle--short'}}" role="group" aria-label={{t "Preview layout" key="beta_mode_toggle_aria"}}>
-    <span class="beta-mode-toggle__slider" aria-hidden="true"></span>
-    <button type="button" class="beta-mode-toggle__option {{if this.showShort '' 'beta-mode-toggle__option--active'}}" aria-pressed={{if this.showShort "false" "true"}} {{on "click" (this.ctrlAction "set_beta_mode" false)}}>
-      {{t "Original" key="beta_mode_original"}}
-    </button>
-    <button type="button" class="beta-mode-toggle__option {{if this.showShort 'beta-mode-toggle__option--active' ''}}" aria-pressed={{if this.showShort "true" "false"}} {{on "click" (this.ctrlAction "set_beta_mode" true)}}>
-      {{t "Short" key="beta_mode_short"}}
-    </button>
-  </div>
+  {{!-- Original/Short preview toggle removed 2026-07-25 — page now always shows the Short version. --}}
   <div class="register-page beta-welcome-page__frame">
     <div class="register-card beta-welcome-card">
       <div class="la-section-header">
         <span class="la-section-eyebrow-badge">{{t "Beta program" key="beta_welcome_eyebrow"}}</span>
         <div class="la-hero-title-wrap">
-          {{#if this.showShort}}
-            <h1 class="la-hero-title">{{t "Welcome to LingoLinq Beta Program" key="beta_welcome_title_short"}}</h1>
-          {{else}}
-            <h1 class="la-hero-title">{{t "Welcome to LingoLinq" key="beta_welcome_title"}}</h1>
-          {{/if}}
+          <h1 class="la-hero-title">{{t "Welcome to LingoLinq Beta Program" key="beta_welcome_title_short"}}</h1>
+          {{!-- Original version (toggle removed): <h1 class="la-hero-title">{{t "Welcome to LingoLinq" key="beta_welcome_title"}}</h1> --}}
         </div>
         <p class="beta-welcome-card__subtitle">
           {{#if this.displayName}}
@@ -34,7 +23,6 @@
         </p>
       </div>
 
-      {{#if this.showShort}}
       <div class="beta-welcome-footer">
         <div class="register-checkboxes beta-welcome-accept">
           <div class="checkbox big_checkbox">
@@ -51,7 +39,7 @@
           </button>
         </div>
       </div>
-      {{else}}
+      {{!-- Original version (toggle removed 2026-07-25) — kept commented for reference:
       <div class="beta-welcome-body">
         <div class="beta-welcome-intro">
           <p>{{t "Thanks for joining the beta. We're building LingoLinq with AAC users, therapists, teachers, and families, and your feedback helps us improve what we ship." key="beta_welcome_intro"}}</p>
@@ -206,7 +194,7 @@
           {{t "Next" key="next"}}
         </button>
       </div>
-      {{/if}}
+      --}}
     </div>
   </div>
 </div>

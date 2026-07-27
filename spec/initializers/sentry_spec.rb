@@ -100,19 +100,33 @@ describe CoppaSentryScrub do
       expect(event.contexts).to have_key(:runtime)
     end
 
-    it 'never raises out of the scrubber' do
+    # M1 fail-closed: if User#coppa_parental_consent_pending? raises
+    # (corrupt settings blob, decryption failure, etc), child_user?
+    # now returns true, so the event gets scrubbed rather than shipped.
+    it 'never raises out of the scrubber AND scrubs when consent check raises (M1 fail-closed)' do
       bad_user = Class.new do
         def coppa_parental_consent_pending?; raise 'boom'; end
       end.new
       allow(User).to receive(:where).with(id: 1).and_return(double(first: bad_user))
       event = Event.new(user: { id: 1 }, request: Request.new(data: 'whatever'))
       expect { described_class.call(event, nil) }.not_to raise_error
+      expect(event.request.data).to eq('[REDACTED]')
     end
 
     it 'leaves data alone when user_id does not resolve to a user record' do
       event = Event.new(user: { id: 0 }, request: Request.new(data: 'sensitive'))
       described_class.call(event, nil)
       expect(event.request.data).to eq('sensitive')
+    end
+
+    # F1: lookup_user used to rescue User.where failures to nil, which made
+    # child_user? treat the failure as anonymous and skip scrubbing. The
+    # LOOKUP_FAILED sentinel makes this path fail closed.
+    it 'scrubs when User.where raises during lookup (lookup-failure fail-closed)' do
+      allow(User).to receive(:where).and_raise(StandardError, 'simulated lookup timeout')
+      event = Event.new(user: { id: 1 }, request: Request.new(data: 'sensitive'))
+      expect { described_class.call(event, nil) }.not_to raise_error
+      expect(event.request.data).to eq('[REDACTED]')
     end
 
     # Regression: the production set_sentry_user path stores
@@ -240,6 +254,54 @@ describe CoppaSentryScrub do
       expect(described_class.drop_cache_errors?(event)).to eq(false)
     end
 
+    # L1 hardening: tag VALUE coercion. Stringly-typed callers
+    # (set_tags(keep_cache_error: 'true') or 'True') also trip the escape hatch.
+    it 'returns false when keep_cache_error value is the string "true" (any case)' do
+      %w[true True TRUE].each do |val|
+        event = Event.new(
+          exception: double('Exception', values: [double('SingleException', type: 'ActiveSupport::Cache::FetchError')]),
+          tags: { keep_cache_error: val }
+        )
+        expect(described_class.drop_cache_errors?(event)).to eq(false), "expected coercion of #{val.inspect}"
+      end
+    end
+
+    it 'returns false when keep_cache_error value is the string "true" under a string key' do
+      event = Event.new(
+        exception: double('Exception', values: [double('SingleException', type: 'ActiveSupport::Cache::FetchError')]),
+        tags: { 'keep_cache_error' => 'true' }
+      )
+      expect(described_class.drop_cache_errors?(event)).to eq(false)
+    end
+
+    it 'still drops cache errors when the tag is set to a falsy / non-true string' do
+      ['false', 'no', '0', '', nil].each do |val|
+        event = Event.new(
+          exception: double('Exception', values: [double('SingleException', type: 'ActiveSupport::Cache::FetchError')]),
+          tags: { keep_cache_error: val }
+        )
+        expect(described_class.drop_cache_errors?(event)).to eq(true), "expected #{val.inspect} to NOT trip escape hatch"
+      end
+    end
+
+    # F2: joining keys with `||` before coercion lets a truthy non-true symbol
+    # value shadow a string-key true/'true' and miss the escape hatch.
+    it 'honors string-key true when symbol key is a truthy non-true value' do
+      event = Event.new(
+        exception: double('Exception', values: [double('SingleException', type: 'ActiveSupport::Cache::FetchError')]),
+        tags: { keep_cache_error: 'yes', 'keep_cache_error' => true }
+      )
+      expect(described_class.drop_cache_errors?(event)).to eq(false)
+    end
+
+    it 'honors string-key "true" when symbol key is a truthy non-true value' do
+      event = Event.new(
+        exception: double('Exception', values: [double('SingleException', type: 'ActiveSupport::Cache::FetchError')]),
+        tags: { keep_cache_error: 'false', 'keep_cache_error' => 'True' }
+      )
+      expect(described_class.drop_cache_errors?(event)).to eq(false)
+    end
+
     it 'returns false when event has no exception (message event)' do
       expect(described_class.drop_cache_errors?(Event.new(exception: nil))).to eq(false)
     end
@@ -248,6 +310,42 @@ describe CoppaSentryScrub do
       bad_event = Event.new(exception: Object.new)
       expect { described_class.drop_cache_errors?(bad_event) }.not_to raise_error
       expect(described_class.drop_cache_errors?(bad_event)).to eq(false)
+    end
+  end
+
+  # M1 hardening: child_user? fails closed when the underlying User
+  # method raises, so that broken-user-record incidents do not silently
+  # leak child PII to Sentry. Anonymous (nil) callers are still treated
+  # as non-children since they cannot be COPPA-pending by definition.
+  describe '#child_user? (M1 fail-closed contract)' do
+    it 'returns false for a nil user (anonymous traffic is not a known child)' do
+      expect(described_class.child_user?(nil)).to eq(false)
+    end
+
+    it 'returns false for an adult user' do
+      adult = instance_double('User', coppa_parental_consent_pending?: false)
+      expect(described_class.child_user?(adult)).to eq(false)
+    end
+
+    it 'returns true for a COPPA-pending child user' do
+      child = instance_double('User', coppa_parental_consent_pending?: true)
+      expect(described_class.child_user?(child)).to eq(true)
+    end
+
+    it 'returns false for a user object that does not respond to the predicate' do
+      stranger = Object.new
+      expect(described_class.child_user?(stranger)).to eq(false)
+    end
+
+    it 'returns TRUE (fail-closed) when the consent check raises' do
+      bad = Class.new do
+        def coppa_parental_consent_pending?; raise 'corrupt settings blob'; end
+      end.new
+      expect(described_class.child_user?(bad)).to eq(true)
+    end
+
+    it 'returns TRUE (fail-closed) for the LOOKUP_FAILED sentinel' do
+      expect(described_class.child_user?(described_class::LOOKUP_FAILED)).to eq(true)
     end
   end
 
@@ -433,6 +531,36 @@ describe 'CoppaSentryScrub::TRANSACTION_FILTER' do
 
   it 'never raises out of the filter (defensive on bad event shape)' do
     expect { filter.call(Object.new, nil) }.not_to raise_error
+  end
+
+  # L2 hardening: when the inner lookup chain raises (Sentry SDK regression,
+  # RequestStore gone, User query timeout), the filter now drops the event
+  # rather than shipping a potentially-child trace. Pairs with M1.
+  it 'returns nil (drops event) when the inner pipeline raises (L2 fail-closed)' do
+    evil_event = Object.new
+    def evil_event.respond_to?(method_name, *)
+      method_name == :user
+    end
+    def evil_event.user
+      raise StandardError, 'simulated SDK regression'
+    end
+    expect(filter.call(evil_event, nil)).to be_nil
+  end
+
+  it 'returns nil when child_user? itself raises (defense in depth with M1)' do
+    RequestStore.store[CoppaSentryScrub::REQUEST_STORE_KEY] = child_user_record
+    event = TransactionEventStub.new(user: { id: 7 })
+    allow(CoppaSentryScrub).to receive(:child_user?).and_raise('boom')
+    expect(filter.call(event, nil)).to be_nil
+  end
+
+  # F1: the production failure mode — RequestStore empty, numeric event.user
+  # id, User.where raises (e.g. query timeout). lookup_user must NOT collapse
+  # that to nil (anonymous), or this filter ships the transaction.
+  it 'returns nil when User.where raises during lookup (lookup-failure fail-closed)' do
+    allow(User).to receive(:where).and_raise(StandardError, 'simulated lookup timeout')
+    event = TransactionEventStub.new(user: { id: 1 })
+    expect(filter.call(event, nil)).to be_nil
   end
 end
 

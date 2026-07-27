@@ -10,17 +10,25 @@ describe AiWordPredictor do
   end
 
   around(:each) do |example|
-    old_anthropic = ENV['ANTHROPIC_API_KEY']
+    # Runtime AI routes via AWS Bedrock (AiClient); enable it by supplying the
+    # dedicated Bedrock AWS creds rather than a direct ANTHROPIC_API_KEY.
+    old_region = ENV['BEDROCK_AWS_REGION']
+    old_key = ENV['BEDROCK_AWS_KEY']
+    old_secret = ENV['BEDROCK_AWS_SECRET']
     old_gemini = ENV['GEMINI_API_KEY']
     old_gate = ENV['COPPA_AI_HARD_GATE']
-    ENV['ANTHROPIC_API_KEY'] = 'test-anthropic-key'
+    ENV['BEDROCK_AWS_REGION'] = 'us-west-2'
+    ENV['BEDROCK_AWS_KEY'] = 'test-bedrock-key'
+    ENV['BEDROCK_AWS_SECRET'] = 'test-bedrock-secret'
     ENV.delete('GEMINI_API_KEY')
     ENV.delete('COPPA_AI_HARD_GATE')
     described_class::CACHE.clear
     PiiScrubber.reset_blocklist!
     example.run
   ensure
-    ENV['ANTHROPIC_API_KEY'] = old_anthropic
+    ENV['BEDROCK_AWS_REGION'] = old_region
+    ENV['BEDROCK_AWS_KEY'] = old_key
+    ENV['BEDROCK_AWS_SECRET'] = old_secret
     ENV['GEMINI_API_KEY'] = old_gemini
     ENV['COPPA_AI_HARD_GATE'] = old_gate
     described_class::CACHE.clear
@@ -37,9 +45,8 @@ describe AiWordPredictor do
       expect(described_class.predict(sentence: '')).to eq([])
     end
 
-    it "returns an empty array when no API key is configured" do
-      ENV.delete('ANTHROPIC_API_KEY')
-      ENV.delete('GEMINI_API_KEY')
+    it "returns an empty array when the AI (Bedrock) route is not configured" do
+      allow(AiClient).to receive(:configured?).and_return(false)
       expect(described_class.predict(sentence: 'I want to')).to eq([])
     end
 

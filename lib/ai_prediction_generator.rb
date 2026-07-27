@@ -10,6 +10,8 @@
 #
 # Output: public/language/ngrams.arpa.trimmed.10.json
 
+require_relative 'ai_client'
+
 module AiPredictionGenerator
   OUTPUT_DIR  = Rails.root.join('public', 'language')
   OUTPUT_FILE = OUTPUT_DIR.join('ngrams.arpa.trimmed.10.json')
@@ -103,15 +105,15 @@ module AiPredictionGenerator
 
     # GEMINI_API_KEY fallback disabled 2026-07-09 -- see docs/legal/AI_DATA_SHARING_CONSENT.md
     # section 2.2 (Gemini Developer/AI-Studio endpoint, data-handling terms not adequate for child
-    # data). A Vertex AI fallback may replace this.
+    # data). Runtime AI now egresses to Claude on AWS Bedrock (BAA/HIPAA path) via AiClient, not
+    # the direct api.anthropic.com endpoint -- there is no direct-Anthropic fallback.
     def resolve_api_config
-      anthropic_key = ENV['ANTHROPIC_API_KEY'].to_s.strip
-      return nil if anthropic_key.blank?
+      return nil unless AiClient.configured?
 
       {
         provider: :claude,
-        api_key: anthropic_key,
-        model: ENV.fetch('ANTHROPIC_MODEL', 'claude-haiku-4-5-20251001')
+        region: AiClient.bedrock_region,
+        model: AiClient.bedrock_model(ENV.fetch('ANTHROPIC_MODEL', 'anthropic.claude-haiku-4-5'))
       }
     end
 
@@ -224,8 +226,7 @@ module AiPredictionGenerator
     end
 
     def call_anthropic(config, prompt)
-      require 'anthropic'
-      client = Anthropic::Client.new(api_key: config[:api_key])
+      client = AiClient.build
       response = client.messages.create(
         model: config[:model],
         max_tokens: 4096,
