@@ -7618,3 +7618,21 @@ blank source as `'lessonpix'` is the codebase's own evidence that such records e
   (see [Query-count specs must be verified to FAIL against the broken state](#pattern-query-count-specs-must-be-verified-to-fail-against-the-broken-state--otherwise-theyre-no-ops)).
 
 **First seen in:** [2026-07-26-adversarial-review-remediation.md](./2026-07-26-adversarial-review-remediation.md)
+
+## Gotcha: re-attesting attested `docs/legal/**` must supersede, not overwrite `attestedContentHash`
+
+**Symptom:** A skill or agent "fixes" `document-register-render.rb --check` MISMATCH on an
+attested legal doc by setting `attestation.attestedContentHash = contentHash` on the same row.
+CI goes green; the prior attestation's byte pin is gone.
+
+**Root cause:** `docs/legal/README.md` rules 3–4 freeze attested artifacts (bytes, filename,
+location). `priorAttestations` stores dates only, not hashes, so same-row re-pin deletes the
+register's only link between the old attestation and those exact bytes. The integrity guard
+passing is not the same as preserving the attested record.
+
+**Fix recipe:** Path A — leave the attested file untouched; add
+`docs/legal/<YYYY-MM-DD>_<kebab-slug>_<status>.*`; new register row with `supersedes`; old row
+`status: superseded` + `supersededBy`; attest the **successor** only. Path B (same-row re-pin)
+only for non-`docs/legal/**` git rows or explicit Scot-directed recovery after an already-landed
+in-place amend. Skill: `.claude/skills/re-attest-record/SKILL.md`. Example chain:
+`DOC-9f6a2412ad` → `DOC-ae3f9d06ef`.
