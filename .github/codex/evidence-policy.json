@@ -1,0 +1,11 @@
+{
+  "max_chunks": 16,
+  "chunk_target_bytes": 40000,
+  "excluded_paths": [
+    {
+      "pattern": "(^|/)db/schema\\.rb$",
+      "reason": "generated Rails schema mirror; semantic review belongs to the migration diff"
+    }
+  ],
+  "approval_safe_classes": []
+}

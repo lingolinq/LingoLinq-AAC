@@ -56,3 +56,13 @@ into an unrelated PR.
   model as an approved Tier 2 reviewer without a row in the approved-
   reviewers table naming who approved it and when). -- source: this
   pipeline's build spec, round 3 (High).
+## Codex review evidence modes
+
+When `CODEX_REVIEW_EVIDENCE_MODE=chunked`, review chunk prompts as evidence
+collection only. The final approval decision requires synthesis plus CI-owned
+envelope validation over the complete manifest, chunk hashes, chunk verdicts,
+current checks, merge state, and prior-loop findings.
+
+If any manifest or chunk evidence is missing, mismatched, incomplete, or
+inconclusive, the safe verdict is `NEEDS_HUMAN`; do not approve on partial
+coverage.
