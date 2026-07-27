@@ -39,6 +39,7 @@ on:
 jobs:
   codex-review:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     permissions:
       contents: read
       statuses: write
@@ -49,6 +50,8 @@ jobs:
       HEAD_SHA: ${{ inputs.head_sha }}
       BASE_SHA: ${{ inputs.base_sha }}
       LOOP_N: ${{ inputs.loop_n }}
+      CODEX_REVIEW_REQUESTED_EVIDENCE_MODE: ${{ vars.CODEX_REVIEW_EVIDENCE_MODE || 'bounded' }}
+      CODEX_REVIEW_CHUNKED_SCOPE: ${{ vars.CODEX_REVIEW_CHUNKED_SCOPE || 'all' }}
     steps:
       # Codex review of this pipeline (PR #607) caught that the fail-closed
       # anchor was not actually first: the old single validate-inputs step
@@ -112,6 +115,48 @@ jobs:
             exit 1
           fi
 
+      - name: Resolve Codex review evidence mode
+        run: |
+          requested="${CODEX_REVIEW_REQUESTED_EVIDENCE_MODE}"
+          scope="${CODEX_REVIEW_CHUNKED_SCOPE}"
+          effective="bounded"
+          PR_AUTHOR="$(gh pr view "$PR_NUMBER" -R "${{ github.repository }}" --json author --jq '.author.login // ""')"
+          PR_HEAD_REF="$(gh pr view "$PR_NUMBER" -R "${{ github.repository }}" --json headRefName --jq '.headRefName // ""')"
+
+          if [ "$requested" = "chunked" ]; then
+            case "$scope" in
+              all)
+                effective="chunked"
+                ;;
+              scot)
+                if [ "$PR_AUTHOR" = "swahlquist" ] || [[ "$PR_HEAD_REF" == scot/* ]]; then
+                  effective="chunked"
+                fi
+                ;;
+              none|off|bounded)
+                effective="bounded"
+                ;;
+              *)
+                echo "::warning::Unknown CODEX_REVIEW_CHUNKED_SCOPE='${scope}'; using bounded evidence"
+                effective="bounded"
+                ;;
+            esac
+          elif [ "$requested" != "bounded" ]; then
+            echo "::warning::Unknown CODEX_REVIEW_EVIDENCE_MODE='${requested}'; using bounded evidence"
+          fi
+
+          {
+            echo "CODEX_REVIEW_EVIDENCE_MODE=${effective}"
+            echo "CODEX_REVIEW_SCOPE_PR_AUTHOR=${PR_AUTHOR}"
+            echo "CODEX_REVIEW_SCOPE_PR_HEAD_REF=${PR_HEAD_REF}"
+          } >> "$GITHUB_ENV"
+
+          echo "requested evidence mode: ${requested}"
+          echo "chunked scope: ${scope}"
+          echo "PR author: ${PR_AUTHOR}"
+          echo "PR head ref: ${PR_HEAD_REF}"
+          echo "effective evidence mode: ${effective}"
+
       - name: Checkout PR head
         uses: actions/checkout@v4
         with:
@@ -127,10 +172,9 @@ jobs:
           git checkout "${{ github.workflow_sha }}" -- \
             .github/codex \
             scripts/codex-review-assemble-prompt.py \
-            scripts/codex-review-chunk-diff.py \
-            scripts/codex-review-one-chunk.sh \
-            scripts/codex-review-assemble-manifest.py \
+            scripts/codex-review-build-evidence.py \
             scripts/codex-review-build-envelope.py \
+            scripts/codex-review-run-chunks.py \
             scripts/codex-review-claude-deep.sh \
             scripts/codex-review-path-classifier.sh
 
@@ -150,6 +194,13 @@ jobs:
             echo ""
             echo "### gh pr checks"
             gh pr checks "$PR_NUMBER" -R "${{ github.repository }}" || true
+            echo ""
+            echo "### codex review evidence mode"
+            echo "requested=${CODEX_REVIEW_REQUESTED_EVIDENCE_MODE}"
+            echo "scope=${CODEX_REVIEW_CHUNKED_SCOPE}"
+            echo "effective=${CODEX_REVIEW_EVIDENCE_MODE}"
+            echo "scope_pr_author=${CODEX_REVIEW_SCOPE_PR_AUTHOR}"
+            echo "scope_pr_head_ref=${CODEX_REVIEW_SCOPE_PR_HEAD_REF}"
             echo ""
             echo "### changed files (git mode at PR head ${HEAD_SHA})"
             # Source of truth is the PR head COMMIT, so this list agrees with the
@@ -171,39 +222,92 @@ jobs:
             done
             echo "LIVE_STATE_EOF"
           } >> "$GITHUB_OUTPUT"
+          {
+            echo "### gh pr view"
+            gh pr view "$PR_NUMBER" -R "${{ github.repository }}" --json mergeable,mergeStateStatus,headRefOid,title,body
+            echo ""
+            echo "### gh pr checks"
+            gh pr checks "$PR_NUMBER" -R "${{ github.repository }}" || true
+            echo ""
+            echo "### codex review evidence mode"
+            echo "requested=${CODEX_REVIEW_REQUESTED_EVIDENCE_MODE}"
+            echo "scope=${CODEX_REVIEW_CHUNKED_SCOPE}"
+            echo "effective=${CODEX_REVIEW_EVIDENCE_MODE}"
+            echo "scope_pr_author=${CODEX_REVIEW_SCOPE_PR_AUTHOR}"
+            echo "scope_pr_head_ref=${CODEX_REVIEW_SCOPE_PR_HEAD_REF}"
+          } > /tmp/live_state.txt
+          if [ "$LOOP_N" -gt 0 ]; then
+            {
+              echo "Loop ${LOOP_N}: see the PR's existing codex-review comment thread for the prior verdict JSON and resolved findings."
+              echo "The sticky comment carries marker <!-- codex-review loop:N sha:X -->."
+            } > /tmp/prior_loop.txt
+          else
+            echo "N/A (loop 0 - first pass)." > /tmp/prior_loop.txt
+          fi
 
-      - name: Gather PR diff and split into review chunks
+      - name: Gather PR diff (bounded)
+        if: env.CODEX_REVIEW_EVIDENCE_MODE != 'chunked' || steps.classify.outputs.reviewer_route != 'codex'
         # The reviewer runs read-only and its in-sandbox shell may be
         # unavailable (bwrap can fail to initialize on the runner), so it
         # cannot compute the diff itself. Precompute it here and inject it so
-        # the review has real evidence to work from.
-        #
-        # A large PR used to be TRUNCATED to the first MAX_BYTES and the unseen
-        # hunks marked unverified, which correctly drove the reviewer to
-        # NEEDS_HUMAN and turned this required, fail-closed gate red (see
-        # PR #665: a ~644 KB diff vs a 60 KB cap). Instead of truncating, split
-        # the diff into file-boundary chunks each within the (raised) per-chunk
-        # cap and review them across passes; the per-chunk verdicts are folded
-        # fail-closed in build-envelope (APPROVE only if every chunk approves).
-        # Only a single file larger than the cap stays partially truncated, and
-        # only for its own chunk. MAX_CHUNKS bounds runner cost: files past the
-        # cap become a synthetic fail-closed chunk (a truly enormous PR still
-        # routes to a human, as before -- just the tail past the cap).
+        # the review has real evidence to work from. Bound the size so a huge
+        # PR cannot blow up the prompt; a truncation marker tells the reviewer
+        # to treat unseen hunks as unverified.
         id: pr_diff
-        env:
-          MAX_BYTES: ${{ vars.CODEX_MAX_DIFF_BYTES || '150000' }}
-          MAX_CHUNKS: ${{ vars.CODEX_MAX_DIFF_CHUNKS || '16' }}
         run: |
-          mkdir -p /tmp/pr_chunks /tmp/reviews
-          git diff "${BASE_SHA}...${HEAD_SHA}" > /tmp/pr_diff_raw.txt
-          CHUNK_COUNT="$(python3 scripts/codex-review-chunk-diff.py \
-            --diff /tmp/pr_diff_raw.txt \
-            --out-dir /tmp/pr_chunks \
-            --max-bytes "$MAX_BYTES" \
-            --max-chunks "$MAX_CHUNKS" \
-            --manifest /tmp/chunk-manifest.json)"
-          echo "chunk_count=${CHUNK_COUNT}" >> "$GITHUB_OUTPUT"
-          echo "Split PR diff into ${CHUNK_COUNT} chunk(s) (per-chunk cap ${MAX_BYTES} bytes, max ${MAX_CHUNKS} chunks)."
+          MAX_BYTES=60000
+          RAW="$(git diff "${BASE_SHA}...${HEAD_SHA}")"
+          TOTAL_BYTES="$(printf '%s' "$RAW" | wc -c)"
+          FILE_COUNT="$(git diff --name-only "${BASE_SHA}...${HEAD_SHA}" | wc -l | tr -d ' ')"
+          # Build the bounded diff ONCE into a file. It is used twice: injected
+          # into the prompt (via GITHUB_OUTPUT below) AND scanned by the
+          # prompt-injection guard in build-envelope.py, which must see exactly
+          # what the reviewer saw. Emit an authoritative completeness NOTE on
+          # BOTH paths: CI knows whether the diff fit under the cap; the reviewer
+          # (which may have no shell) does not, and without a positive signal it
+          # can wrongly assume the diff is partial and refuse a verdict.
+          {
+            if [ "$TOTAL_BYTES" -gt "$MAX_BYTES" ]; then
+              echo "NOTE: git diff BASE...HEAD for all ${FILE_COUNT} changed file(s), TRUNCATED to the first ${MAX_BYTES} of ${TOTAL_BYTES} bytes. Hunks past the cut are not shown -- treat them as unverified."
+              echo ""
+              # Cut on a line boundary: drop the final (possibly partial) line
+              # with `sed '$d'`. A raw `head -c` byte cut can split a multibyte
+              # UTF-8 char (this repo has unicode-heavy public/locales/*.json),
+              # which would make the assembled prompt undecodable and fail the
+              # job. A newline never falls inside a UTF-8 char, so every
+              # retained line stays valid.
+              printf '%s' "$RAW" | head -c "$MAX_BYTES" | sed '$d'
+              echo ""
+              echo "[... diff truncated near ${MAX_BYTES} bytes (cut on a line boundary) ...]"
+            else
+              echo "NOTE: COMPLETE git diff BASE...HEAD for all ${FILE_COUNT} changed file(s) (${TOTAL_BYTES} bytes, not truncated). Every changed file and every hunk in this PR is included below; there is no further diff evidence beyond what follows."
+              echo ""
+              printf '%s\n' "$RAW"
+            fi
+          } > /tmp/pr_diff.txt
+          {
+            echo "pr_diff<<PR_DIFF_EOF"
+            cat /tmp/pr_diff.txt
+            echo "PR_DIFF_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build chunked PR evidence
+        if: env.CODEX_REVIEW_EVIDENCE_MODE == 'chunked' && steps.classify.outputs.reviewer_route == 'codex'
+        run: |
+          python3 scripts/codex-review-build-evidence.py \
+            --base "${BASE_SHA}" \
+            --head "${HEAD_SHA}" \
+            --out-dir /tmp/codex-review-evidence \
+            --evidence-mode chunked
+
+      - name: Assemble prompt
+        if: env.CODEX_REVIEW_EVIDENCE_MODE != 'chunked' || steps.classify.outputs.reviewer_route != 'codex'
+        id: prompt
+        run: python3 scripts/codex-review-assemble-prompt.py /tmp/prompt.md
+        env:
+          LIVE_STATE: ${{ steps.live_state.outputs.live_state }}
+          PR_DIFF: ${{ steps.pr_diff.outputs.pr_diff }}
+          LOOP_N: ${{ inputs.loop_n }}
 
       - name: Install Codex CLI
         if: steps.classify.outputs.reviewer_route == 'codex'
@@ -219,52 +323,80 @@ jobs:
           mkdir -p "$CODEX_HOME"
           printf '%s' "$OPENAI_API_KEY" | codex login --with-api-key
 
-      # Both reviewer routes review each chunk on its own pass via the SAME
-      # per-chunk script (codex-review-one-chunk.sh), run in a BOUNDED-PARALLEL
-      # pool so a large PR's chunks are reviewed in a few concurrent waves
-      # instead of one long serial run that could brush the 30-min
-      # codex-watchdog limit. Each chunk is independent (unique prompt/review
-      # filenames keyed by index, no shared mutable state), so parallelism is
-      # safe; the pool size is capped (CODEX_REVIEW_CONCURRENCY, default 4)
-      # because several concurrent `codex exec` sandboxes share one small
-      # runner. `find -print0 | xargs -0` runs nothing on an empty diff (0
-      # chunks) and never word-splits paths; xargs returns non-zero if ANY
-      # chunk's review crashes, failing the step -> fail-closed. A legitimate
-      # REQUEST_CHANGES review exits 0 (it just writes JSON) and is decided by
-      # the cross-chunk fold, not by this step's exit code.
-      - name: Review chunks (codex exec, converge per chunk, bounded-parallel)
+      - name: Run reviewer (codex exec, converge across runs)
         id: review_codex
-        if: steps.classify.outputs.reviewer_route == 'codex'
+        if: steps.classify.outputs.reviewer_route == 'codex' && env.CODEX_REVIEW_EVIDENCE_MODE != 'chunked'
         env:
-          REVIEWER_ROUTE: ${{ steps.classify.outputs.reviewer_route }}
           CODEX_HOME: ${{ runner.temp }}/codex-home
-          LIVE_STATE: ${{ steps.live_state.outputs.live_state }}
-          LOOP_N: ${{ inputs.loop_n }}
-          CONCURRENCY: ${{ vars.CODEX_REVIEW_CONCURRENCY || '4' }}
         run: |
-          find /tmp/pr_chunks -maxdepth 1 -name 'chunk-*.txt' -print0 \
-            | xargs -0 -P "$CONCURRENCY" -I{} bash scripts/codex-review-one-chunk.sh {}
+          run_codex() {
+            # $1 = output path for this run's review JSON
+            codex exec \
+              --sandbox read-only \
+              -m gpt-5.5 \
+              --output-schema .github/codex/review-schema.json \
+              --output-last-message "$1" \
+              < /tmp/prompt.md
+            # Fallback per build spec section 6: one retry with a stricter
+            # instruction if the model still emitted invalid JSON despite
+            # --output-schema.
+            if ! python3 -c "import json, sys; json.load(open(sys.argv[1]))" "$1" 2>/dev/null; then
+              echo "Run produced invalid JSON; retrying with stricter instruction." >&2
+              { cat /tmp/prompt.md; echo ""; echo "Output ONLY the JSON object. No prose, no markdown fences."; } \
+                | codex exec --sandbox read-only -m gpt-5.5 \
+                    --output-schema .github/codex/review-schema.json \
+                    --output-last-message "$1"
+            fi
+          }
+          # Convergence policy ("confirm both directions"): the model is
+          # non-deterministic, so a lone run is not a repeatable gate. Run twice
+          # and require agreement; on disagreement run a third tiebreaker
+          # (majority decides). build-envelope.py --need-third makes the
+          # agreement decision (it also applies the injection guard, so two
+          # APPROVEs over an injection-bearing diff both become blocks and agree,
+          # converging straight to fail-closed without a wasted third run).
+          run_codex /tmp/review-1.json
+          run_codex /tmp/review-2.json
+          NEED_THIRD="$(python3 scripts/codex-review-build-envelope.py --need-third --diff /tmp/pr_diff.txt /tmp/review-1.json /tmp/review-2.json)"
+          echo "convergence: third tiebreaker needed? ${NEED_THIRD}"
+          if [ "$NEED_THIRD" = "yes" ]; then
+            run_codex /tmp/review-3.json
+          fi
 
-      - name: Review chunks (Claude Sonnet 4.6 API, Tier 2 claude-deep, bounded-parallel)
+      - name: Run reviewer (codex exec, chunked evidence)
+        id: review_codex_chunked
+        if: steps.classify.outputs.reviewer_route == 'codex' && env.CODEX_REVIEW_EVIDENCE_MODE == 'chunked'
+        env:
+          CODEX_HOME: ${{ runner.temp }}/codex-home
+        run: |
+          python3 scripts/codex-review-run-chunks.py \
+            --evidence-dir /tmp/codex-review-evidence \
+            --live-state-file /tmp/live_state.txt \
+            --out-dir /tmp/codex-review-results \
+            --head-sha "${HEAD_SHA}" \
+            --prior-loop-file /tmp/prior_loop.txt \
+            --repository "${{ github.repository }}" \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --heartbeat
+
+      - name: Run reviewer (Claude Sonnet 4.6 API, Tier 2 claude-deep route)
         id: review_claude_deep
         if: steps.classify.outputs.reviewer_route == 'claude-deep'
         env:
-          REVIEWER_ROUTE: ${{ steps.classify.outputs.reviewer_route }}
           ANTHROPIC_API_KEY: ${{ secrets.CLAUDE_REVIEW_API_KEY }}
-          LIVE_STATE: ${{ steps.live_state.outputs.live_state }}
-          LOOP_N: ${{ inputs.loop_n }}
-          CONCURRENCY: ${{ vars.CODEX_REVIEW_CONCURRENCY || '4' }}
         run: |
           echo "::add-mask::$ANTHROPIC_API_KEY"
-          find /tmp/pr_chunks -maxdepth 1 -name 'chunk-*.txt' -print0 \
-            | xargs -0 -P "$CONCURRENCY" -I{} bash scripts/codex-review-one-chunk.sh {}
+          # Single run: the claude-deep route is the compliance-path fallback and
+          # is not convergence-looped in this pass. build-envelope treats one
+          # review file as a no-op convergence (its outcome passes through), and
+          # the injection guard still applies.
+          scripts/codex-review-claude-deep.sh /tmp/prompt.md .github/codex/review-schema.json /tmp/review-1.json
 
       - name: Reviewer blocked (Tier 1 data-bearing path)
         id: review_blocked
         if: steps.classify.outputs.reviewer_route == 'blocked'
         run: |
-          mkdir -p /tmp/reviews
-          cat > /tmp/reviews/blocked.json <<JSONEOF
+          cat > /tmp/review-1.json <<JSONEOF
           {
             "verdict": "NEEDS_HUMAN",
             "head_sha": "${HEAD_SHA}",
@@ -284,23 +416,6 @@ jobs:
           }
           JSONEOF
 
-      - name: Assemble envelope manifest (per-chunk review files -> fold input)
-        # Turn the per-chunk review files on disk into the manifest
-        # build-envelope --manifest folds over: one entry per chunk, each with
-        # that chunk's diff (for the per-chunk injection guard) and its
-        # convergence runs in order. Also synthesizes the fail-closed edge
-        # chunks -- the overflow tail past MAX_CHUNKS and (blocked route) the
-        # data-bearing refusal -- so the fold step needs no special-casing.
-        run: |
-          python3 scripts/codex-review-assemble-manifest.py \
-            --route "${REVIEWER_ROUTE}" \
-            --out /tmp/envelope-manifest.json \
-            --chunk-manifest /tmp/chunk-manifest.json \
-            --reviews-dir /tmp/reviews \
-            --blocked-review /tmp/reviews/blocked.json
-        env:
-          REVIEWER_ROUTE: ${{ steps.classify.outputs.reviewer_route }}
-
       - name: Build W2 envelope (CI-trusted routing fields wrap the model's review JSON)
         # Codex review of this pipeline (PR #607) flagged that POSTing
         # /tmp/review.json alone means W2 would have to trust the model's
@@ -309,11 +424,30 @@ jobs:
         # Actions-validated values instead, so W2 routes off CI ground
         # truth, not model output.
         run: |
-          # Fold: converge each chunk's runs, then fold across chunks
-          # fail-closed (APPROVE only if every chunk approves). The injection
-          # guard runs per chunk against that chunk's own diff.
-          python3 scripts/codex-review-build-envelope.py \
-            --manifest /tmp/envelope-manifest.json --out /tmp/envelope.json
+          # Pass every review run that was produced (1 for claude-deep/blocked,
+          # 2 or 3 for the codex convergence loop). build-envelope applies the
+          # injection guard per run and folds the runs into one converged status.
+          REVIEWS=/tmp/review-1.json
+          [ -f /tmp/review-2.json ] && REVIEWS="$REVIEWS /tmp/review-2.json"
+          [ -f /tmp/review-3.json ] && REVIEWS="$REVIEWS /tmp/review-3.json"
+          if [ "${CODEX_REVIEW_EVIDENCE_MODE}" = "chunked" ] && [ "${REVIEWER_ROUTE}" = "codex" ]; then
+            shopt -s nullglob
+            CHUNK_REVIEWS=(/tmp/codex-review-results/chunk-*-review-*.json)
+            SYNTHESIS_REVIEWS=(/tmp/codex-review-results/synthesis-*.json)
+            if [ "${#CHUNK_REVIEWS[@]}" -eq 0 ] || [ "${#SYNTHESIS_REVIEWS[@]}" -eq 0 ]; then
+              echo "::error::chunked review did not produce chunk and synthesis review files"
+              exit 1
+            fi
+            python3 scripts/codex-review-build-envelope.py \
+              --manifest /tmp/codex-review-evidence/manifest.json \
+              --evidence-dir /tmp/codex-review-evidence \
+              --full-diff /tmp/codex-review-evidence/full.diff \
+              --chunk-reviews "${CHUNK_REVIEWS[@]}" \
+              --synthesis-reviews "${SYNTHESIS_REVIEWS[@]}" \
+              --out /tmp/envelope.json
+          else
+            python3 scripts/codex-review-build-envelope.py --diff /tmp/pr_diff.txt --out /tmp/envelope.json $REVIEWS
+          fi
         env:
           REVIEWER_ROUTE: ${{ steps.classify.outputs.reviewer_route }}
           RUN_ID: ${{ github.run_id }}
