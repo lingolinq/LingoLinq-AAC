@@ -154,6 +154,105 @@ class WordData < ApplicationRecord
     end
   end
 
+  # The English word-frequency list lives in S3 as a ~1.7MB file, ordered
+  # highest-frequency first. Scoring a word only needs that word's rank, but the
+  # per-record path (assert_missing_priority -> schedule(:assert_priority)) used
+  # to re-download the entire file for EVERY word saved. Resque forks per job, so
+  # an in-process memo would not survive between jobs; the rank map is cached in
+  # Redis instead, turning a 1.7MB download per word into a single HGET.
+  FREQUENCY_LIST_PATH = 'language/english_with_counts.txt'
+  FREQUENCY_RANK_KEY = 'word_data/en/frequency_ranks'
+  FREQUENCY_RANK_TTL = 30.days.to_i
+  FREQUENCY_RANK_LOCK_KEY = 'word_data/en/frequency_ranks/building'
+  FREQUENCY_RANK_LOCK_TTL = 10.minutes.to_i
+  # The hash is written in slices, so it is built under a staging key and swapped
+  # in with an atomic RENAME. Readers therefore only ever observe the live key as
+  # absent or complete, never half-populated (a partially visible hash would hand
+  # back nil for words not yet written, and that nil gets persisted as a score).
+  FREQUENCY_RANK_BUILD_KEY = 'word_data/en/frequency_ranks/staging'
+  # A truncated or failed download must never be cached, so a rebuild is only
+  # accepted when it yields at least this many words.
+  FREQUENCY_RANK_MIN_WORDS = 1000
+
+  def self.frequency_list_url
+    bucket = ENV['STATIC_S3_BUCKET'] || 'lingolinq'
+    "https://#{bucket}.s3.amazonaws.com/#{FREQUENCY_LIST_PATH}"
+  end
+
+  # Downloads and parses the full ordered list. Only the batch path
+  # (self.assert_priority) and a cache rebuild should call this; per-word callers
+  # want frequency_rank.
+  def self.frequency_counts
+    req = Typhoeus.get(frequency_list_url)
+    body = (req && req.body).to_s
+    return nil if body.empty?
+    body.split(/\n/).map{|s| s.split(/\t/)[0] }
+  end
+
+  # Rank of a word in the frequency list (0-based), or nil if absent. Mirrors
+  # what `counts.index(word)` returned before the cache existed, including
+  # first-occurrence semantics for any duplicated word.
+  def self.frequency_rank(word)
+    return nil if word.blank?
+    redis = RedisInit.default
+    return uncached_frequency_rank(word) if !redis
+
+    case assert_frequency_ranks(redis)
+    when :ready
+      rank = redis.hget(FREQUENCY_RANK_KEY, word)
+      rank && rank.to_i
+    when :busy
+      # Another process is building the cache; look it up directly rather than
+      # persisting an unscored priority.
+      uncached_frequency_rank(word)
+    else
+      # The list itself could not be fetched. Matches the pre-cache behavior of
+      # a failed download: no frequency component to the score, and no retry.
+      nil
+    end
+  end
+
+  def self.uncached_frequency_rank(word)
+    counts = frequency_counts
+    counts && counts.index(word)
+  end
+
+  # Builds the Redis word => rank hash if it is missing. A short lock keeps a
+  # burst of concurrent jobs to one download. Returns:
+  #   :ready       - the cache is populated and safe to read
+  #   :busy        - another process holds the build lock
+  #   :unavailable - the list could not be downloaded, so do not retry it here
+  def self.assert_frequency_ranks(redis)
+    return :ready if redis.hlen(FREQUENCY_RANK_KEY) > 0
+    return :busy unless redis.set(FREQUENCY_RANK_LOCK_KEY, '1', nx: true, ex: FREQUENCY_RANK_LOCK_TTL)
+
+    begin
+      counts = frequency_counts
+      return :unavailable if !counts || counts.length < FREQUENCY_RANK_MIN_WORDS
+
+      ranks = {}
+      counts.each_with_index do |word, idx|
+        next if word.blank? || ranks.key?(word)
+        ranks[word] = idx
+      end
+      # Build under the staging key, then swap. A reader that arrives mid-build
+      # sees no live key, fails to take the lock, and falls back to an uncached
+      # lookup rather than reading a hash that is missing most of its words.
+      redis.del(FREQUENCY_RANK_BUILD_KEY)
+      ranks.each_slice(5000) do |slice|
+        redis.mapped_hmset(FREQUENCY_RANK_BUILD_KEY, slice.to_h)
+      end
+      # Set the TTL before the swap; RENAME carries it over, so the live key is
+      # never left without one.
+      redis.expire(FREQUENCY_RANK_BUILD_KEY, FREQUENCY_RANK_TTL)
+      redis.rename(FREQUENCY_RANK_BUILD_KEY, FREQUENCY_RANK_KEY)
+      :ready
+    ensure
+      redis.del(FREQUENCY_RANK_BUILD_KEY)
+      redis.del(FREQUENCY_RANK_LOCK_KEY)
+    end
+  end
+
   def self.assert_priority(relation)
     bs = Board.find_by_path('example/core-112').board_downstream_button_set rescue nil
     buttons = nil
@@ -161,10 +260,7 @@ class WordData < ApplicationRecord
       bs.assert_extra_data
       buttons = bs.buttons
     end
-    bucket = ENV['STATIC_S3_BUCKET'] || 'lingolinq'
-    req = Typhoeus.get("https://#{bucket}.s3.amazonaws.com/language/english_with_counts.txt")
-    lines = req.body.split(/\n/)
-    counts = lines.map{|s| s.split(/\t/)[0] }
+    counts = frequency_counts
     cores = WordData.core_lists.select{|l| l['locale'] == 'en' }
     fringes = WordData.fringe_lists.select{|l| l['locale'] == 'en' }
     relation.find_in_batches(batch_size: 20) do |batch|
@@ -205,29 +301,22 @@ class WordData < ApplicationRecord
       scores << 7 if fringe_count > 0
     end
     if scores.empty?
-      # download word frequency list
+      # The batch path (self.assert_priority) passes the whole list in once and
+      # every record indexes into it. On the per-record path there is no list, so
+      # use the cached rank rather than downloading the file for this one word.
       counts = opts && opts['counts']
-      if !opts
-        bucket = ENV['STATIC_S3_BUCKET'] || 'lingolinq'
-        req = Typhoeus.get("https://#{bucket}.s3.amazonaws.com/language/english_with_counts.txt")
-        lines = req.body.split(/\n/)
-        counts = lines.map{|s| s.split(/\t/)[0] }
-      end
-      if counts
-        hash = {}
-        # top 5,000 - 5 points
-        # top 10,000 - 4 points
-        # top 25,000 - 3 points
-        # top 50,000 - 2 points
-        # any        - 1 point
-        idx = counts.index(self.word)
-        # score it from 0-5 based on word frequency
-        scores << 5 if idx && idx < 5000
-        scores << 4 if idx && idx < 10000
-        scores << 3 if idx && idx < 25000
-        scores << 2 if idx && idx < 50000
-        scores << 1 if idx
-      end
+      idx = counts ? counts.index(self.word) : WordData.frequency_rank(self.word)
+      # top 5,000 - 5 points
+      # top 10,000 - 4 points
+      # top 25,000 - 3 points
+      # top 50,000 - 2 points
+      # any        - 1 point
+      # score it from 0-5 based on word frequency
+      scores << 5 if idx && idx < 5000
+      scores << 4 if idx && idx < 10000
+      scores << 3 if idx && idx < 25000
+      scores << 2 if idx && idx < 50000
+      scores << 1 if idx
     end
     score = scores.max || 0
     if score
