@@ -520,9 +520,18 @@ LingoLinq.Buttonset = BaseModel.extend({
     // board being searched is viewed outside the active speak-mode home tree (root_board_state
     // points at a different board set — e.g. browsing another board, or no home board set), the
     // session "home" is unreachable from here, so button_steps can never return to the root and
-    // every cross-board sentence gets dropped. Anchor navigation to the searched tree's own root
-    // when we're on it, so multi-word sentences that dip into sub-boards can step back up.
-    if(from_board_id && _this.get('global_id') && from_board_id == _this.get('global_id') && home_board_id != from_board_id) {
+    // every cross-board sentence gets dropped.
+    //
+    // In SPEAK mode the set being searched IS the tree we are navigating: find-button loads the
+    // navigation ROOT board's whole-tree set even when the user is on a sub-board (so words on a
+    // parent/root board are searchable). Anchor return-navigation to that tree's own root
+    // (`this.global_id`) regardless of where in the tree we currently sit, so `button_steps` can
+    // emit a `true_home` step (→ the Back button on board-detail) to climb up to the parent/root
+    // where a found word lives. Speak-gated so non-speak callers keep session-home behavior; the
+    // non-speak on-root anchor below is preserved unchanged.
+    if(_this.appState.get('speak_mode') && _this.get('global_id') && home_board_id != _this.get('global_id')) {
+      home_board_id = _this.get('global_id');
+    } else if(from_board_id && _this.get('global_id') && from_board_id == _this.get('global_id') && home_board_id != from_board_id) {
       home_board_id = from_board_id;
     }
     //    var buttons = this.get('buttons') || [];

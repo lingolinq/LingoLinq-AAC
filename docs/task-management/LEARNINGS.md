@@ -7448,6 +7448,47 @@ user country > locale (IP geolocation deferred). Quebec is `CA-QC` → age 14 (L
   the send/action, the pre-step selector counts), reproduce once, read the log — NOT guess. The
   guard-clears-the-queue and stale-cache hypotheses were both disproven this way before landing (2)/(3).
 
+## Pattern: find-a-button on a SUB-board must search from the nav ROOT, and client-built button sets MUST key on `global_id` (numeric), never ember-data `id`
+
+**Surface:** `find_multiple_buttons` on the board-detail speak page, invoked while the user is on a
+sub-board and searching a word that lives on a PARENT/root board (the "backward"/climb-up case).
+
+**Two coordinated pieces (both required):**
+1. **Search the whole tree, not the current sub-board.** `find-button.js#_buildLocalButtonSet` walks
+   DOWN from the board it's given, so a sub-board's set never contains parent/root words. Fix:
+   `_resolveSearchRoot` resolves `app_state.board_detail_nav_history[0]` (the board the user started
+   on = tree root) to a board model and builds the set from THAT; the search observer uses
+   `this.button_set` (root set) with the current board's id as `from_board_id`. And in
+   `buttonset.js#find_sequence`, in SPEAK mode anchor `home_board_id = this.get('global_id')` (the
+   searched tree's root) regardless of `from_board_id`, so `button_steps` emits a `true_home` step
+   (→ the board-detail Back button) to climb up. Forward search (on root, target deeper) is
+   preserved: on the root `home == global_id` is the same value the old `from==global_id` branch
+   produced, and `button_steps` finds a deeper target by walking UP to the current board, not via home.
+
+2. **THE ID-FORM TRAP (this is what makes the climb actually land).** The guided highlight matched
+   the target with `button.board_id == board.model.id`. A board resolved via
+   `store.findRecord('board', <key>)` (by KEY — how the nav root is looked up) has its ember-data
+   `id` == the KEY string (`"lingolinq/vocal-flair-112"`), and stashes the backend global_id in
+   `_actual_id`; the model's `global_id` computes `_actual_id || id`. DESCENDANTS fetched by numeric
+   `load_board.id` are already numeric. So stamping `board_id` from `board.get('id')` gave the ROOT's
+   buttons key-form ids while every descendant was numeric — and the runtime `board.model.id` is
+   ALWAYS numeric. Result: the climb reached the root, but `button.board_id ("…key…") == board.id
+   ("1_836")` failed → the WRONG_BOARD re-query found NO_PATH → "no path to highlighted button" and
+   the highlight silently stopped, even though the SEARCH worked (the set was internally consistent
+   in key-form, incl. `home_board_id`). Fix: use `board.get('global_id') || board.get('id')`
+   EVERYWHERE the client-built set is created/keyed/searched — `_buildLocalButtonSet` (set `root_id`
+   + per-button `board_id`), `_loadOrBuildButtonSet` (store peek key), and the search observer's
+   `from_board_id`. board-detail itself already uses `model.get('global_id') || model.get('id')` for
+   the same reason (`routes/user/board-detail.js`). Rule of thumb: **any id that will be compared
+   against a runtime `board.model.id` must be the numeric `global_id`, because `findRecord(key)`
+   yields a key-`id` record while `load_board.id` walks yield numeric ids.**
+
+**Method:** scoped `[ll-root]/[ll-fs]/[ll-fb]/[ll-hl]` console probes at the exact branch points
+(root resolution, find_sequence anchor + combos, results-received, and the highlight
+ON_BOARD/WRONG_BOARD/resume-hook branches), reproduce once, read the log. The "search is broken"
+theory was disproven this way — the search was fine; the log showed `board_id=<key>` vs
+`current_board=1_836` at the highlight step, pinning it to the id-form mismatch, not the resume path.
+
 ## Pattern: a scoped rule that "loses despite higher specificity" → hunt a bare-class `!important`, don't guess specificity
 
 Symptom: a board-detail-scoped SCSS rule (e.g. `.md-shell.md-shell--board-detail:not(...)`, 0,4,0)
