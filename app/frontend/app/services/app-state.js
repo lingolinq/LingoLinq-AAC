@@ -3219,6 +3219,10 @@ export default Service.extend({
         if(!_this.isDestroyed) { _this.set('loading_overlay_message', null); }
       }, 15000);
     } else if(this._loading_overlay_guard_timer) {
+      // Cancel the pending 15s guard when the overlay is hidden — nulling the handle
+      // alone orphaned a live run-loop timer (kept the loop alive up to 15s and trips
+      // Ember's pending-timers assertion in tests).
+      runCancel(this._loading_overlay_guard_timer);
       this._loading_overlay_guard_timer = null;
     }
   }),

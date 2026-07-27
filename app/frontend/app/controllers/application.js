@@ -1462,10 +1462,16 @@ export default Controller.extend({
                 // step back up to the parent board the sequence came from instead of jumping
                 // to the (possibly unrelated) session home board.
                 buttons.shift();
-                // Re-query at click time rather than reusing the reference captured before the
-                // user tap — the board can re-render in between, detaching the earlier node so
-                // its click would no longer fire the go_back handler (stalling the sequence).
-                try { var _bk = $("[data-bd-action='go_back']:visible")[0]; if(_bk) { _bk.click(); } } catch(e) {}
+                // Click the SAME Back button we highlighted when it's still attached, so the
+                // highlighted element and the clicked element can't desync if the board
+                // re-rendered/reordered the two go_back buttons; only re-query if that node was
+                // detached (which would otherwise no-op the click and stall the sequence).
+                try {
+                  var _bk = ($bd_back_btn[0] && document.contains($bd_back_btn[0]))
+                    ? $bd_back_btn[0]
+                    : $("[data-bd-action='go_back']:visible")[0];
+                  if(_bk) { _bk.click(); }
+                } catch(e) {}
               } else {
                 var has_temporary_home = !!_this.stashes.get('temporary_root_board_state');
                 var already_on_temporary_home = _this.stashes.get('temporary_root_board_state.id') == _this.appState.get('currentBoardState.id');
@@ -1521,19 +1527,17 @@ export default Controller.extend({
                   buttons.shift();
                   var found_button = editManager.find_button(button.id);
                   var board = _this.get('board.model');
-                  // If this step navigates INTO a sub-board on the board-detail page, mirror the
-                  // manual folder-tap's nav-history push (board-detail#_push_nav_history) so the
-                  // Back button renders — the guided activateButton path otherwise bypasses it,
-                  // leaving no in-session trail and no way to highlight/return via Back.
+                  // If this step navigates INTO a sub-board on the board-detail page, push the
+                  // nav-history so the Back button renders (the guided activateButton path
+                  // otherwise bypasses it, leaving no in-session trail / no way to return via
+                  // Back). Delegate to the board-detail controller's _push_nav_history so there's
+                  // a single source of truth rather than a divergent inline copy.
                   if(found_button && emberGet(found_button, 'load_board') && board && $(".md-board-detail-nav-stack").length > 0) {
                     try {
-                      var _hist = (_this.get('appState.board_detail_nav_history') || []).slice();
-                      var _key = board.get('key') || '';
-                      var _parts = _key.split('/');
-                      if(_parts.length >= 2 && !(_hist[_hist.length - 1] && _hist[_hist.length - 1].boardname === _parts.slice(1).join('/'))) {
-                        _hist.push({ user_name: _parts[0], boardname: _parts.slice(1).join('/'), title: board.get('name') || _key });
-                        if(_hist.length > 20) { _hist = _hist.slice(_hist.length - 20); }
-                        _this.set('appState.board_detail_nav_history', _hist);
+                      var _bd_ctrl = getOwner(_this).lookup('controller:user.board-detail') ||
+                        getOwner(_this).lookup('controller:user/board-detail');
+                      if(_bd_ctrl && !_bd_ctrl.isDestroyed && typeof _bd_ctrl._push_nav_history === 'function') {
+                        _bd_ctrl._push_nav_history();
                       }
                     } catch(e) {}
                   }
