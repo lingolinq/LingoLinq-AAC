@@ -75428,6 +75428,41 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   word-break: break-word;
   line-height: 1.3;
 }
+.md-board-detail-symbol-card--text-symbol {
+  padding: 0;
+}
+.md-board-detail-symbol-card--text-symbol .md-board-detail-symbol-card__image {
+  height: 100%;
+  border-radius: inherit;
+}
+.md-board-detail-symbol-card__text-symbol {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 6px;
+  color: inherit;
+  font-family: var(--bd-button-font, inherit);
+  font-size: clamp(16px, calc(var(--bd-button-text-size, 15px) * 1.45), 32px);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: 0;
+  overflow: hidden;
+  text-align: center;
+  text-transform: var(--bd-button-text-transform, none);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.high_contrast .md-board-detail-symbol-card__text-symbol {
+  color: #f8fc03 !important;
+  text-shadow:
+    -1px -1px 0 #000,
+     1px -1px 0 #000,
+    -1px  1px 0 #000,
+     1px  1px 0 #000,
+     0 1px 3px rgba(0, 0, 0, 0.6);
+}
 /* "Hide the label when the picture is shown" (button.hide_label) on the modern grid.
    Unconditional (matches the classic board's `.hide-label`, which hides whenever the
    flag is set) rather than gated on `:has(img.symbol)`, so it doesn't hinge on :has
