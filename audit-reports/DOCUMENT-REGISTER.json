@@ -1073,14 +1073,15 @@
       "attestation": {
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-27",
-        "attestedContentHash": "534322a344c6c619069624504d3d7c077d7ed96824e848fc432398df7583dd2a",
+        "attestedContentHash": "8895bd338274f504979477aadec47e5c64ac41cabe1bb9c90b654af81f4b687c",
         "priorAttestations": [
           "2026-07-24",
-          "2026-06-21"
+          "2026-06-21",
+          "2026-07-27"
         ],
-        "note": "Re-attested 2026-07-27 (Path B recovery): removed contradictory \"re-attestation owed\" banner left after the 2026-07-24 Bedrock routing attestation. Prior 2026-07-24 attestation covered those Bedrock routing bytes."
+        "note": "Re-attested 2026-07-27: recorded the verified Bedrock operative conditions (deployed lingolinq-web credential resolves to the BAA'd AWS account 2390-4478-5114 / us-west-2; Bedrock model-invocation logging OFF in that account/region). Content-only verification; no scope change."
       },
-      "contentHash": "534322a344c6c619069624504d3d7c077d7ed96824e848fc432398df7583dd2a",
+      "contentHash": "8895bd338274f504979477aadec47e5c64ac41cabe1bb9c90b654af81f4b687c",
       "bundles": [
         "baa"
       ],
