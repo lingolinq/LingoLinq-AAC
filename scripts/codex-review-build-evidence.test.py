@@ -2,6 +2,7 @@
 import importlib.util
 import json
 import pathlib
+import re
 import tempfile
 import unittest
 import unittest.mock
@@ -14,9 +15,10 @@ SPEC.loader.exec_module(build_evidence)
 
 
 POLICY = [(build_evidence.re.compile(r"(^|/)db/schema\.rb$"), "generated schema")]
-TRUSTED_POLICY_MAX_CHUNKS = json.loads(
-    pathlib.Path(".github/codex/evidence-policy.json").read_text()
-)["max_chunks"]
+REPO_ROOT = MODULE_PATH.parents[1]
+TRUSTED_POLICY_PATH = REPO_ROOT / ".github/codex/evidence-policy.json"
+TRUSTED_POLICY_README = REPO_ROOT / ".github/codex/README.md"
+TRUSTED_POLICY_MAX_CHUNKS = json.loads(TRUSTED_POLICY_PATH.read_text())["max_chunks"]
 
 
 def section(path, body):
@@ -92,7 +94,6 @@ class EvidenceChunkingTest(unittest.TestCase):
             260,
             TRUSTED_POLICY_MAX_CHUNKS,
         )
-        self.assertEqual(TRUSTED_POLICY_MAX_CHUNKS, 16)
         self.assertEqual(len(chunks), 9)
         self.assertFalse(incomplete)
         covered = {item["path"] for chunk in chunks for item in chunk["coverage"]}
@@ -113,6 +114,17 @@ class EvidenceChunkingTest(unittest.TestCase):
         self.assertEqual(incomplete[-1]["reason"], "too_many_chunks")
         self.assertEqual(incomplete[-1]["chunks"], TRUSTED_POLICY_MAX_CHUNKS + 1)
         self.assertEqual(incomplete[-1]["max_chunks"], TRUSTED_POLICY_MAX_CHUNKS)
+
+    def test_readme_documents_the_same_cap_as_the_trusted_policy(self):
+        # The README's chunk cap, worst-case call budget, and watchdog timing
+        # analysis are what a maintainer reads before tuning the policy, so a
+        # silent drift between the two is a documentation bug with operational
+        # consequences. Keep them mechanically pinned to each other.
+        documented = re.search(
+            r"^- maximum chunks: (\d+)$", TRUSTED_POLICY_README.read_text(), re.MULTILINE
+        )
+        self.assertIsNotNone(documented, "README must state '- maximum chunks: N'")
+        self.assertEqual(int(documented.group(1)), TRUSTED_POLICY_MAX_CHUNKS)
 
     def test_oversized_single_hunk_is_incomplete(self):
         giant = "@@ -1,1 +1,1 @@\n-old\n+" + ("x" * 500) + "\n"

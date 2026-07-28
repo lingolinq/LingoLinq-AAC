@@ -66,9 +66,13 @@ Limits are intentionally explicit:
   output, or transient CLI/API failure
 - current serial timeout: 90 minutes
 
-Worst-case model-call budget is 51 serial calls: up to 16 chunks times 3
-chunk-review runs, plus up to 3 synthesis runs. This is a larger budget than
-the first canary's 27-call ceiling, but it preserves the same convergence and
+Worst-case budget is 51 *logical* calls: up to 16 chunks times 3 chunk-review
+runs, plus up to 3 synthesis runs. Because every logical call may fire one
+structural retry (`run_model` re-invokes `codex exec` with a strict-JSON
+suffix), the worst-case count of actual `codex exec` invocations is 102, not
+51. Use 102 for any timeout or watchdog headroom analysis. This is a larger
+budget than the first canary's 27-logical/54-invocation ceiling, but it
+preserves the same convergence and
 fail-closed envelope checks. The raised cap is required for #686-class large
 frontend PRs, where about 298 KB across 29 SCSS, template, and i18n-heavy files
 produced 8 chunks and then failed coverage as `(diff-wide): too_many_chunks`
@@ -159,11 +163,31 @@ Measured smoke timing:
   window.
 
 The 16-chunk worst case has not been live-smoked yet. Using the #685 timing as
-a rough lower-bound throughput check, 51 calls would be about 4.5 minutes of
-reviewer-step time at the current `reasoning effort: none` setting, before
-ordinary GitHub runner and API variance. That remains well inside the 90-minute
-job timeout, and each model call still posts a pending-status heartbeat before
-it starts. If real timings approach the watchdog threshold, keep the fail-closed
+a rough lower-bound throughput check (75 s / 14 invocations = about 5.4 s per
+invocation), 51 logical calls would be about 4.5 minutes of reviewer-step time,
+and the 102-invocation retry-saturated worst case about 9 minutes, at the
+current `reasoning effort: none` setting and before ordinary GitHub runner and
+API variance. Both remain well inside the 90-minute job timeout, and each model
+call still posts a pending-status heartbeat before it starts. Treat 5.4 s as a
+floor, not an estimate: per-call latency scales with prompt size, and the
+manifest block embedded in every chunk prompt grows with chunk count.
+
+Two known limits this cap raise does not address, both unchanged from the
+8-chunk canary and both currently fail-closed rather than wrong:
+
+- `run_model` passes no `timeout=` to `subprocess.run`, so a single hung
+  `codex exec` stops heartbeating and stalls the job until the 90-minute
+  ceiling. The watchdog flips the status to failure after 30 stale minutes, so
+  the merge gate still resolves, but the runner minutes are spent.
+- The synthesis prompt embeds every chunk review verbatim
+  (`chunk_result_group` keeps the full `review` object for each run), so its
+  input scales with chunks times runs: up to 48 full review objects at this
+  cap, versus 24 before. Neither `chunk-review-schema.json` nor
+  `synthesis-prompt.md` bounds finding count or description length. A synthesis
+  prompt too large to answer degrades to an invalid review and blocks, which is
+  correct but moves the failure from chunking to synthesis.
+
+If real timings approach the watchdog threshold, keep the fail-closed
 status behavior and revisit chunk parallelism or job boundaries as a separate
 design.
 
