@@ -51,6 +51,19 @@ describe JsonApi::Organization do
       expect(res['default_beta_program_access']).to eq(false)
     end
 
+    it "should include external_ai_processing when edit permissions are allowed" do
+      o = Organization.create
+      u = User.create
+      o.add_manager(u.user_name, true)
+      u.reload
+      res = JsonApi::Organization.build_json(o, :permissions => u)
+      expect(res['external_ai_processing']).to eq(true)
+      o.settings['external_ai_processing'] = false
+      o.save!
+      res = JsonApi::Organization.build_json(o.reload, :permissions => u)
+      expect(res['external_ai_processing']).to eq(false)
+    end
+
     it "should include jurisdiction when edit permissions are allowed" do
       o = Organization.create(settings: {'jurisdiction' => 'EU'})
       u = User.create

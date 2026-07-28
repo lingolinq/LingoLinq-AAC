@@ -42,6 +42,12 @@ class ButtonSound < ApplicationRecord
   
   def schedule_transcription(frd=false)
     if self.secondary_url && (!self.settings['transcription'] || self.settings['transcription'] == '') && (self.settings['transcription_errors'] || 0) < 2
+      # Org off-switch: do not call Google Speech-to-Text when disabled.
+      # Gate-skip is "not permitted," not a failure — do not bump transcription_errors.
+      unless Organization.external_ai_processing_allowed_for_user?(self.user)
+        Organization.log_external_ai_processing_skip(self.user, 'transcription')
+        return
+      end
       if frd
         # https://cloud.google.com/speech/reference/rest/
         ref = self.settings['secondary_output']
