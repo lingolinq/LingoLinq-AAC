@@ -66,10 +66,14 @@ Limits are intentionally explicit:
   output, or transient CLI/API failure
 - current serial timeout: 90 minutes
 
-Worst-case model-call budget is 51 serial calls: up to 16 chunks times 3
-chunk-review runs, plus up to 3 synthesis runs. This is a larger budget than
-the first canary's 27-call ceiling, but it preserves the same convergence and
-fail-closed envelope checks. The raised cap is required for #686-class large
+Worst-case budget is 51 *logical* calls: up to 16 chunks times 3 chunk-review
+runs, plus up to 3 synthesis runs. Because every logical call may fire one
+structural retry (`run_model` re-invokes `codex exec` with a strict-JSON
+suffix), the worst-case count of actual `codex exec` invocations is 102, not
+51. Use 102 for any timeout or watchdog headroom analysis. This is a larger
+budget than the first canary's 27-logical/54-invocation ceiling, but it
+preserves the same convergence and fail-closed envelope checks. The raised cap
+is required for #686-class large
 frontend PRs, where about 298 KB across 29 SCSS, template, and i18n-heavy files
 produced 8 chunks and then failed coverage as `(diff-wide): too_many_chunks`
 under the old cap. A PR that needs a 17th chunk still records
@@ -140,12 +144,14 @@ chunk findings are defanged before prompt assembly.
 
 ## Watchdog and heartbeat
 
-`codex-watchdog.yml` fails pending `codex-review/deep-pass` statuses that age
-past its threshold. Chunked reviews can legitimately take longer than the old
-2-3 model-call path, so `scripts/codex-review-run-chunks.py` reposts pending
-status before every model call and retry. Heartbeat failures are non-fatal; they
-are progress hints, not correctness gates. A real hang stops heartbeating and the
-watchdog still fails closed.
+`codex-watchdog.yml` is scheduled every 10 minutes and fails pending
+`codex-review/deep-pass` statuses once they are at least 30 minutes old. Treat
+that as the design target, not a precise service-level guarantee: GitHub can
+delay or skip scheduled workflows. Chunked reviews can legitimately take longer
+than the old 2-3 model-call path, so `scripts/codex-review-run-chunks.py`
+reposts pending status before every model call and retry. Heartbeat failures are
+non-fatal; they are progress hints, not correctness gates. A real hang stops
+heartbeating and the watchdog still fails closed when the scheduled sweep runs.
 
 Measured smoke timing:
 
@@ -159,13 +165,40 @@ Measured smoke timing:
   window.
 
 The 16-chunk worst case has not been live-smoked yet. Using the #685 timing as
-a rough lower-bound throughput check, 51 calls would be about 4.5 minutes of
-reviewer-step time at the current `reasoning effort: none` setting, before
-ordinary GitHub runner and API variance. That remains well inside the 90-minute
-job timeout, and each model call still posts a pending-status heartbeat before
-it starts. If real timings approach the watchdog threshold, keep the fail-closed
+a rough lower-bound throughput check, assuming the smoke had no structural
+retries (75 s / 14 invocations = about 5.4 s per invocation), 51 logical calls
+would be about 4.5 minutes of reviewer-step time. A 102-invocation case would
+be about 9 minutes only if retries fail fast. A single hung `codex exec`
+dominates that estimate and is bounded only by the 90-minute job timeout, with
+the watchdog expected to fail the stale status when its scheduled sweep runs.
+Each model call still posts a pending-status heartbeat before it starts. Treat
+5.4 s as a floor, not an estimate: per-call latency scales with prompt size, and
+the manifest block embedded in every chunk prompt grows with chunk count.
+
+Two known limits this cap raise does not address, both unchanged from the
+8-chunk canary and both currently fail-closed rather than wrong:
+
+- `run_model` passes no `timeout=` to `subprocess.run`, so a single hung
+  `codex exec` stops heartbeating and stalls the job until the 90-minute
+  ceiling. The watchdog is designed to flip the status once a scheduled sweep
+  sees it at least 30 minutes stale, so the merge gate still resolves
+  fail-closed, but the runner minutes and operator wait time are spent.
+- The synthesis prompt embeds every chunk review verbatim
+  (`chunk_result_group` keeps the full `review` object for each run), so its
+  input scales with chunks times runs: up to 48 full review objects at this
+  cap, versus 24 before. Neither `chunk-review-schema.json` nor
+  `synthesis-prompt.md` bounds finding count or description length. A synthesis
+  prompt too large to answer degrades to an invalid review and blocks, which is
+  correct but moves the failure from chunking to synthesis.
+
+If real timings approach the watchdog threshold, keep the fail-closed
 status behavior and revisit chunk parallelism or job boundaries as a separate
 design.
+
+Chunked evidence is still opt-in through `CODEX_REVIEW_EVIDENCE_MODE=chunked`;
+the workflow defaults to bounded evidence. Do not make chunked evidence the
+default, or raise the 16-chunk ceiling, without a fresh large non-PII smoke and
+recorded wall-clock result.
 
 This timing is valid only for the current `reasoning effort: none` config. If
 production changes to a higher reasoning effort, re-run the controlled smoke and
