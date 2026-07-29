@@ -66,6 +66,11 @@ export default modal.ModalController.extend({
                 source_lang: _this.get('model.board.locale') || 'en'
               }
             }).then(function(data) {
+              if (data && data.external_ai_processing === false) {
+                _this.set('translating', { done: true, not_enabled: true });
+                res(data);
+                return;
+              }
               var trans = _this.get('translations');
               for(var key in data.translations) {
                 trans[key] = data.translations[key];
@@ -79,7 +84,11 @@ export default modal.ModalController.extend({
         }));
       });
       RSVP.all_wait(promises).then(function(res) {
-        _this.set('translating', {done: true});
+        if (_this.get('translating.not_enabled')) {
+          _this.set('translating', {done: true, not_enabled: true});
+        } else {
+          _this.set('translating', {done: true});
+        }
       }, function(err) {
         _this.set('translating', {error: true});
       });

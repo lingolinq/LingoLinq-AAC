@@ -385,25 +385,33 @@ export default Route.extend({
       return;
     }
 
-    // Load button set for find-a-button functionality
+    // Load button set for find-a-button functionality — DEFERRED off the board-open
+    // critical path. For an uncached set, model.load_button_set() hits
+    // POST /api/v1/buttonsets/:id/generate, which makes the server generate the whole
+    // find-a-button hierarchy (BoardDownstreamButtonSet.update_for). On a large board
+    // (e.g. vocal-flair-112) that takes several seconds — running it inside setupController
+    // made board opens feel ~4s slow even on a cache hit (board grid itself paints in ~12ms).
+    // find-a-button is user-invoked, so warm the set in the background after the board is
+    // painted (mirrors the deferred warm_images / prefetch_linked runLater pattern below).
     if(model.get('valid_id') && !model.get('integration')) {
-      // Find-a-button support; failure must not surface as an unhandled rejection.
-      var bs_started = Date.now();
-      boardCacheDiag.mark('setup:buttonset_start', { board_key: board_key });
-      var load_bs = model.load_button_set();
-      if(load_bs && typeof load_bs.then === 'function') {
-        load_bs.then(function() {
-          boardCacheDiag.mark('setup:buttonset_done', {
-            board_key: board_key,
-            ms: Date.now() - bs_started
+      runLater(function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if(!model || (model.get && model.get('isDestroyed')) || typeof model.load_button_set !== 'function') { return; }
+        // Skip if the user has already navigated to a different board in the meantime.
+        if(_this.appState.get('currentBoardState.id') !== (model.get('global_id') || model.get('id'))) { return; }
+        var bs_key = model.get('key');
+        // Find-a-button support; failure must not surface as an unhandled rejection.
+        var bs_started = Date.now();
+        boardCacheDiag.mark('setup:buttonset_start', { board_key: bs_key });
+        var load_bs = model.load_button_set();
+        if(load_bs && typeof load_bs.then === 'function') {
+          load_bs.then(function() {
+            boardCacheDiag.mark('setup:buttonset_done', { board_key: bs_key, ms: Date.now() - bs_started });
+          }, function() {
+            boardCacheDiag.mark('setup:buttonset_fail', { board_key: bs_key, ms: Date.now() - bs_started });
           });
-        }, function() {
-          boardCacheDiag.mark('setup:buttonset_fail', {
-            board_key: board_key,
-            ms: Date.now() - bs_started
-          });
-        });
-      }
+        }
+      }, 750);
     }
 
     // Set currentBoardState
