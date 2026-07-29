@@ -1,11 +1,11 @@
 # LingoLinq Data Breach Response Runbook
 
-**Version:** v2.2-draft (2026-07-28)
+**Version:** v2.2 (2026-07-28)
 **Owner:** Privacy Office (privacy@lingolinq.com)
 **Last reviewed:** 2026-07-28
 **Next review:** 2027-07-28
 **Classification:** Internal, share with counsel on demand
-**Attestation:** Draft refresh prepared 2026-07-28 after the Dominic SEC-002 review and current code/evidence check. Awaiting Scot attestation before marking as approved. The prior attestation was 2026-07-23.
+**Attestation:** Re-attested 2026-07-28 by Scot Wahlquist, CEO, after the Dominic SEC-002 review and a current code/evidence check (GCP/Cloud Run + Bedrock refresh). The prior attestation was 2026-07-23.
 
 > If you are reading this during an active incident, jump to §4.0 Detection Sources, then §4.1 Detect and Triage. Page Scot first via the escalation tree in §3.
 
