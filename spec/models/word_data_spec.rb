@@ -1973,5 +1973,16 @@ RSpec.describe WordData, :type => :model do
       wd.assert_priority({'counts' => ['troixlet'], 'cores' => [], 'fringes' => []})
       expect(wd.reload.priority).to eq(5)
     end
+
+    it "should not re-fetch when the batch path passes counts: nil" do
+      # A failed frequency_counts in self.assert_priority still passes the key
+      # with a nil value. Falling through to frequency_rank would download once
+      # per record (the build lock is released on failure).
+      expect(Typhoeus).to_not receive(:get)
+      expect(WordData).to_not receive(:frequency_rank)
+      wd = WordData.create(:word => 'troixlet', :locale => 'en')
+      wd.assert_priority({'counts' => nil, 'cores' => [], 'fringes' => []})
+      expect(wd.reload.priority).to eq(0)
+    end
   end
 end
