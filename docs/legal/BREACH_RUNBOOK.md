@@ -1,11 +1,11 @@
 # LingoLinq Data Breach Response Runbook
 
-**Version:** v2.1 (2026-07-23)
+**Version:** v2.2-draft (2026-07-28)
 **Owner:** Privacy Office (privacy@lingolinq.com)
-**Last reviewed:** 2026-07-23
-**Next review:** 2027-06-28
+**Last reviewed:** 2026-07-28
+**Next review:** 2027-07-28
 **Classification:** Internal, share with counsel on demand
-**Attestation:** Re-attested 2026-07-23 by Scot Wahlquist, CEO. The prior attestation was 2026-06-21.
+**Attestation:** Draft refresh prepared 2026-07-28 after the Dominic SEC-002 review and current code/evidence check. Awaiting Scot attestation before marking as approved. The prior attestation was 2026-07-23.
 
 > If you are reading this during an active incident, jump to §4.0 Detection Sources, then §4.1 Detect and Triage. Page Scot first via the escalation tree in §3.
 
@@ -31,7 +31,7 @@ The runbook triggers the moment any LingoLinq employee, contractor, or subproces
 - Anomalous database export activity
 - A misconfigured S3 bucket or public link
 - Accidental email of PII to the wrong party
-- Malware or ransomware detection on any Render service, workstation, or tenant tool
+- Malware, ransomware, suspicious access, or outage signal affecting Cloud Run, Cloud SQL, Memorystore, AWS/Bedrock/S3, the Render rollback/fallback path, a workstation, or a tenant tool
 
 ## 2. Definitions by Framework
 
@@ -56,7 +56,7 @@ A personal data breach is a breach of security leading to the accidental or unla
 
 ### 2.4 COPPA (15 U.S.C. §§ 6501 to 6506; 16 CFR Part 312)
 
-COPPA does not define "breach" separately but requires operators to maintain reasonable procedures to protect the confidentiality, security, and integrity of personal information collected from children under 13. A breach of that personal information triggers parental notification obligations and FTC enforcement exposure.
+COPPA does not define a separate breach-notification clock, but requires operators to maintain reasonable procedures to protect the confidentiality, security, and integrity of personal information collected from children under 13. A breach involving child personal information must be assessed under COPPA, state breach-notification laws, contract/DPA obligations, the privacy policy, and any health-app or consumer-health rules that may apply. Parent/guardian notice should be prepared without unreasonable delay where legally required or appropriate, but the runbook must not invent a COPPA-specific statutory deadline.
 
 ## 3. Roles and Responsibilities
 
@@ -65,7 +65,7 @@ COPPA does not define "breach" separately but requires operators to maintain rea
 | Incident Commander | Scot Wahlquist, CEO | Owns the incident end to end, convenes the response team, makes notification decisions, signs external communications |
 | Tech Lead | Melissa (contract engineering) | Leads forensics, containment, eradication, and recovery; preserves evidence |
 | Operations | Dominic | Coordinates vendor contacts, customer-success messaging, internal logistics |
-| Privacy Contact | privacy@lingolinq.com (DPO when appointed) | Owns regulator and data-subject notifications, maintains incident log, interprets framework obligations |
+| Privacy Contact | privacy@lingolinq.com (Privacy Office; DPO / EU Representative only if formally appointed) | Owns regulator and data-subject notifications, maintains incident log, interprets framework obligations |
 | Legal | External counsel (TBD, engage on activation) | Provides privileged legal advice, approves external statements, coordinates with insurers |
 | Security Advisor | External IR partner (TBD) | Deep forensic work if internal capacity is exceeded |
 
@@ -112,7 +112,7 @@ Use this template verbatim when paging the response team in the Incident Respons
 > [P0 or P1] Suspected breach: [one-line summary]
 >
 > Discovered: [YYYY-MM-DD HH:MM UTC] by [name]
-> Trigger: [Sentry alert / GuardDuty / Render alert / customer report / code review / third-party]
+> Trigger: [Sentry alert / GCP alert / GuardDuty / Render fallback alert / customer report / code review / third-party]
 > Initial scope: [what data, how many records, which tenants]
 > Containment status: [none / in progress / contained]
 > Evidence: [snapshot started yes/no, where stored]
@@ -133,7 +133,8 @@ A breach can be discovered through any of the channels below. Each row names the
 |---|---|---|
 | Sentry | Any P1 error tagged `security`, `auth-bypass`, `data-leak`, `tenant-isolation`, or any anomaly the on-call engineer cannot explain within 15 minutes | Acknowledge in Sentry, open the incident in Google Chat per §3.1 |
 | AWS GuardDuty | Any High or Critical finding, any finding tagged `Exfiltration` or `UnauthorizedAccess`, or repeated Medium findings from the same source within 24 hours | Capture the GuardDuty finding ID, open the incident per §3.1 |
-| Render alerts | Service log spike showing unauthorized access patterns, Render security advisory, or Render incident notification involving our services | Capture Render audit log entries for the window, open the incident per §3.1 |
+| GCP / Cloud Run / Cloud SQL alerts | Cloud Logging, Cloud Monitoring, Security Command Center, Cloud SQL, or Memorystore signal showing unauthorized access patterns, suspicious administrative activity, service outage, backup/restore anomaly, or Google incident notification involving LingoLinq production services | Capture Cloud Logging / Cloud Audit Logs / Cloud SQL / Memorystore evidence for the window, open the incident per §3.1 |
+| Render rollback/fallback alerts | Render security advisory, service log spike, or Render incident notification involving the write-frozen rollback/fallback path or non-production services | Capture Render audit log entries for the window, open the incident per §3.1 |
 | Customer report | A user or district contact reports they saw another tenant's data, received someone else's notification, or believes their account was accessed | Acknowledge to the reporter within 1 business hour, do not promise anything beyond "we are investigating", open the incident per §3.1 |
 | Internal discovery during code review | A reviewer identifies a deployed change that exposed or could have exposed data across a trust boundary | Page Scot directly; do not file a public GitHub issue describing the vulnerability; open the incident per §3.1 |
 | Third-party disclosure | A subprocessor breach notice, a security researcher disclosure, a press inquiry, or a regulator inquiry | Do not reply substantively. Forward to Scot and the Privacy Contact, then open the incident per §3.1 |
@@ -147,10 +148,12 @@ Anything that does not fit these rows but a reasonable privacy professional woul
 2. They tag the Incident Commander and Tech Lead.
 3. The Incident Commander creates an incident entry in `docs/legal/INCIDENT_LOG.md` using the template at the top of that file.
 4. The Tech Lead preserves volatile evidence within the first hour. Snapshot these sources, with timestamps:
-   - Render service logs for all affected services (`render logs <service> --tail 10000 > evidence/render-<service>-<timestamp>.log`)
-   - Render audit log for the rolling 30-day window
-   - AWS CloudTrail event history for the affected accounts and regions
-   - S3 access logs and S3 server access logging records
+   - Cloud Run logs for all affected production services (`gcloud logging read` export for the incident window; include service name, revision, region, request IDs, and principal where available)
+   - Google Cloud Audit Logs for IAM, Cloud Run, Cloud SQL, Secret Manager, Memorystore, Artifact Registry, and any affected project-level administrative action
+   - Cloud SQL audit/backup/restore metadata for the affected window, including the live production database `lingolinq-prod-pg` in `us-central1`
+   - Render service/audit logs only if the write-frozen rollback/fallback path, a PR preview, or a non-production service is implicated
+   - AWS CloudTrail event history for affected accounts and regions, including S3 and Bedrock/Mantle activity where AI egress or evidence storage is implicated
+   - S3 access logs and S3 server access logging records for affected buckets
    - PostgreSQL forensic snapshot of the live production database, Google Cloud SQL `lingolinq-prod-pg` (us-central1): take an on-demand backup or a point-in-time clone into an isolated instance (`gcloud sql instances clone lingolinq-prod-pg <forensic-copy> --point-in-time <timestamp>`), recovering to any moment inside the 7 day transaction-log window; do not restore over production. The superseded Render database holds write-frozen pre-cutover data only and is not the source for live-incident recovery (see §4.5 step 3)
    - Sentry events tagged with the incident window, exported as JSON
    - Code at HEAD: `git rev-parse HEAD` and a tarball of the working tree
@@ -175,10 +178,11 @@ Anything that does not fit these rows but a reasonable privacy professional woul
 1. Rotate any credentials that may be exposed, using the 1Password vault structure.
 2. Disable the affected user sessions using `User.revoke_active_sessions!` where appropriate. Only after the §4.1 step 4 evidence snapshot of session state is acknowledged complete by the Tech Lead; revoking sessions before snapshot destroys forensic state.
 3. If a subprocessor is the source, open a support case with them and request a written incident report.
-4. If Render services are implicated, pause deployments and snapshot the affected database.
-5. If AWS resources are implicated, use CloudTrail and S3 access logs to scope.
-6. If the breach is tied to a specific product feature, kill the feature flag immediately. The flag pattern lives in `lib/feature_flags.rb` (`AVAILABLE_FRONTEND_FEATURES` and `ENABLED_FRONTEND_FEATURES` lists; `AI_FEATURES` constant; `FEATURE_DATES` for gradual-rollout cohorts). The most likely candidates and their kill paths:
-   - AI features (`ai_board_generation`, `ai_word_prediction`, `ai_board_suggestions`, `ai_symbol_search`, `ai_compliance_logging`): set the affected org's `settings['disable_ai_features']` to `true` for an org-scoped kill without a deploy (per `FeatureFlags.ai_enabled_for?`), or remove the feature from `ENABLED_FRONTEND_FEATURES` for a global kill. The COPPA hard gate (`COPPA_AI_HARD_GATE` env var) is a separate global lever that defaults ON.
+4. If GCP production services are implicated, pause non-emergency deployments, snapshot relevant Cloud Run / Cloud SQL / Secret Manager / Memorystore evidence, and preserve the affected revision before rollback or redeploy.
+5. If Render rollback/fallback or non-production services are implicated, pause deployments and snapshot the affected service/database evidence. Do not treat the Render database as the live production recovery source.
+6. If AWS resources are implicated, use CloudTrail, S3 access logs, and Bedrock/Mantle evidence to scope.
+7. If the breach is tied to a specific product feature, kill the feature flag immediately. The flag pattern lives in `lib/feature_flags.rb` (`AVAILABLE_FRONTEND_FEATURES` and `ENABLED_FRONTEND_FEATURES` lists; `AI_FEATURES` constant; `FEATURE_DATES` for gradual-rollout cohorts). The most likely candidates and their kill paths:
+   - AI features (`ai_board_generation`, `ai_word_prediction`, `ai_board_suggestions`, `ai_symbol_search`, `ai_compliance_logging`, `article_50_disclosure`): set the affected org's `settings['disable_ai_features']` to `true` for an org-scoped kill without a deploy (per `FeatureFlags.ai_enabled_for?`), or remove the feature from `ENABLED_FRONTEND_FEATURES` for a global kill. The COPPA hard gate (`COPPA_AI_HARD_GATE` env var) is a separate global lever that defaults ON. No alternate AI vendor may receive user data during an outage or incident unless that vendor is already approved in the current subprocessor register and the Privacy Office has authorized the failover in writing.
    - Third-party integrations (`lessonpix`, `tarheel_reader`, `translation`): remove from `ENABLED_FRONTEND_FEATURES` and rotate or revoke the corresponding integration env var to fail closed.
    - Supervisor consent flow or auth SPA transition: revert to the prior path by removing `supervisor_consent_flow` or `auth_spa_transition` from `ENABLED_FRONTEND_FEATURES`.
    - Other features in `AVAILABLE_FRONTEND_FEATURES`: same pattern.
@@ -254,16 +258,16 @@ Are more than 500 individuals affected or is the data highly sensitive?
 
 | Framework | Regulator | Individuals | Source |
 |---|---|---|---|
-| GDPR | Supervisory authority within 72 hours of awareness | Without undue delay when high risk to rights and freedoms | Articles 33 and 34 |
-| UK GDPR | ICO within 72 hours | Same as GDPR | Data Protection Act 2018 |
-| HIPAA | HHS Secretary within 60 days if 500+ affected, annually if fewer | Individuals within 60 days of discovery | 45 CFR §§ 164.404, 164.408 |
+| GDPR | Supervisory authority without undue delay and, where feasible, not later than 72 hours after awareness, unless unlikely to result in risk to rights and freedoms | Without undue delay when high risk to rights and freedoms | Articles 33 and 34 |
+| UK GDPR | ICO without undue delay and, where feasible, not later than 72 hours after awareness | Same as GDPR | UK GDPR / Data Protection Act 2018 |
+| HIPAA | HHS Secretary within 60 days if 500+ affected, annually if fewer; Business Associate notice to Covered Entity without unreasonable delay and no later than 60 days | Individuals within 60 days of discovery when LingoLinq is the notifying Covered Entity; otherwise support the Covered Entity under the BAA | 45 CFR §§ 164.404, 164.408, 164.410 |
 | HIPAA (prominent media) | Media notice in the affected state, without unreasonable delay and no later than 60 days from discovery, if 500+ residents of a single state | n/a | 45 CFR § 164.406 |
 | California SB 446 | n/a (consumer-direct) | 30 calendar days from discovery; sample of consumer notice to AG within 15 days of consumer notice if 500+ CA residents | Cal. Civ. Code 1798.82 as amended by SB 446 (effective 2026-01-01) |
 | FERPA | No federal timeline; cooperate with district notice obligations | Per state law | 34 CFR Part 99 |
-| COPPA | FTC notification not mandatory but recommended if the breach is material | Parents must be notified | 16 CFR Part 312 |
+| COPPA | No COPPA-specific regulator breach-notification clock; assess FTC exposure, state breach laws, contract/DPA obligations, and any FTC Health Breach Notification Rule issue if applicable | Parent/guardian notice without unreasonable delay when legally required or appropriate | 16 CFR Part 312; FTC COPPA guidance |
 | Illinois SOPPA | Affected district within 30 days | District notifies parents within 30 days of being notified | 105 ILCS 85 |
 | California SB 1177 (SOPIPA) | Customer district per contract | District notifies under Cal. Civ. Code 1798.29 | Cal. Ed. Code 22584 |
-| New York Ed Law 2-d | Customer district within seven calendar days of discovery | District notifies parents | 8 NYCRR Part 121 |
+| New York Ed Law 2-d | Customer educational agency in the most expedient way possible and without unreasonable delay; use any shorter DPA/contract clock if it applies | Educational agency notifies parents/eligible students in the most expedient way possible and without unreasonable delay | NY Ed Law § 2-d; 8 NYCRR Part 121; customer DPA |
 | Texas SB 820 / HB 3 | District within 15 days (for schools) | Per state breach statute | Tex. Ed. Code 11.175 |
 | US state breach laws (general) | Attorneys General per state statute, typical window 30 to 60 days | Residents per statute | Varies |
 
@@ -271,13 +275,13 @@ Actual timing decisions are made by the Privacy Contact in consultation with Leg
 
 ### 6.5 Regulator Submission Procedures
 
-These are the live portals and procedures as of 2026-05-19. Verify each link before submission; regulators move portals without notice.
+These are the live portals and procedures as of 2026-07-28. Verify each link before submission; regulators move portals without notice.
 
 **HHS (HIPAA).** Office for Civil Rights Breach Notification Portal: <https://ocrportal.hhs.gov/ocr/breach/breach_report_hip.jsf>. Choose "start a new breach report", pick the size category (500 or more, or fewer than 500), and identify LingoLinq as Covered Entity (for direct PHI relationships) or Business Associate (for hospital BAA arrangements). For 500 or more individuals, submit without unreasonable delay and no later than 60 calendar days from discovery. For fewer than 500, maintain a running log and submit annually within 60 days of year-end. Save the portal confirmation page and submission ID into the evidence bucket. If LingoLinq later handles 42 CFR Part 2 substance use disorder data through a hospital BAA, verify Part 2 acceptance on the portal page at filing time.
 
-**EU and EEA supervisory authorities (GDPR).** EDPB notification directory: <https://www.edpb.europa.eu/notify-data-breach_en>. Submit within 72 hours of awareness to the lead supervisory authority. If the controller has no EU representative, notify every supervisory authority where affected data subjects reside. Each member state portal differs; the EDPB page is the canonical index.
+**EU and EEA supervisory authorities (GDPR).** EDPB notification directory: <https://www.edpb.europa.eu/notify-data-breach_en>. Notify the competent supervisory authority without undue delay and, where feasible, not later than 72 hours after awareness, unless the breach is unlikely to result in risk to rights and freedoms. If the controller has no appointed EU/EEA representative or lead supervisory authority is unclear, consult counsel before filing; each member state portal differs, and the EDPB page is the canonical index.
 
-**UK Information Commissioner's Office (UK GDPR).** ICO breach reporting: <https://ico.org.uk/for-organisations/report-a-breach/personal-data-breach/>. 72 hours from awareness.
+**UK Information Commissioner's Office (UK GDPR).** ICO breach reporting: <https://ico.org.uk/for-organisations/report-a-breach/personal-data-breach/>. Notify without undue delay and, where feasible, not later than 72 hours after awareness.
 
 **State attorneys general (US state breach laws).**
 
@@ -335,11 +339,10 @@ Subprocessors to notify whenever a breach may implicate their service. See SUBPR
 - Render: support@render.com, plus the Render security contact when established
 - HubSpot: privacy@hubspot.com, plus the DPA breach-notice email
 - Sentry: security@sentry.io
-- OpenAI: security@openai.com and the enterprise support portal
-- Anthropic: privacy@anthropic.com and the trust portal
-- Google (Gemini, Workspace, Maps): the Google Cloud incident form
+- Anthropic / Bedrock AI route: use the current subprocessor register for the active runtime path. Active runtime AI is Anthropic Claude via the approved AWS Bedrock/Mantle path unless the register says otherwise; do not assume Google Gemini is a live fallback.
+- Google Cloud / Workspace / Maps / Speech: Google Cloud incident/support form and Workspace admin/security contacts as listed in the current subprocessor register
 - Pusher: support@pusher.com
-- n8n: operated on LingoLinq Render infrastructure; no external vendor notice beyond Render
+- n8n: LingoLinq-operated automation service; notify the hosting provider only if the hosting layer is implicated, and notify affected workflow owners/customers if workflow data is implicated
 - 1Password: support@1password.com (only for vault integrity events)
 - Cloudflare: abuse@cloudflare.com (if DNS or CDN is involved)
 
@@ -365,7 +368,7 @@ Full templates live in `docs/legal/breach_templates/` (create as needed). The pl
 > Categories and approximate number of records concerned: [list]
 > Likely consequences: [risk assessment summary]
 > Measures taken or proposed: [containment, mitigation]
-> DPO contact: privacy@lingolinq.com
+> Privacy contact: privacy@lingolinq.com
 
 ### 9.2 Affected Individual Notice
 
@@ -441,14 +444,14 @@ For Business Associate notice to a hospital or other Covered Entity under 45 CFR
 
 Use this script for the annual tabletop, or any unscheduled drill. The goal is not to "solve" the scenario; it is to confirm every responder can find the right page in this runbook and execute the step under time pressure. Run it with at least Scot, Dominic, and Melissa present (or their fallbacks). Schedule 90 minutes and a notetaker.
 
-**Scenario (hypothetical, not a real route).** It is 2:14am local time on a Tuesday in November. Sentry sends a P1 alert to the on-call engineer: a request that should have required authentication succeeded without it, on an endpoint that returns user-scoped data. The Sentry trace shows the request returned 200 with a session payload. The on-call engineer pulls the Render audit log and finds 47 distinct user IDs hit by the same source IP across a 12-minute window before the IP was blocked by a Cloudflare rule. Most of the affected user IDs belong to a single school district customer. Some belong to a hospital BAA customer in Texas, and the residency breakdown of those patients is not yet known (some may live in nearby states).
+**Scenario (hypothetical, not a real route).** It is 2:14am local time on a Tuesday in November. Sentry sends a P1 alert to the on-call engineer: a request that should have required authentication succeeded without it, on an endpoint that returns user-scoped data. The Sentry trace shows the request returned 200 with a session payload. The on-call engineer pulls Cloud Run request logs, Cloud Audit Logs, and Cloudflare logs and finds 47 distinct user IDs hit by the same source IP across a 12-minute window before the IP was blocked by a Cloudflare rule. Most of the affected user IDs belong to a single school district customer. Some belong to a hospital BAA customer in Texas, and the residency breakdown of those patients is not yet known (some may live in nearby states).
 
 **Walkthrough.** For each step, the facilitator asks the named role to perform the step out loud while the notetaker records time-to-action and any ambiguities.
 
 1. On-call engineer: open the incident in the Google Chat Incident Response space using the §3.1 template. (Time the post.)
 2. On-call engineer: page Scot per §3.1 escalation order. (Confirm fallback to Dominic, then Melissa, is exercised.)
 3. Incident Commander (Scot or Dominic if Scot unreachable): classify severity using §5. Expect SEV-1 pending confirmation, escalating to SEV-0 if patient PHI is confirmed exposed.
-4. Tech Lead: snapshot evidence per §4.1 step 4 into `s3://lingolinq-incident-evidence/<INC-ID>/`. (Confirm the bucket exists, write-once, MFA delete. If it does not, the runbook fails and we create it before continuing.)
+4. Tech Lead: snapshot evidence per §4.1 step 4 into `s3://lingolinq-incident-evidence/<INC-ID>/`. (Confirm the bucket exists, write-once, Object Lock compliance mode, versioning, encryption, and public-access block. If it does not, the runbook fails and we create it before continuing.)
 5. Incident Commander: call cyber insurance carrier per §4.1 step 5. (Confirm the placeholder is filled with a real carrier and 24/7 line. If not, this is the gap to close before the next drill.)
 6. Tech Lead: kill the affected endpoint per §4.2 step 6. If the endpoint is behind a flag in `lib/feature_flags.rb`, toggle. If not, deploy the router-level guard. Confirm the §4.2 "snapshot before kill" ordering rule is observed: evidence snapshot of session state must be acknowledged complete before active sessions are revoked.
 7. Privacy Contact: open the 4 framework decision tree mentally. FERPA applies (district records). HIPAA applies (hospital BAA). GDPR may apply if any affected individuals reside in the EU; check tenant metadata. COPPA applies for any affected user under 13. Request a residency breakdown of affected individuals from the hospital Covered Entity before mapping state-law clocks; do not assume affected patients live in the same state as the hospital.
@@ -501,11 +504,13 @@ A line per drill or production incident walk-through. Newest at the top. Do not 
 These are infrastructure deltas the runbook now drives. They are not runbook defects, but they must be closed before the runbook is fully operational.
 
 1. **1Password "Incident Contacts" item.** §3.1 assumes a 1Password item in the LingoLinq Ops vault with Scot, Dominic, and Melissa cell numbers. Confirm it exists or create it. Owner: Scot. Target: before first district contract redline.
-2. **`s3://lingolinq-incident-evidence` bucket.** §4.1 step 4 names this bucket. Create it pre-incident with Object Lock compliance mode (7-year retention), MFA delete, versioning, AES-256 default encryption, all public access blocked. Owner: Melissa or Tech Lead. Target: before first district contract redline. Inline-create fallback is documented but pre-creating is safer.
+2. **`s3://lingolinq-incident-evidence` bucket.** §4.1 step 4 names this bucket. Create it pre-incident with Object Lock compliance mode (7-year retention), versioning, AES-256 default encryption, all public access blocked, and write access limited to the Tech Lead and Incident Commander roles. Owner: Melissa or Tech Lead. Target: before first district contract redline. Inline-create fallback is documented but pre-creating is safer.
 3. **Cyber insurance carrier name and 24/7 line.** §4.1 step 5 holds a `[SCOT FILL]` placeholder. Resolve the carrier engagement and populate. Owner: Scot. Target: when the cyber policy is bound.
 4. **Feature flag coverage for `log_sessions` and other high-risk endpoints.** §4.2 step 6 documents the router-guard fallback, but every high-risk endpoint should have a real flag in `lib/feature_flags.rb` to make the emergency kill fast. Owner: Melissa. Target: next compliance sprint.
 
 ## 13. Changelog
+
+- **v2.2-draft (2026-07-28).** Draft refresh after the Dominic LL-SOP-SEC-002 review and current code/evidence check. Tightened COPPA language so the runbook no longer invents a COPPA-specific breach-notification clock. Replaced the SEC-002-style overpromises with evidence-bounded language: no unapproved AI fallback provider during incident/outage response; no claim that Google Gemini is a live fallback; no remote-wipe guarantee; no universal seven-day NY Ed Law § 2-d district notice unless a contract/DPA imposes it; no DPO/EU Representative language unless formally appointed. Updated detection and evidence steps for the current GCP production path while preserving Render as rollback/fallback and non-production scope. Updated the vendor list to match the current AI posture and subprocessor-register approach. Awaiting Scot attestation before approval.
 
 - **v2.1 (2026-07-23).** Updated section 4.5 step 3 to name the live Google Cloud SQL instance as the
   primary recovery source after the Gate 1 cutover. Preserved the Render write-frozen database as the
