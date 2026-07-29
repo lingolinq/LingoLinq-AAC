@@ -37,15 +37,48 @@ jobs:
         run: |
           # commit-status API has no "list all pending for context X" endpoint,
           # so we walk open PRs and check each head SHA's status directly.
+          #
+          # The age anchor is the EARLIEST pending status for the run attempt
+          # that is currently in force, not the most recent one.
+          # scripts/codex-review-run-chunks.py re-POSTs a `pending` heartbeat as
+          # each chunk completes; every heartbeat mints a new status entry with a
+          # fresh created_at. Anchoring on the latest entry therefore let a
+          # heartbeating run push this clock forward indefinitely and outrun the
+          # 30-minute sweep, defeating the backstop in exactly the hang case it
+          # exists for. Grouping by target_url (attempt-scoped since the
+          # codex-review.yml RUN_URL change) and taking the oldest pending entry
+          # in that group measures how long THIS attempt has actually been
+          # running, and keeps a re-run from inheriting the prior attempt's clock.
+          #
+          # Uses the plural /statuses endpoint: /status returns only the latest
+          # entry per context and so cannot see the earliest heartbeat.
           gh api "repos/${{ github.repository }}/pulls?state=open&per_page=100" \
             --jq '.[] | [.number, .head.sha] | @tsv' > /tmp/open-prs.tsv
           : > /tmp/stale.tsv
           while IFS=$'\t' read -r pr_number head_sha; do
             [ -z "$head_sha" ] && continue
-            status_json="$(gh api "repos/${{ github.repository }}/commits/${head_sha}/status" 2>/dev/null || echo '{}')"
-            state="$(echo "$status_json" | jq -r '[.statuses[] | select(.context=="codex-review/deep-pass") | .state][0] // empty')"
-            created_at="$(echo "$status_json" | jq -r '[.statuses[] | select(.context=="codex-review/deep-pass") | .created_at][0] // empty')"
+            # `--paginate` emits one JSON array per page, so the raw output is
+            # concatenated arrays. `jq -s 'add'` normalizes it to one array and
+            # works on every gh version (unlike `--slurp`).
+            statuses_json="$(gh api "repos/${{ github.repository }}/commits/${head_sha}/statuses?per_page=100" --paginate 2>/dev/null | jq -s 'add // []' 2>/dev/null || echo '[]')"
+            state="$(echo "$statuses_json" | jq -r '
+              [ .[] | select(.context == "codex-review/deep-pass") ]
+              | sort_by(.created_at) | last | .state // empty
+            ')"
             [ "$state" != "pending" ] && continue
+            # target_url of the entry currently in force; scope the anchor to it.
+            active_url="$(echo "$statuses_json" | jq -r '
+              [ .[] | select(.context == "codex-review/deep-pass") ]
+              | sort_by(.created_at) | last | .target_url // ""
+            ')"
+            created_at="$(echo "$statuses_json" | jq -r --arg u "$active_url" '
+              [ .[]
+                | select(.context == "codex-review/deep-pass"
+                         and .state == "pending"
+                         and (.target_url // "") == $u)
+                | .created_at ]
+              | sort | first // empty
+            ')"
             [ -z "$created_at" ] && continue
             age_min=$(( ( $(date -u +%s) - $(date -u -d "$created_at" +%s) ) / 60 ))
             if [ "$age_min" -ge 30 ]; then
