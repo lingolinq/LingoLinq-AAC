@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: Ember Data model ids in tests must be strings — numeric `set('id', N)` fails throwOnUnhandled](#gotcha-ember-data-model-ids-in-tests-must-be-strings--numeric-setid-n-fails-throwonunhandled)
 - [Gotcha: batch-path nil is not “missing opts” — key presence vs value](#gotcha-batch-path-nil-is-not-missing-opts--key-presence-vs-value)
 - [Gotcha: compliance segment stamps must use validated org ids, not raw params](#gotcha-compliance-segment-stamps-must-use-validated-org-ids-not-raw-params)
 - [Gotcha: board translation Google egress is users#translate / WordData, not Board#translate_set](#gotcha-board-translation-google-egress-is-userstranslate--worddata-not-boardtranslate_set)
@@ -7838,6 +7839,60 @@ feature reports "configured" then fails AccessDenied at invoke time.
 Evidence: `lib/ai_client.rb`, `spec/lib/ai_client_spec.rb`,
 `docs/task-management/2026-07-27-ai-client-bedrock-credential-review.md`.
 
+## Ember until:6.0 deprecation inventory (2026-07-27)
+
+Prep target: clear `until: 6.0` deprecations on Ember 5.12 / Node 22 before any 6.x bump
+(Node 24 needs ember-cli 6.7+, not 6.2). Working log (gitignored dated file):
+`docs/task-management/2026-07-27-ember-until-6-deprecation-cleanup.md` on branch
+`chore/melissa-ember-until-6-deprecations`.
+
+**Inventory result (exercised paths):** zero until:6.0 ids in
+`deprecationWorkflow.deprecationLog.messages` and zero console `DEPRECATION` lines during
+cold boot (static `dist/`) and board-filtered QUnit / `ember test --filter=board`
+(# pass 403, # fail 0). Static checklist also clear for `template-action`,
+`component-template-resolving`, Ember barrel, transition-methods, legacy `ember-data/*`
+imports (except allowed `ember-data/store`). All `:foo_id` routes have explicit
+`model` / `model: function` hooks.
+
+**Gotchas:**
+1. Grepping only `model(` under-counts classic `model: function(params)` — dominant here.
+2. Headless Chrome against `ember serve` can stick at `readyState=loading` (curl still 200);
+   capture via **static `dist/` + Playwright** or Testem Chrome instead.
+3. `ember-cli-deprecation-workflow` v4 `flushDeprecations()` may throw
+   (`messages.values(...).filter` on a `Set`); read
+   `[...deprecationWorkflow.deprecationLog.messages]` instead.
+4. `DEPRECATE_STORE_EXTENDS_EMBER_OBJECT: false` in `ember-cli-build.js` is the RFC 1026
+   **fix** (Store no longer extends EmberObject) — not a silence opt-out. Do not reverse it.
+5. `package.json` can list `ember-cli-deprecation-workflow` while `node_modules` lacks it —
+   dependency-checker then blocks `ember serve` until `npm install`.
+
+**Still open before claiming fully clear:** ~~Rails-backed authenticated smoke~~ (done);
+enable `no-implicit-route-model` (done Phase 2); ~~reverse store-extends opt-out~~
+(**misframed** — `DEPRECATE_STORE_EXTENDS_EMBER_OBJECT: false` already *is* the RFC 1026
+fix); then `throwOnUnhandled: true` for test (Phase 3; watch `binding-style-attributes`).
+
+## Phase 2 until:6.0 hardening (2026-07-27)
+
+- Enabled `no-implicit-route-model: true` in `app/frontend/config/optional-features.json`
+  after verifying every `:foo_id` route has `model` / `model: function`. Board-filtered
+  `ember test` stayed green (# pass 403 / # fail 0).
+- **`DEPRECATE_STORE_EXTENDS_EMBER_OBJECT: false` is the fix, not a silence.** Per RFC 1026 /
+  deprecations.emberjs.com, setting the flag to `false` opts the Store out of extending
+  EmberObject and clears `ember-data:deprecate-store-extends-ember-object`. Do not "reverse"
+  it. This app already re-exports `ember-data/store` with no `Store.extend`.
+- `binding-style-attributes` (Ember v1.x warning) still fires on some org UI paths; it is
+  **not** until:6.0, but it will trip `throwOnUnhandled: true` unless fixed or logged
+  (never silenced) in the deprecation workflow before Phase 3 CI hardening.
+
+## Phase 3 until:6.0 CI hardening (2026-07-27)
+
+- `app/deprecation-workflow.js`: `throwOnUnhandled: config.environment === 'test'`
+  (dev still logs; production skipped). `workflow: []` — no silence handlers.
+- Board-filtered `ember test` stayed green under throw-on-unhandled (# pass 403 / # fail 0).
+- `ember-htmlbars.style-xss-warning` (`binding-style-attributes` console text) is emitted via
+  Ember `warn()`, not `deprecate()`, so it does **not** enter `ember-cli-deprecation-workflow`
+  and does not require a workflow `log` entry to keep tests green.
+
 ## Gotcha: batch-path nil is not “missing opts” — key presence vs value
 
 When a batch helper downloads once and fans out (`self.assert_priority` → `wd.assert_priority(opts)`), a failed download still passes the key (`'counts' => nil`). Treating `counts ? … : fallback` as “no list, so fetch per record” turns one S3 failure into N retries — especially when a Redis build lock is released on failure. Distinguish `opts.key?('counts')` (batch: use or skip) from absent key / no opts (per-record path). Ref: `app/models/word_data.rb`, [`2026-07-29-codex-release-review-fixes.md`](./2026-07-29-codex-release-review-fixes.md).
@@ -7849,3 +7904,7 @@ When a batch helper downloads once and fans out (`self.assert_priority` → `wd.
 ## Gotcha: board translation Google egress is users#translate / WordData, not Board#translate_set
 
 `Board#translate_set` only applies a client-supplied translation hash — it does not call Google. The frontend first POSTs words to `/api/v1/users/:id/translate` → `WordData.translate_batch` → `query_translations` (Typhoeus to `translation.googleapis.com`), then posts the result to boards#translate → `translate_set`. An org off-switch that only gates `translate_set` still lets labels leave to Google. Gate the users translate action (and optionally `translate_set` as belt-and-suspenders); do **not** gate `WordData.query_translations` globally because `translate_locale_batch` uses it for library locale files. Org toggles for this live as top-level `settings['external_ai_processing']` (same shape as `default_beta_program_access`), not under `settings['permissions']` (ACL). Check all attached orgs (managers/supervisors), not only `managing_organization` / org_user. Ref: [#691](https://github.com/lingolinq/LingoLinq-AAC/issues/691), [`2026-07-28-org-external-ai-processing-off-switch.md`](./2026-07-28-org-external-ai-processing-off-switch.md).
+
+## Gotcha: Ember Data model ids in tests must be strings — numeric `set('id', N)` fails throwOnUnhandled
+
+With `throwOnUnhandled: true` in test (`app/deprecation-workflow.js`), `store.createRecord(...); record.set('id', 12)` emits Ember Data’s non-strict-id deprecation (“use `"12"` instead”) and fails the suite. Plain button/object ids can still be numbers; **Ember Data model** ids must be strings. Prefer `set('id', '12')` (or `pushPayload` with string ids). Hit in `tests/models/video-test.js` `check_for_editable_license` after Phase 3 CI hardening. Do **not** silence the deprecation — fix the call site.
