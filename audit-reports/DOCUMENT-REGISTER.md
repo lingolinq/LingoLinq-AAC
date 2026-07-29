@@ -91,7 +91,7 @@
 |---|---|---|---|---|---|---|---|---|---|---|
 | Compliance Docs Guide (runbook) | git | `docs/legal/COMPLIANCE_DOCS_GUIDE.md` | published |  | Scot Wahlquist | 2026-06-21 | 2027-06-21 | no | `05c98f8f40f8` |  |
 | docs/legal README (folder charter) | git | `docs/legal/README.md` | published |  | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | `e9f92d18c061` |  |
-| Incident Response and Breach Runbook | git | `docs/legal/BREACH_RUNBOOK.md` | approved | HIPAA, GDPR, FERPA | Scot Wahlquist | 2026-07-28 | 2027-07-28 | 2026-07-28 | `fbdf49a15a7b` | soc2-evidence, school-dpa-package, security-review, baa |
+| Incident Response and Breach Runbook | git | `docs/legal/BREACH_RUNBOOK.md` | approved | HIPAA, GDPR, FERPA | Scot Wahlquist | 2026-07-28 | 2027-07-28 | 2026-07-28 | `0ee1b92ec130` | soc2-evidence, school-dpa-package, security-review, baa |
 | Incident Response and Breach Runbook (branded) | Drive | [open](https://docs.google.com/document/d/1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po/edit) | published | HIPAA, GDPR, FERPA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
 | Notion - Compliance Engineering Onboarding/Handoff | Notion | [open](https://www.notion.so/3845fe8215c28139aa9ec40eda1431c6) | published |  | Scot Wahlquist | 2026-06-19 | 2026-12-19 | no | (supplied) |  |
 
@@ -271,7 +271,7 @@ green build. Verified for git rows only; Drive and Notion hashes are operator-su
 | Data Retention Schedule | 2026-07-23 | `0c748cadd744` | verified |
 | Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record | 2026-07-23 | `3e8f43b12186` | verified |
 | Incident Log | 2026-06-21 | `e4e7c0b98d3f` | verified |
-| Incident Response and Breach Runbook | 2026-07-28 | `fbdf49a15a7b` | verified |
+| Incident Response and Breach Runbook | 2026-07-28 | `0ee1b92ec130` | verified |
 | LingoLinq Security, Privacy & Compliance Overview | 2026-07-23 | `47318beb94b3` | verified |
 | Parental Consent Email (COPPA / under-13) | 2026-07-23 | `d7c935ce4743` | verified |
 | Subprocessor Register | 2026-07-24 | `f2ee37371ebf` | verified |
