@@ -546,7 +546,39 @@ jobs:
           # is concatenated arrays (`[...][...]`), not a single array. Normalize
           # with `jq -s 'add'` rather than `--slurp`, which is not available on
           # every gh version.
-          statuses_json="$(gh api "repos/${{ github.repository }}/commits/${HEAD_SHA}/statuses?per_page=100" --paginate 2>/dev/null | jq -s 'add // []' 2>/dev/null || echo '[]')"
+          #
+          # The READ retries, like the write below. An earlier version fell back
+          # to `[]` on any read failure, which is indistinguishable from "no
+          # status has been posted". On a GREEN job that meant a transient API
+          # blip would take the fail-closed branch and overwrite the `success`
+          # the resolve step had already written correctly, converting a passing
+          # review into a blocked merge. Unreachable while no reviewer route is
+          # funded (nothing can reach `success`), and therefore exactly the kind
+          # of latent bug that would first appear on the day a route is funded.
+          statuses_json=""
+          read_ok=""
+          for read_attempt in 1 2 3; do
+            if raw="$(gh api "repos/${{ github.repository }}/commits/${HEAD_SHA}/statuses?per_page=100" --paginate 2>/dev/null)"; then
+              statuses_json="$(printf '%s' "$raw" | jq -s 'add // []' 2>/dev/null)" || statuses_json=""
+              if [ -n "$statuses_json" ]; then read_ok=yes; break; fi
+            fi
+            echo "::warning::deep-pass status read attempt ${read_attempt} failed; retrying in 5s" >&2
+            sleep 5
+          done
+
+          if [ -z "$read_ok" ]; then
+            # Asymmetric on purpose. If the job did not succeed, writing
+            # `failure` is correct no matter what the current status says, so
+            # proceed. If the job DID succeed, the current status may be a
+            # legitimate `success` and we cannot see it: refuse to guess.
+            if [ "$JOB_STATUS" = "success" ]; then
+              echo "::error::Could not read the current codex-review/deep-pass status after 3 attempts, and this job succeeded. Refusing to overwrite a possibly-successful verdict. codex-watchdog.yml remains the backstop." >&2
+              exit 1
+            fi
+            echo "::warning::Could not read the current deep-pass status after 3 attempts; the job did not succeed, so writing failure is safe regardless." >&2
+            statuses_json='[]'
+          fi
+
           current_state="$(printf '%s' "$statuses_json" | jq -r --arg u "$RUN_URL" '
             [ .[] | select(.context == "codex-review/deep-pass" and .target_url == $u) ]
             | sort_by(.created_at) | last | .state // ""
