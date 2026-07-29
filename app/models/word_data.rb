@@ -301,11 +301,17 @@ class WordData < ApplicationRecord
       scores << 7 if fringe_count > 0
     end
     if scores.empty?
-      # The batch path (self.assert_priority) passes the whole list in once and
-      # every record indexes into it. On the per-record path there is no list, so
-      # use the cached rank rather than downloading the file for this one word.
-      counts = opts && opts['counts']
-      idx = counts ? counts.index(self.word) : WordData.frequency_rank(self.word)
+      # The batch path (self.assert_priority) always passes a 'counts' key — the
+      # list when the download succeeded, or nil when it failed. A failed batch
+      # must NOT fall through to frequency_rank: that would re-download once per
+      # record (assert_frequency_ranks releases its lock on failure). Only the
+      # per-record path (no opts, or opts without 'counts') should look up rank.
+      if opts && opts.key?('counts')
+        counts = opts['counts']
+        idx = counts && counts.index(self.word)
+      else
+        idx = WordData.frequency_rank(self.word)
+      end
       # top 5,000 - 5 points
       # top 10,000 - 4 points
       # top 25,000 - 3 points

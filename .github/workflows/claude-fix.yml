@@ -67,7 +67,7 @@ jobs:
           python3 -c "import json; json.load(open('/tmp/findings.json'))"
 
       - name: Checkout PR branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.head_ref }}
           fetch-depth: 0

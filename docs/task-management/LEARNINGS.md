@@ -20,6 +20,9 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: batch-path nil is not “missing opts” — key presence vs value](#gotcha-batch-path-nil-is-not-missing-opts--key-presence-vs-value)
+- [Gotcha: compliance segment stamps must use validated org ids, not raw params](#gotcha-compliance-segment-stamps-must-use-validated-org-ids-not-raw-params)
+- [Gotcha: board translation Google egress is users#translate / WordData, not Board#translate_set](#gotcha-board-translation-google-egress-is-userstranslate--worddata-not-boardtranslate_set)
 - [Pattern: before adding a guard, grep the canonical path for one that already exists — with the exact flag name, in that file alone](#pattern-before-adding-a-guard-grep-the-canonical-path-for-one-that-already-exists--with-the-exact-flag-name-in-that-file-alone)
 - [Pattern: deleting dead CSS is a text-surgery problem — `:not()` and multi-line selector lists are the two ways to silently break live styling](#pattern-deleting-dead-css-is-a-text-surgery-problem---not-and-multi-line-selector-lists-are-the-two-ways-to-silently-break-live-styling)
 - [Pattern: a "protected" flag on a media record is an ENTITLEMENT boundary — never relax its predicate to fix a rendering bug](#pattern-a-protected-flag-on-a-media-record-is-an-entitlement-boundary--never-relax-its-predicate-to-fix-a-rendering-bug)
@@ -52,6 +55,7 @@ file (see [README.md](README.md)).
 - [Pattern: `__label-collapsed` is a multi-role class — scope by parent before styling](#pattern-__label-collapsed-is-a-multi-role-class--scope-by-parent-before-styling)
 - [Pattern: "Shrink to fit" is a per-label content-aware problem, not container-scaling — reach for capabilities.fit_text](#pattern-shrink-to-fit-is-a-per-label-content-aware-problem-not-container-scaling--reach-for-capabilitiesfit_text)
 - [Pattern: board-detail label surface has TWO elements — `__label` (span) and `__label-input` (input)](#pattern-board-detail-label-surface-has-two-elements--__label-span-and-__label-input-input)
+- [Gotcha: `__text-symbol` is a third label surface — include it in contrast modes and shrink-to-fit](#gotcha-__text-symbol-is-a-third-label-surface--include-it-in-contrast-modes-and-shrink-to-fit)
 - [Pattern: `organizations.admin` is a singleton boolean, not a normal flag](#pattern-organizationsadmin-is-a-singleton-boolean-not-a-normal-flag)
 - [Pattern: settings-backed API flags should be cast before Ember consumes them](#pattern-settings-backed-api-flags-should-be-cast-before-ember-consumes-them)
 - [Pattern: duplicate selectors in `app.scss` can leave stale layout constraints active](#pattern-duplicate-selectors-in-appscss-can-leave-stale-layout-constraints-active)
@@ -744,6 +748,40 @@ canonical example of this pairing.
 
 **First seen in:**
 [2026-05-26-shrink-labels-to-fit.md](./2026-05-26-shrink-labels-to-fit.md)
+
+---
+
+## Gotcha: `__text-symbol` is a third label surface — include it in contrast modes and shrink-to-fit
+
+**Surface:** board-detail text-only buttons under `text_symbol_fallback`
+(`md-board-detail-symbol-card__text-symbol`).
+
+**Symptom:** Black image-background mode shows unreadable dark text on
+`#000` cards; and/or "Shrink labels to fit" leaves long text-symbol
+copy clipped at the CSS 16px floor.
+
+**Root cause:** Text-symbol buttons hide the ordinary `__label` and
+render a full-card span instead (`board-detail-grid.hbs`). That span
+uses `color: inherit` and is not in the historical
+`__label`/`__label-input` selector pairs for
+`.symbol_background_black` or `label_fit.js#selectLabels`. Naively
+routing it through `fitWrapped` is also wrong — that path targets the
+3.45em bottom label box, while text-symbols fill the card at
+`clamp(16px, pref*1.45, 32px)`.
+
+**Fix recipe:** Keep `__text-symbol` in lockstep with label contrast
+rules (same white/`!important` treatment as labels under
+`.symbol_background_black`; high-contrast already has its own rule).
+For shrink-to-fit, select the span in `label_fit.js` and fit against
+the card box (`fitFullCard`) at the 1.45× CSS base — do not reuse the
+3-line label-box math.
+
+**Evidence:**
+[`app.scss` black-mode rule](../../app/frontend/app/styles/app.scss),
+[`label_fit.js`](../../app/frontend/app/utils/label_fit.js).
+
+**First seen in:**
+[2026-07-29-text-symbol-codex-findings.md](./2026-07-29-text-symbol-codex-findings.md)
 
 ---
 
@@ -7799,3 +7837,15 @@ feature reports "configured" then fails AccessDenied at invoke time.
 
 Evidence: `lib/ai_client.rb`, `spec/lib/ai_client_spec.rb`,
 `docs/task-management/2026-07-27-ai-client-bedrock-credential-review.md`.
+
+## Gotcha: batch-path nil is not “missing opts” — key presence vs value
+
+When a batch helper downloads once and fans out (`self.assert_priority` → `wd.assert_priority(opts)`), a failed download still passes the key (`'counts' => nil`). Treating `counts ? … : fallback` as “no list, so fetch per record” turns one S3 failure into N retries — especially when a Redis build lock is released on failure. Distinguish `opts.key?('counts')` (batch: use or skip) from absent key / no opts (per-record path). Ref: `app/models/word_data.rb`, [`2026-07-29-codex-release-review-fixes.md`](./2026-07-29-codex-release-review-fixes.md).
+
+## Gotcha: compliance segment stamps must use validated org ids, not raw params
+
+`Compliance::SegmentResolver.school_path?` treats any present `authored_organization_id` as school (FERPA / `school_authorization_allowed`). Signup authorization may reject a bogus or unauthorized id later, but a compliance stamp that reads the raw request param has already persisted the wrong segment. Pass only the validated org global_id (`org_authorized ? authoring_org.global_id : nil`). Ref: `User#stamp_compliance_profile_from_params!`, [`2026-07-29-codex-release-review-fixes.md`](./2026-07-29-codex-release-review-fixes.md).
+
+## Gotcha: board translation Google egress is users#translate / WordData, not Board#translate_set
+
+`Board#translate_set` only applies a client-supplied translation hash — it does not call Google. The frontend first POSTs words to `/api/v1/users/:id/translate` → `WordData.translate_batch` → `query_translations` (Typhoeus to `translation.googleapis.com`), then posts the result to boards#translate → `translate_set`. An org off-switch that only gates `translate_set` still lets labels leave to Google. Gate the users translate action (and optionally `translate_set` as belt-and-suspenders); do **not** gate `WordData.query_translations` globally because `translate_locale_batch` uses it for library locale files. Org toggles for this live as top-level `settings['external_ai_processing']` (same shape as `default_beta_program_access`), not under `settings['permissions']` (ACL). Check all attached orgs (managers/supervisors), not only `managing_organization` / org_user. Ref: [#691](https://github.com/lingolinq/LingoLinq-AAC/issues/691), [`2026-07-28-org-external-ai-processing-off-switch.md`](./2026-07-28-org-external-ai-processing-off-switch.md).
