@@ -100,7 +100,7 @@ gem 'clowne', '~> 1.4' # Declarative model cloning DSL for board copy optimizati
 
 gem 'sinatra', '~> 4.2'
 gem 'sanitize'
-gem 'anthropic', '~> 1.23'
+gem 'anthropic', '~> 1.36'
 gem 'ruby-openai', '~> 7.0'  # Used for Gemini fallback (OpenAI-compatible endpoint)
 
 group :doc do

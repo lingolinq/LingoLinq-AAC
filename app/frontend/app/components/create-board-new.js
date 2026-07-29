@@ -1719,12 +1719,21 @@ export default Component.extend({
       // again server-side). There is no File path that skips it — and _dragHasImage
       // only treats image-typed Files as images in the first place.
       if(content_type && !content_type.match(/^image\//)) { return RSVP.reject(); }
+      // Optimize a user's own image the same way the board-detail upload does:
+      // size_image downscales and converts opaque photos to JPEG (~10-15x smaller
+      // than PNG), passes http URLs through untouched, and keeps PNG when the source
+      // has real transparency. Falls back to the original url if optimization fails.
+      return contentGrabbers.pictureGrabber.size_image(url).then(function(sized) {
+        return (sized && sized.url) || url;
+      }, function() { return url; });
+    }).then(function(opt_url) {
+      var content_type = opt_url.match(/^data:/) ? opt_url.split(/;/)[0].split(/:/)[1] : null;
       // `suggestion` seeds the saved image's button_label since there's no live
       // button to read it from (save_image_preview falls back to it).
-      var preview = { url: url, content_type: content_type, protected: false, suggestion: label };
+      var preview = { url: opt_url, content_type: content_type, protected: false, suggestion: label };
       return contentGrabbers.pictureGrabber.save_image_preview(preview).then(function(image) {
         if(_this.isDestroyed || _this.isDestroying) { return image; }
-        var saved_url = (image && image.get && image.get('url')) || url;
+        var saved_url = (image && image.get && image.get('url')) || opt_url;
         // Store ONLY the URL (not the saved image's id). On Create the server's
         // process_client_supplied_images turns this URL into a fresh, PUBLIC,
         // board-owned ButtonImage and wires it into the board's image cache

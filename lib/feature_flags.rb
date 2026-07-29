@@ -30,6 +30,7 @@ module FeatureFlags
               'english_first_board_generation', 'signup_spanish_library_boards',
               'dashboard_drag_layout', 'boards_page_owner_dedup', 'edit_sidebar',
               'sentence_bar_editing',
+              'text_symbol_fallback',
               # EU launch (GDPR Art. 8): make the registration parental-consent
               # age gate jurisdiction-aware (EU under-16 vs default under-13).
               # AVAILABLE-only => OFF for everyone by default; with it OFF the
@@ -46,7 +47,13 @@ module FeatureFlags
               # deadline: add to ENABLED_FRONTEND_FEATURES (or opt individual EU orgs in
               # via per-user beta flag) ONLY on Scot's explicit sign-off, and only after
               # the production deploy of Phases 3-5. Do NOT blanket-enable here.
-              'article_50_disclosure']
+              'article_50_disclosure',
+              # Privacy Compliance Kernel (lib/compliance/): segment + jurisdiction +
+              # digital-consent-age profile. AVAILABLE-only => OFF by default so
+              # registration / EuJurisdiction / coppa_consent_age stay identical to
+              # today. Add to ENABLED_FRONTEND_FEATURES to persist settings.compliance
+              # and expose Compliance::Profile in user JSON / domain_settings.
+              'compliance_workflow_kernel']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',
@@ -64,7 +71,8 @@ module FeatureFlags
               'signup_default_library_boards', 'english_first_board_generation',
               'dashboard_drag_layout', # TEMPORARY (2026-06-09): forced ON for everyone pre-production to validate the Getting Started drag-to-swap home layout. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'edit_sidebar', # TEMPORARY (2026-06-25): forced ON for everyone so Traci can validate the speak-mode "Edit Sidebar" panel in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
-              'sentence_bar_editing'] # TEMPORARY (2026-06-27): forced ON for everyone to validate the speak-bar active-edit controls (remove + reorder chips) in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'sentence_bar_editing', # TEMPORARY (2026-06-27): forced ON for everyone to validate the speak-bar active-edit controls (remove + reorder chips) in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'text_symbol_fallback'] # Default ON so imported OBF text-only buttons render their labels as symbols; keep registered for rollback through system feature settings.
   DISABLED_CANARY_FEATURES = []
   FEATURE_DATES = {
     'word_suggestion_images' => 'Jan 21, 2017',
@@ -92,7 +100,9 @@ module FeatureFlags
     'google_sso' => 'May 18, 2026',
     'quick_screen_eval' => 'May 9, 2026',
     'comprehensive_eval_ai' => 'May 12, 2026',
-    'multi_user_board_import' => 'May 15, 2026'
+    'multi_user_board_import' => 'May 15, 2026',
+    'compliance_workflow_kernel' => 'Jul 23, 2026',
+    'text_symbol_fallback' => 'Jul 28, 2026'
   }
   AI_FEATURES = %w[ai_board_generation ai_word_prediction ai_board_suggestions
                    ai_symbol_search ai_compliance_logging comprehensive_eval_ai].freeze
@@ -188,6 +198,13 @@ module FeatureFlags
   # non-registration consumer needs the injected age.
   def self.eu_consent_age_enabled?
     ENABLED_FRONTEND_FEATURES.include?('eu_consent_age')
+  end
+
+  # Compliance Kernel (lib/compliance/). AVAILABLE-only until rollout; when OFF,
+  # User#process_params skips settings['compliance'] persistence and serializers
+  # omit the compliance profile blob.
+  def self.compliance_workflow_kernel_enabled?
+    ENABLED_FRONTEND_FEATURES.include?('compliance_workflow_kernel')
   end
 
   # COPPA Final Rule (16 CFR 312.5) hard-gate. Default ON.

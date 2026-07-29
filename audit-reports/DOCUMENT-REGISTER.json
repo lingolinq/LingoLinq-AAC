@@ -596,14 +596,19 @@
         "GDPR",
         "COPPA"
       ],
-      "lastReviewed": "2026-07-22",
+      "lastReviewed": "2026-07-27",
       "nextReviewDue": "2026-10-22",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-22",
-        "attestedContentHash": "34b0b857f494864186d1305a40e5ce22a17b2265340a81436161dae2d87efafc"
+        "attestedDate": "2026-07-27",
+        "attestedContentHash": "74ec247f35dd8af99a17825e22df86cf34105a6ce6968c86d899bc12ddbe883e",
+        "priorAttestations": [
+          "2026-07-24",
+          "2026-07-22"
+        ],
+        "note": "Re-attested 2026-07-27 (Path B recovery on Scot/feat/bedrock-runtime-ai): removed contradictory \"re-attestation owed\" banners that remained after the 2026-07-24 Bedrock routing attestation, and reconciled section 3 AWS BAA coverage wording with the active Bedrock runtime route. Prior 2026-07-24 attestation covered the Bedrock routing bytes that still incorrectly said attestation was owed."
       },
-      "contentHash": "34b0b857f494864186d1305a40e5ce22a17b2265340a81436161dae2d87efafc",
+      "contentHash": "74ec247f35dd8af99a17825e22df86cf34105a6ce6968c86d899bc12ddbe883e",
       "bundles": [
         "compliance-records-set-2026-06",
         "security-review"
@@ -725,14 +730,15 @@
       "nextReviewDue": "2027-07-23",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-23",
-        "attestedContentHash": "1e404832da3df838571d75ad29c0f3f5385a7e6a9d027c39e54b579e25ad4dc7",
+        "attestedDate": "2026-07-24",
+        "attestedContentHash": "f2ee37371ebf3b89037f42a6fc3aeedeb8d857a23297759604508c8ff5161fb3",
         "priorAttestations": [
-          "2026-07-06"
+          "2026-07-06",
+          "2026-07-23"
         ],
-        "note": "Re-attested 2026-07-23 against the current revision after verification against live code and infrastructure state. The prior attestation covered a revision that no longer exists; see the document banner for what changed."
+        "note": "Re-attested 2026-07-24 (CEO, explicit) for the §2 subprocessor-notice position on the GCP infrastructure addition (#19): recorded the pre-tenant baseline / no-notice-owed position and the compliance-calendar gate `gate-first-tenant-subprocessor-baseline`. Covers content hash f2ee3737. The prior 2026-07-23 attestation covered revision 1e404832, which no longer exists."
       },
-      "contentHash": "1e404832da3df838571d75ad29c0f3f5385a7e6a9d027c39e54b579e25ad4dc7",
+      "contentHash": "f2ee37371ebf3b89037f42a6fc3aeedeb8d857a23297759604508c8ff5161fb3",
       "bundles": [
         "school-dpa-package",
         "soc2-evidence",
@@ -1014,12 +1020,17 @@
         "HIPAA",
         "GDPR"
       ],
-      "lastReviewed": "2026-07-18",
+      "lastReviewed": "2026-07-27",
       "nextReviewDue": "2027-07-18",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-18",
-        "attestedContentHash": "5adbe44783d9d74797498415714bb0c84c81dc943ffcd7911ac4284624f9b0d4"
+        "attestedDate": "2026-07-27",
+        "attestedContentHash": "21179eb31560cc33812909b7bc8ca36fc47f4e3a7a18240b0d57479534f6794e",
+        "priorAttestations": [
+          "2026-07-24",
+          "2026-07-18"
+        ],
+        "note": "Re-attested 2026-07-27 (Path B recovery): removed contradictory \"re-attestation owed\" banner left after the 2026-07-24 Bedrock routing attestation. Prior 2026-07-24 attestation covered those Bedrock routing bytes."
       },
       "bundles": [
         "baa"
@@ -1036,7 +1047,7 @@
       ],
       "notes": "Parity with the AWS (docs/legal/AWS_BAA_ACCEPTED.md) and GCP (docs/legal/GCP_BAA_ACCEPTED.md) acceptance records. Model-provider BAA for the Anthropic runtime egress path; supersedes the prior 'no model-provider BAA / provisional pending CEO review' posture in COMPLIANCE.md, SUBPROCESSORS.md row 4, GCP_BAA_ACCEPTED.md, and AI_GOVERNANCE_MEMO.md (all reconciled in the same PR). Live enablement verified 2026-07-18 (Messages API 200; Files API 400 'not available for HIPAA-regulated organizations without Zero Data Retention'). Attested by Scot Wahlquist 2026-07-18 per explicit confirmation; git contentHash computed and CI-verified. The broader AI_GOVERNANCE_MEMO body was fully updated and re-attested by Scot Wahlquist on 2026-07-19 in the AI governance memo re-attestation PR.",
       "id": "DOC-ab3a8c3ed4",
-      "contentHash": "5adbe44783d9d74797498415714bb0c84c81dc943ffcd7911ac4284624f9b0d4",
+      "contentHash": "21179eb31560cc33812909b7bc8ca36fc47f4e3a7a18240b0d57479534f6794e",
       "retention": {
         "class": "executed-agreement",
         "rule": "term + 7 years",
@@ -1057,14 +1068,19 @@
       "frameworks": [
         "HIPAA"
       ],
-      "lastReviewed": "2026-05-11",
+      "lastReviewed": "2026-07-27",
       "nextReviewDue": "2027-05-11",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-06-21",
-        "attestedContentHash": "dc6a2ba9fa167f3f2bff6ec356bbd2b8bd9f9bafcd680b15362225aeca023f3e"
+        "attestedDate": "2026-07-27",
+        "attestedContentHash": "534322a344c6c619069624504d3d7c077d7ed96824e848fc432398df7583dd2a",
+        "priorAttestations": [
+          "2026-07-24",
+          "2026-06-21"
+        ],
+        "note": "Re-attested 2026-07-27 (Path B recovery): removed contradictory \"re-attestation owed\" banner left after the 2026-07-24 Bedrock routing attestation. Prior 2026-07-24 attestation covered those Bedrock routing bytes."
       },
-      "contentHash": "dc6a2ba9fa167f3f2bff6ec356bbd2b8bd9f9bafcd680b15362225aeca023f3e",
+      "contentHash": "534322a344c6c619069624504d3d7c077d7ed96824e848fc432398df7583dd2a",
       "bundles": [
         "baa"
       ],
@@ -1190,7 +1206,7 @@
       "lastReviewed": "2026-06-16",
       "nextReviewDue": "2026-09-16",
       "attestation": {},
-      "contentHash": "aef4e1e96801c0958251f5e8d2d44bb8a4392d6c46d34ba2d4664f494355a85a",
+      "contentHash": "1c8cac6b1c374c879f05a6359a65db6616dfb3362553519b660b798307d0904b",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
@@ -2604,7 +2620,7 @@
       "lastReviewed": "2026-07-12",
       "nextReviewDue": "2027-01-12",
       "attestation": {},
-      "contentHash": "e0b25b0bb51f5b6ed493dfedef4d993ec9dafc71b63bf706b6a6fa4eda776fac",
+      "contentHash": "271c36029d9c8786ed5ab533d02293abac6164ffe533c56da0296b5941c98a37",
       "bundles": [],
       "mirrors": [
         {

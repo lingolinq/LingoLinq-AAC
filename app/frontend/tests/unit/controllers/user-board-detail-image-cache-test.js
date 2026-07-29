@@ -66,6 +66,21 @@ module('Unit | Controller | user/board-detail image cache', function(hooks) {
     assert.equal(btn.image_url, local);
   });
 
+  test('_make_btn marks non-folder text-only buttons as text symbols', function(assert) {
+    var btn = this.controller._make_btn({ id: 'key-q', label: 'q' }, {});
+
+    assert.equal(btn.text_symbol, true);
+    assert.equal(btn.image_url, null);
+  });
+
+  test('_make_btn does not mark folders or image-backed buttons as text symbols', function(assert) {
+    var folder = this.controller._make_btn({ id: 'folder-1', label: 'People', load_board: { id: 'b2' } }, {});
+    var imageBacked = this.controller._make_btn({ id: 'go-1', image_id: 'bi1', label: 'go' }, { bi1: 'https://cdn.example.com/go.png' });
+
+    assert.equal(folder.text_symbol, false);
+    assert.equal(imageBacked.text_symbol, false);
+  });
+
   test('upgrade_url_for_skin_variants does not speculate .varianted-skin for plain library URLs', function(assert) {
     var plain = 'https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/different.png';
     assert.equal(LingoLinq.Board.upgrade_url_for_skin_variants(plain), plain);

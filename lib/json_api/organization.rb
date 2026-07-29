@@ -55,6 +55,7 @@ module JsonApi::Organization
       json['default_locale'] = org.settings['default_locale'] || 'en'
       json['jurisdiction'] = org.jurisdiction
       json['default_beta_program_access'] = org.default_beta_program_access?
+      json['external_ai_processing'] = org.external_ai_processing_allowed?
       if org.settings['activation_settings']
         json['start_codes'] = Organization.start_codes(org)
       end
