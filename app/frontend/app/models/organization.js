@@ -66,6 +66,7 @@ LingoLinq.Organization = BaseModel.extend({
   default_locale: attr('string'),
   jurisdiction: attr('string'),
   default_beta_program_access: attr('boolean'),
+  external_ai_processing: attr('boolean'),
   preferred_symbols: attr('string'),
   start_codes: attr('raw'),
   custom_domain: attr('boolean'),

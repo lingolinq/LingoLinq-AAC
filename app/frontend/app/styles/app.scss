@@ -39315,7 +39315,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   min-width: 0;
 }
 .la-terms-agree-link {
-  color: var(--md-teal);
+  /* WCAG AA: this link sits on the near-white terms/AI disclosure modal surface. */
+  color: $brand-verdigris-aa;
   font-weight: 600;
   text-decoration: none;
 

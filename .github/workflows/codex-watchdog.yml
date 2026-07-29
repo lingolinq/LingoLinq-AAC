@@ -30,7 +30,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout (for the labeling helper script only)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Find open PRs with a pending codex-review/deep-pass status
         id: find_pending
