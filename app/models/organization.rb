@@ -1524,6 +1524,34 @@ class Organization < ApplicationRecord
     self.settings['default_beta_program_access'] != false
   end
 
+  # Opt-out off-switch for Google Translation / Speech-to-Text egress.
+  # Unset => allowed (preserve existing orgs). Explicit false => denied.
+  def external_ai_processing_allowed?
+    self.settings ||= {}
+    self.settings['external_ai_processing'] != false
+  end
+
+  # True when the user may send content to third-party AI processors.
+  # Unmanaged users are allowed (account-level COPPA gate covers minors).
+  # If the user is attached to any org that has disabled processing, deny
+  # (fail closed across multi-org attachments).
+  def self.external_ai_processing_allowed_for_user?(user)
+    return true unless user
+    orgs = attached_orgs(user, true).map { |e| e['org'] }.compact
+    return true if orgs.empty?
+    orgs.all?(&:external_ai_processing_allowed?)
+  end
+
+  # PII-free audit of a gate-skip. Never raises into the feature path.
+  def self.log_external_ai_processing_skip(user, flow)
+    org_ids = user ? attached_orgs(user).map { |e| e['id'] }.compact.uniq : []
+    AuditEvent.log_command(user&.global_id || 'unknown', {
+      'type' => 'external_ai_processing_skipped',
+      'flow' => flow.to_s,
+      'organization_ids' => org_ids
+    })
+  end
+
   def process_params(params, non_user_params)
     self.settings ||= {}
     self.settings['name'] = process_string(params['name']) if params['name']
@@ -1531,6 +1559,9 @@ class Organization < ApplicationRecord
     self.settings['org_access'] = process_boolean(params['org_access']) if params['org_access'] != nil
     if params.key?('default_beta_program_access') || params.key?(:default_beta_program_access)
       self.settings['default_beta_program_access'] = process_boolean(params['default_beta_program_access'])
+    end
+    if params.key?('external_ai_processing') || params.key?(:external_ai_processing)
+      self.settings['external_ai_processing'] = process_boolean(params['external_ai_processing'])
     end
     self.settings['inactivity_timeout'] = params['inactivity_timeout'].to_i if params['inactivity_timeout']
     self.settings.delete('inactivity_timeout') if (self.settings['inactivity_timeout'] || 0) < 10

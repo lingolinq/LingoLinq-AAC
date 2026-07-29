@@ -3697,4 +3697,61 @@ describe Organization, :type => :model do
       expect(o.data_policy_version).to eq(1)
     end
   end
+
+  describe "external_ai_processing_allowed?" do
+    it "should default to allowed when unset" do
+      o = Organization.create
+      expect(o.external_ai_processing_allowed?).to eq(true)
+    end
+
+    it "should return false when explicitly disabled" do
+      o = Organization.create
+      o.settings['external_ai_processing'] = false
+      o.save
+      expect(o.external_ai_processing_allowed?).to eq(false)
+    end
+
+    it "should persist via process_params" do
+      o = Organization.create
+      u = User.create
+      o.process({'external_ai_processing' => false}, {'updater' => u})
+      o.save
+      expect(o.reload.external_ai_processing_allowed?).to eq(false)
+      o.process({'external_ai_processing' => true}, {'updater' => u})
+      o.save
+      expect(o.reload.external_ai_processing_allowed?).to eq(true)
+    end
+
+    it "should allow unmanaged users" do
+      u = User.create
+      expect(Organization.external_ai_processing_allowed_for_user?(u)).to eq(true)
+      expect(Organization.external_ai_processing_allowed_for_user?(nil)).to eq(true)
+    end
+
+    it "should deny when the user's attached org has disabled processing" do
+      o = Organization.create(settings: {'total_licenses' => 1, 'external_ai_processing' => false})
+      u = User.create
+      o.add_user(u.user_name, false, true)
+      u.reload
+      expect(Organization.external_ai_processing_allowed_for_user?(u)).to eq(false)
+    end
+
+    it "should allow when the user's attached org leaves processing enabled" do
+      o = Organization.create(settings: {'total_licenses' => 1})
+      u = User.create
+      o.add_user(u.user_name, false, true)
+      u.reload
+      expect(Organization.external_ai_processing_allowed_for_user?(u)).to eq(true)
+    end
+
+    it "should deny managers when their org has disabled processing" do
+      o = Organization.create
+      o.settings['external_ai_processing'] = false
+      o.save
+      u = User.create
+      o.add_manager(u.user_name, true)
+      u.reload
+      expect(Organization.external_ai_processing_allowed_for_user?(u)).to eq(false)
+    end
+  end
 end
