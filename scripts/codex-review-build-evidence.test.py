@@ -116,15 +116,25 @@ class EvidenceChunkingTest(unittest.TestCase):
         self.assertEqual(incomplete[-1]["max_chunks"], TRUSTED_POLICY_MAX_CHUNKS)
 
     def test_readme_documents_the_same_cap_as_the_trusted_policy(self):
-        # The README's chunk cap, worst-case call budget, and watchdog timing
-        # analysis are what a maintainer reads before tuning the policy, so a
-        # silent drift between the two is a documentation bug with operational
-        # consequences. Keep them mechanically pinned to each other.
-        documented = re.search(
-            r"^- maximum chunks: (\d+)$", TRUSTED_POLICY_README.read_text(), re.MULTILINE
+        readme = TRUSTED_POLICY_README.read_text()
+        documented_cap = re.search(r"^- maximum chunks: (\d+)$", readme, re.MULTILINE)
+        logical_budget = re.search(
+            r"Worst-case budget is (\d+) \*logical\* calls", readme
         )
-        self.assertIsNotNone(documented, "README must state '- maximum chunks: N'")
-        self.assertEqual(int(documented.group(1)), TRUSTED_POLICY_MAX_CHUNKS)
+        invocation_budget = re.search(
+            r"actual `codex exec` invocations is (\d+)", readme
+        )
+        self.assertIsNotNone(documented_cap, "README must state '- maximum chunks: N'")
+        self.assertIsNotNone(logical_budget, "README must state the logical call budget")
+        self.assertIsNotNone(invocation_budget, "README must state the invocation budget")
+        self.assertEqual(int(documented_cap.group(1)), TRUSTED_POLICY_MAX_CHUNKS)
+        self.assertEqual(int(logical_budget.group(1)), TRUSTED_POLICY_MAX_CHUNKS * 3 + 3)
+        self.assertEqual(int(invocation_budget.group(1)), (TRUSTED_POLICY_MAX_CHUNKS * 3 + 3) * 2)
+        self.assertLessEqual(
+            TRUSTED_POLICY_MAX_CHUNKS,
+            16,
+            "Raising the chunk cap above 16 needs a fresh large-PR smoke and budget review.",
+        )
 
     def test_oversized_single_hunk_is_incomplete(self):
         giant = "@@ -1,1 +1,1 @@\n-old\n+" + ("x" * 500) + "\n"
