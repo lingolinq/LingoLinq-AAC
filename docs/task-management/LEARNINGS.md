@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: Ember Data model ids in tests must be strings — numeric `set('id', N)` fails throwOnUnhandled](#gotcha-ember-data-model-ids-in-tests-must-be-strings--numeric-setid-n-fails-throwonunhandled)
 - [Gotcha: batch-path nil is not “missing opts” — key presence vs value](#gotcha-batch-path-nil-is-not-missing-opts--key-presence-vs-value)
 - [Gotcha: compliance segment stamps must use validated org ids, not raw params](#gotcha-compliance-segment-stamps-must-use-validated-org-ids-not-raw-params)
 - [Gotcha: board translation Google egress is users#translate / WordData, not Board#translate_set](#gotcha-board-translation-google-egress-is-userstranslate--worddata-not-boardtranslate_set)
@@ -7903,3 +7904,7 @@ When a batch helper downloads once and fans out (`self.assert_priority` → `wd.
 ## Gotcha: board translation Google egress is users#translate / WordData, not Board#translate_set
 
 `Board#translate_set` only applies a client-supplied translation hash — it does not call Google. The frontend first POSTs words to `/api/v1/users/:id/translate` → `WordData.translate_batch` → `query_translations` (Typhoeus to `translation.googleapis.com`), then posts the result to boards#translate → `translate_set`. An org off-switch that only gates `translate_set` still lets labels leave to Google. Gate the users translate action (and optionally `translate_set` as belt-and-suspenders); do **not** gate `WordData.query_translations` globally because `translate_locale_batch` uses it for library locale files. Org toggles for this live as top-level `settings['external_ai_processing']` (same shape as `default_beta_program_access`), not under `settings['permissions']` (ACL). Check all attached orgs (managers/supervisors), not only `managing_organization` / org_user. Ref: [#691](https://github.com/lingolinq/LingoLinq-AAC/issues/691), [`2026-07-28-org-external-ai-processing-off-switch.md`](./2026-07-28-org-external-ai-processing-off-switch.md).
+
+## Gotcha: Ember Data model ids in tests must be strings — numeric `set('id', N)` fails throwOnUnhandled
+
+With `throwOnUnhandled: true` in test (`app/deprecation-workflow.js`), `store.createRecord(...); record.set('id', 12)` emits Ember Data’s non-strict-id deprecation (“use `"12"` instead”) and fails the suite. Plain button/object ids can still be numbers; **Ember Data model** ids must be strings. Prefer `set('id', '12')` (or `pushPayload` with string ids). Hit in `tests/models/video-test.js` `check_for_editable_license` after Phase 3 CI hardening. Do **not** silence the deprecation — fix the call site.
