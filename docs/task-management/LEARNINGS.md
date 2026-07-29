@@ -53,6 +53,7 @@ file (see [README.md](README.md)).
 - [Pattern: `__label-collapsed` is a multi-role class — scope by parent before styling](#pattern-__label-collapsed-is-a-multi-role-class--scope-by-parent-before-styling)
 - [Pattern: "Shrink to fit" is a per-label content-aware problem, not container-scaling — reach for capabilities.fit_text](#pattern-shrink-to-fit-is-a-per-label-content-aware-problem-not-container-scaling--reach-for-capabilitiesfit_text)
 - [Pattern: board-detail label surface has TWO elements — `__label` (span) and `__label-input` (input)](#pattern-board-detail-label-surface-has-two-elements--__label-span-and-__label-input-input)
+- [Gotcha: `__text-symbol` is a third label surface — include it in contrast modes and shrink-to-fit](#gotcha-__text-symbol-is-a-third-label-surface--include-it-in-contrast-modes-and-shrink-to-fit)
 - [Pattern: `organizations.admin` is a singleton boolean, not a normal flag](#pattern-organizationsadmin-is-a-singleton-boolean-not-a-normal-flag)
 - [Pattern: settings-backed API flags should be cast before Ember consumes them](#pattern-settings-backed-api-flags-should-be-cast-before-ember-consumes-them)
 - [Pattern: duplicate selectors in `app.scss` can leave stale layout constraints active](#pattern-duplicate-selectors-in-appscss-can-leave-stale-layout-constraints-active)
@@ -745,6 +746,40 @@ canonical example of this pairing.
 
 **First seen in:**
 [2026-05-26-shrink-labels-to-fit.md](./2026-05-26-shrink-labels-to-fit.md)
+
+---
+
+## Gotcha: `__text-symbol` is a third label surface — include it in contrast modes and shrink-to-fit
+
+**Surface:** board-detail text-only buttons under `text_symbol_fallback`
+(`md-board-detail-symbol-card__text-symbol`).
+
+**Symptom:** Black image-background mode shows unreadable dark text on
+`#000` cards; and/or "Shrink labels to fit" leaves long text-symbol
+copy clipped at the CSS 16px floor.
+
+**Root cause:** Text-symbol buttons hide the ordinary `__label` and
+render a full-card span instead (`board-detail-grid.hbs`). That span
+uses `color: inherit` and is not in the historical
+`__label`/`__label-input` selector pairs for
+`.symbol_background_black` or `label_fit.js#selectLabels`. Naively
+routing it through `fitWrapped` is also wrong — that path targets the
+3.45em bottom label box, while text-symbols fill the card at
+`clamp(16px, pref*1.45, 32px)`.
+
+**Fix recipe:** Keep `__text-symbol` in lockstep with label contrast
+rules (same white/`!important` treatment as labels under
+`.symbol_background_black`; high-contrast already has its own rule).
+For shrink-to-fit, select the span in `label_fit.js` and fit against
+the card box (`fitFullCard`) at the 1.45× CSS base — do not reuse the
+3-line label-box math.
+
+**Evidence:**
+[`app.scss` black-mode rule](../../app/frontend/app/styles/app.scss),
+[`label_fit.js`](../../app/frontend/app/utils/label_fit.js).
+
+**First seen in:**
+[2026-07-29-text-symbol-codex-findings.md](./2026-07-29-text-symbol-codex-findings.md)
 
 ---
 

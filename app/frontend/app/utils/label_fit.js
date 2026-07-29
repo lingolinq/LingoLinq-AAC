@@ -16,7 +16,10 @@
 // edit-mode live preview) are intrinsically single-line, so they're
 // fitted via an offscreen canvas measurement against the input's
 // content width — same primitive idea as the legacy capabilities.fit_text
-// helper used by the classic board.
+// helper used by the classic board. Text-symbol spans
+// (.md-board-detail-symbol-card__text-symbol) fill the whole card image
+// area (not the 3-line label box), so they get a separate full-card
+// overflow fit against clientHeight/clientWidth at the CSS 1.45× base.
 //
 // All sizing is applied via inline `style="font-size: …px"`, which beats
 // the base CSS rule on cascade. clear() removes those inline styles to
@@ -66,6 +69,20 @@ function readBaseSizePx(gridEl) {
 
 function isInput(el) {
   return el && el.tagName === 'INPUT';
+}
+
+function isTextSymbol(el) {
+  return !!(el && el.classList &&
+    el.classList.contains('md-board-detail-symbol-card__text-symbol'));
+}
+
+// Matches .md-board-detail-symbol-card__text-symbol font-size clamp in
+// app.scss: clamp(16px, calc(var(--bd-button-text-size) * 1.45), 32px).
+function textSymbolBasePx(prefPx) {
+  var scaled = (prefPx || 15) * 1.45;
+  if(scaled < 16) { return 16; }
+  if(scaled > 32) { return 32; }
+  return scaled;
 }
 
 // Single-line labels are fitted by WIDTH, not by wrapped height. Inputs are
@@ -166,6 +183,50 @@ function fitSingleLine(el, basePx) {
   return MIN_FONT_PX;
 }
 
+// Full-card fit for text-symbol spans. These replace the image area
+// and fill width/height:100% with overflow:hidden — so the criterion
+// is "does the rendered text overflow the card box?", not the 3.45em
+// bottom label box used by fitWrapped.
+//
+// Measurement temporarily switches to block layout: the live rule is
+// display:flex (centered), and flex+overflow:hidden often keeps
+// scrollHeight === clientHeight even when text is visually clipped.
+// Block layout lets wrapped text grow scrollHeight against the saved
+// card box size.
+function fitFullCard(el, basePx) {
+  var boxH = el.clientHeight;
+  var boxW = el.clientWidth;
+  if(!boxH || !boxW) { return basePx; }
+
+  var savedTransition = el.style.transition;
+  var savedDisplay = el.style.display;
+  var savedOverflow = el.style.overflow;
+
+  el.style.transition = 'none';
+  el.style.display = 'block';
+  el.style.overflow = 'hidden';
+
+  var chosen = basePx;
+  var size = basePx;
+  while(size >= MIN_FONT_PX) {
+    el.style.fontSize = size + 'px';
+    var overflows =
+      el.scrollHeight > boxH + FIT_TOLERANCE_PX ||
+      el.scrollWidth > boxW + FIT_TOLERANCE_PX;
+    if(!overflows) {
+      chosen = size;
+      break;
+    }
+    size -= 1;
+  }
+  if(size < MIN_FONT_PX) { chosen = MIN_FONT_PX; }
+
+  el.style.display = savedDisplay;
+  el.style.overflow = savedOverflow;
+  el.style.transition = savedTransition;
+  return chosen;
+}
+
 // Apply the fit to a single label element. Used both by the bulk
 // gridEl pass and by single-label updates (e.g. label-field blur
 // after the user edits text on the edit page).
@@ -176,8 +237,16 @@ function applyOne(el, basePx) {
     el.style.fontSize = '';
     return;
   }
-  var size = isSingleLine(el) ? fitSingleLine(el, basePx) : fitWrapped(el, basePx);
-  if(size >= basePx) {
+  var effectiveBase = isTextSymbol(el) ? textSymbolBasePx(basePx) : basePx;
+  var size;
+  if(isTextSymbol(el)) {
+    size = fitFullCard(el, effectiveBase);
+  } else if(isSingleLine(el)) {
+    size = fitSingleLine(el, effectiveBase);
+  } else {
+    size = fitWrapped(el, effectiveBase);
+  }
+  if(size >= effectiveBase) {
     el.style.fontSize = '';
   } else {
     el.style.fontSize = size + 'px';
@@ -187,6 +256,7 @@ function applyOne(el, basePx) {
 function selectLabels(gridEl) {
   return gridEl.querySelectorAll(
     '.md-board-detail-symbol-card__label, .md-board-detail-symbol-card__label-input, ' +
+    '.md-board-detail-symbol-card__text-symbol, ' +
     '.md-folder-tab__label, .md-folder-tab__label-input'
   );
 }
