@@ -1751,6 +1751,7 @@ export default Controller.extend(prefClasses, {
         if(image_fallback_url === img_url) { image_fallback_url = null; }
       }
     }
+    var text_symbol = !img_url && !!btn.label && !btn.load_board;
     // Speak-mode level filter: decide whether the level filter should
     // visually hide this button at the current level. We compute it
     // into `display_as_hidden` (a plain bool that mirrors the Ember
@@ -1784,6 +1785,7 @@ export default Controller.extend(prefClasses, {
       image_url: img_url,
       image_fallback_url: image_fallback_url,
       image_id: btn.image_id,
+      text_symbol: text_symbol,
       load_board: btn.load_board,
       // Action + option fields — MUST be carried onto the speak-mode display button.
       // This object is a hand-picked subset (unlike edit-mode's _make_ember_btn, which
@@ -1836,6 +1838,7 @@ export default Controller.extend(prefClasses, {
     var more_args = { board: board };
     if(img_url) { more_args.image_url = img_url; }
     var button = editManager.Button.create(btn, more_args);
+    button.set('text_symbol', !img_url && !!btn.label && !btn.load_board);
     // Explicitly carry hide_label onto the Ember button so the modern grid can hide
     // the label ("Hide the label when the picture is shown"). Without this the class
     // flashed via the classic fast-HTML paint, then the Ember grid re-rendered without
