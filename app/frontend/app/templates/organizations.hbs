@@ -49,6 +49,27 @@
       {{/if}}
 
       {{#if this.has_admin_access}}
+        <section class="md-org-section" aria-label={{t "Find User" key="find_user"}}>
+          <div class="md-org-section-head">
+            <div>
+              <h3 class="md-org-section-title">{{t "Find User" key="find_user"}}</h3>
+              <p class="md-org-section-desc">{{t "Look up any account by username or email. Open the profile or masquerade from the results." key="find_user_section_desc"}}</p>
+            </div>
+          </div>
+          <div class="md-org-add-row">
+            <input
+              aria-label={{t "user name or email" key="user_name_or_email"}}
+              value={{this.search_user}}
+              type="text"
+              class="md-org-input"
+              placeholder={{t "user name or email" key="user_name_or_email"}}
+              {{on "input" (set-field this "search_user")}}
+              {{on "keydown" this.search_user_keydown}}
+            />
+            <button type="button" class="md-btn md-btn--primary md-btn--sm" {{on "click" (this.ctrlAction "find_user")}}>{{t "Find User" key="find_user"}}</button>
+          </div>
+        </section>
+
         <section class="md-org-section" aria-label={{t "All Organizations" key="all_organizations"}}>
           <div class="md-org-section-head">
             <div>
