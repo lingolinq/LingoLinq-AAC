@@ -270,7 +270,7 @@
       "currentEvidence": { "file": "docs/legal/ANTHROPIC_BAA_ACCEPTED.md", "line": 144, "snippet": "## Runtime routing update - 2026-07-24 (re-attested 2026-07-24)" },
       "evidenceType": "attestation",
       "frameworks": ["HIPAA"],
-      "notes": "Supersedes the former deliberately-not-done cap no-model-provider-baa. Anthropic HIPAA-Ready BAA executed 2026-07-18; runtime moved to Bedrock 2026-07-24 under the AWS BAA. Id retained as anthropic-model-provider-baa so inbound references to the closed gap resolve.",
+      "notes": "Supersedes the former deliberately-not-done cap no-model-provider-baa. Anthropic HIPAA-Ready BAA executed 2026-07-18; runtime moved to Bedrock 2026-07-24 under the AWS BAA. Id retained as anthropic-model-provider-baa so inbound references to the closed gap resolve. Operative conditions verified 2026-07-27: the deployed Cloud Run service lingolinq-web signs Bedrock with a credential that resolves to the BAA'd AWS account 2390-4478-5114 (us-west-2), and Bedrock model-invocation logging is OFF in that account/region (residual: shared app AWS credential, not a dedicated Bedrock credential).",
       "lastVerified": "2026-07-27"
     }
   ]
