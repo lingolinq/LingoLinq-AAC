@@ -144,14 +144,37 @@ chunk findings are defanged before prompt assembly.
 
 ## Watchdog and heartbeat
 
-`codex-watchdog.yml` is scheduled every 10 minutes and fails pending
-`codex-review/deep-pass` statuses once they are at least 30 minutes old. Treat
-that as the design target, not a precise service-level guarantee: GitHub can
-delay or skip scheduled workflows. Chunked reviews can legitimately take longer
-than the old 2-3 model-call path, so `scripts/codex-review-run-chunks.py`
-reposts pending status before every model call and retry. Heartbeat failures are
-non-fatal; they are progress hints, not correctness gates. A real hang stops
-heartbeating and the watchdog still fails closed when the scheduled sweep runs.
+**Watchdog recovery is best-effort. There is no 30-minute SLA.** (Issue #710.)
+
+`codex-watchdog.yml` has two triggers, and they behave very differently:
+
+- **`workflow_run`, prompt.** Fires as soon as a review job concludes, however
+  it concluded. This covers every case where the dispatching run reaches a
+  conclusion, and in practice resolves reachable failures in about 50 seconds.
+- **`schedule`, fallback and unbounded.** A sweep requested every 10 minutes
+  that fails any `codex-review/deep-pass` status once it is **at least** 30
+  minutes old. This is the only trigger that covers a run which hangs and never
+  completes.
+
+The 30 minutes is the age at which a status becomes **eligible** to be failed.
+It is not a deadline, and nothing bounds how long a status can stay pending.
+GitHub does not guarantee scheduled workflows run on time and drops them under
+load: on 2026-07-29 four consecutive `*/10` firings were missed, no sweep ran
+for about 45 minutes, and PR #701 sat pending for 77 minutes. Nothing was
+misconfigured.
+
+This is load-bearing in exactly one place, the status-write-failure path, where
+`codex-review.yml` provably cannot resolve its own status because the status API
+is what is failing. Everywhere else the `workflow_run` trigger or
+`codex-review.yml`'s own terminal-status step (PR #702) resolves the status
+promptly. A strict bound would need a monitor outside GitHub Actions;
+scheduling cannot provide one.
+
+Chunked reviews can legitimately take longer than the old 2-3 model-call path,
+so `scripts/codex-review-run-chunks.py` reposts pending status before every
+model call and retry. Heartbeat failures are non-fatal; they are progress hints,
+not correctness gates. A real hang stops heartbeating and the watchdog fails it
+closed whenever the next sweep happens to run.
 
 Measured smoke timing:
 
@@ -161,16 +184,17 @@ Measured smoke timing:
 - Total workflow wall-clock: about 2 minutes 27 seconds.
 - Reasoning effort: none, as currently shipped by
   `scripts/codex-review-run-chunks.py`.
-- Heartbeats fired about every 5-6 seconds, far inside the 30-minute watchdog
-  window.
+- Heartbeats fired about every 5-6 seconds, far below the 30-minute staleness
+  threshold.
 
 The 16-chunk worst case has not been live-smoked yet. Using the #685 timing as
 a rough lower-bound throughput check, assuming the smoke had no structural
 retries (75 s / 14 invocations = about 5.4 s per invocation), 51 logical calls
 would be about 4.5 minutes of reviewer-step time. A 102-invocation case would
 be about 9 minutes only if retries fail fast. A single hung `codex exec`
-dominates that estimate and is bounded only by the 90-minute job timeout, with
-the watchdog expected to fail the stale status when its scheduled sweep runs.
+dominates that estimate and is bounded only by the 90-minute job timeout. The
+watchdog will fail the stale status, but only once it is 30 minutes old AND a
+scheduled sweep actually runs, which is best-effort and unbounded.
 Each model call still posts a pending-status heartbeat before it starts. Treat
 5.4 s as a floor, not an estimate: per-call latency scales with prompt size, and
 the manifest block embedded in every chunk prompt grows with chunk count.
@@ -180,9 +204,10 @@ Two known limits this cap raise does not address, both unchanged from the
 
 - `run_model` passes no `timeout=` to `subprocess.run`, so a single hung
   `codex exec` stops heartbeating and stalls the job until the 90-minute
-  ceiling. The watchdog is designed to flip the status once a scheduled sweep
-  sees it at least 30 minutes stale, so the merge gate still resolves
-  fail-closed, but the runner minutes and operator wait time are spent.
+  ceiling. The watchdog flips the status once a scheduled sweep sees it at
+  least 30 minutes stale, so the merge gate does resolve fail-closed, but the
+  timing is best-effort: the sweep may be delayed or skipped, and the runner
+  minutes and operator wait time are spent either way.
 - The synthesis prompt embeds every chunk review verbatim
   (`chunk_result_group` keeps the full `review` object for each run), so its
   input scales with chunks times runs: up to 48 full review objects at this
@@ -191,9 +216,9 @@ Two known limits this cap raise does not address, both unchanged from the
   prompt too large to answer degrades to an invalid review and blocks, which is
   correct but moves the failure from chunking to synthesis.
 
-If real timings approach the watchdog threshold, keep the fail-closed
-status behavior and revisit chunk parallelism or job boundaries as a separate
-design.
+If real timings approach the 30-minute staleness threshold, keep the
+fail-closed status behavior and revisit chunk parallelism or job boundaries as a
+separate design. Do not treat the watchdog as a timing backstop it cannot be.
 
 Chunked evidence is still opt-in through `CODEX_REVIEW_EVIDENCE_MODE=chunked`;
 the workflow defaults to bounded evidence. Do not make chunked evidence the
