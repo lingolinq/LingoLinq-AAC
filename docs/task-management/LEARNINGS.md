@@ -7954,3 +7954,19 @@ Same pitfall exists on `ButtonSound`. Related: settings-backed API flags + strin
 **Evidence:** `lingolinq_admin/animals` shark `1_41045_…` had `protected: "false"` (String), `protected?=true` pre-fix, `url: nil` in `images_and_sounds_for`.
 
 **First seen in:** [`2026-07-30-ai-board-manual-image-not-persisting.md`](./2026-07-30-ai-board-manual-image-not-persisting.md)
+
+## Gotcha: org shell redesign can drop live controller actions that only lived in the old sidebar
+
+The Apr 2026 organizations UI redesign rewrote `organization.hbs` to the md-shell / pill-nav layout and left `find_user` / `masquerade` / `find_board` actions on `controllers/organization.js` with **no template bindings**. API + controller still worked; the only regression was discoverability. When restyling a shell, diff the old template for interactive controls (search, masquerade, license inputs) and either port them or deliberately retire them. Restore home for site-admin user lookup: Organizations directory (`organizations.hbs`) behind `has_admin_access`. Ref: [`2026-07-30-org-directory-find-user-masquerade.md`](./2026-07-30-org-directory-find-user-masquerade.md).
+
+## Gotcha: `modal.open('X')` is a no-op unless `X` is registered in modal-container
+
+After the Ember 5 modal migration, `utils/modal.open` only drives `service:modal` → `modal-container`, which renders an explicit `{{#if (is-equal this.currentTemplate "…")}}` branch per converted component. Opening a legacy controller/template name that was never converted (e.g. `user-results`) sets `currentTemplate` but paints nothing — silent failure. When restoring a `modal.open` call site, confirm the template string appears in both `modal-container.hbs` and the `convertedModals` list in `modal-container.js`. Ref: [`2026-07-30-org-directory-find-user-masquerade.md`](./2026-07-30-org-directory-find-user-masquerade.md).
+
+## Gotcha: session.restore() must re-sync masquerade fields on every call
+
+`restore()` used to set `as_user_id` only when transitioning to authenticated (`token && !isAuthenticated`). Boot restores more than once; later calls skipped that block, so `session.as_user_id` stayed null while `auth_settings.as_user_id` still fed API token-check query params. Symptom: masquerade “works” but Stop Masquerading UI never appears. Always sync `as_user_id` / `original_user_name` from stash whenever a token is present. Ref: [`2026-07-30-org-directory-find-user-masquerade.md`](./2026-07-30-org-directory-find-user-masquerade.md).
+
+## Gotcha: authenticated chrome is AppNavbar, not application.hbs #identity
+
+When `useAppNavbarInHeader` is true (dashboard, org, most user routes), `application.hbs` renders `<AppNavbar>` and **skips** the legacy `#identity` block. Header controls added only under `#identity` in `application.hbs` are invisible on those pages. Put authenticated-nav affordances (e.g. Stop Masquerading next to Upgrade) in `app-navbar-authenticated-inner.hbs` (and the mobile drawer). Ref: [`2026-07-30-org-directory-find-user-masquerade.md`](./2026-07-30-org-directory-find-user-masquerade.md).
