@@ -185,7 +185,7 @@
       "domain": "childrens-privacy",
       "claimLanguage": "AI features are blocked for EU users aged 16 and under until a parent grants EU AI parental consent via the email-token flow.",
       "antiClaim": "This gate is NOT the same as signup COPPA (settings['coppa']) or second-tier AI data-sharing VPC (settings['ai_consent'] / government-ID). It only covers EU under-16 AI enablement.",
-      "currentEvidence": { "file": "lib/feature_flags.rb", "line": 231, "snippet": "def self.eu_under16_blocks_ai_for?(user)" },
+      "currentEvidence": { "file": "lib/feature_flags.rb", "line": 234, "snippet": "def self.eu_under16_blocks_ai_for?(user)" },
       "frameworks": ["GDPR", "COPPA"],
       "notes": "Persists registration country + under_16/eu_under_16; prefs AI section gated; email-token settings['eu_ai_parental_consent']; folded into ai_feature_enabled_for? with call-site defense.",
       "lastVerified": "2026-07-24"

@@ -496,6 +496,32 @@ describe ButtonSound, :type => :model do
       bs.schedule_transcription(true)
       expect(Typhoeus).to_not receive(:get)
     end
+
+    it "should skip Google and not increment transcription_errors when org disables external AI processing" do
+      o = Organization.create(settings: {'total_licenses' => 1, 'external_ai_processing' => false})
+      u = User.create
+      o.add_user(u.user_name, false, true)
+      u.reload
+      bs = ButtonSound.new(:user => u, :settings => {})
+      expect(bs).to receive(:secondary_url).and_return("http://www.example.com/sound.wav").at_least(1).times
+      expect(Typhoeus).not_to receive(:get)
+      expect(Typhoeus).not_to receive(:post)
+      expect(Organization).to receive(:log_external_ai_processing_skip).with(u, 'transcription')
+      bs.schedule_transcription(true)
+      expect(bs.settings['transcription_errors']).to eq(nil)
+    end
+
+    it "should not schedule transcription when org disables external AI processing" do
+      o = Organization.create(settings: {'total_licenses' => 1, 'external_ai_processing' => false})
+      u = User.create
+      o.add_user(u.user_name, false, true)
+      u.reload
+      bs = ButtonSound.create(:user => u, :settings => {})
+      expect(bs).to receive(:secondary_url).and_return("http://www.example.com/sound.wav")
+      expect(Organization).to receive(:log_external_ai_processing_skip).with(u, 'transcription')
+      bs.schedule_transcription
+      expect(Worker.scheduled?(ButtonSound, :perform_action, {:id => bs.id, :method => 'schedule_transcription', :arguments => [true]})).to eq(false)
+    end
   end
   
   describe "schedule_missing_transcodings" do

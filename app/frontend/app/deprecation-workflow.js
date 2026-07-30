@@ -8,20 +8,20 @@ import config from './config/environment';
 //
 // Posture (deliberate, per CLAUDE.md "NEVER suppress or hide deprecations"):
 //   - `workflow: []` with NO `{ handler: 'silence' }` entries — nothing is muted.
-//   - `throwOnUnhandled: false` — unhandled deprecations fall through to Ember's
-//     default handler, which LOGS them. This keeps dev/test builds working while
-//     the migration-era deprecation backlog is worked down, instead of breaking
-//     the suite on day one.
-//   - Follow-up (CI hardening): once the deprecations are triaged into the
-//     workflow list and cleared, flip `throwOnUnhandled` to true (or set
-//     EmberENV.RAISE_ON_DEPRECATION in config/environment.js for the test env) so
-//     new deprecations fail CI. Do NOT add `handler: 'silence'` to get there.
+//   - `throwOnUnhandled: true` in **test** — unhandled deprecations fail the suite
+//     so new until:6.0 (or other) debt cannot land unnoticed. Development keeps
+//     `false` so exploratory console work still logs via Ember's default handler.
+//   - Do NOT add `handler: 'silence'` to green the suite. Prefer fixing the call
+//     site, or (for verified non-until:6.0 noise only) `{ handler: 'log', match }`.
+//
+// Note: `ember-htmlbars.style-xss-warning` uses Ember `warn()`, not `deprecate()`,
+// so it does not enter this workflow (seen on some org pages as a console WARNING).
 //
 // Skipped in production: this is a build-hardening aid for developers, not a
 // runtime feature, so end users never see deprecation console noise.
 if (config.environment !== 'production') {
   setupDeprecationWorkflow({
-    throwOnUnhandled: false,
+    throwOnUnhandled: config.environment === 'test',
     workflow: [],
   });
 }

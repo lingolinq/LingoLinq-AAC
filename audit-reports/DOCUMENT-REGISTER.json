@@ -858,18 +858,19 @@
         "GDPR",
         "FERPA"
       ],
-      "lastReviewed": "2026-07-23",
-      "nextReviewDue": "2027-06-28",
+      "lastReviewed": "2026-07-28",
+      "nextReviewDue": "2027-07-28",
       "attestation": {
         "attestedBy": "Scot Wahlquist, CEO",
-        "attestedDate": "2026-07-23",
-        "attestedContentHash": "f7a73ebacab3d22e58a8e918cf8bccad0dd95b6afdf826a0b21c5eaf6102df8e",
+        "attestedDate": "2026-07-28",
+        "attestedContentHash": "0ee1b92ec130e89215383bcb1ae26de7be5ef6f9fcd1b80d6ad9ae6d41152af1",
         "priorAttestations": [
-          "2026-06-21"
+          "2026-06-21",
+          "2026-07-23"
         ],
-        "note": "Re-attested 2026-07-23 against the current revision after live Cloud SQL verification. The prior attestation covered a revision that no longer exists; the runbook now names Cloud SQL as primary recovery and Render only as the rollback fallback in both §4.5 step 3 and the §4.1 step 4 evidence snapshot. Other Render references (application logs, alerts, Render-hosted service surfaces) are intentionally retained, as the Render fallback remains online."
+        "note": "Re-attested 2026-07-28 by Scot Wahlquist, CEO. v2.2 refresh after the Dominic SEC-002 review and a current code/evidence check: re-homes incident detection and evidence-capture onto the GCP/Cloud Run + Cloud SQL + Bedrock reality (gcloud logging / Cloud Audit Logs / Cloud SQL clone as primary recovery; Render as write-frozen rollback fallback only), corrects the GDPR/HIPAA/COPPA/NY-Ed-Law notification prose, and removes stale OpenAI/Gemini vendor contacts. Prior attestation 2026-07-23."
       },
-      "contentHash": "f7a73ebacab3d22e58a8e918cf8bccad0dd95b6afdf826a0b21c5eaf6102df8e",
+      "contentHash": "0ee1b92ec130e89215383bcb1ae26de7be5ef6f9fcd1b80d6ad9ae6d41152af1",
       "bundles": [
         "soc2-evidence",
         "school-dpa-package",
@@ -1207,7 +1208,7 @@
       "lastReviewed": "2026-06-16",
       "nextReviewDue": "2026-09-16",
       "attestation": {},
-      "contentHash": "1c8cac6b1c374c879f05a6359a65db6616dfb3362553519b660b798307d0904b",
+      "contentHash": "f120e6526e52fa9440093026877ccd7c729ee5266c3c9dc07d8479a1f48182ef",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
@@ -2621,7 +2622,7 @@
       "lastReviewed": "2026-07-12",
       "nextReviewDue": "2027-01-12",
       "attestation": {},
-      "contentHash": "97a6b448666cda860afb7f72bf503875bacc7b66705ccec8e05c7e6a334f4ee4",
+      "contentHash": "271c36029d9c8786ed5ab533d02293abac6164ffe533c56da0296b5941c98a37",
       "bundles": [],
       "mirrors": [
         {
