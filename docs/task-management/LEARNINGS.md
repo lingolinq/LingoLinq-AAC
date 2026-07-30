@@ -7908,3 +7908,7 @@ When a batch helper downloads once and fans out (`self.assert_priority` → `wd.
 ## Gotcha: Ember Data model ids in tests must be strings — numeric `set('id', N)` fails throwOnUnhandled
 
 With `throwOnUnhandled: true` in test (`app/deprecation-workflow.js`), `store.createRecord(...); record.set('id', 12)` emits Ember Data’s non-strict-id deprecation (“use `"12"` instead”) and fails the suite. Plain button/object ids can still be numbers; **Ember Data model** ids must be strings. Prefer `set('id', '12')` (or `pushPayload` with string ids). Hit in `tests/models/video-test.js` `check_for_editable_license` after Phase 3 CI hardening. Do **not** silence the deprecation — fix the call site.
+
+## Gotcha: Ember 5.12 orphan-template deletion can drop live UI that lived only in the orphan
+
+The Ember 5.12 upgrade deleted "legacy orphan" button-settings partials (`button-settings-picture.hbs`, etc.) that still held controls never ported into the component-based `button-settings.hbs`. Example: per-button `text_only` / `stretch_text_only` ("Show only text (as large as fits) for this button") — runtime attribute + render/save paths stayed wired; only the Picture-tab checkbox disappeared. When removing orphan templates, diff each orphan against the surviving component/controller template for unbound controls before deleting. Ref: [`2026-07-30-button-settings-text-only-checkbox.md`](./2026-07-30-button-settings-text-only-checkbox.md).
