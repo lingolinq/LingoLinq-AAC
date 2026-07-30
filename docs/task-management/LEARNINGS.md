@@ -267,7 +267,7 @@ Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` c
 
 `demo.speak` uses controller property `board` for the rendered board object. If a shareable URL needs `?board=...`, declare an aliased query param such as `{ board_key: 'board' }` and use `board_key` internally. Reusing `board` for both the query param and model state will clobber the loaded board object.
 
-**Sticky QP gotcha:** `board` is sticky by default. Topbar "Try a Demo" links must pass `@query={{hash board=null source=null}}`, and the route should only honor `?board=...` when `source=offline_boards` (offline picker). Otherwise always load manifest root (`public/demo-boards/manifest.json` → Project Core 36). First seen in [2026-06-07-demo-try-default-board.md](./2026-06-07-demo-try-default-board.md).
+**Sticky QP gotcha:** `board` is sticky by default. Every "Try a Demo" link (topbar, landing hero, etc.) must pass `@query={{hash board=null source=null}}`, and the route should only honor `?board=...` when `source=offline_boards` (offline picker). Otherwise always load manifest root (`public/demo-boards/manifest.json` → Project Core 36). First seen in [2026-06-07-demo-try-default-board.md](./2026-06-07-demo-try-default-board.md); landing hero wired in [2026-07-30-landing-try-demo-speak.md](./2026-07-30-landing-try-demo-speak.md).
 
 **Exit target:** Demo speak exit should always `LinkTo offline_boards` — do not branch on `source`; "Try a Demo" used to fall through to `index`.
 
