@@ -1,6 +1,7 @@
 import {
   describe,
   it,
+  itAsync,
   expect,
   beforeEach
 } from 'frontend/tests/helpers/jasmine';
@@ -161,23 +162,21 @@ describe('CreateBoardNewComponent', 'component:create-board-new', function() {
   });
 
   describe('_ensure_label_images_before_save waits for manual image drops', function() {
-    it('resolves only after pending drop uploads settle', function(done) {
+    // Jasmine helper has no mocha-style `done` callback — use itAsync + await.
+    itAsync('resolves only after pending drop uploads settle', async function() {
       var c = makeComponent();
       var settled = false;
       var deferredResolve;
       var pending = new Promise(function(resolve) { deferredResolve = resolve; });
       c._pending_label_image_uploads = [pending];
       c._lookup_label_images = function() { return Promise.resolve(); };
-      c._ensure_label_images_before_save().then(function() {
-        expect(settled).toEqual(true);
-        done();
-      }, function(err) {
-        done.fail(err);
-      });
+      var ensurePromise = c._ensure_label_images_before_save();
       // Not settled yet — drop still in flight.
       expect(settled).toEqual(false);
       settled = true;
       deferredResolve();
+      await ensurePromise;
+      expect(settled).toEqual(true);
     });
   });
 });

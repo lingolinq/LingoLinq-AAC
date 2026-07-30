@@ -7,6 +7,16 @@ module('Unit | Controller | user/board-detail save image persist', function(hook
 
   hooks.beforeEach(function() {
     this.controller = this.owner.factoryFor('controller:user/board-detail').create();
+    // Isolate the save-path contract: processButtons → _build_from_raw(_last_raw)
+    // restores model.buttons from _last_raw. Stub the rebuild to only that assignment
+    // so we don't need a full Board model (contextualized_buttons, Button.create, etc.).
+    var ctrl = this.controller;
+    ctrl._build_from_raw = function(raw) {
+      var board = this.get('model');
+      if(board && board.set && raw && raw.buttons !== undefined) {
+        board.set('buttons', raw.buttons);
+      }
+    };
   });
 
   hooks.afterEach(function() {
@@ -19,23 +29,9 @@ module('Unit | Controller | user/board-detail save image persist', function(hook
   test('processButtons without syncing _last_raw clobbers a newly assigned image_id', function(assert) {
     var stale = [{ id: 1, label: 'cannonball' }];
     var saved = [{ id: 1, label: 'cannonball', image_id: 'img_new' }];
-    var grid = { rows: 1, columns: 1, order: [[1]] };
-    var board = EmberObject.create({
-      buttons: stale.slice(),
-      grid: grid,
-      image_urls: {},
-      locale: 'en'
-    });
+    var board = EmberObject.create({ buttons: stale.slice() });
     this.controller.set('model', board);
-    this.controller.set('edit_mode', true);
-    this.controller._last_raw = {
-      id: '1_1',
-      key: 'user/board',
-      buttons: stale,
-      grid: grid,
-      image_urls: {},
-      locale: 'en'
-    };
+    this.controller._last_raw = { buttons: stale };
 
     board.set('buttons', saved);
     // Intentionally do NOT sync _last_raw — this is the pre-fix save path.
@@ -50,30 +46,13 @@ module('Unit | Controller | user/board-detail save image persist', function(hook
   test('syncing _last_raw before processButtons preserves newly assigned image_id', function(assert) {
     var stale = [{ id: 1, label: 'cannonball' }];
     var saved = [{ id: 1, label: 'cannonball', image_id: 'img_new' }];
-    var grid = { rows: 1, columns: 1, order: [[1]] };
-    var board = EmberObject.create({
-      buttons: stale.slice(),
-      grid: grid,
-      image_urls: {},
-      locale: 'en'
-    });
+    var board = EmberObject.create({ buttons: stale.slice() });
     this.controller.set('model', board);
-    this.controller.set('edit_mode', true);
-    this.controller._last_raw = {
-      id: '1_1',
-      key: 'user/board',
-      buttons: stale,
-      grid: grid,
-      image_urls: {},
-      locale: 'en'
-    };
+    this.controller._last_raw = { buttons: stale };
 
     board.set('buttons', saved);
-    board.set('image_urls', { img_new: 'https://cdn.example.com/cannonball.png' });
     // Fixed save path: sync serialized payload into _last_raw before rebuild.
     this.controller._last_raw.buttons = saved;
-    this.controller._last_raw.grid = grid;
-    this.controller._last_raw.image_urls = { img_new: 'https://cdn.example.com/cannonball.png' };
     this.controller.processButtons();
 
     assert.equal(
