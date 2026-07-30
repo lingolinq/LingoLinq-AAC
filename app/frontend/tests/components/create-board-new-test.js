@@ -159,4 +159,25 @@ describe('CreateBoardNewComponent', 'component:create-board-new', function() {
       expect(c.get('ai_generate_disabled')).toEqual(false);
     });
   });
+
+  describe('_ensure_label_images_before_save waits for manual image drops', function() {
+    it('resolves only after pending drop uploads settle', function(done) {
+      var c = makeComponent();
+      var settled = false;
+      var deferredResolve;
+      var pending = new Promise(function(resolve) { deferredResolve = resolve; });
+      c._pending_label_image_uploads = [pending];
+      c._lookup_label_images = function() { return Promise.resolve(); };
+      c._ensure_label_images_before_save().then(function() {
+        expect(settled).toEqual(true);
+        done();
+      }, function(err) {
+        done.fail(err);
+      });
+      // Not settled yet — drop still in flight.
+      expect(settled).toEqual(false);
+      settled = true;
+      deferredResolve();
+    });
+  });
 });
