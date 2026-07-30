@@ -2608,6 +2608,24 @@ rendering + caching. (Burned once 2026-06-12 by an image_id "efficiency fix"; re
 
 ---
 
+## Pattern: board-detail `processButtons` in save path clobbers new `image_id`
+
+**Surface:** Board-detail edit mode → Button Settings / drop image → Save → reopen from My Boards → image gone.
+
+**Symptom:** Tile shows the new picture while editing; after Save (and especially after leaving and reopening), the button has no image again.
+
+**Root cause:** `saveButtonChanges` sets `model.buttons` from `process_for_saving()`, then calls `processButtons()`. On board-detail, `processButtons` is NOT the legacy no-op / display refresh — it runs `_build_from_raw(this._last_raw)`, which does `board.set('buttons', raw.buttons)`. If `_last_raw` still holds the pre-edit snapshot (change_button did not mutate the same array ref), the just-serialized `image_id` is overwritten before `board.save()`.
+
+Originally `processButtons` was an intentional no-op (`8c277037d`) precisely because board-detail owns display via `_build_from_raw`. Rebuilding from stale raw inside the save path undoes that contract.
+
+**Fix:** Before `processButtons()`, sync `state.buttons` / `state.grid` / in-session `image_urls` into `_last_raw`. Also document the contract on `processButtons`.
+
+**Related (create-board-new):** Create must also wait for in-flight `_applyDroppedImageToLabel` uploads (not only OpenSymbols lookups) before baking `_label_images` into `model.buttons`.
+
+**Evidence:** `controllers/user/board-detail.js` `saveButtonChanges`; tests `user-board-detail-save-image-persist-test.js`. Task log: [2026-07-30-ai-board-manual-image-not-persisting.md](./2026-07-30-ai-board-manual-image-not-persisting.md).
+
+---
+
 ## Pattern: OpenSymbols search returns nested license objects — pick_preview must normalize
 
 **Surface:** Button-settings Picture tab → search symbols → pick thumbnail → "Use This".
@@ -7908,3 +7926,31 @@ When a batch helper downloads once and fans out (`self.assert_priority` → `wd.
 ## Gotcha: Ember Data model ids in tests must be strings — numeric `set('id', N)` fails throwOnUnhandled
 
 With `throwOnUnhandled: true` in test (`app/deprecation-workflow.js`), `store.createRecord(...); record.set('id', 12)` emits Ember Data’s non-strict-id deprecation (“use `"12"` instead”) and fails the suite. Plain button/object ids can still be numbers; **Ember Data model** ids must be strings. Prefer `set('id', '12')` (or `pushPayload` with string ids). Hit in `tests/models/video-test.js` `check_for_editable_license` after Phase 3 CI hardening. Do **not** silence the deprecation — fix the call site.
+
+## Gotcha: Ember 5.12 orphan-template deletion can drop live UI that lived only in the orphan
+
+The Ember 5.12 upgrade deleted "legacy orphan" button-settings partials (`button-settings-picture.hbs`, etc.) that still held controls never ported into the component-based `button-settings.hbs`. Example: per-button `text_only` / `stretch_text_only` ("Show only text (as large as fits) for this button") — runtime attribute + render/save paths stayed wired; only the Picture-tab checkbox disappeared. When removing orphan templates, diff each orphan against the surviving component/controller template for unbound controls before deleting. Ref: [`2026-07-30-button-settings-text-only-checkbox.md`](./2026-07-30-button-settings-text-only-checkbox.md).
+
+## Gotcha: `settings['protected']` stored as the string `"false"` blanks speak-mode images
+
+**Surface:** Button image create/update (`ButtonImage#process_params`) + speak-mode display (`JsonApi::Image` → board `image_urls` → board-detail `_make_btn`).
+
+**Symptom:** Edit mode / Button Settings show the picture; after Save, speak mode shows the label as a text symbol only. DB has a real `image_id` and S3 URL.
+
+**Root cause:** `protected?` was `!!self.settings['protected']`. In Ruby `!!"false"` is **true**. JsonApi then treats the image as gated (blank `protected_source` fails the allowed-sources check), replaces `url` with a missing fallback → `image_urls[id] = nil` → `_make_btn` sets `text_symbol`. Edit mode still looks fine because it uses the in-session `_picked_display_url` / Ember image record, not the blanked API map.
+
+Do **not** “fix” this by relaxing the JsonApi protected-source gate (entitlement boundary — see pattern above). Cast on write and on read:
+
+```ruby
+def protected?
+  process_boolean(self.settings && self.settings['protected'])
+end
+# process_params:
+self.settings['protected'] = process_boolean(params['protected']) if params['protected'] != nil
+```
+
+Same pitfall exists on `ButtonSound`. Related: settings-backed API flags + string `'false'` (beta feedback pattern earlier in this file).
+
+**Evidence:** `lingolinq_admin/animals` shark `1_41045_…` had `protected: "false"` (String), `protected?=true` pre-fix, `url: nil` in `images_and_sounds_for`.
+
+**First seen in:** [`2026-07-30-ai-board-manual-image-not-persisting.md`](./2026-07-30-ai-board-manual-image-not-persisting.md)

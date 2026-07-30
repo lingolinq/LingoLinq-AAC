@@ -125,6 +125,10 @@ export default Component.extend({
     this.set('_label_images', {});
     this._label_images_debounce = null;
     this.set('_label_images_lookup_promise', null);
+    // In-flight manual image drops (file/URL onto a tile). Create must wait
+    // for these the same way it waits for OpenSymbols lookups — otherwise a
+    // drop that finished uploading after Create was clicked is never baked.
+    this._pending_label_image_uploads = [];
     // Paint feature — mirrors the board-detail edit toolbar's paint flow.
     // `_painted_colors` is the user's manual overrides keyed by label so
     // the color follows the label through drag-reorder; baked into
@@ -1224,6 +1228,8 @@ export default Component.extend({
 
   /** Waits for any in-flight or debounced symbol lookups before save.
    *  Applies to manual (non-AI) and AI board create — same preview path.
+   *  Also waits for manual image drops still uploading so Create cannot
+   *  bake before the hosted URL lands in `_label_images`.
    *  Waits for an in-flight lookup to finish before flushing so save
    *  does not fire duplicate /api/v1/search/symbols requests. */
   _ensure_label_images_before_save() {
@@ -1232,12 +1238,18 @@ export default Component.extend({
       cancel(this._label_images_debounce);
       this._label_images_debounce = null;
     }
+    var pending_uploads = (this._pending_label_image_uploads || []).slice();
+    var wait_uploads = pending_uploads.length
+      ? RSVP.allSettled(pending_uploads)
+      : RSVP.resolve();
     var pending = this.get('_label_images_lookup_promise');
     var wait = pending ? RSVP.resolve(pending) : RSVP.resolve();
-    return wait.then(function() {
-      return _this._lookup_label_images();
-    }, function() {
-      return _this._lookup_label_images();
+    return wait_uploads.then(function() {
+      return wait.then(function() {
+        return _this._lookup_label_images();
+      }, function() {
+        return _this._lookup_label_images();
+      });
     });
   },
 
@@ -1704,7 +1716,7 @@ export default Component.extend({
     } else {
       url_promise = this._dropped_image_url(dataTransfer);
     }
-    return url_promise.then(function(url) {
+    var upload_promise = url_promise.then(function(url) {
       if(!url) { return RSVP.reject(); }
       var content_type = url.match(/^data:/) ? url.split(/;/)[0].split(/:/)[1] : null;
       // Defense-in-depth: only accept image payloads. Reject a data: URI whose
@@ -1749,6 +1761,16 @@ export default Component.extend({
         return image;
       });
     });
+    // Track so Create can wait for the hosted URL before baking buttons.
+    if(!this._pending_label_image_uploads) { this._pending_label_image_uploads = []; }
+    this._pending_label_image_uploads.push(upload_promise);
+    var clear_pending = function() {
+      var list = _this._pending_label_image_uploads || [];
+      var idx = list.indexOf(upload_promise);
+      if(idx >= 0) { list.splice(idx, 1); }
+    };
+    upload_promise.then(clear_pending, clear_pending);
+    return upload_promise;
   },
 
   /** Remove the image drag-over highlight from a cell element. */

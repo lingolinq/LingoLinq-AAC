@@ -13126,12 +13126,20 @@ video.button_image {
 .md-bs-picture__search-section {
   margin-top: 20px;
 }
-/* "Hide the label when the picture is shown" — moved under the Find a Picture card. */
-.md-bs-picture__hide-label {
+/* Per-button picture/label options under the Find a Picture card
+   (hide_label + text_only / stretch_text_only). */
+.md-bs-picture__label-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 22px;
+}
+.md-bs-picture__hide-label,
+.md-bs-picture__text-only {
   display: flex;
   align-items: center;
   gap: 9px;
-  margin: 0 0 22px;
+  margin: 0;
   padding: 12px 16px;
   border-radius: 12px;
   background: rgba($la-navy, 0.03);
@@ -13140,7 +13148,8 @@ video.button_image {
   color: $brand-charcoal-dark;
   cursor: pointer;
 }
-.md-bs-picture__hide-label input[type="checkbox"] {
+.md-bs-picture__hide-label input[type="checkbox"],
+.md-bs-picture__text-only input[type="checkbox"] {
   width: 18px;
   height: 18px;
   flex: 0 0 auto;

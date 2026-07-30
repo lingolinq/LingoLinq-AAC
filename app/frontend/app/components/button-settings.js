@@ -46,8 +46,9 @@ export default Component.extend({
     return this.get('appState.referenced_user.preferences.device.button_text_position') ||
            this.get('appState.currentUser.preferences.device.button_text_position') || 'top';
   }),
-  preview_text_only: computed('button_text_position', function() {
-    return this.get('button_text_position') == 'text_only';
+  // Board-wide text-only pref OR this button's per-button text_only flag.
+  preview_text_only: computed('button_text_position', 'model.text_only', function() {
+    return this.get('button_text_position') == 'text_only' || !!this.get('model.text_only');
   }),
   preview_text_on_top: computed('button_text_position', function() {
     return this.get('button_text_position') == 'top';
@@ -1139,6 +1140,11 @@ export default Component.extend({
       if(!this.get('handle_updates') || !this.get('model.id')) { return; }
       this.set('model.hide_label', !!checked);
       editManager.change_button(this.get('model.id'), { hide_label: !!checked });
+    },
+    updateTextOnly(checked) {
+      if(!this.get('handle_updates') || !this.get('model.id')) { return; }
+      this.set('model.text_only', !!checked);
+      editManager.change_button(this.get('model.id'), { text_only: !!checked });
     },
     // Quick actions (left nav, below Extras) relocated from the removed per-button
     // edit menu. Each closes THIS modal, then (on the next runloop, so the close

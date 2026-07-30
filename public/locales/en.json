@@ -3991,6 +3991,7 @@
   "upload_image": "Upload image",
   "create_word_art": "Create word art",
   "hide_label": "Hide the label when the picture is shown",
+  "stretch_text_only": "Show only text (as large as fits) for this button",
   "error_loading_camera": "There was an error loading the camera",
   "camera_preview": "Camera preview",
   "switch_cameras": "Switch Views",

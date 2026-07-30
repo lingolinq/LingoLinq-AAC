@@ -37,7 +37,10 @@ class ButtonImage < ApplicationRecord
   end
   
   def protected?
-    !!self.settings['protected']
+    # Must use process_boolean — clients (and some legacy writes) can store the
+    # string "false". `!!"false"` is true in Ruby, which made JsonApi::Image treat
+    # ordinary symbol picks / uploads as gated and blank their URL in speak mode.
+    process_boolean(self.settings && self.settings['protected'])
   end
   
   def track_image_use_later
@@ -57,7 +60,7 @@ class ButtonImage < ApplicationRecord
         self.user.schedule(:track_protected_source,self.settings['protected_source'])
       end
     end
-    if self.settings && self.settings['protected'] && !self.settings['fallback']
+    if self.settings && self.protected? && !self.settings['fallback']
       if self.settings['button_label'] || self.settings['search_term']
         Worker.schedule_for(:slow, ButtonImage, :perform_action, {
           'id' => self.id,
@@ -72,8 +75,8 @@ class ButtonImage < ApplicationRecord
   def assert_fallback(button_image)
     # When swapping images, user the fallback image after the swap if one wasn't already defined
     changed = false
-    if button_image && !button_image.settings['protected']
-      if self.settings['protected'] && !self.settings['fallback']
+    if button_image && !button_image.protected?
+      if self.protected? && !self.settings['fallback']
         self.settings['fallback'] = button_image.settings.slice('pending', 'content_type', 'width', 'height', 'source_url', 'hc', 'license')
         self.settings['fallback']['url'] = button_image.url
         changed = true
@@ -92,7 +95,7 @@ class ButtonImage < ApplicationRecord
   end
 
   def generate_fallback(force=false)
-    if self.settings['protected'] && (!self.settings['fallback'] || force)
+    if self.protected? && (!self.settings['fallback'] || force)
       term = self.settings['button_label'] || self.settings['search_term']
       if !term
         # fallback for legacy button images
@@ -235,9 +238,11 @@ class ButtonImage < ApplicationRecord
       self.settings['authorless'] = true if non_user_params[:no_author]
 
       process_license(params['license']) if params['license']
-      self.settings['protected'] = params['protected'] if params['protected'] != nil
+      # Cast through process_boolean so string "false" / "true" from form-encoded
+      # or legacy clients never land in settings (see protected?).
+      self.settings['protected'] = process_boolean(params['protected']) if params['protected'] != nil
       self.settings['protected_source'] = params['protected_source'] if params['protected_source'] != nil
-      self.settings['protected'] = params['ext_lingolinq_protected'] if params['ext_lingolinq_protected'] != nil
+      self.settings['protected'] = process_boolean(params['ext_lingolinq_protected']) if params['ext_lingolinq_protected'] != nil
       self.settings['protected_source'] = params['ext_lingolinq_protected_source'] if params['ext_lingolinq_protected_source'] != nil
       self.settings['finding_user_name'] = params['finding_user_name'] if params['finding_user_name']
       self.settings['suggestion'] = params['suggestion'] if params['suggestion']
