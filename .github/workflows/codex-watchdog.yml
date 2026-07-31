@@ -7,16 +7,25 @@ name: Codex Review Watchdog
 #
 # RECOVERY IS BEST-EFFORT, NOT A 30-MINUTE SLA. See issue #710.
 #
-# Two independent triggers, because `workflow_run: completed` alone cannot
-# catch a run that hangs and never completes:
+# Two triggers, but ONE job and ONE gate. Both triggers run
+# `fail-stale-pending`, and the only writer to the stale list is gated on
+# `age_min -ge 30`. There is no `github.event_name` branching anywhere in this
+# file, so NEITHER trigger provides prompt recovery:
 #   1. workflow_run(completed) — codex-review.yml or claude-fix.yml concluded
 #      (crashed, cancelled, or exited nonzero) but deep-pass is still pending.
-#      This is the PROMPT path: it fires immediately and handles every case
-#      where the dispatching run reaches a conclusion.
-#   2. schedule — a sweep requested every 10 minutes that fails any deep-pass
-#      status pending for 30 minutes or more, whether or not the dispatching
-#      run ever reports a conclusion. This is the FALLBACK path, and it is the
-#      only one that covers a run which hangs forever.
+#      This fires immediately and then does NOTHING unless the status is
+#      already 30+ minutes old. Do not describe it as a fast path: a run that
+#      concluded at the auth step still took 41 minutes to resolve
+#      (05:39:18Z pending -> 06:20:56Z failure; see
+#      audit-reports/deep-pass-admin-overrides.md). The trigger fired; the age
+#      gate is what it waited on.
+#   2. schedule — a sweep requested every 10 minutes, subject to the SAME age
+#      gate. This is the only trigger that covers a run which hangs forever,
+#      because a still-running job emits no workflow_run completion event.
+#
+# Prompt resolution comes from codex-review.yml's own terminal-status step
+# (PR #702), which runs on all exit paths. That is a different mechanism from
+# this workflow. Do not credit this workflow with it.
 #
 # What the 30 minutes does and does not mean:
 #   IT IS     the age a pending status must reach before a sweep will fail it.
@@ -29,12 +38,19 @@ name: Codex Review Watchdog
 # did not fire. So the real bound is "at least 30 minutes, plus however long
 # GitHub's queue takes", with no ceiling.
 #
-# This matters in exactly one place: the status-write-failure path, where
-# codex-review.yml provably cannot resolve its own status because the status API
-# is what is failing. There this sweep is the only recovery mechanism, and its
-# timing is unbounded. Everywhere else the `workflow_run` trigger or
-# codex-review.yml's own terminal-status step (PR #702) resolves the status
-# promptly, and this sweep never needs to act.
+# This matters in AT LEAST TWO places, not one:
+#   a. the status-write-failure path, where codex-review.yml provably cannot
+#      resolve its own status because the status API is what is failing;
+#   b. a hung `codex exec` — run_model in scripts/codex-review-run-chunks.py
+#      passes no timeout= to subprocess.run, so the job stalls to the 90-minute
+#      ceiling and emits no workflow_run event while it hangs. This is a known
+#      unfixed limit, not a hypothetical.
+# In both, this sweep is the only recovery mechanism and its timing is
+# unbounded. Everywhere else codex-review.yml's own terminal-status step
+# (PR #702) resolves the status and this sweep never needs to act.
+#
+# There is also no workflow_dispatch trigger here, so there is no operator
+# lever to run this on demand and no audited manual path (issue #717).
 #
 # Do not restate the 30 minutes as a guarantee, an SLA, or a bound anywhere in
 # this repository. If a strict bound is ever genuinely required, it needs a

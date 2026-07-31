@@ -512,7 +512,7 @@ jobs:
             fi
           done
 
-          echo "codex-review/deep-pass still pending 30s after W2 POST succeeded; failing this job so it does not report false success. codex-watchdog.yml's workflow_run trigger will flip the status to failure." >&2
+          echo "codex-review/deep-pass still pending 30s after W2 POST succeeded; failing this job so it does not report false success. The terminal-status step below runs on all exit paths (if: always()) and resolves it. codex-watchdog.yml is only a backstop and cannot act until the status is 30+ minutes old (#710)." >&2
           exit 1
 
       # ------------------------------------------------------------------
@@ -580,7 +580,8 @@ jobs:
             # proceed. If the job DID succeed, the current status may be a
             # legitimate `success` and we cannot see it: refuse to guess.
             if [ "$JOB_STATUS" = "success" ]; then
-              echo "::error::Could not read the current codex-review/deep-pass status after 3 attempts, and this job succeeded. Refusing to overwrite a possibly-successful verdict. codex-watchdog.yml remains the backstop, but its recovery is best-effort with no time bound: resolve this manually if the status stays pending." >&2
+              echo "::error::ACTION REQUIRED: escalate to the tooling owner if deep-pass stays pending. Do not wait on the watchdog." >&2
+              echo "::notice::Could not read the current codex-review/deep-pass status after 3 attempts, and this job succeeded, so overwriting a possibly-successful verdict is refused. codex-watchdog.yml cannot act until the status is 30+ minutes old AND a scheduled sweep runs (best-effort, no upper bound, #710). No self-service bypass exists: deep-pass-admin-exception-policy.md condition 1 requires a failing auth step, which a pending-stuck status does not have. Tracking: #717." >&2
               exit 1
             fi
             echo "::warning::Could not read the current deep-pass status after 3 attempts; the job did not succeed, so writing failure is safe regardless." >&2
@@ -632,7 +633,8 @@ jobs:
 
           # Case 5: the status write itself failing must be loud, not silent.
           if [ -z "$posted" ]; then
-            echo "::error::Could not write a terminal codex-review/deep-pass status after 3 attempts. The status is left pending and codex-watchdog.yml is now the ONLY recovery path. That recovery is best-effort, not a 30-minute SLA: the watchdog acts once the status is 30+ minutes old AND a scheduled sweep runs, and GitHub does not guarantee scheduled runs (observed: 77 minutes pending, issue #710). Do not wait on it. Resolve the status manually." >&2
+            echo "::error::ACTION REQUIRED: escalate to the tooling owner now. deep-pass is stuck pending and no automated path will clear it promptly. Do not wait on the watchdog." >&2
+            echo "::notice::Could not write a terminal codex-review/deep-pass status after 3 attempts, so it is left pending. codex-watchdog.yml is the only remaining recovery and is best-effort, not a 30-minute SLA: it acts once the status is 30+ minutes old AND a scheduled sweep runs, which GitHub does not guarantee (observed 77 minutes pending, #710). No self-service bypass exists: deep-pass-admin-exception-policy.md condition 1 requires a failing auth step, which a pending-stuck status does not have, and the watchdog has no workflow_dispatch trigger. Tracking: #717." >&2
             exit 1
           fi
 

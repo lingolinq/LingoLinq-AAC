@@ -146,15 +146,25 @@ chunk findings are defanged before prompt assembly.
 
 **Watchdog recovery is best-effort. There is no 30-minute SLA.** (Issue #710.)
 
-`codex-watchdog.yml` has two triggers, and they behave very differently:
+`codex-watchdog.yml` has two triggers, but **both run the same job behind the
+same age gate**, so neither one provides prompt recovery:
 
-- **`workflow_run`, prompt.** Fires as soon as a review job concludes, however
-  it concluded. This covers every case where the dispatching run reaches a
-  conclusion, and in practice resolves reachable failures in about 50 seconds.
-- **`schedule`, fallback and unbounded.** A sweep requested every 10 minutes
-  that fails any `codex-review/deep-pass` status once it is **at least** 30
-  minutes old. This is the only trigger that covers a run which hangs and never
-  completes.
+- **`workflow_run`.** Fires when a review job concludes, however it concluded.
+  It then runs the identical `fail-stale-pending` job, whose only writer is
+  gated on `age_min -ge 30`. For a status younger than that it finds nothing
+  and exits. There is no `github.event_name` branching in the file.
+- **`schedule`.** A sweep requested every 10 minutes, subject to the same age
+  gate. This is the only trigger that covers a run which hangs and never
+  completes, because a still-running job emits no `workflow_run` event.
+
+Do not treat `workflow_run` as a fast path. `audit-reports/deep-pass-admin-overrides.md`
+records a run that concluded at the auth step and still took **41 minutes** to
+resolve (`05:39:18Z pending` to `06:20:56Z failure`). The `workflow_run` trigger
+fired; the age gate was what it waited on.
+
+Prompt resolution comes from `codex-review.yml`'s own terminal-status step
+(PR #702), which runs on all exit paths and typically resolves in under a
+minute. That is a different mechanism. Do not credit this watchdog with it.
 
 The 30 minutes is the age at which a status becomes **eligible** to be failed.
 It is not a deadline, and nothing bounds how long a status can stay pending.
@@ -163,12 +173,21 @@ load: on 2026-07-29 four consecutive `*/10` firings were missed, no sweep ran
 for about 45 minutes, and PR #701 sat pending for 77 minutes. Nothing was
 misconfigured.
 
-This is load-bearing in exactly one place, the status-write-failure path, where
-`codex-review.yml` provably cannot resolve its own status because the status API
-is what is failing. Everywhere else the `workflow_run` trigger or
-`codex-review.yml`'s own terminal-status step (PR #702) resolves the status
-promptly. A strict bound would need a monitor outside GitHub Actions;
-scheduling cannot provide one.
+This is load-bearing in **at least two** places:
+
+1. **The status-write-failure path**, where `codex-review.yml` provably cannot
+   resolve its own status because the status API is what is failing.
+2. **A hung `codex exec`.** `run_model` in `scripts/codex-review-run-chunks.py`
+   passes no `timeout=` to `subprocess.run`, so the job stalls to the 90-minute
+   ceiling and emits no `workflow_run` completion event while it hangs. The
+   scheduled sweep is the only cover, and it is a known unfixed limit rather
+   than a hypothetical status-API outage.
+
+Everywhere else `codex-review.yml`'s own terminal-status step (PR #702)
+resolves the status. A strict bound would need a monitor outside GitHub
+Actions; scheduling cannot provide one. There is also no `workflow_dispatch`
+on the watchdog, so there is currently no operator lever and no audited manual
+path (issue #717).
 
 Chunked reviews can legitimately take longer than the old 2-3 model-call path,
 so `scripts/codex-review-run-chunks.py` reposts pending status before every
