@@ -39,6 +39,7 @@ file (see [README.md](README.md)).
 - [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
 - [Gotcha: sync double `modal.open` — the *second* template wins; do not invent write-loss on the winner](#gotcha-sync-double-modalopen--the-second-template-wins-do-not-invent-write-loss-on-the-winner)
 - [Gotcha: Shepherd modal overlay is VISUAL-ONLY; canClickTarget:false makes the target click "fall through"](#gotcha-shepherd-modal-overlay-is-visual-only-canclicktargetfalse-makes-the-target-click-fall-through)
+- [Gotcha: tagless GuidedTour — one init, host-gated pending consumers, body is not a scroll target](#gotcha-tagless-guidedtour--one-init-host-gated-pending-consumers-body-is-not-a-scroll-target)
 - [Pattern: supervisor caseload session prefetch reuses board_detail_cache, not offline sync](#pattern-supervisor-caseload-session-prefetch-reuses-board_detail_cache-not-offline-sync)
 - [Pattern: encrypted buttonset JSON cache must carry parsed payloads](#pattern-encrypted-buttonset-json-cache-must-carry-parsed-payloads)
 - [Pattern: remote buttonset reload can wipe generate URL before second load_buttons](#pattern-remote-buttonset-reload-can-wipe-generate-url-before-second-load_buttons)
@@ -5268,6 +5269,34 @@ OUTSIDE `#within_ember` (the ember app root), so the popover keeps working and o
 the page goes dead. Releases automatically when the tour ends (no enabled step), so
 a subsequent live modal/handoff is unaffected. Applies to EVERY tour on the shared
 runner. Keep `canClickTarget:false` too (defense-in-depth + documented standard).
+
+## Gotcha: tagless GuidedTour — one init, host-gated pending consumers, body is not a scroll target
+
+**Surface:** post-"Pick this Board" speak tour (and board-detail edit tour).
+**Symptoms:** Skip tour does nothing; X dismisses but navigates back to
+`/board-picker`.
+
+**Root causes (all required together):**
+1. **Duplicate `init` on a tagless component** — Ember classic `.extend({ init })`
+   keeps the *last* definition. A second `init` (Ember 5.12 upgrade) that only
+   wired `onStartTour` overwrote the pending-flag consumers. `tagName: ''` means
+   `didInsertElement` never runs; observers don't fire for already-true flags →
+   the board-detail host never auto-started the speak tour.
+2. **Navbar stole the start during `empty_header` race** — navbar `<GuidedTour />`
+   stays mounted until `currentBoardState` lands. When `current_route` becomes
+   board-detail first, its `tourKey` is already `board_detail_speak_*`, so it
+   consumed the pending flag and started the tour, then was destroyed when
+   `empty_header` flipped. Gate speak/edit pending consumers on `@speakHost` /
+   `@editHost` so only the board-detail hosts start those tours. Never run home
+   `_scheduleAutoOpen` (afterComplete → board-picker) from those hosts.
+3. **Centered steps use `document.body` as `step.target`** — `_scrollHighlightIntoView`
+   must early-reveal when there is no real `attachTo` (or target is body/html);
+   otherwise `md-tour__step--revealing` keeps Skip/X unclickable.
+4. **Defense:** home auto-open `afterComplete` handoff must no-op when
+   `current_route` is already `user.board-detail*`.
+
+**Evidence:** `guided-tour.js`; task log
+`2026-07-31-speak-tour-skip-close.md`.
 
 ---
 
