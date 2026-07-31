@@ -151,9 +151,9 @@ Everything in this section is live in the product.
 - Administrators and parents can request permanent deletion of a user's data, which removes the
   account and its configurations.
 - Erasure removes the account, its configurations, and the board, log, and connection records tied
-  to it; account merges transfer license records rather than orphaning them. A residual gap where
-  standalone voice recordings and user videos are not yet swept by the erasure routine is tracked as
-  an open finding (LL-854b1d3853) and remediation is in progress.
+  to it, plus the user's own voice recordings (`ButtonSound`, including off-board / message-bank
+  rows) and videos (`UserVideo`), with Uploadable scheduling S3 object removal on destroy; account
+  merges transfer license records rather than orphaning them.
 - Organizations can set retention policies, and retention enforcement runs on a schedule.
 
 **Voice recordings**
@@ -161,9 +161,9 @@ Everything in this section is live in the product.
   banking so it can be played back on their devices. These recordings are the user's own voice and
   are stored encrypted at rest and in transit so they are available across the user's devices.
 - We do not create voiceprints, perform speaker identification, or use these recordings to train
-  AI. Users can delete recordings from the application; a remaining gap in remote stored-file
-  cleanup is tracked with the broader recording-erasure finding (LL-854b1d3853). They are the
-  user's own communication content, not a biometric identifier used for recognition.
+  AI. Users can delete recordings from the application, and account erasure also destroys owned
+  `ButtonSound` / `UserVideo` rows so removable unique S3 URLs are scheduled for remote removal.
+  They are the user's own communication content, not a biometric identifier used for recognition.
 
 **Accessibility**
 - As an AAC tool, accessibility is core to the product. We target Web Content Accessibility

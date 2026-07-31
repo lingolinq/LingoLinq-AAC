@@ -288,7 +288,7 @@ describe Flusher do
       u = User.create
       d = Device.create(user: u)
       o = []
-      14.times do |i|
+      16.times do |i|
         obj = {}
         o << obj
         expect(Flusher).to receive(:flush_record).with(obj).and_return(true)
@@ -302,7 +302,32 @@ describe Flusher do
       expect(Webhook).to receive(:where).with(:user_id => u.id).and_return([o[10], o[11]])
       expect(UserBoardConnection).to receive(:where).with(:user_id => u.id).and_return([o[12]])
       expect(UserLink).to receive(:where).with(:user_id => u.id).and_return([o[13]])
+      expect(ButtonSound).to receive(:where).with(:user_id => u.id).and_return([o[14]])
+      expect(UserVideo).to receive(:where).with(:user_id => u.id).and_return([o[15]])
       Flusher.flush_user_content(u.global_id, u.user_name, d)
+    end
+
+    it "should flush off-board ButtonSound and UserVideo records and schedule S3 removal" do
+      u = User.create
+      u2 = User.create
+      # Off-board / message-bank recording (no BoardButtonSound)
+      sound = ButtonSound.create(user: u, removable: true, url: "http://www.example.com/voice.mp3")
+      video = UserVideo.create(user: u, url: "http://www.example.com/clip.mp4")
+      other_sound = ButtonSound.create(user: u2, removable: true, url: "http://www.example.com/other.mp3")
+      other_video = UserVideo.create(user: u2, url: "http://www.example.com/other.mp4")
+
+      expect(Uploader).to receive(:remote_remove).with("http://www.example.com/voice.mp3")
+      expect(Uploader).to receive(:remote_remove).with("http://www.example.com/clip.mp4")
+      expect(Uploader).not_to receive(:remote_remove).with("http://www.example.com/other.mp3")
+      expect(Uploader).not_to receive(:remote_remove).with("http://www.example.com/other.mp4")
+
+      Flusher.flush_user_content(u.global_id, u.user_name)
+      Worker.process_queues
+
+      expect(ButtonSound.where(id: sound.id).count).to eq(0)
+      expect(UserVideo.where(id: video.id).count).to eq(0)
+      expect(ButtonSound.where(id: other_sound.id).count).to eq(1)
+      expect(UserVideo.where(id: other_video.id).count).to eq(1)
     end
   end
 
