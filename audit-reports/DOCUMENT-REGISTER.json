@@ -1069,7 +1069,7 @@
       "frameworks": [
         "HIPAA"
       ],
-      "lastReviewed": "2026-07-27",
+      "lastReviewed": "2026-08-01",
       "nextReviewDue": "2027-05-11",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
@@ -1082,7 +1082,7 @@
         ],
         "note": "Re-attested 2026-07-27: recorded the verified Bedrock operative conditions (deployed lingolinq-web credential resolves to the BAA'd AWS account 2390-4478-5114 / us-west-2; Bedrock model-invocation logging OFF in that account/region). Content-only verification; no scope change."
       },
-      "contentHash": "8895bd338274f504979477aadec47e5c64ac41cabe1bb9c90b654af81f4b687c",
+      "contentHash": "628ac9174039e160c060384d7e46b96233b8fe44fbf25bc89b20fd1bb7357e94",
       "bundles": [
         "baa"
       ],
@@ -2622,7 +2622,7 @@
       "lastReviewed": "2026-07-12",
       "nextReviewDue": "2027-01-12",
       "attestation": {},
-      "contentHash": "271c36029d9c8786ed5ab533d02293abac6164ffe533c56da0296b5941c98a37",
+      "contentHash": "8b75eeb864f4f52d5f55b325152f7d74e26944b25752c4c3797d053c0ec324b9",
       "bundles": [],
       "mirrors": [
         {
