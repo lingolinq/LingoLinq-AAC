@@ -34816,6 +34816,25 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   }
 }
 
+/* Compact variant — the Privacy Commitment paragraph reads at 16px rather than the
+   22px display size the Accessibility Statement keeps. Both share
+   .la-a11y-display-text, so this modifier is what separates them.
+
+   DOUBLED SELECTOR ON PURPOSE (.la-a11y-display-text.la-a11y-display-text--compact,
+   specificity 0,0,2,0): the responsive rules further down the file set
+   `.la-a11y-display-text { font-size: 20px }` at <=md and `18px` at <=sm. Those are
+   0,0,1,0 but appear LATER, so a lone `.la-a11y-display-text--compact` would tie on
+   specificity and lose on source order below 768px. The compound wins at every width
+   without needing !important (see the app.scss cascade note in LEARNINGS.md).
+
+   clamp() keeps it responsive instead of hard-pinning 16px: 16px down to ~470px wide,
+   then easing to a 15px floor so it stays legible on the narrowest phones — the same
+   15px floor .la-wrapper--landing .la-plan-subtitle uses. Single-unit vw in the middle
+   arm, so no calc() wrapper is needed (mixed-unit clamp math would require one). */
+.la-a11y-display-text.la-a11y-display-text--compact {
+  font-size: clamp(15px, 3.4vw, 16px);
+}
+
 /* Trust badges: WCAG + typography + neurodivergent (scannable with checkmarks) */
 .la-a11y-trust-badges {
   list-style: none;
@@ -35331,6 +35350,22 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   .la-wrapper--landing .la-section-subtitle {
     font-size: 15px;
   }
+}
+
+/* Compact variant — the "Included in every plan" intro reads at 16px rather than the
+   clamped display size above. .la-plan-subtitle is shared by the SLP and devices
+   spotlight bodies on this page AND by about.hbs, so only this one paragraph carries
+   the modifier.
+
+   Selector is .la-wrapper--landing + doubled class (specificity 0,0,3,0) so it beats
+   BOTH `.la-wrapper--landing .la-plan-subtitle` (0,0,2,0) above and the <=640px rule
+   directly above it, which ties on specificity and would otherwise win on source
+   order. No !important needed.
+
+   Same clamp as the privacy paragraph so the two 16px bodies stay in step: 16px down
+   to ~470px, easing to the same 15px floor this section already uses at <=640px. */
+.la-wrapper--landing .la-plan-subtitle.la-plan-subtitle--compact {
+  font-size: clamp(15px, 3.4vw, 16px);
 }
 
 .la-plan-grid {
