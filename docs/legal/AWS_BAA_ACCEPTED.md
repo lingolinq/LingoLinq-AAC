@@ -74,10 +74,14 @@ now runs on **Amazon Bedrock** under this account-level BAA, replacing the prior
   by policy and by the runtime model allowlist.
 - **HIPAA-eligible services in use for PHI now include Amazon Bedrock** (in addition to S3, RDS, etc.).
 - **Operative condition:** Bedrock calls must run under this BAA'd account (2390-4478-5114). A
-  different account would need its own BAA.
-- **Bedrock model-invocation logging** (optional; CloudWatch/S3) captures prompts. For PHI, keep it
-  disabled or route it to HIPAA-controlled, access-logged storage. (Default is off.)
+  different account would need its own BAA. **Verified 2026-07-27:** the deployed Cloud Run service
+  `lingolinq-web` signs Bedrock with a credential that resolves to this account, region us-west-2.
+- **Bedrock model-invocation logging** (optional; CloudWatch/S3) captures prompts. For PHI it must
+  stay disabled, or route to HIPAA-controlled, access-logged storage. **Verified OFF** in this
+  account (2390-4478-5114), region us-west-2, on 2026-07-27.
 
 **Attestation:** Re-attested 2026-07-24 by Scot Wahlquist, CEO (Bedrock runtime routing under this
 account-level BAA). Prose corrected 2026-07-27 to remove a contradictory "re-attestation owed"
-banner left in the bytes that attestation covered.
+banner left in the bytes that attestation covered. Operative conditions verified and re-attested
+2026-07-27 by Scot Wahlquist, CEO: the deployed runtime credential resolves to this account
+(2390-4478-5114, us-west-2) and Bedrock model-invocation logging is OFF in that account/region.

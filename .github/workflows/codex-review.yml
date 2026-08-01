@@ -52,6 +52,18 @@ jobs:
       LOOP_N: ${{ inputs.loop_n }}
       CODEX_REVIEW_REQUESTED_EVIDENCE_MODE: ${{ vars.CODEX_REVIEW_EVIDENCE_MODE || 'bounded' }}
       CODEX_REVIEW_CHUNKED_SCOPE: ${{ vars.CODEX_REVIEW_CHUNKED_SCOPE || 'all' }}
+      # Stable per-ATTEMPT run identity. Every deep-pass status this job writes
+      # carries this as target_url, which makes it the join key for three
+      # consumers: this job's own "did my status land" verification, the
+      # heartbeat in scripts/codex-review-run-chunks.py, and
+      # codex-watchdog.yml's staleness anchor.
+      #
+      # It MUST include run_attempt. `runs/<run_id>` alone is identical across
+      # re-runs of the same run, so attempt 2 would match attempt 1's terminal
+      # status (reporting false success in the verify loop) and inherit attempt
+      # 1's created_at (defeating the watchdog's age clock). `/attempts/<n>` is
+      # a real linkable Actions URL, so this costs nothing in usability.
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
     steps:
       # Codex review of this pipeline (PR #607) caught that the fail-closed
       # anchor was not actually first: the old single validate-inputs step
@@ -75,7 +87,7 @@ jobs:
             -f state=pending \
             -f context=codex-review/deep-pass \
             -f description="Codex review running (loop ${LOOP_N})" \
-            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            -f target_url="${RUN_URL}"
 
       - name: Validate remaining inputs (flip status to failure on bad input, don't just leave it pending)
         run: |
@@ -84,7 +96,7 @@ jobs:
               -f state=failure \
               -f context=codex-review/deep-pass \
               -f description="$1" \
-              -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              -f target_url="${RUN_URL}"
             echo "::error::$1" >&2
             exit 1
           }
@@ -110,7 +122,7 @@ jobs:
               -f state=failure \
               -f context=codex-review/deep-pass \
               -f description="pr_number ${PR_NUMBER}'s current head (${ACTUAL_HEAD}) does not match dispatched head_sha" \
-              -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              -f target_url="${RUN_URL}"
             echo "::error::pr_number ${PR_NUMBER} head is ${ACTUAL_HEAD}, but dispatch head_sha was ${HEAD_SHA}: refusing to bind review/comment routing to the wrong PR" >&2
             exit 1
           fi
@@ -376,7 +388,7 @@ jobs:
             --head-sha "${HEAD_SHA}" \
             --prior-loop-file /tmp/prior_loop.txt \
             --repository "${{ github.repository }}" \
-            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --run-url "${RUN_URL}" \
             --heartbeat
 
       - name: Run reviewer (Claude Sonnet 4.6 API, Tier 2 claude-deep route)
@@ -477,7 +489,7 @@ jobs:
             -f state="$FINAL_STATE" \
             -f context=codex-review/deep-pass \
             -f description="$DESCRIPTION" \
-            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            -f target_url="${RUN_URL}"
 
           # Success condition (literal, per build spec section 1): do not
           # exit success unless a follow-up GET confirms deep-pass is no
@@ -486,7 +498,7 @@ jobs:
           # verification by target_url instead of taking the newest context.
           # codex-watchdog.yml is the independent backstop if this check
           # itself never runs (job killed before this line).
-          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          # RUN_URL is job-level env (attempt-scoped); do not rebuild it here.
           for i in $(seq 1 6); do
             sleep 5
             gh api "repos/${{ github.repository }}/commits/${HEAD_SHA}/statuses" > /tmp/codex-statuses.json
@@ -499,3 +511,129 @@ jobs:
 
           echo "codex-review/deep-pass still pending 30s after W2 POST succeeded; failing this job so it does not report false success. codex-watchdog.yml's workflow_run trigger will flip the status to failure." >&2
           exit 1
+
+      # ------------------------------------------------------------------
+      # Terminal-status lifecycle: this job resolves its OWN status on every
+      # exit path.
+      #
+      # Before this step existed the only terminal deep-pass writes were the
+      # input-validation guards near the top of the job and the resolve step
+      # above. Anything failing between them -- notably the reviewer auth step
+      # -- left deep-pass `pending` and delegated the problem to
+      # codex-watchdog.yml, which by design waits 30 minutes before acting.
+      # Observed 2026-07-28: auth failed in about 90 seconds while deep-pass
+      # read "Codex review running" for 41-65 minutes on PRs #690, #696, #697.
+      # The gate was not broken; it was lying about its own state.
+      #
+      # `if: always()` is required, NOT `if: failure()`. failure() does not run
+      # when the job is CANCELLED, which is one of the five cases this must
+      # cover: success, failure, cancellation, re-run on the same SHA, and the
+      # status write itself failing.
+      #
+      # codex-watchdog.yml remains the independent backstop for the one case
+      # this step cannot cover: the runner dying before this step executes.
+      - name: Resolve codex-review/deep-pass to a terminal state (all exit paths)
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -uo pipefail
+
+          # Read only THIS attempt's own status entries. RUN_URL is
+          # attempt-scoped, so a re-run cannot see attempt 1's terminal status
+          # and wrongly conclude there is nothing left to do.
+          # `gh api --paginate` emits one JSON array PER PAGE, so the raw output
+          # is concatenated arrays (`[...][...]`), not a single array. Normalize
+          # with `jq -s 'add'` rather than `--slurp`, which is not available on
+          # every gh version.
+          #
+          # The READ retries, like the write below. An earlier version fell back
+          # to `[]` on any read failure, which is indistinguishable from "no
+          # status has been posted". On a GREEN job that meant a transient API
+          # blip would take the fail-closed branch and overwrite the `success`
+          # the resolve step had already written correctly, converting a passing
+          # review into a blocked merge. Unreachable while no reviewer route is
+          # funded (nothing can reach `success`), and therefore exactly the kind
+          # of latent bug that would first appear on the day a route is funded.
+          statuses_json=""
+          read_ok=""
+          for read_attempt in 1 2 3; do
+            if raw="$(gh api "repos/${{ github.repository }}/commits/${HEAD_SHA}/statuses?per_page=100" --paginate 2>/dev/null)"; then
+              statuses_json="$(printf '%s' "$raw" | jq -s 'add // []' 2>/dev/null)" || statuses_json=""
+              if [ -n "$statuses_json" ]; then read_ok=yes; break; fi
+            fi
+            echo "::warning::deep-pass status read attempt ${read_attempt} failed; retrying in 5s" >&2
+            sleep 5
+          done
+
+          if [ -z "$read_ok" ]; then
+            # Asymmetric on purpose. If the job did not succeed, writing
+            # `failure` is correct no matter what the current status says, so
+            # proceed. If the job DID succeed, the current status may be a
+            # legitimate `success` and we cannot see it: refuse to guess.
+            if [ "$JOB_STATUS" = "success" ]; then
+              echo "::error::Could not read the current codex-review/deep-pass status after 3 attempts, and this job succeeded. Refusing to overwrite a possibly-successful verdict. codex-watchdog.yml remains the backstop." >&2
+              exit 1
+            fi
+            echo "::warning::Could not read the current deep-pass status after 3 attempts; the job did not succeed, so writing failure is safe regardless." >&2
+            statuses_json='[]'
+          fi
+
+          current_state="$(printf '%s' "$statuses_json" | jq -r --arg u "$RUN_URL" '
+            [ .[] | select(.context == "codex-review/deep-pass" and .target_url == $u) ]
+            | sort_by(.created_at) | last | .state // ""
+          ')"
+
+          echo "job.status=${JOB_STATUS}; deep-pass state for this attempt: ${current_state:-<none posted>}"
+
+          if [ -n "$current_state" ] && [ "$current_state" != "pending" ]; then
+            echo "Already terminal (${current_state}) for this attempt; nothing to do."
+            exit 0
+          fi
+
+          case "$JOB_STATUS" in
+            cancelled)
+              description="Review cancelled before producing a verdict"
+              ;;
+            success)
+              # Reaching here on a green job means the resolve step never wrote
+              # a verdict (skipped, or an early `exit 0`). Fail closed: never
+              # report a passing gate for a review that recorded no result.
+              description="Job reported success but wrote no verdict; failing closed"
+              ;;
+            *)
+              description="Review job failed before producing a verdict (see run log)"
+              ;;
+          esac
+
+          # Every case is `failure`. There is no path on which an unresolved
+          # deep-pass should become `success`.
+          posted=""
+          for write_attempt in 1 2 3; do
+            if gh api "repos/${{ github.repository }}/statuses/${HEAD_SHA}" \
+                 -f state=failure \
+                 -f context=codex-review/deep-pass \
+                 -f description="$description" \
+                 -f target_url="${RUN_URL}"; then
+              posted=yes
+              break
+            fi
+            echo "::warning::deep-pass status write attempt ${write_attempt} failed; retrying in 5s" >&2
+            sleep 5
+          done
+
+          # Case 5: the status write itself failing must be loud, not silent.
+          if [ -z "$posted" ]; then
+            echo "::error::Could not write a terminal codex-review/deep-pass status after 3 attempts. The status is left pending and codex-watchdog.yml is now the only backstop." >&2
+            exit 1
+          fi
+
+          echo "deep-pass -> failure: ${description}"
+
+          # If the job was otherwise green, fail it so the run does not report
+          # success while its own gate resolved to failure.
+          if [ "$JOB_STATUS" = "success" ]; then
+            echo "::error::Failing this job to match the deep-pass verdict it just wrote." >&2
+            exit 1
+          fi
+          exit 0

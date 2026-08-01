@@ -858,18 +858,19 @@
         "GDPR",
         "FERPA"
       ],
-      "lastReviewed": "2026-07-23",
-      "nextReviewDue": "2027-06-28",
+      "lastReviewed": "2026-07-28",
+      "nextReviewDue": "2027-07-28",
       "attestation": {
         "attestedBy": "Scot Wahlquist, CEO",
-        "attestedDate": "2026-07-23",
-        "attestedContentHash": "f7a73ebacab3d22e58a8e918cf8bccad0dd95b6afdf826a0b21c5eaf6102df8e",
+        "attestedDate": "2026-07-28",
+        "attestedContentHash": "0ee1b92ec130e89215383bcb1ae26de7be5ef6f9fcd1b80d6ad9ae6d41152af1",
         "priorAttestations": [
-          "2026-06-21"
+          "2026-06-21",
+          "2026-07-23"
         ],
-        "note": "Re-attested 2026-07-23 against the current revision after live Cloud SQL verification. The prior attestation covered a revision that no longer exists; the runbook now names Cloud SQL as primary recovery and Render only as the rollback fallback in both §4.5 step 3 and the §4.1 step 4 evidence snapshot. Other Render references (application logs, alerts, Render-hosted service surfaces) are intentionally retained, as the Render fallback remains online."
+        "note": "Re-attested 2026-07-28 by Scot Wahlquist, CEO. v2.2 refresh after the Dominic SEC-002 review and a current code/evidence check: re-homes incident detection and evidence-capture onto the GCP/Cloud Run + Cloud SQL + Bedrock reality (gcloud logging / Cloud Audit Logs / Cloud SQL clone as primary recovery; Render as write-frozen rollback fallback only), corrects the GDPR/HIPAA/COPPA/NY-Ed-Law notification prose, and removes stale OpenAI/Gemini vendor contacts. Prior attestation 2026-07-23."
       },
-      "contentHash": "f7a73ebacab3d22e58a8e918cf8bccad0dd95b6afdf826a0b21c5eaf6102df8e",
+      "contentHash": "0ee1b92ec130e89215383bcb1ae26de7be5ef6f9fcd1b80d6ad9ae6d41152af1",
       "bundles": [
         "soc2-evidence",
         "school-dpa-package",
@@ -1073,14 +1074,15 @@
       "attestation": {
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-27",
-        "attestedContentHash": "534322a344c6c619069624504d3d7c077d7ed96824e848fc432398df7583dd2a",
+        "attestedContentHash": "8895bd338274f504979477aadec47e5c64ac41cabe1bb9c90b654af81f4b687c",
         "priorAttestations": [
           "2026-07-24",
-          "2026-06-21"
+          "2026-06-21",
+          "2026-07-27"
         ],
-        "note": "Re-attested 2026-07-27 (Path B recovery): removed contradictory \"re-attestation owed\" banner left after the 2026-07-24 Bedrock routing attestation. Prior 2026-07-24 attestation covered those Bedrock routing bytes."
+        "note": "Re-attested 2026-07-27: recorded the verified Bedrock operative conditions (deployed lingolinq-web credential resolves to the BAA'd AWS account 2390-4478-5114 / us-west-2; Bedrock model-invocation logging OFF in that account/region). Content-only verification; no scope change."
       },
-      "contentHash": "534322a344c6c619069624504d3d7c077d7ed96824e848fc432398df7583dd2a",
+      "contentHash": "8895bd338274f504979477aadec47e5c64ac41cabe1bb9c90b654af81f4b687c",
       "bundles": [
         "baa"
       ],
@@ -1206,7 +1208,7 @@
       "lastReviewed": "2026-06-16",
       "nextReviewDue": "2026-09-16",
       "attestation": {},
-      "contentHash": "1c8cac6b1c374c879f05a6359a65db6616dfb3362553519b660b798307d0904b",
+      "contentHash": "f120e6526e52fa9440093026877ccd7c729ee5266c3c9dc07d8479a1f48182ef",
       "bundles": [
         "compliance-records-set-2026-06"
       ],

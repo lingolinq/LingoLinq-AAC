@@ -1,0 +1,28 @@
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
+  <div class="md-modal-header">
+    <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="md-modal-title">{{t "User Search Results" key="user_search_results"}}{{#if this.model.q}} — {{this.model.q}}{{/if}}</h3>
+  </div>
+  <div class="md-modal-body">
+    <div class="md-org-user-list" role="list">
+      {{#each this.model.list as |user|}}
+        <div class="md-org-user-row" role="listitem">
+          <button type="button" class="md-org-user-row__main" {{on "click" (this.ctrlAction "open_user" user)}}>
+            <img src={{user.avatar_url}} class="md-org-user-row__avatar" alt="" width="30" height="30">
+            <span class="md-org-user-row__name">{{user.user_name}}</span>
+          </button>
+          <button type="button" class="md-btn md-btn--ghost md-btn--sm" {{on "click" (this.ctrlAction "masquerade" user)}}>
+            {{t "Masquerade" key="masquerade"}}
+          </button>
+        </div>
+      {{else}}
+        <p class="md-muted">{{t "No results found" key="no_results_found"}}</p>
+      {{/each}}
+    </div>
+  </div>
+  <div class="md-modal-footer">
+    <button type="button" class="md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</button>
+  </div>
+</ModalDialog>

@@ -36,11 +36,34 @@ export default Controller.extend({
   telemetry: service('telemetry'),
   app_state: alias('appState'),
   board: inject('board.index'),
-  session: session,
+  session: session, // replaced with service:session in init()
 
   isSessionAuthenticated: computed('session.isAuthenticated', 'appState.currentUser', 'appState.current_route', function() {
     return !!this.get('session.isAuthenticated') || !!this.get('appState.currentUser') || this.appState.get('current_route') === 'login.device';
   }),
+
+  /**
+   * True while an admin masquerade is active. Reads the Ember session service
+   * first, then falls back to auth_settings stash (boot restore can lag).
+   * Used by AppNavbar (dashboard/org chrome) — not only the legacy #identity block.
+   */
+  isMasquerading: computed(
+    'session.as_user_id',
+    'session.original_user_name',
+    'appState.current_route',
+    'appState.currentUser.id',
+    function() {
+      if (this.get('session.as_user_id') || this.get('session.original_user_name')) {
+        return true;
+      }
+      var stashes = this.stashes || (this.appState && this.appState.stashes);
+      if (stashes && typeof stashes.get_object === 'function') {
+        var auth = stashes.get_object('auth_settings', true) || {};
+        return !!(auth.as_user_id || auth.original_user_name);
+      }
+      return false;
+    }
+  ),
 
   /** Matches beta-feedback-admin route: site admin or admin_support_actions (e.g. org support). */
   /** Depends on `permissions` as a whole (raw attr), not nested keys — nested CP deps can fail to invalidate. */

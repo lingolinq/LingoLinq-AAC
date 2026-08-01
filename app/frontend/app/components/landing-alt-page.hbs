@@ -57,7 +57,7 @@
           <div class="la-hero-section la-hero-actions-section">
           <div class="la-hero-actions">
             <LinkTo @route="register" class="la-btn la-btn--primary">{{t "Try LingoLinq Free" key='landing_try_free'}} →</LinkTo>
-            <a href="#la-demo" class="la-btn la-btn--ghost">{{t "Watch Demo" key='landing_watch_demo'}}</a>
+            <LinkTo @route="demo.speak" @query={{hash board=null source=null}} class="la-btn la-btn--ghost">{{t "Try a Demo" key="demo_try_speak_mode"}}</LinkTo>
           </div>
           </div>
         </div>
