@@ -78,6 +78,13 @@
         <button class='btn btn-lg btn-primary md-modal-btn md-modal-btn--primary md-board-preview__action md-board-preview__action--primary' {{on "click" (this.ctrlAction "pick_for_home")}}>
           {{t "Pick this Board" key="pick_this_board"}}
         </button>
+      {{else if this.return_only}}
+        {{!-- Opened from another modal (e.g. button-settings) that stays open
+             underneath: view-only. Close dismisses this overlay and returns the
+             user to that modal. --}}
+        <button class='btn btn-lg btn-primary md-modal-btn md-modal-btn--primary md-board-preview__action md-board-preview__action--primary' {{on "click" (this.ctrlAction "close")}}>
+          {{t "Close" key="close"}}
+        </button>
       {{else}}
         {{!-- Regular details modal: destructive Remove sits at the far LEFT
              (isolated from the positive CTAs); Back / Cancel / Board Actions /
@@ -103,10 +110,6 @@
         {{#if this.select_option}}
           <button class='btn btn-default md-modal-btn md-modal-btn--cancel md-board-preview__action' {{on "click" (this.ctrlAction "close")}}>
             {{t "Cancel" key="cancel"}}
-          </button>
-        {{else}}
-          <button class='btn btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{on "click" (this.ctrlAction "visit")}}>
-            {{t "Board Actions" key="board_actions"}}
           </button>
         {{/if}}
         {{#if this.app_state.currentUser.supervisees}}

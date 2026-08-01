@@ -125,6 +125,10 @@ export default Component.extend({
     this.set('_label_images', {});
     this._label_images_debounce = null;
     this.set('_label_images_lookup_promise', null);
+    // In-flight manual image drops (file/URL onto a tile). Create must wait
+    // for these the same way it waits for OpenSymbols lookups — otherwise a
+    // drop that finished uploading after Create was clicked is never baked.
+    this._pending_label_image_uploads = [];
     // Paint feature — mirrors the board-detail edit toolbar's paint flow.
     // `_painted_colors` is the user's manual overrides keyed by label so
     // the color follows the label through drag-reorder; baked into
@@ -1224,6 +1228,8 @@ export default Component.extend({
 
   /** Waits for any in-flight or debounced symbol lookups before save.
    *  Applies to manual (non-AI) and AI board create — same preview path.
+   *  Also waits for manual image drops still uploading so Create cannot
+   *  bake before the hosted URL lands in `_label_images`.
    *  Waits for an in-flight lookup to finish before flushing so save
    *  does not fire duplicate /api/v1/search/symbols requests. */
   _ensure_label_images_before_save() {
@@ -1232,12 +1238,18 @@ export default Component.extend({
       cancel(this._label_images_debounce);
       this._label_images_debounce = null;
     }
+    var pending_uploads = (this._pending_label_image_uploads || []).slice();
+    var wait_uploads = pending_uploads.length
+      ? RSVP.allSettled(pending_uploads)
+      : RSVP.resolve();
     var pending = this.get('_label_images_lookup_promise');
     var wait = pending ? RSVP.resolve(pending) : RSVP.resolve();
-    return wait.then(function() {
-      return _this._lookup_label_images();
-    }, function() {
-      return _this._lookup_label_images();
+    return wait_uploads.then(function() {
+      return wait.then(function() {
+        return _this._lookup_label_images();
+      }, function() {
+        return _this._lookup_label_images();
+      });
     });
   },
 
@@ -1704,7 +1716,7 @@ export default Component.extend({
     } else {
       url_promise = this._dropped_image_url(dataTransfer);
     }
-    return url_promise.then(function(url) {
+    var upload_promise = url_promise.then(function(url) {
       if(!url) { return RSVP.reject(); }
       var content_type = url.match(/^data:/) ? url.split(/;/)[0].split(/:/)[1] : null;
       // Defense-in-depth: only accept image payloads. Reject a data: URI whose
@@ -1719,12 +1731,21 @@ export default Component.extend({
       // again server-side). There is no File path that skips it — and _dragHasImage
       // only treats image-typed Files as images in the first place.
       if(content_type && !content_type.match(/^image\//)) { return RSVP.reject(); }
+      // Optimize a user's own image the same way the board-detail upload does:
+      // size_image downscales and converts opaque photos to JPEG (~10-15x smaller
+      // than PNG), passes http URLs through untouched, and keeps PNG when the source
+      // has real transparency. Falls back to the original url if optimization fails.
+      return contentGrabbers.pictureGrabber.size_image(url).then(function(sized) {
+        return (sized && sized.url) || url;
+      }, function() { return url; });
+    }).then(function(opt_url) {
+      var content_type = opt_url.match(/^data:/) ? opt_url.split(/;/)[0].split(/:/)[1] : null;
       // `suggestion` seeds the saved image's button_label since there's no live
       // button to read it from (save_image_preview falls back to it).
-      var preview = { url: url, content_type: content_type, protected: false, suggestion: label };
+      var preview = { url: opt_url, content_type: content_type, protected: false, suggestion: label };
       return contentGrabbers.pictureGrabber.save_image_preview(preview).then(function(image) {
         if(_this.isDestroyed || _this.isDestroying) { return image; }
-        var saved_url = (image && image.get && image.get('url')) || url;
+        var saved_url = (image && image.get && image.get('url')) || opt_url;
         // Store ONLY the URL (not the saved image's id). On Create the server's
         // process_client_supplied_images turns this URL into a fresh, PUBLIC,
         // board-owned ButtonImage and wires it into the board's image cache
@@ -1740,6 +1761,16 @@ export default Component.extend({
         return image;
       });
     });
+    // Track so Create can wait for the hosted URL before baking buttons.
+    if(!this._pending_label_image_uploads) { this._pending_label_image_uploads = []; }
+    this._pending_label_image_uploads.push(upload_promise);
+    var clear_pending = function() {
+      var list = _this._pending_label_image_uploads || [];
+      var idx = list.indexOf(upload_promise);
+      if(idx >= 0) { list.splice(idx, 1); }
+    };
+    upload_promise.then(clear_pending, clear_pending);
+    return upload_promise;
   },
 
   /** Remove the image drag-over highlight from a cell element. */
@@ -2301,6 +2332,10 @@ export default Component.extend({
      *  button into one affordance, mirroring how the palette pill
      *  itself is the activation/deactivation control. */
     toggle_paint_dropdown: function() {
+      // Collapse a duplicate toggle from one modal click (same fix as bound-select.js).
+      var now = (window.performance && performance.now) ? performance.now() : Date.now();
+      if (this._lastPaintDropdownToggle != null && (now - this._lastPaintDropdownToggle) < 250) { return; }
+      this._lastPaintDropdownToggle = now;
       if(this.get('paint_mode')) {
         this.send('clear_paint_mode');
         this.set('show_paint_dropdown', false);
@@ -2354,6 +2389,9 @@ export default Component.extend({
       this.notifyPropertyChange('_painted_colors');
     },
     toggle_paint_color_picker: function() {
+      var now = (window.performance && performance.now) ? performance.now() : Date.now();
+      if (this._lastPaintColorPickerToggle != null && (now - this._lastPaintColorPickerToggle) < 250) { return; }
+      this._lastPaintColorPickerToggle = now;
       this.toggleProperty('show_paint_color_picker');
     },
     update_custom_paint_color: function(value) {

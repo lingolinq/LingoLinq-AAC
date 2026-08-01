@@ -12,6 +12,19 @@ can be **deactivated** after cutover and the GCP runtime never carries the broad
 - **Region:** `us-west-2` (S3 buckets + SES are both us-west-2)
 - **Buckets:** `lingolinq-prod-uploads`, `lingolinq-prod-static`
 
+## Two-tier AWS credentials (S3/SES vs Bedrock AI)
+
+`AWS_KEY` / `AWS_SECRET` (this Cloud Run user) are **not** Bedrock credentials. Runtime AI
+(`lib/ai_client.rb`) requires a **separate** dedicated pair:
+
+- `BEDROCK_AWS_KEY` / `BEDROCK_AWS_SECRET` (required for `AiClient.configured?`)
+- Optional region override: `BEDROCK_AWS_REGION` (else `AWS_REGION` / `AWS_DEFAULT_REGION`)
+
+Do **not** attach Bedrock Mantle actions to `lingolinq-cloudrun-s3-ses-policy.json`. Keep the
+S3/SES principal least-privilege and mint a separate Bedrock principal (below). Mixing them
+would make `configured?` true on the S3/SES key alone while AI calls still fail — or would
+over-privilege the uploads principal.
+
 ## ⚠️ Scope caveat - read before cutover with real users
 
 This policy is **S3 + SES only**, per the plan. The existing `lingolinq-app` user may also hold
@@ -66,3 +79,40 @@ aws iam create-access-key --user-name "$USER"
    ```
 3. **Smoke S3+SES** on the run.app URL before deactivating Render's key.
 4. Only after a green cutover: `aws iam update-access-key --user-name lingolinq-app --access-key-id <render-key-id> --status Inactive`.
+
+## Dedicated Bedrock Mantle IAM user (runtime AI)
+
+Runtime AAC AI (`lib/ai_client.rb` → `Anthropic::BedrockMantleClient`) signs against the
+**bedrock-mantle** service. Provision a separate IAM user in the BAA'd account
+(`239044785114`) before enabling AI in Cloud Run / Render.
+
+- **Suggested user:** `lingolinq-bedrock-runtime`
+- **Policy document:** `lingolinq-bedrock-mantle-policy.json` (mirrors AWS managed
+  `AmazonBedrockMantleInferenceAccess`; customer-managed copy kept in-repo for review)
+- **Env vars to mount:** `BEDROCK_AWS_KEY`, `BEDROCK_AWS_SECRET`, and optionally
+  `BEDROCK_AWS_REGION` (otherwise `AWS_REGION`)
+
+```bash
+ACCOUNT=239044785114
+USER=lingolinq-bedrock-runtime
+
+aws iam create-user --user-name "$USER" \
+  --tags Key=app,Value=lingolinq Key=purpose,Value=bedrock-runtime-ai Key=env,Value=prod
+
+aws iam create-policy --policy-name lingolinq-bedrock-mantle \
+  --policy-document file://lingolinq-bedrock-mantle-policy.json \
+  --description "LingoLinq runtime AI: Bedrock Mantle inference only"
+
+aws iam attach-user-policy --user-name "$USER" \
+  --policy-arn "arn:aws:iam::${ACCOUNT}:policy/lingolinq-bedrock-mantle"
+
+aws iam create-access-key --user-name "$USER"
+#    -> .AccessKey.AccessKeyId      == BEDROCK_AWS_KEY
+#    -> .AccessKey.SecretAccessKey  == BEDROCK_AWS_SECRET
+```
+
+Store both values in 1Password (prod vault, dedicated Bedrock item — not the Cloud Run S3/SES
+item). Seed / mount `BEDROCK_AWS_KEY` and `BEDROCK_AWS_SECRET` on every service that runs AI
+(Cloud Run `NON_BOOT_SECRETS`, Render, workers). Until both are present as a pair,
+`AiClient.configured?` stays false and callers keep the existing "AI is not configured" degrade
+path — by design.

@@ -8,14 +8,6 @@
         "description": "Semantic code search and architecture understanding for LingoLinq-AAC"
       }
     },
-    "filesystem": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem"],
-      "env": {
-        "ALLOWED_DIRECTORIES": "/workspaces/LingoLinq-AAC"
-      }
-    },
     "github": {
       "type": "stdio",
       "command": "npx",

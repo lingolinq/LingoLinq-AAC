@@ -461,10 +461,10 @@
           </button>
           {{#if this.trial_option}}
             {{#if this.subscription.user.really_really_expired}}
-              &nbsp;&nbsp;<a href="#" class='btn btn-default btn-lg' {{on "click" (this.ctrlAction "reload")}}>{{t "Reload, I've updated my account" key="reload_subscription_updated"}}</a>
-              &nbsp;&nbsp;<a href="#" class='btn btn-default btn-lg' {{on "click" (this.ctrlAction "logout")}}>{{t "Log Out" key="log_out"}}</a>
+              <a href="#" class='btn btn-default btn-lg' style='margin-left: 8px;' {{on "click" (this.ctrlAction "reload")}}>{{t "Reload, I've updated my account" key="reload_subscription_updated"}}</a>
+              <a href="#" class='btn btn-default btn-lg' style='margin-left: 8px;' {{on "click" (this.ctrlAction "logout")}}>{{t "Log Out" key="log_out"}}</a>
             {{else if this.subscription.user.really_expired}}
-              &nbsp;&nbsp;<a href="#" rel='skip_subscription' class='btn btn-default btn-lg' {{on "click" (this.ctrlAction "skip_subscription")}}>{{t "I need more time" key="i_need_more_time"}}</a>
+              <a href="#" rel='skip_subscription' class='btn btn-default btn-lg' style='margin-left: 8px;' {{on "click" (this.ctrlAction "skip_subscription")}}>{{t "I need more time" key="i_need_more_time"}}</a>
             {{else}}
               <a href="#" rel='free_trial' class="subscribe-trial-btn" {{on "click" (this.ctrlAction "skip_subscription")}}>{{t "Start with a 2-month trial" key="start_two_month_trial"}}</a>
             {{/if}}

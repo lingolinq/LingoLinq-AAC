@@ -84,8 +84,18 @@ function _scrollHighlightIntoView(step) {
       if (el) { el.style.opacity = ''; el.style.transition = ''; }
     }, 520);
   };
+  // Shepherd sets `step.target` to `document.body` for centered (no attachTo)
+  // steps. Scrolling <body> is meaningless and keeps the card in
+  // `md-tour__step--revealing` (visibility:hidden + pointer-events:none) for
+  // the whole scroll animation — Skip / Start / X look dead on welcome/outro.
+  // Only scroll when the step is truly attached to a page element.
+  var attach = step.options && step.options.attachTo;
+  var hasAttach = !!(attach && attach.element);
   var target = step.target;
-  if (!target) { reveal(); return; }
+  if (!hasAttach || !target || target === document.body || target === document.documentElement) {
+    reveal();
+    return;
+  }
   var block = (step.options && step.options.scrollBlock) || 'center';
   var force = !!(step.options && step.options.scrollBlock);
   scrollIntoViewSettled(target, block, force).then(reveal);
@@ -313,7 +323,11 @@ export default Component.extend({
   // see setup.js `critical_order`. A `scheduleOnce('afterRender', ...)` wrapper
   // gives the terms-agree modal time to finish its close animation before the
   // tour overlay paints.
+  // Home-dashboard only. Board-detail speak/edit hosts must NOT run this —
+  // `_scheduleAutoOpen` binds afterComplete → board-picker on cancel/complete, so
+  // a speak-tour Skip/X would yank the user off their board.
   _autoOpenWatcher: observer('appState.auto_open_home_tour', function() {
+    if (this.get('speakHost') || this.get('editHost')) { return; }
     if (this.get('appState.auto_open_home_tour')) {
       this.appState.set('auto_open_home_tour', false);
       this._scheduleAutoOpen();
@@ -371,21 +385,14 @@ export default Component.extend({
   // Auto-fire the board-detail SPEAK tour when `appState.board_detail_tour_pending_speak`
   // is set — flipped by board-preview "Pick this Board" right before routing into
   // board-detail SPEAK mode. Mirrors _boardDetailTourWatcher (edit), but keyed on
-  // the speak flag + the speak tourKey.
+  // the speak flag + the speak tourKey. Only the board-detail speak host
+  // (`speakHost`) may consume — the navbar runner briefly shares the speak
+  // tourKey during the board-picker → board-detail transition while
+  // empty_header is still true, and must not steal the start (or get destroyed
+  // mid-tour when currentBoardState lands).
   _boardDetailSpeakTourWatcher: observer('appState.board_detail_tour_pending_speak', 'tourKey', function() {
     this._consumePendingBoardDetailSpeakTour();
   }),
-
-  // This component is `tagName: ''` (tagless), so `didInsertElement` does NOT fire,
-  // and the observer above only fires on CHANGE — but `board_detail_tour_pending`
-  // is already true (set during "Pick this Board", BEFORE this edit-chrome instance
-  // mounts). So init is the reliable entry. init DOES run for tagless components.
-  init: function() {
-    this._super(...arguments);
-    this._consumePendingBoardDetailTour();
-    this._consumePendingBoardPickerTour();
-    this._consumePendingBoardDetailSpeakTour();
-  },
 
   // Consume the pending-board-picker flag and auto-open the board-picker tour once
   // this instance is the board-picker tour (route + tourKey settled). The flag is
@@ -422,6 +429,8 @@ export default Component.extend({
   },
 
   // Consume the pending-edit-tour flag and auto-open the board-detail EDIT tour.
+  // Gated on `editHost` (the edit-panel GuidedTour) so the navbar runner cannot
+  // start it during the brief empty_header race into board-detail edit.
   // ROBUST to timing: the edit-tour condition (appState.edit_mode → tourKey)
   // depends on the .edit route's check_for_needing_purchase() PROMISE resolving —
   // which persists current_mode='edit' (board-detail/edit.js) — and on
@@ -435,6 +444,8 @@ export default Component.extend({
   _consumePendingBoardDetailTour: function() {
     var _this = this;
     if (this.isDestroyed || this.isDestroying) { return; }
+    // Only the edit-panel host may auto-start the edit tour (see editHost).
+    if (!this.get('editHost')) { return; }
     if (!this.get('appState.board_detail_tour_pending')) { return; }
     if (this._bdTourConsuming) { return; }
     this._bdTourConsuming = true;
@@ -485,9 +496,11 @@ export default Component.extend({
   // Mirror of _consumePendingBoardDetailTour (edit): polls until this instance is
   // the speak tour AND the page is the copied board (key match against
   // currentBoardState.key), so a stale flag never fires the tour on the wrong board.
+  // Gated on `speakHost` so the navbar runner cannot start (then abandon) it.
   _consumePendingBoardDetailSpeakTour: function() {
     var _this = this;
     if (this.isDestroyed || this.isDestroying) { return; }
+    if (!this.get('speakHost')) { return; }
     if (!this.get('appState.board_detail_tour_pending_speak')) { return; }
     if (this._bdSpeakTourConsuming) { return; }
     this._bdSpeakTourConsuming = true;
@@ -528,41 +541,11 @@ export default Component.extend({
     scheduleOnce('afterRender', this, tryConsume);
   },
 
-  // Also check on mount in case the flag was already true when the component
-  // first inserts (e.g., a route transition raced the observer registration).
-  // Idempotent with the observer above — whichever fires first clears the flag.
-  //
-  // Two signals are checked, in order:
-  //   1. `appState.auto_open_home_tour` — in-memory flag, set by terms-agree
-  //      confirm (existing flow) and the SPA-fast-path register save_done.
-  //   2. `sessionStorage['ll_auto_open_home_tour']` — cross-reload flag, set
-  //      after the beta-welcome flow completes, or directly by register
-  //      save_done when the new user has no beta access (see register.js).
-  //      session.override() hard-reloads to `/` (which wipes the in-memory
-  //      flag), so this survives the reload. Read and cleared atomically so a
-  //      subsequent dashboard mount doesn't re-fire.
-  didInsertElement: function() {
-    this._super.apply(this, arguments);
-    if (this.get('appState.auto_open_home_tour')) {
-      this.appState.set('auto_open_home_tour', false);
-      this._scheduleAutoOpen();
-      return;
-    }
-    try {
-      if (window.sessionStorage && sessionStorage.getItem('ll_auto_open_home_tour') === '1') {
-        sessionStorage.removeItem('ll_auto_open_home_tour');
-        this._scheduleAutoOpen();
-      }
-    } catch (e) { /* sessionStorage unavailable — fall through */ }
-    // Board-detail edit tour: the pending flag is set BEFORE the route transition
-    // into edit mode, so by the time this edit-chrome instance mounts it's already
-    // true. Funnel through the poll-based consumer (idempotent via its guard); it
-    // waits for the edit-tour condition to settle before firing.
-    this._consumePendingBoardDetailTour();
-  },
-
   _scheduleAutoOpen: function() {
     var _this = this;
+    // Belt-and-suspenders: never attach the board-picker handoff from a
+    // board-detail host (see _autoOpenWatcher).
+    if (this.get('speakHost') || this.get('editHost')) { return; }
     scheduleOnce('afterRender', this, function() {
       // After the home tour ends (any way it ends), hand the user off to the
       // standalone board-picker so the remaining must-have step (home board pick)
@@ -750,6 +733,15 @@ export default Component.extend({
     // later tour run in the same page session.
     _this.set('_speakHandoffActive', false);
 
+    // ember-shepherd's addSteps → _initialize creates a NEW Shepherd.Tour without
+    // cancelling the previous one. If a tour is still active, cancel it first
+    // (suppressing afterComplete) so we don't stack orphan popovers / cancelIcons.
+    if (tour.get('isActive')) {
+      _this.set('_suppressHandoff', true);
+      try { tour.cancel(); } catch (e) { /* best-effort */ }
+      _this.set('_suppressHandoff', false);
+    }
+
     // Defaults applied to every step. Per ember-shepherd docs these MUST be set
     // before addSteps() so Shepherd picks them up when instantiating each step.
     tour.set('confirmCancel', false);
@@ -908,8 +900,13 @@ export default Component.extend({
         // UNLESS the "start speaking" body button took over (it routes to the
         // user's board in speak mode instead of the board picker; _startSpeakingHandoff
         // sets _speakHandoffActive before cancelling the tour).
+        // Also refuse once the user is already on board-detail: a stale home-tour
+        // cancel/complete must never yank them back to /board-picker after
+        // "Pick this Board" (Skip/X on the speak tour).
         var afterCompleteGuarded = function() {
-          if (_this.get('_speakHandoffActive')) { return; }
+          if (_this.get('_speakHandoffActive') || _this.get('_suppressHandoff')) { return; }
+          var route = _this.get('appState.current_route') || '';
+          if (route.indexOf('user.board-detail') === 0) { return; }
           options.afterComplete();
         };
         tour.tourObject.on('complete', afterCompleteGuarded);
@@ -918,7 +915,9 @@ export default Component.extend({
         // Manual first-time finish — hand off to the board picker on FINISH only
         // (not on skip/close), and not when "start speaking" took over.
         var firstTimeNavGuarded = function() {
-          if (_this.get('_speakHandoffActive')) { return; }
+          if (_this.get('_speakHandoffActive') || _this.get('_suppressHandoff')) { return; }
+          var route = _this.get('appState.current_route') || '';
+          if (route.indexOf('user.board-detail') === 0) { return; }
           firstTimeNav();
         };
         tour.tourObject.on('complete', firstTimeNavGuarded);
@@ -1028,7 +1027,10 @@ export default Component.extend({
   },
 
   // Safety net: if the component is torn down while the tour is open (route
-  // change, etc.), make sure the resize listener is removed.
+  // change, etc.), make sure the resize listener is removed. Do NOT cancel the
+  // active Shepherd tour here — the navbar instance is destroyed when
+  // empty_header flips during board-detail entry, and cancelling would dismiss
+  // a tour the board-detail host still needs (or fire a stale afterComplete).
   willDestroyElement: function() {
     this._detachTourResize();
     this._unlockTourScroll();
@@ -1036,11 +1038,38 @@ export default Component.extend({
     this._super.apply(this, arguments);
   },
 
+  // Single init (tagless: didInsertElement does NOT fire). The Ember 5.12 upgrade
+  // briefly introduced a second init() that only wired onStartTour and overwrote
+  // the pending-tour consumers — speak/edit auto-open then relied on the navbar
+  // race. Keep onStartTour + pending consumers + home auto-open signals here.
   init() {
     this._super(...arguments);
     this.onStartTour = () => {
       this.send('startTour');
     };
+
+    // Pending board-detail / board-picker / speak flags are often already true
+    // when this instance mounts (set before the route transition). Observers only
+    // fire on CHANGE, so init is the reliable entry for tagless hosts.
+    this._consumePendingBoardDetailTour();
+    this._consumePendingBoardPickerTour();
+    this._consumePendingBoardDetailSpeakTour();
+
+    // Home auto-open signals — navbar/home only (never speak/edit hosts; those
+    // would bind afterComplete → board-picker onto the wrong tour).
+    if (!this.get('speakHost') && !this.get('editHost')) {
+      if (this.get('appState.auto_open_home_tour')) {
+        this.appState.set('auto_open_home_tour', false);
+        this._scheduleAutoOpen();
+      } else {
+        try {
+          if (window.sessionStorage && sessionStorage.getItem('ll_auto_open_home_tour') === '1') {
+            sessionStorage.removeItem('ll_auto_open_home_tour');
+            this._scheduleAutoOpen();
+          }
+        } catch (e) { /* sessionStorage unavailable — fall through */ }
+      }
+    }
   },
 
   actions: {

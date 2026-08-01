@@ -6,6 +6,9 @@
 **GCP Project:** LingoLinq Prod (`lingolinq-prod`)
 **Accepted by:** scot@lingolinq.com (Google Cloud console, Privacy & Security)
 **Status:** **ACTIVE** (agreements accepted in-console)
+**Attested:** 2026-07-16; **re-attested 2026-07-23** by Scot Wahlquist, CEO, against the current
+revision. The 2026-07-16 attestation predated this file's creation on 2026-07-17 (PR #622) and the
+later Vertex-scope correction, Anthropic-BAA cross-reference, and cutover subprocessor update.
 **Formalizes:** the org-wide Google BAA previously recorded as accepted 2026-06-08
 
 ## Agreements Accepted
@@ -58,20 +61,20 @@ from the AWS BAA, which has a countersigned PDF (`docs/legal/AWS_BAA_2026-02.pdf
 > services covered by the infrastructure BAA and stated Vertex AI was "in scope." Google's HIPAA
 > BAA covers only products on its published Covered Products list, which does not include Vertex AI
 > as a whole (only specific products such as Vertex AI Workbench). The scope language above was
-> narrowed accordingly. This correction post-dates the 2026-07-16 attestation and is flagged for
-> re-attestation.
+> narrowed accordingly. This correction post-dated the 2026-07-16 attestation; it is covered by the
+> 2026-07-23 re-attestation recorded below, along with the Anthropic BAA and Gate 1 cutover updates
+> made on 2026-07-19 and 2026-07-21.
 
 ## Subprocessor Status
 
-Google compute becomes an **active** subprocessor in `docs/legal/SUBPROCESSORS.md` only when the
-Render-to-GCP cutover carries production personal data; until then it is a **planned** subprocessor.
+Google Cloud Platform infrastructure became an **active** subprocessor on 2026-07-22, when the Gate
+1 DNS cutover put `app.lingolinq.com` live on Cloud Run with Cloud SQL and Memorystore carrying
+production traffic. This supersedes the earlier "planned subprocessor" posture recorded on
+2026-07-16, when `lingolinq-prod` still held only synthetic/test data.
 
-> **Verification (resolved 2026-07-16):** Scot Wahlquist confirmed that `lingolinq-prod` has no
-> real users and no tenant (student/patient) personal data yet (any data present is synthetic /
-> test). GCP is therefore not yet processing personal data and correctly remains a planned (not
-> active) subprocessor; the active-listing and 30-day customer-notice obligations
-> (SUBPROCESSORS.md section 2) begin at cutover, when production tenant data starts to flow.
-> Re-confirm at the 2026-07-20 quarterly review and immediately before cutover.
+Render remains listed separately in `docs/legal/SUBPROCESSORS.md` until the write-frozen rollback
+fallback is deleted or restricted. Do not treat the GCP active-listing as Render decommission or as
+closure of Render-tail findings by itself.
 
 ## Account Coverage
 
@@ -80,5 +83,6 @@ own coverage.
 
 ---
 
-**Status:** Agreements accepted. See `docs/legal/SUBPROCESSORS.md` section 5.7, `COMPLIANCE.md`
-section 4, and `docs/legal/COMPLIANCE_POSTURE_REPORT.md` for how this is reflected in the posture.
+**Status:** Agreements accepted; GCP infrastructure active for production hosting as of 2026-07-22.
+See `docs/legal/SUBPROCESSORS.md` section 5.7, `COMPLIANCE.md` section 4, and
+`docs/legal/COMPLIANCE_POSTURE_REPORT.md` for how this is reflected in the posture.

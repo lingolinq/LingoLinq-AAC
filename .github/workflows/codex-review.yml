@@ -39,6 +39,7 @@ on:
 jobs:
   codex-review:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     permissions:
       contents: read
       statuses: write
@@ -49,6 +50,20 @@ jobs:
       HEAD_SHA: ${{ inputs.head_sha }}
       BASE_SHA: ${{ inputs.base_sha }}
       LOOP_N: ${{ inputs.loop_n }}
+      CODEX_REVIEW_REQUESTED_EVIDENCE_MODE: ${{ vars.CODEX_REVIEW_EVIDENCE_MODE || 'bounded' }}
+      CODEX_REVIEW_CHUNKED_SCOPE: ${{ vars.CODEX_REVIEW_CHUNKED_SCOPE || 'all' }}
+      # Stable per-ATTEMPT run identity. Every deep-pass status this job writes
+      # carries this as target_url, which makes it the join key for three
+      # consumers: this job's own "did my status land" verification, the
+      # heartbeat in scripts/codex-review-run-chunks.py, and
+      # codex-watchdog.yml's staleness anchor.
+      #
+      # It MUST include run_attempt. `runs/<run_id>` alone is identical across
+      # re-runs of the same run, so attempt 2 would match attempt 1's terminal
+      # status (reporting false success in the verify loop) and inherit attempt
+      # 1's created_at (defeating the watchdog's age clock). `/attempts/<n>` is
+      # a real linkable Actions URL, so this costs nothing in usability.
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
     steps:
       # Codex review of this pipeline (PR #607) caught that the fail-closed
       # anchor was not actually first: the old single validate-inputs step
@@ -72,7 +87,7 @@ jobs:
             -f state=pending \
             -f context=codex-review/deep-pass \
             -f description="Codex review running (loop ${LOOP_N})" \
-            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            -f target_url="${RUN_URL}"
 
       - name: Validate remaining inputs (flip status to failure on bad input, don't just leave it pending)
         run: |
@@ -81,7 +96,7 @@ jobs:
               -f state=failure \
               -f context=codex-review/deep-pass \
               -f description="$1" \
-              -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              -f target_url="${RUN_URL}"
             echo "::error::$1" >&2
             exit 1
           }
@@ -107,13 +122,55 @@ jobs:
               -f state=failure \
               -f context=codex-review/deep-pass \
               -f description="pr_number ${PR_NUMBER}'s current head (${ACTUAL_HEAD}) does not match dispatched head_sha" \
-              -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              -f target_url="${RUN_URL}"
             echo "::error::pr_number ${PR_NUMBER} head is ${ACTUAL_HEAD}, but dispatch head_sha was ${HEAD_SHA}: refusing to bind review/comment routing to the wrong PR" >&2
             exit 1
           fi
 
+      - name: Resolve Codex review evidence mode
+        run: |
+          requested="${CODEX_REVIEW_REQUESTED_EVIDENCE_MODE}"
+          scope="${CODEX_REVIEW_CHUNKED_SCOPE}"
+          effective="bounded"
+          PR_AUTHOR="$(gh pr view "$PR_NUMBER" -R "${{ github.repository }}" --json author --jq '.author.login // ""')"
+          PR_HEAD_REF="$(gh pr view "$PR_NUMBER" -R "${{ github.repository }}" --json headRefName --jq '.headRefName // ""')"
+
+          if [ "$requested" = "chunked" ]; then
+            case "$scope" in
+              all)
+                effective="chunked"
+                ;;
+              scot)
+                if [ "$PR_AUTHOR" = "swahlquist" ] || [[ "$PR_HEAD_REF" == scot/* ]]; then
+                  effective="chunked"
+                fi
+                ;;
+              none|off|bounded)
+                effective="bounded"
+                ;;
+              *)
+                echo "::warning::Unknown CODEX_REVIEW_CHUNKED_SCOPE='${scope}'; using bounded evidence"
+                effective="bounded"
+                ;;
+            esac
+          elif [ "$requested" != "bounded" ]; then
+            echo "::warning::Unknown CODEX_REVIEW_EVIDENCE_MODE='${requested}'; using bounded evidence"
+          fi
+
+          {
+            echo "CODEX_REVIEW_EVIDENCE_MODE=${effective}"
+            echo "CODEX_REVIEW_SCOPE_PR_AUTHOR=${PR_AUTHOR}"
+            echo "CODEX_REVIEW_SCOPE_PR_HEAD_REF=${PR_HEAD_REF}"
+          } >> "$GITHUB_ENV"
+
+          echo "requested evidence mode: ${requested}"
+          echo "chunked scope: ${scope}"
+          echo "PR author: ${PR_AUTHOR}"
+          echo "PR head ref: ${PR_HEAD_REF}"
+          echo "effective evidence mode: ${effective}"
+
       - name: Checkout PR head
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.head_sha }}
           fetch-depth: 0
@@ -127,7 +184,9 @@ jobs:
           git checkout "${{ github.workflow_sha }}" -- \
             .github/codex \
             scripts/codex-review-assemble-prompt.py \
+            scripts/codex-review-build-evidence.py \
             scripts/codex-review-build-envelope.py \
+            scripts/codex-review-run-chunks.py \
             scripts/codex-review-claude-deep.sh \
             scripts/codex-review-path-classifier.sh
 
@@ -148,18 +207,118 @@ jobs:
             echo "### gh pr checks"
             gh pr checks "$PR_NUMBER" -R "${{ github.repository }}" || true
             echo ""
-            echo "### changed files (git ls-files -s)"
+            echo "### codex review evidence mode"
+            echo "requested=${CODEX_REVIEW_REQUESTED_EVIDENCE_MODE}"
+            echo "scope=${CODEX_REVIEW_CHUNKED_SCOPE}"
+            echo "effective=${CODEX_REVIEW_EVIDENCE_MODE}"
+            echo "scope_pr_author=${CODEX_REVIEW_SCOPE_PR_AUTHOR}"
+            echo "scope_pr_head_ref=${CODEX_REVIEW_SCOPE_PR_HEAD_REF}"
+            echo ""
+            echo "### changed files (git mode at PR head ${HEAD_SHA})"
+            # Source of truth is the PR head COMMIT, so this list agrees with the
+            # injected BASE...HEAD diff. Do NOT use `git ls-files -s` here: it
+            # reads the INDEX, and the later "Restore Codex review helpers from
+            # workflow ref" step rewrites the index/working-tree for helper files
+            # to the workflow-ref blobs. That made the mode/blob evidence for
+            # helper files disagree with the diff, which the reviewer correctly
+            # flagged as an evidence mismatch (CR-1). `git ls-tree HEAD_SHA`
+            # reads the head commit's tree object directly and is immune to the
+            # restore regardless of step ordering.
             git diff --name-only "${BASE_SHA}...${HEAD_SHA}" | while read -r f; do
-              git ls-files -s -- "$f" 2>/dev/null || echo "?????? 0	$f (untracked/deleted)"
+              entry="$(git ls-tree "${HEAD_SHA}" -- "$f" 2>/dev/null)"
+              if [ -n "$entry" ]; then
+                printf '%s\n' "$entry"
+              else
+                printf '(deleted at head)\t%s\n' "$f"
+              fi
             done
             echo "LIVE_STATE_EOF"
           } >> "$GITHUB_OUTPUT"
+          {
+            echo "### gh pr view"
+            gh pr view "$PR_NUMBER" -R "${{ github.repository }}" --json mergeable,mergeStateStatus,headRefOid,title,body
+            echo ""
+            echo "### gh pr checks"
+            gh pr checks "$PR_NUMBER" -R "${{ github.repository }}" || true
+            echo ""
+            echo "### codex review evidence mode"
+            echo "requested=${CODEX_REVIEW_REQUESTED_EVIDENCE_MODE}"
+            echo "scope=${CODEX_REVIEW_CHUNKED_SCOPE}"
+            echo "effective=${CODEX_REVIEW_EVIDENCE_MODE}"
+            echo "scope_pr_author=${CODEX_REVIEW_SCOPE_PR_AUTHOR}"
+            echo "scope_pr_head_ref=${CODEX_REVIEW_SCOPE_PR_HEAD_REF}"
+          } > /tmp/live_state.txt
+          if [ "$LOOP_N" -gt 0 ]; then
+            {
+              echo "Loop ${LOOP_N}: see the PR's existing codex-review comment thread for the prior verdict JSON and resolved findings."
+              echo "The sticky comment carries marker <!-- codex-review loop:N sha:X -->."
+            } > /tmp/prior_loop.txt
+          else
+            echo "N/A (loop 0 - first pass)." > /tmp/prior_loop.txt
+          fi
+
+      - name: Gather PR diff (bounded)
+        if: env.CODEX_REVIEW_EVIDENCE_MODE != 'chunked' || steps.classify.outputs.reviewer_route != 'codex'
+        # The reviewer runs read-only and its in-sandbox shell may be
+        # unavailable (bwrap can fail to initialize on the runner), so it
+        # cannot compute the diff itself. Precompute it here and inject it so
+        # the review has real evidence to work from. Bound the size so a huge
+        # PR cannot blow up the prompt; a truncation marker tells the reviewer
+        # to treat unseen hunks as unverified.
+        id: pr_diff
+        run: |
+          MAX_BYTES=60000
+          RAW="$(git diff "${BASE_SHA}...${HEAD_SHA}")"
+          TOTAL_BYTES="$(printf '%s' "$RAW" | wc -c)"
+          FILE_COUNT="$(git diff --name-only "${BASE_SHA}...${HEAD_SHA}" | wc -l | tr -d ' ')"
+          # Build the bounded diff ONCE into a file. It is used twice: injected
+          # into the prompt (via GITHUB_OUTPUT below) AND scanned by the
+          # prompt-injection guard in build-envelope.py, which must see exactly
+          # what the reviewer saw. Emit an authoritative completeness NOTE on
+          # BOTH paths: CI knows whether the diff fit under the cap; the reviewer
+          # (which may have no shell) does not, and without a positive signal it
+          # can wrongly assume the diff is partial and refuse a verdict.
+          {
+            if [ "$TOTAL_BYTES" -gt "$MAX_BYTES" ]; then
+              echo "NOTE: git diff BASE...HEAD for all ${FILE_COUNT} changed file(s), TRUNCATED to the first ${MAX_BYTES} of ${TOTAL_BYTES} bytes. Hunks past the cut are not shown -- treat them as unverified."
+              echo ""
+              # Cut on a line boundary: drop the final (possibly partial) line
+              # with `sed '$d'`. A raw `head -c` byte cut can split a multibyte
+              # UTF-8 char (this repo has unicode-heavy public/locales/*.json),
+              # which would make the assembled prompt undecodable and fail the
+              # job. A newline never falls inside a UTF-8 char, so every
+              # retained line stays valid.
+              printf '%s' "$RAW" | head -c "$MAX_BYTES" | sed '$d'
+              echo ""
+              echo "[... diff truncated near ${MAX_BYTES} bytes (cut on a line boundary) ...]"
+            else
+              echo "NOTE: COMPLETE git diff BASE...HEAD for all ${FILE_COUNT} changed file(s) (${TOTAL_BYTES} bytes, not truncated). Every changed file and every hunk in this PR is included below; there is no further diff evidence beyond what follows."
+              echo ""
+              printf '%s\n' "$RAW"
+            fi
+          } > /tmp/pr_diff.txt
+          {
+            echo "pr_diff<<PR_DIFF_EOF"
+            cat /tmp/pr_diff.txt
+            echo "PR_DIFF_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build chunked PR evidence
+        if: env.CODEX_REVIEW_EVIDENCE_MODE == 'chunked' && steps.classify.outputs.reviewer_route == 'codex'
+        run: |
+          python3 scripts/codex-review-build-evidence.py \
+            --base "${BASE_SHA}" \
+            --head "${HEAD_SHA}" \
+            --out-dir /tmp/codex-review-evidence \
+            --evidence-mode chunked
 
       - name: Assemble prompt
+        if: env.CODEX_REVIEW_EVIDENCE_MODE != 'chunked' || steps.classify.outputs.reviewer_route != 'codex'
         id: prompt
         run: python3 scripts/codex-review-assemble-prompt.py /tmp/prompt.md
         env:
           LIVE_STATE: ${{ steps.live_state.outputs.live_state }}
+          PR_DIFF: ${{ steps.pr_diff.outputs.pr_diff }}
           LOOP_N: ${{ inputs.loop_n }}
 
       - name: Install Codex CLI
@@ -176,28 +335,61 @@ jobs:
           mkdir -p "$CODEX_HOME"
           printf '%s' "$OPENAI_API_KEY" | codex login --with-api-key
 
-      - name: Run reviewer (codex exec)
+      - name: Run reviewer (codex exec, converge across runs)
         id: review_codex
-        if: steps.classify.outputs.reviewer_route == 'codex'
+        if: steps.classify.outputs.reviewer_route == 'codex' && env.CODEX_REVIEW_EVIDENCE_MODE != 'chunked'
         env:
           CODEX_HOME: ${{ runner.temp }}/codex-home
         run: |
-          codex exec \
-            --sandbox read-only \
-            -m gpt-5.5 \
-            --output-schema .github/codex/review-schema.json \
-            --output-last-message /tmp/review.json \
-            < /tmp/prompt.md
-          # Fallback per build spec section 6: one retry with a stricter
-          # instruction if the model still emitted invalid JSON despite
-          # --output-schema.
-          if ! python3 -c "import json; json.load(open('/tmp/review.json'))" 2>/dev/null; then
-            echo "First pass produced invalid JSON; retrying with stricter instruction." >&2
-            { cat /tmp/prompt.md; echo ""; echo "Output ONLY the JSON object. No prose, no markdown fences."; } \
-              | codex exec --sandbox read-only -m gpt-5.5 \
-                  --output-schema .github/codex/review-schema.json \
-                  --output-last-message /tmp/review.json
+          run_codex() {
+            # $1 = output path for this run's review JSON
+            codex exec \
+              --sandbox read-only \
+              -m gpt-5.5 \
+              --output-schema .github/codex/review-schema.json \
+              --output-last-message "$1" \
+              < /tmp/prompt.md
+            # Fallback per build spec section 6: one retry with a stricter
+            # instruction if the model still emitted invalid JSON despite
+            # --output-schema.
+            if ! python3 -c "import json, sys; json.load(open(sys.argv[1]))" "$1" 2>/dev/null; then
+              echo "Run produced invalid JSON; retrying with stricter instruction." >&2
+              { cat /tmp/prompt.md; echo ""; echo "Output ONLY the JSON object. No prose, no markdown fences."; } \
+                | codex exec --sandbox read-only -m gpt-5.5 \
+                    --output-schema .github/codex/review-schema.json \
+                    --output-last-message "$1"
+            fi
+          }
+          # Convergence policy ("confirm both directions"): the model is
+          # non-deterministic, so a lone run is not a repeatable gate. Run twice
+          # and require agreement; on disagreement run a third tiebreaker
+          # (majority decides). build-envelope.py --need-third makes the
+          # agreement decision (it also applies the injection guard, so two
+          # APPROVEs over an injection-bearing diff both become blocks and agree,
+          # converging straight to fail-closed without a wasted third run).
+          run_codex /tmp/review-1.json
+          run_codex /tmp/review-2.json
+          NEED_THIRD="$(python3 scripts/codex-review-build-envelope.py --need-third --diff /tmp/pr_diff.txt /tmp/review-1.json /tmp/review-2.json)"
+          echo "convergence: third tiebreaker needed? ${NEED_THIRD}"
+          if [ "$NEED_THIRD" = "yes" ]; then
+            run_codex /tmp/review-3.json
           fi
+
+      - name: Run reviewer (codex exec, chunked evidence)
+        id: review_codex_chunked
+        if: steps.classify.outputs.reviewer_route == 'codex' && env.CODEX_REVIEW_EVIDENCE_MODE == 'chunked'
+        env:
+          CODEX_HOME: ${{ runner.temp }}/codex-home
+        run: |
+          python3 scripts/codex-review-run-chunks.py \
+            --evidence-dir /tmp/codex-review-evidence \
+            --live-state-file /tmp/live_state.txt \
+            --out-dir /tmp/codex-review-results \
+            --head-sha "${HEAD_SHA}" \
+            --prior-loop-file /tmp/prior_loop.txt \
+            --repository "${{ github.repository }}" \
+            --run-url "${RUN_URL}" \
+            --heartbeat
 
       - name: Run reviewer (Claude Sonnet 4.6 API, Tier 2 claude-deep route)
         id: review_claude_deep
@@ -206,13 +398,17 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.CLAUDE_REVIEW_API_KEY }}
         run: |
           echo "::add-mask::$ANTHROPIC_API_KEY"
-          scripts/codex-review-claude-deep.sh /tmp/prompt.md .github/codex/review-schema.json /tmp/review.json
+          # Single run: the claude-deep route is the compliance-path fallback and
+          # is not convergence-looped in this pass. build-envelope treats one
+          # review file as a no-op convergence (its outcome passes through), and
+          # the injection guard still applies.
+          scripts/codex-review-claude-deep.sh /tmp/prompt.md .github/codex/review-schema.json /tmp/review-1.json
 
       - name: Reviewer blocked (Tier 1 data-bearing path)
         id: review_blocked
         if: steps.classify.outputs.reviewer_route == 'blocked'
         run: |
-          cat > /tmp/review.json <<JSONEOF
+          cat > /tmp/review-1.json <<JSONEOF
           {
             "verdict": "NEEDS_HUMAN",
             "head_sha": "${HEAD_SHA}",
@@ -239,7 +435,31 @@ jobs:
         # on, which status to resolve). Wrap it in an envelope of
         # Actions-validated values instead, so W2 routes off CI ground
         # truth, not model output.
-        run: python3 scripts/codex-review-build-envelope.py /tmp/review.json /tmp/envelope.json
+        run: |
+          # Pass every review run that was produced (1 for claude-deep/blocked,
+          # 2 or 3 for the codex convergence loop). build-envelope applies the
+          # injection guard per run and folds the runs into one converged status.
+          REVIEWS=/tmp/review-1.json
+          [ -f /tmp/review-2.json ] && REVIEWS="$REVIEWS /tmp/review-2.json"
+          [ -f /tmp/review-3.json ] && REVIEWS="$REVIEWS /tmp/review-3.json"
+          if [ "${CODEX_REVIEW_EVIDENCE_MODE}" = "chunked" ] && [ "${REVIEWER_ROUTE}" = "codex" ]; then
+            shopt -s nullglob
+            CHUNK_REVIEWS=(/tmp/codex-review-results/chunk-*-review-*.json)
+            SYNTHESIS_REVIEWS=(/tmp/codex-review-results/synthesis-*.json)
+            if [ "${#CHUNK_REVIEWS[@]}" -eq 0 ] || [ "${#SYNTHESIS_REVIEWS[@]}" -eq 0 ]; then
+              echo "::error::chunked review did not produce chunk and synthesis review files"
+              exit 1
+            fi
+            python3 scripts/codex-review-build-envelope.py \
+              --manifest /tmp/codex-review-evidence/manifest.json \
+              --evidence-dir /tmp/codex-review-evidence \
+              --full-diff /tmp/codex-review-evidence/full.diff \
+              --chunk-reviews "${CHUNK_REVIEWS[@]}" \
+              --synthesis-reviews "${SYNTHESIS_REVIEWS[@]}" \
+              --out /tmp/envelope.json
+          else
+            python3 scripts/codex-review-build-envelope.py --diff /tmp/pr_diff.txt --out /tmp/envelope.json $REVIEWS
+          fi
         env:
           REVIEWER_ROUTE: ${{ steps.classify.outputs.reviewer_route }}
           RUN_ID: ${{ github.run_id }}
@@ -269,7 +489,7 @@ jobs:
             -f state="$FINAL_STATE" \
             -f context=codex-review/deep-pass \
             -f description="$DESCRIPTION" \
-            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            -f target_url="${RUN_URL}"
 
           # Success condition (literal, per build spec section 1): do not
           # exit success unless a follow-up GET confirms deep-pass is no
@@ -278,7 +498,7 @@ jobs:
           # verification by target_url instead of taking the newest context.
           # codex-watchdog.yml is the independent backstop if this check
           # itself never runs (job killed before this line).
-          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          # RUN_URL is job-level env (attempt-scoped); do not rebuild it here.
           for i in $(seq 1 6); do
             sleep 5
             gh api "repos/${{ github.repository }}/commits/${HEAD_SHA}/statuses" > /tmp/codex-statuses.json
@@ -291,3 +511,129 @@ jobs:
 
           echo "codex-review/deep-pass still pending 30s after W2 POST succeeded; failing this job so it does not report false success. codex-watchdog.yml's workflow_run trigger will flip the status to failure." >&2
           exit 1
+
+      # ------------------------------------------------------------------
+      # Terminal-status lifecycle: this job resolves its OWN status on every
+      # exit path.
+      #
+      # Before this step existed the only terminal deep-pass writes were the
+      # input-validation guards near the top of the job and the resolve step
+      # above. Anything failing between them -- notably the reviewer auth step
+      # -- left deep-pass `pending` and delegated the problem to
+      # codex-watchdog.yml, which by design waits 30 minutes before acting.
+      # Observed 2026-07-28: auth failed in about 90 seconds while deep-pass
+      # read "Codex review running" for 41-65 minutes on PRs #690, #696, #697.
+      # The gate was not broken; it was lying about its own state.
+      #
+      # `if: always()` is required, NOT `if: failure()`. failure() does not run
+      # when the job is CANCELLED, which is one of the five cases this must
+      # cover: success, failure, cancellation, re-run on the same SHA, and the
+      # status write itself failing.
+      #
+      # codex-watchdog.yml remains the independent backstop for the one case
+      # this step cannot cover: the runner dying before this step executes.
+      - name: Resolve codex-review/deep-pass to a terminal state (all exit paths)
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -uo pipefail
+
+          # Read only THIS attempt's own status entries. RUN_URL is
+          # attempt-scoped, so a re-run cannot see attempt 1's terminal status
+          # and wrongly conclude there is nothing left to do.
+          # `gh api --paginate` emits one JSON array PER PAGE, so the raw output
+          # is concatenated arrays (`[...][...]`), not a single array. Normalize
+          # with `jq -s 'add'` rather than `--slurp`, which is not available on
+          # every gh version.
+          #
+          # The READ retries, like the write below. An earlier version fell back
+          # to `[]` on any read failure, which is indistinguishable from "no
+          # status has been posted". On a GREEN job that meant a transient API
+          # blip would take the fail-closed branch and overwrite the `success`
+          # the resolve step had already written correctly, converting a passing
+          # review into a blocked merge. Unreachable while no reviewer route is
+          # funded (nothing can reach `success`), and therefore exactly the kind
+          # of latent bug that would first appear on the day a route is funded.
+          statuses_json=""
+          read_ok=""
+          for read_attempt in 1 2 3; do
+            if raw="$(gh api "repos/${{ github.repository }}/commits/${HEAD_SHA}/statuses?per_page=100" --paginate 2>/dev/null)"; then
+              statuses_json="$(printf '%s' "$raw" | jq -s 'add // []' 2>/dev/null)" || statuses_json=""
+              if [ -n "$statuses_json" ]; then read_ok=yes; break; fi
+            fi
+            echo "::warning::deep-pass status read attempt ${read_attempt} failed; retrying in 5s" >&2
+            sleep 5
+          done
+
+          if [ -z "$read_ok" ]; then
+            # Asymmetric on purpose. If the job did not succeed, writing
+            # `failure` is correct no matter what the current status says, so
+            # proceed. If the job DID succeed, the current status may be a
+            # legitimate `success` and we cannot see it: refuse to guess.
+            if [ "$JOB_STATUS" = "success" ]; then
+              echo "::error::Could not read the current codex-review/deep-pass status after 3 attempts, and this job succeeded. Refusing to overwrite a possibly-successful verdict. codex-watchdog.yml remains the backstop." >&2
+              exit 1
+            fi
+            echo "::warning::Could not read the current deep-pass status after 3 attempts; the job did not succeed, so writing failure is safe regardless." >&2
+            statuses_json='[]'
+          fi
+
+          current_state="$(printf '%s' "$statuses_json" | jq -r --arg u "$RUN_URL" '
+            [ .[] | select(.context == "codex-review/deep-pass" and .target_url == $u) ]
+            | sort_by(.created_at) | last | .state // ""
+          ')"
+
+          echo "job.status=${JOB_STATUS}; deep-pass state for this attempt: ${current_state:-<none posted>}"
+
+          if [ -n "$current_state" ] && [ "$current_state" != "pending" ]; then
+            echo "Already terminal (${current_state}) for this attempt; nothing to do."
+            exit 0
+          fi
+
+          case "$JOB_STATUS" in
+            cancelled)
+              description="Review cancelled before producing a verdict"
+              ;;
+            success)
+              # Reaching here on a green job means the resolve step never wrote
+              # a verdict (skipped, or an early `exit 0`). Fail closed: never
+              # report a passing gate for a review that recorded no result.
+              description="Job reported success but wrote no verdict; failing closed"
+              ;;
+            *)
+              description="Review job failed before producing a verdict (see run log)"
+              ;;
+          esac
+
+          # Every case is `failure`. There is no path on which an unresolved
+          # deep-pass should become `success`.
+          posted=""
+          for write_attempt in 1 2 3; do
+            if gh api "repos/${{ github.repository }}/statuses/${HEAD_SHA}" \
+                 -f state=failure \
+                 -f context=codex-review/deep-pass \
+                 -f description="$description" \
+                 -f target_url="${RUN_URL}"; then
+              posted=yes
+              break
+            fi
+            echo "::warning::deep-pass status write attempt ${write_attempt} failed; retrying in 5s" >&2
+            sleep 5
+          done
+
+          # Case 5: the status write itself failing must be loud, not silent.
+          if [ -z "$posted" ]; then
+            echo "::error::Could not write a terminal codex-review/deep-pass status after 3 attempts. The status is left pending and codex-watchdog.yml is now the only backstop." >&2
+            exit 1
+          fi
+
+          echo "deep-pass -> failure: ${description}"
+
+          # If the job was otherwise green, fail it so the run does not report
+          # success while its own gate resolved to failure.
+          if [ "$JOB_STATUS" = "success" ]; then
+            echo "::error::Failing this job to match the deep-pass verdict it just wrote." >&2
+            exit 1
+          fi
+          exit 0

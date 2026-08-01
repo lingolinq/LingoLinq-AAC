@@ -36,7 +36,8 @@ gem 'websocket-driver', '>= 0.8.2'
 
 # Rails 7.2 with Ruby 3.4 support (Phase 3: final upgrade)
 # 7.2.3.1+ addresses Active Storage proxy DoS (GHSA-p9fm-f462-ggrg / CVE-2026-33658)
-gem 'rails', '>= 7.2.3.1', '< 7.3'
+# 7.2.3.2+ addresses Active Storage variant RCE (GHSA-xr9x-r78c-5hrm / CVE-2026-66066)
+gem 'rails', '>= 7.2.3.2', '< 7.3'
 # CVE-2026-33210 (format string); bundler-audit advisory minimum
 gem 'json', '>= 2.19.2'
 # oj is a faster JSON parser/generator (5-10x faster than stdlib json).
@@ -100,7 +101,7 @@ gem 'clowne', '~> 1.4' # Declarative model cloning DSL for board copy optimizati
 
 gem 'sinatra', '~> 4.2'
 gem 'sanitize'
-gem 'anthropic', '~> 1.23'
+gem 'anthropic', '~> 1.36'
 gem 'ruby-openai', '~> 7.0'  # Used for Gemini fallback (OpenAI-compatible endpoint)
 
 group :doc do

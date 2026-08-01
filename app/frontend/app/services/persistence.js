@@ -855,6 +855,25 @@ var persistence = Service.extend({
     }
   },
   /**
+   * Persist the freshest browser token the server handed us on a response.
+   * The server rotates the browser token (used as client_secret at login) and returns the
+   * current one in the BROWSER_TOKEN header on EVERY response — extras.js captures it onto
+   * fakeXHR.browserToken. Refreshing the stored token on every request keeps it from going
+   * stale during a long session, which is what otherwise wedges the NEXT login with
+   * "Invalid client_secret for client_id" (see
+   * docs/task-management/2026-07-25-stale-browser-token-login-wedge.md).
+   * setBrowserToken no-ops when the token is unchanged or empty, so this is cheap.
+   *
+   * @param {object} fake_xhr - the fakeXHR object attached to a response (may be undefined)
+   */
+  refresh_browser_token_from_response: function(fake_xhr) {
+    try {
+      if(fake_xhr && fake_xhr.browserToken) {
+        this.setBrowserToken(fake_xhr.browserToken);
+      }
+    } catch(e) { /* best-effort: never fail a request over token bookkeeping */ }
+  },
+  /**
    * Validate token format for backwards/forwards compatibility
    * Supports both old and new token formats
    * 
@@ -3844,6 +3863,7 @@ var persistence = Service.extend({
     });
   },
   ajax: function() {
+    var _this = this;
     var ajax_args = arguments;
     var local_request = ajax_args && ajax_args[0] && ajax_args[0].match && (ajax_args[0].match(/^file:\/\//) || ajax_args[0].match(/^http:\/\/localhost/));
     var is_online = this.get('online');
@@ -3864,6 +3884,8 @@ var persistence = Service.extend({
           run(function() {
             if(data) {
               data.xhr = xhr;
+              // Keep the stored browser token fresh on every successful response.
+              _this.refresh_browser_token_from_response(data.meta && data.meta.fakeXHR);
             }
             resolve(data);
           });
@@ -3874,6 +3896,9 @@ var persistence = Service.extend({
           if(xhr.then) { console.log("received the promise instead of the promise's result.."); }
           var promise = xhr.then ? xhr : RSVP.reject(xhr);
           promise.then(null, function(xhr) {
+            // Keep the stored browser token fresh even on error responses (the server still
+            // returns a fresh BROWSER_TOKEN header — e.g. the 400 from a stale client_secret).
+            _this.refresh_browser_token_from_response(xhr && xhr.fakeXHR);
             var allow_offline_error = false;
             if(allow_offline_error) { // TODO: check for offline error in xhr
               reject(xhr, {offline: true, error: "not online"});

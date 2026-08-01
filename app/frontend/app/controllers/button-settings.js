@@ -501,15 +501,15 @@ export default modal.ModalController.extend({
   board_search_options: computed('board.user_name', function() {
     var res = [];
     if(this.get('board.user_name') != app_state.get('currentUser.user_name')) {
-      res.push({name: i18n.t('their_boards', "This User's Boards (includes shared)"), id: 'current_user'});
+      res.push({name: i18n.t('their_boards', "This User's Boards"), id: 'current_user'});
       res.push({name: i18n.t('public_boards', "Public Boards"), id: 'public'});
       res.push({name: i18n.t('their_starred_boards', "This User's Liked Boards"), id: 'current_user_starred'});
       res.push({name: i18n.t('my_public_boards', "My Public Boards"), id: 'personal_public'});
       res.push({name: i18n.t('my_liked_public_boards', "My Liked Public Boards"), id: 'personal_public_starred'});
-      res.push({name: i18n.t('all_my_boards_includes_shared', "All My Boards (includes shared)"), id: 'personal'});
+      res.push({name: i18n.t('all_my_boards_includes_shared', "All My Boards"), id: 'personal'});
       // TODO: add My Private Boards, but warn and have option to auto-share if selected
     } else {
-      res.push({name: i18n.t('my_boards_includes_shared', "My Boards (includes shared)"), id: 'personal'});
+      res.push({name: i18n.t('my_boards_includes_shared', "My Boards"), id: 'personal'});
       res.push({name: i18n.t('public_boards', "Public Boards"), id: 'public'});
       res.push({name: i18n.t('my_starred_boards', "My Liked Boards"), id: 'personal_starred'});
     }
@@ -676,6 +676,10 @@ export default modal.ModalController.extend({
       var _this = this;
       LingoLinq.Videos.track('link_video_preview').then(function(player) {
         _this.set('player', player);
+      }, function() {
+        // Same unhandled-rejection guard as the button-settings COMPONENT's
+        // track_video — see the comment there. Kept in sync deliberately; these two
+        // observers are twins.
       });
     }
   }),
@@ -828,6 +832,11 @@ export default modal.ModalController.extend({
       if(!this.get('handle_updates') || !this.get('model.id')) { return; }
       this.set('model.hide_label', !!checked);
       editManager.change_button(this.get('model.id'), { hide_label: !!checked });
+    },
+    updateTextOnly: function(checked) {
+      if(!this.get('handle_updates') || !this.get('model.id')) { return; }
+      this.set('model.text_only', !!checked);
+      editManager.change_button(this.get('model.id'), { text_only: !!checked });
     },
     clear_button: function() {
       editManager.clear_button(this.get('model.id'));

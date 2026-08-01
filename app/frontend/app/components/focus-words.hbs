@@ -121,13 +121,13 @@
             {{#if this.reuse_or_existing}}
               <span style='width: 240px; display: inline-block;'>
                 <span style='display: inline-block; width: 100%; vertical-align: middle;'>
-                  <input value={{this.title}} id="find_source" placeholder="Word List Name" class="form-control inline select_on_click" {{on "input" (set-field this "title")}} />
+                  <input value={{this.title}} id="find_source" placeholder="Word List Name" aria-label={{t "Word list name" key="word_list_name"}} class="form-control inline select_on_click" {{on "input" (set-field this "title")}} />
                 </span>
               </span>
             {{else}}
               <span style='width: 240px; display: inline-block;'>
                 <span style='display: inline-block; width: 100%; vertical-align: middle;'>
-                  <Input id="find_source" @value={{this.search_term}} @enter={{this.ctrlAction "find_source"}} placeholder="search" class="form-control inline select_on_click" />
+                  <input id="find_source" value={{this.search_term}} {{on "input" (set-field this "search_term")}} {{on-enter (this.ctrlAction "find_source")}} placeholder="search" aria-label={{t "Search" key="search"}} class="form-control inline select_on_click" />
                 </span>
               </span>
               <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "find_source")}}>{{t "Search" key="search"}}</button>

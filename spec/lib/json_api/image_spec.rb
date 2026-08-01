@@ -47,6 +47,80 @@ describe JsonApi::Image do
       expect(hash['fallback']).to eq(true)
     end
 
+    # Regression guard. A protected image with NO recorded protected_source must
+    # still fall back — the rest of the codebase treats a blank source as lessonpix
+    # (Board#track_protected_sources), so exempting it here would serve a gated
+    # library symbol to a viewer with no subscription. Every other example in this
+    # file uses a non-blank source, which is exactly why a change that special-cased
+    # the blank one landed green.
+    it 'should revert to a fallback image when protected but the protected_source is BLANK' do
+      i = ButtonImage.new(url: 'http://www.example.com/pic.png', settings: {'protected' => true, 'fallback' => {'url' => 'http://www.example.com/fallback.png'}})
+      hash = JsonApi::Image.build_json(i, :allowed_sources => [])
+      expect(hash['url']).to eq('http://www.example.com/fallback.png')
+      expect(hash['protected']).to eq(false)
+      expect(hash['fallback']).to eq(true)
+    end
+
+    it 'should revert to a fallback image when protected with a blank protected_source and no allowed sources are known' do
+      u = User.create
+      i = ButtonImage.new(url: 'http://www.example.com/pic.png', settings: {'protected' => true, 'fallback' => {'url' => 'http://www.example.com/fallback.png'}})
+      hash = JsonApi::Image.build_json(i, :permissions => u)
+      expect(hash['url']).to eq('http://www.example.com/fallback.png')
+      expect(hash['fallback']).to eq(true)
+    end
+
+    # The other half of the same story: a user's own upload is NOT protected, so it
+    # never reaches the fallback branch and always serves its real url. `generate_defaults`
+    # gives it a 'private' LICENSE but leaves settings['protected'] unset.
+    it 'should serve the real url for a user upload (private license, not protected)' do
+      u = User.create
+      i = ButtonImage.process_new({'url' => 'http://www.example.com/my-photo.png', 'content_type' => 'image/png'}, {:user => u})
+      expect(i.protected?).to eq(false)
+      expect(i.settings['license']['type']).to eq('private')
+      hash = JsonApi::Image.build_json(i, :allowed_sources => [])
+      expect(hash['url']).to eq('http://www.example.com/my-photo.png')
+      expect(hash['fallback']).to eq(nil)
+    end
+
+    # Regression: form-encoded / legacy clients store protected as the string "false".
+    # `!!"false"` is true in Ruby, which blanked the speak-mode URL for a real symbol
+    # (lingolinq_admin/animals shark, 2026-07-30). protected? and process must cast.
+    it 'should serve the real url when settings protected is the string false' do
+      i = ButtonImage.new(url: 'http://www.example.com/shark.svg', settings: {
+        'protected' => 'false',
+        'protected_source' => '',
+        'content_type' => 'image/svg+xml'
+      })
+      expect(i.protected?).to eq(false)
+      hash = JsonApi::Image.build_json(i, :allowed_sources => [])
+      expect(hash['url']).to eq('http://www.example.com/shark.svg')
+      expect(hash['fallback']).to eq(nil)
+      expect(hash['protected']).to eq(false)
+    end
+
+    it 'should cast string false to boolean false on process_new' do
+      u = User.create
+      i = ButtonImage.process_new({
+        'url' => 'http://www.example.com/shark2.svg',
+        'content_type' => 'image/svg+xml',
+        'protected' => 'false',
+        'protected_source' => ''
+      }, {:user => u})
+      expect(i.settings['protected']).to eq(false)
+      expect(i.protected?).to eq(false)
+    end
+
+    it 'should still treat string true as protected' do
+      i = ButtonImage.new(url: 'http://www.example.com/pic.png', settings: {
+        'protected' => 'true',
+        'protected_source' => 'lessonpix'
+      })
+      expect(i.protected?).to eq(true)
+      hash = JsonApi::Image.build_json(i, :allowed_sources => [])
+      expect(hash['url']).to eq(nil)
+      expect(hash['fallback']).to eq(true)
+    end
+
     it 'should revert to a fallback image if no list provided and the user does not have access to the protected_source' do
       u = User.create
       User.purchase_extras({'premium_symbols' => true, 'user_id' => u.global_id})

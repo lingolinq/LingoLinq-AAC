@@ -15,7 +15,7 @@
           {{#if this.application.allow_search}}
             <form id="header_search" {{on "submit" this.onSearchBoardsSubmit}}>
               <div class="header-search-wrap">
-                <Input aria-label={{t "Search Boards" key="search_boards"}} @type="text" @value={{this.application.searchString}} {{on "input" this.onHandleSearchInput}} @enter={{this.onSearchBoards}} class="form-control header-search-input" placeholder={{t "Search Boards" key="search_boards"}} />
+                <input aria-label={{t "Search Boards" key="search_boards"}} type="text" value={{this.application.searchString}} {{on "input" (set-field this "application.searchString")}} {{on "input" this.onHandleSearchInput}} class="form-control header-search-input" placeholder={{t "Search Boards" key="search_boards"}} />
                 <button type="submit" class="header-search-btn" aria-label={{t "Search Boards" key="search_boards"}} title={{t "Search Boards" key="search_boards"}}>
                   <svg class="header-search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m20 20-4.5-4.5"/></svg>
                 </button>
@@ -61,6 +61,11 @@
   </span>
   {{/unless}}
   <span id="identity" class="app-navbar-auth-nav--desktop advanced_selection identity-with-dark-toggle">
+    {{#if this.application.isMasquerading}}
+      <button type="button" class="md-pillnav__stop-masquerade" aria-label={{t "Stop Masquerading" key="stop_masquerading"}} title={{t "Stop Masquerading" key="stop_masquerading"}} {{on "click" this.onStopMasquerading}}>
+        {{t "Stop Masquerading" key="stop_masquerading"}}
+      </button>
+    {{/if}}
     {{#unless this.appState.currentBoardState.id}}
     {{#if this.appState.currentUser}}
       {{#unless @isDevicePage}}
@@ -175,6 +180,9 @@
           </div>
         </li>
         <li class="divider ll-theme-picker-divider-bottom" role="separator" style="display: none;"></li>
+        {{#if this.application.isMasquerading}}
+        <li><a href="#" {{on "click" this.onStopMasquerading}}>{{t "Stop Masquerading" key="stop_masquerading"}}</a></li>
+        {{/if}}
         <li><a href="#" {{on "click" this.onInvalidateSession}}>{{t "Sign Out" key="logout"}}</a></li>
       </ul>
     </span>
@@ -200,6 +208,9 @@
       <a href="#" class="la-mobile-drawer__link" {{on "click" this.onCloseDrawerAndNewBoard}}>{{t "Create a New Board" key="create_a_new_board"}}</a>
     {{/if}}
     <div class="la-mobile-drawer__divider la-mobile-drawer__divider--modern"></div>
+    {{#if this.application.isMasquerading}}
+    <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{on "click" this.onCloseDrawerAndStopMasquerading}}>{{t "Stop Masquerading" key="stop_masquerading"}}</button>
+    {{/if}}
     {{#unless this.appState.currentBoardState.id}}
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{on "click" this.onCloseDrawerAndGoUpgrade}}>{{t "Upgrade" key="upgrade"}}</button>
     {{/unless}}

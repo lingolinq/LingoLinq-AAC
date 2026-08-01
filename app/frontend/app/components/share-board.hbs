@@ -40,7 +40,7 @@
         {{#if this.show_embed}}
           <div class="md-modal-field">
             <p class="md-modal-hint">{{t "You can embed your %app_name% boards in other web sites like blogs or how-to's so people can try them out more easily. Just copy and paste the code below into your web site:" key="copy_html_embed_code"}}</p>
-            <FocusInput @type="text" @value={{this.board.embed_code}} @onChange={{set-value this "board.embed_code"}} class="md-modal-input" />
+            <FocusInput @type="text" @value={{this.board.embed_code}} readonly class="md-modal-input" />
           </div>
         {{/if}}
       </div>

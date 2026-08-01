@@ -2,13 +2,15 @@
 
 require 'anthropic'
 require 'set'
+require_relative 'ai_client'
 require_relative 'pii_scrubber'
 require_relative 'art50_marker'
 require_relative 'lingo_linq/article50_call_context'
 
 module AiBoardGenerator
   # Default model for board generation — Haiku is fast and cheap for structured output
-  DEFAULT_MODEL = 'claude-haiku-4-5-20251001'
+  # Bedrock model id (anthropic. prefix, bare alias) -- routes via AWS Bedrock (AiClient).
+  DEFAULT_MODEL = 'anthropic.claude-haiku-4-5'
 
   class << self
     # Generates word labels, suggested name, and description for an AAC board using Claude.
@@ -93,7 +95,7 @@ module AiBoardGenerator
       PROMPT
 
       provider = api_config[:provider]
-      api_key = api_config[:api_key]
+      region = api_config[:region]
       model = api_config[:model]
       start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
@@ -104,7 +106,7 @@ module AiBoardGenerator
 
         2.times do |attempt|
           prompt_turn = attempt.zero? ? user_prompt : "#{user_prompt}#{board_retry_nudge(cell_count)}"
-          last_response = call_anthropic(api_key: api_key, model: model, system_prompt: system_prompt,
+          last_response = call_anthropic(region: region, model: model, system_prompt: system_prompt,
                                          user_prompt: prompt_turn, cell_count: cell_count)
 
           raw = extract_content_anthropic(last_response)
@@ -301,7 +303,7 @@ module AiBoardGenerator
       PROMPT
 
       provider = api_config[:provider]
-      api_key = api_config[:api_key]
+      region = api_config[:region]
       model = api_config[:model]
       start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
@@ -312,7 +314,7 @@ module AiBoardGenerator
 
         2.times do |attempt|
           prompt_turn = attempt.zero? ? user_prompt : "#{user_prompt}#{focus_retry_nudge(missing_count)}"
-          last_response = call_anthropic(api_key: api_key, model: model, system_prompt: system_prompt,
+          last_response = call_anthropic(region: region, model: model, system_prompt: system_prompt,
                                          user_prompt: prompt_turn, cell_count: missing_count)
 
           raw = extract_content_anthropic(last_response)
@@ -523,20 +525,21 @@ module AiBoardGenerator
     # GEMINI_API_KEY fallback disabled 2026-07-09 -- it pointed at the Gemini Developer/AI-Studio
     # endpoint (generativelanguage.googleapis.com), not Vertex AI, and that endpoint's data-handling
     # terms could not be confirmed adequate for child data. See
-    # docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2. A Vertex AI fallback may replace this.
+    # docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2. Runtime AI now egresses to Claude on AWS
+    # Bedrock (BAA/HIPAA path) via AiClient, not the direct api.anthropic.com endpoint -- there is
+    # no direct-Anthropic fallback.
     def resolve_api_config
-      anthropic_key = ENV['ANTHROPIC_API_KEY'].to_s.strip
-      return nil if anthropic_key.blank?
+      return nil unless AiClient.configured?
 
       {
         provider: :claude,
-        api_key: anthropic_key,
-        model: ENV.fetch('ANTHROPIC_MODEL', DEFAULT_MODEL)
+        region: AiClient.bedrock_region,
+        model: AiClient.bedrock_model(ENV.fetch('ANTHROPIC_MODEL', DEFAULT_MODEL))
       }
     end
 
-    def call_anthropic(api_key:, model:, system_prompt:, user_prompt:, cell_count:)
-      client = Anthropic::Client.new(api_key: api_key)
+    def call_anthropic(region:, model:, system_prompt:, user_prompt:, cell_count:)
+      client = AiClient.build
       client.messages.create(
         model: model,
         max_tokens: completion_max_tokens(cell_count),

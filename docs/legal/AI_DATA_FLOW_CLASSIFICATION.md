@@ -2,8 +2,17 @@
 
 **Owner:** Privacy Office (privacy@lingolinq.com)
 **Created:** 2026-07-09 (VPC Phase 2, Task 02-01.1)
-**Status:** Attested (provisional) by Scot Wahlquist, CEO, 2026-07-09 -- formal outside counsel
-review deferred until the full 5-phase VPC is built. See `AI_DATA_SHARING_CONSENT.md` section 9.
+**Status:** Re-attested (provisional) by Scot Wahlquist, CEO, **2026-07-22**, covering the current
+revision. Formal outside counsel review remains deferred until the full 5-phase VPC is built. See
+`AI_DATA_SHARING_CONSENT.md` section 9.
+**Attestation history:** first attested (provisional) 2026-07-09. That attestation covered an
+earlier revision: PR #656 (2026-07-22) rewrote the AI-log retention tiers, moving the children and
+general tiers from "Decided, rolling out" to "Decided, not yet enforced" with the blocker named, and
+the EU tier from inert to functional. The 2026-07-22 re-attestation was taken only after the changed
+claims were re-verified against live code: `AiApiLog.purge_old_eu_logs!(years: 5)`
+(`app/models/ai_api_log.rb`) is dispatched from `lib/tasks/scheduler.rake`, and
+`LingoLinq::Article50CallContext.for(user)` stamps jurisdiction at exactly the three AI call sites
+(`lib/eval_narrator.rb`, `lib/ai_word_predictor.rb`, `lib/ai_board_generator.rb`).
 **Related:** `docs/legal/AI_DATA_SHARING_CONSENT.md`, `docs/legal/AI_GOVERNANCE_MEMO.md` (attested
 2026-06-19, the authoritative live model inventory), `docs/legal/SUBPROCESSORS.md`,
 `docs/legal/DATA_RETENTION.md`, `.planning/phases/02-disclosures-content/PLAN.md`
@@ -162,9 +171,9 @@ reconciled in every place this phase writes retention copy:
 
 | Scope | Window | Status | Basis |
 |---|---|---|---|
-| EU-jurisdiction accounts | 5 years | **Enforced** (`AiApiLog.purge_old_eu_logs!(years: 5)`, shipped PR #553, runs via `scheduler:dispatch`). Currently inert in practice because jurisdiction is not yet stamped on accounts (VPC Phase 4 wires that). | EU AI Act Article 50 record-keeping |
-| Children (under-13) accounts | 12 months, rolling, independent of account status | **Decided, rolling out** (not yet enforced in code as of this commit) | 2026-07-09 ratified decision |
-| General (non-EU, non-child) accounts | 24 months | **Decided, rolling out** (not yet enforced in code beyond the 90-day IP redaction below) | 2026-07-09 ratified decision, GDPR Article 5(1)(e) storage limitation |
+| EU-jurisdiction accounts | Up to 5 years | **Enforced** (`AiApiLog.purge_old_eu_logs!(years: 5)`, shipped PR #553, runs via `scheduler:dispatch`). Now functional: the Art50 Phase 4 shared call-context helper stamps `jurisdiction = 'EU'` at the three AI call sites (merged to staging). It matches EU rows wherever Phase 4 is deployed; effective in production only after the Phase 4/5 production deploy. | EU AI Act Article 50 record-keeping |
+| Children (under-13) accounts | 12 months, rolling, independent of account status | **Decided, not yet enforced.** No purge job: `ai_api_logs` has no per-row child-subject marker, so this tier cannot be carved out from the 6-year HIPAA floor without a write-time stamp (schema + call-site change). | 2026-07-09 ratified decision |
+| General (non-EU, non-child) accounts | 24 months | **Decided, not yet enforced** (beyond the 90-day IP redaction below). Same blocker: a safe non-EU purge needs the HIPAA-covered vs non-covered distinction stamped per row first; a flat 24-month delete is deliberately not shipped. | 2026-07-09 ratified decision, GDPR Article 5(1)(e) storage limitation |
 | All `AiApiLog` records, IP address field only | 90 days | **Enforced today** (`AiApiLog.redact_old_ip_addresses!(days: 90)`, live via `scheduler:dispatch`) | GDPR data minimization |
 | HIPAA-linked accounts | Up to 6 years may be required for audit-floor purposes | **Open, deferred.** This is why a single blanket non-EU purge job was not shipped alongside the EU one. | HIPAA 45 CFR 164.316(b)(2)(i) |
 | Account-lifecycle deletion | The `AiApiLog` rows tied to a user account are deleted when that account is deleted | **Enforced today** (Flusher cascade) | Contract / FERPA |

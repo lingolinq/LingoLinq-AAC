@@ -55,7 +55,7 @@
       </div>
     {{else}}
       <div class="form-group">
-        <label class="col-sm-3 control-label">{{t "Password" key="password"}}</label>
+        <label for="old_password" class="col-sm-3 control-label">{{t "Password" key="password"}}</label>
         <div class="col-sm-5">
           <PasswordField @id="old_password" @class="form-control" @value={{this.model.old_password}} @onChange={{set-value this "model.old_password"}} @placeholder="current password" @autocomplete="current-password" />
         </div>
@@ -63,7 +63,7 @@
       <div class="form-group">
         <span class="col-sm-3 control-label"></span>
         <div class="col-sm-5">
-          <PasswordField @id="password" @class="form-control" @value={{this.model.password}} @onChange={{set-value this "model.password"}} @placeholder="new password" @autocomplete="new-password" />
+          <PasswordField @id="password" @class="form-control" @value={{this.model.password}} @onChange={{set-value this "model.password"}} @placeholder="new password" @ariaLabel={{t "New password" key="new_password"}} @autocomplete="new-password" />
         </div>
       </div>
     {{/unless}}

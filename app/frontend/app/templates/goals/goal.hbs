@@ -127,11 +127,11 @@
           </div>
           {{#if this.model.date_advance}}
             <div class='col-sm-3'>
-              <input value={{this.model.goal_advances_at}} class="form-control" id="date_advance" placeholder="month, day" {{on "input" (set-field this "model.goal_advances_at")}} />
+              <input value={{this.model.goal_advances_at}} class="form-control" id="date_advance" placeholder="month, day" aria-label={{t "Advance date (month, day)" key="goal_advance_date"}} {{on "input" (set-field this "model.goal_advances_at")}} />
             </div>
           {{else if this.model.duration_advance}}
             <div class='col-sm-1'>
-              <input value={{this.model.goal_duration_number}} type="number" class="form-control" id="duration_advance" placeholder="##" {{on "input" (set-field this "model.goal_duration_number")}} />
+              <input value={{this.model.goal_duration_number}} type="number" class="form-control" id="duration_advance" placeholder="##" aria-label={{t "Advance duration" key="goal_advance_duration"}} {{on "input" (set-field this "model.goal_duration_number")}} />
             </div>
             <div class='col-sm-2'>
               <BoundSelect @select_class="form-control" @select_id="duration_advance_at_unit" @content={{this.advance_unit_options}} @selection={{this.model.goal_duration_unit}} @action={{mut this.model.goal_duration_unit}} />

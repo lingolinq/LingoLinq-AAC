@@ -132,7 +132,7 @@
                   </div>
                 {{/if}}
                 {{#if this.show_board_intro}}
-                  <div role="button" tabindex="0" data-bd-action="board_intro" data-bd-controller="app" {{on "click" (this.ctrlAction "board_intro")}} class='extra-btn' style='position: absolute; top: 3px; bottom: 3px; border: 1px solid #ccc;  background: #eee; margin-top: 0; margin-bottom: 0; border-radius: 5px; padding: 5px 10px; max-height: 75px; cursor: pointer;'>
+                  <div role="button" tabindex="0" data-bd-action="board_intro" data-bd-controller="app" {{on "click" (this.ctrlAction "board_intro")}} class='extra-btn' style='position: absolute; top: 3px; bottom: 3px; border: 1px solid #ccc; background: #eee; margin-top: 0; margin-bottom: 0; border-radius: 5px; padding: 5px 10px; max-height: 75px; cursor: pointer;'>
                     <img src={{path "images/learn.png"}} alt="" style='height: 100%; max-height: 50px;'>
                     {{t "Intro" key="intro"}}
                   </div>
@@ -286,6 +286,10 @@
         {{/unless}}
       {{/if}}
     {{/if}}
+    {{!-- template-lint-disable no-empty-headings --}}
+    {{!-- Not empty: the h1's accessible name is the brand logo's img alt ("LingoLinq"). The
+         rule only checks for a direct text node and doesn't traverse into the nested
+         <a><img alt>, so it false-positives on this valid logo heading. --}}
     <h1 class={{this.app_state.h1_class}} style='position: relative; z-index: 1;'>
 
       <span class="nav-header__brand">
@@ -294,6 +298,7 @@
         </a>
       </span>
     </h1>
+    {{!-- template-lint-enable no-empty-headings --}}
     {{#if this.app_state.currentBoardState.id}}
       {{#unless this.app_state.edit_mode}}
         {{! Done with Boards + normal_mode + board_id in flex layout: col1 = Done (2 rows), col2 = normal_mode then board_id }}
@@ -718,7 +723,7 @@
             {{#if this.allow_search}}
               <form id="header_search" {{on "submit" (this.ctrlAction "searchBoards")}}>
                 <div class="header-search-wrap">
-                  <Input aria-label={{t "Search Boards" key="search_boards"}} @type="text" @value={{this.searchString}} @enter={{this.ctrlAction "searchBoards"}} class="form-control header-search-input" placeholder={{t "Search Boards" key="search_boards"}} />
+                  <input aria-label={{t "Search Boards" key="search_boards"}} type="text" value={{this.searchString}} {{on "input" (set-field this "searchString")}} class="form-control header-search-input" placeholder={{t "Search Boards" key="search_boards"}} />
                   <button type="submit" class="header-search-btn" aria-label={{t "Search Boards" key="search_boards"}} title={{t "Search Boards" key="search_boards"}}>
                     <svg class="header-search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                   </button>
@@ -853,26 +858,26 @@
           <button class="btn btn-default" data-toggle="dropdown"><span class="wide">{{t "Grid +/-" key="grid_plus_minus"}}</span><span class="skinny glyphicon glyphicon-th"></span></button>
           <ul class="dropdown-menu skinny_grid" role="menu" aria-labelledby="dLabel">
             <li role="presentation" id="grid_menuitem">
-              <span style="display: block; width: 300px; height: 200px; position: relative;">
-                <span style="position: absolute; top: 0px; left: 0; width: 100%; text-align: center;">
+              <span role="presentation" style="display: block; width: 300px; height: 200px; position: relative;">
+                <span role="presentation" style="position: absolute; top: 0px; left: 0; width: 100%; text-align: center;">
                   <span role="menuitem"><span class="glyphicon glyphicon-chevron-up"></span><span class="sr-only">{{t "Top Row "key="top_row"}}</span></span>
                   <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "modifyGrid" "add" "row" "top")}} class="btn btn-default"><span class="glyphicon glyphicon-plus"></span><span class="sr-only">{{t "Add Top Row" key="add_top_row"}}</span></a>
                   <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "modifyGrid" "remove" "row" "top")}} class="btn btn-default"><span class="glyphicon glyphicon-minus"></span><span class="sr-only">{{t "Remove Top Row" key="remove_top_row"}}</span></a>
                   <span role="menuitem"><span class="glyphicon glyphicon-chevron-up"></span></span>
                 </span>
-                <span style="position: absolute; top: 53px; width: 50%; right: 0; text-align: right; line-height: 45px;">
+                <span role="presentation" style="position: absolute; top: 53px; width: 50%; right: 0; text-align: right; line-height: 45px;">
                   <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "modifyGrid" "add" "column" "right")}} class="btn btn-default"><span class="glyphicon glyphicon-plus"></span><span class="sr-only">{{t "Add Right Column" key="add_right_column"}}</span></a>
                   <span class="glyphicon glyphicon-chevron-right"></span><br>
                   <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "modifyGrid" "remove" "column" "right")}} class="btn btn-default"><span class="glyphicon glyphicon-minus"></span><span class="sr-only">{{t "Remove Right Column" key="remove_right_column"}}</span></a>
                   <span class="glyphicon glyphicon-chevron-right"></span>
                 </span>
-                <span style="position: absolute; top: 53px; width: 50%; left: 0; text-align: left; line-height: 45px;">
+                <span role="presentation" style="position: absolute; top: 53px; width: 50%; left: 0; text-align: left; line-height: 45px;">
                   <span class="glyphicon glyphicon-chevron-left"></span>
                   <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "modifyGrid" "add" "column" "left")}} class="btn btn-default"><span class="glyphicon glyphicon-plus"></span><span class="sr-only">{{t "Add Left Column" key="add_left_column"}}</span></a><br>
                   <span class="glyphicon glyphicon-chevron-left"></span>
                   <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "modifyGrid" "remove" "column" "left")}} class="btn btn-default"><span class="glyphicon glyphicon-minus"></span><span class="sr-only">{{t "Remove Left Column" key="remove_left_column"}}</span></a>
                 </span>
-                <span style="position: absolute; top: 160px; left: 0; width: 100%; text-align: center;">
+                <span role="presentation" style="position: absolute; top: 160px; left: 0; width: 100%; text-align: center;">
                   <span role="menuitem"><span class="glyphicon glyphicon-chevron-down"></span><span class="sr-only">{{t "Bottom Rowx" key="bottom_row"}}</span></span>
                   <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "modifyGrid" "add" "row" "bottom")}} class="btn btn-default"><span class="glyphicon glyphicon-plus"></span><span class="sr-only">{{t "Add Bottom Row" key="add_bottom_row"}}</span></a>
                   <a role="menuitem" tabindex="-1" href="#" {{on "click" (this.ctrlAction "modifyGrid" "remove" "row" "bottom")}} class="btn btn-default"><span class="glyphicon glyphicon-minus"></span><span class="sr-only">{{t "Remove Bottom Row" key="remove_bottom_row"}}</span></a>
@@ -903,10 +908,10 @@
                 <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "preview_levels")}}>{{t "Preview Levels" key="preview_levels"}}</a>
               </li>
             {{/if}}
-            <li role="presentation really_skinny">
+            <li role="presentation" class="really_skinny">
               <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "saveBoard")}}>{{t "Save Board" key="save_board"}}</a>
             </li>
-            <li role="presentation really_skinny">
+            <li role="presentation" class="really_skinny">
               <a role="menuitem" href="#" tabindex="-1" {{on "click" (this.ctrlAction "resetBoard")}}>{{t "Cancel Changes" key="cancel_changes"}}</a>
             </li>
           </ul>
@@ -928,6 +933,11 @@
             <LinkTo @route="user.home" @model={{this.app_state.currentUser.user_name}} class="ll-bento-help-btn ll-bento-help-btn--nav" aria-label={{t "Modern Dashboard" key="modern_dashboard"}} title={{t "Modern Dashboard" key="modern_dashboard"}}>
               <span class="ll-bento-help-btn__label">{{t "Modern Dashboard" key="modern_dashboard"}}</span>
             </LinkTo>
+            {{/if}}
+            {{#if this.isMasquerading}}
+            <button type="button" class="md-pillnav__stop-masquerade" aria-label={{t "Stop Masquerading" key="stop_masquerading"}} title={{t "Stop Masquerading" key="stop_masquerading"}} {{on "click" (this.ctrlAction "stopMasquerading")}}>
+              {{t "Stop Masquerading" key="stop_masquerading"}}
+            </button>
             {{/if}}
             {{#unless this.app_state.currentBoardState.id}}
             <button type="button" class="md-pillnav__upgrade-nav" aria-label={{t "Upgrade" key="upgrade"}} title={{t "Upgrade" key="upgrade"}} {{on "click" (this.ctrlAction "goUpgrade")}}>
@@ -1272,7 +1282,7 @@
                   {{t "Messages" key="messages"}}
                 </LinkTo></li>
               {{/if}}
-              {{#if this.session.as_user_id}}
+              {{#if this.isMasquerading}}
                 <li><a href="#" {{on "click" (this.ctrlAction "stopMasquerading")}}>{{t "Stop Masquerading" key="stop_masquerading"}}</a></li>
               {{/if}}
               {{#unless this.app_state.speak_mode}}
@@ -1306,6 +1316,11 @@
       </span>
       {{/unless}}
       {{else}}
+    {{#if this.isMasquerading}}
+      <button type="button" class="md-pillnav__stop-masquerade" aria-label={{t "Stop Masquerading" key="stop_masquerading"}} title={{t "Stop Masquerading" key="stop_masquerading"}} {{on "click" (this.ctrlAction "stopMasquerading")}}>
+        {{t "Stop Masquerading" key="stop_masquerading"}}
+      </button>
+    {{/if}}
     {{#unless this.app_state.currentBoardState.id}}
     {{#if this.app_state.currentUser}}
       <LinkTo @route="user.subscription" @model={{this.app_state.currentUser.user_name}} class="md-pillnav__upgrade-nav" aria-label={{t "Upgrade" key="upgrade"}} title={{t "Upgrade" key="upgrade"}}>

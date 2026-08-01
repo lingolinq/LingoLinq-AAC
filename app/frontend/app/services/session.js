@@ -130,6 +130,8 @@ export default Service.extend({
   authenticate: function(credentials) {
     var _this = this;
     var res = new RSVP.Promise(function(resolve, reject) {
+      // Guards a one-time login retry after refreshing a stale browser token (client_secret).
+      var browser_token_retried = false;
       var go = function(password) {
         var data = {
           grant_type: 'password',
@@ -176,6 +178,22 @@ export default Service.extend({
           });
           var xhr = data.fakeXHR || {};
           var errorResponse = xhr.responseJSON || data.error || xhr.responseText || data;
+          // Self-heal a stale browser token (client_secret). The server rotates the browser
+          // token and returns a fresh one in the BROWSER_TOKEN header on EVERY response,
+          // including this 400. A tab left open past the token window sends a stale
+          // client_secret, which the server rejects with "Invalid client_secret for client_id"
+          // BEFORE it ever checks the password. Persist the fresh token the server just handed
+          // us (captured onto fakeXHR.browserToken by extras.js) and retry the login once, so a
+          // stale token no longer wedges login until the user manually clears browser storage.
+          var respErrorCode = (errorResponse && errorResponse.error) || '';
+          var freshBrowserToken = xhr.browserToken;
+          if(!browser_token_retried && freshBrowserToken && typeof respErrorCode === 'string' && respErrorCode.match(/client_secret/i)) {
+            browser_token_retried = true;
+            try { _this.persistence.setBrowserToken(freshBrowserToken); } catch(e) { /* best-effort */ }
+            credentials.client_secret = freshBrowserToken;
+            console.log('[session.authenticate] Stale client_secret rejected — refreshed browser token and retrying login once');
+            return go(password);
+          }
           console.log('[session.authenticate] Rejecting with error', errorResponse);
           run(function() {
             reject(errorResponse);
@@ -480,8 +498,18 @@ export default Service.extend({
         window.ga('set', 'userId', store_data.user_id);
         window.ga('send', 'event', 'authentication', 'user-id available');
       }
-      this.set('as_user_id', store_data.as_user_id);
-    } else if(!store_data.access_token && !this._logout_landing) {
+    }
+    // Always sync masquerade fields from stash when a token is present.
+    // Boot calls restore() more than once (instance-initializer + application
+    // route activate + delayed re-restore). The second call used to skip this
+    // once isAuthenticated was already true, leaving session.as_user_id null
+    // so "Stop Masquerading" never rendered — even though auth_settings still
+    // carried as_user_id for API query params.
+    if(store_data.access_token) {
+      this.set('as_user_id', store_data.as_user_id || null);
+      this.set('original_user_name', store_data.original_user_name || null);
+    }
+    if(!store_data.access_token && !this._logout_landing) {
       // (Skipped on a clean logout landing — see `_logout_landing` set in init().
       //  Re-running this "session lost" recovery there would force_logout/invalidate
       //  again → a SECOND full reload, and show a bogus "session data has been lost"

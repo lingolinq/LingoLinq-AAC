@@ -152,7 +152,7 @@
             <span>{{t "Use a custom background for this board" key="add_custom_background"}}</span>
           </label>
           {{#if this.model.background}}
-            <input value={{this.model.background.image}} class="la-edit-board-input" id="background_image_url" placeholder="URL for background" {{on "input" (set-field this "model.background.image")}} />
+            <input value={{this.model.background.image}} class="la-edit-board-input" id="background_image_url" placeholder="URL for background" aria-label={{t "Background image URL" key="background_image_url"}} {{on "input" (set-field this "model.background.image")}} />
             {{#if this.model.background.image}}
               <div class="la-edit-board-bg-preview">
                 <img src={{this.model.background.image}} alt="background preview">
@@ -171,7 +171,7 @@
             </div>
             <div class="la-edit-board-field-row">
               <span {{on "click" (this.ctrlAction "toggle_color" "fill")}} style={{this.bg_style}} class="la-edit-board-color-swatch"></span>
-              <input value={{this.model.background.color}} class="la-edit-board-input" id="background" {{on "input" (set-field this "model.background.color")}} />
+              <input value={{this.model.background.color}} class="la-edit-board-input" id="background" aria-label={{t "Background color" key="background_color"}} {{on "input" (set-field this "model.background.color")}} />
             </div>
           {{/if}}
         </div>

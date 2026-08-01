@@ -131,6 +131,7 @@ function mergeMissingDefaultSidebarBoards(stored, defaults) {
 
 export default Controller.extend({
   appState: service('app-state'),
+  session: service('session'),
   // Ember Data 5.x removed automatic `store` injection into controllers.
   store: service('store'),
   // Alias for template compatibility (template uses this.app_state)

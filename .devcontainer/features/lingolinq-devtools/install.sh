@@ -12,9 +12,9 @@ else
     exit 1
 fi
 
-# Set Node 20 as default
-nvm use 20
-nvm alias default 20
+# Set Node 22 as default (matches /.nvmrc and app/frontend/.nvmrc)
+nvm use 22
+nvm alias default 22
 
 # Install CLIs
 npm install -g @google/generative-ai-cli

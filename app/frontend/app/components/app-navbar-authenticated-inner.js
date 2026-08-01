@@ -58,12 +58,17 @@ export default Component.extend({
       if (event && event.preventDefault) { event.preventDefault(); }
       send('invalidateSession');
     };
+    this.onStopMasquerading = (event) => {
+      if (event && event.preventDefault) { event.preventDefault(); }
+      send('stopMasquerading');
+    };
     this.onToggleDrawer = () => { send('toggleDrawer'); };
     this.onCloseDrawer = () => { send('closeDrawer'); };
     this.onCloseDrawerAndNewBoard = (event) => {
       if (event && event.preventDefault) { event.preventDefault(); }
       send('closeDrawerAndSend', 'newBoard');
     };
+    this.onCloseDrawerAndStopMasquerading = () => { send('closeDrawerAndSend', 'stopMasquerading'); };
     this.onCloseDrawerAndGoUpgrade = () => { send('closeDrawerAndSend', 'goUpgrade'); };
     this.onCloseDrawerAndSupport = () => { send('closeDrawerAndSend', 'support'); };
     this.onCloseDrawerAndOpenBetaFeedback = () => { send('closeDrawerAndSend', 'openBetaFeedback'); };
@@ -143,6 +148,9 @@ export default Component.extend({
     },
     invalidateSession() {
       this.get('application').send('invalidateSession');
+    },
+    stopMasquerading() {
+      this.get('application').send('stopMasquerading');
     },
     updateSearchString(value) {
       this.get('application').set('searchString', value);
