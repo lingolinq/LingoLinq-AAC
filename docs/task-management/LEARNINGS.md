@@ -8012,8 +8012,13 @@ detach is a **silent no-op** that still returns `true`. Meanwhile
 `@cached_extra_data` for any set over 200 buttons. Nothing got uploaded, so that was the only
 copy, and because `generate_defaults` is a `before_save` callback that begins by nilling
 `@cached_extra_data`, the very next save recomputed `button_count = 0` and wrote the record
-empty. This zeroed 1754 of 2061 prod button sets after the Render to GCP migration dropped the
-variable (it was dashboard-only, with no tracked-config representation).
+empty. This zeroed 1754 of 2061 prod button sets. The variable appears in no tracked config
+anywhere in the repo, and does not appear in the 2026-06-30 45-var Render prod env
+accounting either, so its absence is a long-standing misconfiguration of unknown
+vintage rather than a cutover regression. (Do not assume "the migration dropped it"
+without checking the Render side; the 10 prod sets that carry a nonce come from
+`url_for`'s `detach_extra_data('force')` path, which bypasses the env gate at
+`extra_data.rb:28`, and are not evidence the var was ever set.)
 
 **Rule:** never move the only copy of data into a transient stash unless the destination is
 known to be writable. Gate the strip on the same predicate that gates the write. `LogSession`
