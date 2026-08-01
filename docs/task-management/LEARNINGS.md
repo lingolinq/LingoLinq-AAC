@@ -7999,3 +7999,37 @@ After the Ember 5 modal migration, `utils/modal.open` only drives `service:modal
 ## Gotcha: authenticated chrome is AppNavbar, not application.hbs #identity
 
 When `useAppNavbarInHeader` is true (dashboard, org, most user routes), `application.hbs` renders `<AppNavbar>` and **skips** the legacy `#identity` block. Header controls added only under `#identity` in `application.hbs` are invisible on those pages. Put authenticated-nav affordances (e.g. Stop Masquerading next to Upgrade) in `app-navbar-authenticated-inner.hbs` (and the mobile drawer). Ref: [`2026-07-30-org-directory-find-user-masquerade.md`](./2026-07-30-org-directory-find-user-masquerade.md).
+
+## Pattern: a missing env var can turn a storage optimization into silent data destruction
+
+**Surface:** `ExtraData` concern (`app/models/concerns/extra_data.rb`) plus any caller that
+stashes data into `@cached_extra_data` before calling `detach_extra_data`.
+
+**Gotcha:** `extra_data_too_big?` hard-returns false unless `ENV['REMOTE_EXTRA_DATA']` is set,
+and the upload block in `detach_extra_data` is gated on it. With the var unset the entire
+detach is a **silent no-op** that still returns `true`. Meanwhile
+`BoardDownstreamButtonSet#generate_defaults` was stripping `data['buttons']` into the in-memory
+`@cached_extra_data` for any set over 200 buttons. Nothing got uploaded, so that was the only
+copy, and because `generate_defaults` is a `before_save` callback that begins by nilling
+`@cached_extra_data`, the very next save recomputed `button_count = 0` and wrote the record
+empty. This zeroed 1754 of 2061 prod button sets after the Render to GCP migration dropped the
+variable (it was dashboard-only, with no tracked-config representation).
+
+**Rule:** never move the only copy of data into a transient stash unless the destination is
+known to be writable. Gate the strip on the same predicate that gates the write. `LogSession`
+already did this correctly (`extra_data.rb:51-53` keeps events in the DB when upload fails);
+`BoardDownstreamButtonSet` did not, on the reasoning that button sets are regenerable, but
+regeneration hits the identical trap.
+
+**Diagnostic technique that cracked it:** look at the *distribution*, not one record. Every
+prod button set was under the 200-button threshold (`bc_max=194`, `bc_gt200=0`) in a library
+whose root boards legitimately produce 3717-button sets. A hard ceiling exactly at a constant
+in the code is a fingerprint pointing straight at the branch guarded by that constant. One
+broken record looks like corruption; the histogram names the line.
+
+**Also:** `extras:rebuild_button_sets` reported success while writing empty sets, which sent a
+prior triage session chasing S3 KMS and ImageMagick ghosts. A repair task that cannot detect
+its own no-op is worse than no task. It now preflights the storage config and reports roots
+that rebuild to zero.
+
+**First seen in:** `2026-08-01-prod-empty-button-sets.md` (PR #724)
