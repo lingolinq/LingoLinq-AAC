@@ -858,19 +858,20 @@
         "GDPR",
         "FERPA"
       ],
-      "lastReviewed": "2026-07-28",
-      "nextReviewDue": "2027-07-28",
+      "lastReviewed": "2026-07-31",
+      "nextReviewDue": "2027-07-31",
       "attestation": {
         "attestedBy": "Scot Wahlquist, CEO",
-        "attestedDate": "2026-07-28",
-        "attestedContentHash": "0ee1b92ec130e89215383bcb1ae26de7be5ef6f9fcd1b80d6ad9ae6d41152af1",
+        "attestedDate": "2026-07-31",
+        "attestedContentHash": "95bc22359cf363e526ca0221a39b1c6f34c1d4afcd353c4c5b5fc8a4d97e5ae6",
         "priorAttestations": [
           "2026-06-21",
-          "2026-07-23"
+          "2026-07-23",
+          "2026-07-28"
         ],
-        "note": "Re-attested 2026-07-28 by Scot Wahlquist, CEO. v2.2 refresh after the Dominic SEC-002 review and a current code/evidence check: re-homes incident detection and evidence-capture onto the GCP/Cloud Run + Cloud SQL + Bedrock reality (gcloud logging / Cloud Audit Logs / Cloud SQL clone as primary recovery; Render as write-frozen rollback fallback only), corrects the GDPR/HIPAA/COPPA/NY-Ed-Law notification prose, and removes stale OpenAI/Gemini vendor contacts. Prior attestation 2026-07-23."
+        "note": "Re-attested 2026-07-31 by Scot Wahlquist, CEO, as v2.2.1. This is a correction release: a senior review conducted after the 2026-07-28 attestation found three defects in v2.2. (1) The New York Ed Law 2-d row had removed the seven-calendar-day third-party-contractor notification cap and reframed it as a contract term; 8 NYCRR 121.10(b) imposes it by regulation, so it is restored in the section 6 table and added to the section 10.5 tabletop clock list, with the 121.10(b) ten-day Chief-Privacy-Officer clock and the 121.10(e) sixty-day parent clock. (2) The section 4.2 emergency kill list named article_50_disclosure, the EU AI Act Article 50(1) required notice, which is not an AI_FEATURES member; removed with a do-not-disable caveat and comprehensive_eval_ai added. (3) Dialable breach contacts for Anthropic, OpenAI, and Google were restored in section 11. The 2026-07-28 attestation covered hash fbdf49a1; those bytes were corrected on 2026-07-29 and merged in PR #703 without moving the attestation date, which this release fixes. Prior attestations: 2026-07-28, 2026-07-23, 2026-06-21."
       },
-      "contentHash": "0ee1b92ec130e89215383bcb1ae26de7be5ef6f9fcd1b80d6ad9ae6d41152af1",
+      "contentHash": "95bc22359cf363e526ca0221a39b1c6f34c1d4afcd353c4c5b5fc8a4d97e5ae6",
       "bundles": [
         "soc2-evidence",
         "school-dpa-package",
