@@ -335,6 +335,23 @@ end
 # and can produce empty sets. One board at a time is the correct, prod-proven mode
 # (this mirrors the button-set half of extras:fix_prod_setup).
 task "extras:rebuild_button_sets" => :environment do
+  # Preflight. Without REMOTE_EXTRA_DATA the detach-to-S3 path is a no-op, and this
+  # task used to run to "completion" while writing button_count=0 for every set over
+  # 200 buttons (1754 of 2061 prod sets, 2026-08-01). Refuse rather than silently
+  # rebuild the library into empty sets. Set REBUILD_BUTTON_SETS_ALLOW_INLINE=1 to
+  # proceed anyway and store every set inline in Postgres.
+  if !ENV['REMOTE_EXTRA_DATA'] && !ENV['REBUILD_BUTTON_SETS_ALLOW_INLINE']
+    abort <<~MSG
+      REFUSING TO RUN: REMOTE_EXTRA_DATA is not set.
+      Button sets over 200 buttons cannot be persisted to S3 in this environment and
+      would be stored inline in Postgres instead. Set REMOTE_EXTRA_DATA=1 (with working
+      S3 credentials), or set REBUILD_BUTTON_SETS_ALLOW_INLINE=1 to accept inline storage.
+    MSG
+  end
+  if ENV['REMOTE_EXTRA_DATA'] && ENV['UPLOADS_S3_BUCKET'].blank?
+    abort 'REFUSING TO RUN: REMOTE_EXTRA_DATA is set but UPLOADS_S3_BUCKET is empty.'
+  end
+
   # Clear the per-board traversal coordination cache so every root gets a clean rebuild.
   cache_keys = RedisInit.default.keys('traversed/button_set/*')
   cache_keys.each { |k| RedisInit.default.del(k) }
@@ -357,7 +374,7 @@ task "extras:rebuild_button_sets" => :environment do
   end
 
   puts "  Root boards to rebuild: #{root_boards.length}"
-  processed = 0; errored = 0
+  processed = 0; errored = 0; empty = []
   root_boards.each_with_index do |board, i|
     children = (board.settings['immediately_downstream_board_ids'] || []).length
     print "  [#{i + 1}/#{root_boards.length}] #{board.key} (#{children} children)..."
@@ -368,6 +385,9 @@ task "extras:rebuild_button_sets" => :environment do
       cnt = bs && bs.data['button_count']
       inc = bs && (bs.data['included_board_ids'] || []).length
       puts " done (boards=#{inc} buttons=#{cnt})"
+      # A root board with children that rebuilds to zero buttons is a failure, not a
+      # success. Track it so the summary cannot read as green when the library is empty.
+      empty << board.key if cnt.to_i == 0
       processed += 1
     rescue => e
       puts " ERROR: #{e.class}: #{e.message}"
@@ -376,6 +396,12 @@ task "extras:rebuild_button_sets" => :environment do
   end
   puts "\nRebuilt #{processed} root boards (#{errored} errors)."
   puts "Sub-boards reference their root's set via source_id, so the whole tree is covered."
+  if empty.any?
+    puts "\nWARNING: #{empty.length} root board(s) rebuilt to button_count=0:"
+    empty.first(20).each { |k| puts "  #{k}" }
+    puts "  ...and #{empty.length - 20} more" if empty.length > 20
+    puts "This usually means extra-data storage is not persisting. Check REMOTE_EXTRA_DATA and S3 credentials."
+  end
 end
 
 task "extras:reindex_public_boards" => :environment do

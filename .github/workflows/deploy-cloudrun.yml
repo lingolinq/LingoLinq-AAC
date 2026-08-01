@@ -120,7 +120,17 @@ jobs:
       # ARN). Uploader.fronted_url rewrites stored bucket URLs to this domain at serialization
       # time; stable (non-presigned) URLs are required by the Ember offline cache, which is
       # URL-keyed and does not strip X-Amz-* params.
-      APP_ENV_VARS_STATIC: AWS_REGION=us-west-2,SES_REGION=us-west-2,UPLOADS_S3_BUCKET=lingolinq-prod-uploads,STATIC_S3_BUCKET=lingolinq-prod-static,UPLOADS_S3_NO_ACL=1,UPLOADS_S3_CDN=https://d34sa6lc5jfe66.cloudfront.net,SENTRY_ENVIRONMENT=production,RAILS_LOG_TO_STDOUT=true,RAILS_SERVE_STATIC_FILES=true,RUBY_YJIT_ENABLE=1,WEB_CONCURRENCY=2
+      # REMOTE_EXTRA_DATA=1: gates the detach-to-S3 path for BoardDownstreamButtonSet
+      # buttons and LogSession events (ExtraData#extra_data_too_big?). This was a
+      # Render dashboard-only variable with no tracked-config representation, so the
+      # GCP migration dropped it silently. With it unset, BoardDownstreamButtonSet
+      # #generate_defaults still stripped data['buttons'] for any set over 200
+      # buttons while detach_extra_data no-op'd, destroying the set on the next save
+      # -- which zeroed 1754 of 2061 prod button sets (find-a-button and button-set
+      # loading broken library-wide, diagnosed 2026-08-01). The code now degrades to
+      # inline storage when this is unset, but prod wants the remote path: without it
+      # every button set is stored inline in Postgres.
+      APP_ENV_VARS_STATIC: AWS_REGION=us-west-2,SES_REGION=us-west-2,UPLOADS_S3_BUCKET=lingolinq-prod-uploads,STATIC_S3_BUCKET=lingolinq-prod-static,UPLOADS_S3_NO_ACL=1,UPLOADS_S3_CDN=https://d34sa6lc5jfe66.cloudfront.net,REMOTE_EXTRA_DATA=1,SENTRY_ENVIRONMENT=production,RAILS_LOG_TO_STDOUT=true,RAILS_SERVE_STATIC_FILES=true,RUBY_YJIT_ENABLE=1,WEB_CONCURRENCY=2
       # REDIS_TLS_VERIFY_HOSTNAME=false is set on every deploy below: Memorystore is reached by
       # private IP and its server cert is issued for the instance, not the IP, so hostname
       # matching cannot pass. CA-chain verification (VERIFY_PEER against REDIS_CA_CERT) stays on.
