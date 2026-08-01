@@ -59,7 +59,7 @@
           {{/each}}
           {{#if this.custom_phrase}}
             <div class='la-batch-recording-list-item la-batch-recording-list-item--input'>
-              <Input @insert-newline={{this.ctrlAction "confirm_add_phrase"}} @escape-press={{this.ctrlAction "cancel_add_phrase"}} id="custom_phrase_text" @type="text" class="la-batch-recording-input" @value={{this.custom_phrase.text}} placeholder={{t "Type a phrase" key="type_a_phrase"}} />
+              <input id="custom_phrase_text" type="text" class="la-batch-recording-input" value={{this.custom_phrase.text}} {{on "input" (set-field this "custom_phrase.text")}} {{on-enter (this.ctrlAction "confirm_add_phrase")}} {{on-escape (this.ctrlAction "cancel_add_phrase")}} placeholder={{t "Type a phrase" key="type_a_phrase"}} aria-label={{t "Type a phrase" key="type_a_phrase"}} />
               <button class='la-batch-recording-add-btn' {{on "click" (this.ctrlAction "confirm_add_phrase")}}>{{t "Add" key="add"}}</button>
             </div>
           {{else}}

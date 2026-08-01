@@ -67,4 +67,15 @@ describe('Organization', function() {
       expect(o.get('processed_org_subscriptions')).toEqual([]);
     });
   });
+
+  describe("external_ai_processing", function() {
+    it("should expose the external_ai_processing attr", function() {
+      var o = LingoLinq.store.createRecord('organization');
+      expect(o.get('external_ai_processing')).toEqual(undefined);
+      o.set('external_ai_processing', false);
+      expect(o.get('external_ai_processing')).toEqual(false);
+      o.set('external_ai_processing', true);
+      expect(o.get('external_ai_processing')).toEqual(true);
+    });
+  });
 });

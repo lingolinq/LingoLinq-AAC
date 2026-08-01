@@ -1,6 +1,6 @@
 # LingoLinq AAC AI Governance Memo
 
-> **ATTESTED 2026-06-19; RE-ATTESTED 2026-07-19 by Scot Wahlquist, CEO.** Phase 3 deliverable. This memo documents how
+> **ATTESTED 2026-06-19; RE-ATTESTED 2026-07-27 by Scot Wahlquist, CEO.** Phase 3 deliverable. This memo documents how
 > LingoLinq uses AI models, the controls that keep identifiable data out of external models, and
 > the EU AI Act classification analysis. It is a living document; model ids and code citations are
 > point-in-time and were re-verified against live code on 2026-06-19 prior to original attestation
@@ -15,7 +15,7 @@
 > Draft date: 2026-06-13. Refreshed 2026-06-18 (eval narration added to the inventory after
 > #411/#412/#413; DeepSeek-on-compliance-surface discrepancy flagged in section 4). Re-verified
 > and attested 2026-06-19. Refreshed 2026-07-12 (section 4.1 discrepancy resolved via Scot's
-> ratified two-tier AI data-routing policy). Re-attested 2026-07-13. Refreshed 2026-07-18/19 (Anthropic HIPAA-Ready BAA recorded; section 3 HIPAA conclusion for the model-call path updated to BAA-covered; eval narration classified NOT a Healthcare Activity; model inventory updated). Re-attested 2026-07-19. Operative reference: NIST AI RMF plus the Generative AI Profile
+> ratified two-tier AI data-routing policy). Re-attested 2026-07-13. Refreshed 2026-07-18/19 (Anthropic HIPAA-Ready BAA recorded; section 3 HIPAA conclusion for the model-call path updated to BAA-covered; eval narration classified NOT a Healthcare Activity; model inventory updated). Re-attested 2026-07-19. Refreshed 2026-07-22 (Art50 Phase 5: section 5.2 rewritten to record that the 50(1) disclosure modal, ack endpoint, and first-AI-use gate are built and staged, gated OFF behind the `article_50_disclosure` flag registered AVAILABLE-only; Phase 4 jurisdiction stamping shipped and un-inerts the EU log-retention purge; retention tiers reconciled). Re-attested 2026-07-22 by Scot Wahlquist, CEO (see section 8, 2026-07-22 amendment). Operative reference: NIST AI RMF plus the Generative AI Profile
 > (NIST AI 600-1). ISO 42001 certification is not yet a small-vendor expectation and is out of
 > scope for now.
 >
@@ -121,12 +121,15 @@ The governing rule is simple and enforced in code, not just in policy:
   Determination, and under GDPR/UK-GDPR pseudonymized data is still personal data. So the scrubber
   is retained as the GDPR data-minimization control and defense-in-depth, not as the HIPAA legal
   basis (which is now the BAA).
-- **Coverage boundaries.** The AWS BAA on file (2026-02) covers AWS **infrastructure** (S3, KMS,
-  RDS), not model-provider egress; the Google Cloud BAA (2026-07-12) likewise covers Google
-  **infrastructure**, not a model-provider egress path. **Google (Gemini) as a model provider has
-  no BAA**, but its runtime fallback was disabled 2026-07-09 (no AI inference reaches Google today);
-  if it is ever reactivated, a covered-service / BAA check is required first (see section 7,
-  `rev-gemini-baa-annual`). No un-BAA'd model-provider egress path is live.
+- **Coverage boundaries.** The AWS BAA on file (2026-02) covers HIPAA-eligible AWS services in use
+  under account 2390-4478-5114, including S3/KMS/RDS **and Amazon Bedrock** (the active runtime AI
+  route as of 2026-07-24; Fable/Mythos excluded). It does **not** by itself cover a *direct*
+  third-party model endpoint outside AWS (e.g. `api.anthropic.com`); that direct path is covered by
+  the Anthropic HIPAA-Ready BAA when used, and is unused at runtime today. The Google Cloud BAA
+  (2026-07-12) covers Google **infrastructure**, not a model-provider egress path. **Google (Gemini)
+  as a model provider has no BAA**, but its runtime fallback was disabled 2026-07-09 (no AI inference
+  reaches Google today); if it is ever reactivated, a covered-service / BAA check is required first
+  (see section 7, `rev-gemini-baa-annual`). No un-BAA'd model-provider egress path is live.
 - **`AiApiLog`** records external model calls for audit. **`AuditEvent`** records privileged
   console access.
 
@@ -238,30 +241,40 @@ immediately, with no grace. LingoLinq has no EU deployment today, so its first E
 so no grace is needed for them.
 
 **Article 50(1) -- disclosure of AI interaction:**
-- Board generation and word prediction may implicate 50(1) (disclose that the feature is AI). The
-  remaining deliverable is the **EU-gated AI-interaction disclosure modal** shown before first AI
-  generation. It is **not yet built** (no `article_50_disclosure_modal` feature flag; no modal
-  component), and it sits on the COPPA "VPC" (Verifiable Parental Consent) consent track -- **not**
-  the Render-to-GCP migration (that conflation was corrected in the 2026-06-30 decoupling brief).
-- **Deferral is ratified and bounded.** Per the 2026-07-09 fallback memo, best-effort by
-  2026-08-02 with a slip measured in days-to-weeks is accepted **because prod carries no real EU
-  users** (internal/test accounts only). The deferral is withdrawn the instant a real EU customer
-  onboards, at which point the modal moves to unconditional priority.
+- Board generation and word prediction implicate 50(1) (disclose that the feature is AI). The
+  deliverable is the **EU-gated AI-interaction disclosure modal** shown before first AI generation.
+  It is **built and staged, gated OFF**, not yet enabled for any user. Shipped to `staging`:
+  the shared, accessible modal component (`app/frontend/app/components/ai-disclosure.{hbs,js}`), the
+  acknowledgement endpoint (`POST .../article_50_disclosure_ack` -> `users#article_50_disclosure_ack`,
+  `User#mark_article_50_disclosure_shown!`), and the shared first-AI-use gate
+  (`app/frontend/app/utils/article50_gate.js`) wired at the board-generation and eval-narration call
+  sites (PR #646, Phase 3). The gate reads a single input,
+  `appState.feature_flags.article_50_disclosure`; that flag is registered in
+  `AVAILABLE_FRONTEND_FEATURES` only (Phase 5, RLL-01), so it is **OFF for everyone by default and the
+  whole path is inert** until the flag is enabled. Note the delivered flag name is
+  `article_50_disclosure` (the earlier plan named it `article_50_disclosure_modal`).
+- **Enabling the flag is the hard 2026-08-02 release gate**, done on Scot's explicit sign-off and only
+  after the production deploy of Phases 3-5. Enabling is NOT part of this documentation change.
+- **The interim deferral is ratified and bounded.** Per the 2026-07-09 fallback memo, keeping the flag
+  OFF short of 2026-08-02 is accepted **because prod carries no real EU users** (internal/test accounts
+  only). The deferral is withdrawn the instant a real EU customer onboards, at which point enabling the
+  flag moves to unconditional priority.
 
-**Ownership -- the 50(1) modal is VPC-owned (single owner).** Build and delivery of the Article
-50(1) disclosure modal belong to the **VPC (Verifiable Parental Consent) GSD project** as a phase
-on that track, not to any standalone Article 50 effort or compliance-doc thread. Rationale: the
-modal's linchpin dependency -- a shared call-context helper that stamps `jurisdiction:` at the
-three AI call sites (board generation, word prediction, eval narration) -- **is VPC Phase 4**, and
-that same helper un-inerts the currently-dormant EU log-retention purge
-(`AiApiLog.purge_old_eu_logs!`, which today matches zero rows because nothing stamps jurisdiction).
-Two efforts editing the same call sites would collide. Boundary rules: **(1)** only the VPC track
-edits the three AI call sites, the `article_50_disclosure_modal` flag, and the 50(1) paragraph of
-this section; **(2)** this section 5.2 is the shared contract -- any Article 50 thread reads it
-first and updates it last; **(3)** when the modal ships, the "not yet built / deferred" wording
-above is rewritten by the shipping thread and re-attested per section 6. Compliance-posture
-documentation (this memo, the calendar) remains a separate, non-code workstream and never edits
-the call sites.
+**Ownership -- the 50(1) modal originated on the VPC track.** Build and delivery of the Article
+50(1) disclosure modal belonged to the **VPC (Verifiable Parental Consent) GSD project** as a phase
+on that track, not to any standalone Article 50 effort or compliance-doc thread. Its linchpin
+dependency -- a shared call-context helper (`LingoLinq::Article50CallContext.for`) that stamps
+`jurisdiction:` at the three AI call sites (board generation, word prediction, eval narration) --
+**shipped as Phase 4 (PR #635)**, and that same helper **un-inerts the EU log-retention purge**
+(`AiApiLog.purge_old_eu_logs!`), which now matches `jurisdiction = 'EU'` rows wherever Phase 4 is
+deployed (staged; effective in production after the Phase 4/5 prod deploy). Boundary rules that
+remain in force: **(1)** only the code track edits the three AI call sites, the
+`article_50_disclosure` flag, and the 50(1) paragraph of this section; **(2)** this section 5.2 is the
+shared contract -- any Article 50 thread reads it first and updates it last; **(3)** this section was
+re-written by the Phase 5 shipping thread on modal delivery and awaits Scot's re-attestation per
+section 6.
+Compliance-posture documentation (this memo, the calendar) remains a separate, non-code workstream
+and never edits the call sites.
 
 Tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`,
 `fix-euaiact-art50-2-2026-12-02`).
@@ -314,7 +327,7 @@ Tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`,
 | Reviewed by | adversary agent |
 | Attested by | **Scot Wahlquist, CEO** |
 | Original attestation date | **2026-06-19** |
-| Latest re-attestation date | **2026-07-19** |
+| Latest re-attestation date | **2026-07-24** |
 
 _Phase 3 deliverable of the Audit/Compliance System Modernization (plan section 6, sections 1.3
 and 1.8). Model ids and code citations were re-verified against live code on 2026-06-19 prior to
@@ -380,3 +393,46 @@ updated accordingly. This is a **substantive** change to the attested HIPAA anal
 (AI drafts and flags, humans attest and accept risk), Scot reviewed and re-attested it on
 2026-07-19. Code, BAA, and classification citations were verified against `origin/staging` (PRs
 #631 and #632 merged 2026-07-19) and the live Anthropic API._
+
+_Amended 2026-07-22, re-attested 2026-07-22 by Scot Wahlquist, CEO: **EU AI Act Article 50 Phase 5
+refresh.** Section 5.2 was rewritten to record that the Art. 50(1) user-facing AI-interaction
+disclosure modal, its acknowledgement endpoint, and the first-AI-use gate are **built and staged
+but gated OFF** behind the `article_50_disclosure` frontend flag, which is registered in
+`AVAILABLE_FRONTEND_FEATURES` only (not enabled for any user); the modal is therefore shown to no
+one in production, and enabling it for EU accounts is the 2026-08-02 release gate on the CEO's
+explicit sign-off after the production deploy. Phase 4 jurisdiction stamping (`Article50CallContext`
+stamps `jurisdiction = 'EU'` at the three AI call sites, merged to staging) un-inerts the EU
+`AiApiLog` 5-year retention purge (`purge_old_eu_logs!`) wherever Phase 4 is deployed. The
+`AiApiLog` retention tiers were reconciled to a single wording across the memo, `DATA_RETENTION.md`,
+`AI_DATA_FLOW_CLASSIFICATION.md`, and `scheduler.rake` (EU 5-year and 90-day IP redaction enforced;
+children 12-month and general 24-month **decided, not yet enforced** pending a per-row
+retention-class marker; HIPAA 6-year floor open). No new external data egress or model routing is
+introduced. This is a **substantive** change to the attested Article 50 position; per section 6 (AI
+drafts and flags, humans attest and accept risk), Scot reviewed and re-attested it on 2026-07-22.
+Nothing in this refresh goes live in production until Phases 3-5 deploy and the flag is enabled._
+
+## Runtime routing update - 2026-07-24 (re-attested 2026-07-24)
+
+_Runtime AI egress moved from the direct `api.anthropic.com` endpoint to **Claude on AWS Bedrock**
+(`lib/ai_client.rb`, the Bedrock Mantle Messages API). This is a routing change, not a change of
+model provider or model: the same Anthropic models (Claude Haiku 4.5, Claude Opus 4.7) are used._
+
+- **Governing BAA for runtime egress is now the AWS account BAA** (`docs/legal/AWS_BAA_ACCEPTED.md`),
+  because Amazon Bedrock is a HIPAA-eligible AWS service (excluding Fable/Mythos) and inference stays
+  inside AWS's HIPAA boundary. The executed Anthropic HIPAA-Ready BAA (2026-07-18,
+  `docs/legal/ANTHROPIC_BAA_ACCEPTED.md`) remains on file as a still-available direct path but is no
+  longer the active runtime route.
+- The **runtime inventory table above is superseded for routing/credential detail**: runtime seams no
+  longer require `ANTHROPIC_API_KEY` and no longer construct a direct Anthropic client (enforced by
+  `scripts/ai-endpoint-guard.sh` in CI); model ids egress in Bedrock form
+  (`anthropic.claude-haiku-4-5`, `anthropic.claude-opus-4-7`). The scrub / allowlist / COPPA / opt-out
+  / AiApiLog controls in that table are unchanged.
+- Operative condition: Bedrock calls must run under the BAA'd AWS account (2390-4478-5114).
+- Section 3's older "AWS BAA covers infrastructure only, not model-provider egress" wording is
+  superseded for the **active** runtime path by this Bedrock routing: Bedrock inference is an
+  in-AWS HIPAA-eligible service under the account BAA. That older wording still correctly describes
+  the *direct* third-party Anthropic endpoint (now unused at runtime; covered by the Anthropic BAA
+  if re-enabled) and any non-AWS model provider.
+
+_Re-attested 2026-07-24 by Scot Wahlquist, CEO (Bedrock runtime routing). Prose corrected 2026-07-27
+to remove a contradictory "re-attestation owed" banner left in the bytes that attestation covered._

@@ -4,8 +4,6 @@ describe BetaSeed do
   describe '.ensure_baseline!' do
     it 'creates beta baseline users, admin access, and lingolinq starter boards' do
       allow(SystemBoardSources).to receive(:ensure_crisis_vocabulary!).and_return(nil)
-      # Avoid live S3 OBZ fetch + Typhoeus upload (ethon/libcurl can segfault in CI).
-      allow(SystemBoardSources).to receive(:ensure_senner_baud!).and_return(nil)
 
       described_class.ensure_baseline!
 
@@ -28,7 +26,6 @@ describe BetaSeed do
   describe '.verify_beta_seed' do
     it 'returns no baseline misses after required templates are present' do
       allow(SystemBoardSources).to receive(:ensure_crisis_vocabulary!).and_return(nil)
-      allow(SystemBoardSources).to receive(:ensure_senner_baud!).and_return(nil)
       described_class.ensure_baseline!
 
       UserIntegration.create!(template: true, integration_key: 'core_word_list', settings: {})
@@ -46,7 +43,6 @@ describe BetaSeed do
 
     it 'reports missing signup library boards when required' do
       allow(SystemBoardSources).to receive(:ensure_crisis_vocabulary!).and_return(nil)
-      allow(SystemBoardSources).to receive(:ensure_senner_baud!).and_return(nil)
       described_class.ensure_baseline!
 
       missing = described_class.verify_beta_seed(require_library_boards: true)
@@ -153,7 +149,6 @@ describe BetaSeed do
 
     it 'deletes and re-seeds when pre-flight checks pass' do
       allow(SystemBoardSources).to receive(:ensure_crisis_vocabulary!).and_return(nil)
-      allow(SystemBoardSources).to receive(:ensure_senner_baud!).and_return(nil)
       owner = User.create(user_name: 'lingolinq')
       Board.process_new({name: 'Old', public: true}, {user: owner, key: 'old-lib'})
 

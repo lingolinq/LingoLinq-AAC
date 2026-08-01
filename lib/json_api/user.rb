@@ -494,6 +494,12 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
     json['eu_under_16'] = true if user.eu_under_16?
     json['eu_ai_parental_consent_pending'] = true if user.eu_ai_parental_consent_pending?
     json['eu_ai_parental_consent_active'] = true if user.eu_ai_parental_consent_active?
+    # Compliance Kernel profile (self / detailed view only when flag ON).
+    if FeatureFlags.compliance_workflow_kernel_enabled? &&
+       json['permissions'] && json['permissions']['model']
+      profile = user.compliance_profile
+      json['compliance'] = profile.to_h if profile
+    end
     # EU AI Act Article 50(1) disclosure gate + acknowledgement state (Phase 3, F1/F2).
     # SELF ONLY. Scoped to permissions['model'] for two independent reasons:
     #

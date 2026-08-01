@@ -1,14 +1,17 @@
 # frozen_string_literal: true
 
 require_relative 'pii_scrubber'
+require_relative 'ai_client'
 require_relative 'lingo_linq/article50_call_context'
 
 module AiWordPredictor
-  # Use fast/cheap models -- predictions need to feel instant
-  DEFAULT_ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001'
+  # Use fast/cheap models -- predictions need to feel instant. Bedrock model id
+  # (anthropic. prefix, bare alias) -- routes via AWS Bedrock, see AiClient.
+  DEFAULT_ANTHROPIC_MODEL = 'anthropic.claude-haiku-4-5'
   # GEMINI_API_KEY fallback disabled 2026-07-09 -- see docs/legal/AI_DATA_SHARING_CONSENT.md
   # section 2.2 (Gemini Developer/AI-Studio endpoint, data-handling terms not adequate for child
-  # data). A Vertex AI fallback may replace this.
+  # data). Runtime AI now egresses to Claude on AWS Bedrock (BAA/HIPAA path), not the direct
+  # api.anthropic.com endpoint -- there is no direct-Anthropic fallback.
 
   # In-memory LRU cache: { "context_key" => { words: [...], ts: Time } }
   CACHE = {}
@@ -159,19 +162,17 @@ module AiWordPredictor
     end
 
     def resolve_api_config
-      anthropic_key = ENV['ANTHROPIC_API_KEY'].to_s.strip
-      return nil if anthropic_key.blank?
+      return nil unless AiClient.configured?
 
       {
         provider: :claude,
-        api_key: anthropic_key,
-        model: ENV.fetch('ANTHROPIC_MODEL', DEFAULT_ANTHROPIC_MODEL)
+        region: AiClient.bedrock_region,
+        model: AiClient.bedrock_model(ENV.fetch('ANTHROPIC_MODEL', DEFAULT_ANTHROPIC_MODEL))
       }
     end
 
     def call_anthropic(config, sentence, locale, count, context)
-      require 'anthropic'
-      client = Anthropic::Client.new(api_key: config[:api_key])
+      client = AiClient.build
       client.messages.create(
         model: config[:model],
         max_tokens: 60,

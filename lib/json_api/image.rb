@@ -21,6 +21,19 @@ module JsonApi::Image
       fb = settings['fallback'] || {}
       json['fallback_url'] = Uploader.fronted_url(fb['url'])
     elsif settings && protected_source && !allowed_sources.include?(settings['protected_source'])
+      # A protected image is served to the viewer ONLY if its source is in their
+      # allowed list; otherwise they get the unlicensed fallback.
+      #
+      # NOTE: a BLANK `protected_source` must keep falling back. Records exist with
+      # `protected => true` and no recorded source, and the rest of the codebase
+      # treats those as lessonpix (Board#track_protected_sources does
+      # `settings['protected_source'] || 'lessonpix'`), so exempting them here would
+      # hand a gated library symbol to a viewer with no subscription. This was
+      # briefly relaxed to `protected_source.present?` on the theory that a user's
+      # own upload is protected-with-a-blank-source — it is not: `generate_defaults`
+      # gives an upload a 'private' LICENSE but never sets `settings['protected']`,
+      # so `protected?` is false for uploads and they never reach this branch at all.
+      # See the specs directly below, which pin both halves of that.
       settings = settings['fallback'] || {}
       json['url'] = Uploader.fronted_url(settings['url'])
       json['fallback'] = true

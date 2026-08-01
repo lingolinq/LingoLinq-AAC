@@ -62,21 +62,25 @@ describe EvalNarrator do
     end
 
     describe '.allowed_model?' do
-      it 'accepts only the exact vetted in-scope model IDs' do
-        expect(described_class.allowed_model?('claude-opus-4-7')).to eq(true)
-        expect(described_class.allowed_model?('claude-haiku-4-5-20251001')).to eq(true)
+      it 'accepts only the exact vetted in-scope Bedrock model IDs' do
+        expect(described_class.allowed_model?('anthropic.claude-opus-4-7')).to eq(true)
+        expect(described_class.allowed_model?('anthropic.claude-haiku-4-5')).to eq(true)
       end
 
       it 'refuses an unknown / future id even within an in-scope family (exact-ID, not prefix)' do
-        expect(described_class.allowed_model?('claude-opus-4-8-experimental')).to eq(false)
-        expect(described_class.allowed_model?('claude-opus-5')).to eq(false)
-        expect(described_class.allowed_model?('claude-haiku-4-5')).to eq(false)
-        expect(described_class.allowed_model?('claude-sonnet-4-6')).to eq(false)
+        expect(described_class.allowed_model?('anthropic.claude-opus-4-8-experimental')).to eq(false)
+        expect(described_class.allowed_model?('anthropic.claude-opus-5')).to eq(false)
+        expect(described_class.allowed_model?('anthropic.claude-sonnet-4-6')).to eq(false)
+      end
+
+      it 'refuses direct-Anthropic (non-Bedrock) id forms that do not egress on the Bedrock route' do
+        expect(described_class.allowed_model?('claude-opus-4-7')).to eq(false)
+        expect(described_class.allowed_model?('claude-haiku-4-5-20251001')).to eq(false)
       end
 
       it 'rejects Covered Models (Fable / Mythos), unknown, and non-string ids' do
-        expect(described_class.allowed_model?('claude-fable-5')).to eq(false)
-        expect(described_class.allowed_model?('claude-mythos-5')).to eq(false)
+        expect(described_class.allowed_model?('anthropic.claude-fable-5')).to eq(false)
+        expect(described_class.allowed_model?('anthropic.claude-mythos-5')).to eq(false)
         expect(described_class.allowed_model?('gpt-5.5')).to eq(false)
         expect(described_class.allowed_model?('')).to eq(false)
         expect(described_class.allowed_model?(nil)).to eq(false)
@@ -90,19 +94,19 @@ describe EvalNarrator do
       end
 
       it 'returns an allowed override unchanged' do
-        ENV['EVAL_NARRATOR_MODEL'] = 'claude-haiku-4-5-20251001'
-        expect(described_class.resolved_model).to eq('claude-haiku-4-5-20251001')
+        ENV['EVAL_NARRATOR_MODEL'] = 'anthropic.claude-haiku-4-5'
+        expect(described_class.resolved_model).to eq('anthropic.claude-haiku-4-5')
       end
 
       it 'raises (fails closed) on a disallowed override' do
-        ENV['EVAL_NARRATOR_MODEL'] = 'claude-fable-5'
+        ENV['EVAL_NARRATOR_MODEL'] = 'anthropic.claude-fable-5'
         expect { described_class.resolved_model }
           .to raise_error(EvalNarrator::NarrationError, /not a vetted in-scope Claude model/)
       end
     end
 
     it 'falls back to the deterministic template (no egress) when the override is disallowed' do
-      ENV['EVAL_NARRATOR_MODEL'] = 'claude-fable-5'
+      ENV['EVAL_NARRATOR_MODEL'] = 'anthropic.claude-fable-5'
       u = User.new(settings: {})
       allow(FeatureFlags).to receive(:coppa_blocks_ai_for?).with(u).and_return(false)
       allow(FeatureFlags).to receive(:ai_enabled_for?).with(u).and_return(true)
@@ -183,11 +187,19 @@ describe EvalNarrator do
     end
 
     around(:each) do |example|
-      old = ENV['ANTHROPIC_API_KEY']
-      ENV['ANTHROPIC_API_KEY'] = 'test-anthropic-key'
+      # Runtime AI routes via AWS Bedrock (AiClient); enable it with the dedicated
+      # Bedrock AWS creds rather than a direct ANTHROPIC_API_KEY.
+      old_region = ENV['BEDROCK_AWS_REGION']
+      old_key = ENV['BEDROCK_AWS_KEY']
+      old_secret = ENV['BEDROCK_AWS_SECRET']
+      ENV['BEDROCK_AWS_REGION'] = 'us-west-2'
+      ENV['BEDROCK_AWS_KEY'] = 'test-bedrock-key'
+      ENV['BEDROCK_AWS_SECRET'] = 'test-bedrock-secret'
       example.run
     ensure
-      ENV['ANTHROPIC_API_KEY'] = old
+      ENV['BEDROCK_AWS_REGION'] = old_region
+      ENV['BEDROCK_AWS_KEY'] = old_key
+      ENV['BEDROCK_AWS_SECRET'] = old_secret
     end
 
     before do
@@ -348,11 +360,19 @@ describe EvalNarrator do
 
   describe '.draft_narrative Article 50 jurisdiction + disclosure stamping' do
     around(:each) do |example|
-      old = ENV['ANTHROPIC_API_KEY']
-      ENV['ANTHROPIC_API_KEY'] = 'test-anthropic-key'
+      # Runtime AI routes via AWS Bedrock (AiClient); enable it with the dedicated
+      # Bedrock AWS creds rather than a direct ANTHROPIC_API_KEY.
+      old_region = ENV['BEDROCK_AWS_REGION']
+      old_key = ENV['BEDROCK_AWS_KEY']
+      old_secret = ENV['BEDROCK_AWS_SECRET']
+      ENV['BEDROCK_AWS_REGION'] = 'us-west-2'
+      ENV['BEDROCK_AWS_KEY'] = 'test-bedrock-key'
+      ENV['BEDROCK_AWS_SECRET'] = 'test-bedrock-secret'
       example.run
     ensure
-      ENV['ANTHROPIC_API_KEY'] = old
+      ENV['BEDROCK_AWS_REGION'] = old_region
+      ENV['BEDROCK_AWS_KEY'] = old_key
+      ENV['BEDROCK_AWS_SECRET'] = old_secret
     end
 
     before do

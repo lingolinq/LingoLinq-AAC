@@ -23,7 +23,7 @@ export default Route.extend({
     controller.set('registration_role', '');
     controller.set('birth_month', '');
     controller.set('birth_year', '');
-controller.set('registration_country', '');
+    controller.set('registration_country', '');
     controller.set('productImprovementOptIn', false);
     controller.set('coppa_age_group', null);
     controller.set('parent_consent_email', '');
@@ -47,11 +47,20 @@ controller.set('registration_country', '');
       controller.set('triedToSave', true);
       if(!user.get('terms_agree')) { return; }
       if(!_this.persistence.get('online')) { return; }
-if(controller.get('badEmail') || controller.get('passwordMismatch') || controller.get('shortPassword') || controller.get('userNameMissing') || controller.get('noSpacesName') || controller.get('userNameUnavailable') || controller.get('coppaBlocksSave') || controller.get('roleIncomplete') || controller.get('countryMissing')) {
+      if(controller.get('badEmail') || controller.get('passwordMismatch') || controller.get('shortPassword') || controller.get('userNameMissing') || controller.get('noSpacesName') || controller.get('userNameUnavailable') || controller.get('coppaBlocksSave') || controller.get('roleIncomplete') || controller.get('countryMissing')) {
         return;
       }
       var country = (controller.get('registration_country') || '').trim().toUpperCase();
       user.set('country', country || null);
+      // Compliance Kernel: send birth month/year + jurisdiction when flag ON.
+      // Server ignores these when the flag is OFF.
+      if(controller.get('appState.feature_flags.compliance_workflow_kernel')) {
+        var bm = parseInt(controller.get('birth_month'), 10);
+        var by = parseInt(controller.get('birth_year'), 10);
+        if(bm >= 1 && bm <= 12) { user.set('birth_month', bm); }
+        if(by >= 1900) { user.set('birth_year', by); }
+        user.set('jurisdiction_declaration', country || null);
+      }
       var isCommunicator = user.get('preferences.registration_type') === 'communicator';
       if(isCommunicator) {
         user.set('under_16', !!controller._classifyUnder16());
@@ -66,7 +75,7 @@ if(controller.get('badEmail') || controller.get('passwordMismatch') || controlle
         user.set('parent_consent_email', null);
       }
       controller.set('registering', {saving: true});
-// EU under-16: never opt into product-improvement / telemetry at signup.
+      // EU under-16: never opt into product-improvement / telemetry at signup.
       var productImprovementOptIn = !!controller.get('productImprovementOptIn') && !controller.get('euUnder16Registration');
       user.set('preferences.cookies', productImprovementOptIn);
       user.set('preferences.telemetry_opt_in', productImprovementOptIn);

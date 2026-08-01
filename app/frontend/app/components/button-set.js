@@ -234,6 +234,11 @@ export default Component.extend({
             }
           }).then(function(data) {
             if (_this.isDestroyed || _this.isDestroying) { resolve(); return; }
+            if (data && data.external_ai_processing === false) {
+              _this.set('translating', { done: true, not_enabled: true });
+              resolve(data);
+              return;
+            }
             var trans = _this.get('translations');
             for (var key in (data && data.translations) || {}) {
               if (data.translations[key] && data.translations[key] !== key) {
@@ -251,7 +256,11 @@ export default Component.extend({
 
     RSVP.all_wait(promises).then(function() {
       if (_this.isDestroyed || _this.isDestroying) { return; }
-      _this.set('translating', { done: true });
+      if (_this.get('translating.not_enabled')) {
+        _this.set('translating', { done: true, not_enabled: true });
+      } else {
+        _this.set('translating', { done: true });
+      }
     }, function() {
       if (_this.isDestroyed || _this.isDestroying) { return; }
       _this.set('translating', { error: true });

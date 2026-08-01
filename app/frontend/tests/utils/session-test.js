@@ -228,7 +228,31 @@ describe('session', function() {
       expect(res).toEqual({user_name: 'cheddar', access_token: '12345'});
       expect(session.get('isAuthenticated')).toEqual(true);
       expect(session.get('access_token')).toEqual('12345');
-      expect(session.get('as_user_id')).toEqual(undefined);
+      expect(session.get('as_user_id')).toEqual(null);
+    });
+
+    it("should sync as_user_id on a second restore when already authenticated", function() {
+      var call = 0;
+      stub(stashesTarget(), 'get_object', function(key, extra) {
+        if(extra && key == 'auth_settings') {
+          call++;
+          if(call === 1) {
+            return {user_name: 'admin', access_token: '12345'};
+          }
+          return {
+            user_name: 'communicator',
+            access_token: '12345',
+            as_user_id: '1_99',
+            original_user_name: 'admin'
+          };
+        }
+      });
+      session.restore();
+      expect(session.get('isAuthenticated')).toEqual(true);
+      expect(session.get('as_user_id')).toEqual(null);
+      session.restore();
+      expect(session.get('as_user_id')).toEqual('1_99');
+      expect(session.get('original_user_name')).toEqual('admin');
     });
 
     it("should confirm token validity if specified", function() {

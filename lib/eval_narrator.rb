@@ -1,4 +1,5 @@
 require 'json'
+require_relative 'ai_client'
 require_relative 'pii_scrubber'
 # Art50Marker is require_relative'd (not autoloaded) so it is defined even on the
 # Resque-worker path where lib/ autoload is skipped, matching lib/ai_board_generator.rb.
@@ -56,13 +57,17 @@ module EvalNarrator
   # id are refused by construction. Enforced best-effort at boot
   # (config/initializers/eval_narrator_model_allowlist.rb) and authoritatively,
   # fail-closed, at call time. See docs/legal/ANTHROPIC_BAA_ACCEPTED.md.
-  DEFAULT_MODEL = 'claude-opus-4-7'.freeze
+  # IDs are Bedrock model ids (anthropic. prefix, bare alias): runtime AI egresses
+  # to Claude on AWS Bedrock (BAA/HIPAA path) via AiClient, not the direct
+  # api.anthropic.com endpoint. The vetted models are unchanged (Opus 4.7, Haiku
+  # 4.5); only the id string form is the Bedrock one that actually egresses.
+  DEFAULT_MODEL = 'anthropic.claude-opus-4-7'.freeze
   # Exact, vetted in-scope runtime model IDs (the current Tier 1 runtime
-  # inventory). Extend ONLY after confirming a model is HIPAA-eligible and is not
-  # a mandatory-retention Covered Model.
+  # inventory), in Bedrock id form. Extend ONLY after confirming a model is
+  # HIPAA-eligible and is not a mandatory-retention Covered Model.
   ALLOWED_MODELS = %w[
-    claude-opus-4-7
-    claude-haiku-4-5-20251001
+    anthropic.claude-opus-4-7
+    anthropic.claude-haiku-4-5
   ].freeze
 
   # True only when `model` is one of the exact vetted in-scope model IDs. Any
@@ -231,10 +236,10 @@ module EvalNarrator
     [narrative, marker]
   end
 
-  # Official anthropic gem (~> 1.23) call. Isolated so specs can stub the
-  # network boundary, matching AiWordPredictor / AiBoardGenerator.
+  # Claude-on-AWS-Bedrock call (Mantle client via AiClient). Isolated so specs can
+  # stub the network boundary, matching AiWordPredictor / AiBoardGenerator.
   def self.call_anthropic(model:, system_prompt:, user_content:)
-    client = ::Anthropic::Client.new(api_key: ENV['ANTHROPIC_API_KEY'])
+    client = AiClient.build
     client.messages.create(
       model: model,
       max_tokens: 1200,
@@ -322,7 +327,7 @@ module EvalNarrator
   end
 
   def self.anthropic_configured?
-    !ENV['ANTHROPIC_API_KEY'].to_s.empty? && defined?(::Anthropic::Client)
+    AiClient.configured? && defined?(::Anthropic::BedrockMantleClient)
   end
 
   # Template-based deterministic draft. Pulls only fields that are

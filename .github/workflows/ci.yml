@@ -44,7 +44,7 @@ jobs:
       SYSTEM_ERROR_EMAIL: ${{ secrets.SYSTEM_ERROR_EMAIL }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
@@ -59,6 +59,9 @@ jobs:
         run: |
           bundle exec rails db:create db:schema:load
 
+      - name: AI endpoint guard (runtime AI must route via AWS Bedrock, not api.anthropic.com)
+        run: bash scripts/ai-endpoint-guard.sh
+
       - name: Run RSpec
         run: bundle exec rspec
 
@@ -67,15 +70,20 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
+          package-manager-cache: false
 
+      # The cache key MUST carry the Node major. node_modules holds native
+      # bindings (sqlite3) compiled against a specific Node ABI; restoring a
+      # Node-20-built tree into a Node 22 runner loads a binding built for the
+      # wrong ABI. Bump this suffix on every Node major bump.
       - name: Cache node_modules and Puppeteer Chrome
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             app/frontend/node_modules
@@ -125,7 +133,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
@@ -141,18 +149,47 @@ jobs:
       - name: Verify document register render + git content hashes + bundle completeness
         run: ruby scripts/document-register-render.rb --check
 
+      - name: Verify attestedContentHash guards (drift + closed exemption set)
+        run: scripts/tests/attestation-hash-guard-test.sh
+
       - name: Verify compliance publication status report
         run: ruby scripts/compliance-publication-status.rb --check
 
       - name: Verify capability ledger (currentEvidence resolves at HEAD; negativeEvidence scoping)
         run: ruby scripts/capability-check.rb --check
 
+  codex-review-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      # Guards the codex-review envelope logic: status fail-closed mapping,
+      # the prompt-injection guard, the per-chunk convergence policy, and the
+      # cross-chunk fold. Stdlib-only (unittest), so no Python setup or
+      # dependencies are needed.
+      - name: Run codex-review envelope guard + convergence unit tests
+        run: python3 scripts/codex-review-build-envelope.test.py
+
+      # Guards the chunked-evidence builder: deterministic diff, structural
+      # index (added + removed symbols with real source lines), sub-cap chunk
+      # packing, and the MAX_CHUNKS hard-stop that keeps a too-large PR
+      # fail-closed.
+      - name: Run codex-review evidence-builder unit tests
+        run: python3 scripts/codex-review-build-evidence.test.py
+
+      # Guards the per-chunk runner: per-chunk approve convergence, the single
+      # decisive path fed to synthesis, and non-fatal heartbeat/retry handling.
+      - name: Run codex-review chunk-runner unit tests
+        run: python3 scripts/codex-review-run-chunks.test.py
+
   security-scan:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
@@ -169,7 +206,7 @@ jobs:
 
       - name: Upload Brakeman results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: brakeman-results
           path: brakeman-results.json
@@ -180,9 +217,10 @@ jobs:
           bundle-audit check --update
 
       - name: Setup Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
+          package-manager-cache: false
 
       - name: Run npm audit (frontend CVE check)
         working-directory: app/frontend
@@ -201,7 +239,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 

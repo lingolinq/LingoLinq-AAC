@@ -12,6 +12,10 @@ import capabilities from './utils/capabilities';
 import i18n from './utils/i18n';
 import persistence from './utils/persistence';
 import lingoLinqExtras from './utils/extras';
+// Surface Ember deprecations (log mode, non-production). Imported first so the
+// workflow handler is registered before Ember boots and any boot-time
+// deprecations fire. See app/deprecation-workflow.js (LL-44aae2db6b).
+import './deprecation-workflow';
 
 window.onerror = function(msg, url, line, col, obj) {
   // Enhanced debugging for persistence service errors (both null and undefined)

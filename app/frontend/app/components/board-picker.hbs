@@ -151,11 +151,11 @@
           {{/if}}
           <form class="md-home-boards-picker__search-form" {{on "submit" (this.ctrlAction "go_search_boards")}}>
             <label for="board-picker-search-q" class="sr-only">{{t "Search Boards" key="search_boards"}}</label>
-            <Input
+            <input
               id="board-picker-search-q"
-              @type="search"
-              @value={{this.boardSearchQuery}}
-              @enter={{this.ctrlAction "go_search_boards"}}
+              type="search"
+              value={{this.boardSearchQuery}}
+              {{on "input" (set-field this "boardSearchQuery")}}
               class="form-control md-home-boards-picker__search-input"
               placeholder={{t "Search public boards by name" key="board_picker_search_placeholder"}}
             />

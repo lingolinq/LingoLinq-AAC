@@ -30,16 +30,34 @@ module FeatureFlags
               'english_first_board_generation', 'signup_spanish_library_boards',
               'dashboard_drag_layout', 'boards_page_owner_dedup', 'edit_sidebar',
               'sentence_bar_editing',
+              'text_symbol_fallback',
               # EU launch (GDPR Art. 8): make the registration parental-consent
               # age gate jurisdiction-aware (EU under-16 vs default under-13).
               # AVAILABLE-only => OFF for everyone by default; with it OFF the
               # registration flow is identical to today. Add to
               # ENABLED_FRONTEND_FEATURES to activate (see eu_consent_age_enabled?).
               'eu_consent_age',
+              # EU AI Act Article 50(1) first-AI-use disclosure modal (Art50 Phase 5,
+              # RLL-01). Reaches the client via frontend_flags_for(user) ->
+              # appState.feature_flags.article_50_disclosure, which is the ONLY input
+              # utils/article50_gate.js#needsAcknowledgement reads before it will show
+              # the modal. AVAILABLE-only => OFF for everyone by default, so the whole
+              # Phase 3/4 disclosure path stays inert (the intended pre-2026-08-02
+              # state). Enabling it is a HARD release gate for the 2026-08-02 Article 50
+              # deadline: add to ENABLED_FRONTEND_FEATURES (or opt individual EU orgs in
+              # via per-user beta flag) ONLY on Scot's explicit sign-off, and only after
+              # the production deploy of Phases 3-5. Do NOT blanket-enable here.
+              'article_50_disclosure',
+              # Privacy Compliance Kernel (lib/compliance/): segment + jurisdiction +
+              # digital-consent-age profile. AVAILABLE-only => OFF by default so
+              # registration / EuJurisdiction / coppa_consent_age stay identical to
+              # today. Add to ENABLED_FRONTEND_FEATURES to persist settings.compliance
+              # and expose Compliance::Profile in user JSON / domain_settings.
+              'compliance_workflow_kernel',
               # Landing-page beta publish: hide Sign In / Register, block auth
               # routes + self-registration API, show "In beta testing" badge.
-              # ENABLED on feat/lingolinq-landing-page-beta only; remove from
-              # ENABLED (or drop gates) when opening public auth again.
+              # ENABLED while develop/beta publish keeps public auth closed;
+              # remove from ENABLED (or drop gates) when opening public auth again.
               'landing_beta_closed']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
@@ -59,7 +77,8 @@ module FeatureFlags
               'dashboard_drag_layout', # TEMPORARY (2026-06-09): forced ON for everyone pre-production to validate the Getting Started drag-to-swap home layout. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'edit_sidebar', # TEMPORARY (2026-06-25): forced ON for everyone so Traci can validate the speak-mode "Edit Sidebar" panel in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'sentence_bar_editing', # TEMPORARY (2026-06-27): forced ON for everyone to validate the speak-bar active-edit controls (remove + reorder chips) in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
-              'landing_beta_closed'] # TEMPORARY: ON for feat/lingolinq-landing-page-beta publish (closed Sign In/Register). Remove from ENABLED before opening public auth.
+              'text_symbol_fallback', # Default ON so imported OBF text-only buttons render their labels as symbols; keep registered for rollback through system feature settings.
+              'landing_beta_closed'] # TEMPORARY: ON while beta keeps Sign In/Register closed. Remove from ENABLED before opening public auth.
   DISABLED_CANARY_FEATURES = []
   FEATURE_DATES = {
     'word_suggestion_images' => 'Jan 21, 2017',
@@ -88,6 +107,8 @@ module FeatureFlags
     'quick_screen_eval' => 'May 9, 2026',
     'comprehensive_eval_ai' => 'May 12, 2026',
     'multi_user_board_import' => 'May 15, 2026',
+    'compliance_workflow_kernel' => 'Jul 23, 2026',
+    'text_symbol_fallback' => 'Jul 28, 2026',
     'landing_beta_closed' => 'Jul 14, 2026'
   }
   AI_FEATURES = %w[ai_board_generation ai_word_prediction ai_board_suggestions
@@ -184,6 +205,13 @@ module FeatureFlags
   # non-registration consumer needs the injected age.
   def self.eu_consent_age_enabled?
     ENABLED_FRONTEND_FEATURES.include?('eu_consent_age')
+  end
+
+  # Compliance Kernel (lib/compliance/). AVAILABLE-only until rollout; when OFF,
+  # User#process_params skips settings['compliance'] persistence and serializers
+  # omit the compliance profile blob.
+  def self.compliance_workflow_kernel_enabled?
+    ENABLED_FRONTEND_FEATURES.include?('compliance_workflow_kernel')
   end
 
   # Landing-page beta publish: Sign In / Register closed for anonymous visitors.

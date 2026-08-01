@@ -20,6 +20,9 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
 import { htmlSafe } from '@ember/template';
+import progress_tracker from '../utils/progress_tracker';
+import { filterRootBoards, dedupeByName, sortByNameNatural, boardsPagePreferUserNames } from '../utils/board-roots';
+import { groupBoardsByBrand } from '../utils/board-brands';
 
 export default Component.extend({
   modal: service('modal'),
@@ -35,6 +38,21 @@ export default Component.extend({
   is_modern: computed('appState.currentUser.preferences.board_view_style', function() {
     return this.get('appState.currentUser.preferences.board_view_style') !== 'classic';
   }),
+  // Text-position preference (top / bottom / text_only) for the button-mockup
+  // previews (header + Color tab) so they render the label/symbol the same way the
+  // board does in speak mode. Mirrors board-detail's `button_text_position` default
+  // of 'top'. Prefer the referenced communicator's pref; fall back to the editor's.
+  button_text_position: computed('appState.referenced_user.preferences.device.button_text_position', 'appState.currentUser.preferences.device.button_text_position', function() {
+    return this.get('appState.referenced_user.preferences.device.button_text_position') ||
+           this.get('appState.currentUser.preferences.device.button_text_position') || 'top';
+  }),
+  // Board-wide text-only pref OR this button's per-button text_only flag.
+  preview_text_only: computed('button_text_position', 'model.text_only', function() {
+    return this.get('button_text_position') == 'text_only' || !!this.get('model.text_only');
+  }),
+  preview_text_on_top: computed('button_text_position', function() {
+    return this.get('button_text_position') == 'top';
+  }),
 
   init() {
     this._super(...arguments);
@@ -47,9 +65,20 @@ export default Component.extend({
     var self = this;
     this.set('ctrlAction', function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
-      return function(event) {
-        if (event && event.preventDefault) { event.preventDefault(); }
-        self.send.apply(self, [actionName].concat(bound));
+      return function() {
+        // Append the runtime arguments to any pre-bound ones, then strip a
+        // trailing DOM event (click handlers) so it isn't forwarded as a value.
+        // Without this, a <BoundSelect> @action callback — invoked as
+        // callback(value) — had its value dropped, so updateModel*(value)
+        // received undefined and the selected action's pane never rendered.
+        // Matches the ctrlAction in copying-board / search-board-jump.
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          if (evt.preventDefault) { evt.preventDefault(); }
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
       };
     });
     this.set('onNothing', function(event) {
@@ -86,12 +115,35 @@ export default Component.extend({
     contentGrabbers.setup(button, this);
     var _this = this;
 
+    // Size the header button-preview mockup to the ACTUAL board button (its speak-mode
+    // width/height). The board is still rendered behind the modal and every grid
+    // button is the same size, so measure one and publish its dimensions as CSS vars
+    // the preview reads; falls back to the CSS default when no modern board button is
+    // on the page. Measured synchronously — the board rendered before this modal opened.
+    try {
+      var _card = document.querySelector('.md-board-detail-symbol-card');
+      if(_card && this.element) {
+        var _r = _card.getBoundingClientRect();
+        if(_r.width > 1 && _r.height > 1) {
+          this.element.style.setProperty('--bs-preview-w', Math.round(_r.width) + 'px');
+          this.element.style.setProperty('--bs-preview-h', Math.round(_r.height) + 'px');
+        }
+      }
+    } catch(e) { /* preview keeps its CSS-default size */ }
+
+    if(button.get('folderAction')) { this.load_board_collection(); }
+    // Snapshot the button's colors so the Color tab's "Revert Color" can restore
+    // them (board-level Discard still reverts everything via a server reload).
+    this.set('original_background_color', button.get('background_color'));
+    this.set('original_border_color', button.get('border_color'));
+
     contentGrabbers.check_for_dropped_file();
-    var state = button.state || 'general';
-    if(!this.get('appState.currentUser.preferences.disable_button_help')) {
-      state = 'help';
-      this.set('auto_help', true);
-    }
+    // Default to the Quick Actions (help) tab unless the modal was opened
+    // targeting a SPECIFIC tab (edit-picture/action jumps set button.state to
+    // 'picture'/'action'/etc.). 'general' is the generic open-fallback, not a
+    // real target, so treat it as "no target" and land on Quick Actions.
+    var state = (button.state && button.state !== 'general') ? button.state : 'help';
+    this.set('auto_help', true);
     if(!button.get('level_style')) {
       if(!button.get('level_modifications') || Object.keys(button.get('level_modifications')).length == 0) {
         button.set('level_style', 'none');
@@ -264,6 +316,56 @@ export default Component.extend({
       label: this.get('model.label')
     });
   }),
+  // The URL field is bound with a plain `set-field model.url`, which updates ONLY the
+  // in-modal Button model — it never reached board.buttons the way labelChanged does.
+  // board-detail speak mode rebuilds its display buttons from board.buttons (via
+  // contextualized_buttons), so an un-synced url meant the tapped button had no url
+  // (and, combined with a stale load_board, navigated instead of opening the link).
+  // Sync url through change_button so the authoritative board button carries it.
+  urlChanged: observer('model.url', function() {
+    if(!this.get('handle_updates')) { return; }
+    editManager.change_button(this.get('model.id'), {
+      url: this.get('model.url')
+    });
+  }),
+  // A URL link can resolve to an in-app popup resource: `resource_from_url`
+  // (utils/button.js) sets model.video for a YouTube link and model.book for a Tarheel
+  // book. Those popups are what let the link open a video/book PANE in speak mode
+  // (app_state.launch_url → inline-video / tarheel) instead of a browser tab. Like
+  // urlChanged, sync them to the authoritative board button so select_button's
+  // launcher sees the popup and opens the pane rather than window_open-ing the raw URL.
+  // Observes `model.video.popup` (and `.start` / `.end`) as well as the object
+  // itself: the "Show video in a popup" checkbox and the start/end fields mutate
+  // properties ON the video object rather than replacing it, so a reference-only
+  // observer never refires and the change would reach board.buttons only by the
+  // accident of the two sharing an object identity.
+  videoChanged: observer('model.video', 'model.video.popup', 'model.video.start', 'model.video.end', function() {
+    if(!this.get('handle_updates')) { return; }
+    editManager.change_button(this.get('model.id'), {
+      video: this.get('model.video')
+    });
+  }),
+  bookChanged: observer('model.book', function() {
+    if(!this.get('handle_updates')) { return; }
+    editManager.change_button(this.get('model.id'), {
+      book: this.get('model.book')
+    });
+  }),
+  // Folder/link action options edited via `set-field` (model-only) — sync to the
+  // authoritative board button so board-detail select_button honors them: home_lock
+  // (set the linked board as a temporary home on nav), add_to_vocalization (also add
+  // the button to the vocalization box), and link_disabled (skip the link action).
+  // link_disabled is also mirrored by update_hidden below; syncing here too keeps
+  // board.buttons authoritative for select_button regardless of which path ran.
+  linkOptionsChanged: observer('model.home_lock', 'model.add_to_vocalization', 'model.add_vocalization', 'model.link_disabled', function() {
+    if(!this.get('handle_updates')) { return; }
+    editManager.change_button(this.get('model.id'), {
+      home_lock: this.get('model.home_lock'),
+      add_to_vocalization: this.get('model.add_to_vocalization'),
+      add_vocalization: this.get('model.add_vocalization'),
+      link_disabled: this.get('model.link_disabled')
+    });
+  }),
   update_hidden: observer(
     'model',
     'model.id',
@@ -334,6 +436,27 @@ export default Component.extend({
   }),
   non_https: computed('model.url', function() {
     return (this.get('model.url') || '').match(/^http:/);
+  }),
+  // "Also speak & add to the vocalization box" checkbox — reads the EFFECTIVE preference,
+  // which activate_button computes as `add_vocalization ?? add_to_vocalization`. Legacy/
+  // copied boards persist these bool fields as the STRINGS "true"/"false", so coerce both.
+  // Binding the checkbox to model.add_to_vocalization alone showed it UNCHECKED for a
+  // button whose value lives in add_vocalization (even though speak & add works). set()
+  // writes add_to_vocalization and clears add_vocalization so the field is authoritative
+  // going forward; both are synced to board.buttons by linkOptionsChanged.
+  speak_and_add: computed('model.add_vocalization', 'model.add_to_vocalization', {
+    get() {
+      var av = this.get('model.add_vocalization');
+      if(av != null) { return av === true || av === 'true'; }
+      var atv = this.get('model.add_to_vocalization');
+      return atv === true || atv === 'true';
+    },
+    set(key, value) {
+      value = !!value;
+      this.set('model.add_vocalization', null);
+      this.set('model.add_to_vocalization', value);
+      return value;
+    }
   }),
   vocalization_sound_conflict: computed('model.vocalization', 'model.sound_id', function() {
     return this.get('model.vocalization') && this.get('model.sound_id');
@@ -572,15 +695,15 @@ export default Component.extend({
   board_search_options: computed('board.user_name', function() {
     var res = [];
     if(this.get('board.user_name') != this.get('appState').get('currentUser.user_name')) {
-      res.push({name: i18n.t('their_boards', "This User's Boards (includes shared)"), id: 'current_user'});
+      res.push({name: i18n.t('their_boards', "This User's Boards"), id: 'current_user'});
       res.push({name: i18n.t('public_boards', "Public Boards"), id: 'public'});
       res.push({name: i18n.t('their_starred_boards', "This User's Liked Boards"), id: 'current_user_starred'});
       res.push({name: i18n.t('my_public_boards', "My Public Boards"), id: 'personal_public'});
       res.push({name: i18n.t('my_liked_public_boards', "My Liked Public Boards"), id: 'personal_public_starred'});
-      res.push({name: i18n.t('all_my_boards_includes_shared', "All My Boards (includes shared)"), id: 'personal'});
+      res.push({name: i18n.t('all_my_boards_includes_shared', "All My Boards"), id: 'personal'});
       // TODO: add My Private Boards, but warn and have option to auto-share if selected
     } else {
-      res.push({name: i18n.t('my_boards_includes_shared', "My Boards (includes shared)"), id: 'personal'});
+      res.push({name: i18n.t('my_boards_includes_shared', "My Boards"), id: 'personal'});
       res.push({name: i18n.t('public_boards', "Public Boards"), id: 'public'});
       res.push({name: i18n.t('my_starred_boards', "My Liked Boards"), id: 'personal_starred'});
     }
@@ -641,12 +764,154 @@ export default Component.extend({
       this.send('find_board');
     }
   }),
+
+  // ── Board-collection picker (destination card) ─────────────────────
+  // Mirrors the Find Boards page's left panel (.md-board-collection): loads the
+  // user's own boards plus the public/community catalog, groups the latter by
+  // brand family (Quick Core / Vocal Flair / …) via groupBoardsByBrand, and
+  // filters client-side by panel_filter — same shaping the search page uses.
+  panel_filter: '',
+  _collection_filter_boards: function(boards) {
+    var q = (this.get('panel_filter') || '').trim().toLowerCase();
+    if(!q || !boards) { return boards || []; }
+    return boards.filter(function(b) {
+      if(!b) { return false; }
+      var name = ((b.get ? b.get('name') : b.name) || '').toLowerCase();
+      var key = ((b.get ? b.get('key') : b.key) || '').toLowerCase();
+      return name.indexOf(q) !== -1 || key.indexOf(q) !== -1;
+    });
+  },
+  collection_my_boards: computed('collection_personal_results.results', 'panel_filter', 'appState.currentUser.id', function() {
+    var boards = filterRootBoards(this.get('collection_personal_results.results') || [], this.get('appState.currentUser.id'));
+    return this._collection_filter_boards(boards);
+  }),
+  collection_online_groups: computed('collection_online_results.results', function() {
+    var online = this.get('collection_online_results');
+    if(!online || !online.results) { return []; }
+    return groupBoardsByBrand(online.results);
+  }),
+  collection_online_filtered: computed('collection_online_groups', 'panel_filter', function() {
+    var _this = this;
+    return (this.get('collection_online_groups') || []).map(function(g) {
+      return { id: g.id, label_key: g.label_key, default_label: g.default_label, boards: _this._collection_filter_boards(g.boards || []) };
+    }).filter(function(g) { return g.boards.length > 0; });
+  }),
+  collection_loading: computed('collection_online_results.loading', 'collection_personal_results.loading', function() {
+    return !!(this.get('collection_online_results.loading') || this.get('collection_personal_results.loading'));
+  }),
+  collection_empty: computed('collection_loading', 'collection_my_boards.length', 'collection_online_filtered.length', function() {
+    return !this.get('collection_loading') && !this.get('collection_my_boards.length') && !this.get('collection_online_filtered.length');
+  }),
+  load_board_collection: function() {
+    var _this = this;
+    if(!persistence.get('online')) {
+      _this.set('collection_online_results', {results: []});
+      _this.set('collection_personal_results', {results: []});
+      return;
+    }
+    _this.set('collection_online_results', {loading: true, results: []});
+    _this.set('collection_personal_results', {loading: true, results: []});
+    var locale = (this.get('board.locale') || (i18n.langs || {}).preferred || window.navigator.language || 'en').split(/-/)[0];
+    var prefer = boardsPagePreferUserNames(this.get('appState'));
+    LingoLinq.store.query('board', {q: '', locale: locale, sort: 'popularity'}).then(function(res) {
+      if(_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
+      _this.set('collection_online_results', {results: dedupeByName(sortByNameNatural(res.slice()), { preferUserNames: prefer })});
+    }, function() {
+      if(_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
+      _this.set('collection_online_results', {results: []});
+    });
+    var userId = this.get('appState.currentUser.id');
+    if(userId) {
+      LingoLinq.store.query('board', {q: '', user_id: userId, locale: locale, allow_job: true}).then(function(res) {
+        if(_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
+        if(res.meta && res.meta.progress) {
+          progress_tracker.track(res.meta.progress, function(event) {
+            if(_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
+            if(event.status == 'errored') {
+              _this.set('collection_personal_results', {results: []});
+            } else if(event.status == 'finished') {
+              var result = [];
+              event.result.board.forEach(function(board) {
+                result.push(LingoLinq.store.push({ data: { id: board.id, type: 'board', attributes: board }}));
+              });
+              _this.set('collection_personal_results', {results: sortByNameNatural(result)});
+            }
+          });
+        } else {
+          _this.set('collection_personal_results', {results: sortByNameNatural(res.slice())});
+        }
+      }, function() {
+        if(_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
+        _this.set('collection_personal_results', {results: []});
+      });
+    } else {
+      _this.set('collection_personal_results', {results: []});
+    }
+  },
+  // Load the collection the first time the folder pane is shown (observers don't
+  // fire on init, so didInsertElement also kicks this when the button starts as
+  // a folder button).
+  maybe_load_collection: observer('model.folderAction', function() {
+    if(this.get('model.folderAction') && !this.get('collection_personal_results') && !this.get('collection_online_results')) {
+      this.load_board_collection();
+    }
+  }),
+  // Bring the SELECTED/SELECTING BOARD card into view after a pick renders.
+  // Double rAF waits past Ember's render flush (avoids the runloop scheduler).
+  _scroll_to_selected_card: function() {
+    var raf = window.requestAnimationFrame;
+    if(!raf) { return; }
+    raf(function() {
+      raf(function() {
+        var root = document.getElementById('button_settings');
+        var el = root && root.querySelector('.md-bs-card--selected');
+        if(!el) { return; }
+        // Find the nearest scrollable ancestor (the modal's scroll region) and
+        // scroll it all the way to the bottom so the SELECTED/SELECTING card and
+        // its actions are fully in view.
+        var node = el.parentElement;
+        var container = null;
+        while(node && node !== document.body) {
+          var oy = window.getComputedStyle(node).overflowY;
+          if((oy === 'auto' || oy === 'scroll' || oy === 'overlay') && node.scrollHeight > node.clientHeight + 1) {
+            container = node;
+            break;
+          }
+          node = node.parentElement;
+        }
+        if(container) {
+          if(container.scrollTo) { container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' }); }
+          else { container.scrollTop = container.scrollHeight; }
+        } else if(el.scrollIntoView) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+      });
+    });
+  },
   state: 'general',
   helpState: computed('state', function() {
     return this.get('state') == 'help';
   }),
   generalState: computed('state', function() {
     return this.get('state') == 'general';
+  }),
+  colorState: computed('state', function() {
+    return this.get('state') == 'color';
+  }),
+  // Standard fill+border swatches (window.LingoLinq.keyed_colors, decorated with a
+  // `style` string by the color_keys initializer).
+  color_swatches: computed(function() {
+    return LingoLinq.keyed_colors || (window.LingoLinq && window.LingoLinq.keyed_colors) || [];
+  }),
+  // Hex values for the native <input type="color"> custom pickers. The button
+  // stores colors as rgb()/hex strings; convert for the picker, which needs hex.
+  custom_fill_hex: computed('model.background_color', function() {
+    try { return window.tinycolor(this.get('model.background_color') || '#ffffff').toHexString(); }
+    catch(e) { return '#ffffff'; }
+  }),
+  custom_border_hex: computed('model.border_color', function() {
+    try { return window.tinycolor(this.get('model.border_color') || '#cccccc').toHexString(); }
+    catch(e) { return '#cccccc'; }
   }),
   pictureState: computed('state', function() {
     return this.get('state') == 'picture';
@@ -747,6 +1012,14 @@ export default Component.extend({
       var _this = this;
       LingoLinq.Videos.track('link_video_preview').then(function(player) {
         _this.set('player', player);
+      }, function() {
+        // LingoLinq.Videos.track rejects with "player never initialized" 5s after a
+        // preview iframe that never loads a player (offline, blocked embed, or the
+        // modal closed first). Without a rejection handler that surfaces as an
+        // UNHANDLED rejection: harmless at runtime, but under test QUnit attributes
+        // it to whichever unrelated test happens to be running 5s later, which reads
+        // as a random failing test somewhere else in the suite. Nothing to do but
+        // leave `player` unset — the preview simply stays inert.
       });
     }
   }),
@@ -836,11 +1109,42 @@ export default Component.extend({
   //     return (previews && previews.length > 0) || this.get('image_search.previews_loaded') || this.get('image_search.error');
     }
   ),
+  // Switch the button's action TYPE, clearing every OTHER action field.
+  // The button's action is DERIVED from its fields (utils/button.js `updateAction`,
+  // which prioritizes load_board over url/apps/integration), and board-detail's
+  // `select_button` navigates ANY button that still has a load_board. So switching the
+  // action type MUST clear the conflicting fields — otherwise a stale field wins.
+  // Reported bug: a folder button switched to "Open a web site in a browser tab" kept
+  // its load_board, so tapping it navigated to the old board (404 → "player never
+  // initialized") instead of opening the URL; and once the user typed the URL,
+  // updateAction re-fired and (load_board still set) reset buttonAction back to 'folder'.
+  // Single source of truth for BOTH entry points — the action dropdown
+  // (updateModelButtonAction) and the "Quick actions" shortcuts (quick_action). Update
+  // the model AND the board's button data (editManager) so speak-mode select_button sees
+  // the cleared fields, then re-assert buttonAction LAST because clearing a field re-fires
+  // updateAction (which would otherwise reset buttonAction to the newly-derived value).
+  _apply_button_action: function(value) {
+    var _this = this;
+    var id = this.get('model.id');
+    var clears = {};
+    if(value !== 'folder')      { clears.load_board = null; }
+    if(value !== 'link')        { clears.url = null; }
+    if(value !== 'app')         { clears.apps = null; }
+    if(value !== 'integration') { clears.integration = null; }
+    Object.keys(clears).forEach(function(k) { _this.set('model.' + k, clears[k]); });
+    if(id && Object.keys(clears).length) { editManager.change_button(id, clears); }
+    this.set('model.buttonAction', value);
+  },
   actions: {
     updateHideLabel(checked) {
       if(!this.get('handle_updates') || !this.get('model.id')) { return; }
       this.set('model.hide_label', !!checked);
       editManager.change_button(this.get('model.id'), { hide_label: !!checked });
+    },
+    updateTextOnly(checked) {
+      if(!this.get('handle_updates') || !this.get('model.id')) { return; }
+      this.set('model.text_only', !!checked);
+      editManager.change_button(this.get('model.id'), { text_only: !!checked });
     },
     // Quick actions (left nav, below Extras) relocated from the removed per-button
     // edit menu. Each closes THIS modal, then (on the next runloop, so the close
@@ -861,7 +1165,11 @@ export default Component.extend({
     updateModelPartOfSpeech(value) { this.set('model.part_of_speech', value); },
     updateImageLibrary(value) { this.set('image_library', value); },
     updateSkinPreference(value) { this.set('skin_preference', value); },
-    updateModelButtonAction(value) { this.set('model.buttonAction', value); },
+    updateModelButtonAction(value) {
+      // Action dropdown (BoundSelect) → shared action-switch logic (clears conflicting
+      // fields; see _apply_button_action). The Quick-actions shortcuts route here too.
+      this._apply_button_action(value);
+    },
     updateBoardSearchType(value) { this.set('board_search_type', value); },
     updatePendingBoardForUserId(value) {
       var p = this.get('pending_board');
@@ -1005,6 +1313,13 @@ export default Component.extend({
       contentGrabbers.pictureGrabber.swap_streams();
     },
     webcamToggle: function(takePic) {
+      // toggle_webcam() is a pure toggle on webcam.snapshot (capture ⇄ clear); the
+      // modal re-fire's duplicate click would CAPTURE then immediately CLEAR the photo.
+      // De-dupe HERE (not by swallowing the native click — that breaks the
+      // getUserMedia gesture on the "Take photo" open). Ignore a repeat within 250ms.
+      var now = Date.now();
+      if(this._lastWebcamToggle && (now - this._lastWebcamToggle) < 250) { return; }
+      this._lastWebcamToggle = now;
       contentGrabbers.pictureGrabber.toggle_webcam(!takePic);
     },
     find_board: function() {
@@ -1029,8 +1344,69 @@ export default Component.extend({
     shareFoundBoard: function(board) {
       contentGrabbers.boardGrabber.share_board(board);
     },
+    clear_confirm_board: function() {
+      // "Change" from the choose card: drop the pending board so the user can
+      // pick another from the collection (still shown above), and scroll back
+      // up to it.
+      this.set('confirm_found_board', null);
+      this.set('linkedBoardName', null);
+      var raf = window.requestAnimationFrame;
+      if(raf) {
+        raf(function() {
+          raf(function() {
+            var root = document.getElementById('button_settings');
+            var el = root && root.querySelector('.md-bs-card--destination');
+            if(el && el.scrollIntoView) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+          });
+        });
+      }
+    },
+    pick_color: function(color) {
+      // In-memory only (so board Discard reverts it). The button's add_classes
+      // observer re-renders the live board tile from these.
+      if(!color) { return; }
+      this.set('model.background_color', color.fill);
+      this.set('model.border_color', color.border);
+    },
+    revert_color: function() {
+      this.set('model.background_color', this.get('original_background_color'));
+      this.set('model.border_color', this.get('original_border_color'));
+    },
+    set_custom_fill: function(value) { this.set('model.background_color', value); },
+    set_custom_border: function(value) { this.set('model.border_color', value); },
+    preview_confirm_board: function(board) {
+      // Open the read-only Board Preview overlay for the board being confirmed.
+      // 'return' → the preview shows a single Close that returns to this modal
+      // (see board-preview return_only). The modal stays open underneath.
+      if(!board) { return; }
+      board.preview_option = 'return';
+      var locale = (board.get ? board.get('locale') : board.locale);
+      modal.board_preview(board, locale, false, null);
+    },
     selectFoundBoard: function(board, force) {
       contentGrabbers.boardGrabber.pick_board(board, force);
+      // Picking sets confirm_found_board (community board) or load_board (own
+      // board); either way the SELECTED/SELECTING BOARD card is what the user
+      // needs to see next, so scroll it into view once it has rendered.
+      this._scroll_to_selected_card();
+    },
+    change_linked_board: function() {
+      // "Change" → go back to the picker. Clear the link on the modal's model
+      // DIRECTLY so {{#unless model.load_board.key}} re-renders the destination
+      // picker even if editManager.find_button resolves a different instance,
+      // AND via editManager so the board grid + persistence stay in sync.
+      this.set('model.load_board', null);
+      editManager.change_button(this.get('model.id'), { load_board: null });
+      // Clearing load_board fires button.js's updateAction observer, which resets
+      // buttonAction to 'talk' (no action props left). Re-assert 'folder' LAST so
+      // the destination picker stays shown instead of flipping to the Speech pane.
+      this.set('model.buttonAction', 'folder');
+      this.set('linkedBoardName', null);
+      this.set('confirm_found_board', null);
+      // Make sure the collection is populated when we return to the picker.
+      if(this.get('model.folderAction') && !this.get('collection_personal_results') && !this.get('collection_online_results')) {
+        this.load_board_collection();
+      }
     },
     copy_found_board: function() {
       contentGrabbers.boardGrabber.copy_found_board();
@@ -1127,6 +1503,15 @@ export default Component.extend({
       contentGrabbers.pictureGrabber.select_image_preview(url);
     },
     library_options: function() {
+      // The modal's AAC pointer layer (raw_events.modalDialogClickRelease) re-fires a
+      // synthetic click on top of the native one, so a plain toggle flips ON then OFF
+      // and appears to do nothing. De-dupe the duplicate HERE (at the action) — NOT by
+      // swallowing the native click, which breaks user-gesture-gated actions like
+      // getUserMedia / the file picker that need the trusted native click. Ignore a
+      // repeat call within 250ms.
+      var now = Date.now();
+      if(this._lastLibToggle && (now - this._lastLibToggle) < 250) { return; }
+      this._lastLibToggle = now;
       this.set('show_library_options', !this.get('show_library_options'));
     },
     testVocalization: function() {
@@ -1262,10 +1647,17 @@ export default Component.extend({
       } else if(action == 'sound') {
         _this.set('state', 'sound');
       } else if(action == 'folder') {
-        _this.set('model.buttonAction', 'folder');
+        // Route through the shared action-switch so conflicting fields (url/apps/
+        // integration) are cleared — NOT a bare set (which left stale fields, so the
+        // derived buttonAction could flip back). See _apply_button_action.
+        _this._apply_button_action('folder');
         _this.set('state', 'action');
       } else if(action == 'url') {
-        _this.set('model.buttonAction', 'link');
+        // Same shared path: clears load_board (and apps/integration) so the URL action
+        // actually takes effect. Without this, a folder button switched here kept its
+        // load_board and speak-mode tap navigated to the old board ("player never
+        // initialized") instead of opening the URL.
+        _this._apply_button_action('link');
         _this.set('state', 'action');
       } else if(action == 'hide') {
         _this.set('model.hidden', !(this.get('model.hidden')));

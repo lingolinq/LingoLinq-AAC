@@ -278,12 +278,31 @@ describe Uploader do
       expect(res[:upload_params]['success_action_status']).to eq('200')
     end
 
+    # Pins BOTH suppressors named in the description. The UPLOADS_S3_NO_ACL half was
+    # previously unexercised, and worse, the example read the AMBIENT env: a developer
+    # with UPLOADS_S3_NO_ACL=1 in their own .env (which .env.op.template now recommends,
+    # because the dev bucket has ACLs disabled) saw this spec fail locally while CI —
+    # where the var is unset — stayed green. Set the var explicitly per branch and
+    # restore it, so the example asserts behavior rather than the machine it runs on.
     it "should include acl unless private_upload or UPLOADS_S3_NO_ACL is set" do
-      res = Uploader.remote_upload_params("downloads/file.png", "image/png")
-      expect(res[:upload_params]['acl']).to eq('public-read')
+      prior = ENV['UPLOADS_S3_NO_ACL']
+      begin
+        ENV.delete('UPLOADS_S3_NO_ACL')
 
-      res = Uploader.remote_upload_params("downloads/file.png", "image/png", private_upload: true)
-      expect(res[:upload_params]['acl']).to eq(nil)
+        res = Uploader.remote_upload_params("downloads/file.png", "image/png")
+        expect(res[:upload_params]['acl']).to eq('public-read')
+
+        res = Uploader.remote_upload_params("downloads/file.png", "image/png", private_upload: true)
+        expect(res[:upload_params]['acl']).to eq(nil)
+
+        # ACL-disabled bucket (Object Ownership = "Bucket owner enforced"): sending an
+        # acl at all makes S3 reject the upload with AccessControlListNotSupported.
+        ENV['UPLOADS_S3_NO_ACL'] = '1'
+        res = Uploader.remote_upload_params("downloads/file.png", "image/png")
+        expect(res[:upload_params]['acl']).to eq(nil)
+      ensure
+        prior.nil? ? ENV.delete('UPLOADS_S3_NO_ACL') : ENV['UPLOADS_S3_NO_ACL'] = prior
+      end
     end
   end
 

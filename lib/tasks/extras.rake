@@ -322,6 +322,62 @@ task "extras:fix_prod_setup" => :environment do
   puts "=" * 60
 end
 
+# Rebuild every board's downstream button set (find-a-button data) SEQUENTIALLY.
+# Use this when find-a-button only shows the top board's buttons and not the
+# sub-boards' — that means the button sets were generated root-only (or left
+# empty by a failed/concurrent generation) and never captured the full hierarchy.
+#
+# MUST be run in an environment with working S3 upload credentials (e.g. via
+# `rails-dev` so 1Password resolves AWS_KEY, with UPLOADS_S3_NO_ACL=1 for
+# ACL-disabled buckets). Runs inline and sequentially on purpose: BoardDownstreamButtonSet
+# coordinates shared sub-boards through a per-board Redis traversal cache and a
+# freshness guard, so concurrent/queued rebuilds of overlapping board trees race
+# and can produce empty sets. One board at a time is the correct, prod-proven mode
+# (this mirrors the button-set half of extras:fix_prod_setup).
+task "extras:rebuild_button_sets" => :environment do
+  # Clear the per-board traversal coordination cache so every root gets a clean rebuild.
+  cache_keys = RedisInit.default.keys('traversed/button_set/*')
+  cache_keys.each { |k| RedisInit.default.del(k) }
+  puts "Cleared #{cache_keys.length} stale traversal cache keys"
+
+  puts "Analyzing boards..."
+  root_boards = []
+  all_downstream_ids = Set.new
+  Board.find_each do |board|
+    downstream = board.settings['immediately_downstream_board_ids'] || []
+    upstream   = board.settings['immediately_upstream_board_ids'] || []
+    root_boards << board if upstream.empty? && downstream.any?
+    downstream.each { |id| all_downstream_ids << id }
+  end
+  # Orphan roots: have children but are never referenced as anyone's downstream.
+  Board.find_each do |board|
+    next if all_downstream_ids.include?(board.global_id)
+    next if root_boards.any? { |rb| rb.id == board.id }
+    root_boards << board if (board.settings['immediately_downstream_board_ids'] || []).any?
+  end
+
+  puts "  Root boards to rebuild: #{root_boards.length}"
+  processed = 0; errored = 0
+  root_boards.each_with_index do |board, i|
+    children = (board.settings['immediately_downstream_board_ids'] || []).length
+    print "  [#{i + 1}/#{root_boards.length}] #{board.key} (#{children} children)..."
+    begin
+      board.track_downstream_boards!
+      BoardDownstreamButtonSet.update_for(board.global_id, true)
+      bs = board.reload.board_downstream_button_set
+      cnt = bs && bs.data['button_count']
+      inc = bs && (bs.data['included_board_ids'] || []).length
+      puts " done (boards=#{inc} buttons=#{cnt})"
+      processed += 1
+    rescue => e
+      puts " ERROR: #{e.class}: #{e.message}"
+      errored += 1
+    end
+  end
+  puts "\nRebuilt #{processed} root boards (#{errored} errors)."
+  puts "Sub-boards reference their root's set via source_id, so the whole tree is covered."
+end
+
 task "extras:reindex_public_boards" => :environment do
   puts "Reindexing public boards..."
   Board.where(public: true).find_each do |board|

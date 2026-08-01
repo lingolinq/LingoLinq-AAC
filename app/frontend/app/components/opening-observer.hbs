@@ -1,1 +1,5 @@
+{{!-- template-lint-disable no-yield-only --}}
+{{!-- Intentional yield-only: opening-observer is a lifecycle wrapper (didInsertElement fires
+     `opening`/`done_opening`, willDestroy fires `closing`) that must render its block content
+     unchanged. It adds behavior, not markup, so a bare {{yield}} is correct. --}}
 {{yield}}

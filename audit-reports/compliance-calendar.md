@@ -13,6 +13,7 @@
 | 2026-07-14 | Monthly light /audit-run (diff-since-last-run scope, no full re-scan) | SOC2 | monthly |
 | 2026-07-26 | COPPA data-retention enforcement + parental-consent flow check | COPPA | quarterly |
 | **2026-08-02** | EU AI Act Article 50 transparency obligations apply | EU AI Act | fixed |
+| 2026-08-31 | Re-brand + re-share BREACH_RUNBOOK Drive mirror to v2.2 (DOC-f576f43250) | HIPAA | one-time |
 | 2026-09-01 | FERPA vendor-disclosure + directory-info posture review | FERPA | annual |
 | 2026-09-01 | GDPR DPA + RoPA + data-residency review | GDPR | annual |
 | 2026-09-01 | Subprocessor list review (SUBPROCESSORS.md) | GDPR | quarterly |
@@ -38,6 +39,7 @@
 | HIPAA | Google Gemini API fallback path BAA/DPA verification | annual | (none) | 2026-09-01 |
 | SOC2 | Mechanical secret-shaped-string rejector in audit toolchain (LL-b5c30235d3) | one-time | (none) | 2026-09-01 |
 | FERPA | District DPA / SDPC NDPA renewals + registry listing | per-contract (track renewal dates as they are signed) | (none) | (none) |
+| HIPAA | Re-brand + re-share BREACH_RUNBOOK Drive mirror to v2.2 (DOC-f576f43250) | one-time | (none) | 2026-08-31 |
 
 ## Fixed regulatory dates
 
@@ -49,6 +51,7 @@
 | 2027-04-24 | upcoming | WCAG 2.1 AA for web content of large public entities (April-2026 IFR extended the date). Small entities: 2028-04. Lin... | WCAG |
 | 2027-12-02 | upcoming | High-risk obligations for Annex III systems (deferred from earlier by the Digital Omnibus). An AAC word predictor is ... | EU AI Act |
 | (conditional) | conditional | EAA enforceable since 2025-06. LingoLinq is likely inside the microenterprise exemption (<10 staff AND <EUR 2M turnov... | EAA |
+| (conditional) | conditional | docs/legal/SUBPROCESSORS.md §2 commits to 30 days advance notice before any subprocessor change that affects a tenant... | GDPR |
 
 ## How to read this
 

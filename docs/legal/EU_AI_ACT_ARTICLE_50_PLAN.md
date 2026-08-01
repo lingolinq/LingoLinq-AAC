@@ -97,7 +97,7 @@ Phases are numbered Art50-Px to distinguish from VPC phases.
 - **All strings i18n** (`{{t}}` / `i18n.t`), double-quoted user-facing. en + es minimum (match VPC).
 
 ### Art50-P5: Feature flag (split), retention, monitoring, audit close
-- **Split flag, fail-safe:** the **marking** path (Art. 50(2)) is NOT flag-gated (or defaults ON) so an un-toggled flag can never produce unmarked output. **Only the visible modal** (Art. 50(1) UX) rides a disruption-sensitive flag `article_50_disclosure_modal` in `AVAILABLE_FRONTEND_FEATURES`. The 2026-08-02 enable of the modal is a **hard release gate**, not "verify on staging when convenient."
+- **Split flag, fail-safe:** the **marking** path (Art. 50(2)) is NOT flag-gated (or defaults ON) so an un-toggled flag can never produce unmarked output. **Only the visible modal** (Art. 50(1) UX) rides a disruption-sensitive flag in `AVAILABLE_FRONTEND_FEATURES`. (Delivered name: `article_50_disclosure`, registered AVAILABLE-only in Phase 5; this plan's earlier `article_50_disclosure_modal` name was not the shipped one.) The 2026-08-02 enable of the modal is a **hard release gate**, not "verify on staging when convenient."
 - 5-year EU retention for `ai_api_logs` where `jurisdiction = 'EU'` (extend `DATA_RETENTION.md` + the existing retention cron, not a new system).
 - Compliance audit rake task (a correct rewrite of the DeepSeek script: reads `boards.settings['ai_metadata']`, no `ow80`, guards divide-by-zero; also audits COPIED boards for marker presence).
 - Close the Article 50 finding in `audit-reports/FINDINGS.json` per the register-edit-regenerate-artifacts process (citation-check + render + notion-publish).
