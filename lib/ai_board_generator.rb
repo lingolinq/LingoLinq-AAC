@@ -14,8 +14,9 @@ module AiBoardGenerator
 
   class << self
     # Generates word labels, suggested name, and description for an AAC board using Claude.
-    # Requires AWS Bedrock credentials (BEDROCK_AWS_KEY + BEDROCK_AWS_SECRET, and a region
-    # from BEDROCK_AWS_REGION / AWS_REGION / AWS_DEFAULT_REGION). See lib/ai_client.rb, which
+    # Requires AWS Bedrock credentials (BEDROCK_AWS_KEY + BEDROCK_AWS_SECRET, or
+    # AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY, and a region from BEDROCK_AWS_REGION /
+    # AWS_REGION / AWS_DEFAULT_REGION). See lib/ai_client.rb, which
     # is the single construction point: the direct api.anthropic.com route (ANTHROPIC_API_KEY)
     # is intentionally not built at runtime and there is no fallback to it, so an unconfigured
     # Bedrock path degrades here rather than egressing on a non-BAA route. ANTHROPIC_MODEL is
@@ -33,14 +34,15 @@ module AiBoardGenerator
       if api_config.blank?
         err = { words: nil, name: nil, description: nil, error: 'AI board generation is not configured' }
         err.merge!(dev_diag(:configuration,
-          'This path routes through AWS Bedrock (lib/ai_client.rb). Set BEDROCK_AWS_KEY and ' \
-          'BEDROCK_AWS_SECRET (both halves are required; a partial pair is ignored) plus a region ' \
-          'via BEDROCK_AWS_REGION, AWS_REGION, or AWS_DEFAULT_REGION, in the Rails process ' \
-          'environment (not only .env for the asset pipeline), then restart Rails. AWS_KEY / ' \
-          'AWS_SECRET are deliberately NOT used as a fallback: those are the S3/SES ' \
-          'least-privilege credentials and lack Bedrock invoke permissions. ANTHROPIC_API_KEY no ' \
-          'longer configures this path. The GEMINI_API_KEY fallback is disabled -- see ' \
-          'docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'))
+          'This path routes through AWS Bedrock (lib/ai_client.rb). Set a complete credential ' \
+          'pair — BEDROCK_AWS_KEY + BEDROCK_AWS_SECRET (preferred) or AWS_ACCESS_KEY_ID + ' \
+          'AWS_SECRET_ACCESS_KEY (standard SDK fallback) — both halves of a pair are required; ' \
+          'a partial pair is ignored — plus a region via BEDROCK_AWS_REGION, AWS_REGION, or ' \
+          'AWS_DEFAULT_REGION, in the Rails process environment (not only .env for the asset ' \
+          'pipeline), then restart Rails. AWS_KEY / AWS_SECRET are deliberately NOT used as a ' \
+          'fallback: those are the S3/SES least-privilege credentials and lack Bedrock invoke ' \
+          'permissions. ANTHROPIC_API_KEY no longer configures this path. The GEMINI_API_KEY ' \
+          'fallback is disabled -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'))
         return err
       end
 
@@ -250,14 +252,15 @@ module AiBoardGenerator
       if api_config.blank?
         err = { words: nil, title: nil, error: 'AI board generation is not configured' }
         err.merge!(dev_diag(:configuration,
-          'This path routes through AWS Bedrock (lib/ai_client.rb). Set BEDROCK_AWS_KEY and ' \
-          'BEDROCK_AWS_SECRET (both halves are required; a partial pair is ignored) plus a region ' \
-          'via BEDROCK_AWS_REGION, AWS_REGION, or AWS_DEFAULT_REGION, in the Rails process ' \
-          'environment (not only .env for the asset pipeline), then restart Rails. AWS_KEY / ' \
-          'AWS_SECRET are deliberately NOT used as a fallback: those are the S3/SES ' \
-          'least-privilege credentials and lack Bedrock invoke permissions. ANTHROPIC_API_KEY no ' \
-          'longer configures this path. The GEMINI_API_KEY fallback is disabled -- see ' \
-          'docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'))
+          'This path routes through AWS Bedrock (lib/ai_client.rb). Set a complete credential ' \
+          'pair — BEDROCK_AWS_KEY + BEDROCK_AWS_SECRET (preferred) or AWS_ACCESS_KEY_ID + ' \
+          'AWS_SECRET_ACCESS_KEY (standard SDK fallback) — both halves of a pair are required; ' \
+          'a partial pair is ignored — plus a region via BEDROCK_AWS_REGION, AWS_REGION, or ' \
+          'AWS_DEFAULT_REGION, in the Rails process environment (not only .env for the asset ' \
+          'pipeline), then restart Rails. AWS_KEY / AWS_SECRET are deliberately NOT used as a ' \
+          'fallback: those are the S3/SES least-privilege credentials and lack Bedrock invoke ' \
+          'permissions. ANTHROPIC_API_KEY no longer configures this path. The GEMINI_API_KEY ' \
+          'fallback is disabled -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'))
         return err
       end
 

@@ -26,8 +26,10 @@ module AiPredictionGenerator
     def generate(batch_size: nil)
       api_config = resolve_api_config
       if api_config.blank?
-        puts "[predictions] ERROR: AWS Bedrock is not configured. Set BEDROCK_AWS_KEY and " \
-             "BEDROCK_AWS_SECRET (both halves are required) plus a region via BEDROCK_AWS_REGION, " \
+        puts "[predictions] ERROR: AWS Bedrock is not configured. Set a complete credential " \
+             "pair — BEDROCK_AWS_KEY + BEDROCK_AWS_SECRET (preferred) or AWS_ACCESS_KEY_ID + " \
+             "AWS_SECRET_ACCESS_KEY (standard SDK fallback) — both halves of a pair are " \
+             "required; a partial pair is ignored — plus a region via BEDROCK_AWS_REGION, " \
              "AWS_REGION, or AWS_DEFAULT_REGION. AWS_KEY / AWS_SECRET are deliberately NOT used " \
              "as a fallback (S3/SES credentials, no Bedrock invoke permission). ANTHROPIC_API_KEY " \
              "no longer configures this path -- see lib/ai_client.rb. The GEMINI_API_KEY fallback " \
