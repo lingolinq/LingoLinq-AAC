@@ -143,20 +143,27 @@ reflected in the posture.
 
 ## Runtime routing update - 2026-07-24 (re-attested 2026-07-24)
 
-Runtime AI egress moved from the direct `api.anthropic.com` endpoint to **Claude on AWS Bedrock**
+Runtime AI routing moved from the direct `api.anthropic.com` endpoint to **Claude on AWS Bedrock**
 (the Bedrock Mantle Messages API, constructed in `lib/ai_client.rb`). All four seams above (word
-prediction, prediction seeding, board generation, eval narration) route through Bedrock on the same
-in-scope models (Haiku 4.5, Opus 4.7).
+prediction, prediction seeding, board generation, eval narration) are coded to route through Bedrock
+on the same in-scope models (Haiku 4.5, Opus 4.7).
+
+**Corrected 2026-08-01:** this section previously described the move as completed egress. The
+routing change shipped, but the Bedrock path is **not operational in production** and no runtime
+model egress occurs on any path today. See the correction bullet below and the 2026-08-01 correction
+in `docs/legal/AWS_BAA_ACCEPTED.md`.
 
 - **This executed Anthropic HIPAA-Ready BAA remains valid and on file.** It is no longer the *active
   runtime route*; it documents a still-available, BAA-covered direct path. Runtime seams no longer
   read `ANTHROPIC_API_KEY` or construct a direct Anthropic client (enforced by
   `scripts/ai-endpoint-guard.sh` in CI).
-- **The active runtime route is covered by the AWS account BAA** (`docs/legal/AWS_BAA_ACCEPTED.md`):
+- **The designated runtime route is covered by the AWS account BAA** (`docs/legal/AWS_BAA_ACCEPTED.md`):
   Amazon Bedrock is a HIPAA-eligible AWS service **excluding Fable/Mythos models**, so
   Anthropic-model inference on Bedrock stays inside AWS's HIPAA boundary. The runtime models (Haiku
   4.5, Opus 4.7) are on the eligible side of that exclusion. Operative condition: Bedrock calls must
-  run under the BAA'd AWS account (2390-4478-5114).
+  run under the BAA'd AWS account (2390-4478-5114). **That condition is UNVERIFIED as of 2026-08-01,
+  and the 2026-07-27 statement that it had been verified is retracted:** no `lingolinq-web` revision
+  carries a Bedrock credential, so `AiClient.configured?` is false and no Bedrock call is made.
 - The adjudicated seam classifications above (including eval narration not being a HIPAA Healthcare
   Activity, Scot 2026-07-19) are unchanged by this routing move.
 - Statements above that name the direct `/v1/messages` endpoint or `ANTHROPIC_API_KEY` as the
@@ -165,3 +172,7 @@ in-scope models (Haiku 4.5, Opus 4.7).
 **Attestation:** Re-attested 2026-07-24 by Scot Wahlquist, CEO (Bedrock runtime routing). Prose
 corrected 2026-07-27 to remove a contradictory "re-attestation owed" banner left in the bytes that
 attestation covered.
+
+**Re-attestation pending.** Corrected 2026-08-01 by Claude Code to remove the stale "active runtime
+route" framing and the retracted operative-condition verification. Not an attestation; only Scot
+attests. See `docs/legal/AWS_BAA_ACCEPTED.md` for the evidence.

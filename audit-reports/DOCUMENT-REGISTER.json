@@ -513,14 +513,14 @@
         "GDPR",
         "SOC2"
       ],
-      "lastReviewed": "2026-07-22",
+      "lastReviewed": "2026-08-01",
       "nextReviewDue": "2027-07-22",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-22",
         "attestedContentHash": "1d1f81b0eeab01e63abf4d2c91101ff402928d3802c77528e327973f8067729e"
       },
-      "contentHash": "1d1f81b0eeab01e63abf4d2c91101ff402928d3802c77528e327973f8067729e",
+      "contentHash": "ac54469f43ee7124bb5cd95221da279b1e866cf02822a5d08c330fd4ec7d0ee2",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
@@ -596,7 +596,7 @@
         "GDPR",
         "COPPA"
       ],
-      "lastReviewed": "2026-07-27",
+      "lastReviewed": "2026-08-01",
       "nextReviewDue": "2026-10-22",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
@@ -608,7 +608,7 @@
         ],
         "note": "Re-attested 2026-07-27 (Path B recovery on Scot/feat/bedrock-runtime-ai): removed contradictory \"re-attestation owed\" banners that remained after the 2026-07-24 Bedrock routing attestation, and reconciled section 3 AWS BAA coverage wording with the active Bedrock runtime route. Prior 2026-07-24 attestation covered the Bedrock routing bytes that still incorrectly said attestation was owed."
       },
-      "contentHash": "74ec247f35dd8af99a17825e22df86cf34105a6ce6968c86d899bc12ddbe883e",
+      "contentHash": "507e8c16b51db174c1149a5f45c552f7402c6149170bfd1bef319ae28da5a46c",
       "bundles": [
         "compliance-records-set-2026-06",
         "security-review"
@@ -1021,7 +1021,7 @@
         "HIPAA",
         "GDPR"
       ],
-      "lastReviewed": "2026-07-27",
+      "lastReviewed": "2026-08-01",
       "nextReviewDue": "2027-07-18",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
@@ -1048,7 +1048,7 @@
       ],
       "notes": "Parity with the AWS (docs/legal/AWS_BAA_ACCEPTED.md) and GCP (docs/legal/GCP_BAA_ACCEPTED.md) acceptance records. Model-provider BAA for the Anthropic runtime egress path; supersedes the prior 'no model-provider BAA / provisional pending CEO review' posture in COMPLIANCE.md, SUBPROCESSORS.md row 4, GCP_BAA_ACCEPTED.md, and AI_GOVERNANCE_MEMO.md (all reconciled in the same PR). Live enablement verified 2026-07-18 (Messages API 200; Files API 400 'not available for HIPAA-regulated organizations without Zero Data Retention'). Attested by Scot Wahlquist 2026-07-18 per explicit confirmation; git contentHash computed and CI-verified. The broader AI_GOVERNANCE_MEMO body was fully updated and re-attested by Scot Wahlquist on 2026-07-19 in the AI governance memo re-attestation PR.",
       "id": "DOC-ab3a8c3ed4",
-      "contentHash": "21179eb31560cc33812909b7bc8ca36fc47f4e3a7a18240b0d57479534f6794e",
+      "contentHash": "9f3d55004be55cf192cd2d575f7fb1ee159f3dcb5becc633adec96e820e15d93",
       "retention": {
         "class": "executed-agreement",
         "rule": "term + 7 years",
@@ -2622,7 +2622,7 @@
       "lastReviewed": "2026-07-12",
       "nextReviewDue": "2027-01-12",
       "attestation": {},
-      "contentHash": "8b75eeb864f4f52d5f55b325152f7d74e26944b25752c4c3797d053c0ec324b9",
+      "contentHash": "492c07b483109a54470b79e4a835e6918bf1a7a952f8f2e44a7f8a09312ca263",
       "bundles": [],
       "mirrors": [
         {

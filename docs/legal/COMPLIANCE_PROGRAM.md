@@ -333,9 +333,13 @@ that, to the best of my knowledge as of 2026-07-22:
    explicit decommission.
 3. The vendor and BAA posture described here is accurate for the live hosting path: AWS remains the
    storage/email provider under the AWS BAA, Google Cloud Platform is the active infrastructure
-   host under the accepted GCP CDPA / HIPAA BAA / SCCs, Anthropic is the active runtime AI provider
-   under the executed HIPAA-Ready BAA, and Render remains listed only because fallback data and
-   services still exist.
+   host under the accepted GCP CDPA / HIPAA BAA / SCCs, Anthropic is the designated runtime AI
+   provider under the executed HIPAA-Ready BAA, and Render remains listed only because fallback data
+   and services still exist. **Corrected 2026-08-01:** this clause previously read "Anthropic is the
+   *active* runtime AI provider". There is no active runtime AI egress today. The Bedrock route is
+   not operational (no credential on any `lingolinq-web` revision) and the direct
+   `api.anthropic.com` route is disabled, so no runtime model egress occurs on any path. See the
+   2026-08-01 correction in `docs/legal/AWS_BAA_ACCEPTED.md`.
 4. This re-attestation does not close, downgrade, or supersede any finding by itself. Finding
    status remains governed by `audit-reports/FINDINGS.json`: Redis TLS (LL-6619cc1811) has its
    in-context Cloud Run `rediss://` PONG evidence captured, but formal closure still requires the

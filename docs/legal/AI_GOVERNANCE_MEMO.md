@@ -122,8 +122,9 @@ The governing rule is simple and enforced in code, not just in policy:
   is retained as the GDPR data-minimization control and defense-in-depth, not as the HIPAA legal
   basis (which is now the BAA).
 - **Coverage boundaries.** The AWS BAA on file (2026-02) covers HIPAA-eligible AWS services in use
-  under account 2390-4478-5114, including S3/KMS/RDS **and Amazon Bedrock** (the active runtime AI
-  route as of 2026-07-24; Fable/Mythos excluded). It does **not** by itself cover a *direct*
+  under account 2390-4478-5114, including S3/KMS/RDS **and Amazon Bedrock** (the designated runtime
+  AI route as of 2026-07-24, **not operational in production** as of 2026-08-01; Fable/Mythos
+  excluded). It does **not** by itself cover a *direct*
   third-party model endpoint outside AWS (e.g. `api.anthropic.com`); that direct path is covered by
   the Anthropic HIPAA-Ready BAA when used, and is unused at runtime today. The Google Cloud BAA
   (2026-07-12) covers Google **infrastructure**, not a model-provider egress path. **Google (Gemini)
@@ -413,21 +414,28 @@ Nothing in this refresh goes live in production until Phases 3-5 deploy and the 
 
 ## Runtime routing update - 2026-07-24 (re-attested 2026-07-24)
 
-_Runtime AI egress moved from the direct `api.anthropic.com` endpoint to **Claude on AWS Bedrock**
+_Runtime AI routing moved from the direct `api.anthropic.com` endpoint to **Claude on AWS Bedrock**
 (`lib/ai_client.rb`, the Bedrock Mantle Messages API). This is a routing change, not a change of
 model provider or model: the same Anthropic models (Claude Haiku 4.5, Claude Opus 4.7) are used._
 
-- **Governing BAA for runtime egress is now the AWS account BAA** (`docs/legal/AWS_BAA_ACCEPTED.md`),
-  because Amazon Bedrock is a HIPAA-eligible AWS service (excluding Fable/Mythos) and inference stays
-  inside AWS's HIPAA boundary. The executed Anthropic HIPAA-Ready BAA (2026-07-18,
-  `docs/legal/ANTHROPIC_BAA_ACCEPTED.md`) remains on file as a still-available direct path but is no
-  longer the active runtime route.
+_**Corrected 2026-08-01:** this section previously described the move as completed egress. The
+routing change shipped, but the Bedrock path is **not operational in production** and there is no
+runtime model egress on any path today. See the 2026-08-01 correction in
+`docs/legal/AWS_BAA_ACCEPTED.md`._
+
+- **Governing BAA for runtime egress, once egress resumes, is the AWS account BAA**
+  (`docs/legal/AWS_BAA_ACCEPTED.md`), because Amazon Bedrock is a HIPAA-eligible AWS service
+  (excluding Fable/Mythos) and inference stays inside AWS's HIPAA boundary. The executed Anthropic
+  HIPAA-Ready BAA (2026-07-18, `docs/legal/ANTHROPIC_BAA_ACCEPTED.md`) remains on file as a
+  still-available direct path but is no longer the designated runtime route.
 - The **runtime inventory table above is superseded for routing/credential detail**: runtime seams no
   longer require `ANTHROPIC_API_KEY` and no longer construct a direct Anthropic client (enforced by
   `scripts/ai-endpoint-guard.sh` in CI); model ids egress in Bedrock form
   (`anthropic.claude-haiku-4-5`, `anthropic.claude-opus-4-7`). The scrub / allowlist / COPPA / opt-out
   / AiApiLog controls in that table are unchanged.
-- Operative condition: Bedrock calls must run under the BAA'd AWS account (2390-4478-5114).
+- Operative condition: Bedrock calls must run under the BAA'd AWS account (2390-4478-5114). **This
+  condition is UNVERIFIED as of 2026-08-01, and the 2026-07-27 statement that it had been verified is
+  retracted:** no `lingolinq-web` revision carries a Bedrock credential, so no Bedrock call is made.
 - Section 3's older "AWS BAA covers infrastructure only, not model-provider egress" wording is
   superseded for the **active** runtime path by this Bedrock routing: Bedrock inference is an
   in-AWS HIPAA-eligible service under the account BAA. That older wording still correctly describes
@@ -436,3 +444,6 @@ model provider or model: the same Anthropic models (Claude Haiku 4.5, Claude Opu
 
 _Re-attested 2026-07-24 by Scot Wahlquist, CEO (Bedrock runtime routing). Prose corrected 2026-07-27
 to remove a contradictory "re-attestation owed" banner left in the bytes that attestation covered._
+
+_**Re-attestation pending.** Corrected 2026-08-01 by Claude Code to remove the stale completed-egress
+framing and the retracted operative-condition verification. Not an attestation; only Scot attests._

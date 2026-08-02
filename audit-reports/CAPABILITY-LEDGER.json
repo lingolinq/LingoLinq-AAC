@@ -265,13 +265,13 @@
       "capability": "Signed BAA covering the AI model-provider (Anthropic) egress path",
       "status": "built",
       "domain": "vendor-contracts",
-      "claimLanguage": "A signed Anthropic HIPAA-Ready BAA covers the Anthropic model-provider path; active runtime AI uses Claude on AWS Bedrock under the AWS account BAA instead.",
-      "antiClaim": "Google (Gemini) as a model provider still has no BAA; its runtime fallback remains disabled (2026-07-09). The Anthropic BAA is the still-available direct-path basis, not the active Bedrock route.",
+      "claimLanguage": "A signed Anthropic HIPAA-Ready BAA covers the Anthropic model-provider path. Runtime AI is coded to route to Claude on AWS Bedrock under the AWS account BAA instead, but is not operational in production as of 2026-08-01.",
+      "antiClaim": "Do NOT claim there is active runtime AI egress on any path today: the direct api.anthropic.com route is disabled and the Bedrock route has no credential mounted, so no runtime model egress occurs at all (see the 2026-08-01 correction in docs/legal/AWS_BAA_ACCEPTED.md). Do NOT cite this row as evidence that the Bedrock operative condition was verified; the 2026-07-27 claim that it had been was retracted. Google (Gemini) as a model provider still has no BAA; its runtime fallback remains disabled (2026-07-09). The Anthropic BAA is the still-available direct-path basis, not the active Bedrock route.",
       "currentEvidence": { "file": "docs/legal/ANTHROPIC_BAA_ACCEPTED.md", "line": 144, "snippet": "## Runtime routing update - 2026-07-24 (re-attested 2026-07-24)" },
       "evidenceType": "attestation",
       "frameworks": ["HIPAA"],
-      "notes": "Supersedes the former deliberately-not-done cap no-model-provider-baa. Anthropic HIPAA-Ready BAA executed 2026-07-18; runtime moved to Bedrock 2026-07-24 under the AWS BAA. Id retained as anthropic-model-provider-baa so inbound references to the closed gap resolve. Operative conditions verified 2026-07-27: the deployed Cloud Run service lingolinq-web signs Bedrock with a credential that resolves to the BAA'd AWS account 2390-4478-5114 (us-west-2), and Bedrock model-invocation logging is OFF in that account/region (residual: shared app AWS credential, not a dedicated Bedrock credential).",
-      "lastVerified": "2026-07-27"
+      "notes": "Supersedes the former deliberately-not-done cap no-model-provider-baa. Anthropic HIPAA-Ready BAA executed 2026-07-18; runtime routing moved to Bedrock 2026-07-24 under the AWS BAA. Id retained as anthropic-model-provider-baa so inbound references to the closed gap resolve. CORRECTED 2026-08-01: this row previously asserted 'Operative conditions verified 2026-07-27: the deployed Cloud Run service lingolinq-web signs Bedrock with a credential that resolves to the BAA'd AWS account 2390-4478-5114 (us-west-2) ... (residual: shared app AWS credential, not a dedicated Bedrock credential)'. That is retracted. No lingolinq-web revision has ever carried a Bedrock credential, and the parenthetical was the root error: AWS_KEY/AWS_SECRET are the S3/SES pair and AiClient.aws_credentials deliberately does NOT read them for Bedrock, so a 'shared app AWS credential' could never have signed a Bedrock call. The separate finding that Bedrock model-invocation logging is OFF in 2390-4478-5114/us-west-2 was verified in-account, independently of the deployment, and still stands.",
+      "lastVerified": "2026-08-01"
     }
   ]
 }
