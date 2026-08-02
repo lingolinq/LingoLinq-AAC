@@ -739,7 +739,7 @@
         ],
         "note": "Re-attested 2026-07-24 (CEO, explicit) for the §2 subprocessor-notice position on the GCP infrastructure addition (#19): recorded the pre-tenant baseline / no-notice-owed position and the compliance-calendar gate `gate-first-tenant-subprocessor-baseline`. Covers content hash f2ee3737. The prior 2026-07-23 attestation covered revision 1e404832, which no longer exists."
       },
-      "contentHash": "be9910df7e017358d000775ae4b79c26d7ad0d3f49a80ec930a3a15ee197e9dd",
+      "contentHash": "1a72c0faf38cc23879d80f61de2f60bb8c3350667f1cebf1c8a1c1a3689457b2",
       "bundles": [
         "school-dpa-package",
         "soc2-evidence",

@@ -116,7 +116,7 @@ path, which is covered by Anthropic's own HIPAA-Ready BAA (executed 2026-07-18; 
 defense-in-depth. The compliance-calendar Gemini-path item (`rev-gemini-baa-annual`) is likewise a
 separate model-provider concern.
 
-Consistency note (2026-07-12 Two-Plane AI Architecture decision): that decision's target of production inference via Vertex AI would first require confirming that Vertex AI (or the specific Vertex/Gemini product used) is a Google HIPAA Covered Service; the infrastructure BAA does not by itself extend to it. It is a direction, not a live path -- the runtime today is Anthropic-only, and the Google Gemini/Vertex inference fallback was disabled 2026-07-09 (PR #570). No AI inference reaches Google today.
+Consistency note (2026-07-12 Two-Plane AI Architecture decision): that decision's target of production inference via Vertex AI would first require confirming that Vertex AI (or the specific Vertex/Gemini product used) is a Google HIPAA Covered Service; the infrastructure BAA does not by itself extend to it. It is a direction, not a live path. The designated runtime model path is Anthropic Claude on AWS Bedrock, but that path is **dormant as of 2026-07-30** (no `lingolinq-web` revision carries a Bedrock credential, so `AiClient.configured?` is false and no runtime model egress occurs on any path; see the 2026-08-01 correction in `docs/legal/AWS_BAA_ACCEPTED.md`). The Google Gemini/Vertex inference fallback was disabled 2026-07-09 (PR #570). No AI inference reaches Google today, and none reaches Anthropic/Bedrock while the path remains dormant.
 
 Google LLC also appears in the table for the **Gemini API** (#5, disabled runtime path) and
 **Google Workspace** (#12, corporate productivity). The Cloud Run / infrastructure relationship is
