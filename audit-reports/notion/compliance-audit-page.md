@@ -11,7 +11,7 @@
 **Audited commit:** `20953ab3d5a80c3a9cbb249f37a79357b7f1baf1`  
 **Audited ref:** `scot/compliance/audit-refresh-2026-07-07`  
 **Run date:** 2026-07-08  
-**Page generated:** 2026-08-02T21:25:36Z
+**Page generated:** 2026-08-02T21:34:44Z
 
 ## Headline - open findings
 
@@ -93,7 +93,11 @@ _Headline is the count of `open` + `remediated-unverified` findings by severity 
 
 - **Source of truth:** the git register. This page is a generated read-only summary; it
   carries no evidence snippets, no finding notes, and no student/patient data.
-- **Closed / accepted / superseded findings** are intentionally omitted here; see
+- **Filtered by STATUS, not disposition.** This page lists findings whose `status` is `open`
+  or `remediated-unverified`; status `verified-closed`, `accepted-risk`, and `superseded` are
+  intentionally omitted. Disposition is a separate, Scot-owned axis, so a row listed here may
+  still carry a disposition of `accepted`, `wontfix`, or `dismissed-false-positive`. Presence
+  on this page means the finding is not yet closed; it does NOT mean it is untriaged. See
   `audit-reports/FINDINGS.md` for the full lifecycle.
 - **Compliance Posture Report** (`docs/legal/COMPLIANCE_POSTURE_REPORT.md`) is **CEO-attested**
   (Scot Wahlquist, 2026-06-19); it is linked from this summary, never embedded. External
