@@ -194,7 +194,9 @@ is **planned**, not yet built; it appears here so the consent architecture is on
   privacy notice; embedding is an open task.
 - **Subprocessors.** The Article 28 / 45 CFR 164.502(e) register is `docs/legal/SUBPROCESSORS.md`,
   with a 30-day customer change-notice commitment. AWS BAA signed 2026-02-07. Anthropic is the
-  active AI vendor receiving pseudonymized (scrubbed) prompts via `lib/pii_scrubber.rb` and is
+  designated AI vendor for pseudonymized (scrubbed) prompts via `lib/pii_scrubber.rb`, **dormant
+  since 2026-07-30 with no model egress on any path** (see the 2026-08-01 correction in
+  `docs/legal/AWS_BAA_ACCEPTED.md`), and when live is
   classified as receiving pseudonymized personal data, not anonymous or de-identified data
   (direct identifiers removed by design, but still personal data under GDPR/UK-GDPR). OpenAI is
   contracted but has no active data flow as of 2026-07-06 (see the register, row 3). Google Gemini

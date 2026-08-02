@@ -472,7 +472,7 @@
         "GDPR",
         "SOC2"
       ],
-      "lastReviewed": "2026-07-23",
+      "lastReviewed": "2026-08-02",
       "nextReviewDue": "2027-07-10",
       "attestation": {
         "attestedBy": "Scot Wahlquist, CEO",
@@ -483,7 +483,7 @@
         ],
         "note": "Re-attested 2026-07-23 against the current revision after verification against live code and infrastructure state. The prior attestation covered a revision that no longer exists; see the document banner for what changed."
       },
-      "contentHash": "4afee21c69b01deeecca9f33e80fbb74f4d639ff381c5d539d06a4269912a126",
+      "contentHash": "4810a102ea3e87eddad23359877c1976459beb08d089c259cbef48c98c28b9d1",
       "bundles": [
         "soc2-evidence"
       ],
@@ -520,7 +520,7 @@
         "attestedDate": "2026-07-22",
         "attestedContentHash": "1d1f81b0eeab01e63abf4d2c91101ff402928d3802c77528e327973f8067729e"
       },
-      "contentHash": "ac54469f43ee7124bb5cd95221da279b1e866cf02822a5d08c330fd4ec7d0ee2",
+      "contentHash": "473e78a46548e9b08c6a77d66dcc323898f1eeef32754db9949ea82de80e67dc",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
@@ -608,7 +608,8 @@
         ],
         "note": "Re-attested 2026-07-27 (Path B recovery on Scot/feat/bedrock-runtime-ai): removed contradictory \"re-attestation owed\" banners that remained after the 2026-07-24 Bedrock routing attestation, and reconciled section 3 AWS BAA coverage wording with the active Bedrock runtime route. Prior 2026-07-24 attestation covered the Bedrock routing bytes that still incorrectly said attestation was owed."
       },
-      "contentHash": "507e8c16b51db174c1149a5f45c552f7402c6149170bfd1bef319ae28da5a46c",
+      "correctionNote": "CORRECTION 2026-08-02 (not an attestation; only Scot attests). The attestation.note above says section 3 wording was reconciled with the 'active Bedrock runtime route'. Bedrock is the DESIGNATED runtime route, not an active one: it has never been operational in production (no Bedrock credential on any lingolinq-web revision), and runtime AI has been dormant since revision 00011-l7f deployed 2026-07-30T16:37Z. See the 2026-08-01 correction in docs/legal/AWS_BAA_ACCEPTED.md. Re-attestation owed.",
+      "contentHash": "54f5b5d6774c610b76f30970fefe3d19336a16dc0aa8f6aace5af69b8e38b535",
       "bundles": [
         "compliance-records-set-2026-06",
         "security-review"
@@ -726,7 +727,7 @@
         "FERPA",
         "HIPAA"
       ],
-      "lastReviewed": "2026-07-23",
+      "lastReviewed": "2026-08-02",
       "nextReviewDue": "2027-07-23",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
@@ -738,7 +739,7 @@
         ],
         "note": "Re-attested 2026-07-24 (CEO, explicit) for the §2 subprocessor-notice position on the GCP infrastructure addition (#19): recorded the pre-tenant baseline / no-notice-owed position and the compliance-calendar gate `gate-first-tenant-subprocessor-baseline`. Covers content hash f2ee3737. The prior 2026-07-23 attestation covered revision 1e404832, which no longer exists."
       },
-      "contentHash": "f2ee37371ebf3b89037f42a6fc3aeedeb8d857a23297759604508c8ff5161fb3",
+      "contentHash": "c94a2937ea460d3930f6663bf7dd7954017942f61627ffa956738cac1a7c9776",
       "bundles": [
         "school-dpa-package",
         "soc2-evidence",
@@ -1082,7 +1083,8 @@
         ],
         "note": "Re-attested 2026-07-27: recorded the verified Bedrock operative conditions (deployed lingolinq-web credential resolves to the BAA'd AWS account 2390-4478-5114 / us-west-2; Bedrock model-invocation logging OFF in that account/region). Content-only verification; no scope change."
       },
-      "contentHash": "628ac9174039e160c060384d7e46b96233b8fe44fbf25bc89b20fd1bb7357e94",
+      "correctionNote": "CORRECTION 2026-08-02 (not an attestation; only Scot attests). The attestation.note above, recorded 2026-07-27, states that the deployed lingolinq-web credential was verified to resolve to AWS account 2390-4478-5114. That verification is RETRACTED: no lingolinq-web revision has ever carried a Bedrock credential (all 11 revisions checked, 00001-2vn 2026-06-29 through 00011-l7f 2026-07-30). The attestation object is left unmodified because it records what was signed; this field records that one of its assertions is known false. The separate finding in that same note, that Bedrock model-invocation logging is OFF in 2390-4478-5114/us-west-2, was verified in-account independently of the deployment and STILL STANDS. Full evidence and the standard for any future verification: the 2026-08-01 correction section in the document itself. Re-attestation owed.",
+      "contentHash": "389800e199d2cd106ee391f966fc405e7c25c07103a9b2f7c86fb495b5425130",
       "bundles": [
         "baa"
       ],
@@ -1170,7 +1172,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "91ed6ff2b792c9fc15b5c48526f9ef8ea0cef6394ff59584000ff1091a3cf08c",
+      "contentHash": "aac190c17cd908e18947bdf43c31a467634fce77c86d61cd42da3d92e9f74c5e",
       "bundles": [],
       "mirrors": [
         {
@@ -2559,14 +2561,14 @@
         "GDPR",
         "SOC2"
       ],
-      "lastReviewed": "2026-07-23",
+      "lastReviewed": "2026-08-02",
       "nextReviewDue": "2027-07-22",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-23",
         "attestedContentHash": "47318beb94b3d3b9fa76845def3d68db6eddd38b7a6e2c44596d11b2d733b046"
       },
-      "contentHash": "47318beb94b3d3b9fa76845def3d68db6eddd38b7a6e2c44596d11b2d733b046",
+      "contentHash": "0ee5dbf10b508bd36cd9c6cd4328dfc6faba3252bbf2a172798d4b52a8f1e43a",
       "bundles": [
         "security-review"
       ],

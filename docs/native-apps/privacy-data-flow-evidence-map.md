@@ -108,7 +108,9 @@ Derived from `Gemfile`, `app/frontend/package.json`, and config.
 
 ## 3. AI-API egress + PiiScrubber posture
 
-**What reaches an external AI model:** **THREE runtime paths** egress user content to an external LLM (Anthropic Claude / Google Gemini), plus one offline no-PII build tool. All three runtime paths share the same three-part gate (org AI opt-out -> COPPA hard-gate -> PiiScrubber redaction + per-user name blocklist) and are audit-logged in `AiApiLog`. Corrected 2026-06-30 after senior review flagged that the prior "board generation is the only path" statement was materially incomplete.
+> **Status correction, 2026-08-02.** All runtime AI paths are **dormant**: no `lingolinq-web` revision carries a Bedrock credential, so `AiClient.configured?` is false and nothing egresses to a model provider today. The Google Gemini path was removed entirely on 2026-07-09 (PR #570) and is no longer a provider. Read this section as the designated flow when live, which is the correct conservative basis for a privacy label, not as current traffic. See the 2026-08-01 correction in `docs/legal/AWS_BAA_ACCEPTED.md`.
+
+**What reaches an external AI model when the paths are live:** **THREE runtime paths** egress user content to an external LLM (Anthropic Claude on AWS Bedrock), plus one offline no-PII build tool. All three runtime paths share the same three-part gate (org AI opt-out -> COPPA hard-gate -> PiiScrubber redaction + per-user name blocklist) and are audit-logged in `AiApiLog`. Corrected 2026-06-30 after senior review flagged that the prior "board generation is the only path" statement was materially incomplete.
 
 | # | Path | File | What egresses | Provider(s) | Gating |
 |---|---|---|---|---|---|

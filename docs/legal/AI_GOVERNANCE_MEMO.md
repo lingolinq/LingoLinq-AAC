@@ -50,6 +50,14 @@ practice rather than a capability claim.
 
 Verified against code at draft time. Re-verify before publishing.
 
+> **Status correction, 2026-08-02.** Every runtime row in this table is **dormant**. No
+> `lingolinq-web` revision carries a Bedrock credential, so `AiClient.configured?` is false and no
+> runtime AI seam egresses to any model endpoint; the direct `api.anthropic.com` route was removed
+> by PR #681 and is CI-enforced. Read the "Sees user data?" column as *when the path is live*, not
+> as current traffic. The routing and credential detail below is further superseded by the
+> "Runtime routing update" section later in this memo. See the 2026-08-01 correction in
+> `docs/legal/AWS_BAA_ACCEPTED.md`.
+
 | Use | Model(s) | Where | Sees user data? | Control |
 |---|---|---|---|---|
 | Word/phrase prediction (runtime) | Claude Haiku 4.5 (`claude-haiku-4-5-20251001`) only -- Gemini fallback disabled 2026-07-09 | `lib/ai_word_predictor.rb` | Yes, but **scrubbed first** | Every sentence passes `PiiScrubber.redact_for_ai` before the call (line 55); each call logged to `AiApiLog`. Feature-flag gated, COPPA hard block for under-13. `ANTHROPIC_API_KEY` is now required; there is no automatic fallback provider. |
@@ -437,7 +445,7 @@ runtime model egress on any path today. See the 2026-08-01 correction in
   condition is UNVERIFIED as of 2026-08-01, and the 2026-07-27 statement that it had been verified is
   retracted:** no `lingolinq-web` revision carries a Bedrock credential, so no Bedrock call is made.
 - Section 3's older "AWS BAA covers infrastructure only, not model-provider egress" wording is
-  superseded for the **active** runtime path by this Bedrock routing: Bedrock inference is an
+  superseded for the **designated** runtime path by this Bedrock routing: Bedrock inference is an
   in-AWS HIPAA-eligible service under the account BAA. That older wording still correctly describes
   the *direct* third-party Anthropic endpoint (now unused at runtime; covered by the Anthropic BAA
   if re-enabled) and any non-AWS model provider.

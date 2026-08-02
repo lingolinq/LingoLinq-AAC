@@ -107,8 +107,10 @@ Everything in this section is live in the product.
   under FERPA; in the EU they are sensitive children's data handled under Section 6.
 
 **AI and PII handling**
-- LingoLinq uses AI for word prediction and communication-board generation. The primary model is
-  Anthropic Claude (Haiku 4.5), with a Google (Gemini) fallback.
+- LingoLinq uses AI for word prediction and communication-board generation. The designated model is
+  Anthropic Claude (Haiku 4.5) on AWS Bedrock. There is no Google (Gemini) fallback; that path was
+  removed on 2026-07-09. These AI features are **not operational as of 2026-07-30** and send no data
+  to any model provider until they are re-enabled.
 - Before text is sent to our external LLM providers for word prediction, board generation, or eval
   narration, our PII scrubber removes identifiers. This is **pseudonymization (scrubbing)**, and we
   describe it accurately: the result is scrubbed data that we still treat as personal data. We do
