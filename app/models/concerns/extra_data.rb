@@ -183,8 +183,15 @@ module ExtraData
     false
   end
 
+  # Whether detached (S3-backed) extra data is available in this environment.
+  # When it is not, nothing can ever be uploaded, so callers must keep their data
+  # inline rather than stashing it somewhere that will never be persisted.
+  def remote_extra_data_enabled?
+    !!ENV['REMOTE_EXTRA_DATA']
+  end
+
   def extra_data_too_big?
-    return false unless ENV['REMOTE_EXTRA_DATA']
+    return false unless remote_extra_data_enabled?
     if self.is_a?(LogSession) && self.log_type == 'session'
       user = self.user
       if self.data && self.data['events'] && self.data['events'].length > 5
