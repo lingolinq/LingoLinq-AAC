@@ -8005,6 +8005,10 @@ When `useAppNavbarInHeader` is true (dashboard, org, most user routes), `applica
 
 Merge reassignment (`transfer_user_content`) and hard-delete (`flush_user_content`) diverge. Models present only in transfer — historically `UserVideo`, `ButtonSound`, `ButtonImage` — will survive account erasure unless flush also sweeps them by `user_id`. Board flush only destroys media when join-table `full_flush` conditions hold, so off-board / message-bank `ButtonSound` rows are invisible to that path. Prefer explicit `Model.where(user_id:).each { flush_record }` over relying on `User` associations (`dependent: :destroy` is often missing). `flush_record` → `destroy` is what schedules Uploadable S3 `remote_remove`. Ref: [`2026-07-31-flush-uservideo-buttonsound-erasure.md`](./2026-07-31-flush-uservideo-buttonsound-erasure.md) (LL-854b1d3853).
 
+## Gotcha: stubbing `Uploader.remote_remove` still needs uploads-bucket URL shapes
+
+Specs that `expect(Uploader).to receive(:remote_remove)` never hit the "scary delete" guard, so `http://www.example.com/...` fixtures can mask regressions. Use uploads-bucket HTTPS paths that match `\w+/.../\w+-\w+(.ext)?` after the bucket prefix is stripped (see `lib/uploader.rb` / `uploader_spec`). Keep `removable: false` fixtures on non-uploads URLs (e.g. opensymbols) — `check_for_removable` forces `removable=true` for uploads-bucket URLs. Ref: [`2026-07-31-flush-uservideo-buttonsound-erasure.md`](./2026-07-31-flush-uservideo-buttonsound-erasure.md).
+
 ## Pattern: a missing env var can turn a storage optimization into silent data destruction
 
 **Surface:** `ExtraData` concern (`app/models/concerns/extra_data.rb`) plus any caller that

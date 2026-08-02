@@ -205,22 +205,31 @@ describe Flusher do
       u = User.create
       b = Board.create(:user => u)
       b2 = Board.create(:user => u)
-      i = ButtonImage.create(:user => u, :removable => true, :url => "http://www.example.com/pic.png")
-      i2 = ButtonImage.create(:user => u, :removable => false, :url => "http://www.example.com/pic2.png")
-      i3 = ButtonImage.create(:user => u, :removable => true, :url => "http://www.example.com/pic3.png")
+      # Removable URLs must be uploads-bucket HTTPS paths matching
+      # Uploader.remote_remove's accepted pattern (\w+/.../\w+-\w+.ext).
+      # Non-removable library assets stay off the uploads bucket so
+      # check_for_removable does not force removable=true.
+      uploads_bucket = ENV['UPLOADS_S3_BUCKET'].presence || 'lingolinq-dev-uploads'
+      pic_url = "https://#{uploads_bucket}.s3.amazonaws.com/images/abc123/pic-one.png"
+      pic2_url = "https://opensymbols.s3.amazonaws.com/libraries/mulberry/cat.png"
+      pic3_url = "https://#{uploads_bucket}.s3.amazonaws.com/images/abc123/pic-three.png"
+      sound_url = "https://#{uploads_bucket}.s3.amazonaws.com/sounds/abc123/sound-one.mp3"
+      i = ButtonImage.create(:user => u, :removable => true, :url => pic_url)
+      i2 = ButtonImage.create(:user => u, :removable => false, :url => pic2_url)
+      i3 = ButtonImage.create(:user => u, :removable => true, :url => pic3_url)
       BoardButtonImage.connect(b.id, [{:id => i.global_id}, {:id => i2.global_id}, {:id => i3.global_id}])
       BoardButtonImage.connect(b2.id, [{:id => i3.global_id}])
-      s = ButtonSound.create(:user => u, :removable => true, :url => "http://www.example.com/sound.mp3")
+      s = ButtonSound.create(:user => u, :removable => true, :url => sound_url)
       BoardButtonSound.create(:board_id => b.id, :button_sound_id => s.id)
       expect(i.removable).to eq(true)
       expect(i2.removable).to eq(false)
       expect(i3.removable).to eq(true)
       expect(s.removable).to eq(true)
 
-      expect(Uploader).to receive(:remote_remove).with("http://www.example.com/pic.png")
-      expect(Uploader).to receive(:remote_remove).with("http://www.example.com/sound.mp3")
-      expect(Uploader).not_to receive(:remote_remove).with("http://www.example.com/pic2.png")
-      expect(Uploader).not_to receive(:remote_remove).with("http://www.example.com/pic3.png")
+      expect(Uploader).to receive(:remote_remove).with(pic_url)
+      expect(Uploader).to receive(:remote_remove).with(sound_url)
+      expect(Uploader).not_to receive(:remote_remove).with(pic2_url)
+      expect(Uploader).not_to receive(:remote_remove).with(pic3_url)
       
       Flusher.flush_board(b.global_id, b.key)
       Worker.process_queues
@@ -235,22 +244,27 @@ describe Flusher do
       u = User.create
       b = Board.create(:user => u)
       b2 = Board.create(:user => u)
-      i = ButtonImage.create(:user => u, :removable => true, :url => "http://www.example.com/pic.png")
-      i2 = ButtonImage.create(:user => u, :removable => false, :url => "http://www.example.com/pic2.png")
-      i3 = ButtonImage.create(:user => u, :removable => true, :url => "http://www.example.com/pic3.png")
+      uploads_bucket = ENV['UPLOADS_S3_BUCKET'].presence || 'lingolinq-dev-uploads'
+      pic_url = "https://#{uploads_bucket}.s3.amazonaws.com/images/abc123/pic-one.png"
+      pic2_url = "https://opensymbols.s3.amazonaws.com/libraries/mulberry/cat.png"
+      pic3_url = "https://#{uploads_bucket}.s3.amazonaws.com/images/abc123/pic-three.png"
+      sound_url = "https://#{uploads_bucket}.s3.amazonaws.com/sounds/abc123/sound-one.mp3"
+      i = ButtonImage.create(:user => u, :removable => true, :url => pic_url)
+      i2 = ButtonImage.create(:user => u, :removable => false, :url => pic2_url)
+      i3 = ButtonImage.create(:user => u, :removable => true, :url => pic3_url)
       BoardButtonImage.connect(b.id, [{:id => i.global_id}, {:id => i2.global_id}, {:id => i3.global_id}])
       BoardButtonImage.connect(b2.id, [{:id => i3.global_id}])
-      s = ButtonSound.create(:user => u, :removable => true, :url => "http://www.example.com/sound.mp3")
+      s = ButtonSound.create(:user => u, :removable => true, :url => sound_url)
       BoardButtonSound.create(:board_id => b.id, :button_sound_id => s.id)
       expect(i.removable).to eq(true)
       expect(i2.removable).to eq(false)
       expect(i3.removable).to eq(true)
       expect(s.removable).to eq(true)
 
-      expect(Uploader).to receive(:remote_remove).with("http://www.example.com/pic.png")
-      expect(Uploader).to receive(:remote_remove).with("http://www.example.com/sound.mp3")
-      expect(Uploader).not_to receive(:remote_remove).with("http://www.example.com/pic2.png")
-      expect(Uploader).to receive(:remote_remove).with("http://www.example.com/pic3.png")
+      expect(Uploader).to receive(:remote_remove).with(pic_url)
+      expect(Uploader).to receive(:remote_remove).with(sound_url)
+      expect(Uploader).not_to receive(:remote_remove).with(pic2_url)
+      expect(Uploader).to receive(:remote_remove).with(pic3_url)
       
       expect(ButtonImage.count).to eq(3)
 
@@ -310,16 +324,24 @@ describe Flusher do
     it "should flush off-board ButtonSound and UserVideo records and schedule S3 removal" do
       u = User.create
       u2 = User.create
+      # Uploads-bucket HTTPS URLs matching Uploader.remote_remove's accepted path
+      # pattern (\w+/.../\w+-\w+.ext). example.com URLs would raise the "scary
+      # delete" guard if the stub were removed, so they mask regressions.
+      uploads_bucket = ENV['UPLOADS_S3_BUCKET'].presence || 'lingolinq-dev-uploads'
+      sound_url = "https://#{uploads_bucket}.s3.amazonaws.com/sounds/abc123/voice-rec.mp3"
+      video_url = "https://#{uploads_bucket}.s3.amazonaws.com/videos/abc123/clip-vid.mp4"
+      other_sound_url = "https://#{uploads_bucket}.s3.amazonaws.com/sounds/def456/other-rec.mp3"
+      other_video_url = "https://#{uploads_bucket}.s3.amazonaws.com/videos/def456/other-vid.mp4"
       # Off-board / message-bank recording (no BoardButtonSound)
-      sound = ButtonSound.create(user: u, removable: true, url: "http://www.example.com/voice.mp3")
-      video = UserVideo.create(user: u, url: "http://www.example.com/clip.mp4")
-      other_sound = ButtonSound.create(user: u2, removable: true, url: "http://www.example.com/other.mp3")
-      other_video = UserVideo.create(user: u2, url: "http://www.example.com/other.mp4")
+      sound = ButtonSound.create(user: u, removable: true, url: sound_url)
+      video = UserVideo.create(user: u, url: video_url)
+      other_sound = ButtonSound.create(user: u2, removable: true, url: other_sound_url)
+      other_video = UserVideo.create(user: u2, url: other_video_url)
 
-      expect(Uploader).to receive(:remote_remove).with("http://www.example.com/voice.mp3")
-      expect(Uploader).to receive(:remote_remove).with("http://www.example.com/clip.mp4")
-      expect(Uploader).not_to receive(:remote_remove).with("http://www.example.com/other.mp3")
-      expect(Uploader).not_to receive(:remote_remove).with("http://www.example.com/other.mp4")
+      expect(Uploader).to receive(:remote_remove).with(sound_url)
+      expect(Uploader).to receive(:remote_remove).with(video_url)
+      expect(Uploader).not_to receive(:remote_remove).with(other_sound_url)
+      expect(Uploader).not_to receive(:remote_remove).with(other_video_url)
 
       Flusher.flush_user_content(u.global_id, u.user_name)
       Worker.process_queues
