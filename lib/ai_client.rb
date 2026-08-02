@@ -62,6 +62,11 @@ module AiClient
     'anthropic.claude-haiku-4-5' => 'us.anthropic.claude-haiku-4-5-20251001-v1:0'
   }.freeze
 
+  # Trailing date and/or version suffix on a model id, e.g. the `-20251001` in
+  # `claude-haiku-4-5-20251001` (the exact value the old .env.example documented
+  # for ANTHROPIC_MODEL) or the `-v1:0` in a full foundation-model id.
+  LEGACY_VERSION_SUFFIX = /(?:-\d{8})?(?:-v\d+(?::\d+)?)?\z/
+
   # Which Bedrock plane to construct. Anything other than an explicit "mantle"
   # resolves to classic, so a typo degrades to the working plane rather than to
   # an unentitled one.
@@ -134,7 +139,19 @@ module AiClient
     alias_id = id.start_with?('anthropic.') ? id : "anthropic.#{id}"
     return alias_id unless bedrock_plane == CLASSIC_PLANE
 
-    CLASSIC_PROFILE_IDS.fetch(alias_id, alias_id)
+    mapped = CLASSIC_PROFILE_IDS[alias_id]
+    return mapped if mapped
+
+    # 4. A dated/versioned override still resolves. Deployments configured off the
+    #    previous docs carry ANTHROPIC_MODEL=claude-haiku-4-5-20251001, which
+    #    normalizes to an alias with no map row and would otherwise be sent to
+    #    classic as a bare id and rejected. Retry the lookup against the base name.
+    #    This can never substitute a DIFFERENT model: the base name is preserved,
+    #    so an unrelated id simply misses the map again. On a miss the operator's
+    #    ORIGINAL id is returned, not the stripped one, so the failure names what
+    #    they actually configured.
+    base = alias_id.sub(LEGACY_VERSION_SUFFIX, '')
+    CLASSIC_PROFILE_IDS.fetch(base, alias_id)
   end
 
   # Builds the Bedrock client for the active plane, or nil when AWS is not

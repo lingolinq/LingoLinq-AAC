@@ -192,6 +192,35 @@ describe AiClient do
             .to eq('anthropic.claude-opus-4-7')
         end
       end
+
+      # A deployment configured off the PREVIOUS .env.example carries
+      # ANTHROPIC_MODEL=claude-haiku-4-5-20251001. Without suffix-stripping that
+      # normalizes to an unmapped alias and every AI call fails on classic, so the
+      # plane switch would appear to work while that deployment stayed broken.
+      it 'resolves legacy dated and versioned override forms to the profile id' do
+        with_env({}) do
+          %w[
+            claude-haiku-4-5-20251001
+            anthropic.claude-haiku-4-5-20251001
+            anthropic.claude-haiku-4-5-20251001-v1:0
+            anthropic.claude-haiku-4-5-v1:0
+          ].each do |legacy|
+            expect(described_class.bedrock_model(legacy))
+              .to eq('us.anthropic.claude-haiku-4-5-20251001-v1:0'), "failed for #{legacy}"
+          end
+        end
+      end
+
+      it 'does not let suffix-stripping substitute a different model' do
+        with_env({}) do
+          # Base name is preserved, so an unrelated dated id misses the map twice
+          # and comes back as the operator's ORIGINAL id, not a Haiku profile.
+          expect(described_class.bedrock_model('anthropic.claude-opus-4-7-20260115'))
+            .to eq('anthropic.claude-opus-4-7-20260115')
+          expect(described_class.bedrock_model('anthropic.claude-sonnet-4-5-20250929-v1:0'))
+            .to eq('anthropic.claude-sonnet-4-5-20250929-v1:0')
+        end
+      end
     end
 
     context 'on the mantle plane' do
