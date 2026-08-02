@@ -19,14 +19,14 @@
 | Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Access Control Policy | Drive | [open](https://docs.google.com/document/d/1yyibyEBfMiaS8NoHVVW629SkK61C0jo5P5OjUGojOck/edit) | published | SOC2, HIPAA, FERPA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence, security-review, baa |
-| AI Data-Flow Classification | git | `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md` | approved | FERPA, COPPA, HIPAA, GDPR | Scot Wahlquist | 2026-07-22 | 2027-07-22 | 2026-07-22 | `f16e851f8cc0` | school-dpa-package, security-review, dsar |
-| AI Data-Sharing Consent: Rationale and Policy | git | `docs/legal/AI_DATA_SHARING_CONSENT.md` | approved | FERPA, COPPA, GDPR | Scot Wahlquist | 2026-07-09 | 2027-07-09 | 2026-07-09 | `c77ebb0dc5c8` |  |
+| AI Data-Flow Classification | git | `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md` | approved | FERPA, COPPA, HIPAA, GDPR | Scot Wahlquist | 2026-08-02 | 2027-07-22 | 2026-07-22 | `d9d1adbb8738` | school-dpa-package, security-review, dsar |
+| AI Data-Sharing Consent: Rationale and Policy | git | `docs/legal/AI_DATA_SHARING_CONSENT.md` | approved | FERPA, COPPA, GDPR | Scot Wahlquist | 2026-08-02 | 2027-07-09 | 2026-07-09 | `8b4d734b2cfa` |  |
 | Business Continuity and Disaster Recovery Plan | Drive | [open](https://docs.google.com/document/d/1WIr3aBuFjworFtv9EOisOCSdfLvMSMFWQrFMzkhda00/edit) | published | SOC2 | Scot Wahlquist | 2026-06-19 | 2026-12-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
 | Compliance & Data Governance (COMPLIANCE.md) | git | `COMPLIANCE.md` | approved | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-02 | 2027-07-10 | 2026-07-23 | `4810a102ea3e` | soc2-evidence |
 | Data Retention Schedule | git | `docs/legal/DATA_RETENTION.md` | approved | FERPA, GDPR, HIPAA, COPPA | Scot Wahlquist | 2026-07-23 | 2027-07-23 | 2026-07-23 | `0c748cadd744` | soc2-evidence, school-dpa-package, security-review, dsar |
 | Data Retention Schedule (branded) | Drive | [open](https://docs.google.com/document/d/1GRFuvaacbUbcAixhaOAOsdGKhOfclAByYS53bWap14k/edit) | published | FERPA, GDPR, HIPAA, COPPA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence, school-dpa-package |
 | EU AI Act Article 50 Transparency: Implementation Milestone Plan | git | `docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md` | draft | GDPR | Scot Wahlquist | 2026-07-14 | 2026-08-02 | no | `1a557d9d5b3d` |  |
-| Subprocessor Register | git | `docs/legal/SUBPROCESSORS.md` | approved | GDPR, FERPA, HIPAA | Scot Wahlquist | 2026-08-02 | 2027-07-23 | 2026-07-24 | `c94a2937ea46` | school-dpa-package, soc2-evidence, security-review |
+| Subprocessor Register | git | `docs/legal/SUBPROCESSORS.md` | approved | GDPR, FERPA, HIPAA | Scot Wahlquist | 2026-08-02 | 2027-07-23 | 2026-07-24 | `be9910df7e01` | school-dpa-package, soc2-evidence, security-review |
 | Subprocessor Register (branded) | Drive | [open](https://docs.google.com/document/d/13i7PUAZO-_lyUrObdB3CLDQ5KB9s5GNL7XHpcBCRn_M/edit) | published | GDPR, FERPA, HIPAA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, school-dpa-package |
 | Vendor and Subprocessor Management Policy | Drive | [open](https://docs.google.com/document/d/1fmBOfw-peYUpdwmttHC3hqzU_5c3OMNgBSN4NDK7mAM/edit) | published | SOC2, GDPR | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
 | Written Information Security Program (WISP) | Drive | [open](https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit) | published | SOC2, HIPAA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence, security-review, baa |
@@ -78,8 +78,8 @@
 | Compliance Status Snapshot (2026-06-18) | git | `docs/legal/COMPLIANCE_STATUS_2026-06-18.md` | superseded |  | Scot Wahlquist | 2026-06-18 |  | no | `94b8288187ea` |  |
 | Data & Compliance Pipeline - Build Inventory (dated) | Drive | [open](https://docs.google.com/document/d/1xxLsESUXKm6rDWuqr_Z-Ob5kWzUZUbFD3gTKZWfLMnY/edit) | approved |  | Scot Wahlquist | 2026-06-22 | 2026-09-22 | no | (supplied) |  |
 | Document Register (this file) | git | `audit-reports/DOCUMENT-REGISTER.json` | published |  | Scot Wahlquist | 2026-06-21 | 2026-09-21 | no | (self) |  |
-| Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | `aac190c17cd9` |  |
-| LingoLinq Capability Ledger (rendered) | git | `docs/legal/CAPABILITY_LEDGER.md` | published |  | Scot Wahlquist | 2026-07-12 | 2027-01-12 | no | `492c07b48310` |  |
+| Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | `7910ec942297` |  |
+| LingoLinq Capability Ledger (rendered) | git | `docs/legal/CAPABILITY_LEDGER.md` | published |  | Scot Wahlquist | 2026-07-12 | 2027-01-12 | no | `50df472ed021` |  |
 | Notion - Compliance & Audits hub | Notion | [open](https://www.notion.so/3655fe8215c2815a949ec8ed971d5580) | published |  | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | (supplied) |  |
 | Notion - Compliance Documents board (LL) | Notion | [open](https://www.notion.so/3865fe8215c28174aef3ce32239ced5c) | published |  | Scot Wahlquist | 2026-06-21 | 2026-09-21 | no | (supplied) |  |
 | Notion - Compliance Findings board (LL) | Notion | [open](https://app.notion.com/p/1f8451c4a17b4f5b868878ac4386b805) | published |  | Scot Wahlquist | 2026-06-20 | 2026-09-20 | no | (supplied) |  |
@@ -258,8 +258,8 @@ green build. Verified for git rows only; Drive and Notion hashes are operator-su
 
 | Record | Attested | Pinned bytes | State |
 |---|---|---|---|
-| AI Data-Flow Classification | 2026-07-22 | `f16e851f8cc0` | verified |
-| AI Data-Sharing Consent: Rationale and Policy | 2026-07-09 | `c77ebb0dc5c8` | verified |
+| AI Data-Flow Classification | 2026-07-22 | `f16e851f8cc0` | MISMATCH - re-attestation owed |
+| AI Data-Sharing Consent: Rationale and Policy | 2026-07-09 | `c77ebb0dc5c8` | MISMATCH - re-attestation owed |
 | AI Governance Memo | 2026-07-27 | `74ec247f35dd` | MISMATCH - re-attestation owed |
 | Anthropic HIPAA-Ready BAA Acceptance Record | 2026-07-27 | `21179eb31560` | MISMATCH - re-attestation owed |
 | AWS BAA Acceptance Record | 2026-07-27 | `8895bd338274` | MISMATCH - re-attestation owed |

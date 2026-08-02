@@ -44,9 +44,18 @@ company-wide subprocessor register, maintained by the Privacy Office on its own 
   used for AI board suggestions, which are Non-personal and not gated by this consent -- see
   section 3); Claude Opus 4.7 (`claude-opus-4-7`, overridable via `EVAL_NARRATOR_MODEL`) for
   AI evaluation narration.
-- **Access path:** Anthropic's commercial API, not the free consumer Claude.ai product.
-- **Data-processing basis:** DPA via Anthropic's Commercial Terms
-  (https://www.anthropic.com/legal/commercial-terms), per `docs/legal/SUBPROCESSORS.md`.
+- **Access path:** Anthropic Claude models on **AWS Bedrock** (the Bedrock Mantle Messages API via
+  `lib/ai_client.rb`), never the free consumer Claude.ai product. **Corrected 2026-08-02:** this
+  previously read "Anthropic's commercial API"; the direct `api.anthropic.com` route was removed by
+  PR #681 and is CI-enforced. **The Bedrock path is dormant as of 2026-07-30** (no `lingolinq-web`
+  revision carries a Bedrock credential), so no data is sent to any model provider today. See the
+  2026-08-01 correction in `docs/legal/AWS_BAA_ACCEPTED.md`.
+- **Data-processing basis:** the **AWS account BAA** (2026-02-07, account 2390-4478-5114) governs
+  the Bedrock path, since Bedrock inference stays inside AWS's HIPAA-eligible service boundary. The
+  executed **Anthropic HIPAA-Ready BAA** (2026-07-18, `docs/legal/ANTHROPIC_BAA_ACCEPTED.md`) covers
+  the direct Anthropic path and remains on file. **Corrected 2026-08-02:** this previously cited a
+  DPA under Anthropic's Commercial Terms, which the 2026-07-18 BAA superseded. See
+  `docs/legal/SUBPROCESSORS.md`.
 - **Zero-data-retention (ZDR) status:** Confirmed for these two specific models, verified against
   Anthropic's own data-retention documentation (Anthropic Privacy Center, "Data retention practices
   for [model class]," confirmed 2026-07-06). This confirmation does **not** extend to any other

@@ -53,6 +53,16 @@ section 2), so it is out of scope for this disclosure and is not in the table be
 
 ## 3. Feature classification table
 
+> **Status correction, 2026-08-02.** The vendor/model column below names the direct commercial API
+> and dated model ids (`claude-haiku-4-5-20251001`). That is stale in two ways. The runtime route is
+> now Anthropic Claude on **AWS Bedrock** in bare-alias form (`anthropic.claude-haiku-4-5`), via
+> `lib/ai_client.rb`; the direct `api.anthropic.com` route was removed by PR #681 and is CI-enforced
+> by `scripts/ai-endpoint-guard.sh`. And every runtime row here is **dormant as of 2026-07-30**: no
+> `lingolinq-web` revision carries a Bedrock credential, so `AiClient.configured?` is false and no
+> data is sent to any model provider. The Gemini fallback referenced in these rows was removed
+> 2026-07-09 (PR #570). Read the table as the designated classification when live, not as current
+> traffic. See the 2026-08-01 correction in `docs/legal/AWS_BAA_ACCEPTED.md`.
+
 | Feature | Code location | Vendor / model / tier | Data sent (post-scrubber) | Account identifier in payload? | Bucket | 2nd-tier VPC gate? | What the disclosure must say |
 |---|---|---|---|---|---|---|---|
 | AI board suggestion + "focus" refinement | `lib/ai_board_generator.rb` (`generate_words`, `generate_focus_words`) | Primary: Anthropic Claude Haiku 4.5 (`claude-haiku-4-5-20251001`), commercial API. Gemini fallback disabled 2026-07-09 (PR #570). | The topic/prompt text a parent, SLP, or communicator types to request a board (e.g. "make a board about the zoo"), plus cell count and locale. Scrubbed via `PiiScrubber.redact_for_ai` before egress -- as of 2026-07-09 this includes a common first-name gazetteer pass (`PiiScrubber::COMMON_FIRST_NAMES`, ~1,656 US SSA names), not just the account holder's own name. | No. `user:` is threaded into the call for the COPPA gate, org opt-out check, and `AiApiLog` audit attribution ONLY; it is not placed in the vendor-bound prompt payload. | **Non-personal -- reclassified 2026-07-09 (Scot).** Was Scrubbed-personal (conservative default); see section 4.2 for the reclassification rationale and residual-risk acceptance. | **No -- reclassified 2026-07-09.** See section 4.2. | Board generation may be omitted from the second-tier AI-data-sharing disclosure entirely, or listed as a non-gated feature, depending on Phase 2/3 copy conventions -- Anthropic (Haiku 4.5) is still named in the general privacy policy as an AI sub-processor regardless of gating status. |

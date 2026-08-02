@@ -739,7 +739,7 @@
         ],
         "note": "Re-attested 2026-07-24 (CEO, explicit) for the §2 subprocessor-notice position on the GCP infrastructure addition (#19): recorded the pre-tenant baseline / no-notice-owed position and the compliance-calendar gate `gate-first-tenant-subprocessor-baseline`. Covers content hash f2ee3737. The prior 2026-07-23 attestation covered revision 1e404832, which no longer exists."
       },
-      "contentHash": "c94a2937ea460d3930f6663bf7dd7954017942f61627ffa956738cac1a7c9776",
+      "contentHash": "be9910df7e017358d000775ae4b79c26d7ad0d3f49a80ec930a3a15ee197e9dd",
       "bundles": [
         "school-dpa-package",
         "soc2-evidence",
@@ -1172,7 +1172,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "aac190c17cd908e18947bdf43c31a467634fce77c86d61cd42da3d92e9f74c5e",
+      "contentHash": "7910ec9422974eaf72e88e93e40a834129f024a3f011eac2930434b48b77bd7a",
       "bundles": [],
       "mirrors": [
         {
@@ -2487,14 +2487,14 @@
         "HIPAA",
         "GDPR"
       ],
-      "lastReviewed": "2026-07-22",
+      "lastReviewed": "2026-08-02",
       "nextReviewDue": "2027-07-22",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-22",
         "attestedContentHash": "f16e851f8cc09794437f0f87089b309763124943af4a5475b1e60b25fcf9f475"
       },
-      "contentHash": "f16e851f8cc09794437f0f87089b309763124943af4a5475b1e60b25fcf9f475",
+      "contentHash": "d9d1adbb8738124f14c4d0e007174630ed24c571f5c91b59a6dc0609aa3a79e0",
       "bundles": [
         "school-dpa-package",
         "security-review",
@@ -2525,14 +2525,14 @@
         "COPPA",
         "GDPR"
       ],
-      "lastReviewed": "2026-07-09",
+      "lastReviewed": "2026-08-02",
       "nextReviewDue": "2027-07-09",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-07-09",
         "attestedContentHash": "c77ebb0dc5c8a228f32f268f40f36a74e60ef867a5ada78ba0e22f0d4a7ca914"
       },
-      "contentHash": "c77ebb0dc5c8a228f32f268f40f36a74e60ef867a5ada78ba0e22f0d4a7ca914",
+      "contentHash": "8b4d734b2cfa9bc6a22385bf997fb70b7a17a6726278047d324458b42dcf0355",
       "bundles": [],
       "mirrors": [],
       "notes": "Register bookkeeping from the in-document attestation line (2026-07-09, provisional, conservative-default). Not yet reviewed by outside counsel. Scot to confirm or correct.",
@@ -2624,7 +2624,7 @@
       "lastReviewed": "2026-07-12",
       "nextReviewDue": "2027-01-12",
       "attestation": {},
-      "contentHash": "492c07b483109a54470b79e4a835e6918bf1a7a952f8f2e44a7f8a09312ca263",
+      "contentHash": "50df472ed021c70b32d198134f50c230c5e9a5549e0122cc071fdc51f92c4c07",
       "bundles": [],
       "mirrors": [
         {

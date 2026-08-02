@@ -4260,7 +4260,7 @@
     {
       "id": "LL-16ef84ad9a",
       "ruleKey": "word-predictor-cache-cross-tenant-unscrubbed-key",
-      "title": "Word-prediction cache is process-global and keyed on the raw unscrubbed user sentence, so a cache hit can return another tenant's model output",
+      "title": "Word-prediction cache holds the raw pre-scrubber user utterance in a process-global structure outside the PiiScrubber boundary, and is not tenant-scoped",
       "severity": "high",
       "confidence": "high",
       "frameworks": [
@@ -4280,7 +4280,7 @@
       "lastSeen": "2026-08-02",
       "owner": "unassigned",
       "remediation": {
-        "options": "The cache key is built from the raw sentence BEFORE PiiScrubber runs, and the CACHE constant is process-global with no user, org, or district scoping and a 30 minute TTL. Two consequences. First, un-scrubbed AAC utterance content is held in process memory outside the AiApiLog scrubbing boundary, so it is not covered by the redaction control the compliance docs cite. Second, and more serious, two users in different school districts composing the same sentence share a cache entry, so a hit returns model output generated for another tenant. That contradicts the mandatory district data-isolation requirement. Fix: include a tenant discriminator (organization or user id) in the key, and hash the scrubbed sentence rather than storing the raw one, so neither raw utterance content nor cross-tenant reuse is possible. Consider whether a shared cache across tenants is wanted at all for user-composed content.",
+        "options": "PRIMARY ISSUE, unscrubbed retention outside the redaction boundary. The cache key is built from the raw sentence BEFORE PiiScrubber runs (lib/ai_word_predictor.rb:47), and entries live in a process-global CACHE constant for a 30 minute TTL. So verbatim, unredacted AAC utterance content, which is exactly what the compliance corpus says is redacted before it is handled, sits in process memory outside that control. It is reachable by a heap dump, a debug endpoint, or any exception reporter that captures locals or constants. Every compliance document that cites PiiScrubber as THE control on user-authored content is inaccurate for as long as this is true. SECONDARY ISSUE, tenant scoping. CACHE has no user, organization, or district discriminator, so two users in different districts who compose the byte-identical sentence share an entry. This is the weaker of the two arguments and should not be led with: the second user already possesses the input they typed, so what they gain is the model's output for their own sentence, not another learner's content. It still contradicts the mandatory district data-isolation requirement and should be fixed. FIX. Key on a hash of the SCRUBBED sentence rather than the raw one, so no verbatim utterance is retained; and include a tenant discriminator (organization or user id) in the key. Then decide explicitly whether a cache shared across tenants is wanted at all for user-composed content.",
         "timeframe": "before Bedrock is marked operational"
       },
       "closureEvidence": {
@@ -4300,7 +4300,7 @@
         "reviewer": "adversary",
         "promotedDate": "2026-08-02"
       },
-      "notes": "Promoted from PR #725 review (adversary) on 2026-08-02. Found by adversary review of PR 725. Currently unexercised: writes happen only after a successful model call, and resolve_api_config returns nil at lib/ai_word_predictor.rb:165 while Bedrock is unconfigured, so nothing populates the cache today. It goes live the moment credentials are mounted (PR 719), the same trigger as LL-1b0d78dbe6. Rated high rather than medium for consistency with that finding and because the failure mode is cross-tenant disclosure of student utterance content, which the data-isolation rule treats as mandatory, rather than a quality or hygiene defect. Severity is a Scot call; the adversary that found it rated it medium on the grounds that it is not currently reachable."
+      "notes": "Found by adversary review of PR 725; rationale reordered 2026-08-02 after the same reviewer noted the original write-up led with the weaker cross-tenant argument. Currently unexercised: writes happen only after a successful model call, and resolve_api_config returns nil at lib/ai_word_predictor.rb:165 while Bedrock is unconfigured, so nothing populates the cache today. It goes live the moment credentials are mounted (PR 719), the same trigger as LL-1b0d78dbe6. Severity HIGH on the unscrubbed-retention argument alone; the reviewer's initial medium was revised up after weighing the mandatory district-isolation rule and for consistency with LL-1b0d78dbe6. Severity remains Scot's call."
     }
   ]
 }
