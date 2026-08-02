@@ -39,6 +39,7 @@ file (see [README.md](README.md)).
 - [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
 - [Gotcha: sync double `modal.open` — the *second* template wins; do not invent write-loss on the winner](#gotcha-sync-double-modalopen--the-second-template-wins-do-not-invent-write-loss-on-the-winner)
 - [Gotcha: Shepherd modal overlay is VISUAL-ONLY; canClickTarget:false makes the target click "fall through"](#gotcha-shepherd-modal-overlay-is-visual-only-canclicktargetfalse-makes-the-target-click-fall-through)
+- [Gotcha: tagless GuidedTour — one init, host-gated pending consumers, body is not a scroll target](#gotcha-tagless-guidedtour--one-init-host-gated-pending-consumers-body-is-not-a-scroll-target)
 - [Pattern: supervisor caseload session prefetch reuses board_detail_cache, not offline sync](#pattern-supervisor-caseload-session-prefetch-reuses-board_detail_cache-not-offline-sync)
 - [Pattern: encrypted buttonset JSON cache must carry parsed payloads](#pattern-encrypted-buttonset-json-cache-must-carry-parsed-payloads)
 - [Pattern: remote buttonset reload can wipe generate URL before second load_buttons](#pattern-remote-buttonset-reload-can-wipe-generate-url-before-second-load_buttons)
@@ -5269,6 +5270,34 @@ the page goes dead. Releases automatically when the tour ends (no enabled step),
 a subsequent live modal/handoff is unaffected. Applies to EVERY tour on the shared
 runner. Keep `canClickTarget:false` too (defense-in-depth + documented standard).
 
+## Gotcha: tagless GuidedTour — one init, host-gated pending consumers, body is not a scroll target
+
+**Surface:** post-"Pick this Board" speak tour (and board-detail edit tour).
+**Symptoms:** Skip tour does nothing; X dismisses but navigates back to
+`/board-picker`.
+
+**Root causes (all required together):**
+1. **Duplicate `init` on a tagless component** — Ember classic `.extend({ init })`
+   keeps the *last* definition. A second `init` (Ember 5.12 upgrade) that only
+   wired `onStartTour` overwrote the pending-flag consumers. `tagName: ''` means
+   `didInsertElement` never runs; observers don't fire for already-true flags →
+   the board-detail host never auto-started the speak tour.
+2. **Navbar stole the start during `empty_header` race** — navbar `<GuidedTour />`
+   stays mounted until `currentBoardState` lands. When `current_route` becomes
+   board-detail first, its `tourKey` is already `board_detail_speak_*`, so it
+   consumed the pending flag and started the tour, then was destroyed when
+   `empty_header` flipped. Gate speak/edit pending consumers on `@speakHost` /
+   `@editHost` so only the board-detail hosts start those tours. Never run home
+   `_scheduleAutoOpen` (afterComplete → board-picker) from those hosts.
+3. **Centered steps use `document.body` as `step.target`** — `_scrollHighlightIntoView`
+   must early-reveal when there is no real `attachTo` (or target is body/html);
+   otherwise `md-tour__step--revealing` keeps Skip/X unclickable.
+4. **Defense:** home auto-open `afterComplete` handoff must no-op when
+   `current_route` is already `user.board-detail*`.
+
+**Evidence:** `guided-tour.js`; task log
+`2026-07-31-speak-tour-skip-close.md`.
+
 ---
 
 ## Pattern: a CSS background-image on a Shepherd popover (or any lazily-injected element) flashes blank on first open — preload it
@@ -7972,3 +8001,42 @@ After the Ember 5 modal migration, `utils/modal.open` only drives `service:modal
 ## Gotcha: authenticated chrome is AppNavbar, not application.hbs #identity
 
 When `useAppNavbarInHeader` is true (dashboard, org, most user routes), `application.hbs` renders `<AppNavbar>` and **skips** the legacy `#identity` block. Header controls added only under `#identity` in `application.hbs` are invisible on those pages. Put authenticated-nav affordances (e.g. Stop Masquerading next to Upgrade) in `app-navbar-authenticated-inner.hbs` (and the mobile drawer). Ref: [`2026-07-30-org-directory-find-user-masquerade.md`](./2026-07-30-org-directory-find-user-masquerade.md).
+
+## Pattern: a missing env var can turn a storage optimization into silent data destruction
+
+**Surface:** `ExtraData` concern (`app/models/concerns/extra_data.rb`) plus any caller that
+stashes data into `@cached_extra_data` before calling `detach_extra_data`.
+
+**Gotcha:** `extra_data_too_big?` hard-returns false unless `ENV['REMOTE_EXTRA_DATA']` is set,
+and the upload block in `detach_extra_data` is gated on it. With the var unset the entire
+detach is a **silent no-op** that still returns `true`. Meanwhile
+`BoardDownstreamButtonSet#generate_defaults` was stripping `data['buttons']` into the in-memory
+`@cached_extra_data` for any set over 200 buttons. Nothing got uploaded, so that was the only
+copy, and because `generate_defaults` is a `before_save` callback that begins by nilling
+`@cached_extra_data`, the very next save recomputed `button_count = 0` and wrote the record
+empty. This zeroed 1754 of 2061 prod button sets. The variable appears in no tracked config
+anywhere in the repo, and does not appear in the 2026-06-30 45-var Render prod env
+accounting either, so its absence is a long-standing misconfiguration of unknown
+vintage rather than a cutover regression. (Do not assume "the migration dropped it"
+without checking the Render side; the 10 prod sets that carry a nonce come from
+`url_for`'s `detach_extra_data('force')` path, which bypasses the env gate at
+`extra_data.rb:28`, and are not evidence the var was ever set.)
+
+**Rule:** never move the only copy of data into a transient stash unless the destination is
+known to be writable. Gate the strip on the same predicate that gates the write. `LogSession`
+already did this correctly (`extra_data.rb:51-53` keeps events in the DB when upload fails);
+`BoardDownstreamButtonSet` did not, on the reasoning that button sets are regenerable, but
+regeneration hits the identical trap.
+
+**Diagnostic technique that cracked it:** look at the *distribution*, not one record. Every
+prod button set was under the 200-button threshold (`bc_max=194`, `bc_gt200=0`) in a library
+whose root boards legitimately produce 3717-button sets. A hard ceiling exactly at a constant
+in the code is a fingerprint pointing straight at the branch guarded by that constant. One
+broken record looks like corruption; the histogram names the line.
+
+**Also:** `extras:rebuild_button_sets` reported success while writing empty sets, which sent a
+prior triage session chasing S3 KMS and ImageMagick ghosts. A repair task that cannot detect
+its own no-op is worse than no task. It now preflights the storage config and reports roots
+that rebuild to zero.
+
+**First seen in:** `2026-08-01-prod-empty-button-sets.md` (PR #724)
