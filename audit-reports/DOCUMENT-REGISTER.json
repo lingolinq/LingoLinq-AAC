@@ -858,7 +858,7 @@
         "GDPR",
         "FERPA"
       ],
-      "lastReviewed": "2026-08-01",
+      "lastReviewed": "2026-08-02",
       "nextReviewDue": "2027-08-01",
       "attestation": {
         "attestedBy": "Scot Wahlquist, CEO",
@@ -872,7 +872,7 @@
         ],
         "note": "Re-attested 2026-08-01 by Scot Wahlquist, CEO, as v2.2.1. Correction release: senior review conducted after the 2026-07-28 attestation found four defects in v2.2. (1) The attested v2.2 bytes carried a changelog entry labelled v2.2-draft reading 'Awaiting Scot attestation before approval', so the attested content asserted it was not attested; disclosed rather than quietly dropped. (2) The New York Ed Law 2-d row had removed the seven-calendar-day third-party-contractor notification cap and reframed it as a contract term; 8 NYCRR 121.10(b) imposes it by regulation, so it is restored in the section 6 table and added to the section 10.5 tabletop clock list, with the 121.10(b) ten-day Chief-Privacy-Officer clock and the 121.10(e) sixty-day parent clock. (3) The section 4.2 emergency kill list named article_50_disclosure, which carries the EU AI Act Article 50(1) AI-interaction transparency disclosure and is not an AI_FEATURES member; removed with a do-not-disable caveat and comprehensive_eval_ai added. (4) Dialable breach contacts for Anthropic, OpenAI, and Google were restored in section 11. The 2026-07-28 attestation covered hash fbdf49a1; those bytes were corrected on 2026-07-29 and merged in PR #703 (merged 2026-07-29T23:05Z) without moving the attestation date. An intermediate v2.2.1 attestation was recorded 2026-07-31 (hash 95bc2235) and superseded before publication when the fourth defect was found; that date is retained in priorAttestations. Prior attestations: 2026-07-31, 2026-07-28, 2026-07-23, 2026-06-21."
       },
-      "contentHash": "2b788387259bc315fc4b1e5a10817f55ae2d9eae02988236b245c5f62ede1907",
+      "contentHash": "ba576329bf0e36980c5a86975e9d03ccc0c9f2864511b4f601904da4593b3259",
       "bundles": [
         "soc2-evidence",
         "school-dpa-package",

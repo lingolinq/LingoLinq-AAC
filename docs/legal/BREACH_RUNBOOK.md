@@ -1,11 +1,11 @@
 # LingoLinq Data Breach Response Runbook
 
-**Version:** v2.2.1 (2026-08-01)
+**Version:** v2.2.2 (2026-08-02)
 **Owner:** Privacy Office (privacy@lingolinq.com)
-**Last reviewed:** 2026-08-01
-**Next review:** 2027-08-01
+**Last reviewed:** 2026-08-02
+**Next review:** 2027-08-02
 **Classification:** Internal, share with counsel on demand
-**Attestation:** Re-attested 2026-08-01 by Scot Wahlquist, CEO, covering the v2.2.1 corrections in §13. The 2026-07-28 attestation covered the v2.2 bytes (`fbdf49a1...`), which were corrected after that attestation was recorded; this attestation covers the corrected bytes. Prior attestations: 2026-07-31, 2026-07-28, 2026-07-23, 2026-06-21.
+**Attestation:** **Re-attestation pending for v2.2.2.** The 2026-08-01 attestation by Scot Wahlquist, CEO covered the v2.2.1 bytes and the §13 corrections listed there; it does not cover the v2.2.2 correction to §11 made 2026-08-02 (see §13). Only Scot attests, so that signature is not recorded here. Prior attestations: 2026-08-01, 2026-07-31, 2026-07-28, 2026-07-23, 2026-06-21.
 
 > If you are reading this during an active incident, jump to §4.0 Detection Sources, then §4.1 Detect and Triage. Page Scot first via the escalation tree in §3.
 
@@ -339,7 +339,7 @@ Subprocessors to notify whenever a breach may implicate their service. See SUBPR
 - Render: support@render.com, plus the Render security contact when established
 - HubSpot: privacy@hubspot.com, plus the DPA breach-notice email
 - Sentry: security@sentry.io
-- Anthropic (active runtime AI via AWS Bedrock/Mantle): privacy@anthropic.com and the Anthropic trust portal. Active runtime model egress is Anthropic Claude on the approved Bedrock/Mantle path (SUBPROCESSORS.md #4, HIPAA-Ready BAA); confirm the live path in the register before assuming any other.
+- Anthropic (designated runtime AI via AWS Bedrock/Mantle): privacy@anthropic.com and the Anthropic trust portal. The designated runtime model path is Anthropic Claude on the approved Bedrock/Mantle route (SUBPROCESSORS.md #4, HIPAA-Ready BAA). **Dormant as of 2026-08-02: there is no runtime model egress on any path.** No `lingolinq-web` revision carries a Bedrock credential, so `AiClient.configured?` is false, and the direct `api.anthropic.com` route is disabled and CI-enforced (see the 2026-08-01 correction in `docs/legal/AWS_BAA_ACCEPTED.md`). Do not assume live AI egress when scoping an incident; confirm the live path in the register first.
 - OpenAI: security@openai.com and the enterprise support portal. Dormant: no active code path sends data to OpenAI (SUBPROCESSORS.md #3, retained pending Privacy Office review); notify only if a path is reactivated and implicated.
 - Google Cloud / Workspace / Maps / Speech / Gemini: the Google Cloud incident/support form and Workspace admin/security contacts. The Gemini inference fallback is disabled/dormant (SUBPROCESSORS.md #5); do not assume it is a live AI fallback, but keep the contact reachable for the active Google Cloud/Workspace/Speech services.
 - Pusher: support@pusher.com
@@ -510,6 +510,8 @@ These are infrastructure deltas the runbook now drives. They are not runbook def
 4. **Feature flag coverage for `log_sessions` and other high-risk endpoints.** §4.2 step 6 documents the router-guard fallback, but every high-risk endpoint should have a real flag in `lib/feature_flags.rb` to make the emergency kill fast. Owner: Melissa. Target: next compliance sprint.
 
 ## 13. Changelog
+
+- **v2.2.2 (2026-08-02).** Correction release, one defect. **§11 vendor contacts described Anthropic as the "active runtime AI" provider and asserted that "active runtime model egress is Anthropic Claude on the approved Bedrock/Mantle path."** There is no runtime model egress on any path. `AiClient.aws_credentials` reads only `BEDROCK_AWS_KEY`/`BEDROCK_AWS_SECRET` or `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`, and none of those is present on any of the 11 `lingolinq-web` revisions (`00001-2vn` 2026-06-29 through `00011-l7f` 2026-07-30), so `AiClient.configured?` is false; the direct `api.anthropic.com` route is separately disabled and enforced by `scripts/ai-endpoint-guard.sh`. This is operationally material rather than cosmetic: a responder scoping an incident under v2.2.1 would look for Bedrock egress that does not exist, and could wrongly infer that model-provider notification is in scope. The contact is retained and marked dormant, matching how the same section already handles OpenAI and Gemini. Note that the line corrected here is one this release's predecessor introduced: v2.2.1 item 4 restored the Anthropic contact and described it as the active model provider. Root correction and evidence: the 2026-08-01 correction in `docs/legal/AWS_BAA_ACCEPTED.md` (PR #725). Re-attestation pending; only Scot attests.
 
 - **v2.2.1 (2026-08-01).** Correction release. A senior review of v2.2 conducted after its attestation found four defects, corrected here:
 
