@@ -240,8 +240,8 @@
       "date": null,
       "status": "conditional",
       "title": "First real-tenant onboarding - subprocessor baseline confirmation (Art. 28)",
-      "obligation": "docs/legal/SUBPROCESSORS.md §2 commits to 30 days advance notice before any subprocessor change that affects a tenant. That clock is dormant while production carries only synthetic/test data with no real tenant (§5.7 pre-tenant baseline): subprocessor additions made in this window (incl. Google Cloud Platform #19, added at the 2026-07-22 Gate 1 cutover) affect no tenant and fire no notice. They form the disclosed baseline the first real tenant receives at onboarding.",
-      "action": "Before onboarding the first real (non-synthetic) tenant: confirm the published subprocessor list at https://lingolinq.com/legal/subprocessors matches docs/legal/SUBPROCESSORS.md §4 and lists every active subprocessor (incl. GCP #19) as the disclosed baseline. From that point the §2 30-day advance-notice obligation is live for any subsequent subprocessor change.",
+      "obligation": "docs/legal/SUBPROCESSORS.md \u00a72 commits to 30 days advance notice before any subprocessor change that affects a tenant. That clock is dormant while production carries only synthetic/test data with no real tenant (\u00a75.7 pre-tenant baseline): subprocessor additions made in this window (incl. Google Cloud Platform #19, added at the 2026-07-22 Gate 1 cutover) affect no tenant and fire no notice. They form the disclosed baseline the first real tenant receives at onboarding.",
+      "action": "Before onboarding the first real (non-synthetic) tenant: confirm the published subprocessor list at https://lingolinq.com/legal/subprocessors matches docs/legal/SUBPROCESSORS.md \u00a74 and lists every active subprocessor (incl. GCP #19) as the disclosed baseline. From that point the \u00a72 30-day advance-notice obligation is live for any subsequent subprocessor change.",
       "trigger": "end of the pre-MVP synthetic-only window / first real tenant onboarded (see project_prod_no_real_users)",
       "verifiedOn": "2026-07-24"
     }
