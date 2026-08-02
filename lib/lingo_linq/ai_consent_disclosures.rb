@@ -55,19 +55,36 @@ module LingoLinq
         'effective_date' => '2026-07-09',
         'vendors' => [
           {
+            'name' => 'Amazon Web Services, Inc.',
+            'models' => [
+              'Claude Haiku 4.5 (claude-haiku-4-5-20251001) for word prediction'
+            ],
+            'tier' => 'Amazon Bedrock, running inside a LingoLinq-controlled AWS account under a ' \
+              'signed AWS Business Associate Agreement. AWS operates the inference; this is not ' \
+              "Anthropic's commercial API and not the free consumer Claude.ai product.",
+            'features' => ['ai_word_predictor'],
+            'trains_on_data' => false,
+            'training_note' => 'AWS states that inputs to and outputs from Amazon Bedrock are not ' \
+              'used to train any model, and are not shared with the model provider. AWS may retain ' \
+              'request data for a limited period for safety and abuse-prevention purposes. ' \
+              'LingoLinq has not yet configured the account for guaranteed zero retention, so no ' \
+              'zero-data-retention guarantee is claimed for this path.',
+            'status' => 'primary'
+          },
+          {
             'name' => 'Anthropic, PBC',
             'models' => [
-              'Claude Haiku 4.5 (claude-haiku-4-5-20251001) for word prediction',
-              'Claude Opus 4.7 (claude-opus-4-7) for AI evaluation narration'
+              'Claude Haiku 4.5 (claude-haiku-4-5-20251001) for word prediction'
             ],
-            'tier' => "Anthropic's commercial API (not the free consumer Claude.ai product)",
-            'features' => ['ai_word_predictor', 'eval_narrator'],
+            'tier' => 'Model provider only. Anthropic built the Claude model, but on Amazon Bedrock ' \
+              'it runs inside AWS-operated accounts that Anthropic cannot access, so Anthropic ' \
+              'receives neither the prompts nor the responses. LingoLinq does not send these ' \
+              'requests to Anthropic directly.',
+            'features' => ['ai_word_predictor'],
             'trains_on_data' => false,
-            'training_note' => 'Zero-data-retention (ZDR) is confirmed for these two specific ' \
-              "models on Anthropic's commercial API: Anthropic does not use this data to train " \
-              'its models and does not retain it beyond what is needed to serve the immediate ' \
-              'request. This confirmation is scoped to these two models only.',
-            'status' => 'primary'
+            'training_note' => 'Anthropic does not receive this data, so it cannot train on it. ' \
+              'On Bedrock the model provider has no access to customer prompts or completions.',
+            'status' => 'model_provider'
           }
         ],
         # AI board suggestion + focus refinement (lib/ai_board_generator.rb) is deliberately NOT
@@ -94,9 +111,11 @@ module LingoLinq
           "removing all identifying information, because the underlying record can still be " \
           "linked back to your account inside LingoLinq's own systems.",
         'retention' => {
-          'vendor_side' => 'For Anthropic (Claude Haiku 4.5 and Claude Opus 4.7), data sent for ' \
-            'an AI request is not retained by Anthropic beyond what is needed to process that ' \
-            'request, under a zero-data-retention agreement.',
+          'vendor_side' => 'AI requests run on Amazon Bedrock inside a LingoLinq-controlled AWS ' \
+            'account. Anthropic does not receive the data at all: on Bedrock the model runs in ' \
+            'AWS-operated accounts the model provider cannot access. AWS states the data is not ' \
+            'used to train any model, and may retain it for a limited period for safety and ' \
+            'abuse-prevention purposes. No zero-data-retention guarantee is claimed for this path.',
           'lingolinq_general' => {
             'window_months' => 24,
             'enforced' => false,
