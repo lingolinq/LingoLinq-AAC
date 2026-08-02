@@ -27,7 +27,7 @@ module AiBoardGenerator
       if api_config.blank?
         err = { words: nil, name: nil, description: nil, error: 'AI board generation is not configured' }
         err.merge!(dev_diag(:configuration,
-          'Set ANTHROPIC_API_KEY in the environment (not only .env for the asset pipeline) and restart Rails. The GEMINI_API_KEY fallback is disabled -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'))
+          'Set BEDROCK_AWS_KEY, BEDROCK_AWS_SECRET and BEDROCK_AWS_REGION in the environment (not only .env for the asset pipeline) and restart Rails. Runtime AI routes to Claude on AWS Bedrock via lib/ai_client.rb; ANTHROPIC_API_KEY and the GEMINI_API_KEY fallback are no longer read -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'))
         return err
       end
 
@@ -237,7 +237,7 @@ module AiBoardGenerator
       if api_config.blank?
         err = { words: nil, title: nil, error: 'AI board generation is not configured' }
         err.merge!(dev_diag(:configuration,
-          'Set ANTHROPIC_API_KEY in the environment (not only .env for the asset pipeline) and restart Rails. The GEMINI_API_KEY fallback is disabled -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'))
+          'Set BEDROCK_AWS_KEY, BEDROCK_AWS_SECRET and BEDROCK_AWS_REGION in the environment (not only .env for the asset pipeline) and restart Rails. Runtime AI routes to Claude on AWS Bedrock via lib/ai_client.rb; ANTHROPIC_API_KEY and the GEMINI_API_KEY fallback are no longer read -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'))
         return err
       end
 

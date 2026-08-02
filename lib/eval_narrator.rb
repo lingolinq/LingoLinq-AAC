@@ -326,8 +326,14 @@ module EvalNarrator
     Rails.logger.warn "EvalNarrator: failed to log AI API call: #{e.message}" if defined?(Rails)
   end
 
+  # Asks AiClient whether the ACTIVE Bedrock plane's client class is loaded,
+  # rather than naming one plane's constant. Hardcoding BedrockMantleClient here
+  # was a latent bug: the constant is defined by the anthropic gem regardless of
+  # which plane is selected, so this check passed even when the Mantle client
+  # could never be built, and it would have gone false for the wrong reason had
+  # the gem ever dropped that constant while classic was active.
   def self.anthropic_configured?
-    AiClient.configured? && defined?(::Anthropic::BedrockMantleClient)
+    AiClient.configured? && AiClient.client_defined?
   end
 
   # Template-based deterministic draft. Pulls only fields that are

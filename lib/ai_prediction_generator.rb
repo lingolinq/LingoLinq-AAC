@@ -26,7 +26,7 @@ module AiPredictionGenerator
     def generate(batch_size: nil)
       api_config = resolve_api_config
       if api_config.blank?
-        puts "[predictions] ERROR: No ANTHROPIC_API_KEY configured. The GEMINI_API_KEY fallback is disabled -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2."
+        puts "[predictions] ERROR: Bedrock is not configured. Set BEDROCK_AWS_KEY, BEDROCK_AWS_SECRET and BEDROCK_AWS_REGION. ANTHROPIC_API_KEY and the GEMINI_API_KEY fallback are no longer read -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2."
         return
       end
       puts "[predictions] Using provider: #{api_config[:provider]} (#{api_config[:model]})"
