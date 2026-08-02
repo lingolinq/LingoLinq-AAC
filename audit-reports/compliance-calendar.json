@@ -156,12 +156,12 @@
     {
       "id": "rev-breach-runbook-drive-remirror",
       "framework": "HIPAA",
-      "title": "Re-brand + re-share BREACH_RUNBOOK Drive mirror to v2.2.1 (DOC-f576f43250)",
+      "title": "Re-brand + re-share BREACH_RUNBOOK Drive mirror to v2.2.2 (DOC-f576f43250)",
       "cadence": "one-time",
       "lastDone": null,
       "nextDue": "2026-08-31",
-      "drafts": "The git-canonical runbook docs/legal/BREACH_RUNBOOK.md is v2.2.1-attested (2026-08-01, hash 2b788387); the branded Drive mirror DOC-f576f43250 (Google Doc 1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po) still carries v2.1-era content and is now two revisions behind. Regenerate the branded Google Doc from the v2.2.1 markdown and re-share it into the school-dpa-package, soc2-evidence, and baa bundles, then confirm the refresh in DOCUMENT-REGISTER.json. Do not re-brand from v2.2 (hash fbdf49a1): that revision carried the New York Ed Law 2-d defect corrected in v2.2.1.",
-      "watch": "document-register-render --check is structurally blind to Drive (Drive hashes are operator-supplied), so this drift never fails CI and must be tracked here. Sequenced AFTER the v2.2.1 attestation so the Drive doc is re-branded from the final attested bytes; PR #703 merged 2026-07-29T23:05Z and the v2.2.1 correction followed on 2026-08-01. No hard regulatory deadline (pre-MVP, no real district users yet); nextDue is advisory.",
+      "drafts": "The git-canonical runbook docs/legal/BREACH_RUNBOOK.md is v2.2.2 (2026-08-02), pending Scot's re-attestation; the branded Drive mirror DOC-f576f43250 (Google Doc 1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po) still carries v2.1-era content and is now three revisions behind. Regenerate the branded Google Doc from the v2.2.2 markdown and re-share it into the school-dpa-package, soc2-evidence, and baa bundles, then confirm the refresh in DOCUMENT-REGISTER.json. Mirror ONLY from v2.2.2 bytes, and only AFTER Scot re-attests them. Two superseded revisions must NOT be used as the source: v2.2 (hash fbdf49a1) carried the New York Ed Law 2-d defect, and v2.2.1 (hash 2b788387) described Anthropic as the active runtime AI provider and asserted active Bedrock egress, which v2.2.2 retracts (see BREACH_RUNBOOK.md section 13). Mirroring either would republish a known-false claim into a customer-shared Drive doc. CORRECTED 2026-08-02: this item previously targeted v2.2.1.",
+      "watch": "document-register-render --check is structurally blind to Drive (Drive hashes are operator-supplied), so this drift never fails CI and must be tracked here. Sequenced AFTER the v2.2.2 re-attestation so the Drive doc is re-branded from the final attested bytes. PR #703 merged 2026-07-29T23:05Z; v2.2.1 followed 2026-08-01 and was superseded by v2.2.2 on 2026-08-02. No hard regulatory deadline (pre-MVP, no real district users yet); nextDue is advisory.",
       "basis": "senior-dev content-integrity review of PR #703 (finding M4); docs/legal/BREACH_RUNBOOK.md; DOCUMENT-REGISTER.json DOC-f576f43250"
     }
   ],
@@ -240,8 +240,8 @@
       "date": null,
       "status": "conditional",
       "title": "First real-tenant onboarding - subprocessor baseline confirmation (Art. 28)",
-      "obligation": "docs/legal/SUBPROCESSORS.md \u00a72 commits to 30 days advance notice before any subprocessor change that affects a tenant. That clock is dormant while production carries only synthetic/test data with no real tenant (\u00a75.7 pre-tenant baseline): subprocessor additions made in this window (incl. Google Cloud Platform #19, added at the 2026-07-22 Gate 1 cutover) affect no tenant and fire no notice. They form the disclosed baseline the first real tenant receives at onboarding.",
-      "action": "Before onboarding the first real (non-synthetic) tenant: confirm the published subprocessor list at https://lingolinq.com/legal/subprocessors matches docs/legal/SUBPROCESSORS.md \u00a74 and lists every active subprocessor (incl. GCP #19) as the disclosed baseline. From that point the \u00a72 30-day advance-notice obligation is live for any subsequent subprocessor change.",
+      "obligation": "docs/legal/SUBPROCESSORS.md §2 commits to 30 days advance notice before any subprocessor change that affects a tenant. That clock is dormant while production carries only synthetic/test data with no real tenant (§5.7 pre-tenant baseline): subprocessor additions made in this window (incl. Google Cloud Platform #19, added at the 2026-07-22 Gate 1 cutover) affect no tenant and fire no notice. They form the disclosed baseline the first real tenant receives at onboarding.",
+      "action": "Before onboarding the first real (non-synthetic) tenant: confirm the published subprocessor list at https://lingolinq.com/legal/subprocessors matches docs/legal/SUBPROCESSORS.md §4 and lists every active subprocessor (incl. GCP #19) as the disclosed baseline. From that point the §2 30-day advance-notice obligation is live for any subsequent subprocessor change.",
       "trigger": "end of the pre-MVP synthetic-only window / first real tenant onboarded (see project_prod_no_real_users)",
       "verifiedOn": "2026-07-24"
     }
