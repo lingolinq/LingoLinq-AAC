@@ -870,10 +870,9 @@
           "2026-07-28",
           "2026-07-31"
         ],
-        "note": "Re-attested 2026-08-01 by Scot Wahlquist, CEO, as v2.2.1. Correction release: senior review conducted after the 2026-07-28 attestation found four defects in v2.2. (1) The attested v2.2 bytes carried a changelog entry labelled v2.2-draft reading 'Awaiting Scot attestation before approval', so the attested content asserted it was not attested; disclosed rather than quietly dropped. (2) The New York Ed Law 2-d row had removed the seven-calendar-day third-party-contractor notification cap and reframed it as a contract term; 8 NYCRR 121.10(b) imposes it by regulation, so it is restored in the section 6 table and added to the section 10.5 tabletop clock list, with the 121.10(b) ten-day Chief-Privacy-Officer clock and the 121.10(e) sixty-day parent clock. (3) The section 4.2 emergency kill list named article_50_disclosure, which carries the EU AI Act Article 50(1) AI-interaction transparency disclosure and is not an AI_FEATURES member; removed with a do-not-disable caveat and comprehensive_eval_ai added. (4) Dialable breach contacts for Anthropic, OpenAI, and Google were restored in section 11. The 2026-07-28 attestation covered hash fbdf49a1; those bytes were corrected on 2026-07-29 and merged in PR #703 (merged 2026-07-29T23:05Z) without moving the attestation date. An intermediate v2.2.1 attestation was recorded 2026-07-31 (hash 95bc2235) and superseded before publication when the fourth defect was found; that date is retained in priorAttestations. Prior attestations: 2026-07-31, 2026-07-28, 2026-07-23, 2026-06-21."
+        "note": "Re-attested 2026-08-01 by Scot Wahlquist, CEO, as v2.2.1 (hash 2b788387259bc315fc4b1e5a10817f55ae2d9eae02988236b245c5f62ede1907 @ commit 4ece3a6435). Correction release disclosing four v2.2 drafting defects (self-contradicting draft/attested changelog language; New York Ed Law 2-d; section 4.2 kill list; section 7 vendor contacts). Git-canonical v2.2 bytes are PR #703 commit 456b6735a6, hash 0ee1b92ec130e89215383bcb1ae26de7be5ef6f9fcd1b80d6ad9ae6d41152af1; an earlier register claim that those bytes hashed fbdf49a1 is retracted (no such blob in merged ancestry). Distinct labels: v2.2 = 0ee1b92e... @ 456b6735a6; v2.2.1-interim = 2026-07-31 attestation at 95bc22359cf363e526ca0221a39b1c6f34c1d4afcd353c4c5b5fc8a4d97e5ae6 @ 271b2f961c (superseded before publication; date retained in priorAttestations); v2.2.1 = this 2026-08-01 attestation. Prior attestations: 2026-07-31, 2026-07-28, 2026-07-23, 2026-06-21."
       },
-      "correctionNote": "CORRECTION 2026-08-02 (not an attestation; only Scot attests). The attestation.note above covers v2.2.1 bytes (2b788387). The document is now v2.2.2: its section 11 Anthropic contact described the runtime AI path as active and asserted active Bedrock egress, which is false (no lingolinq-web revision carries a Bedrock credential; runtime AI dormant since 00011-l7f deployed 2026-07-30T16:37Z). Corrected and disclosed in BREACH_RUNBOOK.md section 13. Operationally material: a responder scoping an incident under v2.2.1 would look for egress that does not exist. Root evidence: the 2026-08-01 correction in docs/legal/AWS_BAA_ACCEPTED.md (PR #725, which must merge first). Re-attestation owed for v2.2.2.",
-      "contentHash": "ba576329bf0e36980c5a86975e9d03ccc0c9f2864511b4f601904da4593b3259",
+      "correctionNote": "CORRECTION 2026-08-02 (not an attestation; only Scot attests). The attestation.note above covers v2.2.1 bytes (2b788387). The document is now v2.2.2: its section 7 Anthropic contact described the runtime AI path as active and asserted active Bedrock egress, which is false (no lingolinq-web revision carries a Bedrock credential; runtime AI dormant since 00011-l7f deployed 2026-07-30T16:37Z). Corrected and disclosed in BREACH_RUNBOOK.md section 13. Operationally material: a responder scoping an incident under v2.2.1 would look for egress that does not exist. Root evidence: the 2026-08-01 correction in docs/legal/AWS_BAA_ACCEPTED.md (PR #725, which must merge first). Re-attestation owed for v2.2.2.",
       "bundles": [
         "soc2-evidence",
         "school-dpa-package",
@@ -894,7 +893,8 @@
         "status": "draft"
       },
       "legalHold": false,
-      "dispositionEligibleAfter": null
+      "dispositionEligibleAfter": null,
+      "contentHash": "873ef56d930181b7e5d2458bf8b6f231a8ad8eaa9db180e4f85adf353c24cec4"
     },
     {
       "title": "Incident Log",
@@ -1211,7 +1211,7 @@
       "lastReviewed": "2026-06-16",
       "nextReviewDue": "2026-09-16",
       "attestation": {},
-      "contentHash": "6bebbad37e52f1124e649b03432fe282d48488f6d52c5e26198b3b5d7e9e3762",
+      "contentHash": "3caa44e1ace04235d89521e56ba8e27c736d99831b820f4dc2a67289d893b406",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
