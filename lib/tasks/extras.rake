@@ -396,11 +396,16 @@ task "extras:rebuild_button_sets" => :environment do
   end
   puts "\nRebuilt #{processed} root boards (#{errored} errors)."
   puts "Sub-boards reference their root's set via source_id, so the whole tree is covered."
-  if empty.any?
-    puts "\nWARNING: #{empty.length} root board(s) rebuilt to button_count=0:"
+  if empty.any? || errored > 0
+    puts "\nFAILED: #{empty.length} root board(s) rebuilt to button_count=0, #{errored} raised:"
     empty.first(20).each { |k| puts "  #{k}" }
     puts "  ...and #{empty.length - 20} more" if empty.length > 20
+    puts "A root board with children that rebuilds to zero buttons is a failure, not a success."
     puts "This usually means extra-data storage is not persisting. Check REMOTE_EXTRA_DATA and S3 credentials."
+    # Exit nonzero so an automated caller cannot read this as a clean run. Silently
+    # "succeeding" while writing empty sets is what sent a prior triage session
+    # chasing S3 KMS and ImageMagick ghosts for two days.
+    exit 1
   end
 end
 
