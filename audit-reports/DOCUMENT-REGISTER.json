@@ -483,7 +483,7 @@
         ],
         "note": "Re-attested 2026-07-23 against the current revision after verification against live code and infrastructure state. The prior attestation covered a revision that no longer exists; see the document banner for what changed."
       },
-      "contentHash": "4810a102ea3e87eddad23359877c1976459beb08d089c259cbef48c98c28b9d1",
+      "contentHash": "7c533a9ae436b32bd775b5442ae838b640d5607e85044cdc2b4544731615a355",
       "bundles": [
         "soc2-evidence"
       ],
