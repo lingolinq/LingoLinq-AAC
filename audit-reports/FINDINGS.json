@@ -4213,6 +4213,49 @@
         "timeframe": "90 days"
       },
       "notes": "Discovered 2026-07-20 during VPC Phase 3 planning. PRE-EXISTING and system-wide (~140 callers). VPC Phase 3 adds the optional labelledBy/describedBy arguments to the shell as part of building its own ai-disclosure accessibility contract, but deliberately does NOT retrofit existing callers -- that retrofit is this finding and remains separate prioritized work. Rated medium rather than high because affected modals are still operable; the defect is that a screen-reader user gets no accessible name for the dialog, not that the dialog is unusable."
+    },
+    {
+      "id": "LL-1b0d78dbe6",
+      "ruleKey": "bedrock-credential-account-unverified",
+      "title": "No check asserts the Bedrock credential resolves to the BAA'd AWS account, so the AWS BAA's operative condition is an untested assumption",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/ai_client.rb",
+        "line": 89,
+        "snippet": "Anthropic::BedrockMantleClient.new(",
+        "sha": "4a28ed84dd2a799bf9a4d9b0b18df8b628ec8a46"
+      },
+      "firstSeen": "2026-08-02",
+      "lastSeen": "2026-08-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "AiClient.build signs Bedrock with whatever credential pair is present and asserts nothing about which AWS account it belongs to. The AWS BAA (docs/legal/AWS_BAA_ACCEPTED.md) is scoped to a single account, and its stated operative condition is that Bedrock calls run under that account, so a credential from any other account would put PHI-bearing inference outside BAA coverage while every check in the repo stayed green. Add an explicit account assertion: call sts:GetCallerIdentity under the exact credential AiClient will use and compare Account against the BAA'd account id, ideally at deploy time in .github/workflows/deploy-cloudrun.yml as a post-deploy smoke step so a wrong credential fails the deploy rather than surfacing at first inference. A boot-time or first-call assertion that fails closed is an acceptable alternative or addition. Keep the account id in configuration, not hardcoded, so a future account migration is a config change. This is the control whose absence let an unverifiable verification claim stand in an attested compliance document from 2026-07-27 to 2026-08-01; PR 725 retracted the claim but did not add the control.",
+        "timeframe": "before Bedrock is marked operational"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": 725,
+        "reviewer": "adversary",
+        "promotedDate": "2026-08-02"
+      },
+      "notes": "Promoted from PR #725 review (adversary) on 2026-08-02. Filed from the PR 725 correction of docs/legal/AWS_BAA_ACCEPTED.md. Currently unexercised: no lingolinq-web revision carries a Bedrock credential, so AiClient.configured? is false and no Bedrock call is made. Rated high rather than critical for that reason. It becomes live the moment credentials are mounted (PR 719), which is exactly when the check must already exist. Verification standard recorded in the AWS BAA correction: re-attestation of the operative condition requires both that the credential env vars are present on the serving revision and that sts:GetCallerIdentity under that credential returns the BAA'd account."
     }
   ]
 }
