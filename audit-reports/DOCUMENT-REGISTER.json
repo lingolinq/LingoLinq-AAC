@@ -2532,7 +2532,7 @@
         "attestedDate": "2026-07-09",
         "attestedContentHash": "c77ebb0dc5c8a228f32f268f40f36a74e60ef867a5ada78ba0e22f0d4a7ca914"
       },
-      "contentHash": "8b4d734b2cfa9bc6a22385bf997fb70b7a17a6726278047d324458b42dcf0355",
+      "contentHash": "6fc177edc8b354b24cb7e6cddc41f5e20bf753f01123f0b17f36e007fe2fedd1",
       "bundles": [],
       "mirrors": [],
       "notes": "Register bookkeeping from the in-document attestation line (2026-07-09, provisional, conservative-default). Not yet reviewed by outside counsel. Scot to confirm or correct.",

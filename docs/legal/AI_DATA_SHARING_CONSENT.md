@@ -64,10 +64,17 @@ company-wide subprocessor register, maintained by the Privacy Office on its own 
 - **Training posture:** Anthropic does not use ZDR-tier commercial API traffic to train its models.
   This is stated in the disclosure scoped narrowly to these two models, not as a blanket claim about
   Anthropic or about AI vendors generally.
-- **BAA status:** Not applicable as a HIPAA Business Associate Agreement in the traditional sense;
-  the operative control for hospital-linked (HIPAA) accounts is the PiiScrubber pre-egress filter
-  plus the ZDR posture above, consistent with `AI_GOVERNANCE_MEMO.md` section 3 ("de-identification,
-  not a BAA, is the HIPAA basis for the scrubbed product path").
+- **BAA status:** **Corrected 2026-08-02.** This bullet previously read "Not applicable as a HIPAA
+  Business Associate Agreement in the traditional sense", with the PiiScrubber and ZDR posture named
+  as the operative HIPAA control, and quoted `AI_GOVERNANCE_MEMO.md` section 3 for
+  "de-identification, not a BAA, is the HIPAA basis". That is stale on both counts. An **Anthropic
+  HIPAA-Ready BAA was executed 2026-07-18** on the runtime-dedicated LingoLinq, LLC API org
+  (`docs/legal/ANTHROPIC_BAA_ACCEPTED.md`), and the memo language quoted above no longer exists:
+  section 3 now records that the HIPAA legal basis for the Anthropic path rests on that BAA and that
+  the prior "no signed BAA covers the model-provider egress path" gap is closed. The PiiScrubber is
+  retained as a GDPR data-minimization control and as defense in depth, **not** as the HIPAA basis.
+  For the Bedrock route the governing instrument is the **AWS account BAA** instead, as stated in
+  the Data-processing basis bullet above.
 
 ### 2.2 Google LLC (Gemini Developer API) -- disabled 2026-07-09, historical record only
 
