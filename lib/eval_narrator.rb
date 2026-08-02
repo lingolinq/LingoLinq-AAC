@@ -236,8 +236,17 @@ module EvalNarrator
     [narrative, marker]
   end
 
-  # Claude-on-AWS-Bedrock call (Mantle client via AiClient). Isolated so specs can
-  # stub the network boundary, matching AiWordPredictor / AiBoardGenerator.
+  # Claude-on-AWS-Bedrock call via AiClient (whichever plane BEDROCK_PLANE selects).
+  # Isolated so specs can stub the network boundary, matching AiWordPredictor /
+  # AiBoardGenerator.
+  #
+  # NOTE: `model` here is the allowlisted alias, deliberately NOT passed through
+  # AiClient.bedrock_model. On the classic plane the current default alias
+  # (Opus 4.7) has no inference-profile mapping because that model is absent from
+  # the classic catalog entirely, so this call fails and draft_narrative falls back
+  # to the deterministic template. Routing eval narration to an invokable model is
+  # a separate change: it alters the model named in the Article 50 and consent
+  # disclosures, so it needs those updated in the same commit.
   def self.call_anthropic(model:, system_prompt:, user_content:)
     client = AiClient.build
     client.messages.create(
