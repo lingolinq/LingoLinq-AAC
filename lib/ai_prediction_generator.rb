@@ -26,7 +26,14 @@ module AiPredictionGenerator
     def generate(batch_size: nil)
       api_config = resolve_api_config
       if api_config.blank?
-        puts "[predictions] ERROR: Bedrock is not configured. Set BEDROCK_AWS_KEY, BEDROCK_AWS_SECRET and BEDROCK_AWS_REGION. ANTHROPIC_API_KEY and the GEMINI_API_KEY fallback are no longer read -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2."
+        puts "[predictions] ERROR: AWS Bedrock is not configured. Set a complete credential " \
+             "pair: BEDROCK_AWS_KEY + BEDROCK_AWS_SECRET (preferred) or AWS_ACCESS_KEY_ID + " \
+             "AWS_SECRET_ACCESS_KEY (standard SDK fallback). Both halves of a pair are " \
+             "required; a partial pair is ignored. Also set a region via BEDROCK_AWS_REGION, " \
+             "AWS_REGION, or AWS_DEFAULT_REGION. AWS_KEY / AWS_SECRET are deliberately NOT used " \
+             "as a fallback (S3/SES credentials, no Bedrock invoke permission). ANTHROPIC_API_KEY " \
+             "no longer configures this path -- see lib/ai_client.rb. The GEMINI_API_KEY fallback " \
+             "is disabled -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2."
         return
       end
       puts "[predictions] Using provider: #{api_config[:provider]} (#{api_config[:model]})"
@@ -113,7 +120,9 @@ module AiPredictionGenerator
       {
         provider: :claude,
         region: AiClient.bedrock_region,
-        model: AiClient.bedrock_model(ENV.fetch('ANTHROPIC_MODEL', 'anthropic.claude-haiku-4-5'))
+        # runtime_model applies the Tier 1 ALLOWED_RUNTIME_MODELS gate to the
+        # ANTHROPIC_MODEL override; see AiClient.
+        model: AiClient.runtime_model('anthropic.claude-haiku-4-5')
       }
     end
 

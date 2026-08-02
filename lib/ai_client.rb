@@ -67,6 +67,64 @@ module AiClient
   # for ANTHROPIC_MODEL) or the `-v1:0` in a full foundation-model id.
   LEGACY_VERSION_SUFFIX = /(?:-\d{8})?(?:-v\d+(?::\d+)?)?\z/
 
+  # Tier 1 runtime model allowlist. ANTHROPIC_MODEL is an operator override read by
+  # ai_word_predictor, ai_board_generator and ai_prediction_generator -- all three
+  # carry student/patient data and, unlike EvalNarrator, had NO model gate of their
+  # own. Without this, an env var could point them at any model Bedrock will serve,
+  # including a Covered Model (Fable 5 / Mythos 5, which CLAUDE.md bars from Tier 1
+  # because they carry mandatory 30-day retention) or a non-Anthropic vendor, which
+  # would also falsify the "Anthropic-only runtime" claim in the capability ledger
+  # and the Article 50 disclosures.
+  #
+  # Entries are plane-neutral aliases. Extend ONLY after confirming a model is
+  # HIPAA-eligible on the BAA'd path and is not a mandatory-retention Covered Model.
+  ALLOWED_RUNTIME_MODELS = %w[
+    anthropic.claude-haiku-4-5
+  ].freeze
+
+  # Reduces any id form to the plane-neutral alias used by ALLOWED_RUNTIME_MODELS.
+  #
+  # This is what closes the injection path: a regional inference-profile id such as
+  # `us.anthropic.claude-fable-5-20260101-v1:0` is passed through untouched by
+  # bedrock_model (by design -- it is already wire-resolved), so an allowlist that
+  # only understood bare aliases would never see it. Stripping the region prefix and
+  # the date/version suffix first means the profile form and the alias form collapse
+  # to the same key and are checked identically.
+  def canonical_alias(model_id)
+    id = model_id.to_s.strip
+    PROFILE_PREFIXES.each { |prefix| id = id.delete_prefix(prefix) }
+    id = "anthropic.#{id}" unless id.start_with?('anthropic.')
+    id.sub(LEGACY_VERSION_SUFFIX, '')
+  end
+
+  def allowed_runtime_model?(model_id)
+    ALLOWED_RUNTIME_MODELS.include?(canonical_alias(model_id))
+  end
+
+  # Resolves the ANTHROPIC_MODEL override for a Tier 1 seam and returns the WIRE id.
+  #
+  # Fail-closed: an override outside ALLOWED_RUNTIME_MODELS is REFUSED and the vetted
+  # default is used instead, so runtime data can never egress to an unvetted model.
+  # Refusing-and-defaulting (rather than raising) is deliberate: raising would take
+  # the whole AI feature down over a typo in an env var, while still not making the
+  # unvetted call. The refusal is logged so a bad override is visible rather than
+  # silently ignored.
+  def runtime_model(default_alias)
+    override = ENV['ANTHROPIC_MODEL'].to_s.strip
+    return bedrock_model(default_alias) if override.empty?
+
+    return bedrock_model(override) if allowed_runtime_model?(override)
+
+    if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
+      Rails.logger.warn(
+        "[AiClient] ANTHROPIC_MODEL=#{override.inspect} is not in ALLOWED_RUNTIME_MODELS " \
+        "(#{ALLOWED_RUNTIME_MODELS.join(', ')}); refusing the override and using " \
+        "#{default_alias.inspect} instead."
+      )
+    end
+    bedrock_model(default_alias)
+  end
+
   # Which Bedrock plane to construct. Anything other than an explicit "mantle"
   # resolves to classic, so a typo degrades to the working plane rather than to
   # an unentitled one.
@@ -173,15 +231,37 @@ module AiClient
       Anthropic::BedrockMantleClient.new(
         aws_region: bedrock_region,
         aws_access_key: creds[:access_key],
-        aws_secret_access_key: creds[:secret_access_key]
+        aws_secret_access_key: creds[:secret_access_key],
+        base_url: mantle_base_url
       )
     else
       Anthropic::BedrockClient.new(
         aws_region: bedrock_region,
         aws_access_key: creds[:access_key],
-        aws_secret_key: creds[:secret_access_key]
+        aws_secret_key: creds[:secret_access_key],
+        base_url: classic_base_url
       )
     end
+  end
+
+  # Endpoint for the active plane, derived from the region and passed EXPLICITLY to
+  # the client.
+  #
+  # This is a Tier 1 egress control, not a convenience. Both gem clients resolve
+  # their endpoint as `base_url ||= ENV.fetch("ANTHROPIC_BEDROCK_BASE_URL", ...)`
+  # (Mantle: ANTHROPIC_BEDROCK_MANTLE_BASE_URL). Because that is `||=`, leaving
+  # base_url nil hands an environment variable the power to silently redirect every
+  # runtime AI request -- still SigV4-signed -- to an arbitrary host, off the BAA'd
+  # AWS path and out of scope of scripts/ai-endpoint-guard.sh, which only inspects
+  # construction sites in source. Passing the value explicitly wins over the `||=`
+  # and makes the destination a property of the code rather than the environment.
+  def classic_base_url
+    "https://bedrock-runtime.#{bedrock_region}.amazonaws.com"
+  end
+
+  # Mirrors the gem's own Mantle derivation, including the /anthropic path segment.
+  def mantle_base_url
+    "https://bedrock-mantle.#{bedrock_region}.api.aws/anthropic"
   end
 
   # True when the client class for the active plane is loaded. Seams use this

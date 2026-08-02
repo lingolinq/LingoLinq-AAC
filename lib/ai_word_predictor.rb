@@ -167,7 +167,9 @@ module AiWordPredictor
       {
         provider: :claude,
         region: AiClient.bedrock_region,
-        model: AiClient.bedrock_model(ENV.fetch('ANTHROPIC_MODEL', DEFAULT_ANTHROPIC_MODEL))
+        # runtime_model applies the Tier 1 ALLOWED_RUNTIME_MODELS gate to the
+        # ANTHROPIC_MODEL override; see AiClient.
+        model: AiClient.runtime_model(DEFAULT_ANTHROPIC_MODEL)
       }
     end
 

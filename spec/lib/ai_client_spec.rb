@@ -117,7 +117,8 @@ describe AiClient do
         expect(Anthropic::BedrockClient).to receive(:new).with(
           aws_region: 'us-west-2',
           aws_access_key: 'bedrock-key',
-          aws_secret_key: 'bedrock-secret'
+          aws_secret_key: 'bedrock-secret',
+          base_url: 'https://bedrock-runtime.us-west-2.amazonaws.com'
         ).and_return(client)
 
         expect(described_class.build).to eq(client)
@@ -135,7 +136,8 @@ describe AiClient do
         expect(Anthropic::BedrockMantleClient).to receive(:new).with(
           aws_region: 'us-west-2',
           aws_access_key: 'bedrock-key',
-          aws_secret_access_key: 'bedrock-secret'
+          aws_secret_access_key: 'bedrock-secret',
+          base_url: 'https://bedrock-mantle.us-west-2.api.aws/anthropic'
         ).and_return(client)
 
         expect(described_class.build).to eq(client)
@@ -238,6 +240,106 @@ describe AiClient do
       with_env({}) do
         expect(described_class.bedrock_model('')).to eq('')
         expect(described_class.bedrock_model(nil)).to eq('')
+      end
+    end
+  end
+
+  describe '.runtime_model (Tier 1 ANTHROPIC_MODEL allowlist)' do
+    def with_model(value, &blk)
+      previous = ENV['ANTHROPIC_MODEL']
+      value.nil? ? ENV.delete('ANTHROPIC_MODEL') : ENV['ANTHROPIC_MODEL'] = value
+      with_env({}, &blk)
+    ensure
+      previous.nil? ? ENV.delete('ANTHROPIC_MODEL') : ENV['ANTHROPIC_MODEL'] = previous
+    end
+
+    it 'uses the vetted default when no override is set' do
+      with_model(nil) do
+        expect(described_class.runtime_model('anthropic.claude-haiku-4-5'))
+          .to eq('us.anthropic.claude-haiku-4-5-20251001-v1:0')
+      end
+    end
+
+    it 'accepts an allowlisted override' do
+      with_model('anthropic.claude-haiku-4-5') do
+        expect(described_class.runtime_model('anthropic.claude-haiku-4-5'))
+          .to eq('us.anthropic.claude-haiku-4-5-20251001-v1:0')
+      end
+    end
+
+    # The Covered Models CLAUDE.md bars from Tier 1 (mandatory 30-day retention),
+    # plus a non-Anthropic vendor, which would also falsify the ledger's
+    # "Anthropic-only runtime" claim.
+    it 'refuses a Covered Model or foreign vendor and falls back to the vetted default' do
+      [
+        'anthropic.claude-fable-5',
+        'anthropic.claude-mythos-5',
+        'meta.llama3-70b-instruct-v1:0',
+        'anthropic.claude-opus-4-7'
+      ].each do |bad|
+        with_model(bad) do
+          expect(described_class.runtime_model('anthropic.claude-haiku-4-5'))
+            .to eq('us.anthropic.claude-haiku-4-5-20251001-v1:0'), "leaked for #{bad}"
+        end
+      end
+    end
+
+    # The precise bypass flagged in review: bedrock_model passes an already-resolved
+    # profile id through untouched, so an allowlist that only understood bare aliases
+    # would never inspect this form.
+    it 'refuses a Covered Model disguised as a regional inference-profile id' do
+      [
+        'us.anthropic.claude-fable-5-20260101-v1:0',
+        'eu.anthropic.claude-mythos-5-20260101-v1:0',
+        'apac.meta.llama3-70b-instruct-v1:0'
+      ].each do |bad|
+        with_model(bad) do
+          expect(described_class.runtime_model('anthropic.claude-haiku-4-5'))
+            .to eq('us.anthropic.claude-haiku-4-5-20251001-v1:0'), "leaked for #{bad}"
+        end
+      end
+    end
+
+    it 'canonicalizes profile, dated and bare forms to the same allowlist key' do
+      expect(described_class.canonical_alias('us.anthropic.claude-haiku-4-5-20251001-v1:0'))
+        .to eq('anthropic.claude-haiku-4-5')
+      expect(described_class.canonical_alias('claude-haiku-4-5')).to eq('anthropic.claude-haiku-4-5')
+      expect(described_class.allowed_runtime_model?('us.anthropic.claude-fable-5-20260101-v1:0')).to eq(false)
+    end
+  end
+
+  describe 'endpoint pinning' do
+    # Both gem clients resolve `base_url ||= ENV.fetch("ANTHROPIC_BEDROCK_BASE_URL", ...)`.
+    # Passing base_url explicitly is what stops an env var redirecting Tier 1 egress
+    # off the BAA'd AWS path.
+    it 'pins the classic endpoint explicitly rather than letting ENV decide' do
+      previous = ENV['ANTHROPIC_BEDROCK_BASE_URL']
+      ENV['ANTHROPIC_BEDROCK_BASE_URL'] = 'https://attacker.example.com'
+      with_env(
+        'BEDROCK_AWS_REGION' => 'us-west-2',
+        'BEDROCK_AWS_KEY' => 'k',
+        'BEDROCK_AWS_SECRET' => 's'
+      ) do
+        expect(Anthropic::BedrockClient).to receive(:new)
+          .with(hash_including(base_url: 'https://bedrock-runtime.us-west-2.amazonaws.com'))
+          .and_return(double)
+        described_class.build
+      end
+    ensure
+      previous.nil? ? ENV.delete('ANTHROPIC_BEDROCK_BASE_URL') : ENV['ANTHROPIC_BEDROCK_BASE_URL'] = previous
+    end
+
+    it 'pins the mantle endpoint explicitly, matching the gem derivation' do
+      with_env(
+        'BEDROCK_PLANE' => 'mantle',
+        'BEDROCK_AWS_REGION' => 'us-west-2',
+        'BEDROCK_AWS_KEY' => 'k',
+        'BEDROCK_AWS_SECRET' => 's'
+      ) do
+        expect(Anthropic::BedrockMantleClient).to receive(:new)
+          .with(hash_including(base_url: 'https://bedrock-mantle.us-west-2.api.aws/anthropic'))
+          .and_return(double)
+        described_class.build
       end
     end
   end
