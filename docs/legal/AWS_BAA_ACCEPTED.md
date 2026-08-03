@@ -135,8 +135,9 @@ is the same error the 2026-07-27 claim above made.
   Bedrock code is `00011-l7f`, deployed 2026-07-30T16:37Z, and it carries no Bedrock credential.
   Runtime AI therefore became non-functional on **2026-07-30**, not 2026-07-24.
 - **Whether direct calls actually occurred is not answerable from deployment configuration.** It
-  requires a production query of `AiApiLog` by `ai_provider` and `created_at` across 2026-07-24 to
-  2026-07-30. That query has not been run. Do not restate "no egress occurred" until it has.
+  required a production query of `AiApiLog` by `ai_provider` and `created_at` across 2026-07-24 to
+  2026-07-30. **That query was run 2026-08-02 and returned zero rows.** Detail, caveats, and method
+  are in the "AiApiLog verification" subsection below.
 - **Any such egress was BAA-covered.** The direct Anthropic path is covered by the executed
   Anthropic HIPAA-Ready BAA of 2026-07-18 (`docs/legal/ANTHROPIC_BAA_ACCEPTED.md`), so this is not
   an uncovered disclosure even if the log shows calls.
@@ -149,6 +150,54 @@ is the same error the 2026-07-27 claim above made.
 **Operational consequence.** Board generation, word prediction, prediction seeding, and eval
 narration are non-functional in production, and have been since `00011-l7f` deployed
 2026-07-30T16:37Z.
+
+### AiApiLog verification - 2026-08-02
+
+The open question left by the correction above, whether direct `api.anthropic.com` calls actually
+occurred while revision `00010-95c` served (2026-07-24T23:21Z to 2026-07-30T16:37Z), was resolved by
+querying the production database.
+
+**Result: zero `AiApiLog` rows in the window, and zero in the table's entire history in this
+database.**
+
+**Method.** A read-only aggregate query executed inside the production VPC via a one-off Cloud Run
+job execution against `lingolinq-prod-pg` (the database is private-IP only, so no external client can
+reach it). Aggregates and counts only: `ai_provider`, `ai_model`, `request_type`, `success`,
+`created_at`. No prompt content, no `request_summary` / `response_summary`, no `pii_findings`, no
+identifiers or IP addresses were selected or returned. The job definition was not modified; the query
+ran as a per-execution argument override.
+
+**Why zero is meaningful here rather than merely absent.** A null result only carries weight if the
+logging path existed and the database was live. Both were confirmed:
+
+| Control question | Finding |
+| --- | --- |
+| Did the window-era code log these calls? | Yes. At `abd6d8c8c^`, the code `00010-95c` was built from, all three user-facing seams carry `AiApiLog` instrumentation: `ai_word_predictor.rb`, `ai_board_generator.rb`, `eval_narrator.rb`, at the same reference counts as HEAD. |
+| Was the database live and accepting writes across the window? | Yes. 31 users, 2,105 boards, 5,518 log sessions, with the most recent `LogSession` written 2026-07-31 09:28 UTC, spanning and outlasting the window. |
+| Did the table exist? | Yes, `ai_api_logs` present. |
+
+So the database was actively written throughout the window, the table existed, and the deployed code
+logged every user-facing AI call. Zero rows is therefore positive evidence that no word-prediction,
+board-generation, or eval-narration call completed in production during that period.
+
+**Caveats, stated so this is not over-read.**
+
+1. `AiApiLog.log_ai_call` rescues `ActiveRecord::ActiveRecordError`, so a persistent database-side
+   logging failure would drop rows silently. Other tables were demonstrably accepting writes, which
+   makes a systematic silent failure unlikely, but it cannot be excluded from this evidence alone.
+2. A call that raised before reaching its log statement would not be recorded. The claim this
+   supports is therefore about calls that **completed**, which is the relevant question for whether
+   data reached the provider.
+3. The all-time zero reflects this database only. Production cut over to GCP on 2026-07-22 and
+   pre-cutover `AiApiLog` history, if any, remained on Render and appears not to have been migrated.
+   The window is entirely post-cutover, so this does not weaken the window finding.
+4. `lib/ai_prediction_generator.rb` does not write `AiApiLog`. It is an offline batch tool that sends
+   static word lists and no user content, so it is out of scope for a PHI-egress question.
+
+**Effect on the retraction above.** The fourth bullet, that any such egress would have been covered
+by the Anthropic HIPAA-Ready BAA of 2026-07-18, is unchanged and remains the correct fallback
+position. This finding narrows the question rather than replacing that coverage: the evidence now
+indicates there was no completed runtime model egress to answer for in that window.
 
 **Standard for any future verification of this condition.** Mounting a credential is not by itself
 evidence that the operative condition is met, because a mounted credential can belong to a different

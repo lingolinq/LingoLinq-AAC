@@ -1084,7 +1084,7 @@
         "note": "Re-attested 2026-07-27: recorded the verified Bedrock operative conditions (deployed lingolinq-web credential resolves to the BAA'd AWS account 2390-4478-5114 / us-west-2; Bedrock model-invocation logging OFF in that account/region). Content-only verification; no scope change."
       },
       "correctionNote": "CORRECTION 2026-08-02 (not an attestation; only Scot attests). The attestation.note above, recorded 2026-07-27, states that the deployed lingolinq-web credential was verified to resolve to AWS account 2390-4478-5114. That verification is RETRACTED: no lingolinq-web revision has ever carried a Bedrock credential (all 11 revisions checked, 00001-2vn 2026-06-29 through 00011-l7f 2026-07-30). The attestation object is left unmodified because it records what was signed; this field records that one of its assertions is known false. The separate finding in that same note, that Bedrock model-invocation logging is OFF in 2390-4478-5114/us-west-2, was verified in-account independently of the deployment and STILL STANDS. Full evidence and the standard for any future verification: the 2026-08-01 correction section in the document itself. Re-attestation owed.",
-      "contentHash": "389800e199d2cd106ee391f966fc405e7c25c07103a9b2f7c86fb495b5425130",
+      "contentHash": "cf12d1fb8236010130456bda962b12f800237d28fc2dcc6c24e461688791e3f5",
       "bundles": [
         "baa"
       ],
