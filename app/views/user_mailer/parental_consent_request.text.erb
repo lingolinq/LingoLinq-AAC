@@ -22,7 +22,11 @@
 
 <%= mailer_t('parental_consent_mailer.decline_heading') %>
 
+<% if @offboarding %>
+<%= mailer_t('parental_consent_mailer.offboarding_decline_prompt') %>
+<% else %>
 <%= mailer_t('parental_consent_mailer.decline_prompt') %>
+<% end %>
 
 <%= mailer_t('parental_consent_mailer.decline_cta_label') %>:
 <%= @decline_url %>

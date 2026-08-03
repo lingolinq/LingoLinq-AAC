@@ -698,11 +698,23 @@ class User < ApplicationRecord
 
   # True when an offboarded minor's pending COPPA window has ended (token /
   # deadline expiry) or the guardian explicitly declined — ready for
-  # export-then-delete. Already-scheduled rows are skipped.
+  # export-then-delete. Already-scheduled rows are skipped. An in-flight
+  # claim (offboarding_export_started_at) also blocks until it goes stale so
+  # concurrent callers cannot each run Exporter.export_user.
+  OFFBOARDING_EXPORT_CLAIM_STALE = 6.hours
+
   def coppa_offboarding_export_due?
     c = self.settings && self.settings['coppa']
     return false unless c.is_a?(Hash) && c['offboarding']
     return false if c['offboarding_export_scheduled_at'].present?
+    started = c['offboarding_export_started_at']
+    if started.present?
+      begin
+        return false if Time.iso8601(started) > OFFBOARDING_EXPORT_CLAIM_STALE.ago.utc
+      rescue ArgumentError
+        # Bad stamp should not permanently block; fall through to due checks.
+      end
+    end
     return true if c['parent_consent_declined_at'].present?
     return false unless c['pending_parent_consent']
     deadline = c['parent_consent_expires_at'].presence || c['offboarding_deadline_at']
@@ -779,8 +791,22 @@ class User < ApplicationRecord
 
   # Export account data (when possible), notify parent, schedule hard delete.
   # Idempotent via settings['coppa']['offboarding_export_scheduled_at'].
+  # Claims under lock (offboarding_export_started_at) before the expensive
+  # Exporter.export_user call so concurrent workers/manual declines cannot
+  # each generate a full export for the same user.
   def schedule_offboarding_export_then_delete!(reason:)
-    return false unless coppa_offboarding_export_due?
+    claimed = false
+    self.with_lock(requires_new: true) do
+      next unless coppa_offboarding_export_due?
+      self.settings ||= {}
+      c = self.settings['coppa']
+      next unless c.is_a?(Hash)
+      c['offboarding_export_started_at'] = Time.now.utc.iso8601
+      self.settings['coppa'] = c
+      self.save!
+      claimed = true
+    end
+    return false unless claimed
 
     upload = nil
     begin
@@ -792,13 +818,15 @@ class User < ApplicationRecord
     scheduled = false
     mailed = false
     self.with_lock(requires_new: true) do
-      next unless coppa_offboarding_export_due?
       self.settings ||= {}
       c = self.settings['coppa']
-      next unless c.is_a?(Hash)
+      next unless c.is_a?(Hash) && c['offboarding']
+      # Claim owns the work; skip if another finisher already recorded scheduled_at.
+      next if c['offboarding_export_scheduled_at'].present?
       now = Time.now.utc.iso8601
       c['offboarding_export_scheduled_at'] = now
       c['offboarding_export_reason'] = reason.to_s
+      c.delete('offboarding_export_started_at')
       if upload.is_a?(Hash) && upload[:path].present?
         c['offboarding_export_path'] = upload[:path]
       end
