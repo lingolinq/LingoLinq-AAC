@@ -8237,6 +8237,8 @@
   "landing_privacy_title_2": "*** yours",
   "landing_privacy_statement": "*** We never sell or share your information, and we never use it to train AI models. Our AI tools and analytics — including Real Analytics for IEPs — are strictly opt-in, and you can turn any of them off at any time.",
   "landing_try_demo": "*** Try Demo",
+  "translation_not_enabled_for_account": "*** Automatic translation is not enabled for this account. You can still enter translations by hand.",
+  "masquerade": "маскарад [[ masquerade",
   "==== lvl8 ============": "Below are all words for priority level 8 (this string does not need to be translated)",
   "on_the_date": "На дату [[ On the Date",
   "after_time": "По истечении времени [[ After Time",
@@ -8438,7 +8440,6 @@
   "eval_accounts_lower": "оценочные счета [[ eval accounts",
   "update_lower": "Обновить [[ update",
   "background_jobs": "Фоновые задания [[ Background Jobs",
-  "masquerade": "маскарад [[ masquerade",
   "find_user": "найти пользователя [[ find user",
   "find_board_lower": "найти доску [[ find board",
   "goal_linked": "Цель успешно связана с этой комнатой! [[ Goal successfully linked to this room!",
@@ -8681,5 +8682,10 @@
   "org_name_required": "*** Organization name is required",
   "org_jurisdiction_required": "*** Please choose United States or European Union for the organization location",
   "org_jurisdiction_label": "*** Organization location",
-  "org_jurisdiction_hint": "*** Used when a communicator leaves this organization so under-13 and under-16 protections follow US or EU rules."
+  "org_jurisdiction_hint": "*** Used when a communicator leaves this organization so under-13 and under-16 protections follow US or EU rules.",
+  "org_external_ai_processing_label": "*** Third-party AI processing",
+  "org_external_ai_processing_toggle": "*** Allow third-party AI processing (translation, voice transcription)",
+  "org_external_ai_processing_hint": "*** When off, board auto-translation and voice-recording transcription will not send data to Google. Recordings still work without a transcript. Turn this off if your contract forbids third-party processing.",
+  "find_user_section_desc": "*** Look up any account by username or email. Open the profile or masquerade from the results.",
+  "user_name_or_email": "*** user name or email"
 }
