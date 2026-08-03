@@ -31,10 +31,18 @@ module LingoLinq
   #
   # TRUTHFULNESS GATES (enforced by spec/lib/lingo_linq/article50_disclosures_spec.rb,
   # not just this comment):
-  # 1. Vendor allowlist: the ONLY vendor is Anthropic, PBC, and the ONLY models
-  #    named are Claude Haiku 4.5 and Claude Opus 4.7 -- the verified runtime
-  #    inventory (lib/ai_board_generator.rb, lib/ai_word_predictor.rb use
-  #    claude-haiku-4-5-20251001; lib/eval_narrator.rb uses claude-opus-4-7).
+  # 1. Vendor allowlist: the ONLY vendors are Amazon Web Services, Inc. (which
+  #    OPERATES the inference, on Amazon Bedrock, inside a LingoLinq-controlled
+  #    AWS account under the AWS BAA) and Anthropic, PBC (which BUILT the model
+  #    but, on Bedrock, cannot access the prompts or responses). Naming AWS is
+  #    not optional detail: it is the actual processor, and an Art. 50(1) notice
+  #    that names only Anthropic identifies the wrong entity and the wrong legal
+  #    basis. The ONLY model named is Claude Haiku 4.5 -- the verified runtime
+  #    inventory (lib/ai_board_generator.rb and lib/ai_word_predictor.rb resolve
+  #    anthropic.claude-haiku-4-5 via AiClient). Claude Opus 4.7 was REMOVED
+  #    2026-08-02: it is absent from the classic Bedrock catalog entirely, so
+  #    eval narration invokes no model at all and falls back to a local
+  #    template. Naming a model that is never invoked overstates exposure.
   #    Any other AI vendor or model (dev-loop code-review tooling, disabled
   #    fallback providers, etc.) is never a runtime AI call here and must
   #    never appear in this REGISTRY -- see CLAUDE.md's approved-reviewers
@@ -76,11 +84,22 @@ module LingoLinq
         'article' => 'EU AI Act Article 50(1), Regulation (EU) 2024/1689',
         'vendors' => [
           {
-            'name' => 'Anthropic, PBC',
-            'tier' => "Anthropic's commercial API (not the free consumer Claude.ai product)",
+            'name' => 'Amazon Web Services, Inc.',
+            'tier' => 'Amazon Bedrock, running inside a LingoLinq-controlled AWS account under a ' \
+              'signed AWS Business Associate Agreement. AWS operates the inference; it is not ' \
+              "Anthropic's commercial API and not the free consumer Claude.ai product.",
             'models' => [
-              'Claude Haiku 4.5 (claude-haiku-4-5-20251001), used for AI board generation and AI word prediction',
-              'Claude Opus 4.7 (claude-opus-4-7), used for AI evaluation narration'
+              'Claude Haiku 4.5 (claude-haiku-4-5-20251001), used for AI board generation and AI word prediction'
+            ]
+          },
+          {
+            'name' => 'Anthropic, PBC',
+            'tier' => 'Model provider only. Anthropic built the Claude models, but on Amazon ' \
+              'Bedrock the models run inside AWS-operated accounts that Anthropic cannot access, ' \
+              'so Anthropic does not receive the prompts sent for these features or the responses ' \
+              'returned. LingoLinq does not send these requests to Anthropic directly.',
+            'models' => [
+              'Claude Haiku 4.5 (claude-haiku-4-5-20251001), used for AI board generation and AI word prediction'
             ]
           }
         ],
@@ -101,11 +120,13 @@ module LingoLinq
           {
             'key' => 'eval_narrator',
             'name' => 'AI evaluation narration',
-            'description' => 'When a speech-language pathologist chooses to generate an AI-drafted evaluation ' \
-              'summary, the app can send that evaluation session to Anthropic Claude Opus 4.7, which drafts a ' \
-              "narrative the clinician then reviews and edits. The student's name and their diagnosis are " \
-              'removed before anything is sent, so the AI provider drafts about "the student" and the clinician ' \
-              'fills those details in afterwards.'
+            'description' => 'AI-drafted evaluation narration is currently NOT ACTIVE: no evaluation data is ' \
+              'sent to any AI model for this feature today. When a speech-language pathologist asks for an ' \
+              'AI-drafted summary, the app produces a fixed, locally generated template instead, which never ' \
+              'leaves LingoLinq. If this feature is switched on in future, the model used will be named here ' \
+              'first, and the same protections would apply as for the features above: the student\'s name and ' \
+              'their diagnosis are removed before anything is sent, so the model drafts about "the student" ' \
+              'and the clinician fills those details in afterwards.'
           }
         ],
         'data_categories' => [
@@ -124,9 +145,13 @@ module LingoLinq
             'having been shown or acknowledged, or on any feature flag.'
         },
         'retention' => {
-          'vendor_side' => 'For Anthropic (Claude Haiku 4.5 and Claude Opus 4.7), data sent for an AI request ' \
-            'is not retained by Anthropic beyond what is needed to process that request, under a ' \
-            'zero-data-retention agreement scoped to these two models.',
+          'vendor_side' => 'AI requests for these features run on Amazon Bedrock inside a LingoLinq-controlled ' \
+            'AWS account. AWS states that inputs and outputs are not used to train any model, and are not ' \
+            'shared with the model provider: on Bedrock the models run in AWS-operated accounts that Anthropic ' \
+            'cannot access, so Anthropic receives neither the prompts nor the responses. AWS may retain request ' \
+            'data for a limited period for safety and abuse-prevention purposes. LingoLinq has not yet ' \
+            'configured the account for guaranteed zero retention, so we do not claim a zero-data-retention ' \
+            'guarantee for this path.',
           'lingolinq_general' => {
             'window_months' => 24,
             'note' => "LingoLinq's own record of an AI request (kept in AiApiLog for auditing) is kept for " \

@@ -118,6 +118,7 @@ file (see [README.md](README.md)).
 - [Gotcha: a single-quoted `i18n.t` default silently DELETES the key on the next generator run](#gotcha-a-single-quoted-i18nt-default-silently-deletes-the-key-on-the-next-generator-run)
 - [Gotcha: fail-closed Sentry filters must not collapse lookup failures to nil](#gotcha-fail-closed-sentry-filters-must-not-collapse-lookup-failures-to-nil)
 - [Gotcha: dual-key tag reads — check each key independently, never `a || b` before coercion](#gotcha-dual-key-tag-reads--check-each-key-independently-never-a--b-before-coercion)
+- [Gotcha: set-field on nested model fields needs nested observer deps (videoChanged pattern)](#gotcha-set-field-on-nested-model-fields-needs-nested-observer-deps-videochanged-pattern)
 
 ---
 
@@ -7446,8 +7447,10 @@ share one code path. (2) The prompt-injection guard must scan **each chunk's own
 that chunk's reviewer actually saw), not a single global diff. (3) Make the cap/limit/concurrency
 repo `vars.` (`CODEX_MAX_DIFF_BYTES`, `CODEX_MAX_DIFF_CHUNKS`, `CODEX_REVIEW_CONCURRENCY`) so the
 tooling owner can tune runner cost/time without a code change. (4) Parallelizing the chunk loop is
-what keeps a large PR under the 30-min watchdog — serial passes (up to MAX_CHUNKS × 3 codex runs)
-can otherwise time out, which is still fail-closed but defeats the point of reviewing the big PR.
+what keeps a large PR under the watchdog's 30-minute staleness threshold — serial passes (up to
+MAX_CHUNKS × 3 codex runs) can otherwise go stale, which is still fail-closed but defeats the point
+of reviewing the big PR. (Threshold, not deadline: the watchdog acts once a status is 30 min old AND
+a sweep runs, and sweep timing is best-effort. See issue #710.)
 Files: `scripts/codex-review-chunk-diff.py`, `codex-review-one-chunk.sh` (per-chunk worker, both
 routes), `codex-review-assemble-manifest.py`, `codex-review-build-envelope.py` (`fold_across_chunks`
 + `--manifest`), `.github/workflows/codex-review.yml`.
@@ -7882,6 +7885,18 @@ feature reports "configured" then fails AccessDenied at invoke time.
    `Bedrock::Client` uses `aws_secret_key` — do not rename based on that older API.
 4. Provision a separate Bedrock Mantle IAM user + policy
    (`scripts/gcp/iam/lingolinq-bedrock-mantle-policy.json`); do not bolt invoke onto the S3/SES policy.
+5. Operator/dev diagnostics that list required env vars must mention **both** accepted
+   credential pairs (dedicated Bedrock + standard SDK). Omitting the SDK pair misleads
+   local setups that already have `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` and only
+   need a region. Keep calling out that `AWS_KEY`/`AWS_SECRET` are not accepted.
+6. **The two Bedrock planes are not interchangeable** (learned 2026-08-01). `bedrock-mantle`
+   and classic `bedrock-runtime` carry DIFFERENT model catalogs and SEPARATE entitlements.
+   Account 239044785114 is entitled only to classic; Mantle 403s every model even with admin
+   credentials and `bedrock-mantle:CreateInference` on `Resource: "*"`, so a 403 there is an
+   entitlement fact, not an IAM bug. Classic additionally REJECTS bare foundation-model ids
+   ("on-demand throughput isn't supported") and requires the `us.` cross-region inference-profile
+   form. Opus 4.7 is absent from the classic catalog entirely. Select the plane with
+   `BEDROCK_PLANE`; `AiClient.bedrock_model` maps the alias to the plane's wire id.
 
 Evidence: `lib/ai_client.rb`, `spec/lib/ai_client_spec.rb`,
 `docs/task-management/2026-07-27-ai-client-bedrock-credential-review.md`.
@@ -8038,3 +8053,23 @@ its own no-op is worse than no task. It now preflights the storage config and re
 that rebuild to zero.
 
 **First seen in:** `2026-08-01-prod-empty-button-sets.md` (PR #724)
+
+## Gotcha: set-field on nested model fields needs nested observer deps (videoChanged pattern)
+
+`editManager.change_button` sync observers that watch only an object reference (`observer('model.book', …)`) do **not** refire when `set-field` mutates nested properties on that object. The video path already documents and implements this (`button-settings.js` `videoChanged` observes `model.video` + `model.video.popup|start|end`). Restoring TarHeel book checkboxes with `set-field` alone is incomplete unless `bookChanged` also observes `model.book.popup` / `.speech` / `.utterance` (or each control calls `change_button`). Separately: TarHeel init defaults are asymmetric — `speech: false`, `utterance: true` (`utils/button.js:163-175`) — so register impact text must not say both default falsy. Ref: [`2026-08-02-ember-register-book-options-codex-fixes.md`](./2026-08-02-ember-register-book-options-codex-fixes.md).
+
+## Gotcha: merging staging into an attestation-correction PR must not take staging's `built` ledger flip
+
+When a compliance PR retracts an overclaim (e.g. #725 Bedrock credential attestation →
+`ai-features-anthropic` `partial` / not operational) and staging later lands the runtime fix
+that staging's own ledger marks `built` again (#719 mount + #727 classic plane), a naive
+"take theirs" on `CAPABILITY-LEDGER.json` undoes the PR thesis.
+
+**Resolution pattern:** keep the correction's status/claimLanguage; fold in the new technical
+facts (classic vs mantle, deploy-workflow mount) into antiClaim/notes; state explicitly that
+code landing ≠ operative-condition verified. Then regenerate — never hand-edit — with
+`ruby scripts/capability-check.rb` and `ruby scripts/document-register-render.rb`. Date-stamp
+historical evidence rows that staging's code change would otherwise falsify (e.g. "absent in
+deploy-cloudrun.yml" → "absent as of YYYY-MM-DD evidence gather (pre-#719)").
+
+Ref: `docs/task-management/2026-08-03-bedrock-attestation-staging-merge.md` (gitignored working log).

@@ -5,13 +5,56 @@ name: Codex Review Watchdog
 # codex-review/deep-pass pending forever, because a required status check
 # that never resolves blocks merge silently rather than failing loudly).
 #
-# Two independent triggers, because `workflow_run: completed` alone cannot
-# catch a run that hangs and never completes:
+# RECOVERY IS BEST-EFFORT, NOT A 30-MINUTE SLA. See issue #710.
+#
+# Two triggers, but ONE job and ONE gate. Both triggers run
+# `fail-stale-pending`, and the only writer to the stale list is gated on
+# `age_min -ge 30`. There is no `github.event_name` branching anywhere in this
+# file, so NEITHER trigger provides prompt recovery:
 #   1. workflow_run(completed) — codex-review.yml or claude-fix.yml concluded
 #      (crashed, cancelled, or exited nonzero) but deep-pass is still pending.
-#   2. schedule — a 10-minute sweep that fails ANY deep-pass status still
-#      pending more than 30 minutes after it was set, regardless of whether
-#      the dispatching workflow run ever reports a conclusion at all.
+#      This fires immediately and then does NOTHING unless the status is
+#      already 30+ minutes old. Do not describe it as a fast path: a run that
+#      concluded at the auth step still took 41 minutes to resolve
+#      (05:39:18Z pending -> 06:20:56Z failure; see
+#      audit-reports/deep-pass-admin-overrides.md). The trigger fired; the age
+#      gate is what it waited on.
+#   2. schedule — a sweep requested every 10 minutes, subject to the SAME age
+#      gate. This is the only trigger that covers a run which hangs forever,
+#      because a still-running job emits no workflow_run completion event.
+#
+# Prompt resolution comes from codex-review.yml's own terminal-status step
+# (PR #702), which runs on all exit paths. That is a different mechanism from
+# this workflow. Do not credit this workflow with it.
+#
+# What the 30 minutes does and does not mean:
+#   IT IS     the age a pending status must reach before a sweep will fail it.
+#   IT IS NOT an upper bound on how long a status can stay pending.
+#
+# GitHub does not guarantee that scheduled workflows run on time, and under
+# load it delays or drops them outright. Observed 2026-07-29 (issue #710): four
+# consecutive `*/10` firings were missed, no sweep ran for about 45 minutes, and
+# PR #701 sat pending for 77 minutes. Nothing was misconfigured; the cron simply
+# did not fire. So the real bound is "at least 30 minutes, plus however long
+# GitHub's queue takes", with no ceiling.
+#
+# This matters in AT LEAST TWO places, not one:
+#   a. the status-write-failure path, where codex-review.yml provably cannot
+#      resolve its own status because the status API is what is failing;
+#   b. a hung `codex exec` — run_model in scripts/codex-review-run-chunks.py
+#      passes no timeout= to subprocess.run, so the job stalls to the 90-minute
+#      ceiling and emits no workflow_run event while it hangs. This is a known
+#      unfixed limit, not a hypothetical.
+# In both, this sweep is the only recovery mechanism and its timing is
+# unbounded. Everywhere else codex-review.yml's own terminal-status step
+# (PR #702) resolves the status and this sweep never needs to act.
+#
+# There is also no workflow_dispatch trigger here, so there is no operator
+# lever to run this on demand and no audited manual path (issue #717).
+#
+# Do not restate the 30 minutes as a guarantee, an SLA, or a bound anywhere in
+# this repository. If a strict bound is ever genuinely required, it needs a
+# monitor outside GitHub Actions; scheduling cannot provide one.
 on:
   workflow_run:
     workflows: ["Codex Review", "Claude Fix"]
@@ -43,9 +86,9 @@ jobs:
           # scripts/codex-review-run-chunks.py re-POSTs a `pending` heartbeat as
           # each chunk completes; every heartbeat mints a new status entry with a
           # fresh created_at. Anchoring on the latest entry therefore let a
-          # heartbeating run push this clock forward indefinitely and outrun the
-          # 30-minute sweep, defeating the backstop in exactly the hang case it
-          # exists for. Grouping by target_url (attempt-scoped since the
+          # heartbeating run push this clock forward indefinitely and never
+          # reach the 30-minute threshold, defeating the backstop in exactly the
+          # hang case it exists for. Grouping by target_url (attempt-scoped since the
           # codex-review.yml RUN_URL change) and taking the oldest pending entry
           # in that group measures how long THIS attempt has actually been
           # running, and keeps a re-run from inheriting the prior attempt's clock.
@@ -81,6 +124,9 @@ jobs:
             ')"
             [ -z "$created_at" ] && continue
             age_min=$(( ( $(date -u +%s) - $(date -u -d "$created_at" +%s) ) / 60 ))
+            # 30 is the ACTION THRESHOLD, not a deadline: a status is eligible to
+            # be failed once it is this old. How soon after that a sweep actually
+            # runs is up to GitHub's scheduler and is not bounded. See the header.
             if [ "$age_min" -ge 30 ]; then
               printf '%s\t%s\t%s\n' "$pr_number" "$head_sha" "$age_min" >> /tmp/stale.tsv
             fi

@@ -25,20 +25,35 @@ describe LingoLinq::AiConsentDisclosures do
       expect(described_class.metadata('1')).to be_a(Hash)
     end
 
-    it 'returns vendor metadata naming Anthropic Claude Haiku 4.5 and Claude Opus 4.7' do
+    it 'names AWS as the processor and Anthropic as the model provider' do
       m = described_class.metadata(1)
       names = m['vendors'].map { |v| v['name'] }
+      expect(names).to include('Amazon Web Services, Inc.')
       expect(names).to include('Anthropic, PBC')
       models = m['vendors'].flat_map { |v| v['models'] }.join(' ')
       expect(models).to include('Claude Haiku 4.5')
-      expect(models).to include('Claude Opus 4.7')
+      # Opus 4.7 is not invoked on the classic Bedrock plane (absent from the catalog),
+      # so eval narration egresses nothing and the model must not be named here.
+      expect(models).not_to include('Claude Opus 4.7')
+    end
+
+    it 'does not claim a zero-data-retention guarantee that has not been configured' do
+      serialized = JSON.generate(described_class::REGISTRY)
+      expect(serialized).not_to match(/under a zero-data-retention agreement/i)
+      expect(serialized).not_to match(/Zero-data-retention \(ZDR\) is confirmed/i)
     end
 
     it 'does not list Google Gemini as a vendor (fallback disabled 2026-07-09, PR #570)' do
       m = described_class.metadata(1)
       gemini = m['vendors'].find { |v| v['name'].include?('Google') }
       expect(gemini).to be_nil
-      expect(m['vendors'].length).to eq(1)
+      expect(JSON.generate(m)).not_to match(/gemini/i)
+      # Asserts the exact vendor set rather than a bare count. The count was 1 until
+      # 2026-08-02, when AWS was added as the actual processor for the Bedrock path;
+      # a length check is a proxy that breaks on any truthful vendor change while
+      # still not proving Gemini is absent, which is what this test is for.
+      expect(m['vendors'].map { |v| v['name'] })
+        .to match_array(['Amazon Web Services, Inc.', 'Anthropic, PBC'])
     end
 
     it 'never uses the word "de-identified" anywhere in the metadata text' do

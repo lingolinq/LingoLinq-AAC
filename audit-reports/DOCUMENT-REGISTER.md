@@ -54,7 +54,7 @@
 | Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Anthropic HIPAA-Ready BAA Acceptance Record | git | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` | approved | HIPAA, GDPR | Scot Wahlquist | 2026-08-01 | 2027-07-18 | 2026-07-27 | `9f3d55004be5` | baa |
-| AWS BAA Acceptance Record | git | `docs/legal/AWS_BAA_ACCEPTED.md` | approved | HIPAA | Scot Wahlquist | 2026-08-01 | 2027-05-11 | 2026-07-27 | `cf12d1fb8236` | baa |
+| AWS BAA Acceptance Record | git | `docs/legal/AWS_BAA_ACCEPTED.md` | approved | HIPAA | Scot Wahlquist | 2026-08-01 | 2027-05-11 | 2026-07-27 | `57ae0f5f0df9` | baa |
 | COPPA Final-Rule Verification | git | `docs/legal/COPPA_VERIFICATION_2026-04-26.md` | approved | COPPA | Scot Wahlquist | 2026-07-23 | 2026-10-22 | 2026-07-23 | `35a6298e2df5` | school-dpa-package |
 | COPPA Final-Rule Verification (branded) | Drive | [open](https://docs.google.com/document/d/1p_pPVDr6FocvdQ7UjK3ElmPXOlQvRX9n2XdFpiqZeXY/edit) | published | COPPA | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, school-dpa-package |
 | Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14) | Drive | [open](https://docs.google.com/document/d/1CcyQpNfg8aiuY5VA7RHYbYqQEQtzHAdEkjpxcQIhNmM/edit) | draft | HIPAA | Scot Wahlquist | 2026-07-22 | 2027-01-22 | no | (supplied) | baa |
@@ -79,7 +79,7 @@
 | Data & Compliance Pipeline - Build Inventory (dated) | Drive | [open](https://docs.google.com/document/d/1xxLsESUXKm6rDWuqr_Z-Ob5kWzUZUbFD3gTKZWfLMnY/edit) | approved |  | Scot Wahlquist | 2026-06-22 | 2026-09-22 | no | (supplied) |  |
 | Document Register (this file) | git | `audit-reports/DOCUMENT-REGISTER.json` | published |  | Scot Wahlquist | 2026-06-21 | 2026-09-21 | no | (self) |  |
 | Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | `7910ec942297` |  |
-| LingoLinq Capability Ledger (rendered) | git | `docs/legal/CAPABILITY_LEDGER.md` | published |  | Scot Wahlquist | 2026-07-12 | 2027-01-12 | no | `50df472ed021` |  |
+| LingoLinq Capability Ledger (rendered) | git | `docs/legal/CAPABILITY_LEDGER.md` | published |  | Scot Wahlquist | 2026-07-12 | 2027-01-12 | no | `3c3cc9d808c2` |  |
 | Notion - Compliance & Audits hub | Notion | [open](https://www.notion.so/3655fe8215c2815a949ec8ed971d5580) | published |  | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | (supplied) |  |
 | Notion - Compliance Documents board (LL) | Notion | [open](https://www.notion.so/3865fe8215c28174aef3ce32239ced5c) | published |  | Scot Wahlquist | 2026-06-21 | 2026-09-21 | no | (supplied) |  |
 | Notion - Compliance Findings board (LL) | Notion | [open](https://app.notion.com/p/1f8451c4a17b4f5b868878ac4386b805) | published |  | Scot Wahlquist | 2026-06-20 | 2026-09-20 | no | (supplied) |  |

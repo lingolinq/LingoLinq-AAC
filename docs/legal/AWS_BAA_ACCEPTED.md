@@ -114,7 +114,7 @@ revision of `lingolinq-web`.
 | Bedrock credential env vars across all 11 revisions, `00001-2vn` (2026-06-29) through `00011-l7f` | none, on every revision |
 | Serving revision on 2026-07-27, `lingolinq-web-00010-95c` | none |
 | AWS-related env vars actually present on the serving revision | `AWS_KEY`, `AWS_SECRET`, `AWS_REGION`, plus the retired `ANTHROPIC_API_KEY` |
-| `BEDROCK_AWS_KEY` / `BEDROCK_AWS_SECRET` in `.github/workflows/deploy-cloudrun.yml` on `staging` | absent |
+| `BEDROCK_AWS_KEY` / `BEDROCK_AWS_SECRET` in `.github/workflows/deploy-cloudrun.yml` on `staging` as of this 2026-08-01 evidence gather (pre-#719) | absent |
 
 The claim was therefore never true at any point. It is not a case of a control that held when
 attested and later regressed.
