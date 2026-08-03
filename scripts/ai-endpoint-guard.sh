@@ -2,16 +2,21 @@
 # ai-endpoint-guard.sh
 #
 # CI guard: every runtime AI (Tier 1) seam must egress to Claude via AWS Bedrock
-# (the AiClient / BedrockMantleClient path), never the direct api.anthropic.com
-# endpoint. Bedrock keeps inference inside AWS's HIPAA-eligible service boundary,
-# covered by the AWS account BAA (docs/legal/AWS_BAA_ACCEPTED.md); the direct
-# endpoint is a separate third-party egress with its own BAA and is intentionally
-# not constructed at runtime.
+# (the AiClient path), never the direct api.anthropic.com endpoint. Bedrock keeps
+# inference inside AWS's HIPAA-eligible service boundary, covered by the AWS
+# account BAA (docs/legal/AWS_BAA_ACCEPTED.md); the direct endpoint is a separate
+# third-party egress with its own BAA and is intentionally not constructed at
+# runtime.
+#
+# AiClient supports two Bedrock planes (classic bedrock-runtime and Mantle),
+# selected by BEDROCK_PLANE. Both are inside the same AWS BAA boundary, so this
+# guard is plane-agnostic about WHICH is active and only asserts that both
+# construction paths remain present and that no direct client is built.
 #
 # Fails (exit 1) if a runtime seam:
 #   1. constructs a direct Anthropic client (Anthropic::Client.new), or
 #   2. reads the direct-endpoint credential ENV['ANTHROPIC_API_KEY'], or
-#   3. AiClient stops building the Bedrock Mantle client.
+#   3. AiClient stops building either Bedrock client.
 #
 # Runs read-only greps; no network, no mutation.
 set -euo pipefail
@@ -54,16 +59,28 @@ for f in "${SEAMS[@]}"; do
   fi
 done
 
-# 3. AiClient must build the Bedrock Mantle client and never a direct client.
+# 3. AiClient must build a Bedrock client -- and never a direct client.
+#    Both Bedrock planes are in scope and both stay inside the AWS account BAA
+#    boundary; which one is active is an operational choice (BEDROCK_PLANE), so
+#    this asserts BOTH construction paths are still present rather than pinning
+#    one. Requiring both is deliberate: dropping the Mantle branch would silently
+#    strand the models only Mantle carries, and dropping the classic branch would
+#    strand the only plane this account can currently invoke.
 if [[ ! -f lib/ai_client.rb ]]; then
   echo "FAIL: lib/ai_client.rb is missing (the sanctioned Bedrock construction point)"
   status=1
 else
-  if ! grep -nE 'Anthropic::BedrockMantleClient\.new' lib/ai_client.rb >/dev/null 2>&1; then
-    echo "FAIL: lib/ai_client.rb does not construct Anthropic::BedrockMantleClient"
+  if ! grep -nE 'Anthropic::BedrockClient\.new' lib/ai_client.rb >/dev/null 2>&1; then
+    echo "FAIL: lib/ai_client.rb does not construct Anthropic::BedrockClient (classic Bedrock plane)"
     status=1
   fi
-  if grep -nE '(::)?Anthropic::Client\.new' lib/ai_client.rb >/dev/null 2>&1; then
+  if ! grep -nE 'Anthropic::BedrockMantleClient\.new' lib/ai_client.rb >/dev/null 2>&1; then
+    echo "FAIL: lib/ai_client.rb does not construct Anthropic::BedrockMantleClient (Mantle plane)"
+    status=1
+  fi
+  # Anchored so Anthropic::BedrockClient / Anthropic::BedrockMantleClient do not
+  # match: only a bare Anthropic::Client.new is the direct api.anthropic.com route.
+  if grep -nE '(^|[^:[:alnum:]_])(::)?Anthropic::Client\.new' lib/ai_client.rb >/dev/null 2>&1; then
     echo "FAIL: lib/ai_client.rb constructs a direct Anthropic::Client"
     status=1
   fi
