@@ -7447,8 +7447,10 @@ share one code path. (2) The prompt-injection guard must scan **each chunk's own
 that chunk's reviewer actually saw), not a single global diff. (3) Make the cap/limit/concurrency
 repo `vars.` (`CODEX_MAX_DIFF_BYTES`, `CODEX_MAX_DIFF_CHUNKS`, `CODEX_REVIEW_CONCURRENCY`) so the
 tooling owner can tune runner cost/time without a code change. (4) Parallelizing the chunk loop is
-what keeps a large PR under the 30-min watchdog — serial passes (up to MAX_CHUNKS × 3 codex runs)
-can otherwise time out, which is still fail-closed but defeats the point of reviewing the big PR.
+what keeps a large PR under the watchdog's 30-minute staleness threshold — serial passes (up to
+MAX_CHUNKS × 3 codex runs) can otherwise go stale, which is still fail-closed but defeats the point
+of reviewing the big PR. (Threshold, not deadline: the watchdog acts once a status is 30 min old AND
+a sweep runs, and sweep timing is best-effort. See issue #710.)
 Files: `scripts/codex-review-chunk-diff.py`, `codex-review-one-chunk.sh` (per-chunk worker, both
 routes), `codex-review-assemble-manifest.py`, `codex-review-build-envelope.py` (`fold_across_chunks`
 + `--manifest`), `.github/workflows/codex-review.yml`.
