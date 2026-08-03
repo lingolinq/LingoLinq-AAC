@@ -7884,6 +7884,18 @@ feature reports "configured" then fails AccessDenied at invoke time.
    `Bedrock::Client` uses `aws_secret_key` — do not rename based on that older API.
 4. Provision a separate Bedrock Mantle IAM user + policy
    (`scripts/gcp/iam/lingolinq-bedrock-mantle-policy.json`); do not bolt invoke onto the S3/SES policy.
+5. Operator/dev diagnostics that list required env vars must mention **both** accepted
+   credential pairs (dedicated Bedrock + standard SDK). Omitting the SDK pair misleads
+   local setups that already have `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` and only
+   need a region. Keep calling out that `AWS_KEY`/`AWS_SECRET` are not accepted.
+6. **The two Bedrock planes are not interchangeable** (learned 2026-08-01). `bedrock-mantle`
+   and classic `bedrock-runtime` carry DIFFERENT model catalogs and SEPARATE entitlements.
+   Account 239044785114 is entitled only to classic; Mantle 403s every model even with admin
+   credentials and `bedrock-mantle:CreateInference` on `Resource: "*"`, so a 403 there is an
+   entitlement fact, not an IAM bug. Classic additionally REJECTS bare foundation-model ids
+   ("on-demand throughput isn't supported") and requires the `us.` cross-region inference-profile
+   form. Opus 4.7 is absent from the classic catalog entirely. Select the plane with
+   `BEDROCK_PLANE`; `AiClient.bedrock_model` maps the alias to the plane's wire id.
 
 Evidence: `lib/ai_client.rb`, `spec/lib/ai_client_spec.rb`,
 `docs/task-management/2026-07-27-ai-client-bedrock-credential-review.md`.

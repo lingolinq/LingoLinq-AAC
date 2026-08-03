@@ -9,8 +9,13 @@ describe AiConsent::DisclosuresController, :type => :controller do
       expect(response).to be_successful
       body = response.body
       expect(body).to include('Anthropic')
+      # AWS operates the inference and must appear on the public page; naming only
+      # Anthropic identified the wrong processor (corrected 2026-08-02).
+      expect(body).to include('Amazon Web Services, Inc.')
+      expect(body).to include('Amazon Bedrock')
       expect(body).to include('Claude Haiku 4.5')
-      expect(body).to include('Claude Opus 4.7')
+      # Not invoked on the classic plane, so it must not be advertised as in use.
+      expect(body).not_to include('Claude Opus 4.7')
       # Google Gemini fallback disabled 2026-07-09 (PR #570) -- no longer a live vendor
       expect(body).not_to include('Google')
       expect(body).not_to match(/de-identified/i)

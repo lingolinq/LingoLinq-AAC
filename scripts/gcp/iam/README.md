@@ -80,17 +80,52 @@ aws iam create-access-key --user-name "$USER"
 3. **Smoke S3+SES** on the run.app URL before deactivating Render's key.
 4. Only after a green cutover: `aws iam update-access-key --user-name lingolinq-app --access-key-id <render-key-id> --status Inactive`.
 
-## Dedicated Bedrock Mantle IAM user (runtime AI)
+## Dedicated Bedrock IAM user (runtime AI)
 
-Runtime AAC AI (`lib/ai_client.rb` → `Anthropic::BedrockMantleClient`) signs against the
-**bedrock-mantle** service. Provision a separate IAM user in the BAA'd account
-(`239044785114`) before enabling AI in Cloud Run / Render.
+Runtime AAC AI is constructed in `lib/ai_client.rb`. AWS exposes Anthropic models over **two
+separate planes**, with separate model catalogs and separate entitlements. `AiClient` supports
+both, selected by `BEDROCK_PLANE`; both sit inside the same AWS account BAA boundary, so the
+choice is about what the account can invoke, not about data protection.
 
-- **Suggested user:** `lingolinq-bedrock-runtime`
-- **Policy document:** `lingolinq-bedrock-mantle-policy.json` (mirrors AWS managed
-  `AmazonBedrockMantleInferenceAccess`; customer-managed copy kept in-repo for review)
+| Plane | `BEDROCK_PLANE` | Endpoint | Client | Status in `239044785114` |
+|---|---|---|---|---|
+| classic | `classic` (default) | `bedrock-runtime.<region>.amazonaws.com` | `Anthropic::BedrockClient` | **Entitled and working** (verified 2026-08-01) |
+| mantle | `mantle` | `bedrock-mantle.<region>.api.aws` | `Anthropic::BedrockMantleClient` | **Not entitled**, 403 on every model; access request open with AWS |
+
+Mantle returns `not available for this account` even with **admin** credentials and
+`bedrock-mantle:CreateInference` on `Resource: "*"`, so the blocker is entitlement, not IAM.
+Do not spend time on the Mantle IAM policy while that is true.
+
+**Classic requires inference-profile ids.** The bare foundation-model id
+(`anthropic.claude-haiku-4-5-20251001-v1:0`) returns `ValidationException: on-demand throughput
+isn't supported`. Use the cross-region profile form (`us.anthropic.…`). `AiClient.bedrock_model`
+does this mapping; pass it the plane-neutral alias, not the profile id.
+
+- **User:** `lingolinq-bedrock-runtime` (exists)
+- **Classic policy:** customer-managed `LingoLinqBedrockRuntimeInvoke`, updated 2026-08-01 to add
+  `bedrock:InvokeModel` / `InvokeModelWithResponseStream` on Anthropic **inference-profile** ARNs
+  (previously foundation-model ARNs only, which is why every call failed).
+  No in-repo mirror of this document is kept yet: it has not been dumped and diffed under an
+  MFA session, and a mirror that silently drifts from live is worse than none. To capture the
+  authoritative copy:
+  ```bash
+  aws sts get-session-token --serial-number arn:aws:iam::239044785114:mfa/Dell_Laptop \
+    --token-code <totp> --profile admin          # RequireMFA denies IAM reads without this
+  aws iam get-policy-version --policy-arn arn:aws:iam::239044785114:policy/LingoLinqBedrockRuntimeInvoke \
+    --version-id "$(aws iam get-policy --policy-arn arn:aws:iam::239044785114:policy/LingoLinqBedrockRuntimeInvoke \
+      --query 'Policy.DefaultVersionId' --output text)" --query 'PolicyVersion.Document'
+  ```
+- **Mantle policy:** `lingolinq-bedrock-mantle-policy.json` (in-repo; inert until entitlement lands)
 - **Env vars to mount:** `BEDROCK_AWS_KEY`, `BEDROCK_AWS_SECRET`, and optionally
-  `BEDROCK_AWS_REGION` (otherwise `AWS_REGION`)
+  `BEDROCK_AWS_REGION` (otherwise `AWS_REGION`) and `BEDROCK_PLANE`
+
+Behaviorally verified 2026-08-01 with the runtime user's own credentials: Haiku 4.5 via the
+`us.` profile succeeds in `us-west-2`, `us-east-1` and `us-east-2`; Opus 4.5 is `AccessDenied`
+in all three (no Marketplace subscription); Opus 4.7 returns `ValidationException` in all three,
+i.e. it is **not in the classic catalog at all** and exists only on Mantle.
+
+The commands below provision the Mantle user/policy and are retained for when entitlement
+lands. For the classic plane the user already exists and only the policy needed updating.
 
 ```bash
 ACCOUNT=239044785114
