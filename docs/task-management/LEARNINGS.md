@@ -118,6 +118,7 @@ file (see [README.md](README.md)).
 - [Gotcha: a single-quoted `i18n.t` default silently DELETES the key on the next generator run](#gotcha-a-single-quoted-i18nt-default-silently-deletes-the-key-on-the-next-generator-run)
 - [Gotcha: fail-closed Sentry filters must not collapse lookup failures to nil](#gotcha-fail-closed-sentry-filters-must-not-collapse-lookup-failures-to-nil)
 - [Gotcha: dual-key tag reads — check each key independently, never `a || b` before coercion](#gotcha-dual-key-tag-reads--check-each-key-independently-never-a--b-before-coercion)
+- [Gotcha: set-field on nested model fields needs nested observer deps (videoChanged pattern)](#gotcha-set-field-on-nested-model-fields-needs-nested-observer-deps-videochanged-pattern)
 
 ---
 
@@ -7446,8 +7447,10 @@ share one code path. (2) The prompt-injection guard must scan **each chunk's own
 that chunk's reviewer actually saw), not a single global diff. (3) Make the cap/limit/concurrency
 repo `vars.` (`CODEX_MAX_DIFF_BYTES`, `CODEX_MAX_DIFF_CHUNKS`, `CODEX_REVIEW_CONCURRENCY`) so the
 tooling owner can tune runner cost/time without a code change. (4) Parallelizing the chunk loop is
-what keeps a large PR under the 30-min watchdog — serial passes (up to MAX_CHUNKS × 3 codex runs)
-can otherwise time out, which is still fail-closed but defeats the point of reviewing the big PR.
+what keeps a large PR under the watchdog's 30-minute staleness threshold — serial passes (up to
+MAX_CHUNKS × 3 codex runs) can otherwise go stale, which is still fail-closed but defeats the point
+of reviewing the big PR. (Threshold, not deadline: the watchdog acts once a status is 30 min old AND
+a sweep runs, and sweep timing is best-effort. See issue #710.)
 Files: `scripts/codex-review-chunk-diff.py`, `codex-review-one-chunk.sh` (per-chunk worker, both
 routes), `codex-review-assemble-manifest.py`, `codex-review-build-envelope.py` (`fold_across_chunks`
 + `--manifest`), `.github/workflows/codex-review.yml`.
@@ -7882,6 +7885,18 @@ feature reports "configured" then fails AccessDenied at invoke time.
    `Bedrock::Client` uses `aws_secret_key` — do not rename based on that older API.
 4. Provision a separate Bedrock Mantle IAM user + policy
    (`scripts/gcp/iam/lingolinq-bedrock-mantle-policy.json`); do not bolt invoke onto the S3/SES policy.
+5. Operator/dev diagnostics that list required env vars must mention **both** accepted
+   credential pairs (dedicated Bedrock + standard SDK). Omitting the SDK pair misleads
+   local setups that already have `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` and only
+   need a region. Keep calling out that `AWS_KEY`/`AWS_SECRET` are not accepted.
+6. **The two Bedrock planes are not interchangeable** (learned 2026-08-01). `bedrock-mantle`
+   and classic `bedrock-runtime` carry DIFFERENT model catalogs and SEPARATE entitlements.
+   Account 239044785114 is entitled only to classic; Mantle 403s every model even with admin
+   credentials and `bedrock-mantle:CreateInference` on `Resource: "*"`, so a 403 there is an
+   entitlement fact, not an IAM bug. Classic additionally REJECTS bare foundation-model ids
+   ("on-demand throughput isn't supported") and requires the `us.` cross-region inference-profile
+   form. Opus 4.7 is absent from the classic catalog entirely. Select the plane with
+   `BEDROCK_PLANE`; `AiClient.bedrock_model` maps the alias to the plane's wire id.
 
 Evidence: `lib/ai_client.rb`, `spec/lib/ai_client_spec.rb`,
 `docs/task-management/2026-07-27-ai-client-bedrock-credential-review.md`.
@@ -8055,3 +8070,51 @@ had no matching blob; the git-canonical #703 bytes are `0ee1b92e...` @ `456b673`
 §7 is Vendor Notification List; §11 is Appendix: Key References. Changelog / header /
 register `correctionNote` text that says "§11 vendor contacts" sends responders to the wrong
 procedure. When correcting Anthropic/OpenAI/Google contact rows, cite §7.
+
+---
+
+## Flaky async test at ~position 595 (`ai_word_predictor` / `app_state`) — same singleton-pollution class, module not yet fenced (documented finding, no fix applied)
+
+**Symptom:** an intermittent failure that lands on either `ai_word_predictor` (~#595,
+"resolve cached predictions without duplicate fetches") or the adjacent `app_state`
+"inject settings" (~#597). Position hops run-to-run; **both pass in isolation**. This is
+the same flake *class* as the 2026-07-22 persistence-sync entry (shared-singleton async
+pollution: a prior test's late async bleeds into a later test) — but in a **different
+module** that the shipped persistence-sync fence/retry does **not** cover.
+
+**Why these two are the victims:** `ai_word_predictor-test` sorts immediately before
+`app_state-test` (`ai…` < `app…`), so a leaked async from an `ai_word_predictor` test
+fires during a later `ai_word_predictor` test *or* spills into the first `app_state` test.
+
+**Verified pollution surface (`app/utils/ai_word_predictor.js`):**
+- Module-level shared state: `_cache`, `_pending_timer`, `_pending_reject`.
+- The debounce `_pending_timer` (scheduled via `runLater`) fires `_fetch()` →
+  **real `persistence.ajax`**; `ai_word_predictor-test.js` does **not** stub ajax.
+- `clear_cache()` (the test's `beforeEach`) resets **only `_cache`** — it does NOT cancel
+  `_pending_timer` / null `_pending_reject`.
+- `cancelHarnessAsyncWork()` (jasmine `afterEach`, `tests/helpers/sync-test-cleanup.js`)
+  cancels persistence's `eventual_store_timer` but **knows nothing about `ai_word_predictor`**.
+- Net: an `ai_word_predictor` debounce timer / in-flight `_fetch` XHR is fenced by nothing,
+  so it resolves late onto whatever test is running.
+
+**Recommended fix (NOT yet applied — needs the LEARNINGS ≥30-iteration verification budget):**
+a **post-test** fence (never a `beforeEach` pre-cancel — that's a documented dead end from
+the persistence-sync entry): in `cancelHarnessAsyncWork()` cancel
+`ai_word_predictor._pending_timer` + null `_pending_reject`, and **stub `persistence.ajax`**
+in `ai_word_predictor-test.js` so `_fetch` never leaves a real XHR in flight. Test-harness
+only; production untouched — matches the shipped epoch-fence philosophy. A pragmatic
+alternative is extending the name-gated auto-retry in `jasmine.js` to also cover
+`ai_word_predictor` / `app_state` (masks rather than fixes).
+
+**Verification burden (why left as a finding):** per the persistence-sync entry, trusting
+any fix here requires ≥30 full-suite iterations (~15 min each); 15 green runs prove nothing.
+
+**First seen in:** this branch's CI (`traci/styling/styling-updates`), 2026-08-03. Related:
+the 2026-07-22 persistence-sync epoch-fencing entry.
+
+---
+
+## Gotcha: set-field on nested model fields needs nested observer deps (videoChanged pattern)
+
+`editManager.change_button` sync observers that watch only an object reference (`observer('model.book', …)`) do **not** refire when `set-field` mutates nested properties on that object. The video path already documents and implements this (`button-settings.js` `videoChanged` observes `model.video` + `model.video.popup|start|end`). Restoring TarHeel book checkboxes with `set-field` alone is incomplete unless `bookChanged` also observes `model.book.popup` / `.speech` / `.utterance` (or each control calls `change_button`). Separately: TarHeel init defaults are asymmetric — `speech: false`, `utterance: true` (`utils/button.js:163-175`) — so register impact text must not say both default falsy. Ref: [`2026-08-02-ember-register-book-options-codex-fixes.md`](./2026-08-02-ember-register-book-options-codex-fixes.md).
+
