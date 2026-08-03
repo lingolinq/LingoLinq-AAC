@@ -44,7 +44,52 @@ module AiDisclosureClaims
     ['claims a Google Gemini fallback (disabled 2026-07-09)', /Gemini/i]
   ].freeze
 
+  # STRUCTURAL RULE, added after the phrase list missed a paraphrase.
+  #
+  # BANNED_CLAIMS is an exact-phrase denylist, and a denylist only ever knows the
+  # wordings someone has already caught. Review found "AI-drafted evaluation
+  # summaries use Opus 4.7" on one pass, then on the very next pass found the same
+  # false claim written as "using LingoLinq's word prediction and evaluation-summary
+  # AI features means sending some information to an outside AI company" -- which
+  # names no model, no vendor, and no retention term, so nothing in the list matched.
+  #
+  # This rule is about SHAPE instead of wording: any sentence that ties evaluation
+  # summaries to data leaving LingoLinq must also say the feature is inactive.
+  # Rewording the claim does not evade it; only marking the feature inactive, or
+  # actually shipping the feature and updating the copy, satisfies it.
+  #
+  # SECOND KNOWN LIMIT: every pattern here is English. The 13 files in
+  # public/locales are currently untranslated English fallbacks (the "*** "
+  # prefix), so the guard sees them today -- but the moment any of these strings
+  # is genuinely translated, a false claim in that translation passes silently.
+  # Translated compliance copy needs human review; this file cannot supply it.
+  EVAL_SUMMARY = /evaluation[- ](?:summary|summaries)|evaluation-summary AI/i.freeze
+  EGRESS = /\b(?:sending|sends|sent to|send|shared with|goes to|transmit\w*)\b|outside AI company|AI (?:company|vendor|provider)/i.freeze
+  # Deliberately STRONG markers only. An earlier version also accepted "on our own
+  # systems" and "would require", and a negative test caught the consequence: the
+  # claim "evaluation summaries are shared with our AI provider whenever a clinician
+  # requests one" passed, because a LATER clause in the same sentence mentioned
+  # producing a draft on our own systems. Weak markers let a contradicting clause
+  # sit next to the claim and vouch for it. Only an explicit statement that nothing
+  # is sent counts.
+  INACTIVE_MARKER = /inactive|sends? nothing|nothing is sent|not (?:currently )?sent|never leaves/i.freeze
+
   module_function
+
+  # Sentences asserting that evaluation data leaves LingoLinq without marking the
+  # feature inactive. Returns the offending sentences, trimmed for the failure message.
+  def eval_egress_violations(text)
+    # Split on sentence enders INCLUDING semicolons, and on the template/JSON
+    # boundaries that separate one user-visible string from the next. Semicolons
+    # matter: a claim joined by one to a reassuring clause would otherwise borrow
+    # that clause's inactivity marker and pass.
+    text.split(/(?<=[.!?;])\s+|key="[^"]*"|",\s*"/).filter_map do |sentence|
+      next unless sentence =~ EVAL_SUMMARY && sentence =~ EGRESS
+      next if sentence =~ INACTIVE_MARKER
+
+      sentence.strip[0, 240]
+    end
+  end
 
   # Returns the descriptions of every banned claim ASSERTED in `text`.
   # A match preceded by a negator within NEGATION_WINDOW characters is treated

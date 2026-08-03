@@ -42,6 +42,14 @@ describe 'AI disclosure rendered surfaces' do
                            "privacy.hbs still #{offenders.join('; ')}"
     end
 
+    # Structural, not phrase-matched: the phrase list missed this claim twice,
+    # written a different way each time.
+    it 'never ties evaluation summaries to data egress without marking them inactive' do
+      violations = AiDisclosureClaims.eval_egress_violations(privacy_template)
+      expect(violations).to be_empty,
+                            "privacy.hbs asserts evaluation-data egress:\n  #{violations.join("\n  ")}"
+    end
+
     it 'names AWS Bedrock as the runtime host' do
       expect(privacy_template).to match(/Amazon Bedrock/)
     end
@@ -62,20 +70,53 @@ describe 'AI disclosure rendered surfaces' do
       expect(frontend_locale_paths).not_to be_empty
     end
 
-    it 'asserts no banned AI claim in the privacy AI-vendors string' do
+    # Every user-visible AI string, not just the vendor paragraph. Scoping the
+    # previous version of this check to `privacy_sharing_ai_vendors` alone is
+    # exactly why a stale claim in `privacy_special_ai_consent_intro` shipped.
+    AI_STRING_KEYS = %w[
+      privacy_sharing_ai_vendors
+      privacy_sharing_ai
+      privacy_special_ai_consent_intro
+      privacy_special_ai_board_suggestions_note
+      privacy_special_coppa_v2
+    ].freeze
+
+    it 'asserts no banned AI claim in any user-visible AI string' do
       failures = frontend_locale_paths.flat_map do |path|
         data = begin
           JSON.parse(File.read(path))
         rescue JSON::ParserError
           next []
         end
-        value = data['privacy_sharing_ai_vendors']
-        next [] if value.nil?
 
-        AiDisclosureClaims.offending_claims(value).map { |d| "#{File.basename(path)}: #{d}" }
+        AI_STRING_KEYS.flat_map do |key|
+          value = data[key]
+          next [] if value.nil?
+
+          AiDisclosureClaims.offending_claims(value).map { |d| "#{File.basename(path)} [#{key}]: #{d}" }
+        end
       end
 
       expect(failures).to be_empty, "stale AI claims still shipped to users:\n  #{failures.join("\n  ")}"
+    end
+
+    it 'never ties evaluation summaries to data egress without marking them inactive' do
+      failures = frontend_locale_paths.flat_map do |path|
+        data = begin
+          JSON.parse(File.read(path))
+        rescue JSON::ParserError
+          next []
+        end
+
+        AI_STRING_KEYS.flat_map do |key|
+          value = data[key]
+          next [] if value.nil?
+
+          AiDisclosureClaims.eval_egress_violations(value).map { |s| "#{File.basename(path)} [#{key}]: #{s}" }
+        end
+      end
+
+      expect(failures).to be_empty, "eval-egress claims still shipped to users:\n  #{failures.join("\n  ")}"
     end
   end
 
