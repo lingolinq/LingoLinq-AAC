@@ -118,6 +118,7 @@ file (see [README.md](README.md)).
 - [Gotcha: a single-quoted `i18n.t` default silently DELETES the key on the next generator run](#gotcha-a-single-quoted-i18nt-default-silently-deletes-the-key-on-the-next-generator-run)
 - [Gotcha: fail-closed Sentry filters must not collapse lookup failures to nil](#gotcha-fail-closed-sentry-filters-must-not-collapse-lookup-failures-to-nil)
 - [Gotcha: dual-key tag reads — check each key independently, never `a || b` before coercion](#gotcha-dual-key-tag-reads--check-each-key-independently-never-a--b-before-coercion)
+- [Gotcha: set-field on nested model fields needs nested observer deps (videoChanged pattern)](#gotcha-set-field-on-nested-model-fields-needs-nested-observer-deps-videochanged-pattern)
 
 ---
 
@@ -8050,3 +8051,7 @@ its own no-op is worse than no task. It now preflights the storage config and re
 that rebuild to zero.
 
 **First seen in:** `2026-08-01-prod-empty-button-sets.md` (PR #724)
+
+## Gotcha: set-field on nested model fields needs nested observer deps (videoChanged pattern)
+
+`editManager.change_button` sync observers that watch only an object reference (`observer('model.book', …)`) do **not** refire when `set-field` mutates nested properties on that object. The video path already documents and implements this (`button-settings.js` `videoChanged` observes `model.video` + `model.video.popup|start|end`). Restoring TarHeel book checkboxes with `set-field` alone is incomplete unless `bookChanged` also observes `model.book.popup` / `.speech` / `.utterance` (or each control calls `change_button`). Separately: TarHeel init defaults are asymmetric — `speech: false`, `utterance: true` (`utils/button.js:163-175`) — so register impact text must not say both default falsy. Ref: [`2026-08-02-ember-register-book-options-codex-fixes.md`](./2026-08-02-ember-register-book-options-codex-fixes.md).
