@@ -386,6 +386,9 @@ header.header--unauthenticated #inner_header {
 
   height: 70px !important;
 
+  /* Positioning context for the mobile beta badge (bottom-centered). */
+  position: relative !important;
+
 }
 header.header--unauthenticated #inner_header #nav_header {
   height: 100% !important;
@@ -21204,6 +21207,40 @@ header:has(#nav_header) .ll-header-settings-btn:focus,
 .header--unauthenticated .header-unauth-right {
   margin-left: auto;
   flex-shrink: 0;
+}
+
+/* Header "In beta testing" pill — reuses .la-section-eyebrow-badge chrome but
+   must be smaller than section eyebrows (those are 21px / 6×20 padding). */
+.app-navbar__beta-badge {
+  margin-bottom: 0;
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 3px 10px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.app-navbar__beta-badge--drawer {
+  margin: 8px 16px;
+  font-size: 12px;
+  padding: 4px 12px;
+}
+
+/* When the topbar collapses to the hamburger (≤1024 / $aac-breakpoint-lg):
+   small badge centered on the bottom edge of the header bar so it no longer
+   competes with the logo / menu in the main flex row. */
+@media (max-width: $aac-breakpoint-lg) {
+  .header--unauthenticated .la-topbar-right > .app-navbar__beta-badge:not(.app-navbar__beta-badge--drawer),
+  .app-navbar .la-topbar-right > .app-navbar__beta-badge:not(.app-navbar__beta-badge--drawer) {
+    position: absolute;
+    left: 50%;
+    bottom: 4px;
+    transform: translateX(-50%);
+    z-index: 2;
+    font-size: 11px;
+    padding: 2px 8px;
+    margin: 0;
+  }
 }
 
 /* Help icon override for dark background */
