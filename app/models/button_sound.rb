@@ -37,11 +37,18 @@ class ButtonSound < ApplicationRecord
   end
   
   def protected?
-    !!self.settings['protected']
+    # Same string-"false" pitfall as ButtonImage — see that model's protected?.
+    process_boolean(self.settings && self.settings['protected'])
   end
   
   def schedule_transcription(frd=false)
     if self.secondary_url && (!self.settings['transcription'] || self.settings['transcription'] == '') && (self.settings['transcription_errors'] || 0) < 2
+      # Org off-switch: do not call Google Speech-to-Text when disabled.
+      # Gate-skip is "not permitted," not a failure — do not bump transcription_errors.
+      unless Organization.external_ai_processing_allowed_for_user?(self.user)
+        Organization.log_external_ai_processing_skip(self.user, 'transcription')
+        return
+      end
       if frd
         # https://cloud.google.com/speech/reference/rest/
         ref = self.settings['secondary_output']
@@ -253,9 +260,9 @@ class ButtonSound < ApplicationRecord
       self.settings['content_type'] = params['content_type'] if params['content_type']
       self.settings['duration'] = params['duration'].to_i if params['duration']
       process_license(params['license']) if params['license']
-      self.settings['protected'] = params['protected'] if params['protected'] != nil
+      self.settings['protected'] = process_boolean(params['protected']) if params['protected'] != nil
       self.settings['protected_source'] = params['protected_source'] if params['protected_source'] != nil
-      self.settings['protected'] = params['ext_lingolinq_protected'] if params['ext_lingolinq_protected'] != nil
+      self.settings['protected'] = process_boolean(params['ext_lingolinq_protected']) if params['ext_lingolinq_protected'] != nil
       self.settings['protected_source'] = params['ext_lingolinq_protected_source'] if params['ext_lingolinq_protected_source'] != nil
       self.settings['suggestion'] = params['suggestion'] if params['suggestion']
       self.public = params['public'] if params['public'] != nil

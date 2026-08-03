@@ -36,7 +36,8 @@ gem 'websocket-driver', '>= 0.8.2'
 
 # Rails 7.2 with Ruby 3.4 support (Phase 3: final upgrade)
 # 7.2.3.1+ addresses Active Storage proxy DoS (GHSA-p9fm-f462-ggrg / CVE-2026-33658)
-gem 'rails', '>= 7.2.3.1', '< 7.3'
+# 7.2.3.2+ addresses Active Storage variant RCE (GHSA-xr9x-r78c-5hrm / CVE-2026-66066)
+gem 'rails', '>= 7.2.3.2', '< 7.3'
 # CVE-2026-33210 (format string); bundler-audit advisory minimum
 gem 'json', '>= 2.19.2'
 # oj is a faster JSON parser/generator (5-10x faster than stdlib json).
@@ -66,6 +67,10 @@ gem 'aws-sdk-ses', '~> 1'
 gem 'aws-sdk-elastictranscoder', '~> 1'
 gem 'aws-sdk-cloudfront', '~> 1'
 gem 'aws-sdk-s3', '~> 1'
+# Required by Anthropic::BedrockClient (classic Bedrock plane, see lib/ai_client.rb).
+# The gem hard-`require`s this at construction as a guard; the actual signing uses
+# Aws::Sigv4::Signer from aws-sdk-core, already present via aws-sdk-s3.
+gem 'aws-sdk-bedrockruntime', '~> 1'
 gem 'http-2'
 gem 'resque', '~> 3.0'
 gem 'puma', '~> 7.2', '>= 7.2.1' # >= 7.2.1 clears CVE-2026-47736 / CVE-2026-47737 (PROXY protocol v1 parser)

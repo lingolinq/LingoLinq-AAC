@@ -45,7 +45,9 @@ module.exports = function (defaults) {
     },
     emberData: {
       deprecations: {
-        // App store is explicit (app/services/store.js); no custom Store subclass.
+        // until:6.0 — resolved: Store no longer extends EmberObject (RFC 1026).
+        // `false` opts INTO the new behavior (clears ember-data:deprecate-store-extends-ember-object).
+        // App store is a re-export of ember-data/store with no Store.extend / EmberObject APIs.
         DEPRECATE_STORE_EXTENDS_EMBER_OBJECT: false
       }
     }

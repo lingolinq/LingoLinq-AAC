@@ -286,12 +286,19 @@
     </div>
   </section>
 
-  {{!-- Per-button label option — below the Find a Picture card (moved here from the
-       General tab; it governs how THIS button renders its picture vs. label). --}}
-  <label class="md-bs-picture__hide-label">
-    <input type="checkbox" checked={{this.model.hide_label}} {{on "change" (this.ctrlActionEventValue "updateHideLabel" "checked")}} {{on "change" (set-field this "model.hide_label" "checkbox")}} />
-    {{t "Hide the label when the picture is shown" key="hide_label"}}
-  </label>
+  {{!-- Per-button picture/label options — below the Find a Picture card.
+       hide_label: image only (no caption). text_only: stretch label, no image
+       (restored from pre-Ember-5.12 button-settings-picture.hbs). --}}
+  <div class="md-bs-picture__label-options">
+    <label class="md-bs-picture__hide-label">
+      <input type="checkbox" checked={{this.model.hide_label}} {{on "change" (this.ctrlActionEventValue "updateHideLabel" "checked")}} {{on "change" (set-field this "model.hide_label" "checkbox")}} />
+      {{t "Hide the label when the picture is shown" key="hide_label"}}
+    </label>
+    <label class="md-bs-picture__text-only">
+      <input type="checkbox" checked={{this.model.text_only}} {{on "change" (this.ctrlActionEventValue "updateTextOnly" "checked")}} {{on "change" (set-field this "model.text_only" "checkbox")}} />
+      {{t "Show only text (as large as fits) for this button" key="stretch_text_only"}}
+    </label>
+  </div>
 
   <div style="text-align: center;" class={{if this.webcam "shown" "hidden"}}>
     {{#if this.webcam.error}}

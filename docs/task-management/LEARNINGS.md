@@ -20,6 +20,10 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: Ember Data model ids in tests must be strings — numeric `set('id', N)` fails throwOnUnhandled](#gotcha-ember-data-model-ids-in-tests-must-be-strings--numeric-setid-n-fails-throwonunhandled)
+- [Gotcha: batch-path nil is not “missing opts” — key presence vs value](#gotcha-batch-path-nil-is-not-missing-opts--key-presence-vs-value)
+- [Gotcha: compliance segment stamps must use validated org ids, not raw params](#gotcha-compliance-segment-stamps-must-use-validated-org-ids-not-raw-params)
+- [Gotcha: board translation Google egress is users#translate / WordData, not Board#translate_set](#gotcha-board-translation-google-egress-is-userstranslate--worddata-not-boardtranslate_set)
 - [Pattern: before adding a guard, grep the canonical path for one that already exists — with the exact flag name, in that file alone](#pattern-before-adding-a-guard-grep-the-canonical-path-for-one-that-already-exists--with-the-exact-flag-name-in-that-file-alone)
 - [Pattern: deleting dead CSS is a text-surgery problem — `:not()` and multi-line selector lists are the two ways to silently break live styling](#pattern-deleting-dead-css-is-a-text-surgery-problem---not-and-multi-line-selector-lists-are-the-two-ways-to-silently-break-live-styling)
 - [Pattern: a "protected" flag on a media record is an ENTITLEMENT boundary — never relax its predicate to fix a rendering bug](#pattern-a-protected-flag-on-a-media-record-is-an-entitlement-boundary--never-relax-its-predicate-to-fix-a-rendering-bug)
@@ -35,6 +39,7 @@ file (see [README.md](README.md)).
 - [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
 - [Gotcha: sync double `modal.open` — the *second* template wins; do not invent write-loss on the winner](#gotcha-sync-double-modalopen--the-second-template-wins-do-not-invent-write-loss-on-the-winner)
 - [Gotcha: Shepherd modal overlay is VISUAL-ONLY; canClickTarget:false makes the target click "fall through"](#gotcha-shepherd-modal-overlay-is-visual-only-canclicktargetfalse-makes-the-target-click-fall-through)
+- [Gotcha: tagless GuidedTour — one init, host-gated pending consumers, body is not a scroll target](#gotcha-tagless-guidedtour--one-init-host-gated-pending-consumers-body-is-not-a-scroll-target)
 - [Pattern: supervisor caseload session prefetch reuses board_detail_cache, not offline sync](#pattern-supervisor-caseload-session-prefetch-reuses-board_detail_cache-not-offline-sync)
 - [Pattern: encrypted buttonset JSON cache must carry parsed payloads](#pattern-encrypted-buttonset-json-cache-must-carry-parsed-payloads)
 - [Pattern: remote buttonset reload can wipe generate URL before second load_buttons](#pattern-remote-buttonset-reload-can-wipe-generate-url-before-second-load_buttons)
@@ -52,6 +57,7 @@ file (see [README.md](README.md)).
 - [Pattern: `__label-collapsed` is a multi-role class — scope by parent before styling](#pattern-__label-collapsed-is-a-multi-role-class--scope-by-parent-before-styling)
 - [Pattern: "Shrink to fit" is a per-label content-aware problem, not container-scaling — reach for capabilities.fit_text](#pattern-shrink-to-fit-is-a-per-label-content-aware-problem-not-container-scaling--reach-for-capabilitiesfit_text)
 - [Pattern: board-detail label surface has TWO elements — `__label` (span) and `__label-input` (input)](#pattern-board-detail-label-surface-has-two-elements--__label-span-and-__label-input-input)
+- [Gotcha: `__text-symbol` is a third label surface — include it in contrast modes and shrink-to-fit](#gotcha-__text-symbol-is-a-third-label-surface--include-it-in-contrast-modes-and-shrink-to-fit)
 - [Pattern: `organizations.admin` is a singleton boolean, not a normal flag](#pattern-organizationsadmin-is-a-singleton-boolean-not-a-normal-flag)
 - [Pattern: settings-backed API flags should be cast before Ember consumes them](#pattern-settings-backed-api-flags-should-be-cast-before-ember-consumes-them)
 - [Pattern: duplicate selectors in `app.scss` can leave stale layout constraints active](#pattern-duplicate-selectors-in-appscss-can-leave-stale-layout-constraints-active)
@@ -262,7 +268,7 @@ Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` c
 
 `demo.speak` uses controller property `board` for the rendered board object. If a shareable URL needs `?board=...`, declare an aliased query param such as `{ board_key: 'board' }` and use `board_key` internally. Reusing `board` for both the query param and model state will clobber the loaded board object.
 
-**Sticky QP gotcha:** `board` is sticky by default. Topbar "Try a Demo" links must pass `@query={{hash board=null source=null}}`, and the route should only honor `?board=...` when `source=offline_boards` (offline picker). Otherwise always load manifest root (`public/demo-boards/manifest.json` → Project Core 36). First seen in [2026-06-07-demo-try-default-board.md](./2026-06-07-demo-try-default-board.md).
+**Sticky QP gotcha:** `board` is sticky by default. Every "Try a Demo" link (topbar, landing hero, etc.) must pass `@query={{hash board=null source=null}}`, and the route should only honor `?board=...` when `source=offline_boards` (offline picker). Otherwise always load manifest root (`public/demo-boards/manifest.json` → Project Core 36). First seen in [2026-06-07-demo-try-default-board.md](./2026-06-07-demo-try-default-board.md); landing hero wired in [2026-07-30-landing-try-demo-speak.md](./2026-07-30-landing-try-demo-speak.md).
 
 **Exit target:** Demo speak exit should always `LinkTo offline_boards` — do not branch on `source`; "Try a Demo" used to fall through to `index`.
 
@@ -744,6 +750,40 @@ canonical example of this pairing.
 
 **First seen in:**
 [2026-05-26-shrink-labels-to-fit.md](./2026-05-26-shrink-labels-to-fit.md)
+
+---
+
+## Gotcha: `__text-symbol` is a third label surface — include it in contrast modes and shrink-to-fit
+
+**Surface:** board-detail text-only buttons under `text_symbol_fallback`
+(`md-board-detail-symbol-card__text-symbol`).
+
+**Symptom:** Black image-background mode shows unreadable dark text on
+`#000` cards; and/or "Shrink labels to fit" leaves long text-symbol
+copy clipped at the CSS 16px floor.
+
+**Root cause:** Text-symbol buttons hide the ordinary `__label` and
+render a full-card span instead (`board-detail-grid.hbs`). That span
+uses `color: inherit` and is not in the historical
+`__label`/`__label-input` selector pairs for
+`.symbol_background_black` or `label_fit.js#selectLabels`. Naively
+routing it through `fitWrapped` is also wrong — that path targets the
+3.45em bottom label box, while text-symbols fill the card at
+`clamp(16px, pref*1.45, 32px)`.
+
+**Fix recipe:** Keep `__text-symbol` in lockstep with label contrast
+rules (same white/`!important` treatment as labels under
+`.symbol_background_black`; high-contrast already has its own rule).
+For shrink-to-fit, select the span in `label_fit.js` and fit against
+the card box (`fitFullCard`) at the 1.45× CSS base — do not reuse the
+3-line label-box math.
+
+**Evidence:**
+[`app.scss` black-mode rule](../../app/frontend/app/styles/app.scss),
+[`label_fit.js`](../../app/frontend/app/utils/label_fit.js).
+
+**First seen in:**
+[2026-07-29-text-symbol-codex-findings.md](./2026-07-29-text-symbol-codex-findings.md)
 
 ---
 
@@ -2569,6 +2609,24 @@ rendering + caching. (Burned once 2026-06-12 by an image_id "efficiency fix"; re
 
 ---
 
+## Pattern: board-detail `processButtons` in save path clobbers new `image_id`
+
+**Surface:** Board-detail edit mode → Button Settings / drop image → Save → reopen from My Boards → image gone.
+
+**Symptom:** Tile shows the new picture while editing; after Save (and especially after leaving and reopening), the button has no image again.
+
+**Root cause:** `saveButtonChanges` sets `model.buttons` from `process_for_saving()`, then calls `processButtons()`. On board-detail, `processButtons` is NOT the legacy no-op / display refresh — it runs `_build_from_raw(this._last_raw)`, which does `board.set('buttons', raw.buttons)`. If `_last_raw` still holds the pre-edit snapshot (change_button did not mutate the same array ref), the just-serialized `image_id` is overwritten before `board.save()`.
+
+Originally `processButtons` was an intentional no-op (`8c277037d`) precisely because board-detail owns display via `_build_from_raw`. Rebuilding from stale raw inside the save path undoes that contract.
+
+**Fix:** Before `processButtons()`, sync `state.buttons` / `state.grid` / in-session `image_urls` into `_last_raw`. Also document the contract on `processButtons`.
+
+**Related (create-board-new):** Create must also wait for in-flight `_applyDroppedImageToLabel` uploads (not only OpenSymbols lookups) before baking `_label_images` into `model.buttons`.
+
+**Evidence:** `controllers/user/board-detail.js` `saveButtonChanges`; tests `user-board-detail-save-image-persist-test.js`. Task log: [2026-07-30-ai-board-manual-image-not-persisting.md](./2026-07-30-ai-board-manual-image-not-persisting.md).
+
+---
+
 ## Pattern: OpenSymbols search returns nested license objects — pick_preview must normalize
 
 **Surface:** Button-settings Picture tab → search symbols → pick thumbnail → "Use This".
@@ -3219,9 +3277,9 @@ passed while the real rendered text was ~10px. Only DevTools (showing `1.18rem` 
 
 **Evidence:** `lib/user_board_provisioner.rb`, `lib/system_board_sources.rb`, `app/models/user.rb`; task log `2026-05-28-signup-default-library-boards.md`.
 
-**Extension (2026-07-06) — VF84 sync + sidebar user copies:** Put `vocal-flair-84` in `SIGNUP_SYNC_SLUGS` and call `copy_board_to_library` inline in `UserBoardProvisioner` before enqueueing `SIGNUP_ASYNC_SLUGS` (yesno/inflections first, then remaining library slugs). Default sidebar still lists system keys in `default_sidebar_boards`, but `User#sidebar_boards` resolves entries to user-owned copies via `parent_board_id` except `keyboard` (`sidebar_system_keys`). Crisis vocabulary copies on signup like other library boards, so the sidebar link should resolve to the user's copy. **Crisis dedup:** auto-add and stored prefs must treat `lingolinq/crisis-vocabulary` and `username/crisis-vocabulary` as the same sidebar slot (match by slug); otherwise merge appends a second crisis entry and resolve turns both into duplicate user-copy links. Home-board pickers should use `findExistingUserCopy` / `links_copy_as_home` (see `assign-vocal-flair-home.js`), not point `preferences.home_board` at the catalog board.
+**Extension (2026-07-06) — VF84 + sidebar user copies:** Schedule `vocal-flair-84` (and other library slugs) via Progress from `UserBoardProvisioner`; keep `SIGNUP_SYNC_SLUGS` empty. An in-request sync copy of VF84 exceeds `Rack::Timeout` (~16s) on staging and 500s signup after the user row is already saved. Prefer VF84 first in `SIGNUP_ASYNC_SLUGS`, then yesno/inflections, then remaining library slugs. Default sidebar still lists system keys in `default_sidebar_boards`, but `User#sidebar_boards` resolves entries to user-owned copies via `parent_board_id` except `keyboard` (`sidebar_system_keys`). Crisis vocabulary copies on signup like other library boards, so the sidebar link should resolve to the user's copy. **Crisis dedup:** auto-add and stored prefs must treat `lingolinq/crisis-vocabulary` and `username/crisis-vocabulary` as the same sidebar slot (match by slug); otherwise merge appends a second crisis entry and resolve turns both into duplicate user-copy links. Home-board pickers should use `findExistingUserCopy` / `links_copy_as_home` (see `assign-vocal-flair-home.js`), not point `preferences.home_board` at the catalog board.
 
-**Evidence:** task log `2026-07-06-signup-boards-sidebar-copies.md`.
+**Evidence:** task logs `2026-07-06-signup-boards-sidebar-copies.md`, `2026-07-28-staging-registration-timeout.md`.
 
 ---
 
@@ -5212,6 +5270,34 @@ the page goes dead. Releases automatically when the tour ends (no enabled step),
 a subsequent live modal/handoff is unaffected. Applies to EVERY tour on the shared
 runner. Keep `canClickTarget:false` too (defense-in-depth + documented standard).
 
+## Gotcha: tagless GuidedTour — one init, host-gated pending consumers, body is not a scroll target
+
+**Surface:** post-"Pick this Board" speak tour (and board-detail edit tour).
+**Symptoms:** Skip tour does nothing; X dismisses but navigates back to
+`/board-picker`.
+
+**Root causes (all required together):**
+1. **Duplicate `init` on a tagless component** — Ember classic `.extend({ init })`
+   keeps the *last* definition. A second `init` (Ember 5.12 upgrade) that only
+   wired `onStartTour` overwrote the pending-flag consumers. `tagName: ''` means
+   `didInsertElement` never runs; observers don't fire for already-true flags →
+   the board-detail host never auto-started the speak tour.
+2. **Navbar stole the start during `empty_header` race** — navbar `<GuidedTour />`
+   stays mounted until `currentBoardState` lands. When `current_route` becomes
+   board-detail first, its `tourKey` is already `board_detail_speak_*`, so it
+   consumed the pending flag and started the tour, then was destroyed when
+   `empty_header` flipped. Gate speak/edit pending consumers on `@speakHost` /
+   `@editHost` so only the board-detail hosts start those tours. Never run home
+   `_scheduleAutoOpen` (afterComplete → board-picker) from those hosts.
+3. **Centered steps use `document.body` as `step.target`** — `_scrollHighlightIntoView`
+   must early-reveal when there is no real `attachTo` (or target is body/html);
+   otherwise `md-tour__step--revealing` keeps Skip/X unclickable.
+4. **Defense:** home auto-open `afterComplete` handoff must no-op when
+   `current_route` is already `user.board-detail*`.
+
+**Evidence:** `guided-tour.js`; task log
+`2026-07-31-speak-tour-skip-close.md`.
+
 ---
 
 ## Pattern: a CSS background-image on a Shepherd popover (or any lazily-injected element) flashes blank on first open — preload it
@@ -6642,7 +6728,7 @@ the cheap fallback to confirm controller/route syntax.
 1. **Array prototype extensions on NATIVE arrays** — `.sortBy/.mapBy/.uniq/.compact/.pushObject/.firstObject/@each/[]` throw/undefined on `[]` (but are fine on Ember Data `hasMany` / `A()`). Fix: native equiv or `A()`.
 2. **`@each`/`.[]` + in-place element mutation on native arrays** — silent stale reactivity (a two-way `@checked={{item.prop}}` under `@each.prop` won't fire). Wholesale `set()` is safe. Fix: `A()` at the assignment site.
 3. **Template `this.X` with no backing property** — codemod prefixed `this.` onto (a) `{{#each ... as |X|}}` block params → `this.X` hits controller prop, drop the `this.`; (b) `this.app_state.*` where no `app_state` injection → add `app_state: alias('appState')`. Whole regions render blank/wrong.
-4. **Modal controllers rewritten as tagless components** — `modal-dialog` calls the `opening` closure in its `didRender` BEFORE the child's `didInsertElement` binds `onOpening`, so `opening()` (builds modal state) no-ops → empty modal / thrown action. Fix: `self.send('opening')` in `didInsertElement` or bind `onOpening` in `init()`.
+4. **Modal controllers rewritten as tagless components** — `modal-dialog` calls the `opening` closure in its `didRender` BEFORE the child's `didInsertElement` binds `onOpening`, so `opening()` (builds modal state) no-ops → empty modal / thrown action. Fix: `self.send('opening')` in `didInsertElement` or bind `onOpening` in `init()`. **Missed instance (2026-07-28):** `components/confirm-delete-user.js` left `user` null → Delete User Account threw `Cannot read properties of null (reading 'user_name')` on staging; same Class‑4 fix. Grep for converted modals that bind `onOpening` in `didInsertElement` but never `send('opening')`.
 5. **Ember Data 5.x removed `store` auto-injection into CONTROLLERS** — controllers calling `this.store.query/createRecord/...` without `store: service('store')` get `this.store === null` → route "Failed to load" (`Cannot read properties of null (reading 'query')`). Routes are fine (global `LingoLinq.store` or inherit from `routes/index.js`); components already inject. Fix: add `store: service('store')` to the controller. Grep: `grep -rlE "this\.store\b|_this\.store\b" app/controllers app/components` minus files that inject it.
 **Gotchas:** duplicate modules (`utils/*` ↔ `services/*` for persistence/stashes) and controller/component twins (modeling-ideas, batch-recording, button-set, quick-assessment) — fix BOTH; one twin is often already migrated. Build + template-lint DON'T catch any of these — must exercise the UI path.
 
@@ -7796,6 +7882,171 @@ feature reports "configured" then fails AccessDenied at invoke time.
    `Bedrock::Client` uses `aws_secret_key` — do not rename based on that older API.
 4. Provision a separate Bedrock Mantle IAM user + policy
    (`scripts/gcp/iam/lingolinq-bedrock-mantle-policy.json`); do not bolt invoke onto the S3/SES policy.
+5. Operator/dev diagnostics that list required env vars must mention **both** accepted
+   credential pairs (dedicated Bedrock + standard SDK). Omitting the SDK pair misleads
+   local setups that already have `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` and only
+   need a region. Keep calling out that `AWS_KEY`/`AWS_SECRET` are not accepted.
+6. **The two Bedrock planes are not interchangeable** (learned 2026-08-01). `bedrock-mantle`
+   and classic `bedrock-runtime` carry DIFFERENT model catalogs and SEPARATE entitlements.
+   Account 239044785114 is entitled only to classic; Mantle 403s every model even with admin
+   credentials and `bedrock-mantle:CreateInference` on `Resource: "*"`, so a 403 there is an
+   entitlement fact, not an IAM bug. Classic additionally REJECTS bare foundation-model ids
+   ("on-demand throughput isn't supported") and requires the `us.` cross-region inference-profile
+   form. Opus 4.7 is absent from the classic catalog entirely. Select the plane with
+   `BEDROCK_PLANE`; `AiClient.bedrock_model` maps the alias to the plane's wire id.
 
 Evidence: `lib/ai_client.rb`, `spec/lib/ai_client_spec.rb`,
 `docs/task-management/2026-07-27-ai-client-bedrock-credential-review.md`.
+
+## Ember until:6.0 deprecation inventory (2026-07-27)
+
+Prep target: clear `until: 6.0` deprecations on Ember 5.12 / Node 22 before any 6.x bump
+(Node 24 needs ember-cli 6.7+, not 6.2). Working log (gitignored dated file):
+`docs/task-management/2026-07-27-ember-until-6-deprecation-cleanup.md` on branch
+`chore/melissa-ember-until-6-deprecations`.
+
+**Inventory result (exercised paths):** zero until:6.0 ids in
+`deprecationWorkflow.deprecationLog.messages` and zero console `DEPRECATION` lines during
+cold boot (static `dist/`) and board-filtered QUnit / `ember test --filter=board`
+(# pass 403, # fail 0). Static checklist also clear for `template-action`,
+`component-template-resolving`, Ember barrel, transition-methods, legacy `ember-data/*`
+imports (except allowed `ember-data/store`). All `:foo_id` routes have explicit
+`model` / `model: function` hooks.
+
+**Gotchas:**
+1. Grepping only `model(` under-counts classic `model: function(params)` — dominant here.
+2. Headless Chrome against `ember serve` can stick at `readyState=loading` (curl still 200);
+   capture via **static `dist/` + Playwright** or Testem Chrome instead.
+3. `ember-cli-deprecation-workflow` v4 `flushDeprecations()` may throw
+   (`messages.values(...).filter` on a `Set`); read
+   `[...deprecationWorkflow.deprecationLog.messages]` instead.
+4. `DEPRECATE_STORE_EXTENDS_EMBER_OBJECT: false` in `ember-cli-build.js` is the RFC 1026
+   **fix** (Store no longer extends EmberObject) — not a silence opt-out. Do not reverse it.
+5. `package.json` can list `ember-cli-deprecation-workflow` while `node_modules` lacks it —
+   dependency-checker then blocks `ember serve` until `npm install`.
+
+**Still open before claiming fully clear:** ~~Rails-backed authenticated smoke~~ (done);
+enable `no-implicit-route-model` (done Phase 2); ~~reverse store-extends opt-out~~
+(**misframed** — `DEPRECATE_STORE_EXTENDS_EMBER_OBJECT: false` already *is* the RFC 1026
+fix); then `throwOnUnhandled: true` for test (Phase 3; watch `binding-style-attributes`).
+
+## Phase 2 until:6.0 hardening (2026-07-27)
+
+- Enabled `no-implicit-route-model: true` in `app/frontend/config/optional-features.json`
+  after verifying every `:foo_id` route has `model` / `model: function`. Board-filtered
+  `ember test` stayed green (# pass 403 / # fail 0).
+- **`DEPRECATE_STORE_EXTENDS_EMBER_OBJECT: false` is the fix, not a silence.** Per RFC 1026 /
+  deprecations.emberjs.com, setting the flag to `false` opts the Store out of extending
+  EmberObject and clears `ember-data:deprecate-store-extends-ember-object`. Do not "reverse"
+  it. This app already re-exports `ember-data/store` with no `Store.extend`.
+- `binding-style-attributes` (Ember v1.x warning) still fires on some org UI paths; it is
+  **not** until:6.0, but it will trip `throwOnUnhandled: true` unless fixed or logged
+  (never silenced) in the deprecation workflow before Phase 3 CI hardening.
+
+## Phase 3 until:6.0 CI hardening (2026-07-27)
+
+- `app/deprecation-workflow.js`: `throwOnUnhandled: config.environment === 'test'`
+  (dev still logs; production skipped). `workflow: []` — no silence handlers.
+- Board-filtered `ember test` stayed green under throw-on-unhandled (# pass 403 / # fail 0).
+- `ember-htmlbars.style-xss-warning` (`binding-style-attributes` console text) is emitted via
+  Ember `warn()`, not `deprecate()`, so it does **not** enter `ember-cli-deprecation-workflow`
+  and does not require a workflow `log` entry to keep tests green.
+
+## Gotcha: batch-path nil is not “missing opts” — key presence vs value
+
+When a batch helper downloads once and fans out (`self.assert_priority` → `wd.assert_priority(opts)`), a failed download still passes the key (`'counts' => nil`). Treating `counts ? … : fallback` as “no list, so fetch per record” turns one S3 failure into N retries — especially when a Redis build lock is released on failure. Distinguish `opts.key?('counts')` (batch: use or skip) from absent key / no opts (per-record path). Ref: `app/models/word_data.rb`, [`2026-07-29-codex-release-review-fixes.md`](./2026-07-29-codex-release-review-fixes.md).
+
+## Gotcha: compliance segment stamps must use validated org ids, not raw params
+
+`Compliance::SegmentResolver.school_path?` treats any present `authored_organization_id` as school (FERPA / `school_authorization_allowed`). Signup authorization may reject a bogus or unauthorized id later, but a compliance stamp that reads the raw request param has already persisted the wrong segment. Pass only the validated org global_id (`org_authorized ? authoring_org.global_id : nil`). Ref: `User#stamp_compliance_profile_from_params!`, [`2026-07-29-codex-release-review-fixes.md`](./2026-07-29-codex-release-review-fixes.md).
+
+## Gotcha: board translation Google egress is users#translate / WordData, not Board#translate_set
+
+`Board#translate_set` only applies a client-supplied translation hash — it does not call Google. The frontend first POSTs words to `/api/v1/users/:id/translate` → `WordData.translate_batch` → `query_translations` (Typhoeus to `translation.googleapis.com`), then posts the result to boards#translate → `translate_set`. An org off-switch that only gates `translate_set` still lets labels leave to Google. Gate the users translate action (and optionally `translate_set` as belt-and-suspenders); do **not** gate `WordData.query_translations` globally because `translate_locale_batch` uses it for library locale files. Org toggles for this live as top-level `settings['external_ai_processing']` (same shape as `default_beta_program_access`), not under `settings['permissions']` (ACL). Check all attached orgs (managers/supervisors), not only `managing_organization` / org_user. Ref: [#691](https://github.com/lingolinq/LingoLinq-AAC/issues/691), [`2026-07-28-org-external-ai-processing-off-switch.md`](./2026-07-28-org-external-ai-processing-off-switch.md).
+
+## Gotcha: Ember Data model ids in tests must be strings — numeric `set('id', N)` fails throwOnUnhandled
+
+With `throwOnUnhandled: true` in test (`app/deprecation-workflow.js`), `store.createRecord(...); record.set('id', 12)` emits Ember Data’s non-strict-id deprecation (“use `"12"` instead”) and fails the suite. Plain button/object ids can still be numbers; **Ember Data model** ids must be strings. Prefer `set('id', '12')` (or `pushPayload` with string ids). Hit in `tests/models/video-test.js` `check_for_editable_license` after Phase 3 CI hardening. Do **not** silence the deprecation — fix the call site.
+
+## Gotcha: Ember 5.12 orphan-template deletion can drop live UI that lived only in the orphan
+
+The Ember 5.12 upgrade deleted "legacy orphan" button-settings partials (`button-settings-picture.hbs`, etc.) that still held controls never ported into the component-based `button-settings.hbs`. Example: per-button `text_only` / `stretch_text_only` ("Show only text (as large as fits) for this button") — runtime attribute + render/save paths stayed wired; only the Picture-tab checkbox disappeared. When removing orphan templates, diff each orphan against the surviving component/controller template for unbound controls before deleting. Ref: [`2026-07-30-button-settings-text-only-checkbox.md`](./2026-07-30-button-settings-text-only-checkbox.md).
+
+## Gotcha: `settings['protected']` stored as the string `"false"` blanks speak-mode images
+
+**Surface:** Button image create/update (`ButtonImage#process_params`) + speak-mode display (`JsonApi::Image` → board `image_urls` → board-detail `_make_btn`).
+
+**Symptom:** Edit mode / Button Settings show the picture; after Save, speak mode shows the label as a text symbol only. DB has a real `image_id` and S3 URL.
+
+**Root cause:** `protected?` was `!!self.settings['protected']`. In Ruby `!!"false"` is **true**. JsonApi then treats the image as gated (blank `protected_source` fails the allowed-sources check), replaces `url` with a missing fallback → `image_urls[id] = nil` → `_make_btn` sets `text_symbol`. Edit mode still looks fine because it uses the in-session `_picked_display_url` / Ember image record, not the blanked API map.
+
+Do **not** “fix” this by relaxing the JsonApi protected-source gate (entitlement boundary — see pattern above). Cast on write and on read:
+
+```ruby
+def protected?
+  process_boolean(self.settings && self.settings['protected'])
+end
+# process_params:
+self.settings['protected'] = process_boolean(params['protected']) if params['protected'] != nil
+```
+
+Same pitfall exists on `ButtonSound`. Related: settings-backed API flags + string `'false'` (beta feedback pattern earlier in this file).
+
+**Evidence:** `lingolinq_admin/animals` shark `1_41045_…` had `protected: "false"` (String), `protected?=true` pre-fix, `url: nil` in `images_and_sounds_for`.
+
+**First seen in:** [`2026-07-30-ai-board-manual-image-not-persisting.md`](./2026-07-30-ai-board-manual-image-not-persisting.md)
+
+## Gotcha: org shell redesign can drop live controller actions that only lived in the old sidebar
+
+The Apr 2026 organizations UI redesign rewrote `organization.hbs` to the md-shell / pill-nav layout and left `find_user` / `masquerade` / `find_board` actions on `controllers/organization.js` with **no template bindings**. API + controller still worked; the only regression was discoverability. When restyling a shell, diff the old template for interactive controls (search, masquerade, license inputs) and either port them or deliberately retire them. Restore home for site-admin user lookup: Organizations directory (`organizations.hbs`) behind `has_admin_access`. Ref: [`2026-07-30-org-directory-find-user-masquerade.md`](./2026-07-30-org-directory-find-user-masquerade.md).
+
+## Gotcha: `modal.open('X')` is a no-op unless `X` is registered in modal-container
+
+After the Ember 5 modal migration, `utils/modal.open` only drives `service:modal` → `modal-container`, which renders an explicit `{{#if (is-equal this.currentTemplate "…")}}` branch per converted component. Opening a legacy controller/template name that was never converted (e.g. `user-results`) sets `currentTemplate` but paints nothing — silent failure. When restoring a `modal.open` call site, confirm the template string appears in both `modal-container.hbs` and the `convertedModals` list in `modal-container.js`. Ref: [`2026-07-30-org-directory-find-user-masquerade.md`](./2026-07-30-org-directory-find-user-masquerade.md).
+
+## Gotcha: session.restore() must re-sync masquerade fields on every call
+
+`restore()` used to set `as_user_id` only when transitioning to authenticated (`token && !isAuthenticated`). Boot restores more than once; later calls skipped that block, so `session.as_user_id` stayed null while `auth_settings.as_user_id` still fed API token-check query params. Symptom: masquerade “works” but Stop Masquerading UI never appears. Always sync `as_user_id` / `original_user_name` from stash whenever a token is present. Ref: [`2026-07-30-org-directory-find-user-masquerade.md`](./2026-07-30-org-directory-find-user-masquerade.md).
+
+## Gotcha: authenticated chrome is AppNavbar, not application.hbs #identity
+
+When `useAppNavbarInHeader` is true (dashboard, org, most user routes), `application.hbs` renders `<AppNavbar>` and **skips** the legacy `#identity` block. Header controls added only under `#identity` in `application.hbs` are invisible on those pages. Put authenticated-nav affordances (e.g. Stop Masquerading next to Upgrade) in `app-navbar-authenticated-inner.hbs` (and the mobile drawer). Ref: [`2026-07-30-org-directory-find-user-masquerade.md`](./2026-07-30-org-directory-find-user-masquerade.md).
+
+## Pattern: a missing env var can turn a storage optimization into silent data destruction
+
+**Surface:** `ExtraData` concern (`app/models/concerns/extra_data.rb`) plus any caller that
+stashes data into `@cached_extra_data` before calling `detach_extra_data`.
+
+**Gotcha:** `extra_data_too_big?` hard-returns false unless `ENV['REMOTE_EXTRA_DATA']` is set,
+and the upload block in `detach_extra_data` is gated on it. With the var unset the entire
+detach is a **silent no-op** that still returns `true`. Meanwhile
+`BoardDownstreamButtonSet#generate_defaults` was stripping `data['buttons']` into the in-memory
+`@cached_extra_data` for any set over 200 buttons. Nothing got uploaded, so that was the only
+copy, and because `generate_defaults` is a `before_save` callback that begins by nilling
+`@cached_extra_data`, the very next save recomputed `button_count = 0` and wrote the record
+empty. This zeroed 1754 of 2061 prod button sets. The variable appears in no tracked config
+anywhere in the repo, and does not appear in the 2026-06-30 45-var Render prod env
+accounting either, so its absence is a long-standing misconfiguration of unknown
+vintage rather than a cutover regression. (Do not assume "the migration dropped it"
+without checking the Render side; the 10 prod sets that carry a nonce come from
+`url_for`'s `detach_extra_data('force')` path, which bypasses the env gate at
+`extra_data.rb:28`, and are not evidence the var was ever set.)
+
+**Rule:** never move the only copy of data into a transient stash unless the destination is
+known to be writable. Gate the strip on the same predicate that gates the write. `LogSession`
+already did this correctly (`extra_data.rb:51-53` keeps events in the DB when upload fails);
+`BoardDownstreamButtonSet` did not, on the reasoning that button sets are regenerable, but
+regeneration hits the identical trap.
+
+**Diagnostic technique that cracked it:** look at the *distribution*, not one record. Every
+prod button set was under the 200-button threshold (`bc_max=194`, `bc_gt200=0`) in a library
+whose root boards legitimately produce 3717-button sets. A hard ceiling exactly at a constant
+in the code is a fingerprint pointing straight at the branch guarded by that constant. One
+broken record looks like corruption; the histogram names the line.
+
+**Also:** `extras:rebuild_button_sets` reported success while writing empty sets, which sent a
+prior triage session chasing S3 KMS and ImageMagick ghosts. A repair task that cannot detect
+its own no-op is worse than no task. It now preflights the storage config and reports roots
+that rebuild to zero.
+
+**First seen in:** `2026-08-01-prod-empty-button-sets.md` (PR #724)

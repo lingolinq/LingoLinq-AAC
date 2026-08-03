@@ -66,15 +66,19 @@ export default Component.extend({
     delete_user() {
       const user = this.get('user');
       const user_name = this.get('user_name');
-      if (user_name !== user.user_name) {
+      if (!user) {
+        this.set('error', i18n.t('user_delete_failed', "User account delete failed unexpectedly"));
+        return;
+      }
+      if (user_name !== this.get('user.user_name')) {
         this.set('error', i18n.t('wrong_user_name', "User name isn't correct"));
       } else {
-        return actionLock.run('delete-user:' + user.id, () => {
+        return actionLock.run('delete-user:' + this.get('user.id'), () => {
           this.set('deleting', true);
           return this.persistence.ajax('/api/v1/users/' + user_name + '/flush/user', {
             type: 'POST',
             data: {
-              confirm_user_id: user.id,
+              confirm_user_id: this.get('user.id'),
               user_name: user_name
             }
           }).then(() => {
@@ -99,6 +103,12 @@ export default Component.extend({
     this.onClose = function() { self.send('close'); };
     this.onOpening = function() { self.send('opening'); };
     this.onClosing = function() { self.send('closing'); };
+    // Ember 5.12 modal migration: the service-based modal system does not
+    // auto-invoke opening() (this.onOpening is vestigial), so build modal state
+    // here on insert. Without this, opening() never runs and user stays null
+    // → delete_user throws "Cannot read properties of null (reading 'user_name')".
+    // See assessment-settings / confirm-delete-board (Class 4).
+    self.send('opening');
 },
 
 });

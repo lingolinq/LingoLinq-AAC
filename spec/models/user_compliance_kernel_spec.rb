@@ -59,4 +59,45 @@ describe 'User compliance kernel stamp' do
     expect(u.settings['compliance']['digital_consent_age']).to eq(14)
     expect(u.settings['compliance']['frameworks']).to include('LAW_25')
   end
+
+  it 'does not classify as school from an unvalidated authored_organization_id' do
+    stub_const('FeatureFlags::ENABLED_FRONTEND_FEATURES',
+               FeatureFlags::ENABLED_FRONTEND_FEATURES + ['compliance_workflow_kernel'])
+    u = create_user(
+      'country' => 'US',
+      'authored_organization_id' => 'invalid_org_999',
+      'birth_month' => 3,
+      'birth_year' => 2015
+    )
+    expect(u.errored?).to eq(false)
+    expect(u.settings['authored_organization_id']).to be_nil
+    c = u.settings['compliance']
+    expect(c['segment']).to eq('b2c')
+    expect(c['frameworks']).to include('COPPA')
+    expect(c['frameworks']).not_to include('FERPA')
+  end
+
+  it 'classifies as school only after the authoring org is authorized' do
+    stub_const('FeatureFlags::ENABLED_FRONTEND_FEATURES',
+               FeatureFlags::ENABLED_FRONTEND_FEATURES + ['compliance_workflow_kernel'])
+    o = Organization.create
+    manager = User.create
+    o.add_manager(manager.user_name, true)
+    u = User.process_new({
+      'user_name' => "comp_#{SecureRandom.hex(4)}",
+      'email' => "comp_#{SecureRandom.hex(4)}@example.com",
+      'password' => 'password1',
+      'terms_agree' => true,
+      'preferences' => { 'registration_type' => 'communicator' },
+      'country' => 'US',
+      'authored_organization_id' => o.global_id,
+      'birth_month' => 3,
+      'birth_year' => 2015
+    }, { pending: true, author: manager.reload })
+    expect(u.errored?).to eq(false)
+    expect(u.settings['authored_organization_id']).to eq(o.global_id)
+    c = u.settings['compliance']
+    expect(c['segment']).to eq('school')
+    expect(c['frameworks']).to include('FERPA')
+  end
 end

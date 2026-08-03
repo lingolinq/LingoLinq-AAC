@@ -45,7 +45,7 @@ describe('Video', function() {
       video.set('license', {});
       video.check_for_editable_license();
       expect(video.get('license.uneditable')).toEqual(undefined);
-      video.set('id', 12);
+      video.set('id', '12');
       video.check_for_editable_license();
       expect(video.get('license.uneditable')).toEqual(true);
       video.set('permissions', {edit: true});

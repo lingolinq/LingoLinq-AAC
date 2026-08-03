@@ -498,8 +498,18 @@ export default Service.extend({
         window.ga('set', 'userId', store_data.user_id);
         window.ga('send', 'event', 'authentication', 'user-id available');
       }
-      this.set('as_user_id', store_data.as_user_id);
-    } else if(!store_data.access_token && !this._logout_landing) {
+    }
+    // Always sync masquerade fields from stash when a token is present.
+    // Boot calls restore() more than once (instance-initializer + application
+    // route activate + delayed re-restore). The second call used to skip this
+    // once isAuthenticated was already true, leaving session.as_user_id null
+    // so "Stop Masquerading" never rendered — even though auth_settings still
+    // carried as_user_id for API query params.
+    if(store_data.access_token) {
+      this.set('as_user_id', store_data.as_user_id || null);
+      this.set('original_user_name', store_data.original_user_name || null);
+    }
+    if(!store_data.access_token && !this._logout_landing) {
       // (Skipped on a clean logout landing — see `_logout_landing` set in init().
       //  Re-running this "session lost" recovery there would force_logout/invalidate
       //  again → a SECOND full reload, and show a bogus "session data has been lost"

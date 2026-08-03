@@ -8,7 +8,54 @@ describe BoardDownstreamButtonSet, :type => :model do
     expect(bs.data['button_count']).to eq(0)
     expect(bs.data['board_count']).to eq(0)
   end
-  
+
+  describe "large button sets without remote extra data" do
+    # Regression: with REMOTE_EXTRA_DATA unset, detach_extra_data is a no-op, so
+    # stripping data['buttons'] moved the only copy into memory and the next save
+    # re-entered generate_defaults, cleared it, and wrote button_count = 0. That
+    # zeroed 1754 of 2061 prod button sets (2026-08-01).
+    let(:many_buttons) do
+      (0...250).map{|i| {'id' => i, 'board_id' => '1_1', 'label' => "b#{i}"} }
+    end
+
+    it "should keep buttons inline and preserve button_count across saves" do
+      ENV['REMOTE_EXTRA_DATA'] = nil
+      bs = BoardDownstreamButtonSet.create
+      bs.data['buttons'] = many_buttons
+      bs.generate_defaults(true)
+      expect(bs.data['button_count']).to eq(250)
+      expect(bs.data['buttons']).to_not eq(nil)
+
+      bs.save
+      bs.reload
+      expect(bs.data['button_count']).to eq(250)
+      expect(bs.buttons.length).to eq(250)
+    end
+
+    it "should still detach to remote storage when remote extra data is enabled" do
+      ENV['REMOTE_EXTRA_DATA'] = '1'
+      bs = BoardDownstreamButtonSet.create
+      bs.data['buttons'] = many_buttons
+      bs.generate_defaults(true)
+      expect(bs.data['button_count']).to eq(250)
+      # handed off to the detach path rather than left inline
+      expect(bs.data['buttons']).to eq(nil)
+      expect(bs.instance_variable_get('@cached_extra_data').length).to eq(250)
+      ENV['REMOTE_EXTRA_DATA'] = nil
+    end
+
+    it "should leave small button sets inline either way" do
+      ENV['REMOTE_EXTRA_DATA'] = '1'
+      bs = BoardDownstreamButtonSet.create
+      bs.data['buttons'] = many_buttons[0, 10]
+      bs.generate_defaults(true)
+      expect(bs.data['button_count']).to eq(10)
+      expect(bs.data['buttons']).to_not eq(nil)
+      ENV['REMOTE_EXTRA_DATA'] = nil
+    end
+  end
+
+
   describe "update_for" do
     it "should not create a buttonset and should re-enqueue a bounded retry if a matching board is not yet visible" do
       # The board may not be visible yet because the deferred job can run before the

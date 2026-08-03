@@ -2,7 +2,7 @@ require 'spec_helper'
 
 describe UserBoardProvisioner do
   describe ".provision_for" do
-    it "sync-copies vocal-flair-84 then schedules the remaining library boards when enabled" do
+    it "schedules vocal-flair-84 first, then sidebar utilities, then remaining library boards when enabled" do
       source = User.create(user_name: 'lingolinq')
       user = User.create
       yesno = Board.process_new({name: 'Yes/No', public: true}, {user: source, key: 'yesno'})
@@ -13,10 +13,15 @@ describe UserBoardProvisioner do
       b4 = Board.process_new({name: 'Crisis Vocabulary', public: true}, {user: source, key: 'crisis-vocabulary'})
 
       allow(FeatureFlags).to receive(:signup_default_library_boards_enabled?).and_return(true)
-      expect(user).to receive(:copy_board_to_library).with(
+      # VF84 must not be copied inline (Rack::Timeout on staging); all copies are Progress jobs.
+      expect(user).to_not receive(:copy_board_to_library)
+      expect(Progress).to receive(:schedule).with(
+        user,
+        :copy_board_to_library,
         {'id' => b3.global_id},
         source.global_id,
-        nil
+        nil,
+        for_user: user
       ).ordered
       expect(Progress).to receive(:schedule).with(
         user,

@@ -1751,6 +1751,7 @@ export default Controller.extend(prefClasses, {
         if(image_fallback_url === img_url) { image_fallback_url = null; }
       }
     }
+    var text_symbol = !img_url && !!btn.label && !btn.load_board;
     // Speak-mode level filter: decide whether the level filter should
     // visually hide this button at the current level. We compute it
     // into `display_as_hidden` (a plain bool that mirrors the Ember
@@ -1784,6 +1785,7 @@ export default Controller.extend(prefClasses, {
       image_url: img_url,
       image_fallback_url: image_fallback_url,
       image_id: btn.image_id,
+      text_symbol: text_symbol,
       load_board: btn.load_board,
       // Action + option fields — MUST be carried onto the speak-mode display button.
       // This object is a hand-picked subset (unlike edit-mode's _make_ember_btn, which
@@ -1836,6 +1838,7 @@ export default Controller.extend(prefClasses, {
     var more_args = { board: board };
     if(img_url) { more_args.image_url = img_url; }
     var button = editManager.Button.create(btn, more_args);
+    button.set('text_symbol', !img_url && !!btn.label && !btn.load_board);
     // Explicitly carry hide_label onto the Ember button so the modern grid can hide
     // the label ("Hide the label when the picture is shown"). Without this the class
     // flashed via the classic fast-HTML paint, then the Ember grid re-rendered without
@@ -1849,6 +1852,10 @@ export default Controller.extend(prefClasses, {
   },
 
   processButtons: function() {
+    // Rebuild display from _last_raw. Callers that just wrote a save
+    // payload onto model.buttons MUST sync that payload into _last_raw
+    // first (see saveButtonChanges) — otherwise this clobbers the save
+    // with a pre-edit snapshot (notably newly assigned image_ids).
     if(this._last_raw) {
       this._build_from_raw(this._last_raw);
     }
@@ -4377,6 +4384,36 @@ export default Controller.extend(prefClasses, {
 
     board.set('buttons', state.buttons);
     board.set('grid', state.grid);
+    // Keep _last_raw in sync with the serialized save payload BEFORE any
+    // rebuild. processButtons() → _build_from_raw(_last_raw) does
+    // board.set('buttons', raw.buttons); if _last_raw still held the
+    // pre-edit snapshot, that clobber would undo process_for_saving and
+    // drop newly assigned image_ids (and other button edits) from the
+    // Ember Data save. Legacy board/index processButtons only refreshed
+    // display and never overwrote model.buttons from a stale raw cache.
+    // Also merge in-session image_urls so the rebuild can resolve the
+    // new image_ids (select_image_preview updates board.image_urls but
+    // not _last_raw.image_urls).
+    var imageUrlsForRaw = board.get('image_urls') ? Object.assign({}, board.get('image_urls')) : {};
+    (orderedButtons || []).forEach(function(btnRow) {
+      (btnRow || []).forEach(function(btn) {
+        var imgId = btn && (btn.get ? btn.get('image_id') : null);
+        if(imgId && !imageUrlsForRaw[imgId]) {
+          var url = btn.get ? (btn.get('local_image_url') || btn.get('image_url')) : null;
+          if(url) { imageUrlsForRaw[imgId] = url; }
+        }
+      });
+    });
+    if(Object.keys(imageUrlsForRaw).length) {
+      board.set('image_urls', imageUrlsForRaw);
+    }
+    if(this._last_raw) {
+      this._last_raw.buttons = state.buttons;
+      this._last_raw.grid = state.grid;
+      if(Object.keys(imageUrlsForRaw).length) {
+        this._last_raw.image_urls = Object.assign({}, this._last_raw.image_urls || {}, imageUrlsForRaw);
+      }
+    }
     this.processButtons();
 
     // Handle copy-on-save
