@@ -44,12 +44,14 @@ company-wide subprocessor register, maintained by the Privacy Office on its own 
   used for AI board suggestions, which are Non-personal and not gated by this consent -- see
   section 3); Claude Opus 4.7 (`claude-opus-4-7`, overridable via `EVAL_NARRATOR_MODEL`) for
   AI evaluation narration.
-- **Access path:** Anthropic Claude models on **AWS Bedrock** (the Bedrock Mantle Messages API via
-  `lib/ai_client.rb`), never the free consumer Claude.ai product. **Corrected 2026-08-02:** this
-  previously read "Anthropic's commercial API"; the direct `api.anthropic.com` route was removed by
-  PR #681 and is CI-enforced. **The Bedrock path is dormant as of 2026-07-30** (no `lingolinq-web`
-  revision carries a Bedrock credential), so no data is sent to any model provider today. See the
-  2026-08-01 correction in `docs/legal/AWS_BAA_ACCEPTED.md`.
+- **Access path:** Anthropic Claude models on **AWS Bedrock** via `lib/ai_client.rb` (default plane:
+  classic `bedrock-runtime`; Mantle selectable via `BEDROCK_PLANE` when entitled), never the free
+  consumer Claude.ai product. **Corrected 2026-08-02:** this previously read "Anthropic's commercial
+  API"; the direct `api.anthropic.com` route was removed by PR #681 and is CI-enforced.
+  **Plane wording corrected 2026-08-03:** earlier text said "Bedrock Mantle Messages API" only; the
+  account is entitled to classic `bedrock-runtime` (PR #727). **The Bedrock path is dormant as of
+  2026-07-30** (no `lingolinq-web` revision carries a Bedrock credential), so no data is sent to any
+  model provider today. See the 2026-08-01 correction in `docs/legal/AWS_BAA_ACCEPTED.md`.
 - **Data-processing basis:** the **AWS account BAA** (2026-02-07, account 2390-4478-5114) governs
   the Bedrock path, since Bedrock inference stays inside AWS's HIPAA-eligible service boundary. The
   executed **Anthropic HIPAA-Ready BAA** (2026-07-18, `docs/legal/ANTHROPIC_BAA_ACCEPTED.md`) covers

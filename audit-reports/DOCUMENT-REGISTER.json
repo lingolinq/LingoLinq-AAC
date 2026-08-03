@@ -1172,7 +1172,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "7910ec9422974eaf72e88e93e40a834129f024a3f011eac2930434b48b77bd7a",
+      "contentHash": "bceb59a17c93ead043c0370cfbba1edd2bdc56e7fc7eb83fa8e85ca7c64cdb25",
       "bundles": [],
       "mirrors": [
         {
@@ -2532,7 +2532,7 @@
         "attestedDate": "2026-07-09",
         "attestedContentHash": "c77ebb0dc5c8a228f32f268f40f36a74e60ef867a5ada78ba0e22f0d4a7ca914"
       },
-      "contentHash": "6fc177edc8b354b24cb7e6cddc41f5e20bf753f01123f0b17f36e007fe2fedd1",
+      "contentHash": "ace0d86269a947f4e28fa0a0da42d134f37d4079328d568a5a4af5549051b384",
       "bundles": [],
       "mirrors": [],
       "notes": "Register bookkeeping from the in-document attestation line (2026-07-09, provisional, conservative-default). Not yet reviewed by outside counsel. Scot to confirm or correct.",
@@ -2568,7 +2568,7 @@
         "attestedDate": "2026-07-23",
         "attestedContentHash": "47318beb94b3d3b9fa76845def3d68db6eddd38b7a6e2c44596d11b2d733b046"
       },
-      "contentHash": "0ee5dbf10b508bd36cd9c6cd4328dfc6faba3252bbf2a172798d4b52a8f1e43a",
+      "contentHash": "dc8fbf34a921aaa55326be24acebc1b96a90dca8b05de112979850d4c0e64e87",
       "bundles": [
         "security-review"
       ],

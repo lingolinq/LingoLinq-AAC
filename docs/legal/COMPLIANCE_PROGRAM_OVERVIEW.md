@@ -68,7 +68,8 @@ triggers HIPAA, and requiring it would add friction without adding protection.
 
 ## 2. What we do today (implemented controls)
 
-Everything in this section is live in the product.
+Everything in this section is live in the product, except where a control is
+explicitly marked not operational.
 
 **Encryption and data protection**
 - Sensitive fields are encrypted at rest with AES-256-GCM server-side encryption; LingoLinq
