@@ -35095,9 +35095,11 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   background-image: url('/images/aac-user.jpg');
 }
 .la-devices-spotlight__image {
-  /* JPEG for the same reason as aac-user.jpg: it's a photo, so PNG only reached
-     ~1.9MB vs ~230KB at q85 with no visible loss in the symbol grids. */
-  background-image: url('/images/landing-devices.jpg');
+  /* JPEG for the same reason as aac-user.jpg: it's a photo, so the source PNG
+     (devices-new.png) was ~2.26MB while q85 JPEG is ~251KB at the same visual
+     quality. Served from both public/images (Rails) and app/frontend/public/images
+     (Ember). */
+  background-image: url('/images/devices-new.jpg');
 }
 
 /* Desktop (>1024px): let both spotlight images render at full height using their
@@ -35131,11 +35133,11 @@ body.md-ds-active .app-navbar__beta-feedback-link {
        ($aac-spacing-48) and sit flush against the paragraph, which left no breathing
        room under the body copy. Now zero, so the parent's 48px gap stands on its own
        as the copy-to-image spacing. */
-    /* Must track landing-devices.jpg's natural size (1726x911). It previously read
-       1000/667 (1.50) against a 1727x911 (1.90) image, so `contain` letterboxed it
+    /* Must track devices-new.jpg's natural size (1729x910). It previously read
+       1000/667 (1.50) against a ~1.90 image, so `contain` letterboxed it
        and the radius rounded the empty strips -- the exact failure the note above
        warns about. */
-    aspect-ratio: 1726 / 911;
+    aspect-ratio: 1729 / 910;
     min-height: 0;
     width: 78.125%;
     margin: 0 auto;
@@ -35252,8 +35254,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
      to `contain` and pinning the container's aspect-ratio to match
      the image lets the full mockup render without clipping. */
   .la-devices-spotlight__image {
-    /* Tracks landing-devices.jpg's natural size (1726x911); see the desktop rule. */
-    aspect-ratio: 1726 / 911;
+    /* Tracks devices-new.jpg's natural size (1729x910); see the desktop rule. */
+    aspect-ratio: 1729 / 910;
     min-height: 0;
     background-size: contain;
   }
