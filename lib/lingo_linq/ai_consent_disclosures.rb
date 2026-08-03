@@ -99,9 +99,13 @@ module LingoLinq
         'data_categories' => [
           'The words and sentences a communicator is actively building, when AI word prediction ' \
             'suggests the next word',
-          'Clinical evaluation notes and assessment data, only when a speech-language ' \
-            'pathologist chooses to generate an AI-drafted evaluation summary for a specific ' \
-            'student'
+          'Clinical evaluation notes and assessment data: NOT currently sent to any AI ' \
+            'provider. AI-drafted evaluation narration is inactive, and asking for an ' \
+            'AI-drafted summary produces a fixed, locally generated template that never ' \
+            'leaves LingoLinq. If this feature is switched on in future, this category would ' \
+            'apply only when a speech-language pathologist chooses to generate an AI-drafted ' \
+            'evaluation summary for a specific student, and this notice would be updated to ' \
+            'name the model before any evaluation data is sent.'
         ],
         'scrubbing_note' => 'Before any of the above is sent to an AI vendor, LingoLinq ' \
           'automatically removes common identifying details it can detect, such as names, ' \
@@ -145,11 +149,13 @@ module LingoLinq
         },
         'revocation_summary' => 'A parent, or the account holder once old enough, can withdraw ' \
           'AI data-sharing consent at any time. Once withdrawn, LingoLinq stops sending any ' \
-          'further data from that account to Anthropic for word prediction or evaluation ' \
-          'narration. Withdrawing consent cannot retract or delete anything already sent to a ' \
-          'vendor before the withdrawal; it only stops future sending. AI-assisted board ' \
-          'suggestions are not affected by this consent and keep working either way. The rest of ' \
-          'LingoLinq (boards, sync, messaging) keeps working normally without AI features.'
+          'further data from that account to the AI provider for word prediction. AI-drafted ' \
+          'evaluation narration is currently inactive and sends nothing at all; if it is ' \
+          'switched on in future it would be covered by this same withdrawal. Withdrawing ' \
+          'consent cannot retract or delete anything already sent before the withdrawal; it ' \
+          'only stops future sending. AI-assisted board suggestions are not affected by this ' \
+          'consent and keep working either way. The rest of LingoLinq (boards, sync, ' \
+          'messaging) keeps working normally without AI features.'
       }.freeze
     }.freeze
 
