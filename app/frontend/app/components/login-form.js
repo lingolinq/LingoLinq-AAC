@@ -1200,6 +1200,10 @@ export default Component.extend({
             _this.set('coppa_awaiting_parent', false);
             _this.set('coppa_needs_parent_email', true);
             _this.set('login_error', i18n.t('coppa_login_blocked_parent_consent_revoked', "A parent or guardian withdrew consent for this account. It cannot be used until consent is given again."));
+          } else if(err.coppa_parental_consent_declined) {
+            _this.set('coppa_awaiting_parent', false);
+            _this.set('coppa_needs_parent_email', false);
+            _this.set('login_error', i18n.t('coppa_login_blocked_parent_consent_declined', "A parent or guardian declined consent for this account. It is scheduled for deletion and cannot be used."));
           } else if(err.coppa_parent_email_required) {
             _this.set('coppa_awaiting_parent', false);
             _this.set('coppa_needs_parent_email', true);

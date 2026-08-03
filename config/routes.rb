@@ -41,6 +41,7 @@ LingoLinq::Application.routes.draw do
   get '/privacy_practices' => redirect('/privacy')
   get '/terms' => 'boards#terms'
   get '/parental_consent/complete' => 'parental_consents#complete'
+  get '/parental_consent/decline' => 'parental_consents#decline'
   get '/parental_consent/revoke' => 'parental_consents#revoke'
   get '/eu_ai_parental_consent/complete' => 'eu_ai_parental_consents#complete'
   get '/eu_ai_parental_consent/revoke' => 'eu_ai_parental_consents#revoke'

@@ -108,6 +108,8 @@ class SessionController < ApplicationController
     end
     if !error && user && user.coppa_parental_consent_revoked?
       error = 'parental_consent_revoked'
+    elsif !error && user && user.coppa_parental_consent_declined?
+      error = 'parental_consent_declined'
     elsif !error && user && user.coppa_needs_parent_email?
       error = 'parent_email_required'
     elsif !error && user && user.coppa_parental_consent_pending?
@@ -530,6 +532,9 @@ class SessionController < ApplicationController
       if u && u.valid_password?(params['password'])
         if u.coppa_parental_consent_revoked?
           return api_error 400, {error: 'parental consent revoked', coppa_parental_consent_revoked: true}
+        end
+        if u.coppa_parental_consent_declined?
+          return api_error 400, {error: 'parental consent declined', coppa_parental_consent_declined: true}
         end
         if u.coppa_needs_parent_email?
           return api_error 400, {error: 'parent email required', coppa_parent_email_required: true}
@@ -1015,6 +1020,9 @@ class SessionController < ApplicationController
   def google_finish_login(user, config)
     if user.coppa_parental_consent_revoked?
       return redirect_to google_frontend_redirect('/login?coppa_revoked=1', config), allow_other_host: true
+    end
+    if user.coppa_parental_consent_declined?
+      return redirect_to google_frontend_redirect('/login?coppa_declined=1', config), allow_other_host: true
     end
     if user.coppa_needs_parent_email?
       return redirect_to google_frontend_redirect('/login?coppa_parent_email=1', config), allow_other_host: true

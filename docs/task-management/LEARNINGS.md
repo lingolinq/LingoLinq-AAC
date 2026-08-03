@@ -7098,6 +7098,25 @@ false + invalidate consent) so AI stays off until a new parent grant. Do not req
 email to complete org remove — login dialog is the fallback. See
 `docs/task-management/2026-07-16-org-offboarding-parental-consent.md`.
 
+## Pattern: Offboarding COPPA remaining gaps (expire / birth / export-delete) (2026-08-03)
+
+`Organization#remove_user` alone was not enough for LL-f150e0e828. Three residual gaps:
+
+1. **`License.expire_stale_licenses!`** must call `begin_family_offboarding_consents!` after
+   `release_user!`, with `force_under_13: true` when `school_authorization` is present and no
+   birth month/year is on file (no manager attestation on automated expiry).
+2. **Server-require birth month/year** on `remove_user` when COPPA is enabled — UI already
+   required it; API omission skipped COPPA and could leave `school_authorization` on a consumer
+   trial. `ArgumentError` is caught by org `process_params` as a processing error.
+3. **Export-then-delete:** pending offboarding COPPA past `parent_consent_expires_at` /
+   `offboarding_deadline_at`, or explicit decline via `GET /parental_consent/decline`, runs
+   `Exporter.export_user` → parent mailer → `schedule_deletion_at` (36h) for
+   `Flusher.flush_deleted_users`. Discover candidates via
+   `AuditEvent` `parental_consent_offboarding_started` (settings are encrypted). Daily:
+   `OffboardingCoppaExpirationWorker` in `scheduler:dispatch`.
+
+See `docs/task-management/2026-08-03-offboarding-coppa-remaining-gaps.md`.
+
 ## Pattern: Org `settings['jurisdiction']` drives release-time age laws (2026-07-17)
 
 School-created communicators often have no personal country, so EU Art. 8
