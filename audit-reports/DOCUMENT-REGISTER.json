@@ -606,13 +606,13 @@
       "attestation": {
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-08-04",
-        "attestedContentHash": "f4dd6bdaaeec14ec71b23a57bb6eb7f18d11a2faf689e7b2fc9dc5872be2f589",
+        "attestedContentHash": "356b409294378764da09c43d532ca96e66524b448b4c95b009f23c1c659e68d7",
         "priorAttestations": [
           "2026-07-27",
           "2026-07-24",
           "2026-07-22"
         ],
-        "note": "Re-attested 2026-08-04 by Scot Wahlquist. Scope: the runtime-AI operational-status correction in PR #725. The prior corpus stated the Bedrock path was dormant and that no lingolinq-web revision carried a Bedrock credential; that was accurate when written and expired 2026-08-03T08:23:02Z when revision 00013-76w mounted BEDROCK_AWS_KEY/SECRET. The corpus now states a closed window: not operational to 2026-08-03T08:23Z, operational to 2026-08-04T06:31Z (one internal verification call, no user or student data), not operational since. Verified live: sts:GetCallerIdentity returned 239044785114 (user/lingolinq-bedrock-runtime)."
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist (second pin, same day). Supersedes the earlier 2026-08-04 pin, whose bytes were corrected across three external review rounds before merge. Scope of this pin: the closed-window runtime-AI operational status (not operational through 00012-x8z; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on 00013-76w; not operational since 00014-5rw), with every historical claim explicitly bounded to the period it covers rather than stated as an unbounded absolute. Also pinned: the runtime plane corrected from 'Bedrock Mantle Messages API' to classic bedrock-runtime, with the consequence stated that Claude Opus 4.7 has no classic-plane inference profile and eval narration therefore falls back to its deterministic template."
       },
       "correctionNote": "CORRECTION 2026-08-02, SUPERSEDED 2026-08-04 (not an attestation; only Scot attests). The 2026-08-02 note said Bedrock 'has never been operational in production' and that runtime AI had been dormant since 00011-l7f. That was accurate through revision 00012-x8z and expired 2026-08-03T08:23:02Z, when 00013-76w mounted the Bedrock credentials. Correct statement: not operational through 00012-x8z; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z with one logged seam call completed (internal verification, no user or student data); not operational since 00014-5rw. Re-attested by Scot Wahlquist 2026-08-04; the earlier 'Re-attestation owed' note is discharged.",
       "contentHash": "356b409294378764da09c43d532ca96e66524b448b4c95b009f23c1c659e68d7",
@@ -1034,13 +1034,13 @@
       "attestation": {
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-08-04",
-        "attestedContentHash": "ef1d796743065e554e8e4cfcd9b754db101e3ea8b27bb31d1c8890f3bf8e59ee",
+        "attestedContentHash": "bb1ff239ec4cb2f2e1c38a2180c9b3a305417c29b7e9efad3e9a3c0959e455e0",
         "priorAttestations": [
           "2026-07-27",
           "2026-07-24",
           "2026-07-18"
         ],
-        "note": "Re-attested 2026-08-04 by Scot Wahlquist. Scope: the runtime-AI operational-status correction in PR #725. The prior corpus stated the Bedrock path was dormant and that no lingolinq-web revision carried a Bedrock credential; that was accurate when written and expired 2026-08-03T08:23:02Z when revision 00013-76w mounted BEDROCK_AWS_KEY/SECRET. The corpus now states a closed window: not operational to 2026-08-03T08:23Z, operational to 2026-08-04T06:31Z (one internal verification call, no user or student data), not operational since. Verified live: sts:GetCallerIdentity returned 239044785114 (user/lingolinq-bedrock-runtime)."
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist (second pin, same day). Supersedes the earlier 2026-08-04 pin, whose bytes were corrected across three external review rounds before merge. Scope of this pin: the closed-window runtime-AI operational status (not operational through 00012-x8z; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on 00013-76w; not operational since 00014-5rw), with every historical claim explicitly bounded to the period it covers rather than stated as an unbounded absolute. Also pinned: the same Mantle-to-classic plane correction, and the operative-condition bullet bounded to its period with the 2026-08-04 verification recorded separately."
       },
       "bundles": [
         "baa"
@@ -1083,13 +1083,13 @@
       "attestation": {
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-08-04",
-        "attestedContentHash": "7de3e164fef8d591ac8ef479e82b40580f0deeb5f76d5d93f43c8653534a03a3",
+        "attestedContentHash": "376b1e18ce5297a8d9c23257850c1b028805d502090167b2a7b0c440941da2b9",
         "priorAttestations": [
           "2026-07-24",
           "2026-06-21",
           "2026-07-27"
         ],
-        "note": "Re-attested 2026-08-04 by Scot Wahlquist. Scope: the runtime-AI operational-status correction in PR #725. The prior corpus stated the Bedrock path was dormant and that no lingolinq-web revision carried a Bedrock credential; that was accurate when written and expired 2026-08-03T08:23:02Z when revision 00013-76w mounted BEDROCK_AWS_KEY/SECRET. The corpus now states a closed window: not operational to 2026-08-03T08:23Z, operational to 2026-08-04T06:31Z (one internal verification call, no user or student data), not operational since. Verified live: sts:GetCallerIdentity returned 239044785114 (user/lingolinq-bedrock-runtime). ALSO ATTESTED: a new operational-window section, and an AiApiLog scoping note stating that a zero-row result establishes only that no logged seam call completed, which is narrower than 'no egress'."
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist (second pin, same day). Supersedes the earlier 2026-08-04 pin, whose bytes were corrected across three external review rounds before merge. Scope of this pin: the closed-window runtime-AI operational status (not operational through 00012-x8z; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on 00013-76w; not operational since 00014-5rw), with every historical claim explicitly bounded to the period it covers rather than stated as an unbounded absolute. Also pinned: the narrow verified/reachable/unavailable split for the operational window (word prediction exercised, one completed call; board generation and prediction seeding reachable but unexercised; eval narration unavailable throughout), the AiApiLog scoping note, and the 2026-08-04 sts:GetCallerIdentity verification recorded as a separate dated finding that does NOT revive the retracted 2026-07-27 claim."
       },
       "correctionNote": "CORRECTION 2026-08-02, SUPERSEDED 2026-08-04 (not an attestation; only Scot attests). The 2026-07-27 attestation note asserted the deployed lingolinq-web credential was verified to resolve to AWS account 2390-4478-5114. That verification is RETRACTED and stays retracted: it was false when made, and no revision from 00001-2vn (2026-06-29) through 00012-x8z (2026-08-02T20:31Z) carried a Bedrock credential. The 2026-08-02 wording 'has ever carried' was an unbounded absolute and is corrected to that bounded range, because revision 00013-76w (2026-08-03T08:23:02Z) did mount the credentials. The operative condition was then independently verified for the first time on 2026-08-04 (sts:GetCallerIdentity returned 239044785114, principal user/lingolinq-bedrock-runtime); that verification is dated 2026-08-04 and does not revive the 2026-07-27 claim. The attestation object is left unmodified because it records what was signed. Re-attested by Scot Wahlquist 2026-08-04.",
       "contentHash": "376b1e18ce5297a8d9c23257850c1b028805d502090167b2a7b0c440941da2b9",
@@ -2500,11 +2500,11 @@
       "attestation": {
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-08-04",
-        "attestedContentHash": "d9d1adbb8738124f14c4d0e007174630ed24c571f5c91b59a6dc0609aa3a79e0",
+        "attestedContentHash": "80b5bec460ee1dad9ff2423334eb9088a52abf54dda072f7623ce26ba89363c8",
         "priorAttestations": [
           "2026-07-22"
         ],
-        "note": "Re-attested 2026-08-04 by Scot Wahlquist. Scope: the runtime-AI operational-status correction in PR #725. The prior corpus stated the Bedrock path was dormant and that no lingolinq-web revision carried a Bedrock credential; that was accurate when written and expired 2026-08-03T08:23:02Z when revision 00013-76w mounted BEDROCK_AWS_KEY/SECRET. The corpus now states a closed window: not operational to 2026-08-03T08:23Z, operational to 2026-08-04T06:31Z (one internal verification call, no user or student data), not operational since. Verified live: sts:GetCallerIdentity returned 239044785114 (user/lingolinq-bedrock-runtime)."
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist (second pin, same day). Supersedes the earlier 2026-08-04 pin, whose bytes were corrected across three external review rounds before merge. Scope of this pin: the closed-window runtime-AI operational status (not operational through 00012-x8z; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on 00013-76w; not operational since 00014-5rw), with every historical claim explicitly bounded to the period it covers rather than stated as an unbounded absolute. Also pinned: the runtime-row status paragraph rewritten from 'dormant as of 2026-07-30' to the closed window. This document entered the re-attestation set during the third review round."
       },
       "contentHash": "80b5bec460ee1dad9ff2423334eb9088a52abf54dda072f7623ce26ba89363c8",
       "bundles": [
@@ -2542,11 +2542,11 @@
       "attestation": {
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-08-04",
-        "attestedContentHash": "8a2db17bdddc665ef684c19f4856eea1f10162ac3276cc21ee145931d79d12c2",
+        "attestedContentHash": "6c534936a91a3b4540669d53d7a259717614642118f1fd09191d63f8e7e71224",
         "priorAttestations": [
           "2026-07-09"
         ],
-        "note": "Re-attested 2026-08-04 by Scot Wahlquist. Scope: the runtime-AI operational-status correction in PR #725. The prior corpus stated the Bedrock path was dormant and that no lingolinq-web revision carried a Bedrock credential; that was accurate when written and expired 2026-08-03T08:23:02Z when revision 00013-76w mounted BEDROCK_AWS_KEY/SECRET. The corpus now states a closed window: not operational to 2026-08-03T08:23Z, operational to 2026-08-04T06:31Z (one internal verification call, no user or student data), not operational since. Verified live: sts:GetCallerIdentity returned 239044785114 (user/lingolinq-bedrock-runtime). ALSO ATTESTED: the ZDR and training-posture bullets are newly SCOPED to the direct api.anthropic.com path and expressly disclaim any zero-data-retention guarantee for the AWS Bedrock route. This narrows a previously broader retention representation."
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist (second pin, same day). Supersedes the earlier 2026-08-04 pin, whose bytes were corrected across three external review rounds before merge. Scope of this pin: the closed-window runtime-AI operational status (not operational through 00012-x8z; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on 00013-76w; not operational since 00014-5rw), with every historical claim explicitly bounded to the period it covers rather than stated as an unbounded absolute. Also pinned: the ZDR and training-posture bullets scoped to the direct api.anthropic.com path, expressly disclaiming any zero-data-retention guarantee for the AWS Bedrock route. This narrows a previously broader retention representation and aligns the consent record with the shipped runtime disclosure."
       },
       "contentHash": "6c534936a91a3b4540669d53d7a259717614642118f1fd09191d63f8e7e71224",
       "bundles": [],

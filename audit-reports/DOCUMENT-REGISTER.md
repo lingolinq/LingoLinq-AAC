@@ -258,11 +258,11 @@ green build. Verified for git rows only; Drive and Notion hashes are operator-su
 
 | Record | Attested | Pinned bytes | State |
 |---|---|---|---|
-| AI Data-Flow Classification | 2026-08-04 | `d9d1adbb8738` | MISMATCH - re-attestation owed |
-| AI Data-Sharing Consent: Rationale and Policy | 2026-08-04 | `8a2db17bdddc` | MISMATCH - re-attestation owed |
-| AI Governance Memo | 2026-08-04 | `f4dd6bdaaeec` | MISMATCH - re-attestation owed |
-| Anthropic HIPAA-Ready BAA Acceptance Record | 2026-08-04 | `ef1d79674306` | MISMATCH - re-attestation owed |
-| AWS BAA Acceptance Record | 2026-08-04 | `7de3e164fef8` | MISMATCH - re-attestation owed |
+| AI Data-Flow Classification | 2026-08-04 | `80b5bec460ee` | verified |
+| AI Data-Sharing Consent: Rationale and Policy | 2026-08-04 | `6c534936a91a` | verified |
+| AI Governance Memo | 2026-08-04 | `356b40929437` | verified |
+| Anthropic HIPAA-Ready BAA Acceptance Record | 2026-08-04 | `bb1ff239ec4c` | verified |
+| AWS BAA Acceptance Record | 2026-08-04 | `376b1e18ce52` | verified |
 | AWS Business Associate Agreement (signed PDF) | 2026-02 | `55f28e00168c` | verified |
 | Compliance & Data Governance (COMPLIANCE.md) | 2026-08-04 | `72af832942c4` | verified |
 | Compliance Posture Report | 2026-07-23 | `b29b1cd0d5ca` | verified |
