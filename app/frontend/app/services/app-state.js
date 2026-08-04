@@ -1483,7 +1483,17 @@ export default Service.extend({
     var routeName = this.get('router.currentRouteName') || this.get('current_route') || '';
     var onBoardDetail = routeName.indexOf('board-detail') !== -1;
     this.assert_source().then(function(board) {
-      if(!board.get('permissions.edit')) {
+      // A board reached from a LIST surface (dashboard preview, boards page, My Boards
+      // picker, sidebar) can carry stale/absent permissions — the boards-index omits the
+      // permissions payload — so `permissions.edit` may be false/undefined even on the
+      // user's OWN board, which false-prompts "make a copy" until a manual refresh. Ownership
+      // is authoritative and ALWAYS available client-side: a board's key is `<owner>/<slug>`
+      // and `user_name` is the owner, so if the session user owns it they can always edit it
+      // directly, regardless of the (possibly unloaded) permissions flag.
+      var owner_name = board.get('user_name') || ((board.get('key') || '').split('/')[0]);
+      var session_name = _this.get('sessionUser.user_name');
+      var owns_board = !!(owner_name && session_name && owner_name === session_name);
+      if(!board.get('permissions.edit') && !owns_board) {
         modal.open('confirm-needs-copying', {board: board}).then(function(res) {
           if(res == 'confirm') {
             _this.controller.send('copy_and_edit_board', board, onBoardDetail);
@@ -1498,7 +1508,7 @@ export default Service.extend({
         });
         return;
       }
-      _this.toggle_mode('edit');  
+      _this.toggle_mode('edit');
     }, function() { });
   },
   clear_mode: function() {

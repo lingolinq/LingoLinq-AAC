@@ -191,13 +191,19 @@ export default Component.extend({
       if (data && data.forEach) {
         data.forEach(function(b) { if (b) { next.push(b); } });
       }
+      // Progressive render: paint what we have SO FAR the moment each page lands —
+      // page 1 (home_popularity sort) is the home board + favorites, which is all the
+      // collapsed view shows anyway — then keep paging in the BACKGROUND to fill the
+      // "Show more" expander and in-panel search, instead of blocking the whole list on
+      // the final page. `_sortMyBoards` keeps home→favorites→rest pinned, so the visible
+      // rows stay stable as later pages append below the fold. Shared component, so this
+      // speeds up BOTH the speak-mode and edit-mode collection drawers.
+      _this.set('my_boards_state', { state: 'loaded', boards: _this._sortMyBoards(next) });
       var meta = null;
       try { meta = _this.get('persistence') && _this.get('persistence').meta('board', data); } catch (e) { meta = null; }
       if (meta && meta.more) {
         _this._loadMyBoardsPage(userId, meta.next_offset, next);
-        return;
       }
-      _this.set('my_boards_state', { state: 'loaded', boards: _this._sortMyBoards(next) });
     }).catch(function() {
       if (_this.isDestroyed || _this.isDestroying) { return; }
       /* If we already paged some boards before the failure, render

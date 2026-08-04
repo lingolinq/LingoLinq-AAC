@@ -378,14 +378,26 @@ export default Controller.extend(prefClasses, {
     var card = cell.querySelector('.md-board-detail-symbol-card') || cell;
     var cardRect = card.getBoundingClientRect();
     if(!cardRect || cardRect.width < 1 || cardRect.height < 1) { return; }
-    // Publish the ACTUAL rendered button width so the "Landscape mode
-    // recommended" overlay can trigger on real button size (below ~45px is too
-    // small for reliable AAC targeting), not just the viewport×column heuristics.
-    // This runs debounced inside runLater on every grid resize / layout change,
-    // so it stays live and never mutates state mid-render.
+    // Publish the ACTUAL rendered button width AND height so the "Larger screen recommended"
+    // overlay can trigger on real button size (below 35px in EITHER dimension is too small
+    // for reliable AAC targeting / comfortable editing). This runs debounced inside runLater
+    // on every grid resize / layout change, so it stays live and never mutates state mid-render.
     this.set('board_cell_width', Math.round(cardRect.width));
+    this.set('board_cell_height', Math.round(cardRect.height));
     var grid = document.querySelector('.md-board-detail-grid');
     var gridStyle = grid ? window.getComputedStyle(grid) : null;
+    // Publish the CELL (grid row) height as --bd-cell-h so the folder-tab RESERVE — the cell's
+    // top padding + the folder-back top — can scale with the button size and the space between
+    // rows shrinks on smaller buttons. A CSS container can't size its own padding by its own
+    // height (cqh only works on descendants; padding-% is width-based), so this JS var is the
+    // reliable source. The cell height is the 1fr grid row height (independent of the padding
+    // inside it), so reading it back to drive the padding does NOT feed back.
+    if(grid && cell) {
+      var cellRect = cell.getBoundingClientRect();
+      if(cellRect && cellRect.height >= 1) {
+        grid.style.setProperty('--bd-cell-h', Math.round(cellRect.height) + 'px');
+      }
+    }
     var colGap = gridStyle ? (parseFloat(gridStyle.columnGap) || 0) : 0;
     var rowGap = gridStyle ? (parseFloat(gridStyle.rowGap) || 0) : 0;
     // Make the rail read as another board column: stack its tiles with the board's
@@ -3217,6 +3229,13 @@ export default Controller.extend(prefClasses, {
   is_communicator_only_account: computed('app_state.currentUser.supporter_role', 'app_state.modeling', function() {
     return !this.get('app_state.currentUser.supporter_role') && !this.get('app_state.modeling');
   }),
+  // Dense-board sidebar: boards wider than 10 columns get a 25%-narrower inline
+  // sidebar (100px → 75px, via the .md-shell--many-columns class + app.scss) so the
+  // grid reclaims the room. Uses the displayed grid (current_grid) with the board's
+  // saved grid as a fallback.
+  board_many_columns: computed('current_grid.columns', 'model.grid.columns', function() {
+    return (this.get('current_grid.columns') || this.get('model.grid.columns') || 0) > 10;
+  }),
   speak_section_visible_board: computed('speak_menu_hidden_set', 'is_communicator_only_account', function() {
     if(this.get('is_communicator_only_account')) { return false; }
     var s = this.get('speak_menu_hidden_set') || {};
@@ -3443,19 +3462,19 @@ export default Controller.extend(prefClasses, {
   quick_actions_open: false,
   // Live-measured rendered button width, published by _sync_prediction_tile_size.
   board_cell_width: 0,
+  board_cell_height: 0,
 
-  portrait_overlay_eligible: computed('app_state.feature_flags.portrait_orientation_overlay', 'viewport_narrow', 'viewport_very_narrow', 'viewport_ultra_narrow', 'current_grid.columns', 'board_cell_width', function() {
+  portrait_overlay_eligible: computed('app_state.feature_flags.portrait_orientation_overlay', 'board_cell_width', 'board_cell_height', function() {
     if(!this.get('app_state.feature_flags.portrait_orientation_overlay')) { return false; }
-    // Direct signal: if the buttons actually render below the 45px minimum for
-    // reliable AAC targeting, recommend landscape regardless of the column/
-    // viewport heuristics below (which are only a proxy for "buttons too small").
+    // Recommend a larger screen once the buttons actually render below 35px in EITHER
+    // dimension (width OR height) — too small to view or edit comfortably. board_cell_width /
+    // board_cell_height are the live-measured card size (set by the debounced grid-resize
+    // observer above), so this tracks the REAL rendered button size in BOTH speak and edit
+    // mode, independent of orientation: a large screen keeps buttons big, so it never
+    // false-fires there, and there's no rotate advice anymore to guard against.
     var cell_w = this.get('board_cell_width') || 0;
-    if(cell_w > 0 && cell_w < 45) { return true; }
-    var cols = this.get('current_grid.columns') || 0;
-    if(this.get('viewport_narrow') && cols > 8) { return true; }
-    if(this.get('viewport_very_narrow') && cols > 6) { return true; }
-    if(this.get('viewport_ultra_narrow') && cols > 4) { return true; }
-    return false;
+    var cell_h = this.get('board_cell_height') || 0;
+    return (cell_w > 0 && cell_w < 35) || (cell_h > 0 && cell_h < 35);
   }),
 
   // The actual "show the card now" gate — eligible AND the user hasn't
@@ -3465,9 +3484,9 @@ export default Controller.extend(prefClasses, {
   portrait_overlay_active: computed('portrait_overlay_eligible', 'portrait_overlay_dismissed', 'board_collection_open', 'edit_board_collection_open', function() {
     // Either Board Collections drawer (speak-mode right / edit-mode left) intentionally
     // shrinks the center board area (layout padding), which drops the live-measured
-    // board_cell_width below 45px and FALSE-triggers the landscape recommendation on a
-    // wide viewport. Suppress the overlay while a collection drawer is open — the
-    // viewport itself isn't narrow, so the recommendation doesn't apply.
+    // board_cell_width below the 35px signal and FALSE-triggers the larger-screen
+    // recommendation on a wide viewport. Suppress the overlay while a collection drawer is
+    // open — the screen itself isn't small, so the recommendation doesn't apply.
     if(this.get('board_collection_open') || this.get('edit_board_collection_open')) { return false; }
     return this.get('portrait_overlay_eligible') && !this.get('portrait_overlay_dismissed');
   }),
@@ -5223,10 +5242,18 @@ export default Controller.extend(prefClasses, {
       };
       ready.then(function(res) {
         if(res && res.correct_pin) {
-          // Owner path: direct edit. Clear any stale copy_on_save flag
-          // defensively so a previous non-owner edit attempt's leftover
-          // flag can't trigger the copy flow on this owner's save.
-          if(_this.get('model.permissions.edit')) {
+          // Owner path: direct edit. Ownership is authoritative and ALWAYS available client-
+          // side (a board's key is `<owner>/<slug>` and `user_name` is the owner), unlike
+          // `model.permissions.edit`, which the boards-index list load OMITS — so a board
+          // reached from My Boards / dashboard / sidebar can false-prompt a copy on the
+          // user's OWN board until a manual refresh (which reloads via the single-board
+          // endpoint that DOES include permissions). If the session user owns it, edit
+          // directly. Also clears any stale copy_on_save flag so a previous non-owner edit
+          // attempt's leftover flag can't trigger the copy flow on this owner's save.
+          var owner_name = _this.get('model.user_name') || ((_this.get('model.key') || '').split('/')[0]);
+          var session_name = _this.get('app_state.sessionUser.user_name');
+          var owns_board = !!(owner_name && session_name && owner_name === session_name);
+          if(_this.get('model.permissions.edit') || owns_board) {
             _this.get('stashes').persist('copy_on_save', null);
             enterEditNow();
             return;
@@ -6959,6 +6986,19 @@ export default Controller.extend(prefClasses, {
       if(this.get('left_panel_collapsed')) {
         this.set('left_panel_collapsed', false);
       }
+    },
+
+    // Collapsed left-panel SEARCH magnifier: expand the panel and drop the cursor into the
+    // search field. When collapsed the input is hidden, so we expand first, then focus after a
+    // beat (runLater) once the input has un-hidden. Focusing when already expanded is a no-op on
+    // an already-focused input, so it's safe to run in both states.
+    open_board_search_panel: function() {
+      var was_collapsed = this.get('left_panel_collapsed');
+      if(was_collapsed) { this.set('left_panel_collapsed', false); }
+      runLater(function() {
+        var input = document.getElementById('board-edit-panel-search');
+        if(input && typeof input.focus === 'function') { input.focus(); }
+      }, was_collapsed ? 80 : 0);
     },
 
     /* Right panel: open one accordion section at a time (clicking

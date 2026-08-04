@@ -701,6 +701,8 @@
   "swatch_contrast": "Contrast",
   "select_user_for_reports": "Select User for Reports",
   "board_detail_landscape_recommended": "Landscape mode recommended",
+  "board_detail_larger_screen_recommended": "Larger screen recommended",
+  "board_detail_larger_screen_explanation": "Boards this size are easier to view and edit on a larger screen. Consider switching to a larger device.",
   "board_detail_continue_anyway": "Continue Anyway",
   "touch": "Touch",
   "partner_assisted_scanning": "Partner-Assisted Scanning",

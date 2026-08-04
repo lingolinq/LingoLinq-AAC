@@ -1,4 +1,4 @@
-<div class="md-shell md-shell--board-detail {{if this.edit_mode 'md-shell--board-detail-edit'}} {{if this.board_collapsed 'md-shell--board-collapsed'}} {{if this.paint_mode 'md-shell--board-paint'}} {{if this.dark_mode 'md-board-detail--dark'}} {{if this.model.integration 'md-shell--board-detail-integration'}} {{if this.model.public 'md-shell--board-public'}} {{if this.portrait_overlay_active 'md-shell--portrait-locked'}} {{if this.immersive_tools 'md-shell--immersive-tools'}} {{if this.board_collection_open 'md-shell--board-collection'}} {{if this.edit_board_collection_open 'md-shell--board-collection-left'}} {{this.word_suggestion_position_class}}">
+<div class="md-shell md-shell--board-detail {{if this.edit_mode 'md-shell--board-detail-edit'}} {{if this.board_collapsed 'md-shell--board-collapsed'}} {{if this.paint_mode 'md-shell--board-paint'}} {{if this.dark_mode 'md-board-detail--dark'}} {{if this.model.integration 'md-shell--board-detail-integration'}} {{if this.model.public 'md-shell--board-public'}} {{if this.portrait_overlay_active 'md-shell--portrait-locked'}} {{if this.immersive_tools 'md-shell--immersive-tools'}} {{if this.board_collection_open 'md-shell--board-collection'}} {{if this.edit_board_collection_open 'md-shell--board-collection-left'}} {{if this.board_many_columns 'md-shell--many-columns'}} {{this.word_suggestion_position_class}}">
   {{!-- Landscape-orientation overlay (feature: portrait_orientation_overlay).
        At ≤640px with >8 button columns, the board behind is dimmed +
        blurred + frozen (see .md-shell--portrait-locked) and this premium
@@ -9,39 +9,17 @@
       <div class="md-board-detail-portrait-overlay__card">
         <span class="md-board-detail-portrait-overlay__accent" aria-hidden="true"></span>
         <div class="md-board-detail-portrait-overlay__phone" aria-hidden="true">
-          {{!-- Clean clockwise quarter-arc (12→3 o'clock, centred on the
-               phone) tracing where the top edge travels as it rotates
-               portrait → landscape; arrowhead points down at the 3-o'clock
-               end (the clockwise direction of travel). --}}
-          <svg class="md-board-detail-portrait-overlay__phone-arc" width="76" height="76" viewBox="0 0 76 76" fill="none" aria-hidden="true">
-            <defs>
-              <linearGradient id="md-rot-grad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="#5ED0C0"/>
-                <stop offset="100%" stop-color="#1C7E72"/>
-              </linearGradient>
-              <filter id="md-rot-shadow" x="-60%" y="-60%" width="220%" height="220%">
-                <feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="#2A9D8F" flood-opacity="0.5"/>
-              </filter>
-            </defs>
-            <g filter="url(#md-rot-shadow)" fill="none" stroke-linecap="round" stroke-linejoin="round">
-              {{!-- Faint static track gives the sweep a path to ride. The
-                   curve bows outward over the top-right corner then
-                   descends down the right side, well clear of the phone
-                   in BOTH portrait and (widest) landscape footprints. --}}
-              <path class="md-board-detail-portrait-overlay__arc-track" d="M34 14 C62 8 75 34 65 48" stroke="currentColor" stroke-width="3" stroke-opacity="0.20"/>
-              {{!-- Bright gradient "comet" segment that sweeps along the arc. --}}
-              <path class="md-board-detail-portrait-overlay__arc-comet" d="M34 14 C62 8 75 34 65 48" pathLength="100" stroke="url(#md-rot-grad)" stroke-width="3.5"/>
-              {{!-- Arrowhead pops in at the descending tip as the sweep lands. --}}
-              <polyline class="md-board-detail-portrait-overlay__arc-head" points="59 42 65 48 71 42" stroke="url(#md-rot-grad)" stroke-width="3.5"/>
-            </g>
-          </svg>
-          <svg class="md-board-detail-portrait-overlay__phone-svg" width="76" height="76" viewBox="0 0 76 76" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="30" y="24" width="16" height="28" rx="4.5"/>
-            <line x1="35" y1="47" x2="41" y2="47"/>
+          {{!-- Larger-screen icon: a monitor (bigger display) on a stand. Replaces the former
+               rotate-to-landscape animation now that the recommendation is about DEVICE SIZE,
+               not orientation. --}}
+          <svg class="md-board-detail-portrait-overlay__phone-svg" width="76" height="76" viewBox="0 0 76 76" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="12" y="16" width="52" height="34" rx="4.5"/>
+            <line x1="29" y1="59" x2="47" y2="59"/>
+            <line x1="38" y1="50" x2="38" y2="59"/>
           </svg>
         </div>
-        <h2 class="md-board-detail-portrait-overlay__title" id="md-portrait-overlay-title">{{t "Landscape mode recommended" key="board_detail_landscape_recommended"}}</h2>
-        <p class="md-board-detail-portrait-overlay__desc" id="md-portrait-overlay-desc">{{t "This communication board is optimized for landscape viewing to preserve consistent button locations and AAC motor planning." key="board_detail_landscape_explanation"}}</p>
+        <h2 class="md-board-detail-portrait-overlay__title" id="md-portrait-overlay-title">{{t "Larger screen recommended" key="board_detail_larger_screen_recommended"}}</h2>
+        <p class="md-board-detail-portrait-overlay__desc" id="md-portrait-overlay-desc">{{t "Boards this size are easier to view and edit on a larger screen. Consider switching to a larger device." key="board_detail_larger_screen_explanation"}}</p>
         <div class="md-board-detail-portrait-overlay__actions">
           <button type="button" class="md-board-detail-portrait-overlay__btn md-board-detail-portrait-overlay__btn--secondary" data-bd-action="dismiss_portrait_overlay" {{on "click" (this.ctrlAction "dismiss_portrait_overlay")}}>{{t "Continue Anyway" key="board_detail_continue_anyway"}}</button>
         </div>
@@ -329,7 +307,7 @@
                update_board_search + clear_board_search (the same state
                the toolbar's existing search input writes to), so the
                grid filter "just works" with no controller changes. --}}
-          <div class="md-board-edit-panel__search">
+          <div class="md-board-edit-panel__search" role="search" {{on "click" (this.ctrlAction "open_board_search_panel")}}>
             {{!-- Two-tone: verdigris lens, charcoal handle. --}}
             <svg class="md-board-edit-panel__search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="11" cy="11" r="8" stroke="#2A9D8F"/>
@@ -2875,18 +2853,6 @@
                       </span>
                     </button>
                     <button type="button" role="radio"
-                      aria-checked={{if (is-equal this.folder_display_style "tab_labels") "true" "false"}}
-                      class="md-folder-style-option {{if (is-equal this.folder_display_style 'tab_labels') 'md-folder-style-option--active'}}"
-                      {{on "click" (this.ctrlAction "set_folder_style" "tab_labels")}}>
-                      <span class="md-folder-style-option__icon" aria-hidden="true">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
-                      </span>
-                      <span class="md-folder-style-option__label">{{t "Show Labels on Tab" key="board_detail_folder_tab_labels"}}</span>
-                      <span class="md-folder-style-option__check" aria-hidden="true">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"/></svg>
-                      </span>
-                    </button>
-                    <button type="button" role="radio"
                       aria-checked={{if (is-equal this.folder_display_style "colored_corner") "true" "false"}}
                       class="md-folder-style-option {{if (is-equal this.folder_display_style 'colored_corner') 'md-folder-style-option--active'}}"
                       {{on "click" (this.ctrlAction "set_folder_style" "colored_corner")}}>
@@ -2894,6 +2860,18 @@
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M21 3l-6 6" stroke-width="3"/></svg>
                       </span>
                       <span class="md-folder-style-option__label">{{t "Colored Corner Tab" key="board_detail_folder_colored_corner"}}</span>
+                      <span class="md-folder-style-option__check" aria-hidden="true">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"/></svg>
+                      </span>
+                    </button>
+                    <button type="button" role="radio"
+                      aria-checked={{if (is-equal this.folder_display_style "tab_labels") "true" "false"}}
+                      class="md-folder-style-option {{if (is-equal this.folder_display_style 'tab_labels') 'md-folder-style-option--active'}}"
+                      {{on "click" (this.ctrlAction "set_folder_style" "tab_labels")}}>
+                      <span class="md-folder-style-option__icon" aria-hidden="true">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+                      </span>
+                      <span class="md-folder-style-option__label">{{t "Show Labels on Tab" key="board_detail_folder_tab_labels"}}</span>
                       <span class="md-folder-style-option__check" aria-hidden="true">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"/></svg>
                       </span>
