@@ -45,17 +45,41 @@ module ExtraData
             res = upload_remote_data(public_extra_data, public_path, 'public')
           end
 
-          if res != :nothing && self.is_a?(BoardDownstreamButtonSet)
+          # Only :uploaded and :confirmed mean a remote copy actually exists.
+          # :throttled and :nothing both mean it does not, so neither may be
+          # treated as a stored revision or used to justify dropping the local
+          # copy -- for ANY record type. The old rule keyed off the record class
+          # instead, on the theory that a button set is always regenerable; the
+          # empty-button-set incident showed regeneration hits the same trap.
+          stored_remotely = (res == :uploaded || res == :confirmed)
+          if stored_remotely && self.is_a?(BoardDownstreamButtonSet)
             self.data['extra_data_revision'] = self.data['full_set_revision']
           end
-          if self.is_a?(LogSession) && (res == :nothing || res == :throttled)
-            # log sessions should save to the db if upload fails, as there's
-            # no way to regenerate the un-uploaded data
-          else
+          if stored_remotely
             self.data.delete(extra_data_attribute)
+          else
+            # This record now holds the only copy, so put it back inline before
+            # saving. Skipping the delete is NOT enough: for a button set over the
+            # stash threshold, generate_defaults has already moved the buttons out
+            # of self.data into @cached_extra_data (see
+            # BoardDownstreamButtonSet#generate_defaults), so the row would still
+            # persist with no buttons and a stale button_count.
+            self.data[extra_data_attribute] = extra_data
           end
           # persist the nonce and the url, remove the big-data attribute
           self.data['extra_data_version'] = extra_data_version
+          @skip_extra_data_update = true
+          self.save
+          @skip_extra_data_update = false
+        elsif self.data[extra_data_attribute] == nil
+          # Upload skipped because a retry is already scheduled (or the board is
+          # gone), but generate_defaults has already pulled the buttons out of
+          # self.data into @cached_extra_data. The caller's own save right after
+          # this -- update_for does exactly that -- would otherwise persist a row
+          # with no buttons. Write the only copy back and save it inline.
+          # @skip_extra_data_update brackets the save so the before_save
+          # generate_defaults cannot immediately re-stash and re-delete it.
+          self.data[extra_data_attribute] = extra_data
           @skip_extra_data_update = true
           self.save
           @skip_extra_data_update = false
@@ -113,6 +137,15 @@ module ExtraData
       end
       return res[:uploaded] ? :uploaded : :confirmed
     end
+    # remote_upload only hands back a path after it either uploaded the object or
+    # verified a byte-identical one already sits at that path
+    # (check_existing_upload matched on checksum, then touched it). Either way the
+    # remote copy is present, so this is a confirmed detach, not a no-op. The
+    # branch above is skipped here only because no bookkeeping changed -- same
+    # path, same checksum -- which is exactly why the CDN pointers are left alone.
+    # Reserve :nothing for "no upload happened at all" (res nil), since callers
+    # use it to decide whether it is safe to discard the only local copy.
+    return :confirmed if res && res[:path]
     return :nothing
   end
 

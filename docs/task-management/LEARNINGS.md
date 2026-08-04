@@ -36,6 +36,7 @@ file (see [README.md](README.md)).
 - [Pattern: phased board prefetch — shared planner, dual persistence files](#pattern-phased-board-prefetch--shared-planner-dual-persistence-files)
 - [Pattern: board-detail `/tree` blocks paint on the full descendant payload](#pattern-board-detail-tree-blocks-paint-on-the-full-descendant-payload)
 - [Pattern: board-preview latency is cold-cache, not the loading gate — warm on intent](#pattern-board-preview-latency-is-cold-cache-not-the-loading-gate--warm-on-intent)
+- [Pattern: boards-page Mine list — cache-first paint, atomic background refresh](#pattern-boards-page-mine-list--cache-first-paint-atomic-background-refresh)
 - [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
 - [Gotcha: sync double `modal.open` — the *second* template wins; do not invent write-loss on the winner](#gotcha-sync-double-modalopen--the-second-template-wins-do-not-invent-write-loss-on-the-winner)
 - [Gotcha: Shepherd modal overlay is VISUAL-ONLY; canClickTarget:false makes the target click "fall through"](#gotcha-shepherd-modal-overlay-is-visual-only-canclicktargetfalse-makes-the-target-click-fall-through)
@@ -119,6 +120,9 @@ file (see [README.md](README.md)).
 - [Gotcha: fail-closed Sentry filters must not collapse lookup failures to nil](#gotcha-fail-closed-sentry-filters-must-not-collapse-lookup-failures-to-nil)
 - [Gotcha: dual-key tag reads — check each key independently, never `a || b` before coercion](#gotcha-dual-key-tag-reads--check-each-key-independently-never-a--b-before-coercion)
 - [Gotcha: Flusher `transfer_user_content` is not a checklist for `flush_user_content`](#gotcha-flusher-transfer_user_content-is-not-a-checklist-for-flush_user_content)
+- [Gotcha: set-field on nested model fields needs nested observer deps (videoChanged pattern)](#gotcha-set-field-on-nested-model-fields-needs-nested-observer-deps-videochanged-pattern)
+- [Gotcha: embed-frame `data-user_token` is UserIntegration#user_token, not User#user_token](#gotcha-embed-frame-data-user_token-is-userintegrationuser_token-not-useruser_token)
+- [Gotcha: private uploads bucket — server-side OBZ/OBF import must use signed_internal_url](#gotcha-private-uploads-bucket--server-side-obzobf-import-must-use-signed_internal_url)
 
 ---
 
@@ -296,6 +300,16 @@ Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` c
 **Diag:** `localStorage.ll_board_cache_diag=1` → [`board_cache_diag.js`](../../app/frontend/app/utils/board_cache_diag.js) marks on board-detail.
 
 **First seen in:** [2026-07-23-speak-mode-board-cache-latency.md](./2026-07-23-speak-mode-board-cache-latency.md)
+
+## Pattern: boards-page Mine list — cache-first paint, atomic background refresh
+
+**Surface:** `/:user/boards` overlay gated on `model.my_boards.done` ([`user/boards.hbs`](../../app/frontend/app/templates/user/boards.hbs)); list load in [`generate_or_append_to_list`](../../app/frontend/app/controllers/user/index.js).
+
+**Gotcha:** Re-entering the boards page always re-queried `store.query('board', { user_id })`. Streaming partial pages onto `model.my_boards` cleared `.done` until the last page, so a background refetch re-showed “Preparing your workspace.” Server Redis on boards index only caches public search, not Mine `user_id` lists.
+
+**Fix recipe:** (1) Persist a compact Mine snapshot in localStorage ([`boards_page_list_cache.js`](../../app/frontend/app/utils/boards_page_list_cache.js), 10m TTL). (2) Hydrate in [`routes/user/boards.js`](../../app/frontend/app/routes/user/boards.js) before `update_selected`. (3) When the visible list is already usable (`Array` + `.done`), accumulate pages in a side buffer and atomically swap only on the final page; never set `{loading:true}` over a usable empty list. (4) Clear snapshots in `appState.clear_user_state`. Distinct from `board_detail_cache` (speak `/tree`).
+
+**First seen in:** [2026-08-03-boards-page-cache-first.md](./2026-08-03-boards-page-cache-first.md)
 
 ## Pattern: supervisor caseload session prefetch reuses board_detail_cache, not offline sync
 
@@ -7447,8 +7461,10 @@ share one code path. (2) The prompt-injection guard must scan **each chunk's own
 that chunk's reviewer actually saw), not a single global diff. (3) Make the cap/limit/concurrency
 repo `vars.` (`CODEX_MAX_DIFF_BYTES`, `CODEX_MAX_DIFF_CHUNKS`, `CODEX_REVIEW_CONCURRENCY`) so the
 tooling owner can tune runner cost/time without a code change. (4) Parallelizing the chunk loop is
-what keeps a large PR under the 30-min watchdog — serial passes (up to MAX_CHUNKS × 3 codex runs)
-can otherwise time out, which is still fail-closed but defeats the point of reviewing the big PR.
+what keeps a large PR under the watchdog's 30-minute staleness threshold — serial passes (up to
+MAX_CHUNKS × 3 codex runs) can otherwise go stale, which is still fail-closed but defeats the point
+of reviewing the big PR. (Threshold, not deadline: the watchdog acts once a status is 30 min old AND
+a sweep runs, and sweep timing is best-effort. See issue #710.)
 Files: `scripts/codex-review-chunk-diff.py`, `codex-review-one-chunk.sh` (per-chunk worker, both
 routes), `codex-review-assemble-manifest.py`, `codex-review-build-envelope.py` (`fold_across_chunks`
 + `--manifest`), `.github/workflows/codex-review.yml`.
@@ -7883,6 +7899,18 @@ feature reports "configured" then fails AccessDenied at invoke time.
    `Bedrock::Client` uses `aws_secret_key` — do not rename based on that older API.
 4. Provision a separate Bedrock Mantle IAM user + policy
    (`scripts/gcp/iam/lingolinq-bedrock-mantle-policy.json`); do not bolt invoke onto the S3/SES policy.
+5. Operator/dev diagnostics that list required env vars must mention **both** accepted
+   credential pairs (dedicated Bedrock + standard SDK). Omitting the SDK pair misleads
+   local setups that already have `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` and only
+   need a region. Keep calling out that `AWS_KEY`/`AWS_SECRET` are not accepted.
+6. **The two Bedrock planes are not interchangeable** (learned 2026-08-01). `bedrock-mantle`
+   and classic `bedrock-runtime` carry DIFFERENT model catalogs and SEPARATE entitlements.
+   Account 239044785114 is entitled only to classic; Mantle 403s every model even with admin
+   credentials and `bedrock-mantle:CreateInference` on `Resource: "*"`, so a 403 there is an
+   entitlement fact, not an IAM bug. Classic additionally REJECTS bare foundation-model ids
+   ("on-demand throughput isn't supported") and requires the `us.` cross-region inference-profile
+   form. Opus 4.7 is absent from the classic catalog entirely. Select the plane with
+   `BEDROCK_PLANE`; `AiClient.bedrock_model` maps the alias to the plane's wire id.
 
 Evidence: `lib/ai_client.rb`, `spec/lib/ai_client_spec.rb`,
 `docs/task-management/2026-07-27-ai-client-bedrock-credential-review.md`.
@@ -8048,3 +8076,57 @@ that rebuild to zero.
 
 **First seen in:** `2026-08-01-prod-empty-button-sets.md` (PR #724)
 
+---
+
+## Flaky async test at ~position 595 (`ai_word_predictor` / `app_state`) — same singleton-pollution class, module not yet fenced (documented finding, no fix applied)
+
+**Symptom:** an intermittent failure that lands on either `ai_word_predictor` (~#595,
+"resolve cached predictions without duplicate fetches") or the adjacent `app_state`
+"inject settings" (~#597). Position hops run-to-run; **both pass in isolation**. This is
+the same flake *class* as the 2026-07-22 persistence-sync entry (shared-singleton async
+pollution: a prior test's late async bleeds into a later test) — but in a **different
+module** that the shipped persistence-sync fence/retry does **not** cover.
+
+**Why these two are the victims:** `ai_word_predictor-test` sorts immediately before
+`app_state-test` (`ai…` < `app…`), so a leaked async from an `ai_word_predictor` test
+fires during a later `ai_word_predictor` test *or* spills into the first `app_state` test.
+
+**Verified pollution surface (`app/utils/ai_word_predictor.js`):**
+- Module-level shared state: `_cache`, `_pending_timer`, `_pending_reject`.
+- The debounce `_pending_timer` (scheduled via `runLater`) fires `_fetch()` →
+  **real `persistence.ajax`**; `ai_word_predictor-test.js` does **not** stub ajax.
+- `clear_cache()` (the test's `beforeEach`) resets **only `_cache`** — it does NOT cancel
+  `_pending_timer` / null `_pending_reject`.
+- `cancelHarnessAsyncWork()` (jasmine `afterEach`, `tests/helpers/sync-test-cleanup.js`)
+  cancels persistence's `eventual_store_timer` but **knows nothing about `ai_word_predictor`**.
+- Net: an `ai_word_predictor` debounce timer / in-flight `_fetch` XHR is fenced by nothing,
+  so it resolves late onto whatever test is running.
+
+**Recommended fix (NOT yet applied — needs the LEARNINGS ≥30-iteration verification budget):**
+a **post-test** fence (never a `beforeEach` pre-cancel — that's a documented dead end from
+the persistence-sync entry): in `cancelHarnessAsyncWork()` cancel
+`ai_word_predictor._pending_timer` + null `_pending_reject`, and **stub `persistence.ajax`**
+in `ai_word_predictor-test.js` so `_fetch` never leaves a real XHR in flight. Test-harness
+only; production untouched — matches the shipped epoch-fence philosophy. A pragmatic
+alternative is extending the name-gated auto-retry in `jasmine.js` to also cover
+`ai_word_predictor` / `app_state` (masks rather than fixes).
+
+**Verification burden (why left as a finding):** per the persistence-sync entry, trusting
+any fix here requires ≥30 full-suite iterations (~15 min each); 15 green runs prove nothing.
+
+**First seen in:** this branch's CI (`traci/styling/styling-updates`), 2026-08-03. Related:
+the 2026-07-22 persistence-sync epoch-fencing entry.
+
+---
+
+## Gotcha: set-field on nested model fields needs nested observer deps (videoChanged pattern)
+
+`editManager.change_button` sync observers that watch only an object reference (`observer('model.book', …)`) do **not** refire when `set-field` mutates nested properties on that object. The video path already documents and implements this (`button-settings.js` `videoChanged` observes `model.video` + `model.video.popup|start|end`). Restoring TarHeel book checkboxes with `set-field` alone is incomplete unless `bookChanged` also observes `model.book.popup` / `.speech` / `.utterance` (or each control calls `change_button`). Separately: TarHeel init defaults are asymmetric — `speech: false`, `utterance: true` (`utils/button.js:163-175`) — so register impact text must not say both default falsy. Ref: [`2026-08-02-ember-register-book-options-codex-fixes.md`](./2026-08-02-ember-register-book-options-codex-fixes.md).
+
+## Gotcha: embed-frame `data-user_token` is UserIntegration#user_token, not User#user_token
+
+Two different credentials share the name `user_token`. `User#user_token` is a permanent HMAC of `global_id` (login-serialized via `lib/json_api/user.rb`). Embed-frame's `data-user_token` is **not** that: `board.js` reads `tool.get('user_token')` from the integration serializer, which mints `UserIntegration#user_token` (integration-scoped, obfuscated user id + integration id + sig). When scoping permanent-token findings (e.g. LL-90045bb29c residual), do not fold embed-frame into `User#user_token` blast radius without verifying the mint site. Ref: [`2026-08-03-ll-90045bb29c-narrow-close.md`](./2026-08-03-ll-90045bb29c-narrow-close.md).
+
+## Gotcha: private uploads bucket — server-side OBZ/OBF import must use signed_internal_url
+
+`lingolinq-prod-uploads` blocks public access. Browser upload (SigV4 POST) can succeed while the worker-side import still fails: `Converters::Utils.remote_to_boards` used to `SafeHttp.get` the raw `https://bucket.s3.amazonaws.com/...` URL, get a 403 XML body, then feed it to rubyzip → misleading `Zip end of central directory signature not found` at progress ~0.22 / `processing_file`. JSON bundle import already signed via `Uploader.signed_internal_url` (`lib/converters/api_json_bundle.rb`); OBF/OBZ import and `Uploader.remote_zip` must do the same, and raise on non-success HTTP before parsing. Ref: [`2026-08-04-obz-import-signed-fetch.md`](./2026-08-04-obz-import-signed-fetch.md).
