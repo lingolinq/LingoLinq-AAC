@@ -6,6 +6,40 @@ comment. The workflow keeps routing, head-SHA binding, and final status
 resolution in CI-owned fields so model output cannot choose which PR or commit
 receives the result.
 
+## Approved reviewer models
+
+Mirrored here from the company approved-reviewer registry so the pin in
+`scripts/codex-review-run-chunks.py` cites something resolvable from inside this
+repo. The registry is the source of truth; changing a model here without
+amending it there is registry drift. Approval authority is Scot.
+
+| Row | Credential | Approved model ids | Tier |
+| --- | --- | --- | --- |
+| Codex CLI (CI `codex-review` gate) | OpenAI platform API key, pay-per-use, project-scoped, no BAA | `gpt-5.6-terra` (default), `gpt-5.6-luna` | Tier 2 dev-loop only |
+| Codex CLI (interactive / local) | Consumer OpenAI OAuth, no BAA | `gpt-5.6-terra` (default), `gpt-5.6-sol` (careful) | Tier 2 dev-loop only |
+
+`gpt-5.6-sol` is approved for the interactive row ONLY and must not be used by
+this workflow.
+
+**Both legs of the chunked path run `gpt-5.6-terra`.** The chunk leg is the only
+leg that reads the diff; synthesis sees model-authored chunk summaries and the
+CI-computed structural index, never raw code. A defect the chunk pass misses is
+therefore unreachable to synthesis, so detection strength has to live on the
+chunk leg. Convergence does not substitute for it: runs 2 and 3 re-sample the
+same model on the same prompt, which corrects sampling variance, not a blind
+spot. `gpt-5.6-luna` remains registry-approved as an A/B comparison arm; putting
+it on the production detection path is what `CODEX_CHUNK_MODEL` is for, and any
+such change should be treated as a reviewer-strength change, not a config tweak.
+
+Both ids are overridable at runtime via the repo variables `CODEX_CHUNK_MODEL`
+and `CODEX_SYNTHESIS_MODEL`, which exist so a bad pin can be corrected without
+shipping a PR through the gate the pin is breaking. The models actually used are
+recorded in the W2 envelope as `chunk_model` / `synthesis_model`.
+
+Note that `CODEX_REVIEW_CHUNKED_SCOPE` decides who reaches this path at all (see
+Evidence modes below), so a change here does not necessarily apply to every
+author's PRs.
+
 ## Evidence modes
 
 `CODEX_REVIEW_EVIDENCE_MODE` controls the diff evidence strategy:

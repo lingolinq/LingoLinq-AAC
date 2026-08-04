@@ -387,6 +387,11 @@ jobs:
         if: steps.classify.outputs.reviewer_route == 'codex' && env.CODEX_REVIEW_EVIDENCE_MODE == 'chunked'
         env:
           CODEX_HOME: ${{ runner.temp }}/codex-home
+          # Escape hatch: a bad model pin would otherwise only be fixable by a PR
+          # that has to pass the gate it is breaking. Empty/unset falls back to
+          # the DEFAULT_* constants in the script.
+          CODEX_CHUNK_MODEL: ${{ vars.CODEX_CHUNK_MODEL }}
+          CODEX_SYNTHESIS_MODEL: ${{ vars.CODEX_SYNTHESIS_MODEL }}
         run: |
           python3 scripts/codex-review-run-chunks.py \
             --evidence-dir /tmp/codex-review-evidence \
@@ -397,6 +402,20 @@ jobs:
             --repository "${{ github.repository }}" \
             --run-url "${RUN_URL}" \
             --heartbeat
+          # Surface the models actually used so the envelope can record which
+          # approved reviewer produced the verdict. Values originate from a repo
+          # variable, so restrict them to a model-id charset before they reach
+          # GITHUB_ENV: a value carrying a newline would otherwise be able to
+          # define arbitrary further environment variables.
+          sanitize_model_id() {
+            printf '%s' "$1" | tr -cd 'A-Za-z0-9._-' | cut -c1-64
+          }
+          chunk_model="$(jq -r '.chunk_model // ""' /tmp/codex-review-results/run-summary.json)"
+          synthesis_model="$(jq -r '.synthesis_model // ""' /tmp/codex-review-results/run-summary.json)"
+          {
+            echo "CODEX_CHUNK_MODEL_EFFECTIVE=$(sanitize_model_id "$chunk_model")"
+            echo "CODEX_SYNTHESIS_MODEL_EFFECTIVE=$(sanitize_model_id "$synthesis_model")"
+          } >> "$GITHUB_ENV"
 
       - name: Run reviewer (Claude Sonnet 4.6 API, Tier 2 claude-deep route)
         id: review_claude_deep
