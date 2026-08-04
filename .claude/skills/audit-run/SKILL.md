@@ -120,6 +120,14 @@ ruby scripts/audit-merge.rb \
 The merge NEVER sets `verified-closed` and NEVER downgrades an existing finding. New findings
 land as `open`; regressions land as `open` with `regression: true` and a loud note for Scot.
 
+> **`--sha` restamps `meta.auditedSha` — that is correct HERE and nowhere else.** This is a
+> whole-tree scan, so the audit pointer legitimately moves to the audited commit (a governance act:
+> record the move and the intervening-commit analysis in `meta.auditedShaPriorNote` for Scot's
+> sign-off). If you are adding a finding OUTSIDE a full `/audit-run`, add `--no-restamp` so evidence
+> anchors at the true commit while `meta` stays untouched. Never pass the register's existing
+> `auditedSha` to dodge the restamp: that anchors the new evidence to a commit it was never verified
+> against and passes citation-check green whenever the line numbers happen to coincide.
+
 ## Step 4: Adversary verification (fresh context per batch)
 For each NEW or REGRESSED finding (from the merge summary), spawn the brain `adversary` agent
 with a fresh context to independently confirm it before it is treated as real. Batch by domain

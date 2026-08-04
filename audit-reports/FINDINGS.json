@@ -2446,7 +2446,7 @@
         "rationale": "Bind the consent gate subject to the eval payload actually egressed; Phase 1B server-side eval persistence follow-up."
       },
       "source": {
-        "kind": "audit",
+        "kind": "pr-review",
         "pr": 412,
         "reviewer": "adversary",
         "promotedDate": "2026-06-17"
@@ -3172,7 +3172,7 @@
         "rationale": "Accepted, but remediation is owned by the Render-to-GCP migration thread (infra cutover work). Tracked here; not changed in the compliance thread."
       },
       "source": {
-        "kind": "audit-review",
+        "kind": "manual",
         "pr": null,
         "reviewer": "claude-compliance-officer",
         "promotedDate": "2026-06-23"
