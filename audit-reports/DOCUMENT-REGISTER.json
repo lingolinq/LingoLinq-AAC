@@ -615,7 +615,7 @@
         "note": "Re-attested 2026-08-04 by Scot Wahlquist. Scope: the runtime-AI operational-status correction in PR #725. The prior corpus stated the Bedrock path was dormant and that no lingolinq-web revision carried a Bedrock credential; that was accurate when written and expired 2026-08-03T08:23:02Z when revision 00013-76w mounted BEDROCK_AWS_KEY/SECRET. The corpus now states a closed window: not operational to 2026-08-03T08:23Z, operational to 2026-08-04T06:31Z (one internal verification call, no user or student data), not operational since. Verified live: sts:GetCallerIdentity returned 239044785114 (user/lingolinq-bedrock-runtime)."
       },
       "correctionNote": "CORRECTION 2026-08-02, SUPERSEDED 2026-08-04 (not an attestation; only Scot attests). The 2026-08-02 note said Bedrock 'has never been operational in production' and that runtime AI had been dormant since 00011-l7f. That was accurate through revision 00012-x8z and expired 2026-08-03T08:23:02Z, when 00013-76w mounted the Bedrock credentials. Correct statement: not operational through 00012-x8z; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z with one logged seam call completed (internal verification, no user or student data); not operational since 00014-5rw. Re-attested by Scot Wahlquist 2026-08-04; the earlier 'Re-attestation owed' note is discharged.",
-      "contentHash": "f4dd6bdaaeec14ec71b23a57bb6eb7f18d11a2faf689e7b2fc9dc5872be2f589",
+      "contentHash": "df27913ca1b25a17de790f6edd4c6c1db118a70172ffe5620753625a15171cf4",
       "bundles": [
         "compliance-records-set-2026-06",
         "security-review"
@@ -1057,7 +1057,7 @@
       ],
       "notes": "Parity with the AWS (docs/legal/AWS_BAA_ACCEPTED.md) and GCP (docs/legal/GCP_BAA_ACCEPTED.md) acceptance records. Model-provider BAA for the Anthropic runtime egress path; supersedes the prior 'no model-provider BAA / provisional pending CEO review' posture in COMPLIANCE.md, SUBPROCESSORS.md row 4, GCP_BAA_ACCEPTED.md, and AI_GOVERNANCE_MEMO.md (all reconciled in the same PR). Live enablement verified 2026-07-18 (Messages API 200; Files API 400 'not available for HIPAA-regulated organizations without Zero Data Retention'). Attested by Scot Wahlquist 2026-07-18 per explicit confirmation; git contentHash computed and CI-verified. The broader AI_GOVERNANCE_MEMO body was fully updated and re-attested by Scot Wahlquist on 2026-07-19 in the AI governance memo re-attestation PR.",
       "id": "DOC-ab3a8c3ed4",
-      "contentHash": "ef1d796743065e554e8e4cfcd9b754db101e3ea8b27bb31d1c8890f3bf8e59ee",
+      "contentHash": "37db48638695ecaebc685e0368caf8085f886c90bcaae5f6272d651ab37a659a",
       "retention": {
         "class": "executed-agreement",
         "rule": "term + 7 years",
@@ -1092,7 +1092,7 @@
         "note": "Re-attested 2026-08-04 by Scot Wahlquist. Scope: the runtime-AI operational-status correction in PR #725. The prior corpus stated the Bedrock path was dormant and that no lingolinq-web revision carried a Bedrock credential; that was accurate when written and expired 2026-08-03T08:23:02Z when revision 00013-76w mounted BEDROCK_AWS_KEY/SECRET. The corpus now states a closed window: not operational to 2026-08-03T08:23Z, operational to 2026-08-04T06:31Z (one internal verification call, no user or student data), not operational since. Verified live: sts:GetCallerIdentity returned 239044785114 (user/lingolinq-bedrock-runtime). ALSO ATTESTED: a new operational-window section, and an AiApiLog scoping note stating that a zero-row result establishes only that no logged seam call completed, which is narrower than 'no egress'."
       },
       "correctionNote": "CORRECTION 2026-08-02, SUPERSEDED 2026-08-04 (not an attestation; only Scot attests). The 2026-07-27 attestation note asserted the deployed lingolinq-web credential was verified to resolve to AWS account 2390-4478-5114. That verification is RETRACTED and stays retracted: it was false when made, and no revision from 00001-2vn (2026-06-29) through 00012-x8z (2026-08-02T20:31Z) carried a Bedrock credential. The 2026-08-02 wording 'has ever carried' was an unbounded absolute and is corrected to that bounded range, because revision 00013-76w (2026-08-03T08:23:02Z) did mount the credentials. The operative condition was then independently verified for the first time on 2026-08-04 (sts:GetCallerIdentity returned 239044785114, principal user/lingolinq-bedrock-runtime); that verification is dated 2026-08-04 and does not revive the 2026-07-27 claim. The attestation object is left unmodified because it records what was signed. Re-attested by Scot Wahlquist 2026-08-04.",
-      "contentHash": "a39a92f081a9229b611a85174bc1063ba2d8f40f2e95eb7f992473f7bf5b45e1",
+      "contentHash": "69c38d36a89a80b8ea5af920e1219a2b42a6a8addc2be144a4258bee862fb430",
       "bundles": [
         "baa"
       ],

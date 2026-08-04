@@ -461,5 +461,13 @@ operational-status correction in `docs/legal/AWS_BAA_ACCEPTED.md`._
 _Re-attested 2026-07-24 by Scot Wahlquist, CEO (Bedrock runtime routing). Prose corrected 2026-07-27
 to remove a contradictory "re-attestation owed" banner left in the bytes that attestation covered._
 
-_**Re-attestation pending.** Corrected 2026-08-01 by Claude Code to remove the stale completed-egress
-framing and the retracted operative-condition verification. Not an attestation; only Scot attests._
+_Corrected 2026-08-01 by Claude Code to remove the stale completed-egress framing and the retracted
+operative-condition verification, and re-corrected 2026-08-04 to bound the over-corrected
+"never operational" language to the window it actually covers. Those corrections are not
+attestations; only Scot attests._
+
+_**Re-attested 2026-08-04 by Scot Wahlquist, CEO.** The earlier "re-attestation pending" state is
+discharged. This document's attestation now covers the closed-window operational status: not
+operational through `00012-x8z`, operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on `00013-76w`
+(one logged seam call, internal verification, no user or student data), not operational since
+`00014-5rw`._

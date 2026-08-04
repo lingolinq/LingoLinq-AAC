@@ -176,6 +176,9 @@ single internal verification call with no user or student data, and is **not ope
 corrected 2026-07-27 to remove a contradictory "re-attestation owed" banner left in the bytes that
 attestation covered.
 
-**Re-attestation pending.** Corrected 2026-08-01 by Claude Code to remove the stale "active runtime
-route" framing and the retracted operative-condition verification. Not an attestation; only Scot
-attests. See `docs/legal/AWS_BAA_ACCEPTED.md` for the evidence.
+Corrected 2026-08-01 by Claude Code to remove the stale "active runtime route" framing and the
+retracted operative-condition verification, and re-corrected 2026-08-04 to bound the over-corrected
+"never operational" language. Those corrections are not attestations; only Scot attests.
+
+**Re-attested 2026-08-04 by Scot Wahlquist, CEO.** The earlier "re-attestation pending" state is
+discharged. See `docs/legal/AWS_BAA_ACCEPTED.md` for the evidence and the operational window.

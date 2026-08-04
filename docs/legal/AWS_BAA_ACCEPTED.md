@@ -130,8 +130,11 @@ attestation block below):
 **Why it is wrong.** `lib/ai_client.rb` signs Bedrock only with `BEDROCK_AWS_KEY` +
 `BEDROCK_AWS_SECRET`, or with `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY`. It deliberately does
 not fall back to `AWS_KEY` / `AWS_SECRET`, which are the S3/SES least-privilege pair and carry no
-Bedrock invoke permission. None of those four Bedrock-capable variable names is present on any
-revision of `lingolinq-web`.
+Bedrock invoke permission. None of those four Bedrock-capable variable names was present on any
+revision of `lingolinq-web` from `00001-2vn` (2026-06-29) through `00012-x8z` (2026-08-02T20:31Z),
+which is the range this correction covers. `BEDROCK_AWS_KEY` / `BEDROCK_AWS_SECRET` were first
+mounted on `00013-76w` (2026-08-03T08:23:02Z) and withdrawn again on `00014-5rw`
+(2026-08-04T06:31:46Z); see the operational-window section above.
 
 **Evidence (gathered 2026-08-01).**
 
@@ -183,8 +186,14 @@ is the same error the 2026-07-27 claim above made.
 `lib/ai_board_generator.rb:532`, `lib/eval_narrator.rb:330`) with no bypass.
 
 **Operational consequence.** Board generation, word prediction, prediction seeding, and eval
-narration are non-functional in production, and have been since `00011-l7f` deployed
-2026-07-30T16:37Z.
+narration were non-functional in production from `00011-l7f` (2026-07-30T16:37Z) through
+`00012-x8z`, and are non-functional again from `00014-5rw` (2026-08-04T06:31:46Z) onward. They were
+**functional during the single window on `00013-76w`** (2026-08-03T08:23Z to 2026-08-04T06:31Z), in
+which one logged seam call completed: an internal verification call carrying no user or student
+data. Eval narration remained non-functional even in that window, because its default model
+(`anthropic.claude-opus-4-7`) has no classic-plane inference profile and the account is not
+entitled to the mantle plane, so it stays on its deterministic template fallback
+(`lib/eval_narrator.rb:243-249`).
 
 ### AiApiLog verification - 2026-08-02
 
@@ -251,13 +260,30 @@ banner left in the bytes that attestation covered.
 The 2026-07-27 operative-conditions re-attestation is **partially retracted as of 2026-08-01**:
 
 - **Retracted:** "the deployed runtime credential resolves to this account (2390-4478-5114,
-  us-west-2)." Never verifiable; see the correction above.
+  us-west-2)." Not verifiable at any point in the period it covered (2026-07-27 through the
+  2026-08-01 evidence gather, revisions `00001-2vn` to `00011-l7f`), because no Bedrock credential
+  was deployed then. The equivalent condition was first verified on 2026-08-04, during the
+  `00013-76w` window; that is a separate, later finding and does not un-retract this one. See the
+  correction above.
 - **Stands:** Bedrock model-invocation logging is OFF in account 2390-4478-5114, region us-west-2,
   verified 2026-07-27. That check was performed in the AWS account, independently of the
   deployment, and is unaffected by this correction.
 
-**Re-attestation pending.** This correction was prepared 2026-08-01 by Claude Code from the evidence
-above and is **not** an attestation. Per the governance rule in
-`audit-reports/DOCUMENT-REGISTER.json`, only Scot Wahlquist changes a document's attestation. The
-operative-condition claim stays retracted, and this document's attestation stays open, until Bedrock
-is operational and both verification steps above pass.
+**Re-attestation status.** The correction below the 2026-08-01 heading was prepared by Claude Code
+from the evidence above and is **not** an attestation; per the governance rule in
+`audit-reports/DOCUMENT-REGISTER.json`, only Scot Wahlquist changes a document's attestation.
+
+**Discharged 2026-08-04.** Scot Wahlquist re-attested this document on 2026-08-04, so its
+attestation is no longer open. Two things the earlier text made conditional have since happened, and
+they are recorded rather than pending:
+
+- Bedrock became operational on `00013-76w` (2026-08-03T08:23:02Z), and both verification steps
+  passed on 2026-08-04: a Bedrock credential was mounted on the serving revision, and
+  `sts:GetCallerIdentity` under it returned account 239044785114, principal
+  `user/lingolinq-bedrock-runtime`.
+- The retracted 2026-07-27 operative-condition claim **stays retracted**. It was false when made,
+  and the 2026-08-04 verification is a separate, later, correctly-dated finding that does not revive
+  it.
+
+Credentials were withdrawn on `00014-5rw` (2026-08-04T06:31:46Z), so the operative condition is
+again unverifiable and must be re-verified on any future credential mount.

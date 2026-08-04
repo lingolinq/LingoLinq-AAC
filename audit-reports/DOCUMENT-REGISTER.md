@@ -37,7 +37,7 @@
 |---|---|---|---|---|---|---|---|---|---|---|
 | Accessibility Conformance Report (ACR / VPAT) | git | `docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md` | draft | WCAG | Scot Wahlquist | 2026-06-16 | 2026-09-16 | no | `e68ef80b2638` | school-dpa-package, security-review, grant |
 | Accessibility Conformance Report (ACR / VPAT) (branded) | Drive | [open](https://docs.google.com/document/d/1ez60NG2PVKnkcjjbz4NgHOeL_0OcQtVkdhToImcnihs/edit) | draft | WCAG | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | (supplied) | compliance-records-set-2026-06, school-dpa-package |
-| AI Governance Memo | git | `docs/legal/AI_GOVERNANCE_MEMO.md` | published | GDPR, COPPA | Scot Wahlquist | 2026-08-04 | 2026-10-22 | 2026-08-04 | `f4dd6bdaaeec` | compliance-records-set-2026-06, security-review |
+| AI Governance Memo | git | `docs/legal/AI_GOVERNANCE_MEMO.md` | published | GDPR, COPPA | Scot Wahlquist | 2026-08-04 | 2026-10-22 | 2026-08-04 | `df27913ca1b2` | compliance-records-set-2026-06, security-review |
 | AI Governance Memo (branded) | Drive | [open](https://docs.google.com/document/d/1HEuWT7cS5zPmGI-o9SB2zsc1DJgArEAlCgJz0ECJK9U/edit) | published | GDPR, COPPA | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06 |
 | Anthropic Business Associate Agreement (2026-05-06) | Drive | [open](https://drive.google.com/file/d/1sL3di9GRP4hlids-baZDT26n3SKjzwD5/view) | draft | HIPAA | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | (supplied) | baa |
 | AWS Business Associate Agreement (signed PDF) | git | `docs/legal/AWS_BAA_2026-02.pdf` | published | HIPAA | Scot Wahlquist | 2026-05-11 | 2027-05-11 | 2026-02 | `55f28e00168c` | baa |
@@ -53,8 +53,8 @@
 
 | Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Anthropic HIPAA-Ready BAA Acceptance Record | git | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` | approved | HIPAA, GDPR | Scot Wahlquist | 2026-08-04 | 2027-07-18 | 2026-08-04 | `ef1d79674306` | baa |
-| AWS BAA Acceptance Record | git | `docs/legal/AWS_BAA_ACCEPTED.md` | approved | HIPAA | Scot Wahlquist | 2026-08-04 | 2027-05-11 | 2026-08-04 | `a39a92f081a9` | baa |
+| Anthropic HIPAA-Ready BAA Acceptance Record | git | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` | approved | HIPAA, GDPR | Scot Wahlquist | 2026-08-04 | 2027-07-18 | 2026-08-04 | `37db48638695` | baa |
+| AWS BAA Acceptance Record | git | `docs/legal/AWS_BAA_ACCEPTED.md` | approved | HIPAA | Scot Wahlquist | 2026-08-04 | 2027-05-11 | 2026-08-04 | `69c38d36a89a` | baa |
 | COPPA Final-Rule Verification | git | `docs/legal/COPPA_VERIFICATION_2026-04-26.md` | approved | COPPA | Scot Wahlquist | 2026-07-23 | 2026-10-22 | 2026-07-23 | `35a6298e2df5` | school-dpa-package |
 | COPPA Final-Rule Verification (branded) | Drive | [open](https://docs.google.com/document/d/1p_pPVDr6FocvdQ7UjK3ElmPXOlQvRX9n2XdFpiqZeXY/edit) | published | COPPA | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, school-dpa-package |
 | Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14) | Drive | [open](https://docs.google.com/document/d/1CcyQpNfg8aiuY5VA7RHYbYqQEQtzHAdEkjpxcQIhNmM/edit) | draft | HIPAA | Scot Wahlquist | 2026-07-22 | 2027-01-22 | no | (supplied) | baa |
@@ -260,8 +260,8 @@ green build. Verified for git rows only; Drive and Notion hashes are operator-su
 |---|---|---|---|
 | AI Data-Flow Classification | 2026-08-04 | `d9d1adbb8738` | verified |
 | AI Data-Sharing Consent: Rationale and Policy | 2026-08-04 | `8a2db17bdddc` | MISMATCH - re-attestation owed |
-| AI Governance Memo | 2026-08-04 | `f4dd6bdaaeec` | verified |
-| Anthropic HIPAA-Ready BAA Acceptance Record | 2026-08-04 | `ef1d79674306` | verified |
+| AI Governance Memo | 2026-08-04 | `f4dd6bdaaeec` | MISMATCH - re-attestation owed |
+| Anthropic HIPAA-Ready BAA Acceptance Record | 2026-08-04 | `ef1d79674306` | MISMATCH - re-attestation owed |
 | AWS BAA Acceptance Record | 2026-08-04 | `7de3e164fef8` | MISMATCH - re-attestation owed |
 | AWS Business Associate Agreement (signed PDF) | 2026-02 | `55f28e00168c` | verified |
 | Compliance & Data Governance (COMPLIANCE.md) | 2026-08-04 | `72af832942c4` | verified |
