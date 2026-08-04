@@ -148,10 +148,13 @@ Runtime AI routing moved from the direct `api.anthropic.com` endpoint to **Claud
 prediction, prediction seeding, board generation, eval narration) are coded to route through Bedrock
 on the same in-scope models (Haiku 4.5, Opus 4.7).
 
-**Corrected 2026-08-01:** this section previously described the move as completed egress. The
-routing change shipped, but the Bedrock path is **not operational in production** and no runtime
-model egress occurs on any path today. See the correction bullet below and the 2026-08-01 correction
-in `docs/legal/AWS_BAA_ACCEPTED.md`.
+**Corrected 2026-08-01, re-corrected 2026-08-04:** this section previously described the move as
+completed egress, and was then over-corrected to say the Bedrock path had never been operational in
+production. The accurate statement is a closed window: the routing change shipped, the Bedrock path
+was operational only from 2026-08-03T08:23Z to 2026-08-04T06:31Z (revision `00013-76w`), carrying a
+single internal verification call with no user or student data, and is **not operational as of
+2026-08-04**. See the correction bullet below and the 2026-08-04 operational-status correction in
+`docs/legal/AWS_BAA_ACCEPTED.md`.
 
 - **This executed Anthropic HIPAA-Ready BAA remains valid and on file.** It is no longer the *active
   runtime route*; it documents a still-available, BAA-covered direct path. Runtime seams no longer

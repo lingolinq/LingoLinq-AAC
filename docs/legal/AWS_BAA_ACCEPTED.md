@@ -68,9 +68,31 @@ Runtime AI model inference (word prediction, prediction seeding, board generatio
 is **coded to route** to **Amazon Bedrock** under this account-level BAA, replacing the prior direct
 `api.anthropic.com` route (see `docs/legal/ANTHROPIC_BAA_ACCEPTED.md`).
 
-**As of 2026-08-01 that route is not operational in production.** No deployed revision of the Cloud
-Run service `lingolinq-web` carries a Bedrock credential, so `AiClient.configured?` is false and no
-runtime AI seam can egress at all. See the 2026-08-01 correction below.
+**As of 2026-08-04 that route is not operational in production.** No deployed revision of the Cloud
+Run service `lingolinq-web` currently carries a Bedrock credential, so `AiClient.configured?` is
+false and no runtime AI seam can egress.
+
+**Operational window, recorded 2026-08-04.** The route was operational once. Revision `00013-76w`
+(created 2026-08-03T08:23:02Z) mounted `BEDROCK_AWS_KEY` / `BEDROCK_AWS_SECRET`; credentials were
+withdrawn on revision `00014-5rw` (created 2026-08-04T06:31:46Z). Revisions `00011-l7f` and
+`00012-x8z` carried no Bedrock credential, confirming the route was not operational before
+2026-08-03. Exactly one call occurred in the window: an internal verification call at
+2026-08-04T05:44:42Z (`request_type: word_prediction`, no user attached, no user or student data in
+the payload), the first and only row written to `AiApiLog`. During the window,
+`sts:GetCallerIdentity` under the mounted credential returned account **239044785114**, principal
+`arn:aws:iam::239044785114:user/lingolinq-bedrock-runtime` -- a dedicated Bedrock principal, not the
+shared S3/SES pair. This satisfies **both halves** of the verification standard defined in this
+document (a mounted credential *and* a caller-identity confirmation), and is the first time that
+standard has been met. It does not retroactively validate the retracted 2026-07-27 claim, which was
+false when made. See the 2026-08-01 correction below, as re-corrected 2026-08-04.
+
+**Scope of the `AiApiLog` evidence.** `AiApiLog` is written by three logged runtime seams
+(`lib/ai_word_predictor.rb`, `lib/ai_board_generator.rb`, `lib/eval_narrator.rb`). A zero-row or
+single-row result therefore establishes that **no other logged seam call completed**, which is
+narrower than "no data egressed." It does not cover `lib/ai_prediction_generator.rb` (unlogged), a
+cache hit that returns before the log write, a request whose instance terminates after the HTTP call
+but before the post-response write, or non-model third-party egress paths (Google TTS / Translate /
+Places, OpenSymbols). Those are governed separately and are not in scope for this record.
 
 - **Amazon Bedrock is a HIPAA-eligible AWS service** (verified against AWS's HIPAA-eligible-services
   reference, 2026-07-24), **excluding the Fable and Mythos models**. The runtime inventory (Claude

@@ -50,13 +50,18 @@ practice rather than a capability claim.
 
 Verified against code at draft time. Re-verify before publishing.
 
-> **Status correction, 2026-08-02.** Every runtime row in this table is **dormant**. No
-> `lingolinq-web` revision carries a Bedrock credential, so `AiClient.configured?` is false and no
-> runtime AI seam egresses to any model endpoint; the direct `api.anthropic.com` route was removed
-> by PR #681 and is CI-enforced. Read the "Sees user data?" column as *when the path is live*, not
-> as current traffic. The routing and credential detail below is further superseded by the
-> "Runtime routing update" section later in this memo. See the 2026-08-01 correction in
-> `docs/legal/AWS_BAA_ACCEPTED.md`.
+> **Operational status, corrected 2026-08-04.** This supersedes a "Status correction, 2026-08-02"
+> note that stated every runtime row was dormant and that no `lingolinq-web` revision carried a
+> Bedrock credential. That was accurate when written and became inaccurate on 2026-08-03T08:23:02Z,
+> when revision `00013-76w` mounted `BEDROCK_AWS_KEY` / `BEDROCK_AWS_SECRET`. The correct statement:
+> the runtime rows were not operational from 2026-07-30T16:37Z until 2026-08-03T08:23:02Z; they were
+> operational for approximately 22 hours, during which exactly one internal verification call was
+> made (`word_prediction`, no user attached, no user or student data); credentials were withdrawn on
+> 2026-08-04T06:31:46Z (revision `00014-5rw`) and `AiClient.configured?` is false again as of that
+> timestamp. The direct `api.anthropic.com` route was removed by PR #681 and is CI-enforced. Read
+> the "Sees user data?" column as *when the path is live*, not as current traffic. The routing and
+> credential detail below is further superseded by the "Runtime routing update" section later in
+> this memo. See the 2026-08-04 operational-status correction in `docs/legal/AWS_BAA_ACCEPTED.md`.
 
 | Use | Model(s) | Where | Sees user data? | Control |
 |---|---|---|---|---|
@@ -131,7 +136,8 @@ The governing rule is simple and enforced in code, not just in policy:
   basis (which is now the BAA).
 - **Coverage boundaries.** The AWS BAA on file (2026-02) covers HIPAA-eligible AWS services in use
   under account 2390-4478-5114, including S3/KMS/RDS **and Amazon Bedrock** (the designated runtime
-  AI route as of 2026-07-24, **not operational in production** as of 2026-08-01; Fable/Mythos
+  AI route as of 2026-07-24, **not operational in production** as of 2026-08-04, having been
+  operational only 2026-08-03T08:23Z to 2026-08-04T06:31Z for internal verification; Fable/Mythos
   excluded). It does **not** by itself cover a *direct*
   third-party model endpoint outside AWS (e.g. `api.anthropic.com`); that direct path is covered by
   the Anthropic HIPAA-Ready BAA when used, and is unused at runtime today. The Google Cloud BAA
@@ -426,10 +432,12 @@ _Runtime AI routing moved from the direct `api.anthropic.com` endpoint to **Clau
 (`lib/ai_client.rb`, the Bedrock Mantle Messages API). This is a routing change, not a change of
 model provider or model: the same Anthropic models (Claude Haiku 4.5, Claude Opus 4.7) are used._
 
-_**Corrected 2026-08-01:** this section previously described the move as completed egress. The
-routing change shipped, but the Bedrock path is **not operational in production** and there is no
-runtime model egress on any path today. See the 2026-08-01 correction in
-`docs/legal/AWS_BAA_ACCEPTED.md`._
+_**Corrected 2026-08-01, re-corrected 2026-08-04:** this section previously described the move as
+completed egress, and was then over-corrected to say the path had never been operational. Neither
+is accurate. The routing change shipped; the Bedrock path was operational in production only from
+2026-08-03T08:23Z to 2026-08-04T06:31Z (revision `00013-76w`), carrying one internal verification
+call with no user or student data, and is **not operational as of 2026-08-04**. See the 2026-08-04
+operational-status correction in `docs/legal/AWS_BAA_ACCEPTED.md`._
 
 - **Governing BAA for runtime egress, once egress resumes, is the AWS account BAA**
   (`docs/legal/AWS_BAA_ACCEPTED.md`), because Amazon Bedrock is a HIPAA-eligible AWS service

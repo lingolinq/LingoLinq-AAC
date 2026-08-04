@@ -55,8 +55,6 @@
 | Subprocessor Register (branded) | drive | [open](https://docs.google.com/document/d/13i7PUAZO-_lyUrObdB3CLDQ5KB9s5GNL7XHpcBCRn_M/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
 | Vendor and Subprocessor Management Policy | drive | [open](https://docs.google.com/document/d/1fmBOfw-peYUpdwmttHC3hqzU_5c3OMNgBSN4NDK7mAM/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
 | Written Information Security Program (WISP) | drive | [open](https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
-| AI Data-Flow Classification | git | `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md` | 2026-07-22 | approved | Review date is older than 2026-07-23. |
-| AI Data-Sharing Consent: Rationale and Policy | git | `docs/legal/AI_DATA_SHARING_CONSENT.md` | 2026-07-09 | approved | Review date is older than 2026-07-23. |
 | AWS Business Associate Agreement (signed PDF) | git | `docs/legal/AWS_BAA_2026-02.pdf` | 2026-05-11 | published | Review date is older than 2026-07-23. |
 | Accessibility Conformance Report (ACR / VPAT) | git | `docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md` | 2026-06-16 | draft | Review date is older than 2026-07-23. |
 | Agent config - diff-compliance-check | git | `.claude/agents/diff-compliance-check.md` | 2026-07-22 | published | Review date is older than 2026-07-23. |
@@ -66,7 +64,6 @@
 | Audit Reports Index (audit-reports/README.md) | git | `audit-reports/README.md` | 2026-06-16 | published | Review date is older than 2026-07-23. |
 | Compliance Calendar (compliance-calendar.json) | git | `audit-reports/compliance-calendar.json` | 2026-06-16 | published | Review date is older than 2026-07-23. |
 | Compliance Docs Guide (runbook) | git | `docs/legal/COMPLIANCE_DOCS_GUIDE.md` | 2026-06-21 | published | Review date is older than 2026-07-23. |
-| Compliance Program | git | `docs/legal/COMPLIANCE_PROGRAM.md` | 2026-07-22 | approved | Review date is older than 2026-07-23. |
 | Document Register (this file) | git | `audit-reports/DOCUMENT-REGISTER.json` | 2026-06-21 | published | Review date is older than 2026-07-23. |
 | EU AI Act Article 50 Transparency: Implementation Milestone Plan | git | `docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md` | 2026-07-14 | draft | Review date is older than 2026-07-23. |
 | Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | 2026-06-19 | published | Review date is older than 2026-07-23. |
@@ -210,7 +207,19 @@ _No record is under legal hold. A hold suspends all disposition for the rows it 
 
 17 attested git record(s). `attestation.attestedContentHash` pins the bytes that were attested; `ruby scripts/document-register-render.rb --check` fails when a pinned hash stops matching the file. Drive and Notion rows are out of scope: their hashes are operator-supplied, so there is nothing CI can verify.
 
-**No pinned attestation has drifted.** Every record that pins a hash still matches the attested bytes.
+**9 record(s) have drifted from their attested bytes.** Only Scot re-attests; never edit the pinned hash to clear this.
+
+| Title | Location | Attested | Pinned | Current |
+|---|---|---|---|---|
+| AI Data-Flow Classification | `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md` | 2026-07-22 | `f16e851f8cc0` | `d9d1adbb8738` |
+| AI Data-Sharing Consent: Rationale and Policy | `docs/legal/AI_DATA_SHARING_CONSENT.md` | 2026-07-09 | `c77ebb0dc5c8` | `ace0d86269a9` |
+| AI Governance Memo | `docs/legal/AI_GOVERNANCE_MEMO.md` | 2026-07-27 | `74ec247f35dd` | `54f5b5d6774c` |
+| AWS BAA Acceptance Record | `docs/legal/AWS_BAA_ACCEPTED.md` | 2026-07-27 | `8895bd338274` | `57ae0f5f0df9` |
+| Anthropic HIPAA-Ready BAA Acceptance Record | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` | 2026-07-27 | `21179eb31560` | `9f3d55004be5` |
+| Compliance & Data Governance (COMPLIANCE.md) | `COMPLIANCE.md` | 2026-07-23 | `4afee21c69b0` | `7c533a9ae436` |
+| Compliance Program | `docs/legal/COMPLIANCE_PROGRAM.md` | 2026-07-22 | `1d1f81b0eeab` | `473e78a46548` |
+| LingoLinq Security, Privacy & Compliance Overview | `docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md` | 2026-07-23 | `47318beb94b3` | `dc8fbf34a921` |
+| Subprocessor Register | `docs/legal/SUBPROCESSORS.md` | 2026-07-24 | `f2ee37371ebf` | `1a72c0faf38c` |
 
 Every attested git record pins the bytes it was attested against.
 
@@ -273,4 +282,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_70 documents tracked. 55 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 1 superseded record(s). 0 drifted attestation(s), 0 awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
+_70 documents tracked. 52 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 1 superseded record(s). 9 drifted attestation(s), 0 awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
