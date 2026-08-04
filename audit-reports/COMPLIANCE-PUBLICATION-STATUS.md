@@ -207,19 +207,7 @@ _No record is under legal hold. A hold suspends all disposition for the rows it 
 
 17 attested git record(s). `attestation.attestedContentHash` pins the bytes that were attested; `ruby scripts/document-register-render.rb --check` fails when a pinned hash stops matching the file. Drive and Notion rows are out of scope: their hashes are operator-supplied, so there is nothing CI can verify.
 
-**9 record(s) have drifted from their attested bytes.** Only Scot re-attests; never edit the pinned hash to clear this.
-
-| Title | Location | Attested | Pinned | Current |
-|---|---|---|---|---|
-| AI Data-Flow Classification | `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md` | 2026-07-22 | `f16e851f8cc0` | `d9d1adbb8738` |
-| AI Data-Sharing Consent: Rationale and Policy | `docs/legal/AI_DATA_SHARING_CONSENT.md` | 2026-07-09 | `c77ebb0dc5c8` | `8a2db17bdddc` |
-| AI Governance Memo | `docs/legal/AI_GOVERNANCE_MEMO.md` | 2026-07-27 | `74ec247f35dd` | `f4dd6bdaaeec` |
-| AWS BAA Acceptance Record | `docs/legal/AWS_BAA_ACCEPTED.md` | 2026-07-27 | `8895bd338274` | `7de3e164fef8` |
-| Anthropic HIPAA-Ready BAA Acceptance Record | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` | 2026-07-27 | `21179eb31560` | `ef1d79674306` |
-| Compliance & Data Governance (COMPLIANCE.md) | `COMPLIANCE.md` | 2026-07-23 | `4afee21c69b0` | `72af832942c4` |
-| Compliance Program | `docs/legal/COMPLIANCE_PROGRAM.md` | 2026-07-22 | `1d1f81b0eeab` | `2c582b44be39` |
-| LingoLinq Security, Privacy & Compliance Overview | `docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md` | 2026-07-23 | `47318beb94b3` | `933d4863d95b` |
-| Subprocessor Register | `docs/legal/SUBPROCESSORS.md` | 2026-07-24 | `f2ee37371ebf` | `83cb14670669` |
+**No pinned attestation has drifted.** Every record that pins a hash still matches the attested bytes.
 
 Every attested git record pins the bytes it was attested against.
 
@@ -282,4 +270,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_70 documents tracked. 52 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 1 superseded record(s). 9 drifted attestation(s), 0 awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
+_70 documents tracked. 52 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 1 superseded record(s). 0 drifted attestation(s), 0 awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
