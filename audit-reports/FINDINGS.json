@@ -4296,6 +4296,50 @@
         "reviewer": "scot",
         "promotedDate": "2026-08-04"
       }
+    },
+    {
+      "id": "LL-522c1a6d13",
+      "ruleKey": "masquerade-no-audit-event",
+      "title": "Masquerade produces no AuditEvent; the site-admin branch impersonates any user with no disclosure record",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/controllers/application_controller.rb",
+        "line": 181,
+        "snippet": "if admin && admin.manager?(@api_user) && @linked_user",
+        "sha": "dbd5b689e27033a007dc75b015dc11f8940e9e40"
+      },
+      "firstSeen": "2026-08-04",
+      "lastSeen": "2026-08-04",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Write an AuditEvent at masquerade authorization in both branches of application_controller.rb (site-admin at :181, org-manager at :188-205), recording the acting operator, the target user, and the branch that authorized it. Prior art already exists in this codebase and should be generalized rather than reinvented: app/controllers/concerns/api/schema_explorer.rb:102-104 defines audit_user_key as (@true_user || @api_user)&.global_id precisely so a disclosure is booked to the admin who performed the read rather than the account being viewed as. That treatment covers one endpoint and nothing else. Note masquerade has no session concept to hook: it is a per-request as_user_id param or X-As-User-Id header (:177), so the event must be emitted on the authorization path, and de-duplicated per operator/target rather than per request. The org-manager branch already caches its authorization decision in Redis for 30 minutes (:195), which is a natural de-dup window; the site-admin branch has no cache and no gate at all.",
+        "timeframe": "30d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": 742,
+        "reviewer": "adversary",
+        "promotedDate": "2026-08-04"
+      },
+      "notes": "Promoted from PR #742 review (adversary) on 2026-08-04. Surfaced by the Claude adversary pass during dual review of PR #742, and verified against code at that PR's base: grep for AuditEvent in app/controllers/application_controller.rb returns zero occurrences. FERPA accounting-of-disclosures and HIPAA 164.312(b) audit controls therefore have no record that an admin viewed or acted inside a given student account. The site-admin branch grants impersonation of ANY user on Organization.admin.manager? alone, with no consent record. This is the accountability half of the masquerade problem; LL-cde54765c6 covers the separate UI indicator gap and explicitly does not claim to cover this. Related: PaperTrail does not close the gap either, since log_session.rb:28 versions on destroy only, user_goal.rb has no has_paper_trail, and User.flush_old_versions (user.rb:3646) prunes surviving versions."
     }
   ]
 }
