@@ -36,6 +36,7 @@ file (see [README.md](README.md)).
 - [Pattern: phased board prefetch — shared planner, dual persistence files](#pattern-phased-board-prefetch--shared-planner-dual-persistence-files)
 - [Pattern: board-detail `/tree` blocks paint on the full descendant payload](#pattern-board-detail-tree-blocks-paint-on-the-full-descendant-payload)
 - [Pattern: board-preview latency is cold-cache, not the loading gate — warm on intent](#pattern-board-preview-latency-is-cold-cache-not-the-loading-gate--warm-on-intent)
+- [Pattern: boards-page Mine list — cache-first paint, atomic background refresh](#pattern-boards-page-mine-list--cache-first-paint-atomic-background-refresh)
 - [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
 - [Gotcha: sync double `modal.open` — the *second* template wins; do not invent write-loss on the winner](#gotcha-sync-double-modalopen--the-second-template-wins-do-not-invent-write-loss-on-the-winner)
 - [Gotcha: Shepherd modal overlay is VISUAL-ONLY; canClickTarget:false makes the target click "fall through"](#gotcha-shepherd-modal-overlay-is-visual-only-canclicktargetfalse-makes-the-target-click-fall-through)
@@ -119,6 +120,9 @@ file (see [README.md](README.md)).
 - [Gotcha: fail-closed Sentry filters must not collapse lookup failures to nil](#gotcha-fail-closed-sentry-filters-must-not-collapse-lookup-failures-to-nil)
 - [Gotcha: dual-key tag reads — check each key independently, never `a || b` before coercion](#gotcha-dual-key-tag-reads--check-each-key-independently-never-a--b-before-coercion)
 - [Gotcha: set-field on nested model fields needs nested observer deps (videoChanged pattern)](#gotcha-set-field-on-nested-model-fields-needs-nested-observer-deps-videochanged-pattern)
+- [Gotcha: embed-frame `data-user_token` is UserIntegration#user_token, not User#user_token](#gotcha-embed-frame-data-user_token-is-userintegrationuser_token-not-useruser_token)
+- [Gotcha: private uploads bucket — server-side OBZ/OBF import must use signed_internal_url](#gotcha-private-uploads-bucket--server-side-obzobf-import-must-use-signed_internal_url)
+- [Gotcha: private uploads bucket — server-side OBZ/OBF import must use signed_internal_url](#gotcha-private-uploads-bucket--server-side-obzobf-import-must-use-signed_internal_url)
 
 ---
 
@@ -298,6 +302,16 @@ Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` c
 **Diag:** `localStorage.ll_board_cache_diag=1` → [`board_cache_diag.js`](../../app/frontend/app/utils/board_cache_diag.js) marks on board-detail.
 
 **First seen in:** [2026-07-23-speak-mode-board-cache-latency.md](./2026-07-23-speak-mode-board-cache-latency.md)
+
+## Pattern: boards-page Mine list — cache-first paint, atomic background refresh
+
+**Surface:** `/:user/boards` overlay gated on `model.my_boards.done` ([`user/boards.hbs`](../../app/frontend/app/templates/user/boards.hbs)); list load in [`generate_or_append_to_list`](../../app/frontend/app/controllers/user/index.js).
+
+**Gotcha:** Re-entering the boards page always re-queried `store.query('board', { user_id })`. Streaming partial pages onto `model.my_boards` cleared `.done` until the last page, so a background refetch re-showed “Preparing your workspace.” Server Redis on boards index only caches public search, not Mine `user_id` lists.
+
+**Fix recipe:** (1) Persist a compact Mine snapshot in localStorage ([`boards_page_list_cache.js`](../../app/frontend/app/utils/boards_page_list_cache.js), 10m TTL). (2) Hydrate in [`routes/user/boards.js`](../../app/frontend/app/routes/user/boards.js) before `update_selected`. (3) When the visible list is already usable (`Array` + `.done`), accumulate pages in a side buffer and atomically swap only on the final page; never set `{loading:true}` over a usable empty list. (4) Clear snapshots in `appState.clear_user_state`. Distinct from `board_detail_cache` (speak `/tree`).
+
+**First seen in:** [2026-08-03-boards-page-cache-first.md](./2026-08-03-boards-page-cache-first.md)
 
 ## Pattern: supervisor caseload session prefetch reuses board_detail_cache, not offline sync
 
@@ -8234,3 +8248,10 @@ the 2026-07-22 persistence-sync epoch-fencing entry.
 **First attempt (reverted — didn't work):** reload the board when `permissions` was *entirely absent* (`!board.get('permissions')`). Failed because the cached list record can carry `permissions` **present but stale `edit:false`** (not undefined), so the `!permissions` guard never fired — AND a `reload()` may be served from the offline/persistence cache, so it isn't a reliable way to refresh permissions anyway.
 
 **Working fix — ownership check (no reload, cache-proof):** ownership is authoritative and ALWAYS available client-side — a board's `key` is `<owner>/<slug>` and `user_name` is the owner. Compute `owner_name = board.user_name || board.key.split('/')[0]`; if it equals `sessionUser.user_name`, the user can always edit directly, so OR it into the gate: prompt-to-copy only when `!permissions.edit && !owns_board`. Owning a board always implies edit rights (server enforces on save anyway), and non-owned-but-editable cases (supervisor/shared) still fall back to `permissions.edit`. The server `show` endpoint DOES send permissions (`boards_controller.rb:390 :permissions => @api_user`) — the gap is purely that LIST endpoints omit it and the board-detail route serves the cached list record. Ref: [`2026-08-04-ui-test-checklist.md`](./2026-08-04-ui-test-checklist.md).
+## Gotcha: embed-frame `data-user_token` is UserIntegration#user_token, not User#user_token
+
+Two different credentials share the name `user_token`. `User#user_token` is a permanent HMAC of `global_id` (login-serialized via `lib/json_api/user.rb`). Embed-frame's `data-user_token` is **not** that: `board.js` reads `tool.get('user_token')` from the integration serializer, which mints `UserIntegration#user_token` (integration-scoped, obfuscated user id + integration id + sig). When scoping permanent-token findings (e.g. LL-90045bb29c residual), do not fold embed-frame into `User#user_token` blast radius without verifying the mint site. Ref: [`2026-08-03-ll-90045bb29c-narrow-close.md`](./2026-08-03-ll-90045bb29c-narrow-close.md).
+
+## Gotcha: private uploads bucket — server-side OBZ/OBF import must use signed_internal_url
+
+`lingolinq-prod-uploads` blocks public access. Browser upload (SigV4 POST) can succeed while the worker-side import still fails: `Converters::Utils.remote_to_boards` used to `SafeHttp.get` the raw `https://bucket.s3.amazonaws.com/...` URL, get a 403 XML body, then feed it to rubyzip → misleading `Zip end of central directory signature not found` at progress ~0.22 / `processing_file`. JSON bundle import already signed via `Uploader.signed_internal_url` (`lib/converters/api_json_bundle.rb`); OBF/OBZ import and `Uploader.remote_zip` must do the same, and raise on non-success HTTP before parsing. Ref: [`2026-08-04-obz-import-signed-fetch.md`](./2026-08-04-obz-import-signed-fetch.md).
