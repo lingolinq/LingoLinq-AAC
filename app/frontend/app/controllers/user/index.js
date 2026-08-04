@@ -25,6 +25,7 @@ import {
 } from '../../utils/board-roots';
 import { filterBrandRoots } from '../../utils/board-brands';
 import boardDetailCache from '../../utils/board_detail_cache';
+import boardsPageListCache from '../../utils/boards_page_list_cache';
 
 function invertBoardTagMap(map) {
   var inv = {};
@@ -1035,45 +1036,97 @@ export default Controller.extend({
     if(!args.per_page) { args.per_page = 50; }
     var prior = _this.get(list_name) || [];
     if(prior.error || prior.loading) { prior = []; }
-    if(!append && !prior.length) {
+    /* When a usable completed list is already on screen (SPA re-entry or
+       localStorage hydrate), keep it painted and accumulate pages in a
+       side buffer. Assigning partial pages onto list_name would clear
+       `.done` and re-trigger the boards-page overlay. */
+    var backgroundRefresh = boardsPageListCache.isUsableList(prior);
+    var bufferKey = list_name + ':' + list_id;
+    /* Do not clobber a usable empty list (`[].done`) with {loading:true}. */
+    if(!append && !backgroundRefresh && !prior.length) {
       _this.set(list_name, {loading: true});
     }
+    if(!append && backgroundRefresh) {
+      _this._boards_list_refresh_buffers = _this._boards_list_refresh_buffers || {};
+      _this._boards_list_refresh_buffers[bufferKey] = [];
+    }
     _this.store.query('board', args).then(function(boards) {
-      if(_this.get('list_id') == list_id) {
-        if(!append && prior.length) {
-          prior = [];
-        }
+      if(_this.get('list_id') != list_id) { return; }
 
-        var chunk = boards.slice();
-        if (append && prior.length) {
-          prior = prior.concat(chunk);
+      var chunk = boards.slice();
+      var meta = _this.persistence.meta('board', boards); //_this.store.metadataFor('board');
+
+      if(backgroundRefresh) {
+        var buf = (_this._boards_list_refresh_buffers && _this._boards_list_refresh_buffers[bufferKey]) || [];
+        if(append && buf.length) {
+          buf = buf.concat(chunk);
         } else {
-          prior = chunk;
+          buf = chunk;
         }
-        prior.user_id = _this.get('model.id');
-        _this.set(list_name, prior);
-        var meta = _this.persistence.meta('board', boards); //_this.store.metadataFor('board');
+        buf.user_id = _this.get('model.id');
+        _this._boards_list_refresh_buffers = _this._boards_list_refresh_buffers || {};
+        _this._boards_list_refresh_buffers[bufferKey] = buf;
         if(meta && meta.more) {
           args.per_page = meta.per_page;
           args.offset = meta.next_offset;
-          /* Throttle subsequent pages so a 5-page sweep doesn't fire as
-             a single back-to-back burst (which read as a network
-             "flood" in the dev tools, and competed with foreground
-             traffic like board-preview image loads). 200ms is small
-             enough that the full list still finishes streaming in ~1s
-             for typical cases, and large enough that the requests
-             interleave cleanly with user-initiated work. The list_id
-             check at the top of the function still guards against tab
-             changes during the gap. */
           runLater(function() {
             if(_this.isDestroyed || _this.isDestroying) { return; }
             _this.generate_or_append_to_list(args, list_name, list_id, true);
           }, 200);
         } else {
-          _this.set(list_name + '.done', true);
+          buf.done = true;
+          buf.user_id = _this.get('model.id');
+          _this.set(list_name, buf);
+          if(_this._boards_list_refresh_buffers) {
+            delete _this._boards_list_refresh_buffers[bufferKey];
+          }
+          if(list_name === 'model.my_boards') {
+            boardsPageListCache.write(_this.get('model.id'), buf);
+          }
+        }
+        return;
+      }
+
+      if(!append && prior.length) {
+        prior = [];
+      }
+
+      if (append && prior.length) {
+        prior = prior.concat(chunk);
+      } else {
+        prior = chunk;
+      }
+      prior.user_id = _this.get('model.id');
+      _this.set(list_name, prior);
+      if(meta && meta.more) {
+        args.per_page = meta.per_page;
+        args.offset = meta.next_offset;
+        /* Throttle subsequent pages so a 5-page sweep doesn't fire as
+           a single back-to-back burst (which read as a network
+           "flood" in the dev tools, and competed with foreground
+           traffic like board-preview image loads). 200ms is small
+           enough that the full list still finishes streaming in ~1s
+           for typical cases, and large enough that the requests
+           interleave cleanly with user-initiated work. The list_id
+           check at the top of the function still guards against tab
+           changes during the gap. */
+        runLater(function() {
+          if(_this.isDestroyed || _this.isDestroying) { return; }
+          _this.generate_or_append_to_list(args, list_name, list_id, true);
+        }, 200);
+      } else {
+        _this.set(list_name + '.done', true);
+        if(list_name === 'model.my_boards') {
+          boardsPageListCache.write(_this.get('model.id'), _this.get(list_name));
         }
       }
     }, function() {
+      if(backgroundRefresh) {
+        if(_this._boards_list_refresh_buffers) {
+          delete _this._boards_list_refresh_buffers[bufferKey];
+        }
+        return;
+      }
       if(_this.get('list_id') == list_id && !prior.length) {
         _this.set(list_name, {error: true});
       }
