@@ -187,13 +187,21 @@ is the same error the 2026-07-27 claim above made.
 
 **Operational consequence.** Board generation, word prediction, prediction seeding, and eval
 narration were non-functional in production from `00011-l7f` (2026-07-30T16:37Z) through
-`00012-x8z`, and are non-functional again from `00014-5rw` (2026-08-04T06:31:46Z) onward. They were
-**functional during the single window on `00013-76w`** (2026-08-03T08:23Z to 2026-08-04T06:31Z), in
-which one logged seam call completed: an internal verification call carrying no user or student
-data. Eval narration remained non-functional even in that window, because its default model
-(`anthropic.claude-opus-4-7`) has no classic-plane inference profile and the account is not
-entitled to the mantle plane, so it stays on its deterministic template fallback
-(`lib/eval_narrator.rb:243-249`).
+`00012-x8z`, and are non-functional again from `00014-5rw` (2026-08-04T06:31:46Z) onward.
+
+For the single window on `00013-76w` (2026-08-03T08:23Z to 2026-08-04T06:31Z), stated narrowly to
+what was actually verified rather than inferred:
+
+- **Verified:** the Bedrock-backed path was configured (`AiClient.configured?` true), and **one
+  word-prediction call completed** at 2026-08-04T05:44:42Z, an internal verification call carrying
+  no user or student data.
+- **Not exercised:** board generation and prediction seeding. Both resolve to
+  `anthropic.claude-haiku-4-5`, the one alias mapped on the classic plane, so both were reachable,
+  but no call was made and none is recorded in `AiApiLog`. "Reachable" is a configuration
+  statement, not an observation.
+- **Remained unavailable:** eval narration. Its default model `anthropic.claude-opus-4-7` has no
+  classic-plane inference profile and the account is not entitled to the mantle plane, so it stayed
+  on its deterministic template fallback (`lib/eval_narrator.rb:243-249`) throughout the window.
 
 ### AiApiLog verification - 2026-08-02
 

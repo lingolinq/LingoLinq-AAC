@@ -57,11 +57,15 @@ section 2), so it is out of scope for this disclosure and is not in the table be
 > and dated model ids (`claude-haiku-4-5-20251001`). That is stale in two ways. The runtime route is
 > now Anthropic Claude on **AWS Bedrock** in bare-alias form (`anthropic.claude-haiku-4-5`), via
 > `lib/ai_client.rb`; the direct `api.anthropic.com` route was removed by PR #681 and is CI-enforced
-> by `scripts/ai-endpoint-guard.sh`. And every runtime row here is **dormant as of 2026-07-30**: no
-> `lingolinq-web` revision carries a Bedrock credential, so `AiClient.configured?` is false and no
-> data is sent to any model provider. The Gemini fallback referenced in these rows was removed
-> 2026-07-09 (PR #570). Read the table as the designated classification when live, not as current
-> traffic. See the 2026-08-01 correction in `docs/legal/AWS_BAA_ACCEPTED.md`.
+> by `scripts/ai-endpoint-guard.sh`. **Operational status corrected 2026-08-04** (this previously
+> read "every runtime row here is dormant as of 2026-07-30: no `lingolinq-web` revision carries a
+> Bedrock credential"). Accurate statement: not operational from 2026-07-30T16:37Z through
+> `00012-x8z`; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on `00013-76w`, in which one
+> word-prediction call completed (internal verification, no user or student data); not operational
+> since `00014-5rw` (2026-08-04T06:31:46Z), so `AiClient.configured?` is false again today. The
+> Gemini fallback referenced in these rows was removed 2026-07-09 (PR #570). Read the table as the
+> designated classification when live, not as current traffic. See the 2026-08-04 operational-status
+> correction in `docs/legal/AWS_BAA_ACCEPTED.md`.
 
 | Feature | Code location | Vendor / model / tier | Data sent (post-scrubber) | Account identifier in payload? | Bucket | 2nd-tier VPC gate? | What the disclosure must say |
 |---|---|---|---|---|---|---|---|

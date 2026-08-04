@@ -429,8 +429,17 @@ Nothing in this refresh goes live in production until Phases 3-5 deploy and the 
 ## Runtime routing update - 2026-07-24 (re-attested 2026-07-24)
 
 _Runtime AI routing moved from the direct `api.anthropic.com` endpoint to **Claude on AWS Bedrock**
-(`lib/ai_client.rb`, the Bedrock Mantle Messages API). This is a routing change, not a change of
-model provider or model: the same Anthropic models (Claude Haiku 4.5, Claude Opus 4.7) are used._
+(`lib/ai_client.rb`). This is a routing change, not a change of model provider or model: the same
+Anthropic models (Claude Haiku 4.5, Claude Opus 4.7) are named in the inventory._
+
+_**Plane corrected 2026-08-04.** This section previously said the route was "the Bedrock Mantle
+Messages API". That is wrong and has been since PR #727: the default plane is **classic
+`bedrock-runtime`**, selected by `AiClient.bedrock_plane` unless `BEDROCK_PLANE=mantle`. The account
+is **not entitled to the mantle plane** (every model returns 403 "not available for this account",
+entitlement request open with AWS), so mantle is not a route this product can use today. This has a
+consequence the old wording hid: on the classic plane only `anthropic.claude-haiku-4-5` has an
+inference-profile mapping, so Claude Opus 4.7 (eval narration) is **not invokable** and falls back
+to its deterministic template._
 
 _**Corrected 2026-08-01, re-corrected 2026-08-04:** this section previously described the move as
 completed egress, and was then over-corrected to say the path had never been operational. Neither
@@ -450,8 +459,15 @@ operational-status correction in `docs/legal/AWS_BAA_ACCEPTED.md`._
   (`anthropic.claude-haiku-4-5`, `anthropic.claude-opus-4-7`). The scrub / allowlist / COPPA / opt-out
   / AiApiLog controls in that table are unchanged.
 - Operative condition: Bedrock calls must run under the BAA'd AWS account (2390-4478-5114). **This
-  condition is UNVERIFIED as of 2026-08-01, and the 2026-07-27 statement that it had been verified is
-  retracted:** no `lingolinq-web` revision carries a Bedrock credential, so no Bedrock call is made.
+  condition was UNVERIFIED from 2026-07-27 through the 2026-08-01 evidence gather, and the
+  2026-07-27 statement that it had been verified is retracted** and stays retracted: no
+  `lingolinq-web` revision from `00001-2vn` through `00012-x8z` carried a Bedrock credential, so no
+  Bedrock call could be made in that period. **Verified 2026-08-04**, during the `00013-76w` window
+  (2026-08-03T08:23Z to 2026-08-04T06:31Z): `sts:GetCallerIdentity` under the mounted credential
+  returned account 239044785114, principal `user/lingolinq-bedrock-runtime`. That is a separate,
+  correctly-dated finding and does not revive the retracted 2026-07-27 claim. Credentials were
+  withdrawn on `00014-5rw`, so the condition is again unverifiable and must be re-verified on any
+  future mount. See `docs/legal/AWS_BAA_ACCEPTED.md`.
 - Section 3's older "AWS BAA covers infrastructure only, not model-provider egress" wording is
   superseded for the **designated** runtime path by this Bedrock routing: Bedrock inference is an
   in-AWS HIPAA-eligible service under the account BAA. That older wording still correctly describes

@@ -144,7 +144,9 @@ reflected in the posture.
 ## Runtime routing update - 2026-07-24 (re-attested 2026-07-24)
 
 Runtime AI routing moved from the direct `api.anthropic.com` endpoint to **Claude on AWS Bedrock**
-(the Bedrock Mantle Messages API, constructed in `lib/ai_client.rb`). All four seams above (word
+(constructed in `lib/ai_client.rb`). **Plane corrected 2026-08-04:** this previously read "the
+Bedrock Mantle Messages API". The default and only usable plane is classic `bedrock-runtime`; the
+account is not entitled to mantle (403 on every model, request open with AWS). All four seams above (word
 prediction, prediction seeding, board generation, eval narration) are coded to route through Bedrock
 on the same in-scope models (Haiku 4.5, Opus 4.7).
 
@@ -164,9 +166,13 @@ single internal verification call with no user or student data, and is **not ope
   Amazon Bedrock is a HIPAA-eligible AWS service **excluding Fable/Mythos models**, so
   Anthropic-model inference on Bedrock stays inside AWS's HIPAA boundary. The runtime models (Haiku
   4.5, Opus 4.7) are on the eligible side of that exclusion. Operative condition: Bedrock calls must
-  run under the BAA'd AWS account (2390-4478-5114). **That condition is UNVERIFIED as of 2026-08-01,
-  and the 2026-07-27 statement that it had been verified is retracted:** no `lingolinq-web` revision
-  carries a Bedrock credential, so `AiClient.configured?` is false and no Bedrock call is made.
+  run under the BAA'd AWS account (2390-4478-5114). **That condition was UNVERIFIED from 2026-07-27
+  through the 2026-08-01 evidence gather, and the 2026-07-27 statement that it had been verified is
+  retracted** and stays retracted: no `lingolinq-web` revision from `00001-2vn` through `00012-x8z`
+  carried a Bedrock credential, so `AiClient.configured?` was false and no Bedrock call could be
+  made. **Verified 2026-08-04** during the `00013-76w` window (`sts:GetCallerIdentity` returned
+  239044785114, principal `user/lingolinq-bedrock-runtime`); credentials were withdrawn on
+  `00014-5rw`, so the condition is again unverifiable and must be re-verified on any future mount.
 - The adjudicated seam classifications above (including eval narration not being a HIPAA Healthcare
   Activity, Scot 2026-07-19) are unchanged by this routing move.
 - Statements above that name the direct `/v1/messages` endpoint or `ANTHROPIC_API_KEY` as the
