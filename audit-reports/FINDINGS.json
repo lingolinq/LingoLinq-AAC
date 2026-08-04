@@ -4261,7 +4261,7 @@
     {
       "id": "LL-cde54765c6",
       "ruleKey": "masquerade-no-operator-indicator",
-      "title": "Masquerade shows no indication of whose account is being operated; true_user is never serialized to the client",
+      "title": "Masquerade shows no on-screen indication of whose account is being operated",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -4281,7 +4281,7 @@
       "lastSeen": "2026-08-04",
       "owner": "unassigned",
       "remediation": {
-        "options": "Serialize the acting operator alongside the masqueraded user (e.g. expose true_user's user_name via lib/json_api/user.rb or the token/self payload) and render a persistent banner naming BOTH identities while a masquerade is active. Today @true_user is set at application_controller.rb:182 and 196 and used only for private_logging checks (api/logs_controller.rb:41,161,174,233,276,303,317) and the PaperTrail whodunnit string at :185/:199; it never reaches lib/json_api, so the client cannot name the real operator. PR #714 (merged to staging 2026-07-30) added persistent Stop Masquerading controls to AppNavbar (app-navbar-authenticated-inner.hbs:64,183,211), which signals THAT a masquerade is active but not WHOSE record is being operated.",
+        "options": "Cheapest path (template only, no server change): render the already-stashed operator identity beside the existing Stop Masquerading controls. session.original_user_name is set at masquerade start (app/frontend/app/components/masquerade.js:61, app/frontend/app/controllers/organization.js:48), restored at app/frontend/app/services/session.js:510, and already read by the isMasquerading computed at app/frontend/app/controllers/application.js:52,56 with a stash fallback at :62. Option 2, only if the server must be authoritative: serialize the acting operator via lib/json_api. Scope of @true_user (set at app/controllers/application_controller.rb:182,196): the private_logging checks in app/controllers/api/logs_controller.rb, the PaperTrail whodunnit at :185/:199, and the authorization plus audit-attribution actor in app/controllers/concerns/api/schema_explorer.rb:90,103 and app/controllers/concerns/api/system_settings_access.rb:7. It never reaches lib/json_api. PR #714 (staging, 2026-07-30) added persistent Stop Masquerading controls (app/frontend/app/components/app-navbar-authenticated-inner.hbs:64,183,211; app/frontend/app/templates/application.hbs:928,1276,1304), which signal THAT a masquerade is active but not WHOSE record is open.",
         "timeframe": "60d"
       },
       "closureEvidence": {
@@ -4289,8 +4289,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by unknown finder on 2026-08-04. Raised manually 2026-08-04 from a working session, not from an /audit-run fan-out. Server-side accountability is intact: PaperTrail records user:<operator>:as:<target> (application_controller.rb:185,199), which is the mitigation that keeps this out of high. Residual risk is operator-facing: an admin acting inside a student record can create or modify LogSession, goal, and board data attributed to that student without an on-screen reminder of whose account they are in. Severity and disposition are Scot's to set.",
-      "source": "manual"
+      "notes": "Raised manually 2026-08-04 from a working session, not from an /audit-run fan-out. Severity and disposition are Scot's to set. Accountability scope, corrected after dual review: PaperTrail records user:<operator>:as:<target> (app/controllers/application_controller.rb:185,199) ONLY on the models and attributes it versions, namely the Board (app/models/board.rb:64) and User (app/models/user.rb:44) attribute allowlists, and destroy-only on LogSession (app/models/log_session.rb:28). UserGoal carries no has_paper_trail at all. Surviving versions are pruned by User.flush_old_versions (app/models/user.rb:3646). So a masquerading admin's create or update of a student's log session or goal is NOT distinguishable after the fact. This finding covers the UI indicator gap only; the absence of any masquerade AuditEvent is a separate issue and is not yet filed.",
+      "source": {
+        "kind": "manual",
+        "pr": "",
+        "reviewer": "scot",
+        "promotedDate": "2026-08-04"
+      }
     }
   ]
 }
