@@ -15,9 +15,18 @@ class Api::SoundsController < ApplicationController
     sound_data = params['sound']
     sound_data = sound_data.permit! if sound_data.is_a?(ActionController::Parameters)
     user = @api_user
-    if sound_data && sound_data['user_id']
-      user = User.find_by_path(sound_data['user_id'])
-      return unless exists?(user, sound_data['user_id'])
+    # Nested sound[user_id] is not rewritten by replace_helper_params (that only
+    # rewrites top-level id / *_id). Frontend often sends 'self' (or a blank
+    # string from an unset attr); find_by_path('self') looks up user_name and
+    # 404s. Match boards#create's for_user_id == 'self' handling.
+    uid = sound_data && sound_data['user_id'].to_s.strip
+    if uid.present?
+      if uid == 'self'
+        user = @api_user
+      else
+        user = User.find_by_path(uid)
+        return unless exists?(user, uid)
+      end
       return unless allowed?(user, 'supervise')
     end
     sound = ButtonSound.process_new(sound_data, {:user => user, :remote_upload_possible => true})

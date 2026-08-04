@@ -345,9 +345,14 @@ jobs:
         run: |
           run_codex() {
             # $1 = output path for this run's review JSON
+            # gpt-5.6-terra per the approved-reviewer registry (CLAUDE.md, CI
+            # `codex-review` gate row: terra default, luna A/B). This is the
+            # whole-diff pass that produces the verdict directly, so it takes
+            # the balanced tier; the chunked path splits luna/terra by leg in
+            # scripts/codex-review-run-chunks.py.
             codex exec \
               --sandbox read-only \
-              -m gpt-5.5 \
+              -m gpt-5.6-terra \
               --output-schema .github/codex/review-schema.json \
               --output-last-message "$1" \
               < /tmp/prompt.md
@@ -357,7 +362,7 @@ jobs:
             if ! python3 -c "import json, sys; json.load(open(sys.argv[1]))" "$1" 2>/dev/null; then
               echo "Run produced invalid JSON; retrying with stricter instruction." >&2
               { cat /tmp/prompt.md; echo ""; echo "Output ONLY the JSON object. No prose, no markdown fences."; } \
-                | codex exec --sandbox read-only -m gpt-5.5 \
+                | codex exec --sandbox read-only -m gpt-5.6-terra \
                     --output-schema .github/codex/review-schema.json \
                     --output-last-message "$1"
             fi
