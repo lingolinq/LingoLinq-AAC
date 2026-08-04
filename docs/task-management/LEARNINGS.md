@@ -8138,3 +8138,46 @@ Two different credentials share the name `user_token`. `User#user_token` is a pe
 ## Gotcha: private uploads bucket — server-side OBZ/OBF import must use signed_internal_url
 
 `lingolinq-prod-uploads` blocks public access. Browser upload (SigV4 POST) can succeed while the worker-side import still fails: `Converters::Utils.remote_to_boards` used to `SafeHttp.get` the raw `https://bucket.s3.amazonaws.com/...` URL, get a 403 XML body, then feed it to rubyzip → misleading `Zip end of central directory signature not found` at progress ~0.22 / `processing_file`. JSON bundle import already signed via `Uploader.signed_internal_url` (`lib/converters/api_json_bundle.rb`); OBF/OBZ import and `Uploader.remote_zip` must do the same, and raise on non-success HTTP before parsing. Ref: [`2026-08-04-obz-import-signed-fetch.md`](./2026-08-04-obz-import-signed-fetch.md).
+
+## Gotcha: a compliance claim about runtime state expires; verify at the SHA and in prod, never from the diff
+
+PR #725 took nine review rounds. The same defect recurred four times, twice by the
+reviewer who was correcting it. The pattern is worth naming because it is not a
+compliance problem, it is an epistemics problem that any long-lived doc PR will hit.
+
+**The defect:** a runtime-state claim written as an unbounded absolute. "No revision
+carries a Bedrock credential." "Bedrock egress has never occurred." "AiClient.build has
+always returned nil." Each was true when written and false by merge, because production
+changed underneath the branch.
+
+**Why sweeps kept missing it:** grepping the phrasing you remember writing
+(`dormant|not operational|no data is sent`) will not match `never occurred`,
+`always returned nil`, `currently UNVERIFIED`, `has been since`, or
+`is present on any revision`. Enumerate by MEANING, not by phrase: find every line that
+mentions the subject alongside a state verb, then check each for an explicit time bound.
+
+**The rule that actually works:** every claim about runtime state carries the window it
+covers. Not "X never happened" but "X did not happen between <date/revision> and
+<date/revision>, the period this claim covers." An unbounded absolute in a compliance doc
+is a latent defect with a fuse on it.
+
+**Reviewers must read bytes, not working directories.** Twice in one session a confident
+finding came from a checkout that had drifted from the reviewed head (once the primary
+checkout, once an external reviewer's). Use `git show <sha>:<path>` or a fresh fetch.
+Corollary: before dismissing a reviewer's finding as stale, verify it against the SHA
+they actually reviewed — it may be valid there and already fixed downstream.
+
+**Configuration is not observation.** "Credentials are mounted" does not mean "calls
+happened," and "the feature is reachable" does not mean "the feature ran." The original
+retracted claim inferred runtime behaviour from deployment config; the correction then
+inferred dormancy from deployment config the same way. Separate verified / reachable /
+unexercised / unavailable explicitly. `AiApiLog` only records completed logged seam calls,
+so a zero-row result proves "no logged seam call completed," never "nothing egressed."
+
+**Regeneration is order-dependent.** `capability-check.rb` writes
+`docs/legal/CAPABILITY_LEDGER.md`, which `document-register-render.rb` then hashes. Running
+the register renderer first produces a spurious drift failure. Order: capability-check ->
+citation-check --render -> calendar -> notion -> document-register-render ->
+publication-status.
+
+Ref: PR #725; live-prod verification via a throwaway Cloud Run job on the serving image.
