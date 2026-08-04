@@ -1591,8 +1591,21 @@ var buttonTracker = EmberObject.extend({
           } else if(event_source === 'click' && elem_wrap.dom.closest && elem_wrap.dom.closest('.md-board-collection')) {
             // Co-located BoardCollection: {{on}} + ctrlAction does not receive clicks
             // (see LEARNINGS.md). Must route via boardDetailChromeRelease, not defer.
+            //
+            // The pass-through fallback is REQUIRED, exactly as in the sibling branch
+            // below. boardDetailChromeRelease only resolves controls carrying a
+            // data-bd-action (back, board items) — and those map to board-detail
+            // CONTROLLER actions. Controls whose handler is component-local ("Show N
+            // more boards" → toggle_my_boards_expanded, the search × → clear_search)
+            // have no data-bd-action and legitimately resolve to nothing. Without this
+            // fallback the preventDefault above swallowed their click and they were
+            // simply dead on board-detail. Re-dispatching a pass_through click lets
+            // their own {{on "click"}} run; it cannot double-fire, because it is only
+            // reached when no chrome action was resolved.
             event.preventDefault();
-            boardDetailChromeRelease(elem_wrap);
+            if(!boardDetailChromeRelease(elem_wrap)) {
+              dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
+            }
           } else if(event_source === 'click' && elem_wrap.dom.closest && elem_wrap.dom.closest('.board-detail-view') && !buttonTracker.board_detail_grid_target(elem_wrap)) {
             if(deferBoardDetailChromeClick) {
               // Mouse: Ember {{on}} (this.ctrlAction) is authoritative after codemod;

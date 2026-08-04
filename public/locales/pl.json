@@ -8678,5 +8678,10 @@
   "org_external_ai_processing_toggle": "*** Allow third-party AI processing (translation, voice transcription)",
   "org_external_ai_processing_hint": "*** When off, board auto-translation and voice-recording transcription will not send data to Google. Recordings still work without a transcript. Turn this off if your contract forbids third-party processing.",
   "find_user_section_desc": "*** Look up any account by username or email. Open the profile or masquerade from the results.",
-  "user_name_or_email": "*** user name or email"
+  "user_name_or_email": "*** user name or email",
+  "board_collections": "*** Board Collections",
+  "board_collections_short": "*** Boards",
+  "board_detail_previewing": "*** Previewing",
+  "back_to_edit_mode": "*** Back to Edit Mode",
+  "original_selected_board": "*** Original Selected Board"
 }

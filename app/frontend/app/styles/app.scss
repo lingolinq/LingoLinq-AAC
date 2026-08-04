@@ -42749,6 +42749,129 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   }
 }
 
+/* Registration confirmation screen (user.confirm_registration). Mirrors the
+   .login-card auth treatment — centered, soft dual-radial gradient, teal top
+   border, Maitree title — with a success/error status badge and a single Home
+   CTA. Lives in the user outlet below the Home/Account/Logs pill-nav. */
+.la-reg-confirm {
+  display: flex;
+  justify-content: center;
+  padding: $aac-spacing-40 $aac-spacing-24;
+}
+.la-reg-confirm__card {
+  width: 100%;
+  max-width: 480px;
+  text-align: center;
+  background:
+    radial-gradient(ellipse 50% 60% at 15% 20%, rgba($la-teal, 0.07) 0%, transparent 70%),
+    radial-gradient(ellipse 45% 50% at 85% 70%, rgba(58, 107, 199, 0.05) 0%, transparent 70%),
+    rgba(255, 255, 255, 0.95);
+  border-radius: $aac-radius-xl;
+  padding: $aac-spacing-40 $aac-spacing-32;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-top: 1px solid rgba($brand-teal, 0.14);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.06),
+    0 8px 24px rgba(0, 0, 0, 0.07),
+    0 24px 48px -12px rgba(0, 0, 0, 0.08);
+}
+.la-reg-confirm__icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto $aac-spacing-20;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.la-reg-confirm__icon--success {
+  color: #2A9D8F;
+  background: rgba(42, 157, 143, 0.12);
+}
+.la-reg-confirm__icon--error {
+  color: #C0392B;
+  background: rgba(192, 57, 43, 0.10);
+}
+.la-reg-confirm__title {
+  font-family: 'Maitree', serif;
+  font-size: 26px;
+  font-weight: normal;
+  color: $indigo;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin: 0 0 $aac-spacing-12;
+
+  @media (max-width: 480px) {
+    font-size: 22px;
+  }
+}
+.la-reg-confirm__message {
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-size: $aac-font-size-md;
+  color: $brand-charcoal-dark;
+  line-height: 1.5;
+  max-width: 40ch;
+  margin: 0 auto $aac-spacing-28;
+}
+.la-reg-confirm__cta {
+  display: inline-flex;
+  align-items: center;
+}
+/* Success celebration: a party-popper badge with confetti bursting from behind
+   it. The badge sits centered; the celebrate wrapper owns the bottom spacing
+   (the plain --error badge keeps its own auto margin). */
+.la-reg-confirm__celebrate {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto $aac-spacing-20;
+}
+.la-reg-confirm__celebrate .la-reg-confirm__icon {
+  margin: 0;
+}
+/* Party-popper icon pops in on entry. */
+.la-reg-confirm__icon--success svg {
+  animation: la-reg-pop 0.5s ease-out both;
+}
+/* Confetti pieces burst outward on a gentle loop. Each carries its own
+   direction (--tx/--ty in px), spin (--rot), color and delay. Pieces are
+   pre-centered on the badge's midpoint via negative margins, so the keyframe
+   translate stays pure-px (no mixed %+px calc for SassC to choke on). */
+.la-reg-confirm__confetti {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: -3.5px 0 0 -3.5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 1px;
+  opacity: 0;
+  animation: la-reg-confetti 2.6s ease-out infinite;
+}
+.la-reg-confirm__confetti--a { --tx: -40px; --ty: -26px; --rot: 200deg;  background: #2A9D8F; animation-delay: 0s; }
+.la-reg-confirm__confetti--b { --tx:  38px; --ty: -32px; --rot: -220deg; background: #4C86D8; animation-delay: 0.12s; }
+.la-reg-confirm__confetti--c { --tx: -30px; --ty:  30px; --rot: 160deg;  background: #F4A259; animation-delay: 0.24s; }
+.la-reg-confirm__confetti--d { --tx:  34px; --ty:  28px; --rot: -160deg; background: #E76F92; animation-delay: 0.36s; }
+.la-reg-confirm__confetti--e { --tx:  -6px; --ty: -44px; --rot: 260deg;  background: #F6C453; animation-delay: 0.5s; }
+.la-reg-confirm__confetti--f { --tx:   8px; --ty:  42px; --rot: -120deg; background: #6C5CE7; animation-delay: 0.62s; }
+
+@keyframes la-reg-pop {
+  0%   { transform: scale(0) rotate(-14deg); }
+  60%  { transform: scale(1.15) rotate(4deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+@keyframes la-reg-confetti {
+  0%   { transform: translate(0, 0) scale(0.3) rotate(0deg); opacity: 0; }
+  12%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { transform: translate(var(--tx), var(--ty)) scale(1) rotate(var(--rot)); opacity: 0; }
+}
+/* Respect reduced-motion: no burst or pop; the party-popper badge stays static. */
+@media (prefers-reduced-motion: reduce) {
+  .la-reg-confirm__icon--success svg { animation: none; }
+  .la-reg-confirm__confetti { animation: none; opacity: 0; }
+}
+
 .login-card {
   margin-top: $aac-spacing-24;
   background:
@@ -73533,6 +73656,65 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     --md-collection-drawer-w: 320px;
   }
 }
+/* ── Edit-mode Board Collections drawer (LEFT variant) ────────────────
+   Mirror of the speak-mode right drawer, but pinned to the LEFT edge and used
+   in EDIT mode: the edit rail hides and this drawer takes its place, while the
+   center board area is pushed RIGHT by the drawer width (no overlay, so the grid
+   stays visible/interactive while browsing board-to-board). Reuses the same
+   --md-collection-drawer-w token so width + push stay in lockstep. */
+.md-shell--board-collection-left {
+  --md-collection-drawer-w: 380px;
+}
+.md-board-detail-actions-menu--collection.md-board-detail-actions-menu--collection-left {
+  right: auto;
+  left: 0;
+  /* Sharp LEFT edge (flush with viewport), rounded RIGHT edge — the left-side
+     counterpart of the right drawer's 14px 0 0 14px. */
+  border-radius: 0 14px 14px 0;
+}
+.md-board-detail-actions-menu--collection.md-board-detail-actions-menu--collection-left .md-board-collection__header {
+  border-radius: 0 14px 0 0;
+}
+/* Rail hides — the drawer takes its place. */
+.md-shell--board-collection-left .md-board-edit-panel {
+  display: none;
+}
+/* Edit-mode collection: hide the per-row board language labels (the drawer only
+   carries --collection-left in edit context, so speak mode is unaffected). Covers
+   every row — Original Selected Board, My Boards, and the brand sections. */
+.md-board-detail-actions-menu--collection-left .md-board-collection__item-lang {
+  display: none;
+}
+/* Right SETTINGS panel also hides while browsing the collection, so the center
+   board area is unobstructed (mirrors the speak-mode collection hiding the inline
+   sidebar). It comes back when the drawer closes. */
+.md-shell--board-collection-left .md-board-edit-right-panel {
+  display: none;
+}
+/* Save / Cancel hide while previewing a browsed board — the center is showing a
+   different board (the pill reads "Previewing"), so committing or discarding the
+   edit doesn't apply. They return when the drawer closes. */
+.md-shell--board-collection-left .md-board-edit-session__actions {
+  display: none;
+}
+/* Push the center layout RIGHT by exactly the drawer width (edit mode only), and
+   collapse the 3-column grid (rail | center | right-panel) to a single 1fr column so
+   the center `main` fills the freed width.
+   !important + three shell-class specificity (0,0,4,0) is REQUIRED to beat the
+   edit-mode :has() grid rules (~app.scss:91036, `15% 1fr 15% !important`): the rail
+   and right panel are display:none while the drawer is open, but they stay in the
+   DOM, so `:has(.md-board-edit-panel)` still matches and would otherwise keep the
+   two side columns reserved (the empty-gap / thin-strip bug). Overriding an existing
+   !important is the sanctioned reason to use one here. */
+.md-shell--board-detail.md-shell--board-detail-edit.md-shell--board-collection-left .md-board-detail-layout {
+  padding-left: var(--md-collection-drawer-w, 380px);
+  grid-template-columns: 1fr !important;
+}
+@media (max-width: 1024px) {
+  .md-shell--board-collection-left {
+    --md-collection-drawer-w: 320px;
+  }
+}
 .md-board-collection {
   display: flex;
   flex-direction: column;
@@ -74484,6 +74666,57 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail--dark .md-board-collection__item:hover .md-board-collection__item-count {
   background: rgba(255, 255, 255, 0.18);
   color: #fff;
+}
+
+/* ── Original Selected Board — highlighted "hero" section ──────────────────────
+   The board the edit page was opened with, pinned at the top of the drawer. Given
+   a stronger teal-accented treatment than the neutral section cards so it clearly
+   outranks them (visual hierarchy). Placed AFTER the base + dark section rules so
+   these same-specificity modifier selectors win on source order. */
+.md-board-collection__section--original {
+  background:
+    radial-gradient(ellipse 75% 100% at 8% -20%, rgba($brand-teal, 0.13) 0%, transparent 68%),
+    linear-gradient(180deg, rgba($brand-teal, 0.08) 0%, #ffffff 72%);
+  border: 1px solid rgba($brand-teal, 0.40);
+  border-top: 4px solid $brand-teal;
+  box-shadow:
+    0 0 0 1px rgba($brand-teal, 0.08),
+    0 4px 14px rgba($brand-teal, 0.16),
+    0 12px 30px rgba($brand-blue-black, 0.10);
+}
+.md-board-collection__section--original .md-board-collection__section-label {
+  color: $brand-teal;
+}
+.md-board-collection__section--original .md-board-collection__item {
+  background: rgba($brand-teal, 0.08);
+  border: 1px solid rgba($brand-teal, 0.22);
+}
+.md-board-collection__section--original .md-board-collection__item:hover {
+  background: rgba($brand-teal, 0.14);
+}
+.md-board-collection__section--original .md-board-collection__item-name {
+  font-weight: 700;
+}
+/* Dark variant — brighter teal so it reads on the dark drawer surface. */
+.md-board-detail--dark .md-board-collection__section--original {
+  background:
+    radial-gradient(ellipse 75% 100% at 8% -20%, rgba(80, 217, 209, 0.16) 0%, transparent 68%),
+    rgba(20, 127, 130, 0.14);
+  border: 1px solid rgba(80, 217, 209, 0.38);
+  border-top: 4px solid rgba(80, 217, 209, 0.85);
+  box-shadow:
+    0 0 0 1px rgba(80, 217, 209, 0.10),
+    0 6px 22px rgba(0, 0, 0, 0.38);
+}
+.md-board-detail--dark .md-board-collection__section--original .md-board-collection__section-label {
+  color: rgba(80, 217, 209, 0.92);
+}
+.md-board-detail--dark .md-board-collection__section--original .md-board-collection__item {
+  background: rgba(80, 217, 209, 0.10);
+  border: 1px solid rgba(80, 217, 209, 0.22);
+}
+.md-board-detail--dark .md-board-collection__section--original .md-board-collection__item:hover {
+  background: rgba(80, 217, 209, 0.18);
 }
 .md-board-detail--dark .md-board-collection__loading,
 .md-board-detail--dark .md-board-collection__empty {
@@ -90627,6 +90860,27 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
    data-URI used by the caseload avatar so both contexts read as
    one component family).
    ────────────────────────────────────────────────────────────────── */
+/* User-select button grid alignment. The Bootstrap `.row` is float-based, so unequal
+   card heights (2-line usernames + the "not available" line) make columns catch on
+   taller neighbors and stagger out of a grid. Flex-wrap lays them in clean rows;
+   stretching each column and filling the button gives equal-height cards per row. The
+   button's inline `margin-bottom` row-spacing is relocated to the column (needs
+   !important to beat the inline style) so cards can equalize. */
+.user-select-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+.user-select-grid > [class*="col-"] {
+  display: flex;
+  margin-bottom: 20px;
+}
+.user-select-grid > [class*="col-"] > .user_select,
+.user-select-grid > [class*="col-"] > .btn-group {
+  width: 100%;
+  height: 100%;
+  margin-bottom: 0 !important;
+}
 .modal-content .user_select.btn,
 .user-select-modern .user_select.btn {
   display: inline-flex !important;

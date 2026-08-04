@@ -693,7 +693,21 @@ export default Service.extend({
     
     modal.close();
     modal.close_board_preview();
-    if(this.get('edit_mode')) {
+    // Navigating away from a board while editing leaves edit mode. But NOT when the
+    // destination is the board-detail edit route itself — edit→edit navigation
+    // (previewing a board from the edit-mode Board Collections drawer, and the
+    // transition into a freshly-made copy after copy-to-edit) is staying in edit
+    // mode, and that route's setupController re-asserts current_mode='edit' anyway
+    // (routes/user/board-detail/edit.js:64). Mirrors the same "skip teardown when
+    // the target is edit" guard the speak_mode observer already uses below.
+    //
+    // This ran on routeWillChange, i.e. BEFORE the destination's model/setupController,
+    // so toggle_edit_mode's permission gate re-checked the board still on screen — the
+    // ORIGINAL, non-owned board — and re-opened 'confirm-needs-copying' on top of the
+    // brand-new copy. That is the "Edit a Copy prompt returns after copying" bug; it
+    // only reproduced from edit mode, since arriving from speak mode has edit_mode false
+    // and never reaches this call at all.
+    if(this.get('edit_mode') && transition.to_route != 'user.board-detail.edit') {
       this.toggle_edit_mode();
     }
 //           $(".hover_button").remove();
