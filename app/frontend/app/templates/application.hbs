@@ -925,6 +925,11 @@
               <span class="ll-bento-help-btn__label">{{t "Modern Dashboard" key="modern_dashboard"}}</span>
             </LinkTo>
             {{/if}}
+            {{#if this.isMasquerading}}
+            <button type="button" class="md-pillnav__stop-masquerade" aria-label={{t "Stop Masquerading" key="stop_masquerading"}} title={{t "Stop Masquerading" key="stop_masquerading"}} {{on "click" (this.ctrlAction "stopMasquerading")}}>
+              {{t "Stop Masquerading" key="stop_masquerading"}}
+            </button>
+            {{/if}}
             {{#unless this.app_state.currentBoardState.id}}
             <button type="button" class="md-pillnav__upgrade-nav" aria-label={{t "Upgrade" key="upgrade"}} title={{t "Upgrade" key="upgrade"}} {{on "click" (this.ctrlAction "goUpgrade")}}>
               {{t "Upgrade" key="upgrade"}}
@@ -1268,7 +1273,7 @@
                   {{t "Messages" key="messages"}}
                 </LinkTo></li>
               {{/if}}
-              {{#if this.session.as_user_id}}
+              {{#if this.isMasquerading}}
                 <li><a href="#" {{on "click" (this.ctrlAction "stopMasquerading")}}>{{t "Stop Masquerading" key="stop_masquerading"}}</a></li>
               {{/if}}
               {{#unless this.app_state.speak_mode}}
@@ -1296,6 +1301,11 @@
       </span>
       {{/unless}}
       {{else}}
+    {{#if this.isMasquerading}}
+      <button type="button" class="md-pillnav__stop-masquerade" aria-label={{t "Stop Masquerading" key="stop_masquerading"}} title={{t "Stop Masquerading" key="stop_masquerading"}} {{on "click" (this.ctrlAction "stopMasquerading")}}>
+        {{t "Stop Masquerading" key="stop_masquerading"}}
+      </button>
+    {{/if}}
     {{#unless this.app_state.currentBoardState.id}}
     {{#if this.app_state.currentUser}}
       <LinkTo @route="user.subscription" @model={{this.app_state.currentUser.user_name}} class="md-pillnav__upgrade-nav" aria-label={{t "Upgrade" key="upgrade"}} title={{t "Upgrade" key="upgrade"}}>
@@ -1468,6 +1478,13 @@
   </div>
 </header>
 {{#if (or this.app_state.currentUser this.app_state.sessionUser)}}
+  {{!-- TEMPORARY (2026-07-27): the beta-feedback drawer + its bottom-center tab are
+       suppressed on board-detail SPEAK mode only (route user.board-detail.index).
+       Every other surface — board-detail EDIT mode, classic board speak/edit, the
+       home dashboard, all other authenticated pages — still renders it.
+       TO RESTORE: remove this {{#unless}} wrapper (and its {{/unless}} below), and
+       delete `hide_beta_feedback_temporarily` from controllers/application.js. --}}
+  {{#unless this.hide_beta_feedback_temporarily}}
   {{#if this.showBetaFeedbackDrawer}}
     {{#if (or this.app_state.speak_mode this.app_state.edit_mode this.on_board_detail)}}
       <button type="button" class="beta-feedback-drawer-tab beta-feedback-drawer-tab--speak {{if this.betaFeedbackDrawerOpen "beta-feedback-drawer-tab--open"}}" {{on "click" this.onToggleBetaFeedbackDrawer}} aria-expanded={{if this.betaFeedbackDrawerOpen "true" "false"}} aria-controls="beta-feedback-top-drawer">
@@ -1482,6 +1499,7 @@
       </aside>
     </div>
   {{/if}}
+  {{/unless}}{{!-- TEMPORARY (2026-07-27) — remove with the {{#unless}} above --}}
 {{/if}}
 <div id="content" class="{{this.content_class}} {{if this.hide_header "content--no-top-padding"}}">
   {{ outlet }}

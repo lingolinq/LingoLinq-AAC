@@ -129,6 +129,13 @@ export default Controller.extend({
         self.send.apply(self, [actionName].concat(bound));
       };
     };
+    // Bound separately so {{on "keydown"}} keeps the KeyboardEvent (ctrlAction strips it).
+    this.search_user_keydown = function(event) {
+      if(event && (event.key === 'Enter' || event.keyCode === 13)) {
+        if(event.preventDefault) { event.preventDefault(); }
+        self.send('find_user');
+      }
+    };
   },
 
 
@@ -203,6 +210,27 @@ export default Controller.extend({
 
     toggle_letter: function(letter) {
       emberSet(letter, 'expanded', !emberGet(letter, 'expanded'));
+    },
+
+    // Global user lookup for site admins (admin org full managers). Restored on
+    // the Organizations directory after the single-org shell redesign dropped it.
+    find_user: function() {
+      if(!this.get('has_admin_access')) { return; }
+      var q = (this.get('search_user') || '').toString().trim();
+      if(!q) { return; }
+      this.store.query('user', {q: q}).then(function(res) {
+        // Ember Data 5 RecordArray has no `.content` — use length/slice (see board-picker, search).
+        var list = (res && typeof res.slice === 'function') ? res.slice() : [];
+        if(list.length === 0) {
+          modal.warning(i18n.t('no_user_result', "No results found for \"%{q}\"", {q: q}));
+          return;
+        }
+        // Always open the results modal so Open Profile and Masquerade are both
+        // available per row (exact username no longer auto-navigates away).
+        modal.open('user-results', {list: list, q: q});
+      }, function() {
+        modal.error(i18n.t('error_searching', "There was an unexpected error while search for the user"));
+      });
     }
   }
 });
