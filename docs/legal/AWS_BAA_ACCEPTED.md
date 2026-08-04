@@ -76,7 +76,7 @@ false and no runtime AI seam can egress.
 (created 2026-08-03T08:23:02Z) mounted `BEDROCK_AWS_KEY` / `BEDROCK_AWS_SECRET`; credentials were
 withdrawn on revision `00014-5rw` (created 2026-08-04T06:31:46Z). Revisions `00011-l7f` and
 `00012-x8z` carried no Bedrock credential, confirming the route was not operational before
-2026-08-03. Exactly one call occurred in the window: an internal verification call at
+2026-08-03. Exactly one logged seam call completed in the window: an internal verification call at
 2026-08-04T05:44:42Z (`request_type: word_prediction`, no user attached, no user or student data in
 the payload), the first and only row written to `AiApiLog`. During the window,
 `sts:GetCallerIdentity` under the mounted credential returned account **239044785114**, principal
@@ -102,10 +102,15 @@ Places, OpenSymbols). Those are governed separately and are not in scope for thi
   use. It is **not in use for PHI today** (see the correction below); the HIPAA-eligible services
   actually processing data remain S3, RDS, and the rest of the existing inventory.
 - **Operative condition:** Bedrock calls must run under this BAA'd account (2390-4478-5114). A
-  different account would need its own BAA. **This condition is currently UNVERIFIED**, and cannot
-  be verified while no Bedrock call is made from production. It becomes verifiable, and must be
-  verified, at the moment a Bedrock credential is first mounted. The prior "Verified 2026-07-27"
-  statement here is retracted; see the 2026-08-01 correction below.
+  different account would need its own BAA. This condition was **UNVERIFIED from the 2026-07-27
+  attestation through the 2026-08-01 evidence gather**, and was unverifiable in that period because
+  no Bedrock call could be made from production. It became verifiable when a Bedrock credential was
+  first mounted on revision `00013-76w` (2026-08-03T08:23:02Z), and **was verified on 2026-08-04**:
+  `sts:GetCallerIdentity` under the mounted credential returned account 239044785114, principal
+  `user/lingolinq-bedrock-runtime`. See the operational-window section above. The prior
+  "Verified 2026-07-27" statement here remains retracted: it was false when made, and the later
+  2026-08-04 verification does not revive it. The condition is again unverifiable while no
+  credential is mounted (revision `00014-5rw` onward) and must be re-verified on any future mount.
 - **Bedrock model-invocation logging** (optional; CloudWatch/S3) captures prompts. For PHI it must
   stay disabled, or route to HIPAA-controlled, access-logged storage. **Verified OFF** in this
   account (2390-4478-5114), region us-west-2, on 2026-07-27.
@@ -138,16 +143,24 @@ revision of `lingolinq-web`.
 | AWS-related env vars actually present on the serving revision | `AWS_KEY`, `AWS_SECRET`, `AWS_REGION`, plus the retired `ANTHROPIC_API_KEY` |
 | `BEDROCK_AWS_KEY` / `BEDROCK_AWS_SECRET` in `.github/workflows/deploy-cloudrun.yml` on `staging` as of this 2026-08-01 evidence gather (pre-#719) | absent |
 
-The claim was therefore never true at any point. It is not a case of a control that held when
-attested and later regressed.
+The claim was therefore not true at any point in the period it covered: from the 2026-07-27
+attestation through the 2026-08-01 evidence gather, spanning revisions `00001-2vn` to `00011-l7f`.
+It is not a case of a control that held when attested and later regressed. It is also not
+contradicted by the 2026-08-03 credential mount recorded above: that mount occurred six days after
+the attestation and cannot make a 2026-07-27 statement retroactively true.
 
 **Effect on PHI.** Stated precisely, because an earlier draft of this correction overreached here,
 and the overreach is instructive: it inferred runtime behaviour from deployment configuration, which
 is the same error the 2026-07-27 claim above made.
 
-- **Bedrock egress has never occurred, on any revision.** Verified by the evidence table above: no
-  `lingolinq-web` revision has ever carried a Bedrock credential, so `AiClient.configured?` has
-  never been true in production and `AiClient.build` has always returned nil.
+- **Bedrock egress did not occur on any revision through `00012-x8z` (2026-08-02T20:31Z).** Verified
+  by the evidence table above: no `lingolinq-web` revision up to and including `00012-x8z` carried a
+  Bedrock credential, so `AiClient.configured?` was false and `AiClient.build` returned nil
+  throughout that period. **This changed on 2026-08-03.** Revision `00013-76w` mounted the
+  credentials and one logged seam call completed on 2026-08-04 (an internal verification call
+  carrying no user or student data). Credentials were withdrawn on `00014-5rw`, so the statement
+  holds again from 2026-08-04T06:31:46Z onward. It does **not** hold for the window in between, and
+  must not be quoted as an unbounded claim.
 - **Direct `api.anthropic.com` egress was possible until 2026-07-30.** The Bedrock routing change
   (commit `abd6d8c8c`, PR #681) merged 2026-07-27 11:45 MDT, but the revision serving production
   from 2026-07-24T23:21Z was `lingolinq-web-00010-95c`, whose image predates that commit by three

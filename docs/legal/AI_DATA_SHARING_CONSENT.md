@@ -54,7 +54,7 @@ company-wide subprocessor register, maintained by the Privacy Office on its own 
   this bullet previously carried).** The Bedrock path was not operational from 2026-07-30T16:37Z
   (revision `00011-l7f`) until 2026-08-03T08:23:02Z, when revision `00013-76w` mounted
   `BEDROCK_AWS_KEY` / `BEDROCK_AWS_SECRET`. It was then operational for approximately 22 hours.
-  Exactly one call occurred in that window: an internal verification call on 2026-08-04T05:44:42Z
+  Exactly one logged seam call completed in that window: an internal verification call on 2026-08-04T05:44:42Z
   (`request_type: word_prediction`, no user attached, no user or student data in the payload),
   recorded as the first and only row in `AiApiLog`. Credentials were withdrawn on
   2026-08-04T06:31:46Z (revision `00014-5rw`); the path is not operational as of that timestamp.
