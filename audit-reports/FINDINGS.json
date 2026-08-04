@@ -4257,6 +4257,40 @@
         "timeframe": "90 days"
       },
       "notes": "Discovered 2026-07-20 during VPC Phase 3 planning. PRE-EXISTING and system-wide (~140 callers). VPC Phase 3 adds the optional labelledBy/describedBy arguments to the shell as part of building its own ai-disclosure accessibility contract, but deliberately does NOT retrofit existing callers -- that retrofit is this finding and remains separate prioritized work. Rated medium rather than high because affected modals are still operable; the defect is that a screen-reader user gets no accessible name for the dialog, not that the dialog is unusable."
+    },
+    {
+      "id": "LL-cde54765c6",
+      "ruleKey": "masquerade-no-operator-indicator",
+      "title": "Masquerade shows no indication of whose account is being operated; true_user is never serialized to the client",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "HIPAA",
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/controllers/application_controller.rb",
+        "line": 182,
+        "snippet": "@true_user = @api_user",
+        "sha": "dbd5b689e27033a007dc75b015dc11f8940e9e40"
+      },
+      "firstSeen": "2026-08-04",
+      "lastSeen": "2026-08-04",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Serialize the acting operator alongside the masqueraded user (e.g. expose true_user's user_name via lib/json_api/user.rb or the token/self payload) and render a persistent banner naming BOTH identities while a masquerade is active. Today @true_user is set at application_controller.rb:182 and 196 and used only for private_logging checks (api/logs_controller.rb:41,161,174,233,276,303,317) and the PaperTrail whodunnit string at :185/:199; it never reaches lib/json_api, so the client cannot name the real operator. PR #714 (merged to staging 2026-07-30) added persistent Stop Masquerading controls to AppNavbar (app-navbar-authenticated-inner.hbs:64,183,211), which signals THAT a masquerade is active but not WHOSE record is being operated.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by unknown finder on 2026-08-04. Raised manually 2026-08-04 from a working session, not from an /audit-run fan-out. Server-side accountability is intact: PaperTrail records user:<operator>:as:<target> (application_controller.rb:185,199), which is the mitigation that keeps this out of high. Residual risk is operator-facing: an admin acting inside a student record can create or modify LogSession, goal, and board data attributed to that student without an on-screen reminder of whose account they are in. Severity and disposition are Scot's to set.",
+      "source": "manual"
     }
   ]
 }
