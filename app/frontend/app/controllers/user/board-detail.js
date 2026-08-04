@@ -1142,6 +1142,39 @@ export default Controller.extend(prefClasses, {
     return true;
   },
 
+  // Speak the current utterance the same way classic Speak Mode does:
+  // attached button sounds when present, otherwise TTS (vocalization || label).
+  // Also records recent-phrase history for the board-detail UI.
+  _speak_current_sentence: function() {
+    var list = this.get('app_state.button_list') || [];
+    var speakable = false;
+    for(var i = 0; i < list.length; i++) {
+      var b = list[i];
+      if(!b || emberGet(b, 'ghost') || emberGet(b, 'hint')) { continue; }
+      if(emberGet(b, 'sound') || emberGet(b, 'inline_content') ||
+         emberGet(b, 'vocalization') || emberGet(b, 'label')) {
+        speakable = true;
+        break;
+      }
+    }
+    if(speakable) {
+      // Matches application.vocalize → vocalize_list (sounds + TTS + clear_on_vocalize).
+      utterance.vocalize_list(null, {});
+    } else {
+      var fallback = this.get('sentence_speak_text');
+      if(!fallback) { return; }
+      speecher.stop('text');
+      speecher.speak_text(fallback);
+    }
+    var text = this.get('sentence_speak_text');
+    if(text) {
+      var phrases = (this.get('app_state.board_detail_recent_phrases') || []).slice();
+      phrases.unshift({ text: text, timestamp: new Date() });
+      if(phrases.length > 5) { phrases = phrases.slice(0, 5); }
+      this.set('app_state.board_detail_recent_phrases', phrases);
+    }
+  },
+
   _resolve_missing_sentence_images: function() {
     var _this = this;
     var parts = this.get('sentence_parts') || [];
@@ -6792,15 +6825,13 @@ export default Controller.extend(prefClasses, {
     },
 
     speak_sentence: function() {
-      // Speak vocalization when present (label is display-only on chips).
-      var text = this.get('sentence_speak_text');
-      if(text) {
-        speecher.speak_text(text);
-        var phrases = (this.get('app_state.board_detail_recent_phrases') || []).slice();
-        phrases.unshift({ text: text, timestamp: new Date() });
-        if(phrases.length > 5) { phrases = phrases.slice(0, 5); }
-        this.set('app_state.board_detail_recent_phrases', phrases);
-      }
+      // Classic Speak Mode uses utterance.vocalize_list, which plays each
+      // button's attached sound when present and otherwise TTS of
+      // vocalization || label. Board-detail used to call speak_text only,
+      // so joke-board rimshots (etc.) played on tap but Speak-bar / mic
+      // replay spoke the label. Prefer vocalize_list when button_list has
+      // speakable entries; fall back to TTS for phrase-builder-only chips.
+      this._speak_current_sentence();
     },
 
     // ── Portrait orientation overlay actions ──
@@ -7031,10 +7062,9 @@ export default Controller.extend(prefClasses, {
         parts.push({ id: btn_id, label: label, vocalization: vocalization, image_url: image_url });
       });
       this.set('sentence_parts', parts);
-      // Speak the full sentence (mirrors the speak_sentence action so the
-      // user hears the whole phrase, not just the first word). Also pushes
-      // it onto the recent-phrases history. Use speak text (vocalization ||
-      // label) so distinct button vocalizations are not replaced by labels.
+      // Phrase-builder commit only updates local chips (not app_state.button_list),
+      // so do not call vocalize_list here — that would replay a stale utterance.
+      // Speak vocalization || label via TTS for the chips just committed.
       var text = this.get('sentence_speak_text');
       if(text) {
         speecher.stop('text');
