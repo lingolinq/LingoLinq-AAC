@@ -387,11 +387,6 @@ jobs:
         if: steps.classify.outputs.reviewer_route == 'codex' && env.CODEX_REVIEW_EVIDENCE_MODE == 'chunked'
         env:
           CODEX_HOME: ${{ runner.temp }}/codex-home
-          # Escape hatch: a bad model pin would otherwise only be fixable by a PR
-          # that has to pass the gate it is breaking. Empty/unset falls back to
-          # the DEFAULT_* constants in the script.
-          CODEX_CHUNK_MODEL: ${{ vars.CODEX_CHUNK_MODEL }}
-          CODEX_SYNTHESIS_MODEL: ${{ vars.CODEX_SYNTHESIS_MODEL }}
         run: |
           python3 scripts/codex-review-run-chunks.py \
             --evidence-dir /tmp/codex-review-evidence \
@@ -403,10 +398,12 @@ jobs:
             --run-url "${RUN_URL}" \
             --heartbeat
           # Surface the models actually used so the envelope can record which
-          # approved reviewer produced the verdict. Values originate from a repo
-          # variable, so restrict them to a model-id charset before they reach
-          # GITHUB_ENV: a value carrying a newline would otherwise be able to
-          # define arbitrary further environment variables.
+          # approved reviewer produced the verdict. These come from constants in
+          # the script (not from any repo variable), but are still restricted to
+          # a model-id charset before reaching GITHUB_ENV: a value carrying a
+          # newline could otherwise define arbitrary further environment
+          # variables, and this write should not be the weak link if the source
+          # ever changes.
           sanitize_model_id() {
             printf '%s' "$1" | tr -cd 'A-Za-z0-9._-' | cut -c1-64
           }

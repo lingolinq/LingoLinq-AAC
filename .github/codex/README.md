@@ -27,14 +27,21 @@ CI-computed structural index, never raw code. A defect the chunk pass misses is
 therefore unreachable to synthesis, so detection strength has to live on the
 chunk leg. Convergence does not substitute for it: runs 2 and 3 re-sample the
 same model on the same prompt, which corrects sampling variance, not a blind
-spot. `gpt-5.6-luna` remains registry-approved as an A/B comparison arm; putting
-it on the production detection path is what `CODEX_CHUNK_MODEL` is for, and any
-such change should be treated as a reviewer-strength change, not a config tweak.
+spot. `gpt-5.6-luna` remains registry-approved as an A/B comparison arm, but
+moving it onto the production detection path is a reviewer-strength change, not a
+config tweak: it takes a PR that edits the constants below, and review.
 
-Both ids are overridable at runtime via the repo variables `CODEX_CHUNK_MODEL`
-and `CODEX_SYNTHESIS_MODEL`, which exist so a bad pin can be corrected without
-shipping a PR through the gate the pin is breaking. The models actually used are
-recorded in the W2 envelope as `chunk_model` / `synthesis_model`.
+**Neither id is runtime-overridable, deliberately.** An earlier revision read
+both from repo variables so a bad pin could be corrected without shipping a PR
+through the gate the pin was breaking. Review rejected that: a repo variable is
+settable with no PR and no review, so the hatch let anyone move the code-reading
+leg onto a weaker model silently, which is the exact thing the pin exists to
+prevent. Changing a reviewer model is a reviewed change. If terra itself becomes
+unusable, the remaining levers are `CODEX_REVIEW_EVIDENCE_MODE=bounded`,
+`CODEX_REVIEW_CHUNKED_SCOPE=none`, and the documented admin exception.
+
+The models actually used are recorded in the W2 envelope as `chunk_model` /
+`synthesis_model`, so the audit artifact names the reviewer.
 
 Note that `CODEX_REVIEW_CHUNKED_SCOPE` decides who reaches this path at all (see
 Evidence modes below), so a change here does not necessarily apply to every

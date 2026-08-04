@@ -38,38 +38,22 @@ CI_MARKER_RE = re.compile(r"<!--\s*/?\s*CI_INJECT:[A-Z_]+\s*-->")
 # weaker model also drives invocation count UP, not down, because run 2 fires
 # only on APPROVE and run 3 only on self-disagreement.
 #
-# Overridable via repo variables so a bad pin can be corrected without having to
-# pass the very gate it is breaking (a model-quality failure blocks fail-closed
-# and does not qualify for the admin exception, which covers auth-step failures
-# only).
+# Deliberately NOT runtime-overridable. An earlier revision of this change read
+# both ids from repo variables so a bad pin could be corrected without shipping a
+# PR through the gate the pin was breaking. Review rejected that: a repo variable
+# is settable with no PR and no review, so the hatch let anyone move the
+# code-reading leg onto a weaker model, silently and with no approval, which is
+# the exact defect this file exists to prevent. A convenience lever that can
+# disable the control it protects is worth less than the control.
+#
+# If terra itself ever becomes unusable, the levers that remain are
+# CODEX_REVIEW_EVIDENCE_MODE=bounded, CODEX_REVIEW_CHUNKED_SCOPE=none, and the
+# documented admin exception. Changing a reviewer model stays a reviewed change.
 DEFAULT_CHUNK_MODEL = "gpt-5.6-terra"
 DEFAULT_SYNTHESIS_MODEL = "gpt-5.6-terra"
 
-# The ONLY model ids approved for this gate. The override below is an operational
-# escape hatch, not a way around the registry: a repo variable is settable with
-# no PR and no review, so an unvalidated override would let anyone point the
-# required gate at an unapproved reviewer (notably gpt-5.6-sol, approved for the
-# interactive Codex row only) and still have it report a passing status. Validate
-# before invoking, and fail closed on anything else rather than silently
-# downgrading to the default, so a bad override is loud instead of invisible.
-APPROVED_CI_MODELS = ("gpt-5.6-terra", "gpt-5.6-luna")
-
-
-def resolve_model(env_name, default):
-    override = os.environ.get(env_name, "").strip()
-    if not override:
-        return default
-    if override not in APPROVED_CI_MODELS:
-        raise SystemExit(
-            f"{env_name}={override!r} is not an approved reviewer model for the "
-            f"codex-review CI gate (approved: {', '.join(APPROVED_CI_MODELS)}). "
-            "Refusing to review; see .github/codex/README.md 'Approved reviewer models'."
-        )
-    return override
-
-
-CHUNK_MODEL = resolve_model("CODEX_CHUNK_MODEL", DEFAULT_CHUNK_MODEL)
-SYNTHESIS_MODEL = resolve_model("CODEX_SYNTHESIS_MODEL", DEFAULT_SYNTHESIS_MODEL)
+CHUNK_MODEL = DEFAULT_CHUNK_MODEL
+SYNTHESIS_MODEL = DEFAULT_SYNTHESIS_MODEL
 
 
 def defang_ci_markers(body):
