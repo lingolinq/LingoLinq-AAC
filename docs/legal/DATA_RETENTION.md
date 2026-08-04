@@ -3,10 +3,16 @@
 **Owner:** Privacy Office (privacy@lingolinq.com)
 **Last reviewed:** 2026-07-23 (attested by Scot Wahlquist, CEO)
 **Next review:** 2027-04-20
+**Attestation status:** Modified after the 2026-07-23 attestation — **re-attestation owed**.
+PR #721 updated the audio/video deletion row and Flusher cascade notes (`UserVideo` /
+`ButtonSound`, including off-board / message-bank recordings) to match
+`Flusher.flush_user_content` at HEAD. Those bytes are **not** covered by the 2026-07-23 pin;
+only Scot re-attests. Do not treat this file as currently attested for external release.
 **Attestation history:** first attested 2026-06-21. That attestation covered an earlier revision:
 PR #569 (2026-07-10) and PR #656 (2026-07-22) rewrote the AI-log retention rows, and the
 2026-07-22 Gate 1 cutover moved the production database off Render, which the backup rows did not
-reflect until the 2026-07-23 correction below. Re-attested 2026-07-23 against the current revision.
+reflect until the 2026-07-23 correction below. Re-attested 2026-07-23 against the then-current
+revision; post-attestation Flusher erasure updates landed in PR #721 (this file).
 **Related:** `docs/legal/BREACH_RUNBOOK.md`, `docs/legal/SUBPROCESSORS.md`, `COMPLIANCE.md`
 
 ## 1. Purpose

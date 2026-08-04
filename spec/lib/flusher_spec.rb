@@ -206,9 +206,10 @@ describe Flusher do
       b = Board.create(:user => u)
       b2 = Board.create(:user => u)
       # Removable URLs must be uploads-bucket HTTPS paths matching
-      # Uploader.remote_remove's accepted pattern (\w+/.../\w+-\w+.ext).
-      # Non-removable library assets stay off the uploads bucket so
-      # check_for_removable does not force removable=true.
+      # Uploader.remote_remove's guard after the bucket prefix is stripped:
+      # /\w+\/.+\/\w+-\w+(\.\w+)?$/ (or /^extras/). Extension is optional;
+      # the pattern is end-anchored. Non-removable library assets stay off
+      # the uploads bucket so check_for_removable does not force removable=true.
       uploads_bucket = ENV['UPLOADS_S3_BUCKET'].presence || 'lingolinq-dev-uploads'
       pic_url = "https://#{uploads_bucket}.s3.amazonaws.com/images/abc123/pic-one.png"
       pic2_url = "https://opensymbols.s3.amazonaws.com/libraries/mulberry/cat.png"
@@ -324,9 +325,11 @@ describe Flusher do
     it "should flush off-board ButtonSound and UserVideo records and schedule S3 removal" do
       u = User.create
       u2 = User.create
-      # Uploads-bucket HTTPS URLs matching Uploader.remote_remove's accepted path
-      # pattern (\w+/.../\w+-\w+.ext). example.com URLs would raise the "scary
-      # delete" guard if the stub were removed, so they mask regressions.
+      # Uploads-bucket HTTPS URLs matching Uploader.remote_remove's guard after
+      # the bucket prefix is stripped: /\w+\/.+\/\w+-\w+(\.\w+)?$/ (or /^extras/).
+      # Extension is optional; the pattern is end-anchored. example.com URLs
+      # would raise the "scary delete" guard if the stub were removed, so they
+      # mask regressions.
       uploads_bucket = ENV['UPLOADS_S3_BUCKET'].presence || 'lingolinq-dev-uploads'
       sound_url = "https://#{uploads_bucket}.s3.amazonaws.com/sounds/abc123/voice-rec.mp3"
       video_url = "https://#{uploads_bucket}.s3.amazonaws.com/videos/abc123/clip-vid.mp4"

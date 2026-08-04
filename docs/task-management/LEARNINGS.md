@@ -8035,7 +8035,7 @@ Merge reassignment (`transfer_user_content`) and hard-delete (`flush_user_conten
 
 ## Gotcha: stubbing `Uploader.remote_remove` still needs uploads-bucket URL shapes
 
-Specs that `expect(Uploader).to receive(:remote_remove)` never hit the "scary delete" guard, so `http://www.example.com/...` fixtures can mask regressions. Use uploads-bucket HTTPS paths that match `\w+/.../\w+-\w+(.ext)?` after the bucket prefix is stripped (see `lib/uploader.rb` / `uploader_spec`). Keep `removable: false` fixtures on non-uploads URLs (e.g. opensymbols) — `check_for_removable` forces `removable=true` for uploads-bucket URLs. Ref: [`2026-07-31-flush-uservideo-buttonsound-erasure.md`](./2026-07-31-flush-uservideo-buttonsound-erasure.md).
+Specs that `expect(Uploader).to receive(:remote_remove)` never hit the "scary delete" guard, so `http://www.example.com/...` fixtures can mask regressions. Use uploads-bucket HTTPS paths that match `/\w+\/.+\/\w+-\w+(\.\w+)?$/` after the bucket prefix is stripped (extension optional, end-anchored; `^extras` also allowed — see `lib/uploader.rb:223`). Keep `removable: false` fixtures on non-uploads URLs (e.g. opensymbols) — `check_for_removable` forces `removable=true` for uploads-bucket URLs. Ref: [`2026-07-31-flush-uservideo-buttonsound-erasure.md`](./2026-07-31-flush-uservideo-buttonsound-erasure.md).
 
 ## Pattern: a missing env var can turn a storage optimization into silent data destruction
 

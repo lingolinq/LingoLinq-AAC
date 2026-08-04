@@ -690,7 +690,7 @@
         ],
         "note": "Re-attested 2026-07-23 against the current revision after live Cloud SQL verification. The RPO target is not established, so this attestation does not assert that the current recovery capability meets an RPO target. The prior attestation covered a revision that no longer exists. (Re-pinned after a same-day follow-up removed a stray blank line that had split the retention table; no substantive content change.)"
       },
-      "contentHash": "217c20d16483fefd3a1e90453215d72d1b4c3326cc7ca14b99efa7181bb14e24",
+      "contentHash": "98b99728294d61470ff7e6afa26113a17ee1a3136bd2e430e78e8b37c7e4a396",
       "bundles": [
         "soc2-evidence",
         "school-dpa-package",
@@ -2566,7 +2566,7 @@
         "attestedDate": "2026-07-23",
         "attestedContentHash": "47318beb94b3d3b9fa76845def3d68db6eddd38b7a6e2c44596d11b2d733b046"
       },
-      "contentHash": "2be889bf31be0a068851422ce7ac17127e6975dbf62912ae5f51352dcb54027e",
+      "contentHash": "4f00435ad21bbe62750d027b8627984433365b0a9060f501e8102c8468755cd1",
       "bundles": [
         "security-review"
       ],

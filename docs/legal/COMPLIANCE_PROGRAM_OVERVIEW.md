@@ -1,9 +1,15 @@
 # LingoLinq Security, Privacy & Compliance Overview
 
-> **Re-attested for external release by Scot Wahlquist (CEO) on 2026-07-23 (rev. 2026-07-23-a).**
-> Reflects the current production build. Present tense describes controls that exist in the product
-> today. The "Planned" section describes controls we intend to add and is written in the future tense
-> on purpose. This document deliberately claims only what we actually do.
+> **Attestation status: modified after the 2026-07-23 re-attestation — re-attestation owed.**
+> Rev. 2026-07-23-a was attested by Scot Wahlquist (CEO) for external release. PR #721 later
+> updated the data-lifecycle / voice-recording erasure claims (`ButtonSound`, `UserVideo`, S3
+> `remote_remove`) to match `Flusher.flush_user_content` at HEAD. Those post-attestation bytes
+> are **not** covered by the 2026-07-23 pin; only Scot re-attests. Do not present this revision
+> as currently attested for external release until that pin is refreshed.
+>
+> Present tense describes controls that exist in the product today. The "Planned" section
+> describes controls we intend to add and is written in the future tense on purpose. This
+> document deliberately claims only what we actually do.
 >
 > **Attestation history.** First attested for external release 2026-07-09 (rev. 2026-07-09-c), after
 > a Codex senior-dev re-review reconciled the Sentry scrubber, password-hashing, right-to-erasure,
@@ -32,8 +38,9 @@
 > district, or a partner. Status of every implemented claim is verifiable against live code and
 > the findings register (`audit-reports/FINDINGS.json`).
 >
-> **Owner:** Scot Wahlquist, CEO. **Authorized for external sharing** as of the 2026-07-22 CEO
-> re-attestation of this version.
+> **Owner:** Scot Wahlquist, CEO. External-sharing authorization last covered the 2026-07-23-a
+> attested cut; this post-attestation revision is **not** authorized for external release until
+> Scot re-attests.
 
 ---
 
