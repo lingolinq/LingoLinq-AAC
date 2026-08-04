@@ -153,6 +153,7 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Pattern: blank username suggestions must be discarded before `clean_path`](#pattern-blank-username-suggestions-must-be-discarded-before-clean_path)
 - [Pattern: keyboard control vocalizations must survive translation overlay](#pattern-keyboard-control-vocalizations-must-survive-translation-overlay)
 - [Pattern: board-detail Speak bar must speak vocalization, not just label](#pattern-board-detail-speak-bar-must-speak-vocalization-not-just-label)
+- [Pattern: board-detail Speak bar must play attached button sounds, not TTS-only](#pattern-board-detail-speak-bar-must-play-attached-button-sounds-not-tts-only)
 - [Pattern: per-user UI prefs must be read from `currentUser`, not the board-detail route's URL user](#pattern-per-user-ui-prefs-must-be-read-from-currentuser-not-the-board-detail-routes-url-user)
 - [Pattern: `.md-board-collection__*` is a light-base panel reusable on any page; dark theme is ancestor-scoped](#pattern-md-board-collection-is-a-light-base-panel-reusable-on-any-page-dark-theme-is-ancestor-scoped)
 - [Pattern: a new user preference is a 3-touch change — whitelist + default + dirty-bit save](#pattern-a-new-user-preference-is-a-3-touch-change--whitelist--default--dirty-bit-save)
@@ -8158,7 +8159,19 @@ Two different credentials share the name `user_token`. `User#user_token` is a pe
 
 **Root cause:** Two speak paths. Button tap uses `utterance.speak_button` (`vocalization || label`). Classic `#button_list` uses `utterance.vocalize_list` (same). Board-detail's `speak_sentence` was speaking local `sentence_text`, which joined **labels only**, and `sync_sentence_from_button_list` never copied `vocalization` onto `sentence_parts` chips. Demo speak already had the correct helper (`sentence_text_for` → `vocalization || label`).
 
-**Fix recipe:** Persist `vocalization` on each `sentence_parts` chip when mirroring `app_state.button_list`. Keep display `sentence_text` as labels (chip / text-strip UX). Speak via a separate `sentence_speak_text` (`vocalization || label`) from `speak_sentence` / phrase-builder speak. Do not silently switch board-detail mic to `vocalize_list` without checking `list_vocalized` / `clear_on_vocalize` side effects.
+**Fix recipe:** Persist `vocalization` on each `sentence_parts` chip when mirroring `app_state.button_list`. Keep display `sentence_text` as labels (chip / text-strip UX). For Speak-bar / mic replay, call `utterance.vocalize_list` (same as classic) so **attached button sounds** play and TTS uses `vocalization || label`. Keep a TTS fallback (`sentence_speak_text`) only when `button_list` has nothing speakable (e.g. phrase-builder chips that never hit `add_button`). `vocalize_list` sets `list_vocalized` / honors `clear_on_vocalize` — that is intentional parity with classic Speak Mode.
 
-**Evidence:** task log [`2026-08-04-speak-bar-label-not-vocalization.md`](./2026-08-04-speak-bar-label-not-vocalization.md); `board-detail.js` `sentence_speak_text` / `sync_sentence_from_button_list`; contrast `utterance.js` `speak_button` / `vocalize_list` and `demo/speak.js` `sentence_text_for`.
+**Evidence:** task log [`2026-08-04-speak-bar-label-not-vocalization.md`](./2026-08-04-speak-bar-label-not-vocalization.md); follow-up [`2026-08-04-speak-bar-skips-button-sounds.md`](./2026-08-04-speak-bar-skips-button-sounds.md); `board-detail.js` `_speak_current_sentence` / `sentence_speak_text`; contrast `utterance.js` `speak_button` / `vocalize_list`.
+
+## Pattern: board-detail Speak bar must play attached button sounds, not TTS-only
+
+**Surface:** board-detail Speak Mode with buttons that have recorded `ButtonSound` audio (imported joke boards, rimshot, etc.).
+
+**Symptom:** Button tap plays the recording; Speak bar / mic speaks the label via TTS.
+
+**Root cause:** `speak_sentence` called `speecher.speak_text(...)`. Classic Speak Mode calls `utterance.vocalize_list`, which pushes `{sound: url}` into `speecher.speak_collection` when `button_list[i].sound` is set. The vocalization-text fix did not close this gap.
+
+**Fix recipe:** Route Speak-bar / mic through `utterance.vocalize_list` when `app_state.button_list` has speakable entries. Do **not** use that path for phrase-builder commit (local chips only — would replay a stale utterance).
+
+**Evidence:** [`2026-08-04-speak-bar-skips-button-sounds.md`](./2026-08-04-speak-bar-skips-button-sounds.md).
 
