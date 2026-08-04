@@ -36,6 +36,7 @@ file (see [README.md](README.md)).
 - [Pattern: phased board prefetch — shared planner, dual persistence files](#pattern-phased-board-prefetch--shared-planner-dual-persistence-files)
 - [Pattern: board-detail `/tree` blocks paint on the full descendant payload](#pattern-board-detail-tree-blocks-paint-on-the-full-descendant-payload)
 - [Pattern: board-preview latency is cold-cache, not the loading gate — warm on intent](#pattern-board-preview-latency-is-cold-cache-not-the-loading-gate--warm-on-intent)
+- [Pattern: boards-page Mine list — cache-first paint, atomic background refresh](#pattern-boards-page-mine-list--cache-first-paint-atomic-background-refresh)
 - [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
 - [Gotcha: sync double `modal.open` — the *second* template wins; do not invent write-loss on the winner](#gotcha-sync-double-modalopen--the-second-template-wins-do-not-invent-write-loss-on-the-winner)
 - [Gotcha: Shepherd modal overlay is VISUAL-ONLY; canClickTarget:false makes the target click "fall through"](#gotcha-shepherd-modal-overlay-is-visual-only-canclicktargetfalse-makes-the-target-click-fall-through)
@@ -297,6 +298,16 @@ Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` c
 **Diag:** `localStorage.ll_board_cache_diag=1` → [`board_cache_diag.js`](../../app/frontend/app/utils/board_cache_diag.js) marks on board-detail.
 
 **First seen in:** [2026-07-23-speak-mode-board-cache-latency.md](./2026-07-23-speak-mode-board-cache-latency.md)
+
+## Pattern: boards-page Mine list — cache-first paint, atomic background refresh
+
+**Surface:** `/:user/boards` overlay gated on `model.my_boards.done` ([`user/boards.hbs`](../../app/frontend/app/templates/user/boards.hbs)); list load in [`generate_or_append_to_list`](../../app/frontend/app/controllers/user/index.js).
+
+**Gotcha:** Re-entering the boards page always re-queried `store.query('board', { user_id })`. Streaming partial pages onto `model.my_boards` cleared `.done` until the last page, so a background refetch re-showed “Preparing your workspace.” Server Redis on boards index only caches public search, not Mine `user_id` lists.
+
+**Fix recipe:** (1) Persist a compact Mine snapshot in localStorage ([`boards_page_list_cache.js`](../../app/frontend/app/utils/boards_page_list_cache.js), 10m TTL). (2) Hydrate in [`routes/user/boards.js`](../../app/frontend/app/routes/user/boards.js) before `update_selected`. (3) When the visible list is already usable (`Array` + `.done`), accumulate pages in a side buffer and atomically swap only on the final page; never set `{loading:true}` over a usable empty list. (4) Clear snapshots in `appState.clear_user_state`. Distinct from `board_detail_cache` (speak `/tree`).
+
+**First seen in:** [2026-08-03-boards-page-cache-first.md](./2026-08-03-boards-page-cache-first.md)
 
 ## Pattern: supervisor caseload session prefetch reuses board_detail_cache, not offline sync
 

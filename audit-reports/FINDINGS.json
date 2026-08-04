@@ -4345,6 +4345,89 @@
         "promotedDate": "2026-08-02"
       },
       "notes": "Found by adversary review of PR 725; rationale reordered 2026-08-02 after the same reviewer noted the original write-up led with the weaker cross-tenant argument. Activation and TTL wording corrected 2026-08-03 after Codex review of this PR. PREMISE CORRECTED 2026-08-04: the note previously read 'Currently unexercised while Bedrock is unconfigured: resolve_api_config returns nil and predict returns early at lib/ai_word_predictor.rb:34-35, so nothing reaches the cache write.' That is no longer the operative history. Revision 00013-76w mounted the Bedrock credentials at 2026-08-03T08:23:02Z, and a live AiWordPredictor.predict call completed successfully at 2026-08-04T05:44:42Z, so the cache write at line 135 DID execute in production with a key built from the raw pre-scrubber sentence. The utterance in that single call was an internal verification string containing no user or student data, so no real user content was retained; the defect is nonetheless now demonstrated in production rather than theoretical. Credentials were withdrawn at 2026-08-04T06:31:46Z (revision 00014-5rw), returning the path to unexercised. This finding should be scheduled on its stated fix (hash of the SCRUBBED sentence plus a tenant discriminator) rather than deferred behind an 'unexercised' label, since any future credential mount re-activates it immediately. Once credentials are mounted and resolve_api_config succeeds, the cache write at line 135 runs even when the model call fails -- the rescue at lines 90-94 returns [] and execution still stores CACHE[cache_key] = { words: words, ts: Time.now }. Activation condition is AiClient.configured? (credential pair present), not a successful Bedrock completion; same mount trigger as LL-1b0d78dbe6. Severity HIGH on the unscrubbed-retention argument alone; the reviewer's initial medium was revised up after weighing the mandatory district-isolation rule and for consistency with LL-1b0d78dbe6. Severity remains Scot's call."
+    },
+    {
+      "id": "LL-cde54765c6",
+      "ruleKey": "masquerade-no-operator-indicator",
+      "title": "Masquerade shows no on-screen indication of whose account is being operated",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "HIPAA",
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/controllers/application_controller.rb",
+        "line": 182,
+        "snippet": "@true_user = @api_user",
+        "sha": "dbd5b689e27033a007dc75b015dc11f8940e9e40"
+      },
+      "firstSeen": "2026-08-04",
+      "lastSeen": "2026-08-04",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Cheapest path (template only, no server change): render the already-stashed operator identity beside the existing Stop Masquerading controls. session.original_user_name is set at masquerade start (app/frontend/app/components/masquerade.js:61, app/frontend/app/controllers/organization.js:48), restored at app/frontend/app/services/session.js:510, and already read by the isMasquerading computed at app/frontend/app/controllers/application.js:52,56 with a stash fallback at :62. Option 2, only if the server must be authoritative: serialize the acting operator via lib/json_api. Scope of @true_user (set at app/controllers/application_controller.rb:182,196): the private_logging checks in app/controllers/api/logs_controller.rb, the PaperTrail whodunnit at :185/:199, and the authorization plus audit-attribution actor in app/controllers/concerns/api/schema_explorer.rb:90,103 and app/controllers/concerns/api/system_settings_access.rb:7. It never reaches lib/json_api. PR #714 (staging, 2026-07-30) added persistent Stop Masquerading controls (app/frontend/app/components/app-navbar-authenticated-inner.hbs:64,183,211; app/frontend/app/templates/application.hbs:928,1276,1304), which signal THAT a masquerade is active but not WHOSE record is open.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Raised manually 2026-08-04 from a working session, not from an /audit-run fan-out. Severity and disposition are Scot's to set. Accountability scope, corrected after dual review: PaperTrail records user:<operator>:as:<target> (app/controllers/application_controller.rb:185,199) ONLY on the models and attributes it versions, namely the Board (app/models/board.rb:64) and User (app/models/user.rb:44) attribute allowlists, and destroy-only on LogSession (app/models/log_session.rb:28). UserGoal carries no has_paper_trail at all. Surviving versions are pruned by User.flush_old_versions (app/models/user.rb:3646). So a masquerading admin's create or update of a student's log session or goal is NOT distinguishable after the fact. This finding covers the UI indicator gap only; the absence of any masquerade AuditEvent is a separate issue and is not yet filed.",
+      "source": {
+        "kind": "manual",
+        "pr": "",
+        "reviewer": "scot",
+        "promotedDate": "2026-08-04"
+      }
+    },
+    {
+      "id": "LL-522c1a6d13",
+      "ruleKey": "masquerade-no-audit-event",
+      "title": "Masquerade produces no AuditEvent; the site-admin branch impersonates any user with no disclosure record",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/controllers/application_controller.rb",
+        "line": 181,
+        "snippet": "if admin && admin.manager?(@api_user) && @linked_user",
+        "sha": "dbd5b689e27033a007dc75b015dc11f8940e9e40"
+      },
+      "firstSeen": "2026-08-04",
+      "lastSeen": "2026-08-04",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Write an AuditEvent at masquerade authorization in both branches of application_controller.rb (site-admin at :181, org-manager at :188-205), recording the acting operator, the target user, and the branch that authorized it. Prior art already exists in this codebase and should be generalized rather than reinvented: app/controllers/concerns/api/schema_explorer.rb:102-104 defines audit_user_key as (@true_user || @api_user)&.global_id precisely so a disclosure is booked to the admin who performed the read rather than the account being viewed as. That treatment covers one endpoint and nothing else. Note masquerade has no session concept to hook: it is a per-request as_user_id param or X-As-User-Id header (:177), so the event must be emitted on the authorization path, and de-duplicated per operator/target rather than per request. The org-manager branch already caches its authorization decision in Redis for 30 minutes (:195), which is a natural de-dup window; the site-admin branch has no cache and no gate at all.",
+        "timeframe": "30d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": 742,
+        "reviewer": "adversary",
+        "promotedDate": "2026-08-04"
+      },
+      "notes": "Promoted from PR #742 review (adversary) on 2026-08-04. Surfaced by the Claude adversary pass during dual review of PR #742, and verified against code at that PR's base: grep for AuditEvent in app/controllers/application_controller.rb returns zero occurrences. FERPA accounting-of-disclosures and HIPAA 164.312(b) audit controls therefore have no record that an admin viewed or acted inside a given student account. The site-admin branch grants impersonation of ANY user on Organization.admin.manager? alone, with no consent record. This is the accountability half of the masquerade problem; LL-cde54765c6 covers the separate UI indicator gap and explicitly does not claim to cover this. Related: PaperTrail does not close the gap either, since log_session.rb:28 versions on destroy only, user_goal.rb has no has_paper_trail, and User.flush_old_versions (user.rb:3646) prunes surviving versions."
     }
   ]
 }
