@@ -5601,7 +5601,7 @@
   "landing_feature_family_desc": "*** Parents and caregivers get free companion access. Same boards, same vocabulary, school to home. No extra cost.",
   "communication_access": "*** Communication access",
   "landing_hero_highlight": "*** every student",
-  "landing_hero_subtitle_line1": "*** LingoLinq is an AI-powered AAC platform that gives students a voice.",
+  "landing_hero_subtitle_line1": "*** LingoLinq is an AI-powered AAC platform that ensures every voice is heard.",
   "landing_hero_subtitle_line2": "*** It saves therapists hours each week and gives districts the management tools they've been asking for.",
   "landing_hero_cloud": "*** Cloud-based",
   "landing_hero_lower_cost": "*** 90% Lower Cost",
@@ -8235,6 +8235,9 @@
   "landing_privacy_title_1": "*** Your data stays",
   "landing_privacy_title_2": "*** yours",
   "landing_privacy_statement": "*** We never sell or share your information, and we never use it to train AI models. Our AI tools and analytics — including Real Analytics for IEPs — are strictly opt-in, and you can turn any of them off at any time.",
+  "landing_try_demo": "*** Try Demo",
+  "translation_not_enabled_for_account": "*** Automatic translation is not enabled for this account. You can still enter translations by hand.",
+  "masquerade": "mascarada [[ masquerade",
   "==== lvl8 ============": "Below are all words for priority level 8 (this string does not need to be translated)",
   "on_the_date": "No encontro [[ On the Date",
   "after_time": "Depois do Tempo [[ After Time",
@@ -8456,7 +8459,6 @@
   "eval_accounts_lower": "contas de avaliação [[ eval accounts",
   "update_lower": "atualizar [[ update",
   "background_jobs": "Trabalhos em segundo plano [[ Background Jobs",
-  "masquerade": "mascarada [[ masquerade",
   "find_user": "encontrar usuário [[ find user",
   "find_board_lower": "encontrar placa [[ find board",
   "import_scheduled": "Importação de dados do Word agendada! O processamento pode levar algumas horas [[ Word Data Import scheduled! It could take a few hours to process",
@@ -8680,5 +8682,10 @@
   "org_name_required": "*** Organization name is required",
   "org_jurisdiction_required": "*** Please choose United States or European Union for the organization location",
   "org_jurisdiction_label": "*** Organization location",
-  "org_jurisdiction_hint": "*** Used when a communicator leaves this organization so under-13 and under-16 protections follow US or EU rules."
+  "org_jurisdiction_hint": "*** Used when a communicator leaves this organization so under-13 and under-16 protections follow US or EU rules.",
+  "org_external_ai_processing_label": "*** Third-party AI processing",
+  "org_external_ai_processing_toggle": "*** Allow third-party AI processing (translation, voice transcription)",
+  "org_external_ai_processing_hint": "*** When off, board auto-translation and voice-recording transcription will not send data to Google. Recordings still work without a transcript. Turn this off if your contract forbids third-party processing.",
+  "find_user_section_desc": "*** Look up any account by username or email. Open the profile or masquerade from the results.",
+  "user_name_or_email": "*** user name or email"
 }

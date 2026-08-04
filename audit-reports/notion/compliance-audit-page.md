@@ -11,13 +11,13 @@
 **Audited commit:** `20953ab3d5a80c3a9cbb249f37a79357b7f1baf1`  
 **Audited ref:** `scot/compliance/audit-refresh-2026-07-07`  
 **Run date:** 2026-07-08  
-**Page generated:** 2026-08-04T07:08:26Z
+**Page generated:** 2026-08-04T13:15:13Z
 
 ## Headline - open findings
 
 | Critical | High | Medium | Low |
 |---|---|---|---|
-| **0** | **11** | 27 | 25 |
+| **0** | **11** | 28 | 25 |
 
 _Headline is the count of `open` + `remediated-unverified` findings by severity (plan decision 5.9.2: counts, not a synthetic score). Only Scot closes a finding, downgrades severity, or accepts risk._
 
@@ -59,6 +59,7 @@ _Headline is the count of `open` + `remediated-unverified` findings by severity 
 | LL-caaf8e20ec |  | medium | SOC2 | lingolinq_admin site-admin account carries a simple, memorable seeded password (deliberate for pre-cutover hands-on testing); must be rotated, disabled, or replaced with a break-glass admin procedure before the GCP environment is customer-facing | (attestation) |
 | LL-caf2528468 |  | medium | GDPR, FERPA | UserExtra/UserLink profile-history caches are not invalidated when the source profile LogSession is deleted | `app/models/user_extra.rb`:58 |
 | LL-e08bd45a9f |  | medium | WCAG | Sentence box / utterance bar vocalize control is an anchor with no button role or accessible name | `app/frontend/app/templates/application.hbs`:86 |
+| LL-ebd844a7d0 |  | medium | FERPA | Permanent, non-expiring User#user_token still login-serialized and accepted by logged legacy token fallbacks | `lib/json_api/user.rb`:41 |
 | LL-ed914bded3 |  | medium | WCAG | Raw low-contrast brand token used as text foreground (board-tile language pill) | `app/frontend/app/styles/app.scss`:193 |
 | LL-1890f6a922 | P2-5 | medium | GDPR, FERPA | DataPolicyEnforcer retention only purges session log sessions | `lib/data_policy_enforcer.rb`:14 |
 | LL-d35cbdb313 | P2-7 | medium | FERPA | User creation (incl. org start codes) generates no AuditEvent | `app/controllers/api/users_controller.rb`:244 |

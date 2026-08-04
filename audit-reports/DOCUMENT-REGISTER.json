@@ -483,7 +483,7 @@
         ],
         "note": "Re-attested 2026-07-23 against the current revision after verification against live code and infrastructure state. The prior attestation covered a revision that no longer exists; see the document banner for what changed."
       },
-      "contentHash": "7c533a9ae436b32bd775b5442ae838b640d5607e85044cdc2b4544731615a355",
+      "contentHash": "72af832942c4de82ef82de6e2ed0b4a35272db0934f07d745cea18044ef1c0ec",
       "bundles": [
         "soc2-evidence"
       ],
@@ -520,7 +520,7 @@
         "attestedDate": "2026-07-22",
         "attestedContentHash": "1d1f81b0eeab01e63abf4d2c91101ff402928d3802c77528e327973f8067729e"
       },
-      "contentHash": "473e78a46548e9b08c6a77d66dcc323898f1eeef32754db9949ea82de80e67dc",
+      "contentHash": "2c582b44be3910895be49b8eb969f0da8a1c867789eeb0b882daa757ce0aeac4",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
@@ -609,7 +609,7 @@
         "note": "Re-attested 2026-07-27 (Path B recovery on Scot/feat/bedrock-runtime-ai): removed contradictory \"re-attestation owed\" banners that remained after the 2026-07-24 Bedrock routing attestation, and reconciled section 3 AWS BAA coverage wording with the active Bedrock runtime route. Prior 2026-07-24 attestation covered the Bedrock routing bytes that still incorrectly said attestation was owed."
       },
       "correctionNote": "CORRECTION 2026-08-02 (not an attestation; only Scot attests). The attestation.note above says section 3 wording was reconciled with the 'active Bedrock runtime route'. Bedrock is the DESIGNATED runtime route, not an active one: it has never been operational in production (no Bedrock credential on any lingolinq-web revision), and runtime AI has been dormant since revision 00011-l7f deployed 2026-07-30T16:37Z. See the 2026-08-01 correction in docs/legal/AWS_BAA_ACCEPTED.md. Re-attestation owed.",
-      "contentHash": "54f5b5d6774c610b76f30970fefe3d19336a16dc0aa8f6aace5af69b8e38b535",
+      "contentHash": "f4dd6bdaaeec14ec71b23a57bb6eb7f18d11a2faf689e7b2fc9dc5872be2f589",
       "bundles": [
         "compliance-records-set-2026-06",
         "security-review"
@@ -739,7 +739,7 @@
         ],
         "note": "Re-attested 2026-07-24 (CEO, explicit) for the §2 subprocessor-notice position on the GCP infrastructure addition (#19): recorded the pre-tenant baseline / no-notice-owed position and the compliance-calendar gate `gate-first-tenant-subprocessor-baseline`. Covers content hash f2ee3737. The prior 2026-07-23 attestation covered revision 1e404832, which no longer exists."
       },
-      "contentHash": "1a72c0faf38cc23879d80f61de2f60bb8c3350667f1cebf1c8a1c1a3689457b2",
+      "contentHash": "83cb1467066905fe8b69e730a5d9cba97eb3b72eb25e86a559cfd2a606546290",
       "bundles": [
         "school-dpa-package",
         "soc2-evidence",
@@ -1049,7 +1049,7 @@
       ],
       "notes": "Parity with the AWS (docs/legal/AWS_BAA_ACCEPTED.md) and GCP (docs/legal/GCP_BAA_ACCEPTED.md) acceptance records. Model-provider BAA for the Anthropic runtime egress path; supersedes the prior 'no model-provider BAA / provisional pending CEO review' posture in COMPLIANCE.md, SUBPROCESSORS.md row 4, GCP_BAA_ACCEPTED.md, and AI_GOVERNANCE_MEMO.md (all reconciled in the same PR). Live enablement verified 2026-07-18 (Messages API 200; Files API 400 'not available for HIPAA-regulated organizations without Zero Data Retention'). Attested by Scot Wahlquist 2026-07-18 per explicit confirmation; git contentHash computed and CI-verified. The broader AI_GOVERNANCE_MEMO body was fully updated and re-attested by Scot Wahlquist on 2026-07-19 in the AI governance memo re-attestation PR.",
       "id": "DOC-ab3a8c3ed4",
-      "contentHash": "9f3d55004be55cf192cd2d575f7fb1ee159f3dcb5becc633adec96e820e15d93",
+      "contentHash": "ef1d796743065e554e8e4cfcd9b754db101e3ea8b27bb31d1c8890f3bf8e59ee",
       "retention": {
         "class": "executed-agreement",
         "rule": "term + 7 years",
@@ -1084,7 +1084,7 @@
         "note": "Re-attested 2026-07-27: recorded the verified Bedrock operative conditions (deployed lingolinq-web credential resolves to the BAA'd AWS account 2390-4478-5114 / us-west-2; Bedrock model-invocation logging OFF in that account/region). Content-only verification; no scope change."
       },
       "correctionNote": "CORRECTION 2026-08-02 (not an attestation; only Scot attests). The attestation.note above, recorded 2026-07-27, states that the deployed lingolinq-web credential was verified to resolve to AWS account 2390-4478-5114. That verification is RETRACTED: no lingolinq-web revision has ever carried a Bedrock credential (all 11 revisions checked, 00001-2vn 2026-06-29 through 00011-l7f 2026-07-30). The attestation object is left unmodified because it records what was signed; this field records that one of its assertions is known false. The separate finding in that same note, that Bedrock model-invocation logging is OFF in 2390-4478-5114/us-west-2, was verified in-account independently of the deployment and STILL STANDS. Full evidence and the standard for any future verification: the 2026-08-01 correction section in the document itself. Re-attestation owed.",
-      "contentHash": "57ae0f5f0df9336acc9ab46fe992626dfb56145eff55a9de383a8eac0be6350c",
+      "contentHash": "7de3e164fef8d591ac8ef479e82b40580f0deeb5f76d5d93f43c8653534a03a3",
       "bundles": [
         "baa"
       ],
@@ -1172,7 +1172,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "bceb59a17c93ead043c0370cfbba1edd2bdc56e7fc7eb83fa8e85ca7c64cdb25",
+      "contentHash": "c5e1a68ad7ca23f9d5163894ca71e345a9d06046cdc32a38b7735ebae73713ca",
       "bundles": [],
       "mirrors": [
         {
@@ -2532,7 +2532,7 @@
         "attestedDate": "2026-07-09",
         "attestedContentHash": "c77ebb0dc5c8a228f32f268f40f36a74e60ef867a5ada78ba0e22f0d4a7ca914"
       },
-      "contentHash": "ace0d86269a947f4e28fa0a0da42d134f37d4079328d568a5a4af5549051b384",
+      "contentHash": "8a2db17bdddc665ef684c19f4856eea1f10162ac3276cc21ee145931d79d12c2",
       "bundles": [],
       "mirrors": [],
       "notes": "Register bookkeeping from the in-document attestation line (2026-07-09, provisional, conservative-default). Not yet reviewed by outside counsel. Scot to confirm or correct.",
@@ -2568,7 +2568,7 @@
         "attestedDate": "2026-07-23",
         "attestedContentHash": "47318beb94b3d3b9fa76845def3d68db6eddd38b7a6e2c44596d11b2d733b046"
       },
-      "contentHash": "dc8fbf34a921aaa55326be24acebc1b96a90dca8b05de112979850d4c0e64e87",
+      "contentHash": "933d4863d95ba179a77d6a518e38536f51dec89f2e34ae67604495bf66629499",
       "bundles": [
         "security-review"
       ],
@@ -2624,7 +2624,7 @@
       "lastReviewed": "2026-07-12",
       "nextReviewDue": "2027-01-12",
       "attestation": {},
-      "contentHash": "3c3cc9d808c24ce564af7fa2ca4de73daac2779b02e84fdd901ba4c45dc1e09c",
+      "contentHash": "a8985793776f81fd45dc06b2c12bbf4f9d53ff9af1dc6efdae6587f084cece00",
       "bundles": [],
       "mirrors": [
         {

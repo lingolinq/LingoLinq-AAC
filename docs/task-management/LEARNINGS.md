@@ -119,6 +119,7 @@ file (see [README.md](README.md)).
 - [Gotcha: fail-closed Sentry filters must not collapse lookup failures to nil](#gotcha-fail-closed-sentry-filters-must-not-collapse-lookup-failures-to-nil)
 - [Gotcha: dual-key tag reads — check each key independently, never `a || b` before coercion](#gotcha-dual-key-tag-reads--check-each-key-independently-never-a--b-before-coercion)
 - [Gotcha: set-field on nested model fields needs nested observer deps (videoChanged pattern)](#gotcha-set-field-on-nested-model-fields-needs-nested-observer-deps-videochanged-pattern)
+- [Gotcha: embed-frame `data-user_token` is UserIntegration#user_token, not User#user_token](#gotcha-embed-frame-data-user_token-is-userintegrationuser_token-not-useruser_token)
 
 ---
 
@@ -8054,6 +8055,49 @@ that rebuild to zero.
 
 **First seen in:** `2026-08-01-prod-empty-button-sets.md` (PR #724)
 
+---
+
+## Flaky async test at ~position 595 (`ai_word_predictor` / `app_state`) — same singleton-pollution class, module not yet fenced (documented finding, no fix applied)
+
+**Symptom:** an intermittent failure that lands on either `ai_word_predictor` (~#595,
+"resolve cached predictions without duplicate fetches") or the adjacent `app_state`
+"inject settings" (~#597). Position hops run-to-run; **both pass in isolation**. This is
+the same flake *class* as the 2026-07-22 persistence-sync entry (shared-singleton async
+pollution: a prior test's late async bleeds into a later test) — but in a **different
+module** that the shipped persistence-sync fence/retry does **not** cover.
+
+**Why these two are the victims:** `ai_word_predictor-test` sorts immediately before
+`app_state-test` (`ai…` < `app…`), so a leaked async from an `ai_word_predictor` test
+fires during a later `ai_word_predictor` test *or* spills into the first `app_state` test.
+
+**Verified pollution surface (`app/utils/ai_word_predictor.js`):**
+- Module-level shared state: `_cache`, `_pending_timer`, `_pending_reject`.
+- The debounce `_pending_timer` (scheduled via `runLater`) fires `_fetch()` →
+  **real `persistence.ajax`**; `ai_word_predictor-test.js` does **not** stub ajax.
+- `clear_cache()` (the test's `beforeEach`) resets **only `_cache`** — it does NOT cancel
+  `_pending_timer` / null `_pending_reject`.
+- `cancelHarnessAsyncWork()` (jasmine `afterEach`, `tests/helpers/sync-test-cleanup.js`)
+  cancels persistence's `eventual_store_timer` but **knows nothing about `ai_word_predictor`**.
+- Net: an `ai_word_predictor` debounce timer / in-flight `_fetch` XHR is fenced by nothing,
+  so it resolves late onto whatever test is running.
+
+**Recommended fix (NOT yet applied — needs the LEARNINGS ≥30-iteration verification budget):**
+a **post-test** fence (never a `beforeEach` pre-cancel — that's a documented dead end from
+the persistence-sync entry): in `cancelHarnessAsyncWork()` cancel
+`ai_word_predictor._pending_timer` + null `_pending_reject`, and **stub `persistence.ajax`**
+in `ai_word_predictor-test.js` so `_fetch` never leaves a real XHR in flight. Test-harness
+only; production untouched — matches the shipped epoch-fence philosophy. A pragmatic
+alternative is extending the name-gated auto-retry in `jasmine.js` to also cover
+`ai_word_predictor` / `app_state` (masks rather than fixes).
+
+**Verification burden (why left as a finding):** per the persistence-sync entry, trusting
+any fix here requires ≥30 full-suite iterations (~15 min each); 15 green runs prove nothing.
+
+**First seen in:** this branch's CI (`traci/styling/styling-updates`), 2026-08-03. Related:
+the 2026-07-22 persistence-sync epoch-fencing entry.
+
+---
+
 ## Gotcha: set-field on nested model fields needs nested observer deps (videoChanged pattern)
 
 `editManager.change_button` sync observers that watch only an object reference (`observer('model.book', …)`) do **not** refire when `set-field` mutates nested properties on that object. The video path already documents and implements this (`button-settings.js` `videoChanged` observes `model.video` + `model.video.popup|start|end`). Restoring TarHeel book checkboxes with `set-field` alone is incomplete unless `bookChanged` also observes `model.book.popup` / `.speech` / `.utterance` (or each control calls `change_button`). Separately: TarHeel init defaults are asymmetric — `speech: false`, `utterance: true` (`utils/button.js:163-175`) — so register impact text must not say both default falsy. Ref: [`2026-08-02-ember-register-book-options-codex-fixes.md`](./2026-08-02-ember-register-book-options-codex-fixes.md).
@@ -8073,3 +8117,7 @@ historical evidence rows that staging's code change would otherwise falsify (e.g
 deploy-cloudrun.yml" → "absent as of YYYY-MM-DD evidence gather (pre-#719)").
 
 Ref: `docs/task-management/2026-08-03-bedrock-attestation-staging-merge.md` (gitignored working log).
+
+## Gotcha: embed-frame `data-user_token` is UserIntegration#user_token, not User#user_token
+
+Two different credentials share the name `user_token`. `User#user_token` is a permanent HMAC of `global_id` (login-serialized via `lib/json_api/user.rb`). Embed-frame's `data-user_token` is **not** that: `board.js` reads `tool.get('user_token')` from the integration serializer, which mints `UserIntegration#user_token` (integration-scoped, obfuscated user id + integration id + sig). When scoping permanent-token findings (e.g. LL-90045bb29c residual), do not fold embed-frame into `User#user_token` blast radius without verifying the mint site. Ref: [`2026-08-03-ll-90045bb29c-narrow-close.md`](./2026-08-03-ll-90045bb29c-narrow-close.md).

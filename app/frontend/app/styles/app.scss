@@ -34885,6 +34885,25 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   }
 }
 
+/* Compact variant — the Privacy Commitment paragraph reads at 16px rather than the
+   22px display size the Accessibility Statement keeps. Both share
+   .la-a11y-display-text, so this modifier is what separates them.
+
+   DOUBLED SELECTOR ON PURPOSE (.la-a11y-display-text.la-a11y-display-text--compact,
+   specificity 0,0,2,0): the responsive rules further down the file set
+   `.la-a11y-display-text { font-size: 20px }` at <=md and `18px` at <=sm. Those are
+   0,0,1,0 but appear LATER, so a lone `.la-a11y-display-text--compact` would tie on
+   specificity and lose on source order below 768px. The compound wins at every width
+   without needing !important (see the app.scss cascade note in LEARNINGS.md).
+
+   clamp() keeps it responsive instead of hard-pinning 16px: 16px down to ~470px wide,
+   then easing to a 15px floor so it stays legible on the narrowest phones — the same
+   15px floor .la-wrapper--landing .la-plan-subtitle uses. Single-unit vw in the middle
+   arm, so no calc() wrapper is needed (mixed-unit clamp math would require one). */
+.la-a11y-display-text.la-a11y-display-text--compact {
+  font-size: clamp(15px, 3.4vw, 16px);
+}
+
 /* Trust badges: WCAG + typography + neurodivergent (scannable with checkmarks) */
 .la-a11y-trust-badges {
   list-style: none;
@@ -35145,9 +35164,11 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   background-image: url('/images/aac-user.jpg');
 }
 .la-devices-spotlight__image {
-  /* JPEG for the same reason as aac-user.jpg: it's a photo, so PNG only reached
-     ~1.9MB vs ~230KB at q85 with no visible loss in the symbol grids. */
-  background-image: url('/images/landing-devices.jpg');
+  /* JPEG for the same reason as aac-user.jpg: it's a photo, so the source PNG
+     (devices-new.png) was ~2.26MB while q85 JPEG is ~251KB at the same visual
+     quality. Served from both public/images (Rails) and app/frontend/public/images
+     (Ember). */
+  background-image: url('/images/devices-new.jpg');
 }
 
 /* Desktop (>1024px): let both spotlight images render at full height using their
@@ -35181,11 +35202,11 @@ body.md-ds-active .app-navbar__beta-feedback-link {
        ($aac-spacing-48) and sit flush against the paragraph, which left no breathing
        room under the body copy. Now zero, so the parent's 48px gap stands on its own
        as the copy-to-image spacing. */
-    /* Must track landing-devices.jpg's natural size (1726x911). It previously read
-       1000/667 (1.50) against a 1727x911 (1.90) image, so `contain` letterboxed it
+    /* Must track devices-new.jpg's natural size (1729x910). It previously read
+       1000/667 (1.50) against a ~1.90 image, so `contain` letterboxed it
        and the radius rounded the empty strips -- the exact failure the note above
        warns about. */
-    aspect-ratio: 1726 / 911;
+    aspect-ratio: 1729 / 910;
     min-height: 0;
     width: 78.125%;
     margin: 0 auto;
@@ -35302,8 +35323,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
      to `contain` and pinning the container's aspect-ratio to match
      the image lets the full mockup render without clipping. */
   .la-devices-spotlight__image {
-    /* Tracks landing-devices.jpg's natural size (1726x911); see the desktop rule. */
-    aspect-ratio: 1726 / 911;
+    /* Tracks devices-new.jpg's natural size (1729x910); see the desktop rule. */
+    aspect-ratio: 1729 / 910;
     min-height: 0;
     background-size: contain;
   }
@@ -35400,6 +35421,22 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   .la-wrapper--landing .la-section-subtitle {
     font-size: 15px;
   }
+}
+
+/* Compact variant — the "Included in every plan" intro reads at 16px rather than the
+   clamped display size above. .la-plan-subtitle is shared by the SLP and devices
+   spotlight bodies on this page AND by about.hbs, so only this one paragraph carries
+   the modifier.
+
+   Selector is .la-wrapper--landing + doubled class (specificity 0,0,3,0) so it beats
+   BOTH `.la-wrapper--landing .la-plan-subtitle` (0,0,2,0) above and the <=640px rule
+   directly above it, which ties on specificity and would otherwise win on source
+   order. No !important needed.
+
+   Same clamp as the privacy paragraph so the two 16px bodies stay in step: 16px down
+   to ~470px, easing to the same 15px floor this section already uses at <=640px. */
+.la-wrapper--landing .la-plan-subtitle.la-plan-subtitle--compact {
+  font-size: clamp(15px, 3.4vw, 16px);
 }
 
 .la-plan-grid {

@@ -212,14 +212,14 @@ _No record is under legal hold. A hold suspends all disposition for the rows it 
 | Title | Location | Attested | Pinned | Current |
 |---|---|---|---|---|
 | AI Data-Flow Classification | `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md` | 2026-07-22 | `f16e851f8cc0` | `d9d1adbb8738` |
-| AI Data-Sharing Consent: Rationale and Policy | `docs/legal/AI_DATA_SHARING_CONSENT.md` | 2026-07-09 | `c77ebb0dc5c8` | `ace0d86269a9` |
-| AI Governance Memo | `docs/legal/AI_GOVERNANCE_MEMO.md` | 2026-07-27 | `74ec247f35dd` | `54f5b5d6774c` |
-| AWS BAA Acceptance Record | `docs/legal/AWS_BAA_ACCEPTED.md` | 2026-07-27 | `8895bd338274` | `57ae0f5f0df9` |
-| Anthropic HIPAA-Ready BAA Acceptance Record | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` | 2026-07-27 | `21179eb31560` | `9f3d55004be5` |
-| Compliance & Data Governance (COMPLIANCE.md) | `COMPLIANCE.md` | 2026-07-23 | `4afee21c69b0` | `7c533a9ae436` |
-| Compliance Program | `docs/legal/COMPLIANCE_PROGRAM.md` | 2026-07-22 | `1d1f81b0eeab` | `473e78a46548` |
-| LingoLinq Security, Privacy & Compliance Overview | `docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md` | 2026-07-23 | `47318beb94b3` | `dc8fbf34a921` |
-| Subprocessor Register | `docs/legal/SUBPROCESSORS.md` | 2026-07-24 | `f2ee37371ebf` | `1a72c0faf38c` |
+| AI Data-Sharing Consent: Rationale and Policy | `docs/legal/AI_DATA_SHARING_CONSENT.md` | 2026-07-09 | `c77ebb0dc5c8` | `8a2db17bdddc` |
+| AI Governance Memo | `docs/legal/AI_GOVERNANCE_MEMO.md` | 2026-07-27 | `74ec247f35dd` | `f4dd6bdaaeec` |
+| AWS BAA Acceptance Record | `docs/legal/AWS_BAA_ACCEPTED.md` | 2026-07-27 | `8895bd338274` | `7de3e164fef8` |
+| Anthropic HIPAA-Ready BAA Acceptance Record | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` | 2026-07-27 | `21179eb31560` | `ef1d79674306` |
+| Compliance & Data Governance (COMPLIANCE.md) | `COMPLIANCE.md` | 2026-07-23 | `4afee21c69b0` | `72af832942c4` |
+| Compliance Program | `docs/legal/COMPLIANCE_PROGRAM.md` | 2026-07-22 | `1d1f81b0eeab` | `2c582b44be39` |
+| LingoLinq Security, Privacy & Compliance Overview | `docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md` | 2026-07-23 | `47318beb94b3` | `933d4863d95b` |
+| Subprocessor Register | `docs/legal/SUBPROCESSORS.md` | 2026-07-24 | `f2ee37371ebf` | `83cb14670669` |
 
 Every attested git record pins the bytes it was attested against.
 

@@ -143,6 +143,22 @@ export default Controller.extend({
     var route = this.appState.get('current_route') || '';
     return route === 'user.board-detail.index' || route === 'user.board-detail.edit';
   }),
+  // ─── TEMPORARY (2026-07-27) — beta-feedback drawer hidden on board-detail SPEAK mode ───
+  // Suppresses the bottom-center "Beta feedback" tab AND its drawer on
+  // `user.board-detail.index` only. Everywhere else is untouched: board-detail EDIT
+  // mode, classic board speak/edit, the home dashboard and every other authenticated
+  // page still render it.
+  //
+  // Deliberately NOT keyed on `on_board_detail`, which is true for BOTH
+  // `user.board-detail.index` and `user.board-detail.edit` — that would have taken
+  // out edit mode too.
+  //
+  // TO RESTORE: delete this computed, and delete the matching
+  // `{{#unless this.hide_beta_feedback_temporarily}}` wrapper in
+  // templates/application.hbs (search for "TEMPORARY (2026-07-27)").
+  hide_beta_feedback_temporarily: computed('appState.current_route', function() {
+    return (this.appState.get('current_route') || '') === 'user.board-detail.index';
+  }),
   /** True when the current page is the regular board view (not board-alt)
    *  AND a board is actually loaded. When a board route fails to resolve
    *  (error.hbs renders in the outlet), currentBoardState.id is null, and
