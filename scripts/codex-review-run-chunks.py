@@ -11,6 +11,20 @@ import sys
 
 CI_MARKER_RE = re.compile(r"<!--\s*/?\s*CI_INJECT:[A-Z_]+\s*-->")
 
+# Reviewer models, per the approved-reviewer registry (CLAUDE.md "Approved
+# reviewers", CI `codex-review` gate row: terra default, luna A/B). Only those
+# two ids are approved for this gate; do NOT introduce gpt-5.6-sol here, which
+# is approved only for the interactive/local Codex row.
+#
+# Split by what each tier is for. Chunk passes are the high-volume leg: one
+# prompt per diff slice, up to three convergence runs each, and the bulk of a
+# run's invocations. Synthesis is the decisive leg: it reads every chunk result
+# and produces the verdict that becomes the commit status, over at most three
+# calls. Cost follows the same shape, so the cheap tier carries the volume and
+# the balanced tier carries the judgment.
+CHUNK_MODEL = "gpt-5.6-luna"
+SYNTHESIS_MODEL = "gpt-5.6-terra"
+
 
 def defang_ci_markers(body):
     return CI_MARKER_RE.sub(
@@ -119,14 +133,14 @@ def heartbeat(args, description):
     )
 
 
-def run_model(args, prompt_path, schema_path, output_path, heartbeat_description=None):
+def run_model(args, prompt_path, schema_path, output_path, heartbeat_description=None, model=CHUNK_MODEL):
     command = [
         "codex",
         "exec",
         "--sandbox",
         "read-only",
         "-m",
-        "gpt-5.5",
+        model,
         "--output-schema",
         str(schema_path),
         "--output-last-message",
@@ -298,17 +312,17 @@ def main():
     build_synthesis_prompt(synthesis_template, live_state, manifest_md, prior_loop, chunk_result_groups, synthesis_prompt)
     synthesis_paths = []
     synthesis_1 = out_dir / "synthesis-1.json"
-    if not run_model(args, synthesis_prompt, ".github/codex/synthesis-schema.json", synthesis_1, "Codex review running synthesis run 1"):
+    if not run_model(args, synthesis_prompt, ".github/codex/synthesis-schema.json", synthesis_1, "Codex review running synthesis run 1", model=SYNTHESIS_MODEL):
         write_invalid_review(synthesis_1, args.head_sha)
     synthesis_paths.append(synthesis_1)
     if review_kind(load_json(synthesis_1)) == "approved":
         synthesis_2 = out_dir / "synthesis-2.json"
-        if not run_model(args, synthesis_prompt, ".github/codex/synthesis-schema.json", synthesis_2, "Codex review running synthesis run 2"):
+        if not run_model(args, synthesis_prompt, ".github/codex/synthesis-schema.json", synthesis_2, "Codex review running synthesis run 2", model=SYNTHESIS_MODEL):
             write_invalid_review(synthesis_2, args.head_sha)
         synthesis_paths.append(synthesis_2)
         if needs_tiebreak(synthesis_paths):
             synthesis_3 = out_dir / "synthesis-3.json"
-            if not run_model(args, synthesis_prompt, ".github/codex/synthesis-schema.json", synthesis_3, "Codex review running synthesis run 3"):
+            if not run_model(args, synthesis_prompt, ".github/codex/synthesis-schema.json", synthesis_3, "Codex review running synthesis run 3", model=SYNTHESIS_MODEL):
                 write_invalid_review(synthesis_3, args.head_sha)
             synthesis_paths.append(synthesis_3)
 
