@@ -3095,6 +3095,14 @@ header.speaking #identity .user_name {
 
 }
 
+// Stop Masquerading — immediately left of Upgrade when active
+#identity.app-navbar-auth-nav--desktop .md-pillnav__stop-masquerade {
+  animation: nav-btn-slide-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both !important;
+
+  animation-delay: 100ms !important;
+
+}
+
 // Upgrade button — enters last (leftmost)
 #identity.app-navbar-auth-nav--desktop .md-pillnav__upgrade-nav,
 #identity.app-navbar-auth-nav--desktop .ll-bento-upgrade-btn--nav {
@@ -13126,12 +13134,20 @@ video.button_image {
 .md-bs-picture__search-section {
   margin-top: 20px;
 }
-/* "Hide the label when the picture is shown" — moved under the Find a Picture card. */
-.md-bs-picture__hide-label {
+/* Per-button picture/label options under the Find a Picture card
+   (hide_label + text_only / stretch_text_only). */
+.md-bs-picture__label-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 22px;
+}
+.md-bs-picture__hide-label,
+.md-bs-picture__text-only {
   display: flex;
   align-items: center;
   gap: 9px;
-  margin: 0 0 22px;
+  margin: 0;
   padding: 12px 16px;
   border-radius: 12px;
   background: rgba($la-navy, 0.03);
@@ -13140,7 +13156,8 @@ video.button_image {
   color: $brand-charcoal-dark;
   cursor: pointer;
 }
-.md-bs-picture__hide-label input[type="checkbox"] {
+.md-bs-picture__hide-label input[type="checkbox"],
+.md-bs-picture__text-only input[type="checkbox"] {
   width: 18px;
   height: 18px;
   flex: 0 0 auto;
@@ -19732,6 +19749,44 @@ header.header-index-with-dark-toggle:not(.header--unauthenticated) #inner_header
 
 }
 
+/* Stop Masquerading: same pill chrome as Upgrade, warm accent so the active session is obvious */
+.app-navbar .md-pillnav__stop-masquerade {
+  padding: 6px 14px !important;
+  border-radius: 999px !important;
+  background: rgba(255, 107, 71, 0.18) !important;
+  border: 1px solid rgba(255, 107, 71, 0.35) !important;
+  color: #fff !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+  transform: translateY(-2px) !important;
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  cursor: pointer !important;
+  outline: none !important;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+.app-navbar .md-pillnav__stop-masquerade:hover,
+.app-navbar .md-pillnav__stop-masquerade:focus-visible {
+  background: rgba(255, 107, 71, 0.28) !important;
+  border-color: rgba(255, 107, 71, 0.5) !important;
+  color: #ffffff !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+  transform: translateY(-3px) !important;
+}
+.app-navbar .md-pillnav__stop-masquerade:active {
+  transform: translateY(-2px) scale(var(--md-tap, 0.99)) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+
 .app-navbar .app-navbar__beta-feedback-link {
   position: fixed !important;
 
@@ -20996,6 +21051,20 @@ header:has(#nav_header) .ll-header-settings-btn:focus,
 #within_ember header:not(.header--unauthenticated) #identity .ll-bento-upgrade-btn--nav:focus-visible {
   color: $brand-charcoal-dark !important;
 
+}
+#within_ember header:not(.header--unauthenticated) .app-navbar .md-pillnav__stop-masquerade,
+#within_ember header:not(.header--unauthenticated) #identity .md-pillnav__stop-masquerade {
+  color: $brand-charcoal-dark !important;
+  background: rgba(255, 107, 71, 0.16) !important;
+  border-color: rgba(255, 107, 71, 0.4) !important;
+}
+#within_ember header:not(.header--unauthenticated) .app-navbar .md-pillnav__stop-masquerade:hover,
+#within_ember header:not(.header--unauthenticated) .app-navbar .md-pillnav__stop-masquerade:focus-visible,
+#within_ember header:not(.header--unauthenticated) #identity .md-pillnav__stop-masquerade:hover,
+#within_ember header:not(.header--unauthenticated) #identity .md-pillnav__stop-masquerade:focus-visible {
+  color: $brand-charcoal-dark !important;
+  background: rgba(255, 107, 71, 0.26) !important;
+  border-color: rgba(255, 107, 71, 0.55) !important;
 }
 
 /* Authenticated pages inner_header: search boards input and magnifier font/icon color */
@@ -34816,6 +34885,25 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   }
 }
 
+/* Compact variant — the Privacy Commitment paragraph reads at 16px rather than the
+   22px display size the Accessibility Statement keeps. Both share
+   .la-a11y-display-text, so this modifier is what separates them.
+
+   DOUBLED SELECTOR ON PURPOSE (.la-a11y-display-text.la-a11y-display-text--compact,
+   specificity 0,0,2,0): the responsive rules further down the file set
+   `.la-a11y-display-text { font-size: 20px }` at <=md and `18px` at <=sm. Those are
+   0,0,1,0 but appear LATER, so a lone `.la-a11y-display-text--compact` would tie on
+   specificity and lose on source order below 768px. The compound wins at every width
+   without needing !important (see the app.scss cascade note in LEARNINGS.md).
+
+   clamp() keeps it responsive instead of hard-pinning 16px: 16px down to ~470px wide,
+   then easing to a 15px floor so it stays legible on the narrowest phones — the same
+   15px floor .la-wrapper--landing .la-plan-subtitle uses. Single-unit vw in the middle
+   arm, so no calc() wrapper is needed (mixed-unit clamp math would require one). */
+.la-a11y-display-text.la-a11y-display-text--compact {
+  font-size: clamp(15px, 3.4vw, 16px);
+}
+
 /* Trust badges: WCAG + typography + neurodivergent (scannable with checkmarks) */
 .la-a11y-trust-badges {
   list-style: none;
@@ -35076,9 +35164,11 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   background-image: url('/images/aac-user.jpg');
 }
 .la-devices-spotlight__image {
-  /* JPEG for the same reason as aac-user.jpg: it's a photo, so PNG only reached
-     ~1.9MB vs ~230KB at q85 with no visible loss in the symbol grids. */
-  background-image: url('/images/landing-devices.jpg');
+  /* JPEG for the same reason as aac-user.jpg: it's a photo, so the source PNG
+     (devices-new.png) was ~2.26MB while q85 JPEG is ~251KB at the same visual
+     quality. Served from both public/images (Rails) and app/frontend/public/images
+     (Ember). */
+  background-image: url('/images/devices-new.jpg');
 }
 
 /* Desktop (>1024px): let both spotlight images render at full height using their
@@ -35112,11 +35202,11 @@ body.md-ds-active .app-navbar__beta-feedback-link {
        ($aac-spacing-48) and sit flush against the paragraph, which left no breathing
        room under the body copy. Now zero, so the parent's 48px gap stands on its own
        as the copy-to-image spacing. */
-    /* Must track landing-devices.jpg's natural size (1726x911). It previously read
-       1000/667 (1.50) against a 1727x911 (1.90) image, so `contain` letterboxed it
+    /* Must track devices-new.jpg's natural size (1729x910). It previously read
+       1000/667 (1.50) against a ~1.90 image, so `contain` letterboxed it
        and the radius rounded the empty strips -- the exact failure the note above
        warns about. */
-    aspect-ratio: 1726 / 911;
+    aspect-ratio: 1729 / 910;
     min-height: 0;
     width: 78.125%;
     margin: 0 auto;
@@ -35233,8 +35323,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
      to `contain` and pinning the container's aspect-ratio to match
      the image lets the full mockup render without clipping. */
   .la-devices-spotlight__image {
-    /* Tracks landing-devices.jpg's natural size (1726x911); see the desktop rule. */
-    aspect-ratio: 1726 / 911;
+    /* Tracks devices-new.jpg's natural size (1729x910); see the desktop rule. */
+    aspect-ratio: 1729 / 910;
     min-height: 0;
     background-size: contain;
   }
@@ -35331,6 +35421,22 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   .la-wrapper--landing .la-section-subtitle {
     font-size: 15px;
   }
+}
+
+/* Compact variant — the "Included in every plan" intro reads at 16px rather than the
+   clamped display size above. .la-plan-subtitle is shared by the SLP and devices
+   spotlight bodies on this page AND by about.hbs, so only this one paragraph carries
+   the modifier.
+
+   Selector is .la-wrapper--landing + doubled class (specificity 0,0,3,0) so it beats
+   BOTH `.la-wrapper--landing .la-plan-subtitle` (0,0,2,0) above and the <=640px rule
+   directly above it, which ties on specificity and would otherwise win on source
+   order. No !important needed.
+
+   Same clamp as the privacy paragraph so the two 16px bodies stay in step: 16px down
+   to ~470px, easing to the same 15px floor this section already uses at <=640px. */
+.la-wrapper--landing .la-plan-subtitle.la-plan-subtitle--compact {
+  font-size: clamp(15px, 3.4vw, 16px);
 }
 
 .la-plan-grid {
@@ -40100,6 +40206,12 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   .app-navbar .app-navbar-auth-nav--desktop .md-pillnav__upgrade-nav,
   .app-navbar .app-navbar-auth-nav--desktop .ll-bento-upgrade-btn--nav {
     display: none !important;
+  }
+  /* Keep Stop Masquerading visible at this breakpoint — exit path must not hide with Upgrade. */
+  .header-index-with-dark-toggle .app-navbar .app-navbar-auth-nav--desktop .md-pillnav__stop-masquerade,
+  #inner_header .app-navbar .app-navbar-auth-nav--desktop .md-pillnav__stop-masquerade,
+  .app-navbar .app-navbar-auth-nav--desktop .md-pillnav__stop-masquerade {
+    display: inline-flex !important;
   }
   /* Keep desktop nav visible for search + help, reflow as row */
   .header-index-with-dark-toggle .app-navbar .app-navbar-auth-nav--desktop,
@@ -85343,6 +85455,13 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   min-width: 0;
   text-decoration: none;
   color: var(--md-ink, $brand-blue-black);
+  /* Also used as <button> in user-results modal — reset UA button chrome. */
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
 }
 .md-org-user-row__main:hover {
   text-decoration: none;

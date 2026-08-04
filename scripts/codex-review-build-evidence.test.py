@@ -2,6 +2,7 @@
 import importlib.util
 import json
 import pathlib
+import re
 import tempfile
 import unittest
 import unittest.mock
@@ -14,9 +15,10 @@ SPEC.loader.exec_module(build_evidence)
 
 
 POLICY = [(build_evidence.re.compile(r"(^|/)db/schema\.rb$"), "generated schema")]
-TRUSTED_POLICY_MAX_CHUNKS = json.loads(
-    pathlib.Path(".github/codex/evidence-policy.json").read_text()
-)["max_chunks"]
+REPO_ROOT = MODULE_PATH.parents[1]
+TRUSTED_POLICY_PATH = REPO_ROOT / ".github/codex/evidence-policy.json"
+TRUSTED_POLICY_README = REPO_ROOT / ".github/codex/README.md"
+TRUSTED_POLICY_MAX_CHUNKS = json.loads(TRUSTED_POLICY_PATH.read_text())["max_chunks"]
 
 
 def section(path, body):
@@ -92,7 +94,6 @@ class EvidenceChunkingTest(unittest.TestCase):
             260,
             TRUSTED_POLICY_MAX_CHUNKS,
         )
-        self.assertEqual(TRUSTED_POLICY_MAX_CHUNKS, 16)
         self.assertEqual(len(chunks), 9)
         self.assertFalse(incomplete)
         covered = {item["path"] for chunk in chunks for item in chunk["coverage"]}
@@ -113,6 +114,27 @@ class EvidenceChunkingTest(unittest.TestCase):
         self.assertEqual(incomplete[-1]["reason"], "too_many_chunks")
         self.assertEqual(incomplete[-1]["chunks"], TRUSTED_POLICY_MAX_CHUNKS + 1)
         self.assertEqual(incomplete[-1]["max_chunks"], TRUSTED_POLICY_MAX_CHUNKS)
+
+    def test_readme_documents_the_same_cap_as_the_trusted_policy(self):
+        readme = TRUSTED_POLICY_README.read_text()
+        documented_cap = re.search(r"^- maximum chunks: (\d+)$", readme, re.MULTILINE)
+        logical_budget = re.search(
+            r"Worst-case budget is (\d+) \*logical\* calls", readme
+        )
+        invocation_budget = re.search(
+            r"actual `codex exec` invocations is (\d+)", readme
+        )
+        self.assertIsNotNone(documented_cap, "README must state '- maximum chunks: N'")
+        self.assertIsNotNone(logical_budget, "README must state the logical call budget")
+        self.assertIsNotNone(invocation_budget, "README must state the invocation budget")
+        self.assertEqual(int(documented_cap.group(1)), TRUSTED_POLICY_MAX_CHUNKS)
+        self.assertEqual(int(logical_budget.group(1)), TRUSTED_POLICY_MAX_CHUNKS * 3 + 3)
+        self.assertEqual(int(invocation_budget.group(1)), (TRUSTED_POLICY_MAX_CHUNKS * 3 + 3) * 2)
+        self.assertLessEqual(
+            TRUSTED_POLICY_MAX_CHUNKS,
+            16,
+            "Raising the chunk cap above 16 needs a fresh large-PR smoke and budget review.",
+        )
 
     def test_oversized_single_hunk_is_incomplete(self):
         giant = "@@ -1,1 +1,1 @@\n-old\n+" + ("x" * 500) + "\n"

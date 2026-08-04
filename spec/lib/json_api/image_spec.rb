@@ -82,6 +82,45 @@ describe JsonApi::Image do
       expect(hash['fallback']).to eq(nil)
     end
 
+    # Regression: form-encoded / legacy clients store protected as the string "false".
+    # `!!"false"` is true in Ruby, which blanked the speak-mode URL for a real symbol
+    # (lingolinq_admin/animals shark, 2026-07-30). protected? and process must cast.
+    it 'should serve the real url when settings protected is the string false' do
+      i = ButtonImage.new(url: 'http://www.example.com/shark.svg', settings: {
+        'protected' => 'false',
+        'protected_source' => '',
+        'content_type' => 'image/svg+xml'
+      })
+      expect(i.protected?).to eq(false)
+      hash = JsonApi::Image.build_json(i, :allowed_sources => [])
+      expect(hash['url']).to eq('http://www.example.com/shark.svg')
+      expect(hash['fallback']).to eq(nil)
+      expect(hash['protected']).to eq(false)
+    end
+
+    it 'should cast string false to boolean false on process_new' do
+      u = User.create
+      i = ButtonImage.process_new({
+        'url' => 'http://www.example.com/shark2.svg',
+        'content_type' => 'image/svg+xml',
+        'protected' => 'false',
+        'protected_source' => ''
+      }, {:user => u})
+      expect(i.settings['protected']).to eq(false)
+      expect(i.protected?).to eq(false)
+    end
+
+    it 'should still treat string true as protected' do
+      i = ButtonImage.new(url: 'http://www.example.com/pic.png', settings: {
+        'protected' => 'true',
+        'protected_source' => 'lessonpix'
+      })
+      expect(i.protected?).to eq(true)
+      hash = JsonApi::Image.build_json(i, :allowed_sources => [])
+      expect(hash['url']).to eq(nil)
+      expect(hash['fallback']).to eq(true)
+    end
+
     it 'should revert to a fallback image if no list provided and the user does not have access to the protected_source' do
       u = User.create
       User.purchase_extras({'premium_symbols' => true, 'user_id' => u.global_id})
