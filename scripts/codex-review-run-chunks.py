@@ -44,8 +44,32 @@ CI_MARKER_RE = re.compile(r"<!--\s*/?\s*CI_INJECT:[A-Z_]+\s*-->")
 # only).
 DEFAULT_CHUNK_MODEL = "gpt-5.6-terra"
 DEFAULT_SYNTHESIS_MODEL = "gpt-5.6-terra"
-CHUNK_MODEL = os.environ.get("CODEX_CHUNK_MODEL", "").strip() or DEFAULT_CHUNK_MODEL
-SYNTHESIS_MODEL = os.environ.get("CODEX_SYNTHESIS_MODEL", "").strip() or DEFAULT_SYNTHESIS_MODEL
+
+# The ONLY model ids approved for this gate. The override below is an operational
+# escape hatch, not a way around the registry: a repo variable is settable with
+# no PR and no review, so an unvalidated override would let anyone point the
+# required gate at an unapproved reviewer (notably gpt-5.6-sol, approved for the
+# interactive Codex row only) and still have it report a passing status. Validate
+# before invoking, and fail closed on anything else rather than silently
+# downgrading to the default, so a bad override is loud instead of invisible.
+APPROVED_CI_MODELS = ("gpt-5.6-terra", "gpt-5.6-luna")
+
+
+def resolve_model(env_name, default):
+    override = os.environ.get(env_name, "").strip()
+    if not override:
+        return default
+    if override not in APPROVED_CI_MODELS:
+        raise SystemExit(
+            f"{env_name}={override!r} is not an approved reviewer model for the "
+            f"codex-review CI gate (approved: {', '.join(APPROVED_CI_MODELS)}). "
+            "Refusing to review; see .github/codex/README.md 'Approved reviewer models'."
+        )
+    return override
+
+
+CHUNK_MODEL = resolve_model("CODEX_CHUNK_MODEL", DEFAULT_CHUNK_MODEL)
+SYNTHESIS_MODEL = resolve_model("CODEX_SYNTHESIS_MODEL", DEFAULT_SYNTHESIS_MODEL)
 
 
 def defang_ci_markers(body):

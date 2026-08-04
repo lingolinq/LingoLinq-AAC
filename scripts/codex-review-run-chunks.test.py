@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import importlib.util
 import json
+import os
 import pathlib
 import tempfile
 import unittest
@@ -134,9 +135,42 @@ class RunChunksTest(unittest.TestCase):
             run_chunks.DEFAULT_SYNTHESIS_MODEL,
             "chunk leg must not default to a different (weaker) model than synthesis",
         )
+        # Equality alone is not enough: downgrading BOTH legs to luna would keep
+        # them equal while still moving the only leg that reads code onto the
+        # weaker tier. Pin the actual value.
+        self.assertEqual(run_chunks.DEFAULT_CHUNK_MODEL, "gpt-5.6-terra")
+        self.assertEqual(run_chunks.DEFAULT_SYNTHESIS_MODEL, "gpt-5.6-terra")
         # sol is approved for the interactive Codex row only, never this gate.
-        for model in (run_chunks.DEFAULT_CHUNK_MODEL, run_chunks.DEFAULT_SYNTHESIS_MODEL):
-            self.assertIn(model, ("gpt-5.6-terra", "gpt-5.6-luna"))
+        self.assertNotIn("gpt-5.6-sol", run_chunks.APPROVED_CI_MODELS)
+
+    def test_model_override_rejects_unapproved_ids(self):
+        # The repo-variable escape hatch must not become a way around the
+        # approved-reviewer registry: a repo variable needs no PR and no review.
+        var = "CODEX_TEST_MODEL_OVERRIDE"
+        original = os.environ.get(var)
+
+        def resolve(value):
+            if value is None:
+                os.environ.pop(var, None)
+            else:
+                os.environ[var] = value
+            return run_chunks.resolve_model(var, run_chunks.DEFAULT_CHUNK_MODEL)
+
+        try:
+            for bad in ("gpt-5.6-sol", "gpt-4o", "claude-fable-5", "anything-else"):
+                with self.subTest(model=bad):
+                    with self.assertRaises(SystemExit):
+                        resolve(bad)
+            # Approved id passes through; empty/whitespace/unset fall back.
+            self.assertEqual(resolve("gpt-5.6-luna"), "gpt-5.6-luna")
+            self.assertEqual(resolve(""), "gpt-5.6-terra")
+            self.assertEqual(resolve("   "), "gpt-5.6-terra")
+            self.assertEqual(resolve(None), "gpt-5.6-terra")
+        finally:
+            if original is None:
+                os.environ.pop(var, None)
+            else:
+                os.environ[var] = original
 
     def test_run_model_requires_an_explicit_model(self):
         # `model` is keyword-only and required so a new call site cannot silently
