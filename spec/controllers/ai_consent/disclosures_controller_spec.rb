@@ -30,6 +30,44 @@ describe AiConsent::DisclosuresController, :type => :controller do
       expect(body).to include('/privacy')
     end
 
+    # RENDERED-SURFACE guards. The registry was corrected on 2026-08-02 while this
+    # page kept telling users otherwise, because the view selected canned prose off
+    # `trains_on_data` and pulled other sentences from config/locales/en.yml. Fixing
+    # the metadata alone did NOT fix what a parent reads, and no artifact check
+    # covers rendered output. These assert the page itself.
+    it "asserts none of the banned AI claims anywhere in the rendered page" do
+      get :show, params: {version: '1'}
+      offenders = AiDisclosureClaims.offending_claims(response.body)
+      expect(offenders).to be_empty, "rendered consent page still #{offenders.join('; ')}"
+    end
+
+    # The page states the runtime path is NOT Anthropic's commercial API, which is
+    # both accurate for Bedrock and the single most useful sentence on the page for
+    # a district reviewer. Asserted here so the guard above can never be "satisfied"
+    # by deleting the disclaimer instead of the false claim.
+    it "keeps the disclaimer that the runtime path is not Anthropic's commercial API" do
+      get :show, params: {version: '1'}
+      expect(response.body).to match(/not Anthropic&#39;s commercial API|not Anthropic's commercial API/)
+    end
+
+    it "does not present evaluation data as being sent while eval narration is inactive" do
+      get :show, params: {version: '1'}
+      body = response.body
+      expect(body).to match(/evaluation/i)
+      # Whatever sentence mentions evaluation data must mark it inactive.
+      expect(body).to match(/nothing is sent today|currently inactive|never leaves LingoLinq/i)
+      expect(body).not_to match(/only when a speech-language pathologist chooses to generate an AI-drafted evaluation summary for a specific student"?\s*<\/li>/i)
+    end
+
+    it "renders each vendor's own training note rather than a boolean-derived sentence" do
+      get :show, params: {version: '1'}
+      body = response.body
+      LingoLinq::AiConsentDisclosures.metadata(1)['vendors'].each do |vendor|
+        expect(body).to include(vendor['training_note']),
+                        "rendered page is missing the registry training_note for #{vendor['name']}"
+      end
+    end
+
     it "renders the same content_hash the module exposes for that version" do
       get :show, params: {version: '1'}
       expect(response.body).to include(LingoLinq::AiConsentDisclosures.content_hash(1))
