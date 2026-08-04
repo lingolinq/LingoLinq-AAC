@@ -617,7 +617,7 @@
       "mirrors": [
         {
           "system": "drive",
-          "location": "https://docs.google.com/document/d/1HEuWT7cS5zPmGI-o9SB2zsc1DJgArEAlCgJz0ECJK9U/edit"
+          "location": "https://docs.google.com/document/d/1fH7YutNAn2K9YHZF7h6g35FuA4dIpQOPQf6jQ71KhSc/edit"
         }
       ],
       "id": "DOC-39f37f8200",
@@ -748,7 +748,7 @@
       "mirrors": [
         {
           "system": "drive",
-          "location": "https://docs.google.com/document/d/13i7PUAZO-_lyUrObdB3CLDQ5KB9s5GNL7XHpcBCRn_M/edit"
+          "location": "https://docs.google.com/document/d/1AHinfXwANtcGNQ9LjMxyp6c-_82ybxClfKrQIeJh0I8/edit"
         }
       ],
       "id": "DOC-0387973005",
@@ -2572,7 +2572,12 @@
       "bundles": [
         "security-review"
       ],
-      "mirrors": [],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/1bN3p5lo0snYMC8WOT5JvnTzy1U5ar3so2NhtZIbcF7k/edit"
+        }
+      ],
       "notes": "Re-attested for EXTERNAL RELEASE by Scot Wahlquist, CEO, 2026-07-23 (rev. 2026-07-23-a): corrected the text-to-speech statement after Irish/Abair TTS was disabled (PR #674, no DPA on file) so the doc no longer names Abair as an active provider (see docs/legal/SUBPROCESSORS.md #17 and finding LL-a167848115). Prior re-attestation 2026-07-22 (rev. 2026-07-22-a) covered the COPPA-offboarding (#649) and GCP-cutover subprocessor/hosting (#652) rewrites; the 2026-07-09 attestation (rev. 2026-07-09-c) covered an earlier revision.",
       "retention": {
         "class": "policy-version",
