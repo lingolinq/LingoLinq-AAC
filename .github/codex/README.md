@@ -29,7 +29,8 @@ chunk leg. Convergence does not substitute for it: runs 2 and 3 re-sample the
 same model on the same prompt, which corrects sampling variance, not a blind
 spot. `gpt-5.6-luna` remains registry-approved as an A/B comparison arm, but
 moving it onto the production detection path is a reviewer-strength change, not a
-config tweak: it takes a PR that edits the constants below, and review.
+config tweak: it takes a PR that edits `DEFAULT_CHUNK_MODEL` in
+`scripts/codex-review-run-chunks.py`, and review.
 
 **Neither id is runtime-overridable, deliberately.** An earlier revision read
 both from repo variables so a bad pin could be corrected without shipping a PR
