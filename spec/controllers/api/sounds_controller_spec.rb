@@ -68,6 +68,30 @@ describe Api::SoundsController, :type => :controller do
       post :create, params: {:sound => {'user_id' => u.global_id, 'url' => url, 'content_type' => 'audio/mp3'}}
       assert_unauthorized
     end
+
+    env_wrap('UPLOADS_S3_BUCKET' => 'lingolinq-dev-uploads') do
+      it "should treat nested sound[user_id]=self as the authenticated user" do
+        token_user
+        url = "https://lingolinq-dev-uploads.s3.amazonaws.com/bacon.mp3"
+        post :create, params: {:sound => {'user_id' => 'self', 'url' => url, 'content_type' => 'audio/mp3'}}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json['sound']['id']).not_to eq(nil)
+        bs = ButtonSound.find_by_global_id(json['sound']['id'])
+        expect(bs).to_not eq(nil)
+        expect(bs.user).to eq(@user)
+      end
+
+      it "should ignore blank nested sound[user_id] and own the sound as the authenticated user" do
+        token_user
+        url = "https://lingolinq-dev-uploads.s3.amazonaws.com/bacon.mp3"
+        post :create, params: {:sound => {'user_id' => '', 'url' => url, 'content_type' => 'audio/mp3'}}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        bs = ButtonSound.find_by_global_id(json['sound']['id'])
+        expect(bs.user).to eq(@user)
+      end
+    end
   end
   
   describe "upload_success" do

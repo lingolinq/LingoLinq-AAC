@@ -152,6 +152,8 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Pattern: auth-page (login/register) "content cut off / bg not full height" — page-bg must be a transparent box; mesh goes on the fixed full-viewport `#within_ember`](#pattern-auth-page-loginregister-content-cut-off--bg-not-full-height--page-bg-must-be-a-transparent-box-mesh-goes-on-the-fixed-full-viewport-within_ember)
 - [Pattern: blank username suggestions must be discarded before `clean_path`](#pattern-blank-username-suggestions-must-be-discarded-before-clean_path)
 - [Pattern: keyboard control vocalizations must survive translation overlay](#pattern-keyboard-control-vocalizations-must-survive-translation-overlay)
+- [Pattern: board-detail Speak bar must speak vocalization, not just label](#pattern-board-detail-speak-bar-must-speak-vocalization-not-just-label)
+- [Pattern: board-detail Speak bar must play attached button sounds, not TTS-only](#pattern-board-detail-speak-bar-must-play-attached-button-sounds-not-tts-only)
 - [Pattern: per-user UI prefs must be read from `currentUser`, not the board-detail route's URL user](#pattern-per-user-ui-prefs-must-be-read-from-currentuser-not-the-board-detail-routes-url-user)
 - [Pattern: `.md-board-collection__*` is a light-base panel reusable on any page; dark theme is ancestor-scoped](#pattern-md-board-collection-is-a-light-base-panel-reusable-on-any-page-dark-theme-is-ancestor-scoped)
 - [Pattern: inside `.md-board-collection`, `data-bd-action` is the REAL handler — `@onSelect`/`@onBack` are decoration](#pattern-inside-md-board-collection-data-bd-action-is-the-real-handler--onselectonback-are-decoration)
@@ -5232,6 +5234,28 @@ in `ApiJsonBundle#coalesce_media` via `encode_import_url`.
 **Re-import required** after pulling the fix; existing pending images on a test
 account won't self-heal unless you re-import or run `upload_to_remote` again.
 
+### JSON bundle import: button sounds missing / silent after import
+
+**Symptom:** CoughDrop JSON-bundle import brings boards/images, but buttons with
+recorded sounds (rimshot, drumroll, laughter, sigh) don’t play.
+
+**Root causes (all verified):**
+1. Non-empty stub `sounds: [{id}]` skipped `sound_urls` synthesis (`coalesce_media`
+   only synthesized when `sounds.empty?`), so URLs never reached `ButtonSound`.
+2. `normalize_sound` dropped `data_url` / didn’t `encode_import_url`.
+3. `upload_to_remote` required `Content-Type: audio/*`; S3 often returns
+   `application/octet-stream` for `.mp3` → treated as fetch failure.
+4. Sound S3-failure path had no fallback (images store `data_uri` / CDN URL);
+   left `url: nil`, `pending: true`, `errored_pending_url` set.
+
+**Fix recipe:** Fill stub media urls from `board.sound_urls` / `image_urls`;
+normalize sound urls; accept octet-stream for audio-looking URLs; on S3 failure
+for sounds, keep the already-fetched source URL playable (no large audio
+`data_uri` in DB). Re-import affected boards after deploy.
+
+**Evidence:** `lib/converters/api_json_bundle.rb`, `Uploadable#store_downloaded_file_fallback!`,
+`acceptable_remote_content_type?`; task log `2026-08-04-json-bundle-import-sounds.md`.
+
 ### JSON bundle import: custom photos replaced by OpenSymbols after import
 
 **Symptom:** Imported custom button images (e.g. teacher photos) display
@@ -8347,3 +8371,32 @@ Two different credentials share the name `user_token`. `User#user_token` is a pe
 ## Gotcha: private uploads bucket — server-side OBZ/OBF import must use signed_internal_url
 
 `lingolinq-prod-uploads` blocks public access. Browser upload (SigV4 POST) can succeed while the worker-side import still fails: `Converters::Utils.remote_to_boards` used to `SafeHttp.get` the raw `https://bucket.s3.amazonaws.com/...` URL, get a 403 XML body, then feed it to rubyzip → misleading `Zip end of central directory signature not found` at progress ~0.22 / `processing_file`. JSON bundle import already signed via `Uploader.signed_internal_url` (`lib/converters/api_json_bundle.rb`); OBF/OBZ import and `Uploader.remote_zip` must do the same, and raise on non-success HTTP before parsing. Ref: [`2026-08-04-obz-import-signed-fetch.md`](./2026-08-04-obz-import-signed-fetch.md).
+
+## Gotcha: nested `sound[user_id]=self` 404s on create (replace_helper_params is top-level only)
+
+`ApplicationController#replace_helper_params` rewrites top-level `id` / `*_id` placeholders like `user_id=self` → `@api_user.global_id`, but **not** nested hashes. `Api::SoundsController#create` resolves nested `sound[user_id]` with `User.find_by_path`, which treats non-digit strings as `user_name` — there is no user named `self`, so create returns **404 Record not found** before any `ButtonSound` insert. Images create never looks up nested `user_id`, so picture upload can still work while sound upload fails. Same class of bug as boards index `?user_id=self` (2026-07-15 learning). Fix: treat nested `'self'` as `@api_user` (boards already special-cases `for_user_id == 'self'`), ignore blank, and on the frontend never POST the literal `'self'` — use `currentUser._actual_id || id` or omit. Ref: [`2026-08-04-sound-upload-nested-self-404.md`](./2026-08-04-sound-upload-nested-self-404.md).
+
+## Pattern: board-detail Speak bar must speak vocalization, not just label
+
+**Surface:** board-detail Speak Mode — button with distinct `label` vs `vocalization` (e.g. joke boards: label "Money joke", vocalization = the joke text).
+
+**Symptom:** Button tap speaks the joke correctly; tapping the Speak bar text or mic speaks only the short label.
+
+**Root cause:** Two speak paths. Button tap uses `utterance.speak_button` (`vocalization || label`). Classic `#button_list` uses `utterance.vocalize_list` (same). Board-detail's `speak_sentence` was speaking local `sentence_text`, which joined **labels only**, and `sync_sentence_from_button_list` never copied `vocalization` onto `sentence_parts` chips. Demo speak already had the correct helper (`sentence_text_for` → `vocalization || label`).
+
+**Fix recipe:** Persist `vocalization` on each `sentence_parts` chip when mirroring `app_state.button_list`. Keep display `sentence_text` as labels (chip / text-strip UX). For Speak-bar / mic replay, call `utterance.vocalize_list` (same as classic) so **attached button sounds** play and TTS uses `vocalization || label`. Keep a TTS fallback (`sentence_speak_text`) only when `button_list` has nothing speakable (e.g. phrase-builder chips that never hit `add_button`). `vocalize_list` sets `list_vocalized` / honors `clear_on_vocalize` — that is intentional parity with classic Speak Mode.
+
+**Evidence:** task log [`2026-08-04-speak-bar-label-not-vocalization.md`](./2026-08-04-speak-bar-label-not-vocalization.md); follow-up [`2026-08-04-speak-bar-skips-button-sounds.md`](./2026-08-04-speak-bar-skips-button-sounds.md); `board-detail.js` `_speak_current_sentence` / `sentence_speak_text`; contrast `utterance.js` `speak_button` / `vocalize_list`.
+
+## Pattern: board-detail Speak bar must play attached button sounds, not TTS-only
+
+**Surface:** board-detail Speak Mode with buttons that have recorded `ButtonSound` audio (imported joke boards, rimshot, etc.).
+
+**Symptom:** Button tap plays the recording; Speak bar / mic speaks the label via TTS.
+
+**Root cause:** `speak_sentence` called `speecher.speak_text(...)`. Classic Speak Mode calls `utterance.vocalize_list`, which pushes `{sound: url}` into `speecher.speak_collection` when `button_list[i].sound` is set. The vocalization-text fix did not close this gap.
+
+**Fix recipe:** Route Speak-bar / mic through `utterance.vocalize_list` when `app_state.button_list` has speakable entries. Do **not** use that path for phrase-builder commit (local chips only — would replay a stale utterance).
+
+**Evidence:** [`2026-08-04-speak-bar-skips-button-sounds.md`](./2026-08-04-speak-bar-skips-button-sounds.md).
+
