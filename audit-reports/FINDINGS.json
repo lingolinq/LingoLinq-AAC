@@ -4259,6 +4259,94 @@
       "notes": "Discovered 2026-07-20 during VPC Phase 3 planning. PRE-EXISTING and system-wide (~140 callers). VPC Phase 3 adds the optional labelledBy/describedBy arguments to the shell as part of building its own ai-disclosure accessibility contract, but deliberately does NOT retrofit existing callers -- that retrofit is this finding and remains separate prioritized work. Rated medium rather than high because affected modals are still operable; the defect is that a screen-reader user gets no accessible name for the dialog, not that the dialog is unusable."
     },
     {
+      "id": "LL-1b0d78dbe6",
+      "ruleKey": "bedrock-credential-account-unverified",
+      "title": "No check asserts the Bedrock credential resolves to the BAA'd AWS account, so the AWS BAA's operative condition is an untested assumption",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/ai_client.rb",
+        "line": 89,
+        "snippet": "Anthropic::BedrockMantleClient.new(",
+        "sha": "4a28ed84dd2a799bf9a4d9b0b18df8b628ec8a46"
+      },
+      "firstSeen": "2026-08-02",
+      "lastSeen": "2026-08-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "AiClient.build signs Bedrock with whatever credential pair is present and asserts nothing about which AWS account it belongs to. The AWS BAA (docs/legal/AWS_BAA_ACCEPTED.md) is scoped to a single account, and its stated operative condition is that Bedrock calls run under that account, so a credential from any other account would put PHI-bearing inference outside BAA coverage while every check in the repo stayed green. Add an explicit account assertion: call sts:GetCallerIdentity under the exact credential AiClient will use and compare Account against the BAA'd account id, ideally at deploy time in .github/workflows/deploy-cloudrun.yml as a post-deploy smoke step so a wrong credential fails the deploy rather than surfacing at first inference. A boot-time or first-call assertion that fails closed is an acceptable alternative or addition. Keep the account id in configuration, not hardcoded, so a future account migration is a config change. This is the control whose absence let an unverifiable verification claim stand in an attested compliance document from 2026-07-27 to 2026-08-01; PR 725 retracted the claim but did not add the control.",
+        "timeframe": "before Bedrock is marked operational"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": 725,
+        "reviewer": "adversary",
+        "promotedDate": "2026-08-02"
+      },
+      "notes": "Promoted from PR #725 review (adversary) on 2026-08-02. Filed from the PR 725 correction of docs/legal/AWS_BAA_ACCEPTED.md. PREMISE CORRECTED 2026-08-04: the note previously read 'Currently unexercised: no lingolinq-web revision carries a Bedrock credential ... Rated high rather than critical for that reason. It becomes live the moment credentials are mounted (PR 719).' That activation condition WAS met. Revision 00013-76w mounted the credentials at 2026-08-03T08:23:02Z and the path ran for ~22 hours with no such check in place, exactly the gap this finding describes. Credentials were withdrawn at 2026-08-04T06:31:46Z (revision 00014-5rw), so the finding is again unexercised, but it has now been demonstrated live rather than hypothetically. The verification standard was met manually and out-of-band during the window (sts:GetCallerIdentity returned 239044785114, principal user/lingolinq-bedrock-runtime); no automated check performed it, which is the finding. Severity is left at high and its re-rating on this corrected premise is Scot's call, not auto-applied. Verification standard recorded in the AWS BAA correction: re-attestation of the operative condition requires both that the credential env vars are present on the serving revision and that sts:GetCallerIdentity under that credential returns the BAA'd account."
+    },
+    {
+      "id": "LL-16ef84ad9a",
+      "ruleKey": "word-predictor-cache-cross-tenant-unscrubbed-key",
+      "title": "Word-prediction cache holds the raw pre-scrubber user utterance in a process-global structure outside the PiiScrubber boundary, and is not tenant-scoped",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "HIPAA",
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/ai_word_predictor.rb",
+        "line": 47,
+        "snippet": "cache_key = \"#{locale}:#{sentence.strip.downcase}:#{ctx[:time_of_day]}:#{ctx[:topic]}\"",
+        "sha": "9e3560fa2a233316a0469f5cabe9370b25d60064"
+      },
+      "firstSeen": "2026-08-02",
+      "lastSeen": "2026-08-03",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "PRIMARY ISSUE, unscrubbed retention outside the redaction boundary. The cache key is built from the raw sentence BEFORE PiiScrubber runs (lib/ai_word_predictor.rb:47), and entries live in a process-global CACHE constant. CACHE_TTL (1800s / 30 minutes) is checked only when deciding whether to reuse an entry on lookup (lib/ai_word_predictor.rb:48-51); expired entries are not deleted until capacity eviction (CACHE_MAX=500) or overwrite. On a low-traffic process with fewer than 500 distinct keys, a raw utterance can therefore remain in heap memory for the process lifetime, so describing this as 30-minute retention understates the heap-dump exposure. Verbatim, unredacted AAC utterance content, which is exactly what the compliance corpus says is redacted before it is handled, sits in process memory outside that control. It is reachable by a heap dump, a debug endpoint, or any exception reporter that captures locals or constants. Every compliance document that cites PiiScrubber as THE control on user-authored content is inaccurate for as long as this is true. SECONDARY ISSUE, tenant scoping. CACHE has no user, organization, or district discriminator, so two users in different districts who compose the byte-identical sentence share an entry. This is the weaker of the two arguments and should not be led with: the second user already possesses the input they typed, so what they gain is the model's output for their own sentence, not another learner's content. It still contradicts the mandatory district data-isolation requirement and should be fixed. FIX. Key on a hash of the SCRUBBED sentence rather than the raw one, so no verbatim utterance is retained; include a tenant discriminator (organization or user id) in the key; and either delete on TTL expiry or stop claiming a 30-minute retention bound. Then decide explicitly whether a cache shared across tenants is wanted at all for user-composed content.",
+        "timeframe": "before Bedrock is marked operational"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": 725,
+        "reviewer": "adversary",
+        "promotedDate": "2026-08-02"
+      },
+      "notes": "Found by adversary review of PR 725; rationale reordered 2026-08-02 after the same reviewer noted the original write-up led with the weaker cross-tenant argument. Activation and TTL wording corrected 2026-08-03 after Codex review of this PR. PREMISE CORRECTED 2026-08-04: the note previously read 'Currently unexercised while Bedrock is unconfigured: resolve_api_config returns nil and predict returns early at lib/ai_word_predictor.rb:34-35, so nothing reaches the cache write.' That is no longer the operative history. Revision 00013-76w mounted the Bedrock credentials at 2026-08-03T08:23:02Z, and a live AiWordPredictor.predict call completed successfully at 2026-08-04T05:44:42Z, so the cache write at line 135 DID execute in production with a key built from the raw pre-scrubber sentence. The utterance in that single call was an internal verification string containing no user or student data, so no real user content was retained; the defect is nonetheless now demonstrated in production rather than theoretical. Credentials were withdrawn at 2026-08-04T06:31:46Z (revision 00014-5rw), returning the path to unexercised. This finding should be scheduled on its stated fix (hash of the SCRUBBED sentence plus a tenant discriminator) rather than deferred behind an 'unexercised' label, since any future credential mount re-activates it immediately. Once credentials are mounted and resolve_api_config succeeds, the cache write at line 135 runs even when the model call fails -- the rescue at lines 90-94 returns [] and execution still stores CACHE[cache_key] = { words: words, ts: Time.now }. Activation condition is AiClient.configured? (credential pair present), not a successful Bedrock completion; same mount trigger as LL-1b0d78dbe6. Severity HIGH on the unscrubbed-retention argument alone; the reviewer's initial medium was revised up after weighing the mandatory district-isolation rule and for consistency with LL-1b0d78dbe6. Severity remains Scot's call."
+    },
+    {
       "id": "LL-cde54765c6",
       "ruleKey": "masquerade-no-operator-indicator",
       "title": "Masquerade shows no on-screen indication of whose account is being operated",

@@ -194,7 +194,10 @@ is **planned**, not yet built; it appears here so the consent architecture is on
   privacy notice; embedding is an open task.
 - **Subprocessors.** The Article 28 / 45 CFR 164.502(e) register is `docs/legal/SUBPROCESSORS.md`,
   with a 30-day customer change-notice commitment. AWS BAA signed 2026-02-07. Anthropic is the
-  active AI vendor receiving pseudonymized (scrubbed) prompts via `lib/pii_scrubber.rb` and is
+  designated AI vendor for pseudonymized (scrubbed) prompts via `lib/pii_scrubber.rb`, **not
+  operational as of 2026-08-04**, having been operational only from 2026-08-03T08:23Z to
+  2026-08-04T06:31Z for a single internal verification call carrying no user or student data (see
+  the 2026-08-04 operational-status correction in `docs/legal/AWS_BAA_ACCEPTED.md`), and when live is
   classified as receiving pseudonymized personal data, not anonymous or de-identified data
   (direct identifiers removed by design, but still personal data under GDPR/UK-GDPR). OpenAI is
   contracted but has no active data flow as of 2026-07-06 (see the register, row 3). Google Gemini
@@ -333,9 +336,16 @@ that, to the best of my knowledge as of 2026-07-22:
    explicit decommission.
 3. The vendor and BAA posture described here is accurate for the live hosting path: AWS remains the
    storage/email provider under the AWS BAA, Google Cloud Platform is the active infrastructure
-   host under the accepted GCP CDPA / HIPAA BAA / SCCs, Anthropic is the active runtime AI provider
-   under the executed HIPAA-Ready BAA, and Render remains listed only because fallback data and
-   services still exist.
+   host under the accepted GCP CDPA / HIPAA BAA / SCCs, Anthropic is the designated runtime AI
+   provider under the executed HIPAA-Ready BAA, and Render remains listed only because fallback data
+   and services still exist. **Corrected 2026-08-01, re-corrected 2026-08-04:** this clause
+   previously read "Anthropic is the *active* runtime AI provider", and was then over-corrected to
+   assert the Bedrock route had never been operational. The accurate statement is a closed window:
+   the Bedrock route was operational from 2026-08-03T08:23Z to 2026-08-04T06:31Z (revision
+   `00013-76w`), carrying one internal verification call with no user or student data, and is not
+   operational as of 2026-08-04 (no credential on any current `lingolinq-web` revision). The direct
+   `api.anthropic.com` route is disabled. See the 2026-08-04 operational-status correction in
+   `docs/legal/AWS_BAA_ACCEPTED.md`.
 4. This re-attestation does not close, downgrade, or supersede any finding by itself. Finding
    status remains governed by `audit-reports/FINDINGS.json`: Redis TLS (LL-6619cc1811) has its
    in-context Cloud Run `rediss://` PONG evidence captured, but formal closure still requires the

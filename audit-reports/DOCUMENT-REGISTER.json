@@ -472,18 +472,19 @@
         "GDPR",
         "SOC2"
       ],
-      "lastReviewed": "2026-07-23",
+      "lastReviewed": "2026-08-04",
       "nextReviewDue": "2027-07-10",
       "attestation": {
         "attestedBy": "Scot Wahlquist, CEO",
-        "attestedDate": "2026-07-23",
-        "attestedContentHash": "4afee21c69b01deeecca9f33e80fbb74f4d639ff381c5d539d06a4269912a126",
+        "attestedDate": "2026-08-04",
+        "attestedContentHash": "72af832942c4de82ef82de6e2ed0b4a35272db0934f07d745cea18044ef1c0ec",
         "priorAttestations": [
+          "2026-07-23",
           "2026-07-06"
         ],
-        "note": "Re-attested 2026-07-23 against the current revision after verification against live code and infrastructure state. The prior attestation covered a revision that no longer exists; see the document banner for what changed."
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist. Scope: the runtime-AI operational-status correction in PR #725. The prior corpus stated the Bedrock path was dormant and that no lingolinq-web revision carried a Bedrock credential; that was accurate when written and expired 2026-08-03T08:23:02Z when revision 00013-76w mounted BEDROCK_AWS_KEY/SECRET. The corpus now states a closed window: not operational to 2026-08-03T08:23Z, operational to 2026-08-04T06:31Z (one internal verification call, no user or student data), not operational since. Verified live: sts:GetCallerIdentity returned 239044785114 (user/lingolinq-bedrock-runtime)."
       },
-      "contentHash": "4afee21c69b01deeecca9f33e80fbb74f4d639ff381c5d539d06a4269912a126",
+      "contentHash": "72af832942c4de82ef82de6e2ed0b4a35272db0934f07d745cea18044ef1c0ec",
       "bundles": [
         "soc2-evidence"
       ],
@@ -513,14 +514,18 @@
         "GDPR",
         "SOC2"
       ],
-      "lastReviewed": "2026-07-22",
+      "lastReviewed": "2026-08-04",
       "nextReviewDue": "2027-07-22",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-22",
-        "attestedContentHash": "1d1f81b0eeab01e63abf4d2c91101ff402928d3802c77528e327973f8067729e"
+        "attestedDate": "2026-08-04",
+        "attestedContentHash": "2c582b44be3910895be49b8eb969f0da8a1c867789eeb0b882daa757ce0aeac4",
+        "priorAttestations": [
+          "2026-07-22"
+        ],
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist. Scope: the runtime-AI operational-status correction in PR #725. The prior corpus stated the Bedrock path was dormant and that no lingolinq-web revision carried a Bedrock credential; that was accurate when written and expired 2026-08-03T08:23:02Z when revision 00013-76w mounted BEDROCK_AWS_KEY/SECRET. The corpus now states a closed window: not operational to 2026-08-03T08:23Z, operational to 2026-08-04T06:31Z (one internal verification call, no user or student data), not operational since. Verified live: sts:GetCallerIdentity returned 239044785114 (user/lingolinq-bedrock-runtime)."
       },
-      "contentHash": "1d1f81b0eeab01e63abf4d2c91101ff402928d3802c77528e327973f8067729e",
+      "contentHash": "2c582b44be3910895be49b8eb969f0da8a1c867789eeb0b882daa757ce0aeac4",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
@@ -596,19 +601,21 @@
         "GDPR",
         "COPPA"
       ],
-      "lastReviewed": "2026-07-27",
+      "lastReviewed": "2026-08-04",
       "nextReviewDue": "2026-10-22",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-27",
-        "attestedContentHash": "74ec247f35dd8af99a17825e22df86cf34105a6ce6968c86d899bc12ddbe883e",
+        "attestedDate": "2026-08-04",
+        "attestedContentHash": "356b409294378764da09c43d532ca96e66524b448b4c95b009f23c1c659e68d7",
         "priorAttestations": [
+          "2026-07-27",
           "2026-07-24",
           "2026-07-22"
         ],
-        "note": "Re-attested 2026-07-27 (Path B recovery on Scot/feat/bedrock-runtime-ai): removed contradictory \"re-attestation owed\" banners that remained after the 2026-07-24 Bedrock routing attestation, and reconciled section 3 AWS BAA coverage wording with the active Bedrock runtime route. Prior 2026-07-24 attestation covered the Bedrock routing bytes that still incorrectly said attestation was owed."
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist (second pin, same day). Supersedes the earlier 2026-08-04 pin, whose bytes were corrected across three external review rounds before merge. Scope of this pin: the closed-window runtime-AI operational status (not operational through 00012-x8z; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on 00013-76w; not operational since 00014-5rw), with every historical claim explicitly bounded to the period it covers rather than stated as an unbounded absolute. Also pinned: the runtime plane corrected from 'Bedrock Mantle Messages API' to classic bedrock-runtime, with the consequence stated that Claude Opus 4.7 has no classic-plane inference profile and eval narration therefore falls back to its deterministic template."
       },
-      "contentHash": "74ec247f35dd8af99a17825e22df86cf34105a6ce6968c86d899bc12ddbe883e",
+      "correctionNote": "CORRECTION 2026-08-02, SUPERSEDED 2026-08-04 (not an attestation; only Scot attests). The 2026-08-02 note said Bedrock 'has never been operational in production' and that runtime AI had been dormant since 00011-l7f. That was accurate through revision 00012-x8z and expired 2026-08-03T08:23:02Z, when 00013-76w mounted the Bedrock credentials. Correct statement: not operational through 00012-x8z; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z with one logged seam call completed (internal verification, no user or student data); not operational since 00014-5rw. Re-attested by Scot Wahlquist 2026-08-04; the earlier 'Re-attestation owed' note is discharged.",
+      "contentHash": "356b409294378764da09c43d532ca96e66524b448b4c95b009f23c1c659e68d7",
       "bundles": [
         "compliance-records-set-2026-06",
         "security-review"
@@ -616,7 +623,7 @@
       "mirrors": [
         {
           "system": "drive",
-          "location": "https://docs.google.com/document/d/1HEuWT7cS5zPmGI-o9SB2zsc1DJgArEAlCgJz0ECJK9U/edit"
+          "location": "https://docs.google.com/document/d/1fH7YutNAn2K9YHZF7h6g35FuA4dIpQOPQf6jQ71KhSc/edit"
         }
       ],
       "id": "DOC-39f37f8200",
@@ -726,19 +733,20 @@
         "FERPA",
         "HIPAA"
       ],
-      "lastReviewed": "2026-07-23",
+      "lastReviewed": "2026-08-04",
       "nextReviewDue": "2027-07-23",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-24",
-        "attestedContentHash": "f2ee37371ebf3b89037f42a6fc3aeedeb8d857a23297759604508c8ff5161fb3",
+        "attestedDate": "2026-08-04",
+        "attestedContentHash": "83cb1467066905fe8b69e730a5d9cba97eb3b72eb25e86a559cfd2a606546290",
         "priorAttestations": [
+          "2026-07-24",
           "2026-07-06",
           "2026-07-23"
         ],
-        "note": "Re-attested 2026-07-24 (CEO, explicit) for the §2 subprocessor-notice position on the GCP infrastructure addition (#19): recorded the pre-tenant baseline / no-notice-owed position and the compliance-calendar gate `gate-first-tenant-subprocessor-baseline`. Covers content hash f2ee3737. The prior 2026-07-23 attestation covered revision 1e404832, which no longer exists."
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist. Scope: the runtime-AI operational-status correction in PR #725. The prior corpus stated the Bedrock path was dormant and that no lingolinq-web revision carried a Bedrock credential; that was accurate when written and expired 2026-08-03T08:23:02Z when revision 00013-76w mounted BEDROCK_AWS_KEY/SECRET. The corpus now states a closed window: not operational to 2026-08-03T08:23Z, operational to 2026-08-04T06:31Z (one internal verification call, no user or student data), not operational since. Verified live: sts:GetCallerIdentity returned 239044785114 (user/lingolinq-bedrock-runtime)."
       },
-      "contentHash": "f2ee37371ebf3b89037f42a6fc3aeedeb8d857a23297759604508c8ff5161fb3",
+      "contentHash": "83cb1467066905fe8b69e730a5d9cba97eb3b72eb25e86a559cfd2a606546290",
       "bundles": [
         "school-dpa-package",
         "soc2-evidence",
@@ -747,7 +755,7 @@
       "mirrors": [
         {
           "system": "drive",
-          "location": "https://docs.google.com/document/d/13i7PUAZO-_lyUrObdB3CLDQ5KB9s5GNL7XHpcBCRn_M/edit"
+          "location": "https://docs.google.com/document/d/1AHinfXwANtcGNQ9LjMxyp6c-_82ybxClfKrQIeJh0I8/edit"
         }
       ],
       "id": "DOC-0387973005",
@@ -1021,17 +1029,18 @@
         "HIPAA",
         "GDPR"
       ],
-      "lastReviewed": "2026-07-27",
+      "lastReviewed": "2026-08-04",
       "nextReviewDue": "2027-07-18",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-27",
-        "attestedContentHash": "21179eb31560cc33812909b7bc8ca36fc47f4e3a7a18240b0d57479534f6794e",
+        "attestedDate": "2026-08-04",
+        "attestedContentHash": "bb1ff239ec4cb2f2e1c38a2180c9b3a305417c29b7e9efad3e9a3c0959e455e0",
         "priorAttestations": [
+          "2026-07-27",
           "2026-07-24",
           "2026-07-18"
         ],
-        "note": "Re-attested 2026-07-27 (Path B recovery): removed contradictory \"re-attestation owed\" banner left after the 2026-07-24 Bedrock routing attestation. Prior 2026-07-24 attestation covered those Bedrock routing bytes."
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist (second pin, same day). Supersedes the earlier 2026-08-04 pin, whose bytes were corrected across three external review rounds before merge. Scope of this pin: the closed-window runtime-AI operational status (not operational through 00012-x8z; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on 00013-76w; not operational since 00014-5rw), with every historical claim explicitly bounded to the period it covers rather than stated as an unbounded absolute. Also pinned: the same Mantle-to-classic plane correction, and the operative-condition bullet bounded to its period with the 2026-08-04 verification recorded separately."
       },
       "bundles": [
         "baa"
@@ -1048,7 +1057,7 @@
       ],
       "notes": "Parity with the AWS (docs/legal/AWS_BAA_ACCEPTED.md) and GCP (docs/legal/GCP_BAA_ACCEPTED.md) acceptance records. Model-provider BAA for the Anthropic runtime egress path; supersedes the prior 'no model-provider BAA / provisional pending CEO review' posture in COMPLIANCE.md, SUBPROCESSORS.md row 4, GCP_BAA_ACCEPTED.md, and AI_GOVERNANCE_MEMO.md (all reconciled in the same PR). Live enablement verified 2026-07-18 (Messages API 200; Files API 400 'not available for HIPAA-regulated organizations without Zero Data Retention'). Attested by Scot Wahlquist 2026-07-18 per explicit confirmation; git contentHash computed and CI-verified. The broader AI_GOVERNANCE_MEMO body was fully updated and re-attested by Scot Wahlquist on 2026-07-19 in the AI governance memo re-attestation PR.",
       "id": "DOC-ab3a8c3ed4",
-      "contentHash": "21179eb31560cc33812909b7bc8ca36fc47f4e3a7a18240b0d57479534f6794e",
+      "contentHash": "bb1ff239ec4cb2f2e1c38a2180c9b3a305417c29b7e9efad3e9a3c0959e455e0",
       "retention": {
         "class": "executed-agreement",
         "rule": "term + 7 years",
@@ -1069,20 +1078,21 @@
       "frameworks": [
         "HIPAA"
       ],
-      "lastReviewed": "2026-07-27",
+      "lastReviewed": "2026-08-04",
       "nextReviewDue": "2027-05-11",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-27",
-        "attestedContentHash": "8895bd338274f504979477aadec47e5c64ac41cabe1bb9c90b654af81f4b687c",
+        "attestedDate": "2026-08-04",
+        "attestedContentHash": "376b1e18ce5297a8d9c23257850c1b028805d502090167b2a7b0c440941da2b9",
         "priorAttestations": [
           "2026-07-24",
           "2026-06-21",
           "2026-07-27"
         ],
-        "note": "Re-attested 2026-07-27: recorded the verified Bedrock operative conditions (deployed lingolinq-web credential resolves to the BAA'd AWS account 2390-4478-5114 / us-west-2; Bedrock model-invocation logging OFF in that account/region). Content-only verification; no scope change."
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist (second pin, same day). Supersedes the earlier 2026-08-04 pin, whose bytes were corrected across three external review rounds before merge. Scope of this pin: the closed-window runtime-AI operational status (not operational through 00012-x8z; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on 00013-76w; not operational since 00014-5rw), with every historical claim explicitly bounded to the period it covers rather than stated as an unbounded absolute. Also pinned: the narrow verified/reachable/unavailable split for the operational window (word prediction exercised, one completed call; board generation and prediction seeding reachable but unexercised; eval narration unavailable throughout), the AiApiLog scoping note, and the 2026-08-04 sts:GetCallerIdentity verification recorded as a separate dated finding that does NOT revive the retracted 2026-07-27 claim."
       },
-      "contentHash": "8895bd338274f504979477aadec47e5c64ac41cabe1bb9c90b654af81f4b687c",
+      "correctionNote": "CORRECTION 2026-08-02, SUPERSEDED 2026-08-04 (not an attestation; only Scot attests). The 2026-07-27 attestation note asserted the deployed lingolinq-web credential was verified to resolve to AWS account 2390-4478-5114. That verification is RETRACTED and stays retracted: it was false when made, and no revision from 00001-2vn (2026-06-29) through 00012-x8z (2026-08-02T20:31Z) carried a Bedrock credential. The 2026-08-02 wording 'has ever carried' was an unbounded absolute and is corrected to that bounded range, because revision 00013-76w (2026-08-03T08:23:02Z) did mount the credentials. The operative condition was then independently verified for the first time on 2026-08-04 (sts:GetCallerIdentity returned 239044785114, principal user/lingolinq-bedrock-runtime); that verification is dated 2026-08-04 and does not revive the 2026-07-27 claim. The attestation object is left unmodified because it records what was signed. Re-attested by Scot Wahlquist 2026-08-04.",
+      "contentHash": "376b1e18ce5297a8d9c23257850c1b028805d502090167b2a7b0c440941da2b9",
       "bundles": [
         "baa"
       ],
@@ -1170,7 +1180,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "47e3e53589231fc6a47605baca1bf56ee772af3b1383490bb2629ba8c0f6aae8",
+      "contentHash": "5849b54f4755bf05331ea228a3941b29c34dfc0658923acbdedb51d9558d80b8",
       "bundles": [],
       "mirrors": [
         {
@@ -2485,14 +2495,18 @@
         "HIPAA",
         "GDPR"
       ],
-      "lastReviewed": "2026-07-22",
+      "lastReviewed": "2026-08-04",
       "nextReviewDue": "2027-07-22",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-22",
-        "attestedContentHash": "f16e851f8cc09794437f0f87089b309763124943af4a5475b1e60b25fcf9f475"
+        "attestedDate": "2026-08-04",
+        "attestedContentHash": "80b5bec460ee1dad9ff2423334eb9088a52abf54dda072f7623ce26ba89363c8",
+        "priorAttestations": [
+          "2026-07-22"
+        ],
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist (second pin, same day). Supersedes the earlier 2026-08-04 pin, whose bytes were corrected across three external review rounds before merge. Scope of this pin: the closed-window runtime-AI operational status (not operational through 00012-x8z; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on 00013-76w; not operational since 00014-5rw), with every historical claim explicitly bounded to the period it covers rather than stated as an unbounded absolute. Also pinned: the runtime-row status paragraph rewritten from 'dormant as of 2026-07-30' to the closed window. This document entered the re-attestation set during the third review round."
       },
-      "contentHash": "f16e851f8cc09794437f0f87089b309763124943af4a5475b1e60b25fcf9f475",
+      "contentHash": "80b5bec460ee1dad9ff2423334eb9088a52abf54dda072f7623ce26ba89363c8",
       "bundles": [
         "school-dpa-package",
         "security-review",
@@ -2523,14 +2537,18 @@
         "COPPA",
         "GDPR"
       ],
-      "lastReviewed": "2026-07-09",
+      "lastReviewed": "2026-08-04",
       "nextReviewDue": "2027-07-09",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-09",
-        "attestedContentHash": "c77ebb0dc5c8a228f32f268f40f36a74e60ef867a5ada78ba0e22f0d4a7ca914"
+        "attestedDate": "2026-08-04",
+        "attestedContentHash": "6c534936a91a3b4540669d53d7a259717614642118f1fd09191d63f8e7e71224",
+        "priorAttestations": [
+          "2026-07-09"
+        ],
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist (second pin, same day). Supersedes the earlier 2026-08-04 pin, whose bytes were corrected across three external review rounds before merge. Scope of this pin: the closed-window runtime-AI operational status (not operational through 00012-x8z; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on 00013-76w; not operational since 00014-5rw), with every historical claim explicitly bounded to the period it covers rather than stated as an unbounded absolute. Also pinned: the ZDR and training-posture bullets scoped to the direct api.anthropic.com path, expressly disclaiming any zero-data-retention guarantee for the AWS Bedrock route. This narrows a previously broader retention representation and aligns the consent record with the shipped runtime disclosure."
       },
-      "contentHash": "c77ebb0dc5c8a228f32f268f40f36a74e60ef867a5ada78ba0e22f0d4a7ca914",
+      "contentHash": "6c534936a91a3b4540669d53d7a259717614642118f1fd09191d63f8e7e71224",
       "bundles": [],
       "mirrors": [],
       "notes": "Register bookkeeping from the in-document attestation line (2026-07-09, provisional, conservative-default). Not yet reviewed by outside counsel. Scot to confirm or correct.",
@@ -2559,18 +2577,27 @@
         "GDPR",
         "SOC2"
       ],
-      "lastReviewed": "2026-07-23",
+      "lastReviewed": "2026-08-04",
       "nextReviewDue": "2027-07-22",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-23",
-        "attestedContentHash": "47318beb94b3d3b9fa76845def3d68db6eddd38b7a6e2c44596d11b2d733b046"
+        "attestedDate": "2026-08-04",
+        "attestedContentHash": "933d4863d95ba179a77d6a518e38536f51dec89f2e34ae67604495bf66629499",
+        "priorAttestations": [
+          "2026-07-23"
+        ],
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist. Scope: the runtime-AI operational-status correction in PR #725. The prior corpus stated the Bedrock path was dormant and that no lingolinq-web revision carried a Bedrock credential; that was accurate when written and expired 2026-08-03T08:23:02Z when revision 00013-76w mounted BEDROCK_AWS_KEY/SECRET. The corpus now states a closed window: not operational to 2026-08-03T08:23Z, operational to 2026-08-04T06:31Z (one internal verification call, no user or student data), not operational since. Verified live: sts:GetCallerIdentity returned 239044785114 (user/lingolinq-bedrock-runtime)."
       },
-      "contentHash": "47318beb94b3d3b9fa76845def3d68db6eddd38b7a6e2c44596d11b2d733b046",
+      "contentHash": "933d4863d95ba179a77d6a518e38536f51dec89f2e34ae67604495bf66629499",
       "bundles": [
         "security-review"
       ],
-      "mirrors": [],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/1bN3p5lo0snYMC8WOT5JvnTzy1U5ar3so2NhtZIbcF7k/edit"
+        }
+      ],
       "notes": "Re-attested for EXTERNAL RELEASE by Scot Wahlquist, CEO, 2026-07-23 (rev. 2026-07-23-a): corrected the text-to-speech statement after Irish/Abair TTS was disabled (PR #674, no DPA on file) so the doc no longer names Abair as an active provider (see docs/legal/SUBPROCESSORS.md #17 and finding LL-a167848115). Prior re-attestation 2026-07-22 (rev. 2026-07-22-a) covered the COPPA-offboarding (#649) and GCP-cutover subprocessor/hosting (#652) rewrites; the 2026-07-09 attestation (rev. 2026-07-09-c) covered an earlier revision.",
       "retention": {
         "class": "policy-version",
@@ -2622,7 +2649,7 @@
       "lastReviewed": "2026-07-12",
       "nextReviewDue": "2027-01-12",
       "attestation": {},
-      "contentHash": "7ee6c9362352bd88d669a35290eeb2b63a48c419bf9cc431933d0a9132ccd5d8",
+      "contentHash": "4238f6c596f1e00f57f210eb54d62e265271ad6d2a8f5f49cc775399b554a180",
       "bundles": [],
       "mirrors": [
         {

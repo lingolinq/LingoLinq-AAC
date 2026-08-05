@@ -8139,6 +8139,22 @@ the 2026-07-22 persistence-sync epoch-fencing entry.
 
 `editManager.change_button` sync observers that watch only an object reference (`observer('model.book', …)`) do **not** refire when `set-field` mutates nested properties on that object. The video path already documents and implements this (`button-settings.js` `videoChanged` observes `model.video` + `model.video.popup|start|end`). Restoring TarHeel book checkboxes with `set-field` alone is incomplete unless `bookChanged` also observes `model.book.popup` / `.speech` / `.utterance` (or each control calls `change_button`). Separately: TarHeel init defaults are asymmetric — `speech: false`, `utterance: true` (`utils/button.js:163-175`) — so register impact text must not say both default falsy. Ref: [`2026-08-02-ember-register-book-options-codex-fixes.md`](./2026-08-02-ember-register-book-options-codex-fixes.md).
 
+## Gotcha: merging staging into an attestation-correction PR must not take staging's `built` ledger flip
+
+When a compliance PR retracts an overclaim (e.g. #725 Bedrock credential attestation →
+`ai-features-anthropic` `partial` / not operational) and staging later lands the runtime fix
+that staging's own ledger marks `built` again (#719 mount + #727 classic plane), a naive
+"take theirs" on `CAPABILITY-LEDGER.json` undoes the PR thesis.
+
+**Resolution pattern:** keep the correction's status/claimLanguage; fold in the new technical
+facts (classic vs mantle, deploy-workflow mount) into antiClaim/notes; state explicitly that
+code landing ≠ operative-condition verified. Then regenerate — never hand-edit — with
+`ruby scripts/capability-check.rb` and `ruby scripts/document-register-render.rb`. Date-stamp
+historical evidence rows that staging's code change would otherwise falsify (e.g. "absent in
+deploy-cloudrun.yml" → "absent as of YYYY-MM-DD evidence gather (pre-#719)").
+
+Ref: `docs/task-management/2026-08-03-bedrock-attestation-staging-merge.md` (gitignored working log).
+
 ## Gotcha: embed-frame `data-user_token` is UserIntegration#user_token, not User#user_token
 
 Two different credentials share the name `user_token`. `User#user_token` is a permanent HMAC of `global_id` (login-serialized via `lib/json_api/user.rb`). Embed-frame's `data-user_token` is **not** that: `board.js` reads `tool.get('user_token')` from the integration serializer, which mints `UserIntegration#user_token` (integration-scoped, obfuscated user id + integration id + sig). When scoping permanent-token findings (e.g. LL-90045bb29c residual), do not fold embed-frame into `User#user_token` blast radius without verifying the mint site. Ref: [`2026-08-03-ll-90045bb29c-narrow-close.md`](./2026-08-03-ll-90045bb29c-narrow-close.md).
@@ -8146,6 +8162,49 @@ Two different credentials share the name `user_token`. `User#user_token` is a pe
 ## Gotcha: private uploads bucket — server-side OBZ/OBF import must use signed_internal_url
 
 `lingolinq-prod-uploads` blocks public access. Browser upload (SigV4 POST) can succeed while the worker-side import still fails: `Converters::Utils.remote_to_boards` used to `SafeHttp.get` the raw `https://bucket.s3.amazonaws.com/...` URL, get a 403 XML body, then feed it to rubyzip → misleading `Zip end of central directory signature not found` at progress ~0.22 / `processing_file`. JSON bundle import already signed via `Uploader.signed_internal_url` (`lib/converters/api_json_bundle.rb`); OBF/OBZ import and `Uploader.remote_zip` must do the same, and raise on non-success HTTP before parsing. Ref: [`2026-08-04-obz-import-signed-fetch.md`](./2026-08-04-obz-import-signed-fetch.md).
+
+## Gotcha: a compliance claim about runtime state expires; verify at the SHA and in prod, never from the diff
+
+PR #725 took nine review rounds. The same defect recurred four times, twice by the
+reviewer who was correcting it. The pattern is worth naming because it is not a
+compliance problem, it is an epistemics problem that any long-lived doc PR will hit.
+
+**The defect:** a runtime-state claim written as an unbounded absolute. "No revision
+carries a Bedrock credential." "Bedrock egress has never occurred." "AiClient.build has
+always returned nil." Each was true when written and false by merge, because production
+changed underneath the branch.
+
+**Why sweeps kept missing it:** grepping the phrasing you remember writing
+(`dormant|not operational|no data is sent`) will not match `never occurred`,
+`always returned nil`, `currently UNVERIFIED`, `has been since`, or
+`is present on any revision`. Enumerate by MEANING, not by phrase: find every line that
+mentions the subject alongside a state verb, then check each for an explicit time bound.
+
+**The rule that actually works:** every claim about runtime state carries the window it
+covers. Not "X never happened" but "X did not happen between <date/revision> and
+<date/revision>, the period this claim covers." An unbounded absolute in a compliance doc
+is a latent defect with a fuse on it.
+
+**Reviewers must read bytes, not working directories.** Twice in one session a confident
+finding came from a checkout that had drifted from the reviewed head (once the primary
+checkout, once an external reviewer's). Use `git show <sha>:<path>` or a fresh fetch.
+Corollary: before dismissing a reviewer's finding as stale, verify it against the SHA
+they actually reviewed — it may be valid there and already fixed downstream.
+
+**Configuration is not observation.** "Credentials are mounted" does not mean "calls
+happened," and "the feature is reachable" does not mean "the feature ran." The original
+retracted claim inferred runtime behaviour from deployment config; the correction then
+inferred dormancy from deployment config the same way. Separate verified / reachable /
+unexercised / unavailable explicitly. `AiApiLog` only records completed logged seam calls,
+so a zero-row result proves "no logged seam call completed," never "nothing egressed."
+
+**Regeneration is order-dependent.** `capability-check.rb` writes
+`docs/legal/CAPABILITY_LEDGER.md`, which `document-register-render.rb` then hashes. Running
+the register renderer first produces a spurious drift failure. Order: capability-check ->
+citation-check --render -> calendar -> notion -> document-register-render ->
+publication-status.
+
+Ref: PR #725; live-prod verification via a throwaway Cloud Run job on the serving image.
 
 ## Gotcha: nested `sound[user_id]=self` 404s on create (replace_helper_params is top-level only)
 
