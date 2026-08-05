@@ -1,1 +1,6 @@
-{"jquery-integration":false,"template-only-glimmer-components":true,"application-template-wrapper":false}
+{
+  "application-template-wrapper": false,
+  "jquery-integration": false,
+  "template-only-glimmer-components": true,
+  "no-implicit-route-model": true
+}

@@ -20,6 +20,8 @@
           {{else}}
             <p class="md-translate-hero__caption md-translate-status--error">{{t "Error loading translations, you can enter the translations by hand." key="error_loading_translations"}}</p>
           {{/if}}
+        {{else if this.translating.not_enabled}}
+          <p class="md-translate-hero__caption">{{t "Automatic translation is not enabled for this account. You can still enter translations by hand." key="translation_not_enabled_for_account"}}</p>
         {{else}}
           <p class="md-translate-hero__caption">
             {{t "The translations below are auto-generated. Please review them to make sure they are correct for your communicator's language." key="please_review_translations"}}

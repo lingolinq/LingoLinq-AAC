@@ -104,7 +104,21 @@ jobs:
       # MAPS_KEY is intentionally NOT here: it is a client-public key emitted at asset-precompile
       # (globals.js.erb), not read at runtime, so it is passed as a Docker build ARG in the
       # "Build and push image" step (alongside DEFAULT_HOST), not mounted at runtime.
-      NON_BOOT_SECRETS: AWS_KEY=AWS_KEY:latest,AWS_SECRET=AWS_SECRET:latest,GOOGLE_TTS_TOKEN=GOOGLE_TTS_TOKEN:latest,GOOGLE_PLACES_TOKEN=GOOGLE_PLACES_TOKEN:latest,GOOGLE_TRANSLATE_TOKEN=GOOGLE_TRANSLATE_TOKEN:latest,GOOGLE_OAUTH_CLIENT_ID=GOOGLE_OAUTH_CLIENT_ID:latest,GOOGLE_OAUTH_CLIENT_SECRET=GOOGLE_OAUTH_CLIENT_SECRET:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,SENTRY_DSN=SENTRY_DSN:latest,SMS_ENCRYPTION_KEY=SMS_ENCRYPTION_KEY:latest,INTERNAL_API_TOKEN=INTERNAL_API_TOKEN:latest,CACHE_TOKEN=CACHE_TOKEN:latest,OPENSYMBOLS_SECRET=OPENSYMBOLS_SECRET:latest,IPLOCATE_API_KEY=IPLOCATE_API_KEY:latest,YOUTUBE_API_KEY=YOUTUBE_API_KEY:latest
+      #
+      # BEDROCK_AWS_KEY / BEDROCK_AWS_SECRET are the Tier 1 runtime AI credentials read by
+      # lib/ai_client.rb (board generation, word prediction, prediction seeding, eval narration).
+      # They are SEPARATE from AWS_KEY/AWS_SECRET on purpose: those are the least-privilege S3/SES
+      # IAM user (scripts/gcp/iam/lingolinq-cloudrun-s3-ses-policy.json) and have no Bedrock invoke
+      # permission. ai_client.rb deliberately refuses to fall back to them, because doing so once
+      # made `configured?` true while every request returned AccessDenied. Both halves are required;
+      # a partial pair is ignored atomically. No BEDROCK_AWS_REGION entry is needed while Bedrock
+      # runs in the same region as S3: bedrock_region falls back to AWS_REGION, already set to
+      # us-west-2 in APP_ENV_VARS_STATIC. If Bedrock moves region, add BEDROCK_AWS_REGION there
+      # (a region string is not a secret and does not belong in this list).
+      #
+      # ANTHROPIC_API_KEY remains listed but is now INERT: no code under app/ lib/ config/ reads it
+      # since the Bedrock cutover. Removing it is deliberately out of scope here (see PR body).
+      NON_BOOT_SECRETS: AWS_KEY=AWS_KEY:latest,AWS_SECRET=AWS_SECRET:latest,BEDROCK_AWS_KEY=BEDROCK_AWS_KEY:latest,BEDROCK_AWS_SECRET=BEDROCK_AWS_SECRET:latest,GOOGLE_TTS_TOKEN=GOOGLE_TTS_TOKEN:latest,GOOGLE_PLACES_TOKEN=GOOGLE_PLACES_TOKEN:latest,GOOGLE_TRANSLATE_TOKEN=GOOGLE_TRANSLATE_TOKEN:latest,GOOGLE_OAUTH_CLIENT_ID=GOOGLE_OAUTH_CLIENT_ID:latest,GOOGLE_OAUTH_CLIENT_SECRET=GOOGLE_OAUTH_CLIENT_SECRET:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,SENTRY_DSN=SENTRY_DSN:latest,SMS_ENCRYPTION_KEY=SMS_ENCRYPTION_KEY:latest,INTERNAL_API_TOKEN=INTERNAL_API_TOKEN:latest,CACHE_TOKEN=CACHE_TOKEN:latest,OPENSYMBOLS_SECRET=OPENSYMBOLS_SECRET:latest,IPLOCATE_API_KEY=IPLOCATE_API_KEY:latest,YOUTUBE_API_KEY=YOUTUBE_API_KEY:latest
       # Non-secret runtime config (Group B) + perf tuning (Group C), web + worker only. S3 bucket
       # names + AWS/SES regions are not secret. Stripe PUBLISHABLE key, registration email, and the
       # Redis namespace come from repo Variables (assembled below) so no env-specific value is
@@ -120,14 +134,28 @@ jobs:
       # ARN). Uploader.fronted_url rewrites stored bucket URLs to this domain at serialization
       # time; stable (non-presigned) URLs are required by the Ember offline cache, which is
       # URL-keyed and does not strip X-Amz-* params.
-      APP_ENV_VARS_STATIC: AWS_REGION=us-west-2,SES_REGION=us-west-2,UPLOADS_S3_BUCKET=lingolinq-prod-uploads,STATIC_S3_BUCKET=lingolinq-prod-static,UPLOADS_S3_NO_ACL=1,UPLOADS_S3_CDN=https://d34sa6lc5jfe66.cloudfront.net,SENTRY_ENVIRONMENT=production,RAILS_LOG_TO_STDOUT=true,RAILS_SERVE_STATIC_FILES=true,RUBY_YJIT_ENABLE=1,WEB_CONCURRENCY=2
+      # REMOTE_EXTRA_DATA=1: gates the detach-to-S3 path for BoardDownstreamButtonSet
+      # buttons and LogSession events (ExtraData#extra_data_too_big?). With it unset,
+      # BoardDownstreamButtonSet#generate_defaults still stripped data['buttons'] for
+      # any set over 200 buttons while detach_extra_data no-op'd, destroying the set on
+      # the next save -- which zeroed 1754 of 2061 prod button sets (find-a-button and
+      # button-set loading broken library-wide, diagnosed 2026-08-01, PR #724).
+      # PROVENANCE, do not restate this as a migration regression without checking:
+      # the variable is absent from tracked config everywhere in this repo AND from the
+      # 2026-06-30 45-var Render prod env accounting, so it was most likely never set on
+      # Render prod either. Vintage unknown; it was NOT confirmed to be a GCP cutover drop.
+      # Enabling it here is a deliberate production enablement decision (Scot, 2026-08-01),
+      # not a restoration: the code now degrades safely to inline storage when this is
+      # unset, but inline means every button set lives in Postgres and ships whole in the
+      # API response (~1MB for a 3717-button set), which is a bad steady state.
+      APP_ENV_VARS_STATIC: AWS_REGION=us-west-2,SES_REGION=us-west-2,UPLOADS_S3_BUCKET=lingolinq-prod-uploads,STATIC_S3_BUCKET=lingolinq-prod-static,UPLOADS_S3_NO_ACL=1,UPLOADS_S3_CDN=https://d34sa6lc5jfe66.cloudfront.net,REMOTE_EXTRA_DATA=1,SENTRY_ENVIRONMENT=production,RAILS_LOG_TO_STDOUT=true,RAILS_SERVE_STATIC_FILES=true,RUBY_YJIT_ENABLE=1,WEB_CONCURRENCY=2
       # REDIS_TLS_VERIFY_HOSTNAME=false is set on every deploy below: Memorystore is reached by
       # private IP and its server cert is issued for the instance, not the IP, so hostname
       # matching cannot pass. CA-chain verification (VERIFY_PEER against REDIS_CA_CERT) stays on.
       # See config/initializers/resque.rb.
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Authenticate to Google Cloud (Workload Identity Federation)
         uses: google-github-actions/auth@v3

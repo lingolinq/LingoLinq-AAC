@@ -12,13 +12,18 @@ module SystemBoardSources
   SENNER_BAUD_OBZ_FALLBACK_BUCKET = 'lingolinq-prod-static'.freeze
   SENNER_BAUD_NAME = 'Senner-Baud Social Pages'.freeze
   SIGNUP_LIBRARY_SLUGS = %w[quick-core-60 vocal-flair-60 vocal-flair-84 crisis-vocabulary senner-baud].freeze
-  # Copied synchronously during signup so VF84 is in the user's library before the API responds.
-  SIGNUP_SYNC_SLUGS = %w[vocal-flair-84].freeze
+  # Intentionally empty: an in-request sync copy of vocal-flair-84 exceeds Rack::Timeout
+  # (~16s) on staging and 500s signup after the user row is already persisted
+  # (see docs/task-management/2026-07-28-staging-registration-timeout.md).
+  # Keep the constant so a future small/root-only sync board can opt back in.
+  SIGNUP_SYNC_SLUGS = [].freeze
   # Utility boards copied async so default sidebar entries can resolve to user-owned copies.
   SIDEBAR_COPY_SLUGS = %w[yesno inflections].freeze
+  # Prefer VF84 first among async jobs so home-board pickers see it soon after signup.
   SIGNUP_ASYNC_SLUGS = (
+    %w[vocal-flair-84] +
     SIDEBAR_COPY_SLUGS +
-    (SIGNUP_LIBRARY_SLUGS - SIGNUP_SYNC_SLUGS)
+    (SIGNUP_LIBRARY_SLUGS - %w[vocal-flair-84] - SIGNUP_SYNC_SLUGS)
   ).freeze
   SPANISH_LIBRARY_SLUGS = %w[quick-core-60-es vocal-flair-60-es].freeze
   SPANISH_SOURCE_MAP = {

@@ -25,7 +25,7 @@ into an unrelated PR.
 
 - **Stale provider-version wording is a real finding, not pedantry.**
   Compliance and infra docs that name a specific model/CLI version
-  (`gpt-5.5`, `codex-cli 0.144.1`, etc.) drift silently. If a PR touches a
+  (`gpt-5.6-terra`, `codex-cli 0.146.0`, etc.) drift silently. If a PR touches a
   doc naming a provider/version, confirm the version claim against the live
   tool (`codex --version`, vendor changelog) rather than assuming the doc is
   current.

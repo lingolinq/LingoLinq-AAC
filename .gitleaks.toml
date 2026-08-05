@@ -46,6 +46,13 @@ regexes = [
 ]
 
 [[allowlists]]
+description = "i18n translation keys in the `landing_a11y_*` family (the landing page's accessibility block — landing_a11y_meets / _wcag / _standards / _neurodivergent / _typography …, referenced from landing-alt-page.hbs and the locale files) trip generic-api-key's high-entropy heuristic: the literal embeds 'a11y', a letter+digit mix that pushes entropy over the threshold. They are Ember i18n keys, not secrets. NOTE the existing public/locales path allowlist above does NOT cover these — the same keys also appear in the .hbs TEMPLATE, which is outside that path. This must be an allowlist rather than a rename: gitleaks scans a COMMIT RANGE, so the literal persists at 5af1f9bba no matter what HEAD says, and renaming the key would churn all 13 locale files for no security benefit. Same narrow scope as the entries above: matched by the key-family prefix via regexes, and only generic-api-key is relaxed, so every other rule (AWS keys, private keys, tokens) still scans that file and every other value is still scanned by every rule."
+targetRules = ["generic-api-key"]
+regexes = [
+  '''landing_a11y_[a-z0-9_]+''',
+]
+
+[[allowlists]]
 description = "Prose literal 'Render/AWS/GCP' in .claude/agents/infra-auditor.md trips generic-api-key. The rule's keyword heuristic fires on the word 'secrets' and then treats the adjacent slash-separated platform list as a high-entropy value (entropy 3.52), so the sentence 'no secrets in git history, Render/AWS/GCP least-privilege' is flagged as if it contained one. It is the auditor agent's own scan checklist, not a credential. This must be an allowlist rather than a reword: gitleaks scans a COMMIT RANGE, so the string persists at d294d4c941f4 no matter what HEAD says, and every wide-range release PR (staging -> main) re-surfaces it. Same narrowest-possible scope as the entries above: matched by the exact literal via regexes, and only generic-api-key is relaxed, so every other rule (AWS keys, private keys, tokens) still scans that file and every other value is still scanned by every rule."
 targetRules = ["generic-api-key"]
 regexes = [

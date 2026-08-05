@@ -296,7 +296,7 @@
                the menu). Hosts the GuidedTour "Take a tour" trigger AND the
                edit-tour runner. --}}
           {{#if this.app_state.feature_flags.home_tour}}
-            <span class="md-board-edit-panel__tour"><GuidedTour /></span>
+            <span class="md-board-edit-panel__tour"><GuidedTour @editHost={{true}} /></span>
           {{/if}}
           </div>
           {{/unless}}
@@ -906,16 +906,17 @@
         {{!-- Speak-mode guided-tour RUNNER (no on-screen button — its trigger is
              hidden via .md-board-detail-speak-tour in app.scss; the user-facing
              entry point is the "Take a tour" item in the options menu below). This
-             host is the runner that auto-starts the speak tour after "Pick this
-             Board" (guided-tour.js _consumePendingBoardDetailSpeakTour reads the
-             pending flag once this mounts) AND that the menu item triggers via the
-             same flag. Gated to NON-edit mode (the edit-session bar has its own
-             {{guided-tour}} host — two runners would double-fire) and the home_tour
-             flag. Always rendered (not inside the conditional menu) so the runner
-             is present on page load for the auto-open. --}}
+             host is the ONLY runner that may auto-start the speak tour after
+             "Pick this Board" (@speakHost gates
+             guided-tour.js _consumePendingBoardDetailSpeakTour — the navbar
+             runner must not steal the start during the empty_header race). The
+             menu item triggers via the same pending flag. Gated to NON-edit mode
+             (the edit-session bar has its own @editHost GuidedTour) and the
+             home_tour flag. Always rendered (not inside the conditional menu) so
+             the runner is present on page load for the auto-open. --}}
         {{#unless this.edit_mode}}
           {{#if this.app_state.feature_flags.home_tour}}
-            <span class="md-board-detail-speak-tour" aria-hidden="true"><GuidedTour /></span>
+            <span class="md-board-detail-speak-tour" aria-hidden="true"><GuidedTour @speakHost={{true}} /></span>
           {{/if}}
         {{/unless}}
         {{#if this.show_options_menu}}

@@ -278,12 +278,31 @@ describe Uploader do
       expect(res[:upload_params]['success_action_status']).to eq('200')
     end
 
+    # Pins BOTH suppressors named in the description. The UPLOADS_S3_NO_ACL half was
+    # previously unexercised, and worse, the example read the AMBIENT env: a developer
+    # with UPLOADS_S3_NO_ACL=1 in their own .env (which .env.op.template now recommends,
+    # because the dev bucket has ACLs disabled) saw this spec fail locally while CI —
+    # where the var is unset — stayed green. Set the var explicitly per branch and
+    # restore it, so the example asserts behavior rather than the machine it runs on.
     it "should include acl unless private_upload or UPLOADS_S3_NO_ACL is set" do
-      res = Uploader.remote_upload_params("downloads/file.png", "image/png")
-      expect(res[:upload_params]['acl']).to eq('public-read')
+      prior = ENV['UPLOADS_S3_NO_ACL']
+      begin
+        ENV.delete('UPLOADS_S3_NO_ACL')
 
-      res = Uploader.remote_upload_params("downloads/file.png", "image/png", private_upload: true)
-      expect(res[:upload_params]['acl']).to eq(nil)
+        res = Uploader.remote_upload_params("downloads/file.png", "image/png")
+        expect(res[:upload_params]['acl']).to eq('public-read')
+
+        res = Uploader.remote_upload_params("downloads/file.png", "image/png", private_upload: true)
+        expect(res[:upload_params]['acl']).to eq(nil)
+
+        # ACL-disabled bucket (Object Ownership = "Bucket owner enforced"): sending an
+        # acl at all makes S3 reject the upload with AccessControlListNotSupported.
+        ENV['UPLOADS_S3_NO_ACL'] = '1'
+        res = Uploader.remote_upload_params("downloads/file.png", "image/png")
+        expect(res[:upload_params]['acl']).to eq(nil)
+      ensure
+        prior.nil? ? ENV.delete('UPLOADS_S3_NO_ACL') : ENV['UPLOADS_S3_NO_ACL'] = prior
+      end
     end
   end
 
@@ -1672,11 +1691,30 @@ describe Uploader do
   describe "remote_zip" do
     it "should call the block with the loaded zip" do
       expect(OBF::Utils).to receive(:load_zip).and_yield({zipper: true})
-      res = OpenStruct.new(body: 'abc')
+      res = OpenStruct.new(body: 'abc', success?: true, code: 200)
       expect(SafeHttp).to receive(:get).with('http://www.example.com/import.zip').and_return(res)
       Uploader.remote_zip('http://www.example.com/import.zip') do |zipper|
         expect(zipper).to eq({zipper: true})
       end
+    end
+
+    it "should fetch uploads-bucket URLs via signed_internal_url" do
+      uploads_bucket = ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'
+      raw = "https://#{uploads_bucket}.s3.amazonaws.com/imports/sounds/bank.zip"
+      signed = "#{raw}?X-Amz-Signature=test"
+      expect(Uploader).to receive(:signed_internal_url).with(raw).and_return(signed)
+      expect(OBF::Utils).to receive(:load_zip).and_yield({zipper: true})
+      res = OpenStruct.new(body: 'abc', success?: true, code: 200)
+      expect(SafeHttp).to receive(:get).with(signed).and_return(res)
+      Uploader.remote_zip(raw) { |zipper| expect(zipper).to eq({zipper: true}) }
+    end
+
+    it "should raise when the download is not successful" do
+      res = OpenStruct.new(body: 'AccessDenied', success?: false, code: 403)
+      expect(SafeHttp).to receive(:get).with('http://www.example.com/import.zip').and_return(res)
+      expect {
+        Uploader.remote_zip('http://www.example.com/import.zip') { }
+      }.to raise_error('failed to download zip (403)')
     end
   end
  

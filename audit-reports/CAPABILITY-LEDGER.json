@@ -71,7 +71,7 @@
       "domain": "childrens-privacy",
       "claimLanguage": "AI features are blocked for under-13 users until verifiable parental consent is captured.",
       "antiClaim": "This is an under-13 (COPPA) gate; it does NOT itself enforce an EU under-16 (GDPR Art. 8) block on the AI path (see cap eu-under16-ai-block).",
-      "currentEvidence": { "file": "lib/ai_board_generator.rb", "line": 43, "snippet": "if FeatureFlags.coppa_blocks_ai_for?(user)" },
+      "currentEvidence": { "file": "lib/ai_board_generator.rb", "line": 58, "snippet": "if FeatureFlags.coppa_blocks_ai_for?(user)" },
       "introducedEvidence": { "note": "also enforced in lib/ai_word_predictor.rb:41" },
       "frameworks": ["COPPA"],
       "notes": "Gate is FeatureFlags.coppa_blocks_ai_for?(user); enforced at both AI generator call sites.",
@@ -97,7 +97,7 @@
       "domain": "eu-ai-act",
       "claimLanguage": "AI board-generation output is marked in a machine-readable, server-verifiable way (Art. 50(2)).",
       "antiClaim": "The Art. 50(2) obligation is NOT closed: this slice marks board generation ONLY. Other AI-output surfaces (generate_focus_words, AiWordPredictor.predict, eval narration, AiPredictionGenerator) are not yet marked, and durable persistence of the marker (board.settings + relinking copy_for) is follow-up. Also distinct from the Art. 50(1) disclosure modal (see cap art50-1-disclosure-modal).",
-      "currentEvidence": { "file": "lib/ai_board_generator.rb", "line": 134, "snippet": "# EU AI Act Article 50(2): mark the board-generation output. The marking" },
+      "currentEvidence": { "file": "lib/ai_board_generator.rb", "line": 149, "snippet": "# EU AI Act Article 50(2): mark the board-generation output. The marking" },
       "introducedEvidence": { "note": "lib/art50_marker.rb (module Art50Marker); PR #573" },
       "frameworks": ["EU-AI-Act"],
       "notes": "Board-gen marking is unconditional (jurisdiction-independent). Remaining surfaces + durable persistence tracked as follow-up (see boards_controller#generate_labels).",
@@ -133,12 +133,12 @@
       "status": "built",
       "domain": "ai-features",
       "claimLanguage": "AI features (board generation and word prediction) use Anthropic Claude.",
-      "antiClaim": "The prior Google Gemini fallback was DISABLED 2026-07-09 (Gemini Developer/AI-Studio endpoint data-handling terms inadequate for child data); there is no runtime Gemini path today. Runtime AI egresses to Claude on AWS Bedrock (the Bedrock Mantle Messages API via lib/ai_client.rb), not the direct api.anthropic.com endpoint; enforced in CI by scripts/ai-endpoint-guard.sh. Only pseudonymized data is sent (see cap pii-scrubber-pseudonymization).",
+      "antiClaim": "The prior Google Gemini fallback was DISABLED 2026-07-09 (Gemini Developer/AI-Studio endpoint data-handling terms inadequate for child data); there is no runtime Gemini path today. Runtime AI egresses to Claude on AWS Bedrock via lib/ai_client.rb, not the direct api.anthropic.com endpoint; enforced in CI by scripts/ai-endpoint-guard.sh. AWS exposes two Bedrock planes and AiClient supports both, selected by BEDROCK_PLANE: classic bedrock-runtime (the default, and the only plane this account is entitled to as of 2026-08-02) and bedrock-mantle (403 'not available for this account' on every model even with admin credentials; access request open with AWS). Classic bedrock-runtime is the verified HIPAA-eligible path under the account BAA; bedrock-mantle coverage has NOT been verified and must be confirmed before BEDROCK_PLANE=mantle is set. Only pseudonymized data is sent (see cap pii-scrubber-pseudonymization).",
       "currentEvidence": { "file": "lib/ai_word_predictor.rb", "line": 168, "snippet": "provider: :claude," },
       "introducedEvidence": { "note": "Bedrock routing switch (lib/ai_client.rb, AiClient.build) recorded in docs/legal/AWS_BAA_ACCEPTED.md + docs/legal/ANTHROPIC_BAA_ACCEPTED.md 2026-07-24; Gemini fallback removal in docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2 and docs/legal/AI_GOVERNANCE_MEMO.md" },
       "frameworks": ["GDPR", "EU-AI-Act"],
-      "notes": "Runtime constructs the sanctioned Claude client via AiClient.build (Bedrock Mantle); no direct Anthropic client or ANTHROPIC_API_KEY read on the runtime seams (CI guard scripts/ai-endpoint-guard.sh). Subprocessors listed in docs/legal/SUBPROCESSORS.md; that register's Gemini row may need a runtime-status update to reflect the 2026-07-09 disable (flagged separately, not fixed here).",
-      "lastVerified": "2026-07-24"
+      "notes": "Runtime constructs the sanctioned Claude client via AiClient.build; no direct Anthropic client or ANTHROPIC_API_KEY read on the runtime seams (CI guard scripts/ai-endpoint-guard.sh). Board generation and word prediction were NON-FUNCTIONAL from #681 until 2026-08-01: AiClient built only the Mantle client and the account has no Mantle entitlement. Fixed by defaulting to the classic plane; verified end to end through AiClient.build against the live endpoint on 2026-08-01 (us.anthropic.claude-haiku-4-5-20251001-v1:0 returned a completion). On the classic plane the wire id is a cross-region inference-profile id, so the Article 50 marker and AiApiLog record that id rather than the bare alias. ANTHROPIC_MODEL is gated by AiClient::ALLOWED_RUNTIME_MODELS (fail-closed) and the Bedrock endpoint is pinned explicitly so ANTHROPIC_BEDROCK_BASE_URL cannot redirect Tier 1 egress. Eval narration is NOT covered: it requests Opus 4.7, which the classic catalog does not carry, so it remains on its deterministic template fallback. Subprocessors listed in docs/legal/SUBPROCESSORS.md; that register does not yet list Bedrock (follow-up), and its Gemini row may need a runtime-status update to reflect the 2026-07-09 disable (flagged separately, not fixed here).",
+      "lastVerified": "2026-08-02"
     },
     {
       "id": "message-banking-own-voice",
@@ -185,7 +185,7 @@
       "domain": "childrens-privacy",
       "claimLanguage": "AI features are blocked for EU users aged 16 and under until a parent grants EU AI parental consent via the email-token flow.",
       "antiClaim": "This gate is NOT the same as signup COPPA (settings['coppa']) or second-tier AI data-sharing VPC (settings['ai_consent'] / government-ID). It only covers EU under-16 AI enablement.",
-      "currentEvidence": { "file": "lib/feature_flags.rb", "line": 231, "snippet": "def self.eu_under16_blocks_ai_for?(user)" },
+      "currentEvidence": { "file": "lib/feature_flags.rb", "line": 234, "snippet": "def self.eu_under16_blocks_ai_for?(user)" },
       "frameworks": ["GDPR", "COPPA"],
       "notes": "Persists registration country + under_16/eu_under_16; prefs AI section gated; email-token settings['eu_ai_parental_consent']; folded into ai_feature_enabled_for? with call-site defense.",
       "lastVerified": "2026-07-24"
@@ -270,7 +270,7 @@
       "currentEvidence": { "file": "docs/legal/ANTHROPIC_BAA_ACCEPTED.md", "line": 144, "snippet": "## Runtime routing update - 2026-07-24 (re-attested 2026-07-24)" },
       "evidenceType": "attestation",
       "frameworks": ["HIPAA"],
-      "notes": "Supersedes the former deliberately-not-done cap no-model-provider-baa. Anthropic HIPAA-Ready BAA executed 2026-07-18; runtime moved to Bedrock 2026-07-24 under the AWS BAA. Id retained as anthropic-model-provider-baa so inbound references to the closed gap resolve.",
+      "notes": "Supersedes the former deliberately-not-done cap no-model-provider-baa. Anthropic HIPAA-Ready BAA executed 2026-07-18; runtime moved to Bedrock 2026-07-24 under the AWS BAA. Id retained as anthropic-model-provider-baa so inbound references to the closed gap resolve. Operative conditions verified 2026-07-27: the deployed Cloud Run service lingolinq-web signs Bedrock with a credential that resolves to the BAA'd AWS account 2390-4478-5114 (us-west-2), and Bedrock model-invocation logging is OFF in that account/region (residual: shared app AWS credential, not a dedicated Bedrock credential).",
       "lastVerified": "2026-07-27"
     }
   ]

@@ -407,7 +407,10 @@ class User < ApplicationRecord
   # Persist settings['compliance'] from registration params (create only).
   # Accepts birth_month / birth_year / jurisdiction_declaration (and camelCase /
   # dasherized variants). Declared jurisdiction wins over registration country.
-  def stamp_compliance_profile_from_params!(params, country: nil)
+  # authored_organization_id must be the *validated* org id (org exists + author
+  # has edit). Passing the raw request param would let SegmentResolver classify
+  # the account as school / FERPA before authorization rejects the value.
+  def stamp_compliance_profile_from_params!(params, country: nil, authored_organization_id: nil)
     declaration = (
       params['jurisdiction_declaration'] ||
       params['jurisdiction-declaration'] ||
@@ -424,7 +427,7 @@ class User < ApplicationRecord
       birth_month: birth_month,
       birth_year: birth_year,
       segment_opts: {
-        authored_organization_id: params['authored_organization_id']
+        authored_organization_id: authored_organization_id
       }
     )
 
@@ -2086,8 +2089,14 @@ class User < ApplicationRecord
       }
       # Compliance Kernel: persist birth month/year + jurisdiction declaration when
       # the flag is ON. Flag OFF ⇒ this block is skipped (byte-identical to prior).
+      # Pass only a validated authored org id so segment classification cannot
+      # stamp school/FERPA from an untrusted or unauthorized request param.
       if FeatureFlags.compliance_workflow_kernel_enabled?
-        stamp_compliance_profile_from_params!(params, country: country)
+        stamp_compliance_profile_from_params!(
+          params,
+          country: country,
+          authored_organization_id: (org_authorized ? authoring_org.global_id : nil)
+        )
       end
     end
     self.settings['referrer'] ||= params['referrer'] if params['referrer']

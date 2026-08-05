@@ -803,9 +803,22 @@ export default Controller.extend(prefClasses, {
     return this.get('model.image_url') || null;
   }),
 
-  sentence_text: computed('sentence_parts.[]', function() {
+  // Display text for the speak-bar strip (chip labels / text-only mode).
+  // Intentionally uses label, not vocalization — AAC buttons often show a
+  // short label while speaking a longer distinct vocalization.
+  sentence_text: computed('sentence_parts.[]', 'sentence_parts.@each.label', function() {
     var parts = this.get('sentence_parts') || [];
-    return parts.map(function(p) { return p.label; }).join(' ');
+    return parts.map(function(p) { return p && p.label; }).filter(Boolean).join(' ');
+  }),
+
+  // Text spoken when the user taps the Speak bar or mic. Prefer vocalization
+  // (same convention as utterance.speak_button / vocalize_list / demo speak).
+  sentence_speak_text: computed('sentence_parts.[]', 'sentence_parts.@each.label', 'sentence_parts.@each.vocalization', function() {
+    var parts = this.get('sentence_parts') || [];
+    return parts.map(function(p) {
+      if(!p) { return ''; }
+      return p.vocalization || p.label || '';
+    }).filter(Boolean).join(' ');
   }),
 
   has_sentence: computed('sentence_parts.[]', function() {
@@ -1091,10 +1104,14 @@ export default Controller.extend(prefClasses, {
           image_url = label_images[_this._chip_image_key(emberGet(b, 'button_id'), label)] || null;
         }
       }
+      // Keep vocalization on the chip mirror so Speak-bar / mic replay can
+      // speak the button's spoken text, not only the display label.
+      var vocalization = (emberGet(b, 'vocalization') || '').replace(/\s+$/, '');
       parts.push({
         id: emberGet(b, 'button_id') || ('utt-' + raw_index),
         raw_index: raw_index,
         label: label,
+        vocalization: vocalization || null,
         in_progress: in_progress,
         image_url: image_url
       });
@@ -1119,9 +1136,43 @@ export default Controller.extend(prefClasses, {
     for(var i = 0; i < a.length; i++) {
       var x = a[i] || {}, y = b[i] || {};
       if(x.raw_index !== y.raw_index || x.label !== y.label || x.id !== y.id ||
+         x.vocalization !== y.vocalization ||
          x.image_url !== y.image_url || !!x.in_progress !== !!y.in_progress) { return false; }
     }
     return true;
+  },
+
+  // Speak the current utterance the same way classic Speak Mode does:
+  // attached button sounds when present, otherwise TTS (vocalization || label).
+  // Also records recent-phrase history for the board-detail UI.
+  _speak_current_sentence: function() {
+    var list = this.get('app_state.button_list') || [];
+    var speakable = false;
+    for(var i = 0; i < list.length; i++) {
+      var b = list[i];
+      if(!b || emberGet(b, 'ghost') || emberGet(b, 'hint')) { continue; }
+      if(emberGet(b, 'sound') || emberGet(b, 'inline_content') ||
+         emberGet(b, 'vocalization') || emberGet(b, 'label')) {
+        speakable = true;
+        break;
+      }
+    }
+    if(speakable) {
+      // Matches application.vocalize → vocalize_list (sounds + TTS + clear_on_vocalize).
+      utterance.vocalize_list(null, {});
+    } else {
+      var fallback = this.get('sentence_speak_text');
+      if(!fallback) { return; }
+      speecher.stop('text');
+      speecher.speak_text(fallback);
+    }
+    var text = this.get('sentence_speak_text');
+    if(text) {
+      var phrases = (this.get('app_state.board_detail_recent_phrases') || []).slice();
+      phrases.unshift({ text: text, timestamp: new Date() });
+      if(phrases.length > 5) { phrases = phrases.slice(0, 5); }
+      this.set('app_state.board_detail_recent_phrases', phrases);
+    }
   },
 
   _resolve_missing_sentence_images: function() {
@@ -1751,6 +1802,7 @@ export default Controller.extend(prefClasses, {
         if(image_fallback_url === img_url) { image_fallback_url = null; }
       }
     }
+    var text_symbol = !img_url && !!btn.label && !btn.load_board;
     // Speak-mode level filter: decide whether the level filter should
     // visually hide this button at the current level. We compute it
     // into `display_as_hidden` (a plain bool that mirrors the Ember
@@ -1784,6 +1836,7 @@ export default Controller.extend(prefClasses, {
       image_url: img_url,
       image_fallback_url: image_fallback_url,
       image_id: btn.image_id,
+      text_symbol: text_symbol,
       load_board: btn.load_board,
       // Action + option fields — MUST be carried onto the speak-mode display button.
       // This object is a hand-picked subset (unlike edit-mode's _make_ember_btn, which
@@ -1836,6 +1889,7 @@ export default Controller.extend(prefClasses, {
     var more_args = { board: board };
     if(img_url) { more_args.image_url = img_url; }
     var button = editManager.Button.create(btn, more_args);
+    button.set('text_symbol', !img_url && !!btn.label && !btn.load_board);
     // Explicitly carry hide_label onto the Ember button so the modern grid can hide
     // the label ("Hide the label when the picture is shown"). Without this the class
     // flashed via the classic fast-HTML paint, then the Ember grid re-rendered without
@@ -1849,6 +1903,10 @@ export default Controller.extend(prefClasses, {
   },
 
   processButtons: function() {
+    // Rebuild display from _last_raw. Callers that just wrote a save
+    // payload onto model.buttons MUST sync that payload into _last_raw
+    // first (see saveButtonChanges) — otherwise this clobbers the save
+    // with a pre-edit snapshot (notably newly assigned image_ids).
     if(this._last_raw) {
       this._build_from_raw(this._last_raw);
     }
@@ -4378,6 +4436,36 @@ export default Controller.extend(prefClasses, {
 
     board.set('buttons', state.buttons);
     board.set('grid', state.grid);
+    // Keep _last_raw in sync with the serialized save payload BEFORE any
+    // rebuild. processButtons() → _build_from_raw(_last_raw) does
+    // board.set('buttons', raw.buttons); if _last_raw still held the
+    // pre-edit snapshot, that clobber would undo process_for_saving and
+    // drop newly assigned image_ids (and other button edits) from the
+    // Ember Data save. Legacy board/index processButtons only refreshed
+    // display and never overwrote model.buttons from a stale raw cache.
+    // Also merge in-session image_urls so the rebuild can resolve the
+    // new image_ids (select_image_preview updates board.image_urls but
+    // not _last_raw.image_urls).
+    var imageUrlsForRaw = board.get('image_urls') ? Object.assign({}, board.get('image_urls')) : {};
+    (orderedButtons || []).forEach(function(btnRow) {
+      (btnRow || []).forEach(function(btn) {
+        var imgId = btn && (btn.get ? btn.get('image_id') : null);
+        if(imgId && !imageUrlsForRaw[imgId]) {
+          var url = btn.get ? (btn.get('local_image_url') || btn.get('image_url')) : null;
+          if(url) { imageUrlsForRaw[imgId] = url; }
+        }
+      });
+    });
+    if(Object.keys(imageUrlsForRaw).length) {
+      board.set('image_urls', imageUrlsForRaw);
+    }
+    if(this._last_raw) {
+      this._last_raw.buttons = state.buttons;
+      this._last_raw.grid = state.grid;
+      if(Object.keys(imageUrlsForRaw).length) {
+        this._last_raw.image_urls = Object.assign({}, this._last_raw.image_urls || {}, imageUrlsForRaw);
+      }
+    }
     this.processButtons();
 
     // Handle copy-on-save
@@ -6738,14 +6826,13 @@ export default Controller.extend(prefClasses, {
     },
 
     speak_sentence: function() {
-      var text = this.get('sentence_text');
-      if(text) {
-        speecher.speak_text(text);
-        var phrases = (this.get('app_state.board_detail_recent_phrases') || []).slice();
-        phrases.unshift({ text: text, timestamp: new Date() });
-        if(phrases.length > 5) { phrases = phrases.slice(0, 5); }
-        this.set('app_state.board_detail_recent_phrases', phrases);
-      }
+      // Classic Speak Mode uses utterance.vocalize_list, which plays each
+      // button's attached sound when present and otherwise TTS of
+      // vocalization || label. Board-detail used to call speak_text only,
+      // so joke-board rimshots (etc.) played on tap but Speak-bar / mic
+      // replay spoke the label. Prefer vocalize_list when button_list has
+      // speakable entries; fall back to TTS for phrase-builder-only chips.
+      this._speak_current_sentence();
     },
 
     // ── Portrait orientation overlay actions ──
@@ -6964,20 +7051,22 @@ export default Controller.extend(prefClasses, {
         if(!button || button.is_match === false) { return; }
         var label = button.label;
         var image_url = button.image || button.image_url || button.local_image_url;
+        var vocalization = button.vocalization || null;
         var btn_id = button.id;
         // Prefer the already-cached local image URL when available
         var local = find_local(btn_id);
         if(local) {
           var local_img = _get(local, 'local_image_url') || _get(local, 'image_url');
           if(local_img) { image_url = local_img; }
+          if(!vocalization) { vocalization = _get(local, 'vocalization') || null; }
         }
-        parts.push({ id: btn_id, label: label, image_url: image_url });
+        parts.push({ id: btn_id, label: label, vocalization: vocalization, image_url: image_url });
       });
       this.set('sentence_parts', parts);
-      // Speak the full sentence (mirrors the speak_sentence action so the
-      // user hears the whole phrase, not just the first word). Also pushes
-      // it onto the recent-phrases history.
-      var text = this.get('sentence_text');
+      // Phrase-builder commit only updates local chips (not app_state.button_list),
+      // so do not call vocalize_list here — that would replay a stale utterance.
+      // Speak vocalization || label via TTS for the chips just committed.
+      var text = this.get('sentence_speak_text');
       if(text) {
         speecher.stop('text');
         speecher.speak_text(text);
@@ -7020,7 +7109,7 @@ export default Controller.extend(prefClasses, {
         }
       }
       var parts = (this.get('sentence_parts') || []).slice();
-      parts.push({ id: btn_id, label: label, image_url: image_url });
+      parts.push({ id: btn_id, label: label, vocalization: vocalization || null, image_url: image_url });
       this.set('sentence_parts', parts);
       // Speak the button immediately
       speecher.stop('text');

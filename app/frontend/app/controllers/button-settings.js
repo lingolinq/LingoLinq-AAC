@@ -833,6 +833,11 @@ export default modal.ModalController.extend({
       this.set('model.hide_label', !!checked);
       editManager.change_button(this.get('model.id'), { hide_label: !!checked });
     },
+    updateTextOnly: function(checked) {
+      if(!this.get('handle_updates') || !this.get('model.id')) { return; }
+      this.set('model.text_only', !!checked);
+      editManager.change_button(this.get('model.id'), { text_only: !!checked });
+    },
     clear_button: function() {
       editManager.clear_button(this.get('model.id'));
       modal.close(true);
