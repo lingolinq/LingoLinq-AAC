@@ -8234,3 +8234,13 @@ Ref: PR #725; live-prod verification via a throwaway Cloud Run job on the servin
 
 **Evidence:** [`2026-08-04-speak-bar-skips-button-sounds.md`](./2026-08-04-speak-bar-skips-button-sounds.md).
 
+## Pattern: masquerade authorization must emit a fail-closed AuditEvent
+
+**Surface:** `ApplicationController#check_api_token` `as_user_id` / `X-As-User-Id` impersonation (site-admin and org-manager branches).
+
+**Symptom:** FERPA/HIPAA accounting-of-disclosures had no record that an admin viewed or acted inside a student account. PaperTrail whodunnit (`user:<op>:as:<target>`) is not enough (destroy-only / pruned / missing on some models).
+
+**Fix recipe:** On successful authorization, **before** swapping `@api_user`, call a helper that (1) Redis-dedups per operator/target for 30 minutes (`masq_audit/<op>/<target>`, separate from the org auth `masq/...` key), (2) writes `AuditEvent.log_command` with `type=masquerade`, `acting_as`, and `branch`, (3) **fail-closes** (503, no swap) if the row does not persist — same posture as database_schema/contents disclosure reads. Attribute `user_key` to the operator (pre-swap `@api_user`), never the target. Do not emit on denied attempts.
+
+**Evidence:** finding `LL-522c1a6d13`; [`2026-08-05-masquerade-audit-event.md`](./2026-08-05-masquerade-audit-event.md); prior art `schema_explorer.rb` `audit_user_key` / `audit_acting_as`.
+
