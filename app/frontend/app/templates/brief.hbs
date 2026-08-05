@@ -352,7 +352,7 @@
                 {{t "Messages" key="messages"}}
               </LinkTo></li>
               {{#if this.session.as_user_id}}
-                <li><a href="#" {{on "click" (this.ctrlAction "stopMasquerading")}}>{{t "Stop Masquerading" key="stop_masquerading"}}</a></li>
+                <li><a href="#" {{on "click" (this.ctrlAction "stopMasquerading")}}>{{this.masqueradeStopLabel}}</a></li>
               {{/if}}
               {{#unless this.app_state.speak_mode}}
                 <li><a href="#" {{on "click" (this.ctrlAction "invalidateSession")}}>{{t "Sign Out" key="logout"}}</a></li>

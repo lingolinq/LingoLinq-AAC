@@ -8244,3 +8244,11 @@ Ref: PR #725; live-prod verification via a throwaway Cloud Run job on the servin
 
 **Evidence:** finding `LL-522c1a6d13`; [`2026-08-05-masquerade-audit-event.md`](./2026-08-05-masquerade-audit-event.md); prior art `schema_explorer.rb` `audit_user_key` / `audit_acting_as`.
 
+## Gotcha: Notion findings Owner is human-owned; FINDINGS.json owner does not sync
+
+`scripts/compliance-findings-notion-sync.rb` only PATCHes register-owned columns (severity, status, disposition, title, etc.). **Owner**, Target date, Program notes, and Needs Scot decision are left untouched so non-devs can manage the board. Setting `"owner": "Melissa"` in `FINDINGS.json` updates the register SSOT for developers but will **not** populate Notion Owner — set that field on the Notion card directly. Scot-only gates remain close / disposition / severity downgrade / accepted-risk. Ref: [`2026-08-05-masquerade-operator-indicator.md`](./2026-08-05-masquerade-operator-indicator.md).
+
+## Pattern: masquerade UI must name the operator, not only that a masquerade is active
+
+Stop Masquerading controls (PR #714) signal masquerade without naming the acting admin. Operator identity is already stashed as `session.original_user_name` (set at masquerade start, restored every `session.restore()`). Expose a stash-safe computed (`masqueradeOperatorName` / `masqueradeStopLabel` on `controllers/application.js`) and bind every chrome path (AppNavbar desktop + menu + drawer, legacy `#identity`, brief). Do not rely on `application.hbs` alone when `useAppNavbarInHeader` is true. Finding LL-cde54765c6. Ref: [`2026-08-05-masquerade-operator-indicator.md`](./2026-08-05-masquerade-operator-indicator.md).
+

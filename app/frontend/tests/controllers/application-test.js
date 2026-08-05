@@ -24,6 +24,50 @@ describe('ApplicationController', 'controller:application', function() {
     expect(this).not.toEqual(window);
   });
 
+  describe('masqueradeOperatorName / masqueradeStopLabel', function() {
+    it('reads operator from session and includes it in the stop label', function() {
+      var controller = testOwner.lookup('controller:application');
+      controller.set('session', EmberObject.create({
+        as_user_id: '1_99',
+        original_user_name: 'admin'
+      }));
+      expect(controller.get('masqueradeOperatorName')).toEqual('admin');
+      expect(controller.get('masqueradeStopLabel')).toMatch(/admin/);
+      expect(controller.get('masqueradeStopLabel')).toMatch(/Stop Masquerading/);
+    });
+
+    it('falls back to auth_settings stash when session.original_user_name is blank', function() {
+      var controller = testOwner.lookup('controller:application');
+      controller.set('session', EmberObject.create({
+        as_user_id: '1_99',
+        original_user_name: null
+      }));
+      controller.set('stashes', EmberObject.create({
+        get_object: function(key) {
+          if (key === 'auth_settings') {
+            return { as_user_id: '1_99', original_user_name: 'siteadmin' };
+          }
+          return null;
+        }
+      }));
+      expect(controller.get('masqueradeOperatorName')).toEqual('siteadmin');
+      expect(controller.get('masqueradeStopLabel')).toMatch(/siteadmin/);
+    });
+
+    it('uses plain Stop Masquerading when operator name is unavailable', function() {
+      var controller = testOwner.lookup('controller:application');
+      controller.set('session', EmberObject.create({
+        as_user_id: '1_99',
+        original_user_name: null
+      }));
+      controller.set('stashes', EmberObject.create({
+        get_object: function() { return {}; }
+      }));
+      expect(controller.get('masqueradeOperatorName')).toEqual(null);
+      expect(controller.get('masqueradeStopLabel')).toEqual('Stop Masquerading');
+    });
+  });
+
   describe('invalidateSession', function() {
     var savedLingoSession;
     var savedControllerSession;
