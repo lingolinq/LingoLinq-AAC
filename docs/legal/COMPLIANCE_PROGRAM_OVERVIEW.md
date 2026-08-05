@@ -68,7 +68,8 @@ triggers HIPAA, and requiring it would add friction without adding protection.
 
 ## 2. What we do today (implemented controls)
 
-Everything in this section is live in the product.
+Everything in this section is live in the product, except where a control is
+explicitly marked not operational.
 
 **Encryption and data protection**
 - Sensitive fields are encrypted at rest with AES-256-GCM server-side encryption; LingoLinq
@@ -107,8 +108,13 @@ Everything in this section is live in the product.
   under FERPA; in the EU they are sensitive children's data handled under Section 6.
 
 **AI and PII handling**
-- LingoLinq uses AI for word prediction and communication-board generation. The primary model is
-  Anthropic Claude (Haiku 4.5), with a Google (Gemini) fallback.
+- LingoLinq uses AI for word prediction and communication-board generation. The designated model is
+  Anthropic Claude (Haiku 4.5) on AWS Bedrock. There is no Google (Gemini) fallback; that path was
+  removed on 2026-07-09. These AI features were not operational from 2026-07-30 until 2026-08-03,
+  were briefly operational from 2026-08-03 to 2026-08-04 for internal verification only, and are
+  **not operational as of 2026-08-04**. During that window a single internal test call was made,
+  carrying no user or student data; no customer, user, or student data has been sent to a model
+  provider on this path.
 - Before text is sent to our external LLM providers for word prediction, board generation, or eval
   narration, our PII scrubber removes identifiers. This is **pseudonymization (scrubbing)**, and we
   describe it accurately: the result is scrubbed data that we still treat as personal data. We do

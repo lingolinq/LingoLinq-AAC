@@ -11,13 +11,13 @@
 **Audited commit:** `20953ab3d5a80c3a9cbb249f37a79357b7f1baf1`  
 **Audited ref:** `scot/compliance/audit-refresh-2026-07-07`  
 **Run date:** 2026-07-08  
-**Page generated:** 2026-08-04T15:57:32Z
+**Page generated:** 2026-08-05T05:17:17Z
 
 ## Headline - open findings
 
 | Critical | High | Medium | Low |
 |---|---|---|---|
-| **0** | **10** | 29 | 25 |
+| **0** | **12** | 29 | 25 |
 
 _Headline is the count of `open` + `remediated-unverified` findings by severity (plan decision 5.9.2: counts, not a synthetic score). Only Scot closes a finding, downgrades severity, or accepts risk._
 
@@ -26,6 +26,8 @@ _Headline is the count of `open` + `remediated-unverified` findings by severity 
 | ID | Legacy | Severity | Frameworks | Title | Evidence |
 |---|---|---|---|---|---|
 | LL-104bfa61dc |  | high | WCAG | Terms-agree modal is unreachable by switch scanning (no .modal_targets / .btn, opened without scannable) | `app/frontend/app/components/terms-agree.hbs`:27 |
+| LL-16ef84ad9a |  | high | FERPA, HIPAA, GDPR | Word-prediction cache holds the raw pre-scrubber user utterance in a process-global structure outside the PiiScrubber boundary, and is not tenant-scoped | `lib/ai_word_predictor.rb`:47 |
+| LL-1b0d78dbe6 |  | high | HIPAA | No check asserts the Bedrock credential resolves to the BAA'd AWS account, so the AWS BAA's operative condition is an untested assumption | `lib/ai_client.rb`:89 |
 | LL-522c1a6d13 |  | high | FERPA, HIPAA | Masquerade produces no AuditEvent; the site-admin branch impersonates any user with no disclosure record | `app/controllers/application_controller.rb`:181 |
 | LL-53cb93fab1 |  | high | GDPR, FERPA | Terms-agree modal can be silently replaced by intro before the user agrees | `app/frontend/app/routes/index.js`:132 |
 | LL-705b10bcd7 |  | high | SOC2 | BoardDownstreamButtonSet S3 writes fail against KMS-encrypted bucket: 'Requests specifying Server Side Encryption with AWS KMS managed keys require AWS Signature Version 4' | (attestation) |
@@ -94,7 +96,11 @@ _Headline is the count of `open` + `remediated-unverified` findings by severity 
 
 - **Source of truth:** the git register. This page is a generated read-only summary; it
   carries no evidence snippets, no finding notes, and no student/patient data.
-- **Closed / accepted / superseded findings** are intentionally omitted here; see
+- **Filtered by STATUS, not disposition.** This page lists findings whose `status` is `open`
+  or `remediated-unverified`; status `verified-closed`, `accepted-risk`, and `superseded` are
+  intentionally omitted. Disposition is a separate, Scot-owned axis, so a row listed here may
+  still carry a disposition of `accepted`, `wontfix`, or `dismissed-false-positive`. Presence
+  on this page means the finding is not yet closed; it does NOT mean it is untriaged. See
   `audit-reports/FINDINGS.md` for the full lifecycle.
 - **Compliance Posture Report** (`docs/legal/COMPLIANCE_POSTURE_REPORT.md`) is **CEO-attested**
   (Scot Wahlquist, 2026-06-19); it is linked from this summary, never embedded. External

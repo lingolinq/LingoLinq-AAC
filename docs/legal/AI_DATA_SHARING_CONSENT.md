@@ -44,21 +44,58 @@ company-wide subprocessor register, maintained by the Privacy Office on its own 
   used for AI board suggestions, which are Non-personal and not gated by this consent -- see
   section 3); Claude Opus 4.7 (`claude-opus-4-7`, overridable via `EVAL_NARRATOR_MODEL`) for
   AI evaluation narration.
-- **Access path:** Anthropic's commercial API, not the free consumer Claude.ai product.
-- **Data-processing basis:** DPA via Anthropic's Commercial Terms
-  (https://www.anthropic.com/legal/commercial-terms), per `docs/legal/SUBPROCESSORS.md`.
-- **Zero-data-retention (ZDR) status:** Confirmed for these two specific models, verified against
-  Anthropic's own data-retention documentation (Anthropic Privacy Center, "Data retention practices
-  for [model class]," confirmed 2026-07-06). This confirmation does **not** extend to any other
-  Anthropic model not used in this product (in particular, it does not cover any future model
-  Anthropic classifies outside its ZDR-eligible tier).
-- **Training posture:** Anthropic does not use ZDR-tier commercial API traffic to train its models.
-  This is stated in the disclosure scoped narrowly to these two models, not as a blanket claim about
-  Anthropic or about AI vendors generally.
-- **BAA status:** Not applicable as a HIPAA Business Associate Agreement in the traditional sense;
-  the operative control for hospital-linked (HIPAA) accounts is the PiiScrubber pre-egress filter
-  plus the ZDR posture above, consistent with `AI_GOVERNANCE_MEMO.md` section 3 ("de-identification,
-  not a BAA, is the HIPAA basis for the scrubbed product path").
+- **Access path:** Anthropic Claude models on **AWS Bedrock** via `lib/ai_client.rb` (default plane:
+  classic `bedrock-runtime`; Mantle selectable via `BEDROCK_PLANE` when entitled), never the free
+  consumer Claude.ai product. **Corrected 2026-08-02:** this previously read "Anthropic's commercial
+  API"; the direct `api.anthropic.com` route was removed by PR #681 and is CI-enforced.
+  **Plane wording corrected 2026-08-03:** earlier text said "Bedrock Mantle Messages API" only; the
+  account is entitled to classic `bedrock-runtime` (PR #727).
+  **Operational status, corrected 2026-08-04 (supersedes the "dormant as of 2026-07-30" statement
+  this bullet previously carried).** The Bedrock path was not operational from 2026-07-30T16:37Z
+  (revision `00011-l7f`) until 2026-08-03T08:23:02Z, when revision `00013-76w` mounted
+  `BEDROCK_AWS_KEY` / `BEDROCK_AWS_SECRET`. It was then operational for approximately 22 hours.
+  Exactly one logged seam call completed in that window: an internal verification call on 2026-08-04T05:44:42Z
+  (`request_type: word_prediction`, no user attached, no user or student data in the payload),
+  recorded as the first and only row in `AiApiLog`. Credentials were withdrawn on
+  2026-08-04T06:31:46Z (revision `00014-5rw`); the path is not operational as of that timestamp.
+  During the window, `sts:GetCallerIdentity` under the mounted credential returned account
+  239044785114 (`user/lingolinq-bedrock-runtime`), satisfying both halves of the verification
+  standard defined in `docs/legal/AWS_BAA_ACCEPTED.md`. This statement is scoped to the Bedrock
+  path only; see the `AiApiLog` coverage note in that document for what a zero-row result does and
+  does not establish.
+- **Data-processing basis:** the **AWS account BAA** (2026-02-07, account 2390-4478-5114) governs
+  the Bedrock path, since Bedrock inference stays inside AWS's HIPAA-eligible service boundary. The
+  executed **Anthropic HIPAA-Ready BAA** (2026-07-18, `docs/legal/ANTHROPIC_BAA_ACCEPTED.md`) covers
+  the direct Anthropic path and remains on file. **Corrected 2026-08-02:** this previously cited a
+  DPA under Anthropic's Commercial Terms, which the 2026-07-18 BAA superseded. See
+  `docs/legal/SUBPROCESSORS.md`.
+- **Zero-data-retention (ZDR) status:** **Scoped 2026-08-04. This confirmation applies to the direct
+  `api.anthropic.com` path, which is NOT the runtime route.** ZDR was confirmed for these two
+  specific models against Anthropic's own data-retention documentation (Anthropic Privacy Center,
+  "Data retention practices for [model class]," confirmed 2026-07-06). That confirmation was made
+  under Anthropic's **commercial API** terms. The designated runtime route is Anthropic Claude on
+  **AWS Bedrock**, where request handling is governed by the AWS account BAA and AWS's own service
+  terms, not by Anthropic's commercial-API ZDR tier. **No zero-data-retention guarantee is claimed
+  for the Bedrock path**, which is consistent with the shipped runtime disclosure
+  (`app/frontend/app/templates/privacy.hbs` and `lib/lingo_linq/ai_consent_disclosures.rb`). The
+  confirmation also does **not** extend to any other Anthropic model not used in this product (in
+  particular, any future model Anthropic classifies outside its ZDR-eligible tier).
+- **Training posture:** Anthropic does not use ZDR-tier **commercial API** traffic to train its
+  models. **Scoped 2026-08-04:** this statement is about the direct Anthropic commercial-API path
+  and is narrow to these two models; it is not a claim about the AWS Bedrock route, nor a blanket
+  claim about Anthropic or about AI vendors generally. Training and retention posture for the
+  Bedrock route is governed by the AWS terms referenced in `docs/legal/AWS_BAA_ACCEPTED.md`.
+- **BAA status:** **Corrected 2026-08-02.** This bullet previously read "Not applicable as a HIPAA
+  Business Associate Agreement in the traditional sense", with the PiiScrubber and ZDR posture named
+  as the operative HIPAA control, and quoted `AI_GOVERNANCE_MEMO.md` section 3 for
+  "de-identification, not a BAA, is the HIPAA basis". That is stale on both counts. An **Anthropic
+  HIPAA-Ready BAA was executed 2026-07-18** on the runtime-dedicated LingoLinq, LLC API org
+  (`docs/legal/ANTHROPIC_BAA_ACCEPTED.md`), and the memo language quoted above no longer exists:
+  section 3 now records that the HIPAA legal basis for the Anthropic path rests on that BAA and that
+  the prior "no signed BAA covers the model-provider egress path" gap is closed. The PiiScrubber is
+  retained as a GDPR data-minimization control and as defense in depth, **not** as the HIPAA basis.
+  For the Bedrock route the governing instrument is the **AWS account BAA** instead, as stated in
+  the Data-processing basis bullet above.
 
 ### 2.2 Google LLC (Gemini Developer API) -- disabled 2026-07-09, historical record only
 
