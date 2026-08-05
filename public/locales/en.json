@@ -3502,6 +3502,7 @@
   "ai_disclosure_acknowledge": "Acknowledge and Continue",
   "search_boards": "Search Boards",
   "stop_masquerading": "Stop Masquerading",
+  "stop_masquerading_operator": "Stop Masquerading (%{user})",
   "upgrade": "Upgrade",
   "settings": "Settings",
   "exclaim": "!",
