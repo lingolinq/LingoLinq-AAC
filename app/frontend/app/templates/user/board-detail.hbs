@@ -1280,6 +1280,20 @@
                       <img src={{this.board_image_url}} alt={{t "Board icon" key="board_detail_board_icon_alt"}} class="md-board-edit-session__board-icon">
                     {{/if}}
                     <span class="md-board-edit-session__state-label md-board-edit-session__board-title" role="status">{{this.title}}</span>
+                    {{!-- Rename affordance — opens the existing Edit Board Details
+                         modal (name, description, icon, license, language,
+                         visibility) straight from the title, instead of the
+                         Board Actions → Edit Board Details → modal detour.
+                         Same action the Board Actions row ultimately reaches
+                         (edit_board_details). Carries data-bd-action so touch,
+                         dwell and eye-gaze releases route through raw_events
+                         like the rest of the board-detail chrome. --}}
+                    <button type="button" class="md-board-edit-session__title-edit" data-bd-action="edit_board_details" {{on "click" (this.ctrlAction "edit_board_details")}} aria-label={{t "Edit Board Details" key="edit_board_details"}} title={{t "Edit Board Details" key="edit_board_details"}}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#46505F"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="#2A9D8F"/>
+                      </svg>
+                    </button>
                     {{#if this.is_copy_on_save}}
                       <span class="md-board-edit-session__badge md-board-edit-session__badge--copying">{{t "Creating a Copy of This Board" key="board_detail_creating_copy_badge"}}</span>
                     {{/if}}
@@ -3321,7 +3335,8 @@
     <div class="md-board-detail-actions-menu md-board-detail-actions-menu--collection md-board-detail-actions-menu--collection-pinned" role="region" aria-label={{t "My Board Collection" key="my_board_collection"}}>
       <BoardCollection
         @onBack={{this.onCloseBoardCollection}}
-        @onSelect={{this.onSelectBoardFromCollection}} />
+        @onSelect={{this.onSelectBoardFromCollection}}
+        @currentBoard={{this.model}} />
     </div>
   {{/if}}
   {{!-- Edit-mode Board Collections drawer — same pinned host as the speak-mode

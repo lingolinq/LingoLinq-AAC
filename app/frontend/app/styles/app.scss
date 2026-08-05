@@ -2952,7 +2952,25 @@ header.speaking, .board.speak {
   margin-top: 32px !important;
 }
 .md-board-detail-grid.board.speak {
-  margin-top: 0px !important;
+  /* Breathing room under the sentence row. The grid's fixed height
+     (calc(100dvh - 120px), base rule ~L75201) reserves ~120px of top chrome
+     while the actual sentence bar + padding is only ~90px, so ~30px of slack
+     pools UNDER the grid (dead space at the page bottom). This margin pushes
+     the grid DOWN into that slack — opening a gap beneath the sentence row —
+     rather than leaving it flush at the top. Stays within the 120px headroom
+     (90 + 12 < 120), so it consumes bottom slack instead of adding overflow.
+     32px (the base .board.speak rule above) over-shot and clipped; 0 was flush. */
+  margin-top: 6px !important;
+}
+/* Shorter viewports: reclaim the top breathing room. The 6px margin + the grid's 4px inset
+   read as wasted vertical space when height is tight — pull the board up snug under the
+   sentence bar. (The folder-tab reserve inside the cells already scales down with the smaller
+   buttons, so the tabs stay clear of the bar.) */
+@media (max-height: 820px) {
+  .md-board-detail-grid.board.speak {
+    margin-top: 0 !important;
+    padding-top: 1px;
+  }
 }
 /* board-alt (classic) speak mode fills the viewport like the modern
    grid; the 32px top margin above leaves a dead strip there. */
@@ -70616,11 +70634,62 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail--dark .md-board-edit-session__board-title {
   color: #fff;
 }
+/* Rename affordance sitting immediately after the board name in the session bar:
+   a quiet round ghost button that opens the Edit Board Details modal. Deliberately
+   understated at rest (transparent, hairline ring) so it reads as an accessory to
+   the title rather than a third action competing with Save / Cancel; it fills in
+   with the same verdigris the session bar uses on hover. `flex: 0 0 auto` and the
+   negative left margin pull it tight against the (truncating) title while the bar's
+   11px gap still separates it from whatever follows. */
+.md-board-edit-session__title-edit {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-left: -4px;
+  padding: 0;
+  border: 1px solid rgba($la-navy, 0.14);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.md-board-edit-session__title-edit:hover {
+  background: rgba($brand-verdigris, 0.16);
+  border-color: rgba($brand-verdigris, 0.55);
+  transform: translateY(-1px);
+}
+.md-board-edit-session__title-edit:active {
+  transform: translateY(0);
+}
+.md-board-edit-session__title-edit:focus-visible {
+  outline: 2px solid $brand-verdigris;
+  outline-offset: 2px;
+}
+.md-board-detail--dark .md-board-edit-session__title-edit {
+  border-color: rgba(143, 228, 223, 0.32);
+}
+.md-board-detail--dark .md-board-edit-session__title-edit:hover {
+  background: rgba(143, 228, 223, 0.18);
+  border-color: rgba(143, 228, 223, 0.62);
+}
+/* Dark mode: lighten the note-page outline of the pencil mark (stroked #46505F
+   inline), same treatment the Editing pill's icon gets. The teal pencil accent
+   stays as-is. */
+.md-board-detail--dark .md-board-edit-session__title-edit svg path[stroke="#46505F"] {
+  stroke: #eef3f6;
+}
 /* ≤768px: hide the board NAME in the edit session bar to reclaim room on narrow screens (the
    board icon stays as the compact identifier), and move the "Editing/Previewing" pill out of
    its absolute center position into the gap the name left — right after the icon. */
 @media (max-width: 768px) {
-  .md-board-edit-session__board-title {
+  /* The rename pencil goes with the name it annotates — with the title gone it
+     would read as an orphaned control between the icon and the pill. Edit Board
+     Details is still reachable from the Board Actions panel at this width. */
+  .md-board-edit-session__board-title,
+  .md-board-edit-session__title-edit {
     display: none;
   }
   /* Pill: drop the absolute centering and rejoin the flex flow so it sits next to the icon
@@ -74313,7 +74382,13 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex: 1 1 auto;
+  /* Basis 0 (not auto) is REQUIRED because the row is flex-wrap:wrap. Under wrap, the browser
+     breaks lines using each item's flex BASE size BEFORE shrinking — with basis:auto a long
+     board name makes the display's base size wide, so the +/reorder/remove controls get bumped
+     to the next row even though the display could shrink. Basis 0 makes the display's line-break
+     size 0, so the controls always stay on line 1; grow:1 + min-width:0 then let it fill and the
+     name truncate. (The confirm span keeps its own line via its own flex:0 0 100%.) */
+  flex: 1 1 0;
   min-width: 0;
 }
 .md-sidebar-editor__action {
@@ -76749,6 +76824,21 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail-edit-pill__label {
   text-transform: uppercase;
   letter-spacing: 0.06em;
+}
+/* Dark mode: SOLID pill background + a uniform LIGHT font/icon (per request) — no translucent
+   glass and no gradient. The glassy pill's bright upper-left highlight fought text contrast
+   (dark text OR light text washed out over it); a solid dark pill gives even contrast for one
+   light text color. Light mode keeps its glassy translucent pill + solid $indigo text. */
+.md-board-detail--dark .md-board-detail-edit-pill {
+  background: #2e4a52;
+  color: #eef3f6;
+}
+/* Dark mode: lighten the icon FRAME — the note "partial square" outline (Editing) and the eye
+   outline (Previewing), both stroked #46505F inline — which reads too dark on the solid dark
+   pill. A CSS stroke overrides the SVG presentation attribute, so no template change. The
+   pencil / pupil accent (#2A9D8F teal) is left as-is. */
+.md-board-detail--dark .md-board-detail-edit-pill__icon path[stroke="#46505F"] {
+  stroke: #eef3f6;
 }
 
 /* ── Modern tooltips for edit toolbar ── */
@@ -79517,12 +79607,13 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   // uses 10%) — so the tab reads as a distinct, deeper accent against the folder body; falls
   // back to the prior charcoal-blue when uncolored.
   background: color-mix(in srgb, var(--btn-bg, #{color.adjust($brand-charcoal-blue, $lightness: 16%)}) 80%, black);
-  /* Trapezoid tab (per request): the sides ANGLE INWARD toward the top — wider at
-     the base where it meets the folder back, narrower at the top edge — like a real
-     notebook/file tab. The clip-path defines the silhouette (top corners at 16%/84%,
-     bottom flush at the full width); the top border-radius softens the two top
-     corners that the clip leaves. */
-  clip-path: polygon(16% 0, 84% 0, 100% 100%, 0 100%);
+  /* Rounded-rectangle tab. A prior version used a trapezoid clip-path
+     (polygon(16% 0, 84% 0, 100% 100%, 0 100%)) to angle the sides inward, but
+     clip-path RE-CLIPS to the polygon's sharp vertices — it discards the
+     border-radius entirely, so the corners rendered as hard points and the
+     sides read as too-slanted. Dropping the clip lets border-radius round the
+     top corners (the classic manila-folder tab); the mixin sets the actual
+     radius in cqmin so it scales with the button. */
   border-radius: 11px 11px 0 0;
   pointer-events: none;
   transition: background 0.25s ease, width 0.25s ease, height 0.25s ease;
@@ -80135,11 +80226,13 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail-grid--folder-colored-face .md-board-detail-grid__cell--folder > .md-board-detail-symbol-card {
   background: var(--btn-bg, #fff) !important;
 }
-/* In default folder mode, non-folder cells pick up the same 12px top reserve
-   the folder cells use for their tab — so non-folder buttons render the same
-   visual height as the folder fronts, keeping the grid rows aligned. */
-.md-board-detail-grid:not(.md-board-detail-grid--folder-tab-labels):not(.md-board-detail-grid--folder-colored-corner) .md-board-detail-grid__cell:not(.md-board-detail-grid__cell--folder) {
-  padding-top: 10px;
+/* In default folder mode, non-folder cells pick up the SAME top reserve the folder cells use for
+   their tab (calc(--bd-cell-min * 0.14), matching the mixin's folder-cell value) — so non-folder
+   buttons render the same visual height as the folder fronts, keeping the grid rows aligned.
+   Scoped to --has-folders (set by BoardDetailGrid.hasFolders) so a folder-LESS board does NOT
+   inherit this reserve and its buttons keep full height with no dead top space. */
+.md-board-detail-grid--has-folders:not(.md-board-detail-grid--folder-tab-labels):not(.md-board-detail-grid--folder-colored-corner) .md-board-detail-grid__cell:not(.md-board-detail-grid__cell--folder) {
+  padding-top: calc(var(--bd-cell-min, 90px) * 0.14);
 }
 /* ── Folder geometry — single source of truth ────────────────────
    Takes a visible-tab height (the part that pokes above the folder
@@ -80162,32 +80255,41 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    tab-labels mode) are left intact since they're mode-specific
    chrome, not geometry. */
 @mixin folder-tab-geometry($visible, $cell-pad-offset: 4px) {
-  /* The folder-tab RESERVE (folder-back top + cell top padding) scales with the measured cell
-     height (--bd-cell-h, published by board-detail.js) so the space between rows SHRINKS on
-     smaller buttons and grows on bigger ones — instead of a fixed per-breakpoint px. $visible /
-     $cell-pad-offset are no longer used for the reserve (the @include sites still pass them,
-     harmlessly). The 90px fallback keeps a sane reserve for the moment before JS measures. */
+  /* Folder-tab geometry scales with the cell's SMALLER side, published as --bd-cell-min
+     (min(width,height)) by board-detail.js so tab + back + reserve share ONE basis and can't
+     diverge (mixing bases let the tab punch into the row above). min-side (not height) keeps the
+     tab proportionate on tall-narrow buttons. The 90px fallback is only the pre-measurement seed;
+     board-detail.js publishes --bd-cell-min synchronously on first render so tabs are correct from
+     the first frame. $visible / $cell-pad-offset are unused (the @include sites still pass them). */
   .md-folder-back {
-    top: calc(var(--bd-cell-h, 90px) * 0.10);
+    top: calc(var(--bd-cell-min, 90px) * 0.13);
     /* Bottom overhang pulled in 1px more per request (−2px → −1px). */
     bottom: -1px;
   }
   .md-folder-tab {
-    /* Tab sized in cqh — % of the folder CELL height (via the cell's container-type: size) — so
-       it scales with the BUTTON: buttons under ~40px tall get a proportionally shorter tab, big
-       buttons a taller one. Radius is cqh too, so it scales with the tab (no "nub" on short
-       tabs). protrusion = height - overlap = 12 - 3.5 = 8.5cqh. DEFAULT folder mode only —
-       Show-Labels-on-Tab overrides tab height/top further down. */
-    height: 12cqh;
-    top: -8.5cqh;
-    border-radius: 5cqh 5cqh 0 0;
+    /* Reserve (0.14, the cell's padding-top below) sits ABOVE the tab's protrusion (0.085 up from
+       the back top at 0.13 → the tab's top lands ~0.045·min below the cell top): that gap is the
+       "space between rows" — the tab keeps its full height and the ROWS open up around it, so it
+       never reaches the row above at ANY grid-gap. DEFAULT folder mode only — Show-Labels-on-Tab
+       overrides height/top. */
+    height: calc(var(--bd-cell-min, 90px) * 0.12);
+    top: calc(var(--bd-cell-min, 90px) * -0.085);
+    border-radius: calc(var(--bd-cell-min, 90px) * 0.04) calc(var(--bd-cell-min, 90px) * 0.04) 0 0;
+    /* Slight file-tab taper: the top edge is drawn a touch narrower than the base so the
+       sides angle gently inward, like a real folder tab. A clip-path trapezoid gives a crisp
+       taper but RE-CLIPS to sharp polygon vertices — it discards the border-radius entirely,
+       which is exactly why the corners read as un-rounded before. A subtle perspective tilt
+       narrows the top while PRESERVING the rounded corners. Anchored at the bottom so the tab
+       stays seated on the folder back. */
+    transform: perspective(80px) rotateX(15deg);
+    transform-origin: 50% 100%;
   }
   .md-board-detail-grid__cell--folder {
-    padding-top: calc(var(--bd-cell-h, 90px) * 0.12);
+    padding-top: calc(var(--bd-cell-min, 90px) * 0.14);
   }
-  .md-board-detail-grid__cell:not(.md-board-detail-grid__cell--folder) {
-    padding-top: calc(var(--bd-cell-h, 90px) * 0.12);
-  }
+  /* Non-folder cells pick up the SAME card reserve so card tops stay flush across a mixed row —
+     but that rule is moved OUT of this mixin to a --has-folders-scoped selector (search
+     "has-folders" below), so folder-LESS boards don't inherit dead top space. */
 }
 
 /* Default mode (no tab-labels, no colored-corner): 6px visible tab (was 10px).

@@ -223,6 +223,36 @@ function boardDetailChromeReleaseFromEvent(event) {
   return true;
 }
 
+// Re-dispatch a click for a control the chrome map does NOT resolve — i.e. one whose
+// handler is component-local ({{on "click"}} inside BoardCollection), not a
+// board-detail controller action. The branches that call this have already run
+// event.preventDefault() on the pointer release, so without a re-dispatch those
+// controls are inert.
+//
+// But a MOUSE release is already followed by a native click: preventDefault() on
+// `mouseup` does NOT cancel it (unlike `touchend`, where it does). Synthesizing a
+// second click there runs the handler TWICE, and a TOGGLE net-cancels — which is
+// exactly why "Show N more boards" reads as dead (see LEARNINGS.md, "dual-dispatch
+// double-fires and net-cancels TOGGLE actions"). So skip the synthetic click only when
+// the browser is certain to deliver a real one to this element: a `mouseup` whose
+// target is the element itself or a descendant. Touch, dwell, eye-gaze and scanning
+// produce no native click and still get the pass-through.
+//
+// The `contains(event.target)` half is load-bearing for activation_location: 'start',
+// where elem_wrap is reassigned to the MOUSEDOWN element (see element_release): if the
+// press and release landed on different elements the native click goes to their common
+// ancestor and would miss it, so those must still synthesize.
+function passThroughUnresolvedChromeClick(elem_wrap, event) {
+  var dom = elem_wrap && elem_wrap.dom;
+  if(!dom) { return; }
+  var native_click_coming = event && event.type === 'mouseup' && event.target &&
+                            dom.contains && dom.contains(event.target);
+  // Scoped to the co-located BoardCollection panel — the only surface where this
+  // duplication is confirmed. Other chrome keeps its existing behavior.
+  if(native_click_coming && dom.closest && dom.closest('.md-board-collection')) { return; }
+  dispatchPassThroughClick(dom, event.clientX, event.clientY);
+}
+
 // Modals on board-detail (add-to-sidebar, button-settings, etc.): pointer
 // releases must not be swallowed by boardDetailChromeReleaseFromEvent (no
 // data-bd-action on la-modal-close). Re-fire pass-through clicks so classic
@@ -1600,11 +1630,16 @@ var buttonTracker = EmberObject.extend({
             // have no data-bd-action and legitimately resolve to nothing. Without this
             // fallback the preventDefault above swallowed their click and they were
             // simply dead on board-detail. Re-dispatching a pass_through click lets
-            // their own {{on "click"}} run; it cannot double-fire, because it is only
-            // reached when no chrome action was resolved.
+            // their own {{on "click"}} run.
+            //
+            // It goes through passThroughUnresolvedChromeClick, NOT dispatchPassThrough-
+            // Click directly: on a mouse release the native click is still coming
+            // (preventDefault on `mouseup` does not cancel it), so an unconditional
+            // synthetic click fired these handlers twice and the "Show N more boards"
+            // TOGGLE net-cancelled.
             event.preventDefault();
             if(!boardDetailChromeRelease(elem_wrap)) {
-              dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
+              passThroughUnresolvedChromeClick(elem_wrap, event);
             }
           } else if(event_source === 'click' && elem_wrap.dom.closest && elem_wrap.dom.closest('.board-detail-view') && !buttonTracker.board_detail_grid_target(elem_wrap)) {
             if(deferBoardDetailChromeClick) {
@@ -1679,9 +1714,13 @@ var buttonTracker = EmberObject.extend({
           // Mouse in edit mode: Ember {{on}} (this.ctrlAction) is authoritative
           // after the Ember 5 codemod — same as speak-mode chrome defer.
         } else {
+          // Same pass-through fallback as the speak-mode branches. Inside
+          // .md-board-collection it is skipped for mouse releases, where the native
+          // click already reaches the control's own {{on "click"}} — see
+          // passThroughUnresolvedChromeClick.
           event.preventDefault();
           if(!boardDetailChromeRelease(elem_wrap)) {
-            dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
+            passThroughUnresolvedChromeClick(elem_wrap, event);
           }
         }
       } else {

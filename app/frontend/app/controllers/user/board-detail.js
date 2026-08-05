@@ -396,6 +396,12 @@ export default Controller.extend(prefClasses, {
       var cellRect = cell.getBoundingClientRect();
       if(cellRect && cellRect.height >= 1) {
         grid.style.setProperty('--bd-cell-h', Math.round(cellRect.height) + 'px');
+        // Also publish the SMALLER cell dimension so the folder-tab geometry (tab height +
+        // reserve) can scale with min(width,height) — keeps the tab/reserve proportionate on
+        // TALL-NARROW buttons (portrait-phone folders) instead of ballooning off the height.
+        if(cellRect.width >= 1) {
+          grid.style.setProperty('--bd-cell-min', Math.round(Math.min(cellRect.width, cellRect.height)) + 'px');
+        }
       }
     }
     var colGap = gridStyle ? (parseFloat(gridStyle.columnGap) || 0) : 0;
@@ -476,7 +482,7 @@ export default Controller.extend(prefClasses, {
     var h = board ? board.getBoundingClientRect().height : 0;
     sidebar.style.height = (h && h > 1) ? (Math.round(h) + 'px') : '';
   },
-  _sync_prediction_tile_size_on_change: observer('ordered_buttons', 'current_grid.columns', 'current_grid.rows', 'suggestions.list.[]', function() {
+  _sync_prediction_tile_size_on_change: observer('ordered_buttons', 'current_grid.columns', 'current_grid.rows', 'suggestions.list.[]', 'app_state.window_inner_width', 'app_state.window_inner_height', function() {
     var _this = this;
     runLater(function() {
       if(_this.isDestroyed || _this.isDestroying) { return; }
@@ -3474,7 +3480,19 @@ export default Controller.extend(prefClasses, {
     // false-fires there, and there's no rotate advice anymore to guard against.
     var cell_w = this.get('board_cell_width') || 0;
     var cell_h = this.get('board_cell_height') || 0;
-    return (cell_w > 0 && cell_w < 35) || (cell_h > 0 && cell_h < 35);
+    if(cell_w <= 0 || cell_h <= 0) { return false; }
+    // (1) Absolutely too small in either axis to view/edit comfortably.
+    if(cell_w < 35 || cell_h < 35) { return true; }
+    // (2) Badly PROPORTIONED: a tall-narrow (or wide-short) button squishes the symbol and is
+    // awkward to target even when neither axis is below 35px — e.g. a folder on a portrait phone
+    // rendering ~65px wide × ~177px tall. Fire when the long axis is >2.2× the short axis AND the
+    // short axis is itself cramped (<90px). The <90px gate keeps genuinely LARGE non-square
+    // buttons (a roomy 300×700 on a big screen) from false-firing — those don't need a bigger
+    // screen, they're just intentionally rectangular.
+    var shorter = Math.min(cell_w, cell_h);
+    var longer = Math.max(cell_w, cell_h);
+    if(shorter < 90 && (longer / shorter) > 2.2) { return true; }
+    return false;
   }),
 
   // The actual "show the card now" gate — eligible AND the user hasn't
@@ -4614,7 +4632,7 @@ export default Controller.extend(prefClasses, {
         var original_name = _this.get('_original_board_name');
         var current_name = board.get('name');
         if(original_name && current_name && original_name !== current_name && !_this._name_matches_translation(board, current_name)) {
-          _this._auto_rename_board(board, current_name);
+          _this._auto_rename_board(board, current_name, original_name);
           _this.set('_original_board_name', current_name);
         } else {
           modal.success(i18n.t('board_saved', "Board saved!"));
@@ -4644,12 +4662,32 @@ export default Controller.extend(prefClasses, {
     return false;
   },
 
-  // Automatically rename the board key to match the new display name
-  _auto_rename_board: function(board, new_name) {
+  // Automatically rename the board key to match the new display name — but ONLY when
+  // the URL was already following the name.
+  //
+  // `old_name` is the display name the page was loaded with. When the current key is
+  // exactly the slug of that name, the URL has simply been tracking the label and
+  // should keep tracking it. When it is anything else, the key is a deliberate choice
+  // — one set through the classic rename UI, or a copy key carrying the collision
+  // suffix `…_1` — and a label edit must not silently overwrite it.
+  //
+  // Skipping also avoids the cost: a rename schedules `rename_deep_links` on the SLOW
+  // queue, which walks every upstream board, shared user, UserLink, UserBoardConnection
+  // and LogSession that references this board (app/models/concerns/renaming.rb).
+  //
+  // Compared case-insensitively: `clean_path` preserves case ("Sequoia 15" ->
+  // "Sequoia-15") while the server stores keys downcased (`Renaming#rename_to`).
+  _auto_rename_board: function(board, new_name, old_name) {
     var _this = this;
     var user_name = board.get('user_name') || (_this.get('user') && _this.get('user').get('user_name'));
     var old_key = board.get('key');
     if(!user_name || !old_key) {
+      modal.success(i18n.t('board_saved', "Board saved!"));
+      return;
+    }
+    var old_slug = old_key.split('/').slice(1).join('/');
+    var name_derived_slug = old_name ? window.LingoLinq.clean_path(old_name) : null;
+    if(!name_derived_slug || old_slug.toLowerCase() !== name_derived_slug.toLowerCase()) {
       modal.success(i18n.t('board_saved', "Board saved!"));
       return;
     }

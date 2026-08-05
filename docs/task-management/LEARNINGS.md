@@ -155,6 +155,7 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Pattern: per-user UI prefs must be read from `currentUser`, not the board-detail route's URL user](#pattern-per-user-ui-prefs-must-be-read-from-currentuser-not-the-board-detail-routes-url-user)
 - [Pattern: `.md-board-collection__*` is a light-base panel reusable on any page; dark theme is ancestor-scoped](#pattern-md-board-collection-is-a-light-base-panel-reusable-on-any-page-dark-theme-is-ancestor-scoped)
 - [Pattern: inside `.md-board-collection`, `data-bd-action` is the REAL handler — `@onSelect`/`@onBack` are decoration](#pattern-inside-md-board-collection-data-bd-action-is-the-real-handler--onselectonback-are-decoration)
+- [Pattern: a board's KEY is not stable — renaming a board rewrites it, so key-shape heuristics silently reclassify boards](#pattern-a-boards-key-is-not-stable--renaming-a-board-rewrites-it-so-key-shape-heuristics-silently-reclassify-boards)
 - [Pattern: `global_transition` runs `toggle_edit_mode()` on routeWillChange — an edit→edit transition re-opens the copy prompt](#pattern-global_transition-runs-toggle_edit_mode-on-routewillchange--an-editedit-transition-re-opens-the-copy-prompt)
 - [Pattern: a new user preference is a 3-touch change — whitelist + default + dirty-bit save](#pattern-a-new-user-preference-is-a-3-touch-change--whitelist--default--dirty-bit-save)
 - [Pattern: "order-dependent" spec failures on global counts are often orphaned committed rows in the test DB](#pattern-order-dependent-spec-failures-on-global-counts-are-often-orphaned-committed-rows-in-the-test-db)
@@ -1118,12 +1119,92 @@ know about. It cannot double-fire, since the fallback is only reached when no
 action was resolved. Symptom to recognize: within one panel, some controls work
 and others are completely inert — split them by presence of `data-bd-action`.
 
-**Side note:** this also confirms Ember's `{{on "click"}}` genuinely does NOT
-fire inside `.md-board-collection` (otherwise "Show more" would have worked all
-along), so raw_events is the sole dispatcher there and its actions do NOT need
-to be idempotent for that reason.
+**CORRECTED 2026-08-04 — the pass-through fallback must NOT fire on a mouse
+release.** The paragraph above originally claimed the fallback "cannot
+double-fire", and inferred from the dead "Show more" that `{{on "click"}}` never
+fires inside `.md-board-collection`. Both are wrong, and the second is the
+textbook version of the trap the dual-dispatch entry below warns about: for a
+TOGGLE, firing twice is indistinguishable from never firing. `preventDefault()`
+in that branch lands on `mouseup`, which does **not** cancel the browser's
+follow-up `click`, so the control's own `{{on "click"}}` runs anyway — the
+synthetic click is a SECOND dispatch, and the toggle net-cancelled in both
+drawers. Nothing on that path calls `stopPropagation()` on the native click, and
+the modifier is an ordinary `addEventListener` (the same `ctrlAction` binding
+used by ~2130 click sites app-wide), so of course it fires.
 
-**First seen in:** [2026-08-03-edit-collections-drawer-dispatch-bug.md](./2026-08-03-edit-collections-drawer-dispatch-bug.md)
+The corrected rule: **re-dispatch only when the browser will NOT deliver a
+native click** — touch (`preventDefault()` on `touchend` DOES cancel the
+synthesized click), dwell, eye-gaze, scanning. See
+`passThroughUnresolvedChromeClick` (`raw_events.js`), which skips the synthetic
+click when `event.type === 'mouseup'` **and** `elem_wrap.dom.contains(event.target)`.
+The `contains` half is required for `activation_location: 'start'`, where
+`elem_wrap` is reassigned to the *mousedown* element: on a press-A/release-B
+interaction the native click goes to their common ancestor and misses A, so
+those must still synthesize.
+
+**Meta-lesson:** a fix whose only evidence is "the symptom is consistent with my
+theory" is not diagnosed. The edit-mode branch already had the fallback while the
+pill was dead there — that fact alone refuted the "swallowed outright" diagnosis
+and was visible at the time.
+
+**First seen in:** [2026-08-03-edit-collections-drawer-dispatch-bug.md](./2026-08-03-edit-collections-drawer-dispatch-bug.md),
+corrected in [2026-08-04-board-collection-show-more-dead.md](./2026-08-04-board-collection-show-more-dead.md)
+
+---
+
+## Pattern: a board's KEY is not stable — renaming a board rewrites it, so key-shape heuristics silently reclassify boards
+
+**Surface:** anything that infers a board's ROLE from its key slug — most of all
+`isBrandSetRoot` / `filterBrandRoots` (`utils/board-brands.js`), which decides
+whether a board is a brand-set ROOT tile or a sub-board PAGE.
+
+**Symptom:** a user renames a board they own and it disappears from My Boards
+(Board Collection panel) and from the boards-page grid. Nothing was deleted; the
+board is still owned and still returned by the API.
+
+**Root cause:** saving a renamed board on board-detail auto-renames the KEY to
+match the new display name — `_auto_rename_board`
+(`controllers/user/board-detail.js`) posts `/api/v1/boards/:id/rename` and
+transitions the URL. So `<user>/sequoia-15` becomes
+`<user>/sequoia-15-changed-with-a-really-long-name`, which is shape-identical to a
+genuine sub-board page (`<user>/sequoia-15-animals`) and fails the
+`<brand>-<size>$` root pattern. The renamed ROOT is then filtered out as a
+sub-board. Only brand-family boards are affected — non-brand boards match no
+family and always pass.
+
+**Rule: classify a COPY by its PARENT's key (`parent_board_key`), not its own.**
+A copy of a set root has `parent_board_key = lingolinq/sequoia-15`; a copy of a
+page has `parent_board_key = lingolinq/sequoia-15-animals`; a rename never touches
+the parent. Fall back to the board's own key when there is no parent (originals,
+shallow clones, and the `:as_lite` serializations that omit the field — see
+`lib/json_api/board.rb`). `parent_board_key` is a declared attr on the Ember Board
+model and IS present on the non-lite boards-index payload.
+
+**Corollary — user-editable text must never be the only input to a visibility
+decision.** `name` (and, because of the auto-rename, `key`) are both user-editable,
+so any filter keyed on them can make a user's own board vanish through an ordinary
+edit. Prefer an immutable relation (`parent_board_id`/`parent_board_key`,
+`copy_id`) as the signal and keep the text pattern as the fallback.
+
+**The rename itself is link-safe — don't "fix" that part.** `Board#rename_to` writes an
+`OldKey` row, the server-rendered `/:user/:board` route resolves it via
+`find_by_possibly_old_path` and REDIRECTS to the new key, and the API `show` resolves
+old keys too. A collision aborts the rename (`@collision_error`) and leaves the key
+untouched — the `_1` suffix comes from `generate_unique_key` at CREATE, not from rename.
+What the rename does cost is a slow-queue `rename_deep_links` pass over every upstream
+board, shared user, UserLink, UserBoardConnection and LogSession referencing the board.
+So the guard worth having is not "stop renaming" but **"only rename the key when the key
+was already the slug of the OLD name"** — that leaves a deliberately-chosen URL (or a
+`_1` copy key, or a `my:` shallow-clone key) alone. Implemented in
+`controllers/user/board-detail.js#_auto_rename_board`.
+
+**Also check for a second copy of the loop.** This exact classifier existed twice —
+`board-brands.js#filterBrandRoots` (Board Collection) and
+`board-roots.js#isBrandSetRootBoard` (boards page) — so the bug shipped on both
+surfaces and had to be fixed twice until the duplicate was collapsed into one
+exported `isBrandSetRoot`.
+
+**First seen in:** [2026-08-04-renamed-brand-copy-vanishes-from-my-boards.md](./2026-08-04-renamed-brand-copy-vanishes-from-my-boards.md)
 
 ---
 
@@ -1219,7 +1300,18 @@ over only where `{{on}}` genuinely misses events (non-'click' sources, touch
 releases, co-located classic components like `.md-board-collection`). See
 `defer_board_detail_chrome_click_to_ember` (`raw_events.js:2694`).
 
-**First seen in:** [2026-07-18-actions-toggle-dead-after-edit.md](./2026-07-18-actions-toggle-dead-after-edit.md)
+**Recurrence (2026-08-04) — same class, opposite direction.** The bug came back
+in `.md-board-collection` because a fix ADDED a second dispatch:
+`dispatchPassThroughClick` was called on `mouseup` for controls the chrome map
+does not resolve, on top of the native click. "Show N more boards" went dead in
+both drawers. **Checklist before adding any synthetic click in raw_events: is a
+native `click` still coming?** On `mouseup`, yes — always. Only `touchend`
+(and the no-native-click sources: dwell, gaze, scanning, switch) need one.
+Whenever a control in board-detail chrome "does nothing", count dispatches
+before assuming zero.
+
+**First seen in:** [2026-07-18-actions-toggle-dead-after-edit.md](./2026-07-18-actions-toggle-dead-after-edit.md),
+recurred in [2026-08-04-board-collection-show-more-dead.md](./2026-08-04-board-collection-show-more-dead.md)
 
 ---
 

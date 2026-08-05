@@ -63,6 +63,30 @@
       </ul>
     </section>
   {{/if}}
+  {{!-- Currently Selected Board — the board the SPEAK page is on. Rendered only when the
+       parent passes @currentBoard (speak-mode collection); pinned at the very top so the user
+       can see / jump back to their current board while browsing. Absent in edit mode (which
+       shows Original Selected Board above instead). Reuses the --original section styling so it
+       reads identically to the edit-page pinned board, per request. --}}
+  {{#if this.currentBoard}}
+    <section class="md-board-collection__section md-board-collection__section--original md-board-collection__section--current">
+      <h3 class="md-board-collection__section-label"><span>{{t "Currently Selected" key="currently_selected"}}</span><span class="md-board-collection__grid-size-label">{{t "Grid size" key="grid_size"}}</span></h3>
+      <ul class="md-board-collection__list">
+        <li class="md-board-collection__row">
+          <button type="button" class="md-board-collection__item {{if (is_equal this.currentBoard.key this.home_key) 'md-board-collection__item--home'}}" data-bd-action={{this.select_action_name}} data-bd-arg={{this.currentBoard.key}} {{on "click" (this.ctrlAction "select_board" this.currentBoard)}}>
+            <img class="md-board-collection__item-icon" src={{this.currentBoard.icon_url_with_fallback}} alt="" />
+            <span class="md-board-collection__item-name">{{this.currentBoard.name}}</span>
+            {{#if (board-language-label this.currentBoard)}}
+              <span class="md-board-collection__item-lang">{{board-language-label this.currentBoard}}</span>
+            {{/if}}
+            {{#if this.currentBoard.grid.rows}}
+              <span class="md-board-collection__item-count md-board-collection__item-count--grid" aria-label={{t "%{rows} by %{columns} grid" rows=this.currentBoard.grid.rows columns=this.currentBoard.grid.columns key="board_collection_grid_size"}}>{{this.currentBoard.grid.rows}} x {{this.currentBoard.grid.columns}}</span>
+            {{/if}}
+          </button>
+        </li>
+      </ul>
+    </section>
+  {{/if}}
   {{!-- My Boards (owned + shared, root tiles only) --}}
   <section class="md-board-collection__section">
     <h3 class="md-board-collection__section-label"><span>{{t "My Boards" key="my_boards"}}</span><span class="md-board-collection__grid-size-label">{{t "Grid size" key="grid_size"}}</span></h3>
