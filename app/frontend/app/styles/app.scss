@@ -51054,6 +51054,153 @@ a.md-goal-nav-action:hover,
   border: 1px solid rgba(76, 134, 216, 0.20) !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -3px 5px rgba(76, 134, 216, 0.10), 0 4px 12px rgba(15, 23, 42, 0.14), 0 0 16px rgba(76, 134, 216, 0.16) !important;
 }
+
+/* ── Account page (user/index) action row ─────────────────────────────────
+   SELF-CONTAINED card system for the account/profile action row. Deliberately does
+   NOT reuse the dashboard/home `.md-card` classes, so the account cards and the
+   home-page cards can be restyled independently and never share a selector. The
+   visual language (frosted surface, tinted 64px icon tile, arrow affordance, hover
+   lift) mirrors the dashboard but lives entirely under `.md-acct-*`. */
+.md-acct-actions {
+  display: grid;
+  /* Two EQUAL columns → four cards form a 2×2 block. The grid shrinks to its content
+     (`width: fit-content`), so all four cards take the width of the WIDEST card rather
+     than stretching edge-to-edge; `1fr` inside a fit-content grid resolves the two
+     columns to the same width. `margin-inline: auto` then centers the block on the page. */
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+  margin-top: 6px;
+  /* Breathing room before the boards section below. */
+  margin-bottom: 24px;
+  align-items: stretch;
+  width: fit-content;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  flex: 0 1 auto;
+}
+/* Narrow screens: one card per row. */
+@media (max-width: 640px) {
+  .md-acct-actions { grid-template-columns: 1fr; }
+}
+
+.md-acct-card {
+  box-sizing: border-box;
+  position: relative;           /* positioning context for the right-aligned arrow */
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  min-height: 84px;             /* icon 64 + 10+10 padding → all cards uniform height */
+  /* Extra right padding reserves the arrow's column so title/sub text never runs
+     under it (the arrow is absolutely positioned, so it's out of the content flow).
+     Left padding stays at 14px (icon position unchanged); the extra width comes from
+     the right padding + min-width. */
+  padding: 10px 56px 10px 14px;
+  min-width: 360px;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  color: #16324f;
+  border: 1px solid var(--md-line);
+  border-radius: var(--md-r-lg);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(240, 242, 245, 0.95));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba($la-navy, 0.06),
+    0 1px 2px rgba($la-navy, 0.05),
+    0 4px 10px rgba($la-navy, 0.08),
+    0 12px 28px rgba($la-navy, 0.10);
+  transition: box-shadow 180ms ease-out, transform 140ms ease-out;
+  -webkit-tap-highlight-color: transparent;
+}
+.md-acct-card:hover,
+.md-acct-card:focus-visible {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba($la-navy, 0.07),
+    0 3px 6px rgba($la-navy, 0.08),
+    0 10px 22px rgba($la-navy, 0.13),
+    0 26px 54px rgba($la-navy, 0.18);
+}
+.md-acct-card:focus-visible {
+  outline: 2px solid rgba($brand-dusty-denim, 0.55);
+  outline-offset: 3px;
+}
+.md-acct-card:active { transform: translateY(0.5px); }
+
+/* Icon tile — 64px square, blue by default; verdigris via `--green`. */
+.md-acct-card__icon {
+  flex: 0 0 auto;
+  width: 64px;
+  height: 64px;
+  border-radius: 22px;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(125% 125% at 26% 18%, rgba(255, 255, 255, 0.95), transparent 60%),
+    linear-gradient(140deg, #ffffff 0%, #eef3fc 52%, #dbe7f8 100%);
+  border: 1px solid rgba(76, 134, 216, 0.20);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -3px 5px rgba(76, 134, 216, 0.10), 0 4px 12px rgba(15, 23, 42, 0.14), 0 0 16px rgba(76, 134, 216, 0.16);
+}
+.md-acct-card--green .md-acct-card__icon {
+  background:
+    radial-gradient(125% 125% at 26% 18%, rgba(255, 255, 255, 0.95), transparent 60%),
+    linear-gradient(140deg, #ffffff 0%, #ecf6f2 52%, #d6efe8 100%);
+  border: 1px solid rgba(42, 157, 143, 0.20);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -3px 5px rgba(42, 157, 143, 0.10), 0 4px 12px rgba(15, 23, 42, 0.14), 0 0 16px rgba(42, 157, 143, 0.16);
+}
+.md-acct-card__glyph { display: block; width: 30px; height: 30px; }
+
+.md-acct-card__body { display: flex; flex-direction: column; min-width: 0; }
+.md-acct-card__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.1px;
+  line-height: 1.25;
+  color: #16324f;
+}
+/* Arrow / dropdown caret affordance. */
+.md-acct-card__arrow {
+  /* Pinned to the card's right edge so the arrows line up in a column across all
+     four equal-width cards, regardless of title length. */
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.3em;
+  font-weight: 900;
+  color: $brand-dusty-denim;
+  transition: transform 140ms ease-out;
+}
+.md-acct-card:hover .md-acct-card__arrow,
+.md-acct-card:focus-visible .md-acct-card__arrow { transform: translate(4px, -50%); }
+.md-acct-card__sub {
+  margin: 2px 0 0;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: #3A506E;
+}
+@media (prefers-reduced-motion: reduce) {
+  .md-acct-card,
+  .md-acct-card__arrow { transition: none; }
+  .md-acct-card:hover,
+  .md-acct-card:focus-visible { transform: none; }
+  /* Keep the arrow vertically centered (no horizontal slide) with motion reduced. */
+  .md-acct-card:hover .md-acct-card__arrow,
+  .md-acct-card:focus-visible .md-acct-card__arrow { transform: translateY(-50%); }
+}
+
+/* Extras: the whole card is the dropdown toggle; the `.dropdown-menu` is a sibling
+   inside the `.btn-group` cell (its positioning context). */
+.md-acct-extras { position: relative; display: block; }
+.md-acct-extras > .md-acct-card { width: 100%; }
+.md-acct-extras > .dropdown-menu { top: 100%; margin-top: 6px; }
+
 /* Focused View — DARK glassy/glossy icon tiles on the dark action cards (was the
    light white tiles above). A translucent navy→verdigris glass with a strong
    specular highlight, a frosted backdrop blur, a bright top rim + dark inner lip
