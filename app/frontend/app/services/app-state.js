@@ -694,7 +694,21 @@ export default Service.extend({
     
     modal.close();
     modal.close_board_preview();
-    if(this.get('edit_mode')) {
+    // Navigating away from a board while editing leaves edit mode. But NOT when the
+    // destination is the board-detail edit route itself — edit→edit navigation
+    // (previewing a board from the edit-mode Board Collections drawer, and the
+    // transition into a freshly-made copy after copy-to-edit) is staying in edit
+    // mode, and that route's setupController re-asserts current_mode='edit' anyway
+    // (routes/user/board-detail/edit.js:64). Mirrors the same "skip teardown when
+    // the target is edit" guard the speak_mode observer already uses below.
+    //
+    // This ran on routeWillChange, i.e. BEFORE the destination's model/setupController,
+    // so toggle_edit_mode's permission gate re-checked the board still on screen — the
+    // ORIGINAL, non-owned board — and re-opened 'confirm-needs-copying' on top of the
+    // brand-new copy. That is the "Edit a Copy prompt returns after copying" bug; it
+    // only reproduced from edit mode, since arriving from speak mode has edit_mode false
+    // and never reaches this call at all.
+    if(this.get('edit_mode') && transition.to_route != 'user.board-detail.edit') {
       this.toggle_edit_mode();
     }
 //           $(".hover_button").remove();
@@ -1470,7 +1484,17 @@ export default Service.extend({
     var routeName = this.get('router.currentRouteName') || this.get('current_route') || '';
     var onBoardDetail = routeName.indexOf('board-detail') !== -1;
     this.assert_source().then(function(board) {
-      if(!board.get('permissions.edit')) {
+      // A board reached from a LIST surface (dashboard preview, boards page, My Boards
+      // picker, sidebar) can carry stale/absent permissions — the boards-index omits the
+      // permissions payload — so `permissions.edit` may be false/undefined even on the
+      // user's OWN board, which false-prompts "make a copy" until a manual refresh. Ownership
+      // is authoritative and ALWAYS available client-side: a board's key is `<owner>/<slug>`
+      // and `user_name` is the owner, so if the session user owns it they can always edit it
+      // directly, regardless of the (possibly unloaded) permissions flag.
+      var owner_name = board.get('user_name') || ((board.get('key') || '').split('/')[0]);
+      var session_name = _this.get('sessionUser.user_name');
+      var owns_board = !!(owner_name && session_name && owner_name === session_name);
+      if(!board.get('permissions.edit') && !owns_board) {
         modal.open('confirm-needs-copying', {board: board}).then(function(res) {
           if(res == 'confirm') {
             _this.controller.send('copy_and_edit_board', board, onBoardDetail);
@@ -1485,7 +1509,7 @@ export default Service.extend({
         });
         return;
       }
-      _this.toggle_mode('edit');  
+      _this.toggle_mode('edit');
     }, function() { });
   },
   clear_mode: function() {

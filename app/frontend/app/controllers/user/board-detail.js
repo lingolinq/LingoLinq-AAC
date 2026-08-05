@@ -63,12 +63,9 @@ const SPEAK_MENU_ITEMS = [
   { id: 'print',                section: 'share',     label_key: 'print', default_label: 'Print' },
   { id: 'share',                section: 'share',     label_key: 'share', default_label: 'Share' },
   { id: 'button_levels',        section: 'session',   label_key: 'button_levels', default_label: 'Button Levels' },
-  { id: 'sticky_board',         section: 'session',   label_key: 'stay_on_board', default_label: 'Stay on this Board' },
   { id: 'pause_logging',        section: 'session',   label_key: 'pause_logging', default_label: 'Pause Logging' },
   { id: 'modeling',             section: 'session',   label_key: 'board_detail_model_for_communicator', default_label: 'Model for Communicator' },
-  { id: 'switch_communicators', section: 'session',   label_key: 'switch_communicators', default_label: 'Switch Communicators' },
-  { id: 'translate',            section: 'language',  label_key: 'translate', default_label: 'Translate' },
-  { id: 'switch_language',      section: 'language',  label_key: 'switch_language', default_label: 'Switch Language' }
+  { id: 'switch_communicators', section: 'session',   label_key: 'switch_communicators', default_label: 'Switch Communicators' }
 ];
 
 const SPEAK_MENU_SECTIONS = [
@@ -76,8 +73,7 @@ const SPEAK_MENU_SECTIONS = [
   { id: 'buttons',  label_key: 'buttons', default_label: 'Buttons' },
   { id: 'display',  label_key: 'display', default_label: 'Display' },
   { id: 'share',    label_key: 'share_and_print', default_label: 'Share & Print' },
-  { id: 'session',  label_key: 'session', default_label: 'Session' },
-  { id: 'language', label_key: 'language', default_label: 'Language' }
+  { id: 'session',  label_key: 'session', default_label: 'Session' }
 ];
 
 // Static i18n declarations for SPEAK_MENU_ITEMS / SPEAK_MENU_SECTIONS.
@@ -99,7 +95,6 @@ function _customize_menu_i18n_extractor_no_op() {
   i18n.t('display', "Display");
   i18n.t('share_and_print', "Share & Print");
   i18n.t('session', "Session");
-  i18n.t('language', "Language");
   // Items (SPEAK_MENU_ITEMS)
   i18n.t('my_board_collection', "My Board Collection");
   i18n.t('find_a_button', "Find a Button");
@@ -111,12 +106,9 @@ function _customize_menu_i18n_extractor_no_op() {
   i18n.t('print', "Print");
   i18n.t('share', "Share");
   i18n.t('button_levels', "Button Levels");
-  i18n.t('stay_on_board', "Stay on this Board");
   i18n.t('pause_logging', "Pause Logging");
   i18n.t('board_detail_model_for_communicator', "Model for Communicator");
   i18n.t('switch_communicators', "Switch Communicators");
-  i18n.t('translate', "Translate");
-  i18n.t('switch_language', "Switch Language");
 }
 
 export default Controller.extend(prefClasses, {
@@ -318,6 +310,15 @@ export default Controller.extend(prefClasses, {
      the options menu itself closes so a fresh open lands on the
      normal menu. */
   board_collection_open: false,
+  /* Edit-mode Board Collections drawer (LEFT side). Opened from the edit rail's
+     "Board Collections" item: the rail hides (CSS via md-shell--board-collection-left)
+     and this drawer takes its place, pushing the center board area right. Selecting a
+     board loads it into the center in EDIT mode. */
+  edit_board_collection_open: false,
+  /* The board the edit page was opened with, captured when the Board Collections drawer
+     opens. Rendered in the drawer's "Original Selected Board" section so the user can jump
+     back to where they started while previewing other boards. Cleared when the drawer closes. */
+  edit_collection_original_board: null,
   sidebar_editor_open: false,
   show_paint_dropdown: false,
   show_options_menu: false,
@@ -377,14 +378,26 @@ export default Controller.extend(prefClasses, {
     var card = cell.querySelector('.md-board-detail-symbol-card') || cell;
     var cardRect = card.getBoundingClientRect();
     if(!cardRect || cardRect.width < 1 || cardRect.height < 1) { return; }
-    // Publish the ACTUAL rendered button width so the "Landscape mode
-    // recommended" overlay can trigger on real button size (below ~45px is too
-    // small for reliable AAC targeting), not just the viewport×column heuristics.
-    // This runs debounced inside runLater on every grid resize / layout change,
-    // so it stays live and never mutates state mid-render.
+    // Publish the ACTUAL rendered button width AND height so the "Larger screen recommended"
+    // overlay can trigger on real button size (below 35px in EITHER dimension is too small
+    // for reliable AAC targeting / comfortable editing). This runs debounced inside runLater
+    // on every grid resize / layout change, so it stays live and never mutates state mid-render.
     this.set('board_cell_width', Math.round(cardRect.width));
+    this.set('board_cell_height', Math.round(cardRect.height));
     var grid = document.querySelector('.md-board-detail-grid');
     var gridStyle = grid ? window.getComputedStyle(grid) : null;
+    // Publish the CELL (grid row) height as --bd-cell-h so the folder-tab RESERVE — the cell's
+    // top padding + the folder-back top — can scale with the button size and the space between
+    // rows shrinks on smaller buttons. A CSS container can't size its own padding by its own
+    // height (cqh only works on descendants; padding-% is width-based), so this JS var is the
+    // reliable source. The cell height is the 1fr grid row height (independent of the padding
+    // inside it), so reading it back to drive the padding does NOT feed back.
+    if(grid && cell) {
+      var cellRect = cell.getBoundingClientRect();
+      if(cellRect && cellRect.height >= 1) {
+        grid.style.setProperty('--bd-cell-h', Math.round(cellRect.height) + 'px');
+      }
+    }
     var colGap = gridStyle ? (parseFloat(gridStyle.columnGap) || 0) : 0;
     var rowGap = gridStyle ? (parseFloat(gridStyle.rowGap) || 0) : 0;
     // Make the rail read as another board column: stack its tiles with the board's
@@ -553,6 +566,36 @@ export default Controller.extend(prefClasses, {
         // Defensive fallback: keys SHOULD always be `<user>/<slug>`.
         return _this.router.transitionTo('board', key);
       }
+    };
+    // "Back to Edit Mode" — commits to editing whatever board is currently previewed
+    // in the center. Unpins the drawer, restores the rail, and drops the captured
+    // original board. If the previewed board isn't editable by the current user
+    // (not owned), route through enter_edit_mode so they're prompted to COPY it first
+    // and then edit the copy (same non-owner path as the normal Edit action). Owned
+    // boards are already in edit mode, so closing the drawer is all that's needed.
+    _this.onCloseEditBoardCollection = function() {
+      _this.set('edit_board_collection_open', false);
+      _this.set('edit_collection_original_board', null);
+      if(!_this.get('model.permissions.edit')) {
+        _this.send('enter_edit_mode');
+      }
+    };
+    // Edit-mode board preview/select: loads the chosen board into the center while
+    // STAYING in edit mode (transitions to user.board-detail.edit, not the speak
+    // index route). CRUCIAL: it RETURNS the Transition — exactly like the speak-mode
+    // handler — so BoardCollection clears its "Opening your board" overlay the instant
+    // the board settles. The earlier version omitted the return, so the overlay hung on
+    // its 8s safety timeout, which is what made selection feel slow. The board data is
+    // already cached (same as the speak-mode collection), so the transition settles
+    // fast; the brief async button-rebuild is covered by the grid fade, not a card.
+    _this.onSelectBoardFromCollectionEdit = function(boardOrKey) {
+      if(!boardOrKey || !_this.router) { return; }
+      var key = typeof boardOrKey === 'string' ? boardOrKey : ((boardOrKey.get && boardOrKey.get('key')) || boardOrKey.key);
+      if(!key) { return; }
+      var parts = key.split('/');
+      if(parts.length < 2) { return; }
+      _this.set('show_options_menu', false);
+      return _this.router.transitionTo('user.board-detail.edit', parts[0], parts.slice(1).join('/'));
     };
     this._closeDropdownsHandler = function(e) {
       if(_this.get('details_dropdown_open') && !e.target.closest('.md-board-detail-details-dropdown-wrap')) {
@@ -3150,7 +3193,6 @@ export default Controller.extend(prefClasses, {
     }
   },
 
-
   // Map of pending-prefs key → user.preferences path
   _display_prefs_paths: {
     button_spacing:       'preferences.device.button_spacing',
@@ -3231,7 +3273,22 @@ export default Controller.extend(prefClasses, {
   // the entire section header collapses too so the menu doesn't show
   // an empty group. Each computed depends on speak_menu_hidden_set so
   // it re-evaluates whenever the user toggles any row.
-  speak_section_visible_board: computed('speak_menu_hidden_set', function() {
+  // A "communicator-only" account: a plain communicator (preferences.role != 'supporter')
+  // with no supervisor actively modeling. Supervisor-oriented / advanced menu entries
+  // (Session, Take a Tour, My Board Collection) hide when this is true, so the whole
+  // options menu behaves consistently. Mirrors the original Session gate.
+  is_communicator_only_account: computed('app_state.currentUser.supporter_role', 'app_state.modeling', function() {
+    return !this.get('app_state.currentUser.supporter_role') && !this.get('app_state.modeling');
+  }),
+  // Dense-board sidebar: boards wider than 10 columns get a 25%-narrower inline
+  // sidebar (100px → 75px, via the .md-shell--many-columns class + app.scss) so the
+  // grid reclaims the room. Uses the displayed grid (current_grid) with the board's
+  // saved grid as a fallback.
+  board_many_columns: computed('current_grid.columns', 'model.grid.columns', function() {
+    return (this.get('current_grid.columns') || this.get('model.grid.columns') || 0) > 10;
+  }),
+  speak_section_visible_board: computed('speak_menu_hidden_set', 'is_communicator_only_account', function() {
+    if(this.get('is_communicator_only_account')) { return false; }
     var s = this.get('speak_menu_hidden_set') || {};
     return !s.board_collection;
   }),
@@ -3247,23 +3304,16 @@ export default Controller.extend(prefClasses, {
     var s = this.get('speak_menu_hidden_set') || {};
     return !s.copy || !s.download || !s.print || !s.share;
   }),
-  speak_section_visible_session: computed('speak_menu_hidden_set', 'app_state.currentUser.supporter_role', 'app_state.modeling', function() {
-    // Session holds supervisor-oriented tools (button levels, sticky board, pause
-    // logging, modeling, switch communicators). Hide the whole section on a plain
-    // COMMUNICATOR account (preferences.role != 'supporter'); show it for supporter
-    // / other roles, AND keep it visible on the communicator's own account while a
-    // supervisor is actively modeling for them (app_state.modeling).
-    var is_supporter = !!this.get('app_state.currentUser.supporter_role');
-    var modeling = !!this.get('app_state.modeling');
-    if(!is_supporter && !modeling) { return false; }
+  speak_section_visible_session: computed('speak_menu_hidden_set', 'is_communicator_only_account', function() {
+    // Session holds supervisor-oriented tools (button levels, pause logging, modeling,
+    // switch communicators). Hidden on a communicator-only account (see
+    // is_communicator_only_account) — shown for supporters and while a supervisor is
+    // actively modeling for a communicator. ("Stay on this Board" was removed from
+    // this menu, so it's no longer part of the visibility check.)
+    if(this.get('is_communicator_only_account')) { return false; }
     var s = this.get('speak_menu_hidden_set') || {};
-    return !s.button_levels || !s.sticky_board || !s.pause_logging || !s.modeling || !s.switch_communicators;
+    return !s.button_levels || !s.pause_logging || !s.modeling || !s.switch_communicators;
   }),
-  speak_section_visible_language: computed('speak_menu_hidden_set', function() {
-    var s = this.get('speak_menu_hidden_set') || {};
-    return !s.translate || !s.switch_language;
-  }),
-
   board_translate_in_progress: computed('app_state.board_translate_in_progress', function() {
     return !!this.get('app_state.board_translate_in_progress');
   }),
@@ -3456,27 +3506,39 @@ export default Controller.extend(prefClasses, {
   //   • >6 columns → gate at ≤460px
   //   • >4 columns → gate at ≤375px
   portrait_overlay_dismissed: false,
+  // Sticky for the whole session: set once the user chooses "Continue Anyway"
+  // so the rotate-to-landscape prompt is never shown again this session, even
+  // when they navigate to other boards. Only a full app reload clears it.
+  portrait_overlay_session_dismissed: false,
   quick_actions_open: false,
   // Live-measured rendered button width, published by _sync_prediction_tile_size.
   board_cell_width: 0,
+  board_cell_height: 0,
 
-  portrait_overlay_eligible: computed('app_state.feature_flags.portrait_orientation_overlay', 'viewport_narrow', 'viewport_very_narrow', 'viewport_ultra_narrow', 'current_grid.columns', 'board_cell_width', function() {
+  portrait_overlay_eligible: computed('app_state.feature_flags.portrait_orientation_overlay', 'board_cell_width', 'board_cell_height', function() {
     if(!this.get('app_state.feature_flags.portrait_orientation_overlay')) { return false; }
-    // Direct signal: if the buttons actually render below the 45px minimum for
-    // reliable AAC targeting, recommend landscape regardless of the column/
-    // viewport heuristics below (which are only a proxy for "buttons too small").
+    // Recommend a larger screen once the buttons actually render below 35px in EITHER
+    // dimension (width OR height) — too small to view or edit comfortably. board_cell_width /
+    // board_cell_height are the live-measured card size (set by the debounced grid-resize
+    // observer above), so this tracks the REAL rendered button size in BOTH speak and edit
+    // mode, independent of orientation: a large screen keeps buttons big, so it never
+    // false-fires there, and there's no rotate advice anymore to guard against.
     var cell_w = this.get('board_cell_width') || 0;
-    if(cell_w > 0 && cell_w < 45) { return true; }
-    var cols = this.get('current_grid.columns') || 0;
-    if(this.get('viewport_narrow') && cols > 8) { return true; }
-    if(this.get('viewport_very_narrow') && cols > 6) { return true; }
-    if(this.get('viewport_ultra_narrow') && cols > 4) { return true; }
-    return false;
+    var cell_h = this.get('board_cell_height') || 0;
+    return (cell_w > 0 && cell_w < 35) || (cell_h > 0 && cell_h < 35);
   }),
 
   // The actual "show the card now" gate — eligible AND the user hasn't
-  // chosen Continue Anyway for this board this session.
-  portrait_overlay_active: computed('portrait_overlay_eligible', 'portrait_overlay_dismissed', function() {
+  // dismissed it. The first dismissal is scoped to the current board; once
+  // they pick "Continue Anyway", `portrait_overlay_session_dismissed` keeps
+  // `portrait_overlay_dismissed` latched across board changes for the session.
+  portrait_overlay_active: computed('portrait_overlay_eligible', 'portrait_overlay_dismissed', 'board_collection_open', 'edit_board_collection_open', function() {
+    // Either Board Collections drawer (speak-mode right / edit-mode left) intentionally
+    // shrinks the center board area (layout padding), which drops the live-measured
+    // board_cell_width below the 35px signal and FALSE-triggers the larger-screen
+    // recommendation on a wide viewport. Suppress the overlay while a collection drawer is
+    // open — the screen itself isn't small, so the recommendation doesn't apply.
+    if(this.get('board_collection_open') || this.get('edit_board_collection_open')) { return false; }
     return this.get('portrait_overlay_eligible') && !this.get('portrait_overlay_dismissed');
   }),
 
@@ -3491,10 +3553,14 @@ export default Controller.extend(prefClasses, {
     return !!this.get('viewport_narrow') && !this.get('edit_mode');
   }),
 
-  // Continue Anyway is scoped to "this board, this session" — reset the
-  // dismissal (and close any open popover) whenever the board changes.
+  // On a board change, re-arm the per-board dismissal — UNLESS the user has
+  // chosen "Continue Anyway" this session, in which case the prompt stays
+  // suppressed for the rest of the session. The quick-actions popover always
+  // closes on a board change regardless.
   _reset_portrait_overlay_on_board_change: observer('model.id', function() {
-    this.set('portrait_overlay_dismissed', false);
+    if(!this.get('portrait_overlay_session_dismissed')) {
+      this.set('portrait_overlay_dismissed', false);
+    }
     this.set('quick_actions_open', false);
   }),
 
@@ -5227,10 +5293,18 @@ export default Controller.extend(prefClasses, {
       };
       ready.then(function(res) {
         if(res && res.correct_pin) {
-          // Owner path: direct edit. Clear any stale copy_on_save flag
-          // defensively so a previous non-owner edit attempt's leftover
-          // flag can't trigger the copy flow on this owner's save.
-          if(_this.get('model.permissions.edit')) {
+          // Owner path: direct edit. Ownership is authoritative and ALWAYS available client-
+          // side (a board's key is `<owner>/<slug>` and `user_name` is the owner), unlike
+          // `model.permissions.edit`, which the boards-index list load OMITS — so a board
+          // reached from My Boards / dashboard / sidebar can false-prompt a copy on the
+          // user's OWN board until a manual refresh (which reloads via the single-board
+          // endpoint that DOES include permissions). If the session user owns it, edit
+          // directly. Also clears any stale copy_on_save flag so a previous non-owner edit
+          // attempt's leftover flag can't trigger the copy flow on this owner's save.
+          var owner_name = _this.get('model.user_name') || ((_this.get('model.key') || '').split('/')[0]);
+          var session_name = _this.get('app_state.sessionUser.user_name');
+          var owns_board = !!(owner_name && session_name && owner_name === session_name);
+          if(_this.get('model.permissions.edit') || owns_board) {
             _this.get('stashes').persist('copy_on_save', null);
             enterEditNow();
             return;
@@ -6291,6 +6365,34 @@ export default Controller.extend(prefClasses, {
       this.set('board_collection_open', false);
     },
 
+    /* Edit-mode Board Collections drawer. Opens the inline BoardCollection panel
+       pinned to the LEFT edge; the shell class md-shell--board-collection-left hides
+       the edit rail (the drawer takes its place) and pushes the center board area
+       right. Selecting a board previews it in edit mode via onSelectBoardFromCollectionEdit
+       (which returns the Transition so the overlay clears the moment the board settles). */
+    open_edit_board_collection: function() {
+      // Capture the board we're currently editing as the "original" — fixed while the
+      // drawer is pinned, even as the user previews other boards.
+      this.set('edit_collection_original_board', this.get('model'));
+      this.set('edit_board_collection_open', true);
+    },
+    /* "Back to Edit Mode" — the drawer's back button. Reached via raw_events chrome
+       clicks (data-bd-action, resolved by BoardCollection.back_action_name), which is
+       the ONLY path that fires for clicks inside .md-board-collection. Delegates to
+       onCloseEditBoardCollection so the commit-to-editing logic (owned → edit directly;
+       not owned → copy-to-edit prompt) lives in exactly one place. This used to only
+       clear the two flags and had no callers at all, so Back never committed. */
+    close_edit_board_collection: function() {
+      return this.onCloseEditBoardCollection();
+    },
+
+    /* Edit-drawer board preview. Same delegation shape as select_board_from_collection
+       below: the transition lives in onSelectBoardFromCollectionEdit and is RETURNED so
+       BoardCollection can clear its "Opening your board" overlay when the board settles. */
+    select_board_from_collection_edit: function(boardOrKey) {
+      return this.onSelectBoardFromCollectionEdit(boardOrKey);
+    },
+
     /* Edit Sidebar — opens the inline sidebar-editor drawer (same pinned host as
        My Board Collection). Triggered by the "Edit Sidebar" button at the top of
        the inline sidebar. */
@@ -6835,29 +6937,15 @@ export default Controller.extend(prefClasses, {
       this._speak_current_sentence();
     },
 
-    // ── Portrait orientation overlay actions ──
-    // "Rotate Device" CTA. Web can't force rotation, so this is a
-    // best-effort orientation lock (supported on some mobile/Cordova
-    // builds) wrapped in try/catch; either way the overlay auto-retires
-    // the moment the viewport actually becomes landscape (the matchMedia
-    // listener flips `viewport_narrow`), so the button never hard-blocks.
-    request_landscape: function() {
-      try {
-        var orientation = (typeof window !== 'undefined' && window.screen && window.screen.orientation) || null;
-        if(orientation && typeof orientation.lock === 'function') {
-          var p = orientation.lock('landscape');
-          if(p && typeof p.catch === 'function') { p.catch(function() { /* unsupported — no-op */ }); }
-        }
-      } catch(e) { /* unsupported — the card stays up until the user rotates */ }
-    },
-
-    // "Continue Anyway" — secondary, accessibility-critical escape hatch
-    // for mounted/one-handed/non-rotatable setups. Dismisses for this
-    // board this session (reset by _reset_portrait_overlay_on_board_change).
-    // The board then renders at its natural scale; CSS grid preserves
-    // rows/columns/spacing and never reflows.
+    // ── Portrait orientation overlay action ──
+    // "Continue Anyway" — the overlay's only action: an accessibility-critical
+    // escape hatch for mounted/one-handed/non-rotatable setups. Dismisses the
+    // prompt and latches `portrait_overlay_session_dismissed` so it won't
+    // re-appear on later board changes this session. The board then renders at
+    // its natural scale; CSS grid preserves rows/columns/spacing and never reflows.
     dismiss_portrait_overlay: function() {
       this.set('portrait_overlay_dismissed', true);
+      this.set('portrait_overlay_session_dismissed', true);
     },
 
     // Down-arrow chevron in the immersive sentence bar toggles the
@@ -6948,6 +7036,19 @@ export default Controller.extend(prefClasses, {
       if(this.get('left_panel_collapsed')) {
         this.set('left_panel_collapsed', false);
       }
+    },
+
+    // Collapsed left-panel SEARCH magnifier: expand the panel and drop the cursor into the
+    // search field. When collapsed the input is hidden, so we expand first, then focus after a
+    // beat (runLater) once the input has un-hidden. Focusing when already expanded is a no-op on
+    // an already-focused input, so it's safe to run in both states.
+    open_board_search_panel: function() {
+      var was_collapsed = this.get('left_panel_collapsed');
+      if(was_collapsed) { this.set('left_panel_collapsed', false); }
+      runLater(function() {
+        var input = document.getElementById('board-edit-panel-search');
+        if(input && typeof input.focus === 'function') { input.focus(); }
+      }, was_collapsed ? 80 : 0);
     },
 
     /* Right panel: open one accordion section at a time (clicking

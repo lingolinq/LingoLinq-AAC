@@ -1,5 +1,6 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
+import { getOwner } from '@ember/application';
 import RSVP from 'rsvp';
 import modal from '../utils/modal';
 import editManager from '../utils/edit_manager';
@@ -12,6 +13,7 @@ import loadHierarchyForCopyModal from '../utils/copy_hierarchy_loader';
 export default Component.extend({
   modal: service('modal'),
   appState: service('app-state'),
+  router: service('router'),
   tagName: '',
 
   // Collapsed by default — the board picker is an opt-in disclosure (all boards
@@ -171,8 +173,16 @@ export default Component.extend({
             });
           });
         }
-        // Do not block closing the copying modal on reload — a stuck reload() left the UI
-        // on "Loading..." / copying forever even after button-set progress finished.
+        // For an edit-oriented copy, AWAIT the reload so the copy's freshly-granted
+        // permissions.edit is loaded BEFORE we transition into the edit route (and
+        // before the caller's finish_copy runs) — otherwise the edit-permission check
+        // (board-detail.js#5222) sees a stale copy and re-prompts "Edit a Copy" on the
+        // brand-new copy. Copying requires an online connection (guarded upstream), so
+        // this reload resolves rather than hanging. Non-editing copies keep the original
+        // fire-and-forget reload — there a stalled reload must not block the modal close.
+        if (model.for_editing) {
+          return copiedBoard.reload(true).then(function() { return null; }, function() { return null; });
+        }
         copiedBoard.reload(true).then(null, function() {});
         return RSVP.resolve(null);
       });
@@ -183,10 +193,34 @@ export default Component.extend({
           (modalSvc && typeof modalSvc.isOpen === 'function' && modalSvc.isOpen('copying-board'));
         if (copyingOpen || translatedResult) {
           copiedBoard.set('should_reload', true);
-          appState.jump_to_board({
-            id: copiedBoard.get('id'),
-            key: copiedBoard.get('key')
-          });
+          var copyKey = copiedBoard.get('key') || '';
+          var editParts = copyKey.split('/');
+          if (model.for_editing) {
+            // Edit-oriented copy (copy-to-edit, incl. a board previewed via the edit-mode
+            // Board Collections drawer): land in EDIT mode of the new copy — NOT the
+            // default speak-mode jump (jump_to_board / transitionToBoardForCurrentUiStyle
+            // only ever route to speak). The caller's copy_finished callback already
+            // performs the transition into the copy's edit route AFTER this modal closes;
+            // doing our own transition too caused a double-transition that re-triggered the
+            // edit-permission check ("Edit a Copy" again). So: defer to copy_finished when
+            // present, and only transition ourselves as a fallback. Either way close the
+            // collection drawer if it was the origin (no-op otherwise).
+            try {
+              var bdCtrl = getOwner(_this).lookup('controller:user/board-detail');
+              if (bdCtrl) {
+                bdCtrl.set('edit_board_collection_open', false);
+                bdCtrl.set('edit_collection_original_board', null);
+              }
+            } catch (e) { /* controller not resolvable — non-fatal */ }
+            if (!model.copy_finished && editParts.length >= 2) {
+              _this.get('router').transitionTo('user.board-detail.edit', editParts[0], editParts.slice(1).join('/'));
+            }
+          } else {
+            appState.jump_to_board({
+              id: copiedBoard.get('id'),
+              key: copyKey
+            });
+          }
           modal.close({ copied: true, id: copiedBoard.get('id'), key: copiedBoard.get('key') });
           if (modalSvc && typeof modalSvc.isOpen === 'function' && modalSvc.isOpen('copying-board')) {
             modalSvc.close({ copied: true, id: copiedBoard.get('id'), key: copiedBoard.get('key') });

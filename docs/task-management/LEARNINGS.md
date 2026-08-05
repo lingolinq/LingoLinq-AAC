@@ -156,6 +156,8 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Pattern: board-detail Speak bar must play attached button sounds, not TTS-only](#pattern-board-detail-speak-bar-must-play-attached-button-sounds-not-tts-only)
 - [Pattern: per-user UI prefs must be read from `currentUser`, not the board-detail route's URL user](#pattern-per-user-ui-prefs-must-be-read-from-currentuser-not-the-board-detail-routes-url-user)
 - [Pattern: `.md-board-collection__*` is a light-base panel reusable on any page; dark theme is ancestor-scoped](#pattern-md-board-collection-is-a-light-base-panel-reusable-on-any-page-dark-theme-is-ancestor-scoped)
+- [Pattern: inside `.md-board-collection`, `data-bd-action` is the REAL handler — `@onSelect`/`@onBack` are decoration](#pattern-inside-md-board-collection-data-bd-action-is-the-real-handler--onselectonback-are-decoration)
+- [Pattern: `global_transition` runs `toggle_edit_mode()` on routeWillChange — an edit→edit transition re-opens the copy prompt](#pattern-global_transition-runs-toggle_edit_mode-on-routewillchange--an-editedit-transition-re-opens-the-copy-prompt)
 - [Pattern: a new user preference is a 3-touch change — whitelist + default + dirty-bit save](#pattern-a-new-user-preference-is-a-3-touch-change--whitelist--default--dirty-bit-save)
 - [Pattern: "order-dependent" spec failures on global counts are often orphaned committed rows in the test DB](#pattern-order-dependent-spec-failures-on-global-counts-are-often-orphaned-committed-rows-in-the-test-db)
 - [Gotcha: ember-data 5.3 relationship/store arrays are NOT EmberArrays — `firstObject` on a hasMany is silent undefined](#gotcha-ember-data-53-relationshipstore-arrays-are-not-emberarrays--firstobject-on-a-hasmany-is-silent-undefined)
@@ -1051,6 +1053,128 @@ board history and breaking the back button. Fix was symmetric: skip the
 against the edit route's cache invalidation — verify freshly-saved edits appear.
 
 **First seen in:** [2026-07-18-actions-toggle-dead-after-edit.md](./2026-07-18-actions-toggle-dead-after-edit.md)
+
+---
+
+## Pattern: inside `.md-board-collection`, `data-bd-action` is the REAL handler — `@onSelect`/`@onBack` are decoration
+
+**Surface:** any reuse of the `BoardCollection` panel on board-detail in a new
+context (the edit-mode "Board Collections" left drawer was the first). Applies
+to every board-detail chrome element that carries `data-bd-action`.
+
+**Symptom:** you pass `@onSelect` / `@onBack` closures to the component, they
+look wired, and the component's own `select_board` / `back` actions do call
+them — but clicking runs the OTHER context's behavior instead. In the edit
+drawer this read as two separate bugs: picking a board rendered it in SPEAK
+mode (`md-board-detail-grid board speak`), and the back button never committed
+to the previewed board.
+
+**Root cause:** clicks inside `.md-board-collection` on board-detail are never
+deferred to Ember — `raw_events` explicitly bails out of
+`defer_board_detail_chrome_click_to_ember` for that selector
+(`raw_events.js:2719`) and routes the release to `boardDetailChromeRelease`
+(`raw_events.js:1591-1595`). That resolves the action by walking the DOM for
+`data-bd-action` / `data-bd-arg` **first** (`raw_events.js:101-109`), before any
+class-based map, and sends it to `editManager.controller`. So the hardcoded
+attribute in the template wins over the component argument, every time.
+
+**Rule: when a shared board-detail component gains a second context, the
+`data-bd-action` values must become context-aware too — otherwise the new
+context silently dispatches the old context's controller actions.** Resolve the
+names ONCE on the component (a `computed('editContext')` returning the action
+name) and bind the attribute to it, so the attribute path and the `{{on}}` path
+can't drift. Then add the controller action for the new context and have it
+DELEGATE to the same handler the component argument points at — one behavior,
+one definition.
+
+**Corroborating smell to look for:** an action defined on the controller with
+zero references anywhere in the app (here, `close_edit_board_collection`) while
+the surface it belongs to "doesn't work". Nothing was ever wired to it, because
+the template was still emitting the other context's action name.
+
+**Generalization:** on board-detail, `data-bd-action` is not a fallback for
+dwell/eye-gaze — for co-located classic components it is the ONLY path. Grep
+`data-bd-action` in a template before assuming an `{{on "click"}}` handler is
+what actually runs.
+
+**Corollary — a control with NO `data-bd-action` inside such a panel is dead
+unless the branch re-dispatches a pass-through click.** `data-bd-action` routes
+to `editManager.controller`, i.e. board-detail CONTROLLER actions. Controls whose
+handler is COMPONENT-local (BoardCollection's "Show N more boards" →
+`toggle_my_boards_expanded`, the search `×` → `clear_search`) legitimately carry
+no attribute, so `boardDetailChromeRelease` resolves nothing — and the
+`event.preventDefault()` that precedes it swallows their click. They looked
+completely inert: no menu, no error, nothing. The sibling `.board-detail-view`
+branch already had the remedy; the `.md-board-collection` branch was missing it:
+
+```js
+if(!boardDetailChromeRelease(elem_wrap)) {
+  dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
+}
+```
+
+**Rule: any raw_events branch that calls `preventDefault()` before attempting a
+chrome dispatch MUST fall back to `dispatchPassThroughClick` when nothing
+resolves** — otherwise it silently eats every control the chrome map does not
+know about. It cannot double-fire, since the fallback is only reached when no
+action was resolved. Symptom to recognize: within one panel, some controls work
+and others are completely inert — split them by presence of `data-bd-action`.
+
+**Side note:** this also confirms Ember's `{{on "click"}}` genuinely does NOT
+fire inside `.md-board-collection` (otherwise "Show more" would have worked all
+along), so raw_events is the sole dispatcher there and its actions do NOT need
+to be idempotent for that reason.
+
+**First seen in:** [2026-08-03-edit-collections-drawer-dispatch-bug.md](./2026-08-03-edit-collections-drawer-dispatch-bug.md)
+
+---
+
+## Pattern: `global_transition` runs `toggle_edit_mode()` on routeWillChange — an edit→edit transition re-opens the copy prompt
+
+**Surface:** any flow that transitions from one board to another while
+`app_state.edit_mode` is true — the edit-mode Board Collections drawer preview,
+and the post-copy hop into a freshly-made copy from copy-to-edit.
+
+**Symptom:** copy-to-edit completes, lands correctly in edit mode of the new
+copy, and *then* "Edit this Board / You don't have permission to edit this board
+directly… Edit a Copy" (`confirm-needs-copying`) re-opens on top of it. Looks
+like the copy failed or the permissions did not refresh; neither is true.
+
+**Root cause:** `app-state.js#global_transition` ends with a bare
+
+```js
+if(this.get('edit_mode')) { this.toggle_edit_mode(); }
+```
+
+whose *intent* is "navigating away from a board while editing leaves edit mode."
+But `toggle_edit_mode` is the INTERACTIVE entry point — before it changes any
+mode it runs `assert_source()` and, when `!board.permissions.edit`, opens
+`confirm-needs-copying` (`app-state.js:1471-1478`). And `global_transition` is
+wired to **`routeWillChange`** (`routes/application.js:110`), so it fires BEFORE
+the destination's `model`/`setupController`: the board it inspects is the one
+still on screen — the ORIGINAL non-owned board — not the copy being navigated
+to. Awaiting `copiedBoard.reload(true)` cannot help, because the copy is never
+the board being checked.
+
+**Why it hides:** arriving from SPEAK mode, `edit_mode` is false at
+`routeWillChange`, so the call is never reached — the whole copy-to-edit flow is
+clean from speak mode and broken only from edit mode. Chasing the copy's
+freshness (reload, permissions, double-transition) is therefore a dead end; the
+distinguishing variable is the mode you STARTED in.
+
+**Fix:** skip the teardown when the destination is the edit route itself —
+`transition.to_route != 'user.board-detail.edit'` — since edit→edit navigation is
+staying in edit mode and `routes/user/board-detail/edit.js:64` re-asserts
+`current_mode='edit'` regardless. This mirrors the guard the `speak_mode`
+observer already uses for the same reason (`app-state.js:2865-2866`).
+
+**Rule: a lifecycle/cleanup hook must never call an INTERACTIVE entry point.**
+`toggle_edit_mode`, `toggleEditMode`, and friends open modals and can start a
+copy; hooks that just want to drop a mode should change the mode directly, or be
+gated so they cannot fire on a transition that is staying in that mode. Grep for
+bare calls to interactive actions inside observers and transition hooks.
+
+**First seen in:** [2026-08-03-edit-collections-drawer-dispatch-bug.md](./2026-08-03-edit-collections-drawer-dispatch-bug.md)
 
 ---
 
@@ -8139,6 +8263,15 @@ the 2026-07-22 persistence-sync epoch-fencing entry.
 
 `editManager.change_button` sync observers that watch only an object reference (`observer('model.book', …)`) do **not** refire when `set-field` mutates nested properties on that object. The video path already documents and implements this (`button-settings.js` `videoChanged` observes `model.video` + `model.video.popup|start|end`). Restoring TarHeel book checkboxes with `set-field` alone is incomplete unless `bookChanged` also observes `model.book.popup` / `.speech` / `.utterance` (or each control calls `change_button`). Separately: TarHeel init defaults are asymmetric — `speech: false`, `utterance: true` (`utils/button.js:163-175`) — so register impact text must not say both default falsy. Ref: [`2026-08-02-ember-register-book-options-codex-fixes.md`](./2026-08-02-ember-register-book-options-codex-fixes.md).
 
+## Gotcha: list-endpoint board records omit `permissions` → false "make a copy" prompt on your OWN board
+
+`Board.permissions` is `attr('raw')` (`models/board.js:900`), populated ONLY when the API response passes `:permissions => @api_user` (`lib/json_api/board.rb:120-122`). The **boards-index** endpoint (dashboard preview, boards page, My Boards picker, sidebar) does **not** pass it, so records loaded via those list surfaces have `permissions === undefined` (same gap the `starred_for_current_user` computed at `models/board.js:934` documents/works around for `starred`). The board-detail route serves the cached list-record via its cache-hit fast path (`routes/user/board-detail.js:116`) without reloading. Then any edit-entry gate that checks `!board.get('permissions.edit')` can't distinguish **"unknown"** (permissions absent) from **"can't edit"** (permissions present, edit=false), so it opens `confirm-needs-copying` on a board the user OWNS. A manual refresh fixes it only because full navigation reloads via the single-board endpoint (which includes permissions).
+
+**Two edit-entry gates had this bug — both fixed:** `app-state.js#toggle_edit_mode` (app-wide toggle) and `board-detail.js#enter_edit_mode` (options-menu "Edit Board", `board-detail.hbs:896`).
+
+**First attempt (reverted — didn't work):** reload the board when `permissions` was *entirely absent* (`!board.get('permissions')`). Failed because the cached list record can carry `permissions` **present but stale `edit:false`** (not undefined), so the `!permissions` guard never fired — AND a `reload()` may be served from the offline/persistence cache, so it isn't a reliable way to refresh permissions anyway.
+
+**Working fix — ownership check (no reload, cache-proof):** ownership is authoritative and ALWAYS available client-side — a board's `key` is `<owner>/<slug>` and `user_name` is the owner. Compute `owner_name = board.user_name || board.key.split('/')[0]`; if it equals `sessionUser.user_name`, the user can always edit directly, so OR it into the gate: prompt-to-copy only when `!permissions.edit && !owns_board`. Owning a board always implies edit rights (server enforces on save anyway), and non-owned-but-editable cases (supervisor/shared) still fall back to `permissions.edit`. The server `show` endpoint DOES send permissions (`boards_controller.rb:390 :permissions => @api_user`) — the gap is purely that LIST endpoints omit it and the board-detail route serves the cached list record. Ref: [`2026-08-04-ui-test-checklist.md`](./2026-08-04-ui-test-checklist.md).
 ## Gotcha: embed-frame `data-user_token` is UserIntegration#user_token, not User#user_token
 
 Two different credentials share the name `user_token`. `User#user_token` is a permanent HMAC of `global_id` (login-serialized via `lib/json_api/user.rb`). Embed-frame's `data-user_token` is **not** that: `board.js` reads `tool.get('user_token')` from the integration serializer, which mints `UserIntegration#user_token` (integration-scoped, obfuscated user id + integration id + sig). When scoping permanent-token findings (e.g. LL-90045bb29c residual), do not fold embed-frame into `User#user_token` blast radius without verifying the mint site. Ref: [`2026-08-03-ll-90045bb29c-narrow-close.md`](./2026-08-03-ll-90045bb29c-narrow-close.md).
