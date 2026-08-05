@@ -397,6 +397,22 @@ jobs:
             --repository "${{ github.repository }}" \
             --run-url "${RUN_URL}" \
             --heartbeat
+          # Surface the models actually used so the envelope can record which
+          # approved reviewer produced the verdict. These come from constants in
+          # the script (not from any repo variable), but are still restricted to
+          # a model-id charset before reaching GITHUB_ENV: a value carrying a
+          # newline could otherwise define arbitrary further environment
+          # variables, and this write should not be the weak link if the source
+          # ever changes.
+          sanitize_model_id() {
+            printf '%s' "$1" | tr -cd 'A-Za-z0-9._-' | cut -c1-64
+          }
+          chunk_model="$(jq -r '.chunk_model // ""' /tmp/codex-review-results/run-summary.json)"
+          synthesis_model="$(jq -r '.synthesis_model // ""' /tmp/codex-review-results/run-summary.json)"
+          {
+            echo "CODEX_CHUNK_MODEL_EFFECTIVE=$(sanitize_model_id "$chunk_model")"
+            echo "CODEX_SYNTHESIS_MODEL_EFFECTIVE=$(sanitize_model_id "$synthesis_model")"
+          } >> "$GITHUB_ENV"
 
       - name: Run reviewer (Claude Sonnet 4.6 API, Tier 2 claude-deep route)
         id: review_claude_deep
