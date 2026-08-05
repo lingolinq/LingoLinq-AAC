@@ -304,8 +304,9 @@ jobs:
       # still REFERENCES them. Revision lingolinq-web-00014 (2026-08-04) dropped exactly
       # BEDROCK_AWS_KEY and BEDROCK_AWS_SECRET while every secret container stayed healthy, and
       # the Tier 1 runtime AI path failed closed for ~54 minutes with nothing reporting it.
-      # This asserts the linkage on the revision actually serving traffic, so a deploy that
-      # loses a secret fails the run instead of shipping a silently degraded revision.
+      # This asserts the linkage on every revision actually serving traffic (all nonzero
+      # percent targets under a canary/rollback split), so a deploy that loses a secret
+      # fails the run instead of shipping a silently degraded revision.
       # NOTE: this guards CI deploys only. A human running `gcloud run deploy` bypasses this
       # workflow entirely, which is how 00014 happened; see the script header.
       - name: Assert deployed secrets landed

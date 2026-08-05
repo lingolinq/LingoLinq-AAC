@@ -20,10 +20,12 @@
 #
 # WHAT IT CHECKS
 # --------------
-# For each named service/worker-pool, resolves the revision that is actually serving
-# (not merely the latest created) and asserts every required env var is present AND is
-# backed by a `secretKeyRef`. A var that is present but downgraded to a literal value is
-# treated as a failure: it means the secret linkage was replaced by something else.
+# For each named service/worker-pool, resolves every revision that is actually serving
+# traffic (not merely the latest created) and asserts every required env var is present
+# AND is backed by a `secretKeyRef`. A var that is present but downgraded to a literal
+# value is treated as a failure: it means the secret linkage was replaced by something
+# else. Under a canary/rollback split, every nonzero-percent target is checked so a
+# minority revision cannot hide a dropped secret.
 #
 # SCOPE AND LIMITS — read before trusting this
 # --------------------------------------------
@@ -66,23 +68,30 @@ done
 [ -n "$SERVICE$WORKER_POOL" ] || {
   echo "assert-runtime-secrets: at least one of --service / --worker-pool is required" >&2; exit 2; }
 
-# Resolve the revision actually receiving traffic. `latestReadyRevisionName` is NOT
-# sufficient on its own: traffic can be pinned to an older revision, in which case the
-# revision serving users is not the newest one. Prefer an explicit traffic assignment
-# with a non-zero percent and fall back to latestReady only when no explicit split exists.
-serving_revision() {
+# Resolve every revision actually receiving traffic. `latestReadyRevisionName` alone is
+# not enough: traffic can be pinned to an older revision, or split across several
+# (canary / rollback). Emit one revision name per line for every status.traffic entry
+# with percent > 0; fall back to latestReady only when no nonzero targets exist.
+serving_revisions() {
   gcloud run services describe "$1" --project="$PROJECT" --region="$REGION" --format=json 2>/dev/null \
   | python3 -c '
 import json, sys
 d = json.load(sys.stdin)
 st = d.get("status", {}) or {}
-best, best_pct = None, 0
+latest = st.get("latestReadyRevisionName") or ""
+revs, seen = [], set()
 for t in st.get("traffic", []) or []:
     pct = t.get("percent") or 0
-    rev = t.get("revisionName")
-    if rev and pct > best_pct:
-        best, best_pct = rev, pct
-print(best or st.get("latestReadyRevisionName", "") or "")
+    if pct <= 0:
+        continue
+    rev = t.get("revisionName") or (latest if t.get("latestRevision") else "")
+    if rev and rev not in seen:
+        seen.add(rev)
+        revs.append(rev)
+if not revs and latest:
+    revs.append(latest)
+for r in revs:
+    print(r)
 '
 }
 
@@ -124,23 +133,11 @@ mapfile -t REQUIRED_NAMES < <(printf '%s' "$REQUIRED" | tr ',' '\n' | sed 's/=.*
 
 failed=0
 
-check_target() {
-  local kind="$1" name="$2" json rev
-  if [ "$kind" = service ]; then
-    rev="$(serving_revision "$name")"
-    if [ -z "$rev" ]; then
-      echo "FAIL [$name] could not resolve a serving revision" >&2
-      failed=1; return
-    fi
-    echo "== $name (serving revision: $rev)"
-    json="$(gcloud run revisions describe "$rev" --project="$PROJECT" --region="$REGION" --format=json 2>/dev/null)"
-  else
-    echo "== $name (worker pool)"
-    json="$(gcloud beta run worker-pools describe "$name" --project="$PROJECT" --region="$REGION" --format=json 2>/dev/null)"
-  fi
-
+# Assert required env vars on one already-fetched revision/worker-pool JSON document.
+assert_env_json() {
+  local label="$1" json="$2"
   if [ -z "$json" ]; then
-    echo "FAIL [$name] could not read live configuration" >&2
+    echo "FAIL [$label] could not read live configuration" >&2
     failed=1; return
   fi
 
@@ -159,15 +156,36 @@ check_target() {
   done
 
   if [ "${#missing[@]}" -gt 0 ]; then
-    echo "FAIL [$name] missing secret-backed env var(s): ${missing[*]}" >&2
+    echo "FAIL [$label] missing secret-backed env var(s): ${missing[*]}" >&2
     failed=1
   fi
   if [ "${#literal[@]}" -gt 0 ]; then
-    echo "FAIL [$name] env var(s) present but NOT backed by a secretKeyRef: ${literal[*]}" >&2
+    echo "FAIL [$label] env var(s) present but NOT backed by a secretKeyRef: ${literal[*]}" >&2
     failed=1
   fi
   if [ "${#missing[@]}" -eq 0 ] && [ "${#literal[@]}" -eq 0 ]; then
     echo "   OK: all ${#REQUIRED_NAMES[@]} required env vars are secret-backed"
+  fi
+}
+
+check_target() {
+  local kind="$1" name="$2" json rev
+  if [ "$kind" = service ]; then
+    local revs=()
+    mapfile -t revs < <(serving_revisions "$name")
+    if [ "${#revs[@]}" -eq 0 ] || [ -z "${revs[0]:-}" ]; then
+      echo "FAIL [$name] could not resolve a serving revision" >&2
+      failed=1; return
+    fi
+    for rev in "${revs[@]}"; do
+      echo "== $name (serving revision: $rev)"
+      json="$(gcloud run revisions describe "$rev" --project="$PROJECT" --region="$REGION" --format=json 2>/dev/null)"
+      assert_env_json "$name/$rev" "$json"
+    done
+  else
+    echo "== $name (worker pool)"
+    json="$(gcloud beta run worker-pools describe "$name" --project="$PROJECT" --region="$REGION" --format=json 2>/dev/null)"
+    assert_env_json "$name" "$json"
   fi
 }
 
