@@ -519,13 +519,13 @@
       "attestation": {
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-08-04",
-        "attestedContentHash": "2c582b44be3910895be49b8eb969f0da8a1c867789eeb0b882daa757ce0aeac4",
+        "attestedContentHash": "72070eb8e84a9c68b48dd2b3a90120b5e74ec5464f2f5e6da43787b547b5abc3",
         "priorAttestations": [
           "2026-07-22"
         ],
-        "note": "Re-attested 2026-08-04 by Scot Wahlquist. Scope: the runtime-AI operational-status correction in PR #725. The prior corpus stated the Bedrock path was dormant and that no lingolinq-web revision carried a Bedrock credential; that was accurate when written and expired 2026-08-03T08:23:02Z when revision 00013-76w mounted BEDROCK_AWS_KEY/SECRET. The corpus now states a closed window: not operational to 2026-08-03T08:23Z, operational to 2026-08-04T06:31Z (one internal verification call, no user or student data), not operational since. Verified live: sts:GetCallerIdentity returned 239044785114 (user/lingolinq-bedrock-runtime)."
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist as v1.2 (third pin, same day). The program described is unchanged from v1.1; this revision realigns the in-document version header with this register, which had pinned the document at 2026-08-04 while the header still read v1.1 / 2026-07-22. Scope of this pin: the version block, the attestation-statement date, the attestation-date row, and the added v1.2 scope paragraph. The substantive runtime-AI closed-window correction it describes was already present in the bytes pinned earlier the same day; no compliance claim changed in this revision."
       },
-      "contentHash": "2c582b44be3910895be49b8eb969f0da8a1c867789eeb0b882daa757ce0aeac4",
+      "contentHash": "72070eb8e84a9c68b48dd2b3a90120b5e74ec5464f2f5e6da43787b547b5abc3",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
