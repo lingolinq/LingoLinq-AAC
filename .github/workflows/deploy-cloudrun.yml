@@ -3,9 +3,22 @@ name: Deploy to Cloud Run
 # Production deploy pipeline for GCP Cloud Run.
 #
 # LIVE AND AUTOMATIC: every push to `main` deploys to production, including running DB
-# migrations against prod Cloud SQL. `main` only receives merges from `staging` release PRs,
-# so the code has already run on staging before it lands here. `workflow_dispatch` is retained
-# for manual redeploys and rollforwards.
+# migrations against prod Cloud SQL. `workflow_dispatch` is retained for manual redeploys and
+# rollforwards, but only on `main` (see the ref guard on the deploy job).
+#
+# DO NOT assume `main` only receives vetted, staging-tested code. It does not. Release PRs from
+# `staging` are the common case, but hotfix branches merge DIRECTLY into `main` and that is the
+# intended workflow for urgent fixes (e.g. #734 scot/fix/bedrock-runtime-main-hotfix and #726
+# scot/fix/empty-button-sets-prod-hotfix, both 2026-08-02/03). Nothing restricts the source
+# branch of a PR into `main`. What makes automatic deploy acceptable is therefore NOT
+# provenance, it is the three gates below, and removing any of them removes the safety:
+#   1. Required status checks on `main` (rspec, build-and-test, audit-artifacts-integrity,
+#      codex-review-tests, security-scan, secret-detection) with enforce_admins on, so nothing
+#      reaches `main` red, whatever branch it came from.
+#   2. The `production` environment on the deploy job: `main`-only branch policy plus a
+#      required reviewer, which is the authorization boundary and the audit record.
+#   3. The ref guard + the WIF provider's `assertion.ref` condition, so no other ref can
+#      deploy or even mint a deploy token.
 #
 # The `guard` job still no-ops the whole run when vars.GCP_PROJECT_ID is empty, so the
 # workflow stays inert in a fork or a repo where the migration vars were never set.
@@ -20,9 +33,20 @@ name: Deploy to Cloud Run
 # merge instead: require the CI checks on `main` in branch protection, so nothing reaches
 # `main` red in the first place.
 #
-# CONCURRENCY: deploys are serialized and NEVER cancelled mid-flight. Two merges landing close
-# together must not run `rails db:migrate` against prod concurrently, and cancelling a run
-# partway through the migration Job could leave the schema half-applied.
+# CONCURRENCY: one fixed group across BOTH triggers, because there is ONE production database
+# and ONE shared `lingolinq-migrate` Job. Do not scope the group by ref. Two known limits, so
+# nobody reads more safety into this than it provides:
+#   - It is NOT a distributed lock. `gcloud run jobs execute --wait` is a client-side poll;
+#     killing the GitHub job does not stop the server-side execution. If a run hits
+#     `timeout-minutes: 45`, is cancelled, or its runner dies, the lock releases while the
+#     execution may still be writing to prod. A real mutex would need a Postgres advisory lock
+#     inside the migration task. Tracked as follow-up, not solved here.
+#   - GitHub keeps only ONE pending run per group and cancels the older pending one when a new
+#     run queues, regardless of `cancel-in-progress`. Three merges in quick succession deploy
+#     the 1st and 3rd; the 2nd shows `cancelled`. On a linear `main` that is benign, since the
+#     3rd contains the 2nd, but it means "every push deploys" is not literally true.
+# `cancel-in-progress: false` is still right: cancelling a run partway through the migration
+# Job is the one thing guaranteed to hurt.
 #
 # Pipeline (when enabled): build image -> push to Artifact Registry -> run DB migration as a
 # dedicated Cloud Run Job (gen2 + Cloud SQL) -> deploy web service -> deploy worker pool.
@@ -99,8 +123,17 @@ jobs:
   deploy:
     name: Build and deploy
     needs: guard
-    if: needs.guard.outputs.enabled == 'true'
+    # Ref guard: production is `main` and only `main`. Without this, ANY collaborator with
+    # Actions write could `workflow_dispatch` this workflow on any branch or tag and deploy it
+    # to prod, migrations included. That is not hypothetical -- run 28881107723 (2026-07-07)
+    # deployed `--ref staging` to production. The WIF provider carries the matching
+    # `assertion.ref` condition, so a non-main ref cannot mint a deploy token either.
+    if: needs.guard.outputs.enabled == 'true' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # Protected environment: `main`-only deployment branch policy plus a required reviewer.
+    # This is the authorization boundary AND the audit record for every production change
+    # (Deployments API), and disabling it halts auto-deploy without touching this file.
+    environment: production
     timeout-minutes: 45
     permissions:
       contents: read
@@ -271,6 +304,14 @@ jobs:
         # hanging against an unreachable address. `private-ranges-only` routes ONLY RFC1918 /
         # Google ranges through the VPC; public egress (S3/SES/etc.) still uses the default
         # path, so this does not force all traffic through the VPC. (Phase 3.)
+        # --max-retries 0 is MANDATORY, not tuning. The Job default is 3 retries at a 600s task
+        # timeout. 13 migrations use `disable_ddl_transaction!`, including
+        # 20260702120000_add_retention_cleanup_indexes.rb, which builds indexes with
+        # `algorithm: :concurrently` on log_session_boards / progresses / board_button_sounds.
+        # A CREATE INDEX CONCURRENTLY killed at the timeout leaves an INVALID index behind; the
+        # automatic retry then dies on PG::DuplicateTable, and the migration never records in
+        # schema_migrations -- a partially advanced prod schema needing manual DBA repair.
+        # Retrying a Rails migration is never correct. Fail once, loudly, and stop.
         run: |
           gcloud run jobs deploy lingolinq-migrate \
             --image "$IMAGE" \
@@ -283,6 +324,8 @@ jobs:
             --vpc-egress private-ranges-only \
             --command bundle \
             --args "exec,rake,db:migrate" \
+            --max-retries 0 \
+            --task-timeout 3600s \
             --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false" \
             --set-secrets "$BOOT_SECRETS"
           gcloud run jobs execute lingolinq-migrate \
