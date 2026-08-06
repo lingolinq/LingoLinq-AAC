@@ -111,6 +111,80 @@ describe('ai_feature_gate', function() {
     });
   });
 
+    // A stored 0 / '0' is an explicit opt-OUT the write path accepts. It is not
+    // blank and does not === false, so it previously fell through to "allowed",
+    // and for features outside USER_PREF_AI_FEATURES it was allowed outright.
+    it('blocks on a numeric master opt-out for per-feature AI', function() {
+      [0, '0'].forEach(function(off) {
+        expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+          ai_features_enabled: off,
+          ai_board_generation: true
+        }), 'ai_board_generation')).toEqual(false);
+      });
+    });
+
+    it('blocks on a numeric master opt-out for non-per-feature AI', function() {
+      [0, '0'].forEach(function(off) {
+        expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+          ai_features_enabled: off
+        }), 'comprehensive_eval_ai')).toEqual(false);
+      });
+    });
+
+    it('accepts the numeric opt-in forms for master and child', function() {
+      [1, '1'].forEach(function(on) {
+        expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+          ai_features_enabled: on,
+          ai_board_generation: on
+        }), 'ai_board_generation')).toEqual(true);
+      });
+    });
+
+    it('blocks a numeric child opt-out under an enabled master', function() {
+      [0, '0'].forEach(function(off) {
+        expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+          ai_features_enabled: true,
+          ai_board_generation: off
+        }), 'ai_board_generation')).toEqual(false);
+      });
+    });
+
+    it('leaves an unrecognized master on the strict per-feature path', function() {
+      expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+        ai_features_enabled: 'maybe'
+      }), 'ai_board_generation')).toEqual(false);
+      expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+        ai_features_enabled: 'maybe',
+        ai_board_generation: true
+      }), 'ai_board_generation')).toEqual(true);
+    });
+  });
+
+  describe('aiPrefValue', function() {
+    it('maps the recognized true forms', function() {
+      [true, 'true', '1', 1].forEach(function(v) {
+        expect(aiFeatureGate.aiPrefValue(v)).toEqual(true);
+      });
+    });
+
+    it('maps the recognized false forms', function() {
+      [false, 'false', '0', 0].forEach(function(v) {
+        expect(aiFeatureGate.aiPrefValue(v)).toEqual(false);
+      });
+    });
+
+    it('returns null when no decision is recorded', function() {
+      [null, undefined, '', '  ', 'maybe', 2].forEach(function(v) {
+        expect(aiFeatureGate.aiPrefValue(v)).toEqual(null);
+      });
+    });
+
+    it('does not confuse the numeric and boolean forms', function() {
+      expect(aiFeatureGate.aiPrefValue(1)).toEqual(true);
+      expect(aiFeatureGate.aiPrefValue(0)).toEqual(false);
+    });
+  });
+
   describe('blankMasterPref', function() {
     it('counts only null, undefined, and whitespace-only strings as absent', function() {
       [null, undefined, '', ' ', '\t'].forEach(function(v) {

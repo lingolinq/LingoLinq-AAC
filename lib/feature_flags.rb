@@ -239,6 +239,27 @@ module FeatureFlags
     user.eu_under_16? && !user.eu_ai_parental_consent_active?
   end
 
+  # The ONE boolean vocabulary for AI preference values. Both the read gate below
+  # and the write path (User.normalize_ai_preference_value, which delegates here)
+  # use it, so a value that can be WRITTEN as an opt-out is always READ as one.
+  #
+  # These lists must stay in sync with the JS mirror in
+  # app/frontend/app/utils/ai_feature_gate.js.
+  AI_PREF_TRUE_VALUES = [true, 'true', '1', 1].freeze
+  AI_PREF_FALSE_VALUES = [false, 'false', '0', 0].freeze
+
+  # Interpret a stored AI preference: true, false, or nil when the value records
+  # no recognizable decision.
+  #
+  # Ruby keeps the two lists from colliding on their own: `1 == true` and
+  # `0 == false` are both false, so a numeric value can only ever match the list
+  # it is written in.
+  def self.ai_pref_value(val)
+    return true if AI_PREF_TRUE_VALUES.include?(val)
+    return false if AI_PREF_FALSE_VALUES.include?(val)
+    nil
+  end
+
   # A master AI preference that carries no decision. Legacy rows stored "" (and
   # whitespace) here, which is neither an opt-in nor an opt-out.
   #
@@ -247,6 +268,11 @@ module FeatureFlags
   # decided" and re-enable AI for users who turned it off. Only nil and a
   # whitespace-only String count as absent; every other value (false, 0, "0")
   # continues to the decision branches below.
+  #
+  # Kept SEPARATE from ai_pref_value on purpose. Folding the two together would
+  # make every unrecognized master ("maybe", a stray Hash) take the grandfather
+  # path, quietly widening access on malformed data. Only the blank case has
+  # evidence behind it, so only the blank case gets the allowance.
   def self.blank_ai_master_pref?(master)
     master.nil? || (master.is_a?(String) && master.strip.empty?)
   end
@@ -271,9 +297,16 @@ module FeatureFlags
     return true unless prefs.is_a?(Hash)
     master = prefs['ai_features_enabled']
     return true if blank_ai_master_pref?(master)
-    return false if master == false || master.to_s == 'false'
+    # Read the opt-out through the shared vocabulary, NOT a literal
+    # `master == false || master.to_s == 'false'`. That narrower test missed the
+    # numeric forms: a stored 0 or "0" is neither blank nor equal to false, so it
+    # fell through to "allowed" — and for AI features outside
+    # USER_PREF_AI_FEATURES it was allowed outright, turning an old numeric
+    # opt-out into AI egress.
+    return false if ai_pref_value(master) == false
     return true unless USER_PREF_AI_FEATURES.include?(feature.to_s)
-    val = prefs[feature.to_s]
-    val == true || val.to_s == 'true'
+    # The child must be an explicit opt-IN. nil (absent, blank, or unrecognized)
+    # is an INCOMPLETE opt-in and stays blocked.
+    ai_pref_value(prefs[feature.to_s]) == true
   end
 end

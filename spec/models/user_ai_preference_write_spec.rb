@@ -127,5 +127,20 @@ describe User, 'AI preference write path' do
       expect(js).to include('function blankMasterPref')
       expect(js).to include('blankMasterPref(master)')
     end
+
+    # The write path accepts 0 / "0" as an explicit opt-out, so BOTH read gates
+    # have to recognize them. When these lists drifted, a legacy numeric opt-out
+    # read as "allowed" on both server and client.
+    it 'keeps the shared boolean vocabulary present in the frontend mirror' do
+      js = File.read(Rails.root.join('app/frontend/app/utils/ai_feature_gate.js'))
+      expect(js).to include('function aiPrefValue')
+      expect(js).to include("AI_PREF_TRUE_VALUES = [true, 'true', '1', 1]")
+      expect(js).to include("AI_PREF_FALSE_VALUES = [false, 'false', '0', 0]")
+    end
+
+    it 'mirrors the Ruby vocabulary lists exactly' do
+      expect(FeatureFlags::AI_PREF_TRUE_VALUES).to eq([true, 'true', '1', 1])
+      expect(FeatureFlags::AI_PREF_FALSE_VALUES).to eq([false, 'false', '0', 0])
+    end
   end
 end

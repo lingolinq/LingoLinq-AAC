@@ -24,12 +24,21 @@ var USER_PREF_AI_FEATURES = {
   ai_symbol_search: true
 };
 
-function truthy(val) {
-  return val === true || val === 'true';
-}
+// The ONE boolean vocabulary for AI preference values, mirroring
+// FeatureFlags::AI_PREF_TRUE_VALUES / AI_PREF_FALSE_VALUES. Keep in sync.
+// These previously recognized only true/'true' and false/'false', which meant a
+// stored 0 or '0' was read as neither an opt-out nor blank and fell through to
+// "allowed" — an old numeric opt-out becoming AI egress.
+var AI_PREF_TRUE_VALUES = [true, 'true', '1', 1];
+var AI_PREF_FALSE_VALUES = [false, 'false', '0', 0];
 
-function falsy(val) {
-  return val === false || val === 'false';
+// Returns true, false, or null when the value records no recognizable decision.
+// indexOf compares with ===, so 1 never matches true and 0 never matches false;
+// a numeric value can only match the list it is written in.
+function aiPrefValue(val) {
+  if(AI_PREF_TRUE_VALUES.indexOf(val) !== -1) { return true; }
+  if(AI_PREF_FALSE_VALUES.indexOf(val) !== -1) { return false; }
+  return null;
 }
 
 // Mirror of FeatureFlags.blank_ai_master_pref?. Only null/undefined and a
@@ -58,9 +67,11 @@ function prefAllowsAi(user, feature) {
 
   var master = prefs.ai_features_enabled;
   if(blankMasterPref(master)) { return true; }
-  if(falsy(master)) { return false; }
+  if(aiPrefValue(master) === false) { return false; }
   if(!USER_PREF_AI_FEATURES[feature]) { return true; }
-  return truthy(prefs[feature]);
+  // The child must be an explicit opt-IN; null (absent, blank, or unrecognized)
+  // is an INCOMPLETE opt-in and stays blocked.
+  return aiPrefValue(prefs[feature]) === true;
 }
 
 /**
@@ -78,8 +89,9 @@ function aiFeatureEnabled(appState, feature) {
 export default {
   USER_PREF_AI_FEATURES: USER_PREF_AI_FEATURES,
   blankMasterPref: blankMasterPref,
+  aiPrefValue: aiPrefValue,
   prefAllowsAi: prefAllowsAi,
   aiFeatureEnabled: aiFeatureEnabled
 };
 
-export { USER_PREF_AI_FEATURES, blankMasterPref, prefAllowsAi, aiFeatureEnabled };
+export { USER_PREF_AI_FEATURES, blankMasterPref, aiPrefValue, prefAllowsAi, aiFeatureEnabled };

@@ -132,6 +132,106 @@ describe FeatureFlags, 'AI prefs and EU parental gate' do
         expect(FeatureFlags.user_pref_allows_ai?('ai_board_generation', u)).to eq(false)
       end
     end
+
+    # A stored 0 / "0" is an explicit opt-OUT that the write path accepts. It was
+    # not blank and did not equal false, so it fell through to "allowed", and for
+    # AI features outside USER_PREF_AI_FEATURES it was allowed outright. That
+    # turned an old numeric opt-out into AI egress. Exercised through the real
+    # gate, not just the value helper.
+    it 'blocks on a numeric master opt-out for per-feature AI' do
+      [0, '0'].each do |off|
+        u = User.new(settings: {
+          'preferences' => { 'ai_features_enabled' => off, 'ai_board_generation' => true }
+        })
+        expect(FeatureFlags.user_pref_allows_ai?('ai_board_generation', u)).to eq(false)
+      end
+    end
+
+    it 'blocks on a numeric master opt-out for non-per-feature AI' do
+      [0, '0'].each do |off|
+        u = User.new(settings: { 'preferences' => { 'ai_features_enabled' => off } })
+        expect(FeatureFlags.user_pref_allows_ai?('comprehensive_eval_ai', u)).to eq(false)
+        expect(FeatureFlags.user_pref_allows_ai?('ai_compliance_logging', u)).to eq(false)
+      end
+    end
+
+    it 'accepts the numeric opt-in forms for master and child' do
+      [1, '1'].each do |on|
+        u = User.new(settings: {
+          'preferences' => { 'ai_features_enabled' => on, 'ai_board_generation' => on }
+        })
+        expect(FeatureFlags.user_pref_allows_ai?('ai_board_generation', u)).to eq(true)
+      end
+    end
+
+    it 'blocks a numeric child opt-out under an enabled master' do
+      [0, '0'].each do |off|
+        u = User.new(settings: {
+          'preferences' => { 'ai_features_enabled' => true, 'ai_board_generation' => off }
+        })
+        expect(FeatureFlags.user_pref_allows_ai?('ai_board_generation', u)).to eq(false)
+      end
+    end
+
+    # Any value the write path would accept as an opt-out must read as one.
+    it 'reads every writable false value as an opt-out' do
+      FeatureFlags::AI_PREF_FALSE_VALUES.each do |off|
+        u = User.new(settings: {
+          'preferences' => { 'ai_features_enabled' => off, 'ai_board_generation' => true }
+        })
+        expect(FeatureFlags.user_pref_allows_ai?('ai_board_generation', u)).to eq(false),
+          "expected master=#{off.inspect} to block"
+      end
+    end
+
+    it 'reads every writable true value as an opt-in' do
+      FeatureFlags::AI_PREF_TRUE_VALUES.each do |on|
+        u = User.new(settings: {
+          'preferences' => { 'ai_features_enabled' => on, 'ai_board_generation' => on }
+        })
+        expect(FeatureFlags.user_pref_allows_ai?('ai_board_generation', u)).to eq(true),
+          "expected master=#{on.inspect} child=#{on.inspect} to allow"
+      end
+    end
+
+    # An unrecognized master is NOT granted the grandfather path; it still needs
+    # an explicit per-feature opt-in. Only the blank case has evidence behind it.
+    it 'leaves an unrecognized master on the strict per-feature path' do
+      u = User.new(settings: { 'preferences' => { 'ai_features_enabled' => 'maybe' } })
+      expect(FeatureFlags.user_pref_allows_ai?('ai_board_generation', u)).to eq(false)
+      u2 = User.new(settings: {
+        'preferences' => { 'ai_features_enabled' => 'maybe', 'ai_board_generation' => true }
+      })
+      expect(FeatureFlags.user_pref_allows_ai?('ai_board_generation', u2)).to eq(true)
+    end
+  end
+
+  describe '.ai_pref_value' do
+    it 'maps the recognized true forms' do
+      [true, 'true', '1', 1].each { |v| expect(FeatureFlags.ai_pref_value(v)).to eq(true) }
+    end
+
+    it 'maps the recognized false forms' do
+      [false, 'false', '0', 0].each { |v| expect(FeatureFlags.ai_pref_value(v)).to eq(false) }
+    end
+
+    it 'returns nil when no decision is recorded' do
+      [nil, '', '  ', 'maybe', 2].each { |v| expect(FeatureFlags.ai_pref_value(v)).to eq(nil) }
+    end
+
+    it 'does not confuse the numeric and boolean forms' do
+      expect(FeatureFlags.ai_pref_value(1)).to eq(true)
+      expect(FeatureFlags.ai_pref_value(0)).to eq(false)
+      expect(1 == true).to eq(false)
+      expect(0 == false).to eq(false)
+    end
+
+    it 'is the single vocabulary shared with the write path' do
+      (FeatureFlags::AI_PREF_TRUE_VALUES + FeatureFlags::AI_PREF_FALSE_VALUES).each do |v|
+        expect(User.normalize_ai_preference_value(v)).to eq(FeatureFlags.ai_pref_value(v)),
+          "write/read disagree on #{v.inspect}"
+      end
+    end
   end
 
   describe '.blank_ai_master_pref?' do

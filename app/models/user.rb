@@ -819,11 +819,14 @@ class User < ApplicationRecord
     ai_board_suggestions ai_symbol_search
   ].freeze
 
-  AI_PREF_TRUE_VALUES = [true, 'true', '1', 1].freeze
-  AI_PREF_FALSE_VALUES = [false, 'false', '0', 0].freeze
-
   # Coerce a submitted AI preference to a real boolean, or nil when the value
   # carries no decision.
+  #
+  # Delegates to FeatureFlags.ai_pref_value so the WRITE vocabulary can never be
+  # broader than the READ vocabulary. They were briefly separate lists, and the
+  # gap was a real consent bug: 0 / "0" were accepted here as an explicit false
+  # while the gate did not recognize them as an opt-out, so a legacy numeric
+  # opt-out read as "allowed".
   #
   # The AI preference keys are consent-bearing, so unlike the other preferences
   # they are not stored verbatim. A value outside the recognized boolean forms
@@ -838,9 +841,7 @@ class User < ApplicationRecord
   # that was neither set nor cleared; FeatureFlags.user_pref_allows_ai? then
   # blocked the feature with no way for the user to clear it from the UI.
   def self.normalize_ai_preference_value(val)
-    return true if AI_PREF_TRUE_VALUES.include?(val)
-    return false if AI_PREF_FALSE_VALUES.include?(val)
-    nil
+    FeatureFlags.ai_pref_value(val)
   end
 
   def registration_country
