@@ -1,12 +1,28 @@
 name: Deploy to Cloud Run
 
-# GATED / INERT scaffold for the Render -> GCP Cloud Run migration (Phase 2 groundwork).
+# Production deploy pipeline for GCP Cloud Run.
 #
-# This workflow does NOTHING until migration Phase 1 provisions the GCP project and sets
-# the repository variables below. It is workflow_dispatch-only (never runs on push/PR) and
-# the `guard` job no-ops the whole run when vars.GCP_PROJECT_ID is empty. Authentication is
-# keyless via Workload Identity Federation -- no long-lived JSON service-account key is ever
-# stored in GitHub.
+# LIVE AND AUTOMATIC: every push to `main` deploys to production, including running DB
+# migrations against prod Cloud SQL. `main` only receives merges from `staging` release PRs,
+# so the code has already run on staging before it lands here. `workflow_dispatch` is retained
+# for manual redeploys and rollforwards.
+#
+# The `guard` job still no-ops the whole run when vars.GCP_PROJECT_ID is empty, so the
+# workflow stays inert in a fork or a repo where the migration vars were never set.
+# Authentication is keyless via Workload Identity Federation -- no long-lived JSON
+# service-account key is ever stored in GitHub.
+#
+# WHY `on: push` AND NOT `on: workflow_run` (CI-gated): a workflow_run trigger only fires when
+# the workflow file is on the repo's DEFAULT branch, and this repo's default branch is
+# `staging`, not `main`. A workflow_run-triggered run also resolves github.ref and GITHUB_SHA
+# to the default branch, so it would build `staging` code and deploy it as prod unless every
+# checkout and image tag were rewritten to workflow_run.head_sha. The CI gate belongs on the
+# merge instead: require the CI checks on `main` in branch protection, so nothing reaches
+# `main` red in the first place.
+#
+# CONCURRENCY: deploys are serialized and NEVER cancelled mid-flight. Two merges landing close
+# together must not run `rails db:migrate` against prod concurrently, and cancelling a run
+# partway through the migration Job could leave the schema half-applied.
 #
 # Pipeline (when enabled): build image -> push to Artifact Registry -> run DB migration as a
 # dedicated Cloud Run Job (gen2 + Cloud SQL) -> deploy web service -> deploy worker pool.
@@ -45,12 +61,20 @@ name: Deploy to Cloud Run
 #   per-instance CA, fetched from the live instance) -- the app's Redis client loads it to
 #   verify the rediss:// TLS chain.
 #
-# MANUAL TRIGGER (only meaningful after Phase 1):
-#   gh workflow run deploy-cloudrun.yml
+# MANUAL TRIGGER (redeploy without a new commit, or deploy a specific ref):
+#   gh workflow run deploy-cloudrun.yml --ref main
 # ---------------------------------------------------------------------------------------
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
+
+# Serialize deploys across BOTH triggers. cancel-in-progress is deliberately false: see the
+# CONCURRENCY note above.
+concurrency:
+  group: deploy-cloudrun
+  cancel-in-progress: false
 
 permissions:
   contents: read

@@ -419,7 +419,7 @@ reconciliation.
 Restore the dump whole into `lingolinq_production` on `lingolinq-prod-pg` (private IP
 `10.160.0.3`). Reconcile row counts, extensions, and schema against the baseline. The migrate Job
 later applies only **incremental** `db:migrate` on top; it never runs `db:prepare` (which could
-load `schema.rb` and drop tables; see `deploy-cloudrun.yml:118-124`).
+load `schema.rb` and drop tables; see `deploy-cloudrun.yml:259-266`).
 
 ### 4. S1 - reset and verify sequences  (built, #424)
 
@@ -473,7 +473,10 @@ script, and is NOT in the deploy workflow `BOOT_SECRETS`. Decide before cutover:
 > workflow no-ops while `vars.GCP_PROJECT_ID` is empty, so dispatching first just no-ops. Steps 6
 > and 7 were swapped in the first draft; this is the corrected order.
 
-The deploy workflow no-ops while `vars.GCP_PROJECT_ID` is empty (`deploy-cloudrun.yml:65-71`).
+The deploy workflow no-ops while `vars.GCP_PROJECT_ID` is empty (`deploy-cloudrun.yml:87-97`).
+Note: since 2026-08-05 the workflow also deploys automatically on every push to `main`, so a
+release merge into `main` is itself a production deploy; `gh workflow run` below is now the
+manual redeploy path rather than the only path.
 "Un-inert" = set the deferred repo variables (Settings > Secrets and variables > Actions >
 Variables). Three are already set (`GCP_REGION=us-central1`, `GCP_WIF_PROVIDER`, `GCP_DEPLOY_SA`,
 per tracker 1.10). Set the remaining four:
