@@ -1,6 +1,6 @@
 # LingoLinq AAC AI Governance Memo
 
-> **ATTESTED 2026-06-19; RE-ATTESTED 2026-07-27 by Scot Wahlquist, CEO.** Phase 3 deliverable. This memo documents how
+> **ATTESTED 2026-06-19; RE-ATTESTED 2026-08-04 by Scot Wahlquist, CEO.** Phase 3 deliverable. This memo documents how
 > LingoLinq uses AI models, the controls that keep identifiable data out of external models, and
 > the EU AI Act classification analysis. It is a living document; model ids and code citations are
 > point-in-time and were re-verified against live code on 2026-06-19 prior to original attestation
@@ -286,8 +286,11 @@ deployed (staged; effective in production after the Phase 4/5 prod deploy). Boun
 remain in force: **(1)** only the code track edits the three AI call sites, the
 `article_50_disclosure` flag, and the 50(1) paragraph of this section; **(2)** this section 5.2 is the
 shared contract -- any Article 50 thread reads it first and updates it last; **(3)** this section was
-re-written by the Phase 5 shipping thread on modal delivery and awaits Scot's re-attestation per
-section 6.
+re-written by the Phase 5 shipping thread on modal delivery and, as written at that time, awaited
+Scot's re-attestation per section 6. **[Discharged 2026-07-22: Scot Wahlquist, CEO, re-attested the
+Phase 5 section 5.2 rewrite on that date; see the 2026-07-22 amendment in section 8. The clause is
+retained as the historical record of the Phase 5 handoff. No re-attestation of this section is
+outstanding, and the document's current attestation is 2026-08-04.]**
 Compliance-posture documentation (this memo, the calendar) remains a separate, non-code workstream
 and never edits the call sites.
 
@@ -342,7 +345,15 @@ Tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`,
 | Reviewed by | adversary agent |
 | Attested by | **Scot Wahlquist, CEO** |
 | Original attestation date | **2026-06-19** |
-| Latest re-attestation date | **2026-07-24** |
+| Latest re-attestation date | **2026-08-04** |
+| Prior re-attestation dates | 2026-07-13; 2026-07-14; 2026-07-19; 2026-07-22; 2026-07-24; 2026-07-27 |
+
+_Attestation-block realignment, 2026-08-05._ Until this revision three places in this memo named
+three different "latest" dates: the header banner said 2026-07-27, the table row above said
+2026-07-24, and the closing trailer recorded the 2026-08-04 re-attestation. The register
+(`audit-reports/DOCUMENT-REGISTER.json`) had pinned this document at 2026-08-04 throughout. The
+table and banner are now aligned to 2026-08-04 and the superseded dates are preserved in the row
+above rather than dropped. No claim in the body changed.
 
 _Phase 3 deliverable of the Audit/Compliance System Modernization (plan section 6, sections 1.3
 and 1.8). Model ids and code citations were re-verified against live code on 2026-06-19 prior to
