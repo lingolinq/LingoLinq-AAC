@@ -109,7 +109,6 @@ describe('ai_feature_gate', function() {
         ai_features_enabled: true
       }), 'ai_board_generation')).toEqual(false);
     });
-  });
 
     // A stored 0 / '0' is an explicit opt-OUT the write path accepts. It is not
     // blank and does not === false, so it previously fell through to "allowed",
