@@ -838,8 +838,14 @@ class User < ApplicationRecord
   # Dropping preserves whatever decision the user previously recorded.
   #
   # Historically "" was persisted here verbatim, producing a master preference
-  # that was neither set nor cleared; FeatureFlags.user_pref_allows_ai? then
-  # blocked the feature with no way for the user to clear it from the UI.
+  # that records no readable decision. FeatureFlags.user_pref_allows_ai? denies
+  # on it (unrecognized fails closed), and this normalization stops any NEW row
+  # from reaching that state. Existing "" rows recover through the preferences
+  # UI: the master checkbox renders unchecked for "" and its click handler
+  # writes !!event.target.checked, so the first click stores a real boolean.
+  # That affirmative click is deliberately the only way out — see the comment on
+  # FeatureFlags.user_pref_allows_ai? for why neither a read-side
+  # reinterpretation nor a ""=>nil backfill is an acceptable substitute.
   def self.normalize_ai_preference_value(val)
     FeatureFlags.ai_pref_value(val)
   end
@@ -923,13 +929,16 @@ class User < ApplicationRecord
     return {} unless raw.is_a?(Hash)
     raw = raw.stringify_keys
     out = {}
+    # Route through the shared vocabulary rather than repeating the TRUE list.
+    # This sanitizer records affirmative requests only, so a third hard-coded
+    # copy was not a live bug — but it was a third copy, and the drift between
+    # the first two (numeric 0/"0" accepted on write, unreadable on read) is the
+    # exact defect this changeset exists to remove.
     feature_keys = EU_AI_PREF_KEYS - ['ai_features_enabled']
     feature_keys.each do |k|
-      val = raw[k]
-      out[k] = true if [true, 'true', '1', 1].include?(val)
+      out[k] = true if normalize_ai_preference_value(raw[k]) == true
     end
-    master = raw['ai_features_enabled']
-    if out.any? || [true, 'true', '1', 1].include?(master)
+    if out.any? || normalize_ai_preference_value(raw['ai_features_enabled']) == true
       out['ai_features_enabled'] = true
     end
     out
@@ -996,7 +1005,11 @@ class User < ApplicationRecord
       self.settings['preferences'] ||= {}
       if requested.is_a?(Hash)
         EU_AI_PREF_KEYS.each do |k|
-          self.settings['preferences'][k] = true if requested[k]
+          # Explicit vocabulary check, not bare truthiness. sanitize_eu_ai_
+          # requested_features only ever stores literal true today, so this is
+          # equivalent — but this is a consent WRITE, and it should not depend on
+          # the storage shape of a different method staying what it is now.
+          self.settings['preferences'][k] = true if self.class.normalize_ai_preference_value(requested[k]) == true
         end
       end
       self.save!

@@ -108,39 +108,38 @@ describe User, 'AI preference write path' do
     end
   end
 
-  describe 'server/client parity' do
-    # app/frontend/app/utils/ai_feature_gate.js mirrors this gate. If the two
-    # drift, the UI offers a control the server then refuses with a 403, which is
-    # exactly the failure this PR fixes. The JS half is covered by
-    # app/frontend/tests/utils/ai_feature_gate-test.js; this asserts the shared
-    # key list the mirror hard-codes.
-    it 'keeps the per-feature key list in sync with the frontend mirror' do
-      js = File.read(Rails.root.join('app/frontend/app/utils/ai_feature_gate.js'))
-      FeatureFlags::USER_PREF_AI_FEATURES.each do |key|
-        expect(js).to include("#{key}: true"),
-          "ai_feature_gate.js is missing #{key} from USER_PREF_AI_FEATURES"
+  # Behavior, not source text. Server/client parity is enforced by the shared
+  # case table (spec/fixtures/ai_pref_gate_cases.json), which both suites
+  # execute; see spec/lib/feature_flags_ai_prefs_spec.rb. What belongs HERE is
+  # the write-vs-read relationship, which is Ruby on both ends.
+  describe 'write and read vocabularies' do
+    # These were briefly separate lists and the gap was a real consent bug: 0 and
+    # "0" were accepted here as an explicit false while the gate did not read
+    # them as an opt-out, so a legacy numeric opt-out evaluated as "allowed".
+    it 'agrees with the read gate on every value either side recognizes' do
+      values = FeatureFlags::AI_PREF_TRUE_VALUES + FeatureFlags::AI_PREF_FALSE_VALUES
+      values.each do |v|
+        expect(User.normalize_ai_preference_value(v)).to eq(FeatureFlags.ai_pref_value(v)),
+          "write/read disagree on #{v.inspect}"
       end
     end
 
-    it 'keeps the blank-master helper present in the frontend mirror' do
-      js = File.read(Rails.root.join('app/frontend/app/utils/ai_feature_gate.js'))
-      expect(js).to include('function blankMasterPref')
-      expect(js).to include('blankMasterPref(master)')
+    # The write vocabulary must never be WIDER than the read vocabulary: a value
+    # storable as consent that the gate cannot read back is exactly the "" state
+    # that caused this changeset.
+    it 'stores nothing the read gate cannot interpret' do
+      ['', '   ', 'maybe', 2, nil, {}, []].each do |v|
+        next if FeatureFlags.ai_pref_value(v) != nil
+        expect(User.normalize_ai_preference_value(v)).to eq(nil),
+          "#{v.inspect} is writable but unreadable"
+      end
     end
 
-    # The write path accepts 0 / "0" as an explicit opt-out, so BOTH read gates
-    # have to recognize them. When these lists drifted, a legacy numeric opt-out
-    # read as "allowed" on both server and client.
-    it 'keeps the shared boolean vocabulary present in the frontend mirror' do
-      js = File.read(Rails.root.join('app/frontend/app/utils/ai_feature_gate.js'))
-      expect(js).to include('function aiPrefValue')
-      expect(js).to include("AI_PREF_TRUE_VALUES = [true, 'true', '1', 1]")
-      expect(js).to include("AI_PREF_FALSE_VALUES = [false, 'false', '0', 0]")
-    end
-
-    it 'mirrors the Ruby vocabulary lists exactly' do
-      expect(FeatureFlags::AI_PREF_TRUE_VALUES).to eq([true, 'true', '1', 1])
-      expect(FeatureFlags::AI_PREF_FALSE_VALUES).to eq([false, 'false', '0', 0])
+    it 'is a pure delegate, so the two cannot drift apart' do
+      expect(User.method(:normalize_ai_preference_value).owner).to eq(User.singleton_class)
+      [true, false, '', 'maybe', 0, 1, nil].each do |v|
+        expect(User.normalize_ai_preference_value(v)).to eq(FeatureFlags.ai_pref_value(v))
+      end
     end
   end
 end

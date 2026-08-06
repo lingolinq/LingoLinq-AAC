@@ -92,22 +92,50 @@ describe FeatureFlags, 'AI prefs and EU parental gate' do
       expect(FeatureFlags.user_pref_allows_ai?('ai_compliance_logging', u)).to eq(true)
     end
 
-    # Legacy rows stored "" for the master pref. That value fell past the nil
-    # check, past the false check, and then failed the strict per-feature check,
-    # blocking board generation for 9 of 31 production users with no way to
-    # clear it from the UI.
-    it 'treats a blank master exactly like an absent master' do
-      ['', '   '].each do |blank|
-        u = User.new(settings: { 'preferences' => { 'ai_features_enabled' => blank } })
-        expect(FeatureFlags.user_pref_allows_ai?('ai_board_generation', u)).to eq(true)
+    # Legacy rows stored "" for the master pref, blocking board generation for 9
+    # of 31 production users. It is tempting to read "" as "never decided" and
+    # grandfather it, but that turns an unreadable value into an ALLOW, and the
+    # intent behind those rows is not recoverable: PaperTrail has no
+    # object_changes column here and reify raises on secure_serialize'd settings.
+    # So "" fails CLOSED like any other unrecognized value, and the affected
+    # users recover by ticking the box in preferences, which writes a real
+    # boolean. See User.normalize_ai_preference_value for the write half.
+    it 'denies an unreadable master rather than grandfathering it' do
+      ['', '   ', 'maybe', {}].each do |bad|
+        u = User.new(settings: { 'preferences' => { 'ai_features_enabled' => bad } })
+        expect(FeatureFlags.user_pref_allows_ai?('ai_board_generation', u)).to eq(false),
+          "expected master=#{bad.inspect} to deny"
       end
     end
 
-    it 'allows a blank master even when the child pref is also blank' do
-      u = User.new(settings: {
-        'preferences' => { 'ai_features_enabled' => '', 'ai_board_generation' => '' }
-      })
+    # The grandfather path is for rows that have NEVER carried a value, and it
+    # stays exactly as wide as it was before this changeset.
+    it 'still grandfathers a genuinely absent master' do
+      u = User.new(settings: { 'preferences' => {} })
       expect(FeatureFlags.user_pref_allows_ai?('ai_board_generation', u)).to eq(true)
+      expect(FeatureFlags.user_pref_allows_ai?('comprehensive_eval_ai', u)).to eq(true)
+    end
+
+    # An unreadable master must deny the two features OUTSIDE
+    # USER_PREF_AI_FEATURES as well. An earlier revision returned only on an
+    # explicit false, so an unrecognized master fell through to the
+    # "not a per-feature AI feature, follow the master" line and allowed them —
+    # one being comprehensive_eval_ai, narration over student assessment data.
+    it 'denies an unreadable master for features outside USER_PREF_AI_FEATURES' do
+      ['', 'maybe'].each do |bad|
+        u = User.new(settings: { 'preferences' => { 'ai_features_enabled' => bad } })
+        expect(FeatureFlags.user_pref_allows_ai?('comprehensive_eval_ai', u)).to eq(false),
+          "expected master=#{bad.inspect} to deny comprehensive_eval_ai"
+        expect(FeatureFlags.user_pref_allows_ai?('ai_compliance_logging', u)).to eq(false),
+          "expected master=#{bad.inspect} to deny ai_compliance_logging"
+      end
+    end
+
+    it 'denies an unreadable master even when the child is an explicit opt-in' do
+      u = User.new(settings: {
+        'preferences' => { 'ai_features_enabled' => '', 'ai_board_generation' => true }
+      })
+      expect(FeatureFlags.user_pref_allows_ai?('ai_board_generation', u)).to eq(false)
     end
 
     # The three states must stay distinguishable. Guards against a future
@@ -121,9 +149,8 @@ describe FeatureFlags, 'AI prefs and EU parental gate' do
       end
     end
 
-    # The blank-master allowance is scoped to the MASTER key only. An explicit
-    # master opt-in with a blank/missing child is an INCOMPLETE opt-in, and
-    # allowing it would manufacture per-feature consent the user never gave.
+    # An explicit master opt-in with a blank/missing child is an INCOMPLETE
+    # opt-in, and allowing it would manufacture per-feature consent.
     it 'still blocks when master is true but the child pref is blank or missing' do
       ['', '   ', nil].each do |child|
         prefs = { 'ai_features_enabled' => true }
@@ -194,15 +221,22 @@ describe FeatureFlags, 'AI prefs and EU parental gate' do
       end
     end
 
-    # An unrecognized master is NOT granted the grandfather path; it still needs
-    # an explicit per-feature opt-in. Only the blank case has evidence behind it.
-    it 'leaves an unrecognized master on the strict per-feature path' do
-      u = User.new(settings: { 'preferences' => { 'ai_features_enabled' => 'maybe' } })
-      expect(FeatureFlags.user_pref_allows_ai?('ai_board_generation', u)).to eq(false)
-      u2 = User.new(settings: {
-        'preferences' => { 'ai_features_enabled' => 'maybe', 'ai_board_generation' => true }
-      })
-      expect(FeatureFlags.user_pref_allows_ai?('ai_board_generation', u2)).to eq(true)
+    # The shared behavior table. The client mirror runs the SAME cases against
+    # app/frontend/app/utils/ai_feature_gate.js, so a one-sided behavior change
+    # fails that side's own suite. This replaces an earlier set of "parity"
+    # specs that grepped the JS source for helper names — those passed on a
+    # comment and could not tell a definition from a call site.
+    describe 'shared behavior table' do
+      gate_cases = JSON.parse(
+        File.read(Rails.root.join('spec/fixtures/ai_pref_gate_cases.json'))
+      )['cases']
+
+      gate_cases.each do |c|
+        it "#{c['name']} (#{c['feature']})" do
+          u = User.new(settings: { 'preferences' => c['prefs'] })
+          expect(FeatureFlags.user_pref_allows_ai?(c['feature'], u)).to eq(c['expected'])
+        end
+      end
     end
   end
 
@@ -234,17 +268,26 @@ describe FeatureFlags, 'AI prefs and EU parental gate' do
     end
   end
 
-  describe '.blank_ai_master_pref?' do
-    it 'counts only nil and whitespace-only strings as absent' do
-      [nil, '', ' ', "\t"].each do |v|
-        expect(FeatureFlags.blank_ai_master_pref?(v)).to eq(true)
-      end
+  # The behavior table only guarantees parity if both suites run the SAME table.
+  # This asserts the generated client fixture still carries the canonical payload
+  # byte-for-byte, so a hand-edit of one copy fails here instead of quietly
+  # leaving the client half testing something else.
+  describe 'client fixture mirror' do
+    it 'carries the canonical case table verbatim' do
+      canonical = File.read(Rails.root.join('spec/fixtures/ai_pref_gate_cases.json'))
+      js = File.read(Rails.root.join('app/frontend/tests/fixtures/ai_pref_gate_cases.js'))
+      payload = js[/ai-pref-gate-cases:begin\s*\nconst RAW = String\.raw`\n(.*?)`;\n\/\/ ai-pref-gate-cases:end/m, 1]
+      expect(payload).not_to be_nil,
+        'could not find the delimited payload in ai_pref_gate_cases.js'
+      expect(payload).to eq(canonical),
+        'ai_pref_gate_cases.js has drifted from spec/fixtures/ai_pref_gate_cases.json'
     end
 
-    it 'does not treat falsey non-string values as absent' do
-      [false, 0, '0', 'false'].each do |v|
-        expect(FeatureFlags.blank_ai_master_pref?(v)).to eq(false)
-      end
+    it 'parses to the same structure the server suite runs' do
+      canonical = JSON.parse(File.read(Rails.root.join('spec/fixtures/ai_pref_gate_cases.json')))
+      js = File.read(Rails.root.join('app/frontend/tests/fixtures/ai_pref_gate_cases.js'))
+      payload = js[/const RAW = String\.raw`\n(.*?)`;/m, 1]
+      expect(JSON.parse(payload)['cases']).to eq(canonical['cases'])
     end
   end
 

@@ -260,50 +260,47 @@ module FeatureFlags
     nil
   end
 
-  # A master AI preference that carries no decision. Legacy rows stored "" (and
-  # whitespace) here, which is neither an opt-in nor an opt-out.
-  #
-  # Deliberately NOT `master.blank?`: in Rails `false.blank?` is TRUE, so a
-  # `.blank?` test would silently reclassify an explicit opt-OUT as "never
-  # decided" and re-enable AI for users who turned it off. Only nil and a
-  # whitespace-only String count as absent; every other value (false, 0, "0")
-  # continues to the decision branches below.
-  #
-  # Kept SEPARATE from ai_pref_value on purpose. Folding the two together would
-  # make every unrecognized master ("maybe", a stray Hash) take the grandfather
-  # path, quietly widening access on malformed data. Only the blank case has
-  # evidence behind it, so only the blank case gets the allowance.
-  def self.blank_ai_master_pref?(master)
-    master.nil? || (master.is_a?(String) && master.strip.empty?)
-  end
-
   # Per-user AI preference gate.
-  # - Master (ai_features_enabled) nil or blank => grandfather allowed (legacy users).
-  # - Master false => block all AI.
-  # - Master true => USER_PREF_AI_FEATURES require prefs[feature] == true;
-  #   other AI_FEATURES follow the master (allowed).
+  # - Master (ai_features_enabled) ABSENT (nil) => grandfathered allowed. These
+  #   rows predate the consent UI and have never carried a value.
+  # - Master an explicit opt-out (false/'false'/0/'0') => block all AI.
+  # - Master PRESENT but unrecognized ("", "maybe", a stray Hash) => block all
+  #   AI. A value we cannot read is not consent.
+  # - Master an explicit opt-in => USER_PREF_AI_FEATURES additionally require
+  #   prefs[feature] == true; other AI_FEATURES follow the master.
   #
-  # The blank-master case is a LEGACY-DATA policy, not a general "blank means
-  # unset" rule. It applies to the MASTER key only. A blank per-feature child key
-  # while the master is explicitly true stays BLOCKED below: that state is an
-  # INCOMPLETE opt-in, and treating it as permission would manufacture consent
-  # the user never gave for a specific AI feature. Prod evidence for why the
-  # master case matters: 9 of 31 users held master="" and were blocked from
-  # board generation with no way to clear it from the UI, because "" fell past
-  # the nil check, past the false check, and then failed the strict child check.
+  # The unrecognized-master case fails CLOSED on purpose, and that decision cost
+  # a review cycle to get right. Production holds 9 of 31 users with master=""
+  # (blocked from board generation), and the tempting fix — read "" as "never
+  # decided" and grandfather it — converts an unreadable value into an ALLOW.
+  # PaperTrail cannot say how those rows reached ""; `object_changes` is absent
+  # from the schema and `reify` raises on secure_serialize'd settings, so the
+  # intent behind the value is not merely unknown, it is unrecoverable. Writing
+  # "" back to nil has the same effect by another route: it lands the row in the
+  # grandfather bucket above. Neither is consent-preserving, so neither ships.
+  # The recovery path is the user checking the box in preferences, which writes
+  # a real boolean — an affirmative act, which is what consent has to be.
+  #
+  # A blank per-feature CHILD key under an explicitly-true master is likewise
+  # BLOCKED: that state is an INCOMPLETE opt-in, and reading it as permission
+  # would manufacture consent for a specific AI feature the user never gave.
   def self.user_pref_allows_ai?(feature, user)
     return true unless user
     prefs = user.settings && user.settings['preferences']
     return true unless prefs.is_a?(Hash)
     master = prefs['ai_features_enabled']
-    return true if blank_ai_master_pref?(master)
-    # Read the opt-out through the shared vocabulary, NOT a literal
-    # `master == false || master.to_s == 'false'`. That narrower test missed the
-    # numeric forms: a stored 0 or "0" is neither blank nor equal to false, so it
-    # fell through to "allowed" — and for AI features outside
-    # USER_PREF_AI_FEATURES it was allowed outright, turning an old numeric
-    # opt-out into AI egress.
-    return false if ai_pref_value(master) == false
+    return true if master.nil?
+    # `unless == true` (not `if == false`) so that BOTH an explicit opt-out and
+    # an unrecognized value deny, and they deny for EVERY AI feature. An earlier
+    # revision returned only on an explicit false, which let an unrecognized
+    # master fall through to the line below and allow the two features outside
+    # USER_PREF_AI_FEATURES — one of which is comprehensive_eval_ai, narration
+    # over student assessment data.
+    #
+    # Read through the shared vocabulary, NOT a literal `master == false ||
+    # master.to_s == 'false'`. That narrower test missed the numeric forms: a
+    # stored 0 or "0" is neither nil nor equal to false, so it read as allowed.
+    return false unless ai_pref_value(master) == true
     return true unless USER_PREF_AI_FEATURES.include?(feature.to_s)
     # The child must be an explicit opt-IN. nil (absent, blank, or unrecognized)
     # is an INCOMPLETE opt-in and stays blocked.

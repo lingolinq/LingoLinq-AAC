@@ -4,17 +4,22 @@
  * Feature flags control rollout; preferences control user opt-in.
  *
  * Pref semantics (match lib/feature_flags.rb#user_pref_allows_ai?):
- * - Master (ai_features_enabled) nil or blank => grandfather allow
- * - Master false => block all AI
- * - Master true => USER_PREF_AI_FEATURES require prefs[feature] == true;
- *   other AI features follow the master (allowed)
+ * - Master (ai_features_enabled) ABSENT (null/undefined) => grandfather allow
+ * - Master an explicit opt-out (false/'false'/0/'0') => block all AI
+ * - Master PRESENT but unrecognized ('', 'maybe', an object) => block all AI
+ * - Master an explicit opt-in => USER_PREF_AI_FEATURES require
+ *   prefs[feature] == true; other AI features follow the master
  *
- * The blank-master case is a LEGACY-DATA policy scoped to the MASTER key only.
- * A blank per-feature child key while the master is explicitly true stays
+ * Unrecognized fails CLOSED, matching the server. Notably '' denies here, so
+ * this file no longer needs a blank test at all — which also removes a real
+ * divergence risk, since Ruby's String#strip and JS's String#trim disagree on
+ * Unicode whitespace in BOTH directions (U+00A0 is blank to trim but not to
+ * strip; NUL is blank to strip but not to trim). Any such split shows up in
+ * production as the UI offering a control the server then refuses with 403.
+ *
+ * A blank per-feature CHILD key while the master is explicitly true stays
  * BLOCKED: that is an INCOMPLETE opt-in, and allowing it would manufacture
- * consent the user never gave. Keep this file and
- * FeatureFlags.blank_ai_master_pref? in lockstep; a divergence shows up as the
- * UI offering a control the server then refuses with 403.
+ * consent the user never gave.
  */
 
 var USER_PREF_AI_FEATURES = {
@@ -41,15 +46,6 @@ function aiPrefValue(val) {
   return null;
 }
 
-// Mirror of FeatureFlags.blank_ai_master_pref?. Only null/undefined and a
-// whitespace-only string count as "no decision recorded". Deliberately does NOT
-// use a generic falsiness test: `false` and `0` are real opt-out values and must
-// keep flowing to the falsy() branch rather than being read as "never set".
-function blankMasterPref(master) {
-  if(master === undefined || master === null) { return true; }
-  return typeof master === 'string' && master.trim() === '';
-}
-
 /**
  * @param {Object|null} user - Ember user model or plain object with preferences
  * @param {string} feature - AI feature key (e.g. 'ai_board_generation')
@@ -66,8 +62,12 @@ function prefAllowsAi(user, feature) {
   if(!prefs || typeof prefs !== 'object') { return true; }
 
   var master = prefs.ai_features_enabled;
-  if(blankMasterPref(master)) { return true; }
-  if(aiPrefValue(master) === false) { return false; }
+  // Absent master only. Note `prefs.ai_features_enabled` is undefined for a key
+  // that was never written, and null for one explicitly stored as null; both are
+  // the legacy grandfather case.
+  if(master === undefined || master === null) { return true; }
+  // Deny on an explicit opt-out AND on anything unrecognized, for every feature.
+  if(aiPrefValue(master) !== true) { return false; }
   if(!USER_PREF_AI_FEATURES[feature]) { return true; }
   // The child must be an explicit opt-IN; null (absent, blank, or unrecognized)
   // is an INCOMPLETE opt-in and stays blocked.
@@ -88,10 +88,9 @@ function aiFeatureEnabled(appState, feature) {
 
 export default {
   USER_PREF_AI_FEATURES: USER_PREF_AI_FEATURES,
-  blankMasterPref: blankMasterPref,
   aiPrefValue: aiPrefValue,
   prefAllowsAi: prefAllowsAi,
   aiFeatureEnabled: aiFeatureEnabled
 };
 
-export { USER_PREF_AI_FEATURES, blankMasterPref, aiPrefValue, prefAllowsAi, aiFeatureEnabled };
+export { USER_PREF_AI_FEATURES, aiPrefValue, prefAllowsAi, aiFeatureEnabled };
