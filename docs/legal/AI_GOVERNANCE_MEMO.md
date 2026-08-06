@@ -286,8 +286,11 @@ deployed (staged; effective in production after the Phase 4/5 prod deploy). Boun
 remain in force: **(1)** only the code track edits the three AI call sites, the
 `article_50_disclosure` flag, and the 50(1) paragraph of this section; **(2)** this section 5.2 is the
 shared contract -- any Article 50 thread reads it first and updates it last; **(3)** this section was
-re-written by the Phase 5 shipping thread on modal delivery and awaits Scot's re-attestation per
-section 6.
+re-written by the Phase 5 shipping thread on modal delivery and, as written at that time, awaited
+Scot's re-attestation per section 6. **[Discharged 2026-07-22: Scot Wahlquist, CEO, re-attested the
+Phase 5 section 5.2 rewrite on that date; see the 2026-07-22 amendment in section 8. The clause is
+retained as the historical record of the Phase 5 handoff. No re-attestation of this section is
+outstanding, and the document's current attestation is 2026-08-04.]**
 Compliance-posture documentation (this memo, the calendar) remains a separate, non-code workstream
 and never edits the call sites.
 

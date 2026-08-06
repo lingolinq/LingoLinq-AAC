@@ -606,16 +606,16 @@
       "attestation": {
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-08-04",
-        "attestedContentHash": "ad6e790fba4d4355641c7589ea9fd463584972a30f1aec86f44145bb5ac3cbf7",
+        "attestedContentHash": "f35f99bd8b2971cad723b80fba1f9adffc7a212eeaadccd6b85c72ceb4269001",
         "priorAttestations": [
           "2026-07-27",
           "2026-07-24",
           "2026-07-22"
         ],
-        "note": "Re-attested 2026-08-04 by Scot Wahlquist (attestation-block realignment, recorded 2026-08-05). The register had pinned this document at 2026-08-04 while the document's own attestation block still named an earlier date, so the body and the register disagreed about the document's own identity. Scope of this pin: attestation-block metadata only. No compliance claim, control description, or evidence citation changed in this revision; the substantive 2026-08-04 corrections were already present in the bytes pinned earlier that day. This document previously named three different 'latest' dates (header banner 2026-07-27, attestation table 2026-07-24, closing trailer 2026-08-04). All three now read 2026-08-04, with the superseded dates preserved in a new prior-re-attestations row."
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist (attestation-block realignment, recorded 2026-08-05). The register had pinned this document at 2026-08-04 while the document's own attestation block still named an earlier date, so the body and the register disagreed about the document's own identity. Scope of this pin: attestation-block metadata only. No compliance claim, control description, or evidence citation changed in this revision; the substantive 2026-08-04 corrections were already present in the bytes pinned earlier that day. This document previously named three different 'latest' dates (header banner 2026-07-27, attestation table 2026-07-24, closing trailer 2026-08-04). All three now read 2026-08-04, with the superseded dates preserved in a new prior-re-attestations row. Amended 2026-08-05 (second pin in this realignment, external review): section 5.2 boundary rule (3) still read as a live, undated 'awaits Scot's re-attestation' claim, contradicting this document's own 2026-08-04 attestation. Per instruction the clause is retained as the historical record of the Phase 5 handoff and carries a dated discharge note (2026-07-22, the date the memo's own section 8 amendment records Scot re-attesting the Phase 5 section 5.2 rewrite). No claim changed."
       },
       "correctionNote": "CORRECTION 2026-08-02, SUPERSEDED 2026-08-04 (not an attestation; only Scot attests). The 2026-08-02 note said Bedrock 'has never been operational in production' and that runtime AI had been dormant since 00011-l7f. That was accurate through revision 00012-x8z and expired 2026-08-03T08:23:02Z, when 00013-76w mounted the Bedrock credentials. Correct statement: not operational through 00012-x8z; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z with one logged seam call completed (internal verification, no user or student data); not operational since 00014-5rw. Re-attested by Scot Wahlquist 2026-08-04; the earlier 'Re-attestation owed' note is discharged.",
-      "contentHash": "ad6e790fba4d4355641c7589ea9fd463584972a30f1aec86f44145bb5ac3cbf7",
+      "contentHash": "f35f99bd8b2971cad723b80fba1f9adffc7a212eeaadccd6b85c72ceb4269001",
       "bundles": [
         "compliance-records-set-2026-06",
         "security-review"
