@@ -5,11 +5,11 @@
 
 **Audited:** `scot/compliance/audit-refresh-2026-07-07` @ `20953ab3d5a80c3a9cbb249f37a79357b7f1baf1` on 2026-07-08  
 **Seed:** audit-reports/unified-audit-2026-04-09.md  
-**Headline (open + remediated-unverified):** 0 Critical / 10 High
+**Headline (open + remediated-unverified):** 0 Critical / 12 High
 
 Statuses are verified against live code at the audited SHA, not copied from the dated report prose. Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. Disposition (triage) is orthogonal to status: a finding can be `open` yet `dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.
 
-## Open (59)
+## Open (61)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -19,6 +19,8 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-a9d6d5a46b |  | high | WCAG | untriaged | manual | AI disclosure full-notice link uses the low-contrast verdigris token for text on the near-white modal surface | `app/frontend/app/styles/app.scss`:38150 |
 | LL-104bfa61dc |  | high | WCAG | untriaged | audit-run | Terms-agree modal is unreachable by switch scanning (no .modal_targets / .btn, opened without scannable) | `app/frontend/app/components/terms-agree.hbs`:27 |
 | LL-53cb93fab1 |  | high | GDPR, FERPA | untriaged | audit-run | Terms-agree modal can be silently replaced by intro before the user agrees | `app/frontend/app/routes/index.js`:132 |
+| LL-1b0d78dbe6 |  | high | HIPAA | untriaged | pr-review | No check asserts the Bedrock credential resolves to the BAA'd AWS account, so the AWS BAA's operative condition is an untested assumption | `lib/ai_client.rb`:89 |
+| LL-16ef84ad9a |  | high | FERPA, HIPAA, GDPR | untriaged | pr-review | Word-prediction cache holds the raw pre-scrubber user utterance in a process-global structure outside the PiiScrubber boundary, and is not tenant-scoped | `lib/ai_word_predictor.rb`:47 |
 | LL-522c1a6d13 |  | high | FERPA, HIPAA | untriaged | pr-review | Masquerade produces no AuditEvent; the site-admin branch impersonates any user with no disclosure record | `app/controllers/application_controller.rb`:181 |
 | LL-7314b5a8ea |  | medium | HIPAA | untriaged | audit-run | Render Key Value instance is plaintext and shared by prod-fallback, staging, dev, and PR previews | `render.yaml`:107 |
 | LL-ebd844a7d0 |  | medium | FERPA | untriaged | manual | Permanent, non-expiring User#user_token still login-serialized and accepted by logged legacy token fallbacks | `lib/json_api/user.rb`:41 |
@@ -157,4 +159,4 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 
 ---
 
-_121 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
+_123 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._

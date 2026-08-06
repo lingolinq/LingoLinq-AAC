@@ -1,10 +1,10 @@
 # LingoLinq Security, Privacy & Compliance Overview
 
-> **Attestation status: modified after the 2026-07-23 re-attestation — re-attestation owed.**
-> Rev. 2026-07-23-a was attested by Scot Wahlquist (CEO) for external release. PR #721 later
+> **Attestation status: modified after the 2026-08-04 re-attestation — re-attestation owed.**
+> Rev. 2026-08-04-a was attested by Scot Wahlquist (CEO) for external release. PR #721 later
 > updated the data-lifecycle / voice-recording erasure claims (`ButtonSound`, `UserVideo`, S3
 > `remote_remove`) to match `Flusher.flush_user_content` at HEAD. Those post-attestation bytes
-> are **not** covered by the 2026-07-23 pin; only Scot re-attests. Do not present this revision
+> are **not** covered by the 2026-08-04 pin; only Scot re-attests. Do not present this revision
 > as currently attested for external release until that pin is refreshed.
 >
 > Present tense describes controls that exist in the product today. The "Planned" section
@@ -31,6 +31,15 @@
 > Text-to-Speech has no Irish voice, so there is no covered replacement; Irish cloud TTS is off until
 > a DPA/SCCs exists. See the text-to-speech bullet below and `docs/legal/SUBPROCESSORS.md` #17.
 >
+> **2026-08-04 re-attestation (rev. 2026-08-04-a).** Recorded the runtime AI operational status as
+> a closed window rather than an open capability claim: the AI features named in this document ran
+> on Anthropic Claude (Haiku 4.5) over AWS Bedrock, were not operational from 2026-07-30 until
+> 2026-08-03, were briefly operational from 2026-08-03 to 2026-08-04 for a single internal
+> verification call carrying no user or student data, and are **not operational as of 2026-08-04**.
+> No customer, user, or student data has been sent to a model provider on this path. The
+> "everything in this section is live" framing was qualified to except controls explicitly marked
+> not operational. This is the revision authorized for external sharing.
+>
 > **Purpose:** this is the short, externally shareable overview of our program. It is the
 > honest, right-sized replacement for the aspirational 85-page draft. It does not replace the
 > internal attested program (`docs/legal/COMPLIANCE_PROGRAM.md`), which remains the internal
@@ -38,9 +47,9 @@
 > district, or a partner. Status of every implemented claim is verifiable against live code and
 > the findings register (`audit-reports/FINDINGS.json`).
 >
-> **Owner:** Scot Wahlquist, CEO. External-sharing authorization last covered the 2026-07-23-a
-> attested cut; this post-attestation revision is **not** authorized for external release until
-> Scot re-attests.
+> **Owner:** Scot Wahlquist, CEO. External-sharing authorization last covered the 2026-08-04-a
+> attested cut (prior authorizations: 2026-07-09, 2026-07-22, 2026-07-23); this
+> post-attestation revision is **not** authorized for external release until Scot re-attests.
 
 ---
 
@@ -75,7 +84,8 @@ triggers HIPAA, and requiring it would add friction without adding protection.
 
 ## 2. What we do today (implemented controls)
 
-Everything in this section is live in the product.
+Everything in this section is live in the product, except where a control is
+explicitly marked not operational.
 
 **Encryption and data protection**
 - Sensitive fields are encrypted at rest with AES-256-GCM server-side encryption; LingoLinq
@@ -114,8 +124,13 @@ Everything in this section is live in the product.
   under FERPA; in the EU they are sensitive children's data handled under Section 6.
 
 **AI and PII handling**
-- LingoLinq uses AI for word prediction and communication-board generation. The primary model is
-  Anthropic Claude (Haiku 4.5), with a Google (Gemini) fallback.
+- LingoLinq uses AI for word prediction and communication-board generation. The designated model is
+  Anthropic Claude (Haiku 4.5) on AWS Bedrock. There is no Google (Gemini) fallback; that path was
+  removed on 2026-07-09. These AI features were not operational from 2026-07-30 until 2026-08-03,
+  were briefly operational from 2026-08-03 to 2026-08-04 for internal verification only, and are
+  **not operational as of 2026-08-04**. During that window a single internal test call was made,
+  carrying no user or student data; no customer, user, or student data has been sent to a model
+  provider on this path.
 - Before text is sent to our external LLM providers for word prediction, board generation, or eval
   narration, our PII scrubber removes identifiers. This is **pseudonymization (scrubbing)**, and we
   describe it accurately: the result is scrubbed data that we still treat as personal data. We do

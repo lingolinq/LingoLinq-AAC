@@ -9,10 +9,18 @@
 > request, or finding ID that can be verified against live code. Aspirational controls are confined
 > to Section 12 and are marked "not yet built" so nothing here reads as a promise we cannot keep.
 >
-> **Version:** 1.1 (re-attested) · **Date:** 2026-06-18 (v1.0); 2026-07-22 (v1.1) ·
-> **Attested by:** Scot Wahlquist, CEO (2026-06-18; 2026-07-22) · **Supersedes:** Master
-> Compliance & Security Program v1.0/v1.1 · **Source of
+> **Version:** 1.2 (re-attested) · **Date:** 2026-06-18 (v1.0); 2026-07-22 (v1.1); 2026-08-04
+> (v1.2) · **Attested by:** Scot Wahlquist, CEO (2026-06-18; 2026-07-22; 2026-08-04) ·
+> **Supersedes:** Master Compliance & Security Program v1.0/v1.1 · **Source of
 > truth for status:** `audit-reports/FINDINGS.json`
+>
+> **v1.2 scope (2026-08-04).** The program described here is unchanged from v1.1. This revision
+> records one correction, applied in Section 5 and in Section 15 point 3: the runtime AI vendor
+> status, previously stated as *active*, then over-corrected to never-operational, is now stated
+> as a closed operational window (2026-08-03T08:23Z to 2026-08-04T06:31Z, one internal
+> verification call carrying no user or student data; not operational as of 2026-08-04). The
+> version header is realigned with `audit-reports/DOCUMENT-REGISTER.json`, which pinned this
+> document at 2026-08-04 while the header still read 2026-07-22.
 
 ---
 
@@ -194,7 +202,10 @@ is **planned**, not yet built; it appears here so the consent architecture is on
   privacy notice; embedding is an open task.
 - **Subprocessors.** The Article 28 / 45 CFR 164.502(e) register is `docs/legal/SUBPROCESSORS.md`,
   with a 30-day customer change-notice commitment. AWS BAA signed 2026-02-07. Anthropic is the
-  active AI vendor receiving pseudonymized (scrubbed) prompts via `lib/pii_scrubber.rb` and is
+  designated AI vendor for pseudonymized (scrubbed) prompts via `lib/pii_scrubber.rb`, **not
+  operational as of 2026-08-04**, having been operational only from 2026-08-03T08:23Z to
+  2026-08-04T06:31Z for a single internal verification call carrying no user or student data (see
+  the 2026-08-04 operational-status correction in `docs/legal/AWS_BAA_ACCEPTED.md`), and when live is
   classified as receiving pseudonymized personal data, not anonymous or de-identified data
   (direct identifiers removed by design, but still personal data under GDPR/UK-GDPR). OpenAI is
   contracted but has no active data flow as of 2026-07-06 (see the register, row 3). Google Gemini
@@ -323,7 +334,7 @@ by code, configuration, or signed agreements with accurate citations; aspiration
 confined to Section 12; known residuals remain tracked rather than hidden, including LL-11db0dc848,
 LL-e573a39d2b, LL-6619cc1811, LL-aacae48768, and LL-7f7372e3eb; counsel-dependent claims remain
 internal; and no external sharing is authorized until explicitly released. I additionally attest
-that, to the best of my knowledge as of 2026-07-22:
+that, to the best of my knowledge as of 2026-08-04:
 
 1. This document is an honest, evidence-based description of the compliance and security program as
    it actually exists after the Gate 1 GCP DNS cutover, not as we aspire for it to be.
@@ -333,9 +344,16 @@ that, to the best of my knowledge as of 2026-07-22:
    explicit decommission.
 3. The vendor and BAA posture described here is accurate for the live hosting path: AWS remains the
    storage/email provider under the AWS BAA, Google Cloud Platform is the active infrastructure
-   host under the accepted GCP CDPA / HIPAA BAA / SCCs, Anthropic is the active runtime AI provider
-   under the executed HIPAA-Ready BAA, and Render remains listed only because fallback data and
-   services still exist.
+   host under the accepted GCP CDPA / HIPAA BAA / SCCs, Anthropic is the designated runtime AI
+   provider under the executed HIPAA-Ready BAA, and Render remains listed only because fallback data
+   and services still exist. **Corrected 2026-08-01, re-corrected 2026-08-04:** this clause
+   previously read "Anthropic is the *active* runtime AI provider", and was then over-corrected to
+   assert the Bedrock route had never been operational. The accurate statement is a closed window:
+   the Bedrock route was operational from 2026-08-03T08:23Z to 2026-08-04T06:31Z (revision
+   `00013-76w`), carrying one internal verification call with no user or student data, and is not
+   operational as of 2026-08-04 (no credential on any current `lingolinq-web` revision). The direct
+   `api.anthropic.com` route is disabled. See the 2026-08-04 operational-status correction in
+   `docs/legal/AWS_BAA_ACCEPTED.md`.
 4. This re-attestation does not close, downgrade, or supersede any finding by itself. Finding
    status remains governed by `audit-reports/FINDINGS.json`: Redis TLS (LL-6619cc1811) has its
    in-context Cloud Run `rediss://` PONG evidence captured, but formal closure still requires the
@@ -358,7 +376,7 @@ the attestation date. It is not a certification, a legal opinion, or a guarantee
 | Posture at that commit | 0 open Critical / 5 open High / 24 open Medium / 25 open Low, per `audit-reports/FINDINGS.json` |
 | Infrastructure state verified | 2026-07-22 Gate 1 DNS cutover: `app.lingolinq.com` live on GCP load balancer IP `136.68.41.122`; Redis PONG captured from Cloud Run execution `lingolinq-migrate-vl5d5` at 2026-07-22T05:00:46Z (`ping=PONG`, `scheme=rediss`, `ca_blocks=1`, `verify_hostname=false`). `ca_blocks=1` is the expected Memorystore instance-CA chain length for this endpoint; `verify_hostname=false` is the documented pinned-CA/private-IP hatch while CA-chain verification remains on. Render retained as write-frozen rollback fallback pending explicit decommission. |
 | Attested by | Scot Wahlquist, CEO |
-| Attestation date | 2026-06-18 (v1.0); 2026-07-22 (v1.1) |
+| Attestation date | 2026-06-18 (v1.0); 2026-07-22 (v1.1); 2026-08-04 (v1.2) |
 
 _Once attested, the canonical home for this document is the repository at
 `docs/legal/COMPLIANCE_PROGRAM.md`, alongside the evidence it indexes. Moving it there is a

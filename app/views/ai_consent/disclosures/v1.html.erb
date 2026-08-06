@@ -47,7 +47,19 @@
           <strong><%= vendor['name'] %></strong>
           (<%= vendor['tier'] %>)
           &mdash; <%= vendor['models'].join(', ') %>.
-          <%= vendor['trains_on_data'] == false ? t('ai_consent_disclosures.v1.training_confirmed_zdr') : t('ai_consent_disclosures.v1.training_unconfirmed') %>
+<%#
+  Renders the vendor's OWN training_note from the registry rather than picking a
+  canned sentence off `trains_on_data`. That boolean cannot express the real
+  situation: on Amazon Bedrock BOTH entities have trains_on_data == false, but for
+  different reasons (AWS does not train on it; Anthropic never receives it), and
+  neither warrants the zero-data-retention promise the old branch asserted. A
+  boolean driving legal prose is drift waiting to happen -- the registry was
+  corrected on 2026-08-02 while this line kept telling users there was a ZDR
+  agreement. Rendered raw, consistent with how name/tier/models above are already
+  rendered; see the KNOWN GAP note in LingoLinq::AiConsentDisclosures about these
+  vendor sentences being English-only.
+%>
+          <%= vendor['training_note'] %>
         </li>
       <% end %>
     </ul>
