@@ -13,24 +13,11 @@ export default Component.extend({
   appState: service('app-state'),
   router: service('router'),
   boardSearchQuery: '',
-  used_category_fallback: false,
   category_explainer_overflows: false,
   // Brand-group results for the tabbed (setup) Robust Vocabularies view.
   // Each holds { state: 'loading' | 'loaded' | 'error', boards: [...] }.
   quick_core_group: null,
   vocal_flair_group: null,
-  // Hardcoded placeholder cards shown in the Keyboards category — an
-  // alphabetic and a QWERTY keyboard preview. Static (no real board yet);
-  // rendered as styled board cards in board-picker.hbs. computed() so i18n is
-  // resolved on first access rather than at class-definition time.
-  keyboard_placeholders: computed(function() {
-    return [
-      { id: 'alphabetic', name: i18n.t('alphabetic_keyboard', "Alphabetic Keyboard"),
-        rows: [['A', 'B', 'C', 'D', 'E'], ['F', 'G', 'H', 'I', 'J'], ['K', 'L', 'M', 'N', 'O']] },
-      { id: 'qwerty', name: i18n.t('qwerty_keyboard', "QWERTY Keyboard"),
-        rows: [['Q', 'W', 'E', 'R', 'T'], ['A', 'S', 'D', 'F', 'G'], ['Z', 'X', 'C', 'V', 'B']] }
-    ];
-  }),
   willInsertElement: function() {
     if(this.get('include_mine')) {
       this.send('set_category', 'mine');
@@ -223,7 +210,8 @@ export default Component.extend({
   /**
    * Load boards for a browse category (robust, cause_effect, …).
    * Order: subject’s starred public in category → supervisor’s starred public in category (if different user)
-   * → popular public in category → popular public overall (when the catalog has no tagged boards).
+   * → popular public boards tagged with that category. No uncategorized fallback —
+   * empty categories show "None found" so jokes/etc. do not appear in every tab.
    */
   _resolveCategoryBoards: function(categoryId) {
     var _this = this;
@@ -248,41 +236,22 @@ export default Component.extend({
         category: categoryId
       });
     }
-    function publicAny() {
-      return LingoLinq.store.query('board', {
-        public: true,
-        sort: 'home_popularity',
-        per_page: 6
-      });
-    }
-    function tryPublicThenAny() {
-      return publicCategorized().then(function(pub) {
-        if (_this._recordLength(pub) > 0) {
-          return { boards: pub, fallback: false };
-        }
-        return publicAny().then(function(pop) {
-          var n = _this._recordLength(pop);
-          return { boards: n ? pop : [], fallback: n > 0 };
-        });
-      });
-    }
 
     return starredQuery(subjectId).then(function(data) {
       if (_this._recordLength(data) > 0) {
-        return { boards: data, fallback: false };
+        return data;
       }
       if (supervisorId && subjectId !== supervisorId) {
         return starredQuery(supervisorId).then(function(data2) {
           if (_this._recordLength(data2) > 0) {
-            return { boards: data2, fallback: false };
+            return data2;
           }
-          return tryPublicThenAny();
+          return publicCategorized();
         });
       }
-      return tryPublicThenAny();
-    }).then(function(result) {
-      _this.set('used_category_fallback', !!(result && result.fallback));
-      _this.set('category_boards', result ? result.boards : []);
+      return publicCategorized();
+    }).then(function(boards) {
+      _this.set('category_boards', boards || []);
     }).catch(function() {
       _this.set('category_boards', { error: true });
     });
@@ -319,7 +288,6 @@ export default Component.extend({
       this.set('current_category', str);
       this.set('category', res);
       this.set('show_category_explainer', false);
-      this.set('used_category_fallback', false);
       this.set('boardSearchQuery', '');
       this.set('category_boards', {loading: true});
       this._scheduleExplainOverflowCheck();
@@ -334,13 +302,9 @@ export default Component.extend({
         // Setup Robust Vocabularies renders the Quick Core / Vocal Flair
         // brand cards instead of the flat category grid.
         _this._loadBrandGroups();
-      } else if(_this.get('tabbed') && str == 'cause_effect') {
-        // Board-picker page: Cause and Effect is "coming soon" — no catalog yet,
-        // so skip the board query (the template renders a coming-soon button
-        // instead of a grid). The non-tabbed /search/home picker keeps its prior
-        // behavior (loads boards via the else branch below).
-        _this.set('category_boards', []);
       } else {
+        // Cause and Effect and other browse tabs: public boards tagged with
+        // the category id in board.settings.categories (e.g. cause_effect).
         _this._resolveCategoryBoards(str);
       }
     },
