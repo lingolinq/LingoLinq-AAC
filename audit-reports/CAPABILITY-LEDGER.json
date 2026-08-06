@@ -342,7 +342,7 @@
       "antiClaim": "Do NOT cite this row as a ZDR guarantee for the AWS Bedrock runtime route; it is scoped to the direct api.anthropic.com path, which is not in runtime use. The shipped runtime disclosure (privacy.hbs, lib/lingo_linq/ai_consent_disclosures.rb) explicitly states that no zero-data-retention guarantee is claimed for the Bedrock path, and this ledger row must not contradict it. ZDR is confirmed ONLY for these two specific models; it does NOT extend to any other/future Anthropic model outside the ZDR-eligible tier, and NOT to any non-Anthropic provider. ZDR is NOT a substitute for a HIPAA BAA (see cap anthropic-model-provider-baa for the executed Anthropic BAA and cap aws-s3-baa for Bedrock under the AWS BAA). Fable 5 / Mythos-class models are explicitly NOT ZDR-eligible and never receive identifiable payloads.",
       "currentEvidence": {
         "file": "docs/legal/AI_DATA_SHARING_CONSENT.md",
-        "line": 72,
+        "line": 79,
         "snippet": "Zero-data-retention (ZDR) status:"
       },
       "evidenceType": "attestation",

@@ -1,6 +1,6 @@
 # LingoLinq Security, Privacy & Compliance Overview
 
-> **Re-attested for external release by Scot Wahlquist (CEO) on 2026-07-23 (rev. 2026-07-23-a).**
+> **Re-attested for external release by Scot Wahlquist (CEO) on 2026-08-04 (rev. 2026-08-04-a).**
 > Reflects the current production build. Present tense describes controls that exist in the product
 > today. The "Planned" section describes controls we intend to add and is written in the future tense
 > on purpose. This document deliberately claims only what we actually do.
@@ -25,6 +25,15 @@
 > Text-to-Speech has no Irish voice, so there is no covered replacement; Irish cloud TTS is off until
 > a DPA/SCCs exists. See the text-to-speech bullet below and `docs/legal/SUBPROCESSORS.md` #17.
 >
+> **2026-08-04 re-attestation (rev. 2026-08-04-a).** Recorded the runtime AI operational status as
+> a closed window rather than an open capability claim: the AI features named in this document ran
+> on Anthropic Claude (Haiku 4.5) over AWS Bedrock, were not operational from 2026-07-30 until
+> 2026-08-03, were briefly operational from 2026-08-03 to 2026-08-04 for a single internal
+> verification call carrying no user or student data, and are **not operational as of 2026-08-04**.
+> No customer, user, or student data has been sent to a model provider on this path. The
+> "everything in this section is live" framing was qualified to except controls explicitly marked
+> not operational. This is the revision authorized for external sharing.
+>
 > **Purpose:** this is the short, externally shareable overview of our program. It is the
 > honest, right-sized replacement for the aspirational 85-page draft. It does not replace the
 > internal attested program (`docs/legal/COMPLIANCE_PROGRAM.md`), which remains the internal
@@ -32,8 +41,9 @@
 > district, or a partner. Status of every implemented claim is verifiable against live code and
 > the findings register (`audit-reports/FINDINGS.json`).
 >
-> **Owner:** Scot Wahlquist, CEO. **Authorized for external sharing** as of the 2026-07-22 CEO
-> re-attestation of this version.
+> **Owner:** Scot Wahlquist, CEO. **Authorized for external sharing** as of the 2026-08-04 CEO
+> re-attestation of this version (rev. 2026-08-04-a). Prior external-release authorizations:
+> 2026-07-09, 2026-07-22, 2026-07-23.
 
 ---
 

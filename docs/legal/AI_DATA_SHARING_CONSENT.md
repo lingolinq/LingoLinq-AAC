@@ -3,8 +3,15 @@
 **Owner:** Privacy Office (privacy@lingolinq.com)
 **Created:** 2026-07-09 (VPC Phase 2, Task 02-02.4)
 **Status:** Attested by Scot Wahlquist, CEO, 2026-07-09 as a provisional, conservative-default
-position (Task 02-02.8). Formal outside counsel review is deferred until the full 5-phase VPC is
-built and ready for real parents -- see section 9. Not yet reviewed by outside counsel.
+position (Task 02-02.8); **re-attested 2026-08-04**. Formal outside counsel review is deferred
+until the full 5-phase VPC is built and ready for real parents -- see section 9. Not yet reviewed
+by outside counsel.
+**Attestation history:** first attested (provisional) 2026-07-09; re-attested 2026-08-04. The
+**2026-08-04** re-attestation covers the zero-data-retention and training-posture bullets, which
+were narrowed to apply only to the direct `api.anthropic.com` path and now expressly disclaim any
+ZDR guarantee for the AWS Bedrock route that runtime AI actually uses. That narrows a previously
+broader retention representation and aligns this consent record with the shipped runtime
+disclosure.
 **Related:** `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md`, `docs/legal/AI_GOVERNANCE_MEMO.md`,
 `docs/legal/SUBPROCESSORS.md`, `docs/legal/DATA_RETENTION.md`, `app/views/ai_consent/disclosures/v1.html.erb`,
 `lib/lingo_linq/ai_consent_disclosures.rb`, `.planning/phases/02-disclosures-content/PLAN.md`
@@ -317,8 +324,8 @@ point, commit `c595f6304a545a6a10de80924edd99951eb41aa5`) by direct inspection o
 | Status | Attested (provisional) -- outside counsel review deferred |
 | Reviewed by | gsd-verifier agent (engineering/factual accuracy, 2026-07-09), not legal review |
 | Attested by | **Scot Wahlquist, CEO** |
-| Attestation date | **2026-07-09** |
-| Attestation scope | Provisional business-risk sign-off on the conservative-default position (section 7) and the government-ID-match consent method (section 8). NOT a formal outside-counsel legal opinion. |
+| Attestation date | **2026-08-04** (first attested 2026-07-09) |
+| Attestation scope | Provisional business-risk sign-off on the conservative-default position (section 7) and the government-ID-match consent method (section 8). The 2026-08-04 re-attestation additionally covers the ZDR/training-posture narrowing to the direct `api.anthropic.com` path, with no ZDR guarantee claimed for the AWS Bedrock runtime route. NOT a formal outside-counsel legal opinion. |
 | Deferred to | Formal outside counsel review, once the full 5-phase VPC (Phases 1-5) is built and ready to go live for real parents. |
 
 This document, `AI_DATA_FLOW_CLASSIFICATION.md`, `app/views/ai_consent/disclosures/v1.html.erb`,
