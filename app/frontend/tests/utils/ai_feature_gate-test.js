@@ -67,6 +67,62 @@ describe('ai_feature_gate', function() {
         ai_features_enabled: true
       }), 'comprehensive_eval_ai')).toEqual(true);
     });
+
+    // Legacy rows stored "" for the master pref, which is neither an opt-in nor
+    // an opt-out. It must follow the same path as an absent master.
+    it('treats a blank master exactly like an absent master', function() {
+      ['', '   '].forEach(function(blank) {
+        expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+          ai_features_enabled: blank
+        }), 'ai_board_generation')).toEqual(true);
+      });
+    });
+
+    it('allows a blank master even when the child pref is also blank', function() {
+      expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+        ai_features_enabled: '',
+        ai_board_generation: ''
+      }), 'ai_board_generation')).toEqual(true);
+    });
+
+    // Guards against a future refactor to a generic falsiness test, which would
+    // reclassify an explicit opt-OUT as "never decided" and re-enable AI.
+    it('keeps an explicit false blocking, and does not confuse it with blank', function() {
+      [false, 'false'].forEach(function(off) {
+        expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+          ai_features_enabled: off
+        }), 'ai_board_generation')).toEqual(false);
+      });
+    });
+
+    // The blank allowance is scoped to the MASTER key. Master true with a blank
+    // or missing child is an INCOMPLETE opt-in and must stay blocked, or the UI
+    // would manufacture per-feature consent the user never gave.
+    it('still blocks when master is true but the child pref is blank or missing', function() {
+      ['', '   '].forEach(function(child) {
+        expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+          ai_features_enabled: true,
+          ai_board_generation: child
+        }), 'ai_board_generation')).toEqual(false);
+      });
+      expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+        ai_features_enabled: true
+      }), 'ai_board_generation')).toEqual(false);
+    });
+  });
+
+  describe('blankMasterPref', function() {
+    it('counts only null, undefined, and whitespace-only strings as absent', function() {
+      [null, undefined, '', ' ', '\t'].forEach(function(v) {
+        expect(aiFeatureGate.blankMasterPref(v)).toEqual(true);
+      });
+    });
+
+    it('does not treat falsey non-string values as absent', function() {
+      [false, 0, '0', 'false'].forEach(function(v) {
+        expect(aiFeatureGate.blankMasterPref(v)).toEqual(false);
+      });
+    });
   });
 
   describe('aiFeatureEnabled', function() {

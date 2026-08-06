@@ -239,17 +239,38 @@ module FeatureFlags
     user.eu_under_16? && !user.eu_ai_parental_consent_active?
   end
 
+  # A master AI preference that carries no decision. Legacy rows stored "" (and
+  # whitespace) here, which is neither an opt-in nor an opt-out.
+  #
+  # Deliberately NOT `master.blank?`: in Rails `false.blank?` is TRUE, so a
+  # `.blank?` test would silently reclassify an explicit opt-OUT as "never
+  # decided" and re-enable AI for users who turned it off. Only nil and a
+  # whitespace-only String count as absent; every other value (false, 0, "0")
+  # continues to the decision branches below.
+  def self.blank_ai_master_pref?(master)
+    master.nil? || (master.is_a?(String) && master.strip.empty?)
+  end
+
   # Per-user AI preference gate.
-  # - Master (ai_features_enabled) nil => grandfather allowed (legacy users).
+  # - Master (ai_features_enabled) nil or blank => grandfather allowed (legacy users).
   # - Master false => block all AI.
   # - Master true => USER_PREF_AI_FEATURES require prefs[feature] == true;
   #   other AI_FEATURES follow the master (allowed).
+  #
+  # The blank-master case is a LEGACY-DATA policy, not a general "blank means
+  # unset" rule. It applies to the MASTER key only. A blank per-feature child key
+  # while the master is explicitly true stays BLOCKED below: that state is an
+  # INCOMPLETE opt-in, and treating it as permission would manufacture consent
+  # the user never gave for a specific AI feature. Prod evidence for why the
+  # master case matters: 9 of 31 users held master="" and were blocked from
+  # board generation with no way to clear it from the UI, because "" fell past
+  # the nil check, past the false check, and then failed the strict child check.
   def self.user_pref_allows_ai?(feature, user)
     return true unless user
     prefs = user.settings && user.settings['preferences']
     return true unless prefs.is_a?(Hash)
     master = prefs['ai_features_enabled']
-    return true if master.nil?
+    return true if blank_ai_master_pref?(master)
     return false if master == false || master.to_s == 'false'
     return true unless USER_PREF_AI_FEATURES.include?(feature.to_s)
     val = prefs[feature.to_s]

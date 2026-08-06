@@ -819,6 +819,30 @@ class User < ApplicationRecord
     ai_board_suggestions ai_symbol_search
   ].freeze
 
+  AI_PREF_TRUE_VALUES = [true, 'true', '1', 1].freeze
+  AI_PREF_FALSE_VALUES = [false, 'false', '0', 0].freeze
+
+  # Coerce a submitted AI preference to a real boolean, or nil when the value
+  # carries no decision.
+  #
+  # The AI preference keys are consent-bearing, so unlike the other preferences
+  # they are not stored verbatim. A value outside the recognized boolean forms
+  # (most importantly "") returns nil and the caller DROPS the write. Dropping is
+  # chosen over coercing:
+  #   - coercing to false would silently opt a user OUT of a feature they may
+  #     have had on, and
+  #   - coercing to true would manufacture an opt-in from malformed input.
+  # Dropping preserves whatever decision the user previously recorded.
+  #
+  # Historically "" was persisted here verbatim, producing a master preference
+  # that was neither set nor cleared; FeatureFlags.user_pref_allows_ai? then
+  # blocked the feature with no way for the user to clear it from the UI.
+  def self.normalize_ai_preference_value(val)
+    return true if AI_PREF_TRUE_VALUES.include?(val)
+    return false if AI_PREF_FALSE_VALUES.include?(val)
+    nil
+  end
+
   def registration_country
     c = self.settings && self.settings['country']
     return c if c.present?
@@ -2204,6 +2228,15 @@ class User < ApplicationRecord
         # Convert them back to actual booleans.
         val = true if val == 'true'
         val = false if val == 'false'
+        # AI preference keys are consent-bearing and accept ONLY recognizable
+        # booleans. Anything else (notably "") is dropped rather than stored, so
+        # a malformed write can neither create the un-clearable blank state that
+        # blocked board generation in production nor be read as an opt-in.
+        if EU_AI_PREF_KEYS.include?(attr)
+          normalized = User.normalize_ai_preference_value(val)
+          next if normalized.nil?
+          val = normalized
+        end
         self.settings['preferences'][attr] = val
       end
     end
