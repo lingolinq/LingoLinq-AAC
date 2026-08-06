@@ -381,12 +381,37 @@ describe Uploadable, :type => :model do
       expect(s.settings['errored_pending_url']).to eq('data:image/svg+xml,not-valid')
     end
 
-    it "does not read downloaded bytes into memory for sound S3 fallback" do
+    it "keeps the source URL for sound S3 fallback without reading bytes into memory" do
       s = ButtonSound.create(user: u, settings: {})
       file = instance_double(File)
       expect(file).not_to receive(:rewind)
       expect(file).not_to receive(:read)
-      expect(s.store_downloaded_file_fallback!(file, 'http://example.com/sound.mp3')).to eq(false)
+      expect(s.store_downloaded_file_fallback!(file, 'https://example.com/sound.mp3')).to eq(true)
+      expect(s.url).to eq('https://example.com/sound.mp3')
+      expect(s.settings['pending']).to eq(false)
+      expect(s.settings['errored_pending_url']).to eq(nil)
+    end
+
+    it "accepts application/octet-stream for sounds when the URL looks like audio" do
+      s = ButtonSound.create(user: u, settings: { 'content_type' => 'audio/mpeg' })
+      res = OpenStruct.new(success?: true, headers: { 'Content-Type' => 'application/octet-stream' }, body: 'ID3fake')
+      expect(Typhoeus).to receive(:get).and_return(res)
+      expect(Typhoeus).to receive(:post).and_return(OpenStruct.new(success?: true))
+      s.upload_to_remote('https://coughdrop-usercontent.s3.amazonaws.com/sounds/rimshot.mp3')
+      expect(s.url).not_to eq(nil)
+      expect(s.settings['pending']).to eq(false)
+      expect(s.settings['content_type']).to eq('audio/mpeg')
+    end
+
+    it "stores the source URL when sound S3 upload fails after a successful fetch" do
+      s = ButtonSound.create(user: u, settings: {})
+      res = OpenStruct.new(success?: true, headers: { 'Content-Type' => 'audio/mpeg' }, body: 'ID3fake')
+      expect(Typhoeus).to receive(:get).and_return(res)
+      expect(Typhoeus).to receive(:post).and_return(OpenStruct.new(success?: false))
+      s.upload_to_remote('https://example.com/rimshot.mp3')
+      expect(s.url).to eq('https://example.com/rimshot.mp3')
+      expect(s.settings['pending']).to eq(false)
+      expect(s.settings['errored_pending_url']).to eq(nil)
     end
 
     it "does not read large downloaded images when falling back to a symbol CDN URL" do

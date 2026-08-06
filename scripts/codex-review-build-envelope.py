@@ -549,6 +549,14 @@ def main():
         "base_sha": os.environ["BASE_SHA"],
         "loop_n": int(os.environ["LOOP_N"]),
         "reviewer_route": os.environ["REVIEWER_ROUTE"],
+        # reviewer_route alone stopped identifying the reviewer once `codex`
+        # could mean more than one model id. For a gate whose premise is a
+        # registry of APPROVED reviewers, "which approved reviewer produced this
+        # verdict" has to stay answerable from the artifact alone, so record the
+        # per-leg model ids. Empty on the claude-deep route and on the bounded
+        # (non-chunked) path, which has a single model recorded by the workflow.
+        "chunk_model": os.environ.get("CODEX_CHUNK_MODEL_EFFECTIVE", ""),
+        "synthesis_model": os.environ.get("CODEX_SYNTHESIS_MODEL_EFFECTIVE", ""),
         "run_id": os.environ["RUN_ID"],
         "evidence_mode": os.environ.get("CODEX_REVIEW_EVIDENCE_MODE", "bounded"),
         "review_outcome": final_outcome,

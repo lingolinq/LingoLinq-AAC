@@ -2651,17 +2651,28 @@ var soundGrabber = EmberObject.extend({
       a.src = preview.url;
     });
 
+    // Nested sound[user_id] is not rewritten by Rails replace_helper_params.
+    // Never send the literal 'self' (or a blank) — find_by_path treats it as a
+    // user_name and 404s. Prefer a real global id; omit to default to @api_user.
     var user_id = this.controller && this.controller.get('user_id');
+    if(user_id === 'self' || !user_id) {
+      var current = appStateService && appStateService.get('currentUser');
+      user_id = (current && (current.get('_actual_id') || current.get('id'))) || null;
+      if(user_id === 'self') { user_id = null; }
+    }
     var save_sound = sound_load.then(function(data) {
-      var sound = LingoLinq.store.createRecord('sound', {
+      var attrs = {
         content_type: preview.content_type || '',
         url: preview.url,
         name: preview.name,
         duration: data.duration,
         transcription: preview.transcription,
-        license: preview.license,
-        user_id: user_id
-      });
+        license: preview.license
+      };
+      if(user_id) {
+        attrs.user_id = user_id;
+      }
+      var sound = LingoLinq.store.createRecord('sound', attrs);
 
       return window.cg.save_record(sound);
     });

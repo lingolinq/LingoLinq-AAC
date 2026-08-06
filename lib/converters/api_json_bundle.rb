@@ -230,21 +230,70 @@ module Converters::ApiJsonBundle
     wrapper = board_wrapper.with_indifferent_access
     board = inner_board.with_indifferent_access
     buttons = board[:buttons] || wrapper[:buttons] || []
+    image_urls = wrapper[:image_urls].presence || board[:image_urls].presence || {}
+    sound_urls = wrapper[:sound_urls].presence || board[:sound_urls].presence || {}
 
     if images.empty?
-      image_urls = wrapper[:image_urls].presence || board[:image_urls].presence || {}
       images = synthesize_images_from_urls(image_urls, buttons)
+    else
+      # API exports often include stub images[] (id only). Still prefer image_urls.
+      images = fill_missing_media_urls(images, image_urls)
     end
 
     if sounds.empty?
-      sound_urls = wrapper[:sound_urls].presence || board[:sound_urls].presence || {}
       sounds = synthesize_sounds_from_urls(sound_urls, buttons)
+    else
+      # Same stub trap as images: non-empty sounds[] without urls used to skip
+      # sound_urls synthesis, so rimshot/etc. never imported.
+      sounds = fill_missing_media_urls(sounds, sound_urls)
+      sounds = merge_media_entries(sounds, synthesize_sounds_from_urls(sound_urls, buttons))
     end
 
     images = images.map { |img| normalize_image(img.with_indifferent_access) }
     sounds = sounds.map { |snd| normalize_sound(snd.with_indifferent_access) }
 
     [images, sounds]
+  end
+
+  # When an export lists media stubs (id, no url), copy urls from board.*_urls.
+  def self.fill_missing_media_urls(entries, url_map)
+    return entries if url_map.blank?
+
+    url_map = url_map.with_indifferent_access
+    entries.map do |item|
+      item = item.with_indifferent_access
+      id = media_entry_id(item)
+      next item if id.blank?
+      next item if item[:url].present? || item[:data].present? || item[:data_url].present? || item[:skin_url].present?
+
+      mapped = url_map[id]
+      mapped.present? ? item.merge('url' => mapped) : item
+    end
+  end
+
+  # Union by id; prefer the entry that already has a fetchable url/data.
+  def self.merge_media_entries(primary, extra)
+    by_id = {}
+    (Array(primary) + Array(extra)).each do |item|
+      id = media_entry_id(item)
+      next if id.blank?
+
+      item = item.with_indifferent_access
+      existing = by_id[id]
+      if existing.nil?
+        by_id[id] = item
+      elsif media_fetchable?(item) && !media_fetchable?(existing)
+        by_id[id] = existing.merge(item)
+      elsif media_fetchable?(item)
+        by_id[id] = existing.merge(item) { |_k, old, new| old.presence || new }
+      end
+    end
+    by_id.values
+  end
+
+  def self.media_fetchable?(item)
+    item = item.with_indifferent_access
+    item[:url].present? || item[:data].present? || item[:data_url].present? || item[:skin_url].present?
   end
 
   def self.synthesize_images_from_urls(image_urls, buttons)
@@ -396,15 +445,32 @@ module Converters::ApiJsonBundle
 
   def self.normalize_sound(sound)
     snd = sound.with_indifferent_access
-    {
+    raw_url = snd[:url].presence
+    data_url = snd[:data_url].presence || snd[:data].presence
+
+    # Prefer a direct media URL. API data_urls (/api/v1/sounds/…) need auth and
+    # are not usable by SafeHttp during import — keep only data: URIs from that field.
+    if raw_url.blank? && data_url.present?
+      if data_url.to_s.match?(/\Adata:/i)
+        # handled below as 'data'
+      elsif data_url.to_s.match?(%r{\Ahttps?://}i) && !data_url.to_s.match?(%r{/api/v\d+/sounds/}i)
+        raw_url = data_url
+      end
+    end
+
+    normalized = {
       'id' => snd[:id].to_s,
-      'url' => snd[:url],
+      'url' => encode_import_url(raw_url),
       'duration' => snd[:duration],
       'content_type' => snd[:content_type],
       'license' => snd[:license],
       'protected' => snd[:protected],
       'protected_source' => snd[:protected_source]
     }.compact
+    if data_url.to_s.match?(/\Adata:/i)
+      normalized['data'] = data_url
+    end
+    normalized
   end
 
   def self.finalize_imported_boards(boards, root_key = nil)
