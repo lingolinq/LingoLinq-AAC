@@ -65,6 +65,37 @@ export default Controller.extend({
     }
   ),
 
+  /**
+   * Acting admin username while masquerading. Session first, then auth_settings
+   * stash (same restore-lag fallback as isMasquerading). Used for Stop Masquerading labels.
+   */
+  masqueradeOperatorName: computed(
+    'session.original_user_name',
+    'appState.current_route',
+    'appState.currentUser.id',
+    function() {
+      var name = this.get('session.original_user_name');
+      if (name) {
+        return name;
+      }
+      var stashes = this.stashes || (this.appState && this.appState.stashes);
+      if (stashes && typeof stashes.get_object === 'function') {
+        var auth = stashes.get_object('auth_settings', true) || {};
+        return auth.original_user_name || null;
+      }
+      return null;
+    }
+  ),
+
+  /** Stop Masquerading label including operator when known; plain string if name is blank. */
+  masqueradeStopLabel: computed('masqueradeOperatorName', function() {
+    var name = this.get('masqueradeOperatorName');
+    if (name) {
+      return i18n.t('stop_masquerading_operator', "Stop Masquerading (%{user})", {user: name});
+    }
+    return i18n.t('stop_masquerading', "Stop Masquerading");
+  }),
+
   /** Matches beta-feedback-admin route: site admin or admin_support_actions (e.g. org support). */
   /** Depends on `permissions` as a whole (raw attr), not nested keys — nested CP deps can fail to invalidate. */
   showBetaFeedbackAdminLink: computed(

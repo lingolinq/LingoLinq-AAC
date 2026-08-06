@@ -37,6 +37,47 @@ describe LingoLinq::AiConsentDisclosures do
       expect(models).not_to include('Claude Opus 4.7')
     end
 
+    # The defect this guards against: on 2026-08-02 eval narration was correctly
+    # removed from the vendor models/features set (it is inactive on the classic
+    # Bedrock plane, which does not carry Opus 4.7), but `data_categories` still
+    # listed clinical evaluation notes as shared and `revocation_summary` still
+    # said withdrawal stops data being sent "for evaluation narration". The
+    # structured facts contradicted each other, and the prose half OVERSTATED
+    # what actually egresses to exactly the audience this notice exists to inform.
+    #
+    # Derived from the vendor features set rather than hardcoded, so it keeps
+    # holding when eval narration is switched back on: at that point the feature
+    # appears in the active set and the inactive-language requirement lifts
+    # automatically.
+    it 'never implies eval-narration egress while eval narration is not an active feature' do
+      m = described_class.metadata(1)
+      active = m['vendors'].flat_map { |v| v['features'] || [] }.uniq
+
+      if active.include?('eval_narrator')
+        # Active: the prose SHOULD describe it, and must not call it inactive.
+        blob = (m['data_categories'] + [m['revocation_summary']]).join(' ')
+        expect(blob).to match(/evaluation/i)
+        expect(blob).not_to match(/inactive/i)
+      else
+        # Inactive: any sentence that mentions evaluation narration must say so.
+        mentions = (m['data_categories'] + [m['revocation_summary']])
+                   .select { |s| s =~ /evaluation/i }
+        mentions.each do |sentence|
+          expect(sentence).to match(/not currently sent|inactive|never leaves LingoLinq/i),
+                              "consent text implies eval-narration egress while it is inactive: #{sentence[0, 120]}"
+        end
+      end
+    end
+
+    # Anthropic does not receive the data at all on Bedrock: the model runs in
+    # AWS-operated accounts the provider cannot access. Saying data is sent
+    # "to Anthropic" names the wrong recipient.
+    it 'does not name Anthropic as the recipient of runtime data' do
+      m = described_class.metadata(1)
+      expect(m['revocation_summary']).not_to match(/to Anthropic/i)
+      expect(m['retention']['vendor_side']).not_to match(/sent to Anthropic/i)
+    end
+
     it 'does not claim a zero-data-retention guarantee that has not been configured' do
       serialized = JSON.generate(described_class::REGISTRY)
       expect(serialized).not_to match(/under a zero-data-retention agreement/i)
