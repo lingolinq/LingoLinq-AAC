@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: Cloud Run secret assertions must check every nonzero-percent traffic target](#gotcha-cloud-run-secret-assertions-must-check-every-nonzero-percent-traffic-target)
 - [Gotcha: Ember Data model ids in tests must be strings — numeric `set('id', N)` fails throwOnUnhandled](#gotcha-ember-data-model-ids-in-tests-must-be-strings--numeric-setid-n-fails-throwonunhandled)
 - [Gotcha: batch-path nil is not “missing opts” — key presence vs value](#gotcha-batch-path-nil-is-not-missing-opts--key-presence-vs-value)
 - [Gotcha: compliance segment stamps must use validated org ids, not raw params](#gotcha-compliance-segment-stamps-must-use-validated-org-ids-not-raw-params)
@@ -125,6 +126,17 @@ file (see [README.md](README.md)).
 - [Gotcha: private uploads bucket — server-side OBZ/OBF import must use signed_internal_url](#gotcha-private-uploads-bucket--server-side-obzobf-import-must-use-signed_internal_url)
 
 ---
+
+## Gotcha: Cloud Run secret assertions must check every nonzero-percent traffic target
+
+`status.latestReadyRevisionName` is not “what users hit,” and neither is “the revision with
+the largest traffic percent.” Cloud Run can split traffic across multiple revisions (canary /
+rollback). A post-deploy secret-linkage check that inspects only one of them can pass while a
+smaller-percentage revision is missing required `secretKeyRef` mounts. Emit and assert every
+`status.traffic` entry with `percent > 0` (dedupe by revision name; fall back to
+`latestReadyRevisionName` only when no nonzero targets exist). See
+`scripts/gcp/assert-runtime-secrets.sh` and
+[`2026-08-05-assert-runtime-secrets-traffic-split.md`](./2026-08-05-assert-runtime-secrets-traffic-split.md).
 
 ## Pattern: shared AI reuse caches need exact scrubbed keys before recommendation matching
 
