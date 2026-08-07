@@ -2,12 +2,15 @@
 
 **Owner:** Privacy Office (privacy@lingolinq.com)
 **Created:** 2026-07-09 (VPC Phase 2, Task 02-01.1)
-**Status:** Re-attested (provisional) by Scot Wahlquist, CEO, **2026-08-07**, covering the current
-revision. Formal outside counsel review remains deferred until the full 5-phase VPC is built. See
-`AI_DATA_SHARING_CONSENT.md` section 9.
+**Status:** **Re-attestation PENDING for the current revision.** These bytes were prepared
+2026-08-07 and have NOT been signed. Do not treat this revision as attested until this line names a
+completed attestation date and `audit-reports/DOCUMENT-REGISTER.json` pins the matching sha256. The
+last completed attestation is 2026-08-06 (provisional, Scot Wahlquist, CEO), which covered a
+revision superseded before merge. Formal outside counsel review remains deferred until the full
+5-phase VPC is built. See `AI_DATA_SHARING_CONSENT.md` section 9.
 **Attestation history:** first attested (provisional) 2026-07-09; re-attested 2026-07-22;
-re-attested 2026-08-04; re-attested 2026-08-06; re-attested 2026-08-07. The **2026-08-07**
-re-attestation covers two corrections. First, the runtime operational-status note in section 3,
+re-attested 2026-08-04; re-attested 2026-08-06. The revision prepared **2026-08-07**, pending
+attestation, covers two corrections. First, the runtime operational-status note in section 3,
 which asserted the Bedrock path had been not operational since `00014-5rw` (2026-08-04T06:31:46Z);
 credentials were in fact re-mounted 53 minutes later and have been continuously present since, so
 that claim was false from 2026-08-04T07:25:08Z and was corrected against live infrastructure on

@@ -1,8 +1,9 @@
 # LingoLinq Subprocessor Register
 
 **Owner:** Privacy Office (privacy@lingolinq.com)
-**Last reviewed:** 2026-08-07 (CEO re-attestation of the current revision; prior re-attestations 2026-08-06, 2026-08-04 and 2026-07-23; last full line-by-line review 2026-04-20)
-**Attested:** 2026-07-06; re-attested 2026-07-23; re-attested 2026-08-04; re-attested 2026-08-06; **re-attested 2026-08-07** by Scot Wahlquist,
+**Last reviewed:** 2026-08-06 (last completed CEO re-attestation; prior re-attestations 2026-08-04 and 2026-07-23; last full line-by-line review 2026-04-20)
+**Re-attestation status:** **PENDING for the current revision.** These bytes were prepared 2026-08-07 and have NOT been signed. Do not treat this revision as attested until this line names a completed attestation date and `audit-reports/DOCUMENT-REGISTER.json` pins the matching sha256. The last completed attestation is 2026-08-06, which covered a revision superseded before merge.
+**Attested:** 2026-07-06; re-attested 2026-07-23; re-attested 2026-08-04; **re-attested 2026-08-06** by Scot Wahlquist,
 CEO. The 2026-07-06 attestation covered an earlier revision; five later PRs (#588, #622, #631,
 #648, #652) rewrote the Gemini, Google Cloud, Anthropic, and localization/speech rows. The
 2026-07-23 re-attestation is the CEO sign-off the 2026-07-21/22/23 amendments below were marked
@@ -13,9 +14,11 @@ dated 2026-08-02 and 2026-08-04. The **2026-08-06** re-attestation covers the re
 correction recorded in the 2026-08-06 change-log entry: the two previously absent "Notified to
 customers" cells, the corrected "Last amended" date, and the section 2 customer-notice-timing
 clause bounded to the period it was true. No vendor, data flow, contract, or classification
-changed in that revision. Those bytes were corrected before merge and never reached `staging`; the
-**2026-08-07** re-attestation covers the current revision, which additionally fixes the header
-amendment chain that the 2026-08-06 revision left naming 2026-07-23 as the prior amendment.
+changed in that revision. Those bytes were corrected before merge and never reached `staging`. The
+current revision, prepared 2026-08-07 and **not yet attested**, additionally corrects the
+Anthropic/Bedrock runtime status against live infrastructure, fixes the header amendment chain that
+the 2026-08-06 revision left naming 2026-07-23 as the prior amendment, and reconciles the review
+cadence.
 
 > **Discharge note, 2026-08-05.** The 2026-08-02 and 2026-08-04 change-log rows below each end
 > with "Re-attestation owed." That was true when each row was written and was **discharged on
@@ -27,8 +30,10 @@ amendment chain that the 2026-08-06 revision left naming 2026-07-23 as the prior
 **Last amended:** 2026-08-07 (three corrections. (1) **Runtime status of the Anthropic/Bedrock path
 corrected against live infrastructure**: row 4 and the section 5.7 consistency note asserted that no
 `lingolinq-web` revision carried a Bedrock credential; credentials have in fact been continuously
-mounted on the serving revision since 2026-08-04T07:25:08Z. No learner content has ever been
-transmitted, so the data-flow determination is unchanged. (2) Header revision chain: the history
+mounted on the serving revision since 2026-08-04T07:25:08Z. No recorded call carries learner
+content and the data-flow determination is unchanged, subject to the evidentiary limits stated in
+row 4 (`AiApiLog` can under-record, and vendor-side confirmation is not yet
+obtainable). (2) Header revision chain: the history
 below named 2026-07-23 as the prior amendment, skipping 2026-07-24, 2026-08-02 and 2026-08-04.
 (3) Review cadence reconciled with the document register. See change log)
 
