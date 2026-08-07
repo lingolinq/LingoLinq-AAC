@@ -24,8 +24,11 @@ cadence.
 > with "Re-attestation owed." That was true when each row was written and was **discharged on
 > 2026-08-04**, when Scot Wahlquist re-attested this document (PR #725). Those sentences are
 > retained as written so the change log stays an accurate historical record; read them together
-> with this note and with the dated discharge appended to each row. No re-attestation of this
-> document is outstanding.
+> with this note and with the dated discharge appended to each row. **Scope of this note, narrowed
+> 2026-08-07:** it discharges the re-attestation owed by the 2026-08-02 and 2026-08-04 rows ONLY.
+> It originally ended "No re-attestation of this document is outstanding," which was true on
+> 2026-08-05 but is not true of the current revision. A re-attestation IS currently outstanding for
+> the revision prepared 2026-08-07; see the Re-attestation status line above, which governs.
 
 **Last amended:** 2026-08-07 (three corrections. (1) **Runtime status of the Anthropic/Bedrock path
 corrected against live infrastructure**: row 4 and the section 5.7 consistency note asserted that no
