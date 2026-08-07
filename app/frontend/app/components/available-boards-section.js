@@ -21,6 +21,15 @@ export default Component.extend({
   /** @type {string} id attribute for filter input (avoid duplicate ids on dashboard embed). */
   filterInputId: 'ub-boards-filter-input',
 
+  boardPickerQuery: computed('boardsCtrl.model.id', 'appState.currentUser.id', function() {
+    var modelId = this.get('boardsCtrl.model.id');
+    var currentId = this.appState.get('currentUser.id');
+    if (modelId && currentId && modelId != currentId) {
+      return { user_id: modelId };
+    }
+    return {};
+  }),
+
   editingFolderName: false,
   editFolderNameValue: '',
   confirmingFolderDelete: false,

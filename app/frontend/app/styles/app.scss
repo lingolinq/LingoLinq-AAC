@@ -5268,6 +5268,15 @@ tr.accuracy_non_mastered {
   grid-column: 1 / -1;
   width: 100%;
 }
+.md-shell--board-picker .md-home-boards-picker__load-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+.md-shell--board-picker .md-home-boards-picker__load-more-btn {
+  min-width: 10rem;
+  font-size: 1rem;
+}
 /* Category sidebar — icon + label cards matching board-picker mockup */
 .md-shell--board-picker .md-home-boards-picker__layout {
   gap: 1.25rem 2.5rem;
@@ -6111,6 +6120,13 @@ tr.accuracy_non_mastered {
   /* Same entrance movement as the home-page hero: title in from the left. */
   opacity: 0;
   animation: la-hero-title-from-left 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+.board-picker-page__context {
+  margin: 0.75rem 0 0;
+  text-align: center;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: rgba(43, 52, 69, 0.82);
 }
 .board-picker-page__intro {
   margin: 0 auto clamp(40px, 6vh, 64px);
@@ -76544,8 +76560,8 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   font-size: var(--bd-button-text-size, 15px);
   /* Smooth the font-size change when the user adjusts the Text Size
      stepper in the Edit Tools rail. Without this, each +/- click
-     snaps the label size abruptly; with shrink-labels ON the
-     label_fit.js inline override layered on top makes the change
+     snaps the label size abruptly; label_fit.js inline overrides layered
+     on top can make the change read as "pops back and forth between the
      read as "pops back and forth between the new and old setting"
      because the inline-style restore inside fitWrapped briefly puts
      the OLD size back before the caller sets the NEW. label_fit
@@ -76616,16 +76632,9 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    every height. To make symbols read larger on short screens, give the image
    more vertical room (trim label / cell padding), never scale past the
    container. */
-// Shrink-to-fit opt-in (Text Settings → Shrink labels to fit) is
-// implemented per-label in JS — see app/frontend/app/utils/label_fit.js
-// and the board-detail-grid component. The toggle adds
-// .md-board-detail-grid--shrink-labels to the grid root as a hook
-// JS uses to decide whether to apply or clear inline font-sizes,
-// but the visual behavior comes entirely from those inline styles
-// (which beat the base CSS rule on cascade). There is intentionally
-// no CSS rule scoped to that class — the previous CSS-driven version
-// scaled labels uniformly by card width, which scaled short labels
-// alongside long ones and missed the per-label content-aware intent.
+// Per-label shrink-to-fit is implemented in app/frontend/app/utils/label_fit.js
+// and wired via the board-detail-grid component. Inline font-sizes from the
+// fit beat the base CSS rule on cascade; there is no separate opt-in class.
 .md-board-detail-symbol-card__label-input {
   font-size: var(--bd-button-text-size, 19px);
   font-weight: 600;
@@ -81215,7 +81224,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    (query doesn't fire) and the pref itself are untouched. Placed after the width rules
    so it wins by source order whenever the card is short. Mirrors the existing
    `clamp(px, Ncqw, pref)` structure on the height axis.
-   NOTE: intentionally NOT `!important`. label_fit.js (shrink-labels) applies its fit
+   NOTE: intentionally NOT `!important`. label_fit.js applies its fit
    size via a plain inline style, which must keep winning; a plain rule here (later in
    source than the base rule, equal specificity) still overrides the base on wide screens
    where no `!important` @media width-rule competes, while inline label_fit and the narrow-

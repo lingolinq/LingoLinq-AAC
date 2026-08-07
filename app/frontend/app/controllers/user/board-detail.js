@@ -132,19 +132,6 @@ export default Controller.extend(prefClasses, {
   // default when the saved preference is absent.
   folder_colored_face: true,
   folder_dropdown_open: false,
-  // When true, each button's label is independently measured: if its
-  // text would overflow the 3-line label box at the user's chosen
-  // font size, only that one label's font is reduced (down to an 8px
-  // floor) until the full text fits without truncation. Labels that
-  // already fit at the chosen size are left alone — the toggle never
-  // rescales every label on the board uniformly, it only shrinks the
-  // specific labels that would otherwise be clipped. Implemented in
-  // app/frontend/app/utils/label_fit.js, wired via the board-detail-grid
-  // component. When false (the default — matches modern AAC industry
-  // standard), labels keep the user's chosen font size and overflow
-  // past 3 lines is clipped with ellipsis. Persisted on
-  // user.preferences.shrink_labels_to_fit.
-  shrink_labels_to_fit: false,
   // When true, applies a softer / more tonal style to button borders
   // ON TOP of whatever the user's selected border thickness is —
   // single subtle outer shadow + soft inset highlight + a light halo
@@ -7822,25 +7809,6 @@ export default Controller.extend(prefClasses, {
       var user = _this.get('app_state.currentUser');
       if(user && user.set && user.save) {
         user.set('preferences.folder_colored_face', next);
-        user.save();
-      }
-    },
-
-    // Toggles the "Shrink labels to fit" preference — when true,
-    // each label is independently measured and shrunk only if its
-    // text would overflow the 3-line box at the chosen font size
-    // (down to an 8px floor). Labels that already fit stay at the
-    // chosen size. When false (default — modern AAC industry
-    // standard), labels keep the chosen size and overflow past 3
-    // lines clips with ellipsis. Persists to
-    // user.preferences.shrink_labels_to_fit.
-    toggle_shrink_labels_to_fit: function() {
-      var _this = this;
-      var next = !_this.get('shrink_labels_to_fit');
-      _this.set('shrink_labels_to_fit', next);
-      var user = _this.get('app_state.currentUser');
-      if(user && user.set && user.save) {
-        user.set('preferences.shrink_labels_to_fit', next);
         user.save();
       }
     },

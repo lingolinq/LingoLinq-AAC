@@ -210,6 +210,8 @@ class Api::UsersController < ApplicationController
       user.used_reset_token!(params['reset_token'])
     elsif user.allows?(@api_user, 'manage_supervision') && !user.allows?(@api_user, 'edit')
       user_data = user_data.slice('supervisor_key')
+    elsif user.allows?(@api_user, 'supervise') && !user.allows?(@api_user, 'edit') && supervise_home_board_only_update?(user_data)
+      user_data = supervise_home_board_update_slice(user_data)
     else
       return unless allowed?(user, 'edit')
     end
@@ -682,7 +684,7 @@ class Api::UsersController < ApplicationController
     old_board = Board.find_by_path(params['old_board_id'])
     new_board = Board.find_by_path(params['new_board_id'])
     return unless exists?(user, params['user_id']) && exists?(old_board, params['old_board_id']) && exists?(new_board, params['new_board_id'])
-    return unless allowed?(user, 'edit') && allowed?(old_board, 'view') && allowed?(new_board, 'view')
+    return unless (allowed?(user, 'edit') || allowed?(user, 'supervise')) && allowed?(old_board, 'view') && allowed?(new_board, 'view')
     return allowed?(user, 'never_allow') unless new_board.user == user
     
     make_public = params['make_public'] && params['make_public'] == '1' || params['make_public'] == 'true' || params['make_public'] == true
@@ -1225,5 +1227,23 @@ class Api::UsersController < ApplicationController
       res = Typhoeus.get(URI.escape(res.headers['Location']), timeout: 3)
     end
     res
+  end
+
+  def supervise_home_board_only_update?(data)
+    return false unless data.is_a?(Hash)
+
+    top_keys = data.keys.map(&:to_s)
+    return false unless (top_keys - ['preferences']).empty?
+
+    prefs = data['preferences'] || data[:preferences]
+    return false unless prefs.is_a?(Hash)
+
+    prefs.keys.map(&:to_s) == ['home_board']
+  end
+
+  def supervise_home_board_update_slice(data)
+    prefs = data['preferences'] || data[:preferences]
+    home_board = prefs['home_board'] || prefs[:home_board]
+    { 'preferences' => { 'home_board' => home_board } }
   end
 end

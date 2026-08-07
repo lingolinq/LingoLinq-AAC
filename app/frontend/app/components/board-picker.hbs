@@ -46,6 +46,8 @@
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 6.5h11a2 2 0 0 1 2 2v4.5a2 2 0 0 1-2 2H11l-3 2.5V15H5.5a2 2 0 0 1-2-2v-4.5a2 2 0 0 1 2-2z" fill="#2A9D8F" fill-opacity="0.12" stroke="#46505F" stroke-width="1.5"/><line x1="7.5" y1="10" x2="14.5" y2="10" stroke="#46505F" stroke-width="1.5"/><line x1="7.5" y1="12.25" x2="12.5" y2="12.25" stroke="#2A9D8F" stroke-width="1.5"/><line x1="7.5" y1="14.5" x2="10.5" y2="14.5" stroke="#46505F" stroke-width="1.5" opacity="0.55"/><rect x="14.5" y="14" width="6" height="5" rx="1.5" fill="#2A9D8F" fill-opacity="0.18" stroke="#46505F" stroke-width="1.5"/><rect x="16" y="16" width="1.2" height="3" rx="0.4" fill="#2A9D8F" stroke="none"/><rect x="18.2" y="15.2" width="1.2" height="4.6" rx="0.4" fill="#2A9D8F" stroke="none"/><rect x="20.4" y="16.4" width="1.2" height="2.2" rx="0.4" fill="#46505F" fill-opacity="0.45" stroke="none"/></svg>
                   {{else if (is-equal category.id "keyboards")}}
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2" fill="#2A9D8F" fill-opacity="0.1" stroke="#46505F" stroke-width="1.5"/><rect x="5" y="9" width="2.5" height="2.5" rx="0.5" fill="#2A9D8F" stroke="none"/><rect x="9" y="9" width="2.5" height="2.5" rx="0.5" fill="#2A9D8F" stroke="none"/><rect x="13" y="9" width="2.5" height="2.5" rx="0.5" fill="#2A9D8F" stroke="none"/><rect x="17" y="9" width="2.5" height="2.5" rx="0.5" fill="#2A9D8F" stroke="none"/><rect x="7" y="13" width="10" height="2.5" rx="0.5" fill="#46505F" fill-opacity="0.35" stroke="none"/></svg>
+                  {{else if (is-equal category.id "available_boards")}}
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="7.5" r="2.25" fill="#2A9D8F" fill-opacity="0.2" stroke="#46505F" stroke-width="1.5"/><path d="M4 14.5c0-1.9 1.6-3.5 3.5-3.5s3.5 1.6 3.5 3.5" stroke="#46505F" stroke-width="1.5" fill="none"/><rect x="13" y="6.5" width="8" height="5.5" rx="1.5" fill="#2A9D8F" fill-opacity="0.22" stroke="#46505F" stroke-width="1.5"/><rect x="15" y="8.25" width="1.6" height="1.6" rx="0.35" fill="#2A9D8F" stroke="none"/><rect x="17.8" y="8.25" width="1.6" height="1.6" rx="0.35" fill="#2A9D8F" stroke="none"/><rect x="14" y="13.5" width="7" height="4.5" rx="1.5" fill="#2A9D8F" fill-opacity="0.14" stroke="#46505F" stroke-width="1.5"/><rect x="15.5" y="15" width="1.4" height="1.4" rx="0.3" fill="#46505F" fill-opacity="0.35" stroke="none"/><rect x="17.8" y="15" width="1.4" height="1.4" rx="0.3" fill="#46505F" fill-opacity="0.35" stroke="none"/></svg>
                   {{/if}}
                 </span>
                 <span class="md-home-boards-picker__category-label">{{category.name}}</span>
@@ -94,11 +96,9 @@
         {{/each}}
       </div>
     {{else if this.category.mine}}
-      {{#if this.searchAtTop}}
-        <p>{{t "Your main boards — the top-level boards you own, not pages inside a board set." key="board_picker_mine_1"}}</p>
-      {{else}}
-        <p>{{t "Boards you've created, copied, or had shared with you." key="browse_mine"}}</p>
-      {{/if}}
+      <p>{{t "Boards you've created, copied, or had shared with you." key="browse_mine"}}</p>
+    {{else if this.category.available_boards}}
+      <p>{{t "Top-level boards you own or that have been shared with you, plus popular public boards from the community catalog. Load more to browse additional public boards." key="board_picker_available_boards_1"}}</p>
     {{/if}}
     {{#if this.category}}
       {{#if this.category_explainer_overflows}}
@@ -186,17 +186,25 @@
           </div>
         {{/if}}
       </div>
+      {{#if this.category.available_boards}}
+        {{#if this.public_boards_has_more}}
+          <div class="md-home-boards-picker__load-more">
+            <button type="button" class="md-btn md-btn--secondary md-home-boards-picker__load-more-btn" disabled={{this.public_boards_loading_more}} {{on "click" (this.ctrlAction "load_more_public_boards")}}>
+              {{#if this.public_boards_loading_more}}
+                {{t "Loading boards..." key="loading_boards"}}
+              {{else}}
+                {{t "Load more" key="load_more"}}
+              {{/if}}
+            </button>
+          </div>
+        {{/if}}
+      {{/if}}
       {{/unless}}
       {{/if}}
     {{/if}}
   </div>
-  {{#if (and (not this.searchAtTop) this.category (not this.category.mine) (not this.category.keyboards) (not this.robust_tabbed))}}
+  {{#if (and (not this.searchAtTop) this.category (not this.category.mine) (not this.category.available_boards) (not this.category.keyboards) (not this.robust_tabbed))}}
           <div class="md-home-boards-picker__search">
-            {{#if this.used_category_fallback}}
-              <p class="md-home-boards-picker__fallback-note" role="status">
-                {{t "No boards are tagged for this category in the catalog yet. Here are popular public boards you can start from—pick any home board you like, or search below." key="home_board_category_fallback_note"}}
-              </p>
-            {{/if}}
             <form class="md-home-boards-picker__search-form" {{on "submit" (this.ctrlAction "go_search_boards")}} role="search">
               <label for="board-picker-search-q" class="sr-only">{{t "Search Boards" key="search_boards"}}</label>
               <input

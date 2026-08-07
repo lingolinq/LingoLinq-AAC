@@ -1,6 +1,6 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
-import { observer, computed, get } from '@ember/object';
+import { computed, get } from '@ember/object';
 import { scheduleOnce, debounce, cancel } from '@ember/runloop';
 import labelFit from '../utils/label_fit';
 
@@ -120,30 +120,13 @@ export default Component.extend({
     }
   },
 
-  // The fit no longer depends on `shrinkLabelsToFit`, but keep observing it so a
-  // flip still forces a prompt re-fit rather than waiting for the next render.
-  _shrink_observer: observer('shrinkLabelsToFit', function() {
-    scheduleOnce('afterRender', this, '_run_label_fit');
-  }),
-
   _schedule_fit: function(source) {
     this._resize_pending = debounce(this, '_run_label_fit', source, RESIZE_DEBOUNCE_MS);
   },
 
-  // Shrink-to-fit runs for EVERY label, regardless of the "Shrink labels to fit"
-  // preference. A label that doesn't fit is ellipsised ("color/visual" →
-  // "color/...", "keyboard" → "keyb..."), and a truncated word on an AAC button
-  // is not a styling preference — it's a button whose meaning the user can no
-  // longer read. Smaller text still communicates; a cut-off word does not.
-  //
-  // The fit is SHRINK-ONLY and per-label: labels that already fit at the user's
-  // chosen size are untouched (applyOne clears its inline size when the fitted
-  // size is >= the base), so this never rescales a whole board uniformly and
-  // never grows text past the user's preference.
-  //
-  // NOTE: this leaves the "Shrink labels to fit" toggle with nothing to control.
-  // Flagged for follow-up — it should be removed from Text Settings or
-  // repurposed, otherwise it reads as a broken switch.
+  // Per-label shrink-to-fit (utils/label_fit.js): labels that would overflow at
+  // the user's chosen size are reduced individually; labels that already fit
+  // stay at the chosen size. Shrink-only — never grows text past preference.
   _run_label_fit: function() {
     if(this.isDestroyed || this.isDestroying) { return; }
     var gridEl = findGridEl();

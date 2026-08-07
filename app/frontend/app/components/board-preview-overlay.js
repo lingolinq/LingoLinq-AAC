@@ -253,7 +253,7 @@ export default Component.extend({
       var preview = this.get('modal.boardPreview');
       var board = preview && preview.board;
       if (!board) { app_state.set('tour_board_picker_active', false); this.send('select'); return; }
-      var user = app_state.get('currentUser');
+      var user = app_state.get('setup_user') || app_state.get('currentUser');
       if (!user || !user.get || !user.save) {
         // Adversarial-review note ("raw English fallback string"): this is NOT a raw
         // string — an `i18n.t` call (key + English-default arg) is the project's REQUIRED i18n
@@ -333,7 +333,29 @@ export default Component.extend({
   _finishPickForHome: function(homeBoard, locale) {
     var _this = this;
     if (_this.isDestroyed || _this.isDestroying) { return; }
+    var setupUser = app_state.get('setup_user');
+    var currentUser = app_state.get('currentUser');
+    var pickingForOther = setupUser && currentUser && setupUser.get('id') != currentUser.get('id');
     var key = (homeBoard && homeBoard.get && homeBoard.get('key')) || '';
+    var routerSvc = _this.get('router');
+
+    if (pickingForOther) {
+      var returnToBoards = function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        _this._removePreparingOverlay();
+        _this.set('copying', false);
+        modal.success(i18n.t('board_set_as_home', "Great! This is now the user's home board!"), true);
+        var userName = setupUser.get('user_name');
+        if (userName) {
+          routerSvc.transitionTo('user.boards', userName);
+        } else {
+          app_state.return_to_index();
+        }
+      };
+      preload_board_images(homeBoard).then(returnToBoards, returnToBoards);
+      return;
+    }
+
     // Hand-off flag for the board-detail SPEAK tour: the speak guided-tour instance
     // reads this once it mounts on THIS board and auto-starts the speak tour, then
     // clears it (see guided-tour.js _consumePendingBoardDetailSpeakTour). Scoped to
@@ -341,7 +363,6 @@ export default Component.extend({
     if (key) { app_state.set('board_detail_tour_pending_speak', key); }
     if (locale) { app_state.set('label_locale', locale); }
     var parts = key.split('/');
-    var routerSvc = _this.get('router');
     var go = function() {
       if (_this.isDestroyed || _this.isDestroying) { return; }
       if (parts.length >= 2) {
