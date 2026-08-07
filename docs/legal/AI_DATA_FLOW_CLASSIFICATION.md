@@ -2,11 +2,17 @@
 
 **Owner:** Privacy Office (privacy@lingolinq.com)
 **Created:** 2026-07-09 (VPC Phase 2, Task 02-01.1)
-**Status:** Re-attested (provisional) by Scot Wahlquist, CEO, **2026-08-04**, covering the current
+**Status:** Re-attested (provisional) by Scot Wahlquist, CEO, **2026-08-06**, covering the current
 revision. Formal outside counsel review remains deferred until the full 5-phase VPC is built. See
 `AI_DATA_SHARING_CONSENT.md` section 9.
 **Attestation history:** first attested (provisional) 2026-07-09; re-attested 2026-07-22;
-re-attested 2026-08-04. The **2026-08-04** re-attestation covers the runtime-row status paragraph,
+re-attested 2026-08-04; re-attested 2026-08-06. The **2026-08-06** re-attestation covers the
+section 8 correction: the board-generation bullet stated the superseded "stays gated" position as
+the outcome, contradicting this document's own section 3 table and section 4.2,
+`AI_DATA_SHARING_CONSENT.md` section 7, and the shipped implementation in
+`lib/lingo_linq/ai_consent_disclosures.rb`. That revision corrected the description only; no
+classification, gate, or data flow changed.
+The **2026-08-04** re-attestation covers the runtime-row status paragraph,
 rewritten from "dormant as of 2026-07-30" to the closed operational window (not operational through
 revision `00012-x8z`; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on `00013-76w`, carrying
 one internal verification call with no user or student data; not operational since `00014-5rw`).

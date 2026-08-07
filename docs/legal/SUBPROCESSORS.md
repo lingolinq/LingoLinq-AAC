@@ -1,15 +1,19 @@
 # LingoLinq Subprocessor Register
 
 **Owner:** Privacy Office (privacy@lingolinq.com)
-**Last reviewed:** 2026-08-04 (CEO re-attestation of the current revision; prior re-attestation 2026-07-23; last full line-by-line review 2026-04-20)
-**Attested:** 2026-07-06; re-attested 2026-07-23; **re-attested 2026-08-04** by Scot Wahlquist,
+**Last reviewed:** 2026-08-06 (CEO re-attestation of the current revision; prior re-attestations 2026-08-04 and 2026-07-23; last full line-by-line review 2026-04-20)
+**Attested:** 2026-07-06; re-attested 2026-07-23; re-attested 2026-08-04; **re-attested 2026-08-06** by Scot Wahlquist,
 CEO. The 2026-07-06 attestation covered an earlier revision; five later PRs (#588, #622, #631,
 #648, #652) rewrote the Gemini, Google Cloud, Anthropic, and localization/speech rows. The
 2026-07-23 re-attestation is the CEO sign-off the 2026-07-21/22/23 amendments below were marked
 DRAFT pending; it also covers the same-day **Abair Irish TTS disable** (#674, row #17) and the
 localization/speech finding triage recorded in the change log below. The **2026-08-04**
 re-attestation covers the two row-4 (Anthropic) runtime-status corrections in the change log,
-dated 2026-08-02 and 2026-08-04.
+dated 2026-08-02 and 2026-08-04. The **2026-08-06** re-attestation covers the record-completeness
+correction recorded in the 2026-08-06 change-log entry: the two previously absent "Notified to
+customers" cells, the corrected "Last amended" date, and the section 2 customer-notice-timing
+clause bounded to the period it was true. No vendor, data flow, contract, or classification
+changed in that revision.
 
 > **Discharge note, 2026-08-05.** The 2026-08-02 and 2026-08-04 change-log rows below each end
 > with "Re-attestation owed." That was true when each row was written and was **discharged on
