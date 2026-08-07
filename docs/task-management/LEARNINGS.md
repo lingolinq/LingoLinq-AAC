@@ -156,6 +156,9 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Pattern: a CSS background-image on a Shepherd popover (or any lazily-injected element) flashes blank on first open — preload it](#pattern-a-css-background-image-on-a-shepherd-popover-or-any-lazily-injected-element-flashes-blank-on-first-open--preload-it)
 - [Pattern: a guided-tour auto-open flag consumed at a single afterRender misses when the gating state (edit_mode) resolves on a promise microtask — poll the condition](#pattern-a-guided-tour-auto-open-flag-consumed-at-a-single-afterrender-misses-when-the-gating-state-edit_mode-resolves-on-a-promise-microtask--poll-the-condition)
 - [Pattern: `i18n_generator.rb --merge` does NOT refresh CHANGED English into existing locale placeholders — only adds MISSING keys](#pattern-i18n_generatorrb---merge-does-not-refresh-changed-english-into-existing-locale-placeholders--only-adds-missing-keys)
+- [Gotcha: a server-side guard on payload SHAPE must be written against what Ember actually sends](#gotcha-a-server-side-guard-on-payload-shape-must-be-written-against-what-ember-actually-sends)
+- [Gotcha: raw_events synthesizes clicks in modals — modern `{{on "click"}}` handlers then fire TWICE](#gotcha-raw_events-synthesizes-clicks-in-modals--modern-on-click-handlers-then-fire-twice)
+- [Gotcha: `Utils.uniq(list)` with no comparator used to throw — and this repo has Puppeteer, not Playwright](#gotcha-utilsuniqlist-with-no-comparator-used-to-throw--and-this-repo-has-puppeteer-not-playwright)
 - [Gotcha: `allowed?` RENDERS on denial — never put two of them in an `||`](#gotcha-allowed-renders-on-denial--never-put-two-of-them-in-an-)
 - [Pattern: removing a user-facing toggle has an artifact checklist — source removal is only half of it](#pattern-removing-a-user-facing-toggle-has-an-artifact-checklist--source-removal-is-only-half-of-it)
 - [Pattern: a Shepherd popover anchored to an element that gets removed mid-transition is flung to the top-left (0,0) by floating-ui — snap it out instantly](#pattern-a-shepherd-popover-anchored-to-an-element-that-gets-removed-mid-transition-is-flung-to-the-top-left-00-by-floating-ui--snap-it-out-instantly)
@@ -5700,6 +5703,103 @@ dangling comma when the key is last in its object.
 
 **First seen in:** [2026-06-15-board-detail-tour-tools-reword.md](./2026-06-15-board-detail-tour-tools-reword.md);
 prune corollary in [2026-08-07-remove-shrink-labels-to-fit-toggle.md](./2026-08-07-remove-shrink-labels-to-fit-toggle.md)
+
+---
+
+## Gotcha: a server-side guard on payload SHAPE must be written against what Ember actually sends
+
+**Surface:** any controller branch that inspects the request payload to decide
+authorization — "allow this weaker role, but only when they're changing X".
+
+**Symptom:** specs pass, the real UI 400s. The branch's supervise-only home-board
+guard required the payload to contain only `preferences`:
+`return false unless (top_keys - ['preferences']).empty?`.
+
+**Root cause:** Ember Data's `user.save()` serializes the **entire record**, not
+the dirty attribute. Captured off the running app, one home-board pick PUTs
+`user[user_name]`, `user[user_token]`, `user[link]`, `user[name]`, `user[email]`,
+`user[description]` and ~20 more alongside `preferences`. No real request can
+ever satisfy an "only this key" test. The spec passed because it hand-built a
+preferences-only payload — it encoded the assumption instead of testing it.
+
+**Fix recipe:** make the guard depend on what must be PRESENT, then **discard**
+everything else server-side rather than requiring the client to have sent
+nothing else. Safety comes from the slice, not from the shape test. Keep the
+deeper model-layer check (here `process_home_board`'s view/share gate) as the
+real boundary.
+
+**Also:** `!!value` is not a presence test for a Hash — `{}` is truthy in Ruby,
+so an empty `home_board` sailed through and persisted `preferences.home_board = {}`,
+leaving the user worse off than the `nil` they started with. Require the field
+you actually need (`home_board['id'].present?`).
+
+**When writing the spec:** capture a real payload first (Puppeteer
+`page.on('request')` → `r.postData()`) and use that shape. If the spec's payload
+is hand-written and tidy, assume it is lying.
+
+**First seen in:** [2026-08-07-pick-for-home-ui-e2e.md](./2026-08-07-pick-for-home-ui-e2e.md)
+
+---
+
+## Gotcha: raw_events synthesizes clicks in modals — modern `{{on "click"}}` handlers then fire TWICE
+
+**Surface:** any button inside `.modal-content` wired with `{{on "click"}}`
+(rather than classic `{{action}}`).
+
+**Symptom:** the handler runs twice per click. Invisible for idempotent actions
+(close), destructive for anything that creates: the board-picker CTA copied a
+board twice, the second `POST /boards` failed `400 board key already in use`, and
+the user saw an error *after* a copy had already been made.
+
+**Root cause:** `modalDialogClickRelease` (`utils/raw_events.js`) synthesizes a
+pass-through click on `mouseup` so classic `{{action}}` components — which don't
+receive pointer events under Ember 5 — still work. `preventDefault()` on a
+*mouseup* does NOT suppress the click event that follows, so a modern `{{on}}`
+listener gets both. Proven by tagging the events:
+synthetic = `{isTrusted:false, pass_through:true}`, native = `{isTrusted:true,
+pass_through:false}`.
+
+**Fix recipe:** skip the synthetic dispatch when the browser is certain to
+deliver a real click to that same element — `event.type === 'mouseup' &&
+el.contains(event.target)`. Touch, dwell, eye-gaze and scanning produce no native
+click and must still get the pass-through, so do not remove the synthesis
+outright. `passThroughUnresolvedChromeClick` in the same file already had this
+guard, scoped to `.md-board-collection`.
+
+**Diagnostic that settles it in one run:** attach a capture-phase listener to the
+element and log `e.isTrusted` per event. Two events with different `isTrusted`
+means dual dispatch, not a double user click.
+
+**First seen in:** [2026-08-07-pick-for-home-ui-e2e.md](./2026-08-07-pick-for-home-ui-e2e.md)
+
+---
+
+## Gotcha: `Utils.uniq(list)` with no comparator used to throw — and this repo has Puppeteer, not Playwright
+
+**Two traps that cost a full debugging session:**
+
+**1. `Utils.uniq` (utils/misc.js)** took `(list, compare)` and dereferenced
+`compare.toString()` before checking its type, so a one-argument call threw
+`Cannot read properties of undefined (reading 'toString')` the moment the list was
+non-empty. `User#org_board_keys` was the lone one-arg caller; because
+`edit_manager#copy_board` reads `org_board_keys` before copying, this killed the
+ENTIRE board-picker pick flow with a generic "we couldn't set up your board"
+toast and no network activity at all. Fixed to default to identity. (Two
+`persistence.js` call sites had been passing `function(i) { return i; }` to dodge
+it — a workaround in the codebase is a hint the primitive is wrong.)
+
+**2. Browser automation:** this repo commits **puppeteer** (`package.json`),
+NOT playwright. A committed QA script that does `import { chromium } from
+'playwright'` cannot run here — which is how a flow ships "verified" without ever
+having been executed. Check the import against `package.json` before trusting any
+E2E script's green/red status.
+
+**3. Background jobs:** flows that go through `Progress.schedule` (board copy →
+`copy_board_links`) need a **Resque worker** running. Rails + Ember alone leaves
+the progress pending forever and the completion callback never fires, which looks
+exactly like a frontend hang.
+
+**First seen in:** [2026-08-07-pick-for-home-ui-e2e.md](./2026-08-07-pick-for-home-ui-e2e.md)
 
 ---
 

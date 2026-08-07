@@ -1242,19 +1242,33 @@ class Api::UsersController < ApplicationController
     res
   end
 
-  # Supervise-only supervisors may set a communicatee's home board. Ember user.save()
-  # sends the full preferences blob when any preference changes; slice home_board
-  # server-side instead of requiring the client to send only that key.
+  # Supervise-only supervisors may set a communicatee's home board.
+  #
+  # Do NOT require the payload to contain only `preferences`. Ember's `user.save()`
+  # serializes the WHOLE record — verified against the running app, a real pick sends
+  # user[user_name], user[user_token], user[link], user[name], user[email],
+  # user[description] and ~20 more alongside preferences. An earlier version of this
+  # check required `(top_keys - ['preferences']).empty?`, which no real client request
+  # can satisfy, so every supervise-only pick fell through to `allowed?(user, 'edit')`
+  # and 400'd. Its spec passed only because the spec sent a payload shape the app
+  # never produces.
+  #
+  # Safety comes from DISCARDING rather than from inspecting: whatever else the client
+  # sent, supervise_home_board_update_slice throws it all away and keeps home_board
+  # alone, and User#process_home_board still requires the board to be viewable by the
+  # communicatee or shareable by the updater.
   def supervise_home_board_update?(data)
     return false unless data.is_a?(Hash)
-
-    top_keys = data.keys.map(&:to_s)
-    return false unless (top_keys - ['preferences']).empty?
 
     prefs = data['preferences'] || data[:preferences]
     return false unless prefs.is_a?(Hash)
 
-    !!(prefs['home_board'] || prefs[:home_board])
+    home_board = prefs['home_board'] || prefs[:home_board]
+    # Require a real board reference. `!!home_board` also accepted `{}`, which sliced
+    # to an empty home_board and persisted `preferences.home_board = {}` — leaving the
+    # communicatee worse off than the nil they started with, since User#process_home_board
+    # (user.rb:2467) only runs when an id is present and so never cleaned it up.
+    home_board.is_a?(Hash) && (home_board['id'] || home_board[:id]).present?
   end
 
   def supervise_home_board_update_slice(data)

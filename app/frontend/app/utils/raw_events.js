@@ -270,6 +270,27 @@ function modalDialogClickRelease(event) {
   ].join(','));
   if (!el || el.disabled) { return false; }
 
+  // Do NOT synthesize when the browser is already going to deliver a real click
+  // to this same element — a `mouseup` whose target is the element or a
+  // descendant. Otherwise the handler runs TWICE: once for the synthetic click
+  // and once for the native one that follows (preventDefault on a mouseup does
+  // not suppress the subsequent click event).
+  //
+  // Verified in the board-picker preview: one physical click on "Pick this Board"
+  // produced click #1 {isTrusted:false, pass_through:true} then click #2
+  // {isTrusted:true, pass_through:false}, so pick_for_home ran twice, copied the
+  // board twice, and the second POST /boards failed "board key already in use" —
+  // surfacing an error to the user AFTER a copy had already been made.
+  //
+  // Same reasoning (and same shape) as passThroughUnresolvedChromeClick's
+  // `native_click_coming` guard above; that one is scoped to .md-board-collection
+  // because that was the only surface confirmed at the time. Touch, dwell,
+  // eye-gaze and scanning produce no native click and still get the pass-through,
+  // which is what classic {{action}} modal components rely on.
+  var native_click_coming = event.type === 'mouseup' && event.target &&
+                            el.contains && el.contains(event.target);
+  if (native_click_coming) { return false; }
+
   if (event.cancelable) { event.preventDefault(); }
   if (event.stopPropagation) { event.stopPropagation(); }
   buttonTracker.ignoreUp = true;
