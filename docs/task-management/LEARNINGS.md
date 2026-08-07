@@ -156,6 +156,7 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Pattern: a CSS background-image on a Shepherd popover (or any lazily-injected element) flashes blank on first open — preload it](#pattern-a-css-background-image-on-a-shepherd-popover-or-any-lazily-injected-element-flashes-blank-on-first-open--preload-it)
 - [Pattern: a guided-tour auto-open flag consumed at a single afterRender misses when the gating state (edit_mode) resolves on a promise microtask — poll the condition](#pattern-a-guided-tour-auto-open-flag-consumed-at-a-single-afterrender-misses-when-the-gating-state-edit_mode-resolves-on-a-promise-microtask--poll-the-condition)
 - [Pattern: `i18n_generator.rb --merge` does NOT refresh CHANGED English into existing locale placeholders — only adds MISSING keys](#pattern-i18n_generatorrb---merge-does-not-refresh-changed-english-into-existing-locale-placeholders--only-adds-missing-keys)
+- [Gotcha: `allowed?` RENDERS on denial — never put two of them in an `||`](#gotcha-allowed-renders-on-denial--never-put-two-of-them-in-an-)
 - [Pattern: removing a user-facing toggle has an artifact checklist — source removal is only half of it](#pattern-removing-a-user-facing-toggle-has-an-artifact-checklist--source-removal-is-only-half-of-it)
 - [Pattern: a Shepherd popover anchored to an element that gets removed mid-transition is flung to the top-left (0,0) by floating-ui — snap it out instantly](#pattern-a-shepherd-popover-anchored-to-an-element-that-gets-removed-mid-transition-is-flung-to-the-top-left-00-by-floating-ui--snap-it-out-instantly)
 - [Pattern: the app root font-size is 10px (62.5%) — `rem` font-sizes render at 62.5%; ALWAYS use px (or the $aac-font-size-* tokens), never rem](#pattern-the-app-root-font-size-is-10px-625--rem-font-sizes-render-at-625-always-use-px-or-the-aac-font-size--tokens-never-rem)
@@ -5699,6 +5700,54 @@ dangling comma when the key is last in its object.
 
 **First seen in:** [2026-06-15-board-detail-tour-tools-reword.md](./2026-06-15-board-detail-tour-tools-reword.md);
 prune corollary in [2026-08-07-remove-shrink-labels-to-fit-toggle.md](./2026-08-07-remove-shrink-labels-to-fit-toggle.md)
+
+---
+
+## Gotcha: `allowed?` RENDERS on denial — never put two of them in an `||`
+
+**Surface:** widening any authorization check in `app/controllers/api/*`
+to accept a second permission ("also let supervisors do this").
+
+**Symptom:** the obvious edit — `allowed?(user,'edit') || allowed?(user,'supervise')`
+— produces `AbstractController::DoubleRenderError`. Both the DENY path
+(clean 400 becomes a 500) and, worse, the newly-ALLOWED path break: the
+action runs to completion, persists its record, then dies rendering.
+A supervise-only board create left an orphan board behind and 500'd.
+
+**Root cause:** `allowed?` is not a predicate. On denial it calls
+`api_error 400, res` and *then* returns false
+([`application_controller.rb:300`](../../app/controllers/application_controller.rb#L300)).
+So the first failing call has already rendered, whatever the second one
+answers.
+
+**Fix recipe:** use the PURE predicate `user.allows?(@api_user, '<perm>')`
+for every check but one, and let a single `allowed?` remain last to
+produce the error render:
+
+```ruby
+return unless user.allows?(@api_user, 'supervise') || allowed?(user, 'edit')
+```
+
+Invariant: **at most one `allowed?(user, …)` call per expression.**
+`allows?` is the model-side check on the permissions concern and takes
+the actor as its first argument — note the receiver/argument order is the
+inverse of `allowed?`. `users_controller#update` already used this form
+correctly one screen away from the site that broke.
+
+**Also:** when widening, scope to what the feature actually needs rather
+than to the permission name. The board-picker only needed to COPY a board
+for a communicatee, and `models/board.js create_copy` always sets
+`parent_board_id` — so gating on `parent_board_id.present?` enabled the
+flow while leaving "supervise-only cannot author a fresh board for a
+supervisee" intact. Check the existing deny-path specs before choosing the
+key: both of them posted *without* `parent_board_id`, which is what made
+the narrow gate free.
+
+**Sweep before you assume it's one site:**
+`grep -rn "allowed?(.*) || allowed?(" app/controllers/`
+(two pre-existing instances live in `logs_controller.rb:173` and `:275`).
+
+**First seen in:** [2026-08-07-allowed-double-render-and-supervise-scope.md](./2026-08-07-allowed-double-render-and-supervise-scope.md)
 
 ---
 

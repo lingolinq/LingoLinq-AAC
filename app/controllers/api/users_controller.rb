@@ -684,7 +684,13 @@ class Api::UsersController < ApplicationController
     old_board = Board.find_by_path(params['old_board_id'])
     new_board = Board.find_by_path(params['new_board_id'])
     return unless exists?(user, params['user_id']) && exists?(old_board, params['old_board_id']) && exists?(new_board, params['new_board_id'])
-    return unless (allowed?(user, 'edit') || allowed?(user, 'supervise')) && allowed?(old_board, 'view') && allowed?(new_board, 'view')
+    # Supervise-only supervisors reach this via the board-picker home-board flow.
+    # `allows?` is the PURE predicate and must come first: `allowed?` renders a
+    # 400 as a side effect before returning false, so `allowed?(a) || allowed?(b)`
+    # renders on the first failure regardless of the second and then double-renders
+    # (500). At most one `allowed?(user, …)` call may run here.
+    # The next line still requires the destination board to be owned by the user.
+    return unless (user.allows?(@api_user, 'supervise') || allowed?(user, 'edit')) && allowed?(old_board, 'view') && allowed?(new_board, 'view')
     return allowed?(user, 'never_allow') unless new_board.user == user
     
     make_public = params['make_public'] && params['make_public'] == '1' || params['make_public'] == 'true' || params['make_public'] == true
