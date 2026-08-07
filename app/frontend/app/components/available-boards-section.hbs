@@ -368,11 +368,11 @@
                       {{#if board.board.key}}
                         {{#unless board.board.removed}}
                           <div
-                            class="ub-boards-page__board-item board_with_action simple_board_holder {{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) "ub-boards-page__board-item--draggable"}} {{if (is-equal board.board.key this.appState.referenced_user.preferences.home_board.key) 'ub-boards-page__board-item--home'}} {{if board.board.starred_for_current_user 'ub-boards-page__board-item--liked'}}"
+                            class="ub-boards-page__board-item board_with_action simple_board_holder {{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) "ub-boards-page__board-item--draggable"}} {{if (is-equal board.board.key this.boardsCtrl.model.preferences.home_board.key) 'ub-boards-page__board-item--home'}} {{if board.board.starred_for_current_user 'ub-boards-page__board-item--liked'}}"
                             draggable={{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) "true" "false"}}
                             {{on "dragstart" (this.selfEventAction "boardDragStart" board.board)}}
                           >
-                            {{#if (is-equal board.board.key this.appState.referenced_user.preferences.home_board.key)}}
+                            {{#if (is-equal board.board.key this.boardsCtrl.model.preferences.home_board.key)}}
                               <span class="ub-boards-page__board-item-home-badge">{{t "Home Board" key="home_board"}}</span>
                             {{/if}}
                             {{#if board.board.starred_for_current_user}}
@@ -676,11 +676,11 @@
           {{#if board.board.key}}
             {{#unless board.board.removed}}
               <div
-                class="ub-boards-page__board-item board_with_action simple_board_holder {{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) "ub-boards-page__board-item--draggable"}} {{if (is-equal board.board.key this.appState.referenced_user.preferences.home_board.key) 'ub-boards-page__board-item--home'}} {{if board.board.starred_for_current_user 'ub-boards-page__board-item--liked'}}"
+                class="ub-boards-page__board-item board_with_action simple_board_holder {{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) "ub-boards-page__board-item--draggable"}} {{if (is-equal board.board.key this.boardsCtrl.model.preferences.home_board.key) 'ub-boards-page__board-item--home'}} {{if board.board.starred_for_current_user 'ub-boards-page__board-item--liked'}}"
                 draggable={{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) "true" "false"}}
                 {{on "dragstart" (this.selfEventAction "boardDragStart" board.board)}}
               >
-                {{#if (is-equal board.board.key this.appState.referenced_user.preferences.home_board.key)}}
+                {{#if (is-equal board.board.key this.boardsCtrl.model.preferences.home_board.key)}}
                   <span class="ub-boards-page__board-item-home-badge">{{t "Home Board" key="home_board"}}</span>
                 {{/if}}
                 {{#if board.board.starred_for_current_user}}

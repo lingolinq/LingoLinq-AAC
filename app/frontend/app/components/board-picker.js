@@ -43,6 +43,8 @@ export default Component.extend({
   willInsertElement: function() {
     if(this.get('include_mine')) {
       this.send('set_category', 'mine');
+    } else if(this.get('searchAtTop')) {
+      this.send('set_category', 'available_boards');
     } else {
       this.send('set_category', 'robust');
     }
@@ -164,16 +166,6 @@ export default Component.extend({
       res.push(cat);
     }
 
-    if (includeMine && !searchAtTop) {
-      pushMine();
-    }
-    LingoLinq.board_categories.forEach(function(c) {
-      var cat = $.extend({}, c);
-      if (current === c.id) {
-        cat.selected = true;
-      }
-      res.push(cat);
-    });
     if (searchAtTop) {
       var availableCat = {
         name: i18n.t('board_picker_available_boards', "All Available Boards"),
@@ -184,6 +176,16 @@ export default Component.extend({
       }
       res.push(availableCat);
     }
+    if (includeMine && !searchAtTop) {
+      pushMine();
+    }
+    LingoLinq.board_categories.forEach(function(c) {
+      var cat = $.extend({}, c);
+      if (current === c.id) {
+        cat.selected = true;
+      }
+      res.push(cat);
+    });
     return res;
   }),
   boardSearchActive: computed('boardSearchQuery', function() {
