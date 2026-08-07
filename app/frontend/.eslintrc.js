@@ -87,6 +87,7 @@ module.exports = {
         'blueprints/*/index.js',
         'config/**/*.js',
         'lib/*/index.js',
+        'scripts/**/*.js',
         'server/**/*.js'
       ],
       parserOptions: {

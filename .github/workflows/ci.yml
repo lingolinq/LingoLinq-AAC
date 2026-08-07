@@ -104,6 +104,13 @@ jobs:
         working-directory: app/frontend
         run: npm run lint:hbs
 
+      # JS lint gate: fails on any NEW ESLint finding (error or warning).
+      # Pre-existing findings are grandfathered in app/frontend/.eslint-todo;
+      # this only blocks newly-introduced ones. Not the same as disabling rules.
+      - name: Lint Ember JS
+        working-directory: app/frontend
+        run: npm run lint:js:ci
+
       # Puppeteer downloads Chrome under ~/.cache/puppeteer, not inside node_modules.
       # Restoring only node_modules leaves executablePath() pointing at a missing binary.
       - name: Ensure Puppeteer Chrome is present
