@@ -30,3 +30,7 @@
 
 # broccoli-debug
 /DEBUG/
+e2e/.auth/
+e2e/test-results/
+playwright-report/
+test-results/

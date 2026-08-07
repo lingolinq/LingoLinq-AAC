@@ -8795,3 +8795,96 @@ When `settings.categories` had no matches for a tab, `_resolveCategoryBoards` lo
 
 **Evidence:** [`2026-08-05-boards-folder-accordion-fn-sendaction.md`](./2026-08-05-boards-folder-accordion-fn-sendaction.md); related LEARNINGS entry on `(fn this.ctrlAction …)`.
 
+
+## Pattern: demoting UI options to text links — reuse `.md-link-btn`, don't hand-roll a reset
+
+**Surface:** create-board-new chooser (`.nb-create-chooser`), but applies to any "promote two
+options, demote the rest" restyle.
+
+**Recipe:** `.md-link-btn` (app.scss ~49610) already exists for `<button>` elements that must
+*look* like inline links while keeping button semantics — added 2026-04-11 per WCAG audit when
+converting `<a href="#" {{action}}>` to real buttons. Compose it (`class="md-link-btn
+<block>__alt-link"`) and add only the block-specific scale/color. Keep them `<button>`s: these
+fire actions (file picker, import modals), they do not navigate.
+
+**Two traps:**
+1. **`.md-link-btn:hover` sets `text-decoration: none`** (shorthand). Any `text-decoration-color`
+   you write in your own `:hover` is dead — the shorthand already zeroed the line. Set only
+   `color` on hover; underline-at-rest / none-on-hover is the app-wide convention.
+2. **Composition relies on source order, not specificity.** Both selectors are (0,1,0). Your
+   overrides win only because your rule sits later in `app.scss`. Verify by compiling and
+   comparing output line numbers — don't assume, and don't reach for `!important` (rule 7).
+
+**Also:** when the demoted options leave a stacked list, check whether a feature-flag `{{#if}}`
+existed *purely* to vary inline `animation-delay`. In this case the AI button was duplicated
+across both branches of `{{#if paste_html_import_enabled}}` for exactly that reason; once the
+delays converged it collapsed to one button.
+
+**Verify SCSS with Dart Sass, not SassC.** `app/frontend/ember-cli-build.js:31` pins
+`implementation: require('sass')`. A `SassC::Engine` check fails at ~line 681 on `color.adjust`
+(a Dart-only module function) — that failure is pre-existing noise, not your change. Use
+`npx sass --load-path=app/styles app/styles/app.scss <out>`.
+
+**Evidence:** [`2026-08-07-create-board-chooser-primary-secondary.md`](./2026-08-07-create-board-chooser-primary-secondary.md).
+
+## Gotcha: Playwright specs against LingoLinq mutate the signed-in user's persisted prefs
+
+**Surface:** `app/frontend/e2e/` — anything driving the board-detail / create-board-new
+Edit Tools rail.
+
+**Symptom:** A spec passes on first run and fails on every run after. Or worse, a spec that
+has passed for several runs starts failing while an unrelated one is being fixed.
+
+**Root cause:** The rail writes REAL device preferences (`preferences.device.*`) which
+persist server-side. Two failure shapes:
+- Fixed target: `pick("Huge")` is a no-op once Huge is already selected.
+- Fixed stepper direction: repeated `Looser` / `Increase rows` walks the pref to its bound,
+  where the button carries `disabled` and the click silently does nothing.
+
+**Fix recipe:** Make assertions order- and history-independent — select whatever is
+currently *unselected* (`[aria-selected="false"]`, `[aria-checked="false"]`) or click
+whichever stepper half is currently *enabled*, then assert state MOVED (`.not.toBe(before)`)
+rather than that it reached a specific value. Verify by running the suite 3× consecutively;
+a single green run proves nothing here.
+
+**Two Playwright traps found alongside it:**
+- `[aria-checked="false"]` as both click target and assertion target can never pass — the
+  element leaves the selector the moment the click succeeds. Resolve `aria-label` first.
+- `.filter({hasNot: X})` excludes elements that *contain* X, not elements that *are* X.
+
+**Evidence:** [`2026-08-07-create-board-chooser-primary-secondary.md`](./2026-08-07-create-board-chooser-primary-secondary.md).
+
+## Gotcha: board-detail's light-mode styles are ancestor-scoped — reused surfaces silently miss them
+
+**Surface:** any view that reuses the `md-board-detail-*` classes outside the board-detail
+page. Found twice on the create-board-new live preview.
+
+**Symptom:** the reused surface looks right in DARK mode and wrong in LIGHT mode.
+
+**Root cause:** board-detail's dark rules are written as `.md-board-detail--dark .x`
+(ancestor-free, so they follow the class anywhere), but its LIGHT rules are written as
+`.md-shell--board-detail:not(...):not(.md-board-detail--dark) .x`. Anything without a
+`.md-shell--board-detail` ancestor gets the BASE rule instead — and several base rules are
+authored for the opposite surface brightness, so they fail in the worst way: legible
+markup, invisible pixels.
+
+**Known members of this family (all now also scoped to `.new-board-mockup-wrap`):**
+`.md-board-detail-sentence-bar`, `.md-board-detail-home-btn`,
+`.md-board-detail-sentence-bar__tool-btn`, `.md-board-detail-sentence-bar__btn--speak svg`,
+`.md-board-detail-symbol-card--empty`.
+
+**Fix recipe:** add the new surface as a second selector on the EXISTING light rule (rule
+7) — never a parallel override. Then sweep for the rest before declaring done:
+```
+grep -n "md-shell--board-detail[^ ,{]*:not(.md-board-detail--dark)" app.scss
+```
+and for each hit check whether the target class exists in the reusing template.
+
+**The trap that cost a round trip:** changing a container's background WITHOUT auditing the
+children means children whose wash assumed the old brightness disappear. `--empty` cards
+have three variants (navy wash for light surfaces, white for dark mode, white for
+speak-light); flipping the canvas to `$brand-charcoal-dark` while leaving the base navy
+wash made every blank card invisible. **Computed-style assertions passed the whole time** —
+the card was "visible" with a background — so only a rendered screenshot caught it.
+
+**Evidence:** [`2026-08-07-create-board-chooser-primary-secondary.md`](./2026-08-07-create-board-chooser-primary-secondary.md).

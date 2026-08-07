@@ -54324,12 +54324,50 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   height: 1px;
   background: rgba($la-navy, 0.14);
 }
+/* Secondary create methods. Only "Create My Own Board" and "Generate with AI"
+   get a full chooser key; every other method (file import, Paste HTML, JSON
+   bundle) stacks here as a small slate-gray text link under the closing OR.
+   Column rather than a wrapped row because "Import Board from Another Platform"
+   is long enough to wrap unpredictably once the paste_html flag is on. */
+.nb-create-chooser__alt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  animation: nb-chooser-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+/* Extends the shared `.md-link-btn` reset (button semantics, link appearance)
+   with the chooser's demoted scale. #5A6A85 on the panel's white base is
+   5.34:1 — WCAG AA for normal text at 14px. */
+.nb-create-chooser__alt-link {
+  padding: 3px 6px;
+  border-radius: 6px;
+  color: $brand-slate-blue;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-decoration-color: rgba($brand-slate-blue, 0.40);
+  text-underline-offset: 3px;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
+}
+/* Underline removal on hover comes from `.md-link-btn:hover` (the app-wide link
+   convention), so only the ink darkens here. */
+.nb-create-chooser__alt-link:hover,
+.nb-create-chooser__alt-link:focus-visible {
+  color: $la-navy;
+}
+.nb-create-chooser__alt-link:focus-visible {
+  outline: 2px solid rgba($brand-verdigris-aa, 0.75);
+  outline-offset: 2px;
+}
 @keyframes nb-chooser-rise {
   from { opacity: 0; transform: translateY(18px) scale(0.96); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 @media (prefers-reduced-motion: reduce) {
   .nb-create-chooser__btn,
+  .nb-create-chooser__alt,
   .nb-create-chooser__or { animation: none; }
 }
 /* create-board-new rail: font dropdown extends past the rail's left
@@ -54360,10 +54398,32 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   padding-left: 4px;
   padding-right: 4px;
 }
-/* Preview speak bar — same fill as the home button beside it
-   (rgba(110,122,140,.32)) so the two read as one tier in light mode. */
-.nb-preview-sentence-row .md-board-detail-sentence-bar {
-  background: rgba(110, 122, 140, 0.32);
+/* The preview speak bar's surface is NOT set here. Light mode comes from the
+   shared board-detail light rule (app.scss ~72528, which this preview scope was
+   added to) and dark from `.md-board-detail--dark .md-board-detail-sentence-bar`
+   (~81481, never shell-scoped, so it already reached the preview). A local
+   `background` here would shadow the light-mode glass surface and put the two
+   surfaces back out of sync. */
+/* Left inset for the preview bar's content ("Tapped words will appear here" and
+   the tapped-word chips), which otherwise starts hard against the bar's left
+   edge. Set HERE rather than on the shared light rule, because the two modes
+   inherit DIFFERENT left padding and neither is what this bar wants:
+     light -> 18px  (shared board-detail speak-light rule, `padding: 2px 18px`)
+     dark  ->  4px  (base .md-board-detail-sentence-bar, `2px 10px 2px 4px`)
+   One preview-scoped rule normalises both to the same inset AND leaves the live
+   board-detail bar untouched. An intentional divergence from board-detail's
+   spacing; the surface treatment still matches exactly.
+
+   The selector is four levels deep on purpose, not padding for its own sake. The
+   light rule is `.new-board-mockup-wrap:not(.md-board-detail--dark)
+   .md-board-detail-sentence-bar` = (0,3,0) — `:not()` contributes its argument's
+   specificity — and it sets `padding` as a SHORTHAND, so it overwrites
+   padding-left wholesale. A (0,2,0) or tying (0,3,0) selector loses (this rule
+   sits earlier in the file), and !important is not the answer. This chain is
+   (0,4,0) and mode-agnostic, so it beats the light rule and the dark base alike.
+   Every class in it is a real ancestor: stage > wrap > row > bar. */
+.nb-preview-stage .new-board-mockup-wrap .nb-preview-sentence-row .md-board-detail-sentence-bar {
+  padding-left: 30px;
 }
 /* Speak Bar → "Sentence Bar" size: the preview speak bar grows with
    the chosen vocalization_height so the control has a visible effect
@@ -54410,6 +54470,13 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   font-weight: 600;
   white-space: nowrap;
 }
+/* Dark mode: navy-on-navy is unreadable once the bar becomes the dark
+   translucent slab, so the chip flips to a light-on-dark pair matching the way
+   `.md-board-detail--dark` treats the bar's other inline content. */
+.md-board-detail--dark .nb-preview-sentence-bar__word {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.92);
+}
 /* Drop the right-side 1px divider on the mockup's speak bar (the
    live board-detail bar keeps it; the preview mockup doesn't need
    it). */
@@ -54431,6 +54498,13 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     rgba(255, 255, 255, 0.55) 100%
   ) !important;
 }
+/* The preview wrap is the create page's stand-in for board-detail's
+   `.md-board-detail-main` (the board canvas), so it carries that element's SURFACE
+   in both modes rather than a create-page-specific panel treatment. It was a light
+   recessed "labels div" gradient, which is why the preview read as a washed-out
+   panel while the real board reads as a dark canvas. Geometry (max-width, radius,
+   the squared seam against the Edit Tools rail) stays create-page-specific — those
+   are layout, not theme, and the rail seam depends on them. */
 .new-board-mockup-wrap {
   position: relative;
   width: 100%;
@@ -54439,32 +54513,26 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   margin: 0 auto;
   padding: 14px 0;
   border-radius: 18px;
-  /* Same recessed surface as the labels div (.nb-words-grid). */
-  background: linear-gradient(
-    180deg,
-    rgba(13, 36, 56, 0.06) 0%,
-    rgba(13, 36, 56, 0.02) 35%,
-    rgba(255, 255, 255, 0.55) 100%
-  );
-  border: 1px solid rgba(13, 36, 56, 0.06);
-  box-shadow:
-    inset 0 3px 8px rgba(13, 36, 56, 0.14),
-    inset 0 1px 2px rgba(13, 36, 56, 0.08),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.7),
-    0 1px 0 rgba(255, 255, 255, 0.55);
+  /* LIGHT: matches `.md-board-detail-main` (app.scss ~68455) — the brand
+     dark-charcoal slate canvas the board grid sits on in speak mode. The
+     `:not(.md-board-detail--dark)` board-detail rule also strips that element's
+     border/shadow, so the wrap carries neither. */
+  background: $brand-charcoal-dark;
+  border: none;
+  box-shadow: none;
 }
 .new-board-mockup-wrap--dark {
-  /* Mirrors the .md-shell--board-detail dark page treatment so the preview
-     reads as the actual board background, not a panel. */
-  background:
-    radial-gradient(900px 500px at 10% 5%, rgba($brand-stormy-teal, 0.18), transparent 50%),
-    radial-gradient(800px 400px at 90% 15%, rgba($brand-charcoal-blue, 0.16), transparent 50%),
-    radial-gradient(700px 400px at 50% 95%, rgba($brand-charcoal-dark, 0.22), transparent 55%),
-    linear-gradient(180deg, #1f2937 0%, #111827 100%);
+  /* DARK: matches `.md-board-detail--dark .md-board-detail-main` (app.scss ~81460)
+     — the translucent navy gradient + backdrop-blur, NOT the page canvas. It
+     previously mirrored `.md-shell--board-detail`'s atmospheric halo background,
+     which is the surface *behind* the board rather than the board surface itself. */
+  background: linear-gradient(180deg, rgba(25, 32, 47, 0.74), rgba(19, 25, 38, 0.66));
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 2px 6px rgba(0, 0, 0, 0.25);
+    0 6px 40px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 /* The create-board-new "Show/Hide Preferences" collapsible + the
    ported board-detail prefs inset were removed — every control
@@ -70465,7 +70533,8 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    the button's `color: $la-navy`; force the stroke explicitly (scoped to light —
    dark mode keeps its own light glyph via the .md-board-detail--dark rule) so no
    inherited/overriding `color` can wash the icon out on the light button. */
-.md-shell--board-detail:not(.md-board-detail--dark) .md-board-detail-sentence-bar__btn--speak svg {
+.md-shell--board-detail:not(.md-board-detail--dark) .md-board-detail-sentence-bar__btn--speak svg,
+.new-board-mockup-wrap:not(.md-board-detail--dark) .md-board-detail-sentence-bar__btn--speak svg {
   stroke: $la-navy;
 }
 /* The mic svg is the lone flex child of the circular __btn--speak. On very short
@@ -72487,7 +72556,8 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    keep the chip-and-tool breathing room from the prior pass. The
    vertical padding stays at 2px so the bar's height contract with
    the user's `vocalization_height` setting is preserved. */
-.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sentence-bar {
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sentence-bar,
+.new-board-mockup-wrap:not(.md-board-detail--dark) .md-board-detail-sentence-bar {
   padding: 2px 18px;
   gap: 18px;
   /* Glassy glossy surface — SHARED with the edit-mode session bar
@@ -72501,7 +72571,8 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 /* 2. Home + Back buttons — same translucent-white treatment so the nav
    buttons + bar read as one coordinated rail on the bright canvas. */
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-home-btn,
-.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-nav-stack__back {
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-nav-stack__back,
+.new-board-mockup-wrap:not(.md-board-detail--dark) .md-board-detail-home-btn {
   /* Same glassy glossy language as the bar, scaled for a button (smaller sheen
      bloom). */
   background: linear-gradient(
@@ -72521,7 +72592,8 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     0 4px 14px rgba($la-navy, 0.10);
 }
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-home-btn:hover,
-.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-nav-stack__back:hover {
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-nav-stack__back:hover,
+.new-board-mockup-wrap:not(.md-board-detail--dark) .md-board-detail-home-btn:hover {
   background: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0.98) 0%,
@@ -72538,12 +72610,14 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 
 /* 3. Tool buttons (backspace / clear / options chevron) — smaller
    translucent-white chips sitting inside the bar's glass surface. */
-.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sentence-bar__tool-btn {
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sentence-bar__tool-btn,
+.new-board-mockup-wrap:not(.md-board-detail--dark) .md-board-detail-sentence-bar__tool-btn {
   background: rgba(255, 255, 255, 0.55);
   border-color: rgba($la-navy, 0.08);
   color: rgba($la-navy, 0.78);
 }
-.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sentence-bar__tool-btn:hover {
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sentence-bar__tool-btn:hover,
+.new-board-mockup-wrap:not(.md-board-detail--dark) .md-board-detail-sentence-bar__tool-btn:hover {
   background: rgba(255, 255, 255, 0.85);
   color: $la-navy;
 }
@@ -79537,19 +79611,50 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
      black against the dark board canvas, looking like a hole);
      0.08 lifts the cell visibly above the canvas without competing
      with real buttons. Dot alpha also bumped slightly so the
-     texture stays perceptible against the lifted wash. */
+     texture stays perceptible against the lifted wash.
+
+     Sheen stops darkened ~15% twice (2026-08-07): top highlight
+     0.06 -> 0.051 -> 0.043 (less white), bottom shade 0.05 -> 0.058 -> 0.067
+     (more black). NOTE the flat
+     rgba(255,255,255,0.08) wash below is what sets most of this tile's
+     brightness against the canvas — darkening the whole tile means moving that
+     value, not these two. */
   background:
-    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.12) 0.8px, transparent 1.2px) 0 0 / 10px 10px,
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.12) 1.1px, transparent 1.6px) 0 0 / 14px 14px,
+    linear-gradient(180deg, rgba(255, 255, 255, 0.043) 0%, rgba(255, 255, 255, 0) 55%, rgba(0, 0, 0, 0.067) 100%),
     rgba(255, 255, 255, 0.08) !important;
 }
-/* SPEAK mode (light): the board canvas (.md-board-detail-main) is the 15%-darker
-   surface, so the default navy wash would make empty cells read as holes. Lift
-   them with a white wash instead (mirrors dark mode). Scoped to speak +
-   light so EDIT (light board panel) keeps the navy wash and dark mode keeps its
-   own. !important + higher specificity beat the base rule's !important. */
-.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-symbol-card--empty {
+/* SPEAK mode (light) + the create-board-new live preview: the board canvas
+   (.md-board-detail-main / .new-board-mockup-wrap) is the $brand-charcoal-dark
+   surface, so the base rule's navy wash would make empty cells read as holes.
+   Lift them with a white wash instead. Scoped to speak + light so EDIT (light
+   board panel) keeps the navy wash and dark mode keeps its own; the preview is
+   listed explicitly because it has no .md-shell--board-detail ancestor.
+   !important + higher specificity beat the base rule's !important.
+
+   Dot alpha 0.10 → 0.20 (2026-08-07): against the white-0.5 wash the texture was
+   nearly imperceptible, so the cards read as blank slabs rather than the
+   "empty container" cue the dots are there to give. Darker dots only — the wash
+   stays 0.5 so overall card brightness against the canvas is unchanged.
+
+   Dot RADIUS 0.8 → 1.1px solid / 1.2 → 1.6px feather, then TILE 10 → 14px
+   (2026-08-07). Both matched by the dark-mode rule above so the two modes keep
+   the same texture. The two knobs are independent: the tile sets dot DENSITY
+   (how far apart), the gradient stops set dot SIZE. Bigger dots on the original
+   10px tile read as crowded, so the tile was opened up to keep the texture airy
+   at the larger radius.
+
+   GRADIENT (2026-08-07): a top-lit sheen fading to a faint bottom shade, layered
+   BETWEEN the dots and the flat wash. Kept as its own layer rather than replacing
+   the wash colour — the solid background-color stays, so the card still has a
+   defined fill (and the "is the wash light enough" regression guard in
+   e2e/create-board-new-theme.spec.js keeps working). Both modes use the same
+   shape, scaled to their own alpha budget. */
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-symbol-card--empty,
+.new-board-mockup-wrap:not(.md-board-detail--dark) .md-board-detail-symbol-card--empty {
   background:
-    radial-gradient(circle at 50% 50%, rgba($la-navy, 0.10) 0.8px, transparent 1.2px) 0 0 / 10px 10px,
+    radial-gradient(circle at 50% 50%, rgba($la-navy, 0.20) 1.1px, transparent 1.6px) 0 0 / 14px 14px,
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 55%, rgba($la-navy, 0.05) 100%),
     rgba(255, 255, 255, 0.5) !important;
 }
 .md-board-detail-symbol-card--no-color {
