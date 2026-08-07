@@ -212,7 +212,7 @@ _No record is under legal hold. A hold suspends all disposition for the rows it 
 | Title | Location | Attested | Pinned | Current |
 |---|---|---|---|---|
 | AI Data-Flow Classification | `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md` | 2026-08-06 | `806bfe11453b` | `5a38a77d48c3` |
-| Subprocessor Register | `docs/legal/SUBPROCESSORS.md` | 2026-08-06 | `f37aab1fdad4` | `9b74534c0924` |
+| Subprocessor Register | `docs/legal/SUBPROCESSORS.md` | 2026-08-06 | `f37aab1fdad4` | `37edcadb5f83` |
 
 Every attested git record pins the bytes it was attested against.
 
@@ -275,4 +275,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_70 documents tracked. 52 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 1 superseded record(s). 2 drifted attestation(s), 0 awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
+_70 documents tracked. 52 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 1 superseded record(s). 2 drifted attestation(s) AWAITING RE-ATTESTATION, 0 attested record(s) with no pinned hash. 23 bundle gap(s) across 6 bundle(s)._
