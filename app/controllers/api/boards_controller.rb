@@ -684,7 +684,14 @@ class Api::BoardsController < ApplicationController
       # renders on the first failure whatever the second says — which then
       # double-renders (500) both when the second check passes and when it
       # doesn't. Exactly one `allowed?` call may appear in this expression.
-      supervise_copy = board_params['parent_board_id'].present? && user.allows?(@api_user, 'supervise')
+      #
+      # Pass scopes explicitly: a bare `allows?` falls back to the RAW
+      # user.permission_scopes (permissable.rb:72), skipping the normalization
+      # api_permission_scopes does — blank (integration / dev-key devices) and a
+      # legacy lone '*' both become 'full', and without that neither intersects
+      # the 'full' supervision rules require, denying legitimate supervisors.
+      supervise_copy = board_params['parent_board_id'].present? &&
+                       user.allows?(@api_user, 'supervise', api_permission_scopes)
       return unless supervise_copy || allowed?(user, 'edit')
       @board_user = user
     end

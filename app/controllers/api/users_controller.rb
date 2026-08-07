@@ -210,7 +210,11 @@ class Api::UsersController < ApplicationController
       user.used_reset_token!(params['reset_token'])
     elsif user.allows?(@api_user, 'manage_supervision') && !user.allows?(@api_user, 'edit')
       user_data = user_data.slice('supervisor_key')
-    elsif user.allows?(@api_user, 'supervise') && !user.allows?(@api_user, 'edit') && supervise_home_board_update?(user_data)
+    # Scopes passed explicitly — a bare `allows?` uses the RAW permission_scopes
+    # and skips api_permission_scopes' normalization (blank / legacy '*' -> full),
+    # which would deny integration and dev-key devices. (The adjacent branches
+    # predate this branch and are left as-is rather than widened here.)
+    elsif user.allows?(@api_user, 'supervise', api_permission_scopes) && !user.allows?(@api_user, 'edit', api_permission_scopes) && supervise_home_board_update?(user_data)
       user_data = supervise_home_board_update_slice(user_data)
     else
       return unless allowed?(user, 'edit')
@@ -690,7 +694,10 @@ class Api::UsersController < ApplicationController
     # renders on the first failure regardless of the second and then double-renders
     # (500). At most one `allowed?(user, …)` call may run here.
     # The next line still requires the destination board to be owned by the user.
-    return unless (user.allows?(@api_user, 'supervise') || allowed?(user, 'edit')) && allowed?(old_board, 'view') && allowed?(new_board, 'view')
+    # Scopes are passed explicitly: a bare `allows?` falls back to the RAW
+    # user.permission_scopes (permissable.rb:72) and skips the normalization
+    # api_permission_scopes does, which would deny integration / dev-key devices.
+    return unless (user.allows?(@api_user, 'supervise', api_permission_scopes) || allowed?(user, 'edit')) && allowed?(old_board, 'view') && allowed?(new_board, 'view')
     return allowed?(user, 'never_allow') unless new_board.user == user
     
     make_public = params['make_public'] && params['make_public'] == '1' || params['make_public'] == 'true' || params['make_public'] == true

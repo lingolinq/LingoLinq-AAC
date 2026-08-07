@@ -5743,9 +5743,30 @@ supervisee" intact. Check the existing deny-path specs before choosing the
 key: both of them posted *without* `parent_board_id`, which is what made
 the narrow gate free.
 
+**`allows?` is NOT a drop-in substitute — pass the scopes.**
+`allows?(user, action, relevant_scopes=nil)` falls back to the RAW
+`user.permission_scopes` (permissable.rb:72), but `allowed?` passes
+`api_permission_scopes`, which NORMALIZES: blank (integration / dev-key
+devices) and a legacy lone `'*'` both become `'full'`. Supervision rules
+require `'full'`, so a bare `allows?` silently DENIES callers that
+`allowed?` would allow. Always
+`user.allows?(@api_user, 'supervise', api_permission_scopes)`.
+This is easy to miss because the bare form reads fine and passes specs —
+the divergence only shows on integration tokens.
+
 **Sweep before you assume it's one site:**
 `grep -rn "allowed?(.*) || allowed?(" app/controllers/`
-(two pre-existing instances live in `logs_controller.rb:173` and `:275`).
+Also grep `allows?(@api_user` for bare calls missing the scopes argument.
+
+**Proving it, rather than pattern-matching it:** the reachable trigger is
+a `'none'`-scoped token (permissable.rb:74 deliberately does not widen
+`['none']` with `'*'`, so every permission resolves false). Write the
+regression spec, `git stash` the fix, run it against the original — you
+want the actual `DoubleRenderError` with a stack line in YOUR file before
+you claim the bug. `logs_controller#index` already carried this fix with
+an explanatory comment while `#show`/`#eval_pdf` did not, which is worth
+remembering: **when you find one of these, grep the rest of the same file
+before concluding you've found the only one.**
 
 **First seen in:** [2026-08-07-allowed-double-render-and-supervise-scope.md](./2026-08-07-allowed-double-render-and-supervise-scope.md)
 
