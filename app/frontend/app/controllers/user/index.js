@@ -1247,13 +1247,10 @@ export default Controller.extend({
      home board (see open_board_in_user_view) and jumps into speak mode
      instead of opening the board. */
   selectingHome: false,
-  hasHomeBoard: computed('appState.referenced_user.preferences.home_board.key', function() {
-    return !!this.appState.get('referenced_user.preferences.home_board.key');
+  hasHomeBoard: computed('model.preferences.home_board.key', function() {
+    return !!this.get('model.preferences.home_board.key');
   }),
-  setHomeButtonLabel: computed('hasHomeBoard', 'selectingHome', function() {
-    if(this.get('selectingHome')) {
-      return i18n.t('cancel_set_home_board', "Cancel");
-    }
+  setHomeButtonLabel: computed('hasHomeBoard', function() {
     return this.get('hasHomeBoard')
       ? i18n.t('change_home_board', "Change Home Board")
       : i18n.t('set_home_board', "Set Home Board");
@@ -1490,10 +1487,17 @@ export default Controller.extend({
         transition.catch(function() { _appState.hide_loading_overlay(); });
       }
     },
-    /* Toggle the "Set / Change Home Board" selection mode. Mirrors the
-       modal's `toggleSetHomeMode` (see controllers/application.js). */
+    /* Legacy entry point — boards page now links to /board-picker instead
+       of inline selection mode. Kept so any stale callers still land on
+       the dedicated picker. */
     toggleSetHomeMode: function() {
-      this.toggleProperty('selectingHome');
+      var modelId = this.get('model.id');
+      var currentId = this.appState.get('currentUser.id');
+      if (modelId && currentId && modelId != currentId) {
+        this.get('router').transitionTo('board-picker', { queryParams: { user_id: modelId } });
+      } else {
+        this.get('router').transitionTo('board-picker');
+      }
     },
     nothing: function() {
     },

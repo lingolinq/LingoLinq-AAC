@@ -705,7 +705,9 @@ export default Service.extend({
     }, controller && controller.updateTitle ? 0 : 500);
     
     modal.close();
-    modal.close_board_preview();
+    if (!this.get('board_picker_pick_in_progress')) {
+      modal.close_board_preview();
+    }
     // Navigating away from a board while editing leaves edit mode. But NOT when the
     // destination is the board-detail edit route itself — edit→edit navigation
     // (previewing a board from the edit-mode Board Collections drawer, and the
@@ -741,7 +743,7 @@ export default Service.extend({
       var target = _this.get('current_route');
       _this.set('index_view', target == 'index');
       // footer is now a computed on application controller (from currentBoardState)
-      if(_this.get('to_target') && _this.get('to_target') != 'setup' && _this.get('to_target') != 'home-boards') {
+      if(_this.get('to_target') && _this.get('to_target') != 'setup' && _this.get('to_target') != 'home-boards' && _this.get('to_target') != 'board-picker') {
         try {
           _this.controller.set('setup_footer', false);
           _this.controller.set('simple_board_header', false);

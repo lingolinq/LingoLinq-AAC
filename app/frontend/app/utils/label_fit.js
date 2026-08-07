@@ -9,16 +9,6 @@
 // is SHRINK-ONLY, never grows text past the user's preference, and
 // never rescales every label on the board uniformly.
 //
-// This used to be gated behind the user's "Shrink labels to fit"
-// preference (Text Settings, board-detail edit page). It no longer is:
-// with the toggle off, long words were ellipsised ("color/visual" →
-// "color/…", "keyboard" → "keyb…") and text-symbol buttons were clipped
-// outright. A truncated word on an AAC button is not a styling choice —
-// it's a button whose meaning can no longer be read. Smaller text still
-// communicates; a cut-off word does not.
-// FOLLOW-UP: the preference now controls nothing and should be removed
-// from Text Settings (or repurposed) so it doesn't read as a broken switch.
-//
 // Spans (.md-board-detail-symbol-card__label, speak / view mode) are
 // fitted via DOM measurement so word-boundary wrap inside the existing
 // 3.45em box is respected. Inputs (.md-board-detail-symbol-card__label-input,
@@ -81,8 +71,7 @@ function getCanvasCtx() {
 // declaration. Without the priority, two things broke together — the measure
 // loop below read the CSS-forced size on every iteration instead of the trial
 // size, so it never found a fit and always bottomed out at MIN_FONT_PX, and the
-// value it finally wrote was ignored anyway. That is why "Shrink labels to fit"
-// appeared to do nothing on any viewport under 1200px.
+// value it finally wrote was ignored anyway.
 function setFontPx(el, px) {
   el.style.setProperty('font-size', px + 'px', 'important');
 }

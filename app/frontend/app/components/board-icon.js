@@ -11,6 +11,7 @@ import paint_view_switch_overlay from '../utils/view_switch_overlay';
 import { board_view_route } from '../utils/board_view';
 import warm_board_preview from '../utils/board_preview_warmer';
 import buildEventAction from '../utils/event_action';
+import { boardAttributionOwner } from '../utils/board_attribution';
 
 export default Component.extend({
   appState: service('app-state'),
@@ -134,8 +135,14 @@ export default Component.extend({
     }
     return this.get('board_record.name');
   }),
-  long_username: computed('board_record.user_name', function() {
-    var name = this.get('board_record.user_name') || '';
+  /* Owner credit for the tile footer — always shown (leaf and folder
+     boards). Maps the canonical lingolinq publisher slug to the
+     OpenAAC brand; otherwise prefers user_name, then key prefix. */
+  board_attribution_owner: computed('board_record.user_name', 'board_record.key', function() {
+    return boardAttributionOwner(this.get('board_record'));
+  }),
+  long_username: computed('board_attribution_owner', function() {
+    var name = this.get('board_attribution_owner') || '';
     return name.length > 25;
   }),
   display_class: computed('children', function() {

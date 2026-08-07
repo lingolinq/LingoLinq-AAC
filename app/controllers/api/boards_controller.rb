@@ -672,7 +672,7 @@ class Api::BoardsController < ApplicationController
         # User doesn't exist (might be deleted) - return error instead of silently defaulting
         return api_error(400, {error: "User not found", for_user_id: board_params['for_user_id']})
       end
-      return unless allowed?(user, 'edit')
+      return unless allowed?(user, 'edit') || allowed?(user, 'supervise')
       @board_user = user
     end
     if FeatureFlags.feature_enabled_for?('english_first_board_generation', @api_user)

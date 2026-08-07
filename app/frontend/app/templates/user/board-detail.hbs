@@ -1829,7 +1829,6 @@
         @folderLabelsOnTab={{this.folder_labels_on_tab}}
         @folderColoredCorner={{this.folder_colored_corner}}
         @folderColoredFace={{this.folder_colored_face}}
-        @shrinkLabelsToFit={{this.shrink_labels_to_fit}}
         @softBorders={{this.soft_borders}}
         @buttonTextSizeClass={{this.button_text_size_class}}
         @buttonTextPositionClass={{this.button_text_position_class}}
@@ -2588,34 +2587,6 @@
                       <button type="button" role="radio" aria-checked={{if (is-equal this.current_display_prefs.button_text_position "text_only") "true" "false"}} class="md-settings-icon-btn {{if (is-equal this.current_display_prefs.button_text_position 'text_only') 'md-settings-icon-btn--active'}}" data-tooltip={{t "Text only" key="board_detail_settings_text_only"}} aria-label={{t "Text only" key="board_detail_settings_text_only"}} {{on "click" (this.ctrlAction "set_display_pref" "button_text_position" "text_only")}}>
                         <span class="md-settings-btnmock"><span class="md-settings-btnmock__text md-settings-btnmock__text--only">Aa</span></span>
                       </button>
-                    </div>
-                  </div>
-
-                  {{!-- Shrink labels to fit — opt-in on/off switch.
-                       Default (off) matches modern AAC industry
-                       convention: labels keep the user's chosen font
-                       size and wrap to up to 3 lines, with ellipsis
-                       past that. On runs a per-label JS measurement
-                       (utils/label_fit.js): each label whose text
-                       would overflow the 3-line box at the chosen
-                       size has its OWN font reduced down to an 8px
-                       floor so the full text appears without
-                       truncation; labels that already fit stay at
-                       the chosen size. Persists to
-                       user.preferences.shrink_labels_to_fit. --}}
-                  <div class="md-folder-toggle-row">
-                    <span class="md-folder-toggle-row__label" id="shrink-labels-to-fit-label">{{t "Shrink labels to fit" key="board_detail_shrink_labels_to_fit"}}</span>
-                    <div class="md-folder-toggle-row__control">
-                      <span class="md-folder-toggle-row__state {{unless this.shrink_labels_to_fit 'md-folder-toggle-row__state--active'}}" aria-hidden="true">{{t "Off" key="off"}}</span>
-                      <button type="button"
-                        role="switch"
-                        aria-checked={{if this.shrink_labels_to_fit "true" "false"}}
-                        aria-labelledby="shrink-labels-to-fit-label"
-                        class="nb-toggle__switch {{if this.shrink_labels_to_fit 'nb-toggle__switch--on'}}"
-                        data-bd-action="toggle_shrink_labels_to_fit" {{on "click" (this.ctrlAction "toggle_shrink_labels_to_fit")}}>
-                        <span class="nb-toggle__thumb" aria-hidden="true"></span>
-                      </button>
-                      <span class="md-folder-toggle-row__state {{if this.shrink_labels_to_fit 'md-folder-toggle-row__state--active'}}" aria-hidden="true">{{t "On" key="on"}}</span>
                     </div>
                   </div>
                 </div>

@@ -588,6 +588,28 @@ describe Api::UsersController, :type => :controller do
       expect(b.reload.shared_with?(u2)).to eq(false)
     end
 
+    it "should allow a supervise-only supervisor to set home board when the client sends full preferences" do
+      token_user
+      u2 = User.create
+      b = Board.create(:user => u2)
+      User.link_supervisor_to_user(@user, u2, nil, false)
+      put :update, params: {:id => u2.global_id, :user => {:preferences => {
+        :home_board => {:id => b.global_id, :key => b.key},
+        :skin => 'default',
+        :progress => {:setup_done => true}
+      }}}
+      expect(response).to be_successful
+      expect(u2.reload.settings['preferences']['home_board']['id']).to eq(b.global_id)
+    end
+
+    it "should not allow a supervise-only supervisor to update without a home board in preferences" do
+      token_user
+      u2 = User.create
+      User.link_supervisor_to_user(@user, u2, nil, false)
+      put :update, params: {:id => u2.global_id, :user => {:preferences => {:skin => 'default'}}}
+      expect(response).not_to be_successful
+    end
+
     it "should allow updating token timeouts for the current device" do
       token_user
       expect(@device.settings['long_token']).to eq(nil)
