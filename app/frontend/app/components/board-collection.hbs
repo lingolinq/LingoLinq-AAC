@@ -51,7 +51,7 @@
         <li class="md-board-collection__row">
           <button type="button" class="md-board-collection__item {{if (is_equal this.originalBoard.key this.home_key) 'md-board-collection__item--home'}}" data-bd-action={{this.select_action_name}} data-bd-arg={{this.originalBoard.key}} {{on "click" (this.ctrlAction "select_board" this.originalBoard)}}>
             <img class="md-board-collection__item-icon" src={{this.originalBoard.icon_url_with_fallback}} alt="" />
-            <span class="md-board-collection__item-name">{{this.originalBoard.name}}</span>
+            <BoardListItemLabel @board={{this.originalBoard}} @name={{this.originalBoard.name}} />
             {{#if (board-language-label this.originalBoard)}}
               <span class="md-board-collection__item-lang">{{board-language-label this.originalBoard}}</span>
             {{/if}}
@@ -75,7 +75,7 @@
         <li class="md-board-collection__row">
           <button type="button" class="md-board-collection__item {{if (is_equal this.currentBoard.key this.home_key) 'md-board-collection__item--home'}}" data-bd-action={{this.select_action_name}} data-bd-arg={{this.currentBoard.key}} {{on "click" (this.ctrlAction "select_board" this.currentBoard)}}>
             <img class="md-board-collection__item-icon" src={{this.currentBoard.icon_url_with_fallback}} alt="" />
-            <span class="md-board-collection__item-name">{{this.currentBoard.name}}</span>
+            <BoardListItemLabel @board={{this.currentBoard}} @name={{this.currentBoard.name}} />
             {{#if (board-language-label this.currentBoard)}}
               <span class="md-board-collection__item-lang">{{board-language-label this.currentBoard}}</span>
             {{/if}}
@@ -100,7 +100,7 @@
             <li class="md-board-collection__row">
               <button type="button" class="md-board-collection__item {{if (is_equal board.key this.home_key) 'md-board-collection__item--home'}}" data-bd-action={{this.select_action_name}} data-bd-arg={{board.key}} {{on "click" (this.ctrlAction "select_board" board)}}>
                 <img class="md-board-collection__item-icon" src={{board.icon_url_with_fallback}} alt="" />
-                <span class="md-board-collection__item-name">{{board.name}}</span>
+                <BoardListItemLabel @board={{board}} @name={{board.name}} />
                 {{#if (board-language-label board)}}
                   <span class="md-board-collection__item-lang">{{board-language-label board}}</span>
                 {{/if}}
@@ -166,7 +166,7 @@
               <li class="md-board-collection__row">
                 <button type="button" class="md-board-collection__item {{if (is_equal board.key this.home_key) 'md-board-collection__item--home'}}" data-bd-action={{this.select_action_name}} data-bd-arg={{board.key}} {{on "click" (this.ctrlAction "select_board" board)}}>
                   <img class="md-board-collection__item-icon" src={{board.icon_url_with_fallback}} alt="" />
-                  <span class="md-board-collection__item-name">{{board.name}}</span>
+                  <BoardListItemLabel @board={{board}} @name={{board.name}} />
                 {{#if (board-language-label board)}}
                   <span class="md-board-collection__item-lang">{{board-language-label board}}</span>
                 {{/if}}

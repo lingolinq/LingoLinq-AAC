@@ -235,6 +235,43 @@
   }
 }
 
+/* Shared board-card LAYOUT (flex column + bottom-anchored Preview pill).
+   `@include` inside surface rules that already set display:flex on
+   `.simple_board_icon`; the base `.simple_board_icon` rule below
+   includes this by default. Cosmetics stay in `board-card-modern`. */
+@mixin simple-board-card-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  height: auto;
+  min-height: 0;
+
+  .author {
+    order: 97;
+    margin-top: 0;
+    margin-bottom: 4px;
+  }
+
+  .board-icon__lang-marker {
+    order: 98;
+    margin: 0 0 8px;
+  }
+
+  .info {
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+    order: 99;
+    align-self: center;
+    margin-top: auto !important;
+    margin-bottom: 0;
+  }
+}
+
 *, *:before, *:after {
   -moz-box-sizing: border-box; -webkit-box-sizing: border-box; box-sizing: border-box;
 }
@@ -690,7 +727,8 @@ html, body {
    on the page-footer layout) so it fills the ENTIRE viewport behind the scrolling
    content — no seam, no short bg. Compound :has() (1,2,0) out-specifies the
    `:has(.page-footer)` reset above. */
-#within_ember:has(.page-footer):has(.board-picker-page) {
+#within_ember:has(.page-footer):has(.board-picker-page),
+#within_ember:has(.page-footer):has(.md-shell--board-picker) {
   background:
     radial-gradient(1400px 700px at 10% 5%, rgba($brand-stormy-teal, 0.22), transparent 50%),
     radial-gradient(1200px 600px at 90% 15%, rgba($brand-charcoal-blue, 0.18), transparent 50%),
@@ -5156,6 +5194,189 @@ tr.accuracy_non_mastered {
   width: 100%;
 }
 
+/* Board picker route (/board-picker): same card + picker as /search/home, with CTAs above */
+.md-card--board-picker__header {
+  margin-bottom: 1.25rem;
+}
+.md-card--board-picker .md-card--board-picker__actions {
+  margin-bottom: 2rem;
+  padding-top: 0;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--md-line, rgba($brand-blue-black, 0.08));
+}
+.md-card--board-picker .board-picker-page__assign {
+  margin-bottom: clamp(28px, 4vh, 40px);
+}
+.md-card--board-picker .board-picker-page__divider {
+  margin-bottom: 0;
+}
+.md-shell--board-picker .md-card--board-picker .md-hero--home-boards {
+  padding: 0 !important;
+  text-align: center;
+  margin-bottom: 0;
+}
+.md-shell--board-picker .md-card--board-picker .md-hero--home-boards .md-hero__title {
+  font-size: clamp(22px, 5vw, 28px) !important;
+  line-height: 1.15;
+}
+.md-shell--board-picker .md-card--board-picker .md-hero--home-boards .md-hero__title .md-hero__title--from-left {
+  display: inline-block;
+  font-size: inherit;
+  opacity: 0;
+  animation: la-hero-title-from-left 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+.md-shell--board-picker > .md-workspace {
+  margin-top: 0 !important;
+}
+.md-shell--board-picker .md-card--home-boards__picker {
+  margin-top: 1.25rem;
+}
+/* Board cards: fixed ~280px tiles that wrap to the next row when the content
+   area is too narrow (same pattern as setup Board Category + legacy
+   .board-picker-page). Overrides the base grid's fixed column counts, which
+   forced three columns and clipped the right edge inside .md-card--home-boards
+   (overflow: hidden). */
+.md-shell--board-picker .md-home-boards-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 280px);
+  justify-content: center;
+  align-items: stretch;
+  gap: 1.5rem;
+}
+.md-shell--board-picker .md-home-boards-picker__board {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  align-self: stretch;
+}
+/* Stretch the board-icon tile to the full grid cell so PREVIEW can anchor
+   to the card bottom (same pattern as ub-boards-page__board-grid). */
+.md-shell--board-picker .md-home-boards-picker__board > * {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+}
+.md-shell--board-picker .md-home-boards-picker__grid-message {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+/* Category sidebar — icon + label cards matching board-picker mockup */
+.md-shell--board-picker .md-home-boards-picker__layout {
+  gap: 1.25rem 2.5rem;
+}
+.md-shell--board-picker .md-home-boards-picker__section-header {
+  flex: 1 1 100%;
+  width: 100%;
+  margin: 0 0 0.25rem;
+  font-size: 22px !important;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: $la-navy;
+  text-align: center;
+  text-transform: uppercase;
+}
+.md-shell--board-picker .md-home-boards-picker__nav-inner.setup_setting {
+  margin: 0;
+}
+.md-shell--board-picker .md-home-boards-picker__nav,
+.md-shell--board-picker .md-home-boards-picker__content {
+  align-self: flex-start;
+}
+/* Right column: one callout panel wrapping explainer, filter, and board grid. */
+.md-shell--board-picker .md-home-boards-picker__category-panel {
+  padding: 1.5rem 1.75rem;
+  border-radius: 14px;
+  border-left: 4px solid rgba(44, 183, 176, 0.55);
+  background: linear-gradient(135deg, rgba(44, 183, 176, 0.06) 0%, rgba(91, 141, 239, 0.04) 100%);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+.md-shell--board-picker .md-home-boards-picker__category-panel .category_explainer {
+  margin-bottom: 1.25rem;
+  padding: 0;
+  border: 0;
+  border-left: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.md-shell--board-picker .md-home-boards-picker__category-panel .category_explainer p {
+  font-size: 1.4763125rem;
+  line-height: 1.7;
+  color: var(--md-ink);
+  margin: 0;
+  font-weight: 500;
+}
+.md-shell--board-picker .md-home-boards-picker__category-panel .category_explainer.full p {
+  max-height: 500px;
+}
+.md-shell--board-picker .md-home-boards-picker__category-panel .category_explainer .more_link {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 0%, rgba(44, 183, 176, 0.06) 70%);
+}
+.md-shell--board-picker .md-home-boards-picker__category-panel .md-home-boards-picker__search--inline {
+  margin-bottom: 1.25rem;
+}
+.md-shell--board-picker .md-home-boards-picker__nav-label {
+  margin-bottom: 14px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: $la-navy;
+}
+.md-shell--board-picker .md-home-boards-picker__categories {
+  gap: 10px;
+}
+.md-shell--board-picker .md-home-boards-picker__category--iconic {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  font-size: 18px;
+  font-weight: 700;
+  color: $la-navy;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.14);
+  border-radius: 10px;
+  box-shadow: none;
+}
+.md-shell--board-picker .md-home-boards-picker__category--iconic:hover {
+  background: #fff;
+  border-color: rgba($brand-verdigris-aa, 0.35);
+  color: $la-navy;
+}
+.md-shell--board-picker .md-home-boards-picker__category--iconic.is-active {
+  background: rgba($brand-verdigris, 0.10);
+  border-color: rgba($brand-verdigris-aa, 0.55);
+  color: $la-navy;
+  box-shadow: none;
+}
+.md-shell--board-picker .md-home-boards-picker__category-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba($brand-verdigris, 0.08);
+}
+.md-shell--board-picker .md-home-boards-picker__category--iconic.is-active .md-home-boards-picker__category-icon {
+  background: rgba($brand-verdigris, 0.16);
+}
+.md-shell--board-picker .md-home-boards-picker__category-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 18px;
+  line-height: 1.25;
+  text-align: left;
+}
+
 /* ---------- Available boards: layout (nav + content), category menu, board grid ---------- */
 .md-home-boards-picker__layout {
   display: flex;
@@ -5230,6 +5451,7 @@ tr.accuracy_non_mastered {
 .md-home-boards-picker__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  align-items: stretch;
   gap: 1.25rem 1.5rem;
   margin-top: 1rem;
 }
@@ -5249,6 +5471,9 @@ tr.accuracy_non_mastered {
 .md-home-boards-picker__board {
   padding: 0;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 /* Keyboard placeholders (Keyboards category). Reuse the real card chrome
    (.btn.simple_board_icon → board-card-modern) and swap the thumbnail for a
@@ -5315,15 +5540,18 @@ tr.accuracy_non_mastered {
    positioning live here; all cosmetics come from the mixin. */
 .md-home-boards-picker__board .btn.simple_board_icon {
   @include board-card-modern;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
+  @include simple-board-card-layout;
   width: 100%;
-  height: auto;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
   padding: 18px 18px 16px;
   color: var(--md-ink);
   font-size: 15px;
+}
+.md-shell--board-picker .md-home-boards-picker__board .btn.simple_board_icon {
+  /* Equal-height rows come from grid stretch + height:100% — not a fixed floor. */
+  min-height: 0;
 }
 .md-home-boards-picker__board .btn.simple_board_icon:focus-visible {
   @include focus-ring;
@@ -5353,7 +5581,8 @@ tr.accuracy_non_mastered {
   align-items: baseline;
   justify-content: center;
   gap: 4px;
-  margin: 0;
+  order: 97;
+  margin: 0 0 4px;
   padding: 0 2px;
   max-width: 100%;
   font-size: 0.9rem;
@@ -5362,26 +5591,27 @@ tr.accuracy_non_mastered {
 .md-home-boards-picker__board .btn.simple_board_icon .author__username--long {
   font-size: 0.9rem;
 }
-/* Preview pill stays IN-FLOW, stacking below the language marker
-   (cosmetics come from the mixin). */
+/* Preview pill + language badge: footer stack pinned to the card bottom. */
 .md-home-boards-picker__board .btn.simple_board_icon .info {
-  position: static;
-  top: auto;
-  left: auto;
-  right: auto;
-  bottom: auto;
-  transform: none;
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: none !important;
   order: 99;
   align-self: center;
-  margin-top: auto;
+  margin-top: auto !important;
+  margin-bottom: 0;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 6px 13px;
   font-size: 11px;
 }
-.md-home-boards-picker__board .btn.simple_board_icon:has(.board-icon__lang-marker) .info {
-  margin-top: 0;
+.md-home-boards-picker__board .btn.simple_board_icon .board-icon__lang-marker {
+  order: 98;
+  margin: 0 0 6px;
 }
 
 .md-home-boards-picker__grid-message {
@@ -5417,6 +5647,71 @@ tr.accuracy_non_mastered {
   margin-top: 1.25rem;
   padding-top: 1rem;
   border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+.md-home-boards-picker__layout--search-top .md-home-boards-picker__search--inline {
+  margin-top: 0;
+  margin-bottom: 1.25rem;
+  padding-top: 0;
+  border-top: none;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+.md-home-boards-picker__layout--search-top .md-home-boards-picker__search-form {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0.625rem;
+  width: auto;
+  max-width: 100%;
+}
+.md-home-boards-picker__layout--search-top .md-home-boards-picker__search-input.form-control {
+  flex: 0 0 auto;
+  width: min(22rem, calc(100vw - 10rem));
+  min-width: 14rem;
+  min-height: 44px;
+  height: auto;
+  padding: 0 14px;
+  border-radius: 16px !important;
+  font-size: 14px !important;
+  line-height: 1.25;
+  box-sizing: border-box;
+}
+.md-home-boards-picker__layout--search-top .md-home-boards-picker__search-input.form-control::placeholder {
+  font-size: 14px;
+}
+.md-home-boards-picker__layout--search-top .md-home-boards-picker__search-input.form-control::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+.md-home-boards-picker__layout--search-top .md-home-boards-picker__search-clear {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 16px;
+  background: rgba($la-navy, 0.06);
+  color: $brand-charcoal-blue;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.md-home-boards-picker__layout--search-top .md-home-boards-picker__search-clear:hover,
+.md-home-boards-picker__layout--search-top .md-home-boards-picker__search-clear:focus-visible {
+  background: rgba($la-navy, 0.12);
+  color: $la-navy;
+  outline: none;
+}
+.md-home-boards-picker__layout--search-top .md-home-boards-picker__search-submit {
+  flex: 0 0 auto;
+  width: auto;
+  white-space: nowrap;
+  min-height: 44px;
+  height: auto;
+  align-self: stretch;
 }
 
 .md-home-boards-picker__fallback-note {
@@ -5673,12 +5968,16 @@ tr.accuracy_non_mastered {
   flex-wrap: wrap;
   justify-content: center;
   align-content: flex-start;
+  align-items: stretch;
   gap: 1.25rem 1.5rem;
 }
 .md-card--setup .setup-board-category .md-home-boards-picker__board {
   flex: 0 0 280px;
   width: 280px;
   max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 /* Setup-scoped tabs-row wrapper — deliberately NOT `.ub-boards-page__tabs-row`
    so the boards page's ≤640px "swap pills for a <select>" rule (which is
@@ -5734,11 +6033,12 @@ tr.accuracy_non_mastered {
    tabs, board cards, and "Quick Core" headings come from the SHARED
    board-picker/board-icon components, so every override here is page-scoped
    under `.board-picker-page` / `.md-shell--board-picker` — /setup and
-   /search/home are unaffected. */
+   /search/home are unaffected. Standalone /board-picker now reuses the
+   /search/home shell (md-shell--home-boards) with sidebar category nav. */
 
-/* --- Immersive glass workspace panel; atmosphere comes from the .md-shell
-       base gradient behind it. --- */
-.md-shell--board-picker > .md-workspace {
+/* --- Immersive glass workspace panel (tour modal / legacy tabbed picker only;
+       standalone /board-picker uses md-shell--home-boards instead). --- */
+.md-shell--board-picker:not(.md-shell--home-boards) > .md-workspace {
   background:
     radial-gradient(680px 380px at 50% 1%, rgba($brand-verdigris, 0.10), transparent 52%),
     radial-gradient(880px 460px at 12% 4%, rgba($brand-verdigris, 0.14), transparent 44%),
@@ -6051,8 +6351,8 @@ tr.accuracy_non_mastered {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  height: auto !important;
-  min-height: 268px !important;
+  height: 100% !important;
+  min-height: 0 !important;
   border: 1px solid rgba(15, 23, 42, 0.05) !important;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.86)) !important;
   box-shadow:
@@ -6071,11 +6371,6 @@ tr.accuracy_non_mastered {
   order: 99;
   align-self: center;
   margin-top: auto !important;
-}
-/* When a language marker is present it owns the bottom auto-margin, so the pill
-   drops its own (mirrors the boards-page :has override) — keeps them tight. */
-.board-picker-page .md-home-boards-picker__board .simple_board_icon:has(.board-icon__lang-marker) .info {
-  margin-top: 0 !important;
 }
 /* Guaranteed gap below the author line, above the bottom-anchored pill. */
 .board-picker-page .md-home-boards-picker__board .simple_board_icon .author {
@@ -6168,12 +6463,16 @@ tr.accuracy_non_mastered {
   flex-wrap: wrap;
   justify-content: center;
   align-content: flex-start;
+  align-items: stretch;
   gap: 1.5rem;
 }
 .board-picker-page .md-home-boards-picker__board {
   flex: 0 0 280px;
   width: 280px;
   max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 /* --- Gentle card hover-lift (premium, AAC-friendly: no scale/bounce/spring,
@@ -9923,8 +10222,20 @@ body.pretty_loader #loading_box {
 /* Applied in: dashboard/authenticated-view.hbs - board grid items */
 .simple_board_holder {
   padding: 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+
+  > .btn.simple_board_icon,
+  > .simple_board_icon {
+    flex: 1 1 auto;
+    height: 100%;
+    min-height: 0;
+    box-sizing: border-box;
+  }
 }
 .simple_board_icon {
+  @include simple-board-card-layout;
   width: 100%;
   border-radius: 20px;
   border-width: 5px;
@@ -9932,7 +10243,6 @@ body.pretty_loader #loading_box {
   overflow: hidden;
   padding: 20px 0;
   position: relative;
-  height: 210px;
   outline: none;
   img {
     width: 100%;
@@ -9944,20 +10254,11 @@ body.pretty_loader #loading_box {
   }
   .info {
     /* "PREVIEW" pill anchored to the BOTTOM-CENTER of every board
-       tile (was top-left). Centered horizontally via
-       `left: 50%; transform: translateX(-50%)`. Same brushed-silver
-       glass chrome as the size + heart badges in the top-right
-       (cool linear gradient + backdrop blur + dual inset highlights
-       + layered drop shadow) so all three badges read as a coherent
-       family. Surface-specific overrides further down may shift
-       padding/font-size to fit their tile dimensions but all inherit
-       the silver-glass treatment from here. */
-    position: absolute;
-    top: auto;
-    left: 50%;
-    right: auto;
-    bottom: 10px;
-    transform: translateX(-50%);
+       tile via in-flow flex (`order: 99`, `margin-top: auto`) so
+       equal-height rows keep the pill at the same spot on every card.
+       Silver-glass chrome inherited here; surface-specific overrides
+       may shift padding/font-size but should not revert to absolute
+       positioning (that breaks row alignment when titles differ). */
     padding: 4px 11px;
     border: 1px solid rgba(255, 255, 255, 0.7);
     border-radius: 999px;
@@ -10103,30 +10404,11 @@ body.pretty_loader #loading_box {
     color: inherit;
   }
 
-  /* Translated-language marker — sits ABOVE the bottom-center PREVIEW
-     pill in the flex column. Was previously `position: absolute;
-     bottom: 56px;` but that meant long board titles (wrapping to 2-3
-     lines) grew downward into the marker's reserved space, producing
-     a visual overlap between title and chip. Now an in-flow flex
-     child with `order: 98` (PREVIEW pill is `order: 99`), pushed
-     down to the bottom by the title's `margin-bottom: auto` chain
-     just like the PREVIEW pill. Equal-height tiles in the same row
-     (via the grid flex container's `align-items: stretch` default)
-     keep the layout uniform when one tile has a longer title. */
+  /* Translated-language marker — sits above the bottom-center PREVIEW
+     pill in the flex column (`order: 98`; PREVIEW is `order: 99`).
+     Tight under the author line; PREVIEW owns `margin-top: auto`. */
   .board-icon__lang-marker {
-    order: 98;
     align-self: center;
-    /* Top margin `auto` absorbs the empty space between the author
-       line and the bottom-anchored pill pair, so the lang-marker
-       drops to the BOTTOM of the tile instead of sitting right
-       under author. The PREVIEW pill below (order: 99) drops its
-       own `margin-top: auto` via the `:has()` override at the
-       bottom of this block when a lang-marker is present, so the
-       two pills stack tight with a 8px breathing gap between them.
-       When NO lang-marker is rendered (boards without translation
-       data), the PREVIEW pill keeps its original `margin-top: auto`
-       and anchors itself to the bottom alone. */
-    margin: auto 0 8px;
     display: inline-flex;
     align-items: center;
     gap: 5px;
@@ -10194,7 +10476,6 @@ body.pretty_loader #loading_box {
   .author {
     font-size: 14px;
     color: $brand-charcoal-blue;
-    margin-top: -5px;
     padding: 0 2px;
     display: flex;
     flex-direction: column;
@@ -10218,7 +10499,8 @@ body.pretty_loader #loading_box {
     font-size: 14px;
   }
   &.medium {
-    height: 180px;
+    min-height: 180px;
+    height: auto;
     font-size: 20px;
     padding: 10px 0;
     .info .size {
@@ -10236,7 +10518,8 @@ body.pretty_loader #loading_box {
     }
   }
   &.short {
-    height: 150px;
+    min-height: 150px;
+    height: auto;
     font-size: 15px;
     padding: 10px 0;
     .info .size {
@@ -10255,7 +10538,8 @@ body.pretty_loader #loading_box {
     }
   }
   &.tiny {
-    height: 120px;
+    min-height: 120px;
+    height: auto;
     font-size: 14px;
     padding: 10px 0;
     .info .size {
@@ -12402,6 +12686,15 @@ video.button_image {
   font-size: 15px;
   font-weight: 700;
   color: $la-navy;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#button_settings .md-bs-choose__preview-owner {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba($la-navy, 0.55);
+  margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -23208,15 +23501,20 @@ header.header--unauthenticated ~ #content .la-topbar {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(172px, 1fr));
   gap: 20px;
+  align-items: stretch;
 }
 
 .ll-bento-board-grid__item {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 /* Ultra-modern board cards: large radius, image-first, scale + shadow on hover */
 .ll-bento-board-grid .simple_board_icon {
-  height: auto;
+  flex: 1 1 auto;
+  height: 100%;
   min-height: 0;
   padding: 0;
   border-radius: 20px;
@@ -23262,19 +23560,21 @@ header.header--unauthenticated ~ #content .la-topbar {
   .author {
     font-size: 14px;
     color: var(--ll-bento-muted);
-    margin: 0;
-    padding: 0 14px 14px;
+    margin: 0 0 4px;
+    padding: 0 14px;
   }
 
   .info {
-    /* BOTTOM-CENTER Preview pill (matches the boards-page treatment).
-     Silver-glass background inherits from base .info. */
-    position: absolute;
-    top: auto;
-    left: 50%;
-    right: auto;
-    bottom: 8px;
-    transform: translateX(-50%);
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+    order: 99;
+    align-self: center;
+    margin-top: auto !important;
+    margin-bottom: 8px;
     padding: 4px 11px;
     font-size: 11px;
     font-weight: 800;
@@ -41889,10 +42189,13 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 
   .btn.simple_board_icon {
     @include board-card-modern;
+    @include simple-board-card-layout;
     width: 100% !important;
     min-width: 0 !important;
     max-width: 100% !important;
-    flex: 0 0 auto;
+    flex: 1 1 auto;
+    height: 100%;
+    min-height: 0;
     box-sizing: border-box !important;
   }
 }
@@ -48917,7 +49220,7 @@ a.md-goal-nav-action:hover,
   flex: 0 0 auto;
   display: flex;
   justify-content: center;
-  align-items: flex-start;
+  align-items: stretch;
   /* Card width (2.4rem*2 + 160px image + buffer); wrap before content is cut off */
   min-width: 250px;
 }
@@ -48946,12 +49249,10 @@ a.md-goal-nav-action:hover,
 .md-user-summary__available-boards .board_with_action.simple_board_holder .btn.simple_board_icon,
 .md-user-summary__available-boards .simple_board_holder .btn.simple_board_icon {
   @include board-card-modern;
-  display: flex;
-  flex-direction: column;
+  @include simple-board-card-layout;
   align-items: center;
-  justify-content: flex-start;
-  width: fit-content;
-  height: auto;
+  width: 100%;
+  height: 100%;
   min-height: 0;
   padding: 2.4rem 2.4rem 2rem;
   border-radius: var(--md-r-lg, 16px);
@@ -49000,13 +49301,6 @@ a.md-goal-nav-action:hover,
   text-align: center;
 }
 .md-user-summary__available-boards .simple_board_holder .btn.simple_board_icon .info {
-  /* Pin BOTTOM-CENTER (matching the boards-page Preview pill). The
-     silver-glass background inherits from the base .info rule. */
-  top: auto;
-  left: 50%;
-  right: auto;
-  bottom: 14px;
-  transform: translateX(-50%);
   padding: 5px 13px;
   font-size: 12px;
   display: inline-flex;
@@ -56859,6 +57153,16 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   font-weight: 600;
   color: rgba($la-navy, 0.65);
 }
+.md-strip__owner {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba($la-navy, 0.55);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 
 /* Dashboard home only: increase height of boards and extras cards */
 .md-grid--dashboard .md-card--boards {
@@ -60118,10 +60422,12 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
      flex-grew the workspace failed because the shell stayed collapsed). Scoped via
      `#within_ember:has(.board-picker-page)` (proven to match this page, robust to
      wrapper structure, specificity (1,2,0)/(1,3,0) wins over the generic rules). */
-  #within_ember:has(.board-picker-page) .md-shell--board-picker {
+  #within_ember:has(.board-picker-page) .md-shell--board-picker,
+  #within_ember:has(.md-shell--board-picker) .md-shell--board-picker {
     min-height: 100vh !important;
   }
-  #within_ember:has(.board-picker-page) .md-shell--board-picker > .md-workspace {
+  #within_ember:has(.board-picker-page) .md-shell--board-picker > .md-workspace,
+  #within_ember:has(.md-shell--board-picker) .md-shell--board-picker > .md-workspace {
     flex: 1 1 auto !important;
     min-height: auto !important;
   }
@@ -65451,6 +65757,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     gap: 6px;
     min-height: 44px;
     padding: 8px 14px;
+    text-decoration: none;
     background: linear-gradient(135deg, rgba(44, 183, 176, 0.12), rgba(91, 141, 239, 0.10));
     border: 1px solid rgba(255, 255, 255, 0.5);
     /* Pill radius matches the "+ New Board" CTA so the two boards-page
@@ -67123,10 +67430,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     .board_with_action.simple_board_holder .btn.simple_board_icon,
     .simple_board_holder .btn.simple_board_icon {
       @include board-card-modern;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
+      @include simple-board-card-layout;
       width: 100%;
       max-width: 100%;
       box-sizing: border-box;
@@ -67215,7 +67519,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
       transform: none !important;
       order: 99;
       align-self: center;
-      margin-top: 8px;
+      margin-top: auto !important;
       padding: 5px 13px;
       font-size: 12px;
       display: inline-flex;
@@ -74757,11 +75061,24 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   background: rgba($la-navy, 0.06);
 }
 .md-board-collection__item-name {
-  flex: 1 1 auto;
-  min-width: 0; /* allow ellipsis to actually clip inside the flex row */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.md-board-collection__item-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.md-board-collection__item-owner {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: rgba($la-navy, 0.55);
 }
 .md-board-collection__item-lang {
   flex-shrink: 0;
@@ -74820,6 +75137,9 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    secondary detail without competing with the board name. */
 .md-board-detail--dark .md-board-collection__item-lang {
   color: rgba(226, 232, 240, 0.70);
+}
+.md-board-detail--dark .md-board-collection__item-owner {
+  color: rgba(226, 232, 240, 0.55);
 }
 
 /* Side-information pill — total button count for the board. Sits
@@ -88460,6 +88780,158 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   @keyframes ll-toast-slide-in {
     from { opacity: 0; transform: translateY(12px); }
     to   { opacity: 1; transform: translateY(0); }
+  }
+}
+
+/* ── Background board-copy drawer ──────────────────────
+   Bottom-RIGHT companion to .ll-toast: when a copy is sent to the background
+   (click outside the "Copying Board" modal), it minimizes to this drawer, and
+   the finished/failed toast then takes the same slot. Its own block rather than
+   an .ll-toast modifier because .ll-toast is bottom-centered app-wide and is
+   driven by a different component. */
+.ll-copy-drawer {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  max-width: min(360px, calc(100vw - 48px));
+  display: flex;
+  /* Top-aligned, not centered: the result card grows to two lines plus an action
+     row, and a vertically-centered icon drifts away from the headline it marks. */
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px 14px 18px;
+  background: #fff;
+  border-radius: 12px;
+  border-left: 4px solid $brand-verdigris;
+  box-shadow: 0 10px 28px rgba($la-navy, 0.18), 0 2px 6px rgba($la-navy, 0.08);
+  color: $la-navy;
+  z-index: 10000;
+  animation: ll-copy-drawer-slide-in 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* Smaller than the modal's 32px spinner — this is a status badge, not the
+   main event. */
+.ll-copy-drawer__spinner {
+  width: 22px;
+  height: 22px;
+  border-width: 2px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.ll-copy-drawer__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: $brand-verdigris;
+  margin-top: 2px;
+}
+.ll-copy-drawer__body {
+  flex: 1;
+  min-width: 0;
+}
+.ll-copy-drawer__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+  word-break: break-word;
+}
+.ll-copy-drawer__hint {
+  margin: 3px 0 0;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: rgba($la-navy, 0.65);
+  word-break: break-word;
+}
+/* Result-card actions. The card waits to be answered rather than fading, so the
+   choice has to be reachable — full-size targets, not text links. */
+.ll-copy-drawer__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.ll-copy-drawer__btn {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba($la-navy, 0.18);
+  background: #fff;
+  color: $la-navy;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.ll-copy-drawer__btn:hover {
+  background: rgba($la-navy, 0.06);
+  color: $la-navy;
+}
+.ll-copy-drawer__btn--primary {
+  background: $brand-verdigris;
+  border-color: $brand-verdigris;
+  color: #fff;
+}
+.ll-copy-drawer__btn--primary:hover {
+  /* Literal rather than darken($brand-verdigris, 7%): darken() is deprecated in
+     Dart Sass and emits fractional rgb() — use a fixed hex for webview safety. */
+  background: #228175;
+  border-color: #228175;
+  color: #fff;
+}
+.ll-copy-drawer__btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px $brand-verdigris;
+}
+.ll-copy-drawer__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba($la-navy, 0.5);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  flex-shrink: 0;
+}
+.ll-copy-drawer__close:hover {
+  background: rgba($la-navy, 0.08);
+  color: $la-navy;
+}
+.ll-copy-drawer__close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px $brand-verdigris;
+}
+
+/* Result states reuse the toast's accent language */
+.ll-copy-drawer--done {
+  border-left-color: #2ecc71;
+}
+.ll-copy-drawer--done .ll-copy-drawer__icon { color: #2ecc71; }
+.ll-copy-drawer--error {
+  border-left-color: $brand-danger;
+}
+.ll-copy-drawer--error .ll-copy-drawer__icon { color: $brand-danger; }
+
+@keyframes ll-copy-drawer-slide-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ll-copy-drawer { animation: none; }
+  .ll-copy-drawer__spinner { animation: none; }
+}
+@media (max-width: 480px) {
+  .ll-copy-drawer {
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    max-width: none;
   }
 }
 

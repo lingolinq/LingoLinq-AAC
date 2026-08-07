@@ -8,11 +8,14 @@ import { computed } from '@ember/object';
 import i18n from '../utils/i18n';
 import { inject as service } from '@ember/service';
 import { schedule, debounce, cancel } from '@ember/runloop';
+import persistence from '../utils/persistence';
+import { filterBoardsPageTopLevelRoots } from '../utils/board-roots';
 
 export default Component.extend({
   appState: service('app-state'),
   router: service('router'),
   boardSearchQuery: '',
+  searchAtTop: false,
   used_category_fallback: false,
   category_explainer_overflows: false,
   // Brand-group results for the tabbed (setup) Robust Vocabularies view.
@@ -135,11 +138,16 @@ export default Component.extend({
     var overflows = el.scrollHeight > el.clientHeight;
     this.set('category_explainer_overflows', overflows);
   },
-  categories: computed('current_category', 'include_mine', function() {
+  categories: computed('current_category', 'include_mine', 'searchAtTop', function() {
     var res = [];
     var _this = this;
-    if(this.get('include_mine')) {
-      var cat = $.extend({}, {name: i18n.t('my_home_boards', "My Home Boards"), id: 'mine'});
+    if(this.get('include_mine') || this.get('searchAtTop')) {
+      var cat = $.extend({}, {
+        name: this.get('searchAtTop')
+          ? i18n.t('my_boards', "My Boards")
+          : i18n.t('my_home_boards', "My Home Boards"),
+        id: 'mine'
+      });
       if(_this.get('current_category') == cat.id) {
         cat.selected = true;
       }
@@ -153,6 +161,43 @@ export default Component.extend({
       res.push(cat);
     });
     return res;
+  }),
+  boardSearchActive: computed('boardSearchQuery', function() {
+    return !!((this.get('boardSearchQuery') || '').trim());
+  }),
+  showInlineCategoryFilter: computed('searchAtTop', 'category', 'tabbed', 'robust_tabbed', function() {
+    if (!this.get('searchAtTop')) {
+      return false;
+    }
+    var category = this.get('category');
+    if (!category || category.keyboards) {
+      return false;
+    }
+    if (this.get('robust_tabbed')) {
+      return false;
+    }
+    if (this.get('tabbed') && category.cause_effect) {
+      return false;
+    }
+    return true;
+  }),
+  display_category_boards: computed('searchAtTop', 'boardSearchQuery', 'category_boards.[]', function() {
+    var boards = this.get('category_boards');
+    if (!boards || boards.loading || boards.error) {
+      return boards;
+    }
+    if (!this.get('searchAtTop')) {
+      return boards;
+    }
+    var q = (this.get('boardSearchQuery') || '').trim().toLowerCase();
+    if (!q) {
+      return boards;
+    }
+    return boards.filter(function(board) {
+      var name = (board.get && board.get('name')) || board.name || '';
+      var key = (board.get && board.get('key')) || board.key || '';
+      return name.toLowerCase().indexOf(q) !== -1 || key.toLowerCase().indexOf(q) !== -1;
+    });
   }),
   // True only in the setup tabbed view with Robust Vocabularies active —
   // the gate for showing the Quick Core / Vocal Flair brand cards.
@@ -225,7 +270,7 @@ export default Component.extend({
    * Order: subject’s starred public in category → supervisor’s starred public in category (if different user)
    * → popular public in category → popular public overall (when the catalog has no tagged boards).
    */
-  _resolveCategoryBoards: function(categoryId) {
+  _fetchCategoryBoards: function(categoryId) {
     var _this = this;
     var subjectId = _this._subjectBoardUserId();
     var supervisorId = _this.appState.get('currentUser.id');
@@ -280,11 +325,48 @@ export default Component.extend({
         });
       }
       return tryPublicThenAny();
-    }).then(function(result) {
+    });
+  },
+  _resolveCategoryBoards: function(categoryId) {
+    var _this = this;
+    return this._fetchCategoryBoards(categoryId).then(function(result) {
       _this.set('used_category_fallback', !!(result && result.fallback));
       _this.set('category_boards', result ? result.boards : []);
     }).catch(function() {
       _this.set('category_boards', { error: true });
+    });
+  },
+  _loadMyBoardRoots: function() {
+    var userId = this._subjectBoardUserId();
+    if (!userId) {
+      this.set('category_boards', { error: true });
+      return;
+    }
+    this._loadMyBoardRootsPage(userId, null, []);
+  },
+  _loadMyBoardRootsPage: function(userId, offset, accumulated) {
+    var _this = this;
+    var args = { user_id: userId, sort: 'home_popularity', per_page: 50 };
+    if (offset != null) { args.offset = offset; }
+    LingoLinq.store.query('board', args).then(function(data) {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      var next = accumulated.slice();
+      if (data && data.forEach) {
+        data.forEach(function(b) { if (b) { next.push(b); } });
+      }
+      _this.set('category_boards', filterBoardsPageTopLevelRoots(next, userId));
+      var meta = null;
+      try { meta = persistence.meta('board', data); } catch (e) { meta = null; }
+      if (meta && meta.more) {
+        _this._loadMyBoardRootsPage(userId, meta.next_offset, next);
+      }
+    }).catch(function() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      if (accumulated && accumulated.length) {
+        _this.set('category_boards', filterBoardsPageTopLevelRoots(accumulated, userId));
+      } else {
+        _this.set('category_boards', { error: true });
+      }
     });
   },
   init() {
@@ -325,11 +407,7 @@ export default Component.extend({
       this._scheduleExplainOverflowCheck();
       var _this = this;
       if(str == 'mine') {
-        LingoLinq.store.query('board', {user_id: _this._subjectBoardUserId(), include_shared: 1, sort: 'home_popularity', per_page: 9}).then(function(data) {
-          _this.set('category_boards', data);
-        }, function(err) {
-          _this.set('category_boards', {error: true});
-        });
+        _this._loadMyBoardRoots();
       } else if(_this.get('tabbed') && str == 'robust') {
         // Setup Robust Vocabularies renders the Quick Core / Vocal Flair
         // brand cards instead of the flat category grid.
@@ -344,9 +422,22 @@ export default Component.extend({
         _this._resolveCategoryBoards(str);
       }
     },
+    clear_board_search: function(ev) {
+      if (ev && ev.preventDefault) {
+        ev.preventDefault();
+      }
+      this.set('boardSearchQuery', '');
+      var input = this.element && this.element.querySelector('#board-picker-search-q');
+      if (input && input.focus) {
+        input.focus();
+      }
+    },
     go_search_boards: function(ev) {
       if (ev && ev.preventDefault) {
         ev.preventDefault();
+      }
+      if (this.get('searchAtTop')) {
+        return;
       }
       var q = (this.get('boardSearchQuery') || '').trim();
       var loc = (i18n.langs || {}).preferred || (typeof navigator !== 'undefined' && navigator.language) || 'en';
