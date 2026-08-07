@@ -2,16 +2,20 @@
 
 **Owner:** Privacy Office (privacy@lingolinq.com)
 **Created:** 2026-07-09 (VPC Phase 2, Task 02-01.1)
-**Status:** Re-attested (provisional) by Scot Wahlquist, CEO, **2026-08-06**, covering the current
+**Status:** Re-attested (provisional) by Scot Wahlquist, CEO, **2026-08-07**, covering the current
 revision. Formal outside counsel review remains deferred until the full 5-phase VPC is built. See
 `AI_DATA_SHARING_CONSENT.md` section 9.
 **Attestation history:** first attested (provisional) 2026-07-09; re-attested 2026-07-22;
-re-attested 2026-08-04; re-attested 2026-08-06. The **2026-08-06** re-attestation covers the
+re-attested 2026-08-04; re-attested 2026-08-06; re-attested 2026-08-07. The **2026-08-07**
+re-attestation covers a stale cross-reference in the Related line below, which described
+`AI_GOVERNANCE_MEMO.md` as "attested 2026-06-19" when that memo had been re-attested on 2026-07-22,
+2026-07-24, 2026-07-27 and 2026-08-04 since. The **2026-08-06** re-attestation covers the
 section 8 correction: the board-generation bullet stated the superseded "stays gated" position as
 the outcome, contradicting this document's own section 3 table and section 4.2,
 `AI_DATA_SHARING_CONSENT.md` section 7, and the shipped implementation in
 `lib/lingo_linq/ai_consent_disclosures.rb`. That revision corrected the description only; no
-classification, gate, or data flow changed.
+classification, gate, or data flow changed. Those bytes were corrected before merge and never
+reached `staging`.
 The **2026-08-04** re-attestation covers the runtime-row status paragraph,
 rewritten from "dormant as of 2026-07-30" to the closed operational window (not operational through
 revision `00012-x8z`; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on `00013-76w`, carrying
@@ -25,8 +29,10 @@ claims were re-verified against live code: `AiApiLog.purge_old_eu_logs!(years: 5
 (`app/models/ai_api_log.rb`) is dispatched from `lib/tasks/scheduler.rake`, and
 `LingoLinq::Article50CallContext.for(user)` stamps jurisdiction at exactly the three AI call sites
 (`lib/eval_narrator.rb`, `lib/ai_word_predictor.rb`, `lib/ai_board_generator.rb`).
-**Related:** `docs/legal/AI_DATA_SHARING_CONSENT.md`, `docs/legal/AI_GOVERNANCE_MEMO.md` (attested
-2026-06-19, the authoritative live model inventory), `docs/legal/SUBPROCESSORS.md`,
+**Related:** `docs/legal/AI_DATA_SHARING_CONSENT.md`, `docs/legal/AI_GOVERNANCE_MEMO.md` (the
+authoritative live model inventory; first attested 2026-06-19, most recently re-attested
+2026-08-04, so check its own attestation block rather than relying on a date quoted here),
+`docs/legal/SUBPROCESSORS.md`,
 `docs/legal/DATA_RETENTION.md`, `.planning/phases/02-disclosures-content/PLAN.md`
 
 ## 1. Purpose
