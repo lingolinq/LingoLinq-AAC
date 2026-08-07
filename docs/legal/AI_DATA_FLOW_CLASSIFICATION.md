@@ -2,10 +2,16 @@
 
 **Owner:** Privacy Office (privacy@lingolinq.com)
 **Created:** 2026-07-09 (VPC Phase 2, Task 02-01.1)
-**Status:** Re-attested (provisional) by Scot Wahlquist, CEO, **2026-07-22**, covering the current
+**Status:** Re-attested (provisional) by Scot Wahlquist, CEO, **2026-08-04**, covering the current
 revision. Formal outside counsel review remains deferred until the full 5-phase VPC is built. See
 `AI_DATA_SHARING_CONSENT.md` section 9.
-**Attestation history:** first attested (provisional) 2026-07-09. That attestation covered an
+**Attestation history:** first attested (provisional) 2026-07-09; re-attested 2026-07-22;
+re-attested 2026-08-04. The **2026-08-04** re-attestation covers the runtime-row status paragraph,
+rewritten from "dormant as of 2026-07-30" to the closed operational window (not operational through
+revision `00012-x8z`; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on `00013-76w`, carrying
+one internal verification call with no user or student data; not operational since `00014-5rw`).
+This document entered the 2026-08-04 re-attestation set during the third review round of PR #725.
+The 2026-07-09 attestation covered an
 earlier revision: PR #656 (2026-07-22) rewrote the AI-log retention tiers, moving the children and
 general tiers from "Decided, rolling out" to "Decided, not yet enforced" with the blocker named, and
 the EU tier from inert to functional. The 2026-07-22 re-attestation was taken only after the changed
@@ -52,6 +58,20 @@ dictionary from built-in word lists only (no user or tenant content, per `AI_GOV
 section 2), so it is out of scope for this disclosure and is not in the table below.
 
 ## 3. Feature classification table
+
+> **Status correction, 2026-08-02.** The vendor/model column below names the direct commercial API
+> and dated model ids (`claude-haiku-4-5-20251001`). That is stale in two ways. The runtime route is
+> now Anthropic Claude on **AWS Bedrock** in bare-alias form (`anthropic.claude-haiku-4-5`), via
+> `lib/ai_client.rb`; the direct `api.anthropic.com` route was removed by PR #681 and is CI-enforced
+> by `scripts/ai-endpoint-guard.sh`. **Operational status corrected 2026-08-04** (this previously
+> read "every runtime row here is dormant as of 2026-07-30: no `lingolinq-web` revision carries a
+> Bedrock credential"). Accurate statement: not operational from 2026-07-30T16:37Z through
+> `00012-x8z`; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on `00013-76w`, in which one
+> word-prediction call completed (internal verification, no user or student data); not operational
+> since `00014-5rw` (2026-08-04T06:31:46Z), so `AiClient.configured?` is false again today. The
+> Gemini fallback referenced in these rows was removed 2026-07-09 (PR #570). Read the table as the
+> designated classification when live, not as current traffic. See the 2026-08-04 operational-status
+> correction in `docs/legal/AWS_BAA_ACCEPTED.md`.
 
 | Feature | Code location | Vendor / model / tier | Data sent (post-scrubber) | Account identifier in payload? | Bucket | 2nd-tier VPC gate? | What the disclosure must say |
 |---|---|---|---|---|---|---|---|
