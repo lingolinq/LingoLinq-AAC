@@ -20,6 +20,23 @@ name: Deploy to Cloud Run
 #   3. The ref guard + the WIF provider's `assertion.ref` condition, so no other ref can
 #      deploy or even mint a deploy token.
 #
+# MIGRATIONS MUST BE EXPAND-CONTRACT. This is a hard rule for anything that reaches `main`,
+# and it is a consequence of the step order below, which no amount of care in this file can
+# remove: migrate -> web -> worker. That order leaves two windows where schema and code
+# disagree, and automation means nobody is watching them:
+#   * Between the migrate Job and the web deploy, the NEW schema serves the OLD web code.
+#   * Between the web deploy and the worker deploy, the NEW web code enqueues onto workers
+#     still running the OLD image.
+# So, in the release that changes the code:
+#   ALLOWED  -- add a column/table/index, add a nullable field, backfill, add a new job class,
+#               start dual-writing.
+#   FORBIDDEN -- drop or rename a column/table, add a NOT NULL constraint without a default,
+#               change a column type in place, or remove a job class that old workers may
+#               still dequeue.
+# Destructive changes ship in a LATER release, after the code that depended on the old shape
+# is gone from production. If you cannot make a change expand-contract, do not put it through
+# the automatic path: take the site down, or deploy it by hand with someone watching.
+#
 # The `guard` job still no-ops the whole run when vars.GCP_PROJECT_ID is empty, so the
 # workflow stays inert in a fork or a repo where the migration vars were never set.
 # Authentication is keyless via Workload Identity Federation -- no long-lived JSON
@@ -349,6 +366,42 @@ jobs:
             --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false,$APP_ENV_VARS" \
             --set-secrets "$BOOT_SECRETS,$NON_BOOT_SECRETS" \
             --allow-unauthenticated
+
+      # Gate the worker on the web service actually serving. Cloud Run's own readiness check
+      # only proves the container started; this proves the app boots against the migrated
+      # schema and can answer a request. If it fails we stop BEFORE replacing the worker pool,
+      # so the old workers keep draining the queue against code that was working.
+      #
+      # This does NOT roll back. Traffic has already shifted (the service is
+      # `latestRevision: true`, 100%), so a failure here is an alert, not a repair. The
+      # rollback command is printed below rather than run automatically, because choosing
+      # between rolling traffic back and rolling forward depends on whether the migration that
+      # just ran is backward compatible -- which is a human call, and exactly why the
+      # expand-contract rule in the header exists.
+      - name: Verify web service health
+        run: |
+          URL="$(gcloud run services describe lingolinq-web \
+            --region "${{ vars.GCP_REGION }}" --format='value(status.url)')"
+          echo "Probing $URL/api/v1/health"
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$URL/api/v1/health" || echo 000)"
+            echo "  attempt $i: HTTP $CODE"
+            if [ "$CODE" = "200" ]; then
+              echo "Web service healthy on the new revision."
+              exit 0
+            fi
+            sleep 15
+          done
+          PREV="$(gcloud run revisions list --service lingolinq-web \
+            --region "${{ vars.GCP_REGION }}" --format='value(metadata.name)' \
+            --sort-by=~metadata.creationTimestamp --limit=2 | tail -n1)"
+          echo "::error::lingolinq-web did not return 200 from /api/v1/health after 10 attempts."
+          echo "::error::Worker pool NOT replaced; it is still running the previous image."
+          echo "::error::To roll traffic back to the previous revision:"
+          echo "::error::  gcloud run services update-traffic lingolinq-web --region ${{ vars.GCP_REGION }} --to-revisions ${PREV}=100"
+          echo "::error::If this release contained a migration, check whether it is backward"
+          echo "::error::compatible BEFORE rolling back. If it is not, roll FORWARD instead."
+          exit 1
 
       - name: Deploy worker pool
         run: |
