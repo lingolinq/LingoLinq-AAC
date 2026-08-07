@@ -321,15 +321,22 @@ out << "---\n\n"
 out << "_#{docs.size} documents tracked. #{review_stale.size} stale review item(s). #{drive_needs_refresh.size} Drive refresh item(s). "
 out << "#{notion_needs_hash.size} Notion hash item(s). #{ambiguous_retention.size} inferred retention class(es). "
 out << "#{legal_holds.size} legal hold(s). #{superseded_rows.size} superseded record(s). "
-# `attestation_mismatched` is the signature queue: pinned bytes no longer match the file, so a
-# re-attestation IS owed. `attestation_unpinned` is a different set -- attested rows carrying no
-# pinned hash at all. Labelling the latter "awaiting re-attestation" let a footer read
-# "2 drifted attestation(s), 0 awaiting re-attestation", from which an operator could conclude the
-# signature queue was empty while two records were in fact awaiting Scot. Name each set for what it
-# actually is, and say plainly when a re-attestation is owed.
-out << "#{attestation_mismatched.size} drifted attestation(s)"
-out << (attestation_mismatched.empty? ? ' (none awaiting re-attestation)' : ' AWAITING RE-ATTESTATION')
-out << ", #{attestation_unpinned.size} attested record(s) with no pinned hash. "
+# Both sets are the signature queue, and the footer must not contradict the detail sections above.
+# `attestation_mismatched` = pinned bytes no longer match the file. `attestation_unpinned` = attested
+# rows carrying no pinned hash, which render under a heading literally titled "Re-attestation queue".
+# Two footer bugs have now been fixed here in sequence: first it labelled ONLY the unpinned set
+# "awaiting re-attestation", so "2 drifted, 0 awaiting" implied an empty queue while two records
+# awaited Scot; then keying the phrase to mismatched alone produced the converse, claiming "none
+# awaiting" while the Re-attestation queue section listed a record. Count both, and let the detail
+# sections break out which kind each record is.
+awaiting_reattestation = attestation_mismatched.size + attestation_unpinned.size
+out << "#{attestation_mismatched.size} drifted attestation(s), "
+out << "#{attestation_unpinned.size} attested record(s) with no pinned hash, "
+out << if awaiting_reattestation.zero?
+         'none awaiting re-attestation. '
+       else
+         "#{awaiting_reattestation} record(s) AWAITING RE-ATTESTATION. "
+       end
 out << "#{bundle_gaps.sum { |_, g| g.size }} bundle gap(s) across #{bundle_gaps.size} bundle(s)._\n"
 
 if options[:mode] == :check

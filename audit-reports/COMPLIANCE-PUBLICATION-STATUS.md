@@ -275,4 +275,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_70 documents tracked. 52 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 1 superseded record(s). 2 drifted attestation(s) AWAITING RE-ATTESTATION, 0 attested record(s) with no pinned hash. 23 bundle gap(s) across 6 bundle(s)._
+_70 documents tracked. 52 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 1 superseded record(s). 2 drifted attestation(s), 0 attested record(s) with no pinned hash, 2 record(s) AWAITING RE-ATTESTATION. 23 bundle gap(s) across 6 bundle(s)._

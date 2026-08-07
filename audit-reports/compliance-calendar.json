@@ -3,7 +3,7 @@
     "schemaVersion": "1.0",
     "artifact": "LingoLinq-AAC compliance calendar",
     "description": "Source of truth for recurring compliance review cadences and fixed regulatory dates. Owned by the compliance-officer agent, surfaced at /compliance-status. The officer DRAFTS and SURFACES; only Scot attests that a review was completed. Regenerate compliance-calendar.md with `ruby scripts/compliance-calendar-render.rb`; do not hand-edit the render.",
-    "generatedDate": "2026-06-14",
+    "generatedDate": "2026-08-07",
     "owner": "compliance-officer (drafts/surfaces); Scot Wahlquist (attests completion)",
     "basis": "Audit/Compliance Modernization plan 2026-06-11 sections 1.3, 5.1, 6, 9.1; fresh regulatory lookups 2026-06-13; Phase 4 audit-run cadence added 2026-06-14",
     "dateConvention": "ISO-8601 absolute dates. All cached regulatory dates are 'verify before relying'; regulation is fast-moving.",

@@ -4,7 +4,7 @@
 > render; regenerate it from the JSON via `ruby scripts/compliance-calendar-render.rb`.
 > A review is only "done" when Scot attests; `nextDue` is advisory scheduling, not a compliance claim.
 >
-> Generated: 2026-06-14 | Owner: compliance-officer (drafts/surfaces); Scot Wahlquist (attests completion)
+> Generated: 2026-08-07 | Owner: compliance-officer (drafts/surfaces); Scot Wahlquist (attests completion)
 
 ## Due within 90 days or overdue (surface these first)
 
@@ -20,6 +20,8 @@
 | 2026-09-01 | OpenRouter ZDR re-verification (after every key rotation, plus quarterly) | SOC2 | event-driven + quarterly |
 | 2026-09-01 | Google Gemini API fallback path BAA/DPA verification | HIPAA | annual |
 | 2026-09-01 | Mechanical secret-shaped-string rejector in audit toolchain (LL-b5c30235d3) | SOC2 | one-time |
+| 2026-09-14 | Full /audit-run (4 finders, full scope) + adversary verify - all frameworks | SOC2 | quarterly |
+| 2026-10-20 | Subprocessor list review (SUBPROCESSORS.md) | GDPR | quarterly |
 
 ## Recurring reviews (full set)
 
