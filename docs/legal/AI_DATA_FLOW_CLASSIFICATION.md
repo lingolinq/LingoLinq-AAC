@@ -7,7 +7,11 @@ revision. Formal outside counsel review remains deferred until the full 5-phase 
 `AI_DATA_SHARING_CONSENT.md` section 9.
 **Attestation history:** first attested (provisional) 2026-07-09; re-attested 2026-07-22;
 re-attested 2026-08-04; re-attested 2026-08-06; re-attested 2026-08-07. The **2026-08-07**
-re-attestation covers a stale cross-reference in the Related line below, which described
+re-attestation covers two corrections. First, the runtime operational-status note in section 3,
+which asserted the Bedrock path had been not operational since `00014-5rw` (2026-08-04T06:31:46Z);
+credentials were in fact re-mounted 53 minutes later and have been continuously present since, so
+that claim was false from 2026-08-04T07:25:08Z and was corrected against live infrastructure on
+2026-08-07. Second, a stale cross-reference in the Related line below, which described
 `AI_GOVERNANCE_MEMO.md` as "attested 2026-06-19" when that memo had been re-attested on 2026-07-22,
 2026-07-24, 2026-07-27 and 2026-08-04 since. The **2026-08-06** re-attestation covers the
 section 8 correction: the board-generation bullet stated the superseded "stays gated" position as
@@ -20,6 +24,8 @@ The **2026-08-04** re-attestation covers the runtime-row status paragraph,
 rewritten from "dormant as of 2026-07-30" to the closed operational window (not operational through
 revision `00012-x8z`; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on `00013-76w`, carrying
 one internal verification call with no user or student data; not operational since `00014-5rw`).
+That last clause was superseded within the hour it was written and is corrected in the 2026-08-07
+revision; see the status note in section 3.
 This document entered the 2026-08-04 re-attestation set during the third review round of PR #725.
 The 2026-07-09 attestation covered an
 earlier revision: PR #656 (2026-07-22) rewrote the AI-log retention tiers, moving the children and
@@ -79,11 +85,22 @@ section 2), so it is out of scope for this disclosure and is not in the table be
 > read "every runtime row here is dormant as of 2026-07-30: no `lingolinq-web` revision carries a
 > Bedrock credential"). Accurate statement: not operational from 2026-07-30T16:37Z through
 > `00012-x8z`; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on `00013-76w`, in which one
-> word-prediction call completed (internal verification, no user or student data); not operational
-> since `00014-5rw` (2026-08-04T06:31:46Z), so `AiClient.configured?` is false again today. The
+> word-prediction call completed (internal verification, no user or student data); credentials
+> withdrawn 2026-08-04T06:31:46Z (`00014-5rw`) and **re-mounted 53 minutes later** on `00015-9l9`
+> (2026-08-04T07:25:08Z), where they have remained continuously through the serving revision
+> `lingolinq-web-00017-n65`.
+> **Status re-verified 2026-08-07: credentialled, carrying no traffic.** The serving revision mounts
+> both `BEDROCK_AWS_KEY` and `BEDROCK_AWS_SECRET` from Secret Manager and both secrets hold an
+> enabled version, but production `AiApiLog` holds exactly one row for all time (id 1,
+> 2026-08-04T05:44:42Z, no `user_global_id`, no `organization_global_id`), so no model egress has
+> occurred since that call. **Correction 2026-08-07:** this note previously ended "not operational
+> since `00014-5rw` (2026-08-04T06:31:46Z), so `AiClient.configured?` is false again today." That
+> was true for 54 minutes and false from 2026-08-04T07:25:08Z onward. No classification in the table
+> below changes: the rows describe what each feature WOULD send, and the no-egress conclusion still
+> holds, but it now rests on the absence of calls rather than the absence of credentials. The
 > Gemini fallback referenced in these rows was removed 2026-07-09 (PR #570). Read the table as the
-> designated classification when live, not as current traffic. See the 2026-08-04 operational-status
-> correction in `docs/legal/AWS_BAA_ACCEPTED.md`.
+> designated classification when live, not as current traffic. `docs/legal/AWS_BAA_ACCEPTED.md`
+> carries the same superseded claim and is corrected separately.
 
 | Feature | Code location | Vendor / model / tier | Data sent (post-scrubber) | Account identifier in payload? | Bucket | 2nd-tier VPC gate? | What the disclosure must say |
 |---|---|---|---|---|---|---|---|
