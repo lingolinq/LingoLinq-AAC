@@ -91,9 +91,15 @@ section 2), so it is out of scope for this disclosure and is not in the table be
 > `lingolinq-web-00017-n65`.
 > **Status re-verified 2026-08-07: credentialled, carrying no traffic.** The serving revision mounts
 > both `BEDROCK_AWS_KEY` and `BEDROCK_AWS_SECRET` from Secret Manager and both secrets hold an
-> enabled version, but production `AiApiLog` holds exactly one row for all time (id 1,
-> 2026-08-04T05:44:42Z, no `user_global_id`, no `organization_global_id`), so no model egress has
-> occurred since that call. **Correction 2026-08-07:** this note previously ended "not operational
+> enabled version, but production `AiApiLog` holds a single row (id 1, 2026-08-04T05:44:42Z, no
+> `user_global_id`, no `organization_global_id`), so no model egress is recorded since that call.
+> **Evidentiary limit:** `AiApiLog` is not a durable egress ledger. `log_ai_call` rescues
+> `ActiveRecord::ActiveRecordError` and returns an unsaved record (`app/models/ai_api_log.rb`), and
+> `Flusher.flush_user_logs` destroys rows by `user_global_id` on user erasure (`lib/flusher.rb`), so
+> the table can under-record. Durable vendor-side confirmation (CloudWatch `AWS/Bedrock`
+> `Invocations` / CloudTrail `bedrock:InvokeModel`) has not been obtained; the available IAM
+> principal is denied `cloudwatch:GetMetricStatistics`. Treat the no-egress statement as
+> best-available evidence, not a guarantee. **Correction 2026-08-07:** this note previously ended "not operational
 > since `00014-5rw` (2026-08-04T06:31:46Z), so `AiClient.configured?` is false again today." That
 > was true for 54 minutes and false from 2026-08-04T07:25:08Z onward. No classification in the table
 > below changes: the rows describe what each feature WOULD send, and the no-egress conclusion still
