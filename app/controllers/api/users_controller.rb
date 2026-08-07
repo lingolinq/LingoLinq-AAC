@@ -210,7 +210,7 @@ class Api::UsersController < ApplicationController
       user.used_reset_token!(params['reset_token'])
     elsif user.allows?(@api_user, 'manage_supervision') && !user.allows?(@api_user, 'edit')
       user_data = user_data.slice('supervisor_key')
-    elsif user.allows?(@api_user, 'supervise') && !user.allows?(@api_user, 'edit') && supervise_home_board_only_update?(user_data)
+    elsif user.allows?(@api_user, 'supervise') && !user.allows?(@api_user, 'edit') && supervise_home_board_update?(user_data)
       user_data = supervise_home_board_update_slice(user_data)
     else
       return unless allowed?(user, 'edit')
@@ -1229,7 +1229,10 @@ class Api::UsersController < ApplicationController
     res
   end
 
-  def supervise_home_board_only_update?(data)
+  # Supervise-only supervisors may set a communicatee's home board. Ember user.save()
+  # sends the full preferences blob when any preference changes; slice home_board
+  # server-side instead of requiring the client to send only that key.
+  def supervise_home_board_update?(data)
     return false unless data.is_a?(Hash)
 
     top_keys = data.keys.map(&:to_s)
@@ -1238,7 +1241,7 @@ class Api::UsersController < ApplicationController
     prefs = data['preferences'] || data[:preferences]
     return false unless prefs.is_a?(Hash)
 
-    prefs.keys.map(&:to_s) == ['home_board']
+    !!(prefs['home_board'] || prefs[:home_board])
   end
 
   def supervise_home_board_update_slice(data)

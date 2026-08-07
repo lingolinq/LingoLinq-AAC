@@ -1,13 +1,24 @@
 #!/usr/bin/env node
 /**
  * P1 manual-QA automation for board-picker supervisee context.
- * Usage: node scripts/p1-board-picker-qa.mjs [--base http://localhost:8185]
+ *
+ * Usage:
+ *   node scripts/p1-board-picker-qa.mjs [--base http://localhost:8185]
+ *     [--user marcus_williams_slp] [--pass 'demo2025!']
+ *
+ * Full pick-and-save E2E (mutates supervisee home board in dev DB):
+ *   node scripts/p1-board-picker-qa.mjs --full-pick [--supervisee hannah_lee] [--pick-board keyboard]
+ *   node scripts/p1-board-picker-qa.mjs --full-pick-only --user marcus_williams_slp --pass 'demo2025!'
  */
 import { chromium } from 'playwright';
 
 const BASE = (process.argv.find((a, i) => process.argv[i - 1] === '--base') || 'http://localhost:8185');
 const USER = process.argv.find((a, i) => process.argv[i - 1] === '--user') || 'example';
 const PASS = process.argv.find((a, i) => process.argv[i - 1] === '--pass') || 'password';
+const FULL_PICK = process.argv.includes('--full-pick') || process.argv.includes('--full-pick-only');
+const FULL_PICK_ONLY = process.argv.includes('--full-pick-only');
+const SUPERVISEE = process.argv.find((a, i) => process.argv[i - 1] === '--supervisee') || null;
+const PICK_BOARD = process.argv.find((a, i) => process.argv[i - 1] === '--pick-board') || 'keyboard';
 
 const results = [];
 
@@ -70,6 +81,24 @@ async function apiGet(page, path) {
   }, { path, token });
 }
 
+async function getUserDetail(page, userName) {
+  const detail = await apiGet(page, `/api/v1/users/${encodeURIComponent(userName)}`);
+  if (!detail || detail.error) {
+    return null;
+  }
+  const user = detail.user || detail;
+  const homeKey = user.preferences && user.preferences.home_board && user.preferences.home_board.key;
+  const perms = user.permissions || {};
+  return {
+    id: String(user.id),
+    user_name: user.user_name || userName,
+    hasHome: !!homeKey,
+    homeKey: homeKey || null,
+    hasEdit: !!perms.edit,
+    hasSupervise: !!perms.supervise
+  };
+}
+
 async function findSupervisee(page, userName) {
   const superviseesResp = await apiGet(page, `/api/v1/users/${encodeURIComponent(userName)}/supervisees?per_page=25`);
   const list = superviseesResp && superviseesResp.user ? superviseesResp.user : [];
@@ -78,26 +107,260 @@ async function findSupervisee(page, userName) {
     const id = s.id || s.user_id;
     const un = s.user_name;
     if (!id || !un) continue;
-    const detail = await apiGet(page, `/api/v1/users/${encodeURIComponent(un)}`);
-    const user = detail && (detail.user || detail);
-    const perms = user && user.permissions;
-    if (perms && (perms.edit || perms.supervise)) {
-      const homeKey = user.preferences && user.preferences.home_board && user.preferences.home_board.key;
+    const detail = await getUserDetail(page, un);
+    if (!detail) continue;
+    if (detail.hasEdit || detail.hasSupervise) {
       const candidate = {
-        id: String(id),
-        user_name: un,
-        hasHome: !!homeKey,
-        homeKey: homeKey || null,
-        hasEdit: !!perms.edit,
-        hasSupervise: !!perms.supervise
+        id: detail.id,
+        user_name: detail.user_name,
+        hasHome: detail.hasHome,
+        homeKey: detail.homeKey,
+        hasEdit: detail.hasEdit,
+        hasSupervise: detail.hasSupervise
       };
-      if (!homeKey && !s.modeling_only) {
+      if (!detail.hasHome && !s.modeling_only) {
         return candidate;
       }
       fallback = fallback || candidate;
     }
   }
   return fallback;
+}
+
+async function resolveSupervisee(page, slpUserName) {
+  if (SUPERVISEE) {
+    const detail = await getUserDetail(page, SUPERVISEE);
+    if (!detail) {
+      record('supervisee-resolve', false, `Could not load --supervisee ${SUPERVISEE}`);
+      return null;
+    }
+    if (!detail.hasEdit && !detail.hasSupervise) {
+      record('supervisee-resolve', false, `${SUPERVISEE} is not supervise-able by ${slpUserName}`);
+      return null;
+    }
+    return detail;
+  }
+  return findSupervisee(page, slpUserName);
+}
+
+async function pollSuperviseeHomeBoard(page, userName, previousKey, timeoutMs = 300000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const detail = await getUserDetail(page, userName);
+    const key = detail && detail.homeKey;
+    if (key && key !== previousKey) {
+      return { key, detail };
+    }
+    await page.waitForTimeout(3000);
+  }
+  return null;
+}
+
+function isPickSaveResponse(res) {
+  const url = res.url();
+  const method = res.request().method();
+  if (!url.includes('/api/v1/')) {
+    return false;
+  }
+  if (url.includes('/copy_board_links') && method === 'POST') {
+    return true;
+  }
+  if (/\/api\/v1\/users\/[^/?#]+$/.test(url) && ['PUT', 'PATCH'].includes(method)) {
+    return true;
+  }
+  if (url.includes('/api/v1/boards') && method === 'POST') {
+    return true;
+  }
+  return false;
+}
+
+async function waitForBoardPickerGrid(page) {
+  const loading = page.locator('.md-home-boards-picker__grid-message').filter({ hasText: /Loading boards/i });
+  if (await loading.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await loading.waitFor({ state: 'hidden', timeout: 60000 }).catch(() => {});
+  }
+  await page.locator('.md-home-boards-picker__board').first().waitFor({ state: 'visible', timeout: 60000 });
+}
+
+async function waitForPreviewReady(page) {
+  await page.locator('.md-board-preview__title').waitFor({ state: 'visible', timeout: 60000 });
+  await page.locator('.md-board-details-modal__header-loading').waitFor({ state: 'hidden', timeout: 60000 }).catch(() => {});
+  await page.locator('.md-board-preview__status').filter({ hasText: /Loading board/i }).waitFor({ state: 'hidden', timeout: 60000 }).catch(() => {});
+}
+
+async function selectBoardForPick(page, pickFilter) {
+  const filterInput = page.locator('#board-picker-search-q');
+  const tryFilters = [pickFilter, 'keyboard', 'emoji', 'numbers'].filter(Boolean);
+  const seen = new Set();
+
+  for (const filter of tryFilters) {
+    if (!filter || seen.has(filter)) continue;
+    seen.add(filter);
+
+    if (await filterInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await filterInput.fill(filter);
+      await page.waitForTimeout(1500);
+    }
+
+    const noneFound = await page.locator('.md-home-boards-picker__grid-message').filter({ hasText: /None found/i }).isVisible().catch(() => false);
+    const boardCard = page.locator('.md-home-boards-picker__grid .md-home-boards-picker__board').first();
+    if (!noneFound && await boardCard.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await boardCard.locator('.simple_board_icon, button').first().click();
+      return filter;
+    }
+  }
+
+  throw new Error(`No pickable board found for filters: ${[...seen].join(', ')}`);
+}
+
+async function runPreviewPickCheck(page) {
+  const pickerVisible = await page.locator('.md-home-boards-picker__layout').isVisible({ timeout: 3000 }).catch(() => false);
+  if (!pickerVisible) {
+    record('supervisee-pick-cta', false, 'BoardPicker not visible');
+    return;
+  }
+  const firstBoard = page.locator('.md-home-boards-picker__board .simple_board_icon, .md-home-boards-picker__board button').first();
+  if (await firstBoard.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await firstBoard.click();
+    await page.waitForTimeout(3000);
+    const pickBtn = page.locator('button').filter({ hasText: /Pick this Board/i }).first();
+    const pickVisible = await pickBtn.isVisible({ timeout: 5000 }).catch(() => false);
+    record('supervisee-pick-cta', pickVisible, pickVisible ? 'Pick this Board CTA visible in preview' : 'Preview/pick CTA not found');
+  } else {
+    record('supervisee-pick-cta', false, 'No board card to click');
+  }
+}
+
+async function runFullPickE2E(page, supervisee) {
+  const before = await getUserDetail(page, supervisee.user_name);
+  const beforeKey = before && before.homeKey || null;
+  record(
+    'full-pick-before',
+    true,
+    beforeKey ? `home_board.key=${beforeKey} (will assert change after pick)` : 'no home board before pick'
+  );
+
+  await page.goto(`${BASE}/board-picker?user_id=${supervisee.id}`, { waitUntil: 'networkidle', timeout: 60000 });
+  await page.waitForTimeout(2000);
+
+  try {
+    await waitForBoardPickerGrid(page);
+  } catch (err) {
+    record('full-pick-grid', false, `Board grid did not load: ${err.message}`);
+    return;
+  }
+  record('full-pick-grid', true, `${await page.locator('.md-home-boards-picker__board').count()} board cards visible`);
+
+  try {
+    const usedFilter = await selectBoardForPick(page, PICK_BOARD);
+    record('full-pick-board-select', true, `Selected board using filter "${usedFilter}"`);
+  } catch (err) {
+    record('full-pick-board-select', false, err.message);
+    return;
+  }
+
+  try {
+    await waitForPreviewReady(page);
+  } catch (err) {
+    record('full-pick-preview', false, `Preview did not finish loading: ${err.message}`);
+    return;
+  }
+  record('full-pick-preview', true, 'Board preview loaded');
+
+  const pickBtn = page.getByRole('button', { name: /Pick this Board/i });
+  if (!(await pickBtn.isVisible({ timeout: 10000 }).catch(() => false))) {
+    record('full-pick-cta', false, 'Pick this Board not visible in preview');
+    return;
+  }
+
+  const saveResponses = [];
+  const onResponse = (res) => {
+    if (isPickSaveResponse(res)) {
+      saveResponses.push(res);
+    }
+  };
+  page.on('response', onResponse);
+
+  record('full-pick-cta', true, `Clicking Pick this Board (target: ${PICK_BOARD})`);
+  await pickBtn.click();
+
+  const pickStarted = await page.locator('text=/Setting up your board|Preparing your Board/i').first()
+    .waitFor({ state: 'visible', timeout: 15000 })
+    .then(() => true)
+    .catch(() => false);
+  record('full-pick-started', pickStarted, pickStarted ? 'Copy/save overlay visible' : 'No copy overlay after click');
+
+  if (!pickStarted) {
+    const errText = await page.locator('.alert-danger, .modal .text-danger, .md-board-preview__status--error').first().textContent().catch(() => '');
+    if (errText) {
+      record('full-pick-error', false, errText.trim());
+    }
+    page.off('response', onResponse);
+    return;
+  }
+
+  // Fail fast if copy overlay clears without navigation or API activity (silent stall).
+  await page.waitForTimeout(15000);
+  const stillCopying = await page.locator('text=/Setting up your board|Preparing your Board/i').first().isVisible().catch(() => false);
+  if (!stillCopying && saveResponses.length === 0 && page.url().includes('board-picker')) {
+    record('full-pick-stalled', false, 'Copy overlay cleared but no save API call and still on board-picker');
+    page.off('response', onResponse);
+    return;
+  }
+
+  await Promise.race([
+    page.waitForURL(new RegExp(`/${supervisee.user_name}/boards`), { timeout: 300000 }),
+    page.getByText(/Great! This is now the user's home board!/i).waitFor({ state: 'visible', timeout: 300000 })
+  ]).catch(() => {});
+
+  const afterPoll = await pollSuperviseeHomeBoard(page, supervisee.user_name, beforeKey, 300000);
+  page.off('response', onResponse);
+  const afterKey = afterPoll && afterPoll.key;
+
+  if (saveResponses.length > 0) {
+    const last = saveResponses[saveResponses.length - 1];
+    record(
+      'full-pick-save-request',
+      last.ok(),
+      `${saveResponses.length} save-related API call(s); last ${last.request().method()} ${last.url()} → ${last.status()}`
+    );
+  } else {
+    record('full-pick-save-request', false, 'No board copy / user save API response observed');
+  }
+
+  record(
+    'full-pick-api-save',
+    !!afterKey && afterKey !== beforeKey,
+    afterKey
+      ? `home_board.key=${afterKey}${beforeKey ? ` (was ${beforeKey})` : ''}`
+      : 'home_board not set or unchanged after pick'
+  );
+
+  const appNavigated = page.url().includes(`/${supervisee.user_name}/boards`);
+  record('full-pick-navigation', appNavigated, appNavigated ? page.url() : `Still on ${page.url()} after pick`);
+
+  if (!afterKey) {
+    return;
+  }
+
+  if (!appNavigated) {
+    await page.goto(`${BASE}/${supervisee.user_name}/boards`, { waitUntil: 'networkidle', timeout: 60000 });
+  }
+
+  await page.waitForTimeout(4000);
+  const homeCount = await page.locator('.ub-boards-page__board-item--home').count();
+  record('full-pick-home-badge', homeCount >= 1, `${homeCount} tile(s) with --home badge on boards page`);
+
+  await page.reload({ waitUntil: 'networkidle', timeout: 60000 });
+  await page.waitForTimeout(4000);
+  const afterReload = await getUserDetail(page, supervisee.user_name);
+  record(
+    'full-pick-persist-reload',
+    !!(afterReload && afterReload.homeKey === afterKey),
+    afterReload && afterReload.homeKey ? `home_board.key=${afterReload.homeKey} after reload` : 'home board missing after reload'
+  );
+  const homeCountReload = await page.locator('.ub-boards-page__board-item--home').count();
+  record('full-pick-badge-after-reload', homeCountReload >= 1, `${homeCountReload} home badge(s) after reload`);
 }
 
 async function main() {
@@ -111,7 +374,7 @@ async function main() {
   });
 
   try {
-    console.log(`\n=== P1 board-picker QA @ ${BASE} as ${USER} ===\n`);
+    console.log(`\n=== P1 board-picker QA @ ${BASE} as ${USER}${FULL_PICK ? ' (full pick E2E)' : ''} ===\n`);
     await login(page);
     record('login', true, `Logged in as ${USER}, now at ${page.url()}`);
 
@@ -120,6 +383,7 @@ async function main() {
     const currentUserId = me && me.id;
     record('current-user-id', !!currentUserId, currentUserId ? `currentUser.id=${currentUserId}` : 'Could not read current user via API');
 
+    if (!FULL_PICK_ONLY) {
     // --- Self flow: /board-picker ---
     await page.goto(`${BASE}/board-picker`, { waitUntil: 'networkidle', timeout: 60000 });
     await page.waitForTimeout(3000);
@@ -130,18 +394,21 @@ async function main() {
     const allAvailableTab = page.locator('.md-home-boards-picker__category-label, .md-home-boards-picker__tabs a').filter({ hasText: /All Available Boards/i });
     record('self-all-available-tab', await allAvailableTab.count() > 0, `found ${await allAvailableTab.count()} All Available Boards tab(s)`);
 
-    // Click All Available Boards if present
-    if (await allAvailableTab.count() > 0) {
+    await page.waitForTimeout(3000);
+    let gridItems = await page.locator('.md-home-boards-picker__board').count();
+    if (gridItems === 0 && await allAvailableTab.count() > 0) {
       await allAvailableTab.first().click();
       await page.waitForTimeout(4000);
-      const gridItems = await page.locator('.md-home-boards-picker__board').count();
-      record('self-all-available-grid', gridItems > 0, `${gridItems} board cards in All Available Boards`);
+      gridItems = await page.locator('.md-home-boards-picker__board').count();
+    }
+    record('self-all-available-grid', gridItems > 0, `${gridItems} board cards in All Available Boards`);
     }
 
     // --- Supervisee flow ---
+    if (!FULL_PICK_ONLY) {
     await page.goto(`${BASE}/`, { waitUntil: 'networkidle', timeout: 60000 });
     await page.waitForTimeout(2000);
-    const supervisee = await findSupervisee(page, USER);
+    const supervisee = await resolveSupervisee(page, USER);
     if (!supervisee) {
       record('supervisee-found', false, 'No supervise-able communicatee found — skipping supervisor flows');
     } else {
@@ -175,7 +442,7 @@ async function main() {
         const caseloadUrl = page.url();
         record('caseload-choose-board', caseloadUrl.includes(`user_id=${supervisee.id}`), caseloadUrl);
       } else {
-        record('caseload-choose-board', false, `Choose Board quick action not visible (supervisee may already have home board: ${supervisee.hasHome})`);
+        record('caseload-choose-board', supervisee.hasHome, `Choose Board not visible (supervisee hasHome=${supervisee.hasHome})`);
       }
 
       // Direct URL permission / resolution
@@ -187,18 +454,8 @@ async function main() {
       const pickerVisible = await page.locator('.md-home-boards-picker__layout').isVisible({ timeout: 3000 }).catch(() => false);
       record('direct-picker-rendered', pickerVisible, pickerVisible ? 'BoardPicker rendered' : 'BoardPicker not visible');
 
-      // Pick flow (preview only — full pick is slow)
-      if (pickerVisible) {
-        const firstBoard = page.locator('.md-home-boards-picker__board .simple_board_icon, .md-home-boards-picker__board button').first();
-        if (await firstBoard.isVisible({ timeout: 3000 }).catch(() => false)) {
-          await firstBoard.click();
-          await page.waitForTimeout(3000);
-          const pickBtn = page.locator('button').filter({ hasText: /Pick this Board/i }).first();
-          const pickVisible = await pickBtn.isVisible({ timeout: 5000 }).catch(() => false);
-          record('supervisee-pick-cta', pickVisible, pickVisible ? 'Pick this Board CTA visible in preview' : 'Preview/pick CTA not found');
-        } else {
-          record('supervisee-pick-cta', false, 'No board card to click');
-        }
+      if (!FULL_PICK && pickerVisible) {
+        await runPreviewPickCheck(page);
       }
 
       // Permission denied with bogus id
@@ -206,6 +463,17 @@ async function main() {
       await page.waitForTimeout(3000);
       const permErr = await page.locator('.text-danger').first().textContent().catch(() => '');
       record('permission-denied', /permission|error loading user/i.test(permErr), permErr.trim() || 'No error shown');
+    }
+    }
+
+    if (FULL_PICK) {
+      const supervisee = await resolveSupervisee(page, USER);
+      if (!supervisee) {
+        record('supervisee-found', false, 'No supervise-able communicatee found for full pick');
+      } else {
+        record('supervisee-found', true, `${supervisee.user_name} (id=${supervisee.id}, hasHome=${supervisee.hasHome})`);
+        await runFullPickE2E(page, supervisee);
+      }
     }
 
   } catch (err) {

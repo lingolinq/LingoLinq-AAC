@@ -282,10 +282,11 @@ export default Component.extend({
       // overlay already exists).
       _this._paintPreparingOverlay();
       _this.set('copying', true);
-      app_state.set('tour_board_picker_active', false);
+      app_state.set('board_picker_pick_in_progress', true);
+      var setupUserSnapshot = user;
+      var routerSvc = _this.get('router');
       // Dedup first: skip copying if the user already owns a copy of this board.
       findExistingUserCopy(board, user).then(function(existing) {
-        if (_this.isDestroyed || _this.isDestroying) { return; }
         if (existing) {
           // Reuse the existing copy — just (re)set it as the home board, no new copy.
           user.set('preferences.home_board', {
@@ -294,34 +295,33 @@ export default Component.extend({
             locale: locale
           });
           user.save().then(function() {
-            _this._finishPickForHome(existing, locale);
+            _this._finishPickForHome(existing, locale, setupUserSnapshot, routerSvc);
           }, function() {
-            _this._handlePickError(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));
+            _this._handlePickError(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"), routerSvc);
           });
         } else {
           // No existing copy — 'links_copy_as_home' copies the board + downstream
           // links AND sets the COPY as the user's home board, resolving with the new
           // owned board (mirrors set-as-home#copy_as_home).
           editManager.copy_board(board, 'links_copy_as_home', user, false, lib).then(function(copiedBoard) {
-            _this._finishPickForHome(copiedBoard, locale);
+            _this._finishPickForHome(copiedBoard, locale, setupUserSnapshot, routerSvc);
           }, function(err) {
             // Only surface `err` directly when it's a display string — copy_board can
             // reject with an Error/object, which would render as "[object Object]".
             // copy_board only rejects with an already-localized i18n.t() STRING or a
             // plain internal-code OBJECT; the fallback below covers the object case.
             var msg = (typeof err === 'string' && err) ? err : i18n.t('pick_board_copy_failed', "We couldn't set up your board. Please try again.");
-            _this._handlePickError(msg);
+            _this._handlePickError(msg, routerSvc);
           });
         }
       }, function() {
         // Dedup lookup itself failed unexpectedly — fall back to copying so the user
         // is never blocked (a duplicate is preferable to a dead end).
-        if (_this.isDestroyed || _this.isDestroying) { return; }
         editManager.copy_board(board, 'links_copy_as_home', user, false, lib).then(function(copiedBoard) {
-          _this._finishPickForHome(copiedBoard, locale);
+          _this._finishPickForHome(copiedBoard, locale, setupUserSnapshot, routerSvc);
         }, function(err) {
           var msg = (typeof err === 'string' && err) ? err : i18n.t('pick_board_copy_failed', "We couldn't set up your board. Please try again.");
-          _this._handlePickError(msg);
+          _this._handlePickError(msg, routerSvc);
         });
       });
     }
@@ -330,23 +330,24 @@ export default Component.extend({
   // Common tail for pick_for_home: flag the speak-mode tour hand-off (scoped to the
   // board's key), preserve the picked locale, preload images, then open the board in
   // SPEAK (use) mode — the board-detail INDEX route (`.edit` would be edit mode).
-  _finishPickForHome: function(homeBoard, locale) {
+  _finishPickForHome: function(homeBoard, locale, setupUserSnapshot, routerSvc) {
     var _this = this;
-    if (_this.isDestroyed || _this.isDestroying) { return; }
-    var setupUser = app_state.get('setup_user');
+    app_state.set('board_picker_pick_in_progress', false);
+    app_state.set('tour_board_picker_active', false);
+    if (!_this.isDestroyed && !_this.isDestroying) { _this.set('copying', false); }
+    var setupUser = setupUserSnapshot || app_state.get('setup_user');
     var currentUser = app_state.get('currentUser');
     var pickingForOther = setupUser && currentUser && setupUser.get('id') != currentUser.get('id');
     var key = (homeBoard && homeBoard.get && homeBoard.get('key')) || '';
-    var routerSvc = _this.get('router');
+    routerSvc = routerSvc || (_this.get && !_this.isDestroyed && _this.get('router')) || (app_state.controller && app_state.controller.router);
 
     if (pickingForOther) {
       var returnToBoards = function() {
-        if (_this.isDestroyed || _this.isDestroying) { return; }
         _this._removePreparingOverlay();
-        _this.set('copying', false);
+        modal.close_board_preview();
         modal.success(i18n.t('board_set_as_home', "Great! This is now the user's home board!"), true);
         var userName = setupUser.get('user_name');
-        if (userName) {
+        if (userName && routerSvc) {
           routerSvc.transitionTo('user.boards', userName);
         } else {
           app_state.return_to_index();
@@ -364,8 +365,7 @@ export default Component.extend({
     if (locale) { app_state.set('label_locale', locale); }
     var parts = key.split('/');
     var go = function() {
-      if (_this.isDestroyed || _this.isDestroying) { return; }
-      if (parts.length >= 2) {
+      if (parts.length >= 2 && routerSvc) {
         var isDark = true;
         var themeMode = app_state.get('themeMode');
         if (themeMode === 'light' || themeMode === 'midDay' || themeMode === 'default') { isDark = false; }
@@ -378,12 +378,11 @@ export default Component.extend({
             return routerSvc.transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
           }
         });
-      } else {
+      } else if (routerSvc) {
         routerSvc.transitionTo('board', key);
       }
     };
     var finish = function() {
-      if (!_this.isDestroyed && !_this.isDestroying) { _this.set('copying', false); }
       go();
     };
     preload_board_images(homeBoard).then(finish, finish);
@@ -392,10 +391,11 @@ export default Component.extend({
   // Clear the copying overlay and surface a (localized) error. Leaves the preview
   // open so the user can retry — and removes the full-screen "Preparing your Board"
   // overlay so the user isn't stranded behind it (no route change will dismiss it).
-  _handlePickError: function(msg) {
-    if (this.isDestroyed || this.isDestroying) { return; }
+  _handlePickError: function(msg, routerSvc) {
+    app_state.set('board_picker_pick_in_progress', false);
+    app_state.set('tour_board_picker_active', true);
+    if (!this.isDestroyed && !this.isDestroying) { this.set('copying', false); }
     this._removePreparingOverlay();
-    this.set('copying', false);
     modal.error(msg);
   },
 
