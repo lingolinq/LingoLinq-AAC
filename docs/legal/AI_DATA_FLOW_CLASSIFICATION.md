@@ -243,10 +243,16 @@ follow-up.
   `AI_DATA_SHARING_CONSENT.md` section 7, which records the Non-personal reclassification as the
   current, final position. This reclassification covers AI board generation ONLY: word prediction
   and eval narration remain Regulated PII and stay gated.
+  Confirmed in shipped code, not only in these documents: board generation is deliberately absent
+  from the second-tier disclosure inventory in `lib/lingo_linq/ai_consent_disclosures.rb` (see the
+  comment at the `data_categories` boundary, which cites section 4.2 by name), and the user-facing
+  copy at `config/locales/en.yml` (`board_suggestions_note`) tells parents that board suggestions
+  "are not covered by this consent."
   **[Correction 2026-08-06.** This bullet previously read "resolved 2026-07-09 (Scot's provisional
   attestation: stays gated)", stating the superseded initial position as the outcome. That
-  contradicted this document's own section 3 table and section 4.2, and `AI_DATA_SHARING_CONSENT.md`
-  section 7. The decision itself is unchanged; only this document's description of it is corrected.**]**
+  contradicted this document's own section 3 table and section 4.2, `AI_DATA_SHARING_CONSENT.md`
+  section 7, and the shipped implementation cited immediately above. The decision itself is
+  unchanged; only this document's description of it is corrected.**]**
 - Selecting and vetting a specific government-ID-verification vendor/integration for Phase 3 (the
   *method* -- gov-ID match -- is decided; the vendor is not).
 - Formal outside-counsel legal review of this document and the disclosure content (deferred to
