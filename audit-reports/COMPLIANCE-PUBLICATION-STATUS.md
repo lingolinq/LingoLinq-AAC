@@ -212,7 +212,7 @@ _No record is under legal hold. A hold suspends all disposition for the rows it 
 | Title | Location | Attested | Pinned | Current |
 |---|---|---|---|---|
 | AI Data-Flow Classification | `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md` | 2026-08-06 | `806bfe11453b` | `5a38a77d48c3` |
-| Subprocessor Register | `docs/legal/SUBPROCESSORS.md` | 2026-08-06 | `f37aab1fdad4` | `37edcadb5f83` |
+| Subprocessor Register | `docs/legal/SUBPROCESSORS.md` | 2026-08-06 | `f37aab1fdad4` | `4b74ef882841` |
 
 Every attested git record pins the bytes it was attested against.
 
