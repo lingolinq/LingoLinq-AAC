@@ -733,20 +733,21 @@
         "FERPA",
         "HIPAA"
       ],
-      "lastReviewed": "2026-08-04",
+      "lastReviewed": "2026-08-06",
       "nextReviewDue": "2027-07-23",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-08-04",
-        "attestedContentHash": "84a7a16c5be0341c14f6ae42b6e1039613faa6bdb55541499bb37b2ce74d5607",
+        "attestedDate": "2026-08-06",
+        "attestedContentHash": "f37aab1fdad412436ae61eb6d269047d2ae4ba1bc62a57afb17a94316204e622",
         "priorAttestations": [
           "2026-07-24",
           "2026-07-06",
-          "2026-07-23"
+          "2026-07-23",
+          "2026-08-04"
         ],
-        "note": "Re-attested 2026-08-04 by Scot Wahlquist (attestation-block realignment, recorded 2026-08-05). The register had pinned this document at 2026-08-04 while the document's own attestation block still named an earlier date, so the body and the register disagreed about the document's own identity. Scope of this pin: attestation-block metadata only. No compliance claim, control description, or evidence citation changed in this revision; the substantive 2026-08-04 corrections were already present in the bytes pinned earlier that day. The two change-log rows dated 2026-08-02 and 2026-08-04 each ended with 'Re-attestation owed.' That sentence was true when written and was discharged by the 2026-08-04 re-attestation. Per instruction the historical sentences are RETAINED verbatim and a dated discharge note is appended to each row, plus a discharge note in the header. History is preserved, not rewritten."
+        "note": "Re-attested 2026-08-06 by Scot Wahlquist, CEO. Scope of this pin: a record-completeness correction, recorded as the 2026-08-06 change-log entry. Three defects. (1) The section 8 change log is a three-column table, but the 2026-08-02 and 2026-08-04 rows were each authored with only two cells, so the 'Notified to customers' column was structurally absent from both, leaving an Article 28 change-log field unanswered rather than answered. Git history confirms the column was never populated in either row from the commits that introduced them (11453341a, 2624186d6), so this completes an omission at authoring and does not restore deleted content. Both cells are completed from each row's OWN section 2 determination, read with section 2's Pre-tenant baseline and section 5.7; neither is derived from a neighbouring row and neither notice determination changed. (2) The header's 'Last amended' date read 2026-07-23 while the change log already carried 2026-07-24, 2026-08-02 and 2026-08-04 entries. (3) The header carried an undated live clause that Privacy Office confirmation of the section 2 customer-notice timing was 'still owed before external publication'; true when written 2026-07-23, answered 2026-07-24, now bounded to the period it was true with the historical sentence retained. No vendor, data flow, contract, or classification changed. Independently reviewed by Codex CLI (gpt-5.6-terra, Tier 2) before this pin; no Critical or High finding. The prior pin was 2026-08-04, a different calendar day, so it is appended to priorAttestations as a normal entry with no ambiguity."
       },
-      "contentHash": "84a7a16c5be0341c14f6ae42b6e1039613faa6bdb55541499bb37b2ce74d5607",
+      "contentHash": "f37aab1fdad412436ae61eb6d269047d2ae4ba1bc62a57afb17a94316204e622",
       "bundles": [
         "school-dpa-package",
         "soc2-evidence",
@@ -2495,18 +2496,19 @@
         "HIPAA",
         "GDPR"
       ],
-      "lastReviewed": "2026-08-04",
+      "lastReviewed": "2026-08-06",
       "nextReviewDue": "2027-07-22",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-08-04",
-        "attestedContentHash": "f5254038673391432a613c5205ec19ae891f78b46b7558730421861df12395e8",
+        "attestedDate": "2026-08-06",
+        "attestedContentHash": "806bfe11453bf5adde982ab3e47c8f5e74b9c349a01df587cb737c9dbc008de8",
         "priorAttestations": [
-          "2026-07-22"
+          "2026-07-22",
+          "2026-08-04"
         ],
-        "note": "Re-attested 2026-08-04 by Scot Wahlquist (attestation-block realignment, recorded 2026-08-05). The register had pinned this document at 2026-08-04 while the document's own attestation block still named an earlier date, so the body and the register disagreed about the document's own identity. Scope of this pin: attestation-block metadata only. No compliance claim, control description, or evidence citation changed in this revision; the substantive 2026-08-04 corrections were already present in the bytes pinned earlier that day. Status line moved from 2026-07-22 to 2026-08-04 and an attestation-history sentence records that this document entered the 2026-08-04 set during the third review round of PR #725."
+        "note": "Re-attested 2026-08-06 by Scot Wahlquist, CEO. Scope of this pin: a section 8 correction. The bullet resolving whether scrubbed neutral board generation can move to the Non-personal bucket read 'resolved 2026-07-09 (Scot's provisional attestation: stays gated)', stating the SUPERSEDED initial position as the outcome. That contradicted this document's own section 3 table (row 1: Non-personal, gate column 'No'), its own section 4.2 reclassification rationale, AI_DATA_SHARING_CONSENT.md section 7 (which records the Non-personal reclassification as 'the CURRENT, final position'), AND the shipped implementation: lib/lingo_linq/ai_consent_disclosures.rb deliberately omits board generation from the second-tier disclosure inventory with a comment citing section 4.2 by name, and config/locales/en.yml (board_suggestions_note) tells parents board suggestions are not covered by that consent. The bullet now states Non-personal as the final position with 'stays gated' retained and explicitly marked superseded. The decision itself is unchanged; only this document's description of it is corrected. No classification, gate, or data flow changed. Independently reviewed by Codex CLI (gpt-5.6-terra, Tier 2) before this pin; no Critical or High finding. The prior pin was 2026-08-04, a different calendar day, so it is appended to priorAttestations as a normal entry with no ambiguity."
       },
-      "contentHash": "f5254038673391432a613c5205ec19ae891f78b46b7558730421861df12395e8",
+      "contentHash": "806bfe11453bf5adde982ab3e47c8f5e74b9c349a01df587cb737c9dbc008de8",
       "bundles": [
         "school-dpa-package",
         "security-review",
