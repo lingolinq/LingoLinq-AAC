@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: Cloud Run secret assertions must check every nonzero-percent traffic target](#gotcha-cloud-run-secret-assertions-must-check-every-nonzero-percent-traffic-target)
 - [Gotcha: Ember Data model ids in tests must be strings — numeric `set('id', N)` fails throwOnUnhandled](#gotcha-ember-data-model-ids-in-tests-must-be-strings--numeric-setid-n-fails-throwonunhandled)
 - [Gotcha: batch-path nil is not “missing opts” — key presence vs value](#gotcha-batch-path-nil-is-not-missing-opts--key-presence-vs-value)
 - [Gotcha: compliance segment stamps must use validated org ids, not raw params](#gotcha-compliance-segment-stamps-must-use-validated-org-ids-not-raw-params)
@@ -126,6 +127,17 @@ file (see [README.md](README.md)).
 
 ---
 
+## Gotcha: Cloud Run secret assertions must check every nonzero-percent traffic target
+
+`status.latestReadyRevisionName` is not “what users hit,” and neither is “the revision with
+the largest traffic percent.” Cloud Run can split traffic across multiple revisions (canary /
+rollback). A post-deploy secret-linkage check that inspects only one of them can pass while a
+smaller-percentage revision is missing required `secretKeyRef` mounts. Emit and assert every
+`status.traffic` entry with `percent > 0` (dedupe by revision name; fall back to
+`latestReadyRevisionName` only when no nonzero targets exist). See
+`scripts/gcp/assert-runtime-secrets.sh` and
+[`2026-08-05-assert-runtime-secrets-traffic-split.md`](./2026-08-05-assert-runtime-secrets-traffic-split.md).
+
 ## Pattern: shared AI reuse caches need exact scrubbed keys before recommendation matching
 
 For user-entered AI prompts that become reusable data, scrub PII first, normalize the scrubbed text, and use a conservative exact key with behavior-shaping settings such as locale and include-core vocabulary. Store generated output separately from user-applied output; the applied list is the reviewed signal future recommendation layers should trust more. Keep v1 in Postgres and derive later vector/graph layers from the source rows rather than changing the modal/API contract. When verifying specs around seeded/template records after migrations, compare table-count deltas from each example's starting count instead of hard-coding absolute counts. First seen in [`ai-focus-word-library-architecture.md`](./ai-focus-word-library-architecture.md).
@@ -154,6 +166,16 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Pattern: keyboard control vocalizations must survive translation overlay](#pattern-keyboard-control-vocalizations-must-survive-translation-overlay)
 - [Pattern: board-detail Speak bar must speak vocalization, not just label](#pattern-board-detail-speak-bar-must-speak-vocalization-not-just-label)
 - [Pattern: board-detail Speak bar must play attached button sounds, not TTS-only](#pattern-board-detail-speak-bar-must-play-attached-button-sounds-not-tts-only)
+- [Pattern: long-running modal work that must survive dismissal belongs in a service + app-level component, not a "hidden" modal](#pattern-long-running-modal-work-that-must-survive-dismissal-belongs-in-a-service--app-level-component-not-a-hidden-modal)
+- [Gotcha: generic `.button` selectors in the CLASSIC board CSS leak onto the modern board-detail card](#gotcha-generic-button-selectors-in-the-classic-board-css-leak-onto-the-modern-board-detail-card)
+- [Gotcha: `cqmin` inside an `inline-size` container silently resolves to the viewport](#gotcha-cqmin-inside-an-inline-size-container-silently-resolves-to-the-viewport)
+- [Pattern: measure the real render before tuning a responsive coefficient](#pattern-measure-the-real-render-before-tuning-a-responsive-coefficient)
+- [Gotcha: "the symbol doesn't fill the button" is usually the ASSET, not CSS — measure the opaque box before touching object-fit](#gotcha-the-symbol-doesnt-fill-the-button-is-usually-the-asset-not-css--measure-the-opaque-box-before-touching-object-fit)
+- [Gotcha: percentage padding resolves against WIDTH — including padding-top/bottom](#gotcha-percentage-padding-resolves-against-width--including-padding-topbottom)
+- [Gotcha: a media query adds NO specificity — an un-nested rule can silently outrank your breakpoint fix](#gotcha-a-media-query-adds-no-specificity--an-un-nested-rule-can-silently-outrank-your-breakpoint-fix)
+- [Pattern: a viewport-filling `calc(100dvh - …)` must subtract every ancestor inset it sits inside](#pattern-a-viewport-filling-calc100dvh--must-subtract-every-ancestor-inset-it-sits-inside)
+- [Gotcha: a plain inline style LOSES to a CSS `!important` — JS "fit to size" silently no-ops](#gotcha-a-plain-inline-style-loses-to-a-css-important--js-fit-to-size-silently-no-ops)
+- [Gotcha: fit-to-box must measure BOTH axes — `word-break: keep-all` makes a long word overflow sideways, never down](#gotcha-fit-to-box-must-measure-both-axes--word-break-keep-all-makes-a-long-word-overflow-sideways-never-down)
 - [Pattern: per-user UI prefs must be read from `currentUser`, not the board-detail route's URL user](#pattern-per-user-ui-prefs-must-be-read-from-currentuser-not-the-board-detail-routes-url-user)
 - [Pattern: `.md-board-collection__*` is a light-base panel reusable on any page; dark theme is ancestor-scoped](#pattern-md-board-collection-is-a-light-base-panel-reusable-on-any-page-dark-theme-is-ancestor-scoped)
 - [Pattern: inside `.md-board-collection`, `data-bd-action` is the REAL handler — `@onSelect`/`@onBack` are decoration](#pattern-inside-md-board-collection-data-bd-action-is-the-real-handler--onselectonback-are-decoration)
@@ -8364,6 +8386,22 @@ the 2026-07-22 persistence-sync epoch-fencing entry.
 **First attempt (reverted — didn't work):** reload the board when `permissions` was *entirely absent* (`!board.get('permissions')`). Failed because the cached list record can carry `permissions` **present but stale `edit:false`** (not undefined), so the `!permissions` guard never fired — AND a `reload()` may be served from the offline/persistence cache, so it isn't a reliable way to refresh permissions anyway.
 
 **Working fix — ownership check (no reload, cache-proof):** ownership is authoritative and ALWAYS available client-side — a board's `key` is `<owner>/<slug>` and `user_name` is the owner. Compute `owner_name = board.user_name || board.key.split('/')[0]`; if it equals `sessionUser.user_name`, the user can always edit directly, so OR it into the gate: prompt-to-copy only when `!permissions.edit && !owns_board`. Owning a board always implies edit rights (server enforces on save anyway), and non-owned-but-editable cases (supervisor/shared) still fall back to `permissions.edit`. The server `show` endpoint DOES send permissions (`boards_controller.rb:390 :permissions => @api_user`) — the gap is purely that LIST endpoints omit it and the board-detail route serves the cached list record. Ref: [`2026-08-04-ui-test-checklist.md`](./2026-08-04-ui-test-checklist.md).
+## Gotcha: merging staging into an attestation-correction PR must not take staging's `built` ledger flip
+
+When a compliance PR retracts an overclaim (e.g. #725 Bedrock credential attestation →
+`ai-features-anthropic` `partial` / not operational) and staging later lands the runtime fix
+that staging's own ledger marks `built` again (#719 mount + #727 classic plane), a naive
+"take theirs" on `CAPABILITY-LEDGER.json` undoes the PR thesis.
+
+**Resolution pattern:** keep the correction's status/claimLanguage; fold in the new technical
+facts (classic vs mantle, deploy-workflow mount) into antiClaim/notes; state explicitly that
+code landing ≠ operative-condition verified. Then regenerate — never hand-edit — with
+`ruby scripts/capability-check.rb` and `ruby scripts/document-register-render.rb`. Date-stamp
+historical evidence rows that staging's code change would otherwise falsify (e.g. "absent in
+deploy-cloudrun.yml" → "absent as of YYYY-MM-DD evidence gather (pre-#719)").
+
+Ref: `docs/task-management/2026-08-03-bedrock-attestation-staging-merge.md` (gitignored working log).
+
 ## Gotcha: embed-frame `data-user_token` is UserIntegration#user_token, not User#user_token
 
 Two different credentials share the name `user_token`. `User#user_token` is a permanent HMAC of `global_id` (login-serialized via `lib/json_api/user.rb`). Embed-frame's `data-user_token` is **not** that: `board.js` reads `tool.get('user_token')` from the integration serializer, which mints `UserIntegration#user_token` (integration-scoped, obfuscated user id + integration id + sig). When scoping permanent-token findings (e.g. LL-90045bb29c residual), do not fold embed-frame into `User#user_token` blast radius without verifying the mint site. Ref: [`2026-08-03-ll-90045bb29c-narrow-close.md`](./2026-08-03-ll-90045bb29c-narrow-close.md).
@@ -8371,6 +8409,49 @@ Two different credentials share the name `user_token`. `User#user_token` is a pe
 ## Gotcha: private uploads bucket — server-side OBZ/OBF import must use signed_internal_url
 
 `lingolinq-prod-uploads` blocks public access. Browser upload (SigV4 POST) can succeed while the worker-side import still fails: `Converters::Utils.remote_to_boards` used to `SafeHttp.get` the raw `https://bucket.s3.amazonaws.com/...` URL, get a 403 XML body, then feed it to rubyzip → misleading `Zip end of central directory signature not found` at progress ~0.22 / `processing_file`. JSON bundle import already signed via `Uploader.signed_internal_url` (`lib/converters/api_json_bundle.rb`); OBF/OBZ import and `Uploader.remote_zip` must do the same, and raise on non-success HTTP before parsing. Ref: [`2026-08-04-obz-import-signed-fetch.md`](./2026-08-04-obz-import-signed-fetch.md).
+
+## Gotcha: a compliance claim about runtime state expires; verify at the SHA and in prod, never from the diff
+
+PR #725 took nine review rounds. The same defect recurred four times, twice by the
+reviewer who was correcting it. The pattern is worth naming because it is not a
+compliance problem, it is an epistemics problem that any long-lived doc PR will hit.
+
+**The defect:** a runtime-state claim written as an unbounded absolute. "No revision
+carries a Bedrock credential." "Bedrock egress has never occurred." "AiClient.build has
+always returned nil." Each was true when written and false by merge, because production
+changed underneath the branch.
+
+**Why sweeps kept missing it:** grepping the phrasing you remember writing
+(`dormant|not operational|no data is sent`) will not match `never occurred`,
+`always returned nil`, `currently UNVERIFIED`, `has been since`, or
+`is present on any revision`. Enumerate by MEANING, not by phrase: find every line that
+mentions the subject alongside a state verb, then check each for an explicit time bound.
+
+**The rule that actually works:** every claim about runtime state carries the window it
+covers. Not "X never happened" but "X did not happen between <date/revision> and
+<date/revision>, the period this claim covers." An unbounded absolute in a compliance doc
+is a latent defect with a fuse on it.
+
+**Reviewers must read bytes, not working directories.** Twice in one session a confident
+finding came from a checkout that had drifted from the reviewed head (once the primary
+checkout, once an external reviewer's). Use `git show <sha>:<path>` or a fresh fetch.
+Corollary: before dismissing a reviewer's finding as stale, verify it against the SHA
+they actually reviewed — it may be valid there and already fixed downstream.
+
+**Configuration is not observation.** "Credentials are mounted" does not mean "calls
+happened," and "the feature is reachable" does not mean "the feature ran." The original
+retracted claim inferred runtime behaviour from deployment config; the correction then
+inferred dormancy from deployment config the same way. Separate verified / reachable /
+unexercised / unavailable explicitly. `AiApiLog` only records completed logged seam calls,
+so a zero-row result proves "no logged seam call completed," never "nothing egressed."
+
+**Regeneration is order-dependent.** `capability-check.rb` writes
+`docs/legal/CAPABILITY_LEDGER.md`, which `document-register-render.rb` then hashes. Running
+the register renderer first produces a spurious drift failure. Order: capability-check ->
+citation-check --render -> calendar -> notion -> document-register-render ->
+publication-status.
+
+Ref: PR #725; live-prod verification via a throwaway Cloud Run job on the serving image.
 
 ## Gotcha: nested `sound[user_id]=self` 404s on create (replace_helper_params is top-level only)
 
@@ -8399,4 +8480,318 @@ Two different credentials share the name `user_token`. `User#user_token` is a pe
 **Fix recipe:** Route Speak-bar / mic through `utterance.vocalize_list` when `app_state.button_list` has speakable entries. Do **not** use that path for phrase-builder commit (local chips only — would replay a stale utterance).
 
 **Evidence:** [`2026-08-04-speak-bar-skips-button-sounds.md`](./2026-08-04-speak-bar-skips-button-sounds.md).
+
+
+## Pattern: long-running modal work that must survive dismissal belongs in a service + app-level component, not a "hidden" modal
+
+**Surface:** "Copying Board" progress modal — the copy must keep running when the
+user clicks outside it, and must report back later (background drawer → toast).
+
+**Why not the obvious approach:** the modal slot is single-tenant and short-lived.
+`services/modal.js#_openModal` destroys the current modal whenever another one
+opens, and `app_state.global_transition` closes all modals on every route change.
+So you can never "keep the modal open, just minimized" — the surface has to move
+out of the modal layer.
+
+**Fix recipe (three pieces, each single-responsibility):**
+1. A tiny **state service** (`services/copy-progress.js`): status / payload / a
+   dismiss timer, plus a monotonic **token** stamped when the job is backgrounded.
+   Result handlers only write if they still own the token, so a second job started
+   while the first is pending can't be reported under the wrong subject.
+2. An **app-level component** mounted in `templates/application.hbs` (next to
+   `<AppToast />`), which is the only region that survives route transitions.
+3. In the modal component, capture **every service into a local `const` before**
+   kicking off the promise chain, and thread a plain `{token: null}` closure object
+   through the handlers. The chain outlives the component — after `modal.close()`
+   the component is destroyed, so any `this.get(...)` in a settle handler is a
+   latent crash. Guard `this.set(...)` with `isDestroyed`/`isDestroying`.
+
+**Two traps found here:**
+- **Backdrop vs. Close are indistinguishable to a modal.** `modal-dialog.js`
+  `actions.close` computes `isBackdropClick` internally, then calls the same
+  `@action` for both. To branch, add an *opt-in* `@backdropAction` (same additive
+  pattern as the existing `@labelledBy`): present → backdrop calls it instead of
+  `@action`; absent → every other modal is byte-for-byte unchanged.
+- **`{{this.onFoo}}` handlers assigned in `didInsertElement` never bind.** Several
+  modal components assign `this.onClose = …` there with a plain (non-`set`)
+  assignment, but the child `<ModalDialog>` renders *before* the parent's
+  `didInsertElement`, so `@action` stays `undefined` forever (which is why
+  `modal-dialog` has a `modal.close()` fallback). Anything the template hands to a
+  child must be assigned in **`init()`**.
+
+**Corollary — an actionable notice must not auto-dismiss.** Once the finished
+card gained an "Open Board" button, the originally-specced 4 s auto-fade became a
+trap: the user has to notice it, read it, and land the click inside that window,
+and in an AAC app that motor assumption is exactly the one you cannot make. Timed
+fade is for notices that carry no action; anything offering a choice waits to be
+answered. (Bonus: dropping the timer removed the runloop entirely from the
+service.)
+
+**Evidence:** [`2026-08-06-copy-board-minimize-to-drawer.md`](./2026-08-06-copy-board-minimize-to-drawer.md);
+`components/copying-board.js` `minimize`/`start_copying`; `components/modal-dialog.js`
+`backdropAction`; `services/copy-progress.js`.
+
+## Gotcha: generic `.button` selectors in the CLASSIC board CSS leak onto the modern board-detail card
+
+The modern board-detail symbol card renders with `class="button md-board-detail-symbol-card …"`
+— it carries **`.button` too**. So every classic-renderer rule written as
+`.button …` (there are many; the classic board CSS is thousands of lines earlier
+in `app.scss`) silently applies to the modern page as well.
+
+Concrete bug: `@media (max-height: 800px) { .button img.symbol { transform:
+scale(clamp(0.6, 0.6 + (100vh - 400px)/1000px, 1)) } }` was shrinking every
+board-detail symbol on any viewport under 800px tall — `scale(0.968)` at 768px,
+`scale(0.6)` at 400px. The rule exists to compensate for the classic renderer's
+JS-sized `img_holder` (its own comment says so); the modern card has no such
+holder — its symbol is a `flex: 1 1 auto` child that already yields space to the
+label — so there the compensation is not just useless, it fights the layout.
+
+**Detection:** you cannot grep for this. The offending rule mentions neither
+`board-detail` nor `symbol-card`. Use CDP `CSS.getMatchedStylesForNode` (or
+DevTools' Computed → "matched rules") on the real element and read what actually
+matched. That is also how to catch the reverse case.
+
+**Fix shape:** exclude by class on the shared element —
+`.button:not(.md-board-detail-symbol-card) img.symbol` — rather than moving or
+rewriting the classic rule, so the classic board keeps its behavior
+byte-for-byte. Any time you touch a `.button …` rule, ask which of the two
+renderers you meant, and scope it.
+
+**Related:** the sibling gotcha is picking the wrong renderer entirely (patching
+`board.js#to_fast_html` for a board-detail bug) — see
+[`2026-08-04-board-button-image-font-ratio.md`](./2026-08-04-board-button-image-font-ratio.md).
+
+## Gotcha: `cqmin` inside an `inline-size` container silently resolves to the viewport
+
+`container-type: inline-size` exposes only the inline axis. Per spec the block
+axis is then unavailable, so `cqb`/`cqh` — and therefore **`cqmin`/`cqmax`** —
+fall back to the **small-viewport** units instead of the container. The rule
+still parses and still computes a number, so it fails silently: the font looks
+plausible on one screen and completely wrong on another.
+
+`cqmin` is only meaningful under `container-type: size` (both axes). The
+board-detail symbol card has `container-type: size` so `cqmin` is valid there;
+the word-prediction tile next to it has `container-type: inline-size`, so the
+rule that deliberately mirrors the board label had to stay on `cqw` with a
+matched coefficient. Two visually-paired components, two different correct units.
+
+**Rule of thumb:** before writing `cqmin`, confirm the nearest ancestor container
+is `container-type: size`. If it is `inline-size`, use `cqi`/`cqw`.
+
+## Pattern: measure the real render before tuning a responsive coefficient
+
+For "make it bigger on small screens" bugs, drive the actual page and read
+computed styles — do not reason from a screenshot. The committed Puppeteer works
+against the running dev stack (ember :8184 → rails :5000). Auth without a
+password: mint a browser `Device` token server-side and seed
+`localStorage['lingolinqStash-auth_settings']` in `evaluateOnNewDocument` before
+boot (`stashes.persist_raw`, `app/utils/_stashes.js:296`); destroy the temporary
+device afterwards.
+
+Why it pays: on the reported board the label was pinned to the clamp **floor**
+(10px) against a **35px** user preference — a 3.5× gap that reads as "a bit
+small" in a screenshot and tells you nothing about which of four competing
+rules to edit or by how much. Measuring also produces honest before/after
+numbers, which is what surfaces the real trade: from one fixed card, a bigger
+label and a bigger symbol are in direct competition (the symbol is `flex: 1 1
+auto` and gets only leftovers), so the growth has to be paid for out of
+**padding**, not out of the other element.
+
+**Evidence:** [`2026-08-06-small-screen-button-text-image-padding.md`](./2026-08-06-small-screen-button-text-image-padding.md).
+
+## Gotcha: "the symbol doesn't fill the button" is usually the ASSET, not CSS — measure the opaque box before touching object-fit
+
+Recurring report on board buttons: the symbol looks small and floats in empty
+space, so "remove the padding on the image." Before changing anything, measure.
+On the reported board the `__image` holder and the `<img>` both had `padding: 0`,
+`margin: 0`, no transform, and the img element box was **exactly** the holder box
+— CSS was already giving the symbol every available pixel. Two non-CSS causes:
+
+1. **Aspect-ratio letterboxing.** Symbols are square (250×250); the holder is
+   wide-and-short, so `object-fit: contain` fills the height and leaves side
+   margins. Not removable without cropping or distorting.
+2. **Transparent margin baked into the image file.** Render the symbol to a
+   canvas and compute its opaque bounding box (`getImageData`, alpha > 12). On
+   one sampled board the glyphs occupied **72–92%** of their canvas height, with
+   **1–14%** transparent margin per side.
+
+**Why `object-fit: cover` / a global upscale is the wrong fix:** it crops by a
+FIXED amount while the baked-in margin VARIES 1–14%. A ~15% crop is harmless on
+the median symbol and eats real artwork on the tight ones. For AAC the glyph
+outline is the recognition cue, so silently clipping a tenth of the drawing on an
+unpredictable subset of buttons is a worse defect than the whitespace.
+
+**What IS safe:** give the image more room instead of scaling it. `__image` is
+`flex: 1 1 auto` and the label is `flex-shrink: 0`, so every pixel of label
+padding/leading comes straight out of the symbol — trimming label padding and
+line-height on short cards enlarges a height-limited symbol with zero risk. The
+real fix for (2) is asset-side (trim the sources, or store a per-symbol opaque
+bbox and crop via `object-position`), not a stylesheet change.
+
+**Evidence:** [`2026-08-06-small-screen-button-text-image-padding.md`](./2026-08-06-small-screen-button-text-image-padding.md) (Round 2).
+
+## Gotcha: percentage padding resolves against WIDTH — including padding-top/bottom
+
+`padding: 1%` on a block does **not** mean "1% of my height" on the vertical
+sides. Per spec every percentage padding (and margin) resolves against the
+*containing block's inline size*, i.e. its WIDTH, on all four sides. So a
+wide-but-short element gets a vertical inset sized by its width.
+
+Bit us on board buttons: `padding: clamp(1px, 1%, 4px)` was a good fix for
+"padding should scale with the button, not the viewport" (a dense board on a wide
+screen never matched a `@media (max-width: 1024px)` rule and kept the full 4px).
+But on a 108x44 button it then spent ~1% of *108* on the top and bottom of a 44px
+box, leaving a dead band under the symbol. Correct form splits the axes:
+
+```scss
+padding: 1px clamp(1px, 1%, 4px);  /* vertical flat; horizontal scales — width IS its axis */
+```
+
+**Rule of thumb:** percentage padding is only meaningful on the horizontal sides.
+If you want a size-responsive *vertical* inset you need a container query
+(`cqh`/`cqmin`) or a flat value — never a percentage.
+
+**Related:** for making an element's own padding respond to its own size, a
+container cannot query ITSELF; percentage padding against the parent is usually
+the cheapest correct lever, since making the parent a container costs
+`contain: layout` (a stacking context) on every instance.
+
+**Evidence:** [`2026-08-06-small-screen-button-text-image-padding.md`](./2026-08-06-small-screen-button-text-image-padding.md) (Round 3).
+
+## Gotcha: a media query adds NO specificity — an un-nested rule can silently outrank your breakpoint fix
+
+Chased this for two iterations on board-detail. `@media (max-width: 820px) { .md-board-detail-layout { height: auto; min-height: calc(...) } }` looked like the rule that governed the layout height. It did not. An un-nested rule,
+`.md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-layout { height: calc(100dvh - ...) }`,
+has specificity (0,3,0) versus the media rule's (0,1,0) — and **wrapping a rule
+in `@media` does not raise its specificity at all**. So the un-nested `height`
+won regardless of source order, and an explicit `height` beats `min-height`
+outright. Editing the media block changed the computed `min-height` to 373px
+while the used height stayed 375px — visibly nothing happened.
+
+**Detection:** if a responsive fix "does nothing", read the *computed* value AND
+the matched-rule list (CDP `CSS.getMatchedStylesForNode` / DevTools Computed),
+not the file. The winning rule is often the one with no breakpoint on it.
+
+**Rule of thumb:** the breakpoint block is rarely the authoritative owner of a
+property. Find the highest-specificity declaration first, and make the change
+there — or the breakpoint rule is dead code that merely looks like the fix.
+
+## Pattern: a viewport-filling `calc(100dvh - …)` must subtract every ancestor inset it sits inside
+
+`height: calc(100dvh - var(--topbar-height, 68px))` on a layout nested inside a
+shell with `padding-top: 2px` makes the page *always* exactly 2px taller than the
+viewport — a permanent scrollbar with nothing to scroll to. Harmless-looking on a
+desktop; on a 375px-tall phone it reads as "the board doesn't fit".
+
+**Fix shape:** publish the inset as a custom property **declared on the same rule
+as the padding it mirrors**, so the two cannot drift apart, and subtract it with a
+`0px` fallback so states that don't set the padding are unaffected:
+
+```scss
+.md-shell--board-detail:not(...) { padding-top: 2px; --bd-shell-pad-top: 2px; }
+.md-shell--board-detail:not(...) .md-board-detail-layout {
+  height: calc(100dvh - var(--topbar-height, 68px) - var(--bd-shell-pad-top, 0px));
+}
+```
+
+Check for this whenever a `100dvh`/`100vh` sizing rule lives below an ancestor
+with padding, a border, or a sticky header.
+
+**Evidence:** [`2026-08-06-board-detail-short-viewport-vertical-fit.md`](./2026-08-06-board-detail-short-viewport-vertical-fit.md).
+
+## Gotcha: a plain inline style LOSES to a CSS `!important` — JS "fit to size" silently no-ops
+
+`label_fit.js` sized board labels with `el.style.fontSize = px`. The responsive
+label rules in app.scss are `!important`
+(`@media (max-width: 1200px) { … font-size: clamp(…) !important }`), and **a
+plain inline declaration does not beat an `!important` one** — only an
+`!important` inline does. Two failures compounded and hid each other:
+
+1. The iterative measure loop set a trial size, but the element kept rendering at
+   the CSS-forced size, so `scrollWidth`/`scrollHeight` never changed. No trial
+   ever "fit", and every label bottomed out at the `MIN_FONT_PX` floor.
+2. The floor value it finally wrote was ignored too, so the visible result was
+   *no change at all*.
+
+Net effect: the "Shrink labels to fit" preference appeared to do nothing on any
+viewport under 1200px — for as long as those `!important` rules existed.
+
+**Detection:** compare the element's `style.fontSize` (inline) against
+`getComputedStyle(el).fontSize`. `inline=9px` + `computed=18px` is the signature
+— the JS ran, wrote, and was overruled.
+
+**Fix shape:** route every write through one helper using
+`el.style.setProperty('font-size', px + 'px', 'important')`, and clear with
+`removeProperty`. Do this in the MEASURE loop too, not just the final write, or
+the measurement is meaningless.
+
+**General rule:** any JS that measures-then-sizes must set its trial values at a
+priority that actually wins, or it is measuring a value it does not control.
+
+## Gotcha: fit-to-box must measure BOTH axes — `word-break: keep-all` makes a long word overflow sideways, never down
+
+`fitWrapped` iterated font-size against `scrollHeight` vs a 3-line box only. The
+board labels set `word-break: keep-all` + `overflow-wrap: normal` on purpose (for
+AAC, the shape of the whole word is the recognition cue, so never split one), so a
+single long word **cannot wrap**: it stays on one line, overflows horizontally,
+and `text-overflow: ellipsis` renders `color/visual` → `color/…`. One line always
+fits a 3-line box, so the height-only check reported "fits" and the label was
+silently truncated instead of shrunk.
+
+Add a width test (`scrollWidth <= boxW - safety`) alongside the height test.
+
+**Also:** the measure loop lifted `-webkit-line-clamp` / `max-height` / `overflow`
+to read natural height, and in that state `scrollWidth` reports a couple of px
+NARROWER than the restored box renders — so the loop stopped one step early and
+the label still ellipsised by 2-3px. A small width safety margin
+(`WRAP_WIDTH_SAFETY_PX`, mirroring the existing `INPUT_WIDTH_SAFETY = 0.9`)
+absorbs the skew. Derive it from a measurement, not a guess.
+
+**Evidence:** [`2026-08-06-text-symbol-labels-cut-off.md`](./2026-08-06-text-symbol-labels-cut-off.md).
+## Pattern: masquerade authorization must emit a fail-closed AuditEvent
+
+**Surface:** `ApplicationController#check_api_token` `as_user_id` / `X-As-User-Id` impersonation (site-admin and org-manager branches).
+
+**Symptom:** FERPA/HIPAA accounting-of-disclosures had no record that an admin viewed or acted inside a student account. PaperTrail whodunnit (`user:<op>:as:<target>`) is not enough (destroy-only / pruned / missing on some models).
+
+**Fix recipe:** On successful authorization, **before** swapping `@api_user`, call a helper that (1) Redis-dedups per operator/target for 30 minutes (`masq_audit/<op>/<target>`, separate from the org auth `masq/...` key), (2) writes `AuditEvent.log_command` with `type=masquerade`, `acting_as`, and `branch`, (3) **fail-closes** (503, no swap) if the row does not persist — same posture as database_schema/contents disclosure reads. Attribute `user_key` to the operator (pre-swap `@api_user`), never the target. Do not emit on denied attempts.
+
+**Evidence:** finding `LL-522c1a6d13`; [`2026-08-05-masquerade-audit-event.md`](./2026-08-05-masquerade-audit-event.md); prior art `schema_explorer.rb` `audit_user_key` / `audit_acting_as`.
+
+## Gotcha: Notion findings Owner is human-owned; FINDINGS.json owner does not sync
+
+`scripts/compliance-findings-notion-sync.rb` only PATCHes register-owned columns (severity, status, disposition, title, etc.). **Owner**, Target date, Program notes, and Needs Scot decision are left untouched so non-devs can manage the board. Setting `"owner": "Melissa"` in `FINDINGS.json` updates the register SSOT for developers but will **not** populate Notion Owner — set that field on the Notion card directly. Scot-only gates remain close / disposition / severity downgrade / accepted-risk. Ref: [`2026-08-05-masquerade-operator-indicator.md`](./2026-08-05-masquerade-operator-indicator.md).
+
+## Pattern: masquerade UI must name the operator, not only that a masquerade is active
+
+Stop Masquerading controls (PR #714) signal masquerade without naming the acting admin. Operator identity is already stashed as `session.original_user_name` (set at masquerade start, restored every `session.restore()`). Expose a stash-safe computed (`masqueradeOperatorName` / `masqueradeStopLabel` on `controllers/application.js`) and bind every chrome path (AppNavbar desktop + menu + drawer, legacy `#identity`, brief). Do not rely on `application.hbs` alone when `useAppNavbarInHeader` is true. Finding LL-cde54765c6. Ref: [`2026-08-05-masquerade-operator-indicator.md`](./2026-08-05-masquerade-operator-indicator.md).
+
+
+## Pattern: board-picker Cause and Effect uses home-board `settings.categories`, not folder tags
+
+**Surface:** `/board-picker` Cause and Effect tab.
+
+**Symptom:** Tagging a board "Cause and Effect" via Categorize Board only creates a Mine-page folder; the picker stayed empty / "Coming soon".
+
+**Root cause:** Two systems share the word category. (1) Personal folders = `user.settings.board_tags` via the tag-board modal. (2) Catalog browse = `board.settings.categories` with fixed ids (`cause_effect`, `robust`, …), set in Edit Board Details when "can be used as a home board" is checked. The tabbed picker also had a hard-coded coming-soon stub that skipped `_resolveCategoryBoards` for `cause_effect`.
+
+**Fix recipe:** Remove the stub; load via `_resolveCategoryBoards('cause_effect')`. Ensure the board is public + home_board + tagged `cause_effect`. Do not confuse with folder tags.
+
+**Evidence:** [`2026-08-05-board-picker-cause-effect-catalog.md`](./2026-08-05-board-picker-cause-effect-catalog.md); `components/board-picker.js` / `.hbs`.
+
+## Gotcha: board-picker empty categories used to fall back to top popular public boards
+
+When `settings.categories` had no matches for a tab, `_resolveCategoryBoards` loaded uncategorized `public` + `home_popularity` (`per_page: 6`). Same ~6 boards (e.g. jokes) then appeared in Simple Starters / Functional / Phrase-Based. Removed that fallback — empty tabs show "None found"; only explicitly tagged home boards appear. Ref: [`2026-08-05-board-picker-cause-effect-catalog.md`](./2026-08-05-board-picker-cause-effect-catalog.md).
+
+## Gotcha: `(fn this.sendAction …)` with a factory helper never runs the action
+
+**Surface:** user boards page Folders accordion (`/u/:user/boards`, `available-boards-section`).
+
+**Symptom:** Clicking Folders header/chevron does nothing; folder filter / drag-drop wired the same way also no-op.
+
+**Root cause:** Same as the `(fn this.ctrlAction …)` factory gotcha. `sendAction` returned a handler function; template used `{{on "click" (fn this.sendAction "toggleFoldersExpanded")}}`, so click called the factory and discarded the returned handler.
+
+**Fix recipe:** Either bind at render (`(this.sendAction "x")`) **or** make `sendAction` invoke `self.send` immediately when used with `fn`. Prefer immediate-invoke here because every binding already uses `fn` and several handlers need the Event (`updateFolderFilter`, drag/drop) — do not strip the event the way `ctrlAction` does.
+
+**Evidence:** [`2026-08-05-boards-folder-accordion-fn-sendaction.md`](./2026-08-05-boards-folder-accordion-fn-sendaction.md); related LEARNINGS entry on `(fn this.ctrlAction …)`.
 

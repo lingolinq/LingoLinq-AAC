@@ -176,9 +176,6 @@ export default Component.extend({
     if (this.get('robust_tabbed')) {
       return false;
     }
-    if (this.get('tabbed') && category.cause_effect) {
-      return false;
-    }
     return true;
   }),
   display_category_boards: computed('searchAtTop', 'boardSearchQuery', 'category_boards.[]', function() {

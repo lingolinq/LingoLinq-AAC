@@ -2,6 +2,7 @@
 <div id="audio"></div>
 <AppLoadingOverlay />
 <AppToast />
+<CopyProgressDrawer />
 <header class="{{this.header_class}} {{if this.useAppNavbarInHeader "header-index-with-dark-toggle"}} {{unless this.isSessionAuthenticated "header--unauthenticated"}} {{if this.hide_header "header--hidden"}}">
   <div id="inner_header">
   {{#if this.useAppNavbarInHeader}}
@@ -926,8 +927,8 @@
             </LinkTo>
             {{/if}}
             {{#if this.isMasquerading}}
-            <button type="button" class="md-pillnav__stop-masquerade" aria-label={{t "Stop Masquerading" key="stop_masquerading"}} title={{t "Stop Masquerading" key="stop_masquerading"}} {{on "click" (this.ctrlAction "stopMasquerading")}}>
-              {{t "Stop Masquerading" key="stop_masquerading"}}
+            <button type="button" class="md-pillnav__stop-masquerade" aria-label={{this.masqueradeStopLabel}} title={{this.masqueradeStopLabel}} {{on "click" (this.ctrlAction "stopMasquerading")}}>
+              {{this.masqueradeStopLabel}}
             </button>
             {{/if}}
             {{#unless this.app_state.currentBoardState.id}}
@@ -1274,7 +1275,7 @@
                 </LinkTo></li>
               {{/if}}
               {{#if this.isMasquerading}}
-                <li><a href="#" {{on "click" (this.ctrlAction "stopMasquerading")}}>{{t "Stop Masquerading" key="stop_masquerading"}}</a></li>
+                <li><a href="#" {{on "click" (this.ctrlAction "stopMasquerading")}}>{{this.masqueradeStopLabel}}</a></li>
               {{/if}}
               {{#unless this.app_state.speak_mode}}
                 <li><a href="#" {{on "click" (this.ctrlAction "invalidateSession")}}>{{t "Sign Out" key="logout"}}</a></li>
@@ -1302,8 +1303,8 @@
       {{/unless}}
       {{else}}
     {{#if this.isMasquerading}}
-      <button type="button" class="md-pillnav__stop-masquerade" aria-label={{t "Stop Masquerading" key="stop_masquerading"}} title={{t "Stop Masquerading" key="stop_masquerading"}} {{on "click" (this.ctrlAction "stopMasquerading")}}>
-        {{t "Stop Masquerading" key="stop_masquerading"}}
+      <button type="button" class="md-pillnav__stop-masquerade" aria-label={{this.masqueradeStopLabel}} title={{this.masqueradeStopLabel}} {{on "click" (this.ctrlAction "stopMasquerading")}}>
+        {{this.masqueradeStopLabel}}
       </button>
     {{/if}}
     {{#unless this.app_state.currentBoardState.id}}

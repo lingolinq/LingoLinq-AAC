@@ -3293,6 +3293,14 @@ export default Controller.extend(prefClasses, {
   board_many_columns: computed('current_grid.columns', 'model.grid.columns', function() {
     return (this.get('current_grid.columns') || this.get('model.grid.columns') || 0) > 10;
   }),
+  // True once the live-measured button width drops below 40px — drives
+  // .md-shell--buttons-narrow so default-mode folder tabs nudge 4px left on tiny
+  // buttons. board_cell_width is the measured card width (set in
+  // _sync_prediction_tile_size); 0 before the first measure, so guard >0.
+  board_buttons_narrow: computed('board_cell_width', function() {
+    var w = this.get('board_cell_width') || 0;
+    return w > 0 && w < 40;
+  }),
   speak_section_visible_board: computed('speak_menu_hidden_set', 'is_communicator_only_account', function() {
     if(this.get('is_communicator_only_account')) { return false; }
     var s = this.get('speak_menu_hidden_set') || {};

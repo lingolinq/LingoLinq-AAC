@@ -98,16 +98,16 @@ export default Component.extend({
         if (ctrl) { ctrl.send.apply(ctrl, [actionName].concat(bound)); }
       };
     };
+    // Invokes immediately — templates bind with `(fn this.sendAction "name" …)`.
+    // Do NOT return a nested handler: `(fn factory "x")` would call the factory
+    // at event time and discard the returned function (accordion / drag / filter
+    // no-ops). Keep the Event arg; updateFolderFilter and drag/drop read it
+    // (unlike ctrlAction, which strips events for click-only controller actions).
+    // See LEARNINGS: `(fn this.ctrlAction …)` factory gotcha; task log
+    // 2026-08-05-boards-folder-accordion-fn-sendaction.md.
     this.sendAction = function(actionName) {
-      var bound = Array.prototype.slice.call(arguments, 1);
-      return function() {
-        var args = bound.concat(Array.prototype.slice.call(arguments));
-        var evt = args[args.length - 1];
-        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
-          args.pop();
-        }
-        self.send.apply(self, [actionName].concat(args));
-      };
+      var args = Array.prototype.slice.call(arguments, 1);
+      self.send.apply(self, [actionName].concat(args));
     };
     this.selfActionNoBubble = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);

@@ -1,4 +1,4 @@
-<div class="md-shell md-shell--board-detail {{if this.edit_mode 'md-shell--board-detail-edit'}} {{if this.board_collapsed 'md-shell--board-collapsed'}} {{if this.paint_mode 'md-shell--board-paint'}} {{if this.dark_mode 'md-board-detail--dark'}} {{if this.model.integration 'md-shell--board-detail-integration'}} {{if this.model.public 'md-shell--board-public'}} {{if this.portrait_overlay_active 'md-shell--portrait-locked'}} {{if this.immersive_tools 'md-shell--immersive-tools'}} {{if this.board_collection_open 'md-shell--board-collection'}} {{if this.edit_board_collection_open 'md-shell--board-collection-left'}} {{if this.board_many_columns 'md-shell--many-columns'}} {{this.word_suggestion_position_class}}">
+<div class="md-shell md-shell--board-detail {{if this.edit_mode 'md-shell--board-detail-edit'}} {{if this.board_collapsed 'md-shell--board-collapsed'}} {{if this.paint_mode 'md-shell--board-paint'}} {{if this.dark_mode 'md-board-detail--dark'}} {{if this.model.integration 'md-shell--board-detail-integration'}} {{if this.model.public 'md-shell--board-public'}} {{if this.portrait_overlay_active 'md-shell--portrait-locked'}} {{if this.immersive_tools 'md-shell--immersive-tools'}} {{if this.board_collection_open 'md-shell--board-collection'}} {{if this.edit_board_collection_open 'md-shell--board-collection-left'}} {{if this.board_many_columns 'md-shell--many-columns'}} {{if this.board_buttons_narrow 'md-shell--buttons-narrow'}} {{this.word_suggestion_position_class}}">
   {{!-- Landscape-orientation overlay (feature: portrait_orientation_overlay).
        At ≤640px with >8 button columns, the board behind is dimmed +
        blurred + frozen (see .md-shell--portrait-locked) and this premium
@@ -1152,6 +1152,41 @@
                 </div>
               </div>
               {{/if}}
+
+              {{!-- Translate Section — language tools, below Session per the menu order
+                   (…Share & Print → Session → Translate → Exit). Both actions live on the
+                   controller: translate_board opens the translation-select modal, switch_languages
+                   opens the switch-languages modal (see board-detail.js). The submenu toggles on
+                   language_submenu_open (toggle_language_submenu). Reuses the shared section-toggle
+                   / submenu classes; dispatched in speak mode via the generic data-bd-action path
+                   in raw_events. Hidden on communicator-only accounts (a setup tool). --}}
+              {{#unless this.is_communicator_only_account}}
+              <div class="md-board-detail-actions-menu__section">
+                <button type="button" class="md-board-detail-actions-menu__item md-board-detail-actions-menu__item--has-sub md-board-detail-actions-menu__section-toggle" aria-expanded={{if this.language_submenu_open "true" "false"}} data-bd-action="toggle_language_submenu" {{on "click" (this.ctrlAction "toggle_language_submenu")}}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                  </svg>
+                  <span>{{t "Translate" key="translate"}}</span>
+                  <svg class="md-board-detail-actions-menu__chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                {{#if this.language_submenu_open}}
+                  <div class="md-board-detail-actions-menu__submenu">
+                    <button type="button" class="md-board-detail-actions-menu__item" data-bd-action="translate_board" {{on "click" (this.ctrlAction "translate_board")}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>
+                      </svg>
+                      <span>{{t "Translate Boards" key="translate_boards"}}</span>
+                    </button>
+                    <button type="button" class="md-board-detail-actions-menu__item" data-bd-action="switch_languages" {{on "click" (this.ctrlAction "switch_languages")}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+                      </svg>
+                      <span>{{t "Switch Languages" key="switch_languages"}}</span>
+                    </button>
+                  </div>
+                {{/if}}
+              </div>
+              {{/unless}}
 
               {{!-- Take a tour — moved to the bottom (just above Exit). The ONLY
                    entry point for the speak-mode guided tour (the runner host near

@@ -1434,6 +1434,88 @@ describe Api::BoardsController, :type => :controller do
       expect(json['error']).to eq('Feature not available')
     end
 
+    # Every other example in this block stubs ai_feature_enabled_for? outright,
+    # so the user PREFERENCE half of the gate was never exercised through the
+    # endpoint that actually returned "Feature not available" in production.
+    # These drive the real FeatureFlags.ai_feature_enabled_for? and stub only the
+    # layers around the preference check: the flag registry and ai_enabled_for?.
+    describe "user preference gate (end to end through the endpoint)" do
+      def stub_ai_layers_except_prefs
+        allow(FeatureFlags).to receive(:ai_enabled_for?).and_return(true)
+        allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+        allow(FeatureFlags).to receive(:feature_enabled_for?)
+          .with('ai_board_generation', anything).and_return(true)
+      end
+
+      def post_generate
+        request.headers['Content-Type'] = 'application/json'
+        post :generate_labels, params: {}, body: { prompt: 'snacks', rows: 2, columns: 2 }.to_json
+      end
+
+      it "should 403 when the master preference holds an unreadable value" do
+        token_user
+        stub_ai_layers_except_prefs
+        @user.settings['preferences']['ai_features_enabled'] = ''
+        @user.settings['preferences']['ai_board_generation'] = true
+        @user.save!
+        expect(AiBoardGenerator).not_to receive(:generate_words)
+        post_generate
+        expect(response).to have_http_status(:forbidden)
+        expect(JSON.parse(response.body)['error']).to eq('Feature not available')
+      end
+
+      it "should 403 when the master preference is an explicit numeric opt-out" do
+        token_user
+        stub_ai_layers_except_prefs
+        @user.settings['preferences']['ai_features_enabled'] = 0
+        @user.save!
+        expect(AiBoardGenerator).not_to receive(:generate_words)
+        post_generate
+        expect(response).to have_http_status(:forbidden)
+        expect(JSON.parse(response.body)['error']).to eq('Feature not available')
+      end
+
+      it "should 403 when the master is enabled but the feature was never opted into" do
+        token_user
+        stub_ai_layers_except_prefs
+        @user.settings['preferences']['ai_features_enabled'] = true
+        @user.settings['preferences'].delete('ai_board_generation')
+        @user.save!
+        expect(AiBoardGenerator).not_to receive(:generate_words)
+        post_generate
+        expect(response).to have_http_status(:forbidden)
+      end
+
+      # The recovery path for the affected production rows: ticking the box in
+      # preferences writes a real boolean, and generation works from then on.
+      it "should succeed once the user has affirmatively opted in" do
+        token_user
+        stub_ai_layers_except_prefs
+        @user.settings['preferences']['ai_features_enabled'] = true
+        @user.settings['preferences']['ai_board_generation'] = true
+        @user.save!
+        allow(AiBoardGenerator).to receive(:generate_words).and_return(
+          { words: %w[apple banana carrot drink], name: 'Snacks', description: 'Snack words', error: nil }
+        )
+        post_generate
+        expect(response).to be_successful
+      end
+
+      # A never-written master stays grandfathered; this changeset does not
+      # narrow the existing allowance, only the unreadable-value case.
+      it "should succeed for a legacy account that never wrote the preference" do
+        token_user
+        stub_ai_layers_except_prefs
+        User::EU_AI_PREF_KEYS.each { |k| @user.settings['preferences'].delete(k) }
+        @user.save!
+        allow(AiBoardGenerator).to receive(:generate_words).and_return(
+          { words: %w[apple banana carrot drink], name: 'Snacks', description: 'Snack words', error: nil }
+        )
+        post_generate
+        expect(response).to be_successful
+      end
+    end
+
     describe "article_50_disclosure backstop (Phase 3 Plan 03-04, T-03-04-01)" do
       it "should proceed normally with the flag NOT enabled, regardless of jurisdiction or acknowledgement (primary flag-off no-change regression)" do
         token_user

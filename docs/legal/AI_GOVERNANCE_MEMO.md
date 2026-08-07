@@ -1,6 +1,6 @@
 # LingoLinq AAC AI Governance Memo
 
-> **ATTESTED 2026-06-19; RE-ATTESTED 2026-07-27 by Scot Wahlquist, CEO.** Phase 3 deliverable. This memo documents how
+> **ATTESTED 2026-06-19; RE-ATTESTED 2026-08-04 by Scot Wahlquist, CEO.** Phase 3 deliverable. This memo documents how
 > LingoLinq uses AI models, the controls that keep identifiable data out of external models, and
 > the EU AI Act classification analysis. It is a living document; model ids and code citations are
 > point-in-time and were re-verified against live code on 2026-06-19 prior to original attestation
@@ -49,6 +49,19 @@ practice rather than a capability claim.
 ## 2. Model inventory
 
 Verified against code at draft time. Re-verify before publishing.
+
+> **Operational status, corrected 2026-08-04.** This supersedes a "Status correction, 2026-08-02"
+> note that stated every runtime row was dormant and that no `lingolinq-web` revision carried a
+> Bedrock credential. That was accurate when written and became inaccurate on 2026-08-03T08:23:02Z,
+> when revision `00013-76w` mounted `BEDROCK_AWS_KEY` / `BEDROCK_AWS_SECRET`. The correct statement:
+> the runtime rows were not operational from 2026-07-30T16:37Z until 2026-08-03T08:23:02Z; they were
+> operational for approximately 22 hours, during which exactly one internal verification call was
+> made (`word_prediction`, no user attached, no user or student data); credentials were withdrawn on
+> 2026-08-04T06:31:46Z (revision `00014-5rw`) and `AiClient.configured?` is false again as of that
+> timestamp. The direct `api.anthropic.com` route was removed by PR #681 and is CI-enforced. Read
+> the "Sees user data?" column as *when the path is live*, not as current traffic. The routing and
+> credential detail below is further superseded by the "Runtime routing update" section later in
+> this memo. See the 2026-08-04 operational-status correction in `docs/legal/AWS_BAA_ACCEPTED.md`.
 
 | Use | Model(s) | Where | Sees user data? | Control |
 |---|---|---|---|---|
@@ -122,8 +135,10 @@ The governing rule is simple and enforced in code, not just in policy:
   is retained as the GDPR data-minimization control and defense-in-depth, not as the HIPAA legal
   basis (which is now the BAA).
 - **Coverage boundaries.** The AWS BAA on file (2026-02) covers HIPAA-eligible AWS services in use
-  under account 2390-4478-5114, including S3/KMS/RDS **and Amazon Bedrock** (the active runtime AI
-  route as of 2026-07-24; Fable/Mythos excluded). It does **not** by itself cover a *direct*
+  under account 2390-4478-5114, including S3/KMS/RDS **and Amazon Bedrock** (the designated runtime
+  AI route as of 2026-07-24, **not operational in production** as of 2026-08-04, having been
+  operational only 2026-08-03T08:23Z to 2026-08-04T06:31Z for internal verification; Fable/Mythos
+  excluded). It does **not** by itself cover a *direct*
   third-party model endpoint outside AWS (e.g. `api.anthropic.com`); that direct path is covered by
   the Anthropic HIPAA-Ready BAA when used, and is unused at runtime today. The Google Cloud BAA
   (2026-07-12) covers Google **infrastructure**, not a model-provider egress path. **Google (Gemini)
@@ -271,8 +286,11 @@ deployed (staged; effective in production after the Phase 4/5 prod deploy). Boun
 remain in force: **(1)** only the code track edits the three AI call sites, the
 `article_50_disclosure` flag, and the 50(1) paragraph of this section; **(2)** this section 5.2 is the
 shared contract -- any Article 50 thread reads it first and updates it last; **(3)** this section was
-re-written by the Phase 5 shipping thread on modal delivery and awaits Scot's re-attestation per
-section 6.
+re-written by the Phase 5 shipping thread on modal delivery and, as written at that time, awaited
+Scot's re-attestation per section 6. **[Discharged 2026-07-22: Scot Wahlquist, CEO, re-attested the
+Phase 5 section 5.2 rewrite on that date; see the 2026-07-22 amendment in section 8. The clause is
+retained as the historical record of the Phase 5 handoff. No re-attestation of this section is
+outstanding, and the document's current attestation is 2026-08-04.]**
 Compliance-posture documentation (this memo, the calendar) remains a separate, non-code workstream
 and never edits the call sites.
 
@@ -327,7 +345,15 @@ Tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`,
 | Reviewed by | adversary agent |
 | Attested by | **Scot Wahlquist, CEO** |
 | Original attestation date | **2026-06-19** |
-| Latest re-attestation date | **2026-07-24** |
+| Latest re-attestation date | **2026-08-04** |
+| Prior re-attestation dates | 2026-07-13; 2026-07-14; 2026-07-19; 2026-07-22; 2026-07-24; 2026-07-27 |
+
+_Attestation-block realignment, 2026-08-05._ Until this revision three places in this memo named
+three different "latest" dates: the header banner said 2026-07-27, the table row above said
+2026-07-24, and the closing trailer recorded the 2026-08-04 re-attestation. The register
+(`audit-reports/DOCUMENT-REGISTER.json`) had pinned this document at 2026-08-04 throughout. The
+table and banner are now aligned to 2026-08-04 and the superseded dates are preserved in the row
+above rather than dropped. No claim in the body changed.
 
 _Phase 3 deliverable of the Audit/Compliance System Modernization (plan section 6, sections 1.3
 and 1.8). Model ids and code citations were re-verified against live code on 2026-06-19 prior to
@@ -413,26 +439,62 @@ Nothing in this refresh goes live in production until Phases 3-5 deploy and the 
 
 ## Runtime routing update - 2026-07-24 (re-attested 2026-07-24)
 
-_Runtime AI egress moved from the direct `api.anthropic.com` endpoint to **Claude on AWS Bedrock**
-(`lib/ai_client.rb`, the Bedrock Mantle Messages API). This is a routing change, not a change of
-model provider or model: the same Anthropic models (Claude Haiku 4.5, Claude Opus 4.7) are used._
+_Runtime AI routing moved from the direct `api.anthropic.com` endpoint to **Claude on AWS Bedrock**
+(`lib/ai_client.rb`). This is a routing change, not a change of model provider or model: the same
+Anthropic models (Claude Haiku 4.5, Claude Opus 4.7) are named in the inventory._
 
-- **Governing BAA for runtime egress is now the AWS account BAA** (`docs/legal/AWS_BAA_ACCEPTED.md`),
-  because Amazon Bedrock is a HIPAA-eligible AWS service (excluding Fable/Mythos) and inference stays
-  inside AWS's HIPAA boundary. The executed Anthropic HIPAA-Ready BAA (2026-07-18,
-  `docs/legal/ANTHROPIC_BAA_ACCEPTED.md`) remains on file as a still-available direct path but is no
-  longer the active runtime route.
+_**Plane corrected 2026-08-04.** This section previously said the route was "the Bedrock Mantle
+Messages API". That is wrong and has been since PR #727: the default plane is **classic
+`bedrock-runtime`**, selected by `AiClient.bedrock_plane` unless `BEDROCK_PLANE=mantle`. The account
+is **not entitled to the mantle plane** (every model returns 403 "not available for this account",
+entitlement request open with AWS), so mantle is not a route this product can use today. This has a
+consequence the old wording hid: on the classic plane only `anthropic.claude-haiku-4-5` has an
+inference-profile mapping, so Claude Opus 4.7 (eval narration) is **not invokable** and falls back
+to its deterministic template._
+
+_**Corrected 2026-08-01, re-corrected 2026-08-04:** this section previously described the move as
+completed egress, and was then over-corrected to say the path had never been operational. Neither
+is accurate. The routing change shipped; the Bedrock path was operational in production only from
+2026-08-03T08:23Z to 2026-08-04T06:31Z (revision `00013-76w`), carrying one internal verification
+call with no user or student data, and is **not operational as of 2026-08-04**. See the 2026-08-04
+operational-status correction in `docs/legal/AWS_BAA_ACCEPTED.md`._
+
+- **Governing BAA for runtime egress, once egress resumes, is the AWS account BAA**
+  (`docs/legal/AWS_BAA_ACCEPTED.md`), because Amazon Bedrock is a HIPAA-eligible AWS service
+  (excluding Fable/Mythos) and inference stays inside AWS's HIPAA boundary. The executed Anthropic
+  HIPAA-Ready BAA (2026-07-18, `docs/legal/ANTHROPIC_BAA_ACCEPTED.md`) remains on file as a
+  still-available direct path but is no longer the designated runtime route.
 - The **runtime inventory table above is superseded for routing/credential detail**: runtime seams no
   longer require `ANTHROPIC_API_KEY` and no longer construct a direct Anthropic client (enforced by
   `scripts/ai-endpoint-guard.sh` in CI); model ids egress in Bedrock form
   (`anthropic.claude-haiku-4-5`, `anthropic.claude-opus-4-7`). The scrub / allowlist / COPPA / opt-out
   / AiApiLog controls in that table are unchanged.
-- Operative condition: Bedrock calls must run under the BAA'd AWS account (2390-4478-5114).
+- Operative condition: Bedrock calls must run under the BAA'd AWS account (2390-4478-5114). **This
+  condition was UNVERIFIED from 2026-07-27 through the 2026-08-01 evidence gather, and the
+  2026-07-27 statement that it had been verified is retracted** and stays retracted: no
+  `lingolinq-web` revision from `00001-2vn` through `00012-x8z` carried a Bedrock credential, so no
+  Bedrock call could be made in that period. **Verified 2026-08-04**, during the `00013-76w` window
+  (2026-08-03T08:23Z to 2026-08-04T06:31Z): `sts:GetCallerIdentity` under the mounted credential
+  returned account 239044785114, principal `user/lingolinq-bedrock-runtime`. That is a separate,
+  correctly-dated finding and does not revive the retracted 2026-07-27 claim. Credentials were
+  withdrawn on `00014-5rw`, so the condition is again unverifiable and must be re-verified on any
+  future mount. See `docs/legal/AWS_BAA_ACCEPTED.md`.
 - Section 3's older "AWS BAA covers infrastructure only, not model-provider egress" wording is
-  superseded for the **active** runtime path by this Bedrock routing: Bedrock inference is an
+  superseded for the **designated** runtime path by this Bedrock routing: Bedrock inference is an
   in-AWS HIPAA-eligible service under the account BAA. That older wording still correctly describes
   the *direct* third-party Anthropic endpoint (now unused at runtime; covered by the Anthropic BAA
   if re-enabled) and any non-AWS model provider.
 
 _Re-attested 2026-07-24 by Scot Wahlquist, CEO (Bedrock runtime routing). Prose corrected 2026-07-27
 to remove a contradictory "re-attestation owed" banner left in the bytes that attestation covered._
+
+_Corrected 2026-08-01 by Claude Code to remove the stale completed-egress framing and the retracted
+operative-condition verification, and re-corrected 2026-08-04 to bound the over-corrected
+"never operational" language to the window it actually covers. Those corrections are not
+attestations; only Scot attests._
+
+_**Re-attested 2026-08-04 by Scot Wahlquist, CEO.** The earlier "re-attestation pending" state is
+discharged. This document's attestation now covers the closed-window operational status: not
+operational through `00012-x8z`, operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on `00013-76w`
+(one logged seam call, internal verification, no user or student data), not operational since
+`00014-5rw`._

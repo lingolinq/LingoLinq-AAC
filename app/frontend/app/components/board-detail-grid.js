@@ -92,7 +92,7 @@ export default Component.extend({
     // Re-fit on every render — covers initial mount, route re-entry,
     // ordered_buttons changes, and toggle flips. scheduleOnce keeps
     // multiple same-render triggers from compounding.
-    scheduleOnce('afterRender', this, '_run_fit_or_clear');
+    scheduleOnce('afterRender', this, '_run_label_fit');
     // Publish the folder-tab cell metrics SYNCHRONOUSLY here (afterRender runs
     // before the browser paints) so --bd-cell-min is in place on the FIRST frame.
     // The controller also publishes it, but only on a ~160-300ms debounce, so
@@ -120,26 +120,35 @@ export default Component.extend({
     }
   },
 
-  // shrinkLabelsToFit flipping is also caught by didRender, but a
-  // dedicated observer makes the intent explicit and lets the clear
-  // pass fire promptly even when nothing else triggers a re-render.
+  // The fit no longer depends on `shrinkLabelsToFit`, but keep observing it so a
+  // flip still forces a prompt re-fit rather than waiting for the next render.
   _shrink_observer: observer('shrinkLabelsToFit', function() {
-    scheduleOnce('afterRender', this, '_run_fit_or_clear');
+    scheduleOnce('afterRender', this, '_run_label_fit');
   }),
 
   _schedule_fit: function(source) {
-    this._resize_pending = debounce(this, '_run_fit_or_clear', source, RESIZE_DEBOUNCE_MS);
+    this._resize_pending = debounce(this, '_run_label_fit', source, RESIZE_DEBOUNCE_MS);
   },
 
-  _run_fit_or_clear: function() {
+  // Shrink-to-fit runs for EVERY label, regardless of the "Shrink labels to fit"
+  // preference. A label that doesn't fit is ellipsised ("color/visual" →
+  // "color/...", "keyboard" → "keyb..."), and a truncated word on an AAC button
+  // is not a styling preference — it's a button whose meaning the user can no
+  // longer read. Smaller text still communicates; a cut-off word does not.
+  //
+  // The fit is SHRINK-ONLY and per-label: labels that already fit at the user's
+  // chosen size are untouched (applyOne clears its inline size when the fitted
+  // size is >= the base), so this never rescales a whole board uniformly and
+  // never grows text past the user's preference.
+  //
+  // NOTE: this leaves the "Shrink labels to fit" toggle with nothing to control.
+  // Flagged for follow-up — it should be removed from Text Settings or
+  // repurposed, otherwise it reads as a broken switch.
+  _run_label_fit: function() {
     if(this.isDestroyed || this.isDestroying) { return; }
     var gridEl = findGridEl();
     if(!gridEl) { return; }
-    if(this.get('shrinkLabelsToFit')) {
-      labelFit.apply(gridEl);
-    } else {
-      labelFit.clear(gridEl);
-    }
+    labelFit.apply(gridEl);
   },
 
   actions: {

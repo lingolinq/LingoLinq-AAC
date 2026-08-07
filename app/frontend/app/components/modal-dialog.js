@@ -14,6 +14,13 @@ export default Component.extend({
   // either -- zero behavior change for every modal that predates this.
   labelledBy: undefined,
   describedBy: undefined,
+  // Optional opt-in override for clicking the backdrop (additive, same pattern as
+  // labelledBy above). When a caller passes @backdropAction, a backdrop click calls
+  // it INSTEAD of @action, so a modal can distinguish "clicked outside" from
+  // "pressed Close" -- copying-board uses this to minimize an in-flight copy into
+  // the background drawer rather than dismissing it. Left undefined so every modal
+  // that doesn't pass it keeps the single close path it has today.
+  backdropAction: undefined,
   init() {
     this._super(...arguments);
     var self = this;
@@ -223,11 +230,17 @@ export default Component.extend({
         var _this = this;
         var doClose = function() {
           var action = null;
+          var backdropAction = null;
           try {
             if (!_this.isDestroyed && !_this.isDestroying && _this.get) {
               action = _this.get('action');
+              if (isBackdropClick) { backdropAction = _this.get('backdropAction'); }
             }
           } catch (e) { }
+          if (backdropAction && typeof backdropAction === 'function') {
+            backdropAction();
+            return;
+          }
           if (action && typeof action === 'function') {
             action();
           } else {
