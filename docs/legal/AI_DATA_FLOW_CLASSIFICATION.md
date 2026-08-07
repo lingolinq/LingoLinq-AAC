@@ -232,8 +232,21 @@ follow-up.
   tracked in `docs/legal/DATA_RETENTION.md` and this project's `PROJECT.md`).
 - ~~Resolving the Gemini/Vertex AI open item in section 4~~ -- resolved 2026-07-09 (disabled, PR #570).
 - ~~Deciding whether scrubbed neutral board-gen can ever move to the Non-personal bucket~~ --
-  resolved 2026-07-09 (Scot's provisional attestation: stays gated). See `AI_DATA_SHARING_CONSENT.md`
-  section 7.
+  resolved 2026-07-09 (Scot's provisional attestation). **Final position: reclassified
+  Non-personal, no second-tier AI-data-sharing consent gate.** An initial position taken earlier the
+  same session ("stays gated, no exemption") was **superseded later that same day** and is retained
+  here only as history: it rested on the pre-2026-07-09 scrubber, which could not reliably catch an
+  arbitrary name typed into the free-text board topic. `PiiScrubber` was hardened first (the
+  ~1,656-entry `PiiScrubber::COMMON_FIRST_NAMES` gazetteer added to the AI-egress path), and only
+  then was board generation reclassified. See section 4.2 above for the rationale and the stated
+  residual risk, the section 3 table (row 1: Non-personal, gate column "No"), and
+  `AI_DATA_SHARING_CONSENT.md` section 7, which records the Non-personal reclassification as the
+  current, final position. This reclassification covers AI board generation ONLY: word prediction
+  and eval narration remain Regulated PII and stay gated.
+  **[Correction 2026-08-06.** This bullet previously read "resolved 2026-07-09 (Scot's provisional
+  attestation: stays gated)", stating the superseded initial position as the outcome. That
+  contradicted this document's own section 3 table and section 4.2, and `AI_DATA_SHARING_CONSENT.md`
+  section 7. The decision itself is unchanged; only this document's description of it is corrected.**]**
 - Selecting and vetting a specific government-ID-verification vendor/integration for Phase 3 (the
   *method* -- gov-ID match -- is decided; the vendor is not).
 - Formal outside-counsel legal review of this document and the disclosure content (deferred to
