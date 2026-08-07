@@ -6051,6 +6051,18 @@ decrypt). Local fix (test DB only, regenerates on boot):
 `psql -U scotw -d lingolinq-test -c "delete from settings where key='encryption_hash'"`. Do not
 "fix" it by editing the dotenv load order in spec_helper.
 
+## Gotcha: controller AI endpoints must call `ai_feature_enabled_for?` before any shared-cache short-circuit (#762)
+
+`feature_enabled_for?` is rollout only. `ai_feature_enabled_for?` also enforces org
+`disable_ai_features`, COPPA, EU under-16, and user prefs. A controller that gates with the plain
+flag and then returns a warmed `AiFocusWordSet` (keyed only on scrubbed prompt + locale + core
+flag — no user/org scope) skips every consent check on a cache HIT; the generator's own
+`ai_feature_enabled_for?` only runs on MISS. Specs that only exercise the miss path pass against
+the broken code. Mutation-test cache-hit 403 examples: revert the controller gate, confirm red
+(200 + cached words), restore, confirm green. Mirror `boards_controller#generate_labels` for the
+gate + Article 50 backstop (`article_50_disclosure` is AVAILABLE-only — do not enable it just to
+exercise the backstop). See `docs/task-management/2026-08-07-focus-words-consent-gate.md`.
+
 ## Pattern: every external-model call site must gate the same way (COPPA + org opt-out + PiiScrubber + AiApiLog)
 
 The canonical AI egress shape is fixed across call sites (`lib/ai_word_predictor.rb`,
