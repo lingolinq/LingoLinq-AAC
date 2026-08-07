@@ -298,3 +298,22 @@ jobs:
             --vpc-egress private-ranges-only \
             --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false,$APP_ENV_VARS" \
             --set-secrets "$BOOT_SECRETS,$NON_BOOT_SECRETS"
+
+      # Read back what actually landed. The "verify secrets are seeded" step above proves the
+      # secrets EXIST in Secret Manager before deploying; it cannot prove the deployed revision
+      # still REFERENCES them. Revision lingolinq-web-00014 (2026-08-04) dropped exactly
+      # BEDROCK_AWS_KEY and BEDROCK_AWS_SECRET while every secret container stayed healthy, and
+      # the Tier 1 runtime AI path failed closed for ~54 minutes with nothing reporting it.
+      # This asserts the linkage on every revision actually serving traffic (all nonzero
+      # percent targets under a canary/rollback split), so a deploy that loses a secret
+      # fails the run instead of shipping a silently degraded revision.
+      # NOTE: this guards CI deploys only. A human running `gcloud run deploy` bypasses this
+      # workflow entirely, which is how 00014 happened; see the script header.
+      - name: Assert deployed secrets landed
+        run: |
+          bash scripts/gcp/assert-runtime-secrets.sh \
+            --project "${{ vars.GCP_PROJECT_ID }}" \
+            --region "${{ vars.GCP_REGION }}" \
+            --service lingolinq-web \
+            --worker-pool lingolinq-worker \
+            --required "$BOOT_SECRETS,$NON_BOOT_SECRETS"

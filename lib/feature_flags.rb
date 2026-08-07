@@ -239,20 +239,71 @@ module FeatureFlags
     user.eu_under_16? && !user.eu_ai_parental_consent_active?
   end
 
+  # The ONE boolean vocabulary for AI preference values. Both the read gate below
+  # and the write path (User.normalize_ai_preference_value, which delegates here)
+  # use it, so a value that can be WRITTEN as an opt-out is always READ as one.
+  #
+  # These lists must stay in sync with the JS mirror in
+  # app/frontend/app/utils/ai_feature_gate.js.
+  AI_PREF_TRUE_VALUES = [true, 'true', '1', 1].freeze
+  AI_PREF_FALSE_VALUES = [false, 'false', '0', 0].freeze
+
+  # Interpret a stored AI preference: true, false, or nil when the value records
+  # no recognizable decision.
+  #
+  # Ruby keeps the two lists from colliding on their own: `1 == true` and
+  # `0 == false` are both false, so a numeric value can only ever match the list
+  # it is written in.
+  def self.ai_pref_value(val)
+    return true if AI_PREF_TRUE_VALUES.include?(val)
+    return false if AI_PREF_FALSE_VALUES.include?(val)
+    nil
+  end
+
   # Per-user AI preference gate.
-  # - Master (ai_features_enabled) nil => grandfather allowed (legacy users).
-  # - Master false => block all AI.
-  # - Master true => USER_PREF_AI_FEATURES require prefs[feature] == true;
-  #   other AI_FEATURES follow the master (allowed).
+  # - Master (ai_features_enabled) ABSENT (nil) => grandfathered allowed. These
+  #   rows predate the consent UI and have never carried a value.
+  # - Master an explicit opt-out (false/'false'/0/'0') => block all AI.
+  # - Master PRESENT but unrecognized ("", "maybe", a stray Hash) => block all
+  #   AI. A value we cannot read is not consent.
+  # - Master an explicit opt-in => USER_PREF_AI_FEATURES additionally require
+  #   prefs[feature] == true; other AI_FEATURES follow the master.
+  #
+  # The unrecognized-master case fails CLOSED on purpose, and that decision cost
+  # a review cycle to get right. Production holds 9 of 31 users with master=""
+  # (blocked from board generation), and the tempting fix — read "" as "never
+  # decided" and grandfather it — converts an unreadable value into an ALLOW.
+  # PaperTrail cannot say how those rows reached ""; `object_changes` is absent
+  # from the schema and `reify` raises on secure_serialize'd settings, so the
+  # intent behind the value is not merely unknown, it is unrecoverable. Writing
+  # "" back to nil has the same effect by another route: it lands the row in the
+  # grandfather bucket above. Neither is consent-preserving, so neither ships.
+  # The recovery path is the user checking the box in preferences, which writes
+  # a real boolean — an affirmative act, which is what consent has to be.
+  #
+  # A blank per-feature CHILD key under an explicitly-true master is likewise
+  # BLOCKED: that state is an INCOMPLETE opt-in, and reading it as permission
+  # would manufacture consent for a specific AI feature the user never gave.
   def self.user_pref_allows_ai?(feature, user)
     return true unless user
     prefs = user.settings && user.settings['preferences']
     return true unless prefs.is_a?(Hash)
     master = prefs['ai_features_enabled']
     return true if master.nil?
-    return false if master == false || master.to_s == 'false'
+    # `unless == true` (not `if == false`) so that BOTH an explicit opt-out and
+    # an unrecognized value deny, and they deny for EVERY AI feature. An earlier
+    # revision returned only on an explicit false, which let an unrecognized
+    # master fall through to the line below and allow the two features outside
+    # USER_PREF_AI_FEATURES — one of which is comprehensive_eval_ai, narration
+    # over student assessment data.
+    #
+    # Read through the shared vocabulary, NOT a literal `master == false ||
+    # master.to_s == 'false'`. That narrower test missed the numeric forms: a
+    # stored 0 or "0" is neither nil nor equal to false, so it read as allowed.
+    return false unless ai_pref_value(master) == true
     return true unless USER_PREF_AI_FEATURES.include?(feature.to_s)
-    val = prefs[feature.to_s]
-    val == true || val.to_s == 'true'
+    # The child must be an explicit opt-IN. nil (absent, blank, or unrecognized)
+    # is an INCOMPLETE opt-in and stays blocked.
+    ai_pref_value(prefs[feature.to_s]) == true
   end
 end

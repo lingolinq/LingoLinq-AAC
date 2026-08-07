@@ -281,6 +281,13 @@ var expect = function(data) {
       assert.equal(data, arg);
     }
   };
+  // Strict identity. toEqual above deliberately falls through to assert.equal
+  // for non-objects, so false / 0 / '' compare equal to each other — fine for
+  // most assertions, wrong when the distinction between those values IS the
+  // thing under test (see tests/utils/ai_feature_gate-test.js).
+  expectation.toBe = function(arg) {
+    assert.strictEqual(data, arg);
+  };
   expectation.toBeTruthy = function() {
     assert.ok(!!data, JSON.stringify(data) + ' should be truthy');
   };
