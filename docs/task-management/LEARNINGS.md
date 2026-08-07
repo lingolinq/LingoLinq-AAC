@@ -154,6 +154,16 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Pattern: keyboard control vocalizations must survive translation overlay](#pattern-keyboard-control-vocalizations-must-survive-translation-overlay)
 - [Pattern: board-detail Speak bar must speak vocalization, not just label](#pattern-board-detail-speak-bar-must-speak-vocalization-not-just-label)
 - [Pattern: board-detail Speak bar must play attached button sounds, not TTS-only](#pattern-board-detail-speak-bar-must-play-attached-button-sounds-not-tts-only)
+- [Pattern: long-running modal work that must survive dismissal belongs in a service + app-level component, not a "hidden" modal](#pattern-long-running-modal-work-that-must-survive-dismissal-belongs-in-a-service--app-level-component-not-a-hidden-modal)
+- [Gotcha: generic `.button` selectors in the CLASSIC board CSS leak onto the modern board-detail card](#gotcha-generic-button-selectors-in-the-classic-board-css-leak-onto-the-modern-board-detail-card)
+- [Gotcha: `cqmin` inside an `inline-size` container silently resolves to the viewport](#gotcha-cqmin-inside-an-inline-size-container-silently-resolves-to-the-viewport)
+- [Pattern: measure the real render before tuning a responsive coefficient](#pattern-measure-the-real-render-before-tuning-a-responsive-coefficient)
+- [Gotcha: "the symbol doesn't fill the button" is usually the ASSET, not CSS — measure the opaque box before touching object-fit](#gotcha-the-symbol-doesnt-fill-the-button-is-usually-the-asset-not-css--measure-the-opaque-box-before-touching-object-fit)
+- [Gotcha: percentage padding resolves against WIDTH — including padding-top/bottom](#gotcha-percentage-padding-resolves-against-width--including-padding-topbottom)
+- [Gotcha: a media query adds NO specificity — an un-nested rule can silently outrank your breakpoint fix](#gotcha-a-media-query-adds-no-specificity--an-un-nested-rule-can-silently-outrank-your-breakpoint-fix)
+- [Pattern: a viewport-filling `calc(100dvh - …)` must subtract every ancestor inset it sits inside](#pattern-a-viewport-filling-calc100dvh--must-subtract-every-ancestor-inset-it-sits-inside)
+- [Gotcha: a plain inline style LOSES to a CSS `!important` — JS "fit to size" silently no-ops](#gotcha-a-plain-inline-style-loses-to-a-css-important--js-fit-to-size-silently-no-ops)
+- [Gotcha: fit-to-box must measure BOTH axes — `word-break: keep-all` makes a long word overflow sideways, never down](#gotcha-fit-to-box-must-measure-both-axes--word-break-keep-all-makes-a-long-word-overflow-sideways-never-down)
 - [Pattern: per-user UI prefs must be read from `currentUser`, not the board-detail route's URL user](#pattern-per-user-ui-prefs-must-be-read-from-currentuser-not-the-board-detail-routes-url-user)
 - [Pattern: `.md-board-collection__*` is a light-base panel reusable on any page; dark theme is ancestor-scoped](#pattern-md-board-collection-is-a-light-base-panel-reusable-on-any-page-dark-theme-is-ancestor-scoped)
 - [Pattern: inside `.md-board-collection`, `data-bd-action` is the REAL handler — `@onSelect`/`@onBack` are decoration](#pattern-inside-md-board-collection-data-bd-action-is-the-real-handler--onselectonback-are-decoration)
@@ -8400,3 +8410,270 @@ Two different credentials share the name `user_token`. `User#user_token` is a pe
 
 **Evidence:** [`2026-08-04-speak-bar-skips-button-sounds.md`](./2026-08-04-speak-bar-skips-button-sounds.md).
 
+
+## Pattern: long-running modal work that must survive dismissal belongs in a service + app-level component, not a "hidden" modal
+
+**Surface:** "Copying Board" progress modal — the copy must keep running when the
+user clicks outside it, and must report back later (background drawer → toast).
+
+**Why not the obvious approach:** the modal slot is single-tenant and short-lived.
+`services/modal.js#_openModal` destroys the current modal whenever another one
+opens, and `app_state.global_transition` closes all modals on every route change.
+So you can never "keep the modal open, just minimized" — the surface has to move
+out of the modal layer.
+
+**Fix recipe (three pieces, each single-responsibility):**
+1. A tiny **state service** (`services/copy-progress.js`): status / payload / a
+   dismiss timer, plus a monotonic **token** stamped when the job is backgrounded.
+   Result handlers only write if they still own the token, so a second job started
+   while the first is pending can't be reported under the wrong subject.
+2. An **app-level component** mounted in `templates/application.hbs` (next to
+   `<AppToast />`), which is the only region that survives route transitions.
+3. In the modal component, capture **every service into a local `const` before**
+   kicking off the promise chain, and thread a plain `{token: null}` closure object
+   through the handlers. The chain outlives the component — after `modal.close()`
+   the component is destroyed, so any `this.get(...)` in a settle handler is a
+   latent crash. Guard `this.set(...)` with `isDestroyed`/`isDestroying`.
+
+**Two traps found here:**
+- **Backdrop vs. Close are indistinguishable to a modal.** `modal-dialog.js`
+  `actions.close` computes `isBackdropClick` internally, then calls the same
+  `@action` for both. To branch, add an *opt-in* `@backdropAction` (same additive
+  pattern as the existing `@labelledBy`): present → backdrop calls it instead of
+  `@action`; absent → every other modal is byte-for-byte unchanged.
+- **`{{this.onFoo}}` handlers assigned in `didInsertElement` never bind.** Several
+  modal components assign `this.onClose = …` there with a plain (non-`set`)
+  assignment, but the child `<ModalDialog>` renders *before* the parent's
+  `didInsertElement`, so `@action` stays `undefined` forever (which is why
+  `modal-dialog` has a `modal.close()` fallback). Anything the template hands to a
+  child must be assigned in **`init()`**.
+
+**Corollary — an actionable notice must not auto-dismiss.** Once the finished
+card gained an "Open Board" button, the originally-specced 4 s auto-fade became a
+trap: the user has to notice it, read it, and land the click inside that window,
+and in an AAC app that motor assumption is exactly the one you cannot make. Timed
+fade is for notices that carry no action; anything offering a choice waits to be
+answered. (Bonus: dropping the timer removed the runloop entirely from the
+service.)
+
+**Evidence:** [`2026-08-06-copy-board-minimize-to-drawer.md`](./2026-08-06-copy-board-minimize-to-drawer.md);
+`components/copying-board.js` `minimize`/`start_copying`; `components/modal-dialog.js`
+`backdropAction`; `services/copy-progress.js`.
+
+## Gotcha: generic `.button` selectors in the CLASSIC board CSS leak onto the modern board-detail card
+
+The modern board-detail symbol card renders with `class="button md-board-detail-symbol-card …"`
+— it carries **`.button` too**. So every classic-renderer rule written as
+`.button …` (there are many; the classic board CSS is thousands of lines earlier
+in `app.scss`) silently applies to the modern page as well.
+
+Concrete bug: `@media (max-height: 800px) { .button img.symbol { transform:
+scale(clamp(0.6, 0.6 + (100vh - 400px)/1000px, 1)) } }` was shrinking every
+board-detail symbol on any viewport under 800px tall — `scale(0.968)` at 768px,
+`scale(0.6)` at 400px. The rule exists to compensate for the classic renderer's
+JS-sized `img_holder` (its own comment says so); the modern card has no such
+holder — its symbol is a `flex: 1 1 auto` child that already yields space to the
+label — so there the compensation is not just useless, it fights the layout.
+
+**Detection:** you cannot grep for this. The offending rule mentions neither
+`board-detail` nor `symbol-card`. Use CDP `CSS.getMatchedStylesForNode` (or
+DevTools' Computed → "matched rules") on the real element and read what actually
+matched. That is also how to catch the reverse case.
+
+**Fix shape:** exclude by class on the shared element —
+`.button:not(.md-board-detail-symbol-card) img.symbol` — rather than moving or
+rewriting the classic rule, so the classic board keeps its behavior
+byte-for-byte. Any time you touch a `.button …` rule, ask which of the two
+renderers you meant, and scope it.
+
+**Related:** the sibling gotcha is picking the wrong renderer entirely (patching
+`board.js#to_fast_html` for a board-detail bug) — see
+[`2026-08-04-board-button-image-font-ratio.md`](./2026-08-04-board-button-image-font-ratio.md).
+
+## Gotcha: `cqmin` inside an `inline-size` container silently resolves to the viewport
+
+`container-type: inline-size` exposes only the inline axis. Per spec the block
+axis is then unavailable, so `cqb`/`cqh` — and therefore **`cqmin`/`cqmax`** —
+fall back to the **small-viewport** units instead of the container. The rule
+still parses and still computes a number, so it fails silently: the font looks
+plausible on one screen and completely wrong on another.
+
+`cqmin` is only meaningful under `container-type: size` (both axes). The
+board-detail symbol card has `container-type: size` so `cqmin` is valid there;
+the word-prediction tile next to it has `container-type: inline-size`, so the
+rule that deliberately mirrors the board label had to stay on `cqw` with a
+matched coefficient. Two visually-paired components, two different correct units.
+
+**Rule of thumb:** before writing `cqmin`, confirm the nearest ancestor container
+is `container-type: size`. If it is `inline-size`, use `cqi`/`cqw`.
+
+## Pattern: measure the real render before tuning a responsive coefficient
+
+For "make it bigger on small screens" bugs, drive the actual page and read
+computed styles — do not reason from a screenshot. The committed Puppeteer works
+against the running dev stack (ember :8184 → rails :5000). Auth without a
+password: mint a browser `Device` token server-side and seed
+`localStorage['lingolinqStash-auth_settings']` in `evaluateOnNewDocument` before
+boot (`stashes.persist_raw`, `app/utils/_stashes.js:296`); destroy the temporary
+device afterwards.
+
+Why it pays: on the reported board the label was pinned to the clamp **floor**
+(10px) against a **35px** user preference — a 3.5× gap that reads as "a bit
+small" in a screenshot and tells you nothing about which of four competing
+rules to edit or by how much. Measuring also produces honest before/after
+numbers, which is what surfaces the real trade: from one fixed card, a bigger
+label and a bigger symbol are in direct competition (the symbol is `flex: 1 1
+auto` and gets only leftovers), so the growth has to be paid for out of
+**padding**, not out of the other element.
+
+**Evidence:** [`2026-08-06-small-screen-button-text-image-padding.md`](./2026-08-06-small-screen-button-text-image-padding.md).
+
+## Gotcha: "the symbol doesn't fill the button" is usually the ASSET, not CSS — measure the opaque box before touching object-fit
+
+Recurring report on board buttons: the symbol looks small and floats in empty
+space, so "remove the padding on the image." Before changing anything, measure.
+On the reported board the `__image` holder and the `<img>` both had `padding: 0`,
+`margin: 0`, no transform, and the img element box was **exactly** the holder box
+— CSS was already giving the symbol every available pixel. Two non-CSS causes:
+
+1. **Aspect-ratio letterboxing.** Symbols are square (250×250); the holder is
+   wide-and-short, so `object-fit: contain` fills the height and leaves side
+   margins. Not removable without cropping or distorting.
+2. **Transparent margin baked into the image file.** Render the symbol to a
+   canvas and compute its opaque bounding box (`getImageData`, alpha > 12). On
+   one sampled board the glyphs occupied **72–92%** of their canvas height, with
+   **1–14%** transparent margin per side.
+
+**Why `object-fit: cover` / a global upscale is the wrong fix:** it crops by a
+FIXED amount while the baked-in margin VARIES 1–14%. A ~15% crop is harmless on
+the median symbol and eats real artwork on the tight ones. For AAC the glyph
+outline is the recognition cue, so silently clipping a tenth of the drawing on an
+unpredictable subset of buttons is a worse defect than the whitespace.
+
+**What IS safe:** give the image more room instead of scaling it. `__image` is
+`flex: 1 1 auto` and the label is `flex-shrink: 0`, so every pixel of label
+padding/leading comes straight out of the symbol — trimming label padding and
+line-height on short cards enlarges a height-limited symbol with zero risk. The
+real fix for (2) is asset-side (trim the sources, or store a per-symbol opaque
+bbox and crop via `object-position`), not a stylesheet change.
+
+**Evidence:** [`2026-08-06-small-screen-button-text-image-padding.md`](./2026-08-06-small-screen-button-text-image-padding.md) (Round 2).
+
+## Gotcha: percentage padding resolves against WIDTH — including padding-top/bottom
+
+`padding: 1%` on a block does **not** mean "1% of my height" on the vertical
+sides. Per spec every percentage padding (and margin) resolves against the
+*containing block's inline size*, i.e. its WIDTH, on all four sides. So a
+wide-but-short element gets a vertical inset sized by its width.
+
+Bit us on board buttons: `padding: clamp(1px, 1%, 4px)` was a good fix for
+"padding should scale with the button, not the viewport" (a dense board on a wide
+screen never matched a `@media (max-width: 1024px)` rule and kept the full 4px).
+But on a 108x44 button it then spent ~1% of *108* on the top and bottom of a 44px
+box, leaving a dead band under the symbol. Correct form splits the axes:
+
+```scss
+padding: 1px clamp(1px, 1%, 4px);  /* vertical flat; horizontal scales — width IS its axis */
+```
+
+**Rule of thumb:** percentage padding is only meaningful on the horizontal sides.
+If you want a size-responsive *vertical* inset you need a container query
+(`cqh`/`cqmin`) or a flat value — never a percentage.
+
+**Related:** for making an element's own padding respond to its own size, a
+container cannot query ITSELF; percentage padding against the parent is usually
+the cheapest correct lever, since making the parent a container costs
+`contain: layout` (a stacking context) on every instance.
+
+**Evidence:** [`2026-08-06-small-screen-button-text-image-padding.md`](./2026-08-06-small-screen-button-text-image-padding.md) (Round 3).
+
+## Gotcha: a media query adds NO specificity — an un-nested rule can silently outrank your breakpoint fix
+
+Chased this for two iterations on board-detail. `@media (max-width: 820px) { .md-board-detail-layout { height: auto; min-height: calc(...) } }` looked like the rule that governed the layout height. It did not. An un-nested rule,
+`.md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-layout { height: calc(100dvh - ...) }`,
+has specificity (0,3,0) versus the media rule's (0,1,0) — and **wrapping a rule
+in `@media` does not raise its specificity at all**. So the un-nested `height`
+won regardless of source order, and an explicit `height` beats `min-height`
+outright. Editing the media block changed the computed `min-height` to 373px
+while the used height stayed 375px — visibly nothing happened.
+
+**Detection:** if a responsive fix "does nothing", read the *computed* value AND
+the matched-rule list (CDP `CSS.getMatchedStylesForNode` / DevTools Computed),
+not the file. The winning rule is often the one with no breakpoint on it.
+
+**Rule of thumb:** the breakpoint block is rarely the authoritative owner of a
+property. Find the highest-specificity declaration first, and make the change
+there — or the breakpoint rule is dead code that merely looks like the fix.
+
+## Pattern: a viewport-filling `calc(100dvh - …)` must subtract every ancestor inset it sits inside
+
+`height: calc(100dvh - var(--topbar-height, 68px))` on a layout nested inside a
+shell with `padding-top: 2px` makes the page *always* exactly 2px taller than the
+viewport — a permanent scrollbar with nothing to scroll to. Harmless-looking on a
+desktop; on a 375px-tall phone it reads as "the board doesn't fit".
+
+**Fix shape:** publish the inset as a custom property **declared on the same rule
+as the padding it mirrors**, so the two cannot drift apart, and subtract it with a
+`0px` fallback so states that don't set the padding are unaffected:
+
+```scss
+.md-shell--board-detail:not(...) { padding-top: 2px; --bd-shell-pad-top: 2px; }
+.md-shell--board-detail:not(...) .md-board-detail-layout {
+  height: calc(100dvh - var(--topbar-height, 68px) - var(--bd-shell-pad-top, 0px));
+}
+```
+
+Check for this whenever a `100dvh`/`100vh` sizing rule lives below an ancestor
+with padding, a border, or a sticky header.
+
+**Evidence:** [`2026-08-06-board-detail-short-viewport-vertical-fit.md`](./2026-08-06-board-detail-short-viewport-vertical-fit.md).
+
+## Gotcha: a plain inline style LOSES to a CSS `!important` — JS "fit to size" silently no-ops
+
+`label_fit.js` sized board labels with `el.style.fontSize = px`. The responsive
+label rules in app.scss are `!important`
+(`@media (max-width: 1200px) { … font-size: clamp(…) !important }`), and **a
+plain inline declaration does not beat an `!important` one** — only an
+`!important` inline does. Two failures compounded and hid each other:
+
+1. The iterative measure loop set a trial size, but the element kept rendering at
+   the CSS-forced size, so `scrollWidth`/`scrollHeight` never changed. No trial
+   ever "fit", and every label bottomed out at the `MIN_FONT_PX` floor.
+2. The floor value it finally wrote was ignored too, so the visible result was
+   *no change at all*.
+
+Net effect: the "Shrink labels to fit" preference appeared to do nothing on any
+viewport under 1200px — for as long as those `!important` rules existed.
+
+**Detection:** compare the element's `style.fontSize` (inline) against
+`getComputedStyle(el).fontSize`. `inline=9px` + `computed=18px` is the signature
+— the JS ran, wrote, and was overruled.
+
+**Fix shape:** route every write through one helper using
+`el.style.setProperty('font-size', px + 'px', 'important')`, and clear with
+`removeProperty`. Do this in the MEASURE loop too, not just the final write, or
+the measurement is meaningless.
+
+**General rule:** any JS that measures-then-sizes must set its trial values at a
+priority that actually wins, or it is measuring a value it does not control.
+
+## Gotcha: fit-to-box must measure BOTH axes — `word-break: keep-all` makes a long word overflow sideways, never down
+
+`fitWrapped` iterated font-size against `scrollHeight` vs a 3-line box only. The
+board labels set `word-break: keep-all` + `overflow-wrap: normal` on purpose (for
+AAC, the shape of the whole word is the recognition cue, so never split one), so a
+single long word **cannot wrap**: it stays on one line, overflows horizontally,
+and `text-overflow: ellipsis` renders `color/visual` → `color/…`. One line always
+fits a 3-line box, so the height-only check reported "fits" and the label was
+silently truncated instead of shrunk.
+
+Add a width test (`scrollWidth <= boxW - safety`) alongside the height test.
+
+**Also:** the measure loop lifted `-webkit-line-clamp` / `max-height` / `overflow`
+to read natural height, and in that state `scrollWidth` reports a couple of px
+NARROWER than the restored box renders — so the loop stopped one step early and
+the label still ellipsised by 2-3px. A small width safety margin
+(`WRAP_WIDTH_SAFETY_PX`, mirroring the existing `INPUT_WIDTH_SAFETY = 0.9`)
+absorbs the skew. Derive it from a measurement, not a guess.
+
+**Evidence:** [`2026-08-06-text-symbol-labels-cut-off.md`](./2026-08-06-text-symbol-labels-cut-off.md).

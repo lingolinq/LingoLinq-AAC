@@ -2962,11 +2962,12 @@ header.speaking, .board.speak {
      32px (the base .board.speak rule above) over-shot and clipped; 0 was flush. */
   margin-top: 6px !important;
 }
-/* Shorter viewports: reclaim the top breathing room. The 6px margin + the grid's 4px inset
-   read as wasted vertical space when height is tight — pull the board up snug under the
-   sentence bar. (The folder-tab reserve inside the cells already scales down with the smaller
-   buttons, so the tabs stay clear of the bar.) */
-@media (max-height: 820px) {
+/* Shorter OR narrower viewports: reclaim the top breathing room. The 6px margin + the grid's 4px
+   inset read as wasted vertical space when height is tight (≤820px tall) or width is small
+   (≤768px — phones/small tablets, per request) — pull the board up snug under the sentence bar.
+   (The folder-tab reserve inside the cells already scales down with the smaller buttons, so the
+   tabs stay clear of the bar.) */
+@media (max-height: 820px), (max-width: 768px) {
   .md-board-detail-grid.board.speak {
     margin-top: 0 !important;
     padding-top: 1px;
@@ -9404,8 +9405,18 @@ body.pretty_loader #loading_box {
      keeps the image from cropping against the taller label below.
      Scale ramps linearly from 1.0 at 800px viewport down to 0.6 at 400px
      and below. Uses transform so layout (img_holder box size set inline by
-     JS positioning) stays the same — only the visual image shrinks. */
-  .button img.symbol {
+     JS positioning) stays the same — only the visual image shrinks.
+     CLASSIC RENDERER ONLY. This whole @media block is classic board-alt CSS
+     (.button-label / .button-label-holder / the JS-positioned img_holder), but
+     `.button img.symbol` is generic and the modern board-detail card carries
+     `.button` too — so it was silently shrinking every board-detail symbol on
+     any viewport under 800px tall (0.968x at 768px, 0.6x at 400px), directly
+     fighting that page's "fill the holder" sizing. The modern card has no
+     JS-sized img_holder to protect: its symbol is a flex child that already
+     gives up space to the label, so the compensation is not just unnecessary
+     there, it is harmful. Excluded by class rather than moved so the classic
+     board keeps this behavior byte-for-byte. */
+  .button:not(.md-board-detail-symbol-card) img.symbol {
     transform: scale(clamp(0.6, calc(0.6 + (100vh - 400px) / 1000px), 1));
     transform-origin: center;
   }
@@ -67901,6 +67912,13 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 }
 .md-shell.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) {
   padding-top: 2px !important;
+  /* Published for .md-board-detail-layout's min-height calc below. That calc sizes
+     the layout to the full viewport, but the layout sits INSIDE this padding — so
+     without subtracting it the page is always exactly this much taller than the
+     screen and scrolls by 2px. Declared here, next to the padding it mirrors, so
+     the two cannot drift apart. Unset (→ 0px fallback) in edit/dark, which have
+     padding-top: 0. */
+  --bd-shell-pad-top: 2px;
   /* SPEAK mode: flatten the atmospheric shell gradient (defined on
      .md-shell--board-detail below) to the SAME flat surface as
      .md-board-detail-main. The main is now $brand-charcoal-dark (design pass) —
@@ -67951,8 +67969,15 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   /* 100dvh (dynamic viewport height) tracks the actual visible area on mobile
      — Android Chrome's URL bar eats into the viewport but isn't reflected in
      100vh. dvh keeps the layout flush to the visible bottom so the button grid
-     never clips and no empty gutter appears when the URL bar shows/hides. */
-  height: calc(100dvh - var(--topbar-height, 68px));
+     never clips and no empty gutter appears when the URL bar shows/hides.
+     `--bd-shell-pad-top` is the shell's own top padding (2px in speak mode,
+     declared next to that padding above). The layout is nested INSIDE it, so
+     without subtracting it the page is always exactly that much taller than the
+     viewport — a permanent 2px scrollbar with nothing to scroll to, which on a
+     375px-tall phone reads as "the board doesn't fit". This is the authoritative
+     height for speak mode: it outranks both the `height: auto` and the
+     `min-height` in the ≤820px block, so the subtraction has to happen HERE. */
+  height: calc(100dvh - var(--topbar-height, 68px) - var(--bd-shell-pad-top, 0px));
   box-sizing: border-box;
 }
 /* Speak mode: left/right breathing room lives on the board area (.md-board-detail-main)
@@ -69846,7 +69871,12 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    container-box differences. The fallback clamp only applies before the first
    measurement lands. */
 .md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction-label {
-  font-size: var(--prediction-label-font, clamp(10px, 14cqw, var(--bd-button-text-size, 15px)));
+  /* Fallback coefficient tracks the board label rule (26 / 13px floor) so the
+     pre-measurement paint is already the right size. Stays `cqw`, NOT `cqmin`
+     like the board card: this tile is an `inline-size` container, and in one of
+     those the block axis is unavailable, so `cqmin` would silently resolve
+     against the small-viewport size instead of the tile. */
+  font-size: var(--prediction-label-font, clamp(13px, 26cqw, var(--bd-button-text-size, 15px)));
   /* The rail sits on the DARK board surface in light mode too — the prediction
      tiles show the dark canvas through — so dark text is unreadable here. Use
      light text for legibility (matches the dark-mode rule below). */
@@ -75511,9 +75541,22 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   /* Reclaim the board area's outer chrome on short screens: the center board
      panel's padding (base 8/12/7, up to 24 bottom in some states) collapses to a
      uniform 4px so the grid uses the full width/height between the sentence bar
-     and the side rails (per request). */
+     and the side rails (per request).
+     TOP is 0, not 4px: the shell above already contributes its own 2px, and on a
+     375px-tall viewport (iPhone SE landscape) every one of these paddings stacked
+     — shell 2 + main 4 + sentence-row margin 6 = 12px of dead space before the
+     sentence bar even started. 0 here leaves the shell's 2px as the whole top
+     inset, which is the intent. */
   .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-main {
-    padding: 4px !important;
+    padding: 0 4px 4px !important;
+  }
+  /* Same squeeze under the sentence bar. The ≤820px rule sets `6px 2px 14px`,
+     which is fine on a tall tablet but spends 20px of a 375px-tall phone on the
+     gap above and below the bar. Top goes to 0 (the shell's 2px is the top inset)
+     and the gap to the grid drops to 4px, matching the grid's own 4px gutter on
+     short screens so the board reads as one evenly-spaced block. */
+  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-sentence-row {
+    margin: 0 2px 4px 2px;
   }
   /* Tighten the gutter between the board grid and the inline sidebar from 6px to
      4px so it matches the symmetric 4px board spacing — a small, even gap rather
@@ -75939,8 +75982,15 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   max-width: 100%;
   max-height: 100%;
   min-width: 0;
-  width: auto;
-  height: auto;
+  /* Fill the holder rather than sitting at intrinsic size. `width/height: auto`
+     meant an image only ever rendered as large as its source file, so a
+     low-resolution or small-canvas symbol left dead space inside a button that
+     had room for it — the symbol never expanded to its full allowed content
+     space. `100%` + `object-fit: contain` scales the symbol UP to the holder as
+     well as down, and contain still preserves aspect ratio, so nothing is
+     stretched or cropped. */
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   filter: none;
   opacity: 1;
@@ -76118,7 +76168,13 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   text-align: center;
   text-transform: var(--bd-button-text-transform, none);
   word-break: keep-all;
-  overflow-wrap: anywhere;
+  /* `normal`, not `anywhere`. `anywhere` let the browser break INSIDE a word to
+     make it fit — "you" rendered as "yo" / "u" — and for AAC the shape of the
+     whole word is the recognition cue, so a split word is worse than a small
+     one. With `normal` an over-wide word simply overflows, which is the signal
+     label_fit measures (scrollWidth > clientWidth) before shrinking the font to
+     fit. Wrapping at real word boundaries still works for multi-word labels. */
+  overflow-wrap: normal;
 }
 .high_contrast .md-board-detail-symbol-card__text-symbol {
   color: #f8fc03 !important;
@@ -79766,6 +79822,15 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   transition: background 0.25s ease, width 0.25s ease, height 0.25s ease;
   overflow: hidden;
 }
+/* Narrow buttons (<40px wide) in DEFAULT folder mode: nudge the tab 4px left (10px → 6px) so it
+   sits better on the smaller folder front. Driven by the .md-shell--buttons-narrow class the
+   controller adds when the measured board_cell_width drops below 40px (board_buttons_narrow) —
+   the same measured-width + shell-class pattern as md-shell--many-columns, rather than a
+   container query (nothing else queries the folder-cell container, so it's unproven here).
+   Scoped to default mode: Show-Labels-on-Tab / colored-corner have their own tab treatments. */
+.md-shell--buttons-narrow .md-board-detail-grid:not(.md-board-detail-grid--folder-tab-labels):not(.md-board-detail-grid--folder-colored-corner) .md-folder-tab {
+  left: 6px;
+}
 /* Grid ROW gap (the purple gap in devtools) in Show-Labels-on-Tab: fixed 4px.
    Column gap is untouched (keeps the user's button spacing). Two-class selector
    so it beats the ≤768px `.md-board-detail-grid:not(--folder-colored-corner)
@@ -80466,16 +80531,41 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   }
 }
 
-/* ≤1024px and below: tighten board-detail button vertical padding to
-   2px (from the base 4px) to recover grid space on smaller viewports
-   for larger boards. Horizontal padding is left at 4px. Scoped to the
-   board-detail grid (specificity above the base .md-board-detail-symbol-card
-   rule) so other symbol-card contexts (color legend, previews) are
-   unaffected. */
+/* Board-button padding scales with the BUTTON, not the viewport. A percentage
+   resolves against the grid cell's width, so this reads "1% of the button,
+   floored at a 1px hairline, capped at the base 4px": small buttons get their
+   1px no matter how wide the screen is, big buttons keep a comfortable frame.
+   Replaces a `@media (max-width: 1024px) { padding: 1px }` rule that keyed off
+   the wrong axis — a dense board on a WIDE screen (14 columns at 1660px →
+   108×44px buttons) never matched it and kept the full 4px, spending 8px of a
+   44px button (18% of its height) on frame instead of symbol.
+   A container query would be the precise tool, but a container cannot query
+   ITSELF, and making the parent cell a container implies `contain: layout`,
+   which puts a stacking context on every cell and risks trapping the protruding
+   folder tab under its neighbour. Percentage padding needs no containment and no
+   breakpoint. Still scoped to .md-board-detail-grid so the other symbol-card
+   contexts (colour legend, board previews) keep the flat base 4px.
+   VERTICAL padding is a flat 1px hairline and deliberately does NOT scale: a CSS
+   percentage always resolves against the containing block's WIDTH, even for
+   padding-top/bottom, so a wide-but-short button (108x44) was being given a
+   vertical inset sized by its width — the wrong axis entirely, and the source of
+   the dead band under the symbol on short cards. Horizontal padding still scales,
+   because there width IS the right axis. */
+.md-board-detail-grid .md-board-detail-symbol-card {
+  padding: 1px clamp(1px, 1%, 4px);
+}
+
 @media (max-width: 1024px) {
-  .md-board-detail-grid .md-board-detail-symbol-card {
-    padding-top: 2px;
-    padding-bottom: 2px;
+  /* The label's own 3px/5px padding is the other half of the same problem: with
+     the bigger small-screen font above, that 8px of vertical chrome came
+     straight out of the symbol holder (flex:1 gets only what's left), shrinking
+     the symbol on sparse boards even as the word grew. Trim it to a hairline so
+     the word can grow WITHOUT costing the symbol. Bottom goes to 0, matching the
+     intent of the ≤768px rule further up. Single-class specificity on purpose:
+     the tighter @container short-card tiers below are later in source and still
+     take over on genuinely short cards. */
+  .md-board-detail-symbol-card__label {
+    padding: 1px 1px 0;
   }
 }
 
@@ -80744,23 +80834,40 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   }
 }
 
+/* Small-screen button labels.
+   These coefficients were measured, not guessed: on a 14-column board at
+   1024x768 the old `clamp(10px, 14cqw, pref)` bottomed out on its 10px FLOOR
+   while the user's chosen button text size was 35px — the word rendered at 29%
+   of the requested size and was unreadable at arm's length. Two changes:
+   (1) `cqw` -> `cqmin`. Width-only sizing ignores how tall the button is, which
+       is the axis that actually varies as rows are added; `cqmin` tracks the
+       smaller dimension so the label fits either way and can't outgrow a narrow
+       card. Matches the height-aware @container tiers below, so the two agree
+       instead of contradicting each other.
+   (2) Higher coefficient + higher floor, so the label lands near the user's
+       preference instead of collapsing to the floor. The clamp ceiling is still
+       `--bd-button-text-size`, so the preference remains the upper bound and
+       nothing grows past what the user asked for.
+   Card padding drops to 1px at <=1024px (see the card rule) which widens the
+   container box these percentages resolve against, so the symbol keeps its room
+   even as the word gets bigger. */
 @media (max-width: 1200px) {
   .md-board-detail-symbol-card__label {
-    font-size: clamp(10px, 14cqw, var(--bd-button-text-size, 15px)) !important;
+    font-size: clamp(13px, 26cqmin, var(--bd-button-text-size, 15px)) !important;
   }
   .md-board-detail-symbol-card__label-input {
-    font-size: clamp(10px, 14cqw, var(--bd-button-text-size, 15px)) !important;
+    font-size: clamp(13px, 26cqmin, var(--bd-button-text-size, 15px)) !important;
   }
   .md-board-detail-grid--text-pos-text_only .md-board-detail-symbol-card__label {
-    font-size: clamp(11px, 17cqw, calc(var(--bd-button-text-size, 19px) * 1.2)) !important;
+    font-size: clamp(14px, 30cqmin, calc(var(--bd-button-text-size, 19px) * 1.2)) !important;
   }
 }
 @media (max-width: 820px) {
   .md-board-detail-symbol-card__label {
-    font-size: clamp(9px, 13cqw, var(--bd-button-text-size, 15px)) !important;
+    font-size: clamp(12px, 24cqmin, var(--bd-button-text-size, 15px)) !important;
   }
   .md-board-detail-symbol-card__label-input {
-    font-size: clamp(9px, 13cqw, var(--bd-button-text-size, 15px)) !important;
+    font-size: clamp(12px, 24cqmin, var(--bd-button-text-size, 15px)) !important;
   }
   .md-folder-tab__label {
     font-size: clamp(10px, 2vw, var(--bd-button-text-size, 14px)) !important;
@@ -80772,7 +80879,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     font-size: clamp(11px, 2vw, 15px) !important;
   }
   .md-board-detail-grid--text-pos-text_only .md-board-detail-symbol-card__label {
-    font-size: clamp(9px, 16cqw, calc(var(--bd-button-text-size, 19px) * 1.2)) !important;
+    font-size: clamp(13px, 28cqmin, calc(var(--bd-button-text-size, 19px) * 1.2)) !important;
   }
 }
 
@@ -80796,7 +80903,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 @container symbol-card (max-height: 72px) {
   .md-board-detail-symbol-card__label,
   .md-board-detail-symbol-card__label-input {
-    font-size: clamp(10px, 24cqmin, var(--bd-button-text-size, 15px));
+    font-size: clamp(13px, 26cqmin, var(--bd-button-text-size, 15px));
     line-height: 1.1;
     padding: 1px 2px 2px;
   }
@@ -80804,11 +80911,28 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 @container symbol-card (max-height: 48px) {
   .md-board-detail-symbol-card__label,
   .md-board-detail-symbol-card__label-input {
-    font-size: clamp(9px, 22cqmin, var(--bd-button-text-size, 15px));
+    font-size: clamp(12px, 24cqmin, var(--bd-button-text-size, 15px));
     line-height: 1.05;
     -webkit-line-clamp: 2;
     max-height: 2.2em;
     padding: 0 1px 1px;
+  }
+}
+/* Under 45px tall the button has no room to spare: push the word up tight
+   against its own glyph box and hand every remaining pixel to the symbol. The
+   label is `flex-shrink: 0` so whatever height it claims is taken straight out
+   of `__image` (`flex: 1 1 auto` gets only the leftovers) — meaning the label's
+   own padding and leading, not the font size, are what starve the symbol at this
+   size. So: zero padding, line-height 1 (no leading above/below the glyphs), and
+   a single line. The font size is deliberately NOT reduced further — shrinking
+   the word to grow the symbol just trades one unreadable thing for another. */
+@container symbol-card (max-height: 45px) {
+  .md-board-detail-symbol-card__label,
+  .md-board-detail-symbol-card__label-input {
+    line-height: 1;
+    -webkit-line-clamp: 1;
+    max-height: 1em;
+    padding: 0;
   }
 }
 
@@ -80888,7 +81012,10 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     grid-template-columns: 1fr;
     padding: 14px 16px 20px;
     height: auto;
-    min-height: calc(100dvh - var(--topbar-height, 68px));
+    /* Also subtract the shell's own top padding — the layout is nested inside it,
+       so a bare 100dvh made the page exactly 2px taller than the viewport and
+       forced a scrollbar on short screens with nothing actually to scroll to. */
+    min-height: calc(100dvh - var(--topbar-height, 68px) - var(--bd-shell-pad-top, 0px));
   }
   // Default: hide both sidebars and backdrop
   .md-board-detail-sidebar,
@@ -88460,6 +88587,160 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   @keyframes ll-toast-slide-in {
     from { opacity: 0; transform: translateY(12px); }
     to   { opacity: 1; transform: translateY(0); }
+  }
+}
+
+/* ── Background board-copy drawer ──────────────────────
+   Bottom-RIGHT companion to .ll-toast: when a copy is sent to the background
+   (click outside the "Copying Board" modal), it minimizes to this drawer, and
+   the finished/failed toast then takes the same slot. Its own block rather than
+   an .ll-toast modifier because .ll-toast is bottom-centered app-wide and is
+   driven by a different component. */
+.ll-copy-drawer {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  max-width: min(360px, calc(100vw - 48px));
+  display: flex;
+  /* Top-aligned, not centered: the result card grows to two lines plus an action
+     row, and a vertically-centered icon drifts away from the headline it marks. */
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px 14px 18px;
+  background: #fff;
+  border-radius: 12px;
+  border-left: 4px solid $brand-verdigris;
+  box-shadow: 0 10px 28px rgba($la-navy, 0.18), 0 2px 6px rgba($la-navy, 0.08);
+  color: $la-navy;
+  z-index: 10000;
+  animation: ll-copy-drawer-slide-in 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* Smaller than the modal's 32px spinner — this is a status badge, not the
+   main event. */
+.ll-copy-drawer__spinner {
+  width: 22px;
+  height: 22px;
+  border-width: 2px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.ll-copy-drawer__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: $brand-verdigris;
+  margin-top: 2px;
+}
+.ll-copy-drawer__body {
+  flex: 1;
+  min-width: 0;
+}
+.ll-copy-drawer__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+  word-break: break-word;
+}
+.ll-copy-drawer__hint {
+  margin: 3px 0 0;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: rgba($la-navy, 0.65);
+  word-break: break-word;
+}
+/* Result-card actions. The card waits to be answered rather than fading, so the
+   choice has to be reachable — full-size targets, not text links. */
+.ll-copy-drawer__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.ll-copy-drawer__btn {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba($la-navy, 0.18);
+  background: #fff;
+  color: $la-navy;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.ll-copy-drawer__btn:hover {
+  background: rgba($la-navy, 0.06);
+  color: $la-navy;
+}
+.ll-copy-drawer__btn--primary {
+  background: $brand-verdigris;
+  border-color: $brand-verdigris;
+  color: #fff;
+}
+.ll-copy-drawer__btn--primary:hover {
+  /* color.adjust(), not the deprecated global darken(), and not a hardcoded hex:
+     this sheet already `@use`s sass:color (top of file) and derives its palette
+     that way (see the .fitzgerald-*-soft variants in _variables.scss), so the
+     hover stays tied to $brand-verdigris and follows the brand color if it moves. */
+  background: color.adjust($brand-verdigris, $lightness: -7%);
+  border-color: color.adjust($brand-verdigris, $lightness: -7%);
+  color: #fff;
+}
+.ll-copy-drawer__btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px $brand-verdigris;
+}
+.ll-copy-drawer__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba($la-navy, 0.5);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  flex-shrink: 0;
+}
+.ll-copy-drawer__close:hover {
+  background: rgba($la-navy, 0.08);
+  color: $la-navy;
+}
+.ll-copy-drawer__close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px $brand-verdigris;
+}
+
+/* Result states reuse the toast's accent language */
+.ll-copy-drawer--done {
+  border-left-color: #2ecc71;
+}
+.ll-copy-drawer--done .ll-copy-drawer__icon { color: #2ecc71; }
+.ll-copy-drawer--error {
+  border-left-color: $brand-danger;
+}
+.ll-copy-drawer--error .ll-copy-drawer__icon { color: $brand-danger; }
+
+@keyframes ll-copy-drawer-slide-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ll-copy-drawer { animation: none; }
+  .ll-copy-drawer__spinner { animation: none; }
+}
+@media (max-width: 480px) {
+  .ll-copy-drawer {
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    max-width: none;
   }
 }
 
