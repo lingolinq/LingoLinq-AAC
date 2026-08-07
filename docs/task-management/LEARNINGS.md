@@ -156,6 +156,7 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Pattern: a CSS background-image on a Shepherd popover (or any lazily-injected element) flashes blank on first open — preload it](#pattern-a-css-background-image-on-a-shepherd-popover-or-any-lazily-injected-element-flashes-blank-on-first-open--preload-it)
 - [Pattern: a guided-tour auto-open flag consumed at a single afterRender misses when the gating state (edit_mode) resolves on a promise microtask — poll the condition](#pattern-a-guided-tour-auto-open-flag-consumed-at-a-single-afterrender-misses-when-the-gating-state-edit_mode-resolves-on-a-promise-microtask--poll-the-condition)
 - [Pattern: `i18n_generator.rb --merge` does NOT refresh CHANGED English into existing locale placeholders — only adds MISSING keys](#pattern-i18n_generatorrb---merge-does-not-refresh-changed-english-into-existing-locale-placeholders--only-adds-missing-keys)
+- [Pattern: removing a user-facing toggle has an artifact checklist — source removal is only half of it](#pattern-removing-a-user-facing-toggle-has-an-artifact-checklist--source-removal-is-only-half-of-it)
 - [Pattern: a Shepherd popover anchored to an element that gets removed mid-transition is flung to the top-left (0,0) by floating-ui — snap it out instantly](#pattern-a-shepherd-popover-anchored-to-an-element-that-gets-removed-mid-transition-is-flung-to-the-top-left-00-by-floating-ui--snap-it-out-instantly)
 - [Pattern: the app root font-size is 10px (62.5%) — `rem` font-sizes render at 62.5%; ALWAYS use px (or the $aac-font-size-* tokens), never rem](#pattern-the-app-root-font-size-is-10px-625--rem-font-sizes-render-at-625-always-use-px-or-the-aac-font-size--tokens-never-rem)
 - [Pattern: a click-to-speak container that holds the inline word-prediction buttons CANNOT be `role="button"`](#pattern-a-click-to-speak-or-click-to-act-container-that-holds-the-inline-word-prediction-buttons-cannot-be-rolebutton)
@@ -4082,8 +4083,8 @@ resolves to the **board OWNER** (the `:user_id` in the URL), which is NOT the
 logged-in user when you open a board you don't own (anything outside "My
 Boards"). Every personal viewing preference toggle in
 `controllers/user/board-detail.js` (`set_folder_style`,
-`toggle_folder_colored_face`, `toggle_shrink_labels_to_fit`,
-`toggle_soft_borders`, `toggle_hide_speak_bar`, `set_speak_menu_item_hidden`)
+`toggle_folder_colored_face`, `toggle_soft_borders`,
+`toggle_hide_speak_bar`, `set_speak_menu_item_hidden`)
 **saves** to `app_state.currentUser.preferences.*`. The route's `setupController`
 was **reading** them back from `modelFor('user')` — so on another user's board
 they silently reverted to defaults (the owner has no such pref saved).
@@ -5682,7 +5683,61 @@ rails-console step (`WordData.translate_locale_batch`). Always re-validate each
 file parses as JSON after a `sed` sweep (`ruby -e "require 'json'; JSON.parse(...)"`).
 Escape `&` as `\&` in the sed replacement.
 
-**First seen in:** [2026-06-15-board-detail-tour-tools-reword.md](./2026-06-15-board-detail-tour-tools-reword.md)
+**Corollary — `--merge` never PRUNES either.** The same additive-only loop
+(`new_json[key] ||= string unless skip_string`, i18n_generator.rb ~L322) copies
+every key already in a locale file forward unconditionally. So when you DELETE a
+string from the source tree, `--generate` correctly drops it from en.json but it
+survives forever in all 12 non-English locales as an orphan. Removing a
+user-facing feature is therefore never finished by regenerating: grep the key
+across `public/locales/` and delete it yourself.
+
+Do that with Ruby `JSON.parse` → `delete` → `JSON.pretty_generate` rather than
+`sed` — that is the exact serializer the generator writes with, so a no-op
+round-trip is byte-identical (verify this first) and the diff contains only the
+removed lines with no incidental reformatting. `sed` on these files risks a
+dangling comma when the key is last in its object.
+
+**First seen in:** [2026-06-15-board-detail-tour-tools-reword.md](./2026-06-15-board-detail-tour-tools-reword.md);
+prune corollary in [2026-08-07-remove-shrink-labels-to-fit-toggle.md](./2026-08-07-remove-shrink-labels-to-fit-toggle.md)
+
+---
+
+## Pattern: removing a user-facing toggle has an artifact checklist — source removal is only half of it
+
+**Surface:** deleting (or neutralizing) any preference switch — a Text Settings
+toggle, a feature checkbox, a settings row.
+
+**Symptom:** the switch is gone from the UI and every grep of
+`app/frontend/app` is clean, so the removal reads as done — but the i18n key
+lingers in 12 locale files, and any `LEARNINGS.md`/doc entry naming the removed
+action function is now pointing at something that no longer exists.
+
+**Checklist** (all verified by grep, not assumed):
+
+1. Template markup + `data-*-action` hook
+2. Controller property + `toggle_*` action
+3. Component `@arg` and any `--modifier` body class it drove
+4. Observers on the property (`observer('shrinkLabelsToFit', …)`)
+5. Consumers gating on the modifier class (here: `label-field.js` checked
+   `.md-board-detail-grid--shrink-labels` before re-fitting one label)
+6. The behavior gate itself in the util
+7. SCSS rules scoped to the modifier class
+8. Server-side preference whitelist (often absent — LingoLinq stores
+   `preferences.*` as an open blob, so nothing to remove in Rails)
+9. **`public/locales/*.json` in all 12 non-English locales** — see the prune
+   corollary above; the generator will not do this
+10. Docs/LEARNINGS entries that cite the removed function as a live example
+
+Steps 9 and 10 are the ones that get missed, because 1–8 are what a grep of the
+app source shows you and they come back clean.
+
+**Judgment call worth recording:** a toggle whose behavior became unconditional
+should be REMOVED, not left in place. On an AAC product a switch that controls
+nothing is a support burden — but note the stored `preferences.<key>` value on
+existing users is deliberately left alone; it's an inert key in an open blob, and
+deleting user data to tidy a schema is the riskier half of the trade.
+
+**First seen in:** [2026-08-07-remove-shrink-labels-to-fit-toggle.md](./2026-08-07-remove-shrink-labels-to-fit-toggle.md)
 
 ---
 
