@@ -623,12 +623,24 @@ export default Service.extend({
   refresh_user: function() {
     var _this = this;
     if (_this.isDestroyed || _this.isDestroying) { return; }
-    runCancel(_this.refreshing_user);
+    clearTimeout(_this.refreshing_user);
 
     function refresh() {
       if (_this.isDestroyed || _this.isDestroying) { return; }
-      runCancel(_this.refreshing_user);
-      _this.refreshing_user = runLater(function() {
+      clearTimeout(_this.refreshing_user);
+      // A NATIVE setTimeout, deliberately — not `runLater`. This callback
+      // re-arms ITSELF every 15 minutes, and Ember's test waiters track runloop
+      // timers, so as a `runLater` the app carried a permanently pending timer
+      // and `await visit(...)` could never reach a settled state. That is the
+      // real reason every acceptance test on an authenticated route was skipped
+      // as "hangs on visit()" — not the session/auth bootstrap it was blamed on.
+      //
+      // A quarter-hour background poll has no business in the runloop queue
+      // anyway; the other periodic work in this service (sync, brightness,
+      // auth-sync) already uses native timers for the same reason. Behavior is
+      // unchanged in production — same interval, same reschedule, and
+      // `refreshing_user` still holds a cancellable token.
+      _this.refreshing_user = setTimeout(function() {
         if (_this.isDestroyed || _this.isDestroying) { return; }
         _this.refresh_user();
       }, 60000 * 15);

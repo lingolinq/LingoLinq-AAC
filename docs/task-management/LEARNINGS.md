@@ -175,6 +175,9 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Gotcha: a media query adds NO specificity — an un-nested rule can silently outrank your breakpoint fix](#gotcha-a-media-query-adds-no-specificity--an-un-nested-rule-can-silently-outrank-your-breakpoint-fix)
 - [Pattern: a viewport-filling `calc(100dvh - …)` must subtract every ancestor inset it sits inside](#pattern-a-viewport-filling-calc100dvh--must-subtract-every-ancestor-inset-it-sits-inside)
 - [Gotcha: a plain inline style LOSES to a CSS `!important` — JS "fit to size" silently no-ops](#gotcha-a-plain-inline-style-loses-to-a-css-important--js-fit-to-size-silently-no-ops)
+- [Gotcha: a self-rescheduling `runLater` makes every acceptance test hang — and the cause is never where the TODO says](#gotcha-a-self-rescheduling-runlater-makes-every-acceptance-test-hang--and-the-cause-is-never-where-the-todo-says)
+- [Gotcha: Mirage 3 needs a config parameter and explicit models — symptoms look like an app hang](#gotcha-mirage-3-needs-a-config-parameter-and-explicit-models--symptoms-look-like-an-app-hang)
+- [Gotcha: a skipped test's fixtures rot silently](#gotcha-a-skipped-tests-fixtures-rot-silently)
 - [Gotcha: fit-to-box must measure BOTH axes — `word-break: keep-all` makes a long word overflow sideways, never down](#gotcha-fit-to-box-must-measure-both-axes--word-break-keep-all-makes-a-long-word-overflow-sideways-never-down)
 - [Pattern: per-user UI prefs must be read from `currentUser`, not the board-detail route's URL user](#pattern-per-user-ui-prefs-must-be-read-from-currentuser-not-the-board-detail-routes-url-user)
 - [Pattern: `.md-board-collection__*` is a light-base panel reusable on any page; dark theme is ancestor-scoped](#pattern-md-board-collection-is-a-light-base-panel-reusable-on-any-page-dark-theme-is-ancestor-scoped)
@@ -8795,3 +8798,70 @@ When `settings.categories` had no matches for a tab, `_resolveCategoryBoards` lo
 
 **Evidence:** [`2026-08-05-boards-folder-accordion-fn-sendaction.md`](./2026-08-05-boards-folder-accordion-fn-sendaction.md); related LEARNINGS entry on `(fn this.ctrlAction …)`.
 
+
+## Gotcha: a self-rescheduling `runLater` makes every acceptance test hang — and the cause is never where the TODO says
+
+`await visit(...)` waits for a settled state, and Ember's test waiters track
+runloop timers. So ONE `runLater` callback that re-arms itself blocks every
+acceptance test in the app, forever. `app_state#refresh_user` did exactly that on
+a 15-minute cycle, which is why every acceptance test touching an authenticated
+route in this repo was `QUnit.skip`ped with a TODO blaming the session/auth
+bootstrap. The TODO was wrong, and building the auth stub it asked for would have
+fixed nothing.
+
+**Diagnose it, don't guess.** Call `visit()` WITHOUT awaiting, wait on a raw
+`setTimeout` (not waiter-tracked), then dump `getSettledState()` from
+`@ember/test-helpers`:
+
+```js
+visit('/some/route');                                  // deliberately not awaited
+await new Promise((r) => setTimeout(r, 9000));
+console.log(JSON.stringify(getSettledState()));        // debugInfo.timers has STACKS
+```
+
+`debugInfo.timers[].stack` names the exact function that scheduled each pending
+timer. Three plausible hypotheses (auth, persistence bootstrap, the scanner) were
+all wrong; the probe answered it in one run.
+
+**Fix shape:** long-period background polling belongs on a native `setTimeout` /
+`setInterval`, not `runLater` — a 15-minute refresh has no business in the runloop
+queue, and this codebase already uses native timers for its other pollers. Prefer
+that to an `isTesting()` early-return: the first attempt here guarded the
+reschedule with `isTesting()` and broke two existing unit tests that assert
+`refreshing_user` receives a fresh token. Native timers keep production behavior
+AND the token contract, with no test-only branch.
+
+**Related:** bounded retry chains (`resume_scanning`'s 10 attempts on a
+100–900ms backoff) do NOT hang the suite — they just make each `visit()` cost
+seconds. Only self-perpetuating timers are fatal.
+
+## Gotcha: Mirage 3 needs a config parameter and explicit models — symptoms look like an app hang
+
+Two failures that both present as "acceptance tests don't work", neither of them
+in app code:
+
+1. `Mirage config default exported function must at least one parameter` —
+   ember-cli-mirage 3.x calls the default export WITH its discovered config and
+   expects it to create the server. A 2.x-style `export default function() {
+   this.get(...) }` throws inside `startMirage`, i.e. in `beforeEach`, so the test
+   never reaches `visit()` at all. Shape:
+   `export default function (config) { return createServer({...config, routes}) }`
+   with the old body kept as `routes` (invoked with the server as `this`).
+2. **Factories are not models.** `mirage/factories/user.js` alone does not create
+   `schema.users`; without `mirage/models/user.js` any handler calling
+   `schema.users.findBy(...)` throws and Mirage answers **500**, which then fails
+   the route and reads like an app bug.
+
+Also: this API's `:id` segments are `find_by_path` values (global_id OR
+user_name), and `schema.users.find()` only knows record ids and THROWS on a miss.
+Match on `user_name` first and fall back to `find` only for a numeric segment.
+
+**Evidence:** [`2026-08-07-acceptance-test-harness-unblocked.md`](./2026-08-07-acceptance-test-harness-unblocked.md).
+
+## Gotcha: a skipped test's fixtures rot silently
+
+`board-detail-empty-state-test.js` created a board keyed `tester/view-only-empty`
+and then visited `/viewer/board-detail/view-only-empty`. Mirage looks boards up by
+`<user_name>/<boardname>` from the URL, so the lookup 404'd. The mismatch had been
+sitting there unnoticed because the test was skipped — nothing had ever executed
+it. When unskipping anything, expect its fixtures to be wrong, and budget for it.

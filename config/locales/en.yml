@@ -73,11 +73,17 @@ en:
     revoke_invalid_body: "This withdrawal link is not valid anymore. If you need to withdraw consent, contact support."
     home_link: "%{app_name} Home"
   consent_nav:
+    # logo_alt is no longer used — the brand name is resolved per-domain from
+    # current_domain.app_name so white-labeled installs don't announce "LingoLinq".
+    # Kept so any cached/translated copies don't 500 on a missing key.
     logo_alt: "LingoLinq"
+    nav_label: "Site"
     demo: "Try a Demo"
     features: "Features"
     about: "About"
     beta_feedback: "Beta feedback"
+    # sign_in / try_free are no longer rendered on the consent pages (conversion
+    # CTAs don't belong on a legal consent confirmation). Kept for the same reason.
     sign_in: "Sign In"
     try_free: "Try Free"
   eu_ai_parental_consent_mailer:

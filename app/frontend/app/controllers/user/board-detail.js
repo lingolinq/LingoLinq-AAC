@@ -63,6 +63,10 @@ const SPEAK_MENU_ITEMS = [
   { id: 'print',                section: 'share',     label_key: 'print', default_label: 'Print' },
   { id: 'share',                section: 'share',     label_key: 'share', default_label: 'Share' },
   { id: 'button_levels',        section: 'session',   label_key: 'button_levels', default_label: 'Button Levels' },
+  // Board lock. Listed so it can be hidden/shown from the customize-menu UI like
+  // every other item; the control itself is rendered in board-detail.hbs and must
+  // stay reachable because this page ENFORCES sticky_board on navigation.
+  { id: 'sticky_board',         section: 'session',   label_key: 'stay_on_board', default_label: 'Stay on this Board' },
   { id: 'pause_logging',        section: 'session',   label_key: 'pause_logging', default_label: 'Pause Logging' },
   { id: 'modeling',             section: 'session',   label_key: 'board_detail_model_for_communicator', default_label: 'Model for Communicator' },
   { id: 'switch_communicators', section: 'session',   label_key: 'switch_communicators', default_label: 'Switch Communicators' }
@@ -560,6 +564,12 @@ export default Controller.extend(prefClasses, {
     // action (also reached via raw_events chrome clicks) delegates here.
     _this.onSelectBoardFromCollection = function(boardOrKey) {
       if(!boardOrKey) { return; }
+      // Board lock: picking a board from the Collections drawer leaves the current
+      // board, so it is an exit like Back / Home / a folder button. It was
+      // unguarded. Returns undefined (not a transition promise) when blocked —
+      // BoardCollection treats a missing promise as "nothing to wait for" and
+      // falls back to its own timeout to clear the "Opening your board" overlay.
+      if(_this.board_lock_blocks_exit()) { return; }
       var key = typeof boardOrKey === 'string' ? boardOrKey : ((boardOrKey.get && boardOrKey.get('key')) || boardOrKey.key);
       // Keep the collection PINNED (do NOT clear board_collection_open) so the drawer
       // stays open while the chosen board loads in the grid on the left.
@@ -5158,6 +5168,37 @@ export default Controller.extend(prefClasses, {
     }
   },
 
+  // Board lock ("Stay on this Board") — the ONE place that decides whether
+  // leaving the current board is allowed, and the only place that raises the
+  // notice. Every board-to-board exit on this page calls it.
+  //
+  // It exists because the check used to be copy-pasted inline, and had been
+  // copied to only 2 of this page's ~12 exits: `go_back` checked it on the
+  // hierarchical-parent fallback but NOT on the ordinary in-session Back (which
+  // transitions and returns first), and `go_home` and the Board Collections
+  // drawer never checked it at all. A supervisor switching the lock on saw the
+  // toggle engaged and the warning working, while Back and Home walked straight
+  // out — a safety feature that failed quietly, which is the worst way for one
+  // to fail.
+  //
+  // Scope matches the classic implementation (`controllers/application.js`
+  // home / jump / back): the lock restrains BOARD-TO-BOARD navigation while
+  // communicating. It is deliberately NOT a route-level `willTransition` guard —
+  // that would also block leaving for settings, the dashboard, or logout, which
+  // the lock has never done and which would strand the user.
+  //
+  // Gated on `edit_mode` (this controller's own flag), not `app_state.speak_mode`:
+  // speak_mode is `current_mode == 'speak' && currentBoardState`, and
+  // currentBoardState belongs to the classic board renderer, so keying on it here
+  // risks the lock silently evaluating false and enforcing nothing. Editing the
+  // board is the deliberate escape, same as leaving speak mode is on classic.
+  board_lock_blocks_exit: function() {
+    if(!this.get('stashes').get('sticky_board')) { return false; }
+    if(this.get('edit_mode')) { return false; }
+    modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
+    return true;
+  },
+
   actions: {
     re_transition: function() {
       this.set('retrying', true);
@@ -5666,6 +5707,11 @@ export default Controller.extend(prefClasses, {
     },
 
     go_back: function() {
+      // Checked FIRST, before the in-session-history branch below. That branch
+      // transitions and returns, so a lock check placed after it (as it was)
+      // only ever ran on the no-history parent-climb fallback — Back was the
+      // lock's open front door.
+      if(this.board_lock_blocks_exit()) { return; }
       var history = (this.get('app_state.board_detail_nav_history') || []).slice();
       var prev = history.pop();
       if(prev) {
@@ -5676,10 +5722,6 @@ export default Controller.extend(prefClasses, {
       // No in-session trail (e.g. deep-linked board): climb hierarchical parent if set.
       var parentKey = this.get('model.parent_board_key');
       if(!parentKey || String(parentKey).indexOf('/') === -1) { return; }
-      if(this.get('stashes').get('sticky_board')) {
-        modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
-        return;
-      }
       var _this = this;
       this._preferred_board_detail_key(String(parentKey)).then(function(preferred_key) {
         if(_this.isDestroyed || _this.isDestroying) { return; }
@@ -5690,6 +5732,9 @@ export default Controller.extend(prefClasses, {
 
     go_home: function() {
       this.set('show_options_menu', false);
+      // Home is a board-to-board exit like any other and was entirely unguarded
+      // — it even cleared board_detail_nav_history on the way out.
+      if(this.board_lock_blocks_exit()) { return; }
       // Prefer the user's saved home board
       var home = this.get('app_state.currentUser.preferences.home_board');
       if(home && home.key) {
@@ -6576,11 +6621,8 @@ export default Controller.extend(prefClasses, {
       // Folder navigation — intercept for board-detail routing
       var load_board = _get(_action_src, 'load_board');
       if(load_board && !_get(_action_src, 'link_disabled')) {
-        // Board lock: prevent navigation when sticky_board is enabled
-        if(_this.get('stashes').get('sticky_board')) {
-          modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
-          return;
-        }
+        // Board lock: folder navigation is a board-to-board exit.
+        if(_this.board_lock_blocks_exit()) { return; }
         // "Also speak & add to the vocalization box" (add_to_vocalization/add_vocalization)
         // and "Set as temporary home when loaded" (home_lock) are handled by the canonical
         // app_state.activate_button — it adds the word to the sentence box (utterance.add_button)

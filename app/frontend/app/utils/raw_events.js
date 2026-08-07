@@ -1291,8 +1291,33 @@ var buttonTracker = EmberObject.extend({
 
 
     var selectable_wrap = buttonTracker.find_selectable_under_event(event);
+    // A CANCELLED release is not a selection. This handler is bound to
+    // `mouseup touchend touchcancel blur`, and everything below treats whatever
+    // arrives as a completed interaction — so a touch the SYSTEM cancelled (palm
+    // rejection, an incoming call, the browser taking the gesture over for a
+    // scroll) or a window that lost focus mid-press was activating the control
+    // under the finger. Verified on board-detail chrome: touchStart on the
+    // options-menu toggle followed by touchCancel — or by a blur — opened the
+    // menu, exactly as a real tap does. On an AAC device that is an action the
+    // user explicitly did NOT complete.
+    //
+    // Skipping the whole chain (not just the element_release branch) is
+    // deliberate: `boardDetailGridEditActionRelease`, `boardDetailChromeRelease-
+    // FromEvent` and `modalDialogClickRelease` are activation paths too, a
+    // cancelled swipe should not page, and a cancelled DRAG should not complete
+    // its drop. The teardown below this chain — release_stroke / stop_dragging /
+    // initialTarget / clear_touched — runs unconditionally, so cancelling still
+    // cleans up fully; only the activation is dropped.
+    //
+    // Non-pointer input is unaffected: dwell, eye-gaze, scanning and long-press
+    // reach element_release through their own call sites with their own
+    // trigger_source ('switch' / 'expression' / 'longpress' / 'keyboard_control'),
+    // never through this handler.
+    var release_cancelled = (event.type === 'touchcancel' || event.type === 'blur');
     // if dragging a button, behavior is very different than otherwise
-    if(swipe_page) {
+    if(release_cancelled) {
+      // fall through to the teardown below — no activation
+    } else if(swipe_page) {
       buttonTracker.appState.jump_to_next(swipe_page == 'e' || swipe_page == 's');
 
     } else if(buttonTracker.drag) {

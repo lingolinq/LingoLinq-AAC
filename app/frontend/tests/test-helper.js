@@ -57,6 +57,7 @@ QUnit.on('runEnd', function(runEnd) {
 // version; importing them here guarantees they're pulled into the bundle and
 // their `module()`/`test()` calls fire before `start()` below.
 import 'frontend/tests/acceptance/board-detail-empty-state-test';
+import 'frontend/tests/acceptance/board-lock-test';
 import 'frontend/tests/acceptance/lesson_expired_test';
 import 'frontend/tests/unit/controllers/board-index-word-prediction-locale-test';
 import 'frontend/tests/unit/controllers/copying-board-test';

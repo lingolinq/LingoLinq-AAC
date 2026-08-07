@@ -28,8 +28,6 @@
       width: 100%;
       max-width: 34rem;
       text-align: center;
-      /* Sit higher than dead-center — nudge the card up. */
-      transform: translateY(-8rem);
       padding: 2.5rem 2rem 2.75rem;
       border-radius: 16px;
       background:
@@ -138,52 +136,31 @@
       transition: color 0.15s ease, background 0.15s ease;
     }
     .ll-topbar__link:hover { color: #333333; background: rgba(0, 0, 0, 0.06); }
-    .ll-topbar__actions {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      margin-left: auto;
-      flex: 0 0 auto;
-    }
-    .ll-topbar__signin {
-      color: #1B365D;
-      text-decoration: none;
-      font-size: 14px;
-      font-weight: 600;
-      padding: 6px 14px;
-      border-radius: 999px;
-      white-space: nowrap;
-      transition: background 0.15s ease;
-    }
-    .ll-topbar__signin:hover { background: rgba(0, 0, 0, 0.05); }
-    .ll-topbar__cta {
-      display: inline-flex;
-      align-items: center;
-      background: #F2B95A;
-      color: #1B365D;
-      font-size: 14px;
-      font-weight: 600;
-      padding: 6px 16px;
-      border-radius: 999px;
-      border: 1px solid rgba(242, 185, 90, 0.5);
-      letter-spacing: 0.01em;
-      text-decoration: none;
-      white-space: nowrap;
-      transition: filter 0.15s ease, transform 0.2s ease;
-    }
-    .ll-topbar__cta:hover { filter: brightness(0.96); transform: translateY(-2px); color: #1B365D; }
     .ll-topbar a:focus-visible { outline: 3px solid rgba(27, 54, 93, 0.35); outline-offset: 2px; border-radius: 6px; }
-    /* Main fills the remaining height and centers the card. */
+    /* Main fills the remaining height and centers the card.
+       overflow-y: auto so a card taller than the viewport can be scrolled to
+       rather than being cut off — flex centering overflows in BOTH directions
+       and the top overflow is otherwise unreachable. */
     .ll-main {
       flex: 1;
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow-y: auto;
       padding: 2rem 1rem;
     }
-    /* Below desktop the absolute-centered nav would collide with the brand and
-       actions, so drop it into normal flow and wrap it to a full-width centered
-       row — every link stays reachable without a JS hamburger. */
+    /* Sit higher than dead-center. Gated on having the room: this was an
+       unconditional `transform: translateY(-8rem)` on .box, and because a
+       transform does not affect layout or create scrollable overflow, on a short
+       viewport it pushed the card off the top of the screen with no way to reach
+       it (a 375px-tall landscape phone put the card's top at roughly -55px).
+       Applied only above the height where the nudge is safe. */
+    @media (min-height: 700px) {
+      .box { transform: translateY(-8rem); }
+    }
+    /* Below desktop the absolute-centered nav would collide with the brand, so
+       drop it into normal flow and wrap it to a full-width centered row — every
+       link stays reachable without a JS hamburger. */
     @media (max-width: 900px) {
       .ll-topbar__inner { flex-wrap: wrap; padding: 8px 20px; row-gap: 4px; }
       .ll-topbar__nav {
@@ -200,21 +177,29 @@
   </style>
 </head>
 <body>
+  <%# app_name drives the brand text so a white-labeled domain doesn't announce
+      "LingoLinq" — the <title> above already resolves it per-domain, and the alt
+      text must agree. The logo file itself stays fixed; there is no per-domain
+      logo setting to key off yet. %>
+  <% consent_app_name = (JsonApi::Json.current_domain['settings'] || {})['app_name'] || 'LingoLinq' %>
   <header class="ll-topbar">
     <div class="ll-topbar__inner">
-      <a href="/" class="ll-topbar__brand" aria-label="<%= t('consent_nav.logo_alt') %>">
-        <img src="/images/LL_Logo_Line_Bright.png" alt="<%= t('consent_nav.logo_alt') %>" class="ll-topbar__logo">
+      <a href="/" class="ll-topbar__brand" aria-label="<%= consent_app_name %>">
+        <img src="/images/LL_Logo_Line_Bright.png" alt="<%= consent_app_name %>" class="ll-topbar__logo">
       </a>
-      <nav class="ll-topbar__nav" aria-label="<%= t('consent_nav.logo_alt') %>">
+      <%# Landmark named for its PURPOSE, not the brand — "LingoLinq" told a
+          screen-reader user nothing in the landmark list. %>
+      <nav class="ll-topbar__nav" aria-label="<%= t('consent_nav.nav_label') %>">
         <a href="/demo/speak" class="ll-topbar__link"><%= t('consent_nav.demo') %></a>
         <a href="/features" class="ll-topbar__link"><%= t('consent_nav.features') %></a>
         <a href="/about" class="ll-topbar__link"><%= t('consent_nav.about') %></a>
         <a href="/beta-feedback" class="ll-topbar__link"><%= t('consent_nav.beta_feedback') %></a>
       </nav>
-      <div class="ll-topbar__actions">
-        <a href="/login" class="ll-topbar__signin"><%= t('consent_nav.sign_in') %></a>
-        <a href="/register" class="ll-topbar__cta"><%= t('consent_nav.try_free') %></a>
-      </div>
+      <%# No Sign In / Try Free conversion CTAs here. This is a legal parental-consent
+          confirmation surface: the reader is a parent acting on a consent request for a
+          child's account, not a prospect, and sign-up prompts alongside a consent notice
+          are the kind of thing a COPPA/GDPR reviewer objects to. The informational links
+          above stay so a parent can learn about what they are consenting to. %>
     </div>
   </header>
   <main class="ll-main">

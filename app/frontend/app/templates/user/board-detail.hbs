@@ -1100,6 +1100,31 @@
                       {{/if}}
                       {{/unless}}
                       {{#unless this.app_state.superProtectedSpeakMode}}
+                        {{!-- Board lock. MUST stay reachable here: board-detail ENFORCES
+                              stashes.sticky_board on both folder navigation and back
+                              navigation (board-detail.js toggle_board / activate_button),
+                              warning "Board lock is enabled, disable to leave this board."
+                              sticky_board is a PERSISTED stash and can be switched on from
+                              the classic speak menu, so without this control a user could
+                              arrive here locked, be told to disable it, and have nothing to
+                              disable it with. --}}
+                        {{#unless (get this.speak_menu_hidden_set "sticky_board")}}
+                        {{#if this.stashes.sticky_board}}
+                          <button type="button" class="md-board-detail-actions-menu__item" aria-pressed="true" data-bd-action="toggle_sticky_board" {{on "click" (this.ctrlAction "toggle_sticky_board")}}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                            </svg>
+                            <span>{{t "Release Board Lock" key="release_board_lock"}}</span>
+                          </button>
+                        {{else}}
+                          <button type="button" class="md-board-detail-actions-menu__item" aria-pressed="false" data-bd-action="toggle_sticky_board" {{on "click" (this.ctrlAction "toggle_sticky_board")}}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 5-5 5 5 0 0 1 5 5v4"/>
+                            </svg>
+                            <span>{{t "Stay on this Board" key="stay_on_board"}}</span>
+                          </button>
+                        {{/if}}
+                        {{/unless}}
                         {{#unless (get this.speak_menu_hidden_set "pause_logging")}}
                         {{#if this.app_state.currentUser.preferences.logging}}
                           <button type="button" class="md-board-detail-actions-menu__item" aria-pressed={{if this.app_state.logging_paused "true" "false"}} data-bd-action="toggle_pause_logging" {{on "click" (this.ctrlAction "toggle_pause_logging")}}>

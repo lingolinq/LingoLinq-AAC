@@ -76144,7 +76144,13 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   word-break: break-word;
   line-height: 1.3;
 }
-.md-board-detail-symbol-card--text-symbol {
+/* Two selectors, same declaration: the responsive board-button padding is set on
+   `.md-board-detail-grid .md-board-detail-symbol-card` (two classes), which
+   outranks a lone `--text-symbol` and would put 1px back on a card whose whole
+   point is that the text fills it. The grid-scoped copy matches that specificity
+   so the zeroing still wins inside the board grid. */
+.md-board-detail-symbol-card--text-symbol,
+.md-board-detail-grid .md-board-detail-symbol-card--text-symbol {
   padding: 0;
 }
 .md-board-detail-symbol-card--text-symbol .md-board-detail-symbol-card__image {
@@ -76198,7 +76204,11 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    symbol stays visible — no cropping — it just scales up to fill the freed room.
    Opt-in per button (btn.hide_label → `--hide-label` on the card); scoped to
    raster/loaded `img.symbol` so folder-placeholder svgs and empty cells are untouched. */
-.md-board-detail-symbol-card--hide-label {
+/* Grid-scoped copy for the same reason as --text-symbol above: the two-class
+   responsive padding rule would otherwise reintroduce a 1px inset on a card that
+   deliberately drops it so the symbol can fill the whole button. */
+.md-board-detail-symbol-card--hide-label,
+.md-board-detail-grid .md-board-detail-symbol-card--hide-label {
   padding: 0;
 }
 .md-board-detail-symbol-card--hide-label .md-board-detail-symbol-card__image {
@@ -80913,25 +80923,36 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   .md-board-detail-symbol-card__label-input {
     font-size: clamp(12px, 24cqmin, var(--bd-button-text-size, 15px));
     line-height: 1.05;
-    -webkit-line-clamp: 2;
-    max-height: 2.2em;
+    /* 3 lines, not 2. A line cap is a MAXIMUM, so a short label still renders on
+       one line and is unaffected — this only changes labels that genuinely need
+       the room, which at 2 lines were being ellipsised instead. The label is
+       `flex-shrink: 0`, so the extra lines come out of `__image` (`flex: 1 1
+       auto` takes only what is left): the symbol shrinks so the WORD survives,
+       which is the right trade on an AAC button — a cut-off word can't be read
+       at all. */
+    -webkit-line-clamp: 3;
+    max-height: 3.15em;
     padding: 0 1px 1px;
   }
 }
 /* Under 45px tall the button has no room to spare: push the word up tight
-   against its own glyph box and hand every remaining pixel to the symbol. The
-   label is `flex-shrink: 0` so whatever height it claims is taken straight out
-   of `__image` (`flex: 1 1 auto` gets only the leftovers) — meaning the label's
-   own padding and leading, not the font size, are what starve the symbol at this
-   size. So: zero padding, line-height 1 (no leading above/below the glyphs), and
-   a single line. The font size is deliberately NOT reduced further — shrinking
-   the word to grow the symbol just trades one unreadable thing for another. */
+   against its own glyph box, so the label's chrome — not its text — is what
+   yields. Zero padding and line-height 1 (no leading above or below the glyphs).
+   The font size is deliberately NOT reduced further; shrinking the word to grow
+   the symbol just trades one unreadable thing for another.
+   The line cap stays at 3 (inherited from the tier above rather than dropped to
+   1): a cap is a MAXIMUM, so one- and two-word labels are unaffected, but a long
+   one like "Give me time to answer." can use the lines it needs instead of being
+   ellipsised. Those lines come out of `__image`, since the label is
+   `flex-shrink: 0` and the image is `flex: 1 1 auto` — the symbol shrinks so the
+   word survives. Deliberate: at this size a truncated word conveys nothing,
+   while a smaller symbol still does. */
 @container symbol-card (max-height: 45px) {
   .md-board-detail-symbol-card__label,
   .md-board-detail-symbol-card__label-input {
     line-height: 1;
-    -webkit-line-clamp: 1;
-    max-height: 1em;
+    -webkit-line-clamp: 3;
+    max-height: 3em;
     padding: 0;
   }
 }
@@ -88741,6 +88762,23 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     left: 12px;
     right: 12px;
     max-width: none;
+  }
+}
+/* Lift clear of .ll-toast while one is on screen. Both are fixed at z-index 10000;
+   at <=480px the toast also goes full-width at bottom:12px, so at rest the two
+   occupy the SAME strip and this drawer — later in application.hbs, equal z-index —
+   painted straight over it. They also overlap on mid-width desktops (~144px at
+   900px). Offset = toast height + its bottom offset + a gap.
+   MUST come after the <=480px block above: both selectors are single-class, so
+   source order decides and the generic `bottom: 12px` would otherwise win on
+   phones — exactly the case this fixes. Only applied while a toast is showing, so
+   the resting position is unchanged. */
+.ll-copy-drawer--above-toast {
+  bottom: 100px;
+}
+@media (max-width: 480px) {
+  .ll-copy-drawer--above-toast {
+    bottom: 84px;
   }
 }
 
