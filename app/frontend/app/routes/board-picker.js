@@ -17,6 +17,22 @@ export default Route.extend({
   deactivate: function() {
     this._super.apply(this, arguments);
     this.appState.set('tour_board_picker_active', false);
+    // Belt-and-braces reset of the in-flight pick flag (set by
+    // board-preview-overlay#pick_for_home when "Pick this Board" starts copying).
+    //
+    // This is HARDENING, not a fix for a reproduced bug. Every promise branch in
+    // pick_for_home has both a success and a failure handler, and all six land in
+    // _finishPickForHome or _handlePickError, which clear the flag — so in normal
+    // use this line is a no-op, and an attempt to strand the flag by abandoning a
+    // pick mid-copy could not reproduce a leak.
+    //
+    // It is here because the failure mode is silent and session-wide if it ever
+    // does happen: app-state#finish_global_transition skips
+    // modal.close_board_preview() while this is true, so a stuck flag stops board
+    // previews closing on every later route change. A promise that never settles
+    // (a hung request with no timeout) is the one path not covered by those
+    // handlers, and route teardown is the natural place to guarantee the reset.
+    this.appState.set('board_picker_pick_in_progress', false);
     this.appState.set('setup_user', null);
     if (this.appState.controller) {
       this.appState.controller.set('setup_user_id', null);
