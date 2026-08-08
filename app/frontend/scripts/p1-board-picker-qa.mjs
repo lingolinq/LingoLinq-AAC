@@ -2,17 +2,22 @@
 /**
  * P1 manual-QA automation for board-picker supervisee context.
  *
- * Usage:
- *   node scripts/p1-board-picker-qa.mjs [--base http://localhost:8185]
- *     [--user marcus_williams_slp] [--pass 'demo2025!']
+ * Run from app/frontend (that is where `playwright` resolves) under Node 22:
+ *   node scripts/p1-board-picker-qa.mjs
+ *     [--base http://localhost:8184] [--user marcus_williams_slp] [--pass 'demo2025!']
  *
  * Full pick-and-save E2E (mutates supervisee home board in dev DB):
  *   node scripts/p1-board-picker-qa.mjs --full-pick [--supervisee hannah_lee] [--pick-board keyboard]
  *   node scripts/p1-board-picker-qa.mjs --full-pick-only --user marcus_williams_slp --pass 'demo2025!'
+ *
+ * Needs the full dev stack, not just Rails + Ember: the pick goes through
+ * copy_board_links, which is Progress.schedule'd, so a RESQUE WORKER must be
+ * running or the completion callback never fires and the home board is never set.
  */
 import { chromium } from 'playwright';
 
-const BASE = (process.argv.find((a, i) => process.argv[i - 1] === '--base') || 'http://localhost:8185');
+// 8184 is the port bin/ember-server binds (it proxies /api to Rails on :5000).
+const BASE = (process.argv.find((a, i) => process.argv[i - 1] === '--base') || 'http://localhost:8184');
 const USER = process.argv.find((a, i) => process.argv[i - 1] === '--user') || 'example';
 const PASS = process.argv.find((a, i) => process.argv[i - 1] === '--pass') || 'password';
 const FULL_PICK = process.argv.includes('--full-pick') || process.argv.includes('--full-pick-only');
