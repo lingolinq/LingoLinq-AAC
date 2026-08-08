@@ -1,215 +1,70 @@
-# LingoLinq Contributing Guide
+# Contributing to LingoLinq-AAC
 
-> **External contributors:** All pull requests should target the `develop` branch,
-> not `main`. The `develop` branch is the default branch for this repository.
-> PRs targeting `main` directly will be closed unless they are approved hotfixes.
+Thank you for helping improve an open-source AAC application. Before opening a pull request, make sure you understand the user impact of your change and have tested the affected code.
 
-## Branch Structure
+## Branch workflow
 
-| Branch | Deploys To | Purpose |
-|---|---|---|
-| `main` | lingolinq-prod | Production. Only receives merges from `staging`. |
-| `staging` | lingolinq-staging | Pre-production validation. Merges from `develop`. |
-| `develop` | lingolinq-dev | Integration branch. **All PRs target this branch.** |
-| `name/type/description` | PR Preview (auto) | Individual work. Branched from `develop`. |
-
-## Contributor Access
-
-| Role | Who | Preview Deploys | PR Review By |
-|---|---|---|---|
-| **Core team** | Added as org collaborators | Yes -- Render auto-deploys a preview URL for every PR to `develop` | Gemini Code Assist (auto) + human reviewer |
-| **External contributors** | Anyone via fork | No preview deploy | Gemini Code Assist (auto) + core team reviewer |
-
-External contributors: fork the repo, branch from `develop`, and open a PR back
-to `develop`. A core team member will review your PR and may request changes.
-
-## Branch Naming
-
-Format: `name/type/short-description`
-
-- `name` -- your first name or GitHub username (lowercase)
-- `type` -- one of: `feat`, `fix`, `chore`, `hotfix`, `upgrade`, `release`
-- `short-description` -- 2-4 words, kebab-case
-
-Examples:
-- `melissa/feature/add-sso-login`
-- `scot/fix/memory-leak-puma`
-- `dom/chore/update-ember-deps`
-
-For hotfixes that go directly to prod: `name/hotfix/description`
-
-## Workflow
-
-### 1. Start Work
+The shared integration branch is `staging`. Create work from `staging` and target pull requests back to `staging`.
 
 ```bash
-git checkout develop
-git pull origin develop
-git checkout -b yourname/feature/what-you-are-building
+git checkout staging
+git pull origin staging
+git checkout -b feat/scot-short-description
 ```
 
-### 2. Push and Open a PR Against `develop`
+Use the naming pattern `<type>/<name>-<description>`, for example:
+
+- `feat/scot-new-board-picker`
+- `fix/scot-sync-timeout`
+- `chore/scot-documentation-cleanup`
+
+Use `feat`, `fix`, `chore`, `docs`, `perf`, `refactor`, `test`, `compliance`, or `security` as appropriate. Keep the branch focused and delete it after merge when practical.
+
+## Pull requests
+
+Each pull request should include:
+
+- A concise description of the user or operational problem.
+- The files and behavior changed.
+- Tests run and their results.
+- Known limitations or follow-up work.
+- A note identifying AI assistance when it materially contributed to the change.
+
+Do not paste private prompts, session URLs, credentials, user data, or generated transcripts into commits, pull requests, or repository files. AI-generated code is held to the same review and testing standard as human-written code; the person opening the pull request remains responsible for understanding it.
+
+Target `staging` unless a release or hotfix process explicitly requires another branch. Do not push directly to protected branches.
+
+## Before requesting review
+
+Run the checks relevant to your change:
 
 ```bash
-git push -u origin yourname/feature/what-you-are-building
+git diff --check
+bundle exec rspec
+cd app/frontend
+npx ember test
+npm run lint:js
+npm run lint:hbs
 ```
 
-Open a PR targeting `develop` on GitHub. Since `develop` is the default branch,
-GitHub will automatically set the correct target.
+It is fine to run a smaller targeted suite during development, but include the exact commands and results in the pull request. Do not claim a test passed if it did not run.
 
-For core team members, Render automatically creates a **preview deployment** with
-its own URL for every PR against `develop`. Use that URL to test your changes in
-isolation -- no shared environments, no stepping on each other.
+## Code conventions
 
-### 3. Automated AI Review
+- Add backend tests for backend behavior and frontend QUnit tests for frontend behavior.
+- Put user-facing strings through the existing i18n helpers.
+- Use double quotes for user-facing strings and single quotes for internal strings.
+- Put user-facing changes behind feature flags when appropriate.
+- Preserve accessibility, localization, offline behavior, and packaged-app compatibility.
+- Validate inputs and keep secrets in environment variables.
+- Prefer focused edits over broad generated rewrites.
 
-Every PR automatically receives a code review from **Gemini Code Assist**. It will:
-- Post a summary of your changes
-- Leave inline code suggestions
-- Flag potential issues
+## Documentation
 
-Please read and address Gemini's feedback before requesting human review. You do
-not need to accept every suggestion, but each one should be acknowledged.
+Update the most relevant documentation when behavior, setup, deployment, or operational procedures change. Keep temporary investigation notes and generated reports out of general contributor documentation; place durable material under `docs/` and label historical reports clearly.
 
-AI-generated code (from Copilot, Claude, or other tools) is held to the same
-standard as human-written code. The person who opens the PR is responsible for
-reviewing and understanding all code in it, regardless of who or what wrote it.
+For architecture and operations, start with `docs/`. For agent-specific instructions, use `CLAUDE.md` or `GEMINI.md`; those files should describe repository constraints, not store session transcripts or one-off plans.
 
-### 4. Get Human Review and Merge to `develop`
+## License and contributions
 
-- Any team member can review and approve PRs to `develop`.
-- Use **squash merge** to keep the commit history clean.
-- Delete the feature branch after merge.
-- `develop` auto-deploys to lingolinq-dev for integration testing.
-- Do NOT push commits directly to `develop` -- always use a PR.
-
-### 5. Promote to Staging
-
-When a set of changes on `develop` is ready for pre-production validation:
-
-- A team member opens a PR from `develop` to `staging`.
-- **Scot must approve** the PR to staging.
-- Use a **merge commit** (not squash) so the history stays in sync.
-- `staging` auto-deploys to lingolinq-staging.
-
-### 6. Promote to Production
-
-After staging has been validated:
-
-- A team member opens a PR from `staging` to `main`.
-- **Scot must approve** the PR to production.
-- Use a **merge commit** (not squash).
-- `main` auto-deploys to lingolinq-prod.
-
-### 7. Hotfixes
-
-For urgent production issues:
-
-1. Branch from `main`: `yourname/hotfix/description`
-2. Open a PR directly against `main`. **Scot must approve.**
-3. After merging to `main`, immediately cherry-pick or merge back to `develop`
-   so the fix is not lost. Note: The `staging` branch will receive this fix during the next promotion from `develop`.
-
-## Approval Summary
-
-| Target Branch | Who Can Approve | Merge Strategy |
-|---|---|---|
-| `develop` | Any team member | Squash merge |
-| `staging` | Melissa (Scot backup) | Merge commit |
-| `main` | Melissa + Scot agree | Merge commit |
-| `main` (hotfix) | Scot or Melissa | Merge commit |
-
-## Branch Protection Rules
-
-The following protections are enforced at the repository level:
-
-- **`main`**: Requires PR, requires 1 approval, no direct pushes, no force push
-- **`staging`**: Requires PR, requires approval from Scot
-- **`develop`**: Requires PR, no direct pushes
-
-These rules apply to all contributors, including admins.
-
-## Dual-Reviewer Policy (Phase 1)
-
-In addition to the automated Gemini Code Assist review, certain PRs require a
-**dual-reviewer pass** before merge: one senior-dev review and one adversary
-(red-team) review.
-
-### When it is mandatory (Phase 1 scope)
-
-A PR MUST receive the dual-reviewer pass before merge if it touches any of:
-
-- Security (authn/authz, access control, secrets, encryption, `secure_serialize`)
-- AI generation (any call to an external LLM; confirm it goes through `PiiScrubber`)
-- User-data flows (anything reading or writing student / patient / guardian data)
-- Feature flags (`lib/feature_flags.rb`)
-- Mailers
-- The performance-sensitive paths: `#tree`, `#bulk`, `global_id`, `board`,
-  `board_content`, or `SlowWorker`
-
-Backend-only changes with a genuinely internal surface area may skip the
-feature-flag requirement but still need the dual-reviewer pass if they fall in
-any category above.
-
-### The two passes
-
-1. **Senior-dev pass** (`/review-pr`): correctness, edge cases, security, privacy,
-   performance, tests, and LingoLinq conventions. Prefer running this on a fresh
-   model (e.g. Codex CLI) for independence from the author.
-2. **Adversary pass** (`/adversary-review`): red-team scrub for security flaws,
-   PII leakage, FERPA/HIPAA/GDPR exposure, and broken assumptions. Read-only; it
-   flags, it does not fix.
-
-### Gating
-
-- **Critical** or **High** finding from either pass: blocks merge. Fix it in the
-  PR, or get explicit sign-off to defer with a tracked follow-up issue.
-- **Medium**: surface to the approver for triage.
-- **Low**: log and continue.
-
-### Phase 2
-
-After the team has run Phase 1 on roughly five PRs without friction, the
-dual-reviewer pass expands to all PRs. Until then, it applies only to the scope
-above.
-
-## Commit Messages
-
-Format: `type: short description`
-
-Types: `feat`, `fix`, `chore`, `upgrade`, `refactor`, `test`, `hotfix`
-
-Examples:
-- `feat: add district admin dashboard`
-- `fix: resolve memory leak in Puma workers`
-- `upgrade: bump Ember from 3.20 to 3.28`
-- `chore: update Render build script for Node 20`
-
-Keep the subject line under 72 characters. Add a blank line and longer description
-if the change needs context.
-
-## Running Scripts on Render
-
-Do NOT commit one-off scripts to the repo. Use the Render shell instead:
-
-```bash
-# Interactive console (best for ad-hoc work)
-bundle exec rails console
-
-# One-liner
-bundle exec rails runner "User.find_by(user_name: 'test').update!(settings: {})"
-
-# Reusable rake tasks (these ARE committed to the repo)
-bundle exec rake seed:organization
-```
-
-Rake tasks in `lib/tasks/` are the right place for repeatable operations like
-seeding data. One-off user creation belongs in the Rails console.
-
-## Code Standards
-
-- User-facing strings: double quotes; all other strings: single quotes
-- All user-facing text must use i18n helpers
-- New features MUST have feature flags (AAC users are sensitive to UI changes)
-- AI APIs NEVER see user-identifiable data (use PiiScrubber)
-- Node 22 is the standard across the entire project. Use nvm to switch: `nvm use 22`
+LingoLinq-AAC is licensed under AGPLv3 or later. Review [LICENSE](LICENSE), [NOTICE.md](NOTICE.md), and any contributor agreement requirements before submitting code.
