@@ -183,12 +183,13 @@
       "id": "fix-euaiact-art50-2026-08-02",
       "framework": "EU_AI_Act",
       "date": "2026-08-02",
-      "status": "upcoming",
+      "status": "passed-enforceable",
+      "nextDue": "2026-09-01",
       "title": "EU AI Act Article 50 transparency obligations apply",
       "obligation": "Disclose AI interaction to users; label synthetic/AI-generated content; deepfake identification. Applies to ANY in-scope AI system, not only high-risk. For an AAC predictor, the relevant question is whether output meets the synthetic-content marking trigger.",
-      "action": "Applicability memo finalized (AI_GOVERNANCE_MEMO section 5). 50(2) marking on prod (PR #584). 50(1) disclosure now BUILT and STAGED, gated OFF: modal + ack endpoint + first-AI-use gate (PR #646, Phase 3) and jurisdiction stamping (PR #635, Phase 4) are on staging; the article_50_disclosure flag is registered AVAILABLE-only (Phase 5, RLL-01), so nothing is shown to any user yet. Remaining before 2026-08-02: (1) production deploy of Phases 3-5; (2) on Scot's sign-off, enable the flag for EU accounts; (3) clear the pre-enable accessibility blocker (finding disclosure-full-notice-link-low-contrast-token, WCAG 1.4.3). Not live in production until the deploy + enable happen.",
-      "source": "https://artificialintelligenceact.eu/article/50/",
-      "verifiedOn": "2026-07-22"
+      "action": "Date PASSED 2026-08-02 (verified 2026-08-09 against Commission FAQ). 50(2) marking on prod (lib/art50_marker.rb). 50(1) disclosure UI is BUILT but article_50_disclosure remains AVAILABLE-only. Ongoing: (1) Scot decision to enable for EU accounts or record dated non-applicability rationale; (2) clear pre-enable WCAG High LL-a9d6d5a46b; (3) keep DOC-771d214850 plan current. Machine-readable marking grace for 50(2) ends 2026-12-02 (fix-euaiact-art50-2-2026-12-02) and is not headroom for first EU placement after 2026-08-02.",
+      "source": "https://digital-strategy.ec.europa.eu/en/faqs/transparency-obligations-under-article-50-ai-act",
+      "verifiedOn": "2026-08-09"
     },
     {
       "id": "fix-euaiact-art50-2-2026-12-02",

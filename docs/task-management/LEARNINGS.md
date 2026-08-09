@@ -7912,6 +7912,20 @@ blank source as `'lessonpix'` is the codebase's own evidence that such records e
 
 **First seen in:** [2026-07-26-adversarial-review-remediation.md](./2026-07-26-adversarial-review-remediation.md)
 
+## Gotcha: compliance status packages must Path-A supersede attested legal docs, not edit them
+
+**Symptom:** A `/compliance-status` done-vs-needed package refreshes
+`COMPLIANCE_POSTURE_REPORT.md` / `COMPLIANCE_PROGRAM.md` in place to update counts; CI
+`document-register-render --check` fails with "attested revision no longer exists."
+
+**Root cause:** Those files are attested legal artifacts. Editing them changes `contentHash`
+while `attestedContentHash` stays pinned. Overwriting the pin would burn the prior attestation.
+
+**Fix recipe:** Leave attested files untouched; write
+`docs/legal/<YYYY-MM-DD>_<kebab-slug>_draft.md` successors; register Path A
+`supersedes`/`supersededBy`; retarget live bundles; keep frozen binders on the predecessor.
+See [2026-08-09-compliance-done-needed-report.md](./2026-08-09-compliance-done-needed-report.md).
+
 ## Gotcha: re-attesting attested `docs/legal/**` must supersede, not overwrite `attestedContentHash`
 
 **Symptom:** A skill or agent "fixes" `document-register-render.rb --check` MISMATCH on an
