@@ -187,9 +187,12 @@ else
 fi
 restore_memo
 
-# The negative half. Without this, deleting the attested? condition from the drift branch leaves
-# every case above green while telling every contributor editing an ORDINARY doc to stop and
-# escalate to Scot - the likelier regression, and previously untested.
+# The negative half: an ORDINARY doc must still be routed to the render. Without this, any change
+# that widens the attested branch tells every contributor editing an unattested doc to stop and
+# escalate to Scot, which is the likelier regression and was previously untested.
+# (Deleting `attested?(doc)` alone does NOT regress this - verified by mutation. The pin match is
+# the real gate, since an unattested row has no attestedContentHash to match. The condition is
+# kept for intent, not because it is load-bearing.)
 UNATTESTED=docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md
 UNATTESTED_SNAPSHOT=$(mktemp)
 cp "$UNATTESTED" "$UNATTESTED_SNAPSHOT"
