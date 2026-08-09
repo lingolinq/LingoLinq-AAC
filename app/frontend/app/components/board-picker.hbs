@@ -206,9 +206,9 @@
   {{#if (and (not this.searchAtTop) this.category (not this.category.mine) (not this.category.available_boards) (not this.category.keyboards) (not this.robust_tabbed))}}
           <div class="md-home-boards-picker__search">
             <form class="md-home-boards-picker__search-form" {{on "submit" (this.ctrlAction "go_search_boards")}} role="search">
-              <label for="board-picker-search-q" class="sr-only">{{t "Search Boards" key="search_boards"}}</label>
+              <label for="board-picker-public-search-q" class="sr-only">{{t "Search Boards" key="search_boards"}}</label>
               <input
-                id="board-picker-search-q"
+                id="board-picker-public-search-q"
                 type="search"
                 value={{this.boardSearchQuery}}
                 {{on "input" (set-field this "boardSearchQuery")}}
