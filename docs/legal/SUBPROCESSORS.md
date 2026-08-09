@@ -1,9 +1,9 @@
 # LingoLinq Subprocessor Register
 
 **Owner:** Privacy Office (privacy@lingolinq.com)
-**Last reviewed:** 2026-08-06 (last completed CEO re-attestation; prior re-attestations 2026-08-04 and 2026-07-23; last full line-by-line review 2026-04-20)
-**Re-attestation status:** **PENDING for the current revision.** These bytes were prepared 2026-08-07 and have NOT been signed. Do not treat this revision as attested until this line names a completed attestation date and `audit-reports/DOCUMENT-REGISTER.json` pins the matching sha256. The last completed attestation is 2026-08-06, which covered a revision superseded before merge.
-**Attested:** 2026-07-06; re-attested 2026-07-23; re-attested 2026-08-04; **re-attested 2026-08-06** by Scot Wahlquist,
+**Last reviewed:** 2026-08-08 (last completed CEO re-attestation; prior re-attestations 2026-08-06, 2026-08-04 and 2026-07-23; last full line-by-line review 2026-08-08, see section 4.1)
+**Re-attestation status:** **COMPLETE for the current revision, attested 2026-08-08** by Scot Wahlquist, CEO. `audit-reports/DOCUMENT-REGISTER.json` pins the matching sha256. The immediately prior attestation, 2026-08-06, is **superseded**: it covered a revision that was corrected before merge and never reached `staging`.
+**Attested:** 2026-07-06; re-attested 2026-07-23; re-attested 2026-08-04; re-attested 2026-08-06; **re-attested 2026-08-08** by Scot Wahlquist,
 CEO. The 2026-07-06 attestation covered an earlier revision; five later PRs (#588, #622, #631,
 #648, #652) rewrote the Gemini, Google Cloud, Anthropic, and localization/speech rows. The
 2026-07-23 re-attestation is the CEO sign-off the 2026-07-21/22/23 amendments below were marked
@@ -14,11 +14,14 @@ dated 2026-08-02 and 2026-08-04. The **2026-08-06** re-attestation covers the re
 correction recorded in the 2026-08-06 change-log entry: the two previously absent "Notified to
 customers" cells, the corrected "Last amended" date, and the section 2 customer-notice-timing
 clause bounded to the period it was true. No vendor, data flow, contract, or classification
-changed in that revision. Those bytes were corrected before merge and never reached `staging`. The
-current revision, prepared 2026-08-07 and **not yet attested**, additionally corrects the
-Anthropic/Bedrock runtime status against live infrastructure, fixes the header amendment chain that
-the 2026-08-06 revision left naming 2026-07-23 as the prior amendment, and reconciles the review
-cadence.
+changed in that revision. Those bytes were corrected before merge and never reached `staging`, so
+the 2026-08-06 attestation is superseded rather than void. The **2026-08-08** re-attestation covers
+the current revision, which additionally corrects the Anthropic/Bedrock runtime status against live
+infrastructure, fixes the header amendment chain that the 2026-08-06 revision left naming
+2026-07-23 as the prior amendment, reconciles the review cadence, and records the quarterly
+full-register review performed 2026-08-08 together with the two register omissions it found (new
+section 4.1). This attestation is made with those two omissions disclosed on the face of the
+register, not resolved: Stripe and iplocate.io still need rows and DPA verification.
 
 > **Discharge note, 2026-08-05.** The 2026-08-02 and 2026-08-04 change-log rows below each end
 > with "Re-attestation owed." That was true when each row was written and was **discharged on
@@ -27,10 +30,18 @@ cadence.
 > with this note and with the dated discharge appended to each row. **Scope of this note, narrowed
 > 2026-08-07:** it discharges the re-attestation owed by the 2026-08-02 and 2026-08-04 rows ONLY.
 > It originally ended "No re-attestation of this document is outstanding," which was true on
-> 2026-08-05 but is not true of the current revision. A re-attestation IS currently outstanding for
-> the revision prepared 2026-08-07; see the Re-attestation status line above, which governs.
+> 2026-08-05 but was not true of the revision prepared 2026-08-07, for which a re-attestation was
+> then outstanding. That one was completed 2026-08-08. This note is retained as written for the
+> historical record; the Re-attestation status line above governs the current revision.
 
-**Last amended:** 2026-08-07 (three corrections. (1) **Runtime status of the Anthropic/Bedrock path
+**Last amended:** 2026-08-08 (**quarterly full-register review performed**, and it found two active
+third-party processors absent from the section 4 table: **Stripe, Inc.** and **iplocate.io**. Both
+are disclosed in new **section 4.1** on identification rather than held until full rows are drafted,
+so this table is not mistaken for a complete inventory meanwhile; drafting their rows requires DPA
+verification, which is separate tracked work. The ungated `iplocate.io` call site is raised as
+findings-register entry LL-07f1869d92. See the 2026-08-08 change-log entry)
+
+**Prior amendment, 2026-08-07:** (three corrections. (1) **Runtime status of the Anthropic/Bedrock path
 corrected against live infrastructure**: row 4 and the section 5.7 consistency note asserted that no
 `lingolinq-web` revision carried a Bedrock credential; credentials have in fact been continuously
 mounted on the serving revision since 2026-08-04T07:25:08Z. No recorded call carries learner
@@ -40,14 +51,14 @@ obtainable). (2) Header revision chain: the history
 below named 2026-07-23 as the prior amendment, skipping 2026-07-24, 2026-08-02 and 2026-08-04.
 (3) Review cadence reconciled with the document register. See change log)
 
-**Prior amendments, most recent first:** 2026-08-06 (record-completeness correction: the "Notified
+**Earlier amendments, most recent first:** 2026-08-06 (record-completeness correction: the "Notified
 to customers" cells omitted from the 2026-08-02 and 2026-08-04 change-log rows completed from each
 row's own section 2 determination, the "Last amended" date corrected, and the section 2
 customer-notice-timing clause bounded to the period it was true); 2026-08-04 and 2026-08-02 (row 4
 Anthropic runtime-status corrections); 2026-07-24 (section 2 subprocessor-notice position recorded
 for the GCP infrastructure addition #19). Each is recorded in full in the change log below.
 
-**Earlier amendment, 2026-07-23:** (**Abair Irish TTS (#17) DISABLED** via PR #674 -- no DPA on file and Google Cloud TTS has no Irish voice, so Irish cloud TTS was turned off rather than executing a DPA; the localization/speech findings were triaged: LL-a167848115 remediated; LL-c38e7da48e (#15) and LL-1eb9a2435b (#18) accepted-risk, with a per-flow COPPA-consent gate the one remaining open follow-up (deferred to before real tenant onboarding). Earlier the same day, PR #667 remediated the Cloud TTS Pre-GA `v1beta1` endpoint residual: all six call sites repointed to GA `v1` and the unauthenticated consumer `translate_tts` fallback removed. Prior 2026-07-22 amendments: (1) Gate 1 GCP cutover recorded -- GCP infrastructure host added as #19; (2) localization/speech re-scope + covered-service confirmation -- added Google Cloud Speech-to-Text (#18) and confirmed all three Google localization/speech services are BAA covered products, independently verified against Google's HIPAA covered-products list. CEO sign-off recorded 2026-07-23; at that date, Privacy Office confirmation of the customer-notice timing under section 2 was recorded as still owed before external publication. **[Answered 2026-07-24.** The change-log entry of that date records the CEO position that no section 2 notice is owed, and adds section 2's **Pre-tenant baseline** paragraph. That paragraph governs notice timing for any subprocessor change made while production carries only synthetic/test data with no real tenant onboarded, which is the condition every 2026-07-21/22/23 amendment was made under. This sentence is retained as the historical record of the 2026-07-23 state; nothing is outstanding.**]** See change log)
+**Oldest amendment narrated in this header, 2026-07-23:** (**Abair Irish TTS (#17) DISABLED** via PR #674 -- no DPA on file and Google Cloud TTS has no Irish voice, so Irish cloud TTS was turned off rather than executing a DPA; the localization/speech findings were triaged: LL-a167848115 remediated; LL-c38e7da48e (#15) and LL-1eb9a2435b (#18) accepted-risk, with a per-flow COPPA-consent gate the one remaining open follow-up (deferred to before real tenant onboarding). Earlier the same day, PR #667 remediated the Cloud TTS Pre-GA `v1beta1` endpoint residual: all six call sites repointed to GA `v1` and the unauthenticated consumer `translate_tts` fallback removed. Prior 2026-07-22 amendments: (1) Gate 1 GCP cutover recorded -- GCP infrastructure host added as #19; (2) localization/speech re-scope + covered-service confirmation -- added Google Cloud Speech-to-Text (#18) and confirmed all three Google localization/speech services are BAA covered products, independently verified against Google's HIPAA covered-products list. CEO sign-off recorded 2026-07-23; at that date, Privacy Office confirmation of the customer-notice timing under section 2 was recorded as still owed before external publication. **[Answered 2026-07-24.** The change-log entry of that date records the CEO position that no section 2 notice is owed, and adds section 2's **Pre-tenant baseline** paragraph. That paragraph governs notice timing for any subprocessor change made while production carries only synthetic/test data with no real tenant onboarded, which is the condition every 2026-07-21/22/23 amendment was made under. This sentence is retained as the historical record of the 2026-07-23 state; nothing is outstanding.**]** See change log)
 **Last full review:** 2026-08-08 (quarterly full-register review performed; findings in section 4.1
 and the 2026-08-08 change-log entry. Prior full line-by-line review 2026-04-20)
 **Next review:** 2026-11-08 (quarterly; cadence confirmed by the CEO 2026-08-07. All three
