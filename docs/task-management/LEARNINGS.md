@@ -7477,6 +7477,21 @@ using a `.lint-todo` the linter had already corrupted. The only sound test is ag
 `git show HEAD:<path>` copy of **both** the source and the baseline. Restore from HEAD before
 concluding "not mine".
 
+## Gotcha: nested `app/frontend/.github/workflows` never runs on GitHub Actions
+
+Only the **repository-root** `.github/workflows/` is executed. A CI file under
+`app/frontend/.github/workflows/` (added during the Ember 4.12 upgrade with `lint:js && lint:hbs`)
+is dead decoration — it has never gated a PR. When auditing “is X in CI?”, read the **root**
+workflow end-to-end; do not trust a nested copy. The ESLint root gate landed separately as
+`npm run lint:js:ci` + `.eslint-todo` (see [`2026-08-07-eslint-ci-gate.md`](./2026-08-07-eslint-ci-gate.md)).
+
+## Gotcha: ESLint baseline must be `.eslint-todo`, not shared `.lint-todo`
+
+`ember-template-lint` owns and **rewrites** `app/frontend/.lint-todo` on a plain run. Putting
+ESLint fingerprints in that file would race with template lint. Use a separate
+`app/frontend/.eslint-todo` consumed only by `scripts/eslint-todo-gate.js` (`lint:js:ci` /
+`lint:js:todo`). CI never regenerates the baseline; intentional rebaselines are explicit commits.
+
 ## Pattern: fix `require-input-label` by wiring the EXISTING label with `{{unique-id}}` — not by promoting the placeholder
 
 The obvious fix (`aria-label` derived from `placeholder`) is wrong for a large subset, for two reasons.
