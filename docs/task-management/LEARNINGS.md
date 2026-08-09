@@ -9205,3 +9205,60 @@ Two companions to that message:
   ever sets it. One bad item sinks the whole batch immediately.
 
 **First seen in:** [2026-08-08-speecher-load-beep-suite-failure.md](./2026-08-08-speecher-load-beep-suite-failure.md)
+
+## Gotcha: verify a CI job the way CI runs it — `TZ=UTC` — before believing a local red
+
+`spec/lib/stats_spec.rb` builds its window from `2.days.ago.utc` and
+`Date.today.to_time.utc`. `Date.today` is **local**. Run it after local midnight
+UTC (i.e. any evening in US timezones) and the window spans one fewer day, so
+**10 stats examples fail locally and pass in CI**. `organization_spec` "usage_stats"
+goes the same way. Under `TZ=UTC` the same 311 examples are green.
+
+Cost of not doing this: two full spec runs (~35 min each) and a confidently
+WRONG report that "rspec is red on staging today" — it was red on *this laptop*,
+at 22:5x MDT. Always reproduce a CI failure with the CI environment first:
+
+    TZ=UTC DB_USER=... bundle exec rspec
+
+## Gotcha: check the DIFF SCOPE before attributing a failure to your branch
+
+A `sharing_spec` example asserting `b2.allows?(u4, 'view')` failed on the branch
+and passed on staging — twice in a row, single-example runs, look conclusive.
+It was **not** a regression: re-running the same single example on the branch a
+third time passed. It is state/order dependent, and the "A/B" was measuring
+leftover database state, not code.
+
+The check that would have prevented the whole detour, in one second:
+
+    git diff --stat origin/staging...HEAD -- app/models/ lib/     # empty
+
+`allows?` lives in `app/models/concerns/permissions.rb`. The branch changed only
+three controllers. A model-level `allows?` regression was **impossible**, and no
+amount of A/B running should have been allowed to override that. Establish the
+blast radius from the diff FIRST; let it veto seductive-looking run results.
+
+Corollary: on a suite with known ordering flakiness, "fails on A, passes on B"
+across two single runs is NOT evidence. Re-run the failing side to confirm it
+reproduces before attributing anything.
+
+## Pattern: this repo's RSpec suite wanders too — ~4 random failures per full run
+
+Not just QUnit. Two consecutive full `TZ=UTC` runs of the same commit produced
+**completely disjoint** failure sets:
+
+| run | failures |
+|---|---|
+| 1 | board_spec:243, board_spec:5089, board_caching:118, boards_controller:474 |
+| 2 | sharing_spec:1161, subscription_spec:1174, subscription_spec:1235, board_set_copier:80 |
+
+Every one of them passes in isolation. They cluster on values written by
+deferred `Worker.schedule` work (`downstream_board_ids`, `sync_stamp`,
+`private_viewable_board_ids`), which is the same deferred-work-leaks-across-test-
+boundaries shape as the QUnit `waitsFor` timeout. Treat "N failures" from a full
+run as a distribution, not a fact: classify each one as
+isolation-reproducible vs wandering before acting on it.
+
+Aside: a full run once died with `[BUG] Segmentation fault` in
+`ethon-0.15.0/lib/ethon/easy/operations.rb:30` (libcurl, via Typhoeus) while
+three suites shared the machine. It did not recur on an idle box — treat a
+native crash there as resource contention before chasing it as a real bug.
