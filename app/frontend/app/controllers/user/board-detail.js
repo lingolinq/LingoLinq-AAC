@@ -3315,15 +3315,45 @@ export default Controller.extend(prefClasses, {
     var s = this.get('speak_menu_hidden_set') || {};
     return !s.copy || !s.download || !s.print || !s.share;
   }),
-  speak_section_visible_session: computed('speak_menu_hidden_set', 'is_communicator_only_account', function() {
-    // Session holds supervisor-oriented tools (button levels, pause logging, modeling,
-    // switch communicators). Hidden on a communicator-only account (see
-    // is_communicator_only_account) — shown for supporters and while a supervisor is
-    // actively modeling for a communicator. ("Stay on this Board" was removed from
-    // this menu, so it's no longer part of the visibility check.)
+  speak_section_visible_session: computed('speak_menu_hidden_set', 'is_communicator_only_account', 'stashes.sticky_board', function() {
+    // Session holds supervisor-oriented tools: button levels, board lock ("Stay on
+    // this Board"), pause logging, modeling, switch communicators. Hidden on a
+    // communicator-only account (see is_communicator_only_account) — shown for
+    // supporters and while a supervisor is actively modeling for a communicator.
+    //
+    // This check stays FIRST, ahead of the board-lock override below, and that
+    // precedence is DELIBERATE (confirmed 2026-08-09): a locked communicator is not
+    // meant to be able to release their own lock — it is a supervisor safety control.
+    // Do not "fix" this by moving the sticky_board check above it.
     if(this.get('is_communicator_only_account')) { return false; }
     var s = this.get('speak_menu_hidden_set') || {};
-    return !s.button_levels || !s.pause_logging || !s.modeling || !s.switch_communicators;
+    // While the board lock is ENGAGED, this section always renders, whatever the
+    // customize-menu settings say. board_lock_blocks_exit() is warning the user
+    // "disable to leave this board", and the only control that can disable it lives
+    // in here (board-detail.hbs) — so hiding the section would make that warning a
+    // dead end. Costs nothing when the lock is off, which is the normal case.
+    if(this.get('stashes.sticky_board')) { return true; }
+    // Otherwise: is ANY item in this section still visible? sticky_board belongs in
+    // this list because it IS a customize-menu item (SPEAK_MENU_ITEMS) rendered in
+    // this section. It was dropped from here by dc67d28aa, which also removed the
+    // item entirely — consistent at the time — but 250186f3e put the item and its
+    // buttons back without restoring this term, so hiding the other four silently
+    // took the lock control with them.
+    return !s.button_levels || !s.sticky_board || !s.pause_logging || !s.modeling || !s.switch_communicators;
+  }),
+  // Visibility of the board-lock control itself, as opposed to the Session section
+  // that contains it. Normally it follows the customize-menu setting like any other
+  // item — but while the lock is ENGAGED it always shows, because that is the only
+  // control that can turn it off and board_lock_blocks_exit() is actively telling the
+  // user to "disable to leave this board". A supervisor who hid the item and then
+  // left the lock on would otherwise strand whoever is holding the device.
+  //
+  // Only ever FORCES the control on; it never hides one that would otherwise show,
+  // and it does nothing at all when the preference is unset.
+  board_lock_control_visible: computed('speak_menu_hidden_set', 'stashes.sticky_board', function() {
+    if(this.get('stashes.sticky_board')) { return true; }
+    var s = this.get('speak_menu_hidden_set') || {};
+    return !s.sticky_board;
   }),
   board_translate_in_progress: computed('app_state.board_translate_in_progress', function() {
     return !!this.get('app_state.board_translate_in_progress');
@@ -7321,6 +7351,15 @@ export default Controller.extend(prefClasses, {
     sidebar_jump: function(key, board) {
       if(!key && board && board.key) { key = board.key; }
       if(!key) { return; }
+      // Board lock: the quick sidebar renders on this page (board-detail.hbs:61) and
+      // jumping to one of its boards leaves the current board — the same kind of exit
+      // as Back, Home, a folder button or the Collections drawer, and it was the one
+      // still unguarded. Checked BEFORE _push_nav_history so a blocked jump does not
+      // leave a phantom entry in the back stack.
+      //
+      // No-op unless the user actually has the lock engaged: board_lock_blocks_exit()
+      // returns false immediately when stashes.sticky_board is unset.
+      if(this.board_lock_blocks_exit()) { return; }
       board = board || this._sidebar_board_by_key(key);
       this._push_nav_history();
       var appController = this._sidebarAppController();

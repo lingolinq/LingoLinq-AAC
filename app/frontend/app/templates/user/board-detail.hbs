@@ -1108,7 +1108,7 @@
                               the classic speak menu, so without this control a user could
                               arrive here locked, be told to disable it, and have nothing to
                               disable it with. --}}
-                        {{#unless (get this.speak_menu_hidden_set "sticky_board")}}
+                        {{#if this.board_lock_control_visible}}
                         {{#if this.stashes.sticky_board}}
                           <button type="button" class="md-board-detail-actions-menu__item" aria-pressed="true" data-bd-action="toggle_sticky_board" {{on "click" (this.ctrlAction "toggle_sticky_board")}}>
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1124,7 +1124,7 @@
                             <span>{{t "Stay on this Board" key="stay_on_board"}}</span>
                           </button>
                         {{/if}}
-                        {{/unless}}
+                        {{/if}}
                         {{#unless (get this.speak_menu_hidden_set "pause_logging")}}
                         {{#if this.app_state.currentUser.preferences.logging}}
                           <button type="button" class="md-board-detail-actions-menu__item" aria-pressed={{if this.app_state.logging_paused "true" "false"}} data-bd-action="toggle_pause_logging" {{on "click" (this.ctrlAction "toggle_pause_logging")}}>
