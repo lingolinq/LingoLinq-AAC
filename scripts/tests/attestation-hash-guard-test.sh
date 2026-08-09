@@ -13,11 +13,32 @@
 # Exit: 0 = every guard fired as expected; 1 = at least one guard is missing or misworded.
 
 set -u
+# Resolve this script's own path BEFORE the cd, so the flock re-exec below still
+# finds it when the harness was invoked by a relative path from another directory.
+SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
+# Serialize concurrent runs. This harness edits a REAL attested file in place
+# (see MEMO below) and snapshots it to restore afterwards, so two overlapping runs
+# race: B snapshots the bytes A already modified, then "restores" the file to A's
+# edit and leaves a tracked attested legal document dirty. Overlap stopped being
+# hypothetical when the harness was added to scripts/regenerate-register.sh - it
+# used to run only in CI, one job at a time, and now runs in the wrapper everyone
+# uses, including from several agent sessions sharing one checkout. Observed
+# concurrently: 5-6 spurious "fired with the wrong message" failures per run. A
+# false red on the anti-laundering harness is the failure most likely to be
+# "fixed" by weakening the assertion, which is the one thing that must not happen.
+if [ -z "${ATTESTATION_GUARD_LOCK_HELD:-}" ] && command -v flock >/dev/null 2>&1; then
+  export ATTESTATION_GUARD_LOCK_HELD=1
+  exec flock "${TMPDIR:-/tmp}/ll-attestation-guard-$(printf '%s' "$PWD" | cksum | cut -d' ' -f1).lock" "$SELF" "$@"
+fi
+
 LIVE=audit-reports/DOCUMENT-REGISTER.json
-WORK=audit-reports/DOCUMENT-REGISTER.attestation-test.json
-WORK_MD=audit-reports/DOCUMENT-REGISTER.attestation-test.md
+# Per-PID scratch names: the fixed names these replaced were clobbered by any
+# concurrent run, which is what produced the spurious failures above. Keeps the
+# harness safe on a host without flock, where the lock above is skipped.
+WORK=audit-reports/DOCUMENT-REGISTER.attestation-test.$$.json
+WORK_MD=audit-reports/DOCUMENT-REGISTER.attestation-test.$$.md
 
 LIVE_SNAPSHOT=$(mktemp)
 cp "$LIVE" "$LIVE_SNAPSHOT"
