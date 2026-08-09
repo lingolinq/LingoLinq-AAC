@@ -67,10 +67,12 @@ name: Deploy to Cloud Run
 # and ONE shared `lingolinq-migrate` Job. Do not scope the group by ref. Two known limits, so
 # nobody reads more safety into this than it provides:
 #   - It is NOT a distributed lock. `gcloud run jobs execute --wait` is a client-side poll;
-#     killing the GitHub job does not stop the server-side execution. If a run hits
-#     `timeout-minutes: 45`, is cancelled, or its runner dies, the lock releases while the
-#     execution may still be writing to prod. A real mutex would need a Postgres advisory lock
-#     inside the migration task. Tracked as follow-up, not solved here.
+#     killing the GitHub job does not stop the server-side execution. If a run hits the job's
+#     `timeout-minutes` ceiling, is cancelled, or its runner dies, the lock releases while the
+#     execution may still be writing to prod. That ceiling is set above the migrate Job's own
+#     `--task-timeout` precisely so a valid long migration cannot trip it, but a cancel or a
+#     dead runner still can. A real mutex would need a Postgres advisory lock inside the
+#     migration task. Tracked as follow-up, not solved here.
 #   - GitHub keeps only ONE pending run per group and cancels the older pending one when a new
 #     run queues, regardless of `cancel-in-progress`. Three merges in quick succession deploy
 #     the 1st and 3rd; the 2nd shows `cancelled`. On a linear `main` that is benign, since the
