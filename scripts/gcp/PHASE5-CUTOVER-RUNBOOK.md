@@ -21,20 +21,35 @@ preservation).
 > record" instructions below are historical, not to-do. The body at line ~634 records the cutover
 > itself as 2026-07-22; 2026-08-09 is only the date this was re-verified.
 >
-> **UNRESOLVED, and it changes how you should treat this whole file: whether prod has REAL USERS.**
-> DNS resolving and a 200 from `/api/v1/health` prove the LB path serves. They do NOT prove real
-> district users are on it. Several places below still assert prod has no real users, only
-> internal test accounts, and one of them uses "no real user data" as the justification for
-> leaving `lingolinq_admin` on a deliberately simple password. Those cannot both be true. Do not
-> plan the ingress lockdown, the Render decommission, or any automated production deploy against
-> a guess. Settle it in writing, with evidence, and reconcile the password justification in the
-> same pass. Until then treat prod as if it holds real student data, because that is the safe
-> direction to be wrong in.
+> **PROD HAS NO REAL USERS YET (Scot, 2026-08-09).** DNS being cut does not mean launched. The
+> LB path serves and `app.lingolinq.com` is live, but the only accounts on it are internal and
+> test. The other statements throughout this file that prod holds no real user data are CORRECT;
+> an earlier version of this block said "real district traffic is on GCP", which was inferred
+> from DNS resolving plus a 200 health check and was wrong. Prod is the environment that WILL
+> hold real districts; it does not yet, and it will not while migration issues are being worked.
 >
-> Note also that the pre-cutover checklist near the end of this file still has unchecked `- [ ]`
-> boxes (DNS TTL lowered, operator quiet window, external writers enumerated and pause-tested,
-> client 503 re-queue confirmed). The checklist boxes are authoritative: the cut having happened
-> does NOT mean those were all satisfied first.
+> **What that buys, and what it does not.** It means the residual risks below are operational,
+> not FERPA/HIPAA incidents, and it makes this the cheapest possible window to exercise anything
+> risky, including the first run of the automated deploy pipeline. It does NOT make any of them
+> permanently acceptable. Everything in the next block is a hard gate on onboarding the first
+> real district, not a nice-to-have:
+>
+> - [ ] Rotate `lingolinq_admin` off the deliberately simple password. Its stated justification
+>       ("no real user data") expires the moment a real district exists, and the account will
+>       outlive the justification unless this is done deliberately.
+> - [ ] Ingress lockdown (`--ingress=internal-and-cloud-load-balancing`). Until then the
+>       `run.app` URL and any revision tag bypass the LB and Cloud Armor entirely. Read the
+>       coupling note in `scripts/gcp/phase5-frontend-lb.sh` first: it breaks the deploy
+>       pipeline's health probe.
+> - [ ] WAF enforce flip (9c). Rules 1001-1004 and 2000 are still `preview=true` / log-only.
+> - [ ] Cloud SQL `deletionProtection` on, and a pre-migration backup step in the deploy path.
+> - [ ] The unchecked `- [ ]` boxes in the pre-cutover checklist near the end of this file
+>       (DNS TTL lowered, operator quiet window, external writers enumerated and pause-tested,
+>       client 503 re-queue confirmed). The cut having happened does NOT mean those were all
+>       satisfied first; the checklist boxes remain authoritative.
+>
+> Treat that list as the launch gate. Once a real district is onboarded, every item on it turns
+> from an operational nicety into a Tier 1 compliance obligation.
 >
 > **What is still gated and has NOT run:** the ingress lockdown (the web service is still
 > `--ingress=all`, so the `run.app` URL bypasses the LB and Cloud Armor entirely), the WAF
@@ -563,9 +578,9 @@ live 2026-07-15). **DNS IS CUT OVER.** Verified 2026-08-09: `app.lingolinq.com` 
 `136.68.41.122` (the `lingolinq-https-fr` forwarding rule) and `/api/v1/health` returns 200
 through the LB. An earlier version of this paragraph said "no real DNS traffic points at the LB
 yet", which was true when written and is now false. Note what this does and does not establish:
-the LB path serves. Whether REAL district users are on it is unresolved and contradicted
-elsewhere in this file; see the Status block at the top before acting on either answer. What
-genuinely remains gated: the ingress lockdown (the web service is still `--ingress=all`, so the
+the LB path serves. It does NOT mean prod is launched. Prod has no real users yet (Scot,
+2026-08-09); see the Status block at the top for the gate list that must close before the first
+real district is onboarded. What genuinely remains gated: the ingress lockdown (the web service is still `--ingress=all`, so the
 `run.app` URL bypasses the LB and Cloud Armor entirely) and the WAF enforce flip (rules 1001-1004
 and 2000 are still `preview=true` / log-only). See the ingress lockdown and the enforce flip in
 step 9c.
