@@ -37,6 +37,16 @@
 #      could go green while CI went red on the very guard protecting the register.
 #      If you add a step to ci.yml's audit-artifacts-integrity job, add it here too.
 #
+# ONE CAVEAT ON --check "writes nothing"
+#   --check regenerates no ARTIFACTS, but it is not a pure read: the attestation
+#   harness it now runs edits docs/legal/AI_GOVERNANCE_MEMO.md in place for a
+#   moment and restores it, because proving the render cannot launder a pin
+#   requires a real attested file. The harness serializes itself under flock,
+#   verifies its own restore, and fails loudly if it cannot put the file back.
+#   Still: do not wire --check into a pre-commit hook or a file watcher that
+#   reacts to that path, and do not assume it is safe on a tree you cannot
+#   afford to have touched for the duration of one ruby invocation.
+#
 # WHAT IT DELIBERATELY DOES NOT DO
 #   It never PUSHES to Notion or Drive. The Notion sync scripts
 #   (compliance-findings-notion-sync.rb, document-register-notion-sync.rb) need
@@ -47,7 +57,8 @@
 #
 # USAGE
 #   scripts/regenerate-register.sh            # regenerate everything, then verify
-#   scripts/regenerate-register.sh --check    # verify only (mirror CI), write nothing
+#   scripts/regenerate-register.sh --check    # verify only (mirror CI); writes no ARTIFACTS,
+#                                             but see the note on the attestation harness below
 #   scripts/regenerate-register.sh --help
 #
 # EXIT
@@ -65,7 +76,11 @@ MODE="write"
 case "${1:-}" in
   --check) MODE="check" ;;
   -h|--help)
-    sed -n '2,40p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    # Print the whole header block: everything from line 2 up to the line before
+    # `set -euo pipefail`. A hardcoded end line silently truncates --help every
+    # time the header grows, which is how it came to cut off mid-sentence.
+    sed -n "2,$(($(grep -n '^set -euo pipefail' "${BASH_SOURCE[0]}" | cut -d: -f1) - 1))p" \
+      "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
     exit 0
     ;;
   "") ;;
@@ -124,7 +139,7 @@ verify_all() {
 }
 
 if [ "$MODE" = "check" ]; then
-  echo "regenerate-register: --check (verify only, no writes)"
+  echo "regenerate-register: --check (verify only; regenerates no artifacts)"
   if verify_all; then
     printf '\n\033[32mAll checks passed.\033[0m CI audit-artifacts-integrity would be green (plus a stricter local citation gate).\n'
     exit 0

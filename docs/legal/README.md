@@ -36,7 +36,8 @@ Also acceptable here: executed instruments that have no better home and are smal
 2. **Content hashes are verified at HEAD.** For an **unattested** doc: edit the file, re-render,
    commit both. For an **attested** doc this is the wrong move and `--check` now says so: re-rendering
    bumps `contentHash` and re-fails as "attested revision no longer exists", leaving a mutated
-   register in your diff. Revert the file, or re-attest via `/re-attest-record` (rules 3-5 below).
+   register in your diff. Revert the file, or re-attest via `/re-attest-record` (see "Attestation
+   freezes the artifact" and the two rules after it).
 3. **Attestation freezes the artifact.** Once Scot attests a document, its bytes, filename, and
    location are immutable. Supersede it with a new dated file plus two-way `supersedes` /
    `supersededBy` pointers. Do not edit or rename it, and do not move it to tidy up.

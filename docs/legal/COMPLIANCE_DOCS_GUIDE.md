@@ -99,7 +99,8 @@ index notices a document changed but its row did not.
   "attested revision no longer exists", and it dirties `DOCUMENT-REGISTER.json` in
   your diff on the way. Either revert your change to the file, or re-attest via
   `/re-attest-record` (Scot only; supersession is the default for `docs/legal/**`
-  per `README.md` rules 3-5). The `--check` message tells you which case you are in.
+  per the "Attestation freezes the artifact" rule in `README.md`). The `--check` message tells
+  you which case you are in, and says so explicitly when the row is attested.
 
 ## When CI is red: which failure is this?
 
