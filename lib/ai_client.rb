@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require 'anthropic'
+require 'aws-sdk-core'
+require 'digest'
 
 # Central construction point for the runtime AI (Claude) client.
 #
@@ -82,6 +84,26 @@ module AiClient
     anthropic.claude-haiku-4-5
   ].freeze
 
+  # AWS account the Bedrock credential MUST resolve to. See account_verified?.
+  # Deliberately a variable rather than a literal so an account migration is a
+  # config change, not a code change (finding LL-1b0d78dbe6).
+  EXPECTED_ACCOUNT_ENV = 'BEDROCK_EXPECTED_AWS_ACCOUNT'
+
+  # How long a FAILED account check is remembered before it is retried. A
+  # SUCCESS is cached for the life of the process, because a credential's
+  # account binding cannot change without the credential changing (and the
+  # cache is keyed on the credential). A failure must expire, or one transient
+  # STS error would darken AI for that whole process.
+  ACCOUNT_CHECK_RETRY_AFTER = 60
+
+  # Bounds how long a request thread can block on the STS probe. The check runs
+  # once per process per credential, but it runs inline on whichever request
+  # gets there first, so it must not hang.
+  ACCOUNT_CHECK_TIMEOUT = 5
+
+  @account_check_mutex = Mutex.new
+  @account_checks = {}
+
   # Reduces any id form to the plane-neutral alias used by ALLOWED_RUNTIME_MODELS.
   #
   # This is what closes the injection path: a regional inference-profile id such as
@@ -115,13 +137,12 @@ module AiClient
 
     return bedrock_model(override) if allowed_runtime_model?(override)
 
-    if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
-      Rails.logger.warn(
-        "[AiClient] ANTHROPIC_MODEL=#{override.inspect} is not in ALLOWED_RUNTIME_MODELS " \
-        "(#{ALLOWED_RUNTIME_MODELS.join(', ')}); refusing the override and using " \
-        "#{default_alias.inspect} instead."
-      )
-    end
+    emit_log(
+      :warn,
+      "[AiClient] ANTHROPIC_MODEL=#{override.inspect} is not in ALLOWED_RUNTIME_MODELS " \
+      "(#{ALLOWED_RUNTIME_MODELS.join(', ')}); refusing the override and using " \
+      "#{default_alias.inspect} instead."
+    )
     bedrock_model(default_alias)
   end
 
@@ -225,6 +246,7 @@ module AiClient
   # in the Gemfile.
   def build
     return nil unless configured?
+    return nil unless account_verified?
 
     creds = aws_credentials
     if bedrock_plane == MANTLE_PLANE
@@ -274,6 +296,135 @@ module AiClient
       defined?(::Anthropic::BedrockClient) ? true : false
     end
   end
+
+  # The account id the Bedrock credential must belong to, digits only.
+  #
+  # Normalized because the compliance corpus writes this id both ways: AWS
+  # returns `239044785114`, while docs/legal/AWS_BAA_ACCEPTED.md and the
+  # capability ledger also quote the grouped form `2390-4478-5114`. Comparing
+  # raw strings would make a correctly-configured deployment fail closed over
+  # punctuation.
+  def expected_aws_account
+    ENV[EXPECTED_ACCOUNT_ENV].to_s.gsub(/\D/, '')
+  end
+
+  # True when the Bedrock credential provably belongs to the BAA'd AWS account.
+  #
+  # WHY THIS EXISTS (finding LL-1b0d78dbe6, high, HIPAA)
+  # ----------------------------------------------------
+  # docs/legal/AWS_BAA_ACCEPTED.md is scoped to a SINGLE AWS account, and its
+  # stated operative condition is that Bedrock calls run under that account.
+  # Nothing enforced it. `build` signed with whichever pair happened to be in
+  # the environment and asserted nothing about whose account it was, so a
+  # credential from any other account would have put PHI-bearing inference
+  # outside BAA coverage while every check in this repo stayed green. That is
+  # the exact gap that let an unverifiable verification claim stand in an
+  # attested compliance document from 2026-07-27 to 2026-08-01, and it was
+  # live for ~22 hours on revision 00013-76w with no automated check present.
+  #
+  # WHERE THIS LIVES, AND WHY IT IS NOT IN CI
+  # -----------------------------------------
+  # The finding proposes a post-deploy step in .github/workflows/deploy-cloudrun.yml.
+  # That step would run as the CI service account, NOT under BEDROCK_AWS_KEY, so
+  # it would first have to READ that secret -- which means granting the deploy SA
+  # `secretmanager.secretAccessor`. The workflow deliberately refuses that grant:
+  # its presence probe uses `gcloud secrets versions list` rather than
+  # `versions access` specifically so the deploy SA cannot read every app secret.
+  # Asserting here instead runs under the exact credential `build` is about to
+  # use, by construction, and needs no new privilege. CI keeps the narrower half
+  # of the control: assert the expected-account variable is SET (a deploy that
+  # forgets it must fail, not silently skip the check below).
+  #
+  # FAIL DIRECTIONS, each chosen deliberately
+  # -----------------------------------------
+  #   expected account unset -> SKIP, return true. This deployment asserts no BAA
+  #     coverage (local dev, CI, test). Production sets it in APP_ENV_VARS_STATIC
+  #     and the deploy fails without it, so "unset" cannot quietly happen there.
+  #   account mismatch       -> REFUSE. `build` returns nil, and every caller
+  #     already treats nil as "AI is not configured" and degrades. No inference
+  #     call is made off the BAA'd account.
+  #   STS itself fails       -> REFUSE. An UNVERIFIABLE credential must not be
+  #     used. Failing open here would mean a transient network error silently
+  #     disables the control instead of the feature, which is the failure mode
+  #     this finding is about. Remembered only briefly so it self-heals.
+  #
+  # Note `sts:GetCallerIdentity` requires no IAM permission of its own, so a
+  # denial here means the credential itself is bad, not under-privileged.
+  def account_verified?
+    expected = expected_aws_account
+    return true if expected.empty?
+
+    creds = aws_credentials
+    return false unless creds
+
+    # Keyed on the credential AND the expectation, so rotating either forces a
+    # fresh check. Digested rather than stored plainly: this hash outlives the
+    # call, and secret material should not sit in a long-lived key.
+    fingerprint = Digest::SHA256.hexdigest(
+      [creds[:access_key], creds[:secret_access_key], bedrock_region, expected].join("\x00")
+    )
+
+    @account_check_mutex.synchronize do
+      cached = @account_checks[fingerprint]
+      if cached && (cached[:ok] || (Time.now - cached[:at]) < ACCOUNT_CHECK_RETRY_AFTER)
+        return cached[:ok]
+      end
+
+      ok = verify_account(creds, expected)
+      @account_checks[fingerprint] = { ok: ok, at: Time.now }
+      ok
+    end
+  end
+
+  # Forgets every cached account verification. For credential rotation and for
+  # tests; not needed on the normal path.
+  def reset_account_verification!
+    @account_check_mutex.synchronize { @account_checks = {} }
+    nil
+  end
+
+  # One STS probe under the exact Bedrock credential. Never logs credential
+  # material; an AWS account id is an identifier, not a secret, and is already
+  # quoted throughout docs/legal.
+  def verify_account(creds, expected)
+    sts = Aws::STS::Client.new(
+      region: bedrock_region,
+      access_key_id: creds[:access_key],
+      secret_access_key: creds[:secret_access_key],
+      retry_limit: 1,
+      http_open_timeout: ACCOUNT_CHECK_TIMEOUT,
+      http_read_timeout: ACCOUNT_CHECK_TIMEOUT
+    )
+    actual = sts.get_caller_identity.account.to_s.gsub(/\D/, '')
+    return true if actual == expected
+
+    emit_log(
+      :error,
+      "[AiClient] REFUSING to build a Bedrock client: the configured credential resolves to " \
+      "AWS account #{actual.inspect}, but #{EXPECTED_ACCOUNT_ENV} requires #{expected.inspect}. " \
+      'Inference under a different account is outside the AWS BAA boundary ' \
+      '(docs/legal/AWS_BAA_ACCEPTED.md). AI features will fail closed until this is corrected.'
+    )
+    false
+  rescue StandardError => e
+    emit_log(
+      :error,
+      "[AiClient] REFUSING to build a Bedrock client: could not verify the credential's AWS " \
+      "account via sts:GetCallerIdentity (#{e.class}: #{e.message}). An unverified credential " \
+      'is not used, so AI features fail closed rather than risk egress outside the BAA boundary.'
+    )
+    false
+  end
+  private_class_method :verify_account
+
+  # Rails may not be loaded (rake, standalone lib use), and Rails.logger is nil
+  # early in boot.
+  def emit_log(level, message)
+    return unless defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
+
+    Rails.logger.public_send(level, message)
+  end
+  private_class_method :emit_log
 
   # Returns {access_key:, secret_access_key:} only when BOTH halves are present
   # and non-blank after strip; otherwise nil.
