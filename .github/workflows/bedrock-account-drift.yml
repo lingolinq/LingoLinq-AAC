@@ -1,0 +1,78 @@
+# Scheduled drift check for the Tier 1 runtime-AI controls on the live Cloud Run
+# revisions.
+#
+# WHY A SCHEDULE AND NOT JUST A DEPLOY STEP
+# -----------------------------------------
+# deploy-cloudrun.yml asserts the same things, but only on the deploys it runs.
+# The incident this whole control lineage comes from was NOT a CI deploy: on
+# 2026-08-04 a human ran `gcloud run deploy` and revision lingolinq-web-00014
+# dropped exactly BEDROCK_AWS_KEY and BEDROCK_AWS_SECRET, and nothing noticed for
+# a day (see scripts/gcp/assert-runtime-secrets.sh header). `--set-env-vars` and
+# `--set-secrets` each replace their whole set independently, so a partial
+# hand-deploy or a Cloud Run console edit can strip either list while leaving the
+# other intact, and no CI job will ever run.
+#
+# BEDROCK_EXPECTED_AWS_ACCOUNT is the sharpest case: when it is absent,
+# AiClient.account_verified? SKIPS the BAA account assertion rather than failing,
+# so losing it silently switches off a HIPAA control (finding LL-1b0d78dbe6)
+# while AI keeps working and looking healthy. This job is what makes that
+# detectable.
+#
+# Read-only. It describes revisions and worker pools; it never deploys, mutates,
+# or reads secret VALUES (assert-runtime-secrets.sh checks the secretKeyRef
+# linkage, not the material, and needs only run.revisions.get).
+name: bedrock-account-drift
+
+on:
+  schedule:
+    # 13:00 UTC daily, comfortably inside a US working day so a failure is seen.
+    - cron: '0 13 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Authenticate to Google Cloud (Workload Identity Federation)
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+        with:
+          # `gcloud beta run worker-pools describe` needs the beta component.
+          install_components: beta
+
+      # Only the Tier 1 runtime-AI controls, deliberately. This job exists to make a
+      # specific silent-disable detectable, and a check that reds for unrelated reasons
+      # gets muted. The full boot/app secret set is already asserted on every CI deploy.
+      - name: Assert Bedrock credential and BAA account var are still live
+        run: |
+          bash scripts/gcp/assert-runtime-secrets.sh \
+            --project "${{ vars.GCP_PROJECT_ID }}" \
+            --region "${{ vars.GCP_REGION }}" \
+            --service lingolinq-web \
+            --worker-pool lingolinq-worker \
+            --required "BEDROCK_AWS_KEY=x,BEDROCK_AWS_SECRET=x" \
+            --required-literal 'BEDROCK_EXPECTED_AWS_ACCOUNT=^[0-9]{12}$'
+
+      - name: Explain a failure
+        if: failure()
+        run: |
+          echo "::error::Tier 1 runtime-AI config drifted on a live revision."
+          echo "A missing BEDROCK_AWS_KEY/SECRET means AI is failing closed in production."
+          echo "A missing or malformed BEDROCK_EXPECTED_AWS_ACCOUNT is worse: AiClient then"
+          echo "SKIPS the BAA account assertion, so inference could run under an unverified"
+          echo "AWS credential with every check still green (finding LL-1b0d78dbe6)."
+          echo "Most likely cause: a hand-run 'gcloud run deploy' or a Cloud Run console edit."
+          echo "Fix by redeploying through deploy-cloudrun.yml, which sets both lists in full."

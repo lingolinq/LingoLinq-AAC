@@ -96,10 +96,24 @@ module AiClient
   # STS error would darken AI for that whole process.
   ACCOUNT_CHECK_RETRY_AFTER = 60
 
-  # Bounds how long a request thread can block on the STS probe. The check runs
-  # once per process per credential, but it runs inline on whichever request
-  # gets there first, so it must not hang.
-  ACCOUNT_CHECK_TIMEOUT = 5
+  # Bounds how long a request thread can block on the STS probe. It runs inline
+  # on whichever request reaches it first, and every sibling thread in that
+  # process waits behind the mutex, so the budget has to be small.
+  #
+  # GetCallerIdentity is a sub-100ms call with an empty request body, so these
+  # are already generous. retry_limit is 0 ON PURPOSE: with the SDK default of 1
+  # a blackholed endpoint measured 10.33s to raise, and an accept-then-stall
+  # middlebox would be ~20s, recurring every ACCOUNT_CHECK_RETRY_AFTER seconds
+  # per worker. Word prediction is typing assistance for AAC users; a 20-second
+  # stall is not an acceptable way to discover that STS is down. One attempt
+  # failing closed and retrying a minute later is.
+  ACCOUNT_CHECK_RETRIES = 0
+  ACCOUNT_CHECK_OPEN_TIMEOUT = 2
+  ACCOUNT_CHECK_READ_TIMEOUT = 3
+
+  # A configured account id, once punctuation is stripped. AWS account ids are
+  # exactly 12 digits.
+  ACCOUNT_ID_FORMAT = /\A\d{12}\z/
 
   @account_check_mutex = Mutex.new
   @account_checks = {}
@@ -244,6 +258,13 @@ module AiClient
   # `require`s aws-sdk-bedrockruntime at construction (a guard; it uses only
   # Aws::Sigv4::Signer and Aws::EventStream::Decoder), which is why that gem is
   # in the Gemfile.
+  # Raised by build! when a client cannot be constructed. Distinct from an
+  # Anthropic/Faraday error on purpose: the seams' generic rescues would
+  # otherwise record a compliance REFUSAL and an upstream API FAILURE
+  # identically in AiApiLog, and that log is the artifact an auditor reads to
+  # reconstruct what actually egressed.
+  class NotAvailableError < StandardError; end
+
   def build
     return nil unless configured?
     return nil unless account_verified?
@@ -286,6 +307,36 @@ module AiClient
     "https://bedrock-mantle.#{bedrock_region}.api.aws/anthropic"
   end
 
+  # True when a client can actually be constructed: AWS config is present AND
+  # the credential is verified to belong to the BAA'd account.
+  #
+  # This is the predicate the runtime seams gate on. `configured?` is NOT, and
+  # must not become, this: it is a cheap pure-ENV read, and folding a network
+  # call into it would hand one to every future caller by accident -- a
+  # serializer, a health endpoint, an admin page. Keeping them separate also
+  # keeps `configured?` honest about what it means (config present), while
+  # `available?` answers the question seams actually have (can I call?).
+  def available?
+    configured? && account_verified?
+  end
+
+  # build, but raises instead of returning nil.
+  #
+  # The seams pre-gate on `available?`, so reaching this is already unexpected
+  # (a credential that verified during the gate and stopped between the gate and
+  # the call). It exists as a belt: `build` returning nil is a contract every
+  # caller must honor, and before the account assertion existed the invariant
+  # `configured? => build != nil` held, so no seam had a nil guard. A future
+  # seam that forgets one gets a legible error instead of
+  # `NoMethodError: undefined method 'messages' for nil`.
+  def build!
+    build || raise(
+      NotAvailableError,
+      'Bedrock client unavailable: AWS is unconfigured, or the credential could not be verified ' \
+      "against #{EXPECTED_ACCOUNT_ENV}. No AI call was made. See the preceding [AiClient] log line."
+    )
+  end
+
   # True when the client class for the active plane is loaded. Seams use this
   # (rather than naming one plane's constant) to decide whether an AI call is
   # even constructible.
@@ -297,15 +348,46 @@ module AiClient
     end
   end
 
-  # The account id the Bedrock credential must belong to, digits only.
+  # The account id the Bedrock credential must belong to, digits only, or nil
+  # when nothing is configured.
   #
-  # Normalized because the compliance corpus writes this id both ways: AWS
-  # returns `239044785114`, while docs/legal/AWS_BAA_ACCEPTED.md and the
-  # capability ledger also quote the grouped form `2390-4478-5114`. Comparing
-  # raw strings would make a correctly-configured deployment fail closed over
+  # Punctuation is stripped because the compliance corpus writes this id both
+  # ways: AWS returns `239044785114`, while docs/legal/AWS_BAA_ACCEPTED.md and
+  # the capability ledger also quote the grouped form `2390-4478-5114`.
+  # Comparing raw strings would fail a correctly-configured deployment over
   # punctuation.
+  #
+  # Returns nil ONLY when the variable is absent from the environment entirely,
+  # and the normalized string otherwise -- including a string that is not a
+  # valid account id. Distinguishing unconfigured from misconfigured is the
+  # caller's job and it matters; see account_verified?.
+  #
+  # Absence is tested with ENV.key?, not by emptiness, and that distinction is
+  # the point. "Blank means unset" would leave an ambiguous middle ground where
+  # `BEDROCK_EXPECTED_AWS_ACCOUNT=` -- which `gcloud run deploy --set-env-vars`
+  # will happily produce, and which reads as configured in the console -- turns
+  # a HIPAA control off without anyone editing a line of policy. So the only way
+  # to skip the assertion is for the variable not to exist. Blank is a
+  # misconfiguration and refuses like any other.
   def expected_aws_account
+    return nil unless ENV.key?(EXPECTED_ACCOUNT_ENV)
+
     ENV[EXPECTED_ACCOUNT_ENV].to_s.gsub(/\D/, '')
+  end
+
+  # STS endpoint, pinned rather than resolved from the environment.
+  #
+  # Same control, same reasoning, as classic_base_url above -- and it is not
+  # hypothetical here. aws-sdk-core resolves an unpinned client's host from
+  # AWS_ENDPOINT_URL / AWS_ENDPOINT_URL_STS, verified against the pinned SDK
+  # version (3.254.0). Leaving it unpinned would let anything that can set an
+  # env var on the revision point GetCallerIdentity at a host that answers with
+  # the expected account id. The assertion would then pass while `build` went on
+  # to call the REAL Bedrock endpoint with a NON-BAA credential -- a control
+  # reporting green precisely when it has been defeated, which is strictly worse
+  # than no control, because an unset variable is at least auditable.
+  def sts_endpoint
+    "https://sts.#{bedrock_region}.amazonaws.com"
   end
 
   # True when the Bedrock credential provably belongs to the BAA'd AWS account.
@@ -337,9 +419,16 @@ module AiClient
   #
   # FAIL DIRECTIONS, each chosen deliberately
   # -----------------------------------------
-  #   expected account unset -> SKIP, return true. This deployment asserts no BAA
+  #   ABSENT                 -> SKIP, return true. This deployment asserts no BAA
   #     coverage (local dev, CI, test). Production sets it in APP_ENV_VARS_STATIC
-  #     and the deploy fails without it, so "unset" cannot quietly happen there.
+  #     and the deploy fails without it, so absence cannot quietly happen there.
+  #     Absence means the env var does not EXIST; see expected_aws_account.
+  #   PRESENT BUT MALFORMED  -> REFUSE, loudly. Set but not a 12-digit account id
+  #     is NOT the same as absent, and collapsing the two is a silent off switch:
+  #     `none`, `REDACTED`, an unexpanded `${BEDROCK_ACCOUNT}`, and a blank value
+  #     all normalize to the empty string. Treating those as "unconfigured" would
+  #     disable the control while leaving a variable in place that reads as
+  #     configured to anyone inspecting the revision.
   #   account mismatch       -> REFUSE. `build` returns nil, and every caller
   #     already treats nil as "AI is not configured" and degrades. No inference
   #     call is made off the BAA'd account.
@@ -348,11 +437,28 @@ module AiClient
   #     disables the control instead of the feature, which is the failure mode
   #     this finding is about. Remembered only briefly so it self-heals.
   #
+  # A SUCCESS is logged once per process per credential (see verify_account), so
+  # a revision can prove the control actually ran. A control that is silent when
+  # it passes cannot be told apart from a control that is switched off, and this
+  # finding exists because an unverifiable claim went unnoticed for five days.
+  #
   # Note `sts:GetCallerIdentity` requires no IAM permission of its own, so a
   # denial here means the credential itself is bad, not under-privileged.
   def account_verified?
     expected = expected_aws_account
-    return true if expected.empty?
+    return true if expected.nil?
+
+    unless expected.match?(ACCOUNT_ID_FORMAT)
+      emit_log(
+        :error,
+        "[AiClient] REFUSING to build a Bedrock client: #{EXPECTED_ACCOUNT_ENV} is set but is " \
+        'not a 12-digit AWS account id, so the BAA account assertion cannot be evaluated. ' \
+        'Misconfigured is not the same as unconfigured: this fails closed rather than silently ' \
+        'skipping the check. Set it to the account id in docs/legal/AWS_BAA_ACCEPTED.md, or ' \
+        'unset it entirely if this deployment asserts no BAA coverage.'
+      )
+      return false
+    end
 
     creds = aws_credentials
     return false unless creds
@@ -366,15 +472,23 @@ module AiClient
 
     @account_check_mutex.synchronize do
       cached = @account_checks[fingerprint]
-      if cached && (cached[:ok] || (Time.now - cached[:at]) < ACCOUNT_CHECK_RETRY_AFTER)
+      if cached && (cached[:ok] || (monotonic_now - cached[:at]) < ACCOUNT_CHECK_RETRY_AFTER)
         return cached[:ok]
       end
 
       ok = verify_account(creds, expected)
-      @account_checks[fingerprint] = { ok: ok, at: Time.now }
+      @account_checks[fingerprint] = { ok: ok, at: monotonic_now }
       ok
     end
   end
+
+  # Monotonic, not wall clock. With Time.now an NTP step backwards makes the
+  # elapsed calculation negative and pins a cached FAILURE until the clock
+  # catches up, darkening AI for as long as the step was large.
+  def monotonic_now
+    Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  end
+  private_class_method :monotonic_now
 
   # Forgets every cached account verification. For credential rotation and for
   # tests; not needed on the normal path.
@@ -389,14 +503,24 @@ module AiClient
   def verify_account(creds, expected)
     sts = Aws::STS::Client.new(
       region: bedrock_region,
+      endpoint: sts_endpoint,
       access_key_id: creds[:access_key],
       secret_access_key: creds[:secret_access_key],
-      retry_limit: 1,
-      http_open_timeout: ACCOUNT_CHECK_TIMEOUT,
-      http_read_timeout: ACCOUNT_CHECK_TIMEOUT
+      retry_limit: ACCOUNT_CHECK_RETRIES,
+      http_open_timeout: ACCOUNT_CHECK_OPEN_TIMEOUT,
+      http_read_timeout: ACCOUNT_CHECK_READ_TIMEOUT
     )
     actual = sts.get_caller_identity.account.to_s.gsub(/\D/, '')
-    return true if actual == expected
+    if actual == expected
+      # Logged so a running revision can PROVE the control executed. Silence on
+      # success is indistinguishable from the control being switched off.
+      emit_log(
+        :info,
+        "[AiClient] Bedrock credential verified against AWS account #{actual} via " \
+        "#{sts_endpoint}; inference is inside the AWS BAA boundary."
+      )
+      return true
+    end
 
     emit_log(
       :error,

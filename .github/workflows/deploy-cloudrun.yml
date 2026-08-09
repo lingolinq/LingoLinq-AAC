@@ -262,9 +262,11 @@ jobs:
       # other account fails AI closed instead of putting PHI-bearing inference outside the BAA
       # boundary (finding LL-1b0d78dbe6). An account id is an identifier, not a secret -- it is
       # already quoted throughout docs/legal -- so it belongs here, not in Secret Manager. It lives
-      # in config rather than in Ruby so an account migration is a config change. The "Assert BAA
-      # account is configured" step below fails the deploy if this is ever dropped: unset means
-      # AiClient SKIPS the check, so a silent removal would silently disable the control.
+      # in config rather than in Ruby so an account migration is a config change. Losing it is a
+      # silent-disable risk (unset means AiClient SKIPS the check), so it is defended twice: the
+      # lint step below catches an edit to THIS file before deploying, and the "Assert deployed
+      # secrets landed" readback catches a value that did not land on the revision. The scheduled
+      # bedrock-account-drift workflow catches drift introduced outside CI entirely.
       APP_ENV_VARS_STATIC: BEDROCK_EXPECTED_AWS_ACCOUNT=239044785114,AWS_REGION=us-west-2,SES_REGION=us-west-2,UPLOADS_S3_BUCKET=lingolinq-prod-uploads,STATIC_S3_BUCKET=lingolinq-prod-static,UPLOADS_S3_NO_ACL=1,UPLOADS_S3_CDN=https://d34sa6lc5jfe66.cloudfront.net,REMOTE_EXTRA_DATA=1,SENTRY_ENVIRONMENT=production,RAILS_LOG_TO_STDOUT=true,RAILS_SERVE_STATIC_FILES=true,RUBY_YJIT_ENABLE=1,WEB_CONCURRENCY=2
       # REDIS_TLS_VERIFY_HOSTNAME=false is set on every deploy below: Memorystore is reached by
       # private IP and its server cert is issued for the instance, not the IP, so hostname
@@ -367,20 +369,25 @@ jobs:
           [ -n "${V_REDIS_NAMESPACE_SUFFIX:-}" ] && ev="$ev,REDIS_NAMESPACE_SUFFIX=$V_REDIS_NAMESPACE_SUFFIX"
           echo "APP_ENV_VARS=$ev" >> "$GITHUB_ENV"
 
-      - name: Assert BAA account is configured
-        # The other half of finding LL-1b0d78dbe6. AiClient.account_verified? enforces that the
-        # Bedrock credential resolves to the BAA'd AWS account, but it SKIPS that enforcement when
-        # BEDROCK_EXPECTED_AWS_ACCOUNT is unset (deliberately, so local dev and CI do not need an
-        # AWS round trip to build a client). That skip is safe only if a production deploy cannot
-        # lose the variable, so assert it here rather than trusting it.
+      - name: Lint the BAA account var in this workflow's own config
+        # SCOPE, stated honestly: this is a fail-FAST lint of a value authored twenty lines
+        # above in this same file. It catches an edit to APP_ENV_VARS_STATIC that drops or
+        # mistypes BEDROCK_EXPECTED_AWS_ACCOUNT, and it catches it BEFORE a bad revision is
+        # deployed rather than after. That is its entire value.
         #
-        # Checks the ASSEMBLED APP_ENV_VARS, not the APP_ENV_VARS_STATIC constant, so the guard
-        # sees the string that is actually about to be deployed.
+        # It is NOT the control, and must not be mistaken for one. It cannot detect drift,
+        # because it never reads live state -- it compares a literal against itself. The
+        # actual control is two layers: AiClient.account_verified? enforces the account at
+        # runtime under the real credential, and the "Assert deployed secrets landed" step
+        # below reads the DEPLOYED revision back and fails if the variable did not land or
+        # does not look like an account id. Only that readback survives a hand-run
+        # `gcloud run deploy`, whose --set-env-vars replaces the whole env set independently
+        # of --set-secrets, which is exactly how revision 00014 lost the Bedrock pair.
         #
-        # The account check itself deliberately does NOT run here: this step executes as the CI
-        # service account, which cannot read BEDROCK_AWS_KEY (the deploy SA is granted
-        # secretmanager.viewer, never secretAccessor -- see the presence probe above). Verifying
-        # the account from CI would require expanding that grant. The app does it instead, under
+        # The account check itself deliberately does NOT run in CI at all: this job executes
+        # as the deploy service account, which cannot read BEDROCK_AWS_KEY (granted
+        # secretmanager.viewer, never secretAccessor -- see the presence probe above), so
+        # verifying the account here would mean expanding that grant. The app does it under
         # the exact credential, at no extra privilege.
         run: |
           set -euo pipefail
@@ -392,20 +399,17 @@ jobs:
             echo "non-BAA'd AWS account would be used silently. Restore it in APP_ENV_VARS_STATIC."
             exit 1
           fi
-          # 12 digits is the AWS account-id format. A typo'd or truncated value would otherwise
-          # deploy an assertion that can never match, failing every AI feature closed at runtime
-          # with a mismatch that looks like a credential problem.
-          #
-          # Deliberately STRICTER than AiClient.expected_aws_account, which strips punctuation so
-          # the grouped form 2390-4478-5114 used in docs/legal still matches. This value is
-          # authored here, in this file, so it should be canonical; the app is lenient because it
-          # also has to accept a value set by hand somewhere else. Strict where we write it,
-          # tolerant where we read it -- not an inconsistency to "fix".
+          # Deliberately stricter than AiClient.expected_aws_account, which strips punctuation
+          # so the grouped form 2390-4478-5114 used in docs/legal still matches. This value is
+          # authored here, so it should be canonical. Note the app no longer treats an
+          # unparseable value as "unconfigured": it refuses loudly. Strict where we write it,
+          # tolerant-then-strict where we read it.
           if ! printf '%s' "$account" | grep -Eq '^[0-9]{12}$'; then
             echo "::error::BEDROCK_EXPECTED_AWS_ACCOUNT='$account' is not a 12-digit AWS account id."
             exit 1
           fi
-          echo "BAA account assertion is configured (account $account)."
+          echo "BAA account var is well-formed in this workflow's config (account $account)."
+          echo "This is a config lint, not a drift check. The readback step is the control."
 
       - name: Run database migration (Cloud Run Job)
         # Strictly incremental: db:migrate only. NEVER db:prepare here -- db:prepare can
@@ -693,6 +697,13 @@ jobs:
       # fails the run instead of shipping a silently degraded revision.
       # NOTE: this guards CI deploys only. A human running `gcloud run deploy` bypasses this
       # workflow entirely, which is how 00014 happened; see the script header.
+      # --required-literal covers the same class of loss for a NON-secret control var.
+      # BEDROCK_EXPECTED_AWS_ACCOUNT drives AiClient's BAA account assertion, and when it
+      # is absent that assertion is SKIPPED, so losing it silently disables a HIPAA control
+      # (finding LL-1b0d78dbe6). It cannot ride in --required, which fails anything not
+      # backed by a secretKeyRef. The pattern check matters as much as presence: a value
+      # like `none` or an unexpanded `${VAR}` normalizes to empty and would read as
+      # "unconfigured", which is the silent-off case.
       - name: Assert deployed secrets landed
         run: |
           bash scripts/gcp/assert-runtime-secrets.sh \
@@ -700,4 +711,5 @@ jobs:
             --region "${{ vars.GCP_REGION }}" \
             --service lingolinq-web \
             --worker-pool lingolinq-worker \
-            --required "$BOOT_SECRETS,$NON_BOOT_SECRETS"
+            --required "$BOOT_SECRETS,$NON_BOOT_SECRETS" \
+            --required-literal 'BEDROCK_EXPECTED_AWS_ACCOUNT=^[0-9]{12}$'

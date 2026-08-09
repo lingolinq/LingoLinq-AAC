@@ -248,7 +248,7 @@ module EvalNarrator
   # a separate change: it alters the model named in the Article 50 and consent
   # disclosures, so it needs those updated in the same commit.
   def self.call_anthropic(model:, system_prompt:, user_content:)
-    client = AiClient.build
+    client = AiClient.build!
     client.messages.create(
       model: model,
       max_tokens: 1200,
@@ -342,7 +342,7 @@ module EvalNarrator
   # could never be built, and it would have gone false for the wrong reason had
   # the gem ever dropped that constant while classic was active.
   def self.anthropic_configured?
-    AiClient.configured? && AiClient.client_defined?
+    AiClient.available? && AiClient.client_defined?
   end
 
   # Template-based deterministic draft. Pulls only fields that are
