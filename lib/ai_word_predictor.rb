@@ -50,6 +50,14 @@ module AiWordPredictor
         return cached[:words]
       end
 
+      # Past the cache, so this request may actually egress. Verify the Bedrock
+      # credential belongs to the BAA'd AWS account before doing anything else
+      # (finding LL-1b0d78dbe6). Deliberately here rather than in
+      # resolve_api_config above: see the note on that method. Serving a cache hit
+      # without this check is safe because an entry can only have been written by a
+      # call that already passed it.
+      return [] unless AiClient.available?
+
       # Configure blocklist with the user's name so it cannot leak verbatim.
       if user
         names = []
@@ -161,8 +169,24 @@ module AiWordPredictor
       }
     end
 
+    # NOTE: this seam gates on `configured?` (a pure ENV read), NOT on `available?`
+    # like the other three. That difference is deliberate and load-bearing.
+    #
+    # `available?` performs the sts:GetCallerIdentity account assertion, and while
+    # the result is cached, a FAILED check re-probes every 60s and holds a
+    # process-global mutex for up to 5s while it does. This method runs before the
+    # response cache in `predict`, so gating it on `available?` would put that stall
+    # in front of requests that were about to return instantly from CACHE -- once a
+    # minute, for every thread in the worker. Word prediction is typing assistance
+    # for AAC users; a 5-second wait to be told "no suggestions" is worse than an
+    # instant empty list.
+    #
+    # The account assertion is NOT skipped, only moved: `predict` calls
+    # `AiClient.available?` immediately after the cache lookup, before any scrub,
+    # prompt build, or egress. Cache hits never probe; anything that could actually
+    # call is still fully gated.
     def resolve_api_config
-      return nil unless AiClient.available?
+      return nil unless AiClient.configured?
 
       {
         provider: :claude,

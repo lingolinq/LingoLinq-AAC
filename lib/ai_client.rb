@@ -115,6 +115,25 @@ module AiClient
   # exactly 12 digits.
   ACCOUNT_ID_FORMAT = /\A\d{12}\z/
 
+  # AWS region format: `us-west-2`, `eu-central-1`, `us-gov-west-1`.
+  #
+  # This is a SECURITY control, not input hygiene. Every endpoint in this file is
+  # built by interpolating the region into a hostname, so an unvalidated region
+  # escapes the host entirely: BEDROCK_AWS_REGION='evil.example.com/' turns
+  # "https://sts.#{region}.amazonaws.com" into
+  # https://sts.evil.example.com/.amazonaws.com, whose HOST is evil.example.com.
+  # That defeats the pinning on the STS verifier AND on classic_base_url with one
+  # variable -- the attacker's fake STS answers with the expected account, the
+  # assertion passes, and PHI-bearing inference goes to the same attacker host.
+  # Validating here rather than at each call site closes all three endpoints at
+  # once, which is why it lives in bedrock_region.
+  AWS_REGION_FORMAT = /\A[a-z]{2}(?:-[a-z]+)+-\d{1,2}\z/
+
+  # Bad region values already warned about, so a rejected region does not emit a
+  # log line per AI request. Not mutex-guarded: a duplicate line under a race is
+  # harmless, and this must not contend with the account-check lock.
+  @warned_regions = {}
+
   @account_check_mutex = Mutex.new
   @account_checks = {}
 
@@ -171,10 +190,28 @@ module AiClient
   # the AI route can live in a different region than S3/SES if needed, then
   # falls back to the app's existing AWS_REGION convention (see Uploader) and the
   # standard AWS SDK env var.
+  # Returns '' for anything that is not a well-formed AWS region, which makes
+  # `configured?` false and fails every AI feature closed. Refusing rather than
+  # defaulting is deliberate: a silent fallback to some other region would hide
+  # the misconfiguration, and this value determines which HOST the credential is
+  # sent to. See AWS_REGION_FORMAT for why that is a security boundary.
   def bedrock_region
-    (ENV['BEDROCK_AWS_REGION'].presence ||
-     ENV['AWS_REGION'].presence ||
-     ENV['AWS_DEFAULT_REGION'].presence).to_s.strip
+    raw = (ENV['BEDROCK_AWS_REGION'].presence ||
+           ENV['AWS_REGION'].presence ||
+           ENV['AWS_DEFAULT_REGION'].presence).to_s.strip
+    return raw if raw.empty? || raw.match?(AWS_REGION_FORMAT)
+
+    unless @warned_regions[raw]
+      @warned_regions[raw] = true
+      emit_log(
+        :error,
+        "[AiClient] REFUSING to build a Bedrock client: region #{raw.inspect} is not a " \
+        'well-formed AWS region. The region is interpolated into the Bedrock and STS ' \
+        'hostnames, so a malformed value can redirect both to another host. AI features ' \
+        'fail closed until BEDROCK_AWS_REGION / AWS_REGION is corrected.'
+      )
+    end
+    ''
   end
 
   # Resolves a complete AWS credential pair for Bedrock SigV4 signing.
@@ -462,6 +499,12 @@ module AiClient
 
     creds = aws_credentials
     return false unless creds
+
+    # Self-contained rather than relying on a caller having checked configured?
+    # first. build and available? do short-circuit on configured?, but the puma
+    # warm-up calls this directly, and a blank region would otherwise send the
+    # probe to the nonsense host https://sts..amazonaws.com.
+    return false if bedrock_region.empty?
 
     # Keyed on the credential AND the expectation, so rotating either forces a
     # fresh check. Digested rather than stored plainly: this hash outlives the

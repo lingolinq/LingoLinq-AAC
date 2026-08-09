@@ -208,7 +208,13 @@ assert_env_json() {
 # so the pattern cannot be checked, so the control cannot be proven.
 assert_literal_env() {
   local label="$1" entries="$2"
-  [ "${#REQUIRED_LITERAL_PAIRS[@]}" -gt 0 ] || return 0
+  # Say so out loud when there is nothing to check. A silent no-op inside the tool
+  # built to detect silent no-ops is the one failure mode this script must not have:
+  # `--required-literal ''` (e.g. an unset CI variable) would otherwise print OK.
+  if [ "${#REQUIRED_LITERAL_PAIRS[@]}" -eq 0 ]; then
+    echo "   note: no literal env assertions requested"
+    return 0
+  fi
 
   local pair name pattern row kind value ok=1
   for pair in "${REQUIRED_LITERAL_PAIRS[@]}"; do
