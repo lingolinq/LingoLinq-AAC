@@ -449,6 +449,14 @@ def collect_problems(documents, bundle_defs, schedule = {}, exemptions = [])
           stored = doc['contentHash'].to_s
           if stored.empty?
             problems << "git doc #{title.inspect} has no contentHash (run render to populate): #{loc}"
+          elsif stored != computed && attested?(doc)
+            # Do NOT tell the operator to re-render here. Render recomputes contentHash from
+            # current bytes, so on an attested row it would clear this message and replace it
+            # with "attested revision no longer exists" (see attestation_problems) - having
+            # mutated the register on the way. That is not a fix, it is the same failure one
+            # step later with a dirtied DOCUMENT-REGISTER.json in the diff, and it is exactly
+            # what happened on PR #721. The supported routes are revert or /re-attest-record.
+            problems << "contentHash drift on the ATTESTED row #{title.inspect}: #{loc} changed but the attestation of #{doc.dig('attestation', 'attestedDate')} covers #{stored[0, 12]}. Do NOT run render to clear this - it will bump contentHash and re-fail as \"attested revision no longer exists\". Either revert your change to this file, or (Scot only) re-attest via /re-attest-record; per docs/legal/README.md rule 3 supersession is the default for docs/legal/**"
           elsif stored != computed
             problems << "contentHash drift for #{title.inspect}: #{loc} changed but its register row was not updated (run render)"
           end

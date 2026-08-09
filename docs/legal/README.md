@@ -33,7 +33,10 @@ Also acceptable here: executed instruments that have no better home and are smal
 
 1. **Every tracked file in this directory must have a register row.** `--check` fails otherwise. If
    you add a document here, add its row in the same PR and run `scripts/regenerate-register.sh`.
-2. **Content hashes are verified at HEAD.** Edit the file, re-render, commit both.
+2. **Content hashes are verified at HEAD.** For an **unattested** doc: edit the file, re-render,
+   commit both. For an **attested** doc this is the wrong move and `--check` now says so: re-rendering
+   bumps `contentHash` and re-fails as "attested revision no longer exists", leaving a mutated
+   register in your diff. Revert the file, or re-attest via `/re-attest-record` (rules 3-5 below).
 3. **Attestation freezes the artifact.** Once Scot attests a document, its bytes, filename, and
    location are immutable. Supersede it with a new dated file plus two-way `supersedes` /
    `supersededBy` pointers. Do not edit or rename it, and do not move it to tidy up.

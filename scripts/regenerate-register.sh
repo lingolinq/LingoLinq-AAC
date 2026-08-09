@@ -27,10 +27,15 @@
 #   5. compliance-notion-publish          - rebuild the LOCAL Notion mirror render
 #                                           (audit-reports/notion/compliance-audit-page.md).
 #   6. compliance-publication-status      - rebuild the publication status report.
-#   7. Re-verify: the four CI artifact --check commands (== audit-artifacts-integrity)
-#      PLUS a citation-check evidence gate. citation-check is intentionally NOT a CI
-#      job (see ci.yml); running it here is a stricter local gate. Green here means a
-#      green audit-artifacts-integrity in CI.
+#   7. Re-verify: every check audit-artifacts-integrity runs (the four artifact
+#      --check commands, the capability ledger, and the attestation-hash guard
+#      harness) PLUS a citation-check evidence gate. citation-check is intentionally
+#      NOT a CI job (see ci.yml); running it here is a stricter local gate. Green
+#      here means a green audit-artifacts-integrity in CI.
+#      NOTE: that promise only holds while this list stays a superset of ci.yml's
+#      steps. The harness was missing from here until 2026-08-08, so the wrapper
+#      could go green while CI went red on the very guard protecting the register.
+#      If you add a step to ci.yml's audit-artifacts-integrity job, add it here too.
 #
 # WHAT IT DELIBERATELY DOES NOT DO
 #   It never PUSHES to Notion or Drive. The Notion sync scripts
@@ -106,6 +111,11 @@ verify_all() {
     ruby scripts/compliance-notion-publish.rb --check || rc=1
   step "verify: document register render + git hashes + bundle completeness" \
     ruby scripts/document-register-render.rb --check || rc=1
+  # Ordered to match ci.yml's audit-artifacts-integrity. This harness edits an attested
+  # file in place and restores it, so it must run on a tree you can afford to have
+  # touched for a moment; it verifies the restore itself and fails if it cannot.
+  step "verify: attestedContentHash guards (drift + closed exemption set)" \
+    bash scripts/tests/attestation-hash-guard-test.sh || rc=1
   step "verify: compliance publication status report" \
     ruby scripts/compliance-publication-status.rb --check || rc=1
   step "verify: capability ledger (currentEvidence at HEAD + negativeEvidence)" \

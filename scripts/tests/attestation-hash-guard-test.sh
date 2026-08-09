@@ -135,6 +135,24 @@ expect "exemption list is not an array" \
   "m['attestationBackfillExemptions']={}" \
   "must be an array"
 
+echo "attestation-hash-guard-test: drift on an attested row routes away from the render"
+# The contributor-facing path, and the one the `expect` helper cannot cover: `expect` always
+# renders before --check (so the drift branch never fires there). Here the register is rendered
+# CONSISTENT first, and only then is the attested file edited - exactly the state a contributor
+# lands in. The message must NOT tell them to re-render: doing so bumps contentHash, re-fails as
+# "attested revision no longer exists", and leaves a mutated register in the diff (PR #721).
+cp "$LIVE" "$WORK"
+ruby scripts/document-register-render.rb "$WORK" >/dev/null 2>&1   # consistent baseline
+printf '\n' >> "$MEMO"                                             # now drift the attested file
+drift_out=$(ruby scripts/document-register-render.rb --check "$WORK" 2>&1)
+if echo "$drift_out" | grep -qF "Do NOT run render to clear this"; then
+  pass "attested drift routes to re-attest, not to the render"
+else
+  fail "attested drift still advises re-rendering (that mutates the register and re-fails)"
+  echo "$drift_out" | grep '\[FAIL\]' | head -3
+fi
+restore_memo
+
 echo "attestation-hash-guard-test: the render cannot launder a pin"
 # The end-to-end path: edit an attested file, regenerate everything, confirm --check still fails.
 # Render recomputes contentHash from current bytes; if it also wrote attestedContentHash, every
