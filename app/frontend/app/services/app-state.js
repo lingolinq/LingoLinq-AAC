@@ -164,7 +164,12 @@ export default Service.extend({
   willDestroy() {
     this._super(...arguments);
     if (this.refreshing_user) {
-      runCancel(this.refreshing_user);
+      // clearTimeout, NOT runCancel: refresh_user's reschedule is a native
+      // setTimeout (see the comment at its call site), and Ember's cancel() looks
+      // the token up in Backburner's own registry, so on a native id it silently
+      // does nothing. The other two call sites (:626, :630) already use
+      // clearTimeout on this same field.
+      clearTimeout(this.refreshing_user);
       this.refreshing_user = null;
     }
     if (this.check_for_board_readiness && this.check_for_board_readiness.timer) {
