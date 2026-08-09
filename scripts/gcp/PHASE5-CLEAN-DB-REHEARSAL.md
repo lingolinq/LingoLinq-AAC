@@ -7,6 +7,18 @@ GCP stack up on a **fresh seeded Cloud SQL DB** and validates it on a `run.app` 
 DNS change**. It covers clean-DB steps 1-4; steps 5-6 (LB, DNS, soak, decommission) are
 unchanged from the main runbook and run only after this rehearsal is green.
 
+> **SUPERSEDED FOR RE-RUNS AS WRITTEN. Read before executing any step.** This runsheet was
+> written for a pre-DNS rehearsal and describes itself below as "non-destructive and
+> re-runnable". That was true then. It is not true now: DNS was cut on 2026-07-22, so
+> `app.lingolinq.com` resolves to the LB in front of `lingolinq-web`, and step 3a's
+> `db:schema:load` DROPS ALL TABLES on the database that the DNS-fronted service is using.
+> Re-running this end to end today wipes the live prod database and takes the public hostname
+> down. It does not currently destroy real user data (prod has no real users yet, Scot
+> 2026-08-09), which is the only reason this is an outage rather than an incident. That will
+> stop being true the moment a district is onboarded. Treat every "re-runnable" claim below as
+> scoped to the pre-DNS window it was written in, and do not run step 3a against
+> `lingolinq-prod-pg` again without a deliberate decision.
+>
 > **Status: DRAFT. Nothing here runs before Scot's explicit go.** The seed/secret reads and the
 > Cloud SQL / Cloud Run spin-up are real, cost money, and are HIPAA-relevant infra actions. Every
 > step has a dry/verify mode that touches nothing; run those first. Re-verify live state (Render
@@ -228,8 +240,16 @@ gcloud run jobs execute lingolinq-migrate-cleandb --region "$REGION" --wait
 ## Step 4 - Stack health + five-path smoke test (0b + smoke). GATE: money (services up)
 
 Deploy the web service + worker pool against the seeded DB (same `gcloud run deploy` /
-`gcloud beta run worker-pools deploy` as `deploy-cloudrun.yml` lines 150-181) and hit the
-`run.app` URL directly - still **no DNS**.
+`gcloud beta run worker-pools deploy` as the deploy + worker steps in `deploy-cloudrun.yml`) and
+hit the `run.app` URL directly.
+
+> **A manual `gcloud run deploy` on `lingolinq-web` may serve 0% of traffic.** The deploy
+> workflow pins traffic to the specific revision it health-checked, which clears
+> `latestRevision`. Once any workflow run has done that, a hand deploy creates a revision that
+> takes no traffic and still exits 0. Check with
+> `gcloud run services describe lingolinq-web --region us-central1 --format='value(spec.traffic)'`,
+> and shift deliberately with
+> `gcloud run services update-traffic lingolinq-web --region us-central1 --to-revisions <new>=100`.
 
 - **0b worker health:** worker-pool instance `RUNNABLE`, connected to Memorystore over `rediss://`
   and Cloud SQL, draining `priority`/`default`/`slow` (enqueue a synthetic job, confirm it
