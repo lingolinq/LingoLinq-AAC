@@ -9262,3 +9262,58 @@ Aside: a full run once died with `[BUG] Segmentation fault` in
 `ethon-0.15.0/lib/ethon/easy/operations.rb:30` (libcurl, via Typhoeus) while
 three suites shared the machine. It did not recur on an idle box — treat a
 native crash there as resource contention before chasing it as a real bug.
+
+## Pattern: app-booting acceptance modules leak singleton state into later QUnit modules — and FOUR harness-level fixes do not work
+
+**Symptom:** a full `ember test` fails one random test per run with
+`condition failed for more than 5500ms`. The victim MOVES every run — observed:
+`modal`, `dbman`, `speecher`, `persistence DSAdapter` (four different tests),
+`login-form`, `contentGrabbers`. Each passes in isolation.
+
+**Trigger, proven by bisect:** the `setupApplicationTest` acceptance modules.
+Excluding them → **2/2 clean** full runs; with them → **4 of 5** runs flaked.
+Staging (2 acceptance modules) ran clean; the branch that ADDED a third
+(`board-lock-test`, real route transitions + Mirage) flakes.
+
+**Mechanism:** those modules boot the whole app (`routes/application.js` →
+`load_beep`, persistence timers, sync). Compounding it, the global `afterEach` in
+`tests/helpers/ember_helper.js` is imported **from the jasmine shim** — it pushes
+into `all_afters`, consumed only by the shim's own `test_wrap`. Real
+`QUnit.module` tests never run it, so `teardownSyncHeavyTestHarness` has never
+fired after an acceptance test. (`6c2b843fb` added `'Acceptance'` to the
+sync-heavy name list, but the hook reading that list is shim-only — so it never
+applied to acceptance modules at all.)
+
+**FOUR fixes that DO NOT work — do not repeat these:**
+
+1. **`QUnit.testDone` running the sync-heavy teardown** → **HANGS THE SUITE.** It
+   tears down persistence/sync state between two tests of the SAME acceptance
+   module; the next test's `visit()` waits forever. Symptom: log frozen at a
+   constant byte count for 20+ min, repeating `"scanning resume timed out"`.
+2. **`QUnit.moduleDone` running the same teardown** → **no effect.**
+   `cancelHarnessAsyncWork()` cancels TIMERS and clears QUEUES; it does **not
+   restore singleton state** the boot already mutated. Cleaning up after the
+   module is too late for damage done during it.
+3. **Excluding acceptance from the requirejs auto-loader so the bottom-of-file
+   explicit imports run last** → **no-op.** ES `import` statements are HOISTED and
+   evaluated before the module body, so acceptance still registered at positions
+   1-6 regardless of where the statements sit.
+4. **Dynamic `import()` before `start()` to defer registration** → **suite never
+   starts.** This build is AMD/requirejs, not native ESM; the `import()` promises
+   never resolve, so `start()` inside `.then()` never fires and zero tests run.
+
+**Counter-evidence against a 5th ("run acceptance last" via `req()` ordering):**
+during a botched bisect the acceptance modules ran at positions 73-77 and **five
+of them failed**. They pass at positions 1-6. They appear to be order-sensitive
+themselves, so moving them last risks trading one random unit failure for several
+deterministic acceptance failures.
+
+**What SHOULD work, and why:** identify the SPECIFIC singleton the boot dirties
+for the failing test and restore exactly that — the shape that fixed
+`speecher load_beep` (`7b8dd045c`), where `load_beep()` had permanently rewritten
+twelve CDN URLs. State restoration, not async cancellation, is the lever.
+
+**Bisect method note:** commenting out the explicit `import` lines is NOT enough
+to remove an acceptance module — the auto-loader re-requires it and it then runs
+at a different position and fails, producing a meaningless run. Exclude from BOTH
+paths and verify the TEST COUNT drops before believing any result.

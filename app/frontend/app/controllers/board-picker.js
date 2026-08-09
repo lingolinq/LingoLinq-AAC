@@ -47,7 +47,18 @@ export default Controller.extend({
     return this.get('setup_user.user_name') || this.appState.get('currentUser.user_name');
   }),
 
-  resolveSetupUser: observer('user_id', 'appState.currentUser', function() {
+  // Resolve `setup_user` from the optional `user_id` query param, falling back to the
+  // current user for the self flow.
+  //
+  // This is a plain method, called BOTH from the observer below and directly from
+  // routes/board-picker#setupController, because the observer alone cannot cover
+  // route entry: opening /board-picker with no `user_id` changes neither `user_id`
+  // (null -> null) nor `appState.currentUser` (already assigned), so Ember never
+  // notifies and `setup_user` stayed null. "Assign a Home Board For Me" then hit the
+  // `!user.save` guard in assign_default_home_board and showed "Home board update
+  // failed unexpectedly". The supervisor flow (?user_id=X) was unaffected, which is
+  // why the QA script — which only exercises --supervisee — passed 27/27 over it.
+  _resolve_setup_user: function() {
     var _this = this;
     if (!_this.appState || !_this.appState.controller) { return; }
 
@@ -81,6 +92,10 @@ export default Controller.extend({
       _this.set('setup_user', current);
       _this.appState.set('setup_user', current);
     }
+  },
+
+  resolveSetupUser: observer('user_id', 'appState.currentUser', function() {
+    this._resolve_setup_user();
   }),
 
   init() {

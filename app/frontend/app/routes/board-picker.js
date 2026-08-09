@@ -9,6 +9,12 @@ export default Route.extend({
   setupController: function(controller) {
     this._super.apply(this, arguments);
     controller.set('assigning_home_board', false);
+    // Resolve setup_user on entry. The controller's observer fires only when
+    // `user_id` or `appState.currentUser` CHANGES, which never happens for the self
+    // flow (no user_id, currentUser already set) — so without this call setup_user
+    // stayed null and "Assign a Home Board For Me" failed. See
+    // controllers/board-picker#_resolve_setup_user.
+    controller._resolve_setup_user();
   },
   activate: function() {
     this._super.apply(this, arguments);

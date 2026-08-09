@@ -1337,7 +1337,10 @@ var buttonTracker = EmberObject.extend({
     var release_cancelled = (event.type === 'touchcancel' || event.type === 'blur');
     // if dragging a button, behavior is very different than otherwise
     if(release_cancelled) {
-      // fall through to the teardown below — no activation
+      // No activation — but an in-progress drag still has to be torn down, or its
+      // clone, the source button's opacity and the `drag` handle all survive the
+      // cancelled gesture. See cancel_drag.
+      buttonTracker.cancel_drag();
     } else if(swipe_page) {
       buttonTracker.appState.jump_to_next(swipe_page == 'e' || swipe_page == 's');
 
@@ -3003,6 +3006,28 @@ var buttonTracker = EmberObject.extend({
     this.buttonAdjustY = this.initialButtonY - event.pageY;
     this.measureAdjustX = (this.initialButtonX + (width / 2)) - event.pageX;
     this.measureAdjustY = (this.initialButtonY + (height / 2)) - event.pageY;
+  },
+  // Tear down an in-progress drag WITHOUT dropping. Mirrors the cleanup half of the
+  // drag branch in element_release — the over-clone, the source button's opacity, the
+  // drag-source class, the floating clone and the `drag` handle itself — but skips
+  // find_button_under_event/'rearrange', because a touchcancel or blur is an abandoned
+  // gesture, not a placement.
+  //
+  // Without this, a cancelled edit-mode drag left the clone in <body>, the source
+  // button at opacity 0, and `buttonTracker.drag` still set — and a non-null `drag`
+  // makes the `else if(buttonTracker.drag)` branch swallow the NEXT release, so the
+  // user's following tap anywhere on the board completed the stale drop.
+  cancel_drag: function() {
+    if(!buttonTracker.drag) { return; }
+    var overClone = buttonTracker.drag.data('overClone');
+    if(overClone) {
+      $(overClone).remove();
+      buttonTracker.drag.data('overClone', null);
+    }
+    $(buttonTracker.drag.data('elem')).css('opacity', 1.0).show();
+    $('.md-board-detail-grid__cell--drag-source').removeClass('md-board-detail-grid__cell--drag-source');
+    buttonTracker.drag.remove();
+    buttonTracker.drag = null;
   },
   stop_dragging: function() {
     $('.md-board-detail-grid__cell--drag-source').removeClass('md-board-detail-grid__cell--drag-source');
