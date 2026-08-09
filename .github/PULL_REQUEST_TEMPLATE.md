@@ -3,10 +3,11 @@ Delete any section that does not apply.
 
 The migration checklist is NOT optional on a PR targeting `main`. Once the
 automatic pipeline is live on `main`, merging there creates a production
-deployment that builds, migrates the production database, and rolls out, gated
-only by an environment approval click. There is no other human step, and no
-opportunity to review the migration after the merge. See
-.github/workflows/deploy-cloudrun.yml.
+deployment request. It proceeds when a reviewer approves it in the `production`
+environment; it can also be superseded if a later merge queues behind it. The
+approval is a pause, not a review step: nobody re-reads the migration at that
+point, and there is no gate after it. Review the migration BEFORE you merge.
+See .github/workflows/deploy-cloudrun.yml.
 -->
 
 ## What
@@ -57,10 +58,12 @@ someone watching, or schedule a maintenance window.
       gcloud run services update-traffic lingolinq-web \
         --region us-central1 --to-revisions <prev>=100
 
-      Two caveats. It is only safe when the migration in this release is
-      backward compatible, since rolling code back does not roll the schema
-      back. And it PINS the service to that revision, clearing
-      `latestRevision`, so every later deploy will create a revision that takes
-      no traffic until someone runs `--to-latest`. The deploy workflow does that
-      un-pinning for you on its next successful run.
-      Neither command touches the worker pool; roll that back separately.
+      Three things to know. It is only safe when the migration in this release
+      is backward compatible, since rolling code back does not roll the schema
+      back. The service is always pinned by revision name (the deploy workflow
+      pins to the revision it verified, and does not use `--to-latest`), so this
+      command replaces one pin with another rather than fighting the workflow.
+      And the NEXT successful deploy will move traffic to its own newly verified
+      revision, which undoes this rollback -- so if you rolled back because a
+      commit is bad, revert or fix the commit, do not just re-run the deploy.
+      Nothing here touches the worker pool; roll that back separately.

@@ -8,30 +8,33 @@ name: Deploy to Cloud Run
 # and replaces the worker pool. `workflow_dispatch` is retained for manual redeploys and
 # rollforwards, but only on `main` (see the ref guard on the deploy job).
 #
-# Do not read "every push deploys" too literally. Two documented cases break it: a queued run
-# can be cancelled while pending (see CONCURRENCY below), and a run whose approval arrives
-# after `main` has moved on refuses to deploy stale code (see the staleness guard).
+# Do not read "every push deploys" too literally. A queued run can be cancelled while pending
+# (see CONCURRENCY below), so a merge can be superseded before it ever deploys. And a run that
+# sits unapproved does not deploy at all until someone acts on it.
 #
 # DO NOT assume `main` only receives vetted, staging-tested code. It does not. Release PRs from
 # `staging` are the common case, but hotfix branches merge DIRECTLY into `main` and that is the
 # intended workflow for urgent fixes (e.g. #734 scot/fix/bedrock-runtime-main-hotfix and #726
 # scot/fix/empty-button-sets-prod-hotfix, both 2026-08-02/03). Nothing restricts the source
 # branch of a PR into `main`. What makes automatic deploy acceptable is therefore NOT
-# provenance, it is the three gates below, and removing any of them removes the safety:
+# provenance, it is the four gates below, and removing any of them removes the safety:
 #   1. Required status checks on `main` (rspec, build-and-test, audit-artifacts-integrity,
 #      codex-review-tests, security-scan, secret-detection) with enforce_admins on, so no PR
 #      merges red against the base it was tested against, whatever branch it came from.
 #      Note `strict` is FALSE, deliberately: requiring every PR to be up to date with `main`
 #      before merging would block a hotfix behind a merge-back. The residual risk is real --
 #      a PR green against base X can merge after `main` has advanced to Y, so `main` can be
-#      red while every individual merge was green. The health gate below is the backstop.
+#      red while every individual merge was green. The health gate below catches only the
+#      subset of that which stops the app booting or answering; it is a boot smoke test, not a
+#      backstop for behavioural regressions, authorization bugs, or anything a test would find.
 #   2. The `production` environment on the deploy job: `main`-only branch policy plus required
 #      reviewers. A pause, an audit record, and a kill switch. NOT a two-person control; see
 #      the note on the `environment:` key below for what actually enforces that.
 #   3. The ref guard + the WIF provider's `assertion.ref` condition, so no other ref can
 #      deploy or even mint a deploy token.
 #   4. The candidate rollout: the new revision takes NO user traffic until it has answered
-#      two consecutive health probes on its own tagged URL.
+#      two consecutive health probes on its own tagged URL, and traffic is then pinned to
+#      that exact verified revision by name.
 #
 # MIGRATIONS MUST BE EXPAND-CONTRACT. This is a hard rule for anything that reaches `main`,
 # and it is a consequence of the step order below, which no amount of care in this file can
@@ -80,8 +83,9 @@ name: Deploy to Cloud Run
 #   - A run AWAITING ENVIRONMENT APPROVAL counts as in-progress and holds this group for as
 #     long as the approval sits unactioned, which can be days. Every merge behind it queues,
 #     and each new one cancels the previously pending one. Approve or reject promptly; an
-#     ignored approval quietly stops all production deploys. The staleness guard is what stops
-#     a late approval from shipping the stale commit it was created for.
+#     ignored approval quietly stops all production deploys. Nothing in this workflow stops a
+#     late approval from shipping the commit it was created for, even if `main` has moved on:
+#     see the note where the staleness guard used to be. Reject stale approvals by hand.
 # `cancel-in-progress: false` is still right: cancelling a run partway through the migration
 # Job is the one thing guaranteed to hurt.
 #
@@ -261,32 +265,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      # Staleness guard. The environment approval can sit for days, and the job resumes with
-      # the ORIGINAL github.sha. Approving a forgotten deployment would then ship stale code,
-      # and its migrations, onto a schema that has since moved -- a worse version of the drift
-      # this workflow exists to prevent. A push-triggered run must still be the tip of `main`
-      # by the time a human approves it; if it is not, a newer run already covers this commit.
-      # workflow_dispatch is exempt: redeploying an older ref by hand is a legitimate rollforward.
-      - name: Assert this run is still the tip of main
-        if: github.event_name == 'push'
-        env:
-          RUN_SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          TIP="$(git rev-parse origin/main 2>/dev/null || echo "")"
-          if [ -z "$TIP" ]; then
-            git fetch --quiet origin main
-            TIP="$(git rev-parse FETCH_HEAD)"
-          fi
-          echo "run sha: $RUN_SHA"
-          echo "main tip: $TIP"
-          if [ "$RUN_SHA" != "$TIP" ]; then
-            echo "::error::This run is for $RUN_SHA but main is now at $TIP."
-            echo "::error::Refusing to deploy stale code after a delayed approval. A newer run"
-            echo "::error::already covers this commit; approve that one instead."
-            exit 1
-          fi
-
+      # NO STALENESS GUARD HERE, DELIBERATELY. An earlier version of this workflow had one, and
+      # it could not work: `actions/checkout` fetches refspec `+<github.sha>:refs/remotes/origin/main`
+      # on a push event, so after checkout `origin/main` IS this run's own SHA. Any comparison
+      # against the checkout-local ref is a tautology that passes on every input, including a
+      # genuinely stale one, while printing two matching SHAs and a green check. A control that
+      # cannot fail is worse than a documented gap, because people trust it.
+      #
+      # THE GAP, stated plainly: an environment approval can sit for days, and the job then
+      # resumes with the ORIGINAL github.sha. Approving a forgotten deployment ships that
+      # commit, and its migrations, onto a schema that may have moved. Nothing here stops it.
+      # Mitigation is procedural: approve or reject promptly (the concurrency note above
+      # explains why a pending approval also blocks every later deploy), and if an approval is
+      # older than the current tip of `main`, reject it and let the newer run deploy.
+      #
+      # If this is re-introduced, it MUST resolve the tip from the API rather than the local
+      # ref -- `gh api repos/${{ github.repository }}/git/ref/heads/main --jq .object.sha` --
+      # and it MUST be tested against a deliberately stale SHA before anyone relies on it.
       - name: Authenticate to Google Cloud (Workload Identity Federation)
         uses: google-github-actions/auth@v3
         with:
@@ -444,6 +439,17 @@ jobs:
             --set-secrets "$BOOT_SECRETS,$NON_BOOT_SECRETS" \
             --allow-unauthenticated
 
+      # COUPLING WITH THE PLANNED INGRESS LOCKDOWN -- READ BEFORE RUNNING phase5-frontend-lb.sh.
+      # This probe runs from a GitHub-hosted runner on the public internet and reaches the
+      # revision through its candidate---* tag URL. Cloud Run ingress restrictions apply to tag
+      # URLs as well as the main service URL. The moment `scripts/gcp/phase5-frontend-lb.sh`
+      # sets `--ingress=internal-and-cloud-load-balancing`, this probe starts failing on every
+      # attempt, and because the gate is fail-closed the outcome is: migration applied, traffic
+      # pinned to the OLD revision, worker pool never updated, deploy red. Every deploy, until
+      # someone notices. Before that lockdown lands, this probe must move behind the LB (a
+      # tag-targeted serverless NEG) or run from inside the VPC. Do not flip ingress and this
+      # workflow in the same change without deciding which one moves first.
+      #
       # Probe the CANDIDATE revision by its own tagged URL, before it takes any user traffic.
       # Probing the main service URL would be worthless here and actively dangerous: it would
       # answer from the CURRENT revision and pass regardless of whether the new one works.
@@ -460,13 +466,22 @@ jobs:
       - name: Verify candidate revision health
         run: |
           set -euo pipefail
-          TAG_URL="$(gcloud run services describe lingolinq-web \
+          CAND_JSON="$(gcloud run services describe lingolinq-web \
             --region "${{ vars.GCP_REGION }}" --format=json \
-            | jq -r '[.status.traffic[] | select(.tag == "candidate") | .url][0] // empty')"
-          if [ -z "$TAG_URL" ]; then
-            echo "::error::No candidate-tagged URL on lingolinq-web. The --tag candidate deploy did not take."
+            | jq -c '[.status.traffic[] | select(.tag == "candidate")][0] // empty')"
+          TAG_URL="$(printf '%s' "$CAND_JSON" | jq -r '.url // empty')"
+          CANDIDATE_REV="$(printf '%s' "$CAND_JSON" | jq -r '.revisionName // empty')"
+          if [ -z "$TAG_URL" ] || [ -z "$CANDIDATE_REV" ]; then
+            echo "::error::No candidate-tagged revision on lingolinq-web. The --tag candidate deploy did not take."
             exit 1
           fi
+          # Pin the IMMUTABLE revision name now. The traffic shift must target this exact
+          # revision, not "whatever is latest at shift time": a concurrent manual
+          # `gcloud run deploy` between this probe and the shift would otherwise put 100% of
+          # production traffic on a revision nobody probed. GitHub concurrency does not
+          # serialize humans running gcloud.
+          echo "CANDIDATE_REV=$CANDIDATE_REV" >> "$GITHUB_ENV"
+          echo "Candidate revision: $CANDIDATE_REV"
           echo "Probing candidate at $TAG_URL/api/v1/health"
           OK=0
           for i in $(seq 1 12); do
@@ -483,28 +498,67 @@ jobs:
             fi
             sleep 15
           done
-          echo "::error::Candidate revision never returned two consecutive 200s from /api/v1/health."
-          echo "::error::NO user traffic was shifted. Production is untouched and still serving ${PREV_REVISION:-the previous revision}."
-          echo "::error::The worker pool was NOT replaced."
-          echo "::error::The database migration for this release HAS already been applied. If it is not"
-          echo "::error::backward compatible, the currently-serving revision may now be broken too --"
-          echo "::error::check before assuming production is fine."
+          # Strip the public tag off the FAILING revision before giving up. Without this it stays
+          # reachable at a stable unauthenticated candidate---* URL indefinitely.
+          gcloud run services update-traffic lingolinq-web \
+            --region "${{ vars.GCP_REGION }}" --remove-tags candidate || \
+            echo "::warning::Failed to remove the candidate tag; do it by hand."
+          echo "::error::Candidate revision $CANDIDATE_REV never returned two consecutive 200s from /api/v1/health."
+          echo "::error::"
+          echo "::error::STATE OF PRODUCTION RIGHT NOW, read this before touching anything:"
+          echo "::error::  * No user traffic was shifted. Users are on ${PREV_REVISION:-the previous revision}."
+          echo "::error::  * The worker pool was NOT replaced."
+          echo "::error::  * Traffic is now PINNED to that revision by name. \`latestRevision\` is CLEARED,"
+          echo "::error::    because --no-traffic converts the allocation to a named target. A manual"
+          echo "::error::    \`gcloud run deploy\` will therefore create a revision serving 0% and report"
+          echo "::error::    success. Restore with --to-latest, or pin deliberately, before redeploying."
+          echo "::error::  * The database migration for this release HAS already been applied. If it is"
+          echo "::error::    not backward compatible, the revision users are on may now be broken too."
           exit 1
 
-      # Traffic shift is its own step, gated on the probe above. --to-latest (not
-      # --to-revisions) is deliberate: it restores `latestRevision: true`, so a service left
-      # pinned by an earlier manual rollback is un-pinned here rather than silently keeping
-      # users on an old revision while every subsequent deploy reports success.
+      # Traffic shift, gated on the probe above. Pin to the EXACT revision that was probed, by
+      # immutable name. Do NOT use --to-latest here, for two reasons found in review:
+      #   1. Cloud Run resolves LATEST to the newest READY revision at the moment the command
+      #      runs, which is not necessarily the revision that just passed the probe. A
+      #      concurrent manual deploy would send all production traffic to an unprobed image.
+      #   2. --to-latest silently REVERSES a human incident rollback. After someone pins to a
+      #      known-good revision, a redeploy of the same bad SHA would pass this probe (it is a
+      #      boot smoke test and cannot see a functional bug) and restore the bad revision.
+      # Consequence to know: the service is deliberately left PINNED by name after every
+      # deploy, so `latestRevision` stays cleared. That is intended. Each deploy re-pins to its
+      # own verified revision. A manual `gcloud run deploy` outside this workflow will create a
+      # revision that serves 0% until someone shifts traffic to it on purpose.
+      # The candidate tag is removed in the same call, so no unauthenticated candidate---* URL
+      # outlives the release.
       - name: Shift traffic to the verified revision
         run: |
           set -euo pipefail
+          if [ -z "${CANDIDATE_REV:-}" ]; then
+            echo "::error::CANDIDATE_REV is unset; refusing to shift traffic."
+            exit 1
+          fi
           gcloud run services update-traffic lingolinq-web \
             --region "${{ vars.GCP_REGION }}" \
-            --to-latest
+            --to-revisions "$CANDIDATE_REV=100" \
+            --remove-tags candidate
           SERVING="$(gcloud run services describe lingolinq-web \
             --region "${{ vars.GCP_REGION }}" --format=json \
             | jq -r '[.status.traffic[] | select(.percent == 100) | .revisionName][0] // empty')"
+          if [ "$SERVING" != "$CANDIDATE_REV" ]; then
+            echo "::error::Traffic shift did not land where expected."
+            echo "::error::  probed and intended: $CANDIDATE_REV"
+            echo "::error::  actually serving:    ${SERVING:-<none / split>}"
+            echo "::error::Production may be serving an unverified revision. Investigate before proceeding."
+            exit 1
+          fi
           echo "Now serving: $SERVING (was: ${PREV_REVISION:-<unknown>})"
+          REMAINING_TAG="$(gcloud run services describe lingolinq-web \
+            --region "${{ vars.GCP_REGION }}" --format=json \
+            | jq -r '[.status.traffic[] | select(.tag == "candidate")] | length')"
+          if [ "$REMAINING_TAG" != "0" ]; then
+            echo "::warning::A candidate tag is still present on lingolinq-web. Remove it by hand:"
+            echo "::warning::  gcloud run services update-traffic lingolinq-web --region ${{ vars.GCP_REGION }} --remove-tags candidate"
+          fi
 
       - name: Deploy worker pool
         run: |

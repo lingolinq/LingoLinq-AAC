@@ -537,9 +537,17 @@ Then, BEFORE any DNS change:
 The web service currently serves on its `--allow-unauthenticated` `run.app` URL. The Option B LB +
 Cloud Armor path below **is already built and provisioned** (LB IP `136.68.41.122`, policy
 `lingolinq-armor`, WAF rules 1001-1004 + rate-limit 2000 all in `preview=true` / log-only, verified
-live 2026-07-15). What has NOT happened: no real DNS traffic points at the LB yet, ingress is not
-locked down, and the WAF is not enforcing - those remain gated (see the DNS cut in step 9, the
-ingress lockdown, and the enforce flip in step 9c).
+live 2026-07-15). **DNS IS CUT OVER.** As of 2026-08-09, `app.lingolinq.com` resolves to
+`136.68.41.122` (the `lingolinq-https-fr` forwarding rule) and `/api/v1/health` returns 200
+through the LB. Real district traffic is on this path; this is not a rehearsal environment. An
+earlier version of this paragraph said "no real DNS traffic points at the LB yet", which was
+true when written and is now false. What genuinely remains gated: the ingress lockdown (the web
+service is still `--ingress=all`, so the `run.app` URL bypasses the LB and Cloud Armor entirely)
+and the WAF enforce flip (rules 1001-1004 and 2000 are still `preview=true` / log-only). See the
+ingress lockdown and the enforce flip in step 9c.
+
+Before running the ingress lockdown, read the coupling note added at the LOCKDOWN GATE in
+`scripts/gcp/phase5-frontend-lb.sh`: it breaks the deploy pipeline's health probe.
 
 **DECISION (Scot, 2026-06-23): Option B - external HTTPS Load Balancer + Cloud Armor in front of
 Cloud Run, gated on building and smoke-testing the full LB + Cloud Armor path in the dress
