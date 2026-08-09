@@ -733,8 +733,8 @@
         "FERPA",
         "HIPAA"
       ],
-      "lastReviewed": "2026-08-06",
-      "nextReviewDue": "2026-10-20",
+      "lastReviewed": "2026-08-08",
+      "nextReviewDue": "2026-11-08",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-08-06",
@@ -747,7 +747,7 @@
         ],
         "note": "Re-attested 2026-08-06 by Scot Wahlquist, CEO. Scope of this pin: a record-completeness correction, recorded as the 2026-08-06 change-log entry. Three defects. (1) The section 8 change log is a three-column table, but the 2026-08-02 and 2026-08-04 rows were each authored with only two cells, so the 'Notified to customers' column was structurally absent from both, leaving an Article 28 change-log field unanswered rather than answered. Git history confirms the column was never populated in either row from the commits that introduced them (11453341a, 2624186d6), so this completes an omission at authoring and does not restore deleted content. Both cells are completed from each row's OWN section 2 determination, read with section 2's Pre-tenant baseline and section 5.7; neither is derived from a neighbouring row and neither notice determination changed. (2) The header's 'Last amended' date read 2026-07-23 while the change log already carried 2026-07-24, 2026-08-02 and 2026-08-04 entries. (3) The header carried an undated live clause that Privacy Office confirmation of the section 2 customer-notice timing was 'still owed before external publication'; true when written 2026-07-23, answered 2026-07-24, now bounded to the period it was true with the historical sentence retained. No vendor, data flow, contract, or classification changed. Independently reviewed by Codex CLI (gpt-5.6-terra, Tier 2) before this pin; no Critical or High finding. The prior pin was 2026-08-04, a different calendar day, so it is appended to priorAttestations as a normal entry with no ambiguity."
       },
-      "contentHash": "4b74ef882841cef4c6e413162121d657d5bf71a40964608cbc7db794328319f5",
+      "contentHash": "c2a803e90a43cab9fa5affbb60b5e662cbd4f9cf0d7be04748086cbe9dfc1750",
       "bundles": [
         "school-dpa-package",
         "soc2-evidence",
@@ -1181,7 +1181,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "0a2887f358330572bc5489235f6b3308843b518da2869765bc5a83e0e2b181d2",
+      "contentHash": "86e7af10ae2a86716d4a23c0046dda8a6c4c90fe5d49211d6a07dc32da96948e",
       "bundles": [],
       "mirrors": [
         {
@@ -1219,7 +1219,7 @@
       "lastReviewed": "2026-06-16",
       "nextReviewDue": "2026-09-16",
       "attestation": {},
-      "contentHash": "89dcaf8f7acb8e2ae7a01224801907ba3c7eb2b24cbb69fa81ef0fea9289ab62",
+      "contentHash": "a692fd2b2d50ececc6d381c5dc9854df1d432baddc6268d6804ef90a0f25165c",
       "bundles": [
         "compliance-records-set-2026-06"
       ],

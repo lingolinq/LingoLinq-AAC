@@ -21,7 +21,6 @@
 | 2026-09-01 | Google Gemini API fallback path BAA/DPA verification | HIPAA | annual |
 | 2026-09-01 | Mechanical secret-shaped-string rejector in audit toolchain (LL-b5c30235d3) | SOC2 | one-time |
 | 2026-09-14 | Full /audit-run (4 finders, full scope) + adversary verify - all frameworks | SOC2 | quarterly |
-| 2026-10-20 | Subprocessor list review (SUBPROCESSORS.md) | GDPR | quarterly |
 
 ## Recurring reviews (full set)
 
@@ -32,7 +31,7 @@
 | FERPA | FERPA vendor-disclosure + directory-info posture review | annual | (none) | 2026-09-01 |
 | HIPAA | HIPAA Security Rule risk assessment + BAA inventory review | annual | 2026-02-01 | 2027-02-01 |
 | GDPR | GDPR DPA + RoPA + data-residency review | annual | (none) | 2026-09-01 |
-| GDPR | Subprocessor list review (SUBPROCESSORS.md) | quarterly | 2026-04-20 | 2026-10-20 |
+| GDPR | Subprocessor list review (SUBPROCESSORS.md) | quarterly | 2026-08-08 | 2026-11-08 |
 | COPPA | COPPA data-retention enforcement + parental-consent flow check | quarterly | 2026-04-26 | 2026-07-26 |
 | SOC2 | SOC 2 control review (continuous monitoring posture) | quarterly | (none) | 2026-09-01 |
 | WCAG | Accessibility Conformance Report (ACR/VPAT) refresh | semi-annual | (none) | 2026-12-13 |
