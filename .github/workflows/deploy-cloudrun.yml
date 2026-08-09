@@ -511,9 +511,20 @@ jobs:
           echo "::error::  * Traffic is now PINNED to that revision by name. \`latestRevision\` is CLEARED,"
           echo "::error::    because --no-traffic converts the allocation to a named target. A manual"
           echo "::error::    \`gcloud run deploy\` will therefore create a revision serving 0% and report"
-          echo "::error::    success. Restore with --to-latest, or pin deliberately, before redeploying."
+          echo "::error::    success. Shift traffic explicitly after any manual deploy."
           echo "::error::  * The database migration for this release HAS already been applied. If it is"
           echo "::error::    not backward compatible, the revision users are on may now be broken too."
+          echo "::error::"
+          echo "::error::DO NOT RUN \`--to-latest\`. The latest READY revision right now is"
+          echo "::error::$CANDIDATE_REV, the one that just failed this gate. Ready is not healthy: this"
+          echo "::error::probe exists to catch revisions that start but do not work. --to-latest would put"
+          echo "::error::100% of live traffic on it."
+          echo "::error::"
+          echo "::error::To re-assert the known-good revision explicitly:"
+          echo "::error::  gcloud run services update-traffic lingolinq-web --region ${{ vars.GCP_REGION }} --to-revisions ${PREV_REVISION:-<prev>}=100"
+          echo "::error::To inspect the failed revision, re-tag it (this does NOT give it traffic):"
+          echo "::error::  gcloud run services update-traffic lingolinq-web --region ${{ vars.GCP_REGION }} --set-tags candidate=$CANDIDATE_REV"
+          echo "::error::To roll FORWARD, push a fixed commit and let this workflow verify it."
           exit 1
 
       # Traffic shift, gated on the probe above. Pin to the EXACT revision that was probed, by
@@ -552,10 +563,16 @@ jobs:
             exit 1
           fi
           echo "Now serving: $SERVING (was: ${PREV_REVISION:-<unknown>})"
+          # Belt-and-braces only. --remove-tags above already succeeded (set -e would have
+          # killed the step otherwise), so this should never fire; it exists to catch a human
+          # racing the runner or a lagging read. Defaulted to 0 on ANY failure so a transient
+          # describe error cannot fail the run HERE -- traffic has already shifted at this
+          # point and the worker pool has not been replaced, so aborting between those two
+          # would strand the exact new-web/old-worker split the header warns about.
           REMAINING_TAG="$(gcloud run services describe lingolinq-web \
-            --region "${{ vars.GCP_REGION }}" --format=json \
-            | jq -r '[.status.traffic[] | select(.tag == "candidate")] | length')"
-          if [ "$REMAINING_TAG" != "0" ]; then
+            --region "${{ vars.GCP_REGION }}" --format=json 2>/dev/null \
+            | jq -r '[.status.traffic[] | select(.tag == "candidate")] | length' 2>/dev/null || echo 0)"
+          if [ "${REMAINING_TAG:-0}" != "0" ]; then
             echo "::warning::A candidate tag is still present on lingolinq-web. Remove it by hand:"
             echo "::warning::  gcloud run services update-traffic lingolinq-web --region ${{ vars.GCP_REGION }} --remove-tags candidate"
           fi

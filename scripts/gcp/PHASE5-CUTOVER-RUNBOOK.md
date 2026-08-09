@@ -15,12 +15,17 @@ preservation).
 > hits the DB and returns 200), worker pool Ready. The external HTTPS LB + Cloud Armor front end
 > **is built and provisioned in preview** (step 8): LB IP `136.68.41.122`, policy `lingolinq-armor`
 > with WAF rules 1001-1004 (`deny 403`) + rate-limit 2000 all in `preview=true` (log-only, not
-> enforcing), verified live 2026-07-15. **What is still gated and has NOT run:** pointing real DNS
-> traffic at that LB / the ingress lockdown (only after the LB path is validated against live DNS),
-> the DNS cut (step 9), the WAF **enforce** flip (9c), and the Render decommission (9b). Those are
-> the HIPAA-relevant, hard-to-reverse actions; nothing in that set runs before sign-off, and the
-> hard constraints (no DNS, no Cloud Armor enforce, no ingress lockdown, no Render/SES changes)
-> stay in force until explicitly lifted.
+> enforcing), verified live 2026-07-15. **THE DNS CUT HAS HAPPENED (step 9).** As of 2026-08-09
+> `app.lingolinq.com` resolves to `136.68.41.122` and `/api/v1/health` returns 200 through the LB.
+> Real district traffic is on GCP. This is no longer a rehearsal environment, and any instruction
+> below written in the future tense about "when we cut over" should be read as already done.
+> **What is still gated and has NOT run:** the ingress lockdown (the web service is still
+> `--ingress=all`, so the `run.app` URL bypasses the LB and Cloud Armor entirely), the WAF
+> **enforce** flip (9c), and the Render decommission (9b). Those remain the HIPAA-relevant,
+> hard-to-reverse actions; nothing in that set runs before sign-off, and those constraints (no
+> Cloud Armor enforce, no ingress lockdown, no Render/SES changes) stay in force until explicitly
+> lifted. Before the ingress lockdown specifically, read the coupling note at the LOCKDOWN GATE in
+> `scripts/gcp/phase5-frontend-lb.sh`: it breaks the deploy pipeline's health probe.
 
 > **Finding references in this runbook.** `audit-reports/FINDINGS.json` is the single source of
 > truth for the status of any `LL-*` finding. Notes below are dated, historical, and may cite a

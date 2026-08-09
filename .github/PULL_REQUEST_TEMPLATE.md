@@ -4,9 +4,15 @@ Delete any section that does not apply.
 The migration checklist is NOT optional on a PR targeting `main`. Once the
 automatic pipeline is live on `main`, merging there creates a production
 deployment request. It proceeds when a reviewer approves it in the `production`
-environment; it can also be superseded if a later merge queues behind it. The
-approval is a pause, not a review step: nobody re-reads the migration at that
-point, and there is no gate after it. Review the migration BEFORE you merge.
+environment. Note that an unapproved run counts as in progress and BLOCKS every
+later merge from deploying until it is approved or rejected; it is not
+superseded by them.
+
+The approval is a pause, not a review step: nobody re-reads the migration at
+that point, and no later gate looks at it either. The automated gates that do
+run after approval (secret presence, the candidate health probe, the traffic
+read-back) check that the app boots and serves. None of them can tell whether
+your migration was safe. Review the migration BEFORE you merge.
 See .github/workflows/deploy-cloudrun.yml.
 -->
 
@@ -60,9 +66,13 @@ someone watching, or schedule a maintenance window.
 
       Three things to know. It is only safe when the migration in this release
       is backward compatible, since rolling code back does not roll the schema
-      back. The service is always pinned by revision name (the deploy workflow
-      pins to the revision it verified, and does not use `--to-latest`), so this
-      command replaces one pin with another rather than fighting the workflow.
+      back. After any successful run of the deploy workflow the service is
+      pinned by revision name (it pins to the revision it verified and never
+      uses `--to-latest`), so this command usually replaces one pin with
+      another; check first with `gcloud run services describe lingolinq-web
+      --region us-central1 --format='value(spec.traffic)'`, because if the
+      service is still on `latestRevision` this command CREATES a pin, and the
+      next manual deploy will then serve 0%.
       And the NEXT successful deploy will move traffic to its own newly verified
       revision, which undoes this rollback -- so if you rolled back because a
       commit is bad, revert or fix the commit, do not just re-run the deploy.

@@ -228,8 +228,16 @@ gcloud run jobs execute lingolinq-migrate-cleandb --region "$REGION" --wait
 ## Step 4 - Stack health + five-path smoke test (0b + smoke). GATE: money (services up)
 
 Deploy the web service + worker pool against the seeded DB (same `gcloud run deploy` /
-`gcloud beta run worker-pools deploy` as `deploy-cloudrun.yml` lines 150-181) and hit the
-`run.app` URL directly - still **no DNS**.
+`gcloud beta run worker-pools deploy` as the deploy + worker steps in `deploy-cloudrun.yml`) and
+hit the `run.app` URL directly.
+
+> **A manual `gcloud run deploy` on `lingolinq-web` may serve 0% of traffic.** The deploy
+> workflow pins traffic to the specific revision it health-checked, which clears
+> `latestRevision`. Once any workflow run has done that, a hand deploy creates a revision that
+> takes no traffic and still exits 0. Check with
+> `gcloud run services describe lingolinq-web --region us-central1 --format='value(spec.traffic)'`,
+> and shift deliberately with
+> `gcloud run services update-traffic lingolinq-web --region us-central1 --to-revisions <new>=100`.
 
 - **0b worker health:** worker-pool instance `RUNNABLE`, connected to Memorystore over `rediss://`
   and Cloud SQL, draining `priority`/`default`/`slow` (enqueue a synthetic job, confirm it
