@@ -2,9 +2,15 @@ name: Deploy to Cloud Run
 
 # Production deploy pipeline for GCP Cloud Run.
 #
-# LIVE AND AUTOMATIC: every push to `main` deploys to production, including running DB
-# migrations against prod Cloud SQL. `workflow_dispatch` is retained for manual redeploys and
+# LIVE: a push to `main` CREATES a production deployment, which then proceeds once a reviewer
+# approves it in the `production` environment. That deployment runs DB migrations against prod
+# Cloud SQL, rolls out a new web revision with no traffic, health-checks it, shifts traffic,
+# and replaces the worker pool. `workflow_dispatch` is retained for manual redeploys and
 # rollforwards, but only on `main` (see the ref guard on the deploy job).
+#
+# Do not read "every push deploys" too literally. Two documented cases break it: a queued run
+# can be cancelled while pending (see CONCURRENCY below), and a run whose approval arrives
+# after `main` has moved on refuses to deploy stale code (see the staleness guard).
 #
 # DO NOT assume `main` only receives vetted, staging-tested code. It does not. Release PRs from
 # `staging` are the common case, but hotfix branches merge DIRECTLY into `main` and that is the
@@ -13,12 +19,19 @@ name: Deploy to Cloud Run
 # branch of a PR into `main`. What makes automatic deploy acceptable is therefore NOT
 # provenance, it is the three gates below, and removing any of them removes the safety:
 #   1. Required status checks on `main` (rspec, build-and-test, audit-artifacts-integrity,
-#      codex-review-tests, security-scan, secret-detection) with enforce_admins on, so nothing
-#      reaches `main` red, whatever branch it came from.
-#   2. The `production` environment on the deploy job: `main`-only branch policy plus a
-#      required reviewer, which is the authorization boundary and the audit record.
+#      codex-review-tests, security-scan, secret-detection) with enforce_admins on, so no PR
+#      merges red against the base it was tested against, whatever branch it came from.
+#      Note `strict` is FALSE, deliberately: requiring every PR to be up to date with `main`
+#      before merging would block a hotfix behind a merge-back. The residual risk is real --
+#      a PR green against base X can merge after `main` has advanced to Y, so `main` can be
+#      red while every individual merge was green. The health gate below is the backstop.
+#   2. The `production` environment on the deploy job: `main`-only branch policy plus required
+#      reviewers. A pause, an audit record, and a kill switch. NOT a two-person control; see
+#      the note on the `environment:` key below for what actually enforces that.
 #   3. The ref guard + the WIF provider's `assertion.ref` condition, so no other ref can
 #      deploy or even mint a deploy token.
+#   4. The candidate rollout: the new revision takes NO user traffic until it has answered
+#      two consecutive health probes on its own tagged URL.
 #
 # MIGRATIONS MUST BE EXPAND-CONTRACT. This is a hard rule for anything that reaches `main`,
 # and it is a consequence of the step order below, which no amount of care in this file can
@@ -62,6 +75,11 @@ name: Deploy to Cloud Run
 #     run queues, regardless of `cancel-in-progress`. Three merges in quick succession deploy
 #     the 1st and 3rd; the 2nd shows `cancelled`. On a linear `main` that is benign, since the
 #     3rd contains the 2nd, but it means "every push deploys" is not literally true.
+#   - A run AWAITING ENVIRONMENT APPROVAL counts as in-progress and holds this group for as
+#     long as the approval sits unactioned, which can be days. Every merge behind it queues,
+#     and each new one cancels the previously pending one. Approve or reject promptly; an
+#     ignored approval quietly stops all production deploys. The staleness guard is what stops
+#     a late approval from shipping the stale commit it was created for.
 # `cancel-in-progress: false` is still right: cancelling a run partway through the migration
 # Job is the one thing guaranteed to hurt.
 #
@@ -147,11 +165,21 @@ jobs:
     # `assertion.ref` condition, so a non-main ref cannot mint a deploy token either.
     if: needs.guard.outputs.enabled == 'true' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    # Protected environment: `main`-only deployment branch policy plus a required reviewer.
-    # This is the authorization boundary AND the audit record for every production change
-    # (Deployments API), and disabling it halts auto-deploy without touching this file.
+    # Protected environment: `main`-only deployment branch policy plus required reviewers.
+    # What this actually gives you, stated precisely so nobody over-trusts it: a PAUSE before
+    # anything touches prod, a Deployments API AUDIT RECORD of who released what, and a KILL
+    # SWITCH (disable the environment and auto-deploy stops without editing this file).
+    # It is NOT a two-person control: `prevent_self_review` is false, so whoever merges can
+    # approve their own deployment. That is deliberate, so a single on-call engineer can ship
+    # a hotfix at 2am. The actual two-person control is upstream and stronger: CODEOWNERS
+    # (`* @swahlquist @MelissaOneil`) plus `require_code_owner_reviews` plus a required
+    # approving review on `main`, which forces a second human onto every PR that gets here.
     environment: production
-    timeout-minutes: 45
+    # 90, not 45. The migrate Job is allowed --task-timeout 3600s (60 min), so a 45 minute job
+    # ceiling could cancel the workflow WHILE a valid long migration is still running
+    # server-side: GitHub would release the concurrency slot and report failure while prod is
+    # mid-DDL. This ceiling must stay strictly greater than build + 3600s + deploys + probes.
+    timeout-minutes: 90
     permissions:
       contents: read
       id-token: write
@@ -230,6 +258,32 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      # Staleness guard. The environment approval can sit for days, and the job resumes with
+      # the ORIGINAL github.sha. Approving a forgotten deployment would then ship stale code,
+      # and its migrations, onto a schema that has since moved -- a worse version of the drift
+      # this workflow exists to prevent. A push-triggered run must still be the tip of `main`
+      # by the time a human approves it; if it is not, a newer run already covers this commit.
+      # workflow_dispatch is exempt: redeploying an older ref by hand is a legitimate rollforward.
+      - name: Assert this run is still the tip of main
+        if: github.event_name == 'push'
+        env:
+          RUN_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          TIP="$(git rev-parse origin/main 2>/dev/null || echo "")"
+          if [ -z "$TIP" ]; then
+            git fetch --quiet origin main
+            TIP="$(git rev-parse FETCH_HEAD)"
+          fi
+          echo "run sha: $RUN_SHA"
+          echo "main tip: $TIP"
+          if [ "$RUN_SHA" != "$TIP" ]; then
+            echo "::error::This run is for $RUN_SHA but main is now at $TIP."
+            echo "::error::Refusing to deploy stale code after a delayed approval. A newer run"
+            echo "::error::already covers this commit; approve that one instead."
+            exit 1
+          fi
 
       - name: Authenticate to Google Cloud (Workload Identity Federation)
         uses: google-github-actions/auth@v3
@@ -349,9 +403,30 @@ jobs:
             --region "${{ vars.GCP_REGION }}" \
             --wait
 
-      - name: Deploy web service
+      # Record the revision that is actually SERVING, before anything changes it. Do not derive
+      # the rollback target later from "second newest revision": revision lists are ordered by
+      # creation, include revisions that never took traffic, and a previous failed deploy would
+      # otherwise become the recommended rollback target during an incident.
+      - name: Record current serving revision
+        run: |
+          set -euo pipefail
+          PREV="$(gcloud run services describe lingolinq-web \
+            --region "${{ vars.GCP_REGION }}" --format=json \
+            | jq -r '[.status.traffic[] | select(.percent == 100) | .revisionName][0] // empty')"
+          if [ -z "$PREV" ]; then
+            echo "::warning::Could not determine a single 100% traffic revision; rollback hints will be omitted."
+          fi
+          echo "PREV_REVISION=$PREV" >> "$GITHUB_ENV"
+          echo "Currently serving: ${PREV:-<none>}"
+
+      # --no-traffic --tag candidate: the new revision is created and reachable at its own
+      # candidate URL, but users stay on the current revision until the health gate passes.
+      # This is what makes the probe a real pre-traffic gate rather than a post-mortem.
+      - name: Deploy web service (no traffic)
         run: |
           gcloud run deploy lingolinq-web \
+            --no-traffic \
+            --tag candidate \
             --image "$IMAGE" \
             --region "${{ vars.GCP_REGION }}" \
             --service-account "lingolinq-run@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
@@ -367,41 +442,67 @@ jobs:
             --set-secrets "$BOOT_SECRETS,$NON_BOOT_SECRETS" \
             --allow-unauthenticated
 
-      # Gate the worker on the web service actually serving. Cloud Run's own readiness check
-      # only proves the container started; this proves the app boots against the migrated
-      # schema and can answer a request. If it fails we stop BEFORE replacing the worker pool,
-      # so the old workers keep draining the queue against code that was working.
+      # Probe the CANDIDATE revision by its own tagged URL, before it takes any user traffic.
+      # Probing the main service URL would be worthless here and actively dangerous: it would
+      # answer from the CURRENT revision and pass regardless of whether the new one works.
       #
-      # This does NOT roll back. Traffic has already shifted (the service is
-      # `latestRevision: true`, 100%), so a failure here is an alert, not a repair. The
-      # rollback command is printed below rather than run automatically, because choosing
-      # between rolling traffic back and rolling forward depends on whether the migration that
-      # just ran is backward compatible -- which is a human call, and exactly why the
-      # expand-contract rule in the header exists.
-      - name: Verify web service health
+      # What this proves and what it does not: /api/v1/health runs a `SELECT 1` and a Redis
+      # PING. It proves the new image boots, reaches Cloud SQL through the socket, reaches
+      # Memorystore over TLS, and can answer an HTTP request against the migrated schema. It
+      # does NOT prove schema-code compatibility in general, because Rails loads column
+      # metadata lazily per model, so a migration that breaks one model can still pass. The
+      # expand-contract rule in the header is the control for that; this is a boot smoke test.
+      #
+      # Two consecutive 200s, not one: a single 200 can come from an instance that is about to
+      # crash-loop on a later request.
+      - name: Verify candidate revision health
         run: |
-          URL="$(gcloud run services describe lingolinq-web \
-            --region "${{ vars.GCP_REGION }}" --format='value(status.url)')"
-          echo "Probing $URL/api/v1/health"
-          for i in 1 2 3 4 5 6 7 8 9 10; do
-            CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$URL/api/v1/health" || echo 000)"
-            echo "  attempt $i: HTTP $CODE"
-            if [ "$CODE" = "200" ]; then
-              echo "Web service healthy on the new revision."
+          set -euo pipefail
+          TAG_URL="$(gcloud run services describe lingolinq-web \
+            --region "${{ vars.GCP_REGION }}" --format=json \
+            | jq -r '[.status.traffic[] | select(.tag == "candidate") | .url][0] // empty')"
+          if [ -z "$TAG_URL" ]; then
+            echo "::error::No candidate-tagged URL on lingolinq-web. The --tag candidate deploy did not take."
+            exit 1
+          fi
+          echo "Probing candidate at $TAG_URL/api/v1/health"
+          OK=0
+          for i in $(seq 1 12); do
+            if ! CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$TAG_URL/api/v1/health")"; then
+              CODE=000
+            fi
+            case "$CODE" in
+              200) OK=$((OK + 1)); echo "  attempt $i: HTTP 200 (consecutive: $OK)" ;;
+              *)   OK=0;          echo "  attempt $i: HTTP $CODE" ;;
+            esac
+            if [ "$OK" -ge 2 ]; then
+              echo "Candidate healthy on two consecutive probes."
               exit 0
             fi
             sleep 15
           done
-          PREV="$(gcloud run revisions list --service lingolinq-web \
-            --region "${{ vars.GCP_REGION }}" --format='value(metadata.name)' \
-            --sort-by=~metadata.creationTimestamp --limit=2 | tail -n1)"
-          echo "::error::lingolinq-web did not return 200 from /api/v1/health after 10 attempts."
-          echo "::error::Worker pool NOT replaced; it is still running the previous image."
-          echo "::error::To roll traffic back to the previous revision:"
-          echo "::error::  gcloud run services update-traffic lingolinq-web --region ${{ vars.GCP_REGION }} --to-revisions ${PREV}=100"
-          echo "::error::If this release contained a migration, check whether it is backward"
-          echo "::error::compatible BEFORE rolling back. If it is not, roll FORWARD instead."
+          echo "::error::Candidate revision never returned two consecutive 200s from /api/v1/health."
+          echo "::error::NO user traffic was shifted. Production is untouched and still serving ${PREV_REVISION:-the previous revision}."
+          echo "::error::The worker pool was NOT replaced."
+          echo "::error::The database migration for this release HAS already been applied. If it is not"
+          echo "::error::backward compatible, the currently-serving revision may now be broken too --"
+          echo "::error::check before assuming production is fine."
           exit 1
+
+      # Traffic shift is its own step, gated on the probe above. --to-latest (not
+      # --to-revisions) is deliberate: it restores `latestRevision: true`, so a service left
+      # pinned by an earlier manual rollback is un-pinned here rather than silently keeping
+      # users on an old revision while every subsequent deploy reports success.
+      - name: Shift traffic to the verified revision
+        run: |
+          set -euo pipefail
+          gcloud run services update-traffic lingolinq-web \
+            --region "${{ vars.GCP_REGION }}" \
+            --to-latest
+          SERVING="$(gcloud run services describe lingolinq-web \
+            --region "${{ vars.GCP_REGION }}" --format=json \
+            | jq -r '[.status.traffic[] | select(.percent == 100) | .revisionName][0] // empty')"
+          echo "Now serving: $SERVING (was: ${PREV_REVISION:-<unknown>})"
 
       - name: Deploy worker pool
         run: |
