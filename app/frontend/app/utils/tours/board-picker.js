@@ -4,9 +4,8 @@
 // Like the home tour, this is DOM-driven and visibility-INDEPENDENT: every
 // interior step resolves its target with visibleEl() and is SKIPPED when that
 // element isn't on screen, so the tour stays correct across the page's category
-// states (e.g. the "Mine" and Keyboards categories render no search form, and a
-// category with no catalog yet renders a "coming soon" button instead of a
-// grid). It serves BOTH dashboard layouts from one builder — `layout` only tags
+// states (e.g. the "Mine" category renders no search form). It serves
+// BOTH dashboard layouts from one builder — `layout` only tags
 // each step so the popover picks up the Focused-View skin; structure is the same.
 //
 // Adding/booking copy: every string is a literal `i18n.t` key + English-default call

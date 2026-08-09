@@ -4367,7 +4367,7 @@
       },
       "firstSeen": "2026-08-04",
       "lastSeen": "2026-08-04",
-      "owner": "unassigned",
+      "owner": "Melissa",
       "remediation": {
         "options": "Cheapest path (template only, no server change): render the already-stashed operator identity beside the existing Stop Masquerading controls. session.original_user_name is set at masquerade start (app/frontend/app/components/masquerade.js:61, app/frontend/app/controllers/organization.js:48), restored at app/frontend/app/services/session.js:510, and already read by the isMasquerading computed at app/frontend/app/controllers/application.js:52,56 with a stash fallback at :62. Option 2, only if the server must be authoritative: serialize the acting operator via lib/json_api. Scope of @true_user (set at app/controllers/application_controller.rb:182,196): the private_logging checks in app/controllers/api/logs_controller.rb, the PaperTrail whodunnit at :185/:199, and the authorization plus audit-attribution actor in app/controllers/concerns/api/schema_explorer.rb:90,103 and app/controllers/concerns/api/system_settings_access.rb:7. It never reaches lib/json_api. PR #714 (staging, 2026-07-30) added persistent Stop Masquerading controls (app/frontend/app/components/app-navbar-authenticated-inner.hbs:64,183,211; app/frontend/app/templates/application.hbs:928,1276,1304), which signal THAT a masquerade is active but not WHOSE record is open.",
         "timeframe": "60d"
@@ -4377,7 +4377,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Raised manually 2026-08-04 from a working session, not from an /audit-run fan-out. Severity and disposition are Scot's to set. Accountability scope, corrected after dual review: PaperTrail records user:<operator>:as:<target> (app/controllers/application_controller.rb:185,199) ONLY on the models and attributes it versions, namely the Board (app/models/board.rb:64) and User (app/models/user.rb:44) attribute allowlists, and destroy-only on LogSession (app/models/log_session.rb:28). UserGoal carries no has_paper_trail at all. Surviving versions are pruned by User.flush_old_versions (app/models/user.rb:3646). So a masquerading admin's create or update of a student's log session or goal is NOT distinguishable after the fact. This finding covers the UI indicator gap only; the absence of any masquerade AuditEvent is a separate issue and is not yet filed.",
+      "notes": "Raised manually 2026-08-04 from a working session, not from an /audit-run fan-out. Severity and disposition are Scot's to set. Accountability scope, corrected after dual review: PaperTrail records user:<operator>:as:<target> (app/controllers/application_controller.rb:185,199) ONLY on the models and attributes it versions, namely the Board (app/models/board.rb:64) and User (app/models/user.rb:44) attribute allowlists, and destroy-only on LogSession (app/models/log_session.rb:28). UserGoal carries no has_paper_trail at all. Surviving versions are pruned by User.flush_old_versions (app/models/user.rb:3646). So a masquerading admin's create or update of a student's log session or goal is NOT distinguishable after the fact. This finding covers the UI indicator gap only; the absence of any masquerade AuditEvent is a separate issue and is not yet filed. 2026-08-05: owned by Melissa; Option 1 UI fix on branch fix/melissa-masquerade-operator-indicator (show session.original_user_name beside Stop Masquerading). Status remains open pending Scot disposition after merge.",
       "source": {
         "kind": "manual",
         "pr": "",
@@ -4428,6 +4428,32 @@
         "promotedDate": "2026-08-04"
       },
       "notes": "Promoted from PR #742 review (adversary) on 2026-08-04. Surfaced by the Claude adversary pass during dual review of PR #742, and verified against code at that PR's base: grep for AuditEvent in app/controllers/application_controller.rb returns zero occurrences. FERPA accounting-of-disclosures and HIPAA 164.312(b) audit controls therefore have no record that an admin viewed or acted inside a given student account. The site-admin branch grants impersonation of ANY user on Organization.admin.manager? alone, with no consent record. This is the accountability half of the masquerade problem; LL-cde54765c6 covers the separate UI indicator gap and explicitly does not claim to cover this. Related: PaperTrail does not close the gap either, since log_session.rb:28 versions on destroy only, user_goal.rb has no has_paper_trail, and User.flush_old_versions (user.rb:3646) prunes surviving versions."
+    },
+    {
+      "id": "LL-07f1869d92",
+      "ruleKey": "iplocate-ip-egress-ungated-undisclosed-subprocessor",
+      "title": "SubscriptionMailer#new_subscription sends a user's IP address to iplocate.io with no user-type or consent gate, to a third party absent from the subprocessor register (GDPR Art. 28/44, COPPA)",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "COPPA",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/mailers/subscription_mailer.rb",
+        "line": 30,
+        "snippet": "      url = \"https://iplocate.io/api/lookup/#{ip}?apikey=#{ENV['IPLOCATE_API_KEY']}\"",
+        "sha": "c24dce5bae7db5b690790c5148a66c76777cc788"
+      },
+      "firstSeen": "2026-08-08",
+      "lastSeen": "2026-08-08",
+      "owner": "Scot Wahlquist",
+      "remediation": {
+        "options": "Found by the 2026-08-08 quarterly subprocessor review (the cycle that fell due 2026-07-20 and was not performed). SubscriptionMailer#new_subscription reads the user's stored device IP (@user.devices[0].settings['ip_address']) and GETs https://iplocate.io/api/lookup/<ip> whenever ENV['IPLOCATE_API_KEY'] is set, on any new subscription. TWO distinct defects. (1) UNGATED: unlike the sibling call in lib/external_tracker.rb:23, which is gated on external_email_allowed? && supporter_registration? && !cookies_opted_out?, this call site has NO user-type check and NO consent gate, so it can fire for any account type including a child or student account. An IP address is personal data under GDPR and is COPPA-relevant for an under-13 user. (2) UNDISCLOSED: iplocate.io is named nowhere in docs/legal/SUBPROCESSORS.md, so this is an Article 28 register omission of the same class as the three flows recorded on 2026-07-21 and the Speech-to-Text flow recorded on 2026-07-22 (LL-1eb9a2435b). Options: (a) gate this call site to match external_tracker.rb, or drop geolocation from the notification email entirely, since the recipient is an internal admin address (NEW_REGISTRATION_EMAIL) rather than the user; (b) add an iplocate.io subprocessor row with DPA status and a data-flow description; (c) confirm whether a DPA exists with iplocate.io at all. NOT YET ESTABLISHED and needed before triage: whether this path can fire for a child/student account in practice, and whether it has ever fired in production. Stripe is a SEPARATE omission found by the same review and is not part of this finding."
+      }
     }
   ]
 }

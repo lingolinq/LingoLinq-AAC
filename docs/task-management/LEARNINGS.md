@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: Cloud Run secret assertions must check every nonzero-percent traffic target](#gotcha-cloud-run-secret-assertions-must-check-every-nonzero-percent-traffic-target)
 - [Gotcha: Ember Data model ids in tests must be strings — numeric `set('id', N)` fails throwOnUnhandled](#gotcha-ember-data-model-ids-in-tests-must-be-strings--numeric-setid-n-fails-throwonunhandled)
 - [Gotcha: batch-path nil is not “missing opts” — key presence vs value](#gotcha-batch-path-nil-is-not-missing-opts--key-presence-vs-value)
 - [Gotcha: compliance segment stamps must use validated org ids, not raw params](#gotcha-compliance-segment-stamps-must-use-validated-org-ids-not-raw-params)
@@ -125,6 +126,17 @@ file (see [README.md](README.md)).
 - [Gotcha: private uploads bucket — server-side OBZ/OBF import must use signed_internal_url](#gotcha-private-uploads-bucket--server-side-obzobf-import-must-use-signed_internal_url)
 
 ---
+
+## Gotcha: Cloud Run secret assertions must check every nonzero-percent traffic target
+
+`status.latestReadyRevisionName` is not “what users hit,” and neither is “the revision with
+the largest traffic percent.” Cloud Run can split traffic across multiple revisions (canary /
+rollback). A post-deploy secret-linkage check that inspects only one of them can pass while a
+smaller-percentage revision is missing required `secretKeyRef` mounts. Emit and assert every
+`status.traffic` entry with `percent > 0` (dedupe by revision name; fall back to
+`latestReadyRevisionName` only when no nonzero targets exist). See
+`scripts/gcp/assert-runtime-secrets.sh` and
+[`2026-08-05-assert-runtime-secrets-traffic-split.md`](./2026-08-05-assert-runtime-secrets-traffic-split.md).
 
 ## Pattern: shared AI reuse caches need exact scrubbed keys before recommendation matching
 
@@ -5755,6 +5767,18 @@ decrypt). Local fix (test DB only, regenerates on boot):
 `psql -U scotw -d lingolinq-test -c "delete from settings where key='encryption_hash'"`. Do not
 "fix" it by editing the dotenv load order in spec_helper.
 
+## Gotcha: controller AI endpoints must call `ai_feature_enabled_for?` before any shared-cache short-circuit (#762)
+
+`feature_enabled_for?` is rollout only. `ai_feature_enabled_for?` also enforces org
+`disable_ai_features`, COPPA, EU under-16, and user prefs. A controller that gates with the plain
+flag and then returns a warmed `AiFocusWordSet` (keyed only on scrubbed prompt + locale + core
+flag — no user/org scope) skips every consent check on a cache HIT; the generator's own
+`ai_feature_enabled_for?` only runs on MISS. Specs that only exercise the miss path pass against
+the broken code. Mutation-test cache-hit 403 examples: revert the controller gate, confirm red
+(200 + cached words), restore, confirm green. Mirror `boards_controller#generate_labels` for the
+gate + Article 50 backstop (`article_50_disclosure` is AVAILABLE-only — do not enable it just to
+exercise the backstop). See `docs/task-management/2026-08-07-focus-words-consent-gate.md`.
+
 ## Pattern: every external-model call site must gate the same way (COPPA + org opt-out + PiiScrubber + AiApiLog)
 
 The canonical AI egress shape is fixed across call sites (`lib/ai_word_predictor.rb`,
@@ -6996,6 +7020,21 @@ using a `.lint-todo` the linter had already corrupted. The only sound test is ag
 `git show HEAD:<path>` copy of **both** the source and the baseline. Restore from HEAD before
 concluding "not mine".
 
+## Gotcha: nested `app/frontend/.github/workflows` never runs on GitHub Actions
+
+Only the **repository-root** `.github/workflows/` is executed. A CI file under
+`app/frontend/.github/workflows/` (added during the Ember 4.12 upgrade with `lint:js && lint:hbs`)
+is dead decoration — it has never gated a PR. When auditing “is X in CI?”, read the **root**
+workflow end-to-end; do not trust a nested copy. The ESLint root gate landed separately as
+`npm run lint:js:ci` + `.eslint-todo` (see [`2026-08-07-eslint-ci-gate.md`](./2026-08-07-eslint-ci-gate.md)).
+
+## Gotcha: ESLint baseline must be `.eslint-todo`, not shared `.lint-todo`
+
+`ember-template-lint` owns and **rewrites** `app/frontend/.lint-todo` on a plain run. Putting
+ESLint fingerprints in that file would race with template lint. Use a separate
+`app/frontend/.eslint-todo` consumed only by `scripts/eslint-todo-gate.js` (`lint:js:ci` /
+`lint:js:todo`). CI never regenerates the baseline; intentional rebaselines are explicit commits.
+
 ## Pattern: fix `require-input-label` by wiring the EXISTING label with `{{unique-id}}` — not by promoting the placeholder
 
 The obvious fix (`aria-label` derived from `placeholder`) is wrong for a large subset, for two reasons.
@@ -8233,4 +8272,51 @@ Ref: PR #725; live-prod verification via a throwaway Cloud Run job on the servin
 **Fix recipe:** Route Speak-bar / mic through `utterance.vocalize_list` when `app_state.button_list` has speakable entries. Do **not** use that path for phrase-builder commit (local chips only — would replay a stale utterance).
 
 **Evidence:** [`2026-08-04-speak-bar-skips-button-sounds.md`](./2026-08-04-speak-bar-skips-button-sounds.md).
+
+## Pattern: masquerade authorization must emit a fail-closed AuditEvent
+
+**Surface:** `ApplicationController#check_api_token` `as_user_id` / `X-As-User-Id` impersonation (site-admin and org-manager branches).
+
+**Symptom:** FERPA/HIPAA accounting-of-disclosures had no record that an admin viewed or acted inside a student account. PaperTrail whodunnit (`user:<op>:as:<target>`) is not enough (destroy-only / pruned / missing on some models).
+
+**Fix recipe:** On successful authorization, **before** swapping `@api_user`, call a helper that (1) Redis-dedups per operator/target for 30 minutes (`masq_audit/<op>/<target>`, separate from the org auth `masq/...` key), (2) writes `AuditEvent.log_command` with `type=masquerade`, `acting_as`, and `branch`, (3) **fail-closes** (503, no swap) if the row does not persist — same posture as database_schema/contents disclosure reads. Attribute `user_key` to the operator (pre-swap `@api_user`), never the target. Do not emit on denied attempts.
+
+**Evidence:** finding `LL-522c1a6d13`; [`2026-08-05-masquerade-audit-event.md`](./2026-08-05-masquerade-audit-event.md); prior art `schema_explorer.rb` `audit_user_key` / `audit_acting_as`.
+
+## Gotcha: Notion findings Owner is human-owned; FINDINGS.json owner does not sync
+
+`scripts/compliance-findings-notion-sync.rb` only PATCHes register-owned columns (severity, status, disposition, title, etc.). **Owner**, Target date, Program notes, and Needs Scot decision are left untouched so non-devs can manage the board. Setting `"owner": "Melissa"` in `FINDINGS.json` updates the register SSOT for developers but will **not** populate Notion Owner — set that field on the Notion card directly. Scot-only gates remain close / disposition / severity downgrade / accepted-risk. Ref: [`2026-08-05-masquerade-operator-indicator.md`](./2026-08-05-masquerade-operator-indicator.md).
+
+## Pattern: masquerade UI must name the operator, not only that a masquerade is active
+
+Stop Masquerading controls (PR #714) signal masquerade without naming the acting admin. Operator identity is already stashed as `session.original_user_name` (set at masquerade start, restored every `session.restore()`). Expose a stash-safe computed (`masqueradeOperatorName` / `masqueradeStopLabel` on `controllers/application.js`) and bind every chrome path (AppNavbar desktop + menu + drawer, legacy `#identity`, brief). Do not rely on `application.hbs` alone when `useAppNavbarInHeader` is true. Finding LL-cde54765c6. Ref: [`2026-08-05-masquerade-operator-indicator.md`](./2026-08-05-masquerade-operator-indicator.md).
+
+
+## Pattern: board-picker Cause and Effect uses home-board `settings.categories`, not folder tags
+
+**Surface:** `/board-picker` Cause and Effect tab.
+
+**Symptom:** Tagging a board "Cause and Effect" via Categorize Board only creates a Mine-page folder; the picker stayed empty / "Coming soon".
+
+**Root cause:** Two systems share the word category. (1) Personal folders = `user.settings.board_tags` via the tag-board modal. (2) Catalog browse = `board.settings.categories` with fixed ids (`cause_effect`, `robust`, …), set in Edit Board Details when "can be used as a home board" is checked. The tabbed picker also had a hard-coded coming-soon stub that skipped `_resolveCategoryBoards` for `cause_effect`.
+
+**Fix recipe:** Remove the stub; load via `_resolveCategoryBoards('cause_effect')`. Ensure the board is public + home_board + tagged `cause_effect`. Do not confuse with folder tags.
+
+**Evidence:** [`2026-08-05-board-picker-cause-effect-catalog.md`](./2026-08-05-board-picker-cause-effect-catalog.md); `components/board-picker.js` / `.hbs`.
+
+## Gotcha: board-picker empty categories used to fall back to top popular public boards
+
+When `settings.categories` had no matches for a tab, `_resolveCategoryBoards` loaded uncategorized `public` + `home_popularity` (`per_page: 6`). Same ~6 boards (e.g. jokes) then appeared in Simple Starters / Functional / Phrase-Based. Removed that fallback — empty tabs show "None found"; only explicitly tagged home boards appear. Ref: [`2026-08-05-board-picker-cause-effect-catalog.md`](./2026-08-05-board-picker-cause-effect-catalog.md).
+
+## Gotcha: `(fn this.sendAction …)` with a factory helper never runs the action
+
+**Surface:** user boards page Folders accordion (`/u/:user/boards`, `available-boards-section`).
+
+**Symptom:** Clicking Folders header/chevron does nothing; folder filter / drag-drop wired the same way also no-op.
+
+**Root cause:** Same as the `(fn this.ctrlAction …)` factory gotcha. `sendAction` returned a handler function; template used `{{on "click" (fn this.sendAction "toggleFoldersExpanded")}}`, so click called the factory and discarded the returned handler.
+
+**Fix recipe:** Either bind at render (`(this.sendAction "x")`) **or** make `sendAction` invoke `self.send` immediately when used with `fn`. Prefer immediate-invoke here because every binding already uses `fn` and several handlers need the Event (`updateFolderFilter`, drag/drop) — do not strip the event the way `ctrlAction` does.
+
+**Evidence:** [`2026-08-05-boards-folder-accordion-fn-sendaction.md`](./2026-08-05-boards-folder-accordion-fn-sendaction.md); related LEARNINGS entry on `(fn this.ctrlAction …)`.
 

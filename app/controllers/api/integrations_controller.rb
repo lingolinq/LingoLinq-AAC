@@ -92,8 +92,22 @@ class Api::IntegrationsController < ApplicationController
   end
 
   def focus_generate_words
-    unless FeatureFlags.feature_enabled_for?('ai_board_generation', @api_user)
+    # Gate on the AI-specific check so org disable_ai_features, COPPA, EU under-16,
+    # and user prefs are enforced at the endpoint — including on an AiFocusWordSet
+    # cache hit, which returns before AiBoardGenerator.generate_focus_words runs.
+    unless FeatureFlags.ai_feature_enabled_for?('ai_board_generation', @api_user)
       return api_error(403, { error: 'Feature not available' })
+    end
+    # EU AI Act Article 50(1) server-side backstop: a client that skips the
+    # ai-disclosure modal and calls this endpoint directly must still be refused.
+    # 'article_50_disclosure' is AVAILABLE-only (not in ENABLED_FRONTEND_FEATURES),
+    # so feature_enabled_for? returns false and this guard is inert until the flag
+    # is enabled. Do not enable it here. Distinct error code from the AI refusal
+    # above so the client and the register can tell the two apart.
+    if FeatureFlags.feature_enabled_for?('article_50_disclosure', @api_user) &&
+       EuJurisdiction.disclosure_required?(@api_user) &&
+       !@api_user.article_50_disclosure_shown?
+      return api_error(403, { error: 'article_50_disclosure_required' })
     end
 
     processed_params, json_body_source = integration_json_body_params_source

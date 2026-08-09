@@ -606,16 +606,16 @@
       "attestation": {
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-08-04",
-        "attestedContentHash": "356b409294378764da09c43d532ca96e66524b448b4c95b009f23c1c659e68d7",
+        "attestedContentHash": "f35f99bd8b2971cad723b80fba1f9adffc7a212eeaadccd6b85c72ceb4269001",
         "priorAttestations": [
           "2026-07-27",
           "2026-07-24",
           "2026-07-22"
         ],
-        "note": "Re-attested 2026-08-04 by Scot Wahlquist (second pin, same day). Supersedes the earlier 2026-08-04 pin, whose bytes were corrected across three external review rounds before merge. Scope of this pin: the closed-window runtime-AI operational status (not operational through 00012-x8z; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on 00013-76w; not operational since 00014-5rw), with every historical claim explicitly bounded to the period it covers rather than stated as an unbounded absolute. Also pinned: the runtime plane corrected from 'Bedrock Mantle Messages API' to classic bedrock-runtime, with the consequence stated that Claude Opus 4.7 has no classic-plane inference profile and eval narration therefore falls back to its deterministic template."
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist (attestation-block realignment, recorded 2026-08-05). The register had pinned this document at 2026-08-04 while the document's own attestation block still named an earlier date, so the body and the register disagreed about the document's own identity. Scope of this pin: attestation-block metadata only. No compliance claim, control description, or evidence citation changed in this revision; the substantive 2026-08-04 corrections were already present in the bytes pinned earlier that day. This document previously named three different 'latest' dates (header banner 2026-07-27, attestation table 2026-07-24, closing trailer 2026-08-04). All three now read 2026-08-04, with the superseded dates preserved in a new prior-re-attestations row. Amended 2026-08-05 (second pin in this realignment, external review): section 5.2 boundary rule (3) still read as a live, undated 'awaits Scot's re-attestation' claim, contradicting this document's own 2026-08-04 attestation. Per instruction the clause is retained as the historical record of the Phase 5 handoff and carries a dated discharge note (2026-07-22, the date the memo's own section 8 amendment records Scot re-attesting the Phase 5 section 5.2 rewrite). No claim changed."
       },
       "correctionNote": "CORRECTION 2026-08-02, SUPERSEDED 2026-08-04 (not an attestation; only Scot attests). The 2026-08-02 note said Bedrock 'has never been operational in production' and that runtime AI had been dormant since 00011-l7f. That was accurate through revision 00012-x8z and expired 2026-08-03T08:23:02Z, when 00013-76w mounted the Bedrock credentials. Correct statement: not operational through 00012-x8z; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z with one logged seam call completed (internal verification, no user or student data); not operational since 00014-5rw. Re-attested by Scot Wahlquist 2026-08-04; the earlier 'Re-attestation owed' note is discharged.",
-      "contentHash": "356b409294378764da09c43d532ca96e66524b448b4c95b009f23c1c659e68d7",
+      "contentHash": "f35f99bd8b2971cad723b80fba1f9adffc7a212eeaadccd6b85c72ceb4269001",
       "bundles": [
         "compliance-records-set-2026-06",
         "security-review"
@@ -733,20 +733,22 @@
         "FERPA",
         "HIPAA"
       ],
-      "lastReviewed": "2026-08-04",
-      "nextReviewDue": "2027-07-23",
+      "lastReviewed": "2026-08-08",
+      "nextReviewDue": "2026-11-08",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-08-04",
-        "attestedContentHash": "83cb1467066905fe8b69e730a5d9cba97eb3b72eb25e86a559cfd2a606546290",
+        "attestedDate": "2026-08-08",
+        "attestedContentHash": "29360a41966130e4722c335ffe0ad0ba26375547abf24e3a575fa59b1a5b7ce0",
         "priorAttestations": [
           "2026-07-24",
           "2026-07-06",
-          "2026-07-23"
+          "2026-07-23",
+          "2026-08-04",
+          "2026-08-06"
         ],
-        "note": "Re-attested 2026-08-04 by Scot Wahlquist. Scope: the runtime-AI operational-status correction in PR #725. The prior corpus stated the Bedrock path was dormant and that no lingolinq-web revision carried a Bedrock credential; that was accurate when written and expired 2026-08-03T08:23:02Z when revision 00013-76w mounted BEDROCK_AWS_KEY/SECRET. The corpus now states a closed window: not operational to 2026-08-03T08:23Z, operational to 2026-08-04T06:31Z (one internal verification call, no user or student data), not operational since. Verified live: sts:GetCallerIdentity returned 239044785114 (user/lingolinq-bedrock-runtime)."
+        "note": "Re-attested 2026-08-08 by Scot Wahlquist, CEO, against sha256 29360a41966130e4 which he was shown and explicitly confirmed before this pin was written. Scope of this pin, which is the union of the 2026-08-07 and 2026-08-08 amendments plus the record-completeness correction the superseded 2026-08-06 pin covered. (A) QUARTERLY FULL-REGISTER REVIEW PERFORMED 2026-08-08, and it found two active third-party processors absent from the section 4 table: Stripe, Inc. (lib/purchasing.rb sets Stripe.api_key and retrieves Customers and Charges; gem 'stripe' in the Gemfile), receiving payment and customer-identity data and named nowhere in the register before 2026-08-08; and iplocate.io, receiving user IP for geolocation from lib/external_tracker.rb (gated) and app/mailers/subscription_mailer.rb#new_subscription (UNGATED, no user-type check and no consent gate, so it can fire for a child account). Both are disclosed in new section 4.1 on identification rather than held until full rows are drafted, so the table is not mistaken for a complete inventory meanwhile; drafting rows requires per-vendor DPA verification, which is separate tracked work. THIS ATTESTATION IS MADE WITH THOSE TWO OMISSIONS DISCLOSED, NOT RESOLVED. The ungated iplocate call site is raised as findings-register entry LL-07f1869d92 for CEO triage. This review is the cycle that fell due 2026-07-20 and was not performed; rather than re-date the schedule past the gap, the CEO directed on 2026-08-08 that it be performed. (B) The Anthropic/Bedrock runtime status in row 4 and the section 5.7 consistency note is corrected against live infrastructure: both asserted that no lingolinq-web revision carried a Bedrock credential, when credentials have been continuously mounted on the serving revision since 2026-08-04T07:25:08Z. That claim was false at the time of the superseded 2026-08-06 attestation. The data-flow determination is unchanged, subject to the evidentiary limits now stated in row 4 (AiApiLog can under-record because log_ai_call rescues ActiveRecord::ActiveRecordError, and vendor-side confirmation is not obtainable with current AWS permissions). (C) The header revision chain is repaired: it named 2026-07-23 as the prior amendment, skipping 2026-07-24, 2026-08-02 and 2026-08-04, and its 'Last amended' date lagged the change log. (D) The 2026-08-05 discharge note carried a live 'a re-attestation IS currently outstanding' clause, now bounded to the revision it was true of. (E) Review cadence reconciled across all three scheduling sources. Scope of the superseded 2026-08-06 pin, retained here because these corrections are carried forward into these bytes: a record-completeness correction, recorded as the 2026-08-06 change-log entry. Three defects. (1) The section 8 change log is a three-column table, but the 2026-08-02 and 2026-08-04 rows were each authored with only two cells, so the 'Notified to customers' column was structurally absent from both, leaving an Article 28 change-log field unanswered rather than answered. Git history confirms the column was never populated in either row from the commits that introduced them (11453341a, 2624186d6), so this completes an omission at authoring and does not restore deleted content. Both cells are completed from each row's OWN section 2 determination, read with section 2's Pre-tenant baseline and section 5.7; neither is derived from a neighbouring row and neither notice determination changed. (2) The header's 'Last amended' date read 2026-07-23 while the change log already carried 2026-07-24, 2026-08-02 and 2026-08-04 entries. (3) The header carried an undated live clause that Privacy Office confirmation of the section 2 customer-notice timing was 'still owed before external publication'; true when written 2026-07-23, answered 2026-07-24, now bounded to the period it was true with the historical sentence retained. No vendor, data flow, contract, or classification changed in that revision, and none changed in this one either: section 4.1 discloses processors that were already in the code and already receiving data, not new flows. Those 2026-08-06 bytes were corrected before merge and never reached staging, so that attestation is SUPERSEDED rather than void, and 2026-08-06 is appended to priorAttestations as an ordinary entry (a different calendar day from this pin, so no ambiguity). Independently reviewed by Codex CLI (gpt-5.6-terra, Tier 2) across successive heads of PR #763; the Bedrock-status defect at (B) was surfaced by that review and verified against live Cloud Run revisions before this pin."
       },
-      "contentHash": "83cb1467066905fe8b69e730a5d9cba97eb3b72eb25e86a559cfd2a606546290",
+      "contentHash": "29360a41966130e4722c335ffe0ad0ba26375547abf24e3a575fa59b1a5b7ce0",
       "bundles": [
         "school-dpa-package",
         "soc2-evidence",
@@ -1180,7 +1182,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "5849b54f4755bf05331ea228a3941b29c34dfc0658923acbdedb51d9558d80b8",
+      "contentHash": "86e7af10ae2a86716d4a23c0046dda8a6c4c90fe5d49211d6a07dc32da96948e",
       "bundles": [],
       "mirrors": [
         {
@@ -1218,7 +1220,7 @@
       "lastReviewed": "2026-06-16",
       "nextReviewDue": "2026-09-16",
       "attestation": {},
-      "contentHash": "f120e6526e52fa9440093026877ccd7c729ee5266c3c9dc07d8479a1f48182ef",
+      "contentHash": "a692fd2b2d50ececc6d381c5dc9854df1d432baddc6268d6804ef90a0f25165c",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
@@ -2495,18 +2497,20 @@
         "HIPAA",
         "GDPR"
       ],
-      "lastReviewed": "2026-08-04",
+      "lastReviewed": "2026-08-08",
       "nextReviewDue": "2027-07-22",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-08-04",
-        "attestedContentHash": "80b5bec460ee1dad9ff2423334eb9088a52abf54dda072f7623ce26ba89363c8",
+        "attestedDate": "2026-08-08",
+        "attestedContentHash": "8c1479578f6bce463e6d3290340e88d6c7a5cf28bc312a0a7e2f203f53d99601",
         "priorAttestations": [
-          "2026-07-22"
+          "2026-07-22",
+          "2026-08-04",
+          "2026-08-06"
         ],
-        "note": "Re-attested 2026-08-04 by Scot Wahlquist (second pin, same day). Supersedes the earlier 2026-08-04 pin, whose bytes were corrected across three external review rounds before merge. Scope of this pin: the closed-window runtime-AI operational status (not operational through 00012-x8z; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on 00013-76w; not operational since 00014-5rw), with every historical claim explicitly bounded to the period it covers rather than stated as an unbounded absolute. Also pinned: the runtime-row status paragraph rewritten from 'dormant as of 2026-07-30' to the closed window. This document entered the re-attestation set during the third review round."
+        "note": "Re-attested 2026-08-08 by Scot Wahlquist, CEO, against sha256 8c1479578f6bce46 which he was shown and explicitly confirmed before this pin was written. This remains a PROVISIONAL attestation: outside-counsel review is deferred until the full 5-phase VPC is built. Scope of this pin covers two corrections. FIRST, the section 3 runtime operational-status note asserted the Bedrock path had been not operational since revision 00014-5rw (2026-08-04T06:31:46Z); in fact Bedrock credentials have been continuously mounted on the serving lingolinq-web revision since 00015-9l9 at 2026-08-04T07:25:08Z, 53 minutes after the withdrawal that note cited. That claim was false at the time of the superseded 2026-08-06 attestation. The note is corrected and now states its evidentiary limits explicitly rather than asserting a negative it cannot establish. SECOND, carried forward from the superseded 2026-08-06 pin, a section 8 correction. The bullet resolving whether scrubbed neutral board generation can move to the Non-personal bucket read 'resolved 2026-07-09 (Scot's provisional attestation: stays gated)', stating the SUPERSEDED initial position as the outcome. That contradicted this document's own section 3 table (row 1: Non-personal, gate column 'No'), its own section 4.2 reclassification rationale, AI_DATA_SHARING_CONSENT.md section 7 (which records the Non-personal reclassification as 'the CURRENT, final position'), AND the shipped implementation: lib/lingo_linq/ai_consent_disclosures.rb deliberately omits board generation from the second-tier disclosure inventory with a comment citing section 4.2 by name, and config/locales/en.yml (board_suggestions_note) tells parents board suggestions are not covered by that consent. The bullet now states Non-personal as the final position with 'stays gated' retained and explicitly marked superseded. The decision itself is unchanged; only this document's description of it is corrected. No classification, gate, or data flow changed in either correction. The 2026-08-06 bytes were corrected before merge and never reached staging, so that attestation is SUPERSEDED rather than void, and 2026-08-06 is appended to priorAttestations as an ordinary entry (a different calendar day from this pin, so no ambiguity). Independently reviewed by Codex CLI (gpt-5.6-terra, Tier 2) across successive heads of PR #763; the Bedrock-status defect was surfaced by that review and verified against live Cloud Run revisions before this pin."
       },
-      "contentHash": "80b5bec460ee1dad9ff2423334eb9088a52abf54dda072f7623ce26ba89363c8",
+      "contentHash": "8c1479578f6bce463e6d3290340e88d6c7a5cf28bc312a0a7e2f203f53d99601",
       "bundles": [
         "school-dpa-package",
         "security-review",
@@ -2542,13 +2546,13 @@
       "attestation": {
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-08-04",
-        "attestedContentHash": "6c534936a91a3b4540669d53d7a259717614642118f1fd09191d63f8e7e71224",
+        "attestedContentHash": "2e5f09a3a6c2ddfada3a56aac0c087040cac2752e9c6ac6609406afd1c38c868",
         "priorAttestations": [
           "2026-07-09"
         ],
-        "note": "Re-attested 2026-08-04 by Scot Wahlquist (second pin, same day). Supersedes the earlier 2026-08-04 pin, whose bytes were corrected across three external review rounds before merge. Scope of this pin: the closed-window runtime-AI operational status (not operational through 00012-x8z; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on 00013-76w; not operational since 00014-5rw), with every historical claim explicitly bounded to the period it covers rather than stated as an unbounded absolute. Also pinned: the ZDR and training-posture bullets scoped to the direct api.anthropic.com path, expressly disclaiming any zero-data-retention guarantee for the AWS Bedrock route. This narrows a previously broader retention representation and aligns the consent record with the shipped runtime disclosure."
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist (attestation-block realignment, recorded 2026-08-05). The register had pinned this document at 2026-08-04 while the document's own attestation block still named an earlier date, so the body and the register disagreed about the document's own identity. Scope of this pin: attestation-block metadata only. No compliance claim, control description, or evidence citation changed in this revision; the substantive 2026-08-04 corrections were already present in the bytes pinned earlier that day. Status line and attestation-date row moved from 2026-07-09 to 2026-08-04, and the attestation scope now names the ZDR narrowing to the direct api.anthropic.com path with no ZDR guarantee claimed for the Bedrock runtime route."
       },
-      "contentHash": "6c534936a91a3b4540669d53d7a259717614642118f1fd09191d63f8e7e71224",
+      "contentHash": "2e5f09a3a6c2ddfada3a56aac0c087040cac2752e9c6ac6609406afd1c38c868",
       "bundles": [],
       "mirrors": [],
       "notes": "Register bookkeeping from the in-document attestation line (2026-07-09, provisional, conservative-default). Not yet reviewed by outside counsel. Scot to confirm or correct.",
@@ -2582,13 +2586,13 @@
       "attestation": {
         "attestedBy": "Scot Wahlquist",
         "attestedDate": "2026-08-04",
-        "attestedContentHash": "933d4863d95ba179a77d6a518e38536f51dec89f2e34ae67604495bf66629499",
+        "attestedContentHash": "63205ea1780cabe4e1e4a49c25b314bbe61890a9cdd4dfe39d63a1edc445bce7",
         "priorAttestations": [
           "2026-07-23"
         ],
-        "note": "Re-attested 2026-08-04 by Scot Wahlquist. Scope: the runtime-AI operational-status correction in PR #725. The prior corpus stated the Bedrock path was dormant and that no lingolinq-web revision carried a Bedrock credential; that was accurate when written and expired 2026-08-03T08:23:02Z when revision 00013-76w mounted BEDROCK_AWS_KEY/SECRET. The corpus now states a closed window: not operational to 2026-08-03T08:23Z, operational to 2026-08-04T06:31Z (one internal verification call, no user or student data), not operational since. Verified live: sts:GetCallerIdentity returned 239044785114 (user/lingolinq-bedrock-runtime)."
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist (attestation-block realignment, recorded 2026-08-05). The register had pinned this document at 2026-08-04 while the document's own attestation block still named an earlier date, so the body and the register disagreed about the document's own identity. Scope of this pin: attestation-block metadata only. No compliance claim, control description, or evidence citation changed in this revision; the substantive 2026-08-04 corrections were already present in the bytes pinned earlier that day. This is the externally shareable document, so the stale block was the highest-exposure instance. External-release authorization now reads 2026-08-04 (rev. 2026-08-04-a) with prior authorizations listed, and a 2026-08-04 re-attestation entry records the runtime-AI closed-window status that this revision states."
       },
-      "contentHash": "933d4863d95ba179a77d6a518e38536f51dec89f2e34ae67604495bf66629499",
+      "contentHash": "63205ea1780cabe4e1e4a49c25b314bbe61890a9cdd4dfe39d63a1edc445bce7",
       "bundles": [
         "security-review"
       ],
@@ -2649,7 +2653,7 @@
       "lastReviewed": "2026-07-12",
       "nextReviewDue": "2027-01-12",
       "attestation": {},
-      "contentHash": "4238f6c596f1e00f57f210eb54d62e265271ad6d2a8f5f49cc775399b554a180",
+      "contentHash": "c79623f23a3dd2c40c9a7bc8ce705b9ff09fede46f22af4c4366304848551f16",
       "bundles": [],
       "mirrors": [
         {

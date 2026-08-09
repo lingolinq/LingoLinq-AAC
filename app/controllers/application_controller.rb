@@ -179,6 +179,12 @@ class ApplicationController < ActionController::Base
         @linked_user = User.find_by_path(as_user)
         admin = Organization.admin
         if admin && admin.manager?(@api_user) && @linked_user
+          # Fail-closed disclosure: refuse impersonation if the accounting row
+          # cannot be written (FERPA/HIPAA). Deduped per operator/target for 30m.
+          if record_masquerade_audit!(operator: @api_user, target: @linked_user, branch: 'site_admin') != :ok
+            api_error 503, {error: 'Audit log write failed; masquerade refused'}
+            return false
+          end
           @true_user = @api_user
           @linked_user.permission_scopes = @api_user.permission_scopes
           @api_user = @linked_user
@@ -192,6 +198,10 @@ class ApplicationController < ActionController::Base
             masq_ok = ((managed_ids & attached_ids).length > 0) && 'store'
           end
           if masq_ok
+            if record_masquerade_audit!(operator: @api_user, target: @linked_user, branch: 'org_manager') != :ok
+              api_error 503, {error: 'Audit log write failed; masquerade refused'}
+              return false
+            end
             Permissions.setex(RedisInit.default, masq_key, 30.minutes.to_i, 'true') if masq_ok == 'store'
             @true_user = @api_user
             @linked_user.permission_scopes = @api_user.permission_scopes
@@ -397,5 +407,32 @@ class ApplicationController < ActionController::Base
       "#<#{raw_p.class.name}>"
     end
     Rails.logger.info("[INSTALLED_HEADER] #{source} val=#{h_log.inspect} effective=#{installed_app_header_effective.inspect} params=#{p_log.inspect} installed_app=#{installed_app?} browser_client=#{browser_client?}")
+  end
+
+  private
+
+  # FERPA/HIPAA accounting-of-disclosures for masquerade authorization.
+  # Deduped per operator/target for 30 minutes so per-request as_user_id does
+  # not flood the audit table. Returns :ok when a prior window is still open or
+  # a new row persisted; :failed when the write did not persist (caller must
+  # refuse the impersonation — fail-closed).
+  def record_masquerade_audit!(operator:, target:, branch:)
+    return :failed unless operator && target
+    audit_key = "masq_audit/#{operator.global_id}/#{target.global_id}"
+    return :ok if RedisInit.default.get(audit_key) == 'true'
+
+    event = AuditEvent.log_command(operator.global_id, {
+      'type' => 'masquerade',
+      'command' => 'authorize',
+      'acting_as' => target.global_id,
+      'branch' => branch.to_s
+    })
+    return :failed unless event&.persisted?
+
+    Permissions.setex(RedisInit.default, audit_key, 30.minutes.to_i, 'true')
+    :ok
+  rescue => e
+    Rails.logger.error('masquerade audit log failed: ' + e.class.to_s)
+    :failed
   end
 end
