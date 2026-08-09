@@ -183,6 +183,9 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Gotcha: a self-rescheduling `runLater` makes every acceptance test hang — and the cause is never where the TODO says](#gotcha-a-self-rescheduling-runlater-makes-every-acceptance-test-hang--and-the-cause-is-never-where-the-todo-says)
 - [Gotcha: Mirage 3 needs a config parameter and explicit models — symptoms look like an app hang](#gotcha-mirage-3-needs-a-config-parameter-and-explicit-models--symptoms-look-like-an-app-hang)
 - [Gotcha: a skipped test's fixtures rot silently](#gotcha-a-skipped-tests-fixtures-rot-silently)
+- [Pattern: `store_url_now` can resolve WITHOUT a cached copy — `local_url || data_uri` then assigns undefined and destroys the source URL](#pattern-store_url_now-can-resolve-without-a-cached-copy--local_url--data_uri-then-assigns-undefined-and-destroys-the-source-url)
+- [Pattern: separate a real regression from this suite's wandering timeout by RE-RUNNING, not by reasoning](#pattern-separate-a-real-regression-from-this-suites-wandering-timeout-by-re-running-not-by-reasoning)
+- [Gotcha: "Died on test #N" is the jasmine shim's STEP number, not the Nth `it()`](#gotcha-died-on-test-n-is-the-jasmine-shims-step-number-not-the-nth-it)
 - [Gotcha: fit-to-box must measure BOTH axes — `word-break: keep-all` makes a long word overflow sideways, never down](#gotcha-fit-to-box-must-measure-both-axes--word-break-keep-all-makes-a-long-word-overflow-sideways-never-down)
 - [Pattern: per-user UI prefs must be read from `currentUser`, not the board-detail route's URL user](#pattern-per-user-ui-prefs-must-be-read-from-currentuser-not-the-board-detail-routes-url-user)
 - [Pattern: `.md-board-collection__*` is a light-base panel reusable on any page; dark theme is ancestor-scoped](#pattern-md-board-collection-is-a-light-base-panel-reusable-on-any-page-dark-theme-is-ancestor-scoped)
@@ -9102,3 +9105,88 @@ and then visited `/viewer/board-detail/view-only-empty`. Mirage looks boards up 
 `<user_name>/<boardname>` from the URL, so the lookup 404'd. The mismatch had been
 sitting there unnoticed because the test was skipped — nothing had ever executed
 it. When unskipping anything, expect its fixtures to be wrong, and budget for it.
+
+## Pattern: `store_url_now` can resolve WITHOUT a cached copy — `local_url || data_uri` then assigns undefined and destroys the source URL
+
+`persistence.store_url_now` does **not** always hand back something cacheable. It
+early-returns `RSVP.resolve({url: url, type: type})` — no `local_url`, no
+`data_uri` — whenever `!window.lingoLinqExtras || !window.lingoLinqExtras.ready`,
+or the url is `data:` / `file:` / localhost (`app/utils/persistence.js:1521-1526`,
+mirrored in `app/services/persistence.js`).
+
+So the idiom `thing[attr] = data.local_url || data.data_uri` silently assigns
+**undefined** and throws away the URL it was caching. It is not a no-op — it is
+destructive, and permanent for the lifetime of the singleton.
+
+Concretely (`app/utils/speecher.js`): `load_beep()` on app boot
+(`routes/application.js:186`) wiped all twelve CDN feedback-sound URLs to
+`undefined` whenever extras were not ready. Feedback sounds then go silent, and
+every later `load_sound` falls to its `else` and rejects
+`{error: "beep sound not saved: " + attr}`.
+
+**Rule: always keep the existing value as the final fallback** —
+`data.local_url || data.data_uri || thing[attr]`. A local cache is an
+optimisation; the URL is the thing you cannot regenerate. `load_sound`'s own
+error path already said so — *"Local cache is optional for UI feedback sounds;
+keep the CDN URL for playback"* — it just failed to apply it on the success path.
+Check the other `local_url || data_uri` call sites before assuming this is the
+only one.
+
+**Second-order effect worth predicting:** fixing it makes the app do *more* async
+work in tests, because the corrupted-and-fast-rejecting path was doing none.
+Expect timing-sensitive `waitsFor` tests to wobble afterwards, and see the
+re-run rule below before blaming yourself.
+
+**First seen in:** [2026-08-08-speecher-load-beep-suite-failure.md](./2026-08-08-speecher-load-beep-suite-failure.md)
+
+## Pattern: separate a real regression from this suite's wandering timeout by RE-RUNNING, not by reasoning
+
+This suite has a standing defect: async work leaks across QUnit module
+boundaries, and *some* later test dies on a ~5.5s `waitsFor` timeout. **Which**
+test changes every run — observed victims include `dbman`, `persistence
+DSAdapter`, `modal`, `progress_tracker`, `login-form`, `speecher`. `6c2b843fb`
+reduced it (acceptance modules now run the sync-heavy teardown) but did not
+eliminate it.
+
+The trap: you land a fix, the suite comes back with failures that were green in
+your baseline, and it looks exactly like you broke something.
+
+**Discriminator — one extra run, no code change:**
+- **Same tests fail again** → deterministic → it is yours. Fix or revert.
+- **Failing set MOVES or empties** → the ambient flake. Two runs of *identical*
+  code producing **disjoint** failure sets is proof on its own.
+
+Worked example: baseline `1 fail (speecher)` → with fix `3 fail (login-form,
+DSAdapter ×2)` → same code again `1 fail (modal)`. Zero overlap between the last
+two, so the fix was exonerated by evidence rather than by argument. Budget ~13
+min per full run and just do it — a `waitsFor` timeout in a module you did not
+touch is the signature.
+
+**Corollary:** never quote this suite's failure count as a single number. Quote
+it as *"N fail, of which M are the wandering timeout"*, or the next person
+inherits a false baseline — which is precisely how the previous hand-off came to
+claim 3 standing failures when only 1 was real.
+
+**First seen in:** [2026-08-08-speecher-load-beep-suite-failure.md](./2026-08-08-speecher-load-beep-suite-failure.md)
+
+## Gotcha: "Died on test #N" is the jasmine shim's STEP number, not the Nth `it()`
+
+A failure reading `Died on test #1: [object Object]` under the legacy jasmine
+shim (`tests/helpers/jasmine.js`) does **not** mean the first `it()` in the
+block. `#1` is the shim's internal step counter; the failing `it()` is named on
+the `not ok` line itself. Read the `not ok` line, ignore the `#N`.
+
+Two companions to that message:
+- **`[object Object]` means the thing thrown/rejected was a plain object** — look
+  for `RSVP.reject({...})` on the path, and grep the literal object shape to find
+  it. Here it was `{error: "beep sound not saved: " + attr}`.
+- **A "Died" is an escaping exception, not a failed assertion.** The usual cause
+  is an **unhandled** rejection: Ember's `setOnerror` rethrows under `isTesting()`
+  (`app/app.js:36-38`). So look for a `.then(success)` with **no** rejection
+  handler. Of the two `load_beep` tests, only the one lacking a rejection handler
+  died — the other saw the same rejection and passed.
+- Note `RSVP.all_wait` (`app/utils/misc.js:147-175`) rejects on the **first**
+  failure whenever `LingoLinq.all_wait` is falsy — and nothing in the codebase
+  ever sets it. One bad item sinks the whole batch immediately.
+
+**First seen in:** [2026-08-08-speecher-load-beep-suite-failure.md](./2026-08-08-speecher-load-beep-suite-failure.md)
