@@ -35,7 +35,14 @@
 #   running `gcloud run deploy` directly, which never touches this workflow. Guarding
 #   that requires either restricting Cloud Run update permission to the deploy service
 #   account, or running this script on a schedule. Both are deliberately out of scope
-#   here. Run it standalone any time to reconcile live state:
+#   here.
+# * NOTE for anyone deploying lingolinq-web by hand: the deploy workflow pins traffic to
+#   the revision it health-checked, which clears `latestRevision`. After any workflow run
+#   has done that, your manual `gcloud run deploy` creates a revision serving 0% and still
+#   exits 0 -- so this script can report a revision "clean" that nobody is using. Check
+#   `gcloud run services describe lingolinq-web --region us-central1 --format='value(spec.traffic)'`
+#   and shift traffic deliberately with `update-traffic --to-revisions <new>=100`.
+#   Run it standalone any time to reconcile live state:
 #
 #     bash scripts/gcp/assert-runtime-secrets.sh \
 #       --project lingolinq-prod --region us-central1 \
