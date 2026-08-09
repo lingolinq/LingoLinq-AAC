@@ -121,14 +121,20 @@ JSON is the source of truth; the `.md` and the Notion "Compliance Documents (LL)
 renders/mirrors. Keep it current:
 - **Add/retire rows** when a compliance doc is created, superseded, or moved. Set status; never
   attest (only Scot moves a doc to `approved`/`published` or fills `attestation`).
-- **After ANY edit, run `ruby scripts/document-register-render.rb`** so it backfills `id` +
-  git `contentHash` and regenerates the `.md`. Commit the JSON and the `.md` together, or the
-  `audit-artifacts-integrity` CI gate (which runs `--check`) fails.
-- **`contentHash`:** the render computes and CI verifies it for git rows. You update it simply
-  by re-rendering after a git doc changes. For Drive/Notion rows the hash is supplied
-  externally - you only RECORD what you are given; you have **no Drive tools** and do not fetch
-  Drive content. Drive-row URLs and hashes come from the main session's Drive MCP; the Notion
-  sync refreshes Notion-row hashes.
+- **After ANY edit to an UNATTESTED row, run `ruby scripts/document-register-render.rb`** so it
+  backfills `id` + git `contentHash` and regenerates the `.md`. Commit the JSON and the `.md`
+  together, or the `audit-artifacts-integrity` CI gate (which runs `--check`) fails.
+- **NEVER run the render to clear drift on an ATTESTED git row. STOP and escalate to Scot.**
+  Rendering recomputes `contentHash` from current bytes, which silently overwrites the row's
+  assertion about the attested revision and re-fails as "attested revision no longer exists" with
+  a mutated register in the diff. You do not attest and you do not decide re-attestation: hand the
+  row to Scot, who runs `/re-attest-record`. If `--check` names an attested row, that is the end
+  of your involvement with it.
+- **`contentHash`:** the render computes and CI verifies it for git rows. You update it by
+  re-rendering after an **unattested** git doc changes (for attested rows see the rule above). For
+  Drive/Notion rows the hash is supplied externally - you only RECORD what you are given; you have
+  **no Drive tools** and do not fetch Drive content. Drive-row URLs and hashes come from the main
+  session's Drive MCP; the Notion sync refreshes Notion-row hashes.
 - **`bundles`:** maintain each doc's bundle membership and the `meta.bundleDefinitions` set.
   CI fails if a bundle is missing a required member or a doc names an undefined bundle. When a
   customer asks "where is your DPA package / SOC 2 evidence," answer from the bundle view.

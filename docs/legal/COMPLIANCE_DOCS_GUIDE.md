@@ -91,9 +91,37 @@ index notices a document changed but its row did not.
   `drive`/`notion`, even via a self-referential GitHub blob URL. Conversely a
   `git` row must resolve to a real file **inside** the repo (no `..` traversal,
   no symlink), so the `git` label always means "tracked content in this repo."
-- **If a git hash-drift check fails:** it means a doc's content and its register
-  row disagree. Re-render to reconcile, then sanity-check the review date and
-  status while you are there.
+- **If a git hash-drift check fails on an UNATTESTED row:** the doc's content and
+  its register row disagree. Re-render to reconcile, then sanity-check the review
+  date and status while you are there.
+- **If it fails on an ATTESTED row:** do **not** re-render. The render recomputes
+  `contentHash` from current bytes, so it clears this message only to re-fail as
+  "attested revision no longer exists", and it dirties `DOCUMENT-REGISTER.json` in
+  your diff on the way. Either revert your change to the file, or re-attest via
+  `/re-attest-record` (Scot only; supersession is the default for `docs/legal/**`
+  per the "Attestation freezes the artifact" rule in `README.md`). The `--check` message tells
+  you which case you are in, and says so explicitly when the row is attested.
+
+## When CI is red: which failure is this?
+
+`audit-artifacts-integrity` is six steps and not all of them are about documents.
+Read the **failing step name**, which GitHub shows in the job, rather than reacting
+to the job name. A wrong route costs more here than no route at all.
+
+| Failing step | Owner | Action |
+|---|---|---|
+| `secret-detection`, with `Failed to resolve action download info` | nobody | `gh run rerun --failed`. A GitHub infra 503 while fetching an action; the scan never ran. |
+| `rspec` / `build-and-test`, or gitleaks actually matching a secret | author | Read the log and fix. Never weaken the secret scan to pass. |
+| `document-register-render.rb --check`, drift on an **unattested** doc | author | `scripts/regenerate-register.sh`, commit the JSON and the `.md` together. |
+| `document-register-render.rb --check`, drift on an **attested** doc | Scot | Stop. Do not run render. Revert the file, or `/re-attest-record`. |
+| `document-register-render.rb --check`, bundle completeness | author | Add the missing required member, or fix `meta.bundleDefinitions`. Re-rendering will not fix it. |
+| `capability-check.rb --check` | author | A cited line moved. Update the anchor in `CAPABILITY-LEDGER.json`. Re-rendering will not fix it. |
+| `attestation-hash-guard-test.sh` | author | A guard regressed. Fix the guard; do not weaken the assertion to go green. |
+
+Note that this job **aborts at the first failing step**, so later steps may be
+untested on your branch. After fixing the first failure, re-run the whole job
+locally (`scripts/regenerate-register.sh --check` covers all of it) rather than
+assuming the rest was already passing.
 
 ## Publication status
 
