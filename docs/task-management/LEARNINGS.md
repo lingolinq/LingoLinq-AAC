@@ -120,9 +120,9 @@ file (see [README.md](README.md)).
 - [Gotcha: a single-quoted `i18n.t` default silently DELETES the key on the next generator run](#gotcha-a-single-quoted-i18nt-default-silently-deletes-the-key-on-the-next-generator-run)
 - [Gotcha: fail-closed Sentry filters must not collapse lookup failures to nil](#gotcha-fail-closed-sentry-filters-must-not-collapse-lookup-failures-to-nil)
 - [Gotcha: dual-key tag reads — check each key independently, never `a || b` before coercion](#gotcha-dual-key-tag-reads--check-each-key-independently-never-a--b-before-coercion)
+- [Gotcha: Flusher `transfer_user_content` is not a checklist for `flush_user_content`](#gotcha-flusher-transfer_user_content-is-not-a-checklist-for-flush_user_content)
 - [Gotcha: set-field on nested model fields needs nested observer deps (videoChanged pattern)](#gotcha-set-field-on-nested-model-fields-needs-nested-observer-deps-videochanged-pattern)
 - [Gotcha: embed-frame `data-user_token` is UserIntegration#user_token, not User#user_token](#gotcha-embed-frame-data-user_token-is-userintegrationuser_token-not-useruser_token)
-- [Gotcha: private uploads bucket — server-side OBZ/OBF import must use signed_internal_url](#gotcha-private-uploads-bucket--server-side-obzobf-import-must-use-signed_internal_url)
 - [Gotcha: private uploads bucket — server-side OBZ/OBF import must use signed_internal_url](#gotcha-private-uploads-bucket--server-side-obzobf-import-must-use-signed_internal_url)
 
 ---
@@ -7944,6 +7944,15 @@ only for non-`docs/legal/**` git rows or explicit Scot-directed recovery after a
 in-place amend. Skill: `.claude/skills/re-attest-record/SKILL.md`. Example chain:
 `DOC-9f6a2412ad` → `DOC-ae3f9d06ef`.
 
+**Also retarget live bundles by location, not title.** `meta.bundleDefinitions.*.requiredDocs`
+bind by `canonicalLocation`; moving live membership to the successor without updating those
+locations fails `--check` as a missing required member. Frozen dated binders can stay on the
+predecessor. Worked example (PR #721 recovery): DOC-bff9acf51f → DOC-e62caf7fb9 and
+DOC-03cb9fe91f → DOC-90632edc44; see
+[2026-08-09-pr721-path-a-supersession.md](./2026-08-09-pr721-path-a-supersession.md). When the
+same PR moves `lib/flusher.rb` definitions, re-pin `CAPABILITY-LEDGER.json` `currentEvidence.line`
+before the register gate (otherwise capability-check stays masked behind the attested-hash fail).
+
 ## Gotcha: fail-closed Sentry filters must not collapse lookup failures to nil
 
 `CoppaSentryScrub::TRANSACTION_FILTER` (and `#call`) treat `nil` as anonymous non-child by
@@ -8105,6 +8114,14 @@ After the Ember 5 modal migration, `utils/modal.open` only drives `service:modal
 ## Gotcha: authenticated chrome is AppNavbar, not application.hbs #identity
 
 When `useAppNavbarInHeader` is true (dashboard, org, most user routes), `application.hbs` renders `<AppNavbar>` and **skips** the legacy `#identity` block. Header controls added only under `#identity` in `application.hbs` are invisible on those pages. Put authenticated-nav affordances (e.g. Stop Masquerading next to Upgrade) in `app-navbar-authenticated-inner.hbs` (and the mobile drawer). Ref: [`2026-07-30-org-directory-find-user-masquerade.md`](./2026-07-30-org-directory-find-user-masquerade.md).
+
+## Gotcha: Flusher `transfer_user_content` is not a checklist for `flush_user_content`
+
+Merge reassignment (`transfer_user_content`) and hard-delete (`flush_user_content`) diverge. Models present only in transfer — historically `UserVideo`, `ButtonSound`, `ButtonImage` — will survive account erasure unless flush also sweeps them by `user_id`. Board flush only destroys media when join-table `full_flush` conditions hold, so off-board / message-bank `ButtonSound` rows are invisible to that path. Prefer explicit `Model.where(user_id:).each { flush_record }` over relying on `User` associations (`dependent: :destroy` is often missing). `flush_record` → `destroy` is what schedules Uploadable S3 `remote_remove`. Ref: [`2026-07-31-flush-uservideo-buttonsound-erasure.md`](./2026-07-31-flush-uservideo-buttonsound-erasure.md) (LL-854b1d3853).
+
+## Gotcha: stubbing `Uploader.remote_remove` still needs uploads-bucket URL shapes
+
+Specs that `expect(Uploader).to receive(:remote_remove)` never hit the "scary delete" guard, so `http://www.example.com/...` fixtures can mask regressions. Use uploads-bucket HTTPS paths that match `/\w+\/.+\/\w+-\w+(\.\w+)?$/` after the bucket prefix is stripped (extension optional, end-anchored; `^extras` also allowed — see `lib/uploader.rb:223`). Keep `removable: false` fixtures on non-uploads URLs (e.g. opensymbols) — `check_for_removable` forces `removable=true` for uploads-bucket URLs. Ref: [`2026-07-31-flush-uservideo-buttonsound-erasure.md`](./2026-07-31-flush-uservideo-buttonsound-erasure.md).
 
 ## Pattern: a missing env var can turn a storage optimization into silent data destruction
 
