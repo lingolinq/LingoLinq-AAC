@@ -59,10 +59,17 @@ someone watching, or schedule a maintenance window.
 - [ ] No new environment variable or secret is required. (Otherwise: seed it in
       GCP Secret Manager and add it to the relevant set in
       `deploy-cloudrun.yml` FIRST, or the deploy fails at boot.)
-- [ ] Rollback is understood. Traffic rollback is:
+- [ ] Rollback is understood. Find the revision to go back to, then pin it:
+
+      gcloud run revisions list --service lingolinq-web --region us-central1 \
+        --sort-by=~metadata.creationTimestamp
 
       gcloud run services update-traffic lingolinq-web \
-        --region us-central1 --to-revisions <prev>=100
+        --region us-central1 --to-revisions REVISION_NAME=100
+
+      (Substitute the real revision name. Do not paste a `<placeholder>`: the
+      angle brackets are shell redirection and bash will fail with a confusing
+      "No such file or directory" instead of running gcloud.)
 
       Three things to know. It is only safe when the migration in this release
       is backward compatible, since rolling code back does not roll the schema

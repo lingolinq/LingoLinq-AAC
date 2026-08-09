@@ -15,10 +15,27 @@ preservation).
 > hits the DB and returns 200), worker pool Ready. The external HTTPS LB + Cloud Armor front end
 > **is built and provisioned in preview** (step 8): LB IP `136.68.41.122`, policy `lingolinq-armor`
 > with WAF rules 1001-1004 (`deny 403`) + rate-limit 2000 all in `preview=true` (log-only, not
-> enforcing), verified live 2026-07-15. **THE DNS CUT HAS HAPPENED (step 9).** As of 2026-08-09
-> `app.lingolinq.com` resolves to `136.68.41.122` and `/api/v1/health` returns 200 through the LB.
-> Real district traffic is on GCP. This is no longer a rehearsal environment, and any instruction
-> below written in the future tense about "when we cut over" should be read as already done.
+> enforcing), verified live 2026-07-15. **THE DNS CUT HAS HAPPENED (step 9 is DONE).** Verified
+> 2026-08-09: `app.lingolinq.com` resolves to `136.68.41.122` (the `lingolinq-https-fr` forwarding
+> rule) and `/api/v1/health` returns 200 through the LB. Step 9 and the "NXDOMAIN / create the
+> record" instructions below are historical, not to-do. The body at line ~634 records the cutover
+> itself as 2026-07-22; 2026-08-09 is only the date this was re-verified.
+>
+> **UNRESOLVED, and it changes how you should treat this whole file: whether prod has REAL USERS.**
+> DNS resolving and a 200 from `/api/v1/health` prove the LB path serves. They do NOT prove real
+> district users are on it. Several places below still assert prod has no real users, only
+> internal test accounts, and one of them uses "no real user data" as the justification for
+> leaving `lingolinq_admin` on a deliberately simple password. Those cannot both be true. Do not
+> plan the ingress lockdown, the Render decommission, or any automated production deploy against
+> a guess. Settle it in writing, with evidence, and reconcile the password justification in the
+> same pass. Until then treat prod as if it holds real student data, because that is the safe
+> direction to be wrong in.
+>
+> Note also that the pre-cutover checklist near the end of this file still has unchecked `- [ ]`
+> boxes (DNS TTL lowered, operator quiet window, external writers enumerated and pause-tested,
+> client 503 re-queue confirmed). The checklist boxes are authoritative: the cut having happened
+> does NOT mean those were all satisfied first.
+>
 > **What is still gated and has NOT run:** the ingress lockdown (the web service is still
 > `--ingress=all`, so the `run.app` URL bypasses the LB and Cloud Armor entirely), the WAF
 > **enforce** flip (9c), and the Render decommission (9b). Those remain the HIPAA-relevant,
@@ -542,14 +559,16 @@ Then, BEFORE any DNS change:
 The web service currently serves on its `--allow-unauthenticated` `run.app` URL. The Option B LB +
 Cloud Armor path below **is already built and provisioned** (LB IP `136.68.41.122`, policy
 `lingolinq-armor`, WAF rules 1001-1004 + rate-limit 2000 all in `preview=true` / log-only, verified
-live 2026-07-15). **DNS IS CUT OVER.** As of 2026-08-09, `app.lingolinq.com` resolves to
+live 2026-07-15). **DNS IS CUT OVER.** Verified 2026-08-09: `app.lingolinq.com` resolves to
 `136.68.41.122` (the `lingolinq-https-fr` forwarding rule) and `/api/v1/health` returns 200
-through the LB. Real district traffic is on this path; this is not a rehearsal environment. An
-earlier version of this paragraph said "no real DNS traffic points at the LB yet", which was
-true when written and is now false. What genuinely remains gated: the ingress lockdown (the web
-service is still `--ingress=all`, so the `run.app` URL bypasses the LB and Cloud Armor entirely)
-and the WAF enforce flip (rules 1001-1004 and 2000 are still `preview=true` / log-only). See the
-ingress lockdown and the enforce flip in step 9c.
+through the LB. An earlier version of this paragraph said "no real DNS traffic points at the LB
+yet", which was true when written and is now false. Note what this does and does not establish:
+the LB path serves. Whether REAL district users are on it is unresolved and contradicted
+elsewhere in this file; see the Status block at the top before acting on either answer. What
+genuinely remains gated: the ingress lockdown (the web service is still `--ingress=all`, so the
+`run.app` URL bypasses the LB and Cloud Armor entirely) and the WAF enforce flip (rules 1001-1004
+and 2000 are still `preview=true` / log-only). See the ingress lockdown and the enforce flip in
+step 9c.
 
 Before running the ingress lockdown, read the coupling note added at the LOCKDOWN GATE in
 `scripts/gcp/phase5-frontend-lb.sh`: it breaks the deploy pipeline's health probe.

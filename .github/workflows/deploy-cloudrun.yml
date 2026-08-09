@@ -520,10 +520,25 @@ jobs:
           echo "::error::probe exists to catch revisions that start but do not work. --to-latest would put"
           echo "::error::100% of live traffic on it."
           echo "::error::"
-          echo "::error::To re-assert the known-good revision explicitly:"
-          echo "::error::  gcloud run services update-traffic lingolinq-web --region ${{ vars.GCP_REGION }} --to-revisions ${PREV_REVISION:-<prev>}=100"
-          echo "::error::To inspect the failed revision, re-tag it (this does NOT give it traffic):"
-          echo "::error::  gcloud run services update-traffic lingolinq-web --region ${{ vars.GCP_REGION }} --set-tags candidate=$CANDIDATE_REV"
+          if [ -n "${PREV_REVISION:-}" ]; then
+            echo "::error::To re-assert the known-good revision explicitly:"
+            echo "::error::  gcloud run services update-traffic lingolinq-web --region ${{ vars.GCP_REGION }} --to-revisions $PREV_REVISION=100"
+          else
+            # No single 100% predecessor was recorded (split traffic, or the describe failed).
+            # Do NOT print a placeholder command: `<prev>` is shell redirection, not a visible
+            # blank, so a copy-paste yields "bash: prev: No such file or directory" and gcloud
+            # never runs. Send the operator to look the revision up instead.
+            echo "::error::No single known-good predecessor was recorded before this deploy."
+            echo "::error::Find the revision to pin to, then pin it deliberately:"
+            echo "::error::  gcloud run revisions list --service lingolinq-web --region ${{ vars.GCP_REGION }} --sort-by=~metadata.creationTimestamp"
+            echo "::error::  gcloud run services update-traffic lingolinq-web --region ${{ vars.GCP_REGION }} --to-revisions <that-revision>=100"
+          fi
+          echo "::error::To diagnose the failed revision WITHOUT exposing it publicly:"
+          echo "::error::  gcloud run revisions describe $CANDIDATE_REV --region ${{ vars.GCP_REGION }}"
+          echo "::error::  gcloud logging read 'resource.labels.revision_name=\"$CANDIDATE_REV\"' --freshness=1h --limit=100"
+          echo "::error::Do NOT re-tag it to reach it over HTTP. A tag is a stable public"
+          echo "::error::unauthenticated URL onto the production database, outside the load balancer"
+          echo "::error::and Cloud Armor. Removing it is why this step stripped the tag above."
           echo "::error::To roll FORWARD, push a fixed commit and let this workflow verify it."
           exit 1
 
@@ -552,27 +567,53 @@ jobs:
             --region "${{ vars.GCP_REGION }}" \
             --to-revisions "$CANDIDATE_REV=100" \
             --remove-tags candidate
-          SERVING="$(gcloud run services describe lingolinq-web \
-            --region "${{ vars.GCP_REGION }}" --format=json \
-            | jq -r '[.status.traffic[] | select(.percent == 100) | .revisionName][0] // empty')"
+          # Read back who is serving. This read is LOAD-BEARING (it is the assert), so it is
+          # guarded rather than left to `set -e`: a bare assignment failure would abort the step
+          # between the completed traffic shift and the un-run worker deploy, stranding new web
+          # code against old workers, and none of the diagnostics below would print. Distinguish
+          # "could not read" from "read fine, wrong revision" -- they need different responses.
+          SERVING=""
+          DESCRIBE_OK=1
+          for attempt in 1 2 3; do
+            if SERVING="$(gcloud run services describe lingolinq-web \
+                 --region "${{ vars.GCP_REGION }}" --format=json 2>/dev/null \
+                 | jq -r '[.status.traffic[] | select(.percent == 100) | .revisionName][0] // empty')"; then
+              DESCRIBE_OK=0
+              break
+            fi
+            DESCRIBE_OK=1
+            sleep 5
+          done
+          if [ "$DESCRIBE_OK" != "0" ]; then
+            echo "::error::Could not read back the traffic allocation after the shift (3 attempts)."
+            echo "::error::The shift command itself SUCCEEDED, so traffic is most likely on $CANDIDATE_REV,"
+            echo "::error::but that is unverified. The worker pool has NOT been replaced. Confirm with:"
+            echo "::error::  gcloud run services describe lingolinq-web --region ${{ vars.GCP_REGION }} --format='value(status.traffic)'"
+            exit 1
+          fi
           if [ "$SERVING" != "$CANDIDATE_REV" ]; then
             echo "::error::Traffic shift did not land where expected."
             echo "::error::  probed and intended: $CANDIDATE_REV"
-            echo "::error::  actually serving:    ${SERVING:-<none / split>}"
+            echo "::error::  actually serving:    ${SERVING:-<none, or a split with no 100% target>}"
             echo "::error::Production may be serving an unverified revision. Investigate before proceeding."
             exit 1
           fi
           echo "Now serving: $SERVING (was: ${PREV_REVISION:-<unknown>})"
-          # Belt-and-braces only. --remove-tags above already succeeded (set -e would have
-          # killed the step otherwise), so this should never fire; it exists to catch a human
-          # racing the runner or a lagging read. Defaulted to 0 on ANY failure so a transient
-          # describe error cannot fail the run HERE -- traffic has already shifted at this
-          # point and the worker pool has not been replaced, so aborting between those two
-          # would strand the exact new-web/old-worker split the header warns about.
-          REMAINING_TAG="$(gcloud run services describe lingolinq-web \
-            --region "${{ vars.GCP_REGION }}" --format=json 2>/dev/null \
-            | jq -r '[.status.traffic[] | select(.tag == "candidate")] | length' 2>/dev/null || echo 0)"
-          if [ "${REMAINING_TAG:-0}" != "0" ]; then
+          # Belt-and-braces only, never a gate. --remove-tags above already succeeded (set -e
+          # would have killed the step otherwise), so this should not fire; it catches a human
+          # racing the runner or a lagging read. Non-blocking on purpose, BUT a failed read is
+          # reported as a failed read rather than silently collapsing to "no tag" -- otherwise
+          # the one case this exists to report is the one case it cannot report.
+          REMAINING_TAG=""
+          if ! REMAINING_TAG="$(gcloud run services describe lingolinq-web \
+               --region "${{ vars.GCP_REGION }}" --format=json 2>/dev/null \
+               | jq -r '[.status.traffic[] | select(.tag == "candidate")] | length')"; then
+            REMAINING_TAG=""
+          fi
+          if [ -z "$REMAINING_TAG" ]; then
+            echo "::warning::Could not verify that the candidate tag was removed. Check by hand:"
+            echo "::warning::  gcloud run services describe lingolinq-web --region ${{ vars.GCP_REGION }} --format='value(status.traffic)'"
+          elif [ "$REMAINING_TAG" != "0" ]; then
             echo "::warning::A candidate tag is still present on lingolinq-web. Remove it by hand:"
             echo "::warning::  gcloud run services update-traffic lingolinq-web --region ${{ vars.GCP_REGION }} --remove-tags candidate"
           fi
