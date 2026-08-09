@@ -231,8 +231,8 @@
             "location": "docs/legal/BREACH_RUNBOOK.md"
           },
           {
-            "title": "Data Retention Schedule",
-            "location": "docs/legal/DATA_RETENTION.md"
+            "title": "Data Retention Schedule (2026-08-09 draft)",
+            "location": "docs/legal/2026-08-09_data-retention_draft.md"
           },
           {
             "title": "Incident Log",
@@ -269,8 +269,8 @@
             "location": "docs/legal/SUBPROCESSORS.md"
           },
           {
-            "title": "Data Retention Schedule",
-            "location": "docs/legal/DATA_RETENTION.md"
+            "title": "Data Retention Schedule (2026-08-09 draft)",
+            "location": "docs/legal/2026-08-09_data-retention_draft.md"
           },
           {
             "title": "COPPA Final-Rule Verification",
@@ -311,16 +311,16 @@
             "location": "docs/legal/COMPLIANCE_POSTURE_REPORT.md"
           },
           {
-            "title": "LingoLinq Security, Privacy & Compliance Overview",
-            "location": "docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md"
+            "title": "LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft)",
+            "location": "docs/legal/2026-08-09_compliance-program-overview_draft.md"
           },
           {
             "title": "Subprocessor Register",
             "location": "docs/legal/SUBPROCESSORS.md"
           },
           {
-            "title": "Data Retention Schedule",
-            "location": "docs/legal/DATA_RETENTION.md"
+            "title": "Data Retention Schedule (2026-08-09 draft)",
+            "location": "docs/legal/2026-08-09_data-retention_draft.md"
           },
           {
             "title": "Incident Response and Breach Runbook",
@@ -411,8 +411,8 @@
             "location": "https://docs.google.com/document/d/1x6F8qiqR_7Ojc6-TQGYp2HYBMxjIUTzH0EGCQj8R-qg/edit"
           },
           {
-            "title": "Data Retention Schedule",
-            "location": "docs/legal/DATA_RETENTION.md"
+            "title": "Data Retention Schedule (2026-08-09 draft)",
+            "location": "docs/legal/2026-08-09_data-retention_draft.md"
           },
           {
             "title": "AI Data-Flow Classification",
@@ -679,7 +679,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/DATA_RETENTION.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "FERPA",
         "GDPR",
@@ -697,13 +697,8 @@
         ],
         "note": "Re-attested 2026-07-23 against the current revision after live Cloud SQL verification. The RPO target is not established, so this attestation does not assert that the current recovery capability meets an RPO target. The prior attestation covered a revision that no longer exists. (Re-pinned after a same-day follow-up removed a stray blank line that had split the retention table; no substantive content change.)"
       },
-      "contentHash": "98b99728294d61470ff7e6afa26113a17ee1a3136bd2e430e78e8b37c7e4a396",
-      "bundles": [
-        "soc2-evidence",
-        "school-dpa-package",
-        "security-review",
-        "dsar"
-      ],
+      "contentHash": "0c748cadd7442821d768c475f64e32036dd1a8b3a86a9f3557a0f3a4aba84858",
+      "bundles": [],
       "mirrors": [
         {
           "system": "drive",
@@ -718,7 +713,46 @@
         "status": "draft"
       },
       "legalHold": false,
-      "dispositionEligibleAfter": null
+      "dispositionEligibleAfter": null,
+      "supersededBy": "DOC-e62caf7fb9",
+      "notes": "Superseded 2026-08-09 by DOC-e62caf7fb9 (PR #721 Path A): Flusher UserVideo/ButtonSound erasure claim updates moved to the dated draft successor. Attested bytes and attestedContentHash on this row are frozen."
+    },
+    {
+      "title": "Data Retention Schedule (2026-08-09 draft)",
+      "description": "Draft successor to attested DATA_RETENTION.md; updates Flusher UserVideo/ButtonSound erasure claims to match flush_user_content at HEAD (PR #721).",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-09_data-retention_draft.md",
+      "status": "draft",
+      "frameworks": [
+        "FERPA",
+        "GDPR",
+        "HIPAA",
+        "COPPA"
+      ],
+      "lastReviewed": "2026-08-09",
+      "nextReviewDue": "2027-04-20",
+      "attestation": {},
+      "contentHash": "1fe63314166ae5871871c20795bba7d04ae1b1f5c888743e0ccf3c3bbdd96229",
+      "bundles": [
+        "soc2-evidence",
+        "school-dpa-package",
+        "security-review",
+        "dsar"
+      ],
+      "mirrors": [],
+      "notes": "Path A successor to DOC-bff9acf51f. Draft pending CEO attestation. Live bundles retargeted here; predecessor remains the frozen attested cut.",
+      "supersedes": "DOC-bff9acf51f",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-e62caf7fb9"
     },
     {
       "title": "Subprocessor Register",
@@ -2573,7 +2607,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -2592,17 +2626,15 @@
         ],
         "note": "Re-attested 2026-08-04 by Scot Wahlquist (attestation-block realignment, recorded 2026-08-05). The register had pinned this document at 2026-08-04 while the document's own attestation block still named an earlier date, so the body and the register disagreed about the document's own identity. Scope of this pin: attestation-block metadata only. No compliance claim, control description, or evidence citation changed in this revision; the substantive 2026-08-04 corrections were already present in the bytes pinned earlier that day. This is the externally shareable document, so the stale block was the highest-exposure instance. External-release authorization now reads 2026-08-04 (rev. 2026-08-04-a) with prior authorizations listed, and a 2026-08-04 re-attestation entry records the runtime-AI closed-window status that this revision states."
       },
-      "contentHash": "be61f6c27a878c8dc253c96e02ae635fd7eb1f3118b565f38eb6eb3a1d7dd07c",
-      "bundles": [
-        "security-review"
-      ],
+      "contentHash": "63205ea1780cabe4e1e4a49c25b314bbe61890a9cdd4dfe39d63a1edc445bce7",
+      "bundles": [],
       "mirrors": [
         {
           "system": "drive",
           "location": "https://docs.google.com/document/d/1bN3p5lo0snYMC8WOT5JvnTzy1U5ar3so2NhtZIbcF7k/edit"
         }
       ],
-      "notes": "Re-attested for EXTERNAL RELEASE by Scot Wahlquist, CEO, 2026-07-23 (rev. 2026-07-23-a): corrected the text-to-speech statement after Irish/Abair TTS was disabled (PR #674, no DPA on file) so the doc no longer names Abair as an active provider (see docs/legal/SUBPROCESSORS.md #17 and finding LL-a167848115). Prior re-attestation 2026-07-22 (rev. 2026-07-22-a) covered the COPPA-offboarding (#649) and GCP-cutover subprocessor/hosting (#652) rewrites; the 2026-07-09 attestation (rev. 2026-07-09-c) covered an earlier revision.",
+      "notes": "Re-attested for EXTERNAL RELEASE by Scot Wahlquist, CEO, 2026-07-23 (rev. 2026-07-23-a): corrected the text-to-speech statement after Irish/Abair TTS was disabled (PR #674, no DPA on file) so the doc no longer names Abair as an active provider (see docs/legal/SUBPROCESSORS.md #17 and finding LL-a167848115). Prior re-attestation 2026-07-22 (rev. 2026-07-22-a) covered the COPPA-offboarding (#649) and GCP-cutover subprocessor/hosting (#652) rewrites; the 2026-07-09 attestation (rev. 2026-07-09-c) covered an earlier revision. Superseded 2026-08-09 by DOC-90632edc44 (PR #721 Path A): data-lifecycle / voice-recording erasure claim updates moved to the dated draft successor. Attested bytes and attestedContentHash on this row are frozen; external-release authorization remains on this predecessor until Scot attests the successor.",
       "retention": {
         "class": "policy-version",
         "rule": "supersession + 7 years",
@@ -2611,7 +2643,43 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "id": "DOC-03cb9fe91f"
+      "id": "DOC-03cb9fe91f",
+      "supersededBy": "DOC-90632edc44"
+    },
+    {
+      "title": "LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft)",
+      "description": "Draft successor to attested COMPLIANCE_PROGRAM_OVERVIEW.md; updates data-lifecycle / voice-recording erasure claims to match Flusher.flush_user_content at HEAD (PR #721). Not authorized for external release until attested.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-09_compliance-program-overview_draft.md",
+      "status": "draft",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-08-09",
+      "nextReviewDue": "2027-07-22",
+      "attestation": {},
+      "contentHash": "a0946221bc99c288c16a8cfc8258431527ed83547e3118e7b23e20e68d5c5bf7",
+      "bundles": [
+        "security-review"
+      ],
+      "mirrors": [],
+      "notes": "Path A successor to DOC-03cb9fe91f. Draft pending CEO attestation. Live security-review bundle retargeted here; predecessor remains the frozen externally authorized cut until Scot attests this successor.",
+      "supersedes": "DOC-03cb9fe91f",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-90632edc44"
     },
     {
       "title": "EU AI Act Article 50 Transparency: Implementation Milestone Plan",
@@ -2653,7 +2721,7 @@
       "lastReviewed": "2026-07-12",
       "nextReviewDue": "2027-01-12",
       "attestation": {},
-      "contentHash": "c79623f23a3dd2c40c9a7bc8ce705b9ff09fede46f22af4c4366304848551f16",
+      "contentHash": "40d8130b48bc6a7fccdf0df6c546145d56409c9b6a6df69b0f9b9334a4a968d5",
       "bundles": [],
       "mirrors": [
         {

@@ -1,21 +1,28 @@
 # LingoLinq Security, Privacy & Compliance Overview
 
-> **Re-attested for external release by Scot Wahlquist (CEO) on 2026-08-04 (rev. 2026-08-04-a).**
-> Reflects the current production build. Present tense describes controls that exist in the product
-> today. The "Planned" section describes controls we intend to add and is written in the future tense
-> on purpose. This document deliberately claims only what we actually do.
+> **DRAFT - awaiting attestation (2026-08-09).** Successor to attested
+> `docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md` (DOC-03cb9fe91f, rev. 2026-08-04-a). Internal use
+> only until the CEO attests this file. **Not authorized for external release** until attestation.
 >
-> **Attestation history.** First attested for external release 2026-07-09 (rev. 2026-07-09-c), after
-> a Codex senior-dev re-review reconciled the Sentry scrubber, password-hashing, right-to-erasure,
-> WCAG, vendor-list, text-to-speech, recording-delete, and IP-geolocation statements against live
-> code. That revision was then superseded by two edits on 2026-07-21: PR #649 rewrote the COPPA
-> offboarding section from an open gap to an implemented control, and PR #652 rewrote the
-> subprocessor and hosting posture for the Google Cloud cutover. Because this document is externally
-> shareable, it was held as unattested in the document register until those newer claims were
-> re-verified against live code on 2026-07-22:
+> **Scope of this draft (PR #721).** Updates the data-lifecycle / voice-recording erasure claims
+> (`ButtonSound`, `UserVideo`, S3 `remote_remove`) to match `Flusher.flush_user_content` at HEAD.
+> Does not close, downgrade, or re-attest any finding.
+>
+> Present tense describes controls that exist in the product today. The "Planned" section
+> describes controls we intend to add and is written in the future tense on purpose. This
+> document deliberately claims only what we actually do.
+>
+> **Attestation history (predecessor).** First attested for external release 2026-07-09
+> (rev. 2026-07-09-c), after a Codex senior-dev re-review reconciled the Sentry scrubber,
+> password-hashing, right-to-erasure, WCAG, vendor-list, text-to-speech, recording-delete, and
+> IP-geolocation statements against live code. That revision was then superseded by two edits on
+> 2026-07-21: PR #649 rewrote the COPPA offboarding section from an open gap to an implemented
+> control, and PR #652 rewrote the subprocessor and hosting posture for the Google Cloud cutover.
+> Because this document is externally shareable, it was held as unattested in the document
+> register until those newer claims were re-verified against live code on 2026-07-22:
 > `Organization#remove_user` (`app/models/organization.rb`) calls
-> `User#begin_family_offboarding_consents!` (`app/models/user.rb`); parent email is collected at next
-> login via `submit_parental_consent_email` (`app/controllers/api/users_controller.rb`,
+> `User#begin_family_offboarding_consents!` (`app/models/user.rb`); parent email is collected at
+> next login via `submit_parental_consent_email` (`app/controllers/api/users_controller.rb`,
 > `app/models/user.rb`); and full login is genuinely blocked while consent is pending, because the
 > device token is only issued `unless coppa_pending`. That re-attestation covered rev. 2026-07-22-a.
 >
@@ -32,7 +39,7 @@
 > verification call carrying no user or student data, and are **not operational as of 2026-08-04**.
 > No customer, user, or student data has been sent to a model provider on this path. The
 > "everything in this section is live" framing was qualified to except controls explicitly marked
-> not operational. This is the revision authorized for external sharing.
+> not operational. That is the last attested, externally authorized cut (DOC-03cb9fe91f).
 >
 > **Purpose:** this is the short, externally shareable overview of our program. It is the
 > honest, right-sized replacement for the aspirational 85-page draft. It does not replace the
@@ -41,9 +48,10 @@
 > district, or a partner. Status of every implemented claim is verifiable against live code and
 > the findings register (`audit-reports/FINDINGS.json`).
 >
-> **Owner:** Scot Wahlquist, CEO. **Authorized for external sharing** as of the 2026-08-04 CEO
-> re-attestation of this version (rev. 2026-08-04-a). Prior external-release authorizations:
-> 2026-07-09, 2026-07-22, 2026-07-23.
+> **Owner:** Scot Wahlquist, CEO. External-sharing authorization last covered the 2026-08-04-a
+> attested predecessor; this draft is **not** authorized for external release until Scot attests
+> it. Prior external-release authorizations on the predecessor: 2026-07-09, 2026-07-22,
+> 2026-07-23, 2026-08-04.
 
 ---
 
@@ -167,9 +175,9 @@ explicitly marked not operational.
 - Administrators and parents can request permanent deletion of a user's data, which removes the
   account and its configurations.
 - Erasure removes the account, its configurations, and the board, log, and connection records tied
-  to it; account merges transfer license records rather than orphaning them. A residual gap where
-  standalone voice recordings and user videos are not yet swept by the erasure routine is tracked as
-  an open finding (LL-854b1d3853) and remediation is in progress.
+  to it, plus the user's own voice recordings (`ButtonSound`, including off-board / message-bank
+  rows) and videos (`UserVideo`), with Uploadable scheduling S3 object removal on destroy; account
+  merges transfer license records rather than orphaning them.
 - Organizations can set retention policies, and retention enforcement runs on a schedule.
 
 **Voice recordings**
@@ -177,9 +185,9 @@ explicitly marked not operational.
   banking so it can be played back on their devices. These recordings are the user's own voice and
   are stored encrypted at rest and in transit so they are available across the user's devices.
 - We do not create voiceprints, perform speaker identification, or use these recordings to train
-  AI. Users can delete recordings from the application; a remaining gap in remote stored-file
-  cleanup is tracked with the broader recording-erasure finding (LL-854b1d3853). They are the
-  user's own communication content, not a biometric identifier used for recognition.
+  AI. Users can delete recordings from the application, and account erasure also destroys owned
+  `ButtonSound` / `UserVideo` rows so removable unique S3 URLs are scheduled for remote removal.
+  They are the user's own communication content, not a biometric identifier used for recognition.
 
 **Accessibility**
 - As an AAC tool, accessibility is core to the product. We target Web Content Accessibility

@@ -7930,6 +7930,15 @@ only for non-`docs/legal/**` git rows or explicit Scot-directed recovery after a
 in-place amend. Skill: `.claude/skills/re-attest-record/SKILL.md`. Example chain:
 `DOC-9f6a2412ad` → `DOC-ae3f9d06ef`.
 
+**Also retarget live bundles by location, not title.** `meta.bundleDefinitions.*.requiredDocs`
+bind by `canonicalLocation`; moving live membership to the successor without updating those
+locations fails `--check` as a missing required member. Frozen dated binders can stay on the
+predecessor. Worked example (PR #721 recovery): DOC-bff9acf51f → DOC-e62caf7fb9 and
+DOC-03cb9fe91f → DOC-90632edc44; see
+[2026-08-09-pr721-path-a-supersession.md](./2026-08-09-pr721-path-a-supersession.md). When the
+same PR moves `lib/flusher.rb` definitions, re-pin `CAPABILITY-LEDGER.json` `currentEvidence.line`
+before the register gate (otherwise capability-check stays masked behind the attested-hash fail).
+
 ## Gotcha: fail-closed Sentry filters must not collapse lookup failures to nil
 
 `CoppaSentryScrub::TRANSACTION_FILTER` (and `#call`) treat `nil` as anonymous non-child by

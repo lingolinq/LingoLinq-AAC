@@ -1,12 +1,21 @@
 # LingoLinq Data Retention Schedule
 
+> **DRAFT - awaiting attestation (2026-08-09).** Successor to attested
+> `docs/legal/DATA_RETENTION.md` (DOC-bff9acf51f). Internal use only until the CEO attests this file.
+> Scope of this draft: updates the audio/video deletion row and Flusher cascade notes
+> (`UserVideo`, `ButtonSound`, including off-board / message-bank recordings) to match
+> `Flusher.flush_user_content` at HEAD (PR #721). Does not close, downgrade, or re-attest any finding.
+
 **Owner:** Privacy Office (privacy@lingolinq.com)
-**Last reviewed:** 2026-07-23 (attested by Scot Wahlquist, CEO)
-**Next review:** 2027-04-20
+**Last reviewed:** 2026-08-09 (draft; predecessor attested 2026-07-23 by Scot Wahlquist, CEO)
+**Next review:** 2027-04-20 (carry-forward until attestation rebases cadence)
+**Supersedes:** attested `docs/legal/DATA_RETENTION.md` (DOC-bff9acf51f)
 **Attestation history:** first attested 2026-06-21. That attestation covered an earlier revision:
 PR #569 (2026-07-10) and PR #656 (2026-07-22) rewrote the AI-log retention rows, and the
 2026-07-22 Gate 1 cutover moved the production database off Render, which the backup rows did not
-reflect until the 2026-07-23 correction below. Re-attested 2026-07-23 against the current revision.
+reflect until the 2026-07-23 correction below. Re-attested 2026-07-23 against the then-current
+revision. This 2026-08-09 draft supersedes that attested cut for the Flusher erasure updates in
+PR #721 and awaits CEO attestation.
 **Related:** `docs/legal/BREACH_RUNBOOK.md`, `docs/legal/SUBPROCESSORS.md`, `COMPLIANCE.md`
 
 ## 1. Purpose
@@ -28,7 +37,7 @@ Default retention windows apply unless a customer data processing addendum speci
 | User account records (`users` table and dependents) | Active for the life of the account plus 2 years of inactivity, then soft-delete | GDPR Article 5(1)(e); FERPA; contract | `lib/flusher.rb` `Flusher.flush_user_completely` | Soft-delete masks PII; hard purge runs per org data policy |
 | Communication logs (`LogSession`) | 3 years default, configurable per user or organization via data policy | GDPR Article 5(1)(e); FERPA; customer contract | `lib/data_policy_enforcer.rb` nightly retention job | User and org settings override default; district customers commonly set 5 years |
 | Communication snapshots (`LogSnapshot`) | Same as parent LogSession | Same as LogSession | Cascading delete with LogSession | Snapshots purge when parent session retention expires |
-| Audio and video recordings (`UserVideo`, `UserSound`) | Tied to user account retention | FERPA; GDPR | `Flusher` removes S3 objects with the user record | S3 object keys are anonymized identifiers |
+| Audio and video recordings (`UserVideo`, `ButtonSound`) | Tied to user account retention | FERPA; GDPR | `Flusher.flush_user_content` destroys owned rows; Uploadable schedules S3 `remote_remove` | Includes off-board / message-bank voice recordings |
 | Board definitions (`Board`) | Retained while the owning user or shared copies remain active | Contract; FERPA school-official role | Flusher cascade for owner delete; shared copies persist with their owners | Public boards published to the library follow a separate public-content policy |
 | AI API logs (`AiApiLog`), EU-jurisdiction accounts | Up to 5 years, **enforced** | EU AI Act Article 50 record-keeping | `AiApiLog.purge_old_eu_logs!(years: 5)` (PR #553), daily via `scheduler:dispatch` | Now functional: the Art50 Phase 4 shared call-context helper stamps `jurisdiction = 'EU'` at the three AI call sites (merged to staging). It matches EU rows wherever Phase 4 is deployed; effective in production only after the Phase 4/5 production deploy |
 | AI API logs (`AiApiLog`), children's accounts (under 13) | 12 months, rolling, independent of account status; **decided, not yet enforced** | 2026-07-09 ratified decision; COPPA 16 CFR § 312.10 | No purge job yet: `ai_api_logs` has no per-row child-subject marker, so this tier cannot be carved out from the 6-year HIPAA floor without a write-time stamp (schema + call-site change) | Tracked in `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md` section 6 |
@@ -72,12 +81,12 @@ path supports, shorten the backup interval and validate the resulting restore pr
 LingoLinq performs deletion through `lib/flusher.rb`. The Flusher cascades from the top-level record (typically `User` or `Organization`) and removes:
 
 - User settings blob (`users.settings` secure-serialized)
-- Associated `Board`, `LogSession`, `LogSnapshot`, `UserVideo`, `UserSound`, `UserExtra`, `AiApiLog`, `Device`, `Subscription`, `SupervisorRelationship`, `ContactMessage`
-- S3 objects under the user's namespace in the configured bucket
+- Associated `Board`, `LogSession`, `UserVideo`, `ButtonSound` (including off-board / message-bank), `AiApiLog`, `Device`, and related connection/integration records swept by `flush_user_content`
+- S3 objects for destroyed uploadable media when the URL is unique and marked removable
 - External CRM records (HubSpot) when `ExternalTracker` has written them
 - Session artifacts and active tokens
 
-Known gaps tracked for remediation: the Flusher cascade must be verified against any newly added model. A 2026 April audit flagged `License` (added 2026-04-07), `UserVideo`, `UserExtra`, `AiApiLog`, `ContactMessage`, and `LogSnapshot` as models that require explicit Flusher handling. Those gaps are tracked in `docs/compliance/flusher-gaps.md` (to be created).
+Known gaps tracked for remediation: the Flusher cascade must be verified against any newly added model. A 2026 April audit flagged `License`, `UserVideo`, `UserExtra`, `AiApiLog`, `ContactMessage`, and `LogSnapshot`; `License`, `UserVideo`/`ButtonSound`, and `AiApiLog` now have explicit Flusher handling. Remaining candidates (`UserExtra`, `ContactMessage`, `LogSnapshot`) still need verification. Those gaps are tracked in `docs/compliance/flusher-gaps.md` (to be created).
 
 Retention enforcement jobs run under `lib/tasks/scheduler.rake` at 06:00 UTC daily. The `DataPolicyEnforcer` reads the org-level effective data policy (inherited from parent orgs) and applies the correct per-tenant windows.
 
