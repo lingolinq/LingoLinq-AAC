@@ -127,7 +127,19 @@ module AiClient
   # assertion passes, and PHI-bearing inference goes to the same attacker host.
   # Validating here rather than at each call site closes all three endpoints at
   # once, which is why it lives in bedrock_region.
-  AWS_REGION_FORMAT = /\A[a-z]{2}(?:-[a-z]+)+-\d{1,2}\z/
+  # `{2,4}` on the first segment, not `{2}`: AWS's European Sovereign Cloud region
+  # is `eusc-de-east-1`, which a two-letter rule rejects. That would have darkened
+  # every AI feature with a "not a well-formed AWS region" message that was itself
+  # wrong -- a real risk given European clients.
+  AWS_REGION_FORMAT = /\A[a-z]{2,4}(?:-[a-z]+)+-\d{1,2}\z/
+
+  # Partitions whose endpoints are NOT under amazonaws.com. Shape-valid, so the
+  # regex alone would accept them and then build a hostname that does not resolve:
+  # China is amazonaws.com.cn, and the ISO partitions are c2s.ic.gov / sc2s.sgov.gov.
+  # Refused explicitly so the failure names the real cause instead of surfacing as
+  # "could not verify" after a DNS timeout. Supporting one of these means teaching
+  # sts_endpoint and classic_base_url a partition suffix, not widening this regex.
+  NON_COMMERCIAL_REGION_PREFIXES = %w[cn- us-iso us-isob].freeze
 
   # Bad region values already warned about, so a rejected region does not emit a
   # log line per AI request. Not mutex-guarded: a duplicate line under a race is
@@ -199,7 +211,9 @@ module AiClient
     raw = (ENV['BEDROCK_AWS_REGION'].presence ||
            ENV['AWS_REGION'].presence ||
            ENV['AWS_DEFAULT_REGION'].presence).to_s.strip
-    return raw if raw.empty? || raw.match?(AWS_REGION_FORMAT)
+    return raw if raw.empty?
+    return raw if raw.match?(AWS_REGION_FORMAT) &&
+                  NON_COMMERCIAL_REGION_PREFIXES.none? { |prefix| raw.start_with?(prefix) }
 
     unless @warned_regions[raw]
       @warned_regions[raw] = true
@@ -419,7 +433,17 @@ module AiClient
   # AWS_ENDPOINT_URL / AWS_ENDPOINT_URL_STS, verified against the pinned SDK
   # version (3.254.0). Leaving it unpinned would let anything that can set an
   # env var on the revision point GetCallerIdentity at a host that answers with
-  # the expected account id. The assertion would then pass while `build` went on
+  # the expected account id.
+  #
+  # SCOPE, stated honestly: this pins the endpoint URL, NOT the connection. It
+  # does NOT close the whole "env var on the revision" threat. aws-sdk-core still
+  # honors `http_proxy` (Net::HTTP falls back to its :ENV default because the SDK
+  # `.compact`s its nil proxy args) and `AWS_CA_BUNDLE` (confirmed: ssl_ca_bundle
+  # resolves to the supplied path with ssl_verify_peer still true). http_proxy
+  # alone fails closed; combined with an attacker CA it is a forgeable
+  # GetCallerIdentity. That exposure is pre-existing and applies to every AWS SDK
+  # call in this app, classic_base_url included, so it is tracked separately
+  # rather than claimed closed here. Do not describe this pin as complete. The assertion would then pass while `build` went on
   # to call the REAL Bedrock endpoint with a NON-BAA credential -- a control
   # reporting green precisely when it has been defeated, which is strictly worse
   # than no control, because an unset variable is at least auditable.
