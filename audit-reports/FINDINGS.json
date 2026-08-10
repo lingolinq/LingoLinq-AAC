@@ -3849,7 +3849,7 @@
         "FERPA",
         "COPPA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "lib/flusher.rb",
@@ -3858,16 +3858,16 @@
         "sha": "cdc6ee8252e2a46f2ced0ad23e2362208729c24b"
       },
       "firstSeen": "2026-07-09",
-      "lastSeen": "2026-07-09",
+      "lastSeen": "2026-08-10",
       "owner": "Melissa",
       "remediation": {
         "options": "Flusher.flush_user_content / flush_user_completely (lib/flusher.rb:363-417) delete the user's Device, Utterance, NfcTag, UserIntegration, UserGoal, UserBadge, Webhook, UserBoardConnection, UserLink, LogSession and boards, but never sweep UserVideo (it appears only in transfer_user_content at line 354, a merge reassignment) or standalone ButtonSound by user_id. Message-bank voice recordings are ButtonSound rows keyed by user_id (button_sound.rb:128) and are removed only when attached to one of the user's own boards under full_flush (flusher.rb:264-276); off-board recordings and all UserVideo rows survive hard delete as orphaned S3-backed rows. The User model declares no has_many/dependent: :destroy for either (user.rb:16-23), so flush_record(user) cannot cascade. Fix: add UserVideo.where(user_id:) and ButtonSound.where(user_id:) sweeps to flush_user_content (deleting the backing S3 objects too), so a user-requested erasure removes the user's own recorded voice and video. Directly contradicts the docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md claim that deletion on request removes voice recordings.",
         "timeframe": "high 15-30d (right-to-erasure correctness; blocks the doc's deletion-removes-voice claim)"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "349c2f705d3e0d8194aca299210ab4193b791e0e",
+        "verifierNote": "Verified 2026-08-10 against staging HEAD 9605a4fac. Flusher.flush_user_content now sweeps ButtonSound.where(user_id: user.id) (lib/flusher.rb:400) and UserVideo.where(user_id: user.id) (lib/flusher.rb:403). flush_user_completely calls flush_user_content, so it inherits both sweeps. flush_record calls record.destroy (lib/flusher.rb:37), so after_destroy fires. Both models include Uploadable, whose after_destroy :schedule_remote_removal_if_unique (app/models/concerns/uploadable.rb:747) schedules Uploader.remote_remove when the row is marked removable and no other row of the same class shares the URL, so the backing S3 objects are queued for deletion. Remediated in #721, merged at 349c2f705.",
+        "attestation": "Scot Wahlquist 2026-08-10: attested verified-closed; remediated in #721, code-verified 2026-08-10 against staging HEAD 9605a4fac."
       },
       "disposition": {
         "state": "accepted",
