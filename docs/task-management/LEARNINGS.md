@@ -10097,3 +10097,106 @@ children wrap.
 than removing shrink from B. Grow and shrink answer different questions.
 
 **First seen in:** [2026-08-10-caseload-row-tiles-match-home-room-cards.md](./2026-08-10-caseload-row-tiles-match-home-room-cards.md)
+
+## Pattern: demoting UI options to text links — reuse `.md-link-btn`, don't hand-roll a reset
+
+**Surface:** create-board-new chooser (`.nb-create-chooser`), but applies to any "promote two
+options, demote the rest" restyle.
+
+**Recipe:** `.md-link-btn` (app.scss ~49610) already exists for `<button>` elements that must
+*look* like inline links while keeping button semantics — added 2026-04-11 per WCAG audit when
+converting `<a href="#" {{action}}>` to real buttons. Compose it (`class="md-link-btn
+<block>__alt-link"`) and add only the block-specific scale/color. Keep them `<button>`s: these
+fire actions (file picker, import modals), they do not navigate.
+
+**Two traps:**
+1. **`.md-link-btn:hover` sets `text-decoration: none`** (shorthand). Any `text-decoration-color`
+   you write in your own `:hover` is dead — the shorthand already zeroed the line. Set only
+   `color` on hover; underline-at-rest / none-on-hover is the app-wide convention.
+2. **Composition relies on source order, not specificity.** Both selectors are (0,1,0). Your
+   overrides win only because your rule sits later in `app.scss`. Verify by compiling and
+   comparing output line numbers — don't assume, and don't reach for `!important` (rule 7).
+
+**Also:** when the demoted options leave a stacked list, check whether a feature-flag `{{#if}}`
+existed *purely* to vary inline `animation-delay`. In this case the AI button was duplicated
+across both branches of `{{#if paste_html_import_enabled}}` for exactly that reason; once the
+delays converged it collapsed to one button.
+
+**Verify SCSS with Dart Sass, not SassC.** `app/frontend/ember-cli-build.js:31` pins
+`implementation: require('sass')`. A `SassC::Engine` check fails at ~line 681 on `color.adjust`
+(a Dart-only module function) — that failure is pre-existing noise, not your change. Use the
+Dart Sass **Node API**, not the CLI: `node -e "require('sass').compile('app/styles/app.scss',
+{loadPaths:['app/styles'],quietDeps:true})"`. As of 2026-08-10 `npx sass` itself throws
+`ERR_REQUIRE_ESM` — `sass/sass.js` `require()`s `chokidar`, which is now ESM-only. The API entry
+point is unaffected.
+
+**Evidence:** [`2026-08-07-create-board-chooser-primary-secondary.md`](./2026-08-07-create-board-chooser-primary-secondary.md).
+
+## Gotcha: board-detail's light-mode styles are ancestor-scoped — reused surfaces silently miss them
+
+**Surface:** any view that reuses the `md-board-detail-*` classes outside the board-detail
+page. Found twice on the create-board-new live preview.
+
+**Symptom:** the reused surface looks right in DARK mode and wrong in LIGHT mode.
+
+**Root cause:** board-detail's dark rules are written as `.md-board-detail--dark .x`
+(ancestor-free, so they follow the class anywhere), but its LIGHT rules are written as
+`.md-shell--board-detail:not(...):not(.md-board-detail--dark) .x`. Anything without a
+`.md-shell--board-detail` ancestor gets the BASE rule instead — and several base rules are
+authored for the opposite surface brightness, so they fail in the worst way: legible
+markup, invisible pixels.
+
+**Known members of this family (all now also scoped to `.new-board-mockup-wrap`):**
+`.md-board-detail-sentence-bar`, `.md-board-detail-home-btn`,
+`.md-board-detail-sentence-bar__tool-btn`, `.md-board-detail-sentence-bar__btn--speak svg`,
+`.md-board-detail-symbol-card--empty`.
+
+**Fix recipe:** add the new surface as a second selector on the EXISTING light rule (rule
+7) — never a parallel override. Then sweep for the rest before declaring done:
+```
+grep -n "md-shell--board-detail[^ ,{]*:not(.md-board-detail--dark)" app.scss
+```
+and for each hit check whether the target class exists in the reusing template.
+
+**The trap that cost a round trip:** changing a container's background WITHOUT auditing the
+children means children whose wash assumed the old brightness disappear. `--empty` cards
+have three variants (navy wash for light surfaces, white for dark mode, white for
+speak-light); flipping the canvas to `$brand-charcoal-dark` while leaving the base navy
+wash made every blank card invisible. **Computed-style assertions passed the whole time** —
+the card was "visible" with a background — so only a rendered screenshot caught it.
+
+**Evidence:** [`2026-08-07-create-board-chooser-primary-secondary.md`](./2026-08-07-create-board-chooser-primary-secondary.md).
+
+## Gotcha: "my changes vanished" is usually a side branch that only ever merged INWARD
+
+**Symptom:** a shipped, verified UI change is back to its old form on the working branch, with a
+clean tree, no stash, and no conflict debris in the history.
+
+**Root cause shape:** a side branch (`traci/styling/new-work`) was merged into the working branch
+on day 1, received more commits on day 3, and ended day 3 by merging `staging` *in*. That last
+merge feels like "syncing up" and leaves the branch looking current — but it moves code toward the
+side branch, never out of it. The new commits stay stranded and the working branch never regresses,
+it simply never advanced.
+
+**Find the change without guessing** — enumerate every blob of the file across all refs AND the
+reflog, then score each for the shape you remember:
+
+```sh
+for c in $(git rev-list --all --reflog); do
+  git rev-parse -q --verify "$c:path/to/file"
+done | sort -u | while read b; do
+  echo "$b $(git cat-file blob $b | grep -c 'class-you-remember')"
+done
+```
+
+The odd one out is your commit; `git rev-list --all --reflog | ... grep <blob>` names the commit.
+Beats `log -S` when you don't know the removed string, and beats `fsck --lost-found` when the
+commit is reachable but unmerged.
+
+**Then scope it before panicking.** `git log --oneline HEAD..<branch>` per candidate branch turns
+"I lost a lot of work" into an exact count — here, one commit out of five branches checked.
+
+**Prevention:** after committing on a side branch, merge it back out the same session, or don't
+merge `staging` in at all — the inward merge is what makes a stranded branch look finished.
+
+**Evidence:** [`2026-08-10-recover-stranded-new-work-commit.md`](./2026-08-10-recover-stranded-new-work-commit.md).
