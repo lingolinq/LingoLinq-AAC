@@ -1,6 +1,6 @@
 <ButtonListener @buttonEvent={{this.invokeAttr0 "buttonEvent"}}>
 {{!-- Do NOT add advanced_selection here: raw_events delegates click on .advanced_selection and preventDefault/stopPropagation, which blocks Ember actions on symbol cards. Classic board uses raw_events-only selection; board-detail relies on {{on "click"}} on symbol cards for taps. Long-press inflections use .board / .button and board-detail route checks in raw_events + edit_manager. --}}
-<div class="md-board-detail-grid board {{if this.app_state.speak_mode 'speak'}} {{if this.boardSaving 'md-board-detail-grid--hidden'}} {{if this.previewLevelsMode 'md-board-detail-grid--preview-levels'}} {{if this.paintMode 'md-board-detail-grid--paint-mode'}} {{if this.folderLabelsOnTab 'md-board-detail-grid--folder-tab-labels'}} {{if this.folderColoredCorner 'md-board-detail-grid--folder-colored-corner'}} {{if this.folderColoredFace 'md-board-detail-grid--folder-colored-face'}} {{if this.shrinkLabelsToFit 'md-board-detail-grid--shrink-labels'}} {{if this.softBorders 'md-board-detail-grid--soft-borders'}} {{this.buttonTextSizeClass}} {{this.buttonTextPositionClass}} {{this.hiddenButtonsClass}} {{this.symbolBackgroundClass}} {{this.highContrastClass}} {{this.buttonShapeClass}}" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}
+<div class="md-board-detail-grid board {{if this.app_state.speak_mode 'speak'}} {{if this.boardSaving 'md-board-detail-grid--hidden'}} {{if this.previewLevelsMode 'md-board-detail-grid--preview-levels'}} {{if this.paintMode 'md-board-detail-grid--paint-mode'}} {{if this.folderLabelsOnTab 'md-board-detail-grid--folder-tab-labels'}} {{if this.folderColoredCorner 'md-board-detail-grid--folder-colored-corner'}} {{if this.folderColoredFace 'md-board-detail-grid--folder-colored-face'}} {{if this.hasFolders 'md-board-detail-grid--has-folders'}} {{if this.softBorders 'md-board-detail-grid--soft-borders'}} {{this.buttonTextSizeClass}} {{this.buttonTextPositionClass}} {{this.hiddenButtonsClass}} {{this.symbolBackgroundClass}} {{this.highContrastClass}} {{this.buttonShapeClass}}" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}
   data-id={{this.board.id}}
   data-filter={{this.activeCategory}}
   style={{safe-style (concat this.gridStyle ";--bd-button-text-size:" this.buttonTextSizePx "px" ";--bd-button-gap:" this.buttonSpacingPx "px" ";--bd-button-border:" this.buttonBorderPx "px" (if this.buttonFontStyle.family (concat ";--bd-button-font:" this.buttonFontStyle.family)) (if this.buttonFontStyle.transform (concat ";--bd-button-text-transform:" this.buttonFontStyle.transform)))}}>
@@ -28,7 +28,12 @@
              both so users tab from one folder front to the next
              without landing on the protruding tab. Mouse clicks on
              the tab still activate via the click handler. --}}
-        <div class="md-folder-back" aria-hidden={{unless this.editMode "true"}}>
+        {{!-- Expose the folder's FRONT color as --btn-bg here too: the back/tab are
+              SIBLINGS of the symbol card (which sets --btn-bg), and CSS custom properties
+              don't inherit across siblings — so without this the app.scss `var(--btn-bg …)`
+              back/tab fill silently falls back to charcoal. The tab is a child of the back,
+              so it inherits this. --}}
+        <div class="md-folder-back" aria-hidden={{unless this.editMode "true"}} style={{safe-style (concat (if btn.background_color (concat "--btn-bg:" btn.background_color ";")))}}>
           <div class="md-folder-tab" tabindex="-1" {{on "click" (this.invokeAttr "selectButton" btn)}}>
             {{#if this.editMode}}
               <LabelField @value={{btn.label}} class="md-folder-tab__label-input" placeholder="enter label" aria-label={{concat (t "Folder label" key="board_detail_folder_label_aria") " " btn.id}} />

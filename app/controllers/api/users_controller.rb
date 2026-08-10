@@ -210,6 +210,12 @@ class Api::UsersController < ApplicationController
       user.used_reset_token!(params['reset_token'])
     elsif user.allows?(@api_user, 'manage_supervision') && !user.allows?(@api_user, 'edit')
       user_data = user_data.slice('supervisor_key')
+    # Scopes passed explicitly — a bare `allows?` uses the RAW permission_scopes
+    # and skips api_permission_scopes' normalization (blank / legacy '*' -> full),
+    # which would deny integration and dev-key devices. (The adjacent branches
+    # predate this branch and are left as-is rather than widened here.)
+    elsif user.allows?(@api_user, 'supervise', api_permission_scopes) && !user.allows?(@api_user, 'edit', api_permission_scopes) && supervise_home_board_update?(user_data)
+      user_data = supervise_home_board_update_slice(user_data)
     else
       return unless allowed?(user, 'edit')
     end
@@ -682,7 +688,16 @@ class Api::UsersController < ApplicationController
     old_board = Board.find_by_path(params['old_board_id'])
     new_board = Board.find_by_path(params['new_board_id'])
     return unless exists?(user, params['user_id']) && exists?(old_board, params['old_board_id']) && exists?(new_board, params['new_board_id'])
-    return unless allowed?(user, 'edit') && allowed?(old_board, 'view') && allowed?(new_board, 'view')
+    # Supervise-only supervisors reach this via the board-picker home-board flow.
+    # `allows?` is the PURE predicate and must come first: `allowed?` renders a
+    # 400 as a side effect before returning false, so `allowed?(a) || allowed?(b)`
+    # renders on the first failure regardless of the second and then double-renders
+    # (500). At most one `allowed?(user, …)` call may run here.
+    # The next line still requires the destination board to be owned by the user.
+    # Scopes are passed explicitly: a bare `allows?` falls back to the RAW
+    # user.permission_scopes (permissable.rb:72) and skips the normalization
+    # api_permission_scopes does, which would deny integration / dev-key devices.
+    return unless (user.allows?(@api_user, 'supervise', api_permission_scopes) || allowed?(user, 'edit')) && allowed?(old_board, 'view') && allowed?(new_board, 'view')
     return allowed?(user, 'never_allow') unless new_board.user == user
     
     make_public = params['make_public'] && params['make_public'] == '1' || params['make_public'] == 'true' || params['make_public'] == true
@@ -1225,5 +1240,40 @@ class Api::UsersController < ApplicationController
       res = Typhoeus.get(URI.escape(res.headers['Location']), timeout: 3)
     end
     res
+  end
+
+  # Supervise-only supervisors may set a communicatee's home board.
+  #
+  # Do NOT require the payload to contain only `preferences`. Ember's `user.save()`
+  # serializes the WHOLE record — verified against the running app, a real pick sends
+  # user[user_name], user[user_token], user[link], user[name], user[email],
+  # user[description] and ~20 more alongside preferences. An earlier version of this
+  # check required `(top_keys - ['preferences']).empty?`, which no real client request
+  # can satisfy, so every supervise-only pick fell through to `allowed?(user, 'edit')`
+  # and 400'd. Its spec passed only because the spec sent a payload shape the app
+  # never produces.
+  #
+  # Safety comes from DISCARDING rather than from inspecting: whatever else the client
+  # sent, supervise_home_board_update_slice throws it all away and keeps home_board
+  # alone, and User#process_home_board still requires the board to be viewable by the
+  # communicatee or shareable by the updater.
+  def supervise_home_board_update?(data)
+    return false unless data.is_a?(Hash)
+
+    prefs = data['preferences'] || data[:preferences]
+    return false unless prefs.is_a?(Hash)
+
+    home_board = prefs['home_board'] || prefs[:home_board]
+    # Require a real board reference. `!!home_board` also accepted `{}`, which sliced
+    # to an empty home_board and persisted `preferences.home_board = {}` — leaving the
+    # communicatee worse off than the nil they started with, since User#process_home_board
+    # (user.rb:2467) only runs when an id is present and so never cleaned it up.
+    home_board.is_a?(Hash) && (home_board['id'] || home_board[:id]).present?
+  end
+
+  def supervise_home_board_update_slice(data)
+    prefs = data['preferences'] || data[:preferences]
+    home_board = prefs['home_board'] || prefs[:home_board]
+    { 'preferences' => { 'home_board' => home_board } }
   end
 end

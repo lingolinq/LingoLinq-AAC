@@ -13,15 +13,23 @@ QUnit.module('Acceptance | smoke', function() {
   });
 });
 
-// TODO: the tests below currently hang on `visit(...)` because the app's boot
-// chain (session/auth resolution, persistence bootstrap) doesn't complete under
-// Mirage alone. Unskip + make them pass once a session/auth stub is added to
-// the Mirage config or a setupAuthenticated(hooks) helper lands.
+// These previously hung on `visit(...)`. The cause was NOT the session/auth
+// bootstrap it was assumed to be: app_state#refresh_user re-scheduled itself
+// every 15 minutes with `runLater`, which Ember's test waiters track, so the app
+// never reached a settled state. That reschedule is now skipped under
+// isTesting() (services/app-state.js), and mirage/config.js was migrated to the
+// Mirage 3 signature with the models/handlers the boot chain actually requests.
 QUnit.module('Acceptance | board-detail empty state', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  QUnit.skip('shows the empty-state message and Edit CTA when board has no visible buttons', async function(assert) {
+  QUnit.test('shows the empty-state message and Edit CTA when board has no visible buttons', async function(assert) {
+    // Booting the real app costs more than QUnit's 15s default: edit_manager's
+    // `resume_scanning` retries via runLater on a 100ms..900ms backoff (~4.5s of
+    // waiter-tracked timers) and that runs per render pass. Raise the ceiling for
+    // acceptance tests that mount the whole app rather than trimming app behavior
+    // to suit the harness.
+    assert.timeout(60000);
     this.server.create('user', { user_name: 'tester' });
     this.server.create('board', {
       key: 'tester/empty',
@@ -48,11 +56,16 @@ QUnit.module('Acceptance | board-detail empty state', function(hooks) {
       'Edit this Board CTA is visible for users with edit permission');
   });
 
-  QUnit.skip('hides the Edit CTA when the user does not have edit permission', async function(assert) {
+  QUnit.test('hides the Edit CTA when the user does not have edit permission', async function(assert) {
+    assert.timeout(60000);
     this.server.create('user', { user_name: 'viewer' });
+    // Key and owner must match the visited path — Mirage looks the board up by
+    // `<user_name>/<boardname>` from the URL. This fixture said `tester/...`
+    // while the test visited `/viewer/...`, so the lookup 404'd. The test had
+    // never been run (it was skipped), so the mismatch went unnoticed.
     this.server.create('board', {
-      key: 'tester/view-only-empty',
-      user_name: 'tester',
+      key: 'viewer/view-only-empty',
+      user_name: 'viewer',
       buttons: [],
       grid: {
         rows: 3,
