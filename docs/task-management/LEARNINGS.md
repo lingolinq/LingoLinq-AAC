@@ -202,6 +202,10 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Gotcha: a shared mixin's `!important` cosmetics beat your MORE SPECIFIC variant rule — the variant silently renders as the base](#gotcha-a-shared-mixins-important-cosmetics-beat-your-more-specific-variant-rule--the-variant-silently-renders-as-the-base)
 - [Gotcha: Bootstrap 3's `.dropdown-menu > li > a` (0,1,2) beats the app's flat `.md-settings-dropdown-item` — the modern skin's flex/gap silently never applies](#gotcha-bootstrap-3s-dropdown-menu--li--a-012-beats-the-apps-flat-md-settings-dropdown-item--the-modern-skins-flexgap-silently-never-applies)
 - [Gotcha: `overscroll-behavior: contain` on a NON-overflowing `overflow: auto` element swallows the wheel entirely](#gotcha-overscroll-behavior-contain-on-a-non-overflowing-overflow-auto-element-swallows-the-wheel-entirely)
+- [Pattern: an overlay gated on an ASYNC-resolved record belongs in a computed, not a flag the route sets](#pattern-an-overlay-gated-on-an-async-resolved-record-belongs-in-a-computed-not-a-flag-the-route-sets)
+- [Gotcha: Ember Data's `{reload: true}` NEVER reaches the network — the app's adapter is offline-first, use `persistence.force_reload`](#gotcha-ember-datas-reload-true-never-reaches-the-network--the-apps-adapter-is-offline-first-use-persistenceforce_reload)
+- [Gotcha: a 200 on the user PUT does not mean the home board was stored — the server discards invalid refs silently](#gotcha-a-200-on-the-user-put-does-not-mean-the-home-board-was-stored--the-server-discards-invalid-refs-silently)
+- [Gotcha: a translucent control RE-TINTS when its container's state changes — "it changes colour when I click it" is often the parent, not the button](#gotcha-a-translucent-control-re-tints-when-its-containers-state-changes--it-changes-colour-when-i-click-it-is-often-the-parent-not-the-button)
 
 ## Pattern: a new user preference is a 3-touch change — whitelist + default + dirty-bit save
 
@@ -9801,3 +9805,295 @@ await page.evaluate(() => document.querySelector('#content').scrollTop);
 ```
 
 **First seen in:** [2026-08-09-extras-dropdown-icon-alignment.md](./2026-08-09-extras-dropdown-icon-alignment.md)
+
+## Pattern: an overlay gated on an ASYNC-resolved record belongs in a computed, not a flag the route sets
+
+**Surface:** any "show this panel/overlay/prompt on entry, but only for case X"
+where case X depends on a record the route fetches — a supervisee, an org, a
+subscription.
+
+**The trap:** `setupController` looks like the place to set
+`controller.set('show_thing', true)`. Two things break it, and both are silent:
+
+1. **It runs before the record resolves.** `routes/board-picker#setupController`
+   calls `_resolve_setup_user`, which fires a `findRecord` — `setup_user` is
+   still null when the flag is being set, so anything the panel needs from that
+   record (a name to title it) is missing, and any "is this someone else's
+   account" test answers wrong.
+2. **Re-entry short-circuits.** The resolver skips its own work when the id has
+   not changed (`if (user_id != setup_user.id)`), and the controller is a
+   SINGLETON, so state left over from the previous visit is still there. A flag
+   set inside that branch never fires again for the same user.
+
+**The working shape:** derive visibility, and keep only the DISMISSAL mutable.
+
+```js
+_options_dismissed: false,                    // route resets this on entry
+show_picker_options: computed('for_self', 'setup_user.id', '_options_dismissed', function() {
+  if (this.get('_options_dismissed')) { return false; }
+  if (this.get('for_self')) { return false; }  // returns TRUE while the record is null
+  return !!this.get('setup_user.id');          // ...so nothing flashes during the load
+})
+```
+
+The `for_self`-style guard defaulting to `true` on a null record is what
+suppresses the flash — worth checking that any such helper you lean on defaults
+to the SAFE answer rather than to `false`.
+
+**Related:** dismissing an overlay that sits over already-rendered content should
+not be a route change. Lowering it is what lets a "return to options" control
+raise it again with no reload.
+
+**First seen in:** [2026-08-10-board-picker-supervisor-options-overlay.md](./2026-08-10-board-picker-supervisor-options-overlay.md)
+
+## Gotcha: Ember Data's `{reload: true}` NEVER reaches the network — the app's adapter is offline-first, use `persistence.force_reload`
+
+**Symptom:** a lookup written to be authoritative silently answers from cache. A
+record deleted on the server (or on another device) keeps resolving, so
+"does this already exist?" logic decides YES and skips the work — and the code
+comment above it confidently claims the opposite.
+
+**Cause:** the app replaces ED's adapter with its own
+(`utils/persistence.js#findRecord`, mixed in via `adapters/application.js`
+`persistence.DSExtend`). It sets `start_with_local = true` unconditionally and
+calls `check_remote()` ONLY when the local db had nothing. ED's `reload` option
+is never consulted, so `store.findRecord(type, id, {reload: true})` is a local
+read whenever anything is cached.
+
+**The app's actual opt-out** is `persistence.force_reload`, keyed
+`<modelName>_<id>` and checked before the local lookup — the switch
+`models/base.js#reload` flips. Set it around the call and restore it:
+
+```js
+var force_key = 'board_' + expectedKey;
+var prior = persistence.force_reload;
+persistence.force_reload = force_key;
+var restore = function() {
+  if(persistence.force_reload === force_key) { persistence.force_reload = prior; }
+};
+LingoLinq.store.findRecord('board', expectedKey, {reload: true}).then(restore_and_use, restore_and_null);
+```
+
+Two details that make this work: the module exports a **Proxy** whose `get` trap
+prefers `window.persistence` but which has NO `set` trap, so the write lands on
+the same target object the adapter reads (neither class declares `force_reload`,
+so nothing shadows it); and a 404 is NOT in the adapter's `local_fallback` list
+(only token/5xx/connection/401 are), so a genuinely-missing record still rejects.
+
+**How to confirm rather than guess:** grep the dev log for the request. If the
+GET isn't there, the adapter answered locally.
+
+**First seen in:** [2026-08-10-quick-assign-phantom-copy.md](./2026-08-10-quick-assign-phantom-copy.md)
+
+## Gotcha: a 200 on the user PUT does not mean the home board was stored — the server discards invalid refs silently
+
+**Symptom:** the flow completes, the success modal shows, the app navigates to
+the boards page — and the user has no home board.
+
+**Cause:** `User#process_home_board` (app/models/user.rb ~2921) validates the
+reference and can store nothing while still returning success:
+
+- board can't be resolved (deleted / bad id) -> it DELETES the preference and
+  `return true`;
+- board exists but is neither viewable by the user nor shareable by the updater
+  -> no branch assigns it, and the write is simply skipped.
+
+Both come back as a clean 200, so `user.save().then(success)` is not evidence of
+anything.
+
+**Fix shape:** read the value back off the SAVED record and reject if it isn't
+ours (`utils/home_board.js#saveHomeBoard`). The response carries the truth —
+`lib/json_api/user.rb:76` serializes the authoritative `preferences.home_board`,
+`preferences` is `attr('raw')` on the user model, and the adapter applies the
+server payload to the record on save.
+
+**Generalize:** for any write the server may sanitize rather than reject, the
+client's success test must be "did the server echo what I sent", not "did the
+request resolve".
+
+**First seen in:** [2026-08-10-quick-assign-phantom-copy.md](./2026-08-10-quick-assign-phantom-copy.md)
+
+## Gotcha: a translucent control RE-TINTS when its container's state changes — "it changes colour when I click it" is often the parent, not the button
+
+**Symptom:** a button visibly changes appearance when it is clicked/selected, but
+NO rule targets its selected state — no `--active` descendant rule, no
+`[aria-expanded]` styling, nothing on `.touched`.
+
+**Cause:** the button's background is a bare translucent tint
+(`linear-gradient(rgba(hue,.08), rgba(hue,.26))` with no opaque layer). Its
+CONTAINER changes background on selection — here `.md-caseload__list-row--active`
+paints a verdigris tint + glow across the whole row — and that new background
+composites straight through the button. The button's own CSS never changed; what
+you see is the parent showing through it.
+
+**Fix:** give the tint an opaque floor — `background: linear-gradient(…), #fff;`.
+The gradient still reads, but the parent can no longer contribute.
+
+**How to confirm rather than guess** — two measurements, in this order:
+
+1. Click, then move the pointer AWAY and re-read the computed style. If it now
+   matches the resting state, nothing sticks to the button and `:hover` is a red
+   herring (this is the step that is easy to stop at — it disproves one cause
+   without finding the real one).
+2. Render the control inside BOTH container states and sample the PAINTED pixel,
+   not the computed style. Computed style is identical in both cases — that is
+   the whole point — so only the rendered colour shows the difference:
+
+```js
+const png = await page.screenshot({clip: {x, y, width: 1, height: 1}, encoding: 'base64'});
+// inflate the IDAT chunk -> raw[1..3] is the pixel's RGB
+```
+
+**First seen in:** [2026-08-10-caseload-row-actions-match-panel-tiles.md](./2026-08-10-caseload-row-actions-match-panel-tiles.md)
+
+## Gotcha: a blanket `svg * { stroke: … }` silently flattens every two-tone icon under it
+
+**Symptom:** icons that are two-tone in the markup (neutral navy shape + one
+brand accent — the repo convention, see `_focused-view.scss:681`,
+`getting-started-icon.hbs`) render as a single flat hue, and nothing in the
+markup explains it. Re-colouring the SVG paths changes nothing.
+
+**Cause:** a container-level rule such as
+
+```scss
+.md-caseload__quick-action svg *       { stroke: $la-navy; }
+.md-caseload__quick-action:hover svg * { stroke: $brand-dusty-denim-aa; }
+```
+
+The SVG carries its colours as **presentation attributes**, which sit at the very
+bottom of the cascade — ANY CSS declaration beats them. So one rule two levels up
+overrides every accent stroke in every glyph it contains, at rest and on hover.
+
+**Fix:** don't set stroke at the container level. Size icons there
+(`svg { width; height }`) and let the markup own colour. Scope a single-ink
+stroke ONLY to the ranks that genuinely need one — an icon on a filled/dark
+button (white), or an unavailable/disabled control (grey).
+
+**Check the hover rule too.** The resting rule is the obvious one; a matching
+`:hover svg *` will re-flatten the glyph the moment the pointer lands, which
+reads as "the icon changes colour on hover" rather than as the same bug.
+
+**Generalize:** when a styling change must reach markup-set SVG attributes, grep
+for `svg *` and `svg path` at every ancestor level before editing the glyph.
+
+**First seen in:** [2026-08-10-caseload-row-tiles-match-home-room-cards.md](./2026-08-10-caseload-row-tiles-match-home-room-cards.md)
+
+## Technique: verify a base-rule change by specificity, not by reading the file top to bottom
+
+**Situation:** changing a BASE rule (e.g. `.md-caseload__quick-action`) that a
+dozen modifier ranks build on. The risk is a rank that was silently relying on
+the base value — or one that sits EARLIER in the file and looks overridden but
+isn't.
+
+**Why source order misleads:** in `_caseload.scss` the `--empty` placeholder
+rules sit ~500 lines ABOVE the base rule, yet still win, because
+`.md-caseload__list-quick .md-caseload__quick-action--empty` is `(0,2,0)` against
+the base's `(0,1,0)`. Reading downward suggests the opposite.
+
+**Method:** compile and enumerate the emitted selectors, then score each rank:
+
+```js
+const sass = require('sass');
+const r = sass.compile('app/styles/app.scss', {loadPaths: ['app/styles'], quietDeps: true});
+r.css.split('\n').forEach((l, i) => { if (/md-caseload__quick-action/.test(l)) console.log(i, l); });
+```
+
+Any rank at `(0,2,0)`+ survives a `(0,1,0)` base edit; anything at the base's own
+specificity needs source order checked. Also confirm each rank overrides every
+property the base change touches — a rank that overrides `background` but not
+`box-shadow` inherits the new shadow.
+
+**Note:** the `sass` CLI in `app/frontend/node_modules/.bin` is broken in this
+env (`ERR_REQUIRE_ESM` from chokidar). The JS API above works fine and is the
+fastest way to compile-check a SCSS edit without a full `ember build`.
+
+**First seen in:** [2026-08-10-caseload-row-tiles-match-home-room-cards.md](./2026-08-10-caseload-row-tiles-match-home-room-cards.md)
+
+## Gotcha: `min-width` + `white-space: normal` does NOT make a flex item's label wrap
+
+**Symptom:** a button is given `white-space: normal` so its two-word label will
+wrap to the shared tile width, and a `min-width` to match its neighbours — and it
+still renders one line wide, visibly wider than the button it is meant to match.
+
+**Cause:** for a flex item with `flex: 0 1 auto`, the flex **base size** resolves
+from `width: auto` → the item's **max-content** size. The max-content size of a
+wrapping label is still its full *unwrapped* line. So the item lays out at the
+one-line width and only shrinks if the flex container actually runs out of room.
+`min-width` is a floor; nothing here supplies a ceiling.
+
+**Fix:** give the item a **definite basis** — `flex: 0 0 <n>px` (or an explicit
+`width`). That is what forces the label to wrap inside the box rather than
+inflating it. Pair it with `overflow-wrap: break-word` so a locale whose single
+word exceeds the inner width breaks instead of spilling.
+
+**Generalize:** "make these two the same width" in a flex row is a *basis*
+question, not a *min-width* question. Reach for min-width only when you want a
+floor and are happy for content to grow past it.
+
+**First seen in:** [2026-08-10-caseload-row-tiles-match-home-room-cards.md](./2026-08-10-caseload-row-tiles-match-home-room-cards.md)
+
+## Gotcha: an ancestor-class rule later in the file beats the modifier rule you are editing
+
+**Symptom:** you edit `.block__el--variant:hover` (or its mixin), the compiled CSS
+shows exactly what you wrote, and the browser still renders the old effect.
+
+**Cause:** a *shorter* selector at the SAME specificity sitting later in the file.
+In `_caseload.scss`, `.md-caseload__action:hover { box-shadow: 0 1px 4px … }`
+sat ~75 lines after `.md-caseload__action--tile:hover`. Both are `(0,2,0)`, so
+source order decided it, and the base-class rule flattened every tile's hover
+lift. It read as harmless because its comment described what it *didn't* do
+("no background override") rather than what it did.
+
+**How to catch it:** before editing a modifier's state rule, grep for the BASE
+class with the same pseudo-class — `grep -n '\.block__el:hover' file.scss` — not
+just the modifier. If both exist, the later one wins at equal specificity.
+
+**How to resolve it safely:** check whether the base class ever appears WITHOUT
+the modifier in markup (`grep -o 'md-caseload__action[a-z-]*' template.hbs | sort
+| uniq -c`). If every occurrence carries the modifier, the base rule is dead
+weight and should be deleted rather than out-specified.
+
+**First seen in:** [2026-08-10-caseload-row-tiles-match-home-room-cards.md](./2026-08-10-caseload-row-tiles-match-home-room-cards.md)
+
+## Technique: a translucent badge/button must be measured on its DARKEST host row state, not on white
+
+**Situation:** a spec hands you a tint + ink pair (e.g. `rgba(42,157,143,0.10)`
+background, `#1A7B7A` text). You check it against white, it clears 4.5:1, you
+ship it.
+
+**The miss:** the component does not sit on white. In `_caseload.scss` the badge
+sits inside a row that paints a verdigris wash on `:hover`, `:focus-within` and
+`--active`. The badge's own background is translucent, so that wash composites
+straight through it and darkens the backdrop — dropping `#1A7B7A` from 4.54:1 to
+**4.27:1**, i.e. it fails precisely while the user is pointing at the row.
+
+**Method:** enumerate every state the ANCESTOR can be in (resting / hover /
+focus-within / selected / dark), composite the translucent layers in that order,
+and measure the worst one. Same trap applies to a border alpha that has to meet
+1.4.11's 3:1 — measure it against the fill on one side AND the row on the other.
+
+**Also:** never put a white radial "highlight" over a saturated fill that carries
+white text or white icon strokes. An 8% white wash lifted a 4.75:1 teal to ~4.0:1
+locally — and highlights are conventionally placed top-left, which is exactly
+where a stacked icon sits.
+
+**First seen in:** [2026-08-10-caseload-row-tiles-match-home-room-cards.md](./2026-08-10-caseload-row-tiles-match-home-room-cards.md)
+
+## Gotcha: `flex: 0 0 auto` on a wrapping toolbar causes horizontal page scroll
+
+**Symptom:** you pin a toolbar to its natural width so it starts at the same x in
+every row. At desktop it is perfect; at tablet the whole page scrolls sideways.
+
+**Cause:** `0 0 auto` means "base size = max-content, never shrink". The toolbar's
+own `flex-wrap: wrap` can only wrap its buttons if the toolbar is allowed to get
+narrower — with shrink disabled it holds one long line and overflows.
+
+**Fix:** `flex: 0 1 auto` + `min-width: 0`. Shrink stays available for negative
+space only, so at wide widths the item still sits at max-content (identical
+width row to row, which was the goal) and at narrow widths it shrinks and its
+children wrap.
+
+**Related:** to make sibling A absorb a row's slack, set `flex-grow` on A rather
+than removing shrink from B. Grow and shrink answer different questions.
+
+**First seen in:** [2026-08-10-caseload-row-tiles-match-home-room-cards.md](./2026-08-10-caseload-row-tiles-match-home-room-cards.md)

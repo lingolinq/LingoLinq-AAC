@@ -60028,6 +60028,34 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 
   }
 }
+/* "Switch Communicators", relocated out of the stats body into the hero.
+   ABSOLUTELY positioned rather than made a flex sibling of the title on
+   purpose: this hero centres its title and subtitle, and turning it into a
+   flex row would push that centred block off-centre by half the button's
+   width. Pinning the button to the right edge leaves the existing hero
+   composition untouched and simply hangs the control beside it. */
+.md-shell--reports-view .md-hero--reports-dashboard {
+  position: relative !important;
+}
+.md-shell--reports-view .md-reports-hero__action {
+  position: absolute;
+  right: 16px;
+  /* Aligned to the TITLE's optical centre rather than the hero's, so the button
+     sits beside the name it acts on instead of drifting down beside the meta
+     line under it. */
+  top: 34px;
+  z-index: 2;
+  white-space: nowrap;
+}
+/* Below this width the centred title and the pinned button would collide, so
+   the button returns to the flow underneath the hero text and centres itself. */
+@media (max-width: 900px) {
+  .md-shell--reports-view .md-reports-hero__action {
+    position: static;
+    display: block;
+    margin: 14px auto 0;
+  }
+}
 .md-shell--reports-view .md-grid {
   grid-template-columns: 1fr !important;
 

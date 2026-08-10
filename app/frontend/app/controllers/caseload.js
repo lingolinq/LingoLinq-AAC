@@ -2,8 +2,10 @@ import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
+import RSVP from 'rsvp';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
+import Badge from '../models/badge';
 
 function resolveSuperviseeHomeBoardKey(s) {
   if (!s || typeof s !== 'object') {
@@ -237,14 +239,109 @@ export default Controller.extend({
   _scrollExpandedIntoView: function() {
     try {
       var row = document.querySelector('.md-caseload__list-row--active');
-      if (!row || typeof row.getBoundingClientRect !== 'function') { return; }
-      var rect = row.getBoundingClientRect();
-      var vh = window.innerHeight || document.documentElement.clientHeight || 0;
-      if (rect.top < 0 || rect.bottom > vh) {
-        var block = (rect.height <= vh - 24) ? 'nearest' : 'start';
-        row.scrollIntoView({ behavior: 'smooth', block: block, inline: 'nearest' });
+      if (!row || typeof row.scrollIntoView !== 'function') { return; }
+      // ALWAYS top-align the opened card, and always scroll.
+      //
+      // This used to pick `block: 'nearest'` whenever the card fitted the
+      // viewport, and to skip scrolling entirely when the row was already fully
+      // visible. Both produced the reported behaviour: 'nearest' scrolls the
+      // MINIMUM distance, so a card whose bottom was below the fold got its
+      // BOTTOM pulled to the viewport bottom — leaving the previous
+      // communicator's row occupying the top of the screen, which reads as
+      // "it scrolled to the wrong person".
+      // 'start' puts the card's own top edge at the top every time.
+      //
+      // The navbar clearance is MEASURED from the live header, not taken from
+      // --topbar-height: that token resolves to 16px on authenticated layouts
+      // (app.scss ~367) while the bar this page actually renders is ~88px, so
+      // trusting it scrolled the card up UNDER the header and clipped its top.
+      // Measuring also survives the bar changing height between layouts (16 /
+      // 68 / 70 / 129px are all live values in this app) and when it wraps.
+      // Written to inline scroll-margin-top rather than doing the arithmetic
+      // ourselves, so this keeps working whether the scroll container is the
+      // window or an ancestor element.
+      var offset = 0;
+      var header = document.querySelector('#within_ember > header') || document.querySelector('body > header');
+      if (header && typeof window.getComputedStyle === 'function') {
+        var pos = window.getComputedStyle(header).position;
+        if (pos === 'fixed' || pos === 'sticky') {
+          offset = header.getBoundingClientRect().height || 0;
+        }
       }
+      if (offset > 0) {
+        row.style.scrollMarginTop = (offset + 12) + 'px';
+      }
+      var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      row.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start', inline: 'nearest' });
     } catch (e) { /* best-effort — never block toggling */ }
+  },
+
+  // Load the in-progress badge for the row that just opened.
+  //
+  // Two requests, and both are needed:
+  //   1. `query('badge', {user_id: <me>, recent: 1})` — the index endpoint's
+  //      `recent` branch returns badges for the supporter AND every supervisee
+  //      (badges_controller.rb ~13), including unearned, un-superseded ones,
+  //      which is exactly "in progress". Cached on the controller so opening a
+  //      second row costs nothing.
+  //   2. `findRecord('badge', id)` for the winner — the INDEX serializer omits
+  //      `completion_settings` (it is gated on `args[:permissions]`,
+  //      json_api/badge.rb ~33), and both `completion_explanation` and
+  //      `time_left` are computed from it. Without this second call the panel
+  //      could show a name and a bar but never the "to earn this badge…" text.
+  _loadBadgeForSupervisee: function(supervisee) {
+    var _this = this;
+    var user_id = supervisee && (supervisee.id != null ? supervisee.id : supervisee.user_id);
+    if (!user_id) { return; }
+    this.set('selectedBadge', null);
+    // Tracked separately from `selectedBadge` because null means two different
+    // things — "still loading" and "there is no badge" — and the empty state
+    // must not flash while the request is in flight.
+    this.set('badgeLoading', true);
+    this._badgesByUser().then(function(for_users) {
+      var badges = for_users[user_id] || [];
+      var best = Badge.best_next_badge(badges, null);
+      if (!best) {
+        if (!_this.isDestroyed && !_this.isDestroying) { _this.set('badgeLoading', false); }
+        return;
+      }
+      // Keep the summary visible while the detailed record loads, so the tile
+      // does not flash empty on a slow connection.
+      _this.set('selectedBadge', best);
+      _this.set('badgeLoading', false);
+      _this.get('store').findRecord('badge', best.get('id')).then(function(full) {
+        // Guard against a race: the supporter may have collapsed this row, or
+        // opened a different one, while the request was in flight.
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        if (_this.get('selectedSupervisee') !== supervisee.user_name) { return; }
+        _this.set('selectedBadge', full);
+      }, function() { /* keep the summary record — it still renders */ });
+    }, function() {
+      // A failed lookup is not proof there is no badge, but the panel has
+      // nothing to show either way — fall through to the empty state, which
+      // offers a useful next step rather than an error the supporter cannot act on.
+      if (!_this.isDestroyed && !_this.isDestroying) { _this.set('badgeLoading', false); }
+    });
+  },
+
+  _badgesByUser: function() {
+    var _this = this;
+    var cached = this.get('_superviseeBadges');
+    if (cached) { return RSVP.resolve(cached); }
+    var me = this.get('model.id') || this.get('appState.sessionUser.id');
+    if (!me) { return RSVP.reject(); }
+    return this.get('store').query('badge', {user_id: me, recent: 1}).then(function(badges) {
+      var for_users = {};
+      badges.forEach(function(badge) {
+        var uid = badge.get('user_id');
+        for_users[uid] = for_users[uid] || [];
+        for_users[uid].push(badge);
+      });
+      if (!_this.isDestroyed && !_this.isDestroying) {
+        _this.set('_superviseeBadges', for_users);
+      }
+      return for_users;
+    });
   },
 
   actions: {
@@ -273,12 +370,21 @@ export default Controller.extend({
       if (!name) { return; }
       if (this.get('selectedSupervisee') === name) {
         this.set('selectedSupervisee', null);
+        this.set('selectedBadge', null);
       } else {
         this.set('selectedSupervisee', name);
+        this._loadBadgeForSupervisee(supervisee);
         // After the panel renders, bring the newly-expanded card into view —
         // expanding a low row can push its content below the fold.
         scheduleOnce('afterRender', this, this._scrollExpandedIntoView);
       }
+    },
+
+    // The badge tile opens the same modal the dashboard uses, so the panel is a
+    // preview of it rather than a second, divergent presentation of a badge.
+    show_badge: function(badge) {
+      if (!badge) { return; }
+      modal.open('badge-awarded', {badge: badge, user_name: badge.get('user_name')});
     },
 
     // Reset the supervisee text filter. Bound to the × inside the

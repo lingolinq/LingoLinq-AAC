@@ -5,6 +5,16 @@
     <header class="md-hero md-hero--dashboard md-hero--reports-dashboard">
       <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "Activity for" key="reports_activity_for_pre"}} <em class="md-hero__sub-user">{{this.model.user_name}}</em></span></h1>
       <p class="md-hero__sub md-hero__sub--meta"><span class="md-hero__sub--from-right">{{#if this.model.joined}}<span class="md-hero-meta__item"><svg class="md-hero-meta__icon" viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true" focusable="false"><rect x="3.5" y="5" width="17" height="16" rx="3" fill="rgba(42,157,143,0.16)" stroke="#1B365D" stroke-width="1.8"/><path d="M3.5 9.5h17" stroke="#1B365D" stroke-width="1.8"/><path d="M8 3v3.5M16 3v3.5" stroke="#2A9D8F" stroke-width="1.8" stroke-linecap="round"/></svg>{{t "Joined" key="joined_cap"}} <strong>{{date_ago this.model.joined}}</strong></span>{{/if}}{{#if this.model.last_access}}<span class="md-hero-meta__item"><span class="md-hero-meta__dot" aria-hidden="true"></span>{{t "Last active" key="last_active"}} <strong>{{date_ago this.model.last_access "day"}}</strong></span>{{/if}}</span></p>
+      {{!-- Switch Communicators lives in the HERO, not in the page body: it acts
+           on the whole report (which communicator you are looking at), so it
+           belongs beside the title that names them rather than inside the
+           stats content it would otherwise appear to scope. Rendered once here
+           for every page state — the header sits outside the
+           premium/logging/authenticated branches below, which each used to
+           carry their own copy of this button. --}}
+      {{#if this.app_state.currentUser.supervisees.length}}
+        <button type="button" class="md-btn md-btn--ghost md-reports-hero__action" {{on "click" (this.ctrlAction "switch_communicators")}}>{{t "Switch Communicators" key="switch_communicators"}}</button>
+      {{/if}}
     </header>
 <div class="md-stats-page">
   <main class="md-stats-main">
@@ -33,9 +43,6 @@
     <section class="md-stats-hero-card" aria-labelledby="md-stats-hero-title">
       <div class="md-stats-hero__head">
         <h1 id="md-stats-hero-title" class="md-stats-hero__title">{{t "%{un}'s Reports" key="usage_reports_for" un=this.model.user_name}}</h1>
-        {{#if this.app_state.currentUser.supervisees.length}}
-          <button type="button" class="md-btn md-btn--ghost md-stats-hero__action" {{on "click" (this.ctrlAction "switch_communicators")}}>{{t "Switch Communicators" key="switch_communicators"}}</button>
-        {{/if}}
       </div>
     </section>
     <hr class="la-about-hero-separator" aria-hidden="true">
@@ -378,9 +385,6 @@
   <section class="md-stats-hero-card" aria-labelledby="md-stats-hero-title">
     <div class="md-stats-hero__head">
       <h1 id="md-stats-hero-title" class="md-stats-hero__title">{{t "Premium Membership Required" key="premium_required"}}</h1>
-      {{#if this.app_state.currentUser.supervisees.length}}
-        <button type="button" class="md-btn md-btn--ghost md-stats-hero__action" {{on "click" (this.ctrlAction "switch_communicators")}}>{{t "Switch Communicators" key="switch_communicators"}}</button>
-      {{/if}}
     </div>
     <hr class="la-about-hero-separator" aria-hidden="true">
   </section>

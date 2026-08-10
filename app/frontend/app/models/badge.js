@@ -30,7 +30,14 @@ LingoLinq.Badge = BaseModel.extend({
     return this.get('sound_url') || speecher.chimes_url;
   }),
   progress_out_of_100: computed('progress', function() {
-    return Math.min(Math.max(this.get('progress') || 0, 0) * 100, 100);
+    // ROUNDED. `progress` is a float, so 0.55 * 100 evaluates to
+    // 55.00000000000001 and every consumer rendered that verbatim — this value
+    // feeds "%{pct}% Complete" text and `aria-valuenow` in eight places (the
+    // caseload panel, the badge modal, the goals pages, the badges page), so
+    // rounding at the source fixes all of them rather than one call site.
+    // A whole number is also what a percentage should be here: nothing displays
+    // or announces a fraction of a percent of badge progress.
+    return Math.round(Math.min(Math.max(this.get('progress') || 0, 0) * 100, 100));
   }),
   progress_style: computed('progress', function() {
     return htmlSafe("width: " + Math.min(Math.max((this.get('progress') || 0) * 100, 0), 100) + "%");

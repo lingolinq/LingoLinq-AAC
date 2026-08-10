@@ -1177,8 +1177,22 @@ export default Service.extend({
   // `speak_mode` → `modeling_for_user`). The badge needs a session-level
   // signal that survives that transition so the supervisor still sees
   // "modeling paused" while editing a supervisee's board.
-  modeling_session_active: computed('manual_modeling', 'modeling_for_user', 'modeling_for_self', 'referenced_speak_mode_user', 'modeling_ts', function() {
-    return !!(this.get('manual_modeling') || this.get('modeling_for_user') || this.get('modeling_for_self') || this.get('referenced_speak_mode_user'));
+  modeling_session_active: computed('manual_modeling', 'modeling_for_user', 'modeling_for_self', 'referenced_speak_mode_user', 'speakModeUser.id', 'modeling_ts', function() {
+    // `referenced_speak_mode_user` alone is NOT proof of a modeling session.
+    // set_speak_mode_user() sets it in both of its branches — modeling FOR a
+    // communicator (keep_as_self = true, speakModeUser stays null) and speaking
+    // AS one (keep_as_self = false, speakModeUser becomes that communicator).
+    // The second is a supporter borrowing the communicator's own voice, e.g.
+    // when the communicator is without their device; treating it as modeling put
+    // a "Modeling" badge on a session that is not modeling, and `modeling`
+    // itself correctly reports false there.
+    // The two cases are told apart by whether the supporter BECAME the
+    // referenced user: if speakModeUser is that same user, it is speak-as.
+    var referenced = this.get('referenced_speak_mode_user');
+    var speaking_as_referenced = !!(referenced && this.get('speakModeUser') &&
+      this.get('speakModeUser.id') === referenced.get('id'));
+    return !!(this.get('manual_modeling') || this.get('modeling_for_user') ||
+      this.get('modeling_for_self') || (referenced && !speaking_as_referenced));
   }),
   modeling_for_user: computed('speak_mode', 'currentUser', 'referenced_speak_mode_user', 'modeling_for_self', function() {
     var res = this.get('speak_mode') && this.get('currentUser') && this.get('referenced_speak_mode_user') && this.get('currentUser.id') != this.get('referenced_speak_mode_user.id');

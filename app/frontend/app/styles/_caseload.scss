@@ -21,6 +21,52 @@
 @use "variables" as *;
 @use "sass:color";
 
+// -----------------------------------------------------------------------------
+// Shared tile surface — the EXPANDED CARD's action tiles wear the SAME material
+// as the collapsed row's secondary buttons (Note / Reports / Assess / Full Eval)
+// -----------------------------------------------------------------------------
+// White→denim gradient with a top-left radial highlight, a soft denim outline
+// and a light raised shadow; lift on hover, settle on press. This is the room
+// tile material from the home dashboard, one step lighter for button scale.
+//
+// The two families used to be deliberately different — the panel wore a glass
+// treatment (flat white + inner outline) and the row wore a flat hierarchy —
+// which meant two vocabularies inside one card. They are now one, so a change to
+// the row's material reaches the panel by editing THIS mixin, not by copying
+// values into a second place. Per-action colour identity lives in the ICONS
+// (each keeps its own accent), never in the tile surface.
+@mixin caseload-action-surface($radius: 12px) {
+  border: 1px solid rgba(76, 134, 216, 0.20);
+  border-radius: $radius;
+  background:
+    radial-gradient(125% 125% at 26% 18%, rgba(255, 255, 255, 0.95), transparent 60%),
+    linear-gradient(140deg, #ffffff 0%, #eef0f4 52%, #e2e6ec 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.90),
+    inset 0 -2px 4px rgba(76, 134, 216, 0.06),
+    0 1px 3px rgba(15, 23, 42, 0.05),
+    0 0 8px rgba(76, 134, 216, 0.07);
+  transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+/* Lift only — the surface itself does not change on hover, which is what makes
+   these read as one material with the row buttons. */
+@mixin caseload-action-surface-hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.90),
+    inset 0 -1px 0 rgba($la-navy, 0.05),
+    0 2px 5px rgba($la-navy, 0.06),
+    0 6px 14px rgba($la-navy, 0.08),
+    0 0 12px rgba(76, 134, 216, 0.12);
+  transform: translateY(-1px);
+}
+/* Press settles the tile back down — same reading as the row's :active. */
+@mixin caseload-action-surface-active {
+  transform: translateY(0);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.90),
+    inset 0 -2px 4px rgba(76, 134, 216, 0.08),
+    0 1px 2px rgba(15, 23, 42, 0.07);
+}
 // (component groups land below as they are migrated)
 
 /* Home board info row */
@@ -186,16 +232,34 @@
   position: relative;
   /* Breathing room when the expanded card is scrolled into view (see
      _scrollExpandedIntoView) — also clears a sticky header if present. */
-  scroll-margin: 90px 0 20px;
+  /* Clearance for the FIXED navbar when an opened row is scrolled to the top
+     (_scrollExpandedIntoView uses block: 'start'). This is only the FALLBACK:
+     the controller measures the live header and overwrites scroll-margin-top
+     inline, because no CSS token here reports the bar's real height —
+     --topbar-height is 16px on authenticated layouts while the rendered bar is
+     ~88px, which scrolled the card under the header and clipped its top.
+     100px is a safe static approximation for the case where that measurement
+     fails; erring high leaves a small gap rather than hiding the card header. */
+  scroll-margin: 100px 0 20px;
   /* Clip the flush left accent stripe to the card's rounded corners — same
      approach as .md-org-session-row on the organizations page. */
   overflow: hidden;
   background: linear-gradient(180deg, #ffffff 0%, rgba($la-navy, 0.02) 100%);
   border: 1px solid rgba($la-navy, 0.08);
   border-radius: 12px;
+  /* Lift off the tinted page: a directional shadow under the card's BOTTOM edge
+     rather than an even halo, so the row reads as sitting on the surface behind
+     it. Kept as a low-alpha NAVY rather than a light/white glow — the page
+     behind is a cool grey, and a white shadow on grey renders as a pale smudge
+     that reads like a rendering artefact instead of depth. Low alpha and a tight
+     y-offset are what keep it from looking heavy on a light background; the
+     inset white top rim is the light half of the same effect, catching the edge
+     the shadow is falling away from. */
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 1),
-    0 1px 2px rgba($la-navy, 0.04);
+    0 1px 2px rgba($la-navy, 0.05),
+    0 4px 10px -4px rgba($la-navy, 0.14),
+    0 10px 18px -12px rgba($la-navy, 0.18);
   transition: border-color 0.12s ease, box-shadow 0.12s ease;
 }
 /* "Our gradient" (verdigris → dusty-denim) as a flush LEFT accent stripe on the
@@ -230,6 +294,14 @@
    clicks inside the expanded panel (a sibling below) never toggle the
    row. Quick-action buttons still skip the toggle via the controller's
    .md-caseload__list-quick target check. */
+/* Row layout — an explicit two-track arrangement, not "whatever the content
+   does": IDENTITY (avatar + name + badges, absorbing all slack) then the ACTION
+   TOOLBAR at its natural width. Because the toolbar is the same width in every
+   row, pinning the slack to the identity side is what makes the toolbars start
+   at the same x down the whole list, and it means a long communicator name
+   ellipsises inside its own column instead of pushing the actions out of line.
+   `flex-wrap` is kept so the toolbar drops to its own line AS A WHOLE when the
+   row is genuinely too narrow — a grid track would have to overflow instead. */
 .md-caseload__list-header {
   display: flex;
   align-items: center;
@@ -285,7 +357,9 @@
   background: transparent;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  padding: 14px 16px 16px;
+  /* No top padding: the panel opens directly under the header's hairline, and
+     the ADDITIONAL ACTIONS block below carries its own leading space. */
+  padding: 0 16px 16px;
   animation: caseload-panel-reveal 0.22s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 .md-caseload__list-row .md-caseload__card::before,
@@ -299,13 +373,35 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .md-caseload__list-row .md-caseload__card { animation: none; }
+  /* Kill the MOTION, keep the STATE. The chevron still ends up rotated when the
+     row is open — that flip is the visual half of aria-expanded, so removing it
+     would cost information — but it snaps rather than springs. */
+  .md-caseload__list-chevron { transition: none; }
+  /* No hover translation anywhere in the caseload: the row buttons already hover
+     with a tint instead of a lift, and these two families are the only remaining
+     transform-on-hover surfaces. */
+  .md-caseload__quick-action,
+  .md-caseload__action--tile {
+    transition: none;
+  }
+  .md-caseload__quick-action:hover,
+  .md-caseload__action--tile:hover,
+  .md-caseload__action--tile:focus-visible {
+    transform: none;
+  }
 }
 .md-caseload__list-trigger {
-  /* Natural width on the LEFT (avatar + name + access chip). Does not grow,
-     so the action group beside it can take the remaining width and right-align. */
-  flex: 0 1 auto;
+  /* Takes the row's slack (`1 1 auto`, was `0 1 auto`) so it acts as the
+     identity column PLUS the flexible spacer, and the toolbar beside it keeps
+     its natural width. `min-width: 0` lets it shrink below its content so a long
+     name ellipsises here instead of shoving the actions rightward. */
+  flex: 1 1 auto;
   min-width: 0;
-  display: flex;
+  /* Explicit two-column grid — AVATAR | INFORMATION. A flex row would let the
+     avatar's size vary the name's start position; fixed track + 12px gap means
+     every communicator name in the list begins at exactly the same x. */
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 12px;
   padding: 4px 0;
@@ -334,54 +430,52 @@
   gap: 2px;
 }
 /* Name + access chip are the whole collapsed row — goals moved to the
-   expanded panel, so this is the only line inside .md-caseload__list-identity. */
+   expanded panel, so this is the only block inside .md-caseload__list-identity.
+   STACKED: the chip describes the person named above it, so it sits under the
+   name rather than beside it — which also removes the need for a separator rule
+   and a fixed-width name column to keep the chips aligned. */
 .md-caseload__list-name-row {
   display: flex;
-  align-items: center;
-  gap: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
   min-width: 0;
 }
-/* Fixed-width name slot so the access chips line up in a column across every
-   row regardless of username length (ellipsis on overflow). */
+/* Name takes the identity's width and ellipsises rather than pushing the row
+   wide; no fixed slot now that nothing needs to line up beside it. */
 .md-caseload__list-name-row .md-caseload__list-name {
-  flex: 0 0 auto;
-  width: 156px;
+  max-width: 100%;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Badge row under the name — access level, then setup state when one applies.
+   A wrapping row so a second badge sits BESIDE the first instead of starting a
+   third line, and so a narrow column drops it cleanly rather than overflowing. */
+.md-caseload__list-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
 .md-caseload__list-access {
-  position: relative;
+  display: inline-flex;
+  align-items: center;
   flex-shrink: 0;
-  margin-left: 26px;
-  font-size: 11px;
-  font-weight: 700;
+  /* 12px/650 with a 24px box: the old 11px/700 pill was below the size floor
+     these badges are meant to be read at, and a badge that states a REQUIRED
+     next step has to be legible at a glance. */
+  min-height: 24px;
+  font-size: 12px;
+  font-weight: 650;
   letter-spacing: 0.02em;
-  line-height: 1.5;
-  padding: 1px 8px;
+  line-height: 1.4;
+  padding: 0 9px;
+  border: 1px solid transparent;
   border-radius: 999px;
   white-space: nowrap;
-}
-/* Modern separator between the name and the access chip — a thin vertical rule
-   that fades at both ends. Drawn on the chip so it only appears when a chip
-   exists, sitting at the fixed name-column edge. */
-.md-caseload__list-access::before {
-  content: "";
-  position: absolute;
-  left: -13px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 1px;
-  height: 18px;
-  border-radius: 1px;
-  background: linear-gradient(180deg, transparent 0%, rgba($la-navy, 0.32) 50%, transparent 100%);
-}
-@media (max-width: 560px) {
-  /* Tighter name column on phones so the chip + separator still fit. */
-  .md-caseload__list-name-row .md-caseload__list-name { width: 108px; }
-  .md-caseload__list-access { margin-left: 20px; }
-  .md-caseload__list-access::before { left: -10px; }
 }
 .md-caseload__list-access--view {
   color: $la-navy;
@@ -395,57 +489,132 @@
   color: #9a5b00;
   background: rgba(#f2b95a, 0.20);
 }
+/* "Board needed" — the textual half of the Choose Board signal, so the priority
+   action is identifiable without perceiving its teal fill.
+   Ink is #12615F, not the specified #1A7B7A: measured, #1A7B7A on this tint is
+   4.54:1 over white but only 4.27:1 once the row carries its hover/selected
+   verdigris wash — under the 4.5:1 floor exactly when a supporter is pointing at
+   the row. #12615F measures 6.6:1 over white and 6.2:1 over the washed row, so it
+   holds in every row state. Same hue, same badge, darker ink — which is the
+   adjustment the brief calls for when the tint does not clear the ratio. */
+.md-caseload__list-access--setup {
+  color: #12615F;
+  /* The Model button's denim ramp, poured lighter (.14/.20 against its
+     .22/.30): the badge is a STATUS, so it should read as the quietest member
+     of the row's material family, not as another control. */
+  background: linear-gradient(160deg,
+    rgba($brand-dusty-denim, 0.14) 0%,
+    rgba($brand-dusty-denim, 0.20) 100%);
+  border-color: rgba(26, 123, 122, 0.28);
+  /* Room for the action dot, which is drawn as a ::before rather than added to
+     the markup — it is pure decoration, and a text node or an <img> here would
+     land inside the row trigger's accessible name. The label already says
+     "Board needed". */
+  gap: 7px;
+}
+.md-caseload__list-access--setup::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: $brand-verdigris;
+  /* The glow: two rings of the same verdigris, tight then soft, dialled back
+     from the first pass so the dot reads as lit rather than as a lamp. Static —
+     no pulse. A repeating animation on a status that can persist for weeks
+     becomes noise, it is a known vestibular trigger, and the brief rules it
+     out; the dot earns attention by being the only glowing element in the row. */
+  box-shadow:
+    0 0 0 2px rgba($brand-verdigris, 0.16),
+    0 0 4px 0 rgba($brand-verdigris, 0.38);
+}
 .md-caseload__list-quick {
-  /* Holds the full action set (row quick-actions + the promoted non-duplicate
-     actions). Grows to take the width remaining after the identity, so the
-     buttons right-align; as a single flex item it wraps to its own line as a
-     WHOLE when the row is too narrow (no single button orphaning off beside
-     the name). */
-  flex: 1 1 auto;
+  /* Holds the full action set. `0 1 auto` (was `1 1 auto`): the identity column
+     now absorbs the row's slack, so this toolbar sits at its natural width —
+     the same width in every row, and therefore STARTING at the same x in every
+     row. It must stay SHRINKABLE (the 1) and `min-width: 0`, or at narrow
+     widths it would hold max-content and push the page into horizontal scroll
+     instead of letting its own buttons wrap. As a single flex item it still
+     drops to its own line as a WHOLE when the row is too narrow. */
+  flex: 0 1 auto;
+  min-width: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 4px;
+  gap: 7px;
 }
-/* When the group wraps to multiple rows, let the tiles grow to fill each row
-   (bounded) so a partial last row never leaves a lonely gap. */
+/* Size to the label, don't stretch: the old `flex: 1 1 auto` + 92px clamp both
+   grew buttons to fill a wrapped row AND clipped the longer captions once the
+   label went to 14px. Heights are equal because the base sets min-height. */
 .md-caseload__list-quick .md-caseload__quick-action {
-  flex: 1 1 auto;
-  min-width: 58px;
-  max-width: 92px;
+  flex: 0 1 auto;
+  min-width: 86px;
+  max-width: none;
+}
+/* Every tile whose label is too long for one line at the row's width is pinned
+   to the same DEFINITE 86px basis — what Note measures — so the row stays one
+   grid of equal tiles instead of a set of differently-sized buttons.
+   `min-width: 86px` alone was NOT enough: `flex: 0 1 auto` resolves its base size
+   from max-content, and the max-content of a wrapping label is still its full
+   unwrapped line — so "Choose Board" sized itself to ~118px on one line and only
+   shrank if the row ran out of room. A definite basis is what actually makes the
+   label wrap instead of widening the slot.
+   Model is here because it shares the leading slot with Choose Board (the two
+   branches of "does this communicator have a home board yet") and that slot has
+   to be one size down the whole list. */
+.md-caseload__list-quick .md-caseload__quick-action--model,
+.md-caseload__list-quick .md-caseload__quick-action--choose-board,
+.md-caseload__list-quick .md-caseload__quick-action--ideas {
+  flex: 0 0 86px;
 }
 /* Choose-Board slot — shown in place of Model when a communicator has no home
-   board yet. A clickable dashed verdigris CTA reads as "set this up" (distinct
-   from the solid action tiles) while remaining a real action that opens the
-   home-board picker. Scoped (0,2,0) so it overrides the base quick-action tile. */
-.md-caseload__list-quick .md-caseload__quick-action--choose-board {
-  color: $brand-verdigris-aa;
-  background: rgba($brand-verdigris, 0.06);
-  border-style: dashed;
-  border-color: rgba($brand-verdigris, 0.40);
-}
-.md-caseload__list-quick .md-caseload__quick-action--choose-board:hover,
-.md-caseload__list-quick .md-caseload__quick-action--choose-board.touched {
-  background: rgba($brand-verdigris, 0.12);
-  border-color: rgba($brand-verdigris, 0.55);
-}
+   board yet. It is the row's PRIMARY action (denim tile, above) because it is
+   constructive: it sets the communicator up. Deliberately NOT dashed, coral or
+   haloed any more — a dashed edge plus an inner outline plus a coloured glow
+   read as three borders on one control. */
 /* No-board note shown in the Model slot for VIEW-ONLY supporters (who can't set
    a home board): muted, dashed, non-interactive — the tooltip says why. */
 .md-caseload__list-quick .md-caseload__quick-action--empty {
-  cursor: default;
-  color: rgba($la-navy, 0.42);
-  background: rgba($la-navy, 0.025);
-  border-style: dashed;
-  border-color: rgba($la-navy, 0.18);
-  box-shadow: none;
+  /* Unavailable, not merely faded: a distinct surface, border and ink rather
+     than opacity — opacity alone dims the LABEL as much as the chrome and can
+     drop it under the contrast floor. The element keeps its `title`, which is
+     the accessible explanation of why the action is unavailable. */
+  cursor: not-allowed;
+  /* Anchors the lock badge that the modeling-only Speak placeholder carries;
+     without it the absolutely-positioned badge would escape to whichever
+     ancestor happens to be positioned. */
+  position: relative;
+  /* #464D5B, darkened along with the surface below: on #D6DCE4 the previous
+     #626A79 measures 3.83:1 — under the 4.5:1 floor — because the fill moved and
+     the ink did not. #464D5B measures 6.15:1 there and still reads as clearly
+     unavailable beside the navy of the live buttons. */
+  color: #464D5B;
+  /* A DARKER, flat, glass-free surface — three steps down from the live
+     buttons' near-white glass. Disabled has to be legible at a glance, before
+     the lock badge or the tooltip are read, and against a row of glossy panes a
+     pale grey was not carrying it. No gloss layer, no rim, no blur on purpose:
+     the absence of the row's material is itself part of the signal. */
+  background: #D6DCE4;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid #98A1B0;
+  box-shadow: inset 0 1px 2px rgba($la-navy, 0.08);
 }
-.md-caseload__list-quick .md-caseload__quick-action--empty svg { opacity: 0.65; }
+.md-caseload__list-quick .md-caseload__quick-action--empty svg * {
+  stroke: #464D5B;
+}
+/* Hover changes NOTHING — the surface, ink, border and shadow are all restated
+   so the row's shared hover cannot tint a control that cannot be used. */
 .md-caseload__list-quick .md-caseload__quick-action--empty:hover {
   transform: none;
-  background: rgba($la-navy, 0.025);
-  border-color: rgba($la-navy, 0.18);
-  box-shadow: none;
+  color: #464D5B;
+  background: #D6DCE4;
+  border-color: #98A1B0;
+  box-shadow: inset 0 1px 2px rgba($la-navy, 0.08);
+}
+.md-caseload__list-quick .md-caseload__quick-action--empty:hover svg * {
+  stroke: #464D5B;
 }
 /* Goals empty state — centered "feature, not a missing feature": target icon,
    headline, one-line why, and the Add Goal CTA. */
@@ -524,41 +693,79 @@
    link). Muted over its own accent, non-interactive, with a lock badge so the
    supporter sees the action exists and why it's unavailable. Container-scoped
    so it wins over the per-color tile :hover. */
-.md-caseload__actions--tiles .md-caseload__action--locked {
-  position: relative;
-  cursor: default;
-  opacity: 0.5;
-  filter: grayscale(0.35);
-}
-.md-caseload__actions--tiles .md-caseload__action--locked:hover {
-  transform: none;
-  box-shadow: none;
-}
+/* NOTE: the `.md-caseload__action--locked` tile rules that lived here are gone.
+   Speak was the only tile that could be locked (modeling-only links), and Speak
+   moved up to the row's top actions — where the locked placeholder now wears the
+   row's own `--empty` treatment instead. The lock BADGE rule below is still live:
+   the placeholder carries it into the row. */
+/* Lock badge on an unavailable action — a small teal disc pinned to the tile's
+   top-right corner. Two-tone like every other glyph in the caseload: the shackle
+   is teal and the body slate (set on the paths in the markup), sitting on a
+   verdigris-tinted disc with a teal hairline so the badge reads as a deliberate
+   status marker rather than a stray glyph dropped on the corner.
+   SOLID WHITE disc. The fill was never transparent — it was `#E4F2F0`, a pale
+   verdigris that sits only a few steps off the placeholder's own `#F3F4F6`
+   surface, so the disc dissolved into the tile and read as a wash rather than a
+   badge. White is the one fill that separates from BOTH the grey placeholder and
+   the teal/slate glyph on top of it. */
 .md-caseload__action-lock {
   position: absolute;
-  top: 7px;
-  right: 8px;
+  top: 5px;
+  right: 5px;
   display: inline-flex;
-  color: rgba($la-navy, 0.5);
+  align-items: center;
+  justify-content: center;
+  /* 20px disc around a 9px glyph — 5.5px of clearance on every side. */
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  border: 1px solid rgba($brand-verdigris-aa, 0.55);
+  box-shadow: 0 1px 3px rgba($la-navy, 0.16);
   pointer-events: none;
 }
+/* 11px inside a 20px disc. The body is an OUTLINE with a transparent interior
+   and a light slate stroke — the solid slate fill it replaces was the heaviest
+   mark in the whole row and pulled the eye straight to it.
+   The size went UP to make that possible: an outlined body only reads as a
+   rectangle if its interior survives, and at 9px a 1.8 stroke left barely 2px of
+   hole. 11px keeps the interior open, which is also what stops the glyph
+   collapsing back into the head-and-torso silhouette it had before. */
+.md-caseload__action-lock svg {
+  width: 11px;
+  height: 11px;
+  display: block;
+}
+/* The badge's two-tone has to be re-asserted HERE because the unavailable
+   placeholder it sits on flattens every glyph inside itself to one grey
+   (`.md-caseload__list-quick .md-caseload__quick-action--empty svg *`, (0,2,0) —
+   which the markup's presentation attributes cannot outrank). Matched at (0,3,0)
+   so the badge keeps its teal shackle and light-slate body while the ACTION icon
+   beside it stays correctly greyed out. `fill: none` is restated because the
+   body's interior must stay transparent — the disc shows through it. */
+.md-caseload__list-quick .md-caseload__quick-action--empty .md-caseload__action-lock svg rect {
+  fill: none;
+  stroke: #8A93A3;
+}
+.md-caseload__list-quick .md-caseload__quick-action--empty .md-caseload__action-lock svg path {
+  stroke: $brand-verdigris;
+}
+/* The chevron is now the ICON inside the More Actions button rather than a bare
+   glyph at the end of the row, so it drops its own 28x36 box and inherits the
+   button's colour — it only has to flip. */
 .md-caseload__list-chevron {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 36px;
-  color: rgba($la-navy, 0.45);
-  margin-left: 2px;
   /* Springy rotate on expand/collapse — the slight overshoot reads as a
      deliberate "flip" rather than a static state swap. */
-  transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.12s ease;
+  transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .md-caseload__list-row--active .md-caseload__list-chevron {
   transform: rotate(180deg);
-  color: $brand-verdigris-aa;
 }
+
 @media (max-width: 640px) {
   .md-caseload__list-quick {
     /* On narrow screens, reduce to the two most-used quick actions
@@ -571,13 +778,18 @@
      (0,1,1) tile size, which sits LATER in source (the base 52×46 rule). */
   .md-caseload__list-quick .md-caseload__quick-action {
     /* Icon-only compact tiles on phones — reset the desktop fill-to-wrap
-       sizing so they stay a fixed 32px and wrap tightly. */
+       sizing so they wrap tightly. 44px, not the 32px this was: 32 is under
+       the touch-target floor, and these are the primary controls on the
+       smallest screens, where mis-taps cost the most. WHICH buttons show at
+       this width is unchanged. */
     flex: 0 0 auto;
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
+    min-height: 0;
     min-width: 0;
     max-width: none;
-    border-radius: 8px;
+    padding: 0;
+    border-radius: 10px;
   }
   .md-caseload__quick-label {
     display: none;
@@ -586,6 +798,13 @@
   .md-caseload__quick-action--reports {
     display: none;
   }
+  /* Choose Board needs NO exception here any more. It used to be the one
+     icon-less button, so icon-only mode would have rendered it as an empty
+     square and it was kept as a 12px text pill; now that its board-plus glyph
+     is back it behaves like its neighbours — and that 12px label, the only
+     sub-14px text in the row, is gone with it. It is still never hidden (unlike
+     Model): the expanded panel's no-board branch is Setup, not the board
+     picker, so this button is the row's only route to the picker. */
 }
 
 .md-caseload__grid {
@@ -764,7 +983,11 @@
      white→tinted gradient, controlled blur on the surface for
      glass quality, directional shadow biased to match the card's
      upper-left light source. */
-  margin: 14px 0 0;
+  /* No top margin — the GOALS section sits flush under the actions block.
+     NOTE: this declaration is duplicated in the second .md-caseload__bottom-row
+     block further down (a leftover of the app.scss -> _caseload.scss migration);
+     both must change together or the later one silently wins. */
+  margin: 0;
   padding: 16px 18px;
   border-radius: 14px;
   background:
@@ -963,39 +1186,98 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* ── Row action buttons — FOUR ranks, read in this order ───────────────────
+     1. Choose Board — solid brand teal. Not an ordinary toolbar action: it only
+        appears while a communicator still has no home board, so it is an
+        unfinished SETUP step. Carried by fill + icon + the "Board needed" badge
+        in the identity block, never by colour alone.
+     2. Model — soft denim. The normal primary workflow action, deliberately a
+        different family from Choose Board so "available" never looks like
+        "incomplete".
+     3. Note / Reports / Assess / Full Eval — flat white secondaries. No
+        gradient, no raised shadow: six repeated raised controls per row read as
+        clutter and competed with the primary. A hairline border at 3:1 keeps
+        each one obviously a control (WCAG 1.4.11).
+     4. More Actions — quiet neutral grey. Overflow, not workflow.
+   Icons are two-tone slate + teal across the secondaries; the two filled ranks
+   set a single ink of their own so the glyph stays legible on the fill. */
 .md-caseload__quick-action,
 a.md-caseload__quick-action {
-  /* Icon-over-label tile: the SVG sits above a small caption so each action is
-     self-describing without relying on the hover title. Sized to fit the widest
-     label ("Reports"/"History") at 10px. */
   display: inline-flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  width: 52px;
-  height: 46px;
-  padding: 4px 2px;
-  border: 1px solid rgba($la-navy, 0.08);
-  border-radius: 9px;
-  background: rgba($la-navy, 0.02);
+  gap: 5px;
+  /* 78px, not 66px: Choose Board carries an icon AND a two-line label at the
+     shared tile width, and every button in the row must stay the same height.
+     Also keeps every target well past the 44px floor at all breakpoints. */
+  min-height: 78px;
+  padding: 9px 12px;
   color: $la-navy;
+  font-size: 14px;
+  font-weight: 620;
+  line-height: 1.2;
   cursor: pointer;
   text-decoration: none;
-  transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+  /* 0.55, not a hairline tint: a secondary's white fill is all but identical to
+     the row behind it, so this border IS the component boundary, which WCAG
+     1.4.11 puts at 3:1. 0.55 measures 3.23:1; the 0.20 denim it replaces
+     measured ~1.4:1. */
+  border: 1px solid rgba($la-navy, 0.55);
+  border-radius: 12px;
+  /* GLASS, at secondary weight. Same build as the two leading buttons — white
+     gloss sweep fading out by 60%, colour ramp beneath, crisp rim, inner
+     outline — but the ramp is a very light GREY rather than a hue, and the outer
+     shadow stays hairline. That is what keeps six of these from stacking into a
+     heavy band and stealing rank from Choose Board: they are the same material,
+     lit the same way, just paler and flatter.
+     The grey matters — a pure white face gives the gloss nothing to fade INTO,
+     which is why the flat version read as matte paper rather than glass. */
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.95) 0%,
+      rgba(255, 255, 255, 0.45) 32%,
+      rgba(255, 255, 255, 0) 60%),
+    linear-gradient(160deg, #FCFDFE 0%, #F2F4F7 55%, #EAEEF3 100%);
+  backdrop-filter: blur(6px) saturate(1.15);
+  -webkit-backdrop-filter: blur(6px) saturate(1.15);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.55),
+    inset 0 -6px 10px -6px rgba(255, 255, 255, 0.55),
+    0 1px 2px rgba($la-navy, 0.06),
+    0 5px 10px -7px rgba($la-navy, 0.14);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+/* Icons are SIZED here but not COLOURED: the markup carries the two-tone
+   treatment (neutral navy shape + a brand accent stroke — verdigris on Note /
+   Assess / Full Eval, coral on Reports), and a blanket `svg * { stroke }` here
+   would outrank those presentation attributes and flatten every glyph to one
+   hue. Ranks that need a single ink (primary on teal, unavailable, More) set it
+   in their own rule below. */
+.md-caseload__quick-action svg {
+  width: 22px;
+  height: 22px;
 }
 .md-caseload__quick-label {
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: 0.02em;
-  color: rgba($la-navy, 0.6);
+  /* 14px floor and full-strength colour: the old 10px 60%-opacity caption was
+     below the readable minimum for a control that users are meant to identify by
+     LABEL rather than by colour. */
+  font-size: 14px;
+  font-weight: 620;
+  line-height: 1.15;
+  color: inherit;
   white-space: nowrap;
 }
 /* Caseload hero mirrors the home SLP hero: STACKED title + subheader on separate
    rows (the base .md-slp-hero__text column layout) — same classes → same style +
    from-left/from-right motion, including the shared 32px title size. Keeps the
-   base `.md-hero` top padding. */
+   base `.md-hero` top padding.
+   NOTE: deliberately NO page-local typography here. The title face, size and the
+   subtitle's gradient accent all come from the shared `.md-hero--dashboard`
+   rules (app.scss ~44634) that the dashboard, reports and extras heroes also
+   use — this hero is meant to match them, so any change belongs at that shared
+   rule for every page at once, not scoped to caseload. */
 /* Info button next to the "People you support" subheader → opens the caseload
    guide modal. Small, muted, inline after the subheader text. */
 .md-caseload__guide-btn {
@@ -1123,26 +1405,277 @@ a.md-caseload__quick-action {
   color: rgba($la-navy, 0.68);
   line-height: 1.45;
 }
-/* Per-action colour scheme — same brand hues as the caseload guide modal so the
-   row icons read as a colour-coded palette (soft tints; navy-dominant icons stay
-   crisp). Model/Assess verdigris, Note denim, Reports coral, Eval honey, History
-   slate. */
-.md-caseload__quick-action.md-caseload__quick-action--model,
-.md-caseload__quick-action.md-caseload__quick-action--assess   { background: rgba($brand-verdigris, 0.10);   border-color: rgba($brand-verdigris, 0.22); }
-.md-caseload__quick-action.md-caseload__quick-action--note     { background: rgba($brand-dusty-denim, 0.10);  border-color: rgba($brand-dusty-denim, 0.22); }
-.md-caseload__quick-action.md-caseload__quick-action--reports  { background: rgba(#e87a6f, 0.12);            border-color: rgba(#e87a6f, 0.24); }
-/* Honey-bronze = the header eval SLOT accent (position style). It stays on
-   whichever eval action sits in that slot — now Run Evaluation (--run-eval). */
-.md-caseload__quick-action.md-caseload__quick-action--eval-quick,
-.md-caseload__quick-action.md-caseload__quick-action--run-eval     { background: rgba($brand-honey-bronze, 0.14); border-color: rgba($brand-honey-bronze, 0.26); }
-.md-caseload__quick-action.md-caseload__quick-action--eval-history { background: rgba($brand-slate-blue, 0.10);   border-color: rgba($brand-slate-blue, 0.22); }
-/* Neutral lift on hover so each button keeps its own colour (no verdigris wash). */
+/* ── 1a. SETUP PRIORITY: Choose Board. Shown only while a communicator has no
+   home board, i.e. setup is unfinished — so it is ranked above every other
+   action in the row and is the ONLY solid fill here. Brand teal at the AA token
+   ($brand-verdigris-aa, #1A7B7A): white text measures 5.05:1 on it, and white
+   icon strokes 5.05:1, so the fill carries AA on its own.
+   No pulse, no halo, no coral, no warning glyph — the urgency is carried by
+   rank (fill + position), by the board-plus icon, and by the "Board needed"
+   badge in the identity block, so it survives greyscale and colour blindness. */
+.md-caseload__list-quick .md-caseload__quick-action--choose-board {
+  /* Same CONSTRUCTION as Model — tile geometry, navy ink, hairline border,
+     inset top highlight — so the two branches of this slot are obviously the
+     same kind of control. What separates them is the ramp: this one is the
+     teal→denim gradient the Boards page's "Change Home Board" button wears
+     (`.ub-boards-page__set-home-btn`, app.scss ~65913), taken DARKER —
+     `.44/.38` against that button's `.12/.10` — so the row's setup action is
+     the strongest surface here while still speaking the app's own language
+     rather than importing a solid fill from outside it. Navy label on the
+     denim foot of that ramp measures 7.0:1, so there is headroom to go darker
+     still if it needs to shout louder. */
+  /* GLASS. Three layers, top to bottom: a gloss sweep that fades out by 58% of
+     the height, then the colour ramp. The sweep is white, so it LIGHTENS the
+     upper half — which is where the icon sits, and the icon is navy, so the
+     gloss raises its contrast rather than eroding it. (This is exactly why the
+     earlier white-on-teal version could not carry a highlight and this one can.) */
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.58) 0%,
+      rgba(255, 255, 255, 0.22) 30%,
+      rgba(255, 255, 255, 0) 58%),
+    linear-gradient(135deg, rgba(44, 183, 176, 0.44), rgba(91, 141, 239, 0.38));
+  background-color: rgba(255, 255, 255, 0.30);
+  backdrop-filter: blur(8px) saturate(1.3);
+  -webkit-backdrop-filter: blur(8px) saturate(1.3);
+  color: $la-navy;
+  /* Teal-leaning edge to echo the ramp's head, at the alpha that clears the
+     3:1 component-boundary floor (WCAG 1.4.11) against the white row. */
+  border: 1px solid rgba($brand-verdigris-aa, 0.62);
+  /* Crisp top rim + a thin inner outline are what read as "pane of glass"; the
+     outer pair keeps it seated on the card instead of floating. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.38),
+    inset 0 -7px 12px -7px rgba(255, 255, 255, 0.55),
+    0 2px 5px rgba($la-navy, 0.10),
+    0 8px 16px -8px rgba($la-navy, 0.20);
+}
+/* NOTE: no `svg *` override here. It used to force a single navy ink, which
+   flattened this glyph while every other icon in the row stayed two-tone. The
+   board keeps the slate outline the row uses; its plus is drawn in the AA teal
+   (#1A7B7A) rather than the usual #2A9D8F, because #2A9D8F sits on a teal-tinted
+   fill here and the accent would be reading teal-on-teal. */
+.md-caseload__list-quick .md-caseload__quick-action--choose-board:hover {
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.62) 0%,
+      rgba(255, 255, 255, 0.24) 30%,
+      rgba(255, 255, 255, 0) 58%),
+    linear-gradient(135deg, rgba(44, 183, 176, 0.56), rgba(91, 141, 239, 0.49));
+  background-color: rgba(255, 255, 255, 0.30);
+  border-color: $brand-verdigris-aa;
+  color: $la-navy;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.45),
+    inset 0 -7px 12px -7px rgba(255, 255, 255, 0.6),
+    0 2px 5px rgba($la-navy, 0.10),
+    0 10px 20px -8px rgba($la-navy, 0.24);
+}
+.md-caseload__list-quick .md-caseload__quick-action--choose-board:active {
+  background: linear-gradient(135deg, rgba(44, 183, 176, 0.64), rgba(91, 141, 239, 0.56));
+  border-color: $brand-verdigris-aa;
+  box-shadow: none;
+}
+/* ── 1b. WORKFLOW PRIMARY: Model. An AVAILABLE action, not an unfinished one, so
+   it stays in the denim family and never borrows Choose Board's solid teal. Soft
+   tint + navy ink keeps it clearly above the flat secondaries and clearly below
+   the setup action. */
+.md-caseload__quick-action.md-caseload__quick-action--model {
+  /* Denim ramp rather than a single flat tint, and stepped darker (0.22→0.30,
+     was a flat 0.14) so it holds its rank beside the teal setup action and
+     reads as the same material family as the app's other filled controls.
+     Navy label on the darkest stop measures 8.1:1 — a wide margin.
+     Same GLASS build as Choose Board (gloss sweep + backdrop blur + rim), one
+     step softer, so the two branches of this slot are the same material and
+     differ only in hue and depth. */
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.55) 0%,
+      rgba(255, 255, 255, 0.20) 30%,
+      rgba(255, 255, 255, 0) 58%),
+    linear-gradient(160deg,
+      rgba($brand-dusty-denim, 0.22) 0%,
+      rgba($brand-dusty-denim, 0.30) 100%);
+  background-color: rgba(255, 255, 255, 0.30);
+  backdrop-filter: blur(8px) saturate(1.3);
+  -webkit-backdrop-filter: blur(8px) saturate(1.3);
+  color: $la-navy;
+  /* 0.62, not the 0.28 specified: a tinted fill this light is ~1.3:1 against the
+     white row, so the BORDER is what identifies the control (WCAG 1.4.11 → 3:1).
+     0.28 measures 1.9:1 and 0.38 measures 2.2:1; 0.62 measures 3.13:1. It also
+     happens to be the denim outline the rest of the app uses, so the stronger
+     edge reads as more app-native, not less. */
+  border: 1px solid rgba($brand-dusty-denim-aa, 0.62);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+    inset 0 -7px 12px -7px rgba(255, 255, 255, 0.50),
+    0 2px 5px rgba($la-navy, 0.08),
+    0 8px 16px -8px rgba($la-navy, 0.18);
+}
+/* NOTE: no `svg *` override here either — it forced a single navy ink and
+   flattened the grid, leaving the teal cell as the only coloured mark on an
+   otherwise monochrome glyph. Slate frame, teal cell, same as the rest of the
+   row. */
+.md-caseload__quick-action.md-caseload__quick-action--model:hover {
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.60) 0%,
+      rgba(255, 255, 255, 0.22) 30%,
+      rgba(255, 255, 255, 0) 58%),
+    linear-gradient(160deg,
+      rgba($brand-dusty-denim, 0.30) 0%,
+      rgba($brand-dusty-denim, 0.40) 100%);
+  background-color: rgba(255, 255, 255, 0.30);
+  border-color: rgba($brand-dusty-denim-aa, 0.75);
+  color: $la-navy;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.42),
+    inset 0 -7px 12px -7px rgba(255, 255, 255, 0.55),
+    0 2px 5px rgba($la-navy, 0.08),
+    0 10px 20px -8px rgba($la-navy, 0.22);
+}
+/* Choose Board is the row's only two-word label, so it WRAPS onto a second line
+   inside the shared tile width instead of widening the slot. Every other label
+   stays `nowrap` (base rule). */
+.md-caseload__quick-action--choose-board .md-caseload__quick-label,
+.md-caseload__quick-action--ideas .md-caseload__quick-label {
+  white-space: normal;
+  text-align: center;
+  /* A locale whose word is longer than the inner width breaks rather than
+     spilling out of the tile. */
+  overflow-wrap: break-word;
+}
+/* "Modeling" is a longer single word than either of Choose Board's, and at the
+   shared 12px side padding it measures ~62px against a 60px inner width — i.e.
+   it would hyphen-break mid-word. Trimming the sides to 6px opens the inner
+   width to 72px so the word wraps as a WORD. The icon is unaffected: the tile is
+   a centred column, so the label wrapping to two lines pushes the glyph up
+   rather than displacing it sideways. */
+.md-caseload__quick-action.md-caseload__quick-action--ideas {
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+/* ── 2. SECONDARY: Note, Reports, Assess, Full Eval (and Eval History) take the
+   BASE treatment above — no per-action rule at all. That is the point: they are
+   peers and are told apart by icon + label. Their hover/active/focus live in the
+   shared state rules below. */
+
+/* ── 3. MORE ACTIONS: the quietest control in the row. It exposes the expanded
+   panel — overflow, not workflow — so it must not compete with Full Eval or the
+   two primaries. Neutral grey, dimmer ink than its neighbours, and no shadow
+   beyond a hairline contact. */
+.md-caseload__quick-action.md-caseload__quick-action--more {
+  /* Same glass, one shade deeper on the grey ramp and with a slightly dimmer
+     gloss — it stays the quietest pane in the row while still being made of the
+     same material as the rest. */
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.82) 0%,
+      rgba(255, 255, 255, 0.34) 32%,
+      rgba(255, 255, 255, 0) 60%),
+    linear-gradient(160deg, #F6F8FA 0%, #EBEFF4 55%, #E2E7EE 100%);
+  color: #374151;
+  /* 0.55, not the 0.14 specified: #F4F6F8 is ~1.05:1 against the white row, so
+     the fill cannot delimit this control and the border has to (WCAG 1.4.11 →
+     3:1). 0.14 measures 1.39:1; 0.55 measures 3.40:1. Quietness still comes
+     from the grey fill, the dimmer ink and the absent shadow — none of which a
+     stronger hairline undoes. */
+  border-color: rgba($la-navy, 0.55);
+  /* Dimmer rim and no outer lift at all — the quietest pane keeps the glass
+     reading without the seated shadow its neighbours get. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.45),
+    0 1px 2px rgba($la-navy, 0.04);
+}
+.md-caseload__quick-action.md-caseload__quick-action--more svg * {
+  stroke: $la-navy;
+}
+.md-caseload__quick-action.md-caseload__quick-action--more:hover {
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.82) 0%,
+      rgba(255, 255, 255, 0.32) 32%,
+      rgba(255, 255, 255, 0) 60%),
+    linear-gradient(160deg, #EEF1F5 0%, #E2E7EE 55%, #D8DFE8 100%);
+  border-color: rgba($la-navy, 0.55);
+  color: #374151;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+    0 1px 2px rgba($la-navy, 0.06);
+}
+/* Expanded state keyed off the aria-expanded the button already carries, so the
+   visual state and the programmatic one can never disagree. The gloss dims and
+   the pane sinks — "open" reads as pressed in, not raised. */
+.md-caseload__quick-action.md-caseload__quick-action--more[aria-expanded="true"] {
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.45) 0%,
+      rgba(255, 255, 255, 0.18) 32%,
+      rgba(255, 255, 255, 0) 60%),
+    linear-gradient(160deg, rgba($la-navy, 0.07) 0%, rgba($la-navy, 0.12) 100%);
+  border-color: rgba($la-navy, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 1px 3px rgba($la-navy, 0.10);
+}
+
+/* ── 4. SHARED STATES for the flat secondaries ────────────────────────────
+   Hover is a TINT plus a firmer border, not a lift: with six of these per row a
+   translate on each one made the whole row feel unstable, and a static hover is
+   also what reduced-motion users get, so both audiences see the same affordance.
+   Ranks with their own fill (Choose Board, Model, More) override this above. */
 .md-caseload__quick-action:hover,
-a.md-caseload__quick-action:hover,
-.md-caseload__quick-action:focus-visible {
-  border-color: rgba($la-navy, 0.28);
-  box-shadow: 0 2px 6px rgba($la-navy, 0.10);
+a.md-caseload__quick-action:hover {
   text-decoration: none;
+  color: $la-navy;
+  /* The gloss layer is preserved and the ramp beneath picks up a verdigris
+     tint — so hover changes the glass's COLOUR, not its material. */
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.95) 0%,
+      rgba(255, 255, 255, 0.42) 32%,
+      rgba(255, 255, 255, 0) 60%),
+    linear-gradient(160deg,
+      rgba($brand-verdigris, 0.09) 0%,
+      rgba($brand-verdigris, 0.17) 100%);
+  border-color: rgba($brand-verdigris-aa, 0.60);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6),
+    inset 0 -6px 10px -6px rgba(255, 255, 255, 0.6),
+    0 1px 3px rgba($la-navy, 0.07),
+    0 6px 12px -7px rgba($la-navy, 0.16);
+}
+.md-caseload__quick-action:active,
+a.md-caseload__quick-action:active {
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.55) 0%,
+      rgba(255, 255, 255, 0.20) 32%,
+      rgba(255, 255, 255, 0) 60%),
+    linear-gradient(160deg,
+      rgba($brand-verdigris, 0.15) 0%,
+      rgba($brand-verdigris, 0.23) 100%);
+  border-color: $brand-verdigris-aa;
+  /* Pressed: the gloss dims and the outer lift goes, so the pane reads as
+     pushed into the card. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 1px 3px rgba($la-navy, 0.10);
+}
+/* Focus is a RING, never a border-colour change — a border swap is invisible to
+   anyone who cannot see the hue shift, and indistinguishable from hover. */
+.md-caseload__quick-action:focus-visible,
+a.md-caseload__quick-action:focus-visible {
+  outline: 3px solid $brand-dusty-denim-aa;
+  outline-offset: 2px;
 }
 .md-caseload__card {
   /* min-width: 0 lets the card honor its 1fr grid track instead of
@@ -1267,11 +1800,11 @@ a.md-caseload__quick-action:hover,
   gap: 5px;
   padding-right: 2px;
 }
-/* Full-width bottom row inside .md-caseload__card-top —
-   `flex-basis: 100%` makes it wrap to its own line within the
-   flex-wrapping card-top so the goal chip sits at the LEFT edge of
-   the card and the chevron at the RIGHT edge, ABOVE the card-top
-   border-bottom divider. */
+/* GOALS section. It used to be the wrapped last line of
+   .md-caseload__card-top; it is now a direct child of the card, BELOW the
+   actions section, so `flex-basis` is inert and `width: 100%` does the work.
+   No top margin: the section sits flush under the actions block, which already
+   carries its own bottom spacing. */
 .md-caseload__bottom-row {
   display: flex;
   align-items: flex-start;
@@ -1290,7 +1823,11 @@ a.md-caseload__quick-action:hover,
      white→tinted gradient, controlled blur on the surface for
      glass quality, directional shadow biased to match the card's
      upper-left light source. */
-  margin: 14px 0 0;
+  /* No top margin — the GOALS section sits flush under the actions block.
+     NOTE: this declaration is duplicated in the second .md-caseload__bottom-row
+     block further down (a leftover of the app.scss -> _caseload.scss migration);
+     both must change together or the later one silently wins. */
+  margin: 0;
   padding: 16px 18px;
   border-radius: 14px;
   background:
@@ -2313,12 +2850,9 @@ a.md-caseload__goal-list__link {
 }
 .md-caseload__action--tile {
   box-sizing: border-box;
-  /* Glass tile — pure flat white surface (no gradient cloudiness),
-     near-invisible border, and a sharp inner top highlight that
-     does the lift instead of any outer shadow blur. Reads as a
-     piece of clear glass laid on the tray rather than a boxed
-     button. Role-tint variants below layer subtle gradient/border
-     color on top. */
+  /* Geometry only — the SURFACE comes from the shared mixin below, the same one
+     the collapsed row's buttons use. These tiles are bigger (5rem square, two
+     lines of label) but they are the same material, not a second vocabulary. */
   flex: 1 1 0;
   min-width: 5rem;
   min-height: 5rem;
@@ -2330,190 +2864,26 @@ a.md-caseload__goal-list__link {
   text-align: center;
   white-space: normal;
   gap: 5px;
-  border-radius: 10px;
-  border: 1px solid rgba($la-navy, 0.03);
-  background: #ffffff;
   line-height: 1.2;
-  box-shadow:
-    /* Crisp white rim — sharp light catch on the top edge. */
-    inset 0 1.5px 0 rgba(255, 255, 255, 1),
-    /* Thin inner glass outline. */
-    inset 0 0 0 1px rgba(255, 255, 255, 0.8),
-    /* Hairline 1px contact shadow — the only outer lift. */
-    0 1px 1px rgba($la-navy, 0.04);
-  transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  /* Surface shared with the collapsed row's quick actions — see the mixins at
+     the top of this file. Was written out here; moved so the two families have
+     one definition instead of two copies that drifted. */
+  @include caseload-action-surface;
 }
 .md-caseload__action--tile:hover {
-  /* Lift only — NO background here. Each tile darkens its OWN gradient via its
-     per-color :hover (--speak/--setup/--eval/--ideas/--account/--history);
-     this previously forced a white bg that overrode them. */
-  box-shadow:
-    inset 0 1.5px 0 rgba(255, 255, 255, 1),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.9),
-    /* Lift contact + small directional drop. NO diffuse blur
-       stack — keeps the glass quality. */
-    0 1px 2px rgba($la-navy, 0.05),
-    0 4px 6px -2px rgba($la-navy, 0.06);
-  transform: translateY(-1px);
+  @include caseload-action-surface-hover;
 }
 .md-caseload__action--tile:active {
-  transform: translateY(0);
-  box-shadow:
-    inset 0 1px 2px rgba($la-navy, 0.08),
-    0 1px 1px rgba($la-navy, 0.03);
+  @include caseload-action-surface-active;
 }
-/* Role-based color identity — each action carries its own accent
-   so the row reads as a deliberate, semantic toolbar rather than
-   five identical buttons. Subtle by default (faint gradient + role-
-   tinted bottom edge), stronger on hover (gradient deepens + border
-   picks up the role color). Icon accent colors are set inline on
-   the SVGs in the template.
-   - Model    → teal      ($brand-verdigris)
-   - Speak    → blue      ($brand-dusty-denim)
-   - Setup    → violet    (#8B5CF6)
-   - Reports  → slate     ($brand-slate-blue)
-   - Ideas    → amber     ($brand-honey-bronze)
-   The active --primary tile keeps its full glass-teal treatment;
-   the --model class below adds nothing on top so it doesn't fight
-   with --primary. */
-/* Role color system — controlled hierarchy, not muddy tints.
-   Strategy:
-     - Tints use deliberate "hue-anchored" hex colors (not pure
-       brand colors mixed into white) so each tile carries clean
-       chroma instead of washed-out pastel.
-     - Gradient TOP is barely tinted (1% of role hue) instead of
-       pure #fff so the gradient direction reads as
-       "color-on-color" not "white-fading-to-color" — eliminates
-       the muddy mid-grey transition zone.
-     - Border opacity bumped (22→35 rest, 48→62 hover) so each
-       tile feels confidently colored at rest, not whispered.
-     - Hover values stay punchy (~2× the resting tint) so the
-       interaction reads as deliberate.
-   Hierarchy:
-     Model    → teal      (PRIMARY — full glass tile, separate rule)
-     Speak    → blue      (communication)
-     Setup    → violet    (user/admin)
-     Reports  → terracotta (data — warm coral from $la-cta-gradient)
-     Ideas    → amber     (guidance) */
-/* Role color tints — kept the gradient floor so the chroma still
-   reads, but borders dropped (35→18, 45→24) and outer drop
-   shadows replaced with crisp inset highlights so the tiles feel
-   lighter and more "floating". Hover restores a punchier border
-   + a single crisp colored contact shadow. */
-.md-caseload__action--speak {
-  background: linear-gradient(180deg, rgba($brand-dusty-denim, 0.04) 0%, rgba($brand-dusty-denim, 0.16) 100%);
-  border-color: rgba($brand-dusty-denim, 0.18);
-}
-.md-caseload__action--speak:hover {
-  background: linear-gradient(180deg, rgba($brand-dusty-denim, 0.06) 0%, rgba($brand-dusty-denim, 0.30) 100%);
-  border-color: rgba($brand-dusty-denim, 0.42);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 1),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.7),
-    0 2px 4px rgba($brand-dusty-denim, 0.10),
-    0 6px 12px -3px rgba($brand-dusty-denim, 0.18);
-}
-.md-caseload__action--setup {
-  background: linear-gradient(180deg, rgba(139, 92, 246, 0.04) 0%, rgba(139, 92, 246, 0.16) 100%);
-  border-color: rgba(139, 92, 246, 0.18);
-}
-.md-caseload__action--setup:hover {
-  background: linear-gradient(180deg, rgba(139, 92, 246, 0.06) 0%, rgba(139, 92, 246, 0.30) 100%);
-  border-color: rgba(139, 92, 246, 0.42);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 1),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.7),
-    0 2px 4px rgba(139, 92, 246, 0.10),
-    0 6px 12px -3px rgba(139, 92, 246, 0.18);
-}
-.md-caseload__action--reports {
-  background: linear-gradient(180deg, rgba(232, 122, 111, 0.05) 0%, rgba(232, 122, 111, 0.20) 100%);
-  border-color: rgba(232, 122, 111, 0.22);
-}
-.md-caseload__action--reports:hover {
-  background: linear-gradient(180deg, rgba(232, 122, 111, 0.08) 0%, rgba(232, 122, 111, 0.32) 100%);
-  border-color: rgba(232, 122, 111, 0.48);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 1),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.7),
-    0 2px 4px rgba(232, 122, 111, 0.12),
-    0 6px 12px -3px rgba(232, 122, 111, 0.20);
-}
-/* Modeling Ideas — the Reports coral/pinkish-red, keeping the tile's own
-   gradient offsets. */
-.md-caseload__action--ideas {
-  background: linear-gradient(180deg, rgba(232, 122, 111, 0.05) 0%, rgba(232, 122, 111, 0.20) 100%);
-  border-color: rgba(232, 122, 111, 0.24);
-}
-.md-caseload__action--ideas:hover {
-  background: linear-gradient(180deg, rgba(232, 122, 111, 0.08) 0%, rgba(232, 122, 111, 0.36) 100%);
-  border-color: rgba(232, 122, 111, 0.52);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 1),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.7),
-    0 2px 4px rgba(232, 122, 111, 0.12),
-    0 6px 12px -3px rgba(232, 122, 111, 0.22);
-}
-/* Quick Screen Eval tile — shares Modeling Ideas' honey-bronze accent. */
-.md-caseload__action--eval {
-  background: linear-gradient(180deg, rgba($brand-honey-bronze, 0.05) 0%, rgba($brand-honey-bronze, 0.20) 100%);
-  border-color: rgba($brand-honey-bronze, 0.24);
-}
-.md-caseload__action--eval:hover {
-  background: linear-gradient(180deg, rgba($brand-honey-bronze, 0.08) 0%, rgba($brand-honey-bronze, 0.36) 100%);
-  border-color: rgba($brand-honey-bronze, 0.52);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 1),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.7),
-    0 2px 4px rgba($brand-honey-bronze, 0.12),
-    0 6px 12px -3px rgba($brand-honey-bronze, 0.22);
-}
-/* Account tile — verdigris green, matching the goals-section gradient. */
-.md-caseload__action--account {
-  background: linear-gradient(180deg, rgba($brand-verdigris, 0.05) 0%, rgba($brand-verdigris, 0.18) 100%);
-  border-color: rgba($brand-verdigris, 0.24);
-}
-.md-caseload__action--account:hover {
-  background: linear-gradient(180deg, rgba($brand-verdigris, 0.08) 0%, rgba($brand-verdigris, 0.34) 100%);
-  border-color: rgba($brand-verdigris, 0.52);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 1),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.7),
-    0 2px 4px rgba($brand-verdigris, 0.12),
-    0 6px 12px -3px rgba($brand-verdigris, 0.20);
-}
-/* Eval History tile — slate-blue/gray, the same accent it carried in the header. */
-.md-caseload__action--history {
-  background: linear-gradient(180deg, rgba($brand-slate-blue, 0.05) 0%, rgba($brand-slate-blue, 0.18) 100%);
-  border-color: rgba($brand-slate-blue, 0.24);
-}
-.md-caseload__action--history:hover {
-  background: linear-gradient(180deg, rgba($brand-slate-blue, 0.08) 0%, rgba($brand-slate-blue, 0.34) 100%);
-  border-color: rgba($brand-slate-blue, 0.52);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 1),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.7),
-    0 2px 4px rgba($brand-slate-blue, 0.12),
-    0 6px 12px -3px rgba($brand-slate-blue, 0.20);
-}
-/* More Actions tile (mobile-only kebab menu trigger) — uses a
-   neutral navy tint instead of a role color since "More" is meta,
-   not a semantic action. Same gradient + border + glass shadow
-   vocabulary as the role-tinted tiles so it reads as part of the
-   same deliberate toolbar family. */
-.md-caseload__action--more {
-  background: linear-gradient(180deg, rgba($la-navy, 0.03) 0%, rgba($la-navy, 0.10) 100%);
-  border-color: rgba($la-navy, 0.14);
-}
-.md-caseload__action--more:hover {
-  background: linear-gradient(180deg, rgba($la-navy, 0.05) 0%, rgba($la-navy, 0.18) 100%);
-  border-color: rgba($la-navy, 0.32);
-  box-shadow:
-    inset 0 1.5px 0 rgba(255, 255, 255, 1),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.9),
-    0 2px 4px rgba($la-navy, 0.08),
-    0 6px 12px -3px rgba($la-navy, 0.14);
-}
+/* Per-action colour identity lives in the ICONS, not the tile.
+   Every tile in this group previously carried its own gradient + border +
+   coloured hover shadow (speak blue, setup violet, reports/ideas coral, eval
+   honey, account verdigris, history slate, more navy). Those rules are gone: the
+   tiles now share ONE surface with the collapsed row's buttons — see the
+   caseload-action-surface mixins at the top of this file — and are told apart by
+   their icon accent and label, the same way Note / Reports / Assess / Full Eval
+   are. Each icon keeps the accent it always had; only the surfaces unified. */
 .md-caseload__action-tile__icon {
   display: flex;
   align-items: center;
@@ -2535,13 +2905,12 @@ a.md-caseload__goal-list__link {
   stroke: #1F2A44;
   stroke-width: 1.7;
 }
-/* Slightly thicker strokes on role-accent paths too so they don't
-   feel thinner than the now-bolder outline. */
-.md-caseload__action--tile .md-caseload__action-tile__icon svg [stroke="#2A9D8F"],
-.md-caseload__action--tile .md-caseload__action-tile__icon svg [stroke="#4C86D8"],
-.md-caseload__action--tile .md-caseload__action-tile__icon svg [stroke="#8B5CF6"],
-.md-caseload__action--tile .md-caseload__action-tile__icon svg [stroke="#E87A6F"],
-.md-caseload__action--tile .md-caseload__action-tile__icon svg [stroke="#F2B95A"] {
+/* Slightly thicker strokes on the accent paths too so they don't feel thinner
+   than the now-bolder outline. ONE accent hue is listed now: the panel icons
+   were re-drawn onto the same slate + teal pair the row's icons use (the denim,
+   violet, coral and honey accents are gone), so the whole card reads as one
+   icon set. Shapes are unchanged — only the stroke colours moved. */
+.md-caseload__action--tile .md-caseload__action-tile__icon svg [stroke="#2A9D8F"] {
   stroke-width: 1.7;
 }
 /* Darker label color too — bump from $la-navy to a deeper navy
@@ -2569,11 +2938,12 @@ a.md-caseload__action {
   color: inherit;
   box-sizing: border-box;
 }
-.md-caseload__action:hover {
-  /* No background override — let each tile's per-color :hover darken its own
-     gradient (was $surface-200, which greyed every tile on hover). */
-  box-shadow: 0 1px 4px rgba($la-navy, 0.10);
-}
+/* NOTE: a bare `.md-caseload__action:hover { box-shadow: 0 1px 4px … }` used to
+   sit here. Every element carrying that class also carries `--tile`, and at
+   equal specificity (0,2,0) it sat LATER in the file than
+   `.md-caseload__action--tile:hover`, so it quietly won and flattened the tile's
+   hover lift to a single hairline. Removed — the tile hover mixin is the one
+   authoritative hover for this family. */
 /* Selected/primary state — same glass aesthetic as the
    "ABOUT LINGOLINQ" eyebrow badge (#about-hero .la-section-eyebrow-badge):
    layered white→teal gradient, backdrop blur+saturate, thin white
@@ -2953,4 +3323,160 @@ a.md-caseload__action {
 .md-shell--caseload .md-pillnav__pill.is-active:not(:first-child),
 .md-shell--caseload a.md-pillnav__pill.active:not(:first-child) {
   padding-left: 18px !important;
+}
+
+/* ── BADGE IN PROGRESS ─────────────────────────────────────────────────────
+   Sits directly above GOALS in the expanded panel and deliberately REUSES the
+   goals surface: the section wrapper is `.md-caseload__bottom-row` and the inner
+   block `.md-caseload__bottom-row__goal`, so the badge inherits the same glass
+   panel, padding, radius and eyebrow treatment rather than introducing a second
+   card style two inches above it. Only the badge's own internals are new.
+   `--badge` exists to separate it from the goals panel below; everything else
+   the two share is intentional. */
+.md-caseload__bottom-row--badge {
+  margin-bottom: 12px;
+}
+/* The whole tile is one button (it opens the badge modal), so the native button
+   chrome has to go and the content laid out as a row: medal left, details right. */
+.md-caseload__badge {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  width: 100%;
+  padding: 4px 2px 2px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  border: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 10px;
+  transition: background 0.15s ease;
+}
+.md-caseload__badge:hover {
+  background: rgba($brand-verdigris, 0.06);
+}
+.md-caseload__badge:focus-visible {
+  outline: 3px solid $brand-dusty-denim-aa;
+  outline-offset: 2px;
+}
+.md-caseload__badge-medal {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 62px;
+  height: 62px;
+}
+.md-caseload__badge-medal img {
+  max-width: 100%;
+  max-height: 100%;
+  /* Badge art is user-supplied and arrives at wildly different aspect ratios —
+     contain keeps a tall or wide image inside the medal slot instead of letting
+     it set the row's height. */
+  object-fit: contain;
+}
+/* Identity LEFT, progress RIGHT — a row, not a stack. `wrap` plus the flex
+   bases below means the two columns collapse into one on a narrow card rather
+   than squeezing the progress bar down to a stub. */
+.md-caseload__badge-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-flow: row wrap;
+  align-items: flex-start;
+  gap: 6px 18px;
+}
+.md-caseload__badge-headings {
+  /* Shrinkable, with a basis wide enough for a two-word badge name on one or
+     two lines; it gives way to the status column rather than the reverse,
+     because a truncated progress bar is useless while a wrapped name is not. */
+  flex: 0 1 170px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.md-caseload__badge-status {
+  flex: 1 1 260px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.md-caseload__badge-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: $la-navy;
+  line-height: 1.25;
+}
+.md-caseload__badge-level {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba($la-navy, 0.62);
+}
+.md-caseload__badge-time {
+  font-size: 14px;
+  font-weight: 700;
+  color: $brand-verdigris-aa;
+}
+/* Progress track + fill. The fill's width arrives as an inline style from the
+   model's `progress_style` computed — the same one the modal uses — so the two
+   presentations can never disagree about how far along the badge is. */
+.md-caseload__badge-bar {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  height: 10px;
+  margin-top: 2px;
+  border-radius: 999px;
+  background: rgba($la-navy, 0.10);
+  border: 1px solid rgba($la-navy, 0.14);
+  overflow: hidden;
+}
+.md-caseload__badge-bar__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, $brand-verdigris 0%, $brand-verdigris-aa 100%);
+}
+.md-caseload__badge-pct {
+  margin-top: 3px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: rgba($la-navy, 0.62);
+}
+.md-caseload__badge-explain {
+  display: block;
+  margin-top: 6px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: rgba($la-navy, 0.72);
+}
+.md-caseload__badge-explain-lead {
+  display: block;
+  font-weight: 650;
+  color: rgba($la-navy, 0.55);
+}
+@media (max-width: 560px) {
+  /* Stack on phones: at this width the medal plus a wrapped explanation left the
+     text column too narrow to read. */
+  .md-caseload__badge {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .md-caseload__badge-body {
+    flex-direction: column;
+    align-items: center;
+  }
+  .md-caseload__badge-headings,
+  .md-caseload__badge-status {
+    flex: 0 0 auto;
+    width: 100%;
+    align-items: center;
+  }
 }
