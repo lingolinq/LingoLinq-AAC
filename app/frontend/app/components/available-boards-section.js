@@ -21,6 +21,15 @@ export default Component.extend({
   /** @type {string} id attribute for filter input (avoid duplicate ids on dashboard embed). */
   filterInputId: 'ub-boards-filter-input',
 
+  boardPickerQuery: computed('boardsCtrl.model.id', 'appState.currentUser.id', function() {
+    var modelId = this.get('boardsCtrl.model.id');
+    var currentId = this.appState.get('currentUser.id');
+    if (modelId && currentId && modelId != currentId) {
+      return { user_id: modelId };
+    }
+    return {};
+  }),
+
   editingFolderName: false,
   editFolderNameValue: '',
   confirmingFolderDelete: false,
@@ -84,6 +93,11 @@ export default Component.extend({
     // generic ctrlAction above discards (5.12 upgrade #490), so the search
     // box never filtered. ctrlAction is unchanged for clicks.
     this.eventAction = buildEventAction(function() { return self.get('boardsCtrl'); });
+    // Same contract for this component's own actions (folders filter, folder
+    // drill-in search, drag-and-drop onto folder tiles). sendAction still
+    // strips DOM events — same bug class as ctrlAction — so anything that
+    // reads event.target / event.dataTransfer must use this wrapper instead.
+    this.selfEventAction = buildEventAction(function() { return self; });
     this.ctrlActionNoBubble = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function(event) {

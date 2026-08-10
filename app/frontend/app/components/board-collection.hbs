@@ -3,11 +3,11 @@
       scroll, the header sits sticky so the back button and title stay
       put while the section list scrolls beneath. --}}
 <div class="md-board-collection__header">
-  <button type="button" class="md-board-collection__back" data-bd-action="close_board_collection" {{on "click" (this.ctrlAction "back")}}>
+  <button type="button" class="md-board-collection__back" data-bd-action={{this.back_action_name}} {{on "click" (this.ctrlAction "back")}}>
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <polyline points="15 18 9 12 15 6"/>
     </svg>
-    <span>{{t "Back to Speak Mode" key="back_to_speak_mode"}}</span>
+    <span>{{if this.editContext (t "Back to Edit Mode" key="back_to_edit_mode") (t "Back to Speak Mode" key="back_to_speak_mode")}}</span>
   </button>
   <div class="md-board-collection__title">
     {{t "My Board Collection" key="my_board_collection"}}
@@ -40,6 +40,53 @@
 </div>
 
 <div class="md-board-collection__body">
+  {{!-- Original Selected Board — the board the edit page was opened with. Rendered
+       only when the parent passes @originalBoard (i.e. the collection was opened from
+       the board-detail EDIT page), pinned at the very top so the user can jump back to
+       where they started while previewing other boards. Absent in speak mode. --}}
+  {{#if this.originalBoard}}
+    <section class="md-board-collection__section md-board-collection__section--original">
+      <h3 class="md-board-collection__section-label"><span>{{t "Original Selected Board" key="original_selected_board"}}</span><span class="md-board-collection__grid-size-label">{{t "Grid size" key="grid_size"}}</span></h3>
+      <ul class="md-board-collection__list">
+        <li class="md-board-collection__row">
+          <button type="button" class="md-board-collection__item {{if (is_equal this.originalBoard.key this.home_key) 'md-board-collection__item--home'}}" data-bd-action={{this.select_action_name}} data-bd-arg={{this.originalBoard.key}} {{on "click" (this.ctrlAction "select_board" this.originalBoard)}}>
+            <img class="md-board-collection__item-icon" src={{this.originalBoard.icon_url_with_fallback}} alt="" />
+            <BoardListItemLabel @board={{this.originalBoard}} @name={{this.originalBoard.name}} />
+            {{#if (board-language-label this.originalBoard)}}
+              <span class="md-board-collection__item-lang">{{board-language-label this.originalBoard}}</span>
+            {{/if}}
+            {{#if this.originalBoard.grid.rows}}
+              <span class="md-board-collection__item-count md-board-collection__item-count--grid" aria-label={{t "%{rows} by %{columns} grid" rows=this.originalBoard.grid.rows columns=this.originalBoard.grid.columns key="board_collection_grid_size"}}>{{this.originalBoard.grid.rows}} x {{this.originalBoard.grid.columns}}</span>
+            {{/if}}
+          </button>
+        </li>
+      </ul>
+    </section>
+  {{/if}}
+  {{!-- Currently Selected Board — the board the SPEAK page is on. Rendered only when the
+       parent passes @currentBoard (speak-mode collection); pinned at the very top so the user
+       can see / jump back to their current board while browsing. Absent in edit mode (which
+       shows Original Selected Board above instead). Reuses the --original section styling so it
+       reads identically to the edit-page pinned board, per request. --}}
+  {{#if this.currentBoard}}
+    <section class="md-board-collection__section md-board-collection__section--original md-board-collection__section--current">
+      <h3 class="md-board-collection__section-label"><span>{{t "Currently Selected" key="currently_selected"}}</span><span class="md-board-collection__grid-size-label">{{t "Grid size" key="grid_size"}}</span></h3>
+      <ul class="md-board-collection__list">
+        <li class="md-board-collection__row">
+          <button type="button" class="md-board-collection__item {{if (is_equal this.currentBoard.key this.home_key) 'md-board-collection__item--home'}}" data-bd-action={{this.select_action_name}} data-bd-arg={{this.currentBoard.key}} {{on "click" (this.ctrlAction "select_board" this.currentBoard)}}>
+            <img class="md-board-collection__item-icon" src={{this.currentBoard.icon_url_with_fallback}} alt="" />
+            <BoardListItemLabel @board={{this.currentBoard}} @name={{this.currentBoard.name}} />
+            {{#if (board-language-label this.currentBoard)}}
+              <span class="md-board-collection__item-lang">{{board-language-label this.currentBoard}}</span>
+            {{/if}}
+            {{#if this.currentBoard.grid.rows}}
+              <span class="md-board-collection__item-count md-board-collection__item-count--grid" aria-label={{t "%{rows} by %{columns} grid" rows=this.currentBoard.grid.rows columns=this.currentBoard.grid.columns key="board_collection_grid_size"}}>{{this.currentBoard.grid.rows}} x {{this.currentBoard.grid.columns}}</span>
+            {{/if}}
+          </button>
+        </li>
+      </ul>
+    </section>
+  {{/if}}
   {{!-- My Boards (owned + shared, root tiles only) --}}
   <section class="md-board-collection__section">
     <h3 class="md-board-collection__section-label"><span>{{t "My Boards" key="my_boards"}}</span><span class="md-board-collection__grid-size-label">{{t "Grid size" key="grid_size"}}</span></h3>
@@ -51,9 +98,9 @@
                the "Show N more" / "Show fewer" button below flips it. --}}
           {{#each this.visible_my_boards as |board|}}
             <li class="md-board-collection__row">
-              <button type="button" class="md-board-collection__item {{if (is_equal board.key this.home_key) 'md-board-collection__item--home'}}" data-bd-action="select_board_from_collection" data-bd-arg={{board.key}} {{on "click" (this.ctrlAction "select_board" board)}}>
+              <button type="button" class="md-board-collection__item {{if (is_equal board.key this.home_key) 'md-board-collection__item--home'}}" data-bd-action={{this.select_action_name}} data-bd-arg={{board.key}} {{on "click" (this.ctrlAction "select_board" board)}}>
                 <img class="md-board-collection__item-icon" src={{board.icon_url_with_fallback}} alt="" />
-                <span class="md-board-collection__item-name">{{board.name}}</span>
+                <BoardListItemLabel @board={{board}} @name={{board.name}} />
                 {{#if (board-language-label board)}}
                   <span class="md-board-collection__item-lang">{{board-language-label board}}</span>
                 {{/if}}
@@ -117,9 +164,9 @@
           <ul class="md-board-collection__list">
             {{#each brand.boards as |board|}}
               <li class="md-board-collection__row">
-                <button type="button" class="md-board-collection__item {{if (is_equal board.key this.home_key) 'md-board-collection__item--home'}}" data-bd-action="select_board_from_collection" data-bd-arg={{board.key}} {{on "click" (this.ctrlAction "select_board" board)}}>
+                <button type="button" class="md-board-collection__item {{if (is_equal board.key this.home_key) 'md-board-collection__item--home'}}" data-bd-action={{this.select_action_name}} data-bd-arg={{board.key}} {{on "click" (this.ctrlAction "select_board" board)}}>
                   <img class="md-board-collection__item-icon" src={{board.icon_url_with_fallback}} alt="" />
-                  <span class="md-board-collection__item-name">{{board.name}}</span>
+                  <BoardListItemLabel @board={{board}} @name={{board.name}} />
                 {{#if (board-language-label board)}}
                   <span class="md-board-collection__item-lang">{{board-language-label board}}</span>
                 {{/if}}

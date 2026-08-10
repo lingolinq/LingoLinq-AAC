@@ -424,7 +424,11 @@ export default Controller.extend({
       translate_locale: decision.translate_locale,
       disconnect: decision.disconnect,
       new_owner: decision.new_owner,
-      copy_finished: copy_finished
+      copy_finished: copy_finished,
+      // When the copy was initiated to EDIT the board (copy-to-edit, incl. a board
+      // previewed via the edit-mode Board Collections drawer), the completion lands the
+      // user in edit mode of the new copy instead of the default speak-mode jump.
+      for_editing: for_editing
     });
   },
   board_levels: computed(function () {
@@ -1259,15 +1263,23 @@ export default Controller.extend({
     copy_and_edit_board: function(source_board, skip_source_resolution) {
       var _this = this;
       var edit_copy = function(board) {
-        if(board) {
-          _this.appState.jump_to_board({
-            id: board.id,
-            key: board.key
-          });
-          runLater(function() {
-            if(_this && _this.appState) { _this.appState.toggle_edit_mode(); }
-          });
+        if(!board) { return; }
+        // `board` may be the copiedBoard model OR the copying-board close payload
+        // ({ copied: true, id, key }) — both carry `key`.
+        var key = (board.get && board.get('key')) || board.key;
+        var parts = key ? String(key).split('/') : [];
+        if(parts.length >= 2) {
+          // Transition STRAIGHT into the copy's edit route (same as the edit-mode
+          // finish_copy). The old path did jump_to_board (speak) + toggle_edit_mode(),
+          // but toggle_edit_mode re-checks permissions.edit — still stale/false on the
+          // brand-new copy — and re-showed the "Edit this Board" copy prompt. A direct
+          // edit transition skips that re-check; the copy is owned, so editing/saving works.
+          _this.stashes.persist('copy_on_save', null);
+          _this.get('router').transitionTo('user.board-detail.edit', parts[0], parts.slice(1).join('/'));
+          return;
         }
+        // Fallback (no usable key): previous jump-to-board behavior.
+        _this.appState.jump_to_board({ id: board.id, key: board.key });
       };
       this.appState.check_for_needing_purchase().then(function() {
         _this.copy_board(null, true, null, edit_copy, source_board, skip_source_resolution).then(edit_copy, function() { });

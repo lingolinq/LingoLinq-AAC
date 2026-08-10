@@ -672,7 +672,27 @@ class Api::BoardsController < ApplicationController
         # User doesn't exist (might be deleted) - return error instead of silently defaulting
         return api_error(400, {error: "User not found", for_user_id: board_params['for_user_id']})
       end
-      return unless allowed?(user, 'edit')
+      # A supervise-only supervisor may COPY a board for a communicatee — that is
+      # how the board-picker home-board flow works (models/board.js create_copy
+      # posts create with parent_board_id + for_user_id) — but may NOT author a
+      # brand-new board owned by them. Keyed on parent_board_id because that is
+      # exactly what separates the two; without it the allowance would cover any
+      # board, any time, which is far broader than the picker needs.
+      #
+      # `allows?` is the PURE predicate. `allowed?` renders a 400 as a side
+      # effect before returning false, so an `allowed?(a) || allowed?(b)` chain
+      # renders on the first failure whatever the second says — which then
+      # double-renders (500) both when the second check passes and when it
+      # doesn't. Exactly one `allowed?` call may appear in this expression.
+      #
+      # Pass scopes explicitly: a bare `allows?` falls back to the RAW
+      # user.permission_scopes (permissable.rb:72), skipping the normalization
+      # api_permission_scopes does — blank (integration / dev-key devices) and a
+      # legacy lone '*' both become 'full', and without that neither intersects
+      # the 'full' supervision rules require, denying legitimate supervisors.
+      supervise_copy = board_params['parent_board_id'].present? &&
+                       user.allows?(@api_user, 'supervise', api_permission_scopes)
+      return unless supervise_copy || allowed?(user, 'edit')
       @board_user = user
     end
     if FeatureFlags.feature_enabled_for?('english_first_board_generation', @api_user)
