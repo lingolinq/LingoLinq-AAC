@@ -689,7 +689,7 @@ export default modal.ModalController.extend({
     'model.video.start',
     'model.video.end',
     function() {
-      var host = window.default_host || capabilities.fallback_host;
+      var host = capabilities.video_player_host();
       if(this.get('model.video.id') && this.get('model.video.type')) {
         return host + "/videos/" + this.get('model.video.type') + "/" + this.get('model.video.id') + "?testing=true&start=" + (this.get('model.video.start') || '') + "&end=" + (this.get('model.video.end') || '');
       } else {
