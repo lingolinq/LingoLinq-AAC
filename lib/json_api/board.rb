@@ -210,7 +210,10 @@ module JsonApi::Board
             # skin_capable_url is safe for preserve_source_image (own URL only;
             # never enrichment label-search swaps).
             skin_url = bi.skin_capable_url
-            if skin_url && skin_url != i['url']
+            # Omit skin_url from the image payload when the user prefers Default
+            # symbols. Speak-mode board-detail (and older packaged clients) still
+            # do `skin_url || url` and would otherwise paint enrichment matches.
+            if skin_url && skin_url != i['url'] && !prefer_original_images
               i['skin_url'] = skin_url
             end
             schedule_skin_enrichment = true if bi.needs_library_url_enrichment?

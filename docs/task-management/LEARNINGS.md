@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Speak vs edit: Default symbols still showed OpenSymbols in speak mode](#speak-vs-edit-default-symbols-still-showed-opensymbols-in-speak-mode)
 - [Gotcha: Cloud Run secret assertions must check every nonzero-percent traffic target](#gotcha-cloud-run-secret-assertions-must-check-every-nonzero-percent-traffic-target)
 - [Gotcha: Ember Data model ids in tests must be strings — numeric `set('id', N)` fails throwOnUnhandled](#gotcha-ember-data-model-ids-in-tests-must-be-strings--numeric-setid-n-fails-throwonunhandled)
 - [Gotcha: batch-path nil is not “missing opts” — key presence vs value](#gotcha-batch-path-nil-is-not-missing-opts--key-presence-vs-value)
@@ -5316,6 +5317,25 @@ already-enriched boards without re-import.
 **Evidence:** `lib/json_api/board.rb`, `lib/converters/lingo_linq.rb`,
 `app/models/button_image.rb`, task logs `2026-06-13-json-bundle-import.md`,
 `2026-08-10-preserve-imported-board-images.md`.
+
+### Speak vs edit: Default symbols still showed OpenSymbols in speak mode
+
+**Symptom:** Board edit grid shows imported/source images; speak mode shows
+OpenSymbols/ARASAAC matches despite Preferred Symbols = Default (`original`).
+
+**Root cause:** Speak-mode `board-detail` builds `image_map` with
+`img.skin_url || img.url`. Enrichment stored in `library_url_for_skin` becomes
+`skin_url` and wins. Edit mode uses Ember `Button` + `image.best_url`, which
+follows the Image `url` when preferred is original.
+
+**Fix:** JsonApi omits `images[].skin_url` (and does not prefer it in
+`image_urls`) when preferred is original; board-detail only applies `skin_url`
+when `_preferred_symbols` is a library id.
+
+**Evidence:** `lib/json_api/board.rb`, `controllers/user/board-detail.js`
+`_build_from_raw`; task log `2026-08-10-preserve-imported-board-images.md`.
+
+
 
 ---
 

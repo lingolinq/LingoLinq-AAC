@@ -176,6 +176,11 @@ describe JsonApi::Board do
 
       hash = JsonApi::Board.as_json(b.reload, :wrapper => true, :permissions => u)
       expect(hash['board']['image_urls'][i.global_id]).to eq(upload_url)
+      image_row = hash['images'].find { |row| row['id'] == i.global_id }
+      expect(image_row).to be_present
+      expect(image_row['url']).to eq(upload_url)
+      # Speak-mode clients (including Capacitor packages) still do skin_url || url.
+      expect(image_row['skin_url']).to eq(nil)
     end
 
     it "keeps preserve_source_image urls even when preferred_symbols asks for a library" do
