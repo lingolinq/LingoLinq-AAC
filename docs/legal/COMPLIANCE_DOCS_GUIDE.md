@@ -179,6 +179,54 @@ is defined once in `meta.bundleDefinitions` with the documents it requires.
 > read the `school-dpa-package` bundle and know instantly whether anything is
 > missing.
 
+### Current external-release hold (as of 2026-08-10)
+
+**Do not send these bundles to a district, auditor, or grant reviewer right now:**
+`school-dpa-package`, `security-review`, `soc2-evidence`, `dsar`, `grant`.
+
+PR #721 took the correct Path A route for two attested documents: it froze the
+attested originals and created dated successors under `docs/legal/2026-08-09_*`.
+Those successors are `status: draft` and carry no attestation, and their own first
+line says "Internal use only until the CEO attests this file." The five bundles
+above require at least one of them, so each currently resolves to a document that
+is not authorized for external release.
+
+**This is a human hold, not a technical control. Nothing stops you.** Be clear
+about why:
+
+- Bundle assembly happens in Drive and email. There is no repository command that
+  assembles or sends a package, so there is no chokepoint for a check to sit on.
+- `--check` will not catch this. Every required member exists, so bundle
+  completeness passes.
+- `gaps` is deliberately NOT used to record it. Per `meta.bundleGapNote`, `gaps`
+  means "artifacts that do not exist yet" and never fails `--check`. These
+  documents exist; recording them as gaps would misstate the register's model and
+  would not hold anything back either.
+
+The hold lifts when Scot attests the successors, which cannot happen until the
+successor bytes are true. Note what that does and does not require:
+
+- **An open finding does not by itself bar attestation.** A successor can be
+  attested while a gap is open, provided its bytes disclose that gap accurately.
+  `LL-1e2ab28aab` (LogSnapshot) is exactly that case: the retention successor is
+  correct *because* it now states the gap plainly, so leaving it open is no
+  obstacle to signing.
+- **A finding whose remediation the document claims is complete is different.**
+  The successors assert that the `ButtonSound` / `UserVideo` erasure gap is fixed,
+  so `LL-854b1d3853` must be closed before they are attested. Attesting first
+  would pin bytes that contradict the findings register, which is the status
+  source of truth.
+
+Do **not** work around the hold by pointing the bundles back at the
+frozen predecessors: those carry the pre-fix erasure claims, and the attested
+`DATA_RETENTION.md` additionally references `UserSound`, which is not a real model
+in this codebase.
+
+Separately, `DOC-ae3f9d06ef` (branded Compliance Posture Report) has been an
+unattested successor to attested `DOC-9f6a2412ad` since 2026-07-16, independent of
+PR #721. It is a row-level member of `school-dpa-package` and `security-review`
+but is not named in any `requiredDocs`.
+
 ---
 
 ## Who attests
