@@ -204,8 +204,20 @@ about why:
   would not hold anything back either.
 
 The hold lifts when Scot attests the successors, which cannot happen until the
-successor bytes are true (see the open erasure findings LL-854b1d3853 and
-LL-1e2ab28aab). Do **not** work around it by pointing the bundles back at the
+successor bytes are true. Note what that does and does not require:
+
+- **An open finding does not by itself bar attestation.** A successor can be
+  attested while a gap is open, provided its bytes disclose that gap accurately.
+  `LL-1e2ab28aab` (LogSnapshot) is exactly that case: the retention successor is
+  correct *because* it now states the gap plainly, so leaving it open is no
+  obstacle to signing.
+- **A finding whose remediation the document claims is complete is different.**
+  The successors assert that the `ButtonSound` / `UserVideo` erasure gap is fixed,
+  so `LL-854b1d3853` must be closed before they are attested. Attesting first
+  would pin bytes that contradict the findings register, which is the status
+  source of truth.
+
+Do **not** work around the hold by pointing the bundles back at the
 frozen predecessors: those carry the pre-fix erasure claims, and the attested
 `DATA_RETENTION.md` additionally references `UserSound`, which is not a real model
 in this codebase.
