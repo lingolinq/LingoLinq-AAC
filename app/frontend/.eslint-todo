@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-08-10T01:49:54.126Z
+# Generated: 2026-08-10T04:06:01.957Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -43,10 +43,10 @@ app/components/board-detail-grid.js|ember/no-runloop|84|7|2|513c0395fe72
 app/components/board-detail-grid.js|ember/no-runloop|95|5|2|513c0395fe72
 app/components/board-details.js|ember/require-computed-property-dependencies|69|24|1|197771e08107
 app/components/board-details.js|ember/require-computed-property-dependencies|73|24|1|9d99d94c5a54
-app/components/board-icon.js|ember/no-runloop|266|7|2|5addc2170315
-app/components/board-icon.js|ember/require-computed-property-dependencies|123|14|1|768f523c29b2
-app/components/board-icon.js|ember/require-computed-property-dependencies|148|18|1|afe678686c7e
-app/components/board-icon.js|ember/require-super-in-lifecycle-hooks|67|3|1|04fd54f45db7
+app/components/board-icon.js|ember/no-runloop|314|7|2|5addc2170315
+app/components/board-icon.js|ember/require-computed-property-dependencies|171|14|1|768f523c29b2
+app/components/board-icon.js|ember/require-computed-property-dependencies|196|18|1|afe678686c7e
+app/components/board-icon.js|ember/require-super-in-lifecycle-hooks|115|3|1|04fd54f45db7
 app/components/board-picker.js|ember/no-runloop|106|5|2|9ccbb762d93a
 app/components/board-picker.js|ember/no-runloop|85|34|2|ab6701509d85
 app/components/board-picker.js|ember/no-runloop|99|7|2|513c0395fe72
@@ -137,7 +137,7 @@ app/components/dashboard-supervisors-modal.js|ember/no-runloop|164|7|2|5addc2170
 app/components/dashboard-supervisors-modal.js|ember/no-runloop|51|7|2|5addc2170315
 app/components/dashboard-supervisors-modal.js|ember/no-runloop|64|7|2|5addc2170315
 app/components/dashboard-supervisors-modal.js|ember/no-runloop|77|7|2|5addc2170315
-app/components/dashboard-user-boards.js|ember/no-runloop|60|7|2|9ccbb762d93a
+app/components/dashboard-user-boards.js|ember/no-runloop|74|7|2|9ccbb762d93a
 app/components/dashboard/authenticated-view.js|ember/no-runloop|1291|7|2|5addc2170315
 app/components/dashboard/authenticated-view.js|ember/no-runloop|1526|11|2|5addc2170315
 app/components/dashboard/authenticated-view.js|ember/no-runloop|1603|11|2|5addc2170315
@@ -528,16 +528,16 @@ app/controllers/user/board-detail.js|ember/require-computed-property-dependencie
 app/controllers/user/board-detail.js|no-prototype-builtins|4366|21|1|796a0e9769cd
 app/controllers/user/goal.js|ember/require-computed-property-dependencies|61|33|1|c7d4107bfac0
 app/controllers/user/history.js|ember/require-computed-property-dependencies|18|15|1|4ea2213bad93
-app/controllers/user/index.js|ember/no-incorrect-calls-with-inline-anonymous-functions|219|20|1|2da67c91d637
-app/controllers/user/index.js|ember/no-runloop|1072|11|2|5addc2170315
-app/controllers/user/index.js|ember/no-runloop|1113|9|2|5addc2170315
-app/controllers/user/index.js|ember/no-runloop|1344|7|2|9ccbb762d93a
-app/controllers/user/index.js|ember/no-runloop|1632|11|2|5addc2170315
-app/controllers/user/index.js|ember/no-runloop|219|5|2|ab6701509d85
-app/controllers/user/index.js|ember/no-runloop|222|9|2|5addc2170315
-app/controllers/user/index.js|ember/require-computed-property-dependencies|1240|31|1|81b4dc430a0b
-app/controllers/user/index.js|ember/require-computed-property-dependencies|559|15|1|5a894b92728e
-app/controllers/user/index.js|ember/require-return-from-computed|1020|5|1|8c8d53fa71e0
+app/controllers/user/index.js|ember/no-incorrect-calls-with-inline-anonymous-functions|239|20|1|2da67c91d637
+app/controllers/user/index.js|ember/no-runloop|1092|11|2|5addc2170315
+app/controllers/user/index.js|ember/no-runloop|1133|9|2|5addc2170315
+app/controllers/user/index.js|ember/no-runloop|1364|7|2|9ccbb762d93a
+app/controllers/user/index.js|ember/no-runloop|1652|11|2|5addc2170315
+app/controllers/user/index.js|ember/no-runloop|239|5|2|ab6701509d85
+app/controllers/user/index.js|ember/no-runloop|242|9|2|5addc2170315
+app/controllers/user/index.js|ember/require-computed-property-dependencies|1260|31|1|81b4dc430a0b
+app/controllers/user/index.js|ember/require-computed-property-dependencies|579|15|1|5a894b92728e
+app/controllers/user/index.js|ember/require-return-from-computed|1040|5|1|8c8d53fa71e0
 app/controllers/user/log.js|ember/no-runloop|263|9|2|5addc2170315
 app/controllers/user/logs.js|ember/no-runloop|181|13|2|5addc2170315
 app/controllers/user/logs.js|ember/require-computed-property-dependencies|65|17|1|fbb602ec71be
@@ -661,7 +661,7 @@ app/services/app-state.js|ember/no-assignment-of-untracked-properties-used-in-tr
 app/services/app-state.js|ember/no-assignment-of-untracked-properties-used-in-tracking-contexts|423|5|1|ee0d86881397
 app/services/app-state.js|ember/no-assignment-of-untracked-properties-used-in-tracking-contexts|431|5|1|ee0d86881397
 app/services/app-state.js|ember/no-assignment-of-untracked-properties-used-in-tracking-contexts|97|13|1|ee0d86881397
-app/services/app-state.js|ember/no-incorrect-calls-with-inline-anonymous-functions|4832|48|1|2da67c91d637
+app/services/app-state.js|ember/no-incorrect-calls-with-inline-anonymous-functions|4856|48|1|2da67c91d637
 app/services/app-state.js|ember/no-runloop|1005|13|2|5addc2170315
 app/services/app-state.js|ember/no-runloop|1106|13|2|5addc2170315
 app/services/app-state.js|ember/no-runloop|1110|7|2|5addc2170315
@@ -689,26 +689,26 @@ app/services/app-state.js|ember/no-runloop|3264|29|2|513c0395fe72
 app/services/app-state.js|ember/no-runloop|3277|43|2|5addc2170315
 app/services/app-state.js|ember/no-runloop|3285|7|2|513c0395fe72
 app/services/app-state.js|ember/no-runloop|368|23|2|5addc2170315
-app/services/app-state.js|ember/no-runloop|3725|9|2|5addc2170315
 app/services/app-state.js|ember/no-runloop|372|19|2|5addc2170315
-app/services/app-state.js|ember/no-runloop|4108|13|2|5addc2170315
-app/services/app-state.js|ember/no-runloop|4174|9|2|5addc2170315
-app/services/app-state.js|ember/no-runloop|4181|11|2|5addc2170315
-app/services/app-state.js|ember/no-runloop|4432|9|2|5addc2170315
-app/services/app-state.js|ember/no-runloop|4441|9|2|5addc2170315
-app/services/app-state.js|ember/no-runloop|4477|11|2|5addc2170315
-app/services/app-state.js|ember/no-runloop|4480|7|2|5addc2170315
-app/services/app-state.js|ember/no-runloop|4482|7|2|5addc2170315
-app/services/app-state.js|ember/no-runloop|4485|21|2|5addc2170315
-app/services/app-state.js|ember/no-runloop|4500|7|2|5addc2170315
-app/services/app-state.js|ember/no-runloop|4516|9|2|5addc2170315
-app/services/app-state.js|ember/no-runloop|4519|9|2|5addc2170315
-app/services/app-state.js|ember/no-runloop|4523|9|2|5addc2170315
-app/services/app-state.js|ember/no-runloop|4555|5|2|5addc2170315
-app/services/app-state.js|ember/no-runloop|4591|11|2|5addc2170315
-app/services/app-state.js|ember/no-runloop|4801|13|2|5addc2170315
-app/services/app-state.js|ember/no-runloop|4816|13|2|5addc2170315
-app/services/app-state.js|ember/no-runloop|4832|13|2|513c0395fe72
+app/services/app-state.js|ember/no-runloop|3749|9|2|5addc2170315
+app/services/app-state.js|ember/no-runloop|4132|13|2|5addc2170315
+app/services/app-state.js|ember/no-runloop|4198|9|2|5addc2170315
+app/services/app-state.js|ember/no-runloop|4205|11|2|5addc2170315
+app/services/app-state.js|ember/no-runloop|4456|9|2|5addc2170315
+app/services/app-state.js|ember/no-runloop|4465|9|2|5addc2170315
+app/services/app-state.js|ember/no-runloop|4501|11|2|5addc2170315
+app/services/app-state.js|ember/no-runloop|4504|7|2|5addc2170315
+app/services/app-state.js|ember/no-runloop|4506|7|2|5addc2170315
+app/services/app-state.js|ember/no-runloop|4509|21|2|5addc2170315
+app/services/app-state.js|ember/no-runloop|4524|7|2|5addc2170315
+app/services/app-state.js|ember/no-runloop|4540|9|2|5addc2170315
+app/services/app-state.js|ember/no-runloop|4543|9|2|5addc2170315
+app/services/app-state.js|ember/no-runloop|4547|9|2|5addc2170315
+app/services/app-state.js|ember/no-runloop|4579|5|2|5addc2170315
+app/services/app-state.js|ember/no-runloop|4615|11|2|5addc2170315
+app/services/app-state.js|ember/no-runloop|4825|13|2|5addc2170315
+app/services/app-state.js|ember/no-runloop|4840|13|2|5addc2170315
+app/services/app-state.js|ember/no-runloop|4856|13|2|513c0395fe72
 app/services/app-state.js|ember/no-runloop|596|13|2|5addc2170315
 app/services/app-state.js|ember/no-runloop|611|7|2|5addc2170315
 app/services/app-state.js|ember/no-runloop|705|7|2|5addc2170315

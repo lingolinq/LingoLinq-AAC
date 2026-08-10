@@ -6229,6 +6229,13 @@ tr.accuracy_non_mastered {
   opacity: 0;
   animation: la-hero-title-from-left 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
+.board-picker-page__context {
+  margin: 0.75rem 0 0;
+  text-align: center;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: rgba(43, 52, 69, 0.82);
+}
 .board-picker-page__intro {
   margin: 0 auto clamp(40px, 6vh, 64px);
   max-width: 660px;

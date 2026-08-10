@@ -1100,7 +1100,6 @@
   "other_actions": "Other Actions",
   "hide_disabled_buttons": "Hide Hidden Buttons",
   "clear_focus_words": "Clear Focus Words",
-  "release_board_lock": "Release Board Lock",
   "resume_logging": "Resume Logging",
   "off": "off",
   "usage_reports_for": "%{un}'s Reports",
@@ -6274,6 +6273,7 @@
   "no_hidden_buttons": "No Hidden Buttons",
   "repeat_prompt": "Repeat Prompt",
   "jump_to": "Jump To...",
+  "release_board_lock": "Release Board Lock",
   "release_home_lock": "Release Home Lock",
   "temporary_home": "Set As Temporary Home",
   "try_new_style": "Try New Style",
@@ -7991,5 +7991,9 @@
   "n_orgs": "0 orgs || 1 org || %{n} orgs",
   "org_name_lower": "org name",
   "admin_user_name_lower": "admin user name",
-  "add_org": "Add Organization"
+  "add_org": "Add Organization",
+  "board_picker_header_for_user": "Choose a home board for %{name}",
+  "browse_categories": "Select a Category",
+  "board_picker_filter_label": "Filter boards",
+  "board_picker_filter_placeholder": "Filter boards by name"
 }
