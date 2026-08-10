@@ -9,6 +9,7 @@ import editManager from '../utils/edit_manager';
 import i18n from '../utils/i18n';
 import paint_view_switch_overlay from '../utils/view_switch_overlay';
 import { findExistingUserCopy } from '../utils/board-copy';
+import { saveHomeBoard } from '../utils/home_board';
 import { preload_board_images } from '../utils/board_preview_warmer';
 
 /* Minimum time the loading overlay must stay visible after it first
@@ -297,13 +298,12 @@ export default Component.extend({
       // Dedup first: skip copying if the user already owns a copy of this board.
       findExistingUserCopy(board, user).then(function(existing) {
         if (existing) {
-          // Reuse the existing copy — just (re)set it as the home board, no new copy.
-          user.set('preferences.home_board', {
-            id: existing.get('id'),
-            key: existing.get('key'),
-            locale: locale
-          });
-          user.save().then(function() {
+          // Reuse the existing copy — just (re)set it as the home board, no new
+          // copy. Via utils/home_board so the save is CONFIRMED against what the
+          // server stored: a 200 here does not mean the assignment was kept (the
+          // server drops the write for a board it can't resolve or the user
+          // can't view), and this branch used to report those as success.
+          saveHomeBoard(user, existing, locale).then(function() {
             _this._finishPickForHome(existing, locale, setupUserSnapshot, routerSvc);
           }, function() {
             _this._handlePickError(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"), routerSvc);

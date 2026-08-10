@@ -9,6 +9,10 @@ export default Route.extend({
   setupController: function(controller) {
     this._super.apply(this, arguments);
     controller.set('assigning_home_board', false);
+    // Every entry re-offers the supervisor options overlay. Without this reset a
+    // supporter who dismissed it once would never see it again this session —
+    // the controller is a singleton, so `_options_dismissed` outlives the route.
+    controller.set('_options_dismissed', false);
     // Resolve setup_user on entry. The controller's observer fires only when
     // `user_id` or `appState.currentUser` CHANGES, which never happens for the self
     // flow (no user_id, currentUser already set) — so without this call setup_user

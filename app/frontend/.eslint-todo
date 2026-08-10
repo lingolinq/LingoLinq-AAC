@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-08-10T04:06:01.957Z
+# Generated: 2026-08-10T15:53:10.719Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -68,11 +68,11 @@ app/components/board-preview-canvas.js|ember/no-runloop|989|7|2|513c0395fe72
 app/components/board-preview-canvas.js|ember/no-runloop|997|7|2|513c0395fe72
 app/components/board-preview-canvas.js|ember/no-side-effects|137|7|1|8407ad9330f5
 app/components/board-preview-canvas.js|ember/require-super-in-lifecycle-hooks|35|3|1|04fd54f45db7
-app/components/board-preview-overlay.js|ember/no-runloop|113|7|2|513c0395fe72
-app/components/board-preview-overlay.js|ember/no-runloop|165|7|2|513c0395fe72
-app/components/board-preview-overlay.js|ember/no-runloop|186|11|2|513c0395fe72
-app/components/board-preview-overlay.js|ember/no-runloop|201|37|2|513c0395fe72
-app/components/board-preview-overlay.js|ember/no-runloop|202|32|2|5addc2170315
+app/components/board-preview-overlay.js|ember/no-runloop|114|7|2|513c0395fe72
+app/components/board-preview-overlay.js|ember/no-runloop|166|7|2|513c0395fe72
+app/components/board-preview-overlay.js|ember/no-runloop|187|11|2|513c0395fe72
+app/components/board-preview-overlay.js|ember/no-runloop|202|37|2|513c0395fe72
+app/components/board-preview-overlay.js|ember/no-runloop|203|32|2|5addc2170315
 app/components/board-preview.js|ember/require-super-in-lifecycle-hooks|16|3|1|04fd54f45db7
 app/components/board-selection-tool.js|ember/no-runloop|181|7|2|5addc2170315
 app/components/board-selection-tool.js|ember/no-runloop|402|9|2|5addc2170315

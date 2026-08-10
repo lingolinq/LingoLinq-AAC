@@ -24,8 +24,22 @@
                  gradient-filled pill around it read as an input. The title names
                  the communicator by DISPLAY NAME (never the raw handle) — see
                  controllers/board-picker.js#setupUserDisplayName. --}}
-            <h1 class="md-hero__title bp-page-head__title">{{this.boardPickerHeader}}</h1>
-            <p class="bp-page-head__subtitle">{{this.boardPickerSubtitle}}</p>
+            <div class="bp-page-head__text">
+              <h1 class="md-hero__title bp-page-head__title">{{this.boardPickerHeader}}</h1>
+              <p class="bp-page-head__subtitle">{{this.boardPickerSubtitle}}</p>
+            </div>
+            {{!-- Supervisor-only: the way BACK to the entry overlay, which owns
+                 the quick-assign and create-a-board shortcuts. A link, not a
+                 button — the page's only real actions are picking a board and
+                 this is navigation between two views of the same choice. --}}
+            {{#unless this.for_self}}
+              <div class="bp-page-head__aside">
+                <button type="button" class="bp-page-head__options-link" {{on "click" (this.ctrlAction "open_picker_options")}}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+                  {{t "Return to Board Picker Options" key="board_picker_return_to_options"}}
+                </button>
+              </div>
+            {{/unless}}
           </header>
         </div>
         {{!-- Shortcut CTAs are for picking your OWN home board. A supervisor
@@ -51,6 +65,21 @@
         <div class="md-card--home-boards__picker">
           <BoardPicker @searchAtTop={{true}} />
         </div>
+        {{!-- Rendered LAST and positioned fixed, so the picker behind it is fully
+             built by the time a supporter dismisses it — "Browse Board
+             Categories" is a dismiss, not a load. Supervisor-only and
+             self-suppressing: `show_picker_options` stays false for the self
+             flow and while `setup_user` is still resolving
+             (controllers/board-picker.js). --}}
+        {{#if this.show_picker_options}}
+          <BoardPickerOptions
+            @name={{this.setupUserDisplayName}}
+            @assigning={{this.assigning_home_board}}
+            @onBrowse={{this.ctrlAction "dismiss_picker_options"}}
+            @onQuickAssign={{this.ctrlAction "assign_default_home_board"}}
+            @onCreate={{this.ctrlAction "create_new_board"}}
+            @onClose={{this.ctrlAction "dismiss_picker_options"}} />
+        {{/if}}
       </article>
       {{/if}}
     </main>

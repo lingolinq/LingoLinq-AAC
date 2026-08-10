@@ -50,11 +50,58 @@ $bp-target: 44px;
    -------------------------------------------------------------- */
 /* Left-aligned, not centred: everything below it — the category rail, the
    results panel, the board rows — starts on the same left edge, and a centred
-   title made the top of the page read as a separate introductory band. */
+   title made the top of the page read as a separate introductory band.
+   A ROW, not a block: the supervisor flow puts an "OR / Create My Own Board"
+   aside opposite the heading (see .bp-page-head__aside). With no aside — the
+   self flow — a single flex child lays out exactly as the block did. */
 .md-shell--board-picker .bp-page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: $bp-space-md $bp-space-xl;
   padding: 0;
   margin: 0;
   text-align: left;
+}
+/* Heading column. The 340px basis is the wrap trigger: narrower than that and
+   the aside drops to its own row rather than squeezing the title. */
+.md-shell--board-picker .bp-page-head__text {
+  flex: 1 1 340px;
+  min-width: 0;
+}
+.md-shell--board-picker .bp-page-head__aside {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: $bp-space-md;
+}
+/* Way back to the entry overlay (.bp-options), which owns the quick-assign and
+   create-a-board shortcuts. Deliberately a LINK, not one of the page's pills:
+   the shortcuts themselves live in the overlay, and a second pill up here read
+   as a third competing action. A <button> underneath — it reopens an overlay,
+   it does not navigate — so the button chrome is stripped back to link
+   appearance while the 44px target floor is kept. */
+.md-shell--board-picker .bp-page-head__options-link {
+  display: inline-flex;
+  align-items: center;
+  gap: $bp-space-sm;
+  min-height: $bp-target;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: $brand-verdigris-aa;
+  font-size: 15px;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.md-shell--board-picker .bp-page-head__options-link:hover {
+  color: $la-navy;
+}
+.md-shell--board-picker .bp-page-head__options-link:focus-visible {
+  @include focus-ring($la-navy, 3px, 2px);
 }
 /* Only the box fixes live here. Size / weight / colour / alignment are set in
    app.scss on `.md-shell--board-picker .md-card--board-picker .md-hero--home-boards
@@ -81,6 +128,237 @@ $bp-target: 44px;
   font-size: 16px;
   line-height: 1.45;
   color: $brand-charcoal-dark;
+}
+
+/* --------------------------------------------------------------
+   2. Supervisor entry overlay (.bp-options)
+   Shown to a supporter opening the picker for a communicator, before they
+   engage with the grid: browse, quick-assign, or create.
+
+   RELATIONSHIP TO .nb-create-chooser (app.scss ~54560): same SHAPE on purpose —
+   scrim, one panel, title, hairline separator, stacked options with OR between
+   them — because it is the same kind of decision. Everything that carries
+   identity is different on purpose, so a supporter never mistakes this for the
+   create-board chooser:
+     scrim    verdigris -> navy, not navy -> navy
+     panel    wider (520), accent bar across the top, LEFT-aligned copy
+     eyebrow  a task chip ("Home board setup") the chooser does not have
+     options  left-aligned with a fixed icon well; the chooser centres its pairs
+   -------------------------------------------------------------- */
+.bp-options {
+  position: fixed;
+  inset: 0;
+  /* Below the create-board chooser's 6000 — the two never coexist, but if a
+     future flow opened both, the chooser is the one that must win. */
+  z-index: 5900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $bp-space-xl;
+  overflow-y: auto;
+  background: radial-gradient(120% 90% at 50% 38%, rgba($brand-verdigris-aa, 0.55), rgba($la-navy, 0.82));
+  backdrop-filter: blur(7px) saturate(0.92);
+  -webkit-backdrop-filter: blur(7px) saturate(0.92);
+}
+.bp-options__panel {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  padding: $bp-space-xl ($bp-space-xl + $bp-space-sm) ($bp-space-xl + $bp-space-sm);
+  border-radius: 20px;
+  overflow: hidden;              /* clips the accent bar to the rounded corner */
+  background: #fff;
+  border: $bp-border;
+  box-shadow: 0 24px 60px rgba($la-navy, 0.30), 0 4px 12px rgba($la-navy, 0.14);
+  text-align: left;
+}
+/* Accent bar — the fastest read that this is not the create-board chooser. */
+.bp-options__panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: linear-gradient(90deg, $brand-verdigris-aa 0%, rgba($brand-dusty-denim-aa, 0.85) 100%);
+}
+.bp-options__close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  border: $bp-border;
+  background: rgba($la-navy, 0.04);
+  color: rgba($la-navy, 0.55);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.bp-options__close:hover {
+  background: rgba($la-navy, 0.09);
+  color: $la-navy;
+}
+.bp-options__close:focus-visible {
+  @include focus-ring($la-navy, 3px, 2px);
+}
+.bp-options__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: $bp-space-xs;
+  margin-bottom: $bp-space-md;
+  padding: 5px $bp-space-md;
+  border-radius: 999px;
+  background: rgba($brand-verdigris, 0.12);
+  color: $brand-verdigris-aa;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.bp-options__title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 750;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: $la-navy;
+}
+.bp-options__subtitle {
+  margin: $bp-space-sm 0 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: $brand-charcoal-dark;
+}
+/* The app's modern divider: verdigris→navy hairline fading at both ends. Same
+   recipe as .nb-create-chooser__separator, left-anchored rather than centred to
+   match this panel's alignment. */
+.bp-options__separator {
+  height: 2px;
+  margin: $bp-space-lg 0 $bp-space-xl;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba($brand-verdigris-aa, 0.55) 0%,
+    rgba($la-navy, 0.32) 45%,
+    rgba($la-navy, 0) 100%
+  );
+}
+.bp-options__list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: $bp-space-sm;
+}
+.bp-options__btn {
+  display: flex;
+  align-items: center;
+  /* The icon + label travel together as one CENTRED group, the same way the
+     create-board chooser sets its options — the row is the target, so the label
+     reads as the middle of it rather than as a list item hanging off a rail. */
+  justify-content: center;
+  gap: $bp-space-lg;
+  width: 100%;
+  min-height: 68px;
+  padding: $bp-space-md $bp-space-lg;
+  border-radius: $bp-radius-ctrl;
+  border: 1px solid rgba($la-navy, 0.14);
+  background: linear-gradient(180deg, #ffffff 0%, #f4f7fb 100%);
+  color: $la-navy;
+  font-size: 17px;
+  font-weight: 650;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: $bp-shadow-card;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.bp-options__btn:hover:not([disabled]) {
+  border-color: rgba($brand-verdigris-aa, 0.45);
+  box-shadow: $bp-shadow-card-hover;
+  transform: translateY(-1px);
+}
+.bp-options__btn:focus-visible {
+  @include focus-ring($la-navy, 3px, 2px);
+}
+.bp-options__btn[disabled] {
+  opacity: 0.6;
+  cursor: default;
+  box-shadow: none;
+}
+/* Fixed well so the three glyphs read as one set however wide each path is. */
+.bp-options__btn-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba($brand-verdigris, 0.10);
+  color: $brand-verdigris-aa;
+}
+.bp-options__btn-label {
+  min-width: 0;
+}
+/* Quick assign is the shortcut, not the default — a warmer well marks it as the
+   different KIND of action without promoting it above browsing. */
+.bp-options__btn--quick .bp-options__btn-icon {
+  background: rgba($brand-dusty-denim, 0.14);
+  color: $brand-dusty-denim-aa;
+}
+/* In-flight ellipsis: three dots fading in sequence. A copy of a full board set
+   runs for minutes, and a static "…" makes a working page look hung. */
+.bp-options__dots {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+  margin-left: 4px;
+  /* Reserve the full width up front so the label doesn't jitter as dots fade. */
+  min-width: 21px;
+}
+.bp-options__dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.25;
+  animation: bp-options-dot 1.2s ease-in-out infinite;
+}
+.bp-options__dot:nth-child(2) { animation-delay: 0.2s; }
+.bp-options__dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bp-options-dot {
+  0%, 70%, 100% { opacity: 0.25; transform: translateY(0); }
+  35%           { opacity: 1;    transform: translateY(-2px); }
+}
+/* What the wait is FOR. 14px keeps it clearly secondary to the 17px option
+   labels while staying readable. */
+.bp-options__progress-note {
+  margin: $bp-space-sm 0 0;
+  padding: 0 $bp-space-xs;
+  font-size: 14px;
+  line-height: 1.45;
+  color: $brand-charcoal-dark;
+  text-align: center;
+}
+.bp-options__or {
+  display: flex;
+  align-items: center;
+  gap: $bp-space-md;
+  color: rgba($la-navy, 0.45);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+.bp-options__or::before,
+.bp-options__or::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: rgba($la-navy, 0.12);
 }
 
 /* --------------------------------------------------------------
@@ -475,6 +753,18 @@ $bp-target: 44px;
   }
   .md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon .board-icon__row-chevron {
     transition: none;
+  }
+  .bp-options__btn {
+    transition: none;
+  }
+  .bp-options__btn:hover:not([disabled]) {
+    transform: none;
+  }
+  /* Hold the dots at full strength rather than animating them — the label and
+     the progress note still say the work is running. */
+  .bp-options__dot {
+    animation: none;
+    opacity: 1;
   }
 }
 

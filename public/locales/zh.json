@@ -8735,5 +8735,18 @@
   "board_picker_display_style": "*** Board display style",
   "board_picker_detailed": "*** Detailed",
   "board_picker_compact": "*** Compact",
-  "board_picker_toolbar_search_placeholder": "*** Search boards"
+  "board_picker_toolbar_search_placeholder": "*** Search boards",
+  "choose_home_board_menu": "*** Choose Home Board",
+  "supervising_context_viewing_name": "*** Viewing %{name}",
+  "board_picker_available_boards_short": "*** Boards you own, boards shared with you, and popular public boards.",
+  "board_picker_load_more_hint": "*** Browse additional public boards from the community catalog.",
+  "board_picker_return_to_options": "*** Return to Board Picker Options",
+  "board_picker_options_eyebrow": "*** Home board setup",
+  "board_picker_option_browse": "*** Browse Board Categories",
+  "board_picker_option_quick_assign": "*** Quick Assign Vocal Flair 84",
+  "board_picker_option_create": "*** Create New Board",
+  "assigning_home_board": "*** Assigning",
+  "board_picker_quick_assign_progress": "*** Copying the board set to their account. This can take a few minutes — please keep this page open.",
+  "caseload_more_actions_for": "*** More actions for",
+  "caseload_qa_more": "*** More Actions"
 }

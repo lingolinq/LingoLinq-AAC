@@ -61,6 +61,20 @@ export default Controller.extend({
     return i18n.t('pick_a_home_board', "Pick a home board");
   }),
 
+  /* Supervisor entry overlay (components/board-picker-options).
+     A computed rather than a flag the route flips, because it has to wait for
+     `setup_user` to RESOLVE: `for_self` returns true while that record is still
+     null (see above), so this stays false through the load and the overlay never
+     flashes on the self flow. `_options_dismissed` is the only mutable half —
+     reset on route entry (routes/board-picker#setupController) and flipped back
+     by the page's "Return to Board Picker Options" link. */
+  _options_dismissed: false,
+  show_picker_options: computed('for_self', 'setup_user.id', '_options_dismissed', function() {
+    if (this.get('_options_dismissed')) { return false; }
+    if (this.get('for_self')) { return false; }
+    return !!this.get('setup_user.id');
+  }),
+
   boardsBackUserName: computed('for_self', 'setup_user.user_name', 'appState.currentUser.user_name', function() {
     if (this.get('for_self')) {
       return this.appState.get('currentUser.user_name');
@@ -163,6 +177,16 @@ export default Controller.extend({
   },
 
   actions: {
+    /* "Browse Board Categories", the close chip and Escape all land here: the
+       picker is already rendered behind the overlay, so dismissing IS browsing.
+       No route change, which is why the overlay can be reopened without a
+       reload. */
+    dismiss_picker_options: function() {
+      this.set('_options_dismissed', true);
+    },
+    open_picker_options: function() {
+      this.set('_options_dismissed', false);
+    },
     assign_default_home_board: function() {
       var _this = this;
       var user = this.get('setup_user');
