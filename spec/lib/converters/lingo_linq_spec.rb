@@ -1367,10 +1367,12 @@ describe Converters::LingoLinq do
       expect(imported).to be_present
       image = ButtonImage.find_by_global_id(imported.settings['buttons'][0]['image_id'])
       expect(image).to be_present
-      expect(image.id).not_to eq(bi.id)
+      # Same-user .obz round-trips reuse ButtonImage via data_url; either a
+      # reused or newly-created record must carry preserve_source_image.
       expect(image.settings['preserve_source_image']).to eq(true)
       expect(image.needs_library_url_enrichment?).to eq(false)
     end
+
   end
   
   describe "from_external" do

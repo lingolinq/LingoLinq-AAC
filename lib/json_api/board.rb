@@ -219,6 +219,10 @@ module JsonApi::Board
             schedule_skin_enrichment = true if bi.needs_library_url_enrichment?
           end
         end
+        # JsonApi::Image.as_json already stamps skin_url whenever skin_capable_url
+        # differs from url. Clear it for Default/original so clients that do
+        # `skin_url || url` cannot paint enrichment matches.
+        i.delete('skin_url') if prefer_original_images
         # Prefer skin-capable library URLs only when the user asked for a symbol
         # library (opensymbols / arasaac / …). "Default symbols" (original) keeps
         # the settings_for URL so board-detail does not paint enrichment matches.

@@ -354,6 +354,13 @@ module Converters::LingoLinq
         if record
           obj[list][item['id']]['id'] = record.global_id
           hashes[item_id] = record.global_id
+          # Round-trip .obz reuses ButtonImage via data_url. Still mark it so
+          # background enrichment cannot swap the imported art by label search.
+          if klass == ButtonImage && !record.preserve_source_image?
+            record.settings['preserve_source_image'] = true
+            record.settings.delete('library_url_for_skin')
+            record.save
+          end
         elsif item['data']
           record = klass.create(:user => opts['user'])
           item['ref_url'] = item['data']

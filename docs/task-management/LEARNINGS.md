@@ -5330,10 +5330,18 @@ follows the Image `url` when preferred is original.
 
 **Fix:** JsonApi omits `images[].skin_url` (and does not prefer it in
 `image_urls`) when preferred is original; board-detail only applies `skin_url`
-when `_preferred_symbols` is a library id.
+when `_preferred_symbols` is a library id. Important: `JsonApi::Image.as_json`
+already stamps `skin_url`, so `JsonApi::Board` must `i.delete('skin_url')` under
+original prefs — merely skipping the re-assign leaves the Image-layer value and
+speak clients still paint enrichment matches.
+
+**Gotcha:** `.eslint-todo` fingerprints include line numbers. Adding comment
+lines above a one-line logic change in a grandfathered file makes every later
+finding look "new". Keep board-detail edits line-count-neutral (EOL comments).
 
 **Evidence:** `lib/json_api/board.rb`, `controllers/user/board-detail.js`
-`_build_from_raw`; task log `2026-08-10-preserve-imported-board-images.md`.
+`_build_from_raw`; task logs `2026-08-10-preserve-imported-board-images.md`,
+`2026-08-10-preserve-imported-images-ci-failures.md`.
 
 
 
