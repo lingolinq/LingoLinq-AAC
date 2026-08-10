@@ -450,7 +450,23 @@ def collect_problems(documents, bundle_defs, schedule = {}, exemptions = [])
           if stored.empty?
             problems << "git doc #{title.inspect} has no contentHash (run render to populate): #{loc}"
           elsif stored != computed
-            problems << "contentHash drift for #{title.inspect}: #{loc} changed but its register row was not updated (run render)"
+            # Which advice is correct here depends on the FILE, not on the stored hash.
+            #
+            #   file bytes != attested bytes -> a real edit to an attested document. Rendering
+            #     bumps contentHash and re-fails as "attested revision no longer exists" with a
+            #     mutated register in the diff (PR #721). Revert, or re-attest.
+            #   file bytes == attested bytes -> only the register row is stale (e.g. someone
+            #     rendered, then reverted the file). Nothing is owed; render reconciles it.
+            #
+            # Compare against the PIN, never against `stored`: in that second state `stored` is
+            # the bumped hash, so reporting it would claim the attestation covers bytes it never
+            # covered and would contradict the attestation message printed alongside it.
+            pin = doc.dig('attestation', 'attestedContentHash').to_s
+            if attested?(doc) && pin.match?(SHA256_RE) && computed != pin
+              problems << "contentHash drift on the ATTESTED row #{title.inspect}: #{loc} no longer matches the bytes attested on #{doc.dig('attestation', 'attestedDate')} (attested #{pin[0, 12]}, file is now #{computed[0, 12]}). Do NOT run render to clear this - it will bump contentHash and re-fail as \"attested revision no longer exists\". Either revert your change to this file, or (Scot only) re-attest via /re-attest-record; per the \"Attestation freezes the artifact\" rule in docs/legal/README.md, supersession is the default for docs/legal/**"
+            else
+              problems << "contentHash drift for #{title.inspect}: #{loc} changed but its register row was not updated (run render)"
+            end
           end
         end
       end
