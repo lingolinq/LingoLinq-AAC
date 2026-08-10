@@ -66,7 +66,7 @@
               class="ub-boards-page__folders-toggle"
               aria-expanded={{if this.foldersExpanded "true" "false"}}
               aria-controls="ub-boards-page__folders-body"
-              {{on "click" (this.sendAction "toggleFoldersExpanded")}}
+              {{on "click" (fn this.sendAction "toggleFoldersExpanded")}}
             >
               <span class="ub-boards-page__folders-title">
                 <span class="ub-boards-page__section-icon" aria-hidden="true">
@@ -99,7 +99,7 @@
               type="button"
               class="ub-boards-page__folders-chevron-btn"
               aria-label={{if this.foldersExpanded (t "Collapse folders" key="folders_collapse") (t "Expand folders" key="folders_expand")}}
-              {{on "click" (this.sendAction "toggleFoldersExpanded")}}
+              {{on "click" (fn this.sendAction "toggleFoldersExpanded")}}
             >
               <svg class="ub-boards-page__folders-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <polyline points="6 9 12 15 18 9"/>
@@ -134,7 +134,7 @@
                     {{on "input" (this.selfEventAction "updateFolderFilter")}}
                   />
                   {{#if this.folderFilterString}}
-                    <button type="button" class="ub-boards-page__folder-filter-clear" {{on "click" (this.sendAction "clearFolderFilter")}} aria-label={{t "Clear filter" key="clear_filter"}}>
+                    <button type="button" class="ub-boards-page__folder-filter-clear" {{on "click" (fn this.sendAction "clearFolderFilter")}} aria-label={{t "Clear filter" key="clear_filter"}}>
                       {{t "Clear" key="clear"}}
                     </button>
                   {{/if}}
@@ -209,7 +209,7 @@
                         <button type="submit" class="ub-boards-page__folder-rename-save" aria-label={{t "Save" key="save"}}>
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                         </button>
-                        <button type="button" class="ub-boards-page__folder-rename-cancel" {{on "click" (this.sendAction "cancelFolderRename")}} aria-label={{t "Cancel" key="cancel"}}>
+                        <button type="button" class="ub-boards-page__folder-rename-cancel" {{on "click" (fn this.sendAction "cancelFolderRename")}} aria-label={{t "Cancel" key="cancel"}}>
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                         </button>
                       </form>
@@ -294,7 +294,7 @@
                                  so it doesn't double-fire the open action. --}}
                             <button type="button"
                               class="ub-boards-page__folder-context-boards-menu-row-open"
-                              {{on "click" (this.sendAction "openBoardFromMenu" entry.board)}}
+                              {{on "click" (fn this.sendAction "openBoardFromMenu" entry.board)}}
                               title={{entry.name}}>
                               {{entry.name}}
                             </button>
@@ -324,18 +324,18 @@
                      pencil icon next to the folder name (above). --}}
                 {{#unless this.editingFolderName}}
                   <div class="ub-boards-page__folder-context-actions">
-                    <button type="button" class="ub-boards-page__folder-context-action ub-boards-page__folder-context-action--delete" {{on "click" (this.sendAction "startDeleteFolder")}}>
+                    <button type="button" class="ub-boards-page__folder-context-action ub-boards-page__folder-context-action--delete" {{on "click" (fn this.sendAction "startDeleteFolder")}}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                       <span>{{t "Delete" key="delete"}}</span>
                     </button>
                   </div>
                 {{/unless}}
                 {{#if this.confirmingFolderDelete}}
-                  <div class="la-delete-folder-backdrop" {{on "click" (this.sendAction "cancelDeleteFolder")}}></div>
+                  <div class="la-delete-folder-backdrop" {{on "click" (fn this.sendAction "cancelDeleteFolder")}}></div>
                   <div class="la-delete-folder-modal la-delete-folder-modal--inline">
                     <div class="la-modal-header">
                       <span class="la-modal-header-label">{{t "Delete folder" key="delete_folder"}}</span>
-                      <button type="button" class="la-modal-close" {{on "click" (this.sendAction "cancelDeleteFolder")}} aria-label={{t "Close" key="close"}}>✕</button>
+                      <button type="button" class="la-modal-close" {{on "click" (fn this.sendAction "cancelDeleteFolder")}} aria-label={{t "Close" key="close"}}>✕</button>
                     </div>
                     <div class="la-delete-folder-modal-body">
                       <div class="la-delete-folder-modal-icon" aria-hidden="true">
@@ -345,11 +345,11 @@
                       <p class="la-delete-folder-modal-desc">{{t "The boards in this folder won't be deleted. They will be moved back to the main boards view where you can reorganize them." key="delete_folder_explainer"}}</p>
                     </div>
                     <div class="la-delete-folder-modal-actions">
-                      <button type="button" class="la-delete-folder-modal-delete" {{on "click" (this.sendAction "confirmDeleteFolder")}} disabled={{this.deletingFolder}}>
+                      <button type="button" class="la-delete-folder-modal-delete" {{on "click" (fn this.sendAction "confirmDeleteFolder")}} disabled={{this.deletingFolder}}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                         {{t "Delete folder" key="delete_folder"}}
                       </button>
-                      <button type="button" class="la-delete-folder-modal-cancel" {{on "click" (this.sendAction "cancelDeleteFolder")}}>{{t "Cancel" key="cancel"}}</button>
+                      <button type="button" class="la-delete-folder-modal-cancel" {{on "click" (fn this.sendAction "cancelDeleteFolder")}}>{{t "Cancel" key="cancel"}}</button>
                     </div>
                   </div>
                 {{/if}}

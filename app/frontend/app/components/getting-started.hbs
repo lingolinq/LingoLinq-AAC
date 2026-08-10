@@ -48,7 +48,8 @@
             {{/if}}
           </span>
           <div class="md-getting-started-modal__item-content">
-            <LinkTo @route="home-boards" class="md-getting-started-modal__item-link">
+            {{!-- No user_id: this modal onboards the signed-in account. --}}
+            <LinkTo @route="board-picker" class="md-getting-started-modal__item-link">
               {{t "Pick a home board" key="pick_a_home_board"}}
             </LinkTo>
             <span class="md-getting-started-modal__item-hint">

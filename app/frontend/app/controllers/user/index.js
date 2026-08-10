@@ -61,6 +61,26 @@ export default Controller.extend({
   app_state: alias('appState'),
   persistence: service('persistence'),
 
+  /* "Help me Choose" on the Boards page hands the board-picker the account it is
+     picking for. The picker keys its whole supervisor flow off this `user_id`
+     query param (controllers/board-picker#_resolve_setup_user → setup_user →
+     for_self → the "Choose <name>'s home board" title and the back link), so a
+     supporter on a communicator's Boards page has to arrive with it or the
+     picker will run the SELF flow and offer to set THEIR own home board.
+
+     Null on your own page — Ember drops a query param that equals the
+     controller's default, so the URL stays a clean /board-picker and the picker
+     resolves setup_user to currentUser on its own.
+
+     Global id, not user_name: _resolve_setup_user both does
+     `store.findRecord('user', user_id)` and compares the param against
+     `setup_user.id`, so a handle would re-resolve on every recompute. */
+  homeBoardPickerUserId: computed('model.id', 'appState.currentUser.id', function() {
+    var page_user_id = this.get('model.id');
+    if(!page_user_id || page_user_id === this.get('appState.currentUser.id')) { return null; }
+    return page_user_id;
+  }),
+
   init() {
     this._super(...arguments);
     var self = this;

@@ -10,6 +10,7 @@ import session from '../utils/session';
 import i18n from '../utils/i18n';
 import progress_tracker from '../utils/progress_tracker';
 import { onlyIfGenuinelyResolved, maybeShowSessionEntryGate } from '../utils/article50_gate';
+import sessionHistory from '../utils/session_history';
 
 export default Route.extend({
   router: service('router'),
@@ -79,10 +80,39 @@ export default Route.extend({
       // dropped into speak mode on login/refresh instead of their dashboard.
       // Users without a home_board_key still fall through to the
       // dashboard below — there's no board to send them to yet.
-      if (this.appState.get('_index_login_entry') && home_board_key && !model.get('supporter_view') && !model.get('has_management_responsibility') && !model.get('eval_ended')) {
+      // A "communicator only" account: not in supporter view and not managing an
+      // org. These two checks are the gate this route has always used to decide
+      // who belongs on a board rather than the dashboard, and they are also the
+      // exception to session resume below — a communicator-only user goes to
+      // their board-detail page on every login, never to a remembered page.
+      var communicator_only = !model.get('supporter_view') && !model.get('has_management_responsibility');
+      if (this.appState.get('_index_login_entry') && home_board_key && communicator_only && !model.get('eval_ended')) {
         this.appState.home_in_speak_mode({user: model});
         this.appState.set('already_homed', true);
         return;
+      }
+      // Everyone else resumes where they left off last session. A
+      // communicator-only user who reaches here has no home board yet (first
+      // login / mid-onboarding) and needs the dashboard to pick one, so they are
+      // excluded here too. Storage + eligible routes: utils/session_history.js.
+      if (this.appState.get('_index_login_entry') && !communicator_only && !model.get('eval_ended') &&
+          this.appState.get('feature_flags.session_resume')) {
+        var last = sessionHistory.last_location(model.get('user_name'));
+        if (last && last.url) {
+          var fallback = this.router;
+          var user_name = model.get('user_name');
+          var resume = this.router.replaceWith(last.url);
+          // The remembered page can have gone away since last session (a deleted
+          // board, a supervisee relationship that ended, a renamed org). Drop the
+          // stale record and land on the dashboard rather than an error page.
+          if (resume && resume.then) {
+            resume.then(null, function() {
+              sessionHistory.clear_location(user_name);
+              fallback.replaceWith('user.home', user_name);
+            });
+          }
+          return;
+        }
       }
       this.router.replaceWith('user.home', model.get('user_name'));
     }

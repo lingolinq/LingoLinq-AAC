@@ -196,6 +196,12 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Pattern: "order-dependent" spec failures on global counts are often orphaned committed rows in the test DB](#pattern-order-dependent-spec-failures-on-global-counts-are-often-orphaned-committed-rows-in-the-test-db)
 - [Gotcha: ember-data 5.3 relationship/store arrays are NOT EmberArrays — `firstObject` on a hasMany is silent undefined](#gotcha-ember-data-53-relationshipstore-arrays-are-not-emberarrays--firstobject-on-a-hasmany-is-silent-undefined)
 - [Pattern: reuse the audit-register machinery for non-compliance domains via a separate register file](#pattern-reuse-the-audit-register-machinery-for-non-compliance-domains-via-a-separate-register-file)
+- [Pattern: "it follows me when I scroll" — the app's scroll container is `#content`, so an overlay must live INSIDE it, not next to it](#pattern-it-follows-me-when-i-scroll--the-apps-scroll-container-is-content-so-an-overlay-must-live-inside-it-not-next-to-it)
+- [Gotcha: a rule in an `@use`d partial LOSES to an equal-specificity rule in app.scss — the partial is emitted first](#gotcha-a-rule-in-an-used-partial-loses-to-an-equal-specificity-rule-in-appscss--the-partial-is-emitted-first)
+- [Gotcha: legacy bare-element rules (`h1 { height: 60px }`) silently size modern components — a "gap" with no margin behind it](#gotcha-legacy-bare-element-rules-h1--height-60px--silently-size-modern-components--a-gap-with-no-margin-behind-it)
+- [Gotcha: a shared mixin's `!important` cosmetics beat your MORE SPECIFIC variant rule — the variant silently renders as the base](#gotcha-a-shared-mixins-important-cosmetics-beat-your-more-specific-variant-rule--the-variant-silently-renders-as-the-base)
+- [Gotcha: Bootstrap 3's `.dropdown-menu > li > a` (0,1,2) beats the app's flat `.md-settings-dropdown-item` — the modern skin's flex/gap silently never applies](#gotcha-bootstrap-3s-dropdown-menu--li--a-012-beats-the-apps-flat-md-settings-dropdown-item--the-modern-skins-flexgap-silently-never-applies)
+- [Gotcha: `overscroll-behavior: contain` on a NON-overflowing `overflow: auto` element swallows the wheel entirely](#gotcha-overscroll-behavior-contain-on-a-non-overflowing-overflow-auto-element-swallows-the-wheel-entirely)
 
 ## Pattern: a new user preference is a 3-touch change — whitelist + default + dirty-bit save
 
@@ -9049,7 +9055,25 @@ When `settings.categories` had no matches for a tab, `_resolveCategoryBoards` lo
 
 **Root cause:** Same as the `(fn this.ctrlAction …)` factory gotcha. `sendAction` returned a handler function; template used `{{on "click" (fn this.sendAction "toggleFoldersExpanded")}}`, so click called the factory and discarded the returned handler.
 
-**Fix recipe:** Either bind at render (`(this.sendAction "x")`) **or** make `sendAction` invoke `self.send` immediately when used with `fn`. Prefer immediate-invoke here because every binding already uses `fn` and several handlers need the Event (`updateFolderFilter`, drag/drop) — do not strip the event the way `ctrlAction` does.
+**Fix recipe:** The two halves must MATCH, and it is one or the other:
+- factory `sendAction` (returns a handler) + `(this.sendAction "x")`, or
+- immediate-invoke `sendAction` (calls `self.send` itself) + `(fn this.sendAction "x")`.
+
+**CORRECTION (2026-08-09):** the repo ended up with half of each — `sendAction`
+was made immediate-invoke (see its own comment: "templates bind with `(fn
+this.sendAction …)`") while all ten template bindings kept the no-`fn` form. A
+bare `(this.sendAction "x")` sub-expression is a plain-function helper
+invocation, so Glimmer calls it **during render**: `toggleFoldersExpanded` fired
+on every render pass and `{{on "click" …}}` received its `undefined` return.
+Latent until something re-rendered this component mid-transition, which surfaced
+as `Assertion Failed: You attempted to update foldersExpanded … it had already
+been used previously in the same computation` and ABORTED the transition — the
+visible symptom was an unrelated link "not routing". All ten bindings now use
+`fn`, matching the component's documented contract.
+
+**Tell for this class of bug:** an assertion naming a component property, with
+"first used: While rendering: (instance of an `on` modifier)". That phrase means
+the handler ran at render, not on the event.
 
 **Evidence:** [`2026-08-05-boards-folder-accordion-fn-sendaction.md`](./2026-08-05-boards-folder-accordion-fn-sendaction.md); related LEARNINGS entry on `(fn this.ctrlAction …)`.
 
@@ -9317,3 +9341,432 @@ twelve CDN URLs. State restoration, not async cancellation, is the lever.
 to remove an acceptance module — the auto-loader re-requires it and it then runs
 at a different position and fails, producing a meaningless run. Exclude from BOTH
 paths and verify the TEST COUNT drops before believing any result.
+
+---
+
+## Pattern: cross-session per-user state must live OUTSIDE the `lingolinqStash-` prefix
+
+**Surface:** anything that has to be remembered across a logout — "where did this
+user leave off", per-user device preferences, resume/continue affordances.
+
+**The trap:** `stashes` looks like the natural home for it, and holds several
+suggestively-named keys (`root_board_state`, `current_mode`, `last_root`,
+`browse_history`, `prior_login`). None of them survive a logout.
+`session.invalidate()` calls `stashes.flush()` (`services/session.js:668`), and
+`flush` deletes **every** `localStorage` key starting with `stashes.prefix`
+(`utils/_stashes.js:191-206`, prefix `lingolinqStash-`, only `usage_log` exempt).
+So a "remember this for next login" value stored via `stashes.persist` is
+guaranteed to be gone at exactly the moment you want to read it.
+
+**The working shape** (predates this entry — `ll_last_board_<user_name>`, now
+consolidated in `utils/session_history.js`): a plain `localStorage` key outside
+the stash prefix, suffixed with `user_name` so a shared device keeps each user's
+state separate. `session_history.js` owns both `ll_last_board_*` and
+`ll_last_location_*`.
+
+**Related trap — `browse_history` / `boardHistory` are not a page history.** They
+are the speak/browse **board back-stack**, pushed and popped by
+`app_state.get_history`/`set_history` and reset to `[]` on every speak-mode
+activation (`app-state.js`, and ~14 call sites in `utils/eval.js`). They cannot
+answer "what page was the user on".
+
+**Where to record a route:** `app_state.finish_global_transition` (called from
+`routes/application.js#didTransition`). Its sibling `global_transition` runs on
+`routeWillChange`, where `router.currentURL` is still the **previous** URL — the
+GA pageview at `routes/application.js:176` reads `currentURL` from the
+`didTransition` side for the same reason.
+
+**Where the login landing decision lives:** `routes/index.js#afterModel`, gated by
+`appState._index_login_entry` (set in `beforeModel` from `transition.from`, true
+only on cold boot or a `login*` → `index` transition). Two safety notes for
+anyone adding a branch there: `routes/user/home.js` extends this route but fully
+overrides `afterModel` **without `_super`**, so a `replaceWith('user.home')`
+cannot re-enter your branch; and any route you might redirect *to* must be
+excluded from what you record, or you build a loop.
+
+**First seen in:** [2026-08-09-per-user-session-resume.md](./2026-08-09-per-user-session-resume.md)
+
+---
+
+## Pattern: the board PREVIEW and the board ITSELF are two different renderers — parity is not automatic
+
+**Surface:** anything that changes how a button looks on board-detail. The
+board-picker / board-preview modal draws the same board through a completely
+separate painter, so a board-detail styling change silently does NOT reach it.
+
+- Live board: **DOM + CSS** — `components/board-detail-grid.hbs` +
+  the `.md-board-detail-symbol-card--<pos>` rules in `app.scss`.
+- Preview: **canvas** — `components/board-preview-canvas.js`, a hand-written
+  painter that re-implements fill/border/label/image layout in canvas ops.
+
+**How they drifted (2026-08-09, reported by Melissa on keyboard boards):**
+
+1. **A colour source the preview couldn't see.** The live card's POS class reads
+   `part_of_speech || painted_part_of_speech || suggested_part_of_speech`
+   (`board-detail-grid.hbs:53`). `suggested_part_of_speech` does not exist in board
+   data — `board-detail.js#resolve_unknown_buttons` mints it at render time from
+   `/api/v1/search/batch_parts_of_speech`. The canvas read only the FIRST field, so
+   every button whose colour came from the lookup fell through to the neutral
+   fallback. Keyboard boards are the extreme case: single letters carry no author
+   colour and no stored type, but the dictionary types them (letters are nouns →
+   peach, "i" → pronoun → yellow, "x" → verb → green).
+2. **A hard-coded mode.** The preview passed `@dark_mode={{true}}`; the real board's
+   dark mode is the `preferences.board_dark_mode` user pref, default OFF.
+3. **A CSS rule with no canvas counterpart.**
+   `.md-board-detail--dark .md-board-detail-symbol-card--no-color` (two classes)
+   out-specifies every one-class POS rule, so on a DARK board an author-uncoloured
+   button is near-white — POS colours only apply in LIGHT mode.
+
+**Rules that fall out of this:**
+
+- When a button's appearance depends on a value computed at render time rather than
+  stored on the button, the preview needs the same computation. Put it in a shared
+  util (here `utils/parts_of_speech.js`) and have both renderers call it — do not
+  re-derive it in the canvas.
+- Before assuming a preview/live mismatch is a palette bug, check specificity in
+  `app.scss`. `LingoLinq.board_detail_keyed_colors` is built at runtime from the
+  same `--fitzgerald-*` custom properties the CSS rules read (`app.js:465`,
+  `_variables.scss`), so the palettes cannot drift — only the *inputs* can.
+- A hard-coded `@dark_mode={{true}}` (or any mode flag) on a preview is a parity bug
+  waiting to happen; mirror the pref the real surface reads.
+
+**Making a network-dependent value cheap enough for a preview:** cache by word at
+module scope, cache MISSES as well as hits, and batch. AAC boards repeat the same
+closed-class vocabulary, so after the first board a session's lookups are free —
+which sped the live board up on re-entry as a side effect. Then hold the first paint
+on a `Promise.race([lookup, timeout])`: the preview's loading overlay is already held
+until every symbol image settles, so the lookup costs nothing in wall clock, and the
+timeout guarantees a wedged request degrades to the old appearance instead of an
+empty canvas.
+
+**First seen in:** [2026-08-09-board-preview-styling-parity.md](./2026-08-09-board-preview-styling-parity.md)
+
+---
+
+## Pattern: "whose page is this?" comes from `permissions.user_id`, not from comparing to `currentUser`
+
+**Surface:** any app-level chrome that must behave differently when a supporter is
+inside a communicator's account — context banners, guard rails, confirmation
+copy, audit prompts.
+
+**The tempting wrong answer:** compare the page's user to
+`app_state.currentUser`. `currentUser` is not stable for this — it is swapped by
+speak-mode / "speak as" flows, and `referenced_user` is a speak-mode concept too
+(`app-state.js#referenced_user` returns `currentUser` unless modeling). Neither
+answers "whose account does this ROUTE belong to".
+
+**The reliable answer, already in the payload.** Every user record is serialized
+with permissions scoped to the requester (`lib/json_api/user.rb:31` →
+`user.permissions_for(viewer)`):
+
+- `permissions.user_id` — the **viewer's** global id, not the record's. It differs
+  from the record's `id` exactly when you're on someone else's page.
+- `permissions.supervise` / `.model` / `.edit` — present only when the viewer holds
+  a supervisory link (`app/models/user.rb:61-66`). A stranger on a public profile
+  gets only `view_existence` / `view_detailed`.
+
+Verified in the dev DB (2026-08-09): stranger → `["user_id","view_existence",
+"view_detailed"]`; self → `user_id == id`; supporter → `supervise/model/edit` all
+true with `user_id` = the supporter. So the test is `id != permissions.user_id`
+**AND** one of `edit|supervise|model`. Dropping the second half announces
+supervision to strangers.
+
+`permissions_for` lives in the `permissable` gem (via
+`app/models/concerns/permissions.rb`), so there is no local `def permissions_for`
+to read — check the shape empirically with `rails runner` rather than grepping.
+
+**Publishing it to app-level chrome:** set the page's user on `app_state` from the
+PARENT `:user_id` route (`routes/user.js#setupController`), and clear it in
+`resetController` when `isExiting`. That one pair covers all ~20 child routes;
+setting it per-child is both redundant and a leak waiting to happen. Flows that
+address a communicator WITHOUT being under `/:user_id` (the standalone
+board-picker) carry `app_state.setup_user` instead — a complete answer has to
+consider both, and the classic `/board/*key` route has neither.
+
+**First seen in:** [2026-08-09-supervising-context-pill.md](./2026-08-09-supervising-context-pill.md)
+
+---
+
+## Gotcha: `computed.reads(...)` (and friends) throw at MODULE EVALUATION on Ember 5 — a white screen, and `ember build` won't catch it
+
+**Symptom:** the whole app renders blank, console shows
+
+```
+Error occurred:
+ - While rendering:
+   -top-level
+     application
+_object.computed.reads is not a function   TypeError
+  at Module.callback (assets/frontend.js)
+  at requireModule (assets/vendor.js)
+  at Resolver.resolve …
+```
+
+**Cause:** `import { computed } from '@ember/object'` gives you the `computed`
+FUNCTION. It has no `.reads` / `.alias` / `.or` / `.equal` / … properties — those
+macros live in `@ember/object/computed` and must be imported by name:
+
+```js
+import { reads } from '@ember/object/computed';   // correct
+context: reads('appState.supervising_context'),
+
+import { computed } from '@ember/object';         // WRONG
+context: computed.reads('appState.supervising_context'),
+```
+
+The whole codebase already uses the correct form (`import { alias } from
+'@ember/object/computed'` in ~a dozen components); the broken form is the trap
+when writing from memory of pre-3.x Ember.
+
+**Why it is so destructive:** the call runs while the module is being EVALUATED,
+not when the component renders. The resolver evaluates the module during the
+top-level `application` render, so one bad macro in ANY component that
+application.hbs reaches blanks the entire app — not just that component.
+
+**Why the build is green anyway:** `ember build` only compiles modules; it never
+evaluates them. A clean build says nothing about `computed.reads`. The same is
+true of eslint. Catching this needs the app actually loaded in a browser, or a
+test that renders it.
+
+**Grep to check a change before shipping it:**
+```
+grep -rnE "computed\.(reads|alias|and|or|not|equal|bool|empty|notEmpty|gt|lt|oneWay|readOnly|sort|mapBy|filterBy)\b" app/frontend/app --include=*.js
+```
+
+**Also note:** in `@ember/object/computed`, `reads` is an alias export of `oneWay`
+(`ember-source/dist/packages/@ember/object/computed.js`) — one-way binding, so
+setting the local property does not write back through the path.
+
+**First seen in:** [2026-08-09-supervising-context-pill.md](./2026-08-09-supervising-context-pill.md)
+
+## Pattern: "it follows me when I scroll" — the app's scroll container is `#content`, so an overlay must live INSIDE it, not next to it
+
+**Symptom:** a banner/pill/badge stays glued to the viewport while the page
+scrolls under it, when it was supposed to sit at the top of the page.
+
+**The trap:** changing `position: fixed` → `absolute` fixes nothing on its own.
+In this app the DOCUMENT never scrolls on any page that renders a page footer
+(i.e. every non-board page — `footer` = `!currentBoardState`,
+controllers/application.js:150):
+
+```
+#within_ember:has(.page-footer) { position: fixed; inset: 0; overflow: hidden }   /* app.scss ~l.502 */
+#within_ember:has(.page-footer) #content:has(.md-shell) { overflow-y: auto }      /* app.scss ~l.973 */
+```
+
+`#content` is the scroll container. An element rendered as a SIBLING of `#content`
+(e.g. straight after `</header>` in `application.hbs`) is outside the scrollport,
+so it hovers no matter which positioning scheme it uses. Same reason
+`guided-tour.js` treats `#content` as "the app's scroll container", and why
+`scrollIntoView` moves an `overflow:hidden` `#content` 0→712.
+
+**The fix shape** — render it inside `#content` and give it a containing block
+there:
+
+```hbs
+<div id="content">
+  <MyOverlay />        {{!-- before the {{outlet}} --}}
+  {{ outlet }}
+</div>
+```
+```scss
+.my-overlay-anchor { position: relative; height: 0; }  /* 0-basis flex item, no layout impact */
+.my-overlay        { position: absolute; top: 12px; left: 16px; pointer-events: none; }
+```
+
+The zero-height anchor is the load-bearing part: without a positioned ancestor
+inside the scroller, an `absolute` child resolves against `#within_ember` again
+and you are back where you started.
+
+**Offset math — do NOT add `var(--topbar-height)`.** `top` is measured from the
+anchor, which sits at `#content`'s CONTENT-box top, i.e. after the layout's top
+padding. `#within_ember #content { padding-top: calc(var(--topbar-height) + 3rem + var(--speak-bar-extra, 0px)) }`
+(app.scss ~l.1197, specificity 0-2-0) beats the later `#content { padding: 0 }`
+(0-1-0), so nearly every page ALREADY pads past its fixed header; the bento rules
+(~l.633/881) restate the same calc. The layouts that zero that padding
+(`.board-detail-view`, `.content--no-top-padding`) also zero or hide the header.
+So a small constant offset clears the chrome on every page, and a
+`--topbar-height`-based one double-counts and drops the element too low.
+
+**Stacking is unaffected by the move:** `#content` sets no `z-index`/`transform`
+(and `overflow` alone does not create a stacking context), so the element still
+paints in `#within_ember`'s stacking context — above page content at `z-index:
+900`, below the `z-index: 1000` fixed header it now scrolls under.
+
+**First seen in:** [2026-08-09-supervising-context-pill.md](./2026-08-09-supervising-context-pill.md)
+
+## Gotcha: a rule in an `@use`d partial LOSES to an equal-specificity rule in app.scss — the partial is emitted first
+
+`app/frontend/app/styles/app.scss` pulls its partials at the TOP (`@use "board_picker"`
+is line 13), and Sass emits a module's CSS **before** the using file's own rules.
+So every partial rule lands tens of thousands of lines earlier than anything in
+app.scss. At equal specificity, later wins — which means **app.scss always beats
+the partial** unless the partial out-specifies it.
+
+Seen in `_board_picker.scss`: the compact-grid rule was written as
+
+```scss
+.md-shell--board-picker .md-home-boards-picker__grid--compact { … }   /* (0,2,0) */
+```
+
+with a comment stating the `.md-shell--board-picker` ancestor was added so the
+page's own grid rule would not win. But that ancestor only produced a TIE with
+
+```scss
+.md-shell--board-picker .md-home-boards-picker__grid { … }            /* (0,2,0), app.scss ~5259 */
+```
+
+so `grid-template-columns`, `justify-content` AND `gap` in the compact rule were
+all inert, and the compact grid silently rendered with the detailed grid's
+280px-tile columns and 1.5rem gutters.
+
+**Fix shape:** chain both classes on the same element rather than adding an
+override block or `!important` —
+`.md-shell--board-picker .md-home-boards-picker__grid.md-home-boards-picker__grid--compact`
+is (0,3,0) and wins on merit, wherever it sits in the emit order.
+
+**How to check before believing a partial rule is live** (compile and compare
+byte offsets — the later offset wins a specificity tie):
+
+```js
+const css = require('sass').compile('app/styles/app.scss', {loadPaths:['app/styles']}).css;
+['<partial selector> {', '<app.scss selector> {'].forEach(s => console.log(css.indexOf(s), s));
+```
+
+**Related:** the sibling trap where a media query adds no specificity, above.
+
+**First seen in:** [2026-08-09-supervising-context-pill.md](./2026-08-09-supervising-context-pill.md) (board-picker styling pass)
+
+## Gotcha: legacy bare-element rules (`h1 { height: 60px }`) silently size modern components — a "gap" with no margin behind it
+
+**Symptom:** visible space between two elements whose CSS says there is none.
+The board-picker page head reads `margin: 0` on both the `h1` and the subtitle,
+with a comment saying they deliberately touch — yet ~37px sat between them.
+
+**Cause:** `app.scss` ~1826 carries a bare `h1 { display: inline-block; height:
+60px; margin: 5px 0 0 5px; }` from the old nav-header logo row. Modern component
+rules override `margin` (`.md-hero__title { margin: 0 !important }`) but nothing
+overrode **height**, so the (0,0,1) element rule was the only `height` declaration
+in play: the heading box was pinned at 60px with its text at the top, and the dead
+space below read as a gap. `display: inline-block` from the same rule is why such
+a heading's DevTools box hugs its text instead of filling the row — a useful tell.
+
+**How to spot it:** if a box's measured height doesn't match `font-size ×
+line-height` and no margin explains the space, grep the compiled CSS for
+BARE-ELEMENT rules on that tag, not just class rules:
+
+```js
+const css = require('sass').compile('app/styles/app.scss', {loadPaths:['app/styles']}).css;
+// print every rule whose selector is/contains a bare `h1` with a box declaration
+```
+
+**Fix shape:** neutralise it in the component's OWN rule (`display: block;
+height: auto`) — never by editing the legacy rule, which the old header still
+needs. Same family as the `.button` leak onto board-detail cards, above.
+
+**First seen in:** [2026-08-09-supervising-context-pill.md](./2026-08-09-supervising-context-pill.md) (board-picker styling pass)
+
+## Gotcha: a shared mixin's `!important` cosmetics beat your MORE SPECIFIC variant rule — the variant silently renders as the base
+
+**Symptom:** a "compact"/"quiet"/"flat" variant renders with the base component's
+look — big radius, big shadow, big hover lift — even though the variant rule is
+clearly more specific and clearly sets its own values.
+
+**Cause:** `!important` beats non-important **at any specificity**. This codebase's
+`@mixin board-card-modern` (app.scss ~94) declares `border-radius`, `border`,
+`background`, `box-shadow`, `transition` and its `:hover` shadow/border with
+`!important`, and is included at `.md-home-boards-picker__board
+.btn.simple_board_icon`. The board-picker's compact-row rule at (0,4,0) set the
+same properties plainly — so every one of them was dead, and "compact" rows kept
+the gallery tile's 28px radius, `0 8px 20px` shadow and `translateY(-3px)` hover.
+
+Two extras from the same mixin that a variant usually also wants to answer:
+- a decorative `::before` hairline (kill with `display: none`, not by fighting it)
+- `height: 100%` on the host rule, which together with grid/flex `stretch` makes
+  every card in a row as tall as its tallest sibling. A variant that wants
+  per-item height needs `height: auto` AND `align-items: start` AND
+  `align-self: start` on the wrapper (the page rule often sets `stretch`).
+
+**Rule of thumb:** before writing a variant of a mixin-styled component, grep the
+mixin for `!important` and match it property-for-property, with a comment saying
+why. Partial-file precedent: `_board_picker.scss` already did this for `img` and
+`.name` ("must answer in kind at (0,5,0)") — the shell rule just never did.
+
+**How to confirm rather than guess:** compile and read the emitted rules, then
+compare specificity among the `!important` declarations only:
+
+```js
+const css = require('sass').compile('app/styles/app.scss', {loadPaths:['app/styles']}).css;
+// grep the compiled text for the property and count which rules carry !important
+```
+
+**First seen in:** [2026-08-09-board-picker-compact-refinement.md](./2026-08-09-board-picker-compact-refinement.md)
+
+## Gotcha: Bootstrap 3's `.dropdown-menu > li > a` (0,1,2) beats the app's flat `.md-settings-dropdown-item` — the modern skin's flex/gap silently never applies
+
+**Symptom:** A menu wearing the modern dropdown skin renders items with the
+glyph jammed against the label (zero gap) and sitting on the text baseline
+rather than centred — even though `.md-settings-dropdown-item` clearly declares
+`display: flex; align-items: center; gap: 8px`. DevTools shows the `gap` as
+"computed" but with no effect, because the box is not a flex container.
+
+**Cause:** Any menu that keeps `dropdown-menu` on the `<ul>` (needed whenever
+Bootstrap's JS owns open/close via `data-toggle="dropdown"`) inherits vendored
+Bootstrap 3.4.1's
+`.dropdown-menu>li>a{display:block;padding:3px 20px;…}` at specificity
+`(0,1,2)`. The skin class is a flat `(0,1,0)`, so `display`, `padding` and every
+box-model property lose — `gap` is inert in block layout, and an inline `<svg>`
+aligns to the baseline. `font-size`/`color`-only skin properties still win, so
+the item looks *almost* right, which is why this reads as a spacing bug rather
+than a cascade bug.
+
+**Fix recipe:** put the layout properties on a selector that out-specifies
+Bootstrap's element chain — `<menu-class> > li > a.<item-class>` is `(0,2,2)` —
+and, per Rule #0.7, reuse the one that already exists for that menu rather than
+adding a second. These menus usually already have such a rule for
+`text-decoration`, for exactly this reason.
+
+**Applies to:** every `<ul class="dropdown-menu md-settings-dropdown-menu">` in
+the app. A menu that does NOT carry `dropdown-menu` (custom open/close via
+`md-settings-dropdown-wrap`) is unaffected — the flat class works there, which
+is why the same markup behaves differently in two places.
+
+**How to confirm rather than guess:** read `display` off the anchor, not `gap`:
+
+```js
+getComputedStyle(document.querySelector('.md-settings-dropdown-item')).display
+// "block" => Bootstrap won; "flex" => the skin applies
+```
+
+**First seen in:** [2026-08-09-extras-dropdown-icon-alignment.md](./2026-08-09-extras-dropdown-icon-alignment.md)
+
+## Gotcha: `overscroll-behavior: contain` on a NON-overflowing `overflow: auto` element swallows the wheel entirely
+
+**Symptom:** "Scrolling is not allowed once the menu is open." The page is fine
+everywhere else — it only freezes while the pointer sits over the open
+panel/menu, which makes it read as a global scroll lock and sends you hunting
+for `body { overflow: hidden }` or a modal backdrop that does not exist.
+
+**Cause:** `overflow-y: auto` makes an element a scroll container **whether or
+not it actually overflows**. Pair it with `overscroll-behavior: contain` and a
+container with nothing to scroll still counts the wheel as an overscroll, which
+`contain` refuses to chain to the ancestor scroller (`#content` here) — so the
+gesture is absorbed and nothing moves. The containment does its intended job
+only in the rarer state where the content DOES overflow.
+
+**Fix:** drop `overscroll-behavior: contain` from height-capped menus/popovers.
+Default chaining scrolls the element first and the page once it bottoms out,
+which is the expected behaviour anyway. Keep `contain` only for panels that
+overflow essentially always (a long log/list pane), not for one whose cap is a
+safety valve.
+
+**How to confirm rather than guess** (a `file://` repro with the real vendor CSS
+is enough; no app boot needed):
+
+```js
+await page.mouse.move(cx, cy); await page.mouse.wheel({deltaY: 400});
+await page.evaluate(() => document.querySelector('#content').scrollTop);
+// 0 over the menu but 400 over plain page => the menu is eating the wheel
+```
+
+**First seen in:** [2026-08-09-extras-dropdown-icon-alignment.md](./2026-08-09-extras-dropdown-icon-alignment.md)

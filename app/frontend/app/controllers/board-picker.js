@@ -25,14 +25,35 @@ export default Controller.extend({
     return su.get('id') == this.appState.get('currentUser.id');
   }),
 
-  boardPickerHeader: computed('for_self', 'setup_user.user_name', function() {
+  /* Human display name for the communicator, never the raw handle when a real
+     name exists — "aiden_parker" reads as a database key to a family. Falls back
+     to the handle only when the record carries no name. */
+  setupUserDisplayName: computed('setup_user.name', 'setup_user.user_name', function() {
+    return this.get('setup_user.name') || this.get('setup_user.user_name') || '';
+  }),
+
+  boardPickerHeader: computed('for_self', 'setupUserDisplayName', function() {
     if (this.get('for_self')) {
       return i18n.t('board_picker_header', "Pick Your Home Board");
     }
-    var name = this.get('setup_user.user_name') || '';
-    return i18n.t('board_picker_header_for_user', "Choose a home board for %{name}", { name: name });
+    var name = this.get('setupUserDisplayName');
+    return i18n.t('board_picker_header_possessive', "Choose %{name}'s home board", { name: name });
   }),
 
+  /* One-line orientation under the title. Kept separate from the header so the
+     self and supervisor flows can word it differently without branching in the
+     template. */
+  boardPickerSubtitle: computed('for_self', function() {
+    if (this.get('for_self')) {
+      return i18n.t('board_picker_subtitle_self', "Select a board to use as your starting board.");
+    }
+    return i18n.t('board_picker_subtitle', "Select a board to use as the communicator's starting board.");
+  }),
+
+  // Only the self branch renders today — the assign CTA is gated on `for_self`
+  // in board-picker.hbs, because a supervisor picking for a communicator chooses
+  // a specific board from the picker rather than auto-assigning a default. The
+  // supervisor label is kept so the button reads correctly if that gate changes.
   assignHomeButtonLabel: computed('for_self', function() {
     if (this.get('for_self')) {
       return i18n.t('assign_home_board_for_me', "Assign a Home Board For Me");

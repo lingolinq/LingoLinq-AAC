@@ -1,6 +1,7 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
+import { computed } from '@ember/object';
 import { schedule } from '@ember/runloop';
 import { getOwner } from '@ember/application';
 import modal from '../utils/modal';
@@ -9,6 +10,19 @@ export default Component.extend({
   tagName: '',
   appState: service('app-state'),
   app_state: alias('appState'),
+
+  /* Whose home board "Help me Choose" is about to pick. This card is rendered
+     with @user (dashboard/authenticated-view.hbs), which is the communicator a
+     supporter is viewing — not necessarily the signed-in account. The
+     board-picker keys its supervisor flow off this as a `user_id` query param
+     (controllers/board-picker#_resolve_setup_user); null on your own account, so
+     Ember drops the param and the picker runs its self flow. Global id, not
+     user_name — the picker compares the param against `setup_user.id`. */
+  homeBoardPickerUserId: computed('user.id', 'appState.currentUser.id', function() {
+    var card_user_id = this.get('user.id');
+    if(!card_user_id || card_user_id === this.get('appState.currentUser.id')) { return null; }
+    return card_user_id;
+  }),
 
   init() {
     this._super(...arguments);

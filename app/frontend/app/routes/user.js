@@ -60,6 +60,20 @@ export default Route.extend({
       return finish(data);
     });
   },
+  /* Publish "whose account is this page" so app-level chrome (the supervising
+     context pill) can name it. Set on the PARENT `:user_id` route rather than in
+     each of the ~20 child routes — one set/clear pair covers every child, and
+     resetController on exit is exactly when the context stops applying. */
+  setupController: function(controller, model) {
+    this._super.apply(this, arguments);
+    this.appState.set('page_user', model);
+  },
+  resetController: function(controller, isExiting) {
+    this._super.apply(this, arguments);
+    if(isExiting) {
+      this.appState.set('page_user', null);
+    }
+  },
   actions: {
     error: function(error, transition) {
       // Handle 404 errors gracefully to prevent console errors

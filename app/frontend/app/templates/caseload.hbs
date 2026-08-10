@@ -80,9 +80,12 @@
                         <span class="md-caseload__list-access md-caseload__list-access--view" title={{t "You can view this communicator's profile and boards; editing is limited by their supervision settings." key="caseload_access_view_only_hint"}}>{{t "Viewer" key="caseload_access_viewer"}}</span>
                       {{/if}}
                     </span>
-                    {{#if supervisee.displayed_goal_summary}}
-                      <span class="md-caseload__list-goal" title={{supervisee.displayed_goal_summary}}>{{supervisee.displayed_goal_summary}}</span>
-                    {{/if}}
+                    {{!-- No goal caption here: the collapsed row shows identity
+                         only. Goals live in the expanded panel's GOALS block
+                         below (md-caseload__bottom-row__goal), which carries the
+                         count, status, primary tag and the add/edit affordances.
+                         Filtering by goal text still works — the filter reads
+                         displayed_goal_summary from the model, not the DOM. --}}
                   </span>
                 </button>
                 <div class="md-caseload__list-quick" role="group" aria-label={{t "Quick actions" key="quick_actions"}}>

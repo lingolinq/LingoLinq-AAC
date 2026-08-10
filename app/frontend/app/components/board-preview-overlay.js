@@ -50,6 +50,15 @@ export default Component.extend({
      overlay so the (server-side, can-take-seconds) copy isn't an opaque freeze. */
   copying: false,
 
+  /* The preview must show the board the way THIS user's board-detail will show
+     it. Dark mode there is the `preferences.board_dark_mode` pref (default off —
+     controllers/user/board-detail.js:329, persisted at :5167), so the preview
+     follows the pref instead of the hard-coded `true` it used to pass, which made
+     every board preview navy while the board it previewed was light. */
+  board_dark_mode: computed('modal.boardPreview', function() {
+    return !!app_state.get('currentUser.preferences.board_dark_mode');
+  }),
+
   init() {
     this._super(...arguments);
     var self = this;

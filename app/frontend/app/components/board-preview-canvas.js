@@ -8,7 +8,8 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import i18n from '../utils/i18n';
-import { color_for_type } from '../utils/parts_of_speech';
+import RSVP from 'rsvp';
+import { color_for_type, cached_pos_for_label, words_needing_lookup, resolve_labels_pos } from '../utils/parts_of_speech';
 
 // No-progress stall watchdog window (ms). This is NOT a total-load deadline — it's the
 // maximum GAP with zero image progress before the preview gives up and lifts the loading
@@ -18,6 +19,15 @@ import { color_for_type } from '../utils/parts_of_speech';
 // this value. Named at module scope (not buried in the render closure) so it can be tuned
 // in one place.
 const STALL_MS = 12000;
+
+// Ceiling (ms) on how long the first paint will wait for the part-of-speech
+// lookup that gives uncoloured buttons their Fitzgerald colours. The live board
+// paints those colours too (board-detail.js#resolve_unknown_buttons), so waiting
+// is what makes the preview match — but a wedged lookup must never withhold the
+// preview, hence the race. In practice the single ≤100-word request settles well
+// inside the symbol-image loads that already gate the loading overlay, and the
+// word cache makes every board after the first free.
+const POS_WAIT_MS = 1500;
 
 export default Component.extend({
   appState: service('app-state'),
@@ -128,7 +138,62 @@ export default Component.extend({
       return htmlSafe('width: 100%; height: 100%;');
     }
   }),
+  /* Buttons whose colour the LIVE board derives from a part-of-speech lookup:
+     no author colour, no stored/painted/suggested type, but a label to look up.
+     board-detail.js#resolve_unknown_buttons selects exactly this set. */
+  _labels_needing_pos: function(board) {
+    if(!board || !board.translated_buttons) { return []; }
+    var locale = this.get('locale');
+    var res = [];
+    (board.translated_buttons(locale, locale) || []).forEach(function(button) {
+      if(!button || !button.label) { return; }
+      if(button.background_color || button.border_color) { return; }
+      if(button.part_of_speech || button.painted_part_of_speech || button.suggested_part_of_speech) { return; }
+      res.push(button.label);
+    });
+    return res;
+  },
+  /* Hold the first paint until the part-of-speech lookup lands, so uncoloured
+     buttons come up in the same Fitzgerald colours the live board gives them
+     instead of flashing neutral and recolouring. Bounded by POS_WAIT_MS: if the
+     lookup is slower than that we draw without it and redraw when it arrives, so
+     a wedged request can never withhold the preview. Attempted once per board —
+     the word cache in utils/parts_of_speech.js makes repeat previews free. */
   render_canvas: function() {
+    var _this = this;
+    var board = this.get('board');
+    // Keyed by board AND locale: switching the preview's locale swaps every
+    // label, so the new labels need their own lookup pass.
+    var pos_key = board && board.get && board.get('id');
+    pos_key = pos_key && (pos_key + '::' + (this.get('locale') || ''));
+    if(pos_key && this._pos_attempted_for !== pos_key) {
+      this._pos_attempted_for = pos_key;
+      var labels = this._labels_needing_pos(board);
+      if(labels.length && words_needing_lookup(labels).length) {
+        var persistenceSvc = this.persistence;
+        var draw = function() {
+          if(_this.isDestroyed || _this.isDestroying) { return; }
+          _this._draw_canvas();
+        };
+        var clear_wait = function() {
+          if(_this._posWaitTimer) { runCancel(_this._posWaitTimer); _this._posWaitTimer = null; }
+        };
+        resolve_labels_pos(labels, function(url, opts) { return persistenceSvc.ajax(url, opts); }, RSVP)
+          .then(function() { clear_wait(); draw(); }, function() { clear_wait(); draw(); });
+        this._posWaitTimer = runLater(function() {
+          _this._posWaitTimer = null;
+          draw();
+        }, POS_WAIT_MS);
+        /* Size the element now even though nothing is painted yet: the canvas
+           box is what the modal lays out around, and leaving it at the default
+           800x600 until the lookup lands would reflow the modal when it does. */
+        if(this.get('size') == 'modal' && this.element) { this._apply_modal_canvas_sizing(); }
+        return;
+      }
+    }
+    this._draw_canvas();
+  },
+  _draw_canvas: function() {
     if(this.get('size') == 'modal') {
       // Aspect-ratio sizing keeps the cells square at any width and lets the canvas
       // scale uniformly when the width changes (see _apply_modal_canvas_sizing).
@@ -335,10 +400,17 @@ export default Component.extend({
       bg: '#0d2438',
       hidden_stroke: 'rgba(255,255,255,0.18)',
       hidden_fill: 'rgba(255,255,255,0.05)',
-      stroke: 'rgba(255,255,255,0.35)',
-      fill: 'rgba(255,255,255,0.10)',
-      link_fallback_stroke: 'rgba(255,255,255,0.45)',
-      link_fallback_fill: 'rgba(20,40,68,0.85)',
+      /* An author-uncoloured card on the live dark board is near-white with a
+         faint white outline — `.md-board-detail--dark .md-…--no-color`
+         (background-color: rgba(255,255,255,0.92), app.scss:81998) and
+         `.md-board-detail--dark .md-…-symbol-card` (outline-color:
+         rgba(255,255,255,0.10), app.scss:81995). Painting these navy is what made
+         the preview look nothing like the board. contrast_label picks the
+         charcoal label over this fill on its own. */
+      stroke: 'rgba(255,255,255,0.10)',
+      fill: 'rgba(255,255,255,0.92)',
+      link_fallback_stroke: 'rgba(255,255,255,0.10)',
+      link_fallback_fill: 'rgba(255,255,255,0.92)',
       label: '#f1f4f8',
       /* Offline badge + missing-image fallback colors — translated from
          the "modern pill" CSS pattern (border-radius:999px, glass-veil
@@ -359,10 +431,12 @@ export default Component.extend({
       bg: null,
       hidden_stroke: 'rgba(20,40,68,0.10)',
       hidden_fill: 'rgba(255,255,255,0.6)',
-      stroke: 'rgba(20,40,68,0.14)',
-      fill: '#fff',
-      link_fallback_stroke: 'rgba(20,40,68,0.16)',
-      link_fallback_fill: '#FFF',
+      /* The live board's `--default` card: white on $brand-stone-300
+         (#E0DCD6) — app.scss:76916, _variables.scss:78. */
+      stroke: '#E0DCD6',
+      fill: '#FFFFFF',
+      link_fallback_stroke: '#E0DCD6',
+      link_fallback_fill: '#FFFFFF',
       label: '#000',
       badge_fill_top: 'rgba(255,255,255,0.96)',
       badge_fill_bottom: 'rgba(241,244,248,0.92)',
@@ -679,13 +753,26 @@ export default Component.extend({
                     context.fillStyle = palette.hidden_fill;
                     context.lineWidth = border_size / 2;
                   } else {
-                    /* Color priority (matches board-detail speak-mode buttons):
-                       1) author-set colors win; 2) else the Fitzgerald color for
-                       the button's part_of_speech (the same keyed-colors palette
-                       speak mode paints via CSS); 3) else the neutral palette. */
+                    /* Color priority — mirrors board-detail-grid.hbs:53/58 exactly:
+                       1) author-set colors win (there: the inline style);
+                       2) else the Fitzgerald color for the button's part of speech,
+                          read from the SAME three fields the live board's
+                          `md-board-detail-symbol-card--<pos>` class reads —
+                          part_of_speech || painted_part_of_speech ||
+                          suggested_part_of_speech — plus the session POS cache,
+                          which is where `suggested_part_of_speech` comes from on
+                          the live board (board-detail.js#resolve_unknown_buttons);
+                       3) else the neutral palette (the `--default` card).
+                       In DARK mode step 2 is skipped: the live board's
+                       `.md-board-detail--dark .md-…--no-color` rule (app.scss:81998)
+                       out-specifies every POS rule, so an author-uncoloured button
+                       is near-white there regardless of its part of speech. */
                     var pos_fill = null, pos_border = null;
-                    if(!button.background_color && !button.border_color && button.part_of_speech && fitz_colors) {
-                      var pos_c = color_for_type(button.part_of_speech, fitz_colors);
+                    if(!button.background_color && !button.border_color && fitz_colors && !dark) {
+                      var pos_type = button.part_of_speech || button.painted_part_of_speech ||
+                                     button.suggested_part_of_speech ||
+                                     (button.label ? cached_pos_for_label(button.label) : null);
+                      var pos_c = pos_type && color_for_type(pos_type, fitz_colors);
                       if(pos_c) { pos_fill = pos_c.fill; pos_border = pos_c.border; }
                     }
                     context.strokeStyle = desat_border(button.border_color || pos_border || (show_links ? palette.link_fallback_stroke : palette.stroke));
@@ -897,6 +984,10 @@ export default Component.extend({
     if (this._previewStallTimer) {
       runCancel(this._previewStallTimer);
       this._previewStallTimer = null;
+    }
+    if (this._posWaitTimer) {
+      runCancel(this._posWaitTimer);
+      this._posWaitTimer = null;
     }
     if (this._resizeObserver) {
       this._resizeObserver.disconnect();

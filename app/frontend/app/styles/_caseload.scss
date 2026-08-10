@@ -333,7 +333,8 @@
   flex-direction: column;
   gap: 2px;
 }
-/* Name + access chip share one line; goal caption sits below. */
+/* Name + access chip are the whole collapsed row — goals moved to the
+   expanded panel, so this is the only line inside .md-caseload__list-identity. */
 .md-caseload__list-name-row {
   display: flex;
   align-items: center;
@@ -958,15 +959,6 @@
   font-weight: 700;
   color: $la-navy;
   line-height: 1.25;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.md-caseload__list-goal {
-  font-size: 13px;
-  font-weight: 500;
-  color: rgba($la-navy, 0.65);
-  line-height: 1.35;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

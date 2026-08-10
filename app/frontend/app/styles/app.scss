@@ -10,6 +10,7 @@
 @use "badges";
 @use "goals";
 @use "search";
+@use "board_picker";
 
 // All design-token variables ($brand-*, $color-*, $aac-*, $la-*, $cat-*,
 // $nav_*, $page-footer-*, $ll-bento-*) live in _variables.scss above.
@@ -5196,8 +5197,10 @@ tr.accuracy_non_mastered {
 }
 
 /* Board picker route (/board-picker): same card + picker as /search/home, with CTAs above */
+/* The whole page introduction is now the h1 + one sentence, so this is the only
+   gap between the introduction and the two-column layout. */
 .md-card--board-picker__header {
-  margin-bottom: 1.25rem;
+  margin-bottom: 26px;
 }
 .md-card--board-picker .md-card--board-picker__actions {
   margin-bottom: 2rem;
@@ -5211,23 +5214,92 @@ tr.accuracy_non_mastered {
 .md-card--board-picker .board-picker-page__divider {
   margin-bottom: 0;
 }
+/* The shared boards card clips with `overflow: hidden` (~5170) so a fixed-column
+   grid can't poke out of its rounded corner. This page's grids are auto-fit /
+   auto-fill and never overflow, but the clip DOES crop the compact rows' hover
+   shadow flat against the card edge. Scoped to this page only. */
+.md-shell--board-picker .md-card--board-picker {
+  overflow: visible;
+  /* Even padding all round. The shared rule (~5165) reserves 24px top / 2rem
+     bottom for a centred title band this page no longer has. */
+  padding: 28px;
+}
 .md-shell--board-picker .md-card--board-picker .md-hero--home-boards {
   padding: 0 !important;
-  text-align: center;
+  text-align: left;
   margin-bottom: 0;
 }
+/* The authoritative type for the page h1 — !important because the global
+   `.md-hero__title` (~44534) sets its size that way, and (0,4,0) so the weight
+   beats `.md-hero--home-boards .md-hero__title { font-weight: 900 }` (~4901).
+   $la-navy rather than the inherited --md-ink: the same navy the section
+   heading used, which is the reading colour for headings on this page. */
 .md-shell--board-picker .md-card--board-picker .md-hero--home-boards .md-hero__title {
-  font-size: clamp(22px, 5vw, 28px) !important;
-  line-height: 1.15;
+  font-size: 24px !important;
+  font-weight: 700;
+  line-height: 1.2;
+  color: $la-navy;
+  text-align: left;
 }
+/* (No phone override needed: 24px at every width is exactly where the ≤640 rule
+   used to bring this title down to.) */
+/* The title reads as a decorative PILL rather than bare text. Deliberately
+   RECESSED, not raised: it is a label, not a control, so the lighting is
+   inverted from the usual raised-pill recipe — shadow cast INWARD from the top
+   edge, a light catch on the bottom lip, and a veil that darkens at the top
+   instead of the bottom. No outer drop shadow, which is what would read as a
+   pressable button. Stays inline-block so the pill hugs the text and still
+   carries the hero's from-left entrance. */
 .md-shell--board-picker .md-card--board-picker .md-hero--home-boards .md-hero__title .md-hero__title--from-left {
   display: inline-block;
+  max-width: 100%;
+  padding: 0.45em 1.15em;
+  border-radius: 999px;
+  border: 1px solid rgba($brand-verdigris, 0.22);
+  background:
+    linear-gradient(180deg, rgba($la-navy, 0.07) 0%, rgba(255, 255, 255, 0.35) 100%),
+    linear-gradient(135deg, rgba($brand-verdigris, 0.14) 0%, rgba($brand-dusty-denim, 0.12) 100%);
+  box-shadow:
+    inset 0 2px 4px rgba($la-navy, 0.14),
+    inset 0 1px 1px rgba($la-navy, 0.10),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.65);
   font-size: inherit;
   opacity: 0;
   animation: la-hero-title-from-left 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
+/* Outer page container. Wider ceiling than the shared 1200px so the two columns
+   have room at desktop widths, and a real outer gutter (the base rule's
+   `calc(100% - 24px)` left ~12px a side). Internal side padding drops from the
+   shared 40px to 28px; the ≤1280 and ≤1024 rules below step it down further
+   rather than squeezing the cards. */
 .md-shell--board-picker > .md-workspace {
   margin-top: 0 !important;
+  max-width: min(1440px, calc(100% - 56px)) !important;
+  padding-left: 28px !important;
+  padding-right: 28px !important;
+  /* 40px of workspace padding plus the pill-nav's own 42px top margin put 82px
+     of nothing above the first control; 24 + 16 took that to 40 and read as
+     cramped. 32 + 24 = 56px is the middle. THESE TWO NUMBERS ARE COUPLED to the
+     supervising pill's offset — see the `#within_ember:has(.md-shell--board-picker)
+     .ll-supervising-pill` rule (~98040), which keeps the pill's vertical centre
+     on the step control's. Change one, redo the other. */
+  padding-top: 32px !important;
+}
+/* `> .md-workspace > .md-pillnav`, not `.md-shell--board-picker .md-pillnav`:
+   the generic `.md-workspace > .md-pillnav { margin-top: 0; margin-bottom: 12px }`
+   (~1540080 in the compiled sheet) is ALSO (0,2,0) and lands later, so the flat
+   two-class form silently lost and this nav kept a 0 top margin. (0,3,0) wins on
+   merit. Bottom margin doubled from that rule's 12px. */
+.md-shell--board-picker > .md-workspace > .md-pillnav {
+  margin-top: 24px !important;
+  margin-bottom: 24px !important;
+}
+@media (max-width: 1280px) {
+  .md-shell--board-picker > .md-workspace {
+    max-width: calc(100% - 40px) !important;
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+  }
 }
 .md-shell--board-picker .md-card--home-boards__picker {
   margin-top: 1.25rem;
@@ -5268,14 +5340,31 @@ tr.accuracy_non_mastered {
   grid-column: 1 / -1;
   width: 100%;
 }
+/* Bottom margin as well as top: this is the last thing in the results panel, so
+   it owns the gutter between the final control and the panel's bottom edge (on
+   top of the panel's own 24px padding). */
 .md-shell--board-picker .md-home-boards-picker__load-more {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   margin-top: 1.5rem;
+  margin-bottom: 8px;
+}
+/* Where the "load more to see additional public boards" note now lives — it was
+   in the panel's intro paragraph, three lines above the grid it describes. */
+.md-shell--board-picker .md-home-boards-picker__load-more-hint {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: $brand-charcoal-dark;
+  text-align: center;
 }
 .md-shell--board-picker .md-home-boards-picker__load-more-btn {
   min-width: 10rem;
-  font-size: 1rem;
+  /* px, not `1rem`: the root font-size is 10px (bootstrap's `html { font-size:
+     10px }`), so `1rem` here was rendering at 10px. Matches the hint below it. */
+  font-size: 14px;
 }
 /* Category sidebar — icon + label cards matching board-picker mockup */
 .md-shell--board-picker .md-home-boards-picker__layout {
@@ -5285,7 +5374,7 @@ tr.accuracy_non_mastered {
   flex: 1 1 100%;
   width: 100%;
   margin: 0 0 0.25rem;
-  font-size: 22px !important;
+  font-size: 20px !important;
   font-weight: 700;
   letter-spacing: 0.04em;
   color: $la-navy;
@@ -5300,15 +5389,20 @@ tr.accuracy_non_mastered {
   align-self: flex-start;
 }
 /* Right column: one callout panel wrapping explainer, filter, and board grid. */
+/* Results surface: a quiet ground for the board cards, not a nested app. Flat
+   near-white (the old 135deg tint gradient put a bright hotspot in one corner),
+   one verdigris edge accent, no outer shadow and no second border — the cards
+   carry the elevation. The 24px padding is also the bottom gutter after the
+   last card / Load More. */
 .md-shell--board-picker .md-home-boards-picker__category-panel {
-  padding: 1.5rem 1.75rem;
-  border-radius: 14px;
+  padding: 24px 26px 26px;
+  border-radius: 16px;
   border-left: 4px solid rgba(44, 183, 176, 0.55);
-  background: linear-gradient(135deg, rgba(44, 183, 176, 0.06) 0%, rgba(91, 141, 239, 0.04) 100%);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  background: rgba(240, 246, 248, 0.55);
+  box-shadow: none;
 }
 .md-shell--board-picker .md-home-boards-picker__category-panel .category_explainer {
-  margin-bottom: 1.25rem;
+  margin-bottom: 17px;
   padding: 0;
   border: 0;
   border-left: none;
@@ -5316,9 +5410,12 @@ tr.accuracy_non_mastered {
   background: none;
   box-shadow: none;
 }
+/* One short line of context, not a paragraph block: 720px measure so it fits on
+   a single line at desktop widths and wraps at most twice on a phone. */
 .md-shell--board-picker .md-home-boards-picker__category-panel .category_explainer p {
-  font-size: 1.4763125rem;
-  line-height: 1.7;
+  max-width: 720px;
+  font-size: 15px;
+  line-height: 1.45;
   color: var(--md-ink);
   margin: 0;
   font-weight: 500;
@@ -5342,17 +5439,20 @@ tr.accuracy_non_mastered {
 .md-shell--board-picker .md-home-boards-picker__categories {
   gap: 10px;
 }
+/* min-height, not height: "Functional Communication" wraps to two lines and that
+   row grows; every single-line row stays at the floor. */
 .md-shell--board-picker .md-home-boards-picker__category--iconic {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 12px 14px;
-  font-size: 18px;
+  gap: 12px;
+  min-height: 62px;
+  padding: 10px 14px;
+  font-size: 16px;
   font-weight: 700;
   color: $la-navy;
   background: #fff;
   border: 1px solid rgba($la-navy, 0.14);
-  border-radius: 10px;
+  border-radius: 12px;
   box-shadow: none;
 }
 .md-shell--board-picker .md-home-boards-picker__category--iconic:hover {
@@ -5360,19 +5460,23 @@ tr.accuracy_non_mastered {
   border-color: rgba($brand-verdigris-aa, 0.35);
   color: $la-navy;
 }
+/* Selection is carried by the border and the left accent, not by a tint strong
+   enough to compete with the restrained board cards. The accent is an INSET
+   shadow rather than a border-left so the label doesn't shift 3px when a row
+   becomes active — it is an accent, not the elevation the spec rules out. */
 .md-shell--board-picker .md-home-boards-picker__category--iconic.is-active {
-  background: rgba($brand-verdigris, 0.10);
+  background: rgba($brand-verdigris, 0.06);
   border-color: rgba($brand-verdigris-aa, 0.55);
   color: $la-navy;
-  box-shadow: none;
+  box-shadow: inset 3px 0 0 $brand-verdigris-aa;
 }
 .md-shell--board-picker .md-home-boards-picker__category-icon {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 10px;
   background: rgba($brand-verdigris, 0.08);
 }
@@ -5382,7 +5486,7 @@ tr.accuracy_non_mastered {
 .md-shell--board-picker .md-home-boards-picker__category-label {
   flex: 1;
   min-width: 0;
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1.25;
   text-align: left;
 }
@@ -5397,7 +5501,11 @@ tr.accuracy_non_mastered {
 .md-home-boards-picker__nav {
   flex-shrink: 0;
   width: 100%;
-  max-width: 280px;
+  /* The category column is the only fixed-width track in this flex row; the
+     board-preview column beside it is `flex: 1 1 420px` (see
+     .md-home-boards-picker__content), so every pixel taken off this max-width
+     goes straight to the preview area. 280px -> 265px = 15px moved across. */
+  max-width: 265px;
 }
 .md-home-boards-picker__nav-inner {
   position: sticky;
@@ -6120,13 +6228,6 @@ tr.accuracy_non_mastered {
   /* Same entrance movement as the home-page hero: title in from the left. */
   opacity: 0;
   animation: la-hero-title-from-left 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-}
-.board-picker-page__context {
-  margin: 0.75rem 0 0;
-  text-align: center;
-  font-size: 1.05rem;
-  line-height: 1.5;
-  color: rgba(43, 52, 69, 0.82);
 }
 .board-picker-page__intro {
   margin: 0 auto clamp(40px, 6vh, 64px);
@@ -60365,6 +60466,31 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     margin-top: 0 !important;
     border-radius: 0 !important;
   }
+  /* Board-picker only: give the picker the full narrow-viewport width by
+     dropping the workspace's 40px side padding (base rule, app.scss ~43647).
+     The category column + board grid are already inset by the card and panel
+     padding inside, so the outer gutter is dead space here. Vertical padding
+     is left alone. */
+  .md-shell--board-picker > .md-workspace {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  /* Same reasoning one level in: `.md-main` carries `padding: 18px 16px 24px
+     !important` (~44554), which on a narrow viewport is a second dead gutter
+     inside the workspace's. Vertical padding is left alone; (0,2,0) + !important
+     is what it takes to beat that base rule. */
+  .md-shell--board-picker .md-main--home-boards {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  /* Narrow viewports: take 16px off the category rail and hand it to the
+     results column. One declaration does both — the results column is
+     `flex: 1 1 420px` (a grower) next to a fixed-width rail, so every pixel off
+     the rail's max-width lands there. The base is 265px (~5423); 249px still
+     holds "Functional Communication" on two lines. */
+  .md-shell--board-picker .md-home-boards-picker__nav {
+    max-width: 249px;
+  }
   .md-shell {
     background:
       radial-gradient(800px 500px at 5% 0%, rgba($brand-stormy-teal, 0.22), transparent 50%),
@@ -79283,6 +79409,62 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-settings-dropdown-menu li {
   list-style: none;
 }
+/* Account page "Extras" card menu. It carries `.dropdown-menu` too (Bootstrap
+   owns the open/close), so this rule only has to answer the bits Bootstrap sets
+   that the modern skin does not: the menu hangs from the RIGHT edge of the card
+   rather than the left, and Bootstrap's own text styling on the anchors is
+   replaced by .md-settings-dropdown-item. Replaces an inline
+   `style="right: 0; left: auto"` on the element. */
+.md-acct-extras__menu {
+  left: auto;
+  right: 0;
+  min-width: 240px;
+  max-width: none;
+  /* Nothing on this page locks page scroll when the menu opens — but the menu
+     is absolutely positioned, so it does NOT add to the page's scroll height:
+     opened near the bottom of the viewport its tail had nowhere to go and there
+     was nothing to scroll to. Capping the height and letting the MENU scroll
+     keeps every item reachable without the page having to grow. 70vh so it only
+     kicks in when the menu genuinely can't fit.
+     NO `overscroll-behavior: contain` here: `overflow-y: auto` makes this a
+     scroll container even when the items fit (the usual case — five items is
+     ~232px, well under the cap), and containment then SWALLOWS the wheel
+     instead of chaining it, so the page froze whenever the pointer sat over
+     the open menu. Default chaining scrolls the menu first and the page after
+     it bottoms out, which is what the rest of the app's menus do. */
+  max-height: min(70vh, 460px);
+  overflow-y: auto;
+}
+/* Two-tone glyphs, sized and pinned so labels align on one text axis however
+   long the label wraps. */
+.md-acct-extras__icon {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+}
+.md-acct-extras__label {
+  min-width: 0;
+}
+/* Bootstrap 3's `.dropdown-menu > li > a` (0,1,2) out-specifies the flat
+   `.md-settings-dropdown-item` (0,1,0), so the skin's own `display: flex`,
+   `gap`, and `padding` never reached these anchors — they laid out as
+   `display: block` with `padding: 3px 20px`, which put the glyph inline on the
+   text baseline with ZERO space before the label. This selector is (0,2,2), so
+   it wins; it is the one authoritative place the extras items answer Bootstrap
+   (text-decoration was already here for the same reason). */
+.md-acct-extras__menu > li > a.md-settings-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  text-decoration: none;
+}
+.md-acct-extras__menu > li > a.md-settings-dropdown-item:hover,
+.md-acct-extras__menu > li > a.md-settings-dropdown-item:focus {
+  background: rgba($la-navy, 0.06);
+  color: $la-navy;
+  text-decoration: none;
+}
 .md-settings-dropdown-divider {
   height: 1px;
   margin: 6px 8px;
@@ -97966,5 +98148,145 @@ body.md-tour--centered-step .shepherd-modal-overlay-container.shepherd-modal-is-
   dd {
     font-size: 1.05rem;
     margin: 0.25rem 0 0 0;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   SUPERVISING CONTEXT PILL
+   Names the account a supporter is viewing when it isn't their own
+   (components/supervising-context-pill.*).
+
+   ZERO LAYOUT IMPACT BY CONSTRUCTION. The pill is absolutely positioned out of
+   document flow inside a zero-height anchor, so no surrounding element moves by
+   a pixel — an earlier in-flow version pushed every page's content down.
+   pointer-events:none means it can never take a click meant for the page
+   beneath it. These two properties are the contract; everything else here is
+   cosmetic.
+
+   IT SCROLLS AWAY WITH THE PAGE. The pill used to be position:fixed and so
+   followed the reader down every page. It now renders INSIDE #content — the
+   app's real scroll container on every page that scrolls (#within_ember is
+   position:fixed/overflow:hidden on the page-footer layout, so the document
+   itself never scrolls) — anchored to a zero-height wrapper. Keep the anchor:
+   without a positioned ancestor inside the scroller the pill would resolve
+   against #within_ember again and go back to hovering.
+   ────────────────────────────────────────────────────────────── */
+.ll-supervising-pill-anchor {
+  position: relative;
+  height: 0;   /* takes no space in #content's flex column */
+}
+.ll-supervising-pill {
+  position: absolute;
+  /* Measured from the anchor, which sits at #content's CONTENT-box top — after
+     the layout's own top padding. Every layout that shows a header already pads
+     #content past it (`#within_ember #content` ~l.1197, and the bento rules
+     restate the same calc), and the layouts that zero that padding
+     (.board-detail-view, .content--no-top-padding) also zero/hide the header —
+     so a plain gap below the content start clears the chrome everywhere.
+     44px drops the pill clear of the page's own top chrome and lines it up with
+     the board-picker's pill-nav. px, not rem: bootstrap's `html { font-size:
+     10px }` (vendor.css) means 1rem renders at 62.5% of what it reads like. */
+  top: 44px;
+  left: 16px;
+  z-index: 900;   /* above page content, below modals/overlays (1000+) */
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  padding: 7px 16px 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba($brand-verdigris, 0.30);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.78) 100%),
+    linear-gradient(135deg, rgba($brand-verdigris, 0.16) 0%, rgba($brand-stormy-teal, 0.12) 100%);
+  /* Slight glow: soft verdigris halo outside the hairline border, over the
+     standard inset top highlight. Not the raised drop-shadow stack — this is a
+     label, not a control. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    0 0 0 3px rgba($brand-verdigris, 0.07),
+    0 0 14px rgba($brand-verdigris, 0.22),
+    0 1px 3px rgba($la-navy, 0.08);
+  color: $brand-stormy-teal;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+  max-width: calc(100vw - 32px);
+}
+/* Wide screens only: the page chrome below the header (the Home/Caseload/Boards
+   pill row and the hero beneath it) sits lower once there is room for it, and
+   the pill was left stranded up against the header. Drop it 32px so it reads as
+   part of that row. At 1024 and below the chrome tightens back up and 44px is
+   right again, so the base value stands there. */
+@media (min-width: 1025px) {
+  .ll-supervising-pill {
+    top: 76px;
+  }
+}
+/* Board picker: that page sets its own top band (workspace padding-top 32 +
+   pill-nav margin-top 24, ~5260), and the brief for it asks that this pill and
+   the Boards/Choose Board step control share a vertical centre. The step
+   control's centre lands at 118 (#content padding) + 32 + 24 + 21 (half the nav
+   band) = 195px; this pill is ~34px tall, so 195 - 17 = 60px from the same
+   anchor. Coupled to those two values — change them and this moves with them. */
+#within_ember:has(.md-shell--board-picker) .ll-supervising-pill {
+  top: 60px;
+}
+/* Live-session indicator: a dot with an expanding pulse ring. The RING animates,
+   never the dot or the pill, so nothing about the element's box changes. */
+.ll-supervising-pill__status {
+  position: relative;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+}
+.ll-supervising-pill__status-dot {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: $brand-verdigris;
+  box-shadow: 0 0 6px rgba($brand-verdigris, 0.85);
+}
+.ll-supervising-pill__status-dot::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  border: 1.5px solid rgba($brand-verdigris, 0.55);
+  animation: ll-supervising-pulse 2s ease-out infinite;
+}
+@keyframes ll-supervising-pulse {
+  0%   { transform: scale(0.55); opacity: 0.9; }
+  70%  { transform: scale(1.35); opacity: 0; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ll-supervising-pill__status-dot::after {
+    animation: none;
+    opacity: 0.5;
+    transform: scale(1);
+  }
+}
+.ll-supervising-pill__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .ll-supervising-pill {
+    left: 10px;
+    max-width: calc(100vw - 20px);
+    font-size: 13px;
   }
 }
