@@ -378,8 +378,18 @@ module Converters::LingoLinq
 
           record.process(item)
 
-          if opts['json_bundle_import'] && klass == ButtonImage
+          # Keep imported button art as the author attached it (JSON-bundle,
+          # .obf, and .obz all enter through from_external / from_obf).
+          # Background skin enrichment otherwise searches by label and can
+          # swap custom photos (or S3 copies of library symbols) for a
+          # different OpenSymbols/ARASAAC match. User must change the button
+          # explicitly to replace an imported image.
+          if klass == ButtonImage
             record.settings['preserve_source_image'] = true
+            # Drop any enrichment-sourced rewrite targets; do not clear the
+            # imported url itself. Skin tones may still apply when the
+            # imported url is already a skinnable /libraries/ asset.
+            record.settings.delete('library_url_for_skin')
             record.save
           end
 
