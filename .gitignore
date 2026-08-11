@@ -160,3 +160,11 @@ docs/CI_TEST_FAILURES_ANALYSIS.md
 
 # Playwright MCP session scratch
 .playwright-mcp/
+
+# Playwright
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

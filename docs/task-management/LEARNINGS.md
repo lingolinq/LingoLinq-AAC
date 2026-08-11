@@ -20,6 +20,9 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: highlight-outlet must not mount opening-observer with a null model](#gotcha-highlight-outlet-must-not-mount-opening-observer-with-a-null-model)
+- [Gotcha: online invalid_token must not fall back to cached user/self](#gotcha-online-invalid_token-must-not-fall-back-to-cached-userself)
+- [Pattern: Playwright settings e2e — three settings surfaces + restore after mutate](#pattern-playwright-settings-e2e--three-settings-surfaces--restore-after-mutate)
 - [Pattern: phased board prefetch — shared planner, dual persistence files](#pattern-phased-board-prefetch--shared-planner-dual-persistence-files)
 - [Pattern: board-preview latency is cold-cache, not the loading gate — warm on intent](#pattern-board-preview-latency-is-cold-cache-not-the-loading-gate--warm-on-intent)
 - [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
@@ -5303,3 +5306,62 @@ open/high counts straight from the JSON (a `ruby -rjson` tally) rather than carr
 forward; the 2026-06-13 posture report had stale 0/13 + FERPA 8/4 figures that did not match the
 register's 0/16 + FERPA 10/5. Run all three `--check` renders + `citation-check` green before
 committing. Confirmed 2026-06-18.
+
+## Pattern: Playwright e2e against staging when local stack is cold
+
+Root Playwright lives at repo root (`playwright.config.ts`, `tests/`). Default
+`baseURL` is `https://lingolinq-staging.onrender.com`; override with
+`PLAYWRIGHT_BASE_URL` (e.g. `http://localhost:8184`). Prefer Chromium-only for
+day-to-day smoke; keep assertions on role/name (Ember SPA hydrates after shell
+HTML). In this Cursor/WSL environment set
+`PLAYWRIGHT_BROWSERS_PATH=$HOME/.cache/ms-playwright` if launch fails looking
+under `/tmp/cursor-sandbox-cache/...`. Local Rails/Ember still need `bundle
+install` + frontend `npm install` before `PLAYWRIGHT_BASE_URL=http://localhost:8184`
+works. Confirmed 2026-07-26.
+
+## Pattern: Playwright login form IDs + device-trust follow-up
+
+Login is Ember at `/login` (`#login_form`). Stable fields: `#identification`
+(username, not email), `#password`, submit via role `/sign in/i` scoped to the
+form. The submit button stays disabled until the client browser token is ready
+— wait for enabled before click. After auth, most fresh browser contexts show
+"Trust this Device" (`login_followup`); race that button vs `/:user/home` then
+assert `#identity_button`. Always-seeded local users: `lingolinq`/`password`,
+`lingolinq_admin`/`admin2025!`. Board smoke: public `/lingolinq/yesno` with
+`a.button[data-id]` + `.button-label` (or `#board_canvas` if canvas_render).
+Shared helper: `tests/helpers/auth.ts`. Confirmed 2026-08-07.
+
+## Gotcha: highlight-outlet must not mount opening-observer with a null model
+
+`HighlightOutlet` in `application.hbs` looked up `controller:highlight` and always
+wrapped it in `opening-observer`. On insert, that called `highlight.opening()`, which
+does nested sets like `this.set('model.shift_color', false)`. With no active highlight,
+`model` was null → Ember threw "Property set failed: object in path \"model\"…" as an
+**unrecoverable render error**, freezing the main outlet on `index-loading`
+("Preparing your workspace") forever even while APIs returned 200. Fix: only mount
+when `settings` is present (`{{#if (and this.highlightController this.settings)}}`),
+and null-guard `opening` / `closing` / `compute_styles` / `shift_color` in
+`controllers/highlight.js`. Confirmed 2026-08-07.
+
+## Gotcha: online invalid_token must not fall back to cached user/self
+
+`persistence.DSExtend.findRecord` treated `invalid_token` / "Token needs refresh" as
+a cue to return IndexedDB-cached `user/self` while online. Combined with
+`force_logout` opening a modal **without** `invalidate` when `modal.route` was set,
+boot stayed `isAuthenticated` with a dead token: board APIs 400'd forever behind the
+workspace skeleton. Online + invalid token for `user`/`self` must reject so session
+recovery runs; offline local fallback remains. Also treat "Token needs refresh" /
+"Expired token" as logout-worthy in `app-state` `find_user`, and always
+`invalidate(true)` from `force_logout`. Confirmed 2026-08-07.
+
+## Pattern: Playwright settings e2e — three settings surfaces + restore after mutate
+
+User-configurable settings are not one page: (1) `/:user/preferences` form with
+collapsed `.md-pref-box` sections and custom `bound-select` buttons (not native
+`<select>`), saved via `user.save()` then redirect away from preferences;
+(2) home **Display Style** (Shepherd `.md-ds-modal` Gentle/Focused — Color Tone /
+`ll-bento-dark-toggle` is speak-mode-only or hidden on home); (3) board-detail
+**edit** Light/Dark (`/:user/board-detail/:board/edit` → `.md-board-detail--dark`).
+Helpers in `tests/helpers/preferences.ts`; suite serial + restores values.
+`bound-select` treats `id: ''` as unset (`- Select -` after reload) — skip those
+options for persistence asserts. Confirmed 2026-08-07 (33/33 pass locally).
