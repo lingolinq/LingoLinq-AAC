@@ -21,8 +21,20 @@ describe('Badge', function() {
       expect(b.get('progress_out_of_100')).toEqual(0);
       b.set('progress', 0.54);
       expect(b.get('progress_out_of_100')).toEqual(54);
+      // ROUNDED to a whole percent as of 47c5a3001 — this value feeds
+      // "%{pct}% Complete" text and `aria-valuenow` in eight places, and
+      // nothing there should display or announce a fraction of a percent.
       b.set('progress', 0.701);
-      expect(b.get('progress_out_of_100')).toEqual(70.1);
+      expect(b.get('progress_out_of_100')).toEqual(70);
+      // The case the rounding exists for: float multiplication produces
+      // 55.00000000000001, which every consumer used to render verbatim.
+      b.set('progress', 0.55);
+      expect(b.get('progress_out_of_100')).toEqual(55);
+      // Clamped at both ends.
+      b.set('progress', -1);
+      expect(b.get('progress_out_of_100')).toEqual(0);
+      b.set('progress', 1.5);
+      expect(b.get('progress_out_of_100')).toEqual(100);
     });
   });
 

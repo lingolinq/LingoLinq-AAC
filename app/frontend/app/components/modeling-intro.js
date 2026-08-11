@@ -10,7 +10,11 @@ export default Component.extend({
   modal: service('modal'),
   tagName: '',
 
-  didInsertElement() {
+  // init(), NOT didInsertElement(): the template binds these bare
+  // (`{{on "click" this.onClose}}`, `@opening={{this.onOpening}}`) and the
+  // modifier installs during render, before didInsertElement runs. Assigning
+  // them there left the modifier binding `undefined` and the X button dead.
+  init() {
     this._super(...arguments);
     var self = this;
     this.onClose = function() {
@@ -22,6 +26,12 @@ export default Component.extend({
     this.onClosing = function() {
       self.send('closing');
     };
+  },
+
+  // Stays in didInsertElement — this marks the intro as seen, which should
+  // happen when the modal actually appears, not when the component is built.
+  didInsertElement() {
+    this._super(...arguments);
     const user = app_state.get('currentUser');
     if (user) {
       const progress = user.get('preferences.progress') || {};

@@ -10124,11 +10124,13 @@ delays converged it collapsed to one button.
 
 **Verify SCSS with Dart Sass, not SassC.** `app/frontend/ember-cli-build.js:31` pins
 `implementation: require('sass')`. A `SassC::Engine` check fails at ~line 681 on `color.adjust`
-(a Dart-only module function) — that failure is pre-existing noise, not your change. Use the
-Dart Sass **Node API**, not the CLI: `node -e "require('sass').compile('app/styles/app.scss',
-{loadPaths:['app/styles'],quietDeps:true})"`. As of 2026-08-10 `npx sass` itself throws
-`ERR_REQUIRE_ESM` — `sass/sass.js` `require()`s `chokidar`, which is now ESM-only. The API entry
-point is unaffected.
+(a Dart-only module function) — that failure is pre-existing noise, not your change. Compile with
+`npx sass --load-path=app/styles app/styles/app.scss <out>`, or via the Node API
+(`node -e "require('sass').compile('app/styles/app.scss',{loadPaths:['app/styles']})"`).
+
+**If `npx sass` dies with `ERR_REQUIRE_ESM` (chokidar), you are on the wrong Node.** See the
+Node-version entry below — this repo needs Node 22; the API entry point happens to survive on
+Node 16, which makes it easy to misread a version problem as a broken tool.
 
 **Evidence:** [`2026-08-07-create-board-chooser-primary-secondary.md`](./2026-08-07-create-board-chooser-primary-secondary.md).
 
@@ -10200,3 +10202,182 @@ commit is reachable but unmerged.
 merge `staging` in at all — the inward merge is what makes a stranded branch look finished.
 
 **Evidence:** [`2026-08-10-recover-stranded-new-work-commit.md`](./2026-08-10-recover-stranded-new-work-commit.md).
+
+## Gotcha: grepping SCSS for a full BEM class name gives false "unstyled" reads — the rules are nested as `&__…`
+
+**Symptom:** `grep -c "ub-boards-page__folder-filter" app.scss` → 0, so you conclude a whole UI
+section lost its styling. It didn't. `app.scss` writes these as nested selectors:
+
+```scss
+.ub-boards-page {
+  &__folders-section { … }
+  &__folder-filter-input { … }
+}
+```
+
+The literal string `ub-boards-page__folder-filter-input` **never appears in the source** — Sass
+composes it at compile time. `grep -rn "&__folder"` finds 101 such rules where the full-name grep
+found 0.
+
+**Sound check — test membership against the COMPILED OUTPUT, not the source:**
+
+```sh
+node -e "
+const sass=require('sass'), fs=require('fs');
+const css=sass.compile('app/styles/app.scss',{loadPaths:['app/styles'],quietDeps:true}).css;
+const used=new Set(fs.readFileSync('<template>.hbs','utf8').match(/<block>__[a-z-]*/g));
+console.log([...used].filter(c=>!css.includes('.'+c)));
+"
+```
+
+**Why it matters here:** this is the *primary* dead-CSS / missing-CSS audit in this repo, and the
+naive grep produces a confident false positive in both directions — "unstyled" for nested rules,
+and "styled" for a class that only appears inside a comment. Always compile.
+
+**Corollary for rule 7 (edit the original rule, don't stack a new one):** when you "can't find the
+existing selector," search for the `&__` suffix under its block before concluding none exists —
+otherwise you add a duplicate flat rule that competes with a nested one.
+
+**Evidence:** [`2026-08-10-recover-stranded-new-work-commit.md`](./2026-08-10-recover-stranded-new-work-commit.md).
+
+## Gotcha: `ERR_REQUIRE_ESM` from testem/sass/anything means the shell is on Node 16, not that the tool is broken
+
+**Symptom:** `ember test` builds fine, then dies before launching a browser:
+
+```
+require() of ES Module .../testem/node_modules/execa/index.js
+from .../testem/lib/utils/fileutils.js not supported.
+```
+
+`npx sass` fails the same way via `chokidar`. Both read as "this dependency shipped a breaking
+ESM release."
+
+**Actual cause:** the shell's default Node. `nvm`'s default here is **16**, but this repo requires
+**22** (`app/frontend/package.json` engines `>=22.0.0 <23.0.0`; both `.nvmrc` files say `22`).
+Node 22.12+ supports `require()` of an ES module; Node 16 does not. Same command, same
+`node_modules`, different Node → works or throws.
+
+**Fix — take the Node version first, before diagnosing anything else:**
+
+```sh
+export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use 22
+```
+
+`bin/ember-server` already does this, which is why the dev server works while a bare
+`npx ember test` in the same shell does not.
+
+**Why it misleads:** the failure names a third-party file and a real Node limitation, so it looks
+like a dependency bug worth pinning or patching. Two wasted moves it invites: adding a resolution
+to pin `execa`/`chokidar` back, and writing a Node-API workaround for a CLI that was never broken.
+`node -v` first — one second, versus a plausible fix to shared config that would have broken CI.
+
+**Evidence:** [`2026-08-10-recover-stranded-new-work-commit.md`](./2026-08-10-recover-stranded-new-work-commit.md).
+
+## Gotcha: helper-factory vs immediate-invoke must match the TEMPLATE binding form — mixing halves kills the handler
+
+**Surface:** `available-boards-section` folders accordion, but applies to every `this.xAction`
+wrapper in a classic component.
+
+Two valid, mutually exclusive contracts:
+
+| Template binding | Component helper must |
+|---|---|
+| `{{on "click" (this.x "name")}}` | **return** a handler (factory) |
+| `{{on "click" (fn this.x "name")}}` | invoke `send()` **immediately** |
+
+The bare subexpression is evaluated at RENDER time (plain-functions-as-helpers, Ember 4.5+). So
+pairing a bare binding with an immediate-invoke helper does two bad things at once: it fires the
+action **during render**, and it passes `{{on}}` an `undefined` handler, so the control is dead.
+
+**Diagnostic signature** — this exact assertion means you have the mismatch, not a state bug:
+
+```
+You attempted to update `foo` ... it had already been used previously in the same computation.
+  `foo` was first used: While rendering: (instance of a `on` modifier)
+```
+
+**How it happens:** the two halves get fixed in separate commits. Here `f7e52b33e` (08-05) switched
+the helper to immediate-invoke to match 24 `(fn …)` bindings — correct at the time — and
+`8b1274820` (08-06) rewrote the markup to the bare form (matching the file's five other helpers)
+without reverting the helper. Each commit was self-consistent; the pair was not.
+
+**Prefer the factory** when a component has several such wrappers: one contract for all of them,
+and the odd one out is what invites this regression.
+
+**The linter will NOT catch it.** `lingolinq/no-fn-handler-factory` only flags the mirror-image
+misuse (`(fn factory …)`), and only for a hardcoded name list that does not include `sendAction`.
+Cover it with a rendering test that actually clicks —
+`tests/integration/available-boards-folders-test.js`.
+
+**Test-fixture trap found writing that test:** Glimmer's `{{#if}}` treats an **empty array as
+falsy**, so a stub like `board_list: {results: []}` skips the entire section and every assertion
+fails with "element does not exist" — looking like a broken component rather than a thin fixture.
+
+**Evidence:** [`2026-08-10-recover-stranded-new-work-commit.md`](./2026-08-10-recover-stranded-new-work-commit.md).
+
+## Gotcha: a callback assigned in `didInsertElement` is `undefined` for the whole first render
+
+**Surface:** classic components that build `this.onClose = function(){...}` style handlers.
+Found on three modals; `speak-mode-intro` had already hit it and fixed it in `init()`.
+
+`didInsertElement` runs AFTER the template renders, so anything the template reads during
+render sees `undefined`. Plain assignment (not `this.set`) notifies nothing, so there is no
+re-render to repair it. **Three different symptoms, one cause:**
+
+| How the template uses it | Symptom |
+|---|---|
+| `{{on "click" this.onClose}}` | `TypeError: Cannot read properties of undefined (reading 'bind')` at modifier install — hard render error, button dead |
+| `@action={{this.onClose}}` passed to a child | silently undefined; child falls back or does nothing |
+| `@onClose={{this.onClose}}` + child does `{{#if @onClose}}` | **the control is never RENDERED at all** |
+
+That third one is the nasty one: there is no error and no dead button to click — the button
+simply is not there, so it reads as a design choice.
+
+**Fix:** assign in `init()`. It runs before render, and for handler closures there is no
+reason to wait for the DOM. Keep genuinely DOM-dependent work (focus, measurement) and
+"the user has now SEEN this" side effects in `didInsertElement`.
+
+**Detection:** a source grep only finds the shape you already know. Grepping
+`{{on "click" this.onClose}}` found the first two and would never have found the third,
+whose handlers are passed as arguments. What found it was opening every modal in a real
+browser and asking "is there a close button, and does clicking it work" —
+`app/frontend/scripts/modal-audit-qa.mjs`.
+
+**Cheap regression test, no rendering required:** the contract is "handlers exist on a
+freshly constructed component", so `owner.factoryFor('component:x').create()` then
+`typeof component.onClose === 'function'` catches all three shapes in ~10ms. Rendering the
+real modal to test this costs 8-27s and flakes against QUnit's 15s ceiling.
+
+**Evidence:** [`2026-08-10-modal-scroll-and-close-app-wide.md`](./2026-08-10-modal-scroll-and-close-app-wide.md).
+
+## Gotcha: Puppeteer's `page.click()` silently delivers NOTHING inside this app's modals
+
+**Symptom:** an automated sweep reports every modal's close button as broken, while the same
+buttons work fine by hand. Capture listeners on the button record zero mousedown, mouseup AND
+click — yet `elementFromPoint` at the button's centre returns an element *inside* the button,
+so nothing is overlaying it.
+
+**Cause:** puppeteer runs `scrollIntoViewIfNeeded` and then clicks measured coordinates.
+Modals here sit in nested scroll containers — `modal-dialog.js` didRender gives
+`.modal-content` an inline `max-height` + `overflow:auto`, and `.modal` is `overflow-y:auto`
+whenever `body.modal-open` is set — so the target can move between measure and click.
+
+**Do not conclude the handler is broken.** Distinguish the two:
+
+```js
+await page.click(sel);                                   // trusted, real coordinates
+if (stillOpen) { await page.evaluate(() => el.click()); } // untrusted, but a real DOM event
+```
+
+Both fail -> the handler really is dead. Only the first fails -> automation artifact; report
+it as information, never as a defect. `el.click()` still exercises the `{{on "click"}}`
+binding, which is what handler-wiring defects break, so it is a sound fallback — it just does
+not exercise the trusted-pointer path (`raw_events.js` buttonTracker), so it cannot catch
+double-dispatch style regressions.
+
+**Also:** `page.waitForTimeout()` was REMOVED in Puppeteer 24. Written as
+`await page.waitForTimeout?.(500)` it is a silent no-op, not a wait — which left a whole sweep
+running against the `/login/device` interstitial instead of the app. Assert you reached the
+app (URL no longer matches `/login`) rather than trusting a sleep.
+
+**Evidence:** [`2026-08-10-modal-scroll-and-close-app-wide.md`](./2026-08-10-modal-scroll-and-close-app-wide.md).

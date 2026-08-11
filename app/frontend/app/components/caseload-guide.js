@@ -23,7 +23,14 @@ export default Component.extend({
     }
   },
 
-  didInsertElement() {
+  // init(), NOT didInsertElement(): the template binds these bare —
+  // `{{on "click" this.onClose}}` and `@opening={{this.onOpening}}` — and the
+  // modifier installs during render, BEFORE didInsertElement runs. Assigning
+  // them there left the modifier binding `undefined`, which threw
+  // `Cannot read properties of undefined (reading 'bind')` at install and made
+  // the X button dead (Escape and backdrop still worked, because modal-dialog
+  // falls back to modal.close() when @action is undefined).
+  init() {
     this._super(...arguments);
     var self = this;
     this.onClose = function() { self.send('close'); };
