@@ -57,7 +57,7 @@
 # no second list to keep in sync. Only the NAME (left of `=`) is used.
 set -euo pipefail
 
-PROJECT=''; REGION=''; SERVICE=''; WORKER_POOL=''; REQUIRED=''
+PROJECT=''; REGION=''; SERVICE=''; WORKER_POOL=''; REQUIRED=''; REQUIRED_LITERAL=''
 while [ $# -gt 0 ]; do
   case "$1" in
     --project)     PROJECT="$2"; shift 2 ;;
@@ -65,13 +65,15 @@ while [ $# -gt 0 ]; do
     --service)     SERVICE="$2"; shift 2 ;;
     --worker-pool) WORKER_POOL="$2"; shift 2 ;;
     --required)    REQUIRED="$2"; shift 2 ;;
+    --required-literal) REQUIRED_LITERAL="$2"; shift 2 ;;
     *) echo "assert-runtime-secrets: unknown argument '$1'" >&2; exit 2 ;;
   esac
 done
 
 [ -n "$PROJECT" ] || { echo "assert-runtime-secrets: --project is required" >&2; exit 2; }
 [ -n "$REGION" ]  || { echo "assert-runtime-secrets: --region is required" >&2; exit 2; }
-[ -n "$REQUIRED" ] || { echo "assert-runtime-secrets: --required is required" >&2; exit 2; }
+[ -n "$REQUIRED$REQUIRED_LITERAL" ] || {
+  echo "assert-runtime-secrets: one of --required / --required-literal is required" >&2; exit 2; }
 [ -n "$SERVICE$WORKER_POOL" ] || {
   echo "assert-runtime-secrets: at least one of --service / --worker-pool is required" >&2; exit 2; }
 
@@ -130,13 +132,37 @@ for c in containers:
             continue
         # secretKeyRef => linked to Secret Manager; anything else => a literal value.
         linked = "secret" if "valueFrom" in e else "literal"
-        print(name, linked)
+        # Tab-separated: a literal value may contain spaces. Newlines are folded
+        # so one entry stays one line for the awk readers below.
+        value = "" if linked == "secret" else str(e.get("value", "")).replace("\n", " ").replace("\t", " ")
+        print("%s\t%s\t%s" % (name, linked, value))
 '
 }
 
 # Only the env-var NAME matters; strip the =SECRET:version half of each --set-secrets pair.
 mapfile -t REQUIRED_NAMES < <(printf '%s' "$REQUIRED" | tr ',' '\n' | sed 's/=.*//' | sed '/^$/d' | sort -u)
-[ "${#REQUIRED_NAMES[@]}" -gt 0 ] || { echo "assert-runtime-secrets: --required parsed to zero names" >&2; exit 2; }
+if [ -n "$REQUIRED" ] && [ "${#REQUIRED_NAMES[@]}" -eq 0 ]; then
+  echo "assert-runtime-secrets: --required parsed to zero names" >&2; exit 2
+fi
+
+# --required-literal is the NON-secret counterpart: `NAME=ERE,...`, where ERE is an
+# extended regular expression the deployed VALUE must match. It exists because a
+# control can be carried by a plain env var rather than a secret, and such a var has
+# no readback anywhere else. BEDROCK_EXPECTED_AWS_ACCOUNT is the case in hand: it
+# drives AiClient's BAA account assertion, and when it is absent that assertion is
+# SKIPPED, so losing it silently disables a HIPAA control (finding LL-1b0d78dbe6).
+#
+# It cannot be folded into --required: that path FAILS on any var not backed by a
+# secretKeyRef, and these are literals by design. The two lists are checked with
+# opposite expectations about linkage, which is exactly why both are needed.
+#
+# Reading these values is safe and deliberate: a literal env var on a revision is
+# not secret material, and this still needs only `run.revisions.get`. Values from
+# secretKeyRef entries are never read -- env_entries emits an empty value for them.
+mapfile -t REQUIRED_LITERAL_PAIRS < <(printf '%s' "$REQUIRED_LITERAL" | tr ',' '\n' | sed '/^$/d')
+if [ -n "$REQUIRED_LITERAL" ] && [ "${#REQUIRED_LITERAL_PAIRS[@]}" -eq 0 ]; then
+  echo "assert-runtime-secrets: --required-literal parsed to zero entries" >&2; exit 2
+fi
 
 failed=0
 
@@ -154,7 +180,7 @@ assert_env_json() {
   local want
   for want in "${REQUIRED_NAMES[@]}"; do
     local line
-    line="$(printf '%s\n' "$entries" | awk -v w="$want" '$1 == w {print $2; exit}')"
+    line="$(printf '%s\n' "$entries" | awk -F'\t' -v w="$want" '$1 == w {print $2; exit}')"
     if [ -z "$line" ]; then
       missing+=("$want")
     elif [ "$line" != secret ]; then
@@ -170,9 +196,54 @@ assert_env_json() {
     echo "FAIL [$label] env var(s) present but NOT backed by a secretKeyRef: ${literal[*]}" >&2
     failed=1
   fi
-  if [ "${#missing[@]}" -eq 0 ] && [ "${#literal[@]}" -eq 0 ]; then
+  if [ "${#REQUIRED_NAMES[@]}" -gt 0 ] && [ "${#missing[@]}" -eq 0 ] && [ "${#literal[@]}" -eq 0 ]; then
     echo "   OK: all ${#REQUIRED_NAMES[@]} required env vars are secret-backed"
   fi
+
+  assert_literal_env "$label" "$entries"
+}
+
+# Assert every --required-literal NAME is present as a LITERAL value matching its ERE.
+# A name that arrives secret-backed is a failure too: the value cannot be read back,
+# so the pattern cannot be checked, so the control cannot be proven.
+assert_literal_env() {
+  local label="$1" entries="$2"
+  # Say so out loud when there is nothing to check. A silent no-op inside the tool
+  # built to detect silent no-ops is the one failure mode this script must not have:
+  # `--required-literal ''` (e.g. an unset CI variable) would otherwise print OK.
+  if [ "${#REQUIRED_LITERAL_PAIRS[@]}" -eq 0 ]; then
+    echo "   note: no literal env assertions requested"
+    return 0
+  fi
+
+  local pair name pattern row kind value ok=1
+  for pair in "${REQUIRED_LITERAL_PAIRS[@]}"; do
+    name="${pair%%=*}"
+    pattern="${pair#*=}"
+    # A bare NAME with no `=` means presence-only. Written as an `if` rather than
+    # `test && assign` because under `set -e` a failing `a && b` statement aborts.
+    if [ "$pattern" = "$pair" ]; then pattern='.'; fi
+
+    row="$(printf '%s\n' "$entries" | awk -F'\t' -v w="$name" '$1 == w {print; exit}')"
+    if [ -z "$row" ]; then
+      echo "FAIL [$label] required literal env var is MISSING: $name" >&2
+      ok=0; failed=1; continue
+    fi
+
+    kind="$(printf '%s' "$row" | cut -f2)"
+    value="$(printf '%s' "$row" | cut -f3-)"
+    if [ "$kind" != literal ]; then
+      echo "FAIL [$label] $name is secret-backed; expected a literal whose value can be verified" >&2
+      ok=0; failed=1; continue
+    fi
+    if ! printf '%s' "$value" | grep -Eq -- "$pattern"; then
+      echo "FAIL [$label] $name='$value' does not match required pattern: $pattern" >&2
+      ok=0; failed=1; continue
+    fi
+  done
+
+  [ "$ok" -eq 1 ] && echo "   OK: all ${#REQUIRED_LITERAL_PAIRS[@]} required literal env var(s) present and well-formed"
+  return 0
 }
 
 check_target() {
