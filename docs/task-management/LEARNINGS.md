@@ -7492,6 +7492,16 @@ ESLint fingerprints in that file would race with template lint. Use a separate
 `app/frontend/.eslint-todo` consumed only by `scripts/eslint-todo-gate.js` (`lint:js:ci` /
 `lint:js:todo`). CI never regenerates the baseline; intentional rebaselines are explicit commits.
 
+## Gotcha: `.eslint-todo` fingerprints include line numbers — edits look like “new” lints
+
+`eslint-todo-gate` fingerprints `file|ruleId|line|column|severity|messageHash`. Inserting imports,
+guards, or tests in a file that already has grandfathered findings (especially large ones like
+`board-detail.js` / `app-state.js`) produces a flood of `ember/no-runloop` “NEW” rows even when no
+new runloop call sites were added. Diagnose before migrating: compare counts of
+`file|ruleId|messageHash` (ignore line/column). Line-only churn → fix any truly new violations,
+then `npm run lint:js:todo`. Do not treat a line-shift storm as a mandate to adopt ember-lifeline
+in the same PR. See [`2026-08-10-eslint-todo-line-shift-boards-perf.md`](./2026-08-10-eslint-todo-line-shift-boards-perf.md).
+
 ## Pattern: fix `require-input-label` by wiring the EXISTING label with `{{unique-id}}` — not by promoting the placeholder
 
 The obvious fix (`aria-label` derived from `placeholder`) is wrong for a large subset, for two reasons.

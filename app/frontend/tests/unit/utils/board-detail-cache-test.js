@@ -851,7 +851,7 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
     pipeline.then(function() {
       LingoLinq.appState = origAppState;
       assert.notOk(sawCatalogWhileBusy, 'catalog list waited until Mine busy cleared');
-      assert.ok(treeOrder.indexOf('lingolinq/cat') !== -1, 'catalog tree runs after Mine busy clears');
+      assert.notStrictEqual(treeOrder.indexOf('lingolinq/cat'), -1, 'catalog tree runs after Mine busy clears');
       done();
     }, function(err) {
       LingoLinq.appState = origAppState;
