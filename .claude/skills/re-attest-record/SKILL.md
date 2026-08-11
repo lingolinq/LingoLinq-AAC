@@ -92,9 +92,12 @@ Use this for any planned change to an attested file under `docs/legal/**`.
    `<YYYY-MM-DD>_<kebab-slug>_<status>.<ext>`). Status is a mutable property of the register row,
    and rule 3 freezes an attested file's name permanently, so a status in the name would either go
    false at the first status change or force a rename that rule 3 forbids. A record must **never**
-   be attested at a `_draft` path. If you are superseding one of the four grandfathered dated
-   `_draft` records, rename it to the statusless path while it is still mutable and repair its
-   inbound references in that record's own cycle, before any attestation.
+   be attested at a `_draft` path. If the live record is one of the four grandfathered dated
+   `_draft` files, do **not** rename that path in place (DOC-ids hash `canonicalLocation`; an
+   in-place rename changes identity and breaks Notion sync). Create this statusless successor as a
+   **new** file + new register row that `supersedes` the `_draft` row, mark the `_draft` row
+   superseded, retarget live bundles, then attest only the successor
+   (`docs/legal/README.md` Naming → Transition rule).
 
 3. **Add a new register row** in `audit-reports/DOCUMENT-REGISTER.json` for the successor:
    - Leave `id` and `contentHash` empty for git rows (render fills them).
