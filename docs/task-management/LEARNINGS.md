@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Speak vs edit: Default symbols still showed OpenSymbols in speak mode](#speak-vs-edit-default-symbols-still-showed-opensymbols-in-speak-mode)
 - [Gotcha: Cloud Run secret assertions must check every nonzero-percent traffic target](#gotcha-cloud-run-secret-assertions-must-check-every-nonzero-percent-traffic-target)
 - [Gotcha: Ember Data model ids in tests must be strings — numeric `set('id', N)` fails throwOnUnhandled](#gotcha-ember-data-model-ids-in-tests-must-be-strings--numeric-setid-n-fails-throwonunhandled)
 - [Gotcha: batch-path nil is not “missing opts” — key presence vs value](#gotcha-batch-path-nil-is-not-missing-opts--key-presence-vs-value)
@@ -5295,22 +5296,56 @@ for sounds, keep the already-fetched source URL playable (no large audio
 
 **Symptom:** Imported custom button images (e.g. teacher photos) display
 correctly at first, then swap to stock symbols (e.g. dart for "Miss") minutes
-later or after reload.
+later or after reload. “Default symbols” in preferences does **not** restore
+them by itself.
 
-**Root cause:** `ButtonImage#ensure_library_url_for_skin!` runs on a slow job
-after board API load when `needs_library_url_enrichment?` is true (S3-hosted
-import copies). It searches OpenSymbols by button label and stores
-`library_alternates`. With `preferred_symbols: opensymbols` (default), the
-client renders the alternate URL, not the imported photo. `Board#swap_images`
-can also replace `image_id` by label lookup (only skips `lingolinq-usercontent`
-URLs).
+**Root cause (two layers):**
+1. `ButtonImage#ensure_library_url_for_skin!` (slow job) searches OpenSymbols by
+   label and stores `library_url_for_skin` / `library_alternates`.
+2. `JsonApi::Board` set `image_urls[id] = skin_url || url`, so the library match
+   became the **primary** board-detail URL even when
+   `preferred_symbols=original` (“Default symbols”). Board-detail paints that
+   primary key; it does not prefer `id-original`.
 
-**Fix:** JSON bundle import sets `ButtonImage#settings['preserve_source_image']`.
-That flag skips skin enrichment, keeps `settings_for` on the original URL, and
-skips `swap_images` replacement. Re-import affected boards after deploying.
+**Fix:** `Converters::LingoLinq#from_external` always sets `preserve_source_image`
+on new `ButtonImage` rows — shared by JSON-bundle, `.obf`, and `.obz`. That
+skips label-search enrichment. Serialization must not prefer `skin_url` when
+the user prefers original/default. For preserved images, `skin_capable_url`
+ignores enrichment `library_url_for_skin` swaps but still skins when the
+**imported URL itself** is already a skinnable `/libraries/` asset. Re-import
+after deploy for the import flag; Default symbols + JSON fix helps
+already-enriched boards without re-import.
 
-**Evidence:** `lib/converters/lingo_linq.rb`, `app/models/button_image.rb`,
-`app/models/board.rb#swap_images`, task log `2026-06-13-json-bundle-import.md`.
+**Evidence:** `lib/json_api/board.rb`, `lib/converters/lingo_linq.rb`,
+`app/models/button_image.rb`, task logs `2026-06-13-json-bundle-import.md`,
+`2026-08-10-preserve-imported-board-images.md`.
+
+### Speak vs edit: Default symbols still showed OpenSymbols in speak mode
+
+**Symptom:** Board edit grid shows imported/source images; speak mode shows
+OpenSymbols/ARASAAC matches despite Preferred Symbols = Default (`original`).
+
+**Root cause:** Speak-mode `board-detail` builds `image_map` with
+`img.skin_url || img.url`. Enrichment stored in `library_url_for_skin` becomes
+`skin_url` and wins. Edit mode uses Ember `Button` + `image.best_url`, which
+follows the Image `url` when preferred is original.
+
+**Fix:** JsonApi omits `images[].skin_url` (and does not prefer it in
+`image_urls`) when preferred is original; board-detail only applies `skin_url`
+when `_preferred_symbols` is a library id. Important: `JsonApi::Image.as_json`
+already stamps `skin_url`, so `JsonApi::Board` must `i.delete('skin_url')` under
+original prefs — merely skipping the re-assign leaves the Image-layer value and
+speak clients still paint enrichment matches.
+
+**Gotcha:** `.eslint-todo` fingerprints include line numbers. Adding comment
+lines above a one-line logic change in a grandfathered file makes every later
+finding look "new". Keep board-detail edits line-count-neutral (EOL comments).
+
+**Evidence:** `lib/json_api/board.rb`, `controllers/user/board-detail.js`
+`_build_from_raw`; task logs `2026-08-10-preserve-imported-board-images.md`,
+`2026-08-10-preserve-imported-images-ci-failures.md`.
+
+
 
 ---
 

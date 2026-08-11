@@ -1503,7 +1503,7 @@ export default Controller.extend(prefClasses, {
     var image_map = raw.image_urls || {};
     (raw.images || []).forEach(function(img) {
       if(img && img.id) {
-        var url = img.skin_url || img.url;
+        var url = (_this._preferred_symbols && img.skin_url) ? img.skin_url : img.url; // library preferred_symbols only
         if(url) {
           image_map[String(img.id)] = url;
         }
