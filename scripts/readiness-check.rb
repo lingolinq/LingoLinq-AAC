@@ -65,12 +65,15 @@ require 'set'
 require 'date'
 require 'time'
 
-FINDINGS_JSON   = 'audit-reports/FINDINGS.json'
-MILESTONES_JSON = 'audit-reports/strategy/READINESS-MILESTONES.json'
-PROFILE_JSON    = 'audit-reports/strategy/LAUNCH-PROFILE.json'
-LEDGER_JSON     = 'audit-reports/strategy/WORK-LEDGER.json'
-SNAPSHOTS_JSON  = 'audit-reports/strategy/SNAPSHOTS.json'
-RENDER_MD       = 'audit-reports/strategy/READINESS-DASHBOARD.md'
+# Env overrides exist for the test harness only (scripts/tests/readiness-check-test.sh
+# works on a COPY of the live strategy dir); CI and normal use leave them unset.
+STRATEGY_DIR    = ENV['READINESS_STRATEGY_DIR'] || 'audit-reports/strategy'
+FINDINGS_JSON   = ENV['READINESS_FINDINGS_JSON'] || 'audit-reports/FINDINGS.json'
+MILESTONES_JSON = File.join(STRATEGY_DIR, 'READINESS-MILESTONES.json')
+PROFILE_JSON    = File.join(STRATEGY_DIR, 'LAUNCH-PROFILE.json')
+LEDGER_JSON     = File.join(STRATEGY_DIR, 'WORK-LEDGER.json')
+SNAPSHOTS_JSON  = File.join(STRATEGY_DIR, 'SNAPSHOTS.json')
+RENDER_MD       = File.join(STRATEGY_DIR, 'READINESS-DASHBOARD.md')
 
 FINDING_STATUS_ENUM = %w[open remediated-unverified verified-closed accepted-risk superseded].freeze
 SEVERITY_ENUM       = %w[critical high medium low].freeze
