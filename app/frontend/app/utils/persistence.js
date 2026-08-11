@@ -4333,8 +4333,16 @@ persistence.DSExtend = {
             var error = function(err) {
               var local_fallback = false;
               if(err && (err.invalid_token || (err.result && err.result.invalid_token))) {
-                // for expired tokens, allow local results as a fallback
-                local_fallback = true;
+                // Offline: allow local results so AAC still works without a network.
+                // Online: do NOT fall back for user/self — that left boot "authenticated"
+                // on a stale IndexedDB user while APIs returned 400 Token needs refresh,
+                // hanging on "Preparing your workspace". Other models can still fall back.
+                var still_online = p && typeof p.get === 'function' ? p.get('online') : false;
+                if(!still_online) {
+                  local_fallback = true;
+                } else if(!(type.modelName === 'user' && (id === 'self' || id === 'me'))) {
+                  local_fallback = true;
+                }
               } else if(err && err.errors && err.errors[0] && err.errors[0].status && err.errors[0].status.toString().substring(0, 1) == '5') {
                 // for server errors, allow local results as a fallback
                 local_fallback = true;

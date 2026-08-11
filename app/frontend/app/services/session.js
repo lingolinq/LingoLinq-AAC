@@ -277,10 +277,12 @@ export default Service.extend({
         // When access_token is undefined/'none', we're simply not logged in, not "expired".
         if(store_data.access_token && store_data.access_token !== 'none') {
           _this.set('invalid_token', true);
-          if(allow_invalidate) {
-            _this.force_logout(i18n.t('session_token_invalid', "This session has expired, please log back in"));
-            return {success: true};
-          }
+          // Always invalidate a rejected session — not only when allow_invalidate is
+          // true. A racing check_token(false) from stashes.setup could otherwise mark
+          // the token invalid without clearing auth, and restore() would then skip
+          // check_token(true) because persistence.tokens[key] was already set.
+          _this.force_logout(i18n.t('session_token_invalid', "This session has expired, please log back in"));
+          return {success: true};
         } else {
           _this.set('invalid_token', false);
         }
@@ -601,12 +603,17 @@ export default Service.extend({
   force_logout: function(message) {
     var full_invalidate = true;
     if(full_invalidate) {
+      // Always tear down the broken session. Opening the force-logout modal
+      // WITHOUT invalidate left access_token / isAuthenticated in place, so
+      // index.afterModel and home_in_speak_mode kept driving authenticated
+      // routes while every API call returned 400 ("Token needs refresh") —
+      // trapping boot behind "Preparing your workspace" indefinitely.
+      // Mid-session expiry still lands on a clean login via invalidate's
+      // reload (or SPA transition when auth_spa_transition is on).
       if(!modal.route) {
         this.alert(message);
-        this.invalidate(true);
-      } else {
-        modal.open('force-logout', {message: message});
       }
+      this.invalidate(true);
     } else {
       var store_data = this.stashes.get_object('auth_settings', true) || this.auth_settings_fallback() || {};
       if((this.appState.get('currentUser.user_name') || '').match(/wahl/) || (store_data.user_name || '').match(/wahl/)) {

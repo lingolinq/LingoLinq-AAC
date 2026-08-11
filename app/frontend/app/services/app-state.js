@@ -570,8 +570,21 @@ export default Service.extend({
           console.log(err);
           console.log(err.status);
           console.log(err.error);
-          // Check if it's an auth error (should force logout)
-          var do_logout = err.status == 400 && (err.error == 'Not authorized' || err.error == "Invalid token");
+          // Check if it's an auth error (should force logout).
+          // "Token needs refresh" / "Expired token" / invalid_token must count —
+          // otherwise a refreshable-but-dead browser token leaves boot authenticated
+          // against a local cached user while every remote call 400s forever.
+          var err_msg = err && (err.error || (err.result && err.result.error));
+          var do_logout = !!(err && (
+            err.invalid_token ||
+            (err.result && err.result.invalid_token) ||
+            (err.status == 400 && (
+              err_msg == 'Not authorized' ||
+              err_msg == 'Invalid token' ||
+              err_msg == 'Expired token' ||
+              err_msg == 'Token needs refresh'
+            ))
+          ));
           // Check if it's a timeout/network error (should NOT force logout, just retry or fail gracefully)
           var is_timeout = !err.status || err.status === 0 || err.error === 'timeout' || (err.errors && err.errors[0] === 'timeout');
           console.log("will log out: " + (do_logout || (last_try && !is_timeout)));
