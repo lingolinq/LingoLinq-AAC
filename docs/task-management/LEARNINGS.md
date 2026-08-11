@@ -8413,6 +8413,18 @@ only for non-`docs/legal/**` git rows or explicit Scot-directed recovery after a
 in-place amend. Skill: `.claude/skills/re-attest-record/SKILL.md`. Example chain:
 `DOC-9f6a2412ad` → `DOC-ae3f9d06ef`.
 
+> **SUPERSESSION NOTE, 2026-08-10.** The filename pattern in the Fix recipe above is superseded. The
+> original wording is preserved as written, because this is a historical log rather than a live spec.
+> The successor path is now `docs/legal/<YYYY-MM-DD>_<kebab-slug>.<ext>` with **no status token**:
+> status is a mutable register-row property, and `docs/legal/README.md` rule 3 freezes an attested
+> file's name permanently, so a status encoded in the name either goes false at the first status
+> change or forces a rename that rule 3 forbids. **A record must never be attested at a `_draft`
+> path.** Four dated `_draft` records predating the rule are grandfathered in place while unattested,
+> and each must be renamed to the statusless path, with its references repaired, before it is
+> attested. Everything else in this entry (Path A versus Path B, supersession pointers, bundle
+> retargeting by location) still stands. Authority: `docs/legal/README.md` Naming section, approved
+> by Scot 2026-08-10.
+
 **Also retarget live bundles by location, not title.** `meta.bundleDefinitions.*.requiredDocs`
 bind by `canonicalLocation`; moving live membership to the successor without updating those
 locations fails `--check` as a missing required member. Frozen dated binders can stay on the
