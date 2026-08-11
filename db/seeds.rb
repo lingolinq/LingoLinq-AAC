@@ -358,6 +358,20 @@ else
   puts "=" * 60
 end
 
+# Revoke any legacy admin-org manager link for the example user.
+# Must run outside SEEDING_ALREADY_DONE (and without a SEED_DEMO_DATA gate):
+# that guard skips the legacy block on already-seeded DBs, so removing
+# add_manager alone would leave existing org_manager links intact and
+# Organization.admin_manager?(example) would stay true on upgrades.
+# Production was remediated out of band on 2026-08-10; this makes the
+# revoke idempotent for every environment that still has the link.
+example_for_admin_revoke = User.find_by(user_name: 'example')
+admin_org_for_revoke = Organization.find_by(admin: true)
+if example_for_admin_revoke && admin_org_for_revoke && admin_org_for_revoke.assistant?(example_for_admin_revoke)
+  admin_org_for_revoke.remove_manager(example_for_admin_revoke.user_name)
+  puts "✓ Revoked legacy admin-org manager link for example user"
+end
+
 # Ensure example user has logging and geo_logging enabled for stats map (demo-only)
 example_user = SEED_DEMO_DATA && User.find_by(user_name: 'example')
 if example_user
