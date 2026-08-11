@@ -21,6 +21,7 @@ file (see [README.md](README.md)).
 ## Index
 
 - [Gotcha: Capacitor offline AAC needs SQLite + Filesystem shims — IndexedDB-only is not speak-ready](#gotcha-capacitor-offline-aac-needs-sqlite--filesystem-shims--indexeddb-only-is-not-speak-ready)
+- [Gotcha: `capabilities.storage.status()` resolve shape is a contract — do not add diagnostic keys](#gotcha-capabilitiesstoragestatus-resolve-shape-is-a-contract--do-not-add-diagnostic-keys)
 - [Gotcha: Cloud Run secret assertions must check every nonzero-percent traffic target](#gotcha-cloud-run-secret-assertions-must-check-every-nonzero-percent-traffic-target)
 - [Gotcha: Ember Data model ids in tests must be strings — numeric `set('id', N)` fails throwOnUnhandled](#gotcha-ember-data-model-ids-in-tests-must-be-strings--numeric-setid-n-fails-throwonunhandled)
 - [Gotcha: batch-path nil is not “missing opts” — key presence vs value](#gotcha-batch-path-nil-is-not-missing-opts--key-presence-vs-value)
@@ -9359,3 +9360,15 @@ paths and verify the TEST COUNT drops before believing any result.
 **Working pattern (2026-08):** keep Ember sync logic; install Cordova-shaped shims before `app.js` in the shell (`www/sqlite_bridge.js` → `@capacitor-community/sqlite`, `www/filesystem_bridge.js` → `@capacitor/filesystem` + `Capacitor.convertFileSrc`). Ember backup: `capacitor_bridge.js` + shims imported from `capabilities.js`. Serve speak-mode media via `convertFileSrc`, never raw `file://`. Prod-packaged `app.js` still needs the **shell** bridges.
 
 See `docs/native-apps/capacitor-7-kickoff.md` and task log `2026-08-10-capacitor-offline-boards.md`.
+
+## Gotcha: `capabilities.storage.status()` resolve shape is a contract — do not add diagnostic keys
+
+**Surface:** `app/frontend/app/utils/capabilities.js` `storage.status`, test `capabilities.storage status - should resolve correctly on windows/node`.
+
+Callers (and jasmine `toEqual` tests) treat the resolved object as `{available, requires_confirmation}`. Adding an unused `capacitor: isNativeCapacitor()` key on the `window.file_storage` branch broke CI even when the value was `false` (Electron/desktop also uses `file_storage`). Keep Capacitor native on `capacitor_bridge` / `capabilities.capacitor_native`, not on this status payload.
+
+## Gotcha: Ember unit tests must import app modules as `frontend/...`, not relative `../../app/...`
+
+**Surface:** Ember test module map (`app/frontend/tests/**`).
+
+Relative imports like `../../app/utils/foo` from `tests/unit/utils/` resolve as `frontend/tests/app/utils/foo` and fail to load (`Could not find module`). Use the app module prefix: `import … from 'frontend/utils/foo'`. Example miss: `board-attribution-test.js` (merged in #771).

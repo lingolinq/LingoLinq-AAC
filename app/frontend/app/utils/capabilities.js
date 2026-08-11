@@ -1284,12 +1284,15 @@ var capabilities;
         status: function() {
           // uses native calls
           var promise = capabilities.mini_promise();
-          // Cordova: cordova.file.dataDirectory. Capacitor: window.file_storage
+          // Cordova: cordova.file.dataDirectory. Capacitor/Electron: window.file_storage
           // (shell filesystem_bridge / capacitor_filesystem_shim via @capacitor/filesystem).
+          // Keep the resolve shape stable — callers and tests rely on available /
+          // requires_confirmation only. Capacitor native is tracked separately via
+          // capacitor_bridge (capabilities.capacitor_native / isNativeCapacitor).
           if(window.resolveLocalFileSystemURL && window.cordova && window.cordova.file && window.cordova.file.dataDirectory) {
             promise.resolve({available: true, requires_confirmation: false});
           } else if(window.file_storage) {
-            promise.resolve({available: true, requires_confirmation: false, capacitor: isNativeCapacitor()});
+            promise.resolve({available: true, requires_confirmation: false});
           } else if(window.cd_request_file_system && window.cd_persistent_storage && window.cd_persistent_storage.requestQuota) {
             // Chrome won't allow storing to the file system in incognito, but still
             // acts like it will. This is the only check I can find that correctly
