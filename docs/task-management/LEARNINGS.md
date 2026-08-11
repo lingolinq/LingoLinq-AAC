@@ -39,6 +39,7 @@ file (see [README.md](README.md)).
 - [Pattern: board-detail `/tree` blocks paint on the full descendant payload](#pattern-board-detail-tree-blocks-paint-on-the-full-descendant-payload)
 - [Pattern: board-preview latency is cold-cache, not the loading gate — warm on intent](#pattern-board-preview-latency-is-cold-cache-not-the-loading-gate--warm-on-intent)
 - [Pattern: boards-page Mine list — cache-first paint, atomic background refresh](#pattern-boards-page-mine-list--cache-first-paint-atomic-background-refresh)
+- [Gotcha: Android “classic board” error may be stale packaged board-detail](#gotcha-android-classic-board-error-may-be-stale-packaged-board-detail)
 - [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
 - [Gotcha: sync double `modal.open` — the *second* template wins; do not invent write-loss on the winner](#gotcha-sync-double-modalopen--the-second-template-wins-do-not-invent-write-loss-on-the-winner)
 - [Gotcha: Shepherd modal overlay is VISUAL-ONLY; canClickTarget:false makes the target click "fall through"](#gotcha-shepherd-modal-overlay-is-visual-only-canclicktargetfalse-makes-the-target-click-fall-through)
@@ -352,6 +353,14 @@ Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` c
 **Gotcha (list summary + locale):** Omitting button/content blobs must not skip `localized_name` / `localized_locale`. Index already eager-loads `board_content`; when `args[:locale]` is present, still load translations for `board_name` matching, but do not rewrite per-button labels (list payloads have no `buttons`). Gating the whole locale block behind `!list_summary` broke `Api::BoardsController index should return a localized board name`.
 
 **First seen in:** [2026-08-03-boards-page-cache-first.md](./2026-08-03-boards-page-cache-first.md); load-perf follow-up [2026-08-10-boards-page-load-perf.md](./2026-08-10-boards-page-load-perf.md)
+
+## Gotcha: Android “classic board” error may be stale packaged board-detail
+
+**Surface:** Capacitor app loads packaged `lingolinq_mobile/www/` (usually `PACKAGE_SOURCE=prod`), not Ember `:8184`. Speak/home routing uses `transitionToBoardForCurrentUiStyle` — default `modern` → `user.board-detail`; `classic` preference → `user.board-alt` (reuses `board/index`); only `obf/` / `integrations/` / odd keys hit legacy `board`.
+
+**Gotcha:** A Try-Again-only offline screen on Android often looks like “classic” but is **board-detail’s old error UI** from a www snapshot built before the Home/Back escape-hatch PR. Confirm with UI chrome (`md-board-detail-error` + Bootstrap button vs plain `<a>`) and whether the APK was re-packaged after the fix. Still keep escape hatches on classic `board` / `board-alt` error templates — real classic sessions and legacy keys still hit them.
+
+**First seen in:** [2026-08-11-classic-board-error-escape.md](./2026-08-11-classic-board-error-escape.md)
 
 ## Pattern: supervisor caseload session prefetch reuses board_detail_cache, not offline sync
 
