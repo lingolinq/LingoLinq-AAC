@@ -73,11 +73,18 @@ here, for the same reason: `2026-08-09_compliance-posture-report_draft.md`,
 them.
 
 **Transition rule for those four.** A grandfathered dated `_draft` record may remain at its current
-path **while it is unattested**. Before any such record is attested it must first be renamed, while
-still mutable, to the statusless dated path above, with its inbound references repaired in that
-record's own cycle. **A record must never be attested at a `_draft` path**, because rule 3 would then
-freeze a filename asserting a status the register alone is entitled to carry, and the name could
-never be corrected.
+path **while it is unattested**. Before any such record is attested, leave that path via **Path A
+supersession** (see `/re-attest-record`), not an in-place rename: create a new statusless dated file
+`<YYYY-MM-DD>_<kebab-slug>.<ext>`, add a new register row that `supersedes` the `_draft` row, mark
+the `_draft` row `superseded` with reciprocal `supersededBy`, retarget live bundle
+`requiredDocs.location` entries, repair prose references, then attest **only the successor**.
+**Do not rename the existing registered path in place.** Document IDs are
+`DOC-` + `sha256(canonicalLocation)[0,10]` (`meta.idAlgorithm`;
+`scripts/document-register-render.rb` `expected_id` / render overwrite), so an in-place rename
+changes the DOC-id, breaks the register's permanent-ID promise, and makes the Notion sync treat the
+result as a new row while orphaning or pruning the old one. **A record must never be attested at a
+`_draft` path**, because rule 3 would then freeze a filename asserting a status the register alone
+is entitled to carry, and the name could never be corrected.
 
 ## Retention
 
