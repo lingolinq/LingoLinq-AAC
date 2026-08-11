@@ -27,9 +27,11 @@
 #   5. compliance-notion-publish          - rebuild the LOCAL Notion mirror render
 #                                           (audit-reports/notion/compliance-audit-page.md).
 #   6. compliance-publication-status      - rebuild the publication status report.
-#   7. Re-verify: every check audit-artifacts-integrity runs (the four artifact
-#      --check commands, the capability ledger, and the attestation-hash guard
-#      harness) PLUS a citation-check evidence gate. citation-check is intentionally
+#   6b. readiness-check                   - rebuild the readiness dashboard
+#                                           (audit-reports/strategy/READINESS-DASHBOARD.md).
+#   7. Re-verify: every check audit-artifacts-integrity runs (the artifact
+#      --check commands, the capability ledger, the readiness strategy layer,
+#      and the guard harnesses) PLUS a citation-check evidence gate. citation-check is intentionally
 #      NOT a CI job (see ci.yml); running it here is a stricter local gate. Green
 #      here means a green audit-artifacts-integrity in CI.
 #      NOTE: that promise only holds while this list stays a superset of ci.yml's
@@ -105,7 +107,7 @@ step() {  # step "label" cmd args...
   fi
 }
 
-# --- verification bundle: the four CI artifact --check commands (these ARE
+# --- verification bundle: the CI artifact --check commands (these ARE
 # audit-artifacts-integrity) plus a citation-check evidence gate. citation-check
 # is intentionally NOT part of the CI integrity job (ci.yml); gating on it locally
 # is a stricter, correct pre-render safeguard. ---------------------------------
@@ -141,6 +143,10 @@ verify_all() {
   # attestation freezes the filename permanently.
   step "verify: the docs/legal naming guards actually fire" \
     bash scripts/tests/legal-naming-check-test.sh || rc=1
+  step "verify: readiness strategy layer + dashboard render" \
+    ruby scripts/readiness-check.rb --check || rc=1
+  step "verify: readiness-check guards (derived-status, provenance, snapshots)" \
+    bash scripts/tests/readiness-check-test.sh || rc=1
   return $rc
 }
 
@@ -183,6 +189,8 @@ step "render: compliance publication status report" \
   ruby scripts/compliance-publication-status.rb
 step "render: capability ledger (validate at HEAD + write .md)" \
   ruby scripts/capability-check.rb
+step "render: readiness dashboard (validate strategy layer + write .md)" \
+  ruby scripts/readiness-check.rb
 
 # The Notion mirror embeds a wall-clock "Page generated:" line that --check
 # ignores by design. Rendering rewrites it every run, so a substantively

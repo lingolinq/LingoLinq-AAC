@@ -14,13 +14,15 @@ into an unrelated PR.
 ## Rules
 
 - **Register drift is a merge blocker, not a style nit.** The
-  `audit-artifacts-integrity` CI job runs five `--check` scripts
+  `audit-artifacts-integrity` CI job runs six `--check` scripts
   (`compliance-calendar-render.rb`, `compliance-notion-publish.rb`,
   `document-register-render.rb`, `compliance-publication-status.rb`,
-  `capability-check.rb`). A PR that edits `audit-reports/FINDINGS.json` or
-  `audit-reports/DOCUMENT-REGISTER.json` without regenerating the
-  corresponding rendered artifact will fail this gate. Verify by actually
-  running the `--check` scripts, not by reading the diff.
+  `capability-check.rb`, `readiness-check.rb`) plus two guard harnesses
+  (`attestation-hash-guard-test.sh`, `readiness-check-test.sh`). A PR that
+  edits `audit-reports/FINDINGS.json`, `audit-reports/DOCUMENT-REGISTER.json`,
+  or `audit-reports/strategy/*.json` without regenerating the corresponding
+  rendered artifact will fail this gate. Verify by actually running the
+  `--check` scripts, not by reading the diff.
   -- source: repo convention, `reference_register_edit_regenerate_artifacts`.
 
 - **Stale provider-version wording is a real finding, not pedantry.**

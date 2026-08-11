@@ -124,6 +124,12 @@ renders/mirrors. Keep it current:
 - **After ANY edit to an UNATTESTED row, run `ruby scripts/document-register-render.rb`** so it
   backfills `id` + git `contentHash` and regenerates the `.md`. Commit the JSON and the `.md`
   together, or the `audit-artifacts-integrity` CI gate (which runs `--check`) fails.
+- **The readiness strategy layer (`audit-reports/strategy/`) follows the same regenerate rule**:
+  after editing any strategy JSON (or after FINDINGS.json changes, which the dashboard reads),
+  run `ruby scripts/readiness-check.rb` and commit the regenerated `READINESS-DASHBOARD.md`
+  with it. You never flip `meta.ratification`, change a launch-profile decision, or mark a
+  requirement `accepted-for-milestone` - those are Scot's alone. Snapshots are append-only via
+  `--snapshot`; never hand-edit `SNAPSHOTS.json`.
 - **NEVER run the render to clear drift on an ATTESTED git row. STOP and escalate to Scot.**
   Rendering recomputes `contentHash` from current bytes, which silently overwrites the row's
   assertion about the attested revision and re-fails as "attested revision no longer exists" with

@@ -385,6 +385,9 @@ Or the individual checks:
   ruby scripts/compliance-calendar-render.rb --check
   ruby scripts/compliance-publication-status.rb --check
   ruby scripts/capability-check.rb --check
+  ruby scripts/readiness-check.rb --check                # exit 1 if the readiness strategy layer is invalid or the dashboard render drifts
+  scripts/tests/attestation-hash-guard-test.sh           # attestedContentHash guard harness (also a CI step)
+  scripts/tests/readiness-check-test.sh                  # readiness-check guard harness (also a CI step)
   git diff --check
   # exec-bit: only for CHANGED scripts that a doc/skill invokes DIRECTLY (./script),
   # not every non-exec file in scripts/ (most .rb/.py run via `ruby`/`python` and are

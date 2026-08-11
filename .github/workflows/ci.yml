@@ -208,6 +208,12 @@ jobs:
       - name: Verify the docs/legal naming guards actually fire
         run: scripts/tests/legal-naming-check-test.sh
 
+      - name: Verify readiness strategy layer + dashboard render
+        run: ruby scripts/readiness-check.rb --check
+
+      - name: Verify readiness-check guards (stored-derived-status, provenance, append-only snapshots)
+        run: scripts/tests/readiness-check-test.sh
+
   codex-review-tests:
     runs-on: ubuntu-latest
 
