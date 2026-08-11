@@ -416,12 +416,23 @@ modal.open('modals/board-privacy',  { board: MOCK.board, button_set: null });
 
 ## Seeded test users (from `db/seeds.rb`)
 
-| Username | Role | Default password |
+| Username | Role | Password source |
 |---|---|---|
-| `example` | Basic example communicator | `password` |
-| `lingolinq_admin` | Admin org manager | `admin2025!` |
-| `sarah_chen_slp` / `marcus_williams_slp` / `elena_rodriguez_slp` | SLP supervisors | `demo2025!` |
-| `aiden_parker`, `bella_martinez`, `charlie_kim`, `daisy_johnson`, … | Demo students | `demo2025!` |
+| `example` | Basic example communicator | `SEED_EXAMPLE_PASSWORD` |
+| `lingolinq_admin` | Site administrator | `SEED_ADMIN_PASSWORD` |
+| `sarah_chen_slp` / `marcus_williams_slp` / `elena_rodriguez_slp` | SLP supervisors | `SEED_DEMO_PASSWORD` |
+| `aiden_parker`, `bella_martinez`, `charlie_kim`, `daisy_johnson`, … | Demo students | `SEED_DEMO_PASSWORD` |
+
+Passwords are not listed here on purpose. Each comes from the environment
+variable above; `seed_password` (`db/seeds.rb`) falls back to a fixed local
+default in development and test only, and raises in production and staging
+rather than seeding a known credential. For the local defaults, read
+`db/seeds.rb`. For any deployed environment, read the value from that
+environment's secret store.
+
+`lingolinq_admin` is a break-glass site administrator, not a login for daily
+use. Site admin is granted per-person by adding that person as a full manager
+of the admin organization.
 
 Log in as a supervisor to reach supervisee-related modals
 (`dashboard-supervisors-modal`, `add-supervisor`, `record-note`,

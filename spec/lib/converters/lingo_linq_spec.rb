@@ -704,6 +704,30 @@ describe Converters::LingoLinq do
     it "should find and connect to an existing image if matching by data_url"
     
     it "should find and connect to an existing sound if matching my data_url"
+
+    it "marks .obf button images with preserve_source_image" do
+      allow(Typhoeus).to receive(:post).and_return(OpenStruct.new(success?: true))
+      u = User.create
+      shell = OBF::Utils.obf_shell
+      shell['id'] = 'obf-preserve-1'
+      shell['name'] = 'Preserve Obf'
+      shell['buttons'] = [{
+        'id' => '1',
+        'label' => 'Custom Photo',
+        'image_id' => 'img1'
+      }]
+      shell['images'] = [{
+        'id' => 'img1',
+        'url' => 'https://s3.amazonaws.com/coughdrop-usercontent/images/custom-photo.png',
+        'content_type' => 'image/png'
+      }]
+      board = Converters::LingoLinq.from_obf(shell, {'user' => u})
+      image = ButtonImage.find_by_global_id(board.settings['buttons'][0]['image_id'])
+      expect(image).to be_present
+      expect(image.settings['preserve_source_image']).to eq(true)
+      expect(image.needs_library_url_enrichment?).to eq(false)
+      expect(image.settings['library_url_for_skin']).to eq(nil)
+    end
     
     it "should import external url links" do
       u = User.create
@@ -1309,6 +1333,46 @@ describe Converters::LingoLinq do
       expect(boards[1].id).not_to eq(b2.id)
       expect(boards[1].key).to eq("#{u.user_name}/susan")
     end
+
+    it "marks .obz button images with preserve_source_image" do
+      allow(Typhoeus).to receive(:post).and_return(OpenStruct.new(success?: true))
+      allow(Typhoeus).to receive(:get).and_return(
+        OpenStruct.new(success?: true, code: 200, body: 'fakepng', headers: { 'Content-Type' => 'image/png' })
+      )
+      u = User.create
+      bi = ButtonImage.create(
+        :user => u,
+        :url => 'https://s3.amazonaws.com/coughdrop-usercontent/images/obz-photo.png',
+        :settings => { 'content_type' => 'image/png' }
+      )
+      b = Board.new(:user => u, :settings => { 'name' => 'Obz Photo' })
+      b.settings['buttons'] = [{
+        'id' => '1',
+        'label' => 'Photo',
+        'image_id' => bi.global_id
+      }]
+      b.settings['grid'] = {
+        'rows' => 1,
+        'columns' => 1,
+        'order' => [['1']]
+      }
+      b.instance_variable_set('@buttons_changed', true)
+      b.save!
+      expect(b.known_button_images.count).to eq(1)
+      path = OBF::Utils.temp_path("stash")
+      Converters::LingoLinq.to_obz(b.reload, path, {'user' => u})
+
+      boards = Converters::LingoLinq.from_obz(path, {'user' => u})
+      imported = boards.find { |board| board.settings['buttons'].any? { |btn| btn['image_id'] } }
+      expect(imported).to be_present
+      image = ButtonImage.find_by_global_id(imported.settings['buttons'][0]['image_id'])
+      expect(image).to be_present
+      # Same-user .obz round-trips reuse ButtonImage via data_url; either a
+      # reused or newly-created record must carry preserve_source_image.
+      expect(image.settings['preserve_source_image']).to eq(true)
+      expect(image.needs_library_url_enrichment?).to eq(false)
+    end
+
   end
   
   describe "from_external" do

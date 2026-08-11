@@ -303,7 +303,7 @@ describe Flusher do
       u = User.create
       d = Device.create(user: u)
       o = []
-      16.times do |i|
+      17.times do |i|
         obj = {}
         o << obj
         expect(Flusher).to receive(:flush_record).with(obj).and_return(true)
@@ -319,6 +319,7 @@ describe Flusher do
       expect(UserLink).to receive(:where).with(:user_id => u.id).and_return([o[13]])
       expect(ButtonSound).to receive(:where).with(:user_id => u.id).and_return([o[14]])
       expect(UserVideo).to receive(:where).with(:user_id => u.id).and_return([o[15]])
+      expect(LogSnapshot).to receive(:where).with(:user_id => u.id).and_return([o[16]])
       Flusher.flush_user_content(u.global_id, u.user_name, d)
     end
 
@@ -353,6 +354,18 @@ describe Flusher do
       expect(UserVideo.where(id: video.id).count).to eq(0)
       expect(ButtonSound.where(id: other_sound.id).count).to eq(1)
       expect(UserVideo.where(id: other_video.id).count).to eq(1)
+    end
+
+    it "should flush LogSnapshot records for the user without touching other users" do
+      u = User.create
+      u2 = User.create
+      snap = LogSnapshot.create(user: u, settings: {'name' => 'Week of May'})
+      other = LogSnapshot.create(user: u2, settings: {'name' => 'Keep me'})
+
+      Flusher.flush_user_content(u.global_id, u.user_name)
+
+      expect(LogSnapshot.where(id: snap.id).count).to eq(0)
+      expect(LogSnapshot.where(id: other.id).count).to eq(1)
     end
   end
 

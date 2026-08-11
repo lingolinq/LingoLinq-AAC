@@ -403,6 +403,12 @@ module Flusher
     UserVideo.where(user_id: user.id).each do |video|
       flush_record(video)
     end
+    # Saved report windows (label, date range, device_id, location_id) are keyed
+    # by user_id with no User dependent: :destroy and no DB FK cascade
+    # (LL-1e2ab28aab). No S3 objects; flush_record is enough.
+    LogSnapshot.where(user_id: user.id).each do |snapshot|
+      flush_record(snapshot)
+    end
     License.where(user_id: user.id).each do |lic|
       lic.update!(user_id: nil, granted_at: nil)
       flush_versions(lic.id, 'License')
