@@ -1,0 +1,203 @@
+{
+  "meta": {
+    "artifact": "work-ledger",
+    "title": "LingoLinq Readiness Work Ledger",
+    "description": "Record of material compliance/security/readiness work only - NOT an all-GitHub activity database. A work item either enters the ledger or it does not; no partial entries for qualifying fragments of otherwise non-qualifying work. Initial seed: 15 representative records chosen across the ten readiness areas named in the v0.2 handoff. Related implementation/release/hotfix PRs may be separate records sharing one cluster; distinct-control counts deduplicate by cluster.",
+    "owner": "Scot Wahlquist",
+    "governance": "No developer ranking or leaderboard is ever derived from this file. accountableOwner must reference a kind=human identity; AI tools appear only in people.implementationTools and people.reviewTools.",
+    "schemaVersion": "0.1.0",
+    "generatedDate": "2026-08-11",
+    "identities": [
+      { "id": "swahlquist", "kind": "human", "display": "Scot Wahlquist" },
+      { "id": "MelissaOneil", "kind": "human", "display": "Melissa O" },
+      { "id": "Traci", "kind": "human", "display": "Traci" },
+      { "id": "Claude Code", "kind": "ai-tool" },
+      { "id": "Codex", "kind": "ai-tool" }
+    ],
+    "identitySemantics": "Extensible: add a new person by appending a kind=human identity row in a PR - no script change and no governance event. accountableOwner and people.contributors must resolve to kind=human rows; people.implementationTools and people.reviewTools must resolve to kind=ai-tool rows.",
+    "kindEnum": ["engineering-control", "product-feature", "security-fix", "privacy-fix", "accessibility-fix", "compliance-governance", "audit-tooling", "infrastructure", "vendor-contract", "investigation", "production-verification", "documentation", "finding-discovery", "finding-reconciliation", "release", "incident-remediation"],
+    "workstreamEnum": ["privacy-security", "ai-trust", "children-school", "accessibility", "data-lifecycle", "infrastructure", "supply-chain", "audit-governance", "product-reliability", "district-readiness", "evidence-value"],
+    "inclusionReasonEnum": ["remediates-risk", "discovers-risk", "advances-readiness-requirement", "adds-preventive-control", "adds-district-trust-capability", "advances-accessibility", "advances-release-assurance", "adds-audit-automation-or-evidence"],
+    "verificationEnum": ["code-only", "code-and-runtime", "attestation", "external-review"]
+  },
+  "work": [
+    {
+      "id": "WORK-2026-07-08-PR556",
+      "date": "2026-07-08",
+      "title": "Jurisdiction primitive + jurisdiction-aware COPPA/GDPR age gate",
+      "kind": "engineering-control",
+      "workstream": "children-school",
+      "accountableOwner": "swahlquist",
+      "inclusionReason": "adds-preventive-control",
+      "cluster": "jurisdiction-age-gating",
+      "requirements": ["school-beta-child-ai-enforcement"],
+      "source": { "type": "github-pr", "repository": "lingolinq/LingoLinq-AAC", "number": 556 }
+    },
+    {
+      "id": "WORK-2026-07-11-PR578",
+      "date": "2026-07-11",
+      "title": "Make security-scan blocking; least-privilege permissions on secrets-sync",
+      "kind": "engineering-control",
+      "workstream": "supply-chain",
+      "accountableOwner": "swahlquist",
+      "inclusionReason": "adds-preventive-control",
+      "cluster": "ci-security-scan-blocking",
+      "requirements": ["district-ready-supply-chain"],
+      "source": { "type": "github-pr", "repository": "lingolinq/LingoLinq-AAC", "number": 578 }
+    },
+    {
+      "id": "WORK-2026-07-12-PR590",
+      "date": "2026-07-12",
+      "title": "Capability ledger Phase B: capability-check.rb validator + CI enforcement",
+      "kind": "audit-tooling",
+      "workstream": "audit-governance",
+      "accountableOwner": "swahlquist",
+      "inclusionReason": "adds-audit-automation-or-evidence",
+      "cluster": "capability-ledger",
+      "source": { "type": "github-pr", "repository": "lingolinq/LingoLinq-AAC", "number": 590 }
+    },
+    {
+      "id": "WORK-2026-07-21-PR646",
+      "date": "2026-07-21",
+      "title": "Art. 50 Phase 3: EU disclosure content, ack endpoint, accessible modal, first-AI-use gate",
+      "kind": "engineering-control",
+      "workstream": "ai-trust",
+      "accountableOwner": "swahlquist",
+      "inclusionReason": "advances-readiness-requirement",
+      "cluster": "art50-disclosure",
+      "requirements": ["adult-beta-ai-disclosure"],
+      "source": { "type": "github-pr", "repository": "lingolinq/LingoLinq-AAC", "number": 646 }
+    },
+    {
+      "id": "WORK-2026-07-21-PR649",
+      "date": "2026-07-21",
+      "title": "Org offboarding parental consent",
+      "kind": "product-feature",
+      "workstream": "children-school",
+      "accountableOwner": "MelissaOneil",
+      "inclusionReason": "advances-readiness-requirement",
+      "cluster": "coppa-offboarding",
+      "requirements": ["school-beta-parent-consent", "school-beta-consent-expiry"],
+      "source": { "type": "github-pr", "repository": "lingolinq/LingoLinq-AAC", "number": 649 }
+    },
+    {
+      "id": "WORK-2026-07-23-PR669",
+      "date": "2026-07-23",
+      "title": "Pin attested register bytes with attestedContentHash",
+      "kind": "audit-tooling",
+      "workstream": "audit-governance",
+      "accountableOwner": "swahlquist",
+      "inclusionReason": "adds-preventive-control",
+      "cluster": "attestation-integrity",
+      "source": { "type": "github-pr", "repository": "lingolinq/LingoLinq-AAC", "number": 669 }
+    },
+    {
+      "id": "WORK-2026-07-27-PR638",
+      "date": "2026-07-27",
+      "title": "Sentry: fail closed for COPPA in scrubber + transaction filter",
+      "kind": "privacy-fix",
+      "workstream": "children-school",
+      "accountableOwner": "swahlquist",
+      "inclusionReason": "adds-preventive-control",
+      "cluster": "telemetry-coppa-failclose",
+      "source": { "type": "github-pr", "repository": "lingolinq/LingoLinq-AAC", "number": 638 }
+    },
+    {
+      "id": "WORK-2026-07-27-PR681",
+      "date": "2026-07-27",
+      "title": "Route runtime AI to Claude on AWS Bedrock (off direct api.anthropic.com)",
+      "kind": "infrastructure",
+      "workstream": "ai-trust",
+      "accountableOwner": "swahlquist",
+      "inclusionReason": "remediates-risk",
+      "cluster": "bedrock-baa-routing",
+      "requirements": ["public-mvp-bedrock-account-proof"],
+      "source": { "type": "github-pr", "repository": "lingolinq/LingoLinq-AAC", "number": 681 }
+    },
+    {
+      "id": "WORK-2026-07-30-PR697",
+      "date": "2026-07-30",
+      "title": "Record verified Bedrock BAA operative conditions (logging OFF + creds in BAA'd account)",
+      "kind": "production-verification",
+      "workstream": "ai-trust",
+      "accountableOwner": "swahlquist",
+      "inclusionReason": "advances-release-assurance",
+      "cluster": "bedrock-baa-routing",
+      "verification": "code-and-runtime",
+      "requirements": ["public-mvp-bedrock-account-proof"],
+      "source": { "type": "github-pr", "repository": "lingolinq/LingoLinq-AAC", "number": 697 }
+    },
+    {
+      "id": "WORK-2026-07-28-PR700",
+      "date": "2026-07-28",
+      "title": "Per-org off-switch for third-party AI processing",
+      "kind": "engineering-control",
+      "workstream": "ai-trust",
+      "accountableOwner": "MelissaOneil",
+      "inclusionReason": "adds-district-trust-capability",
+      "cluster": "org-ai-control",
+      "requirements": ["school-beta-org-ai-control"],
+      "source": { "type": "github-pr", "repository": "lingolinq/LingoLinq-AAC", "number": 700 }
+    },
+    {
+      "id": "WORK-2026-08-04-PR742",
+      "date": "2026-08-04",
+      "title": "File masquerade indicator + AuditEvent findings",
+      "kind": "finding-discovery",
+      "workstream": "privacy-security",
+      "accountableOwner": "swahlquist",
+      "inclusionReason": "discovers-risk",
+      "cluster": "masquerade-accountability",
+      "source": { "type": "github-pr", "repository": "lingolinq/LingoLinq-AAC", "number": 742 }
+    },
+    {
+      "id": "WORK-2026-08-07-PR764",
+      "date": "2026-08-07",
+      "title": "Gate focus_generate_words with ai_feature_enabled_for? on cache hit",
+      "kind": "security-fix",
+      "workstream": "ai-trust",
+      "accountableOwner": "MelissaOneil",
+      "inclusionReason": "advances-readiness-requirement",
+      "cluster": "ai-consent-enforcement",
+      "requirements": ["adult-beta-ai-focus-consent"],
+      "source": { "type": "github-pr", "repository": "lingolinq/LingoLinq-AAC", "number": 764 }
+    },
+    {
+      "id": "WORK-2026-08-07-PR765",
+      "date": "2026-08-07",
+      "title": "Blocking ESLint gate with .eslint-todo baseline",
+      "kind": "engineering-control",
+      "workstream": "supply-chain",
+      "accountableOwner": "MelissaOneil",
+      "inclusionReason": "adds-preventive-control",
+      "cluster": "ci-eslint-baseline",
+      "requirements": ["district-ready-supply-chain"],
+      "source": { "type": "github-pr", "repository": "lingolinq/LingoLinq-AAC", "number": 765 }
+    },
+    {
+      "id": "WORK-2026-08-09-PR721",
+      "date": "2026-08-09",
+      "title": "Erase UserVideo and off-board ButtonSound on hard delete",
+      "kind": "privacy-fix",
+      "workstream": "data-lifecycle",
+      "accountableOwner": "MelissaOneil",
+      "inclusionReason": "remediates-risk",
+      "cluster": "hard-delete-completeness",
+      "findings": ["LL-854b1d3853"],
+      "requirements": ["school-beta-hard-delete-media"],
+      "source": { "type": "github-pr", "repository": "lingolinq/LingoLinq-AAC", "number": 721 }
+    },
+    {
+      "id": "WORK-2026-08-11-PR782",
+      "date": "2026-08-11",
+      "title": "Sweep LogSnapshot on user erasure",
+      "kind": "privacy-fix",
+      "workstream": "data-lifecycle",
+      "accountableOwner": "MelissaOneil",
+      "inclusionReason": "remediates-risk",
+      "cluster": "hard-delete-completeness",
+      "findings": ["LL-1e2ab28aab"],
+      "source": { "type": "github-pr", "repository": "lingolinq/LingoLinq-AAC", "number": 782 }
+    }
+  ]
+}

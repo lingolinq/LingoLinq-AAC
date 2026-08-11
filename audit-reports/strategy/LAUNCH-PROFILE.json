@@ -1,0 +1,33 @@
+{
+  "meta": {
+    "artifact": "launch-profile",
+    "title": "LingoLinq Launch Profile",
+    "description": "Governance decisions defining the selected launch configuration. Requirements whose applicability depends on an 'undecided' value render decision-needed on the dashboard, never blocked or not-required. If a decision later excludes a requirement because a feature is disabled, the exclusion should reference technical enforcement evidence in the evidence map before being treated as final.",
+    "owner": "Scot Wahlquist",
+    "governance": "Only Scot changes the decisions in this file. Scripts and agents never flip a decision value; they only read it.",
+    "schemaVersion": "0.1.0",
+    "generatedDate": "2026-08-11",
+    "decisionEnum": ["undecided", true, false],
+    "sources": [
+      { "id": "git-findings", "kind": "repo", "name": "Canonical Git findings (audit-reports/FINDINGS.json)", "lastObservedDate": "2026-08-11", "observedBy": "readiness-dashboard v0.2 implementation", "note": "Source of truth; read live at every render." },
+      { "id": "git-strategy", "kind": "repo", "name": "Git strategy inputs (audit-reports/strategy/)", "lastObservedDate": "2026-08-11", "observedBy": "readiness-dashboard v0.2 implementation", "note": "This layer; requirement matrix PROPOSED, not yet ratified." },
+      { "id": "notion-findings-mirror", "kind": "notion", "name": "Notion findings data source", "lastObservedDate": "2026-08-08", "observedBy": "manual observation (historical fixture; no live connector in v0.2)", "note": "Last known query reflected the 123-row baseline of 2026-08-08; canonical register has since moved." },
+      { "id": "notion-compliance-home", "kind": "notion", "name": "Notion Compliance Home", "lastObservedDate": "2026-08-08", "observedBy": "manual observation (historical fixture; no live connector in v0.2)", "note": "Last known headline showed 118 total / 54 open / 7 awaiting QA / 50 verified closed - a numeric contradiction with the canonical register; contradiction overrides freshness age." },
+      { "id": "drive-internal-program", "kind": "drive", "name": "Drive internal Compliance & Security Program", "lastObservedDate": "2026-08-04", "observedBy": "manual observation (historical fixture; no live connector in v0.2)", "note": "Last known attested 2026-08-04." },
+      { "id": "drive-external-overview", "kind": "drive", "name": "Drive external Security, Privacy & Compliance Overview", "lastObservedDate": "2026-08-06", "observedBy": "manual observation (historical fixture; no live connector in v0.2)", "note": "Last known attested 2026-08-04, published 2026-08-06." },
+      { "id": "drive-publication-status", "kind": "drive", "name": "Drive Compliance Publication Status index", "lastObservedDate": "2026-07-23", "observedBy": "manual observation (historical fixture; no live connector in v0.2)", "note": "Last known generated 2026-07-23; stale relative to subsequent attestations." },
+      { "id": "production-evidence", "kind": "production", "name": "Production revision/config evidence", "lastObservedDate": null, "observedBy": null, "note": "Must be explicitly captured per observation; never inferred. No observation recorded yet." }
+    ]
+  },
+  "profile": "adult-beta-initial",
+  "decisions": {
+    "aiWordPredictionEnabled": "undecided",
+    "aiFocusWordsEnabled": "undecided",
+    "euUsersIncluded": "undecided",
+    "minorsIncluded": "undecided",
+    "schoolManagedAccounts": "undecided",
+    "mvpIncludesMinors": "undecided",
+    "productionBeta": true
+  },
+  "evidence": {}
+}
