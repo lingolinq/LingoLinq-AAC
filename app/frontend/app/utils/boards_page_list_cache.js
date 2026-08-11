@@ -10,6 +10,12 @@ var TTL_MS = 10 * 60 * 1000;
 var MAX_BOARDS = 500;
 var KEY_PREFIX = 'll_boards_page_mine_v1:';
 
+/* Foreground Mine-list load gate for board_detail_cache phase-4 deferral.
+   Set while generate_or_append_to_list is fetching model.my_boards; cleared
+   when the list reaches .done or errors. Module-level so prefetch can poll
+   without depending on the Ember controller instance. */
+var _mineListBusy = false;
+
 var SNAPSHOT_ATTRS = [
   'id',
   'key',
@@ -123,6 +129,7 @@ function clear(userId) {
 }
 
 function clearAll() {
+  _mineListBusy = false;
   var storage = _storage();
   if (!storage) { return; }
   var toRemove = [];
@@ -172,6 +179,20 @@ function isUsableList(list) {
   return !!(list && list.done && !list.loading && !list.error && Array.isArray(list));
 }
 
+/* True when localStorage still holds an unexpired Mine snapshot for this
+   user. Used to skip store.query on boards-page re-entry within TTL. */
+function hasFreshSnapshot(userId) {
+  return !!read(userId);
+}
+
+function setMineListBusy(busy) {
+  _mineListBusy = !!busy;
+}
+
+function isMineListBusy() {
+  return !!_mineListBusy;
+}
+
 export default {
   TTL_MS: TTL_MS,
   MAX_BOARDS: MAX_BOARDS,
@@ -183,5 +204,8 @@ export default {
   clear: clear,
   clearAll: clearAll,
   hydrate: hydrate,
-  isUsableList: isUsableList
+  isUsableList: isUsableList,
+  hasFreshSnapshot: hasFreshSnapshot,
+  setMineListBusy: setMineListBusy,
+  isMineListBusy: isMineListBusy
 };

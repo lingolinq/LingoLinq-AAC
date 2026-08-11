@@ -6,6 +6,7 @@ import modal from '../utils/modal';
 import editManager from '../utils/edit_manager';
 import i18n from '../utils/i18n';
 import loadHierarchyForCopyModal from '../utils/copy_hierarchy_loader';
+import boardsPageListCache from '../utils/boards_page_list_cache';
 
 // Best-effort human-readable form of whatever the copy chain rejected with, for
 // the background drawer (which renders a plain string, unlike the modal's error
@@ -215,6 +216,13 @@ export default Component.extend({
       });
       next.then(function(res) {
         _this.clear_copying();
+        /* Invalidate Mine-list snapshot for the copy destination user so
+           /boards does not keep serving a pre-copy list within TTL. */
+        try {
+          var destUser = model.user;
+          var destId = destUser && (destUser.get ? destUser.get('id') : destUser.id);
+          if (destId) { boardsPageListCache.clear(destId); }
+        } catch (e) { /* non-critical */ }
         // Backgrounded copy: the user is off doing something else, so OFFER the
         // new board rather than navigating to it. The foreground branch below
         // jumps / transitions outright, and model.copy_finished transitions too
