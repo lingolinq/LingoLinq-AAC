@@ -40,23 +40,29 @@ module JsonApi::Board
     list = [board.settings['locale'] || 'en']
     trans = {}
     if list_summary
-      # Avoid BoardContent translation loads on list pages; settings locales
-      # (when present) are enough for tile locale chips / filters.
+      # Avoid scanning every button translation key for tile locale chips;
+      # settings locales cover that. When a request locale is present, still
+      # load translations for localized_name (board_content is eager-loaded
+      # on index). Do not rewrite button labels — list payloads omit buttons.
       list += Array(board.settings['locales'])
+      if args[:locale]
+        trans = (BoardContent.load_content(board, 'translations') || {})
+        list += (trans['board_name'] || {}).keys
+      end
     else
       trans = (BoardContent.load_content(board, 'translations') || {})
       trans.each{|k, h| if h.is_a?(Hash); list += h.keys; end }
     end
     json['translated_locales'] = list.select{|loc| !loc.blank? }.uniq
     json['style'] = board.settings['board_style'] if board.settings['board_style']
-    if args[:locale] && !list_summary
+    if args[:locale]
       matching = list.detect{|l| l == args[:locale] }
       matching ||= list.detect{|l| l.split(/-|_/)[0] == args[:locale] }
       matching ||= list.detect{|l| l.split(/-|_/)[0] == args[:locale].split(/-|_/)[0] }
       if matching
         json['localized_name'] = (trans['board_name'] || {})[matching] || json['name']
         json['localized_locale'] = matching
-        if !args[:permissions]
+        if !list_summary && !args[:permissions]
           json['buttons'].each do |button|
             btn_tran = trans[button['id'].to_s]
             if btn_tran && btn_tran[matching]
