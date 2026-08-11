@@ -68,10 +68,19 @@ export async function dismissBlockingModals(page: Page): Promise<void> {
     await expect(loggingDialog).toHaveCount(0, { timeout: 15_000 });
   }
 
-  // Beta feedback drawer sometimes overlays the page mid-suite
-  const hideBeta = page.getByRole('button', { name: /^hide$/i });
-  if (await hideBeta.isVisible().catch(() => false)) {
+  // Beta feedback top drawer (#beta-feedback-top-drawer) can overlay Save.
+  // Closing toggles betaFeedbackDrawerOpen → aria-hidden="true" + --hidden;
+  // the node stays in the DOM, so wait on that state (not detachment).
+  const betaDrawer = page.locator('#beta-feedback-top-drawer');
+  const betaOpen =
+    (await betaDrawer.count()) > 0 &&
+    (await betaDrawer.getAttribute('aria-hidden')) === 'false';
+  if (betaOpen) {
+    const hideBeta = betaDrawer.getByRole('button', { name: /^hide$/i });
     await hideBeta.click();
+    await expect(betaDrawer).toHaveAttribute('aria-hidden', 'true', {
+      timeout: 15_000,
+    });
   }
 }
 
