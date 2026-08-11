@@ -29,8 +29,59 @@
     "verificationEnum": ["code-only", "code-and-runtime", "attestation", "external-review"],
     "areaEnum": ["privacy-security", "ai-trust", "children-school", "accessibility", "data-lifecycle", "infrastructure", "supply-chain", "audit-governance", "product-reliability", "district-readiness"],
     "appliesWhenSemantics": "appliesWhen.decisions lists LAUNCH-PROFILE.json decision keys gating applicability (any-of: requirement applies if any listed decision is true). If none is true and at least one is 'undecided', the derived status is decision-needed. Empty list = always applies. appliesWhen.summary is the human-readable condition.",
-    "findingSemantics": "findingIds must exist in audit-reports/FINDINGS.json (validated; read-only cross-reference). findingScope is a prose description of an aggregate finding class (e.g. launch-relevant WCAG Mediums) that cannot be pinned to specific IDs. Invariants compute over FINDINGS.json each generation and never store completion status."
+    "findingSemantics": "findingIds must exist in audit-reports/FINDINGS.json (validated; read-only cross-reference). findingScope is a prose description of an aggregate finding class (e.g. launch-relevant WCAG Mediums) that cannot be pinned to specific IDs. Invariants compute over FINDINGS.json each generation and never store completion status.",
+    "readinessCardStatusEnum": ["green", "yellow", "orange", "red", "future"]
   },
+  "readinessCards": [
+    {
+      "id": "security-privacy",
+      "title": "Security & Privacy",
+      "status": "yellow",
+      "strengths": ["Infrastructure hardening", "Dependency/security controls", "Evidence governance", "Deployment assertions"],
+      "gaps": ["Raw AI cache", "Privileged-access residuals", "Verification debt"],
+      "next": "Close/verify launch-relevant Highs and confirm beta configuration"
+    },
+    {
+      "id": "ai-trust",
+      "title": "AI Trust",
+      "status": "yellow",
+      "strengths": ["Bedrock routing", "Model allowlists and endpoint controls", "Org/user/child consent enforcement"],
+      "gaps": ["Raw word-prediction cache", "Bedrock account-proof automation", "Final disclosure applicability/enablement"],
+      "next": "Resolve launch-profile decisions and verify runtime controls"
+    },
+    {
+      "id": "accessibility",
+      "title": "Accessibility",
+      "status": "yellow",
+      "strengths": ["Major Ember/accessibility modernization", "Accessible AI disclosure work"],
+      "gaps": ["Terms switch scanning", "Terms ordering", "Launch-relevant core AAC accessibility Mediums"],
+      "next": "Cohort-specific switch/eye-gaze/keyboard/screen-reader verification"
+    },
+    {
+      "id": "student-data-lifecycle",
+      "title": "Student Data Lifecycle",
+      "status": "orange",
+      "strengths": ["Parent-consent and offboarding architecture exists"],
+      "gaps": ["Seat-reclaim/re-consent cluster", "Hard-delete media completeness"],
+      "next": "Verify the #737/#721 class of lifecycle fixes before school/minor beta"
+    },
+    {
+      "id": "district-trust-pack",
+      "title": "District Trust Pack",
+      "status": "yellow",
+      "strengths": ["Current attested internal/external compliance materials exist"],
+      "gaps": ["Publication/index freshness", "Trust-pack coherence"],
+      "next": "Generate trust pack from canonical current sources"
+    },
+    {
+      "id": "evidence-of-value",
+      "title": "Evidence of Value",
+      "status": "orange",
+      "strengths": ["Technical beta readiness improving"],
+      "gaps": ["Structured AAC-user/SLP/teacher outcomes still immature"],
+      "next": "Collect beta usability and outcome evidence deliberately"
+    }
+  ],
   "requirements": [
     {
       "id": "adult-beta-no-critical",
