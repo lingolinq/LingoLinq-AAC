@@ -6,6 +6,8 @@ import BoardHierarchy from '../utils/board_hierarchy';
 import RSVP from 'rsvp';
 import { later as runLater } from '@ember/runloop';
 import actionLock from '../utils/action-lock';
+import boardDetailCache from '../utils/board_detail_cache';
+import boardsPageListCache from '../utils/boards_page_list_cache';
 
 /**
  * Confirm Delete Board Modal Component
@@ -232,6 +234,24 @@ export default Component.extend({
         }
 
         return wait_for_deletes.then(() => {
+          /* Drop speak-mode /tree cache + Mine-list snapshot for every
+             deleted id/key so exit-speak processButtons and background
+             prefetch_linked stop chasing 404s / deleted Ember records. */
+          try {
+            deleted_ids.forEach(function(id) {
+              if (id) { boardDetailCache.invalidate(id); }
+            });
+            if (board) {
+              var bid = board.get ? board.get('id') : board.id;
+              var bkey = board.get ? board.get('key') : board.key;
+              if (bid) { boardDetailCache.invalidate(bid); }
+              if (bkey) { boardDetailCache.invalidate(bkey); }
+            }
+            /* Mine list snapshot — clear so /boards re-queries after delete. */
+            var currentId = _this.appState.get('currentUser.id') ||
+              _this.appState.get('currentUser._actual_id');
+            if (currentId) { boardsPageListCache.clear(currentId); }
+          } catch (e) { /* non-critical */ }
           if (_this.get('model.redirect')) {
             _this.appState.return_to_index();
           }
