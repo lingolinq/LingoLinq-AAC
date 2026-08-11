@@ -1323,6 +1323,29 @@ describe Api::BoardsController, :type => :controller do
       assert_unauthorized
     end
 
+    # The board-picker home-board flow (models/board.js create_copy) posts create
+    # with parent_board_id, so a supervise-only supervisor must be able to COPY a
+    # board for a communicatee. The spec above pins the other half: without a
+    # parent_board_id it is authoring a brand-new board, which stays edit-only.
+    it "should allow a supervise-only supervisor to copy a board for a supervisee" do
+      token_user
+      com = User.create
+      b = Board.create(:user => @user, :public => true)
+      User.link_supervisor_to_user(@user, com, nil, false)
+      post :create, params: {:board => {:name => "my board", :for_user_id => com.global_id, :parent_board_id => b.global_id}}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['board']['user_name']).to eq(com.user_name)
+    end
+
+    it "should not allow a supervise-only supervisor to copy a board for a non-supervisee" do
+      token_user
+      com = User.create
+      b = Board.create(:user => @user, :public => true)
+      post :create, params: {:board => {:name => "my board", :for_user_id => com.global_id, :parent_board_id => b.global_id}}
+      assert_unauthorized
+    end
+
     it "should preserve grid order" do
       token_user
       request.headers['Content-Type'] = 'application/json'

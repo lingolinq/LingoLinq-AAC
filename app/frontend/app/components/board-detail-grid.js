@@ -1,6 +1,6 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
-import { observer } from '@ember/object';
+import { computed, get } from '@ember/object';
 import { scheduleOnce, debounce, cancel } from '@ember/runloop';
 import labelFit from '../utils/label_fit';
 
@@ -21,6 +21,22 @@ function findGridEl() {
 export default Component.extend({
   tagName: '',
   app_state: service('app-state'),
+
+  // True when any button on the board opens a folder (load_board). Drives the
+  // grid's --has-folders class so the folder-tab top reserve — which pushes every
+  // card down to make room for the tabs AND keep rows aligned — applies ONLY when
+  // folders are actually present. Folder-less boards keep full-height buttons with
+  // no dead top space. orderedButtons is a 2D array (rows of buttons).
+  hasFolders: computed('orderedButtons', function() {
+    var rows = this.get('orderedButtons') || [];
+    for(var i = 0; i < rows.length; i++) {
+      var row = rows[i] || [];
+      for(var j = 0; j < row.length; j++) {
+        if(row[j] && get(row[j], 'load_board')) { return true; }
+      }
+    }
+    return false;
+  }),
 
   init: function() {
     this._super(...arguments);
@@ -76,29 +92,46 @@ export default Component.extend({
     // Re-fit on every render — covers initial mount, route re-entry,
     // ordered_buttons changes, and toggle flips. scheduleOnce keeps
     // multiple same-render triggers from compounding.
-    scheduleOnce('afterRender', this, '_run_fit_or_clear');
+    scheduleOnce('afterRender', this, '_run_label_fit');
+    // Publish the folder-tab cell metrics SYNCHRONOUSLY here (afterRender runs
+    // before the browser paints) so --bd-cell-min is in place on the FIRST frame.
+    // The controller also publishes it, but only on a ~160-300ms debounce, so
+    // without this the first paint uses the 90px fallback and folder tabs render
+    // short until the measurement settles. This closes that initial-value gap.
+    scheduleOnce('afterRender', this, '_publish_cell_metrics');
   },
 
-  // shrinkLabelsToFit flipping is also caught by didRender, but a
-  // dedicated observer makes the intent explicit and lets the clear
-  // pass fire promptly even when nothing else triggers a re-render.
-  _shrink_observer: observer('shrinkLabelsToFit', function() {
-    scheduleOnce('afterRender', this, '_run_fit_or_clear');
-  }),
-
-  _schedule_fit: function(source) {
-    this._resize_pending = debounce(this, '_run_fit_or_clear', source, RESIZE_DEBOUNCE_MS);
-  },
-
-  _run_fit_or_clear: function() {
+  // Measure the first rendered board cell and publish its size as CSS vars on the
+  // grid so the folder-tab geometry (tab height + row reserve, which key off
+  // --bd-cell-min) is correct from the first paint — no settle-in flash. Mirrors
+  // the same vars the controller's _sync_prediction_tile_size publishes; both
+  // writing the same value is harmless (idempotent). getBoundingClientRect forces
+  // one layout read, but it's a single cell and runs at most once per render tick.
+  _publish_cell_metrics: function() {
     if(this.isDestroyed || this.isDestroying) { return; }
     var gridEl = findGridEl();
     if(!gridEl) { return; }
-    if(this.get('shrinkLabelsToFit')) {
-      labelFit.apply(gridEl);
-    } else {
-      labelFit.clear(gridEl);
+    var cell = gridEl.querySelector('.md-board-detail-grid__cell:not(.md-board-detail-grid__cell--empty)');
+    if(!cell) { return; }
+    var r = cell.getBoundingClientRect();
+    if(r && r.height >= 1 && r.width >= 1) {
+      gridEl.style.setProperty('--bd-cell-h', Math.round(r.height) + 'px');
+      gridEl.style.setProperty('--bd-cell-min', Math.round(Math.min(r.width, r.height)) + 'px');
     }
+  },
+
+  _schedule_fit: function(source) {
+    this._resize_pending = debounce(this, '_run_label_fit', source, RESIZE_DEBOUNCE_MS);
+  },
+
+  // Per-label shrink-to-fit (utils/label_fit.js): labels that would overflow at
+  // the user's chosen size are reduced individually; labels that already fit
+  // stay at the chosen size. Shrink-only — never grows text past preference.
+  _run_label_fit: function() {
+    if(this.isDestroyed || this.isDestroying) { return; }
+    var gridEl = findGridEl();
+    if(!gridEl) { return; }
+    labelFit.apply(gridEl);
   },
 
   actions: {

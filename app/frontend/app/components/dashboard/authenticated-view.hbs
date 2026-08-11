@@ -526,6 +526,9 @@
               </div>
               <div class="md-strip__label">
                 <span class="md-strip__name">{{preview.name}}</span>
+                {{#if (board-attribution-owner (or preview.board (hash key=preview.key)))}}
+                  <span class="md-strip__owner">{{t "by" key="by"}} {{board-attribution-owner (or preview.board (hash key=preview.key))}}</span>
+                {{/if}}
                 {{#if preview.languageLabel}}
                   <span class="md-strip__lang">{{preview.languageLabel}}</span>
                 {{/if}}

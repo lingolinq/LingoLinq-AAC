@@ -22,6 +22,10 @@ import buildEventAction from '../utils/event_action';
 function _board_collection_i18n_extractor_no_op() {
   i18n.t('my_board_collection', "My Board Collection");
   i18n.t('back_to_speak_mode', "Back to Speak Mode");
+  // Rendered as a nested `(t ...)` subexpression inside an `{{if}}`, which the
+  // static parser does not extract — register them literally here.
+  i18n.t('back_to_edit_mode', "Back to Edit Mode");
+  i18n.t('original_selected_board', "Original Selected Board");
   i18n.t('my_boards', "My Boards");
   i18n.t('communikate', "CommuniKate");
   i18n.t('quick_core', "Quick Core");
@@ -106,6 +110,22 @@ export default Component.extend({
   my_boards_expanded: false,
   MY_BOARDS_DEFAULT_LIMIT: 5,
 
+  /* Which controller actions this panel's clickables dispatch. Clicks inside
+     .md-board-collection on board-detail are NOT delivered by Ember's
+     {{on "click"}} — raw_events routes them to controller.send by reading the
+     element's data-bd-action (utils/raw_events.js:101-109, and the deliberate
+     bail at :2719). So the drawer's behavior is decided by these attribute
+     values, NOT by the @onSelect/@onBack arguments. Hardcoding the speak-mode
+     names here is what made the edit drawer preview boards into SPEAK mode and
+     made "Back to Edit Mode" never reach onCloseEditBoardCollection. Resolve
+     the names ONCE from editContext so both dispatch paths agree. */
+  back_action_name: computed('editContext', function() {
+    return this.get('editContext') ? 'close_edit_board_collection' : 'close_board_collection';
+  }),
+  select_action_name: computed('editContext', function() {
+    return this.get('editContext') ? 'select_board_from_collection_edit' : 'select_board_from_collection';
+  }),
+
   /* Live-filter input at the top of the panel. Empty string means
      "no filter active" (the panel renders normally with the 5-row
      My Boards cap + Show more toggle). Any non-empty value bypasses
@@ -171,13 +191,19 @@ export default Component.extend({
       if (data && data.forEach) {
         data.forEach(function(b) { if (b) { next.push(b); } });
       }
+      // Progressive render: paint what we have SO FAR the moment each page lands —
+      // page 1 (home_popularity sort) is the home board + favorites, which is all the
+      // collapsed view shows anyway — then keep paging in the BACKGROUND to fill the
+      // "Show more" expander and in-panel search, instead of blocking the whole list on
+      // the final page. `_sortMyBoards` keeps home→favorites→rest pinned, so the visible
+      // rows stay stable as later pages append below the fold. Shared component, so this
+      // speeds up BOTH the speak-mode and edit-mode collection drawers.
+      _this.set('my_boards_state', { state: 'loaded', boards: _this._sortMyBoards(next) });
       var meta = null;
       try { meta = _this.get('persistence') && _this.get('persistence').meta('board', data); } catch (e) { meta = null; }
       if (meta && meta.more) {
         _this._loadMyBoardsPage(userId, meta.next_offset, next);
-        return;
       }
-      _this.set('my_boards_state', { state: 'loaded', boards: _this._sortMyBoards(next) });
     }).catch(function() {
       if (_this.isDestroyed || _this.isDestroying) { return; }
       /* If we already paged some boards before the failure, render

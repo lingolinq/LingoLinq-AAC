@@ -1140,7 +1140,16 @@ function isGrabberTestModule(moduleName) {
 }
 
 function isSyncHeavyTestModule(moduleName) {
+  // 'Acceptance' covers every acceptance module (matching is substring-based).
+  // These boot the whole app and do real persistence/sync work, so they are
+  // sync-heavy by definition — but nothing named them, so teardownSyncHeavyTestHarness
+  // (and with it cancelHarnessAsyncWork) never ran afterwards. Their persistence
+  // timers, eventual_store queue and sync_actions survived into whatever module ran
+  // next, which then failed on a ~5s timeout. Which test drew the short straw moved
+  // around with suite ordering — that is what made dbman / speecher / persistence /
+  // modal / progress_tracker look like unrelated intermittent flakes.
   var syncModules = [
+    'Acceptance',
     'app_state', 'capabilities', 'persistence-sync', 'persistence', 'word_suggestions',
     'Board', 'frame_listener', 'speecher', 'Utterance', 'User', 'stashes', 'dbman', 'session'
   ];

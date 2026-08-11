@@ -6,11 +6,13 @@
 gating, Redis TLS enabler, register reconcile/re-stamp, GCP Memorystore flag fix) and continued
 progress on the Render-to-GCP Cloud Run migration.
 **Status:** SUPERSEDED (historical snapshot, retained for the record). The figures below were the
-point-in-time state on 2026-06-18 and are no longer current. The authoritative current posture is
-**0 Critical / 4 open High** at register SHA `445336592` (auditedDate 2026-06-19), per the attested
-`docs/legal/COMPLIANCE_POSTURE_REPORT.md`. This snapshot is not attested as a current statement.
+point-in-time state on 2026-06-18 and are no longer current. The next internal snapshot is
+`docs/legal/COMPLIANCE_STATUS_2026-08-09.md` (DRAFT). Live posture is read from
+`audit-reports/FINDINGS.json` at HEAD (publisher convention); as of 2026-08-09 that derivation is
+**0 Critical / 12 High / 30 Medium / 25 Low**. This snapshot is not attested as a current statement.
 **Related:** `audit-reports/FINDINGS.json` (source of truth), `docs/legal/COMPLIANCE_POSTURE_REPORT.md`,
 `docs/legal/AI_GOVERNANCE_MEMO.md`, `docs/legal/SUBPROCESSORS.md`, `audit-reports/compliance-calendar.md`,
+`docs/legal/COMPLIANCE_STATUS_2026-08-09.md` (successor snapshot),
 `docs/legal/COMPLIANCE_STATUS_2026-04-23.md` (prior snapshot).
 
 ---

@@ -62,7 +62,7 @@
                       <li class="md-board-collection__row">
                         <button type="button" class="md-board-collection__item" {{on "click" (this.ctrlAction "select" board)}}>
                           <img class="md-board-collection__item-icon" src={{board.icon_url_with_fallback}} alt="" />
-                          <span class="md-board-collection__item-name">{{board.name}}</span>
+                          <BoardListItemLabel @board={{board}} @name={{board.name}} />
                           {{#if (board-language-label board)}}
                             <span class="md-board-collection__item-lang">{{board-language-label board}}</span>
                           {{/if}}

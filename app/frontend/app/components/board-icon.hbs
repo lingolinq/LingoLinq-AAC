@@ -127,15 +127,14 @@
   <div class={{if this.noinfo "name compact" "name"}}>
   {{this.best_name}}
   </div>
-  {{!-- Author/count line: for folder boards the count now lives
-       inside the Preview pill (PREVIEW · N boards), so the line
-       only renders for leaf boards (showing "by Username"). --}}
-  {{#unless this.children}}
+  {{!-- Owner credit — every tile (leaf and folder). Folder child
+       count lives in the Preview pill (PREVIEW · N boards). --}}
+  {{#if this.board_attribution_owner}}
     <div class='author'>
       <span class="author__label">{{t "by" key="by"}}</span>
-      <span class={{if this.long_username "author__username author__username--long" "author__username"}}>{{this.board_record.user_name}}</span>
+      <span class={{if this.long_username "author__username author__username--long" "author__username"}}>{{this.board_attribution_owner}}</span>
     </div>
-  {{/unless}}
+  {{/if}}
 </div>
 {{!-- Loading overlay — fires when EITHER the corner "i" info button
      OR the bottom-center Preview button is clicked. Uses the shared
