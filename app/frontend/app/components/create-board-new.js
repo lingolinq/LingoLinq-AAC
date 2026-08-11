@@ -19,6 +19,7 @@ import { pick_aac_color } from '../utils/parts_of_speech';
 import { buttonSpacingPx, buttonBorderPx, buttonTextPx, BUTTON_SPACING_OPTIONS } from '../utils/display_prefs';
 import aiFeatureGate from '../utils/ai_feature_gate';
 import article50Gate from '../utils/article50_gate';
+import boardsPageListCache from '../utils/boards_page_list_cache';
 
 /**
  * Create Board (New) Modal Component
@@ -1352,6 +1353,15 @@ export default Component.extend({
       _this.appState.set('label_locale', board.get('locale'));
       _this.appState.set('vocalization_locale', board.get('locale'));
       _this.set('status', null);
+      /* Invalidate Mine-list snapshot so /boards re-queries after create. */
+      try {
+        var ownerId = _this.get('model.for_user_id') ||
+          (_this.appState.get('currentUser.id')) ||
+          (_this.appState.get('currentUser._actual_id'));
+        if (ownerId && ownerId !== 'self') { boardsPageListCache.clear(ownerId); }
+        var selfId = _this.appState.get('currentUser.id') || _this.appState.get('currentUser._actual_id');
+        if (selfId) { boardsPageListCache.clear(selfId); }
+      } catch (e) { /* non-critical */ }
       modalUtil.close(true);
       editManager.auto_edit(board.get('id'));
       _this.appState.set('referenced_board', {id: board.get('id'), key: board.get('key')});

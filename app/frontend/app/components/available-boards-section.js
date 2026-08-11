@@ -107,16 +107,20 @@ export default Component.extend({
         if (ctrl) { ctrl.send.apply(ctrl, [actionName].concat(bound)); }
       };
     };
-    // Invokes immediately — templates bind with `(fn this.sendAction "name" …)`.
-    // Do NOT return a nested handler: `(fn factory "x")` would call the factory
-    // at event time and discard the returned function (accordion / drag / filter
-    // no-ops). Keep the Event arg; updateFolderFilter and drag/drop read it
-    // (unlike ctrlAction, which strips events for click-only controller actions).
-    // See LEARNINGS: `(fn this.ctrlAction …)` factory gotcha; task log
-    // 2026-08-05-boards-folder-accordion-fn-sendaction.md.
+    /* Factory that returns a click handler — templates bind at render with
+       `(this.sendAction "name" …)` (same as ctrlAction). Do NOT use
+       `(fn this.sendAction …)`: that calls the factory at click time and
+       discards the returned handler. Do NOT make this invoke immediately
+       either: `(this.sendAction "toggleFoldersExpanded")` would then run
+       during render (while aria-expanded / class already read
+       foldersExpanded) and trip Ember's "update after use" assertion.
+       Filter/drag that need the Event use selfEventAction, not sendAction.
+       See LEARNINGS ctrlAction factory gotcha + 2026-08-05 accordion log. */
     this.sendAction = function(actionName) {
-      var args = Array.prototype.slice.call(arguments, 1);
-      self.send.apply(self, [actionName].concat(args));
+      var bound = Array.prototype.slice.call(arguments, 1);
+      return function() {
+        self.send.apply(self, [actionName].concat(bound));
+      };
     };
     this.selfActionNoBubble = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
