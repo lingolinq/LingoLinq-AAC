@@ -1199,6 +1199,26 @@ describe Api::LogsController, :type => :controller do
       assert_unauthorized
     end
 
+    # Regression: `allowed?` RENDERS a 400 before returning false, so the old
+    # `(self && (allowed?(view_detailed) || allowed?(model))) || allowed?(supervise)`
+    # chain rendered more than once and raised AbstractController::DoubleRenderError
+    # — a 500 where a clean 401 belongs. A 'none'-scoped token on your OWN log is
+    # the reachable trigger: permissable.rb:74 deliberately does not widen ['none']
+    # with '*', so view_detailed, model and supervise all resolve false for self.
+    it 'should return a single clean unauthorized (not a double render) for a none-scoped token on your own log' do
+      token_user
+      log = LogSession.process_new({
+        :events => [
+          {'timestamp' => 4.seconds.ago.to_i, 'type' => 'button', 'button' => {'label' => 'ok', 'board' => {'id' => '1_1'}}}
+        ]
+      }, {:user => @user, :device => @device, :author => @user})
+      @device.developer_key_id = 1
+      @device.settings['permission_scopes'] = ['none']
+      @device.save
+      get :show, params: {:id => log.global_id}
+      assert_unauthorized
+    end
+
     it "should limit log access based on logging_cutoff parameter" do
       token_user
       @user.settings['preferences']['logging_cutoff'] = 6

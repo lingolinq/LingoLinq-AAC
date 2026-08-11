@@ -1,22 +1,53 @@
-<div class="md-shell md-shell--board-picker">
+<div class="md-shell md-shell--home-boards md-shell--board-picker">
   <div class="md-workspace">
-    <main class="md-main">
-      <div class="board-picker-page">
-        <h2 class="board-picker-page__header">{{t "Pick Your Board" key="board_picker_header"}}</h2>
-        <p class="board-picker-page__intro">{{t "Choose a communication system that fits your communicator today" key="board_picker_intro"}}<br>{{t "and grows with them" key="board_picker_intro_2"}} <span class="hero-gradient">{{t "over time" key="board_picker_intro_over_time"}}</span>.</p>
-        <div class="board-picker-page__assign">
-          <button type="button" class="board-picker-page__assign-btn" disabled={{this.assigning_home_board}} {{on "click" (this.ctrlAction "assign_default_home_board")}}><svg class="board-picker-page__cta-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            {{if this.assigning_home_board (t "Assigning…" key="assigning_home_board_ellipsis") (t "Assign a Home Board For Me" key="assign_home_board_for_me")}}
-          </button>
-          <button type="button" class="board-picker-page__new-btn" {{on "click" (this.ctrlAction "create_new_board")}}><svg class="board-picker-page__cta-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>{{t "Create My Own Board" key="board_picker_create_own"}}</button>
+    <nav class="md-pillnav md-pillnav--dashboard" aria-label={{t "Board picker navigation" key="board_picker_nav_label"}}>
+      <LinkTo @route="user.boards" @model={{this.boardsBackUserName}} class="md-pillnav__pill md-pillnav__pill--home">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right: 4px;"><polyline points="15 18 9 12 15 6"/></svg>
+        {{t "Boards" key="boards"}}
+      </LinkTo>
+      <span class="md-pillnav__pill is-active" aria-current="page">{{t "Choose Board" key="board_picker_nav_choose_board"}}</span>
+    </nav>
+    <main class="md-main md-main--home-boards">
+      {{#if this.other_user.loading}}
+        <article class="md-card md-card--home-boards md-card--board-picker">
+          <p class="ub-boards-page__loading">{{t "Loading User..." key="loading_user"}}</p>
+        </article>
+      {{else if this.other_user.error}}
+        <article class="md-card md-card--home-boards md-card--board-picker">
+          <p class="text-danger">{{t "Error loading user, please make sure you have permission to support this user" key="error_loading_user_check_permission"}}</p>
+        </article>
+      {{else}}
+      <article class="md-card md-card--home-boards md-card--board-picker">
+        <div class="md-card--board-picker__header">
+          <header class="md-hero md-hero--home-boards">
+            <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{this.boardPickerHeader}}</span></h1>
+            {{#unless this.for_self}}
+              {{#if this.setup_user.user_name}}
+                <p class="board-picker-page__context">{{t "Choose a home board for" key="choose_home_board_for"}} <strong>{{this.setup_user.user_name}}</strong></p>
+              {{/if}}
+            {{/unless}}
+          </header>
         </div>
-        <div class="board-picker-page__divider" role="separator">
-          <span class="board-picker-page__divider-line" aria-hidden="true"></span>
-          <span class="board-picker-page__divider-label">{{t "or preview other board options" key="board_picker_divider"}}</span>
-          <span class="board-picker-page__divider-line board-picker-page__divider-line--right" aria-hidden="true"></span>
+        <div class="md-card--board-picker__actions">
+          <div class="board-picker-page__assign">
+            <button type="button" class="board-picker-page__assign-btn" disabled={{this.assigning_home_board}} {{on "click" (this.ctrlAction "assign_default_home_board")}}><svg class="board-picker-page__cta-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              {{if this.assigning_home_board (t "Assigning…" key="assigning_home_board_ellipsis") this.assignHomeButtonLabel}}
+            </button>
+            {{#if this.for_self}}
+            <button type="button" class="board-picker-page__new-btn" {{on "click" (this.ctrlAction "create_new_board")}}><svg class="board-picker-page__cta-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>{{t "Create My Own Board" key="board_picker_create_own"}}</button>
+            {{/if}}
+          </div>
+          <div class="board-picker-page__divider" role="separator">
+            <span class="board-picker-page__divider-line" aria-hidden="true"></span>
+            <span class="board-picker-page__divider-label">{{t "or preview other board options" key="board_picker_divider"}}</span>
+            <span class="board-picker-page__divider-line board-picker-page__divider-line--right" aria-hidden="true"></span>
+          </div>
         </div>
-        <BoardPicker @tabbed={{true}} />
-      </div>
+        <div class="md-card--home-boards__picker">
+          <BoardPicker @searchAtTop={{true}} />
+        </div>
+      </article>
+      {{/if}}
     </main>
   </div>
 </div>

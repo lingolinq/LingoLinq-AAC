@@ -1027,6 +1027,37 @@ class User < ApplicationRecord
     ai_board_suggestions ai_symbol_search
   ].freeze
 
+  # Coerce a submitted AI preference to a real boolean, or nil when the value
+  # carries no decision.
+  #
+  # Delegates to FeatureFlags.ai_pref_value so the WRITE vocabulary can never be
+  # broader than the READ vocabulary. They were briefly separate lists, and the
+  # gap was a real consent bug: 0 / "0" were accepted here as an explicit false
+  # while the gate did not recognize them as an opt-out, so a legacy numeric
+  # opt-out read as "allowed".
+  #
+  # The AI preference keys are consent-bearing, so unlike the other preferences
+  # they are not stored verbatim. A value outside the recognized boolean forms
+  # (most importantly "") returns nil and the caller DROPS the write. Dropping is
+  # chosen over coercing:
+  #   - coercing to false would silently opt a user OUT of a feature they may
+  #     have had on, and
+  #   - coercing to true would manufacture an opt-in from malformed input.
+  # Dropping preserves whatever decision the user previously recorded.
+  #
+  # Historically "" was persisted here verbatim, producing a master preference
+  # that records no readable decision. FeatureFlags.user_pref_allows_ai? denies
+  # on it (unrecognized fails closed), and this normalization stops any NEW row
+  # from reaching that state. Existing "" rows recover through the preferences
+  # UI: the master checkbox renders unchecked for "" and its click handler
+  # writes !!event.target.checked, so the first click stores a real boolean.
+  # That affirmative click is deliberately the only way out — see the comment on
+  # FeatureFlags.user_pref_allows_ai? for why neither a read-side
+  # reinterpretation nor a ""=>nil backfill is an acceptable substitute.
+  def self.normalize_ai_preference_value(val)
+    FeatureFlags.ai_pref_value(val)
+  end
+
   def registration_country
     c = self.settings && self.settings['country']
     return c if c.present?
@@ -1106,13 +1137,16 @@ class User < ApplicationRecord
     return {} unless raw.is_a?(Hash)
     raw = raw.stringify_keys
     out = {}
+    # Route through the shared vocabulary rather than repeating the TRUE list.
+    # This sanitizer records affirmative requests only, so a third hard-coded
+    # copy was not a live bug — but it was a third copy, and the drift between
+    # the first two (numeric 0/"0" accepted on write, unreadable on read) is the
+    # exact defect this changeset exists to remove.
     feature_keys = EU_AI_PREF_KEYS - ['ai_features_enabled']
     feature_keys.each do |k|
-      val = raw[k]
-      out[k] = true if [true, 'true', '1', 1].include?(val)
+      out[k] = true if normalize_ai_preference_value(raw[k]) == true
     end
-    master = raw['ai_features_enabled']
-    if out.any? || [true, 'true', '1', 1].include?(master)
+    if out.any? || normalize_ai_preference_value(raw['ai_features_enabled']) == true
       out['ai_features_enabled'] = true
     end
     out
@@ -1179,7 +1213,11 @@ class User < ApplicationRecord
       self.settings['preferences'] ||= {}
       if requested.is_a?(Hash)
         EU_AI_PREF_KEYS.each do |k|
-          self.settings['preferences'][k] = true if requested[k]
+          # Explicit vocabulary check, not bare truthiness. sanitize_eu_ai_
+          # requested_features only ever stores literal true today, so this is
+          # equivalent — but this is a consent WRITE, and it should not depend on
+          # the storage shape of a different method staying what it is now.
+          self.settings['preferences'][k] = true if self.class.normalize_ai_preference_value(requested[k]) == true
         end
       end
       self.save!
@@ -2412,6 +2450,15 @@ class User < ApplicationRecord
         # Convert them back to actual booleans.
         val = true if val == 'true'
         val = false if val == 'false'
+        # AI preference keys are consent-bearing and accept ONLY recognizable
+        # booleans. Anything else (notably "") is dropped rather than stored, so
+        # a malformed write can neither create the un-clearable blank state that
+        # blocked board generation in production nor be read as an opt-in.
+        if EU_AI_PREF_KEYS.include?(attr)
+          normalized = User.normalize_ai_preference_value(val)
+          next if normalized.nil?
+          val = normalized
+        end
         self.settings['preferences'][attr] = val
       end
     end

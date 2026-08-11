@@ -5,14 +5,205 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><%= t('parental_consent.page_title') %> — <%= (JsonApi::Json.current_domain['settings'] || {})['app_name'] || 'LingoLinq' %></title>
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; line-height: 1.5; color: #222; }
-    .box { max-width: 36rem; margin: 0 auto; padding: 1.5rem; border-radius: 8px; background: #f6f7fb; }
-    h1 { font-size: 1.25rem; margin-top: 0; }
-    p { margin: 0.75rem 0 0; }
-    a { color: #2563eb; }
+    :root {
+      --ll-indigo: #1b2a4a;
+      --ll-ink: #374151;
+      --ll-button: #4b4fd6;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Lexend', 'Nunito Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.55;
+      color: var(--ll-ink);
+      background:
+        radial-gradient(ellipse 60% 55% at 10% 5%, rgba(78, 205, 196, 0.10) 0%, transparent 60%),
+        radial-gradient(ellipse 55% 50% at 92% 95%, rgba(76, 134, 216, 0.09) 0%, transparent 60%),
+        #eef1f6;
+    }
+    .box {
+      width: 100%;
+      max-width: 34rem;
+      text-align: center;
+      padding: 2.5rem 2rem 2.75rem;
+      border-radius: 16px;
+      background:
+        radial-gradient(ellipse 50% 60% at 15% 20%, rgba(78, 205, 196, 0.07) 0%, transparent 70%),
+        radial-gradient(ellipse 45% 50% at 85% 70%, rgba(58, 107, 199, 0.05) 0%, transparent 70%),
+        rgba(255, 255, 255, 0.97);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      border-top: 1px solid rgba(20, 127, 130, 0.18);
+      box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.06),
+        0 8px 24px rgba(0, 0, 0, 0.07),
+        0 24px 48px -12px rgba(0, 0, 0, 0.08);
+    }
+    .box__badge {
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 1.25rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .box__badge--ok { color: #2A9D8F; background: rgba(42, 157, 143, 0.12); }
+    .box__badge--err { color: #C0392B; background: rgba(192, 57, 43, 0.10); }
+    .box h1 {
+      font-size: 1.6rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--ll-indigo);
+      margin: 0 0 0.5rem;
+    }
+    .box p {
+      font-size: 1.0625rem;
+      color: var(--ll-ink);
+      margin: 0.5rem auto 0;
+      max-width: 42ch;
+    }
+    /* Home link → pill button (it's always the card's last paragraph). */
+    .box > p:last-child { margin-top: 1.75rem; }
+    .box > p:last-child a {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.7rem 1.5rem;
+      border-radius: 999px;
+      background: var(--ll-button);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 1rem;
+      box-shadow: 0 6px 16px -4px rgba(75, 79, 214, 0.5);
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+    }
+    .box > p:last-child a:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 22px -6px rgba(75, 79, 214, 0.55);
+    }
+    .box > p:last-child a:focus-visible {
+      outline: 3px solid rgba(75, 79, 214, 0.4);
+      outline-offset: 2px;
+    }
+    @media (max-width: 480px) {
+      .box { padding: 2rem 1.25rem 2.25rem; }
+      .box h1 { font-size: 1.4rem; }
+    }
+    /* Unauthenticated top navbar (static reproduction of the app's marketing
+       nav — the consent pages are served standalone, so the Ember navbar can't
+       mount). Links are full-page navigations into the Ember app routes. */
+    .ll-topbar {
+      background: #F8F9FA;
+      border-bottom: 1px solid rgba(27, 54, 93, 0.08);
+      box-shadow: 0 6px 20px rgba(27, 54, 93, 0.18);
+      position: relative;
+      z-index: 10;
+    }
+    /* Full-width bar (no centered max-width) so the brand sits flush-left like
+       the app navbar; 48px left = the app's 16px navbar pad + 32px inner pad. */
+    .ll-topbar__inner {
+      position: relative; /* anchor for the absolute-centered nav */
+      min-height: 70px;
+      display: flex;
+      align-items: center;
+      padding: 0 24px 0 48px;
+      box-sizing: border-box;
+    }
+    .ll-topbar__brand { display: inline-flex; align-items: center; flex: 0 0 auto; }
+    .ll-topbar__logo { height: 22px; width: auto; display: block; }
+    /* Nav links absolute-centered on the page — exactly like the app's
+       `.app-navbar .la-topbar-nav`, so the bar reads as the same navbar. */
+    .ll-topbar__nav {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .ll-topbar__link {
+      color: #333333;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 4px 8px;
+      border-radius: 10px;
+      white-space: nowrap;
+      transition: color 0.15s ease, background 0.15s ease;
+    }
+    .ll-topbar__link:hover { color: #333333; background: rgba(0, 0, 0, 0.06); }
+    .ll-topbar a:focus-visible { outline: 3px solid rgba(27, 54, 93, 0.35); outline-offset: 2px; border-radius: 6px; }
+    /* Main fills the remaining height and centers the card.
+       overflow-y: auto so a card taller than the viewport can be scrolled to
+       rather than being cut off — flex centering overflows in BOTH directions
+       and the top overflow is otherwise unreachable. */
+    .ll-main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow-y: auto;
+      padding: 2rem 1rem;
+    }
+    /* Sit higher than dead-center. Gated on having the room: this was an
+       unconditional `transform: translateY(-8rem)` on .box, and because a
+       transform does not affect layout or create scrollable overflow, on a short
+       viewport it pushed the card off the top of the screen with no way to reach
+       it (a 375px-tall landscape phone put the card's top at roughly -55px).
+       Applied only above the height where the nudge is safe. */
+    @media (min-height: 700px) {
+      .box { transform: translateY(-8rem); }
+    }
+    /* Below desktop the absolute-centered nav would collide with the brand, so
+       drop it into normal flow and wrap it to a full-width centered row — every
+       link stays reachable without a JS hamburger. */
+    @media (max-width: 900px) {
+      .ll-topbar__inner { flex-wrap: wrap; padding: 8px 20px; row-gap: 4px; }
+      .ll-topbar__nav {
+        position: static;
+        transform: none;
+        order: 3;
+        flex-basis: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding-bottom: 6px;
+      }
+    }
   </style>
 </head>
 <body>
-  <%= yield %>
+  <%# app_name drives the brand text so a white-labeled domain doesn't announce
+      "LingoLinq" — the <title> above already resolves it per-domain, and the alt
+      text must agree. The logo file itself stays fixed; there is no per-domain
+      logo setting to key off yet. %>
+  <% consent_app_name = (JsonApi::Json.current_domain['settings'] || {})['app_name'] || 'LingoLinq' %>
+  <header class="ll-topbar">
+    <div class="ll-topbar__inner">
+      <a href="/" class="ll-topbar__brand" aria-label="<%= consent_app_name %>">
+        <img src="/images/LL_Logo_Line_Bright.png" alt="<%= consent_app_name %>" class="ll-topbar__logo">
+      </a>
+      <%# Landmark named for its PURPOSE, not the brand — "LingoLinq" told a
+          screen-reader user nothing in the landmark list. %>
+      <nav class="ll-topbar__nav" aria-label="<%= t('consent_nav.nav_label') %>">
+        <a href="/demo/speak" class="ll-topbar__link"><%= t('consent_nav.demo') %></a>
+        <a href="/features" class="ll-topbar__link"><%= t('consent_nav.features') %></a>
+        <a href="/about" class="ll-topbar__link"><%= t('consent_nav.about') %></a>
+        <a href="/beta-feedback" class="ll-topbar__link"><%= t('consent_nav.beta_feedback') %></a>
+      </nav>
+      <%# No Sign In / Try Free conversion CTAs here. This is a legal parental-consent
+          confirmation surface: the reader is a parent acting on a consent request for a
+          child's account, not a prospect, and sign-up prompts alongside a consent notice
+          are the kind of thing a COPPA/GDPR reviewer objects to. The informational links
+          above stay so a parent can learn about what they are consenting to. %>
+    </div>
+  </header>
+  <main class="ll-main">
+    <%= yield %>
+  </main>
 </body>
 </html>

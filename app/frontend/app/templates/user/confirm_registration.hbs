@@ -1,11 +1,27 @@
-{{#if this.model.confirmed}}
-  <h2>{{t "Account confirmed!" key="account_confirmed"}}</h2>
-  <p>
-    {{t "You did it! Air high five! Then as you were." key="account_confirmed_message"}}
-  </p>
-{{else}}
-  <h2>{{t "Confirmation failed" key="confirmation_failed"}}</h2>
-  <p>
-    {{t "Nope, that wasn't it :-(." key="confirmation_failed_message"}}
-  </p>
-{{/if}}
+<div class="la-reg-confirm">
+  <div class="la-reg-confirm__card">
+    {{#if this.model.confirmed}}
+      <div class="la-reg-confirm__celebrate" aria-hidden="true">
+        <span class="la-reg-confirm__confetti la-reg-confirm__confetti--a"></span>
+        <span class="la-reg-confirm__confetti la-reg-confirm__confetti--b"></span>
+        <span class="la-reg-confirm__confetti la-reg-confirm__confetti--c"></span>
+        <span class="la-reg-confirm__confetti la-reg-confirm__confetti--d"></span>
+        <span class="la-reg-confirm__confetti la-reg-confirm__confetti--e"></span>
+        <span class="la-reg-confirm__confetti la-reg-confirm__confetti--f"></span>
+        <div class="la-reg-confirm__icon la-reg-confirm__icon--success">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7"/><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"/></svg>
+        </div>
+      </div>
+      <h2 class="la-reg-confirm__title">{{t "Account confirmed!" key="account_confirmed"}}</h2>
+      <p class="la-reg-confirm__message">{{t "You did it! Air high five!" key="account_confirmed_message"}}</p>
+      <LinkTo @route="index" class="la-btn la-btn--primary la-reg-confirm__cta">{{t "Home" key="home"}} →</LinkTo>
+    {{else}}
+      <div class="la-reg-confirm__icon la-reg-confirm__icon--error" aria-hidden="true">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </div>
+      <h2 class="la-reg-confirm__title">{{t "Confirmation failed" key="confirmation_failed"}}</h2>
+      <p class="la-reg-confirm__message">{{t "Nope, that wasn't it :-(." key="confirmation_failed_message"}}</p>
+      <LinkTo @route="index" class="la-btn la-btn--ghost la-reg-confirm__cta">{{t "Home" key="home"}}</LinkTo>
+    {{/if}}
+  </div>
+</div>

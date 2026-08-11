@@ -977,6 +977,19 @@ var speecher = EmberObject.extend({
    
     return RSVP.all_wait(promises);
   },
+  // Cache a feedback sound for offline playback, rewriting the attr to the local
+  // copy. Keeps the existing URL when the store has nothing cacheable to return:
+  // store_url_now resolves with a bare {url, type} whenever the extras layer is
+  // not ready (persistence.js), and taking `local_url || data_uri` from that
+  // shape assigns undefined, permanently destroying the CDN URL. The sound then
+  // goes silent and every later load_sound rejects with "beep sound not saved".
+  // Same intent as the error path below: a local cache is optional, the URL is not.
+  cache_sound_locally: function(attr) {
+    return speecher.get_persistence().store_url_now(speecher[attr], 'sound').then(function(data) {
+      speecher[attr] = data.local_url || data.data_uri || speecher[attr];
+      return true;
+    });
+  },
   load_sound: function(attr) {
     if(speecher[attr]) {
       if(speecher[attr].match(/^data:/)) { return RSVP.resolve(true); }
@@ -986,16 +999,10 @@ var speecher = EmberObject.extend({
           speecher[attr] = data_uri;
           return true;
         } else {
-          return speecher.get_persistence().store_url_now(speecher[attr], 'sound').then(function(data) {
-            speecher[attr] = data.local_url || data.data_uri;
-            return true;
-          });
+          return speecher.cache_sound_locally(attr);
         }
       }, function() {
-        return speecher.get_persistence().store_url_now(speecher[attr], 'sound').then(function(data) {
-          speecher[attr] = data.local_url || data.data_uri;
-          return true;
-        });
+        return speecher.cache_sound_locally(attr);
       });
       return find.then(null, function(err) {
         // Local cache is optional for UI feedback sounds; keep the CDN URL for playback.
