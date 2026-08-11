@@ -56,6 +56,39 @@ describe JsonApi::Board do
       expect(json['grid']).to eq({"columns"=>2, "order"=>[[nil, 1], [2, nil]], "rows"=>2})
     end
 
+    it "should omit buttons and content blobs when paginated (index list summary)" do
+      u = User.create
+      b = Board.create(:user => u)
+      b.settings['buttons'] = [{'id' => 1, 'label' => 'asdf'}]
+      b.settings['name'] = 'Summary'
+      b.save
+      json = JsonApi::Board.build_json(b, :paginated => true)
+      expect(json['name']).to eq('Summary')
+      expect(json).not_to have_key('buttons')
+      expect(json).not_to have_key('grid')
+      expect(json).not_to have_key('intro')
+      expect(json).not_to have_key('background')
+      full = JsonApi::Board.build_json(b)
+      expect(full['buttons']).to eq([{'id' => 1, 'label' => 'asdf'}])
+    end
+
+    it "should still set localized_name on paginated list payloads" do
+      u = User.create
+      b = Board.create(:user => u)
+      b.settings['name'] = 'ahoo'
+      b.settings['translations'] = {
+        'board_name' => {'es' => 'ahem'}
+      }
+      b.save
+      en = JsonApi::Board.build_json(b, :paginated => true, :locale => 'en-GB')
+      expect(en).not_to have_key('buttons')
+      expect(en['localized_name']).to eq('ahoo')
+      expect(en['localized_locale']).to eq('en')
+      es = JsonApi::Board.build_json(b, :paginated => true, :locale => 'es')
+      expect(es['localized_name']).to eq('ahem')
+      expect(es['localized_locale']).to eq('es')
+    end
+
     it "should update full_set_revision on downstream shallow clone" do
       u1 = User.create
       u2 = User.create

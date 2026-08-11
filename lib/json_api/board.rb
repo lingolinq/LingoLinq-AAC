@@ -15,9 +15,16 @@ module JsonApi::Board
     json['key'] = board.shallow_key
     json['shallow_clone'] = true if board.instance_variable_get('@sub_id')
     json['simple_refs'] = true if args[:skip_subs]
-    json['buttons'] = board.buttons || []
-    ['grid', 'intro', 'background'].each do |key|
-      json[key] = BoardContent.load_content(board, key)
+    # Index/list pages only need tile metadata. Shipping full buttons +
+    # BoardContent blobs for every owned sub-board dominates Mine-tab
+    # payload/CPU (boards page filters hundreds of rows down to roots).
+    # Show/tree keep the full shape. See 2026-08-10-boards-page-load-perf.
+    list_summary = !!args[:paginated]
+    unless list_summary
+      json['buttons'] = board.buttons || []
+      ['grid', 'intro', 'background'].each do |key|
+        json[key] = BoardContent.load_content(board, key)
+      end
     end
     ['name', 'prefix', 'description', 'image_url', 'stars', 'forks', 'word_suggestions', 'locale', 'home_board', 'categories', 'dim_header', 'small_header'].each do |key|
       json[key] = board.settings[key]
@@ -31,8 +38,21 @@ module JsonApi::Board
     json['sort_score'] = ((board.popularity || -1) + 1) * (board.any_upstream ? 1 : 2)
 
     list = [board.settings['locale'] || 'en']
-    trans = (BoardContent.load_content(board, 'translations') || {})
-    trans.each{|k, h| if h.is_a?(Hash); list += h.keys; end }
+    trans = {}
+    if list_summary
+      # Avoid scanning every button translation key for tile locale chips;
+      # settings locales cover that. When a request locale is present, still
+      # load translations for localized_name (board_content is eager-loaded
+      # on index). Do not rewrite button labels — list payloads omit buttons.
+      list += Array(board.settings['locales'])
+      if args[:locale]
+        trans = (BoardContent.load_content(board, 'translations') || {})
+        list += (trans['board_name'] || {}).keys
+      end
+    else
+      trans = (BoardContent.load_content(board, 'translations') || {})
+      trans.each{|k, h| if h.is_a?(Hash); list += h.keys; end }
+    end
     json['translated_locales'] = list.select{|loc| !loc.blank? }.uniq
     json['style'] = board.settings['board_style'] if board.settings['board_style']
     if args[:locale]
@@ -42,7 +62,7 @@ module JsonApi::Board
       if matching
         json['localized_name'] = (trans['board_name'] || {})[matching] || json['name']
         json['localized_locale'] = matching
-        if !args[:permissions]
+        if !list_summary && !args[:permissions]
           json['buttons'].each do |button|
             btn_tran = trans[button['id'].to_s]
             if btn_tran && btn_tran[matching]
@@ -61,10 +81,12 @@ module JsonApi::Board
     json['created'] = (board.created_at || Time.current).iso8601
     json['updated'] = board.settings['last_updated'] || (board.updated_at || Time.current).iso8601
     # This checks for updated/newly-added launch URLs for previously-defined apps
-    self.trace_execution_scoped(['json/board/apps']) do
-      json['buttons'].each do |button|
-        if button['apps']
-          button['apps'] = AppSearcher.update_apps(button['apps'])
+    unless list_summary
+      self.trace_execution_scoped(['json/board/apps']) do
+        json['buttons'].each do |button|
+          if button['apps']
+            button['apps'] = AppSearcher.update_apps(button['apps'])
+          end
         end
       end
     end

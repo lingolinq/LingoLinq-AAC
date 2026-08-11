@@ -5,6 +5,8 @@ import { inject as service } from '@ember/service';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { later as runLater } from '@ember/runloop';
+import boardDetailCache from '../utils/board_detail_cache';
+import boardsPageListCache from '../utils/boards_page_list_cache';
 
 export default class ConfirmDeleteBoardController extends modal.ModalController {
   @service('app-state') appState;
@@ -158,6 +160,20 @@ export default class ConfirmDeleteBoardController extends modal.ModalController 
     }
 
     wait_for_deletes.then(() => {
+      try {
+        deleted_ids.forEach(function(id) {
+          if (id) { boardDetailCache.invalidate(id); }
+        });
+        if (board) {
+          var bid = board.get ? board.get('id') : board.id;
+          var bkey = board.get ? board.get('key') : board.key;
+          if (bid) { boardDetailCache.invalidate(bid); }
+          if (bkey) { boardDetailCache.invalidate(bkey); }
+        }
+        var currentId = this.appState.get('currentUser.id') ||
+          this.appState.get('currentUser._actual_id');
+        if (currentId) { boardsPageListCache.clear(currentId); }
+      } catch (e) { /* non-critical */ }
       if(this.model.redirect) {
         this.appState.return_to_index();
       }
