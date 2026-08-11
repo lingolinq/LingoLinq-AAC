@@ -343,11 +343,13 @@ Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` c
 
 **Surface:** `/:user/boards` overlay gated on `model.my_boards.done` ([`user/boards.hbs`](../../app/frontend/app/templates/user/boards.hbs)); list load in [`generate_or_append_to_list`](../../app/frontend/app/controllers/user/index.js).
 
-**Gotcha:** Re-entering the boards page always re-queried `store.query('board', { user_id })`. Streaming partial pages onto `model.my_boards` cleared `.done` until the last page, so a background refetch re-showed “Preparing your workspace.” Server Redis on boards index only caches public search, not Mine `user_id` lists.
+**Gotcha:** Re-entering the boards page always re-queried `store.query('board', { user_id })`. Streaming partial pages onto `model.my_boards` cleared `.done` until the last page, so a background refetch re-showed “Preparing your workspace.” Server Redis on boards index only caches public search, not Mine `user_id` lists. Even after cache-first paint, a within-TTL revisit still re-downloaded the full owned library (buttons+grid per row) while session `catalog_board_prefetch` flooded `/tree` and starved Mine pagination.
 
-**Fix recipe:** (1) Persist a compact Mine snapshot in localStorage ([`boards_page_list_cache.js`](../../app/frontend/app/utils/boards_page_list_cache.js), 10m TTL). (2) Hydrate in [`routes/user/boards.js`](../../app/frontend/app/routes/user/boards.js) before `update_selected`. (3) When the visible list is already usable (`Array` + `.done`), accumulate pages in a side buffer and atomically swap only on the final page; never set `{loading:true}` over a usable empty list. (4) Clear snapshots in `appState.clear_user_state`. Distinct from `board_detail_cache` (speak `/tree`).
+**Fix recipe:** (1) Persist a compact Mine snapshot in localStorage ([`boards_page_list_cache.js`](../../app/frontend/app/utils/boards_page_list_cache.js), 10m TTL). (2) Hydrate in [`routes/user/boards.js`](../../app/frontend/app/routes/user/boards.js) before `update_selected`. (3) When the visible list is already usable (`Array` + `.done`), accumulate pages in a side buffer and atomically swap only on the final page; never set `{loading:true}` over a usable empty list. (4) Clear snapshots in `appState.clear_user_state`. (5) **Within TTL, skip `store.query` entirely** when usable list + `hasFreshSnapshot`; clear snapshot on create/delete/copy so the next visit refreshes. (6) Paginated index JSON omits `buttons`/`grid`/`intro`/`background` (`args[:paginated]` in [`lib/json_api/board.rb`](../../lib/json_api/board.rb)). (7) Set `setMineListBusy` during Mine fetch; defer `board_detail_cache` phase-4 catalog `/tree` until clear. Distinct from `board_detail_cache` (speak `/tree`).
 
-**First seen in:** [2026-08-03-boards-page-cache-first.md](./2026-08-03-boards-page-cache-first.md)
+**Gotcha (list summary + locale):** Omitting button/content blobs must not skip `localized_name` / `localized_locale`. Index already eager-loads `board_content`; when `args[:locale]` is present, still load translations for `board_name` matching, but do not rewrite per-button labels (list payloads have no `buttons`). Gating the whole locale block behind `!list_summary` broke `Api::BoardsController index should return a localized board name`.
+
+**First seen in:** [2026-08-03-boards-page-cache-first.md](./2026-08-03-boards-page-cache-first.md); load-perf follow-up [2026-08-10-boards-page-load-perf.md](./2026-08-10-boards-page-load-perf.md)
 
 ## Pattern: supervisor caseload session prefetch reuses board_detail_cache, not offline sync
 
@@ -7492,6 +7494,16 @@ ESLint fingerprints in that file would race with template lint. Use a separate
 `app/frontend/.eslint-todo` consumed only by `scripts/eslint-todo-gate.js` (`lint:js:ci` /
 `lint:js:todo`). CI never regenerates the baseline; intentional rebaselines are explicit commits.
 
+## Gotcha: `.eslint-todo` fingerprints include line numbers — edits look like “new” lints
+
+`eslint-todo-gate` fingerprints `file|ruleId|line|column|severity|messageHash`. Inserting imports,
+guards, or tests in a file that already has grandfathered findings (especially large ones like
+`board-detail.js` / `app-state.js`) produces a flood of `ember/no-runloop` “NEW” rows even when no
+new runloop call sites were added. Diagnose before migrating: compare counts of
+`file|ruleId|messageHash` (ignore line/column). Line-only churn → fix any truly new violations,
+then `npm run lint:js:todo`. Do not treat a line-shift storm as a mandate to adopt ember-lifeline
+in the same PR. See [`2026-08-10-eslint-todo-line-shift-boards-perf.md`](./2026-08-10-eslint-todo-line-shift-boards-perf.md).
+
 ## Pattern: fix `require-input-label` by wiring the EXISTING label with `{{unique-id}}` — not by promoting the placeholder
 
 The obvious fix (`aria-label` derived from `placeholder`) is wrong for a large subset, for two reasons.
@@ -9080,9 +9092,9 @@ When `settings.categories` had no matches for a tab, `_resolveCategoryBoards` lo
 
 **Root cause:** Same as the `(fn this.ctrlAction …)` factory gotcha. `sendAction` returned a handler function; template used `{{on "click" (fn this.sendAction "toggleFoldersExpanded")}}`, so click called the factory and discarded the returned handler.
 
-**Fix recipe:** Either bind at render (`(this.sendAction "x")`) **or** make `sendAction` invoke `self.send` immediately when used with `fn`. Prefer immediate-invoke here because every binding already uses `fn` and several handlers need the Event (`updateFolderFilter`, drag/drop) — do not strip the event the way `ctrlAction` does.
+**Fix recipe:** Keep `sendAction` as a factory and bind at render: `(this.sendAction "x")` — same as `ctrlAction`. Do **not** make it immediate-invoke while templates use `(this.sendAction …)` without `fn`: that runs the action during render (e.g. toggles `foldersExpanded` while `aria-expanded` already read it) and trips Ember’s “update after use” assertion. Handlers that need the Event (`updateFolderFilter`, drag/drop) use `selfEventAction`, not `sendAction`.
 
-**Evidence:** [`2026-08-05-boards-folder-accordion-fn-sendaction.md`](./2026-08-05-boards-folder-accordion-fn-sendaction.md); related LEARNINGS entry on `(fn this.ctrlAction …)`.
+**Evidence:** [`2026-08-05-boards-folder-accordion-fn-sendaction.md`](./2026-08-05-boards-folder-accordion-fn-sendaction.md); related LEARNINGS entry on `(fn this.ctrlAction …)`. Re-verified 2026-08-10 when boards-page load testing hit the foldersExpanded assertion.
 
 
 ## Gotcha: a self-rescheduling `runLater` makes every acceptance test hang — and the cause is never where the TODO says
