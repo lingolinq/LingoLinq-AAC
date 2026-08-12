@@ -310,7 +310,11 @@ describe AiClient do
       # env var on the revision points GetCallerIdentity at a host that answers with
       # the expected account, the assertion passes, and build then calls the REAL
       # Bedrock endpoint with a NON-BAA credential. Green control, defeated control.
-      it 'pins the endpoint so an env var cannot redirect the verifier' do
+      # NAME MATTERS: this proves the endpoint URL is pinned, not that the verifier
+      # is un-redirectable. http_proxy + AWS_CA_BUNDLE still defeat it; see the
+      # scope note on AiClient.sts_endpoint. An earlier name claimed the broader
+      # property and was wrong.
+      it 'pins the endpoint URL against AWS_ENDPOINT_URL redirection' do
         expect(real_sts_config.endpoint.to_s).to eq('https://sts.us-west-2.amazonaws.com')
       end
 
@@ -351,7 +355,9 @@ describe AiClient do
   # unvalidated value escapes the host and defeats the STS pin AND classic_base_url
   # with one env var.
   describe '.bedrock_region validation' do
-    %w[us-west-2 eu-central-1 us-gov-west-1 ap-southeast-2 il-central-1].each do |good|
+    # eusc-de-east-1 is AWS's European Sovereign Cloud region. A two-letter first
+    # segment rejected it, which would have darkened AI with a wrong explanation.
+    %w[us-west-2 eu-central-1 us-gov-west-1 ap-southeast-2 il-central-1 eusc-de-east-1].each do |good|
       it "accepts the well-formed region #{good}" do
         with_env('BEDROCK_AWS_REGION' => good) do
           expect(described_class.bedrock_region).to eq(good)
@@ -371,7 +377,12 @@ describe AiClient do
       'us-west-2/../..',
       'us-west-2:8080',
       'US-WEST-2',
-      'localhost'
+      'localhost',
+      # Shape-valid but in a partition whose endpoints are not under amazonaws.com,
+      # so accepting them would build a hostname that never resolves.
+      'cn-north-1',
+      'us-iso-east-1',
+      'us-isob-east-1'
     ].each do |bad|
       it "refuses #{bad.inspect} and fails AI closed" do
         with_env('BEDROCK_AWS_REGION' => bad, 'BEDROCK_AWS_KEY' => 'k', 'BEDROCK_AWS_SECRET' => 's') do
