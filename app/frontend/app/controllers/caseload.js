@@ -412,8 +412,7 @@ export default Controller.extend({
       }
     },
 
-    // Opens the standard home-board picker for this communicator (setup wizard
-    // `board_category` with `user_id`), same path as account setup for another user.
+    // Opens the standalone home-board picker scoped to this communicator.
     caseload_set_home_board: function(supervisee) {
       var _this = this;
       if (!supervisee || supervisee.modeling_only) {
@@ -424,12 +423,12 @@ export default Controller.extend({
         return;
       }
       this.get('store').findRecord('user', rawId).then(function(user_model) {
-        if (!user_model.get('permissions.edit')) {
+        if (!user_model.get('permissions.edit') && !user_model.get('permissions.supervise')) {
           modal.error(i18n.t('not_allowed_user_long', "It appears you don't have permission to access this user's information"));
           return;
         }
-        _this.get('router').transitionTo('setup', {
-          queryParams: { page: 'board_category', user_id: user_model.get('id') }
+        _this.get('router').transitionTo('board-picker', {
+          queryParams: { user_id: user_model.get('id') }
         });
       }, function() {
         modal.error(i18n.t('error_loading_user2', "There was an unexpected error trying to load the user"));

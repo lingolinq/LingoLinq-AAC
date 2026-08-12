@@ -392,6 +392,23 @@ module Flusher
     UserLink.where(user_id: user.id).each do |link|
       flush_record(link) unless except_org_links && link.record_code && link.record_code.match(/^Organization/)
     end
+    # Message-bank / off-board voice recordings and user videos are keyed by
+    # user_id and are not cascaded from User. Board-attached ButtonSounds may
+    # already be gone after flush_user_boards; remaining owned rows (including
+    # standalone recordings) must still be destroyed so Uploadable can schedule
+    # S3 remote_remove (GDPR Art. 17 / LL-854b1d3853).
+    ButtonSound.where(user_id: user.id).each do |sound|
+      flush_record(sound)
+    end
+    UserVideo.where(user_id: user.id).each do |video|
+      flush_record(video)
+    end
+    # Saved report windows (label, date range, device_id, location_id) are keyed
+    # by user_id with no User dependent: :destroy and no DB FK cascade
+    # (LL-1e2ab28aab). No S3 objects; flush_record is enough.
+    LogSnapshot.where(user_id: user.id).each do |snapshot|
+      flush_record(snapshot)
+    end
     License.where(user_id: user.id).each do |lic|
       lic.update!(user_id: nil, granted_at: nil)
       flush_versions(lic.id, 'License')

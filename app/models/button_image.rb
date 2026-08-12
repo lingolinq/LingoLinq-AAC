@@ -323,6 +323,18 @@ class ButtonImage < ApplicationRecord
   end
 
   def skin_capable_url
+    # Imported images (preserve_source_image): never use enrichment-sourced
+    # library_url_for_skin matches (those replace custom art by label search).
+    # If the imported URL itself is already a skinnable /libraries/ asset,
+    # still allow skin-tone variants of that same asset.
+    if preserve_source_image?
+      [settings['library_skin_base_url'], url].compact.each do |candidate|
+        fronted = Uploader.fronted_url(candidate)
+        return fronted if url_skinnable?(fronted)
+      end
+      return nil
+    end
+
     if settings['library_skin_base_url']
       url = Uploader.fronted_url(settings['library_skin_base_url'])
       return url if url_skinnable?(url)

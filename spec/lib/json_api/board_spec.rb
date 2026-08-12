@@ -56,6 +56,39 @@ describe JsonApi::Board do
       expect(json['grid']).to eq({"columns"=>2, "order"=>[[nil, 1], [2, nil]], "rows"=>2})
     end
 
+    it "should omit buttons and content blobs when paginated (index list summary)" do
+      u = User.create
+      b = Board.create(:user => u)
+      b.settings['buttons'] = [{'id' => 1, 'label' => 'asdf'}]
+      b.settings['name'] = 'Summary'
+      b.save
+      json = JsonApi::Board.build_json(b, :paginated => true)
+      expect(json['name']).to eq('Summary')
+      expect(json).not_to have_key('buttons')
+      expect(json).not_to have_key('grid')
+      expect(json).not_to have_key('intro')
+      expect(json).not_to have_key('background')
+      full = JsonApi::Board.build_json(b)
+      expect(full['buttons']).to eq([{'id' => 1, 'label' => 'asdf'}])
+    end
+
+    it "should still set localized_name on paginated list payloads" do
+      u = User.create
+      b = Board.create(:user => u)
+      b.settings['name'] = 'ahoo'
+      b.settings['translations'] = {
+        'board_name' => {'es' => 'ahem'}
+      }
+      b.save
+      en = JsonApi::Board.build_json(b, :paginated => true, :locale => 'en-GB')
+      expect(en).not_to have_key('buttons')
+      expect(en['localized_name']).to eq('ahoo')
+      expect(en['localized_locale']).to eq('en')
+      es = JsonApi::Board.build_json(b, :paginated => true, :locale => 'es')
+      expect(es['localized_name']).to eq('ahem')
+      expect(es['localized_locale']).to eq('es')
+    end
+
     it "should update full_set_revision on downstream shallow clone" do
       u1 = User.create
       u2 = User.create
@@ -148,6 +181,65 @@ describe JsonApi::Board do
       img[i.global_id] = 'http://www.example.com/pic.png'
       expect(hash['board']['image_urls']).to eq(img)
       expect(hash['board']['sound_urls']).to eq({})
+    end
+
+    it "keeps imported/source image_urls when preferred_symbols is original even if a library skin match exists" do
+      u = User.create
+      u.settings['preferences'] ||= {}
+      u.settings['preferences']['preferred_symbols'] = 'original'
+      u.save
+      upload_url = 'https://lingolinq-prod-uploads.s3.amazonaws.com/images/1/custom-photo.png'
+      library_skin = 'https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/joke.png.varianted-skin.png'
+      i = ButtonImage.create(
+        url: upload_url,
+        settings: {
+          'library_url_for_skin' => library_skin,
+          'library_alternates' => {
+            'arasaac' => { 'url' => library_skin, 'content_type' => 'image/png' }
+          }
+        }
+      )
+      b = Board.create(:user => u)
+      b.settings['buttons'] = [
+        {'id' => 1, 'label' => 'joke', 'image_id' => i.global_id}
+      ]
+      b.instance_variable_set('@buttons_changed', true)
+      b.save
+      b.instance_variable_set('@button_images', nil)
+
+      hash = JsonApi::Board.as_json(b.reload, :wrapper => true, :permissions => u)
+      expect(hash['board']['image_urls'][i.global_id]).to eq(upload_url)
+      image_row = hash['images'].find { |row| row['id'] == i.global_id }
+      expect(image_row).to be_present
+      expect(image_row['url']).to eq(upload_url)
+      # Speak-mode clients (including Capacitor packages) still do skin_url || url.
+      expect(image_row['skin_url']).to eq(nil)
+    end
+
+    it "keeps preserve_source_image urls even when preferred_symbols asks for a library" do
+      u = User.create
+      u.settings['preferences'] ||= {}
+      u.settings['preferences']['preferred_symbols'] = 'opensymbols'
+      u.save
+      upload_url = 'https://lingolinq-prod-uploads.s3.amazonaws.com/images/1/custom-photo.png'
+      library_skin = 'https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/joke.png.varianted-skin.png'
+      i = ButtonImage.create(
+        url: upload_url,
+        settings: {
+          'preserve_source_image' => true,
+          'library_url_for_skin' => library_skin
+        }
+      )
+      b = Board.create(:user => u)
+      b.settings['buttons'] = [
+        {'id' => 1, 'label' => 'joke', 'image_id' => i.global_id}
+      ]
+      b.instance_variable_set('@buttons_changed', true)
+      b.save
+      b.instance_variable_set('@button_images', nil)
+
+      hash = JsonApi::Board.as_json(b.reload, :wrapper => true, :permissions => u)
+      expect(hash['board']['image_urls'][i.global_id]).to eq(upload_url)
     end
     
     it "should include cached image urls" do

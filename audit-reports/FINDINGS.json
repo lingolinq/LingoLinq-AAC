@@ -4267,7 +4267,7 @@
       "frameworks": [
         "HIPAA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "lib/ai_client.rb",
@@ -4283,15 +4283,15 @@
         "timeframe": "before Bedrock is marked operational"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "9470ffbd7b15980c90c53b300148a8fdd6b8a2e3",
+        "verifierNote": "Control built and merged via PR #768 (merge commit 9470ffbd7b15980c90c53b300148a8fdd6b8a2e3 into staging on 2026-08-10; ancestor-verified). AiClient now calls sts:GetCallerIdentity under the exact credential pair it will sign Bedrock with, against an endpoint pinned to https://sts.<region>.amazonaws.com, and refuses to return a client unless the returned Account equals BEDROCK_EXPECTED_AWS_ACCOUNT (lib/ai_client.rb:508 account_verified?, :570 verify_account, :450 sts_endpoint). It fails closed on mismatch, on any probe error, on a malformed expected-account value, and on a region string that is not a well-formed commercial AWS region: the region is interpolated into the STS hostname, so an unvalidated region would defeat the endpoint pin. The result is memoized per credential+region+expected fingerprint under a mutex with a 60s retry floor on failure and a monotonic clock, and the Puma warm-up at config/puma.rb:37 runs it after fork so a wrong credential surfaces at boot rather than at first inference. All four runtime AI seams gate on AiClient.available? and take a client via AiClient.build!, which raises NotAvailableError rather than returning nil (lib/ai_word_predictor.rb:59,201; lib/ai_board_generator.rb:555,568; lib/ai_prediction_generator.rb:118,238; lib/eval_narrator.rb:251,345). The account id stays in configuration rather than hardcoded, so an account migration is a config change; because an absent env var skips the assertion, the deploy pins it as a plaintext literal (.github/workflows/deploy-cloudrun.yml:273) and reads it back after deploy on both lingolinq-web and the lingolinq-worker worker pool, pinned to the value ^239044785114$ rather than to a 12-digit shape (:716-724, via scripts/gcp/assert-runtime-secrets.sh --required-literal). Covered by 69 examples in spec/lib/ai_client_spec.rb plus a new spec/lib/ai_prediction_generator_spec.rb for the seam that had no spec file at all. Confirmed independently out of band on 2026-08-10: a live sts:GetCallerIdentity under the production Bedrock credential returned account 239044785114, principal user/lingolinq-bedrock-runtime, which is the account docs/legal/AWS_BAA_ACCEPTED.md is scoped to. Three adversarial review rounds preceded merge and two returned BLOCK; the defects they caught were a redirectable STS endpoint, a readback that pinned shape instead of value, an unvalidated region, and a scheduled drift job that could never have authenticated (dropped, filed as issue #769). SCOPE NOTE: production runs main, so the assertion has not yet executed in a production process. Its first production execution emits the log line '[AiClient] Bedrock credential verified against AWS account 239044785114' and lands on the next staging-to-main release, which auto-deploys under #758.",
+        "attestation": "Scot Wahlquist 2026-08-11: attested verified-closed. The automated account assertion this finding asked for is built, test-covered, and merged to staging in #768, and the production Bedrock credential was independently confirmed to resolve to the BAA'd account 239044785114. What remains is deployment, not construction; the production log line is being watched as deploy confirmation, not as evidence the control exists."
       },
       "disposition": {
-        "state": "untriaged",
-        "decidedBy": "",
-        "decidedDate": "",
-        "rationale": ""
+        "state": "fixed",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-08-11",
+        "rationale": "Closed on the control's existence and test coverage rather than on its first production execution, because the finding is that no check asserts the account and that is no longer true at staging head. Reaching production is tracked as a release watch item on the next staging-to-main merge, not as an open finding."
       },
       "source": {
         "kind": "pr-review",
@@ -4454,6 +4454,49 @@
       "remediation": {
         "options": "Found by the 2026-08-08 quarterly subprocessor review (the cycle that fell due 2026-07-20 and was not performed). SubscriptionMailer#new_subscription reads the user's stored device IP (@user.devices[0].settings['ip_address']) and GETs https://iplocate.io/api/lookup/<ip> whenever ENV['IPLOCATE_API_KEY'] is set, on any new subscription. TWO distinct defects. (1) UNGATED: unlike the sibling call in lib/external_tracker.rb:23, which is gated on external_email_allowed? && supporter_registration? && !cookies_opted_out?, this call site has NO user-type check and NO consent gate, so it can fire for any account type including a child or student account. An IP address is personal data under GDPR and is COPPA-relevant for an under-13 user. (2) UNDISCLOSED: iplocate.io is named nowhere in docs/legal/SUBPROCESSORS.md, so this is an Article 28 register omission of the same class as the three flows recorded on 2026-07-21 and the Speech-to-Text flow recorded on 2026-07-22 (LL-1eb9a2435b). Options: (a) gate this call site to match external_tracker.rb, or drop geolocation from the notification email entirely, since the recipient is an internal admin address (NEW_REGISTRATION_EMAIL) rather than the user; (b) add an iplocate.io subprocessor row with DPA status and a data-flow description; (c) confirm whether a DPA exists with iplocate.io at all. NOT YET ESTABLISHED and needed before triage: whether this path can fire for a child/student account in practice, and whether it has ever fired in production. Stripe is a SEPARATE omission found by the same review and is not part of this finding."
       }
+    },
+    {
+      "id": "LL-1e2ab28aab",
+      "ruleKey": "hard-delete-omits-logsnapshot",
+      "title": "Hard delete leaves LogSnapshot records undeleted (GDPR right-to-erasure)",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/log_snapshot.rb",
+        "line": 11,
+        "snippet": "  belongs_to :user",
+        "sha": "d7bd0f59b40dd1dc66ff419b32b49e508ec60c49"
+      },
+      "firstSeen": "2026-08-10",
+      "lastSeen": "2026-08-10",
+      "owner": "Melissa",
+      "remediation": {
+        "options": "LogSnapshot rows are keyed by user_id (app/models/log_snapshot.rb:11) and are created through api/snapshots_controller.rb#create. Neither Flusher.flush_user_content nor flush_user_completely references LogSnapshot, user.rb declares no dependent: :destroy for it, log_session.rb declares no has_many, and db/schema.rb declares no foreign keys at all, so nothing cascades at any level. A hard delete therefore leaves log_snapshots rows carrying a supervisor-supplied name, a date range, a device_id and a location_id, keyed to a deleted user. Fix: add a LogSnapshot.where(user_id:) sweep to flush_user_content alongside the ButtonSound / UserVideo sweeps added in PR #721, with regression coverage. Note the retained location_id already dangles, because ClusterLocation is swept at lib/flusher.rb:19. Scoped to LogSnapshot only: UserExtra and ContactMessage are named in the same unverified set in the retention draft but were not traced, and no claim is made about them.",
+        "timeframe": "medium 30-60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-08-10",
+        "rationale": "Confirmed real Article 17 / FERPA erasure defect by manual trace. Set at medium rather than the high carried by LL-854b1d3853: that finding retained a child's actual voice and video content, whereas a LogSnapshot retains only a saved report window (label, date range, device_id, location_id) and its location_id already dangles because ClusterLocation is erased. Accepted; fix by adding the Flusher sweep. Production exposure is NOT established: api/snapshots_controller.rb is a live API path, and static inspection cannot determine whether production rows exist. No claim is made either way."
+      },
+      "source": {
+        "kind": "manual-trace",
+        "reviewer": "claude-compliance-verification",
+        "promotedDate": "2026-08-10"
+      },
+      "notes": "Surfaced 2026-08-10 while verifying the PR #721 Path A successor drafts against code, per the /re-attest-record 'verify the doc is true now' gate. Distinct from LL-854b1d3853, which covers UserVideo and off-board ButtonSound only. Severity and disposition approved by Scot on 2026-08-10 after a recommendation from the Codex reviewer; the agent proposed the row and did not decide it."
     }
   ]
 }

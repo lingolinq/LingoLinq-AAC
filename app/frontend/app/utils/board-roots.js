@@ -1,5 +1,5 @@
 import { get as emberGet } from '@ember/object';
-import { BRAND_FAMILIES } from './board-brands';
+import { isBrandSetRoot } from './board-brands';
 
 /** Cap live boards-page filter results (also used in i18n truncation hint). */
 export var BOARDS_PAGE_SEARCH_LIMIT = 50;
@@ -164,18 +164,14 @@ export function dedupeByName(boards, options) {
 }
 
 /* True when a board is a brand-set ROOT tile (not a sub-board page).
-   Non-brand boards pass through as roots. Uses the same `root_re`
-   patterns as board-collection / board-brands — do NOT use server
-   `root: true` for public originals. */
+   Non-brand boards pass through as roots. Delegates to the ONE definition
+   in board-brands so the boards page and the Board Collection panel cannot
+   drift — this used to be a second copy of the same loop, and it carried the
+   same rename bug (a renamed copy of a brand root read as a sub-board and
+   disappeared from its owner's list). Do NOT use server `root: true` for
+   public originals. */
 export function isBrandSetRootBoard(board) {
-  if (!board) { return false; }
-  var key = emberGet(board, 'key') || '';
-  for (var i = 0; i < BRAND_FAMILIES.length; i++) {
-    var family = BRAND_FAMILIES[i];
-    if (!family.test(board)) { continue; }
-    return !!(family.root_re && family.root_re.test(key));
-  }
-  return true;
+  return isBrandSetRoot(board);
 }
 
 /* Keep only brand-set root tiles from a flat board list. */

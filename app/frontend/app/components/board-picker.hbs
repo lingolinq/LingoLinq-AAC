@@ -1,4 +1,7 @@
-<div class="md-home-boards-picker__layout {{if this.tabbed "md-home-boards-picker__layout--tabbed"}}">
+<div class="md-home-boards-picker__layout {{if this.tabbed "md-home-boards-picker__layout--tabbed"}}{{if this.searchAtTop " md-home-boards-picker__layout--search-top"}}">
+  {{#if (and this.searchAtTop (not this.tabbed))}}
+    <h2 class="md-home-boards-picker__section-header">{{t "Select a Category" key="browse_categories"}}</h2>
+  {{/if}}
   {{#if this.tabbed}}
     {{!-- Tabbed variant (setup board_category) — categories render as the
          boards-page file-folder tabs. Reuses the `ub-boards-page__tabs--boards`
@@ -17,22 +20,47 @@
   {{else}}
     <aside class="md-home-boards-picker__nav" aria-label={{t "Browse by category" key="browse_by_category"}}>
       <div class="md-home-boards-picker__nav-inner setup_setting">
-        <label class="md-home-boards-picker__nav-label">{{t "Select a Category to Browse" key="browse_categories"}}</label>
+        {{#unless this.searchAtTop}}
+          <label class="md-home-boards-picker__nav-label">{{t "Select a Category" key="browse_categories"}}</label>
+        {{/unless}}
         <nav class="md-home-boards-picker__categories" role="navigation">
           {{#each this.categories as |category|}}
             <button
               type="button"
-              class="md-home-boards-picker__category {{if category.selected "is-active"}}"
+              class="md-home-boards-picker__category {{if category.selected "is-active"}}{{if this.searchAtTop " md-home-boards-picker__category--iconic"}}"
               {{on "click" (this.ctrlAction "set_category" category.id)}}
             >
-              {{category.name}}
+              {{#if this.searchAtTop}}
+                <span class="md-home-boards-picker__category-icon" aria-hidden="true">
+                  {{#if (is-equal category.id "robust")}}
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" stroke="#46505F" stroke-width="1.5"/><rect x="5" y="6" width="14" height="8" rx="1" fill="#2A9D8F" fill-opacity="0.16" stroke="#2A9D8F" stroke-width="1.5"/><path d="M9 9h2v2H9zM13 9h2v2h-2zM9 12h6" stroke="#2A9D8F" stroke-width="1.5"/><line x1="8" y1="21" x2="16" y2="21" stroke="#46505F" stroke-width="1.5"/><line x1="12" y1="17" x2="12" y2="21" stroke="#46505F" stroke-width="1.5"/></svg>
+                  {{else if (is-equal category.id "mine")}}
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="7.5" r="2.25" fill="#2A9D8F" fill-opacity="0.2" stroke="#46505F" stroke-width="1.5"/><path d="M4 14.5c0-1.9 1.6-3.5 3.5-3.5s3.5 1.6 3.5 3.5" stroke="#46505F" stroke-width="1.5" fill="none"/><rect x="13" y="6.5" width="8" height="5.5" rx="1.5" fill="#2A9D8F" fill-opacity="0.22" stroke="#46505F" stroke-width="1.5"/><rect x="15" y="8.25" width="1.6" height="1.6" rx="0.35" fill="#2A9D8F" stroke="none"/><rect x="17.8" y="8.25" width="1.6" height="1.6" rx="0.35" fill="#2A9D8F" stroke="none"/><rect x="14" y="13.5" width="7" height="4.5" rx="1.5" fill="#2A9D8F" fill-opacity="0.14" stroke="#46505F" stroke-width="1.5"/><rect x="15.5" y="15" width="1.4" height="1.4" rx="0.3" fill="#46505F" fill-opacity="0.35" stroke="none"/><rect x="17.8" y="15" width="1.4" height="1.4" rx="0.3" fill="#46505F" fill-opacity="0.35" stroke="none"/></svg>
+                  {{else if (is-equal category.id "cause_effect")}}
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="8.5" width="6.5" height="7" rx="2" fill="#2A9D8F" fill-opacity="0.22" stroke="#46505F" stroke-width="1.5"/><circle cx="5.25" cy="12" r="1.1" fill="#2A9D8F" stroke="none"/><circle cx="5.25" cy="12" r="2.2" stroke="#2A9D8F" stroke-width="1" opacity="0.35" fill="none"/><line x1="9.5" y1="12" x2="11.5" y2="12" stroke="#46505F" stroke-width="1.5"/><polyline points="10.25 10.75 12 12 10.25 13.25" stroke="#46505F" stroke-width="1.5" fill="none"/><circle cx="16" cy="12" r="3.25" fill="#2A9D8F" fill-opacity="0.14" stroke="#2A9D8F" stroke-width="1.5"/><polygon points="15,10.85 15,13.15 17.6,12" fill="#2A9D8F" stroke="none"/><path d="M20 10v4" stroke="#46505F" stroke-width="1.5" opacity="0.45"/><path d="M21.2 9v6" stroke="#46505F" stroke-width="1.5" opacity="0.3"/></svg>
+                  {{else if (is-equal category.id "simple_starts")}}
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="2" fill="#2A9D8F" fill-opacity="0.22" stroke="#46505F" stroke-width="1.5"/><rect x="13" y="4" width="7" height="7" rx="2" fill="#2A9D8F" fill-opacity="0.14" stroke="#46505F" stroke-width="1.5"/><rect x="4" y="13" width="7" height="7" rx="2" fill="#2A9D8F" fill-opacity="0.14" stroke="#46505F" stroke-width="1.5"/><rect x="13" y="13" width="7" height="7" rx="2" fill="#2A9D8F" fill-opacity="0.22" stroke="#46505F" stroke-width="1.5"/></svg>
+                  {{else if (is-equal category.id "functional")}}
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5c-1.2 0-2.3-.3-3.3-.8L4 20l1.8-5.2A7.43 7.43 0 0 1 4.5 11.5 7.5 7.5 0 0 1 12 4h.5A7.48 7.48 0 0 1 20 11.5z" fill="#2A9D8F" fill-opacity="0.12" stroke="#46505F" stroke-width="1.5"/><circle cx="9" cy="11.5" r="0.9" fill="#2A9D8F" stroke="none"/><circle cx="12" cy="11.5" r="0.9" fill="#2A9D8F" stroke="none"/><circle cx="15" cy="11.5" r="0.9" fill="#2A9D8F" stroke="none"/></svg>
+                  {{else if (is-equal category.id "phrases")}}
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 6.5h11a2 2 0 0 1 2 2v4.5a2 2 0 0 1-2 2H11l-3 2.5V15H5.5a2 2 0 0 1-2-2v-4.5a2 2 0 0 1 2-2z" fill="#2A9D8F" fill-opacity="0.12" stroke="#46505F" stroke-width="1.5"/><line x1="7.5" y1="10" x2="14.5" y2="10" stroke="#46505F" stroke-width="1.5"/><line x1="7.5" y1="12.25" x2="12.5" y2="12.25" stroke="#2A9D8F" stroke-width="1.5"/><line x1="7.5" y1="14.5" x2="10.5" y2="14.5" stroke="#46505F" stroke-width="1.5" opacity="0.55"/><rect x="14.5" y="14" width="6" height="5" rx="1.5" fill="#2A9D8F" fill-opacity="0.18" stroke="#46505F" stroke-width="1.5"/><rect x="16" y="16" width="1.2" height="3" rx="0.4" fill="#2A9D8F" stroke="none"/><rect x="18.2" y="15.2" width="1.2" height="4.6" rx="0.4" fill="#2A9D8F" stroke="none"/><rect x="20.4" y="16.4" width="1.2" height="2.2" rx="0.4" fill="#46505F" fill-opacity="0.45" stroke="none"/></svg>
+                  {{else if (is-equal category.id "keyboards")}}
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2" fill="#2A9D8F" fill-opacity="0.1" stroke="#46505F" stroke-width="1.5"/><rect x="5" y="9" width="2.5" height="2.5" rx="0.5" fill="#2A9D8F" stroke="none"/><rect x="9" y="9" width="2.5" height="2.5" rx="0.5" fill="#2A9D8F" stroke="none"/><rect x="13" y="9" width="2.5" height="2.5" rx="0.5" fill="#2A9D8F" stroke="none"/><rect x="17" y="9" width="2.5" height="2.5" rx="0.5" fill="#2A9D8F" stroke="none"/><rect x="7" y="13" width="10" height="2.5" rx="0.5" fill="#46505F" fill-opacity="0.35" stroke="none"/></svg>
+                  {{else if (is-equal category.id "available_boards")}}
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="7.5" r="2.25" fill="#2A9D8F" fill-opacity="0.2" stroke="#46505F" stroke-width="1.5"/><path d="M4 14.5c0-1.9 1.6-3.5 3.5-3.5s3.5 1.6 3.5 3.5" stroke="#46505F" stroke-width="1.5" fill="none"/><rect x="13" y="6.5" width="8" height="5.5" rx="1.5" fill="#2A9D8F" fill-opacity="0.22" stroke="#46505F" stroke-width="1.5"/><rect x="15" y="8.25" width="1.6" height="1.6" rx="0.35" fill="#2A9D8F" stroke="none"/><rect x="17.8" y="8.25" width="1.6" height="1.6" rx="0.35" fill="#2A9D8F" stroke="none"/><rect x="14" y="13.5" width="7" height="4.5" rx="1.5" fill="#2A9D8F" fill-opacity="0.14" stroke="#46505F" stroke-width="1.5"/><rect x="15.5" y="15" width="1.4" height="1.4" rx="0.3" fill="#46505F" fill-opacity="0.35" stroke="none"/><rect x="17.8" y="15" width="1.4" height="1.4" rx="0.3" fill="#46505F" fill-opacity="0.35" stroke="none"/></svg>
+                  {{/if}}
+                </span>
+                <span class="md-home-boards-picker__category-label">{{category.name}}</span>
+              {{else}}
+                {{category.name}}
+              {{/if}}
             </button>
           {{/each}}
         </nav>
       </div>
     </aside>
   {{/if}}
-  <div class="md-home-boards-picker__content">
+  <div class="md-home-boards-picker__content{{if this.searchAtTop " md-home-boards-picker__category-panel"}}">
     <div class={{if this.show_category_explainer "category_explainer full" "category_explainer"}}>
     {{#if this.category.robust}}
       <p>{{t "Rich vocabularies can feel like a lot at first—many communicators grow into them. Focus on what they can access; you can hide buttons and bring them back later. These sets offer core words, motor planning, or conversation, with room for personalization." key="robust_1"}}</p>
@@ -46,8 +74,31 @@
       <p>{{t "Phrase-based boards and your own recorded voice work well for high-stress moments or conditions like ALS. Use %app_name%'s recording tools to build a message bank." key="phrases_1"}}</p>
     {{else if this.category.keyboards}}
       <p>{{t "If spelling works well for them, keyboard boards with word prediction can speed things up. Many include quick phrases too." key="keyboards_1"}}</p>
+      {{!-- Hardcoded keyboard placeholders (alphabetic + QWERTY) — styled to
+           match the real board cards, with a mini keyboard preview. --}}
+      <div class="md-home-boards-picker__grid">
+        {{#each this.keyboard_placeholders as |kb|}}
+          <div class="md-home-boards-picker__board simple_board_holder">
+            <div class="btn simple_board_icon md-home-boards-picker__keyboard-placeholder" aria-label={{kb.name}}>
+              <span class="md-home-boards-picker__keyboard-tag">{{t "Coming soon" key="coming_soon"}}</span>
+              <div class="md-home-boards-picker__keyboard-preview md-home-boards-picker__keyboard-preview--{{kb.id}}" aria-hidden="true">
+                {{#each kb.rows as |row|}}
+                  <div class="md-home-boards-picker__keyboard-row">
+                    {{#each row as |key|}}
+                      <span class="md-home-boards-picker__keyboard-key">{{key}}</span>
+                    {{/each}}
+                  </div>
+                {{/each}}
+              </div>
+              <div class="name">{{kb.name}}</div>
+            </div>
+          </div>
+        {{/each}}
+      </div>
     {{else if this.category.mine}}
       <p>{{t "Boards you've created, copied, or had shared with you." key="browse_mine"}}</p>
+    {{else if this.category.available_boards}}
+      <p>{{t "Top-level boards you own or that have been shared with you, plus popular public boards from the community catalog. Load more to browse additional public boards." key="board_picker_available_boards_1"}}</p>
     {{/if}}
     {{#if this.category}}
       {{#if this.category_explainer_overflows}}
@@ -57,6 +108,27 @@
       {{/if}}
     {{/if}}
     </div>
+    {{#if this.showInlineCategoryFilter}}
+      <div class="md-home-boards-picker__search md-home-boards-picker__search--inline">
+        <form class="md-home-boards-picker__search-form" {{on "submit" (this.ctrlAction "go_search_boards")}} role="search">
+          <label for="board-picker-search-q" class="sr-only">{{t "Filter boards" key="board_picker_filter_label"}}</label>
+          <input
+            id="board-picker-search-q"
+            type="search"
+            value={{this.boardSearchQuery}}
+            {{on "input" (set-field this "boardSearchQuery")}}
+            class="form-control md-home-boards-picker__search-input"
+            placeholder={{t "Filter boards by name" key="board_picker_filter_placeholder"}}
+            autocomplete="off"
+          />
+          {{#if this.boardSearchActive}}
+            <button type="button" class="md-home-boards-picker__search-clear" {{on "click" (this.ctrlActionNoBubble "clear_board_search")}} aria-label={{t "Clear filter" key="clear_filter"}} title={{t "Clear filter" key="clear_filter"}}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          {{/if}}
+        </form>
+      </div>
+    {{/if}}
     {{#if this.category}}
       {{#if this.robust_tabbed}}
         {{!-- Setup Robust Vocabularies: the Quick Core and Vocal Flair
@@ -87,19 +159,21 @@
           </section>
         {{/each}}
       {{else}}
-      {{!-- Browse tabs (Cause and Effect, Simple Starters, Functional, Phrases,
-           Keyboards): public home boards tagged with that category id. --}}
+      {{!-- Keyboards shows only the hardcoded placeholders above — suppress the
+           category_boards grid + fallback search (nothing is tagged "keyboards",
+           so it was falling back to unrelated popular boards). --}}
+      {{#unless this.category.keyboards}}
       <div class="md-home-boards-picker__grid">
-        {{#if this.category_boards.loading}}
+        {{#if this.display_category_boards.loading}}
           <div class="md-home-boards-picker__grid-message">
             {{t "Loading boards..." key="loading_boards"}}
           </div>
-        {{else if this.category_boards.error}}
+        {{else if this.display_category_boards.error}}
           <div class="md-home-boards-picker__grid-message md-home-boards-picker__grid-message--error">
             {{t "Error loading boards" key="error_loading_boards"}}
           </div>
-        {{else if this.category_boards.length}}
-          {{#each this.category_boards as |board|}}
+        {{else if this.display_category_boards.length}}
+          {{#each this.display_category_boards as |board|}}
             {{#if board.key}}
               <div class="md-home-boards-picker__board simple_board_holder">
                 <BoardIcon @board={{board}} @prefetchPreview={{true}} />
@@ -112,23 +186,38 @@
           </div>
         {{/if}}
       </div>
-      {{#unless this.category.mine}}
-        <div class="md-home-boards-picker__search">
-          <form class="md-home-boards-picker__search-form" {{on "submit" (this.ctrlAction "go_search_boards")}}>
-            <label for="board-picker-search-q" class="sr-only">{{t "Search Boards" key="search_boards"}}</label>
-            <input
-              id="board-picker-search-q"
-              type="search"
-              value={{this.boardSearchQuery}}
-              {{on "input" (set-field this "boardSearchQuery")}}
-              class="form-control md-home-boards-picker__search-input"
-              placeholder={{t "Search public boards by name" key="board_picker_search_placeholder"}}
-            />
-            <button type="submit" class="md-btn md-btn--secondary md-home-boards-picker__search-submit">{{t "Search" key="search"}}</button>
-          </form>
-        </div>
+      {{#if this.category.available_boards}}
+        {{#if this.public_boards_has_more}}
+          <div class="md-home-boards-picker__load-more">
+            <button type="button" class="md-btn md-btn--secondary md-home-boards-picker__load-more-btn" disabled={{this.public_boards_loading_more}} {{on "click" (this.ctrlAction "load_more_public_boards")}}>
+              {{#if this.public_boards_loading_more}}
+                {{t "Loading boards..." key="loading_boards"}}
+              {{else}}
+                {{t "Load more" key="load_more"}}
+              {{/if}}
+            </button>
+          </div>
+        {{/if}}
+      {{/if}}
       {{/unless}}
       {{/if}}
     {{/if}}
   </div>
+  {{#if (and (not this.searchAtTop) this.category (not this.category.mine) (not this.category.available_boards) (not this.category.keyboards) (not this.robust_tabbed))}}
+          <div class="md-home-boards-picker__search">
+            <form class="md-home-boards-picker__search-form" {{on "submit" (this.ctrlAction "go_search_boards")}} role="search">
+              <label for="board-picker-public-search-q" class="sr-only">{{t "Search Boards" key="search_boards"}}</label>
+              <input
+                id="board-picker-public-search-q"
+                type="search"
+                value={{this.boardSearchQuery}}
+                {{on "input" (set-field this "boardSearchQuery")}}
+                class="form-control md-home-boards-picker__search-input"
+                placeholder={{t "Search public boards by name" key="board_picker_search_placeholder"}}
+                autocomplete="off"
+              />
+              <button type="submit" class="md-btn md-btn--secondary md-home-boards-picker__search-submit">{{t "Search" key="search"}}</button>
+            </form>
+          </div>
+  {{/if}}
 </div>

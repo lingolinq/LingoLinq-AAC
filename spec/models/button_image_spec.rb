@@ -787,4 +787,40 @@ describe ButtonImage, :type => :model do
       })
     end
   end
+
+  describe "skin_capable_url with preserve_source_image" do
+    it "ignores enrichment library_url_for_skin when preserve_source_image is set on a custom upload" do
+      library_skin = 'https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/joke.png.varianted-skin.png'
+      bi = ButtonImage.new(
+        url: 'https://lingolinq-prod-uploads.s3.amazonaws.com/images/1/custom.png',
+        settings: {
+          'preserve_source_image' => true,
+          'library_url_for_skin' => library_skin
+        }
+      )
+      expect(bi.skin_capable_url).to eq(nil)
+    end
+
+    it "still skins when the imported URL itself is a skinnable library asset" do
+      library_skin = 'https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/joke.png.varianted-skin.png'
+      bi = ButtonImage.new(
+        url: library_skin,
+        settings: {
+          'preserve_source_image' => true
+        }
+      )
+      expect(bi.skin_capable_url).to eq(Uploader.fronted_url(library_skin))
+    end
+
+    it "returns the library skin URL when the image is not preserved" do
+      library_skin = 'https://d18vdu4p71yql0.cloudfront.net/libraries/arasaac/joke.png.varianted-skin.png'
+      bi = ButtonImage.new(
+        url: 'https://lingolinq-prod-uploads.s3.amazonaws.com/images/1/custom.png',
+        settings: {
+          'library_url_for_skin' => library_skin
+        }
+      )
+      expect(bi.skin_capable_url).to eq(Uploader.fronted_url(library_skin))
+    end
+  end
 end

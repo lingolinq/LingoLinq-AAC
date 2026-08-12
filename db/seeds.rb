@@ -65,8 +65,11 @@ else
       password: example_password,
       description: "I'm just here to help",
       location: "Anywhere and everywhere"
-    }, { 
-      is_admin: true
+    }, {
+      # Inert: process_new reads non_user_params['admin'], never 'is_admin'
+      # (see user.rb#process_params). Kept at false to match every other
+      # call site and so this never reads as an admin grant.
+      is_admin: false
     })
     puts "✓ Created example user"
   else
@@ -84,18 +87,18 @@ else
   user1.save!
   puts "✓ Ensured example user has lifetime subscription and geo logging enabled"
 
-  org = Organization.find_by(admin: true)
-  unless org
-    org = Organization.create(:admin => true, :settings => {:name => "Admin Organization"})
-    puts "✓ Created admin organization"
-  else
+  if Organization.find_by(admin: true)
     puts "✓ Found existing admin organization"
+  else
+    Organization.create(:admin => true, :settings => {:name => "Admin Organization"})
+    puts "✓ Created admin organization"
   end
-  # Link example user to admin org as full manager
-  unless org.managers.include?(user1)
-    org.add_manager(user1.user_name, true)
-    puts "✓ Linked example user to admin organization as manager"
-  end
+  # The example user is deliberately NOT linked to the admin organization.
+  # Full managers of the admin org are site admins (Organization.admin_manager?),
+  # and 'example' is a guessable user name whose dev-default password is
+  # 'password'. Linking it here put a trivially reachable superuser into every
+  # seeded environment, including production, where it was found and removed on
+  # 2026-08-10. Site admin is granted per-person; do not re-add this link.
   # Create images if they don't exist
   image1 = ButtonImage.find_by(url: "http://mcswhispers.files.wordpress.com/2012/08/yellow_happy11.jpg", user_id: user1.id)
   unless image1
@@ -353,6 +356,20 @@ else
   puts "=" * 60
   puts "Initial seeding complete!"
   puts "=" * 60
+end
+
+# Revoke any legacy admin-org manager link for the example user.
+# Must run outside SEEDING_ALREADY_DONE (and without a SEED_DEMO_DATA gate):
+# that guard skips the legacy block on already-seeded DBs, so removing
+# add_manager alone would leave existing org_manager links intact and
+# Organization.admin_manager?(example) would stay true on upgrades.
+# Production was remediated out of band on 2026-08-10; this makes the
+# revoke idempotent for every environment that still has the link.
+example_for_admin_revoke = User.find_by(user_name: 'example')
+admin_org_for_revoke = Organization.find_by(admin: true)
+if example_for_admin_revoke && admin_org_for_revoke && admin_org_for_revoke.assistant?(example_for_admin_revoke)
+  admin_org_for_revoke.remove_manager(example_for_admin_revoke.user_name)
+  puts "✓ Revoked legacy admin-org manager link for example user"
 end
 
 # Ensure example user has logging and geo_logging enabled for stats map (demo-only)

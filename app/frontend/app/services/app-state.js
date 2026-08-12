@@ -164,7 +164,12 @@ export default Service.extend({
   willDestroy() {
     this._super(...arguments);
     if (this.refreshing_user) {
-      runCancel(this.refreshing_user);
+      // clearTimeout, NOT runCancel: refresh_user's reschedule is a native
+      // setTimeout (see the comment at its call site), and Ember's cancel() looks
+      // the token up in Backburner's own registry, so on a native id it silently
+      // does nothing. The other two call sites (:626, :630) already use
+      // clearTimeout on this same field.
+      clearTimeout(this.refreshing_user);
       this.refreshing_user = null;
     }
     if (this.check_for_board_readiness && this.check_for_board_readiness.timer) {
@@ -623,12 +628,24 @@ export default Service.extend({
   refresh_user: function() {
     var _this = this;
     if (_this.isDestroyed || _this.isDestroying) { return; }
-    runCancel(_this.refreshing_user);
+    clearTimeout(_this.refreshing_user);
 
     function refresh() {
       if (_this.isDestroyed || _this.isDestroying) { return; }
-      runCancel(_this.refreshing_user);
-      _this.refreshing_user = runLater(function() {
+      clearTimeout(_this.refreshing_user);
+      // A NATIVE setTimeout, deliberately — not `runLater`. This callback
+      // re-arms ITSELF every 15 minutes, and Ember's test waiters track runloop
+      // timers, so as a `runLater` the app carried a permanently pending timer
+      // and `await visit(...)` could never reach a settled state. That is the
+      // real reason every acceptance test on an authenticated route was skipped
+      // as "hangs on visit()" — not the session/auth bootstrap it was blamed on.
+      //
+      // A quarter-hour background poll has no business in the runloop queue
+      // anyway; the other periodic work in this service (sync, brightness,
+      // auth-sync) already uses native timers for the same reason. Behavior is
+      // unchanged in production — same interval, same reschedule, and
+      // `refreshing_user` still holds a cancellable token.
+      _this.refreshing_user = setTimeout(function() {
         if (_this.isDestroyed || _this.isDestroying) { return; }
         _this.refresh_user();
       }, 60000 * 15);
@@ -693,8 +710,24 @@ export default Service.extend({
     }, controller && controller.updateTitle ? 0 : 500);
     
     modal.close();
-    modal.close_board_preview();
-    if(this.get('edit_mode')) {
+    if (!this.get('board_picker_pick_in_progress')) {
+      modal.close_board_preview();
+    }
+    // Navigating away from a board while editing leaves edit mode. But NOT when the
+    // destination is the board-detail edit route itself — edit→edit navigation
+    // (previewing a board from the edit-mode Board Collections drawer, and the
+    // transition into a freshly-made copy after copy-to-edit) is staying in edit
+    // mode, and that route's setupController re-asserts current_mode='edit' anyway
+    // (routes/user/board-detail/edit.js:64). Mirrors the same "skip teardown when
+    // the target is edit" guard the speak_mode observer already uses below.
+    //
+    // This ran on routeWillChange, i.e. BEFORE the destination's model/setupController,
+    // so toggle_edit_mode's permission gate re-checked the board still on screen — the
+    // ORIGINAL, non-owned board — and re-opened 'confirm-needs-copying' on top of the
+    // brand-new copy. That is the "Edit a Copy prompt returns after copying" bug; it
+    // only reproduced from edit mode, since arriving from speak mode has edit_mode false
+    // and never reaches this call at all.
+    if(this.get('edit_mode') && transition.to_route != 'user.board-detail.edit') {
       this.toggle_edit_mode();
     }
 //           $(".hover_button").remove();
@@ -715,7 +748,7 @@ export default Service.extend({
       var target = _this.get('current_route');
       _this.set('index_view', target == 'index');
       // footer is now a computed on application controller (from currentBoardState)
-      if(_this.get('to_target') && _this.get('to_target') != 'setup' && _this.get('to_target') != 'home-boards') {
+      if(_this.get('to_target') && _this.get('to_target') != 'setup' && _this.get('to_target') != 'home-boards' && _this.get('to_target') != 'board-picker') {
         try {
           _this.controller.set('setup_footer', false);
           _this.controller.set('simple_board_header', false);
@@ -1470,7 +1503,17 @@ export default Service.extend({
     var routeName = this.get('router.currentRouteName') || this.get('current_route') || '';
     var onBoardDetail = routeName.indexOf('board-detail') !== -1;
     this.assert_source().then(function(board) {
-      if(!board.get('permissions.edit')) {
+      // A board reached from a LIST surface (dashboard preview, boards page, My Boards
+      // picker, sidebar) can carry stale/absent permissions — the boards-index omits the
+      // permissions payload — so `permissions.edit` may be false/undefined even on the
+      // user's OWN board, which false-prompts "make a copy" until a manual refresh. Ownership
+      // is authoritative and ALWAYS available client-side: a board's key is `<owner>/<slug>`
+      // and `user_name` is the owner, so if the session user owns it they can always edit it
+      // directly, regardless of the (possibly unloaded) permissions flag.
+      var owner_name = board.get('user_name') || ((board.get('key') || '').split('/')[0]);
+      var session_name = _this.get('sessionUser.user_name');
+      var owns_board = !!(owner_name && session_name && owner_name === session_name);
+      if(!board.get('permissions.edit') && !owns_board) {
         modal.open('confirm-needs-copying', {board: board}).then(function(res) {
           if(res == 'confirm') {
             _this.controller.send('copy_and_edit_board', board, onBoardDetail);
@@ -1485,7 +1528,7 @@ export default Service.extend({
         });
         return;
       }
-      _this.toggle_mode('edit');  
+      _this.toggle_mode('edit');
     }, function() { });
   },
   clear_mode: function() {
@@ -2896,9 +2939,16 @@ export default Service.extend({
           var _controller = editManager.controller;
           var doProcessButtons = function() {
             runNext(function() {
-              if(_controller && !_controller.isDestroyed && typeof _controller.processButtons === 'function') {
-                _controller.processButtons();
+              if(!_controller || _controller.isDestroyed || typeof _controller.processButtons !== 'function') {
+                return;
               }
+              /* Board may have been deleted while speak mode was open;
+                 processButtons/_build_from_raw must not set attrs on it. */
+              var board = _controller.get && _controller.get('model');
+              if(board && typeof board.get === 'function' && board.get('isDeleted')) {
+                return;
+              }
+              _controller.processButtons();
             });
           };
           if(fullscreenPromise && typeof fullscreenPromise.then === 'function') {

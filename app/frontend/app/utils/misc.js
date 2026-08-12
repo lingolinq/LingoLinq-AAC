@@ -31,12 +31,27 @@ RSVP.resolutions = function(list) {
   });
 };
 var Utils = {};
+// Dedupe `list`. `compare` may be a property name, a function returning the
+// comparison value, or omitted — omitted dedupes by the item itself, which is
+// what a list of primitives (e.g. board keys) wants.
+//
+// The omitted case used to THROW: `compare.toString()` was dereferenced before
+// the type was checked, so any one-argument call died with "Cannot read
+// properties of undefined (reading 'toString')" as soon as the list was
+// non-empty. That took out User#org_board_keys, and with it the whole
+// board-picker "Pick this Board" flow, since edit_manager#copy_board reads
+// `user.get('org_board_keys')` before copying. Two call sites in persistence.js
+// were already passing an identity function to work around this.
 Utils.uniq = function(list, compare) {
   var key = {};
   var result = [];
-  list.forEach(function(item) {
-    var value = item[compare.toString()];
-    if(typeof(compare) != 'string') {
+  (list || []).forEach(function(item) {
+    var value;
+    if(compare === undefined || compare === null) {
+      value = item;
+    } else if(typeof(compare) == 'string') {
+      value = item[compare];
+    } else {
       value = compare(item);
     }
     if(value && !key[value]) {

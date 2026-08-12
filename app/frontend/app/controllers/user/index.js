@@ -1042,6 +1042,14 @@ export default Controller.extend({
        `.done` and re-trigger the boards-page overlay. */
     var backgroundRefresh = boardsPageListCache.isUsableList(prior);
     var bufferKey = list_name + ':' + list_id;
+    var isMineList = list_name === 'model.my_boards';
+    /* Within TTL, a usable on-screen Mine list + fresh localStorage
+       snapshot means skip the full-library re-download. Mutations clear
+       the snapshot so the next update_selected still refreshes. */
+    if(isMineList && !append && backgroundRefresh && boardsPageListCache.hasFreshSnapshot(_this.get('model.id'))) {
+      boardsPageListCache.setMineListBusy(false);
+      return;
+    }
     /* Do not clobber a usable empty list (`[].done`) with {loading:true}. */
     if(!append && !backgroundRefresh && !prior.length) {
       _this.set(list_name, {loading: true});
@@ -1050,7 +1058,12 @@ export default Controller.extend({
       _this._boards_list_refresh_buffers = _this._boards_list_refresh_buffers || {};
       _this._boards_list_refresh_buffers[bufferKey] = [];
     }
+    if(isMineList && !append) {
+      boardsPageListCache.setMineListBusy(true);
+    }
     _this.store.query('board', args).then(function(boards) {
+      /* Stale page for a superseded list_id: do not clear Mine busy —
+         a newer Mine fetch may own the flag. */
       if(_this.get('list_id') != list_id) { return; }
 
       var chunk = boards.slice();
@@ -1080,8 +1093,9 @@ export default Controller.extend({
           if(_this._boards_list_refresh_buffers) {
             delete _this._boards_list_refresh_buffers[bufferKey];
           }
-          if(list_name === 'model.my_boards') {
+          if(isMineList) {
             boardsPageListCache.write(_this.get('model.id'), buf);
+            boardsPageListCache.setMineListBusy(false);
           }
         }
         return;
@@ -1116,11 +1130,15 @@ export default Controller.extend({
         }, 200);
       } else {
         _this.set(list_name + '.done', true);
-        if(list_name === 'model.my_boards') {
+        if(isMineList) {
           boardsPageListCache.write(_this.get('model.id'), _this.get(list_name));
+          boardsPageListCache.setMineListBusy(false);
         }
       }
     }, function() {
+      if(isMineList && _this.get('list_id') == list_id) {
+        boardsPageListCache.setMineListBusy(false);
+      }
       if(backgroundRefresh) {
         if(_this._boards_list_refresh_buffers) {
           delete _this._boards_list_refresh_buffers[bufferKey];
@@ -1247,13 +1265,10 @@ export default Controller.extend({
      home board (see open_board_in_user_view) and jumps into speak mode
      instead of opening the board. */
   selectingHome: false,
-  hasHomeBoard: computed('appState.referenced_user.preferences.home_board.key', function() {
-    return !!this.appState.get('referenced_user.preferences.home_board.key');
+  hasHomeBoard: computed('model.preferences.home_board.key', function() {
+    return !!this.get('model.preferences.home_board.key');
   }),
-  setHomeButtonLabel: computed('hasHomeBoard', 'selectingHome', function() {
-    if(this.get('selectingHome')) {
-      return i18n.t('cancel_set_home_board', "Cancel");
-    }
+  setHomeButtonLabel: computed('hasHomeBoard', function() {
     return this.get('hasHomeBoard')
       ? i18n.t('change_home_board', "Change Home Board")
       : i18n.t('set_home_board', "Set Home Board");
@@ -1490,10 +1505,17 @@ export default Controller.extend({
         transition.catch(function() { _appState.hide_loading_overlay(); });
       }
     },
-    /* Toggle the "Set / Change Home Board" selection mode. Mirrors the
-       modal's `toggleSetHomeMode` (see controllers/application.js). */
+    /* Legacy entry point — boards page now links to /board-picker instead
+       of inline selection mode. Kept so any stale callers still land on
+       the dedicated picker. */
     toggleSetHomeMode: function() {
-      this.toggleProperty('selectingHome');
+      var modelId = this.get('model.id');
+      var currentId = this.appState.get('currentUser.id');
+      if (modelId && currentId && modelId != currentId) {
+        this.get('router').transitionTo('board-picker', { queryParams: { user_id: modelId } });
+      } else {
+        this.get('router').transitionTo('board-picker');
+      }
     },
     nothing: function() {
     },
@@ -1509,23 +1531,29 @@ export default Controller.extend({
     },
     remove_board: function(action, board) {
       var _this = this;
+      var refreshMine = function() {
+        /* Drop the TTL snapshot so update_selected re-queries instead of
+           treating the pre-mutation list as still fresh. */
+        boardsPageListCache.clear(_this.get('model.id'));
+        _this.update_selected();
+      };
       if(action == 'delete') {
         modal.open('confirm-delete-board', {board: board, redirect: false}).then(function(res) {
           if(res && res.update) {
-            _this.update_selected();
+            refreshMine();
           }
         });
       } else if(action == 'delete_orphans') {
         board.name = board.board.name;
         modal.open('confirm-delete-board', {board: board, redirect: false, orphans: true}).then(function(res) {
           if(res && res.update) {
-            _this.update_selected();
+            refreshMine();
           }
         });
       } else {
         modal.open('confirm-remove-board', {action: action, tag: _this.get('current_tag'), board: board, user: this.get('model')}).then(function(res) {
           if(res && res.update) {
-            _this.update_selected();
+            refreshMine();
           }
         });
       }

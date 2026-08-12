@@ -1,14 +1,13 @@
 // label_fit — per-label, content-aware "shrink to fit" for the
 // board-detail grid.
 //
-// Behavior driven by the user's "Shrink labels to fit" preference
-// (Text Settings on the board-detail edit page). When enabled, each
-// label in the grid is independently checked: if its text would
-// overflow the 3-line label box at the user's chosen font size, only
-// that one label's font is reduced (down to an 8px floor) until the
-// full text fits without truncation. Labels that already fit at the
-// chosen size are left alone — the toggle is shrink-only and never
-// rescales every label on the board uniformly.
+// Runs unconditionally for every label in the grid. Each label is
+// independently checked: if its text would overflow its box at the
+// user's chosen font size, only that one label's font is reduced
+// (down to a 9px floor) until the full text fits without truncation.
+// Labels that already fit at the chosen size are left alone — the fit
+// is SHRINK-ONLY, never grows text past the user's preference, and
+// never rescales every label on the board uniformly.
 //
 // Spans (.md-board-detail-symbol-card__label, speak / view mode) are
 // fitted via DOM measurement so word-boundary wrap inside the existing
@@ -21,9 +20,11 @@
 // area (not the 3-line label box), so they get a separate full-card
 // overflow fit against clientHeight/clientWidth at the CSS 1.45× base.
 //
-// All sizing is applied via inline `style="font-size: …px"`, which beats
-// the base CSS rule on cascade. clear() removes those inline styles to
-// hand control back to CSS when the toggle is flipped off.
+// All sizing is applied via inline `style="font-size: …px !important"`
+// (see setFontPx). The priority is required, not decoration — the
+// responsive label rules in app.scss are themselves !important, and a
+// plain inline style loses to those. clear() removes the inline styles
+// to hand control back to CSS.
 
 // 3.45em (= 3 lines × 1.15 line-height) matches the max-height on the
 // base .md-board-detail-symbol-card__label rule in app.scss. Kept in
@@ -44,6 +45,11 @@ var MIN_FONT_PX = 9;
 // a fractional natural height after rounding. 1px slack avoids spurious
 // "doesn't fit" decisions on labels that are visually flush with the box.
 var FIT_TOLERANCE_PX = 1;
+// Safety factor for the wrapped-span WORD-width test (same idea as
+// INPUT_WIDTH_SAFETY below): canvas measureText and real layout disagree by a
+// px or two over letter-spacing / font fallback, and the label carries 1-2px of
+// horizontal padding the canvas can't see.
+var WORD_WIDTH_SAFETY = 0.95;
 // Single-line width safety margin (matches capabilities.fit_text's 0.9).
 // Leaves room for the input caret + padding the canvas measurement
 // can't see.
@@ -56,6 +62,22 @@ function getCanvasCtx() {
     _canvas = document.createElement('canvas');
   }
   return _canvas.getContext('2d');
+}
+
+// Font-size writes go through these two helpers so every site sets the same
+// PRIORITY. `!important` is required: the responsive label rules in app.scss
+// (`@media (max-width: 1200px) { … font-size: clamp(…) !important }`) are
+// themselves !important, and a plain inline style does NOT beat an !important
+// declaration. Without the priority, two things broke together — the measure
+// loop below read the CSS-forced size on every iteration instead of the trial
+// size, so it never found a fit and always bottomed out at MIN_FONT_PX, and the
+// value it finally wrote was ignored anyway.
+function setFontPx(el, px) {
+  el.style.setProperty('font-size', px + 'px', 'important');
+}
+
+function clearFont(el) {
+  el.style.removeProperty('font-size');
 }
 
 // Read the user's chosen text size from the CSS variable the parent
@@ -76,14 +98,6 @@ function isTextSymbol(el) {
     el.classList.contains('md-board-detail-symbol-card__text-symbol'));
 }
 
-// Matches .md-board-detail-symbol-card__text-symbol font-size clamp in
-// app.scss: clamp(16px, calc(var(--bd-button-text-size) * 1.45), 32px).
-function textSymbolBasePx(prefPx) {
-  var scaled = (prefPx || 15) * 1.45;
-  if(scaled < 16) { return 16; }
-  if(scaled > 32) { return 32; }
-  return scaled;
-}
 
 // Single-line labels are fitted by WIDTH, not by wrapped height. Inputs are
 // intrinsically single-line; folder-tab labels (Show-Labels-on-Tab mode) are
@@ -96,15 +110,51 @@ function isSingleLine(el) {
     (el.classList && el.classList.contains('md-folder-tab__label'));
 }
 
+// Width of the WIDEST single word at a given size, measured on an offscreen
+// canvas.
+//
+// Why not the DOM's scrollWidth: the label wraps, so its scrollWidth is always
+// exactly its clientWidth — wrapped text fills the box by definition. That makes
+// a DOM width test useless here; it cannot tell "fits comfortably" from "one
+// word is spilling out". (A `scrollWidth <= boxW - margin` form is worse than
+// useless: it is never true for a wrapping label, so every label runs the loop
+// down to the floor — which is exactly the bug this replaced.)
+//
+// With `word-break: keep-all` + `overflow-wrap: normal`, a word never splits, so
+// the ONLY width condition that can trigger an ellipsis is a single word being
+// wider than the box. Measuring that directly is both correct and independent of
+// the measurement-time wrap/clamp state.
+function widestWordPx(ctx, text, sizePx, fontStyle, fontWeight, fontFamily) {
+  ctx.font = fontStyle + ' ' + fontWeight + ' ' + sizePx + 'px ' + fontFamily;
+  var words = (text || '').split(/\s+/);
+  var max = 0;
+  for(var i = 0; i < words.length; i++) {
+    if(!words[i]) { continue; }
+    var w = ctx.measureText(words[i]).width;
+    if(w > max) { max = w; }
+  }
+  return max;
+}
+
 function labelText(el) {
   if(isInput(el)) { return el.value || ''; }
   return (el.textContent || '').trim();
 }
 
 // Wrap-aware fit for span labels. Iterates font-size down from basePx
-// until the natural scrollHeight (with the line-clamp / max-height
-// constraints temporarily lifted) is within the 3.45em box at that
-// size, or the floor is reached. Returns the chosen font-size.
+// until the text fits BOTH axes of its box (with the line-clamp /
+// max-height constraints temporarily lifted), or the floor is reached.
+// Returns the chosen font-size.
+//
+// WIDTH matters as much as height. The label sets `word-break: keep-all`
+// + `overflow-wrap: normal` (deliberately — for AAC the shape of a whole
+// word is the recognition cue, so we never break inside one), which means
+// a single long word CANNOT wrap: it stays one line, overflows
+// horizontally, and `text-overflow: ellipsis` renders it as "color/…" or
+// "keyb…". A height-only check reads that as "fits" — one line always fits
+// a 3-line box — so the label was silently truncated and never shrunk.
+// This is the same trap the folder-tab labels hit (see isSingleLine above);
+// ordinary labels reach it whenever a single word is wider than the button.
 //
 // IMPORTANT — transition handling: the label has a CSS
 // `transition: font-size 0.18s ease` (see app.scss:63483) so the
@@ -121,6 +171,25 @@ function labelText(el) {
 // while still letting the caller override to '' or to a different
 // value if needed.
 function fitWrapped(el, basePx) {
+  // Read the CSS-imposed box BEFORE lifting any of it below — getComputedStyle
+  // is live, so reading after the overrides would report the lifted values.
+  //
+  // The line budget is READ, not assumed. It used to be hard-coded to 3 lines
+  // (LABEL_BOX_EM), but the short-card @container tiers in app.scss tighten
+  // -webkit-line-clamp to 2 (cards ≤48px) and 1 (cards ≤45px). Against a
+  // hard-coded 3 the fitter believed it had ~3x the room CSS actually allows,
+  // stopped shrinking early, and the label was ellipsised anyway. Same story for
+  // line-height, which those tiers step 1.15 → 1.1 → 1.05 → 1.
+  var cs0 = window.getComputedStyle(el);
+  var boxLines = parseInt(cs0.webkitLineClamp, 10);
+  if(!isFinite(boxLines) || boxLines < 1) { boxLines = LABEL_BOX_LINES; }
+  var lhPx = parseFloat(cs0.lineHeight);
+  var fsPx = parseFloat(cs0.fontSize);
+  var lhRatio = (isFinite(lhPx) && isFinite(fsPx) && fsPx > 0) ? (lhPx / fsPx) : LABEL_LINE_HEIGHT;
+  var fontFamily = cs0.fontFamily || 'sans-serif';
+  var fontWeight = cs0.fontWeight || 'normal';
+  var fontStyle = cs0.fontStyle || 'normal';
+
   var savedTransition = el.style.transition;
   var savedMaxHeight = el.style.maxHeight;
   var savedLineClamp = el.style.webkitLineClamp;
@@ -131,13 +200,23 @@ function fitWrapped(el, basePx) {
   el.style.webkitLineClamp = 'unset';
   el.style.overflow = 'visible';
 
+  // Read once, before the loop: the label is width:100% of the card, so its
+  // box width doesn't change with font-size. 0 means it isn't laid out (hidden
+  // cell) — skip the width test rather than shrink to the floor on bad data.
+  var boxW = el.clientWidth;
+  var text = labelText(el);
+  var ctx = getCanvasCtx();
+
   var chosen = basePx;
   var size = basePx;
   while(size >= MIN_FONT_PX) {
-    el.style.fontSize = size + 'px';
-    var allowedPx = LABEL_BOX_EM * size;
+    setFontPx(el, size);
+    var allowedPx = boxLines * lhRatio * size;
     var naturalPx = el.scrollHeight;
-    if(naturalPx <= allowedPx + FIT_TOLERANCE_PX) {
+    var fitsHeight = naturalPx <= allowedPx + FIT_TOLERANCE_PX;
+    var fitsWidth = !boxW ||
+      widestWordPx(ctx, text, size, fontStyle, fontWeight, fontFamily) <= boxW * WORD_WIDTH_SAFETY;
+    if(fitsHeight && fitsWidth) {
       chosen = size;
       break;
     }
@@ -209,7 +288,7 @@ function fitFullCard(el, basePx) {
   var chosen = basePx;
   var size = basePx;
   while(size >= MIN_FONT_PX) {
-    el.style.fontSize = size + 'px';
+    setFontPx(el, size);
     var overflows =
       el.scrollHeight > boxH + FIT_TOLERANCE_PX ||
       el.scrollWidth > boxW + FIT_TOLERANCE_PX;
@@ -234,10 +313,39 @@ function applyOne(el, basePx) {
   if(!el) { return; }
   var text = labelText(el);
   if(!text) {
-    el.style.fontSize = '';
+    clearFont(el);
+    el._lf_sig = null;
     return;
   }
-  var effectiveBase = isTextSymbol(el) ? textSymbolBasePx(basePx) : basePx;
+
+  // Skip the measure loop when nothing that could change the answer has changed.
+  // This runs from didRender for EVERY label, and each fit is an iterative
+  // write-then-read of scrollHeight — a forced synchronous layout per step, up to
+  // ~26 steps per label. On a 112-button board that is thousands of reflows per
+  // render pass, and it now runs unconditionally (it used to be opt-in behind the
+  // "Shrink labels to fit" preference). Keyed on the CARD's box, not the label's:
+  // the label's own height is an OUTPUT of the fit, so using it would make the
+  // signature self-invalidating.
+  // Cell as well as card: folder-tab labels sit in .md-folder-back, a SIBLING of
+  // the card, so a card-only lookup returns null for them and the signature would
+  // be a constant — never re-fitting when the tab resizes.
+  var card = el.closest && (el.closest('.md-board-detail-symbol-card') ||
+                            el.closest('.md-board-detail-grid__cell'));
+  var cardW = card ? card.clientWidth : 0;
+  var cardH = card ? card.clientHeight : 0;
+  var sig = text + '|' + cardW + 'x' + cardH + '|' + basePx;
+  if(el._lf_sig === sig) { return; }
+  el._lf_sig = sig;
+
+  // Start from what CSS would actually render, not from the raw preference.
+  // The responsive rules clamp the label well below `--bd-button-text-size` on
+  // small screens, and since these fits are applied !important, seeding the loop
+  // with the raw preference let a fitted label come out LARGER than the
+  // responsive design intends. Clear first so the reading isn't our own previous
+  // inline value. Falls back to the old behavior if the size can't be read.
+  clearFont(el);
+  var cssPx = parseFloat(window.getComputedStyle(el).fontSize);
+  var effectiveBase = (isFinite(cssPx) && cssPx > 0) ? cssPx : basePx;
   var size;
   if(isTextSymbol(el)) {
     size = fitFullCard(el, effectiveBase);
@@ -247,9 +355,9 @@ function applyOne(el, basePx) {
     size = fitWrapped(el, effectiveBase);
   }
   if(size >= effectiveBase) {
-    el.style.fontSize = '';
+    clearFont(el);
   } else {
-    el.style.fontSize = size + 'px';
+    setFontPx(el, size);
   }
 }
 
@@ -274,12 +382,17 @@ export default {
   },
 
   // Remove all inline font-size overrides we set, handing control
-  // back to the CSS rules. Called when the toggle flips off.
+  // back to the CSS rules. Retained for callers that need to hand sizing
+  // back to CSS (e.g. tearing the grid down); the grid itself no longer
+  // clears, since the fit is now unconditional.
   clear: function(gridEl) {
     if(!gridEl) { return; }
     var labels = selectLabels(gridEl);
     for(var i = 0; i < labels.length; i++) {
-      labels[i].style.fontSize = '';
+      clearFont(labels[i]);
+      // Reset the fit cache too — otherwise a later apply() sees an unchanged
+      // signature and skips a label whose inline size we just removed.
+      labels[i]._lf_sig = null;
     }
   },
 

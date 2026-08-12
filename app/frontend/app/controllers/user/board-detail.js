@@ -63,12 +63,13 @@ const SPEAK_MENU_ITEMS = [
   { id: 'print',                section: 'share',     label_key: 'print', default_label: 'Print' },
   { id: 'share',                section: 'share',     label_key: 'share', default_label: 'Share' },
   { id: 'button_levels',        section: 'session',   label_key: 'button_levels', default_label: 'Button Levels' },
+  // Board lock. Listed so it can be hidden/shown from the customize-menu UI like
+  // every other item; the control itself is rendered in board-detail.hbs and must
+  // stay reachable because this page ENFORCES sticky_board on navigation.
   { id: 'sticky_board',         section: 'session',   label_key: 'stay_on_board', default_label: 'Stay on this Board' },
   { id: 'pause_logging',        section: 'session',   label_key: 'pause_logging', default_label: 'Pause Logging' },
   { id: 'modeling',             section: 'session',   label_key: 'board_detail_model_for_communicator', default_label: 'Model for Communicator' },
-  { id: 'switch_communicators', section: 'session',   label_key: 'switch_communicators', default_label: 'Switch Communicators' },
-  { id: 'translate',            section: 'language',  label_key: 'translate', default_label: 'Translate' },
-  { id: 'switch_language',      section: 'language',  label_key: 'switch_language', default_label: 'Switch Language' }
+  { id: 'switch_communicators', section: 'session',   label_key: 'switch_communicators', default_label: 'Switch Communicators' }
 ];
 
 const SPEAK_MENU_SECTIONS = [
@@ -76,8 +77,7 @@ const SPEAK_MENU_SECTIONS = [
   { id: 'buttons',  label_key: 'buttons', default_label: 'Buttons' },
   { id: 'display',  label_key: 'display', default_label: 'Display' },
   { id: 'share',    label_key: 'share_and_print', default_label: 'Share & Print' },
-  { id: 'session',  label_key: 'session', default_label: 'Session' },
-  { id: 'language', label_key: 'language', default_label: 'Language' }
+  { id: 'session',  label_key: 'session', default_label: 'Session' }
 ];
 
 // Static i18n declarations for SPEAK_MENU_ITEMS / SPEAK_MENU_SECTIONS.
@@ -99,7 +99,6 @@ function _customize_menu_i18n_extractor_no_op() {
   i18n.t('display', "Display");
   i18n.t('share_and_print', "Share & Print");
   i18n.t('session', "Session");
-  i18n.t('language', "Language");
   // Items (SPEAK_MENU_ITEMS)
   i18n.t('my_board_collection', "My Board Collection");
   i18n.t('find_a_button', "Find a Button");
@@ -111,12 +110,9 @@ function _customize_menu_i18n_extractor_no_op() {
   i18n.t('print', "Print");
   i18n.t('share', "Share");
   i18n.t('button_levels', "Button Levels");
-  i18n.t('stay_on_board', "Stay on this Board");
   i18n.t('pause_logging', "Pause Logging");
   i18n.t('board_detail_model_for_communicator', "Model for Communicator");
   i18n.t('switch_communicators', "Switch Communicators");
-  i18n.t('translate', "Translate");
-  i18n.t('switch_language', "Switch Language");
 }
 
 export default Controller.extend(prefClasses, {
@@ -140,19 +136,6 @@ export default Controller.extend(prefClasses, {
   // default when the saved preference is absent.
   folder_colored_face: true,
   folder_dropdown_open: false,
-  // When true, each button's label is independently measured: if its
-  // text would overflow the 3-line label box at the user's chosen
-  // font size, only that one label's font is reduced (down to an 8px
-  // floor) until the full text fits without truncation. Labels that
-  // already fit at the chosen size are left alone — the toggle never
-  // rescales every label on the board uniformly, it only shrinks the
-  // specific labels that would otherwise be clipped. Implemented in
-  // app/frontend/app/utils/label_fit.js, wired via the board-detail-grid
-  // component. When false (the default — matches modern AAC industry
-  // standard), labels keep the user's chosen font size and overflow
-  // past 3 lines is clipped with ellipsis. Persisted on
-  // user.preferences.shrink_labels_to_fit.
-  shrink_labels_to_fit: false,
   // When true, applies a softer / more tonal style to button borders
   // ON TOP of whatever the user's selected border thickness is —
   // single subtle outer shadow + soft inset highlight + a light halo
@@ -318,6 +301,15 @@ export default Controller.extend(prefClasses, {
      the options menu itself closes so a fresh open lands on the
      normal menu. */
   board_collection_open: false,
+  /* Edit-mode Board Collections drawer (LEFT side). Opened from the edit rail's
+     "Board Collections" item: the rail hides (CSS via md-shell--board-collection-left)
+     and this drawer takes its place, pushing the center board area right. Selecting a
+     board loads it into the center in EDIT mode. */
+  edit_board_collection_open: false,
+  /* The board the edit page was opened with, captured when the Board Collections drawer
+     opens. Rendered in the drawer's "Original Selected Board" section so the user can jump
+     back to where they started while previewing other boards. Cleared when the drawer closes. */
+  edit_collection_original_board: null,
   sidebar_editor_open: false,
   show_paint_dropdown: false,
   show_options_menu: false,
@@ -377,14 +369,32 @@ export default Controller.extend(prefClasses, {
     var card = cell.querySelector('.md-board-detail-symbol-card') || cell;
     var cardRect = card.getBoundingClientRect();
     if(!cardRect || cardRect.width < 1 || cardRect.height < 1) { return; }
-    // Publish the ACTUAL rendered button width so the "Landscape mode
-    // recommended" overlay can trigger on real button size (below ~45px is too
-    // small for reliable AAC targeting), not just the viewport×column heuristics.
-    // This runs debounced inside runLater on every grid resize / layout change,
-    // so it stays live and never mutates state mid-render.
+    // Publish the ACTUAL rendered button width AND height so the "Larger screen recommended"
+    // overlay can trigger on real button size (below 35px in EITHER dimension is too small
+    // for reliable AAC targeting / comfortable editing). This runs debounced inside runLater
+    // on every grid resize / layout change, so it stays live and never mutates state mid-render.
     this.set('board_cell_width', Math.round(cardRect.width));
+    this.set('board_cell_height', Math.round(cardRect.height));
     var grid = document.querySelector('.md-board-detail-grid');
     var gridStyle = grid ? window.getComputedStyle(grid) : null;
+    // Publish the CELL (grid row) height as --bd-cell-h so the folder-tab RESERVE — the cell's
+    // top padding + the folder-back top — can scale with the button size and the space between
+    // rows shrinks on smaller buttons. A CSS container can't size its own padding by its own
+    // height (cqh only works on descendants; padding-% is width-based), so this JS var is the
+    // reliable source. The cell height is the 1fr grid row height (independent of the padding
+    // inside it), so reading it back to drive the padding does NOT feed back.
+    if(grid && cell) {
+      var cellRect = cell.getBoundingClientRect();
+      if(cellRect && cellRect.height >= 1) {
+        grid.style.setProperty('--bd-cell-h', Math.round(cellRect.height) + 'px');
+        // Also publish the SMALLER cell dimension so the folder-tab geometry (tab height +
+        // reserve) can scale with min(width,height) — keeps the tab/reserve proportionate on
+        // TALL-NARROW buttons (portrait-phone folders) instead of ballooning off the height.
+        if(cellRect.width >= 1) {
+          grid.style.setProperty('--bd-cell-min', Math.round(Math.min(cellRect.width, cellRect.height)) + 'px');
+        }
+      }
+    }
     var colGap = gridStyle ? (parseFloat(gridStyle.columnGap) || 0) : 0;
     var rowGap = gridStyle ? (parseFloat(gridStyle.rowGap) || 0) : 0;
     // Make the rail read as another board column: stack its tiles with the board's
@@ -463,7 +473,7 @@ export default Controller.extend(prefClasses, {
     var h = board ? board.getBoundingClientRect().height : 0;
     sidebar.style.height = (h && h > 1) ? (Math.round(h) + 'px') : '';
   },
-  _sync_prediction_tile_size_on_change: observer('ordered_buttons', 'current_grid.columns', 'current_grid.rows', 'suggestions.list.[]', function() {
+  _sync_prediction_tile_size_on_change: observer('ordered_buttons', 'current_grid.columns', 'current_grid.rows', 'suggestions.list.[]', 'app_state.window_inner_width', 'app_state.window_inner_height', function() {
     var _this = this;
     runLater(function() {
       if(_this.isDestroyed || _this.isDestroying) { return; }
@@ -541,6 +551,12 @@ export default Controller.extend(prefClasses, {
     // action (also reached via raw_events chrome clicks) delegates here.
     _this.onSelectBoardFromCollection = function(boardOrKey) {
       if(!boardOrKey) { return; }
+      // Board lock: picking a board from the Collections drawer leaves the current
+      // board, so it is an exit like Back / Home / a folder button. It was
+      // unguarded. Returns undefined (not a transition promise) when blocked —
+      // BoardCollection treats a missing promise as "nothing to wait for" and
+      // falls back to its own timeout to clear the "Opening your board" overlay.
+      if(_this.board_lock_blocks_exit()) { return; }
       var key = typeof boardOrKey === 'string' ? boardOrKey : ((boardOrKey.get && boardOrKey.get('key')) || boardOrKey.key);
       // Keep the collection PINNED (do NOT clear board_collection_open) so the drawer
       // stays open while the chosen board loads in the grid on the left.
@@ -553,6 +569,36 @@ export default Controller.extend(prefClasses, {
         // Defensive fallback: keys SHOULD always be `<user>/<slug>`.
         return _this.router.transitionTo('board', key);
       }
+    };
+    // "Back to Edit Mode" — commits to editing whatever board is currently previewed
+    // in the center. Unpins the drawer, restores the rail, and drops the captured
+    // original board. If the previewed board isn't editable by the current user
+    // (not owned), route through enter_edit_mode so they're prompted to COPY it first
+    // and then edit the copy (same non-owner path as the normal Edit action). Owned
+    // boards are already in edit mode, so closing the drawer is all that's needed.
+    _this.onCloseEditBoardCollection = function() {
+      _this.set('edit_board_collection_open', false);
+      _this.set('edit_collection_original_board', null);
+      if(!_this.get('model.permissions.edit')) {
+        _this.send('enter_edit_mode');
+      }
+    };
+    // Edit-mode board preview/select: loads the chosen board into the center while
+    // STAYING in edit mode (transitions to user.board-detail.edit, not the speak
+    // index route). CRUCIAL: it RETURNS the Transition — exactly like the speak-mode
+    // handler — so BoardCollection clears its "Opening your board" overlay the instant
+    // the board settles. The earlier version omitted the return, so the overlay hung on
+    // its 8s safety timeout, which is what made selection feel slow. The board data is
+    // already cached (same as the speak-mode collection), so the transition settles
+    // fast; the brief async button-rebuild is covered by the grid fade, not a card.
+    _this.onSelectBoardFromCollectionEdit = function(boardOrKey) {
+      if(!boardOrKey || !_this.router) { return; }
+      var key = typeof boardOrKey === 'string' ? boardOrKey : ((boardOrKey.get && boardOrKey.get('key')) || boardOrKey.key);
+      if(!key) { return; }
+      var parts = key.split('/');
+      if(parts.length < 2) { return; }
+      _this.set('show_options_menu', false);
+      return _this.router.transitionTo('user.board-detail.edit', parts[0], parts.slice(1).join('/'));
     };
     this._closeDropdownsHandler = function(e) {
       if(_this.get('details_dropdown_open') && !e.target.closest('.md-board-detail-details-dropdown-wrap')) {
@@ -1384,6 +1430,13 @@ export default Controller.extend(prefClasses, {
     // building out the button grid while navigating away just wastes CPU and
     // can cause observer churn on a torn-down controller.
     if(this.get('_exiting') || this.isDestroyed || this.isDestroying) { return; }
+    /* After deleteRecord()+save, exiting speak mode still schedules
+       processButtons → here. Ember Data forbids set() on deleted records
+       ("Attempted to set 'buttons' on the deleted record"). Bail early. */
+    var modelForGuard = this.get('model');
+    if(modelForGuard && typeof modelForGuard.get === 'function' && modelForGuard.get('isDeleted')) {
+      return;
+    }
     var _this = this;
     if(!(raw.images && raw.images.length)) {
       if(_this._board_detail_images && _this._board_detail_images.length) {
@@ -1435,7 +1488,7 @@ export default Controller.extend(prefClasses, {
           _this._last_raw.images = _this._board_detail_images;
         }
         var board_early = _this.get('model');
-        if(board_early && board_early.set) {
+        if(board_early && board_early.set && !(board_early.get && board_early.get('isDeleted'))) {
           if(raw.translations !== undefined) { board_early.set('translations', raw.translations); }
           if(raw.buttons !== undefined) { board_early.set('buttons', raw.buttons); }
           if(raw.locale !== undefined) { board_early.set('locale', raw.locale); }
@@ -1450,7 +1503,7 @@ export default Controller.extend(prefClasses, {
     var image_map = raw.image_urls || {};
     (raw.images || []).forEach(function(img) {
       if(img && img.id) {
-        var url = img.skin_url || img.url;
+        var url = (_this._preferred_symbols && img.skin_url) ? img.skin_url : img.url; // library preferred_symbols only
         if(url) {
           image_map[String(img.id)] = url;
         }
@@ -1478,7 +1531,7 @@ export default Controller.extend(prefClasses, {
     if(board && board.get && !raw.translations && board.get('translations')) {
       raw.translations = board.get('translations');
     }
-    if(board && board.set) {
+    if(board && board.set && !(board.get && board.get('isDeleted'))) {
       if(raw.translations !== undefined) { board.set('translations', raw.translations); }
       if(raw.buttons !== undefined) { board.set('buttons', raw.buttons); }
       if(raw.locale !== undefined) { board.set('locale', raw.locale); }
@@ -1907,6 +1960,10 @@ export default Controller.extend(prefClasses, {
     // payload onto model.buttons MUST sync that payload into _last_raw
     // first (see saveButtonChanges) — otherwise this clobbers the save
     // with a pre-edit snapshot (notably newly assigned image_ids).
+    var model = this.get('model');
+    if(model && typeof model.get === 'function' && model.get('isDeleted')) {
+      return;
+    }
     if(this._last_raw) {
       this._build_from_raw(this._last_raw);
     }
@@ -2306,6 +2363,31 @@ export default Controller.extend(prefClasses, {
       return i18n.t('error_no_local', "This board is not available offline.");
     }
   }),
+  /* Broken-board recovery: Home when the referenced communicator (or
+     current user) has a home board or a session entry board to land on. */
+  error_show_home: computed(
+    'app_state.referenced_user.preferences.home_board.key',
+    'app_state.currentUser.preferences.home_board.key',
+    'app_state.board_detail_entry_board.user_name',
+    'app_state.board_detail_entry_board.boardname',
+    function() {
+      if(this.get('app_state.referenced_user.preferences.home_board.key')) { return true; }
+      if(this.get('app_state.currentUser.preferences.home_board.key')) { return true; }
+      var entry = this.get('app_state.board_detail_entry_board');
+      return !!(entry && entry.user_name && entry.boardname);
+    }
+  ),
+  /* Exit Speak is supervisor-facing (supporter role or actively modeling).
+     Communicators stay in speak mode and use Home / Back instead. */
+  error_show_exit_speak: computed(
+    'app_state.speak_mode',
+    'app_state.currentUser.supporter_role',
+    'app_state.modeling',
+    function() {
+      if(!this.get('app_state.speak_mode')) { return false; }
+      return !!(this.get('app_state.currentUser.supporter_role') || this.get('app_state.modeling'));
+    }
+  ),
 
   description_info_expanded: false,
   cc_license: computed('model.license.type', function() {
@@ -3230,7 +3312,30 @@ export default Controller.extend(prefClasses, {
   // the entire section header collapses too so the menu doesn't show
   // an empty group. Each computed depends on speak_menu_hidden_set so
   // it re-evaluates whenever the user toggles any row.
-  speak_section_visible_board: computed('speak_menu_hidden_set', function() {
+  // A "communicator-only" account: a plain communicator (preferences.role != 'supporter')
+  // with no supervisor actively modeling. Supervisor-oriented / advanced menu entries
+  // (Session, Take a Tour, My Board Collection) hide when this is true, so the whole
+  // options menu behaves consistently. Mirrors the original Session gate.
+  is_communicator_only_account: computed('app_state.currentUser.supporter_role', 'app_state.modeling', function() {
+    return !this.get('app_state.currentUser.supporter_role') && !this.get('app_state.modeling');
+  }),
+  // Dense-board sidebar: boards wider than 10 columns get a 25%-narrower inline
+  // sidebar (100px → 75px, via the .md-shell--many-columns class + app.scss) so the
+  // grid reclaims the room. Uses the displayed grid (current_grid) with the board's
+  // saved grid as a fallback.
+  board_many_columns: computed('current_grid.columns', 'model.grid.columns', function() {
+    return (this.get('current_grid.columns') || this.get('model.grid.columns') || 0) > 10;
+  }),
+  // True once the live-measured button width drops below 40px — drives
+  // .md-shell--buttons-narrow so default-mode folder tabs nudge 4px left on tiny
+  // buttons. board_cell_width is the measured card width (set in
+  // _sync_prediction_tile_size); 0 before the first measure, so guard >0.
+  board_buttons_narrow: computed('board_cell_width', function() {
+    var w = this.get('board_cell_width') || 0;
+    return w > 0 && w < 40;
+  }),
+  speak_section_visible_board: computed('speak_menu_hidden_set', 'is_communicator_only_account', function() {
+    if(this.get('is_communicator_only_account')) { return false; }
     var s = this.get('speak_menu_hidden_set') || {};
     return !s.board_collection;
   }),
@@ -3246,23 +3351,46 @@ export default Controller.extend(prefClasses, {
     var s = this.get('speak_menu_hidden_set') || {};
     return !s.copy || !s.download || !s.print || !s.share;
   }),
-  speak_section_visible_session: computed('speak_menu_hidden_set', 'app_state.currentUser.supporter_role', 'app_state.modeling', function() {
-    // Session holds supervisor-oriented tools (button levels, sticky board, pause
-    // logging, modeling, switch communicators). Hide the whole section on a plain
-    // COMMUNICATOR account (preferences.role != 'supporter'); show it for supporter
-    // / other roles, AND keep it visible on the communicator's own account while a
-    // supervisor is actively modeling for them (app_state.modeling).
-    var is_supporter = !!this.get('app_state.currentUser.supporter_role');
-    var modeling = !!this.get('app_state.modeling');
-    if(!is_supporter && !modeling) { return false; }
+  speak_section_visible_session: computed('speak_menu_hidden_set', 'is_communicator_only_account', 'stashes.sticky_board', function() {
+    // Session holds supervisor-oriented tools: button levels, board lock ("Stay on
+    // this Board"), pause logging, modeling, switch communicators. Hidden on a
+    // communicator-only account (see is_communicator_only_account) — shown for
+    // supporters and while a supervisor is actively modeling for a communicator.
+    //
+    // This check stays FIRST, ahead of the board-lock override below, and that
+    // precedence is DELIBERATE (confirmed 2026-08-09): a locked communicator is not
+    // meant to be able to release their own lock — it is a supervisor safety control.
+    // Do not "fix" this by moving the sticky_board check above it.
+    if(this.get('is_communicator_only_account')) { return false; }
     var s = this.get('speak_menu_hidden_set') || {};
+    // While the board lock is ENGAGED, this section always renders, whatever the
+    // customize-menu settings say. board_lock_blocks_exit() is warning the user
+    // "disable to leave this board", and the only control that can disable it lives
+    // in here (board-detail.hbs) — so hiding the section would make that warning a
+    // dead end. Costs nothing when the lock is off, which is the normal case.
+    if(this.get('stashes.sticky_board')) { return true; }
+    // Otherwise: is ANY item in this section still visible? sticky_board belongs in
+    // this list because it IS a customize-menu item (SPEAK_MENU_ITEMS) rendered in
+    // this section. It was dropped from here by dc67d28aa, which also removed the
+    // item entirely — consistent at the time — but 250186f3e put the item and its
+    // buttons back without restoring this term, so hiding the other four silently
+    // took the lock control with them.
     return !s.button_levels || !s.sticky_board || !s.pause_logging || !s.modeling || !s.switch_communicators;
   }),
-  speak_section_visible_language: computed('speak_menu_hidden_set', function() {
+  // Visibility of the board-lock control itself, as opposed to the Session section
+  // that contains it. Normally it follows the customize-menu setting like any other
+  // item — but while the lock is ENGAGED it always shows, because that is the only
+  // control that can turn it off and board_lock_blocks_exit() is actively telling the
+  // user to "disable to leave this board". A supervisor who hid the item and then
+  // left the lock on would otherwise strand whoever is holding the device.
+  //
+  // Only ever FORCES the control on; it never hides one that would otherwise show,
+  // and it does nothing at all when the preference is unset.
+  board_lock_control_visible: computed('speak_menu_hidden_set', 'stashes.sticky_board', function() {
+    if(this.get('stashes.sticky_board')) { return true; }
     var s = this.get('speak_menu_hidden_set') || {};
-    return !s.translate || !s.switch_language;
+    return !s.sticky_board;
   }),
-
   board_translate_in_progress: computed('app_state.board_translate_in_progress', function() {
     return !!this.get('app_state.board_translate_in_progress');
   }),
@@ -3455,27 +3583,51 @@ export default Controller.extend(prefClasses, {
   //   • >6 columns → gate at ≤460px
   //   • >4 columns → gate at ≤375px
   portrait_overlay_dismissed: false,
+  // Sticky for the whole session: set once the user chooses "Continue Anyway"
+  // so the rotate-to-landscape prompt is never shown again this session, even
+  // when they navigate to other boards. Only a full app reload clears it.
+  portrait_overlay_session_dismissed: false,
   quick_actions_open: false,
   // Live-measured rendered button width, published by _sync_prediction_tile_size.
   board_cell_width: 0,
+  board_cell_height: 0,
 
-  portrait_overlay_eligible: computed('app_state.feature_flags.portrait_orientation_overlay', 'viewport_narrow', 'viewport_very_narrow', 'viewport_ultra_narrow', 'current_grid.columns', 'board_cell_width', function() {
+  portrait_overlay_eligible: computed('app_state.feature_flags.portrait_orientation_overlay', 'board_cell_width', 'board_cell_height', function() {
     if(!this.get('app_state.feature_flags.portrait_orientation_overlay')) { return false; }
-    // Direct signal: if the buttons actually render below the 45px minimum for
-    // reliable AAC targeting, recommend landscape regardless of the column/
-    // viewport heuristics below (which are only a proxy for "buttons too small").
+    // Recommend a larger screen once the buttons actually render below 35px in EITHER
+    // dimension (width OR height) — too small to view or edit comfortably. board_cell_width /
+    // board_cell_height are the live-measured card size (set by the debounced grid-resize
+    // observer above), so this tracks the REAL rendered button size in BOTH speak and edit
+    // mode, independent of orientation: a large screen keeps buttons big, so it never
+    // false-fires there, and there's no rotate advice anymore to guard against.
     var cell_w = this.get('board_cell_width') || 0;
-    if(cell_w > 0 && cell_w < 45) { return true; }
-    var cols = this.get('current_grid.columns') || 0;
-    if(this.get('viewport_narrow') && cols > 8) { return true; }
-    if(this.get('viewport_very_narrow') && cols > 6) { return true; }
-    if(this.get('viewport_ultra_narrow') && cols > 4) { return true; }
+    var cell_h = this.get('board_cell_height') || 0;
+    if(cell_w <= 0 || cell_h <= 0) { return false; }
+    // (1) Absolutely too small in either axis to view/edit comfortably.
+    if(cell_w < 35 || cell_h < 35) { return true; }
+    // (2) Badly PROPORTIONED: a tall-narrow (or wide-short) button squishes the symbol and is
+    // awkward to target even when neither axis is below 35px — e.g. a folder on a portrait phone
+    // rendering ~65px wide × ~177px tall. Fire when the long axis is >2.2× the short axis AND the
+    // short axis is itself cramped (<90px). The <90px gate keeps genuinely LARGE non-square
+    // buttons (a roomy 300×700 on a big screen) from false-firing — those don't need a bigger
+    // screen, they're just intentionally rectangular.
+    var shorter = Math.min(cell_w, cell_h);
+    var longer = Math.max(cell_w, cell_h);
+    if(shorter < 90 && (longer / shorter) > 2.2) { return true; }
     return false;
   }),
 
   // The actual "show the card now" gate — eligible AND the user hasn't
-  // chosen Continue Anyway for this board this session.
-  portrait_overlay_active: computed('portrait_overlay_eligible', 'portrait_overlay_dismissed', function() {
+  // dismissed it. The first dismissal is scoped to the current board; once
+  // they pick "Continue Anyway", `portrait_overlay_session_dismissed` keeps
+  // `portrait_overlay_dismissed` latched across board changes for the session.
+  portrait_overlay_active: computed('portrait_overlay_eligible', 'portrait_overlay_dismissed', 'board_collection_open', 'edit_board_collection_open', function() {
+    // Either Board Collections drawer (speak-mode right / edit-mode left) intentionally
+    // shrinks the center board area (layout padding), which drops the live-measured
+    // board_cell_width below the 35px signal and FALSE-triggers the larger-screen
+    // recommendation on a wide viewport. Suppress the overlay while a collection drawer is
+    // open — the screen itself isn't small, so the recommendation doesn't apply.
+    if(this.get('board_collection_open') || this.get('edit_board_collection_open')) { return false; }
     return this.get('portrait_overlay_eligible') && !this.get('portrait_overlay_dismissed');
   }),
 
@@ -3490,10 +3642,14 @@ export default Controller.extend(prefClasses, {
     return !!this.get('viewport_narrow') && !this.get('edit_mode');
   }),
 
-  // Continue Anyway is scoped to "this board, this session" — reset the
-  // dismissal (and close any open popover) whenever the board changes.
+  // On a board change, re-arm the per-board dismissal — UNLESS the user has
+  // chosen "Continue Anyway" this session, in which case the prompt stays
+  // suppressed for the rest of the session. The quick-actions popover always
+  // closes on a board change regardless.
   _reset_portrait_overlay_on_board_change: observer('model.id', function() {
-    this.set('portrait_overlay_dismissed', false);
+    if(!this.get('portrait_overlay_session_dismissed')) {
+      this.set('portrait_overlay_dismissed', false);
+    }
     this.set('quick_actions_open', false);
   }),
 
@@ -4598,7 +4754,7 @@ export default Controller.extend(prefClasses, {
         var original_name = _this.get('_original_board_name');
         var current_name = board.get('name');
         if(original_name && current_name && original_name !== current_name && !_this._name_matches_translation(board, current_name)) {
-          _this._auto_rename_board(board, current_name);
+          _this._auto_rename_board(board, current_name, original_name);
           _this.set('_original_board_name', current_name);
         } else {
           modal.success(i18n.t('board_saved', "Board saved!"));
@@ -4628,12 +4784,32 @@ export default Controller.extend(prefClasses, {
     return false;
   },
 
-  // Automatically rename the board key to match the new display name
-  _auto_rename_board: function(board, new_name) {
+  // Automatically rename the board key to match the new display name — but ONLY when
+  // the URL was already following the name.
+  //
+  // `old_name` is the display name the page was loaded with. When the current key is
+  // exactly the slug of that name, the URL has simply been tracking the label and
+  // should keep tracking it. When it is anything else, the key is a deliberate choice
+  // — one set through the classic rename UI, or a copy key carrying the collision
+  // suffix `…_1` — and a label edit must not silently overwrite it.
+  //
+  // Skipping also avoids the cost: a rename schedules `rename_deep_links` on the SLOW
+  // queue, which walks every upstream board, shared user, UserLink, UserBoardConnection
+  // and LogSession that references this board (app/models/concerns/renaming.rb).
+  //
+  // Compared case-insensitively: `clean_path` preserves case ("Sequoia 15" ->
+  // "Sequoia-15") while the server stores keys downcased (`Renaming#rename_to`).
+  _auto_rename_board: function(board, new_name, old_name) {
     var _this = this;
     var user_name = board.get('user_name') || (_this.get('user') && _this.get('user').get('user_name'));
     var old_key = board.get('key');
     if(!user_name || !old_key) {
+      modal.success(i18n.t('board_saved', "Board saved!"));
+      return;
+    }
+    var old_slug = old_key.split('/').slice(1).join('/');
+    var name_derived_slug = old_name ? window.LingoLinq.clean_path(old_name) : null;
+    if(!name_derived_slug || old_slug.toLowerCase() !== name_derived_slug.toLowerCase()) {
       modal.success(i18n.t('board_saved', "Board saved!"));
       return;
     }
@@ -5045,6 +5221,37 @@ export default Controller.extend(prefClasses, {
     }
   },
 
+  // Board lock ("Stay on this Board") — the ONE place that decides whether
+  // leaving the current board is allowed, and the only place that raises the
+  // notice. Every board-to-board exit on this page calls it.
+  //
+  // It exists because the check used to be copy-pasted inline, and had been
+  // copied to only 2 of this page's ~12 exits: `go_back` checked it on the
+  // hierarchical-parent fallback but NOT on the ordinary in-session Back (which
+  // transitions and returns first), and `go_home` and the Board Collections
+  // drawer never checked it at all. A supervisor switching the lock on saw the
+  // toggle engaged and the warning working, while Back and Home walked straight
+  // out — a safety feature that failed quietly, which is the worst way for one
+  // to fail.
+  //
+  // Scope matches the classic implementation (`controllers/application.js`
+  // home / jump / back): the lock restrains BOARD-TO-BOARD navigation while
+  // communicating. It is deliberately NOT a route-level `willTransition` guard —
+  // that would also block leaving for settings, the dashboard, or logout, which
+  // the lock has never done and which would strand the user.
+  //
+  // Gated on `edit_mode` (this controller's own flag), not `app_state.speak_mode`:
+  // speak_mode is `current_mode == 'speak' && currentBoardState`, and
+  // currentBoardState belongs to the classic board renderer, so keying on it here
+  // risks the lock silently evaluating false and enforcing nothing. Editing the
+  // board is the deliberate escape, same as leaving speak mode is on classic.
+  board_lock_blocks_exit: function() {
+    if(!this.get('stashes').get('sticky_board')) { return false; }
+    if(this.get('edit_mode')) { return false; }
+    modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
+    return true;
+  },
+
   actions: {
     re_transition: function() {
       this.set('retrying', true);
@@ -5226,10 +5433,18 @@ export default Controller.extend(prefClasses, {
       };
       ready.then(function(res) {
         if(res && res.correct_pin) {
-          // Owner path: direct edit. Clear any stale copy_on_save flag
-          // defensively so a previous non-owner edit attempt's leftover
-          // flag can't trigger the copy flow on this owner's save.
-          if(_this.get('model.permissions.edit')) {
+          // Owner path: direct edit. Ownership is authoritative and ALWAYS available client-
+          // side (a board's key is `<owner>/<slug>` and `user_name` is the owner), unlike
+          // `model.permissions.edit`, which the boards-index list load OMITS — so a board
+          // reached from My Boards / dashboard / sidebar can false-prompt a copy on the
+          // user's OWN board until a manual refresh (which reloads via the single-board
+          // endpoint that DOES include permissions). If the session user owns it, edit
+          // directly. Also clears any stale copy_on_save flag so a previous non-owner edit
+          // attempt's leftover flag can't trigger the copy flow on this owner's save.
+          var owner_name = _this.get('model.user_name') || ((_this.get('model.key') || '').split('/')[0]);
+          var session_name = _this.get('app_state.sessionUser.user_name');
+          var owns_board = !!(owner_name && session_name && owner_name === session_name);
+          if(_this.get('model.permissions.edit') || owns_board) {
             _this.get('stashes').persist('copy_on_save', null);
             enterEditNow();
             return;
@@ -5545,6 +5760,11 @@ export default Controller.extend(prefClasses, {
     },
 
     go_back: function() {
+      // Checked FIRST, before the in-session-history branch below. That branch
+      // transitions and returns, so a lock check placed after it (as it was)
+      // only ever ran on the no-history parent-climb fallback — Back was the
+      // lock's open front door.
+      if(this.board_lock_blocks_exit()) { return; }
       var history = (this.get('app_state.board_detail_nav_history') || []).slice();
       var prev = history.pop();
       if(prev) {
@@ -5555,10 +5775,6 @@ export default Controller.extend(prefClasses, {
       // No in-session trail (e.g. deep-linked board): climb hierarchical parent if set.
       var parentKey = this.get('model.parent_board_key');
       if(!parentKey || String(parentKey).indexOf('/') === -1) { return; }
-      if(this.get('stashes').get('sticky_board')) {
-        modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
-        return;
-      }
       var _this = this;
       this._preferred_board_detail_key(String(parentKey)).then(function(preferred_key) {
         if(_this.isDestroyed || _this.isDestroying) { return; }
@@ -5569,8 +5785,14 @@ export default Controller.extend(prefClasses, {
 
     go_home: function() {
       this.set('show_options_menu', false);
-      // Prefer the user's saved home board
-      var home = this.get('app_state.currentUser.preferences.home_board');
+      // Home is a board-to-board exit like any other and was entirely unguarded
+      // — it even cleared board_detail_nav_history on the way out.
+      if(this.board_lock_blocks_exit()) { return; }
+      // Prefer the active communicator's home (modeling / speak-as), then
+      // the signed-in user's — so broken-link recovery and the Home control
+      // land on the board the current speak session is for.
+      var home = this.get('app_state.referenced_user.preferences.home_board') ||
+        this.get('app_state.currentUser.preferences.home_board');
       if(home && home.key) {
         this.set('app_state.board_detail_nav_history', []);
         var parts = home.key.split('/');
@@ -6290,6 +6512,34 @@ export default Controller.extend(prefClasses, {
       this.set('board_collection_open', false);
     },
 
+    /* Edit-mode Board Collections drawer. Opens the inline BoardCollection panel
+       pinned to the LEFT edge; the shell class md-shell--board-collection-left hides
+       the edit rail (the drawer takes its place) and pushes the center board area
+       right. Selecting a board previews it in edit mode via onSelectBoardFromCollectionEdit
+       (which returns the Transition so the overlay clears the moment the board settles). */
+    open_edit_board_collection: function() {
+      // Capture the board we're currently editing as the "original" — fixed while the
+      // drawer is pinned, even as the user previews other boards.
+      this.set('edit_collection_original_board', this.get('model'));
+      this.set('edit_board_collection_open', true);
+    },
+    /* "Back to Edit Mode" — the drawer's back button. Reached via raw_events chrome
+       clicks (data-bd-action, resolved by BoardCollection.back_action_name), which is
+       the ONLY path that fires for clicks inside .md-board-collection. Delegates to
+       onCloseEditBoardCollection so the commit-to-editing logic (owned → edit directly;
+       not owned → copy-to-edit prompt) lives in exactly one place. This used to only
+       clear the two flags and had no callers at all, so Back never committed. */
+    close_edit_board_collection: function() {
+      return this.onCloseEditBoardCollection();
+    },
+
+    /* Edit-drawer board preview. Same delegation shape as select_board_from_collection
+       below: the transition lives in onSelectBoardFromCollectionEdit and is RETURNED so
+       BoardCollection can clear its "Opening your board" overlay when the board settles. */
+    select_board_from_collection_edit: function(boardOrKey) {
+      return this.onSelectBoardFromCollectionEdit(boardOrKey);
+    },
+
     /* Edit Sidebar — opens the inline sidebar-editor drawer (same pinned host as
        My Board Collection). Triggered by the "Edit Sidebar" button at the top of
        the inline sidebar. */
@@ -6427,11 +6677,8 @@ export default Controller.extend(prefClasses, {
       // Folder navigation — intercept for board-detail routing
       var load_board = _get(_action_src, 'load_board');
       if(load_board && !_get(_action_src, 'link_disabled')) {
-        // Board lock: prevent navigation when sticky_board is enabled
-        if(_this.get('stashes').get('sticky_board')) {
-          modal.warning(i18n.t('sticky_board_notice', "Board lock is enabled, disable to leave this board."), true);
-          return;
-        }
+        // Board lock: folder navigation is a board-to-board exit.
+        if(_this.board_lock_blocks_exit()) { return; }
         // "Also speak & add to the vocalization box" (add_to_vocalization/add_vocalization)
         // and "Set as temporary home when loaded" (home_lock) are handled by the canonical
         // app_state.activate_button — it adds the word to the sentence box (utterance.add_button)
@@ -6834,29 +7081,15 @@ export default Controller.extend(prefClasses, {
       this._speak_current_sentence();
     },
 
-    // ── Portrait orientation overlay actions ──
-    // "Rotate Device" CTA. Web can't force rotation, so this is a
-    // best-effort orientation lock (supported on some mobile/Cordova
-    // builds) wrapped in try/catch; either way the overlay auto-retires
-    // the moment the viewport actually becomes landscape (the matchMedia
-    // listener flips `viewport_narrow`), so the button never hard-blocks.
-    request_landscape: function() {
-      try {
-        var orientation = (typeof window !== 'undefined' && window.screen && window.screen.orientation) || null;
-        if(orientation && typeof orientation.lock === 'function') {
-          var p = orientation.lock('landscape');
-          if(p && typeof p.catch === 'function') { p.catch(function() { /* unsupported — no-op */ }); }
-        }
-      } catch(e) { /* unsupported — the card stays up until the user rotates */ }
-    },
-
-    // "Continue Anyway" — secondary, accessibility-critical escape hatch
-    // for mounted/one-handed/non-rotatable setups. Dismisses for this
-    // board this session (reset by _reset_portrait_overlay_on_board_change).
-    // The board then renders at its natural scale; CSS grid preserves
-    // rows/columns/spacing and never reflows.
+    // ── Portrait orientation overlay action ──
+    // "Continue Anyway" — the overlay's only action: an accessibility-critical
+    // escape hatch for mounted/one-handed/non-rotatable setups. Dismisses the
+    // prompt and latches `portrait_overlay_session_dismissed` so it won't
+    // re-appear on later board changes this session. The board then renders at
+    // its natural scale; CSS grid preserves rows/columns/spacing and never reflows.
     dismiss_portrait_overlay: function() {
       this.set('portrait_overlay_dismissed', true);
+      this.set('portrait_overlay_session_dismissed', true);
     },
 
     // Down-arrow chevron in the immersive sentence bar toggles the
@@ -6947,6 +7180,19 @@ export default Controller.extend(prefClasses, {
       if(this.get('left_panel_collapsed')) {
         this.set('left_panel_collapsed', false);
       }
+    },
+
+    // Collapsed left-panel SEARCH magnifier: expand the panel and drop the cursor into the
+    // search field. When collapsed the input is hidden, so we expand first, then focus after a
+    // beat (runLater) once the input has un-hidden. Focusing when already expanded is a no-op on
+    // an already-focused input, so it's safe to run in both states.
+    open_board_search_panel: function() {
+      var was_collapsed = this.get('left_panel_collapsed');
+      if(was_collapsed) { this.set('left_panel_collapsed', false); }
+      runLater(function() {
+        var input = document.getElementById('board-edit-panel-search');
+        if(input && typeof input.focus === 'function') { input.focus(); }
+      }, was_collapsed ? 80 : 0);
     },
 
     /* Right panel: open one accordion section at a time (clicking
@@ -7144,6 +7390,15 @@ export default Controller.extend(prefClasses, {
     sidebar_jump: function(key, board) {
       if(!key && board && board.key) { key = board.key; }
       if(!key) { return; }
+      // Board lock: the quick sidebar renders on this page (board-detail.hbs:61) and
+      // jumping to one of its boards leaves the current board — the same kind of exit
+      // as Back, Home, a folder button or the Collections drawer, and it was the one
+      // still unguarded. Checked BEFORE _push_nav_history so a blocked jump does not
+      // leave a phantom entry in the back stack.
+      //
+      // No-op unless the user actually has the lock engaged: board_lock_blocks_exit()
+      // returns false immediately when stashes.sticky_board is unset.
+      if(this.board_lock_blocks_exit()) { return; }
       board = board || this._sidebar_board_by_key(key);
       this._push_nav_history();
       var appController = this._sidebarAppController();
@@ -7674,25 +7929,6 @@ export default Controller.extend(prefClasses, {
       var user = _this.get('app_state.currentUser');
       if(user && user.set && user.save) {
         user.set('preferences.folder_colored_face', next);
-        user.save();
-      }
-    },
-
-    // Toggles the "Shrink labels to fit" preference — when true,
-    // each label is independently measured and shrunk only if its
-    // text would overflow the 3-line box at the chosen font size
-    // (down to an 8px floor). Labels that already fit stay at the
-    // chosen size. When false (default — modern AAC industry
-    // standard), labels keep the chosen size and overflow past 3
-    // lines clips with ellipsis. Persists to
-    // user.preferences.shrink_labels_to_fit.
-    toggle_shrink_labels_to_fit: function() {
-      var _this = this;
-      var next = !_this.get('shrink_labels_to_fit');
-      _this.set('shrink_labels_to_fit', next);
-      var user = _this.get('app_state.currentUser');
-      if(user && user.set && user.save) {
-        user.set('preferences.shrink_labels_to_fit', next);
         user.save();
       }
     },

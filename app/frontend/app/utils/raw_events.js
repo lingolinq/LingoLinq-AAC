@@ -223,6 +223,36 @@ function boardDetailChromeReleaseFromEvent(event) {
   return true;
 }
 
+// Re-dispatch a click for a control the chrome map does NOT resolve — i.e. one whose
+// handler is component-local ({{on "click"}} inside BoardCollection), not a
+// board-detail controller action. The branches that call this have already run
+// event.preventDefault() on the pointer release, so without a re-dispatch those
+// controls are inert.
+//
+// But a MOUSE release is already followed by a native click: preventDefault() on
+// `mouseup` does NOT cancel it (unlike `touchend`, where it does). Synthesizing a
+// second click there runs the handler TWICE, and a TOGGLE net-cancels — which is
+// exactly why "Show N more boards" reads as dead (see LEARNINGS.md, "dual-dispatch
+// double-fires and net-cancels TOGGLE actions"). So skip the synthetic click only when
+// the browser is certain to deliver a real one to this element: a `mouseup` whose
+// target is the element itself or a descendant. Touch, dwell, eye-gaze and scanning
+// produce no native click and still get the pass-through.
+//
+// The `contains(event.target)` half is load-bearing for activation_location: 'start',
+// where elem_wrap is reassigned to the MOUSEDOWN element (see element_release): if the
+// press and release landed on different elements the native click goes to their common
+// ancestor and would miss it, so those must still synthesize.
+function passThroughUnresolvedChromeClick(elem_wrap, event) {
+  var dom = elem_wrap && elem_wrap.dom;
+  if(!dom) { return; }
+  var native_click_coming = event && event.type === 'mouseup' && event.target &&
+                            dom.contains && dom.contains(event.target);
+  // Scoped to the co-located BoardCollection panel — the only surface where this
+  // duplication is confirmed. Other chrome keeps its existing behavior.
+  if(native_click_coming && dom.closest && dom.closest('.md-board-collection')) { return; }
+  dispatchPassThroughClick(dom, event.clientX, event.clientY);
+}
+
 // Modals on board-detail (add-to-sidebar, button-settings, etc.): pointer
 // releases must not be swallowed by boardDetailChromeReleaseFromEvent (no
 // data-bd-action on la-modal-close). Re-fire pass-through clicks so classic
@@ -239,6 +269,27 @@ function modalDialogClickRelease(event) {
     '[role="menuitem"]'
   ].join(','));
   if (!el || el.disabled) { return false; }
+
+  // Do NOT synthesize when the browser is already going to deliver a real click
+  // to this same element — a `mouseup` whose target is the element or a
+  // descendant. Otherwise the handler runs TWICE: once for the synthetic click
+  // and once for the native one that follows (preventDefault on a mouseup does
+  // not suppress the subsequent click event).
+  //
+  // Verified in the board-picker preview: one physical click on "Pick this Board"
+  // produced click #1 {isTrusted:false, pass_through:true} then click #2
+  // {isTrusted:true, pass_through:false}, so pick_for_home ran twice, copied the
+  // board twice, and the second POST /boards failed "board key already in use" —
+  // surfacing an error to the user AFTER a copy had already been made.
+  //
+  // Same reasoning (and same shape) as passThroughUnresolvedChromeClick's
+  // `native_click_coming` guard above; that one is scoped to .md-board-collection
+  // because that was the only surface confirmed at the time. Touch, dwell,
+  // eye-gaze and scanning produce no native click and still get the pass-through,
+  // which is what classic {{action}} modal components rely on.
+  var native_click_coming = event.type === 'mouseup' && event.target &&
+                            el.contains && el.contains(event.target);
+  if (native_click_coming) { return false; }
 
   if (event.cancelable) { event.preventDefault(); }
   if (event.stopPropagation) { event.stopPropagation(); }
@@ -1261,8 +1312,36 @@ var buttonTracker = EmberObject.extend({
 
 
     var selectable_wrap = buttonTracker.find_selectable_under_event(event);
+    // A CANCELLED release is not a selection. This handler is bound to
+    // `mouseup touchend touchcancel blur`, and everything below treats whatever
+    // arrives as a completed interaction — so a touch the SYSTEM cancelled (palm
+    // rejection, an incoming call, the browser taking the gesture over for a
+    // scroll) or a window that lost focus mid-press was activating the control
+    // under the finger. Verified on board-detail chrome: touchStart on the
+    // options-menu toggle followed by touchCancel — or by a blur — opened the
+    // menu, exactly as a real tap does. On an AAC device that is an action the
+    // user explicitly did NOT complete.
+    //
+    // Skipping the whole chain (not just the element_release branch) is
+    // deliberate: `boardDetailGridEditActionRelease`, `boardDetailChromeRelease-
+    // FromEvent` and `modalDialogClickRelease` are activation paths too, a
+    // cancelled swipe should not page, and a cancelled DRAG should not complete
+    // its drop. The teardown below this chain — release_stroke / stop_dragging /
+    // initialTarget / clear_touched — runs unconditionally, so cancelling still
+    // cleans up fully; only the activation is dropped.
+    //
+    // Non-pointer input is unaffected: dwell, eye-gaze, scanning and long-press
+    // reach element_release through their own call sites with their own
+    // trigger_source ('switch' / 'expression' / 'longpress' / 'keyboard_control'),
+    // never through this handler.
+    var release_cancelled = (event.type === 'touchcancel' || event.type === 'blur');
     // if dragging a button, behavior is very different than otherwise
-    if(swipe_page) {
+    if(release_cancelled) {
+      // No activation — but an in-progress drag still has to be torn down, or its
+      // clone, the source button's opacity and the `drag` handle all survive the
+      // cancelled gesture. See cancel_drag.
+      buttonTracker.cancel_drag();
+    } else if(swipe_page) {
       buttonTracker.appState.jump_to_next(swipe_page == 'e' || swipe_page == 's');
 
     } else if(buttonTracker.drag) {
@@ -1591,8 +1670,26 @@ var buttonTracker = EmberObject.extend({
           } else if(event_source === 'click' && elem_wrap.dom.closest && elem_wrap.dom.closest('.md-board-collection')) {
             // Co-located BoardCollection: {{on}} + ctrlAction does not receive clicks
             // (see LEARNINGS.md). Must route via boardDetailChromeRelease, not defer.
+            //
+            // The pass-through fallback is REQUIRED, exactly as in the sibling branch
+            // below. boardDetailChromeRelease only resolves controls carrying a
+            // data-bd-action (back, board items) — and those map to board-detail
+            // CONTROLLER actions. Controls whose handler is component-local ("Show N
+            // more boards" → toggle_my_boards_expanded, the search × → clear_search)
+            // have no data-bd-action and legitimately resolve to nothing. Without this
+            // fallback the preventDefault above swallowed their click and they were
+            // simply dead on board-detail. Re-dispatching a pass_through click lets
+            // their own {{on "click"}} run.
+            //
+            // It goes through passThroughUnresolvedChromeClick, NOT dispatchPassThrough-
+            // Click directly: on a mouse release the native click is still coming
+            // (preventDefault on `mouseup` does not cancel it), so an unconditional
+            // synthetic click fired these handlers twice and the "Show N more boards"
+            // TOGGLE net-cancelled.
             event.preventDefault();
-            boardDetailChromeRelease(elem_wrap);
+            if(!boardDetailChromeRelease(elem_wrap)) {
+              passThroughUnresolvedChromeClick(elem_wrap, event);
+            }
           } else if(event_source === 'click' && elem_wrap.dom.closest && elem_wrap.dom.closest('.board-detail-view') && !buttonTracker.board_detail_grid_target(elem_wrap)) {
             if(deferBoardDetailChromeClick) {
               // Mouse: Ember {{on}} (this.ctrlAction) is authoritative after codemod;
@@ -1666,9 +1763,13 @@ var buttonTracker = EmberObject.extend({
           // Mouse in edit mode: Ember {{on}} (this.ctrlAction) is authoritative
           // after the Ember 5 codemod — same as speak-mode chrome defer.
         } else {
+          // Same pass-through fallback as the speak-mode branches. Inside
+          // .md-board-collection it is skipped for mouse releases, where the native
+          // click already reaches the control's own {{on "click"}} — see
+          // passThroughUnresolvedChromeClick.
           event.preventDefault();
           if(!boardDetailChromeRelease(elem_wrap)) {
-            dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
+            passThroughUnresolvedChromeClick(elem_wrap, event);
           }
         }
       } else {
@@ -2905,6 +3006,28 @@ var buttonTracker = EmberObject.extend({
     this.buttonAdjustY = this.initialButtonY - event.pageY;
     this.measureAdjustX = (this.initialButtonX + (width / 2)) - event.pageX;
     this.measureAdjustY = (this.initialButtonY + (height / 2)) - event.pageY;
+  },
+  // Tear down an in-progress drag WITHOUT dropping. Mirrors the cleanup half of the
+  // drag branch in element_release — the over-clone, the source button's opacity, the
+  // drag-source class, the floating clone and the `drag` handle itself — but skips
+  // find_button_under_event/'rearrange', because a touchcancel or blur is an abandoned
+  // gesture, not a placement.
+  //
+  // Without this, a cancelled edit-mode drag left the clone in <body>, the source
+  // button at opacity 0, and `buttonTracker.drag` still set — and a non-null `drag`
+  // makes the `else if(buttonTracker.drag)` branch swallow the NEXT release, so the
+  // user's following tap anywhere on the board completed the stale drop.
+  cancel_drag: function() {
+    if(!buttonTracker.drag) { return; }
+    var overClone = buttonTracker.drag.data('overClone');
+    if(overClone) {
+      $(overClone).remove();
+      buttonTracker.drag.data('overClone', null);
+    }
+    $(buttonTracker.drag.data('elem')).css('opacity', 1.0).show();
+    $('.md-board-detail-grid__cell--drag-source').removeClass('md-board-detail-grid__cell--drag-source');
+    buttonTracker.drag.remove();
+    buttonTracker.drag = null;
   },
   stop_dragging: function() {
     $('.md-board-detail-grid__cell--drag-source').removeClass('md-board-detail-grid__cell--drag-source');

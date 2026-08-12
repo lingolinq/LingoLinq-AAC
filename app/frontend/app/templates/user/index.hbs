@@ -129,124 +129,148 @@
   {{/if}}
   <div class="row big_buttons">
     {{#if this.app_state.currentUser.preferences.new_index}}
-      <div class='col-sm-3 col-xs-6 big_button_holder'>
-        {{!-- External AAC moved to the hero action chip (.md-hero--user__aac). --}}
+      {{!-- Modern account-action row. Uses its OWN self-contained card classes
+           (`md-acct-card*`, styled in app.scss under `.md-acct-actions`) so it is
+           fully DECOUPLED from the dashboard/home `md-card` system — the two can be
+           restyled independently and never share a selector. Every action / link /
+           permission gate below is preserved from the prior Bootstrap big_button row. --}}
+      <div class="md-acct-actions" aria-label={{t "Account actions" key="account_actions"}}>
+        {{!-- Home Board — Liked Boards (starred sync), the set board, or a prompt to
+             pick one. External AAC lives in the hero action chip (.md-hero--user__aac). --}}
         {{#if this.model.preferences.sync_starred_boards}}
-          <div style='position: absolute; z-index: 2; margin: 6px 12px;'><span class='glyphicon glyphicon-home'></span> {{t "Home Board:" key="home_board_colon"}}</div>
-          <a href="#" {{on "click" (this.ctrlAction "load_starred")}} class="btn simple_board_icon btn-default">
-            <img src="/images/star.svg" onerror="button_broken_image(this);">
-            <div class='name' style='font-size: 17px; line-height: 18px;'>
-              <div>
-                {{t "Liked Boards" key="liked_boards"}}
-              </div>
+          <a href="#" {{on "click" (this.ctrlAction "load_starred")}} class="md-acct-card md-acct-card--green" aria-label={{t "Liked Boards" key="liked_boards"}}>
+            <span class="md-acct-card__icon" aria-hidden="true">
+              <svg class="md-acct-card__glyph" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5l2.9 5.9 6.5.95-4.7 4.58 1.1 6.47L12 17.9l-5.8 3.07 1.1-6.47-4.7-4.58 6.5-.95z"/></svg>
+            </span>
+            <span class="md-acct-card__body">
+              <span class="md-acct-card__title">{{t "Liked Boards" key="liked_boards"}} <span class="md-acct-card__arrow" aria-hidden="true">→</span></span>
               {{#if this.model.preferences.home_board.key}}
-                <div style='font-size: 14px;'>{{t "including<br>%{bn}" bn=this.model.preferences.home_board.key key="including_board_name"}}</div>
+                <span class="md-acct-card__sub">{{t "including %{bn}" bn=this.model.preferences.home_board.key key="including_board_name_plain"}}</span>
+              {{else}}
+                <span class="md-acct-card__sub">{{t "Your starred boards" key="your_starred_boards"}}</span>
               {{/if}}
-            </div>
+            </span>
           </a>
         {{else if this.model.preferences.home_board.key}}
-          <div style='position: absolute; z-index: 2; margin: 6px 12px;'><span class='glyphicon glyphicon-home'></span> {{t "Home Board:" key="home_board_colon"}}</div>
-          <BoardIcon @board={{this.home_board_pref}} @localized={{true}} />
+          <LinkTo @route="board" @model={{this.model.preferences.home_board.key}} class="md-acct-card md-acct-card--green" aria-label={{t "Home Board:" key="home_board_colon"}}>
+            <span class="md-acct-card__icon" aria-hidden="true">
+              <svg class="md-acct-card__glyph" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
+            </span>
+            <span class="md-acct-card__body">
+              <span class="md-acct-card__title">{{t "Home Board" key="home_board"}} <span class="md-acct-card__arrow" aria-hidden="true">→</span></span>
+              <span class="md-acct-card__sub">{{this.model.preferences.home_board.key}}</span>
+            </span>
+          </LinkTo>
         {{else}}
-          <!-- TODO: if supervisor, maybe show external-device modal insead of home search (maybe with link to search) -->
-          <LinkTo @route="home-boards" class="btn big_button btn-default">
-            <span class='glyphicon glyphicon-home'></span>
-            {{t "No Home<br/>Board Set" key="no_home_board_set"}}
+          {{!-- TODO: if supervisor, maybe show external-device modal instead of home search --}}
+          <LinkTo @route="home-boards" class="md-acct-card md-acct-card--green" aria-label={{t "No Home Board Set" key="no_home_board_set_plain"}}>
+            <span class="md-acct-card__icon" aria-hidden="true">
+              <svg class="md-acct-card__glyph" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
+            </span>
+            <span class="md-acct-card__body">
+              <span class="md-acct-card__title">{{t "No Home Board Set" key="no_home_board_set_plain"}} <span class="md-acct-card__arrow" aria-hidden="true">→</span></span>
+              <span class="md-acct-card__sub">{{t "Choose a home board" key="choose_home_board"}}</span>
+            </span>
           </LinkTo>
         {{/if}}
-      </div>
-      {{!-- Reports + Goals big buttons removed — the quick pills at the top of
-           this page (.md-user-summary__quick-pill) are the canonical entry points. --}}
-      <div class='col-sm-3 col-xs-6 big_button_holder'>
-        <button class='btn big_button btn-default lesser_button' {{on "click" (this.ctrlAction "supervision_settings")}}>
-          <span class='glyphicon glyphicon-user'></span>
-          {{#if this.model.supporter_role}}
-            {{t "Supervision" key="supervision"}}
-            <div style='font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>{{this.model.supervisee_names}}</div>
-          {{else}}
-            {{t "Supervisors" key="supervisors"}}
-            <div style='font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>{{this.model.supervisor_names}}</div>
-          {{/if}}
+        {{!-- Reports + Goals big buttons removed — the quick pills at the top of
+             this page (.md-user-summary__quick-pill) are the canonical entry points. --}}
+        {{!-- Supervision / Supervisors --}}
+        <button type="button" class="md-acct-card md-acct-card--green" {{on "click" (this.ctrlAction "supervision_settings")}} aria-label={{if this.model.supporter_role (t "Supervision" key="supervision") (t "Supervisors" key="supervisors")}}>
+          <span class="md-acct-card__icon" aria-hidden="true">
+            <svg class="md-acct-card__glyph" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </span>
+          <span class="md-acct-card__body">
+            {{#if this.model.supporter_role}}
+              <span class="md-acct-card__title">{{t "Supervision" key="supervision"}} <span class="md-acct-card__arrow" aria-hidden="true">→</span></span>
+              <span class="md-acct-card__sub">{{t "Manage who you supervise" key="manage_who_you_supervise"}}</span>
+            {{else}}
+              <span class="md-acct-card__title">{{t "Supervisors" key="supervisors"}} <span class="md-acct-card__arrow" aria-hidden="true">→</span></span>
+              <span class="md-acct-card__sub">{{t "Manage who supervises you" key="manage_who_supervises_you"}}</span>
+            {{/if}}
+          </span>
         </button>
-      </div>
-      {{#if this.model.permissions.supervise}}
-        <div class='col-sm-3 col-xs-6 big_button_holder'>
+        {{#if this.model.permissions.supervise}}
+          {{!-- Latest Communication Profile --}}
           {{#if this.app_state.feature_flags.profiles}}
-            <button class='btn big_button btn-default' {{on "click" (this.ctrlAction "profile_preview" this.model)}} style='height: 100px; padding-top: 0;'>
-              <div style='font-size: 14px; margin-top: -3px;'>{{t "Latest Communication Profile:" key="latest_profile"}}</div>
-              <div>
-                <div class={{this.model.profile_class}}>
-                  {{#if this.model.last_profile}}
-                    {{date this.model.last_profile_date "tiny_day"}}
-                  {{else}}
-                    {{t "None" key="none_upper"}}
-                  {{/if}}
-                </div>
-              </div>
-              <div style='font-size: 14px; color: #888; margin-top: -7px;'>
-                {{#if this.model.profile_due.overdue}}
-                  {{t "overdue" key="overdue"}}
-                {{else if this.model.profile_due.soon}}
-                  {{t "due soon" key="due_soon"}}
-                {{else if this.model.profile_due.encouraged}}
-                  {{t "consider updating soon"}}
-                {{/if}}
-              </div>
+            <button type="button" class="md-acct-card" {{on "click" (this.ctrlAction "profile_preview" this.model)}} aria-label={{t "Latest Communication Profile:" key="latest_profile"}}>
+              <span class="md-acct-card__icon" aria-hidden="true">
+                <svg class="md-acct-card__glyph" viewBox="0 0 24 24" fill="none" stroke="#4C86D8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 3.5h6a1 1 0 0 1 1 1v.5a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-.5a1 1 0 0 1 1-1z"/><path d="M8 11h8"/><path d="M8 15h5"/></svg>
+              </span>
+              <span class="md-acct-card__body">
+                <span class="md-acct-card__title">{{t "Communication Profile" key="communication_profile_title"}} <span class="md-acct-card__arrow" aria-hidden="true">→</span></span>
+                <span class="md-acct-card__sub">{{t "Update communication profile" key="update_communication_profile"}}</span>
+              </span>
             </button>
           {{/if}}
-        </div>
-        {{#unless this.model.supporter_role}}
-          {{#if this.model.external_device}}
-            <div class='col-sm-3 col-xs-6 big_button_holder'>
-              <button class='btn big_button btn-default secondary_button' {{on "click" (this.ctrlAction "manual_log")}} style='height: 100px;'>
-                {{t "Manual Log Session" key="manual_log_session"}}
+          {{#unless this.model.supporter_role}}
+            {{#if this.model.external_device}}
+              <button type="button" class="md-acct-card" {{on "click" (this.ctrlAction "manual_log")}} aria-label={{t "Manual Log Session" key="manual_log_session"}}>
+                <span class="md-acct-card__icon" aria-hidden="true">
+                  <svg class="md-acct-card__glyph" viewBox="0 0 24 24" fill="none" stroke="#4C86D8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
+                </span>
+                <span class="md-acct-card__body">
+                  <span class="md-acct-card__title">{{t "Manual Log Session" key="manual_log_session"}} <span class="md-acct-card__arrow" aria-hidden="true">→</span></span>
+                  <span class="md-acct-card__sub">{{t "Record a session by hand" key="manual_log_sub"}}</span>
+                </span>
               </button>
-            </div>
-            <div class='col-sm-3 col-xs-6 big_button_holder'>
-              <button class='btn big_button btn-default alternate_button' {{on "click" (this.ctrlAction "recordNote" "text")}} style='height: 100px;'>
-                {{t "New Note" key="new_note"}}
+              <button type="button" class="md-acct-card md-acct-card--green" {{on "click" (this.ctrlAction "recordNote" "text")}} aria-label={{t "New Note" key="new_note"}}>
+                <span class="md-acct-card__icon" aria-hidden="true">
+                  <svg class="md-acct-card__glyph" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+                </span>
+                <span class="md-acct-card__body">
+                  <span class="md-acct-card__title">{{t "New Note" key="new_note"}} <span class="md-acct-card__arrow" aria-hidden="true">→</span></span>
+                  <span class="md-acct-card__sub">{{t "Add a text note" key="new_note_sub"}}</span>
+                </span>
               </button>
-            </div>
-          {{else}}
-            <div class='col-sm-6 col-xs-6'></div>
-          {{/if}}
-          {{#if this.model.managing_org}}
-            {{#if this.model.permissions.edit}}
-              {{#unless this.model.permissions.delete}}
-                {{#if this.external_device_or_no_home}}
-                  <div class='col-sm-3 col-xs-6 big_button_holder'>
-                    <button class='btn big_button btn-default lesser_button' {{on "click" (this.ctrlAction "external_device")}} style='height: 100px;'>
-                      {{t "Update Device"}}
-                    </button>
-                  </div>
-                {{/if}}
-              {{/unless}}
             {{/if}}
-          {{/if}}
-        {{/unless}}
+            {{#if this.model.managing_org}}
+              {{#if this.model.permissions.edit}}
+                {{#unless this.model.permissions.delete}}
+                  {{#if this.external_device_or_no_home}}
+                    <button type="button" class="md-acct-card" {{on "click" (this.ctrlAction "external_device")}} aria-label={{t "Update Device"}}>
+                      <span class="md-acct-card__icon" aria-hidden="true">
+                        <svg class="md-acct-card__glyph" viewBox="0 0 24 24" fill="none" stroke="#4C86D8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>
+                      </span>
+                      <span class="md-acct-card__body">
+                        <span class="md-acct-card__title">{{t "Update Device"}} <span class="md-acct-card__arrow" aria-hidden="true">→</span></span>
+                        <span class="md-acct-card__sub">{{t "Set the AAC device" key="update_device_sub"}}</span>
+                      </span>
+                    </button>
+                  {{/if}}
+                {{/unless}}
+              {{/if}}
+            {{/if}}
+          {{/unless}}
 
-        {{#unless this.app_state.currentUser.modeling_only}}
-          <div class='col-sm-3 col-xs-6' style='float: right; text-align: right; margin-top: -5px; margin-bottom: -10px;'>
-            <div class="btn-group">
-              <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style='border-width: 3px; background: #eee;'>
-                <img src='https://d18vdu4p71yql0.cloudfront.net/libraries/noun-project/extra_455_g.svg' style='height: 30px;'>
-                {{t "Extras" key="extras"}} <span class="caret"></span>
+          {{#unless this.app_state.currentUser.modeling_only}}
+            {{!-- Extras — the whole card is the dropdown toggle; the menu is a sibling
+                 so the card's overflow does not clip it. --}}
+            <div class="btn-group md-acct-extras" role="presentation">
+              <button type="button" class="md-acct-card dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" aria-label={{t "Extras" key="extras"}}>
+                <span class="md-acct-card__icon" aria-hidden="true">
+                  <svg class="md-acct-card__glyph" viewBox="0 0 24 24" fill="none" stroke="#4C86D8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+                </span>
+                <span class="md-acct-card__body">
+                  <span class="md-acct-card__title">{{t "Extras" key="extras"}} <span class="md-acct-card__arrow" aria-hidden="true">→</span></span>
+                  <span class="md-acct-card__sub">{{t "More tools & actions" key="extras_menu_sub"}}</span>
+                </span>
               </button>
               <ul class="dropdown-menu" style='right: 0; left: auto;'>
-                <li><a href="#" {{on "click" (this.ctrlAction "recordNote" "text")}}>New Note</a></li>
-                <li><a href="#" {{on "click" (this.ctrlAction "quick_assessment")}}>Quick Assessment</a></li>
-                <li><a href="#" {{on "click" (this.ctrlAction "run_eval")}}>Run Evaluation</a></li>
+                <li><a href="#" {{on "click" (this.ctrlAction "recordNote" "text")}}>{{t "New Note" key="new_note"}}</a></li>
+                <li><a href="#" {{on "click" (this.ctrlAction "quick_assessment")}}>{{t "Quick Assessment" key="quick_assessment"}}</a></li>
+                <li><a href="#" {{on "click" (this.ctrlAction "run_eval")}}>{{t "Run Evaluation" key="run_evaluation"}}</a></li>
                 {{#if this.model.preferences.remote_modeling}}
                   {{#unless this.model.supporter_role}}
                     <li><a href="#" {{on "click" (this.ctrlAction "remote_model")}}>{{t "Remote Modeling" key="remote_modeling"}}</a></li>
                   {{/unless}}
                 {{/if}}
-                <li><a href="#" {{on "click" (this.ctrlAction "view_devices")}}>My Devices</a></li>
+                <li><a href="#" {{on "click" (this.ctrlAction "view_devices")}}>{{t "My Devices" key="my_devices"}}</a></li>
                 {{#if this.model.subscription.eval_expires}}
-                  <li><a href="#" {{on "click" (this.ctrlAction "eval_settings")}}>Eval Status</a></li>
+                  <li><a href="#" {{on "click" (this.ctrlAction "eval_settings")}}>{{t "Eval Status" key="eval_status"}}</a></li>
                 {{/if}}
                 {{#if this.model.permissions.edit}}
-                  <!-- allow supervisors to run setup for a supervisee -->
+                  {{!-- allow supervisors to run setup for a supervisee --}}
                   <li><a href="#" {{on "click" (this.ctrlAction "setup")}}>{{t "Getting Started Wizard" key="getting_started_wizard"}}</a></li>
                 {{/if}}
                 {{#if this.model.permissions.support_actions}}
@@ -254,9 +278,9 @@
                 {{/if}}
               </ul>
             </div>
-          </div>
-        {{/unless}}
-      {{/if}}
+          {{/unless}}
+        {{/if}}
+      </div>
     {{else}}
       <div class="ub-boards-page__stats-row md-user-summary__stats-row md-user-summary__stats-row--boards">
         <div class="ub-boards-page__stat-card">

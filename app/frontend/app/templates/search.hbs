@@ -65,6 +65,9 @@
           <img class="ub-find-board__preview-icon" src={{this.preview_board.icon_url_with_fallback}} alt="" />
           <div class="ub-find-board__preview-titles">
             <h2 class="ub-find-board__preview-name">{{this.preview_board.name}}</h2>
+            {{#if (board-attribution-owner this.preview_board)}}
+              <p class="ub-find-board__preview-owner">{{t "by" key="by"}} {{board-attribution-owner this.preview_board}}</p>
+            {{/if}}
             {{#if this.preview_board.grid.rows}}
               <span class="ub-find-board__preview-grid-size">{{this.preview_board.grid.rows}} x {{this.preview_board.grid.columns}}</span>
             {{/if}}
@@ -118,7 +121,7 @@
                   <li class="md-board-collection__row">
                     <button type="button" class="md-board-collection__item {{if (is_equal board.key this.preview_board.key) 'md-board-collection__item--selected'}}" {{on "click" (this.ctrlAction "select_preview_board" board)}}>
                       <img class="md-board-collection__item-icon" src={{board.icon_url_with_fallback}} alt="" />
-                      <span class="md-board-collection__item-name">{{board.name}}</span>
+                      <BoardListItemLabel @board={{board}} @name={{board.name}} />
                       {{#if (board-language-label board)}}<span class="md-board-collection__item-lang">{{board-language-label board}}</span>{{/if}}
                       {{#if board.grid.rows}}<span class="md-board-collection__item-count md-board-collection__item-count--grid" aria-label={{t "%{rows} by %{columns} grid" rows=board.grid.rows columns=board.grid.columns key="board_collection_grid_size"}}>{{board.grid.rows}} x {{board.grid.columns}}</span>{{/if}}
                     </button>
@@ -143,7 +146,7 @@
                   <li class="md-board-collection__row">
                     <button type="button" class="md-board-collection__item {{if (is_equal board.key this.preview_board.key) 'md-board-collection__item--selected'}}" {{on "click" (this.ctrlAction "select_preview_board" board)}}>
                       <img class="md-board-collection__item-icon" src={{board.icon_url_with_fallback}} alt="" />
-                      <span class="md-board-collection__item-name">{{board.name}}</span>
+                      <BoardListItemLabel @board={{board}} @name={{board.name}} />
                       {{#if (board-language-label board)}}<span class="md-board-collection__item-lang">{{board-language-label board}}</span>{{/if}}
                       {{#if board.grid.rows}}<span class="md-board-collection__item-count md-board-collection__item-count--grid" aria-label={{t "%{rows} by %{columns} grid" rows=board.grid.rows columns=board.grid.columns key="board_collection_grid_size"}}>{{board.grid.rows}} x {{board.grid.columns}}</span>{{/if}}
                     </button>

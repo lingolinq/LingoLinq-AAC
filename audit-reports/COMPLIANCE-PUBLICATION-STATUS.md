@@ -159,16 +159,16 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 | `executed-agreement` | term + 7 years | archive | 6 | draft |
 | `corporate-permanent` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `grant-record` | award + 7 years | archive | 0 | unused (no record of this class exists yet) |
-| `policy-version` | supersession + 7 years | archive | 33 | draft |
+| `policy-version` | supersession + 7 years | archive | 37 | draft |
 | `audit-evidence` | 7 years | archive | 17 | draft |
 | `attestation-record` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `dsar-case` | 3 years | delete | 0 | unused (no record of this class exists yet) |
 | `questionnaire-response` | 3 years | delete | 0 | unused (no record of this class exists yet) |
 | `superseded-draft` | 1 year | delete | 0 | unused (no record of this class exists yet) |
-| `working-note` | 90 days | delete | 0 | unused (no record of this class exists yet) |
+| `working-note` | 90 days | delete | 1 | draft |
 | `operational-config` | retain while in use; supersession + 1 year | archive | 14 | draft |
 
-All 70 rows carry a retention block.
+All 75 rows carry a retention block.
 
 No retention rule has been approved. Nothing in this register is eligible for disposition.
 
@@ -217,7 +217,11 @@ A superseded record is never edited, renamed, or moved. It keeps its row and its
 
 | Superseded | Location | Replaced by | Still bundled in |
 |---|---|---|---|
+| Compliance Posture Report | `docs/legal/COMPLIANCE_POSTURE_REPORT.md` | Compliance Posture Report (2026-08-09 draft) | (none) |
 | Compliance Posture Report (branded) | [open](https://docs.google.com/document/d/1A2cM0m6GvErHwpiMgns258NbN_M2krNB_HyedHJkqpk/edit) | Compliance Posture Report (branded, 2026-07-16 re-attest) | compliance-records-set-2026-06 |
+| Compliance Program | `docs/legal/COMPLIANCE_PROGRAM.md` | Compliance Program (2026-08-09 draft) | compliance-records-set-2026-06 |
+| Data Retention Schedule | `docs/legal/DATA_RETENTION.md` | Data Retention Schedule (2026-08-09 draft) | (none) |
+| LingoLinq Security, Privacy & Compliance Overview | `docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md` | LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft) | (none) |
 
 ## Bundle Gaps
 
@@ -270,4 +274,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_70 documents tracked. 52 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 1 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
+_75 documents tracked. 52 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 5 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._

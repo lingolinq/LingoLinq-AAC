@@ -1,4 +1,4 @@
-<div class="md-shell md-shell--board-detail {{if this.edit_mode 'md-shell--board-detail-edit'}} {{if this.board_collapsed 'md-shell--board-collapsed'}} {{if this.paint_mode 'md-shell--board-paint'}} {{if this.dark_mode 'md-board-detail--dark'}} {{if this.model.integration 'md-shell--board-detail-integration'}} {{if this.model.public 'md-shell--board-public'}} {{if this.portrait_overlay_active 'md-shell--portrait-locked'}} {{if this.immersive_tools 'md-shell--immersive-tools'}} {{if this.board_collection_open 'md-shell--board-collection'}} {{this.word_suggestion_position_class}}">
+<div class="md-shell md-shell--board-detail {{if this.edit_mode 'md-shell--board-detail-edit'}} {{if this.board_collapsed 'md-shell--board-collapsed'}} {{if this.paint_mode 'md-shell--board-paint'}} {{if this.dark_mode 'md-board-detail--dark'}} {{if this.model.integration 'md-shell--board-detail-integration'}} {{if this.model.public 'md-shell--board-public'}} {{if this.portrait_overlay_active 'md-shell--portrait-locked'}} {{if this.immersive_tools 'md-shell--immersive-tools'}} {{if this.board_collection_open 'md-shell--board-collection'}} {{if this.edit_board_collection_open 'md-shell--board-collection-left'}} {{if this.board_many_columns 'md-shell--many-columns'}} {{if this.board_buttons_narrow 'md-shell--buttons-narrow'}} {{this.word_suggestion_position_class}}">
   {{!-- Landscape-orientation overlay (feature: portrait_orientation_overlay).
        At ≤640px with >8 button columns, the board behind is dimmed +
        blurred + frozen (see .md-shell--portrait-locked) and this premium
@@ -9,41 +9,18 @@
       <div class="md-board-detail-portrait-overlay__card">
         <span class="md-board-detail-portrait-overlay__accent" aria-hidden="true"></span>
         <div class="md-board-detail-portrait-overlay__phone" aria-hidden="true">
-          {{!-- Clean clockwise quarter-arc (12→3 o'clock, centred on the
-               phone) tracing where the top edge travels as it rotates
-               portrait → landscape; arrowhead points down at the 3-o'clock
-               end (the clockwise direction of travel). --}}
-          <svg class="md-board-detail-portrait-overlay__phone-arc" width="76" height="76" viewBox="0 0 76 76" fill="none" aria-hidden="true">
-            <defs>
-              <linearGradient id="md-rot-grad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="#5ED0C0"/>
-                <stop offset="100%" stop-color="#1C7E72"/>
-              </linearGradient>
-              <filter id="md-rot-shadow" x="-60%" y="-60%" width="220%" height="220%">
-                <feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="#2A9D8F" flood-opacity="0.5"/>
-              </filter>
-            </defs>
-            <g filter="url(#md-rot-shadow)" fill="none" stroke-linecap="round" stroke-linejoin="round">
-              {{!-- Faint static track gives the sweep a path to ride. The
-                   curve bows outward over the top-right corner then
-                   descends down the right side, well clear of the phone
-                   in BOTH portrait and (widest) landscape footprints. --}}
-              <path class="md-board-detail-portrait-overlay__arc-track" d="M34 14 C62 8 75 34 65 48" stroke="currentColor" stroke-width="3" stroke-opacity="0.20"/>
-              {{!-- Bright gradient "comet" segment that sweeps along the arc. --}}
-              <path class="md-board-detail-portrait-overlay__arc-comet" d="M34 14 C62 8 75 34 65 48" pathLength="100" stroke="url(#md-rot-grad)" stroke-width="3.5"/>
-              {{!-- Arrowhead pops in at the descending tip as the sweep lands. --}}
-              <polyline class="md-board-detail-portrait-overlay__arc-head" points="59 42 65 48 71 42" stroke="url(#md-rot-grad)" stroke-width="3.5"/>
-            </g>
-          </svg>
-          <svg class="md-board-detail-portrait-overlay__phone-svg" width="76" height="76" viewBox="0 0 76 76" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="30" y="24" width="16" height="28" rx="4.5"/>
-            <line x1="35" y1="47" x2="41" y2="47"/>
+          {{!-- Larger-screen icon: a monitor (bigger display) on a stand. Replaces the former
+               rotate-to-landscape animation now that the recommendation is about DEVICE SIZE,
+               not orientation. --}}
+          <svg class="md-board-detail-portrait-overlay__phone-svg" width="76" height="76" viewBox="0 0 76 76" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="12" y="16" width="52" height="34" rx="4.5"/>
+            <line x1="29" y1="59" x2="47" y2="59"/>
+            <line x1="38" y1="50" x2="38" y2="59"/>
           </svg>
         </div>
-        <h2 class="md-board-detail-portrait-overlay__title" id="md-portrait-overlay-title">{{t "Landscape mode recommended" key="board_detail_landscape_recommended"}}</h2>
-        <p class="md-board-detail-portrait-overlay__desc" id="md-portrait-overlay-desc">{{t "This communication board is optimized for landscape viewing to preserve consistent button locations and AAC motor planning." key="board_detail_landscape_explanation"}}</p>
+        <h2 class="md-board-detail-portrait-overlay__title" id="md-portrait-overlay-title">{{t "Larger screen recommended" key="board_detail_larger_screen_recommended"}}</h2>
+        <p class="md-board-detail-portrait-overlay__desc" id="md-portrait-overlay-desc">{{t "Boards this size are easier to view and edit on a larger screen. Consider switching to a larger device." key="board_detail_larger_screen_explanation"}}</p>
         <div class="md-board-detail-portrait-overlay__actions">
-          <button type="button" class="md-board-detail-portrait-overlay__btn md-board-detail-portrait-overlay__btn--primary" data-bd-action="request_landscape" {{on "click" (this.ctrlAction "request_landscape")}}>{{t "Rotate Device" key="board_detail_rotate_device"}}</button>
           <button type="button" class="md-board-detail-portrait-overlay__btn md-board-detail-portrait-overlay__btn--secondary" data-bd-action="dismiss_portrait_overlay" {{on "click" (this.ctrlAction "dismiss_portrait_overlay")}}>{{t "Continue Anyway" key="board_detail_continue_anyway"}}</button>
         </div>
       </div>
@@ -176,6 +153,21 @@
 
         <div class="md-board-edit-panel__divider" role="presentation"></div>
 
+        {{!-- Board Collections — opens the inline BoardCollection drawer from the
+             LEFT (the edit rail hides and the drawer takes its place; the center
+             shifts right). Selecting a board loads it into the center in edit mode.
+             Mirrors the speak-mode My Board Collection drawer. --}}
+        <button type="button"
+          class="md-board-edit-panel__row md-board-edit-panel__row--collection"
+          data-tooltip={{t "Board Collections" key="board_collections"}}
+          data-bd-action="open_edit_board_collection" {{on "click" (this.ctrlAction "open_edit_board_collection")}}>
+          <svg class="md-board-edit-panel__icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+            <path fill-rule="evenodd" d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" clip-rule="evenodd"/>
+          </svg>
+          <span class="md-board-edit-panel__label">{{t "Board Collections" key="board_collections"}}</span>
+          <span class="md-board-edit-panel__label-collapsed">{{t "Boards" key="board_collections_short"}}</span>
+        </button>
+
         {{!-- TOP CLUSTER — single Back-to-Boards button. Triggers the
              confirm-leave-edit modal (Save & Continue / Discard / Keep
              Editing) instead of navigating directly, so the user is
@@ -212,11 +204,11 @@
             </svg>
             <span class="md-board-edit-panel__filter-text">
               <span class="md-board-edit-panel__label">{{t "Board Actions" key="board_actions_caps"}}</span>
-              {{!-- Collapsed-rail short form. Was originally "Actions"
-                   (duplicated the top-of-rail header label and was
-                   removed); replaced with "Boards" per request so
-                   the gear icon has a distinct one-word caption. --}}
-              <span class="md-board-edit-panel__label-collapsed">{{t "Boards" key="boards"}}</span>
+              {{!-- Collapsed-rail short form: "Actions". (Was briefly "Boards", but
+                   the new Board Collections rail item above now owns the "Boards"
+                   caption, so the gear reverts to "Actions" to avoid two "BOARDS"
+                   captions in the collapsed rail.) --}}
+              <span class="md-board-edit-panel__label-collapsed">{{t "Actions" key="actions_collapsed_short"}}</span>
             </span>
             <svg class="md-board-edit-panel__filter-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <polyline points="6 9 12 15 18 9"/>
@@ -315,7 +307,7 @@
                update_board_search + clear_board_search (the same state
                the toolbar's existing search input writes to), so the
                grid filter "just works" with no controller changes. --}}
-          <div class="md-board-edit-panel__search">
+          <div class="md-board-edit-panel__search" role="search" {{on "click" (this.ctrlAction "open_board_search_panel")}}>
             {{!-- Two-tone: verdigris lens, charcoal handle. --}}
             <svg class="md-board-edit-panel__search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="11" cy="11" r="8" stroke="#2A9D8F"/>
@@ -461,32 +453,6 @@
           </div>
         </div>
 
-        {{!-- Classic-view shortcut row — duplicates the action of the
-             View Style segmented toggle below (go_to_classic) but
-             surfaces it as a rail icon that's reachable even when
-             the panel is collapsed (the __bottom block where View
-             Style/Display normally live is display:none in the
-             collapsed rail). Short "Classic" label so the
-             collapsed-rail 8px caption is one word. --}}
-        <button type="button"
-          class="md-board-edit-panel__row md-board-edit-panel__row--classic"
-          data-tooltip={{t "Switch to Classic View" key="board_detail_switch_to_classic"}}
-          data-bd-action="go_to_classic" {{on "click" (this.ctrlAction "go_to_classic")}}>
-          {{!-- Board grid icon — 3×3 cell grid mirrors the classic-
-               view AAC board layout. Two-tone: charcoal corner cells
-               + verdigris center cell so the center "pops" the way
-               the right-panel section icons do. --}}
-          <svg class="md-board-edit-panel__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="3" y="3" width="6" height="6" rx="1" stroke="currentColor"/>
-            <rect x="3" y="15" width="6" height="6" rx="1" stroke="currentColor"/>
-            <rect x="15" y="3" width="6" height="6" rx="1" stroke="currentColor"/>
-            <rect x="15" y="15" width="6" height="6" rx="1" stroke="currentColor"/>
-            <rect x="9" y="9" width="6" height="6" rx="1" stroke="#2A9D8F"/>
-          </svg>
-          <span class="md-board-edit-panel__label">{{t "Classic View" key="board_view_classic_long"}}</span>
-          <span class="md-board-edit-panel__label-collapsed">{{t "Classic" key="board_view_classic_short"}}</span>
-        </button>
-
         {{!-- Collapsed-rail Light/Dark toggle — uses the IDENTICAL
              `new-board-mockup-toggle` markup + classes from the
              create-board-new preview (see
@@ -563,46 +529,37 @@
 
         </div>
 
-        {{!-- Finish-editing actions mirrored at the BOTTOM of the left panel, stacked
-             and more compact than the top session bar. Same classes + actions
-             (back_to_boards / cancel_edit), so they behave identically. --}}
-        <div class="md-board-edit-panel__finish">
-          <button type="button"
-            class="md-board-edit-session__btn md-board-edit-session__btn--save md-board-edit-panel__finish-btn"
-            disabled={{this.board_saving}}
-            data-bd-action="back_to_boards" {{on "click" (this.ctrlAction "back_to_boards")}}>
-            <span class="md-board-edit-session__btn-badge" aria-hidden="true">
-              <svg class="md-board-edit-session__btn-icon" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5" stroke="#cdd6e3"/><path d="M10 17.5 19 7" stroke="#8fe4df"/></svg>
-            </span>
-            <span class="md-board-edit-session__btn-label">{{t "Save" key="board_detail_save"}}</span>
-          </button>
-          <button type="button"
-            class="md-board-edit-session__btn md-board-edit-session__btn--discard md-board-edit-panel__finish-btn"
-            disabled={{this.board_saving}}
-            data-bd-action="cancel_edit" {{on "click" (this.ctrlAction "cancel_edit")}}>
-            <span class="md-board-edit-session__btn-badge" aria-hidden="true">
-              <svg class="md-board-edit-session__btn-icon" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="9" fill="#6b7888"/>
-                <path d="M15 9 9 15" stroke="#b9e8e0" stroke-width="2" stroke-linecap="round"/>
-                <path d="M9 9l6 6" stroke="#b9e8e0" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-            </span>
-            <span class="md-board-edit-session__btn-label">{{t "Cancel" key="cancel"}}</span>
-          </button>
-        </div>
-
       </aside>
     {{/if}}
 
     {{!-- Main Content Area --}}
     <main class="md-board-detail-main">
       {{#if this.model.error}}
-        <div class="md-board-detail-error">
+        <div class="md-board-detail-error" role="alert">
           <p class="md-board-detail-error__message">{{this.error_message}}</p>
           {{#if this.retrying}}
             <p class="md-board-detail-error__retrying">{{t "Trying again..." key="trying_again"}}</p>
           {{else}}
-            <button type="button" class="btn btn-default btn-lg md-board-detail-error__retry" data-bd-action="re_transition" {{on "click" (this.ctrlAction "re_transition")}}>
+            {{!-- Broken links rarely recover with retry. Offer Home / Back
+                 for everyone; supervisors also get Exit Speak Mode. --}}
+            <div class="md-board-detail-error__actions">
+              {{#if this.error_show_home}}
+                <button type="button" class="btn btn-primary btn-lg md-board-detail-error__action md-board-detail-error__action--primary" data-bd-action="go_home" {{on "click" (this.ctrlAction "go_home")}}>
+                  {{t "Go to Home Board" key="error_go_to_home_board"}}
+                </button>
+              {{/if}}
+              {{#if this.show_board_back_nav}}
+                <button type="button" class="btn btn-default btn-lg md-board-detail-error__action" data-bd-action="go_back" {{on "click" (this.ctrlAction "go_back")}}>
+                  {{t "Go Back" key="error_go_back"}}
+                </button>
+              {{/if}}
+              {{#if this.error_show_exit_speak}}
+                <button type="button" class="btn btn-default btn-lg md-board-detail-error__action" data-bd-action="exit_speak_mode" {{on "click" (this.ctrlAction "exit_speak_mode")}}>
+                  {{t "Exit Speak Mode" key="exit_speak_mode"}}
+                </button>
+              {{/if}}
+            </div>
+            <button type="button" class="md-board-detail-error__retry-link" data-bd-action="re_transition" {{on "click" (this.ctrlAction "re_transition")}}>
               {{t "Try Again" key="try_again"}}
             </button>
           {{/if}}
@@ -943,23 +900,6 @@
                 </div>
               {{/if}}
 
-              {{!-- Take a tour — the ONLY entry point for the speak-mode guided
-                   tour (no on-screen button; the runner host above is hidden).
-                   Triggers controllers/user/board-detail#start_speak_tour. Behind
-                   the home_tour flag, matching the runner host. --}}
-              {{#if this.app_state.feature_flags.home_tour}}
-                <div class="md-board-detail-actions-menu__section">
-                  <button type="button" class="md-board-detail-actions-menu__item" {{on "click" (this.ctrlAction "start_speak_tour")}}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
-                      <line x1="8" y1="2" x2="8" y2="18"/>
-                      <line x1="16" y1="6" x2="16" y2="22"/>
-                    </svg>
-                    <span>{{t "Take a tour" key="home_tour_trigger_label"}}</span>
-                  </button>
-                </div>
-              {{/if}}
-
               {{!-- Board Section — flattened to a single row that
                    opens the inline My Board Collection panel. The
                    prior expandable Board → (My Boards / Find Boards)
@@ -1179,7 +1119,15 @@
                       {{/if}}
                       {{/unless}}
                       {{#unless this.app_state.superProtectedSpeakMode}}
-                        {{#unless (get this.speak_menu_hidden_set "sticky_board")}}
+                        {{!-- Board lock. MUST stay reachable here: board-detail ENFORCES
+                              stashes.sticky_board on both folder navigation and back
+                              navigation (board-detail.js toggle_board / activate_button),
+                              warning "Board lock is enabled, disable to leave this board."
+                              sticky_board is a PERSISTED stash and can be switched on from
+                              the classic speak menu, so without this control a user could
+                              arrive here locked, be told to disable it, and have nothing to
+                              disable it with. --}}
+                        {{#if this.board_lock_control_visible}}
                         {{#if this.stashes.sticky_board}}
                           <button type="button" class="md-board-detail-actions-menu__item" aria-pressed="true" data-bd-action="toggle_sticky_board" {{on "click" (this.ctrlAction "toggle_sticky_board")}}>
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1195,7 +1143,7 @@
                             <span>{{t "Stay on this Board" key="stay_on_board"}}</span>
                           </button>
                         {{/if}}
-                        {{/unless}}
+                        {{/if}}
                         {{#unless (get this.speak_menu_hidden_set "pause_logging")}}
                         {{#if this.app_state.currentUser.preferences.logging}}
                           <button type="button" class="md-board-detail-actions-menu__item" aria-pressed={{if this.app_state.logging_paused "true" "false"}} data-bd-action="toggle_pause_logging" {{on "click" (this.ctrlAction "toggle_pause_logging")}}>
@@ -1249,52 +1197,60 @@
               </div>
               {{/if}}
 
-              {{!-- Language (expandable) — collapses the Translate and
-                   Switch Language items under one section header.
-                   Translate generates new translations for the board;
-                   Switch Language swaps the active text + speech locale
-                   between languages the board already has translations
-                   for. Grouped under one "Language" header so the menu
-                   reads as: …Share & Print | Session | Language | Exit.
-                   Whole section hides when both children are hidden
-                   via Customize Menu. --}}
-              {{#if this.speak_section_visible_language}}
+              {{!-- Translate Section — language tools, below Session per the menu order
+                   (…Share & Print → Session → Translate → Exit). Both actions live on the
+                   controller: translate_board opens the translation-select modal, switch_languages
+                   opens the switch-languages modal (see board-detail.js). The submenu toggles on
+                   language_submenu_open (toggle_language_submenu). Reuses the shared section-toggle
+                   / submenu classes; dispatched in speak mode via the generic data-bd-action path
+                   in raw_events. Hidden on communicator-only accounts (a setup tool). --}}
+              {{#unless this.is_communicator_only_account}}
               <div class="md-board-detail-actions-menu__section">
                 <button type="button" class="md-board-detail-actions-menu__item md-board-detail-actions-menu__item--has-sub md-board-detail-actions-menu__section-toggle" aria-expanded={{if this.language_submenu_open "true" "false"}} data-bd-action="toggle_language_submenu" {{on "click" (this.ctrlAction "toggle_language_submenu")}}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="2" y1="12" x2="22" y2="12"/>
-                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                    <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                   </svg>
-                  <span>{{t "Language" key="language"}}</span>
+                  <span>{{t "Translate" key="translate"}}</span>
                   <svg class="md-board-detail-actions-menu__chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
                 {{#if this.language_submenu_open}}
                   <div class="md-board-detail-actions-menu__submenu">
-                    {{#unless (get this.speak_menu_hidden_set "translate")}}
-                      <button type="button" class="md-board-detail-actions-menu__item" data-bd-action="translate_board" {{on "click" (this.ctrlAction "translate_board")}} disabled={{this.board_translate_in_progress}} aria-disabled={{this.board_translate_in_progress}}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <circle cx="12" cy="12" r="10"/>
-                          <line x1="2" y1="12" x2="22" y2="12"/>
-                          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-                        </svg>
-                        <span>{{t "Translate" key="translate"}}</span>
-                      </button>
-                    {{/unless}}
-                    {{#unless (get this.speak_menu_hidden_set "switch_language")}}
-                      <button type="button" class="md-board-detail-actions-menu__item" data-bd-action="switch_languages" {{on "click" (this.ctrlAction "switch_languages")}}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <polyline points="17 1 21 5 17 9"/>
-                          <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
-                          <polyline points="7 23 3 19 7 15"/>
-                          <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
-                        </svg>
-                        <span>{{t "Switch Language" key="switch_language"}}</span>
-                      </button>
-                    {{/unless}}
+                    <button type="button" class="md-board-detail-actions-menu__item" data-bd-action="translate_board" {{on "click" (this.ctrlAction "translate_board")}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>
+                      </svg>
+                      <span>{{t "Translate Boards" key="translate_boards"}}</span>
+                    </button>
+                    <button type="button" class="md-board-detail-actions-menu__item" data-bd-action="switch_languages" {{on "click" (this.ctrlAction "switch_languages")}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+                      </svg>
+                      <span>{{t "Switch Languages" key="switch_languages"}}</span>
+                    </button>
                   </div>
                 {{/if}}
               </div>
+              {{/unless}}
+
+              {{!-- Take a tour — moved to the bottom (just above Exit). The ONLY
+                   entry point for the speak-mode guided tour (the runner host near
+                   the top of the page is hidden). Triggers
+                   controllers/user/board-detail#start_speak_tour. Behind the
+                   home_tour flag; hidden on a communicator-only account
+                   (is_communicator_only_account), matching the Session section. --}}
+              {{#if this.app_state.feature_flags.home_tour}}
+                {{#unless this.is_communicator_only_account}}
+                <div class="md-board-detail-actions-menu__section">
+                  <button type="button" class="md-board-detail-actions-menu__item" {{on "click" (this.ctrlAction "start_speak_tour")}}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+                      <line x1="8" y1="2" x2="8" y2="18"/>
+                      <line x1="16" y1="6" x2="16" y2="22"/>
+                    </svg>
+                    <span>{{t "Take a tour" key="home_tour_trigger_label"}}</span>
+                  </button>
+                </div>
+                {{/unless}}
               {{/if}}
 
               <div class="md-board-detail-actions-menu__section">
@@ -1403,20 +1359,44 @@
                       <img src={{this.board_image_url}} alt={{t "Board icon" key="board_detail_board_icon_alt"}} class="md-board-edit-session__board-icon">
                     {{/if}}
                     <span class="md-board-edit-session__state-label md-board-edit-session__board-title" role="status">{{this.title}}</span>
+                    {{!-- Rename affordance — opens the existing Edit Board Details
+                         modal (name, description, icon, license, language,
+                         visibility) straight from the title, instead of the
+                         Board Actions → Edit Board Details → modal detour.
+                         Same action the Board Actions row ultimately reaches
+                         (edit_board_details). Carries data-bd-action so touch,
+                         dwell and eye-gaze releases route through raw_events
+                         like the rest of the board-detail chrome. --}}
+                    <button type="button" class="md-board-edit-session__title-edit" data-bd-action="edit_board_details" {{on "click" (this.ctrlAction "edit_board_details")}} aria-label={{t "Edit Board Details" key="edit_board_details"}} title={{t "Edit Board Details" key="edit_board_details"}}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#46505F"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="#2A9D8F"/>
+                      </svg>
+                    </button>
                     {{#if this.is_copy_on_save}}
                       <span class="md-board-edit-session__badge md-board-edit-session__badge--copying">{{t "Creating a Copy of This Board" key="board_detail_creating_copy_badge"}}</span>
                     {{/if}}
                   </div>
-                  {{!-- Top-center "Editing" status badge — styled like the Take-a-tour
-                       glass pill but non-interactive (a status indicator, not a button).
-                       Absolutely centered in the sticky session bar = top-center of the
-                       edit page. --}}
-                  <span class="md-board-detail-edit-pill" role="status" aria-label={{t "Editing" key="board_detail_editing"}}>
-                    <svg class="md-board-detail-edit-pill__icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#46505F"/>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="#2A9D8F"/>
-                    </svg>
-                    <span class="md-board-detail-edit-pill__label">{{t "Editing" key="board_detail_editing"}}</span>
+                  {{!-- Top-center status badge — styled like the Take-a-tour glass pill
+                       but non-interactive (a status indicator, not a button). Absolutely
+                       centered in the sticky session bar = top-center of the edit page.
+                       Reads "Editing" (pencil) normally, but flips to "Previewing" (eye)
+                       while the Board Collections drawer is open, since the center is
+                       showing a browsed board rather than the one being edited. --}}
+                  <span class="md-board-detail-edit-pill" role="status" aria-label={{if this.edit_board_collection_open (t "Previewing" key="board_detail_previewing") (t "Editing" key="board_detail_editing")}}>
+                    {{#if this.edit_board_collection_open}}
+                      <svg class="md-board-detail-edit-pill__icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="#46505F"/>
+                        <circle cx="12" cy="12" r="3" stroke="#2A9D8F"/>
+                      </svg>
+                      <span class="md-board-detail-edit-pill__label">{{t "Previewing" key="board_detail_previewing"}}</span>
+                    {{else}}
+                      <svg class="md-board-detail-edit-pill__icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#46505F"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="#2A9D8F"/>
+                      </svg>
+                      <span class="md-board-detail-edit-pill__label">{{t "Editing" key="board_detail_editing"}}</span>
+                    {{/if}}
                   </span>
                   <div class="md-board-edit-session__actions">
                     <button type="button"
@@ -1868,7 +1848,6 @@
         @folderLabelsOnTab={{this.folder_labels_on_tab}}
         @folderColoredCorner={{this.folder_colored_corner}}
         @folderColoredFace={{this.folder_colored_face}}
-        @shrinkLabelsToFit={{this.shrink_labels_to_fit}}
         @softBorders={{this.soft_borders}}
         @buttonTextSizeClass={{this.button_text_size_class}}
         @buttonTextPositionClass={{this.button_text_position_class}}
@@ -2629,34 +2608,6 @@
                       </button>
                     </div>
                   </div>
-
-                  {{!-- Shrink labels to fit — opt-in on/off switch.
-                       Default (off) matches modern AAC industry
-                       convention: labels keep the user's chosen font
-                       size and wrap to up to 3 lines, with ellipsis
-                       past that. On runs a per-label JS measurement
-                       (utils/label_fit.js): each label whose text
-                       would overflow the 3-line box at the chosen
-                       size has its OWN font reduced down to an 8px
-                       floor so the full text appears without
-                       truncation; labels that already fit stay at
-                       the chosen size. Persists to
-                       user.preferences.shrink_labels_to_fit. --}}
-                  <div class="md-folder-toggle-row">
-                    <span class="md-folder-toggle-row__label" id="shrink-labels-to-fit-label">{{t "Shrink labels to fit" key="board_detail_shrink_labels_to_fit"}}</span>
-                    <div class="md-folder-toggle-row__control">
-                      <span class="md-folder-toggle-row__state {{unless this.shrink_labels_to_fit 'md-folder-toggle-row__state--active'}}" aria-hidden="true">{{t "Off" key="off"}}</span>
-                      <button type="button"
-                        role="switch"
-                        aria-checked={{if this.shrink_labels_to_fit "true" "false"}}
-                        aria-labelledby="shrink-labels-to-fit-label"
-                        class="nb-toggle__switch {{if this.shrink_labels_to_fit 'nb-toggle__switch--on'}}"
-                        data-bd-action="toggle_shrink_labels_to_fit" {{on "click" (this.ctrlAction "toggle_shrink_labels_to_fit")}}>
-                        <span class="nb-toggle__thumb" aria-hidden="true"></span>
-                      </button>
-                      <span class="md-folder-toggle-row__state {{if this.shrink_labels_to_fit 'md-folder-toggle-row__state--active'}}" aria-hidden="true">{{t "On" key="on"}}</span>
-                    </div>
-                  </div>
                 </div>
               {{/if}}
             </div>
@@ -2966,18 +2917,6 @@
                       </span>
                     </button>
                     <button type="button" role="radio"
-                      aria-checked={{if (is-equal this.folder_display_style "tab_labels") "true" "false"}}
-                      class="md-folder-style-option {{if (is-equal this.folder_display_style 'tab_labels') 'md-folder-style-option--active'}}"
-                      {{on "click" (this.ctrlAction "set_folder_style" "tab_labels")}}>
-                      <span class="md-folder-style-option__icon" aria-hidden="true">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
-                      </span>
-                      <span class="md-folder-style-option__label">{{t "Show Labels on Tab" key="board_detail_folder_tab_labels"}}</span>
-                      <span class="md-folder-style-option__check" aria-hidden="true">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"/></svg>
-                      </span>
-                    </button>
-                    <button type="button" role="radio"
                       aria-checked={{if (is-equal this.folder_display_style "colored_corner") "true" "false"}}
                       class="md-folder-style-option {{if (is-equal this.folder_display_style 'colored_corner') 'md-folder-style-option--active'}}"
                       {{on "click" (this.ctrlAction "set_folder_style" "colored_corner")}}>
@@ -2985,6 +2924,18 @@
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M21 3l-6 6" stroke-width="3"/></svg>
                       </span>
                       <span class="md-folder-style-option__label">{{t "Colored Corner Tab" key="board_detail_folder_colored_corner"}}</span>
+                      <span class="md-folder-style-option__check" aria-hidden="true">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"/></svg>
+                      </span>
+                    </button>
+                    <button type="button" role="radio"
+                      aria-checked={{if (is-equal this.folder_display_style "tab_labels") "true" "false"}}
+                      class="md-folder-style-option {{if (is-equal this.folder_display_style 'tab_labels') 'md-folder-style-option--active'}}"
+                      {{on "click" (this.ctrlAction "set_folder_style" "tab_labels")}}>
+                      <span class="md-folder-style-option__icon" aria-hidden="true">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+                      </span>
+                      <span class="md-folder-style-option__label">{{t "Show Labels on Tab" key="board_detail_folder_tab_labels"}}</span>
                       <span class="md-folder-style-option__check" aria-hidden="true">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"/></svg>
                       </span>
@@ -3434,7 +3385,21 @@
     <div class="md-board-detail-actions-menu md-board-detail-actions-menu--collection md-board-detail-actions-menu--collection-pinned" role="region" aria-label={{t "My Board Collection" key="my_board_collection"}}>
       <BoardCollection
         @onBack={{this.onCloseBoardCollection}}
-        @onSelect={{this.onSelectBoardFromCollection}} />
+        @onSelect={{this.onSelectBoardFromCollection}}
+        @currentBoard={{this.model}} />
+    </div>
+  {{/if}}
+  {{!-- Edit-mode Board Collections drawer — same pinned host as the speak-mode
+       collection, but the --collection-left modifier pins it to the LEFT edge (the
+       edit rail hides and it takes its place) and the shell pushes the center right.
+       Selecting a board loads it into the center in edit mode. --}}
+  {{#if this.edit_board_collection_open}}
+    <div class="md-board-detail-actions-menu md-board-detail-actions-menu--collection md-board-detail-actions-menu--collection-pinned md-board-detail-actions-menu--collection-left" role="region" aria-label={{t "Board Collections" key="board_collections"}}>
+      <BoardCollection
+        @onBack={{this.onCloseEditBoardCollection}}
+        @onSelect={{this.onSelectBoardFromCollectionEdit}}
+        @originalBoard={{this.edit_collection_original_board}}
+        @editContext={{true}} />
     </div>
   {{/if}}
   {{!-- Edit Sidebar panel — same pinned-drawer host as My Board Collection. Gated

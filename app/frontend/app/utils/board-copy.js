@@ -33,18 +33,23 @@ export function findExistingUserCopy(board, user) {
   // AUTHORITATIVE — a board cached as a list partial may omit them, which would
   // make a real copy look unconfirmed and trigger a needless duplicate. The /show
   // serializer always includes parent_board_id (null when the board isn't a copy).
-  return LingoLinq.store.findRecord('board', expectedKey, { reload: true }).then(function(found) {
-    if (!found) { return null; }
-    var parentId = found.get('parent_board_id');
-    var parentKey = found.get('parent_board_key');
-    // Positive lineage match only — never blind-trust the slug.
-    if ((parentId && origId && parentId === origId) ||
-        (parentKey && origKey && parentKey === origKey)) {
-      return found;
-    }
-    return null;
-  }, function() {
-    return null;
+  // Wrap in RSVP.Promise + .catch so a 404/reject always resolves to null; a bare
+  // .then(success, reject) can fail to run the pick flow when the adapter rejects.
+  return new RSVP.Promise(function(resolve) {
+    LingoLinq.store.findRecord('board', expectedKey, { reload: true }).then(function(found) {
+      if (!found) { resolve(null); return; }
+      var parentId = found.get('parent_board_id');
+      var parentKey = found.get('parent_board_key');
+      // Positive lineage match only — never blind-trust the slug.
+      if ((parentId && origId && parentId === origId) ||
+          (parentKey && origKey && parentKey === origKey)) {
+        resolve(found);
+      } else {
+        resolve(null);
+      }
+    }).catch(function() {
+      resolve(null);
+    });
   });
 }
 

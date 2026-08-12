@@ -169,8 +169,7 @@ class Api::LogsController < ApplicationController
     log = LogSession.find_by_global_id(params['id'])
     return unless exists?(log, params['id'])
     user = log && log.user
-    # Check self first so we don't trigger "Not authorized" from supervise when log owner is in valet mode (they have view_detailed/model but not supervise).
-    return unless user && ((user == @api_user && (allowed?(user, 'view_detailed') || allowed?(user, 'model'))) || allowed?(user, 'supervise'))
+    return unless log_viewable?(user)
     if user.private_logging? && (@true_user || @api_user) != user
       return unless allowed?(user, 'never_allow')
     end
@@ -272,7 +271,7 @@ class Api::LogsController < ApplicationController
     log = LogSession.find_by_global_id(params['log_id'])
     return unless exists?(log, params['log_id'])
     user = log && log.user
-    return unless user && ((user == @api_user && (allowed?(user, 'view_detailed') || allowed?(user, 'model'))) || allowed?(user, 'supervise'))
+    return unless log_viewable?(user)
     if user.private_logging? && (@true_user || @api_user) != user
       return unless allowed?(user, 'never_allow')
     end
@@ -417,5 +416,30 @@ class Api::LogsController < ApplicationController
   end
   
   protected
+
+  # A log's owner reads their own log via view_detailed/model; anyone else needs
+  # supervise. Self is checked FIRST so a log owner in valet mode — who has
+  # view_detailed/model but not supervise — isn't rejected by the supervise rule.
+  #
+  # `allows?` is the PURE predicate. `allowed?` renders a 400 as a side effect
+  # before returning false, so two of them in one boolean expression render twice:
+  # a DoubleRenderError (500) both when the later check passes and when it fails.
+  # Exactly ONE `allowed?` may remain, and it must be last so it renders the error.
+  #
+  # Scopes are passed explicitly because a bare `allows?` falls back to the RAW
+  # `user.permission_scopes` (permissable.rb:72) and so skips the normalization
+  # `api_permission_scopes` performs — blank (integration / dev-key devices) and a
+  # legacy lone '*' both normalize to 'full', and without that neither intersects
+  # the 'full' that supervision rules require, denying legitimate callers.
+  #
+  # The authorization DECISION here is identical to the expression this replaced;
+  # only which calls render changed.
+  def log_viewable?(user)
+    return false unless user
+    scopes = api_permission_scopes
+    self_access = user == @api_user &&
+                  (user.allows?(@api_user, 'view_detailed', scopes) || user.allows?(@api_user, 'model', scopes))
+    self_access || allowed?(user, 'supervise')
+  end
 
 end

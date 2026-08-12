@@ -12,7 +12,6 @@
 |---|---|---|---|
 | 2026-07-14 | Monthly light /audit-run (diff-since-last-run scope, no full re-scan) | SOC2 | monthly |
 | 2026-07-26 | COPPA data-retention enforcement + parental-consent flow check | COPPA | quarterly |
-| **2026-08-02** | EU AI Act Article 50 transparency obligations apply | EU AI Act | fixed |
 | 2026-08-31 | Re-brand + re-share BREACH_RUNBOOK Drive mirror to v2.2 (DOC-f576f43250) | HIPAA | one-time |
 | 2026-09-01 | FERPA vendor-disclosure + directory-info posture review | FERPA | annual |
 | 2026-09-01 | GDPR DPA + RoPA + data-residency review | GDPR | annual |
@@ -46,7 +45,7 @@
 | Date | Status | Obligation | Framework |
 |---|---|---|---|
 | **2026-04-22** | **passed enforceable** | Written data-retention policy with enforced deletion; written information security program; expanded PI (voiceprints,... | COPPA |
-| 2026-08-02 | upcoming | Disclose AI interaction to users; label synthetic/AI-generated content; deepfake identification. Applies to ANY in-sc... | EU AI Act |
+| **2026-08-02** | **passed enforceable** | Disclose AI interaction to users; label synthetic/AI-generated content; deepfake identification. Applies to ANY in-sc... | EU AI Act |
 | 2026-12-02 | upcoming | The 2026-12-02 grace on the Article 50(2) machine-readable marking sub-obligation comes from the Digital Omnibus on A... | EU AI Act |
 | 2027-04-24 | upcoming | WCAG 2.1 AA for web content of large public entities (April-2026 IFR extended the date). Small entities: 2028-04. Lin... | WCAG |
 | 2027-12-02 | upcoming | High-risk obligations for Annex III systems (deferred from earlier by the Digital Omnibus). An AAC word predictor is ... | EU AI Act |

@@ -58,6 +58,34 @@ describe Api::BoardsController, :type => :controller do
       expect(json['board'][0]['id']).to eq(b.global_id)
     end
 
+    # List tiles only need metadata; shipping buttons/grid for every owned
+    # sub-board dominates Mine-tab payload/CPU. Show keeps the full shape.
+    # See docs/task-management/2026-08-10-boards-page-load-perf.md.
+    it "should omit buttons and board content blobs from index list payloads" do
+      token_user
+      b = Board.create(:user => @user)
+      b.settings['name'] = 'List Tile'
+      b.settings['buttons'] = [{'id' => 1, 'label' => 'hi'}]
+      b.settings['grid'] = {'rows' => 2, 'columns' => 2, 'order' => [[1, nil], [nil, nil]]}
+      b.save
+      get :index, params: {:user_id => @user.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      row = json['board'].detect { |r| r['id'] == b.global_id }
+      expect(row).to be_present
+      expect(row['name']).to eq('List Tile')
+      expect(row).not_to have_key('buttons')
+      expect(row).not_to have_key('grid')
+      expect(row).not_to have_key('intro')
+      expect(row).not_to have_key('background')
+
+      get :show, params: {:id => b.global_id}
+      expect(response).to be_successful
+      show_json = JSON.parse(response.body)
+      expect(show_json['board']['buttons']).to be_present
+      expect(show_json['board']['grid']).to be_present
+    end
+
     it "should not 500 on custom_order sort when a starred board has nil settings" do
       token_user
       u = @user
@@ -1320,6 +1348,29 @@ describe Api::BoardsController, :type => :controller do
       com = User.create
       User.link_supervisor_to_user(@user, com, nil, false)
       post :create, params: {:board => {:name => "my board", :for_user_id => com.global_id}}
+      assert_unauthorized
+    end
+
+    # The board-picker home-board flow (models/board.js create_copy) posts create
+    # with parent_board_id, so a supervise-only supervisor must be able to COPY a
+    # board for a communicatee. The spec above pins the other half: without a
+    # parent_board_id it is authoring a brand-new board, which stays edit-only.
+    it "should allow a supervise-only supervisor to copy a board for a supervisee" do
+      token_user
+      com = User.create
+      b = Board.create(:user => @user, :public => true)
+      User.link_supervisor_to_user(@user, com, nil, false)
+      post :create, params: {:board => {:name => "my board", :for_user_id => com.global_id, :parent_board_id => b.global_id}}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['board']['user_name']).to eq(com.user_name)
+    end
+
+    it "should not allow a supervise-only supervisor to copy a board for a non-supervisee" do
+      token_user
+      com = User.create
+      b = Board.create(:user => @user, :public => true)
+      post :create, params: {:board => {:name => "my board", :for_user_id => com.global_id, :parent_board_id => b.global_id}}
       assert_unauthorized
     end
 

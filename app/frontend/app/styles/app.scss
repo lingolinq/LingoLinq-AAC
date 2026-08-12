@@ -235,6 +235,43 @@
   }
 }
 
+/* Shared board-card LAYOUT (flex column + bottom-anchored Preview pill).
+   `@include` inside surface rules that already set display:flex on
+   `.simple_board_icon`; the base `.simple_board_icon` rule below
+   includes this by default. Cosmetics stay in `board-card-modern`. */
+@mixin simple-board-card-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  height: auto;
+  min-height: 0;
+
+  .author {
+    order: 97;
+    margin-top: 0;
+    margin-bottom: 4px;
+  }
+
+  .board-icon__lang-marker {
+    order: 98;
+    margin: 0 0 8px;
+  }
+
+  .info {
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+    order: 99;
+    align-self: center;
+    margin-top: auto !important;
+    margin-bottom: 0;
+  }
+}
+
 *, *:before, *:after {
   -moz-box-sizing: border-box; -webkit-box-sizing: border-box; box-sizing: border-box;
 }
@@ -690,7 +727,8 @@ html, body {
    on the page-footer layout) so it fills the ENTIRE viewport behind the scrolling
    content — no seam, no short bg. Compound :has() (1,2,0) out-specifies the
    `:has(.page-footer)` reset above. */
-#within_ember:has(.page-footer):has(.board-picker-page) {
+#within_ember:has(.page-footer):has(.board-picker-page),
+#within_ember:has(.page-footer):has(.md-shell--board-picker) {
   background:
     radial-gradient(1400px 700px at 10% 5%, rgba($brand-stormy-teal, 0.22), transparent 50%),
     radial-gradient(1200px 600px at 90% 15%, rgba($brand-charcoal-blue, 0.18), transparent 50%),
@@ -1176,6 +1214,77 @@ body.md-home-focused #content > .ember-view:empty {
   .board_status {
     color: #ccc;
   }
+  .board-load-error__message {
+    color: rgba(255, 255, 255, 0.92);
+  }
+  .board-load-error__retrying {
+    color: rgba(255, 255, 255, 0.65);
+  }
+  .board-load-error__retry-link {
+    color: rgba(255, 255, 255, 0.7);
+  }
+  .board-load-error__retry-link:hover,
+  .board-load-error__retry-link:focus-visible {
+    color: rgba(255, 255, 255, 0.95);
+  }
+}
+
+/* Classic / board-alt load failure: escape hatches (Home / Back / Exit Speak).
+   Mirrors board-detail's error recovery so Try Again is not the only exit. */
+.board-load-error,
+.board_status {
+  .board-load-error__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 16px 0 8px;
+    max-width: 640px;
+  }
+  .board-load-error__action {
+    font-size: 1.05rem;
+    min-height: 48px;
+    padding: 12px 22px;
+    border-radius: 10px;
+  }
+  .board-load-error__retry-link {
+    appearance: none;
+    background: none;
+    border: none;
+    display: inline-block;
+    margin-top: 8px;
+    padding: 10px 16px;
+    min-height: 44px;
+    font-size: 1rem;
+    color: rgba(0, 0, 0, 0.55);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .board-load-error__retry-link:hover,
+  .board-load-error__retry-link:focus-visible {
+    color: rgba(0, 0, 0, 0.9);
+  }
+}
+.board-load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 240px;
+  padding: 48px 24px;
+  text-align: center;
+}
+.board-load-error__message {
+  font-size: 1.15rem;
+  margin: 0;
+  max-width: 520px;
+}
+.board-load-error__retrying {
+  font-size: 1rem;
+  margin: 0;
+  font-style: italic;
 }
 
 /* ==========================================================================
@@ -2952,7 +3061,26 @@ header.speaking, .board.speak {
   margin-top: 32px !important;
 }
 .md-board-detail-grid.board.speak {
-  margin-top: 0px !important;
+  /* Breathing room under the sentence row. The grid's fixed height
+     (calc(100dvh - 120px), base rule ~L75201) reserves ~120px of top chrome
+     while the actual sentence bar + padding is only ~90px, so ~30px of slack
+     pools UNDER the grid (dead space at the page bottom). This margin pushes
+     the grid DOWN into that slack — opening a gap beneath the sentence row —
+     rather than leaving it flush at the top. Stays within the 120px headroom
+     (90 + 12 < 120), so it consumes bottom slack instead of adding overflow.
+     32px (the base .board.speak rule above) over-shot and clipped; 0 was flush. */
+  margin-top: 6px !important;
+}
+/* Shorter OR narrower viewports: reclaim the top breathing room. The 6px margin + the grid's 4px
+   inset read as wasted vertical space when height is tight (≤820px tall) or width is small
+   (≤768px — phones/small tablets, per request) — pull the board up snug under the sentence bar.
+   (The folder-tab reserve inside the cells already scales down with the smaller buttons, so the
+   tabs stay clear of the bar.) */
+@media (max-height: 820px), (max-width: 768px) {
+  .md-board-detail-grid.board.speak {
+    margin-top: 0 !important;
+    padding-top: 1px;
+  }
 }
 /* board-alt (classic) speak mode fills the viewport like the modern
    grid; the 32px top margin above leaves a dead strip there. */
@@ -5138,6 +5266,198 @@ tr.accuracy_non_mastered {
   width: 100%;
 }
 
+/* Board picker route (/board-picker): same card + picker as /search/home, with CTAs above */
+.md-card--board-picker__header {
+  margin-bottom: 1.25rem;
+}
+.md-card--board-picker .md-card--board-picker__actions {
+  margin-bottom: 2rem;
+  padding-top: 0;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--md-line, rgba($brand-blue-black, 0.08));
+}
+.md-card--board-picker .board-picker-page__assign {
+  margin-bottom: clamp(28px, 4vh, 40px);
+}
+.md-card--board-picker .board-picker-page__divider {
+  margin-bottom: 0;
+}
+.md-shell--board-picker .md-card--board-picker .md-hero--home-boards {
+  padding: 0 !important;
+  text-align: center;
+  margin-bottom: 0;
+}
+.md-shell--board-picker .md-card--board-picker .md-hero--home-boards .md-hero__title {
+  font-size: clamp(22px, 5vw, 28px) !important;
+  line-height: 1.15;
+}
+.md-shell--board-picker .md-card--board-picker .md-hero--home-boards .md-hero__title .md-hero__title--from-left {
+  display: inline-block;
+  font-size: inherit;
+  opacity: 0;
+  animation: la-hero-title-from-left 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+.md-shell--board-picker > .md-workspace {
+  margin-top: 0 !important;
+}
+.md-shell--board-picker .md-card--home-boards__picker {
+  margin-top: 1.25rem;
+}
+/* Board cards: fixed ~280px tiles that wrap to the next row when the content
+   area is too narrow (same pattern as setup Board Category + legacy
+   .board-picker-page). Overrides the base grid's fixed column counts, which
+   forced three columns and clipped the right edge inside .md-card--home-boards
+   (overflow: hidden). */
+.md-shell--board-picker .md-home-boards-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 280px);
+  justify-content: center;
+  align-items: stretch;
+  gap: 1.5rem;
+}
+.md-shell--board-picker .md-home-boards-picker__board {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  align-self: stretch;
+}
+/* Stretch the board-icon tile to the full grid cell so PREVIEW can anchor
+   to the card bottom (same pattern as ub-boards-page__board-grid). */
+.md-shell--board-picker .md-home-boards-picker__board > * {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+}
+.md-shell--board-picker .md-home-boards-picker__grid-message {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+.md-shell--board-picker .md-home-boards-picker__load-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+.md-shell--board-picker .md-home-boards-picker__load-more-btn {
+  min-width: 10rem;
+  font-size: 1rem;
+}
+/* Category sidebar — icon + label cards matching board-picker mockup */
+.md-shell--board-picker .md-home-boards-picker__layout {
+  gap: 1.25rem 2.5rem;
+}
+.md-shell--board-picker .md-home-boards-picker__section-header {
+  flex: 1 1 100%;
+  width: 100%;
+  margin: 0 0 0.25rem;
+  font-size: 22px !important;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: $la-navy;
+  text-align: center;
+  text-transform: uppercase;
+}
+.md-shell--board-picker .md-home-boards-picker__nav-inner.setup_setting {
+  margin: 0;
+}
+.md-shell--board-picker .md-home-boards-picker__nav,
+.md-shell--board-picker .md-home-boards-picker__content {
+  align-self: flex-start;
+}
+/* Right column: one callout panel wrapping explainer, filter, and board grid. */
+.md-shell--board-picker .md-home-boards-picker__category-panel {
+  padding: 1.5rem 1.75rem;
+  border-radius: 14px;
+  border-left: 4px solid rgba(44, 183, 176, 0.55);
+  background: linear-gradient(135deg, rgba(44, 183, 176, 0.06) 0%, rgba(91, 141, 239, 0.04) 100%);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+.md-shell--board-picker .md-home-boards-picker__category-panel .category_explainer {
+  margin-bottom: 1.25rem;
+  padding: 0;
+  border: 0;
+  border-left: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.md-shell--board-picker .md-home-boards-picker__category-panel .category_explainer p {
+  font-size: 1.4763125rem;
+  line-height: 1.7;
+  color: var(--md-ink);
+  margin: 0;
+  font-weight: 500;
+}
+.md-shell--board-picker .md-home-boards-picker__category-panel .category_explainer.full p {
+  max-height: 500px;
+}
+.md-shell--board-picker .md-home-boards-picker__category-panel .category_explainer .more_link {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 0%, rgba(44, 183, 176, 0.06) 70%);
+}
+.md-shell--board-picker .md-home-boards-picker__category-panel .md-home-boards-picker__search--inline {
+  margin-bottom: 1.25rem;
+}
+.md-shell--board-picker .md-home-boards-picker__nav-label {
+  margin-bottom: 14px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: $la-navy;
+}
+.md-shell--board-picker .md-home-boards-picker__categories {
+  gap: 10px;
+}
+.md-shell--board-picker .md-home-boards-picker__category--iconic {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  font-size: 18px;
+  font-weight: 700;
+  color: $la-navy;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.14);
+  border-radius: 10px;
+  box-shadow: none;
+}
+.md-shell--board-picker .md-home-boards-picker__category--iconic:hover {
+  background: #fff;
+  border-color: rgba($brand-verdigris-aa, 0.35);
+  color: $la-navy;
+}
+.md-shell--board-picker .md-home-boards-picker__category--iconic.is-active {
+  background: rgba($brand-verdigris, 0.10);
+  border-color: rgba($brand-verdigris-aa, 0.55);
+  color: $la-navy;
+  box-shadow: none;
+}
+.md-shell--board-picker .md-home-boards-picker__category-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba($brand-verdigris, 0.08);
+}
+.md-shell--board-picker .md-home-boards-picker__category--iconic.is-active .md-home-boards-picker__category-icon {
+  background: rgba($brand-verdigris, 0.16);
+}
+.md-shell--board-picker .md-home-boards-picker__category-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 18px;
+  line-height: 1.25;
+  text-align: left;
+}
+
 /* ---------- Available boards: layout (nav + content), category menu, board grid ---------- */
 .md-home-boards-picker__layout {
   display: flex;
@@ -5212,6 +5532,7 @@ tr.accuracy_non_mastered {
 .md-home-boards-picker__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  align-items: stretch;
   gap: 1.25rem 1.5rem;
   margin-top: 1rem;
 }
@@ -5231,6 +5552,9 @@ tr.accuracy_non_mastered {
 .md-home-boards-picker__board {
   padding: 0;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 /* Keyboard placeholders (Keyboards category). Reuse the real card chrome
    (.btn.simple_board_icon → board-card-modern) and swap the thumbnail for a
@@ -5297,15 +5621,18 @@ tr.accuracy_non_mastered {
    positioning live here; all cosmetics come from the mixin. */
 .md-home-boards-picker__board .btn.simple_board_icon {
   @include board-card-modern;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
+  @include simple-board-card-layout;
   width: 100%;
-  height: auto;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
   padding: 18px 18px 16px;
   color: var(--md-ink);
   font-size: 15px;
+}
+.md-shell--board-picker .md-home-boards-picker__board .btn.simple_board_icon {
+  /* Equal-height rows come from grid stretch + height:100% — not a fixed floor. */
+  min-height: 0;
 }
 .md-home-boards-picker__board .btn.simple_board_icon:focus-visible {
   @include focus-ring;
@@ -5335,7 +5662,8 @@ tr.accuracy_non_mastered {
   align-items: baseline;
   justify-content: center;
   gap: 4px;
-  margin: 0;
+  order: 97;
+  margin: 0 0 4px;
   padding: 0 2px;
   max-width: 100%;
   font-size: 0.9rem;
@@ -5344,26 +5672,27 @@ tr.accuracy_non_mastered {
 .md-home-boards-picker__board .btn.simple_board_icon .author__username--long {
   font-size: 0.9rem;
 }
-/* Preview pill stays IN-FLOW, stacking below the language marker
-   (cosmetics come from the mixin). */
+/* Preview pill + language badge: footer stack pinned to the card bottom. */
 .md-home-boards-picker__board .btn.simple_board_icon .info {
-  position: static;
-  top: auto;
-  left: auto;
-  right: auto;
-  bottom: auto;
-  transform: none;
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: none !important;
   order: 99;
   align-self: center;
-  margin-top: auto;
+  margin-top: auto !important;
+  margin-bottom: 0;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 6px 13px;
   font-size: 11px;
 }
-.md-home-boards-picker__board .btn.simple_board_icon:has(.board-icon__lang-marker) .info {
-  margin-top: 0;
+.md-home-boards-picker__board .btn.simple_board_icon .board-icon__lang-marker {
+  order: 98;
+  margin: 0 0 6px;
 }
 
 .md-home-boards-picker__grid-message {
@@ -5399,6 +5728,71 @@ tr.accuracy_non_mastered {
   margin-top: 1.25rem;
   padding-top: 1rem;
   border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+.md-home-boards-picker__layout--search-top .md-home-boards-picker__search--inline {
+  margin-top: 0;
+  margin-bottom: 1.25rem;
+  padding-top: 0;
+  border-top: none;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+.md-home-boards-picker__layout--search-top .md-home-boards-picker__search-form {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0.625rem;
+  width: auto;
+  max-width: 100%;
+}
+.md-home-boards-picker__layout--search-top .md-home-boards-picker__search-input.form-control {
+  flex: 0 0 auto;
+  width: min(22rem, calc(100vw - 10rem));
+  min-width: 14rem;
+  min-height: 44px;
+  height: auto;
+  padding: 0 14px;
+  border-radius: 16px !important;
+  font-size: 14px !important;
+  line-height: 1.25;
+  box-sizing: border-box;
+}
+.md-home-boards-picker__layout--search-top .md-home-boards-picker__search-input.form-control::placeholder {
+  font-size: 14px;
+}
+.md-home-boards-picker__layout--search-top .md-home-boards-picker__search-input.form-control::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+.md-home-boards-picker__layout--search-top .md-home-boards-picker__search-clear {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 16px;
+  background: rgba($la-navy, 0.06);
+  color: $brand-charcoal-blue;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.md-home-boards-picker__layout--search-top .md-home-boards-picker__search-clear:hover,
+.md-home-boards-picker__layout--search-top .md-home-boards-picker__search-clear:focus-visible {
+  background: rgba($la-navy, 0.12);
+  color: $la-navy;
+  outline: none;
+}
+.md-home-boards-picker__layout--search-top .md-home-boards-picker__search-submit {
+  flex: 0 0 auto;
+  width: auto;
+  white-space: nowrap;
+  min-height: 44px;
+  height: auto;
+  align-self: stretch;
 }
 
 .md-home-boards-picker__fallback-note {
@@ -5655,12 +6049,16 @@ tr.accuracy_non_mastered {
   flex-wrap: wrap;
   justify-content: center;
   align-content: flex-start;
+  align-items: stretch;
   gap: 1.25rem 1.5rem;
 }
 .md-card--setup .setup-board-category .md-home-boards-picker__board {
   flex: 0 0 280px;
   width: 280px;
   max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 /* Setup-scoped tabs-row wrapper — deliberately NOT `.ub-boards-page__tabs-row`
    so the boards page's ≤640px "swap pills for a <select>" rule (which is
@@ -5716,11 +6114,12 @@ tr.accuracy_non_mastered {
    tabs, board cards, and "Quick Core" headings come from the SHARED
    board-picker/board-icon components, so every override here is page-scoped
    under `.board-picker-page` / `.md-shell--board-picker` — /setup and
-   /search/home are unaffected. */
+   /search/home are unaffected. Standalone /board-picker now reuses the
+   /search/home shell (md-shell--home-boards) with sidebar category nav. */
 
-/* --- Immersive glass workspace panel; atmosphere comes from the .md-shell
-       base gradient behind it. --- */
-.md-shell--board-picker > .md-workspace {
+/* --- Immersive glass workspace panel (tour modal / legacy tabbed picker only;
+       standalone /board-picker uses md-shell--home-boards instead). --- */
+.md-shell--board-picker:not(.md-shell--home-boards) > .md-workspace {
   background:
     radial-gradient(680px 380px at 50% 1%, rgba($brand-verdigris, 0.10), transparent 52%),
     radial-gradient(880px 460px at 12% 4%, rgba($brand-verdigris, 0.14), transparent 44%),
@@ -5792,6 +6191,13 @@ tr.accuracy_non_mastered {
   /* Same entrance movement as the home-page hero: title in from the left. */
   opacity: 0;
   animation: la-hero-title-from-left 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+.board-picker-page__context {
+  margin: 0.75rem 0 0;
+  text-align: center;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: rgba(43, 52, 69, 0.82);
 }
 .board-picker-page__intro {
   margin: 0 auto clamp(40px, 6vh, 64px);
@@ -6033,8 +6439,8 @@ tr.accuracy_non_mastered {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  height: auto !important;
-  min-height: 268px !important;
+  height: 100% !important;
+  min-height: 0 !important;
   border: 1px solid rgba(15, 23, 42, 0.05) !important;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.86)) !important;
   box-shadow:
@@ -6053,11 +6459,6 @@ tr.accuracy_non_mastered {
   order: 99;
   align-self: center;
   margin-top: auto !important;
-}
-/* When a language marker is present it owns the bottom auto-margin, so the pill
-   drops its own (mirrors the boards-page :has override) — keeps them tight. */
-.board-picker-page .md-home-boards-picker__board .simple_board_icon:has(.board-icon__lang-marker) .info {
-  margin-top: 0 !important;
 }
 /* Guaranteed gap below the author line, above the bottom-anchored pill. */
 .board-picker-page .md-home-boards-picker__board .simple_board_icon .author {
@@ -6150,12 +6551,16 @@ tr.accuracy_non_mastered {
   flex-wrap: wrap;
   justify-content: center;
   align-content: flex-start;
+  align-items: stretch;
   gap: 1.5rem;
 }
 .board-picker-page .md-home-boards-picker__board {
   flex: 0 0 280px;
   width: 280px;
   max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 /* --- Gentle card hover-lift (premium, AAC-friendly: no scale/bounce/spring,
@@ -9386,8 +9791,18 @@ body.pretty_loader #loading_box {
      keeps the image from cropping against the taller label below.
      Scale ramps linearly from 1.0 at 800px viewport down to 0.6 at 400px
      and below. Uses transform so layout (img_holder box size set inline by
-     JS positioning) stays the same — only the visual image shrinks. */
-  .button img.symbol {
+     JS positioning) stays the same — only the visual image shrinks.
+     CLASSIC RENDERER ONLY. This whole @media block is classic board-alt CSS
+     (.button-label / .button-label-holder / the JS-positioned img_holder), but
+     `.button img.symbol` is generic and the modern board-detail card carries
+     `.button` too — so it was silently shrinking every board-detail symbol on
+     any viewport under 800px tall (0.968x at 768px, 0.6x at 400px), directly
+     fighting that page's "fill the holder" sizing. The modern card has no
+     JS-sized img_holder to protect: its symbol is a flex child that already
+     gives up space to the label, so the compensation is not just unnecessary
+     there, it is harmful. Excluded by class rather than moved so the classic
+     board keeps this behavior byte-for-byte. */
+  .button:not(.md-board-detail-symbol-card) img.symbol {
     transform: scale(clamp(0.6, calc(0.6 + (100vh - 400px) / 1000px), 1));
     transform-origin: center;
   }
@@ -9905,8 +10320,20 @@ body.pretty_loader #loading_box {
 /* Applied in: dashboard/authenticated-view.hbs - board grid items */
 .simple_board_holder {
   padding: 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+
+  > .btn.simple_board_icon,
+  > .simple_board_icon {
+    flex: 1 1 auto;
+    height: 100%;
+    min-height: 0;
+    box-sizing: border-box;
+  }
 }
 .simple_board_icon {
+  @include simple-board-card-layout;
   width: 100%;
   border-radius: 20px;
   border-width: 5px;
@@ -9914,7 +10341,6 @@ body.pretty_loader #loading_box {
   overflow: hidden;
   padding: 20px 0;
   position: relative;
-  height: 210px;
   outline: none;
   img {
     width: 100%;
@@ -9926,20 +10352,11 @@ body.pretty_loader #loading_box {
   }
   .info {
     /* "PREVIEW" pill anchored to the BOTTOM-CENTER of every board
-       tile (was top-left). Centered horizontally via
-       `left: 50%; transform: translateX(-50%)`. Same brushed-silver
-       glass chrome as the size + heart badges in the top-right
-       (cool linear gradient + backdrop blur + dual inset highlights
-       + layered drop shadow) so all three badges read as a coherent
-       family. Surface-specific overrides further down may shift
-       padding/font-size to fit their tile dimensions but all inherit
-       the silver-glass treatment from here. */
-    position: absolute;
-    top: auto;
-    left: 50%;
-    right: auto;
-    bottom: 10px;
-    transform: translateX(-50%);
+       tile via in-flow flex (`order: 99`, `margin-top: auto`) so
+       equal-height rows keep the pill at the same spot on every card.
+       Silver-glass chrome inherited here; surface-specific overrides
+       may shift padding/font-size but should not revert to absolute
+       positioning (that breaks row alignment when titles differ). */
     padding: 4px 11px;
     border: 1px solid rgba(255, 255, 255, 0.7);
     border-radius: 999px;
@@ -10085,30 +10502,11 @@ body.pretty_loader #loading_box {
     color: inherit;
   }
 
-  /* Translated-language marker — sits ABOVE the bottom-center PREVIEW
-     pill in the flex column. Was previously `position: absolute;
-     bottom: 56px;` but that meant long board titles (wrapping to 2-3
-     lines) grew downward into the marker's reserved space, producing
-     a visual overlap between title and chip. Now an in-flow flex
-     child with `order: 98` (PREVIEW pill is `order: 99`), pushed
-     down to the bottom by the title's `margin-bottom: auto` chain
-     just like the PREVIEW pill. Equal-height tiles in the same row
-     (via the grid flex container's `align-items: stretch` default)
-     keep the layout uniform when one tile has a longer title. */
+  /* Translated-language marker — sits above the bottom-center PREVIEW
+     pill in the flex column (`order: 98`; PREVIEW is `order: 99`).
+     Tight under the author line; PREVIEW owns `margin-top: auto`. */
   .board-icon__lang-marker {
-    order: 98;
     align-self: center;
-    /* Top margin `auto` absorbs the empty space between the author
-       line and the bottom-anchored pill pair, so the lang-marker
-       drops to the BOTTOM of the tile instead of sitting right
-       under author. The PREVIEW pill below (order: 99) drops its
-       own `margin-top: auto` via the `:has()` override at the
-       bottom of this block when a lang-marker is present, so the
-       two pills stack tight with a 8px breathing gap between them.
-       When NO lang-marker is rendered (boards without translation
-       data), the PREVIEW pill keeps its original `margin-top: auto`
-       and anchors itself to the bottom alone. */
-    margin: auto 0 8px;
     display: inline-flex;
     align-items: center;
     gap: 5px;
@@ -10176,7 +10574,6 @@ body.pretty_loader #loading_box {
   .author {
     font-size: 14px;
     color: $brand-charcoal-blue;
-    margin-top: -5px;
     padding: 0 2px;
     display: flex;
     flex-direction: column;
@@ -10200,7 +10597,8 @@ body.pretty_loader #loading_box {
     font-size: 14px;
   }
   &.medium {
-    height: 180px;
+    min-height: 180px;
+    height: auto;
     font-size: 20px;
     padding: 10px 0;
     .info .size {
@@ -10218,7 +10616,8 @@ body.pretty_loader #loading_box {
     }
   }
   &.short {
-    height: 150px;
+    min-height: 150px;
+    height: auto;
     font-size: 15px;
     padding: 10px 0;
     .info .size {
@@ -10237,7 +10636,8 @@ body.pretty_loader #loading_box {
     }
   }
   &.tiny {
-    height: 120px;
+    min-height: 120px;
+    height: auto;
     font-size: 14px;
     padding: 10px 0;
     .info .size {
@@ -12384,6 +12784,15 @@ video.button_image {
   font-size: 15px;
   font-weight: 700;
   color: $la-navy;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#button_settings .md-bs-choose__preview-owner {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba($la-navy, 0.55);
+  margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -23190,15 +23599,20 @@ header.header--unauthenticated ~ #content .la-topbar {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(172px, 1fr));
   gap: 20px;
+  align-items: stretch;
 }
 
 .ll-bento-board-grid__item {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 /* Ultra-modern board cards: large radius, image-first, scale + shadow on hover */
 .ll-bento-board-grid .simple_board_icon {
-  height: auto;
+  flex: 1 1 auto;
+  height: 100%;
   min-height: 0;
   padding: 0;
   border-radius: 20px;
@@ -23244,19 +23658,21 @@ header.header--unauthenticated ~ #content .la-topbar {
   .author {
     font-size: 14px;
     color: var(--ll-bento-muted);
-    margin: 0;
-    padding: 0 14px 14px;
+    margin: 0 0 4px;
+    padding: 0 14px;
   }
 
   .info {
-    /* BOTTOM-CENTER Preview pill (matches the boards-page treatment).
-     Silver-glass background inherits from base .info. */
-    position: absolute;
-    top: auto;
-    left: 50%;
-    right: auto;
-    bottom: 8px;
-    transform: translateX(-50%);
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+    order: 99;
+    align-self: center;
+    margin-top: auto !important;
+    margin-bottom: 8px;
     padding: 4px 11px;
     font-size: 11px;
     font-weight: 800;
@@ -41871,10 +42287,13 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 
   .btn.simple_board_icon {
     @include board-card-modern;
+    @include simple-board-card-layout;
     width: 100% !important;
     min-width: 0 !important;
     max-width: 100% !important;
-    flex: 0 0 auto;
+    flex: 1 1 auto;
+    height: 100%;
+    min-height: 0;
     box-sizing: border-box !important;
   }
 }
@@ -42747,6 +43166,129 @@ body.md-ds-active .app-navbar__beta-feedback-link {
     height: 20px;
     display: block;
   }
+}
+
+/* Registration confirmation screen (user.confirm_registration). Mirrors the
+   .login-card auth treatment — centered, soft dual-radial gradient, teal top
+   border, Maitree title — with a success/error status badge and a single Home
+   CTA. Lives in the user outlet below the Home/Account/Logs pill-nav. */
+.la-reg-confirm {
+  display: flex;
+  justify-content: center;
+  padding: $aac-spacing-40 $aac-spacing-24;
+}
+.la-reg-confirm__card {
+  width: 100%;
+  max-width: 480px;
+  text-align: center;
+  background:
+    radial-gradient(ellipse 50% 60% at 15% 20%, rgba($la-teal, 0.07) 0%, transparent 70%),
+    radial-gradient(ellipse 45% 50% at 85% 70%, rgba(58, 107, 199, 0.05) 0%, transparent 70%),
+    rgba(255, 255, 255, 0.95);
+  border-radius: $aac-radius-xl;
+  padding: $aac-spacing-40 $aac-spacing-32;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-top: 1px solid rgba($brand-teal, 0.14);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.06),
+    0 8px 24px rgba(0, 0, 0, 0.07),
+    0 24px 48px -12px rgba(0, 0, 0, 0.08);
+}
+.la-reg-confirm__icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto $aac-spacing-20;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.la-reg-confirm__icon--success {
+  color: #2A9D8F;
+  background: rgba(42, 157, 143, 0.12);
+}
+.la-reg-confirm__icon--error {
+  color: #C0392B;
+  background: rgba(192, 57, 43, 0.10);
+}
+.la-reg-confirm__title {
+  font-family: 'Maitree', serif;
+  font-size: 26px;
+  font-weight: normal;
+  color: $indigo;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin: 0 0 $aac-spacing-12;
+
+  @media (max-width: 480px) {
+    font-size: 22px;
+  }
+}
+.la-reg-confirm__message {
+  font-family: 'Lexend', 'Nunito Sans', system-ui, sans-serif;
+  font-size: $aac-font-size-md;
+  color: $brand-charcoal-dark;
+  line-height: 1.5;
+  max-width: 40ch;
+  margin: 0 auto $aac-spacing-28;
+}
+.la-reg-confirm__cta {
+  display: inline-flex;
+  align-items: center;
+}
+/* Success celebration: a party-popper badge with confetti bursting from behind
+   it. The badge sits centered; the celebrate wrapper owns the bottom spacing
+   (the plain --error badge keeps its own auto margin). */
+.la-reg-confirm__celebrate {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto $aac-spacing-20;
+}
+.la-reg-confirm__celebrate .la-reg-confirm__icon {
+  margin: 0;
+}
+/* Party-popper icon pops in on entry. */
+.la-reg-confirm__icon--success svg {
+  animation: la-reg-pop 0.5s ease-out both;
+}
+/* Confetti pieces burst outward on a gentle loop. Each carries its own
+   direction (--tx/--ty in px), spin (--rot), color and delay. Pieces are
+   pre-centered on the badge's midpoint via negative margins, so the keyframe
+   translate stays pure-px (no mixed %+px calc for SassC to choke on). */
+.la-reg-confirm__confetti {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: -3.5px 0 0 -3.5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 1px;
+  opacity: 0;
+  animation: la-reg-confetti 2.6s ease-out infinite;
+}
+.la-reg-confirm__confetti--a { --tx: -40px; --ty: -26px; --rot: 200deg;  background: #2A9D8F; animation-delay: 0s; }
+.la-reg-confirm__confetti--b { --tx:  38px; --ty: -32px; --rot: -220deg; background: #4C86D8; animation-delay: 0.12s; }
+.la-reg-confirm__confetti--c { --tx: -30px; --ty:  30px; --rot: 160deg;  background: #F4A259; animation-delay: 0.24s; }
+.la-reg-confirm__confetti--d { --tx:  34px; --ty:  28px; --rot: -160deg; background: #E76F92; animation-delay: 0.36s; }
+.la-reg-confirm__confetti--e { --tx:  -6px; --ty: -44px; --rot: 260deg;  background: #F6C453; animation-delay: 0.5s; }
+.la-reg-confirm__confetti--f { --tx:   8px; --ty:  42px; --rot: -120deg; background: #6C5CE7; animation-delay: 0.62s; }
+
+@keyframes la-reg-pop {
+  0%   { transform: scale(0) rotate(-14deg); }
+  60%  { transform: scale(1.15) rotate(4deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+@keyframes la-reg-confetti {
+  0%   { transform: translate(0, 0) scale(0.3) rotate(0deg); opacity: 0; }
+  12%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { transform: translate(var(--tx), var(--ty)) scale(1) rotate(var(--rot)); opacity: 0; }
+}
+/* Respect reduced-motion: no burst or pop; the party-popper badge stays static. */
+@media (prefers-reduced-motion: reduce) {
+  .la-reg-confirm__icon--success svg { animation: none; }
+  .la-reg-confirm__confetti { animation: none; opacity: 0; }
 }
 
 .login-card {
@@ -48776,7 +49318,7 @@ a.md-goal-nav-action:hover,
   flex: 0 0 auto;
   display: flex;
   justify-content: center;
-  align-items: flex-start;
+  align-items: stretch;
   /* Card width (2.4rem*2 + 160px image + buffer); wrap before content is cut off */
   min-width: 250px;
 }
@@ -48805,12 +49347,10 @@ a.md-goal-nav-action:hover,
 .md-user-summary__available-boards .board_with_action.simple_board_holder .btn.simple_board_icon,
 .md-user-summary__available-boards .simple_board_holder .btn.simple_board_icon {
   @include board-card-modern;
-  display: flex;
-  flex-direction: column;
+  @include simple-board-card-layout;
   align-items: center;
-  justify-content: flex-start;
-  width: fit-content;
-  height: auto;
+  width: 100%;
+  height: 100%;
   min-height: 0;
   padding: 2.4rem 2.4rem 2rem;
   border-radius: var(--md-r-lg, 16px);
@@ -48859,13 +49399,6 @@ a.md-goal-nav-action:hover,
   text-align: center;
 }
 .md-user-summary__available-boards .simple_board_holder .btn.simple_board_icon .info {
-  /* Pin BOTTOM-CENTER (matching the boards-page Preview pill). The
-     silver-glass background inherits from the base .info rule. */
-  top: auto;
-  left: 50%;
-  right: auto;
-  bottom: 14px;
-  transform: translateX(-50%);
   padding: 5px 13px;
   font-size: 12px;
   display: inline-flex;
@@ -50931,6 +51464,153 @@ a.md-goal-nav-action:hover,
   border: 1px solid rgba(76, 134, 216, 0.20) !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -3px 5px rgba(76, 134, 216, 0.10), 0 4px 12px rgba(15, 23, 42, 0.14), 0 0 16px rgba(76, 134, 216, 0.16) !important;
 }
+
+/* ── Account page (user/index) action row ─────────────────────────────────
+   SELF-CONTAINED card system for the account/profile action row. Deliberately does
+   NOT reuse the dashboard/home `.md-card` classes, so the account cards and the
+   home-page cards can be restyled independently and never share a selector. The
+   visual language (frosted surface, tinted 64px icon tile, arrow affordance, hover
+   lift) mirrors the dashboard but lives entirely under `.md-acct-*`. */
+.md-acct-actions {
+  display: grid;
+  /* Two EQUAL columns → four cards form a 2×2 block. The grid shrinks to its content
+     (`width: fit-content`), so all four cards take the width of the WIDEST card rather
+     than stretching edge-to-edge; `1fr` inside a fit-content grid resolves the two
+     columns to the same width. `margin-inline: auto` then centers the block on the page. */
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+  margin-top: 6px;
+  /* Breathing room before the boards section below. */
+  margin-bottom: 24px;
+  align-items: stretch;
+  width: fit-content;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  flex: 0 1 auto;
+}
+/* Narrow screens: one card per row. */
+@media (max-width: 640px) {
+  .md-acct-actions { grid-template-columns: 1fr; }
+}
+
+.md-acct-card {
+  box-sizing: border-box;
+  position: relative;           /* positioning context for the right-aligned arrow */
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  min-height: 84px;             /* icon 64 + 10+10 padding → all cards uniform height */
+  /* Extra right padding reserves the arrow's column so title/sub text never runs
+     under it (the arrow is absolutely positioned, so it's out of the content flow).
+     Left padding stays at 14px (icon position unchanged); the extra width comes from
+     the right padding + min-width. */
+  padding: 10px 56px 10px 14px;
+  min-width: 360px;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  color: #16324f;
+  border: 1px solid var(--md-line);
+  border-radius: var(--md-r-lg);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(240, 242, 245, 0.95));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba($la-navy, 0.06),
+    0 1px 2px rgba($la-navy, 0.05),
+    0 4px 10px rgba($la-navy, 0.08),
+    0 12px 28px rgba($la-navy, 0.10);
+  transition: box-shadow 180ms ease-out, transform 140ms ease-out;
+  -webkit-tap-highlight-color: transparent;
+}
+.md-acct-card:hover,
+.md-acct-card:focus-visible {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba($la-navy, 0.07),
+    0 3px 6px rgba($la-navy, 0.08),
+    0 10px 22px rgba($la-navy, 0.13),
+    0 26px 54px rgba($la-navy, 0.18);
+}
+.md-acct-card:focus-visible {
+  outline: 2px solid rgba($brand-dusty-denim, 0.55);
+  outline-offset: 3px;
+}
+.md-acct-card:active { transform: translateY(0.5px); }
+
+/* Icon tile — 64px square, blue by default; verdigris via `--green`. */
+.md-acct-card__icon {
+  flex: 0 0 auto;
+  width: 64px;
+  height: 64px;
+  border-radius: 22px;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(125% 125% at 26% 18%, rgba(255, 255, 255, 0.95), transparent 60%),
+    linear-gradient(140deg, #ffffff 0%, #eef3fc 52%, #dbe7f8 100%);
+  border: 1px solid rgba(76, 134, 216, 0.20);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -3px 5px rgba(76, 134, 216, 0.10), 0 4px 12px rgba(15, 23, 42, 0.14), 0 0 16px rgba(76, 134, 216, 0.16);
+}
+.md-acct-card--green .md-acct-card__icon {
+  background:
+    radial-gradient(125% 125% at 26% 18%, rgba(255, 255, 255, 0.95), transparent 60%),
+    linear-gradient(140deg, #ffffff 0%, #ecf6f2 52%, #d6efe8 100%);
+  border: 1px solid rgba(42, 157, 143, 0.20);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -3px 5px rgba(42, 157, 143, 0.10), 0 4px 12px rgba(15, 23, 42, 0.14), 0 0 16px rgba(42, 157, 143, 0.16);
+}
+.md-acct-card__glyph { display: block; width: 30px; height: 30px; }
+
+.md-acct-card__body { display: flex; flex-direction: column; min-width: 0; }
+.md-acct-card__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.1px;
+  line-height: 1.25;
+  color: #16324f;
+}
+/* Arrow / dropdown caret affordance. */
+.md-acct-card__arrow {
+  /* Pinned to the card's right edge so the arrows line up in a column across all
+     four equal-width cards, regardless of title length. */
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.3em;
+  font-weight: 900;
+  color: $brand-dusty-denim;
+  transition: transform 140ms ease-out;
+}
+.md-acct-card:hover .md-acct-card__arrow,
+.md-acct-card:focus-visible .md-acct-card__arrow { transform: translate(4px, -50%); }
+.md-acct-card__sub {
+  margin: 2px 0 0;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: #3A506E;
+}
+@media (prefers-reduced-motion: reduce) {
+  .md-acct-card,
+  .md-acct-card__arrow { transition: none; }
+  .md-acct-card:hover,
+  .md-acct-card:focus-visible { transform: none; }
+  /* Keep the arrow vertically centered (no horizontal slide) with motion reduced. */
+  .md-acct-card:hover .md-acct-card__arrow,
+  .md-acct-card:focus-visible .md-acct-card__arrow { transform: translateY(-50%); }
+}
+
+/* Extras: the whole card is the dropdown toggle; the `.dropdown-menu` is a sibling
+   inside the `.btn-group` cell (its positioning context). */
+.md-acct-extras { position: relative; display: block; }
+.md-acct-extras > .md-acct-card { width: 100%; }
+.md-acct-extras > .dropdown-menu { top: 100%; margin-top: 6px; }
+
 /* Focused View — DARK glassy/glossy icon tiles on the dark action cards (was the
    light white tiles above). A translucent navy→verdigris glass with a strong
    specular highlight, a frosted backdrop blur, a bright top rim + dark inner lip
@@ -56571,6 +57251,16 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   font-weight: 600;
   color: rgba($la-navy, 0.65);
 }
+.md-strip__owner {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba($la-navy, 0.55);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 
 /* Dashboard home only: increase height of boards and extras cards */
 .md-grid--dashboard .md-card--boards {
@@ -59830,10 +60520,12 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
      flex-grew the workspace failed because the shell stayed collapsed). Scoped via
      `#within_ember:has(.board-picker-page)` (proven to match this page, robust to
      wrapper structure, specificity (1,2,0)/(1,3,0) wins over the generic rules). */
-  #within_ember:has(.board-picker-page) .md-shell--board-picker {
+  #within_ember:has(.board-picker-page) .md-shell--board-picker,
+  #within_ember:has(.md-shell--board-picker) .md-shell--board-picker {
     min-height: 100vh !important;
   }
-  #within_ember:has(.board-picker-page) .md-shell--board-picker > .md-workspace {
+  #within_ember:has(.board-picker-page) .md-shell--board-picker > .md-workspace,
+  #within_ember:has(.md-shell--board-picker) .md-shell--board-picker > .md-workspace {
     flex: 1 1 auto !important;
     min-height: auto !important;
   }
@@ -65163,6 +65855,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     gap: 6px;
     min-height: 44px;
     padding: 8px 14px;
+    text-decoration: none;
     background: linear-gradient(135deg, rgba(44, 183, 176, 0.12), rgba(91, 141, 239, 0.10));
     border: 1px solid rgba(255, 255, 255, 0.5);
     /* Pill radius matches the "+ New Board" CTA so the two boards-page
@@ -66835,10 +67528,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     .board_with_action.simple_board_holder .btn.simple_board_icon,
     .simple_board_holder .btn.simple_board_icon {
       @include board-card-modern;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
+      @include simple-board-card-layout;
       width: 100%;
       max-width: 100%;
       box-sizing: border-box;
@@ -66927,7 +67617,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
       transform: none !important;
       order: 99;
       align-self: center;
-      margin-top: 8px;
+      margin-top: auto !important;
       padding: 5px 13px;
       font-size: 12px;
       display: inline-flex;
@@ -67613,6 +68303,13 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 }
 .md-shell.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) {
   padding-top: 2px !important;
+  /* Published for .md-board-detail-layout's min-height calc below. That calc sizes
+     the layout to the full viewport, but the layout sits INSIDE this padding — so
+     without subtracting it the page is always exactly this much taller than the
+     screen and scrolls by 2px. Declared here, next to the padding it mirrors, so
+     the two cannot drift apart. Unset (→ 0px fallback) in edit/dark, which have
+     padding-top: 0. */
+  --bd-shell-pad-top: 2px;
   /* SPEAK mode: flatten the atmospheric shell gradient (defined on
      .md-shell--board-detail below) to the SAME flat surface as
      .md-board-detail-main. The main is now $brand-charcoal-dark (design pass) —
@@ -67663,8 +68360,15 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   /* 100dvh (dynamic viewport height) tracks the actual visible area on mobile
      — Android Chrome's URL bar eats into the viewport but isn't reflected in
      100vh. dvh keeps the layout flush to the visible bottom so the button grid
-     never clips and no empty gutter appears when the URL bar shows/hides. */
-  height: calc(100dvh - var(--topbar-height, 68px));
+     never clips and no empty gutter appears when the URL bar shows/hides.
+     `--bd-shell-pad-top` is the shell's own top padding (2px in speak mode,
+     declared next to that padding above). The layout is nested INSIDE it, so
+     without subtracting it the page is always exactly that much taller than the
+     viewport — a permanent 2px scrollbar with nothing to scroll to, which on a
+     375px-tall phone reads as "the board doesn't fit". This is the authoritative
+     height for speak mode: it outranks both the `height: auto` and the
+     `min-height` in the ≤820px block, so the subtraction has to happen HERE. */
+  height: calc(100dvh - var(--topbar-height, 68px) - var(--bd-shell-pad-top, 0px));
   box-sizing: border-box;
 }
 /* Speak mode: left/right breathing room lives on the board area (.md-board-detail-main)
@@ -67747,18 +68451,55 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   margin: 0;
   font-style: italic;
 }
-.md-board-detail-error__retry {
-  font-size: 17px;
+.md-board-detail-error__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  max-width: 640px;
+}
+.md-board-detail-error__action {
+  font-size: 1.05rem;
+  min-height: 48px;
+  padding: 12px 22px;
+  border-radius: 10px;
+}
+.md-board-detail-error__action--primary {
+  font-weight: 600;
+}
+.md-board-detail-error__retry,
+.md-board-detail-error__retry-link {
+  font-size: 1rem;
   padding: 10px 24px;
 }
+.md-board-detail-error__retry-link {
+  appearance: none;
+  background: none;
+  border: none;
+  color: rgba($la-navy, 0.65);
+  text-decoration: underline;
+  cursor: pointer;
+  min-height: 44px;
+}
+.md-board-detail-error__retry-link:hover,
+.md-board-detail-error__retry-link:focus-visible {
+  color: rgba($la-navy, 0.95);
+}
 /* Dark board surface: the navy message/retry text is invisible against the
-   dark canvas — flip both to light. (The "Try Again" btn is white-on-dark
-   already, so it needs no override.) */
+   dark canvas — flip both to light. */
 .md-board-detail--dark .md-board-detail-error__message {
   color: rgba(255, 255, 255, 0.92);
 }
 .md-board-detail--dark .md-board-detail-error__retrying {
   color: rgba(255, 255, 255, 0.65);
+}
+.md-board-detail--dark .md-board-detail-error__retry-link {
+  color: rgba(255, 255, 255, 0.7);
+}
+.md-board-detail--dark .md-board-detail-error__retry-link:hover,
+.md-board-detail--dark .md-board-detail-error__retry-link:focus-visible {
+  color: rgba(255, 255, 255, 0.95);
 }
 
 /* ── Board background layer (VSD / scene display): scoped via :has(#board_bg)
@@ -69558,7 +70299,12 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    container-box differences. The fallback clamp only applies before the first
    measurement lands. */
 .md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction-label {
-  font-size: var(--prediction-label-font, clamp(10px, 14cqw, var(--bd-button-text-size, 15px)));
+  /* Fallback coefficient tracks the board label rule (26 / 13px floor) so the
+     pre-measurement paint is already the right size. Stays `cqw`, NOT `cqmin`
+     like the board card: this tile is an `inline-size` container, and in one of
+     those the block axis is unavailable, so `cqmin` would silently resolve
+     against the small-viewport size instead of the tile. */
+  font-size: var(--prediction-label-font, clamp(13px, 26cqw, var(--bd-button-text-size, 15px)));
   /* The rail sits on the DARK board surface in light mode too — the prediction
      tiles show the dark canvas through — so dark text is unreadable here. Use
      light text for legibility (matches the dark-mode rule below). */
@@ -69995,8 +70741,9 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 .md-board-detail-portrait-overlay__phone-svg {
   color: rgba(255, 255, 255, 0.92);
-  transform-origin: 50% 50%;
-  animation: md-portrait-phone-rotate 3.4s cubic-bezier(0.66, 0, 0.34, 1) infinite;
+  /* Static monitor icon — no rotation. The old md-portrait-phone-rotate animation was for the
+     phone that flipped portrait→landscape; the overlay now recommends a larger screen, not a
+     rotation, so the icon stays solid. */
 }
 .md-board-detail-portrait-overlay__phone-arc {
   color: $brand-verdigris;
@@ -70045,7 +70792,8 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   font-size: $aac-font-size-xl;
   font-weight: 700;
   line-height: 1.2;
-  color: #fff;
+  /* Brand verdigris, 25% lighter (swapped with the Continue Anyway button color). */
+  color: color.scale($brand-verdigris, $lightness: 25%);
 }
 .md-board-detail-portrait-overlay__desc {
   margin: 0 0 24px;
@@ -70087,11 +70835,13 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   padding: 8px;
   border: none;
   background: transparent;
-  color: rgba(255, 255, 255, 0.62);
+  /* Brand verdigris (swapped with the title color) — the shared "Continue Anyway" across the
+     larger-screen (board-detail) and create-board orientation overlays. */
+  color: $brand-verdigris;
   font-weight: 500;
 }
 .md-board-detail-portrait-overlay__btn--secondary:hover {
-  color: rgba(255, 255, 255, 0.92);
+  color: color.scale($brand-verdigris, $lightness: 25%);
   text-decoration: underline;
 }
 /* Respect reduced-motion: hold the phone at the landscape hint, drop
@@ -70489,6 +71239,81 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail--dark .md-board-edit-session__board-title {
   color: #fff;
 }
+/* Rename affordance sitting immediately after the board name in the session bar:
+   a quiet round ghost button that opens the Edit Board Details modal. Deliberately
+   understated at rest (transparent, hairline ring) so it reads as an accessory to
+   the title rather than a third action competing with Save / Cancel; it fills in
+   with the same verdigris the session bar uses on hover. `flex: 0 0 auto` and the
+   negative left margin pull it tight against the (truncating) title while the bar's
+   11px gap still separates it from whatever follows. */
+.md-board-edit-session__title-edit {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-left: -4px;
+  padding: 0;
+  border: 1px solid rgba($la-navy, 0.14);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.md-board-edit-session__title-edit:hover {
+  background: rgba($brand-verdigris, 0.16);
+  border-color: rgba($brand-verdigris, 0.55);
+  transform: translateY(-1px);
+}
+.md-board-edit-session__title-edit:active {
+  transform: translateY(0);
+}
+.md-board-edit-session__title-edit:focus-visible {
+  outline: 2px solid $brand-verdigris;
+  outline-offset: 2px;
+}
+.md-board-detail--dark .md-board-edit-session__title-edit {
+  border-color: rgba(143, 228, 223, 0.32);
+}
+.md-board-detail--dark .md-board-edit-session__title-edit:hover {
+  background: rgba(143, 228, 223, 0.18);
+  border-color: rgba(143, 228, 223, 0.62);
+}
+/* Dark mode: lighten the note-page outline of the pencil mark (stroked #46505F
+   inline), same treatment the Editing pill's icon gets. The teal pencil accent
+   stays as-is. */
+.md-board-detail--dark .md-board-edit-session__title-edit svg path[stroke="#46505F"] {
+  stroke: #eef3f6;
+}
+/* ≤768px: hide the board NAME in the edit session bar to reclaim room on narrow screens (the
+   board icon stays as the compact identifier), and move the "Editing/Previewing" pill out of
+   its absolute center position into the gap the name left — right after the icon. */
+@media (max-width: 768px) {
+  /* The rename pencil goes with the name it annotates — with the title gone it
+     would read as an orphaned control between the icon and the pill. Edit Board
+     Details is still reachable from the Board Actions panel at this width. */
+  .md-board-edit-session__board-title,
+  .md-board-edit-session__title-edit {
+    display: none;
+  }
+  /* Pill: drop the absolute centering and rejoin the flex flow so it sits next to the icon
+     where the title used to be (DOM order is state → pill → actions). */
+  .md-board-detail-edit-pill {
+    position: static;
+    left: auto;
+    top: auto;
+    transform: none;
+  }
+  /* Left-align the row so the icon + pill hug the start, and push the Save/Cancel actions to
+     the right edge with an auto margin (base is justify-content: space-between). */
+  .md-board-edit-session {
+    justify-content: flex-start;
+  }
+  .md-board-edit-session__actions {
+    margin-left: auto;
+  }
+}
 .md-board-edit-session__badge--copying {
   font-size: 12px;
   font-weight: 700;
@@ -70619,6 +71444,39 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-edit-session__btn-badge .md-board-edit-session__btn-icon {
   width: 18px;
   height: 18px;
+}
+/* Below 820px the edit session bar gets cramped, so shrink the Save/Cancel buttons and their
+   badges to reclaim room. This is the supporter/therapist edit toolbar (not an AAC communicator
+   target), so a sub-44px touch target is acceptable here. Placed after the base button/badge
+   rules so it wins by source order; the color-only discard/save variants don't touch size. */
+@media (max-width: 820px) {
+  .md-board-edit-session__btn {
+    min-height: 36px;
+    padding: 4px 12px 4px 5px;
+    font-size: 13px;
+    gap: 6px;
+  }
+  .md-board-edit-session__btn-badge {
+    width: 20px;
+    height: 20px;
+  }
+  .md-board-edit-session__btn-badge .md-board-edit-session__btn-icon {
+    width: 14px;
+    height: 14px;
+  }
+}
+/* ≤640px: drop the "Cancel"/"Save" text so each button collapses to just its badge icon —
+   reclaims horizontal room in the tightest session bars. Padding becomes a symmetric pad
+   around the badge (the base is asymmetric for the badge-left + label-right layout) and the
+   gap is zeroed since there's no label to space from. */
+@media (max-width: 640px) {
+  .md-board-edit-session__btn-label {
+    display: none;
+  }
+  .md-board-edit-session__btn {
+    padding: 4px;
+    gap: 0;
+  }
 }
 /* Discard: a thin neutral circle OUTLINE matching the panel expand/collapse buttons
    (.md-board-edit-panel__collapse-btn) — drop the maroon, the glassy fill and the
@@ -72665,6 +73523,56 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   .md-board-detail-phrase-builder__btn-img { width: 52px; height: 52px; }
   .md-board-detail-phrase-builder__btn-label { font-size: 1rem; } /* 17px — phrase builder small button label */
 }
+/* Dense boards (>10 columns) narrow the inline sidebar ~25% at EVERY breakpoint so the
+   board grid reclaims the room (the grid is the flex:1 sibling in
+   .md-board-detail-grid-sidebar-wrap and expands into the freed space automatically).
+   Crucially, the inner content — board thumbnail, label, item padding — scales down by the
+   same proportion so it stays composed instead of squishing into the narrower rail. Widths
+   and content mirror the responsive tiers below at 0.75: base(>1024) width 112→84 / img
+   60→45; ≤1024 width 80→60 / img 42→32; ≤768 width 70→53 / img 28→21. Label font is held at
+   the AAC ≥11px readability floor (see the ≤768 note further down), so it steps 15→12→11
+   rather than scaling below legibility. Gated by .md-shell--many-columns (set on the shell
+   when current_grid.columns > 10). */
+.md-shell--many-columns .md-board-detail-inline-sidebar {
+  width: 84px;
+}
+.md-shell--many-columns .md-board-detail-inline-sidebar__item {
+  padding: 8px 6px;
+}
+.md-shell--many-columns .md-board-detail-inline-sidebar__img {
+  width: 45px;
+  height: 45px;
+}
+.md-shell--many-columns .md-board-detail-inline-sidebar__name {
+  font-size: 12px;
+}
+@media (max-width: 1024px) {
+  .md-shell--many-columns .md-board-detail-inline-sidebar {
+    width: 60px;
+  }
+  .md-shell--many-columns .md-board-detail-inline-sidebar__item {
+    padding: 5px 3px;
+  }
+  .md-shell--many-columns .md-board-detail-inline-sidebar__img {
+    width: 32px;
+    height: 32px;
+  }
+  .md-shell--many-columns .md-board-detail-inline-sidebar__name {
+    font-size: 11px;
+  }
+}
+@media (max-width: 768px) {
+  .md-shell--many-columns .md-board-detail-inline-sidebar {
+    width: 53px;
+  }
+  .md-shell--many-columns .md-board-detail-inline-sidebar__item {
+    padding: 4px 2px;
+  }
+  .md-shell--many-columns .md-board-detail-inline-sidebar__img {
+    width: 21px;
+    height: 21px;
+  }
+}
 .md-board-detail-inline-sidebar {
   width: 100px;
   flex-shrink: 0;
@@ -73533,6 +74441,65 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     --md-collection-drawer-w: 320px;
   }
 }
+/* ── Edit-mode Board Collections drawer (LEFT variant) ────────────────
+   Mirror of the speak-mode right drawer, but pinned to the LEFT edge and used
+   in EDIT mode: the edit rail hides and this drawer takes its place, while the
+   center board area is pushed RIGHT by the drawer width (no overlay, so the grid
+   stays visible/interactive while browsing board-to-board). Reuses the same
+   --md-collection-drawer-w token so width + push stay in lockstep. */
+.md-shell--board-collection-left {
+  --md-collection-drawer-w: 380px;
+}
+.md-board-detail-actions-menu--collection.md-board-detail-actions-menu--collection-left {
+  right: auto;
+  left: 0;
+  /* Sharp LEFT edge (flush with viewport), rounded RIGHT edge — the left-side
+     counterpart of the right drawer's 14px 0 0 14px. */
+  border-radius: 0 14px 14px 0;
+}
+.md-board-detail-actions-menu--collection.md-board-detail-actions-menu--collection-left .md-board-collection__header {
+  border-radius: 0 14px 0 0;
+}
+/* Rail hides — the drawer takes its place. */
+.md-shell--board-collection-left .md-board-edit-panel {
+  display: none;
+}
+/* Edit-mode collection: hide the per-row board language labels (the drawer only
+   carries --collection-left in edit context, so speak mode is unaffected). Covers
+   every row — Original Selected Board, My Boards, and the brand sections. */
+.md-board-detail-actions-menu--collection-left .md-board-collection__item-lang {
+  display: none;
+}
+/* Right SETTINGS panel also hides while browsing the collection, so the center
+   board area is unobstructed (mirrors the speak-mode collection hiding the inline
+   sidebar). It comes back when the drawer closes. */
+.md-shell--board-collection-left .md-board-edit-right-panel {
+  display: none;
+}
+/* Save / Cancel hide while previewing a browsed board — the center is showing a
+   different board (the pill reads "Previewing"), so committing or discarding the
+   edit doesn't apply. They return when the drawer closes. */
+.md-shell--board-collection-left .md-board-edit-session__actions {
+  display: none;
+}
+/* Push the center layout RIGHT by exactly the drawer width (edit mode only), and
+   collapse the 3-column grid (rail | center | right-panel) to a single 1fr column so
+   the center `main` fills the freed width.
+   !important + three shell-class specificity (0,0,4,0) is REQUIRED to beat the
+   edit-mode :has() grid rules (~app.scss:91036, `15% 1fr 15% !important`): the rail
+   and right panel are display:none while the drawer is open, but they stay in the
+   DOM, so `:has(.md-board-edit-panel)` still matches and would otherwise keep the
+   two side columns reserved (the empty-gap / thin-strip bug). Overriding an existing
+   !important is the sanctioned reason to use one here. */
+.md-shell--board-detail.md-shell--board-detail-edit.md-shell--board-collection-left .md-board-detail-layout {
+  padding-left: var(--md-collection-drawer-w, 380px);
+  grid-template-columns: 1fr !important;
+}
+@media (max-width: 1024px) {
+  .md-shell--board-collection-left {
+    --md-collection-drawer-w: 320px;
+  }
+}
 .md-board-collection {
   display: flex;
   flex-direction: column;
@@ -74020,7 +74987,13 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex: 1 1 auto;
+  /* Basis 0 (not auto) is REQUIRED because the row is flex-wrap:wrap. Under wrap, the browser
+     breaks lines using each item's flex BASE size BEFORE shrinking — with basis:auto a long
+     board name makes the display's base size wide, so the +/reorder/remove controls get bumped
+     to the next row even though the display could shrink. Basis 0 makes the display's line-break
+     size 0, so the controls always stay on line 1; grow:1 + min-width:0 then let it fill and the
+     name truncate. (The confirm span keeps its own line via its own flex:0 0 100%.) */
+  flex: 1 1 0;
   min-width: 0;
 }
 .md-sidebar-editor__action {
@@ -74242,11 +75215,24 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   background: rgba($la-navy, 0.06);
 }
 .md-board-collection__item-name {
-  flex: 1 1 auto;
-  min-width: 0; /* allow ellipsis to actually clip inside the flex row */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.md-board-collection__item-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.md-board-collection__item-owner {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: rgba($la-navy, 0.55);
 }
 .md-board-collection__item-lang {
   flex-shrink: 0;
@@ -74305,6 +75291,9 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    secondary detail without competing with the board name. */
 .md-board-detail--dark .md-board-collection__item-lang {
   color: rgba(226, 232, 240, 0.70);
+}
+.md-board-detail--dark .md-board-collection__item-owner {
+  color: rgba(226, 232, 240, 0.55);
 }
 
 /* Side-information pill — total button count for the board. Sits
@@ -74484,6 +75473,57 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail--dark .md-board-collection__item:hover .md-board-collection__item-count {
   background: rgba(255, 255, 255, 0.18);
   color: #fff;
+}
+
+/* ── Original Selected Board — highlighted "hero" section ──────────────────────
+   The board the edit page was opened with, pinned at the top of the drawer. Given
+   a stronger teal-accented treatment than the neutral section cards so it clearly
+   outranks them (visual hierarchy). Placed AFTER the base + dark section rules so
+   these same-specificity modifier selectors win on source order. */
+.md-board-collection__section--original {
+  background:
+    radial-gradient(ellipse 75% 100% at 8% -20%, rgba($brand-teal, 0.13) 0%, transparent 68%),
+    linear-gradient(180deg, rgba($brand-teal, 0.08) 0%, #ffffff 72%);
+  border: 1px solid rgba($brand-teal, 0.40);
+  border-top: 4px solid $brand-teal;
+  box-shadow:
+    0 0 0 1px rgba($brand-teal, 0.08),
+    0 4px 14px rgba($brand-teal, 0.16),
+    0 12px 30px rgba($brand-blue-black, 0.10);
+}
+.md-board-collection__section--original .md-board-collection__section-label {
+  color: $brand-teal;
+}
+.md-board-collection__section--original .md-board-collection__item {
+  background: rgba($brand-teal, 0.08);
+  border: 1px solid rgba($brand-teal, 0.22);
+}
+.md-board-collection__section--original .md-board-collection__item:hover {
+  background: rgba($brand-teal, 0.14);
+}
+.md-board-collection__section--original .md-board-collection__item-name {
+  font-weight: 700;
+}
+/* Dark variant — brighter teal so it reads on the dark drawer surface. */
+.md-board-detail--dark .md-board-collection__section--original {
+  background:
+    radial-gradient(ellipse 75% 100% at 8% -20%, rgba(80, 217, 209, 0.16) 0%, transparent 68%),
+    rgba(20, 127, 130, 0.14);
+  border: 1px solid rgba(80, 217, 209, 0.38);
+  border-top: 4px solid rgba(80, 217, 209, 0.85);
+  box-shadow:
+    0 0 0 1px rgba(80, 217, 209, 0.10),
+    0 6px 22px rgba(0, 0, 0, 0.38);
+}
+.md-board-detail--dark .md-board-collection__section--original .md-board-collection__section-label {
+  color: rgba(80, 217, 209, 0.92);
+}
+.md-board-detail--dark .md-board-collection__section--original .md-board-collection__item {
+  background: rgba(80, 217, 209, 0.10);
+  border: 1px solid rgba(80, 217, 209, 0.22);
+}
+.md-board-detail--dark .md-board-collection__section--original .md-board-collection__item:hover {
+  background: rgba(80, 217, 209, 0.18);
 }
 .md-board-detail--dark .md-board-collection__loading,
 .md-board-detail--dark .md-board-collection__empty {
@@ -74936,30 +75976,31 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     gap: 4px !important;
     padding-top: 0;
   }
-  /* Default folder mode reserves ~10px of top padding on EVERY cell (folder +
-     non-folder alike — see the folder-tab-geometry mixin) to make room for the
-     notebook tab and keep rows aligned. On a short screen that reserve stacks
-     ON TOP of the 4px grid gap, so the visual gap between button rows becomes
-     ~14px while the sides stay 4px — asymmetric, wasted vertical space. Collapse
-     the reserve here so the card-to-card gap equals the 4px grid gap on all four
-     sides (per request). The subtle tab tucks against the card top; folders stay
-     identified by their corner glyph. Folder-back bottom overhang zeroed too so
-     folder rows don't gain a 3px bottom peek the non-folder rows lack. Matched to
-     the default-folder selector (:not tab-labels / colored-corner) so the other
-     folder display modes are untouched. Speak mode only. */
-  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid:not(.md-board-detail-grid--folder-tab-labels):not(.md-board-detail-grid--folder-colored-corner) .md-board-detail-grid__cell {
-    padding-top: 0 !important;
-  }
-  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid:not(.md-board-detail-grid--folder-tab-labels):not(.md-board-detail-grid--folder-colored-corner) .md-folder-back {
-    top: 0;
-    bottom: 0;
-  }
+  /* NOTE: the short-screen folder-tab-reserve collapse (cell padding-top:0 + folder-back
+     top/bottom:0) was REMOVED so the default folder tab shows on short viewports too —
+     matching the user's folder-style preference at EVERY screen size, not just tall ones.
+     The folder-tab-geometry mixin's reserve/protrusion now applies at all heights. Trade-off:
+     short screens keep the ~10px per-row tab reserve instead of reclaiming it. (The grid gap
+     and main padding reclaim above are kept.) Speak mode. */
   /* Reclaim the board area's outer chrome on short screens: the center board
      panel's padding (base 8/12/7, up to 24 bottom in some states) collapses to a
      uniform 4px so the grid uses the full width/height between the sentence bar
-     and the side rails (per request). */
+     and the side rails (per request).
+     TOP is 0, not 4px: the shell above already contributes its own 2px, and on a
+     375px-tall viewport (iPhone SE landscape) every one of these paddings stacked
+     — shell 2 + main 4 + sentence-row margin 6 = 12px of dead space before the
+     sentence bar even started. 0 here leaves the shell's 2px as the whole top
+     inset, which is the intent. */
   .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-main {
-    padding: 4px !important;
+    padding: 0 4px 4px !important;
+  }
+  /* Same squeeze under the sentence bar. The ≤820px rule sets `6px 2px 14px`,
+     which is fine on a tall tablet but spends 20px of a 375px-tall phone on the
+     gap above and below the bar. Top goes to 0 (the shell's 2px is the top inset)
+     and the gap to the grid drops to 4px, matching the grid's own 4px gutter on
+     short screens so the board reads as one evenly-spaced block. */
+  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-sentence-row {
+    margin: 0 2px 4px 2px;
   }
   /* Tighten the gutter between the board grid and the inline sidebar from 6px to
      4px so it matches the symmetric 4px board spacing — a small, even gap rather
@@ -74993,13 +76034,10 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   .md-shell--board-detail-edit .md-board-detail-layout .md-board-detail-grid-sidebar-wrap {
     padding-bottom: 0 !important;
   }
-  .md-shell--board-detail-edit .md-board-detail-grid:not(.md-board-detail-grid--folder-tab-labels):not(.md-board-detail-grid--folder-colored-corner) .md-board-detail-grid__cell {
-    padding-top: 0 !important;
-  }
-  .md-shell--board-detail-edit .md-board-detail-grid:not(.md-board-detail-grid--folder-tab-labels):not(.md-board-detail-grid--folder-colored-corner) .md-folder-back {
-    top: 0;
-    bottom: 0;
-  }
+  /* NOTE: the short-screen folder-tab-reserve collapse (cell padding-top:0 + folder-back
+     top/bottom:0) was REMOVED here too, so the default folder tab shows on short EDIT
+     viewports — same reasoning as the speak block above (respect the folder-style preference
+     at every screen size). Trade-off: short screens keep the ~10px per-row tab reserve. */
   /* Collapse the center panel padding from 8/16/28 to a uniform 4px. Extra
      `.md-board-detail-layout` class so this (0,3,0) beats the base edit-main rule
      `.md-shell--board-detail-edit .md-board-detail-main {padding:8/16/28!important}`
@@ -75038,12 +76076,13 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    base `.md-board-detail-grid` rules. Edit mode only — speak/other
    views keep calc(100dvh - 120px). */
 .md-shell--board-detail-edit .md-board-detail-grid-sidebar-wrap .md-board-detail-grid {
-  /* Same offset as speak mode (base 120px) so the edit board fits on ONE PAGE
-     with no vertical scroll. The old 180px reserved ~60px extra for the edit-only
-     chrome above the grid (edit-card + speak-bar preview row) — both since
-     removed, so the edit chrome (just the sticky session bar) is now LESS than
-     speak's (title + sentence row). Matching 120px therefore guarantees the fit. */
-  height: calc(100dvh - 120px) !important;
+  /* Reserve room for ALL the edit chrome above/below the grid so the board fits on ONE
+     screen with no vertical scroll. 120px under-reserved on full screens: the 59px sticky
+     session header + main's 8/16/28 padding + the wrap's 10px bottom padding + 4px margin add
+     up past it, so the grid ran a hair too tall and <main> (overflow-y:auto) scrolled. 140px
+     covers it. (Short screens use the tighter offset in the @media block above, which already
+     fits.) If a small bottom gap appears, trim this; if it still scrolls, raise it. */
+  height: calc(100dvh - 140px) !important;
 }
 /* The board grid fills the viewport height at ALL sizes (base
    `.md-board-detail-grid { flex: 1 1 0 }`), so it always stays on ONE PAGE with no
@@ -75387,8 +76426,15 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   max-width: 100%;
   max-height: 100%;
   min-width: 0;
-  width: auto;
-  height: auto;
+  /* Fill the holder rather than sitting at intrinsic size. `width/height: auto`
+     meant an image only ever rendered as large as its source file, so a
+     low-resolution or small-canvas symbol left dead space inside a button that
+     had room for it — the symbol never expanded to its full allowed content
+     space. `100%` + `object-fit: contain` scales the symbol UP to the holder as
+     well as down, and contain still preserves aspect ratio, so nothing is
+     stretched or cropped. */
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   filter: none;
   opacity: 1;
@@ -75542,7 +76588,13 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   word-break: break-word;
   line-height: 1.3;
 }
-.md-board-detail-symbol-card--text-symbol {
+/* Two selectors, same declaration: the responsive board-button padding is set on
+   `.md-board-detail-grid .md-board-detail-symbol-card` (two classes), which
+   outranks a lone `--text-symbol` and would put 1px back on a card whose whole
+   point is that the text fills it. The grid-scoped copy matches that specificity
+   so the zeroing still wins inside the board grid. */
+.md-board-detail-symbol-card--text-symbol,
+.md-board-detail-grid .md-board-detail-symbol-card--text-symbol {
   padding: 0;
 }
 .md-board-detail-symbol-card--text-symbol .md-board-detail-symbol-card__image {
@@ -75566,7 +76618,13 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   text-align: center;
   text-transform: var(--bd-button-text-transform, none);
   word-break: keep-all;
-  overflow-wrap: anywhere;
+  /* `normal`, not `anywhere`. `anywhere` let the browser break INSIDE a word to
+     make it fit — "you" rendered as "yo" / "u" — and for AAC the shape of the
+     whole word is the recognition cue, so a split word is worse than a small
+     one. With `normal` an over-wide word simply overflows, which is the signal
+     label_fit measures (scrollWidth > clientWidth) before shrinking the font to
+     fit. Wrapping at real word boundaries still works for multi-word labels. */
+  overflow-wrap: normal;
 }
 .high_contrast .md-board-detail-symbol-card__text-symbol {
   color: #f8fc03 !important;
@@ -75590,7 +76648,11 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    symbol stays visible — no cropping — it just scales up to fill the freed room.
    Opt-in per button (btn.hide_label → `--hide-label` on the card); scoped to
    raster/loaded `img.symbol` so folder-placeholder svgs and empty cells are untouched. */
-.md-board-detail-symbol-card--hide-label {
+/* Grid-scoped copy for the same reason as --text-symbol above: the two-class
+   responsive padding rule would otherwise reintroduce a 1px inset on a card that
+   deliberately drops it so the symbol can fill the whole button. */
+.md-board-detail-symbol-card--hide-label,
+.md-board-detail-grid .md-board-detail-symbol-card--hide-label {
   padding: 0;
 }
 .md-board-detail-symbol-card--hide-label .md-board-detail-symbol-card__image {
@@ -75616,8 +76678,8 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   font-size: var(--bd-button-text-size, 15px);
   /* Smooth the font-size change when the user adjusts the Text Size
      stepper in the Edit Tools rail. Without this, each +/- click
-     snaps the label size abruptly; with shrink-labels ON the
-     label_fit.js inline override layered on top makes the change
+     snaps the label size abruptly; label_fit.js inline overrides layered
+     on top can make the change read as "pops back and forth between the
      read as "pops back and forth between the new and old setting"
      because the inline-style restore inside fitWrapped briefly puts
      the OLD size back before the caller sets the NEW. label_fit
@@ -75688,16 +76750,9 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    every height. To make symbols read larger on short screens, give the image
    more vertical room (trim label / cell padding), never scale past the
    container. */
-// Shrink-to-fit opt-in (Text Settings → Shrink labels to fit) is
-// implemented per-label in JS — see app/frontend/app/utils/label_fit.js
-// and the board-detail-grid component. The toggle adds
-// .md-board-detail-grid--shrink-labels to the grid root as a hook
-// JS uses to decide whether to apply or clear inline font-sizes,
-// but the visual behavior comes entirely from those inline styles
-// (which beat the base CSS rule on cascade). There is intentionally
-// no CSS rule scoped to that class — the previous CSS-driven version
-// scaled labels uniformly by card width, which scaled short labels
-// alongside long ones and missed the per-label content-aware intent.
+// Per-label shrink-to-fit is implemented in app/frontend/app/utils/label_fit.js
+// and wired via the board-detail-grid component. Inline font-sizes from the
+// fit beat the base CSS rule on cascade; there is no separate opt-in class.
 .md-board-detail-symbol-card__label-input {
   font-size: var(--bd-button-text-size, 19px);
   font-weight: 600;
@@ -76419,6 +77474,21 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail-edit-pill__label {
   text-transform: uppercase;
   letter-spacing: 0.06em;
+}
+/* Dark mode: SOLID pill background + a uniform LIGHT font/icon (per request) — no translucent
+   glass and no gradient. The glassy pill's bright upper-left highlight fought text contrast
+   (dark text OR light text washed out over it); a solid dark pill gives even contrast for one
+   light text color. Light mode keeps its glassy translucent pill + solid $indigo text. */
+.md-board-detail--dark .md-board-detail-edit-pill {
+  background: #2e4a52;
+  color: #eef3f6;
+}
+/* Dark mode: lighten the icon FRAME — the note "partial square" outline (Editing) and the eye
+   outline (Previewing), both stroked #46505F inline — which reads too dark on the solid dark
+   pill. A CSS stroke overrides the SVG presentation attribute, so no template change. The
+   pencil / pupil accent (#2A9D8F teal) is left as-is. */
+.md-board-detail--dark .md-board-detail-edit-pill__icon path[stroke="#46505F"] {
+  stroke: #eef3f6;
 }
 
 /* ── Modern tooltips for edit toolbar ── */
@@ -79091,20 +80161,35 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail-grid__cell--folder {
   padding-top: 10px;
   overflow: visible;
+  /* Query container so the folder tab (a descendant) can size itself in cqh — % of THIS
+     cell's height — and thus scale with the BUTTON: shorter on small buttons, taller on big
+     ones, with a matching (scaled) corner radius so short tabs never round into a "nub".
+     container-type: size gives size/layout containment only (NOT paint), so the tab still
+     protrudes above the cell via overflow: visible. The cell is a 1fr grid item with a
+     determinate size, so size containment is a no-op for its own sizing. */
+  container-type: size;
+  container-name: folder-cell;
 }
 /* Folder back panel — elevated, solid with depth */
 .md-folder-back {
   position: absolute;
   top: 6px;
-  left: -2px;
-  right: -2px;
+  // Left/right overhang pulled in 1px (−2px → −1px) so the back hugs the card 1px tighter on
+  // the sides. (top/bottom are set by the folder-tab-geometry mixin — bottom tightened 1px
+  // there; top left as-is so the tab keeps its position.)
+  left: -1px;
+  right: -1px;
   bottom: -3px;
   // Notebook-tab feel (2026-07): 16% lighter than charcoal-blue (was +30%) so
   // the folder body sits CLOSER to the board and reads as a quiet, integrated
   // backdrop rather than a high-contrast card (default + Show-Labels-on-Tab
   // modes; colored-corner hides the back, dark mode overrides below). Tab tracks
   // this same value so the two stay visually paired.
-  background: color.adjust($brand-charcoal-blue, $lightness: 16%);
+  // Back takes the folder FRONT color (--btn-bg = the card face) 10% darker (via color-mix
+  // with black) so the folder body reads in its OWN color instead of a fixed charcoal.
+  // Falls back to the prior charcoal-blue when a folder has no face color. Applies to
+  // default + Show-Labels-on-Tab; colored-corner hides the back and dark mode keeps its lift.
+  background: color-mix(in srgb, var(--btn-bg, #{color.adjust($brand-charcoal-blue, $lightness: 16%)}) 90%, black);
   // All four corners match the symbol card's front radius (clamp(6px,1.2vw,16px),
   // the .md-board-detail-symbol-card value) so the back reads as the same
   // roundness as the card face.
@@ -79157,26 +80242,41 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    back) creates a single seamless folder silhouette. */
 .md-folder-tab {
   position: absolute;
+  // NOTE: default-mode top/height are NOT controlled here — the folder-tab-geometry mixin
+  // (@include'd for default mode further down) overrides both (its selector out-specifies this
+  // base rule). These are only the fallback; tune the DEFAULT tab's vertical size in that mixin
+  // + its default @include, not here.
   top: -4px;
   left: 10px;
-  // Narrower notebook tab (was 40%): a small tab at the corner rather than a
-  // wide hanging-file tab, as a percentage of the backdrop so it tracks the
-  // button width. (Show-Labels-on-Tab overrides this to a wide tab for the text.)
-  width: 26%;
+  // Tab WIDTH is controlled here (the mixin sets only top/height): a small corner tab sized as
+  // a percentage of the backdrop so it tracks the button width, widened 26% → 34% + 4px per
+  // request. (Show-Labels-on-Tab overrides width to a wide label tab.)
+  width: calc(34% + 4px);
   height: 6.6px;
-  // Tracks .md-folder-back's quieter value (+16% lightness) so the tab and back
-  // read as one continuous shape; dark mode overrides below.
-  background: color.adjust($brand-charcoal-blue, $lightness: 16%);
-  /* Trapezoid tab (per request): the sides ANGLE INWARD toward the top — wider at
-     the base where it meets the folder back, narrower at the top edge — like a real
-     notebook/file tab. The clip-path defines the silhouette (top corners at 16%/84%,
-     bottom flush at the full width); the top border-radius softens the two top
-     corners that the clip leaves. */
-  clip-path: polygon(16% 0, 84% 0, 100% 100%, 0 100%);
-  border-radius: 7px 7px 0 0;
+  // Folder FRONT color (--btn-bg) 20% darker — i.e. 10% darker than .md-folder-back (which
+  // uses 10%) — so the tab reads as a distinct, deeper accent against the folder body; falls
+  // back to the prior charcoal-blue when uncolored.
+  background: color-mix(in srgb, var(--btn-bg, #{color.adjust($brand-charcoal-blue, $lightness: 16%)}) 80%, black);
+  /* Rounded-rectangle tab. A prior version used a trapezoid clip-path
+     (polygon(16% 0, 84% 0, 100% 100%, 0 100%)) to angle the sides inward, but
+     clip-path RE-CLIPS to the polygon's sharp vertices — it discards the
+     border-radius entirely, so the corners rendered as hard points and the
+     sides read as too-slanted. Dropping the clip lets border-radius round the
+     top corners (the classic manila-folder tab); the mixin sets the actual
+     radius in cqmin so it scales with the button. */
+  border-radius: 11px 11px 0 0;
   pointer-events: none;
   transition: background 0.25s ease, width 0.25s ease, height 0.25s ease;
   overflow: hidden;
+}
+/* Narrow buttons (<40px wide) in DEFAULT folder mode: nudge the tab 4px left (10px → 6px) so it
+   sits better on the smaller folder front. Driven by the .md-shell--buttons-narrow class the
+   controller adds when the measured board_cell_width drops below 40px (board_buttons_narrow) —
+   the same measured-width + shell-class pattern as md-shell--many-columns, rather than a
+   container query (nothing else queries the folder-cell container, so it's unproven here).
+   Scoped to default mode: Show-Labels-on-Tab / colored-corner have their own tab treatments. */
+.md-shell--buttons-narrow .md-board-detail-grid:not(.md-board-detail-grid--folder-tab-labels):not(.md-board-detail-grid--folder-colored-corner) .md-folder-tab {
+  left: 6px;
 }
 /* Grid ROW gap (the purple gap in devtools) in Show-Labels-on-Tab: fixed 4px.
    Column gap is untouched (keeps the user's button spacing). Two-class selector
@@ -79785,11 +80885,13 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-board-detail-grid--folder-colored-face .md-board-detail-grid__cell--folder > .md-board-detail-symbol-card {
   background: var(--btn-bg, #fff) !important;
 }
-/* In default folder mode, non-folder cells pick up the same 12px top reserve
-   the folder cells use for their tab — so non-folder buttons render the same
-   visual height as the folder fronts, keeping the grid rows aligned. */
-.md-board-detail-grid:not(.md-board-detail-grid--folder-tab-labels):not(.md-board-detail-grid--folder-colored-corner) .md-board-detail-grid__cell:not(.md-board-detail-grid__cell--folder) {
-  padding-top: 10px;
+/* In default folder mode, non-folder cells pick up the SAME top reserve the folder cells use for
+   their tab (calc(--bd-cell-min * 0.14), matching the mixin's folder-cell value) — so non-folder
+   buttons render the same visual height as the folder fronts, keeping the grid rows aligned.
+   Scoped to --has-folders (set by BoardDetailGrid.hasFolders) so a folder-LESS board does NOT
+   inherit this reserve and its buttons keep full height with no dead top space. */
+.md-board-detail-grid--has-folders:not(.md-board-detail-grid--folder-tab-labels):not(.md-board-detail-grid--folder-colored-corner) .md-board-detail-grid__cell:not(.md-board-detail-grid__cell--folder) {
+  padding-top: calc(var(--bd-cell-min, 90px) * 0.14);
 }
 /* ── Folder geometry — single source of truth ────────────────────
    Takes a visible-tab height (the part that pokes above the folder
@@ -79812,33 +80914,41 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    tab-labels mode) are left intact since they're mode-specific
    chrome, not geometry. */
 @mixin folder-tab-geometry($visible, $cell-pad-offset: 4px) {
-  $back-top:     $visible + 2px;
-  // Button top padding = back-top + offset. Offset is a parameter so a
-  // caller can tune the button breathing room WITHOUT changing the
-  // folder-back top / cell geometry (driven by $back-top directly and
-  // unaffected). Default mode passes 2px (→ 14px). The tab HEIGHT is now
-  // a percentage of the backdrop (see below), independent of $visible.
-  $cell-padding: $back-top + $cell-pad-offset;
-
+  /* Folder-tab geometry scales with the cell's SMALLER side, published as --bd-cell-min
+     (min(width,height)) by board-detail.js so tab + back + reserve share ONE basis and can't
+     diverge (mixing bases let the tab punch into the row above). min-side (not height) keeps the
+     tab proportionate on tall-narrow buttons. The 90px fallback is only the pre-measurement seed;
+     board-detail.js publishes --bd-cell-min synchronously on first render so tabs are correct from
+     the first frame. $visible / $cell-pad-offset are unused (the @include sites still pass them). */
   .md-folder-back {
-    top: $back-top;
-    bottom: -3px;
+    top: calc(var(--bd-cell-min, 90px) * 0.13);
+    /* Bottom overhang pulled in 1px more per request (−2px → −1px). */
+    bottom: -1px;
   }
   .md-folder-tab {
-    // Shorter tab: 8% of the backdrop height (was 12%) so it reads as a subtle
-    // notebook tab, scaling with the button. Keep the 4px overlap into the
-    // backdrop (top = -(height - 4px) = 4px - 8%) so the tab stays connected to
-    // the folder body. NOTE: only governs DEFAULT folder mode — the
-    // Show-Labels-on-Tab variant overrides this tab height/top further down.
-    top: calc(4px - 8%);
-    height: 8%;
+    /* Reserve (0.14, the cell's padding-top below) sits ABOVE the tab's protrusion (0.085 up from
+       the back top at 0.13 → the tab's top lands ~0.045·min below the cell top): that gap is the
+       "space between rows" — the tab keeps its full height and the ROWS open up around it, so it
+       never reaches the row above at ANY grid-gap. DEFAULT folder mode only — Show-Labels-on-Tab
+       overrides height/top. */
+    height: calc(var(--bd-cell-min, 90px) * 0.12);
+    top: calc(var(--bd-cell-min, 90px) * -0.085);
+    border-radius: calc(var(--bd-cell-min, 90px) * 0.04) calc(var(--bd-cell-min, 90px) * 0.04) 0 0;
+    /* Slight file-tab taper: the top edge is drawn a touch narrower than the base so the
+       sides angle gently inward, like a real folder tab. A clip-path trapezoid gives a crisp
+       taper but RE-CLIPS to sharp polygon vertices — it discards the border-radius entirely,
+       which is exactly why the corners read as un-rounded before. A subtle perspective tilt
+       narrows the top while PRESERVING the rounded corners. Anchored at the bottom so the tab
+       stays seated on the folder back. */
+    transform: perspective(80px) rotateX(15deg);
+    transform-origin: 50% 100%;
   }
   .md-board-detail-grid__cell--folder {
-    padding-top: $cell-padding;
+    padding-top: calc(var(--bd-cell-min, 90px) * 0.14);
   }
-  .md-board-detail-grid__cell:not(.md-board-detail-grid__cell--folder) {
-    padding-top: $cell-padding;
-  }
+  /* Non-folder cells pick up the SAME card reserve so card tops stay flush across a mixed row —
+     but that rule is moved OUT of this mixin to a --has-folders-scoped selector (search
+     "has-folders" below), so folder-LESS boards don't inherit dead top space. */
 }
 
 /* Default mode (no tab-labels, no colored-corner): 6px visible tab (was 10px).
@@ -79846,10 +80956,11 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    the tab now protrudes ~4px less, so the row space reserved above each card
    drops with it. */
 .md-board-detail-grid:not(.md-board-detail-grid--folder-tab-labels):not(.md-board-detail-grid--folder-colored-corner) {
-  /* Default folder view: button top padding 10px (back-top 8px + 2px), down from
-     14px — the ~4px the shorter tab reclaimed. Scoped to this invocation only —
-     the Show-Labels-on-Tab variant below keeps its own default. */
-  @include folder-tab-geometry(6px, 2px);
+  /* Default folder view: $visible tracks the tab height. The tab was trimmed 2px
+     (height calc(15% - 2px)), so $visible drops 9px → 7px to pull the rows back in by the
+     same 2px — back-top 9px, button top padding 11px (was 13px). Scoped to this invocation
+     only — the Show-Labels-on-Tab variant below keeps its own default. */
+  @include folder-tab-geometry(7px, 2px);
 }
 
 /* Larger boards on smaller viewports: at ≤1024px, for the DEFAULT
@@ -79867,16 +80978,41 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   }
 }
 
-/* ≤1024px and below: tighten board-detail button vertical padding to
-   2px (from the base 4px) to recover grid space on smaller viewports
-   for larger boards. Horizontal padding is left at 4px. Scoped to the
-   board-detail grid (specificity above the base .md-board-detail-symbol-card
-   rule) so other symbol-card contexts (color legend, previews) are
-   unaffected. */
+/* Board-button padding scales with the BUTTON, not the viewport. A percentage
+   resolves against the grid cell's width, so this reads "1% of the button,
+   floored at a 1px hairline, capped at the base 4px": small buttons get their
+   1px no matter how wide the screen is, big buttons keep a comfortable frame.
+   Replaces a `@media (max-width: 1024px) { padding: 1px }` rule that keyed off
+   the wrong axis — a dense board on a WIDE screen (14 columns at 1660px →
+   108×44px buttons) never matched it and kept the full 4px, spending 8px of a
+   44px button (18% of its height) on frame instead of symbol.
+   A container query would be the precise tool, but a container cannot query
+   ITSELF, and making the parent cell a container implies `contain: layout`,
+   which puts a stacking context on every cell and risks trapping the protruding
+   folder tab under its neighbour. Percentage padding needs no containment and no
+   breakpoint. Still scoped to .md-board-detail-grid so the other symbol-card
+   contexts (colour legend, board previews) keep the flat base 4px.
+   VERTICAL padding is a flat 1px hairline and deliberately does NOT scale: a CSS
+   percentage always resolves against the containing block's WIDTH, even for
+   padding-top/bottom, so a wide-but-short button (108x44) was being given a
+   vertical inset sized by its width — the wrong axis entirely, and the source of
+   the dead band under the symbol on short cards. Horizontal padding still scales,
+   because there width IS the right axis. */
+.md-board-detail-grid .md-board-detail-symbol-card {
+  padding: 1px clamp(1px, 1%, 4px);
+}
+
 @media (max-width: 1024px) {
-  .md-board-detail-grid .md-board-detail-symbol-card {
-    padding-top: 2px;
-    padding-bottom: 2px;
+  /* The label's own 3px/5px padding is the other half of the same problem: with
+     the bigger small-screen font above, that 8px of vertical chrome came
+     straight out of the symbol holder (flex:1 gets only what's left), shrinking
+     the symbol on sparse boards even as the word grew. Trim it to a hairline so
+     the word can grow WITHOUT costing the symbol. Bottom goes to 0, matching the
+     intent of the ≤768px rule further up. Single-class specificity on purpose:
+     the tighter @container short-card tiers below are later in source and still
+     take over on genuinely short cards. */
+  .md-board-detail-symbol-card__label {
+    padding: 1px 1px 0;
   }
 }
 
@@ -80145,23 +81281,40 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   }
 }
 
+/* Small-screen button labels.
+   These coefficients were measured, not guessed: on a 14-column board at
+   1024x768 the old `clamp(10px, 14cqw, pref)` bottomed out on its 10px FLOOR
+   while the user's chosen button text size was 35px — the word rendered at 29%
+   of the requested size and was unreadable at arm's length. Two changes:
+   (1) `cqw` -> `cqmin`. Width-only sizing ignores how tall the button is, which
+       is the axis that actually varies as rows are added; `cqmin` tracks the
+       smaller dimension so the label fits either way and can't outgrow a narrow
+       card. Matches the height-aware @container tiers below, so the two agree
+       instead of contradicting each other.
+   (2) Higher coefficient + higher floor, so the label lands near the user's
+       preference instead of collapsing to the floor. The clamp ceiling is still
+       `--bd-button-text-size`, so the preference remains the upper bound and
+       nothing grows past what the user asked for.
+   Card padding drops to 1px at <=1024px (see the card rule) which widens the
+   container box these percentages resolve against, so the symbol keeps its room
+   even as the word gets bigger. */
 @media (max-width: 1200px) {
   .md-board-detail-symbol-card__label {
-    font-size: clamp(10px, 14cqw, var(--bd-button-text-size, 15px)) !important;
+    font-size: clamp(13px, 26cqmin, var(--bd-button-text-size, 15px)) !important;
   }
   .md-board-detail-symbol-card__label-input {
-    font-size: clamp(10px, 14cqw, var(--bd-button-text-size, 15px)) !important;
+    font-size: clamp(13px, 26cqmin, var(--bd-button-text-size, 15px)) !important;
   }
   .md-board-detail-grid--text-pos-text_only .md-board-detail-symbol-card__label {
-    font-size: clamp(11px, 17cqw, calc(var(--bd-button-text-size, 19px) * 1.2)) !important;
+    font-size: clamp(14px, 30cqmin, calc(var(--bd-button-text-size, 19px) * 1.2)) !important;
   }
 }
 @media (max-width: 820px) {
   .md-board-detail-symbol-card__label {
-    font-size: clamp(9px, 13cqw, var(--bd-button-text-size, 15px)) !important;
+    font-size: clamp(12px, 24cqmin, var(--bd-button-text-size, 15px)) !important;
   }
   .md-board-detail-symbol-card__label-input {
-    font-size: clamp(9px, 13cqw, var(--bd-button-text-size, 15px)) !important;
+    font-size: clamp(12px, 24cqmin, var(--bd-button-text-size, 15px)) !important;
   }
   .md-folder-tab__label {
     font-size: clamp(10px, 2vw, var(--bd-button-text-size, 14px)) !important;
@@ -80173,7 +81326,71 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     font-size: clamp(11px, 2vw, 15px) !important;
   }
   .md-board-detail-grid--text-pos-text_only .md-board-detail-symbol-card__label {
-    font-size: clamp(9px, 16cqw, calc(var(--bd-button-text-size, 19px) * 1.2)) !important;
+    font-size: clamp(13px, 28cqmin, calc(var(--bd-button-text-size, 19px) * 1.2)) !important;
+  }
+}
+
+/* ── Height-aware button scaling (short cards) ──────────────────────────────
+   The label rules above only look at the card WIDTH (viewport @media + `cqw`), so on
+   a wide-but-short button — small screens, short viewports, or many rows — the label
+   held its full width-based size while `__image` (flex:1, leftover space only) got
+   squeezed to an unrecognizable symbol. The card has `container-type: size`, so once a
+   card gets genuinely SHORT, size the label off its SMALLER dimension (`cqmin`) and
+   trim the label padding, so the symbol and word scale DOWN TOGETHER and both stay
+   visible. `cqmin` (not `cqh`) also stops the font from outgrowing a narrow card.
+   Clamp upper bound stays the user's chosen `--bd-button-text-size`, so tall cards
+   (query doesn't fire) and the pref itself are untouched. Placed after the width rules
+   so it wins by source order whenever the card is short. Mirrors the existing
+   `clamp(px, Ncqw, pref)` structure on the height axis.
+   NOTE: intentionally NOT `!important`. label_fit.js applies its fit
+   size via a plain inline style, which must keep winning; a plain rule here (later in
+   source than the base rule, equal specificity) still overrides the base on wide screens
+   where no `!important` @media width-rule competes, while inline label_fit and the narrow-
+   viewport width rules stay in control where they already are. */
+@container symbol-card (max-height: 72px) {
+  .md-board-detail-symbol-card__label,
+  .md-board-detail-symbol-card__label-input {
+    font-size: clamp(13px, 26cqmin, var(--bd-button-text-size, 15px));
+    line-height: 1.1;
+    padding: 1px 2px 2px;
+  }
+}
+@container symbol-card (max-height: 48px) {
+  .md-board-detail-symbol-card__label,
+  .md-board-detail-symbol-card__label-input {
+    font-size: clamp(12px, 24cqmin, var(--bd-button-text-size, 15px));
+    line-height: 1.05;
+    /* 3 lines, not 2. A line cap is a MAXIMUM, so a short label still renders on
+       one line and is unaffected — this only changes labels that genuinely need
+       the room, which at 2 lines were being ellipsised instead. The label is
+       `flex-shrink: 0`, so the extra lines come out of `__image` (`flex: 1 1
+       auto` takes only what is left): the symbol shrinks so the WORD survives,
+       which is the right trade on an AAC button — a cut-off word can't be read
+       at all. */
+    -webkit-line-clamp: 3;
+    max-height: 3.15em;
+    padding: 0 1px 1px;
+  }
+}
+/* Under 45px tall the button has no room to spare: push the word up tight
+   against its own glyph box, so the label's chrome — not its text — is what
+   yields. Zero padding and line-height 1 (no leading above or below the glyphs).
+   The font size is deliberately NOT reduced further; shrinking the word to grow
+   the symbol just trades one unreadable thing for another.
+   The line cap stays at 3 (inherited from the tier above rather than dropped to
+   1): a cap is a MAXIMUM, so one- and two-word labels are unaffected, but a long
+   one like "Give me time to answer." can use the lines it needs instead of being
+   ellipsised. Those lines come out of `__image`, since the label is
+   `flex-shrink: 0` and the image is `flex: 1 1 auto` — the symbol shrinks so the
+   word survives. Deliberate: at this size a truncated word conveys nothing,
+   while a smaller symbol still does. */
+@container symbol-card (max-height: 45px) {
+  .md-board-detail-symbol-card__label,
+  .md-board-detail-symbol-card__label-input {
+    line-height: 1;
+    -webkit-line-clamp: 3;
+    max-height: 3em;
+    padding: 0;
   }
 }
 
@@ -80253,7 +81470,10 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     grid-template-columns: 1fr;
     padding: 14px 16px 20px;
     height: auto;
-    min-height: calc(100dvh - var(--topbar-height, 68px));
+    /* Also subtract the shell's own top padding — the layout is nested inside it,
+       so a bare 100dvh made the page exactly 2px taller than the viewport and
+       forced a scrollbar on short screens with nothing actually to scroll to. */
+    min-height: calc(100dvh - var(--topbar-height, 68px) - var(--bd-shell-pad-top, 0px));
   }
   // Default: hide both sidebars and backdrop
   .md-board-detail-sidebar,
@@ -80899,18 +82119,12 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 }
 /* Lighter folder-back in dark mode so the folder body reads against the
    darker panel background. */
-.md-board-detail--dark .md-folder-back {
-  // +30% (was +15% before this work). Folders sit lighter than the
-  // surrounding cells so they read as containers, but stepped back
-  // 5 points from the initial +35% lift so they don't compete with
-  // the symbol card content.
-  background: color.adjust($brand-charcoal-blue, $lightness: 30%);
-}
-.md-board-detail--dark .md-folder-tab {
-  // Tab tracks the back's lightened value so they stay visually
-  // paired — same +30% adjustment.
-  background: color.adjust($brand-charcoal-blue, $lightness: 30%);
-}
+/* Dark mode: folder back/tab intentionally have NO background override anymore, so they inherit
+   the base color-mix rules — the folder FRONT color darkened 10% for the back and 20% for the
+   tab — i.e. dark mode now matches the LIGHT-mode versions (per request). --btn-bg (the front
+   color) is set inline on the folder-back in both themes, so colored folders render the same
+   darkened front color in dark mode; uncolored folders fall back to the same charcoal the light
+   rules use. (Previously these forced charcoal +30%, which ignored the folder color in dark.) */
 
 /* ── Dark-mode overrides for the right-panel folder-style picker ──
    The light-mode rules use white-ish glass + dark text + verdigris
@@ -87834,6 +89048,177 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   }
 }
 
+/* ── Background board-copy drawer ──────────────────────
+   Bottom-RIGHT companion to .ll-toast: when a copy is sent to the background
+   (click outside the "Copying Board" modal), it minimizes to this drawer, and
+   the finished/failed toast then takes the same slot. Its own block rather than
+   an .ll-toast modifier because .ll-toast is bottom-centered app-wide and is
+   driven by a different component. */
+.ll-copy-drawer {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  max-width: min(360px, calc(100vw - 48px));
+  display: flex;
+  /* Top-aligned, not centered: the result card grows to two lines plus an action
+     row, and a vertically-centered icon drifts away from the headline it marks. */
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px 14px 18px;
+  background: #fff;
+  border-radius: 12px;
+  border-left: 4px solid $brand-verdigris;
+  box-shadow: 0 10px 28px rgba($la-navy, 0.18), 0 2px 6px rgba($la-navy, 0.08);
+  color: $la-navy;
+  z-index: 10000;
+  animation: ll-copy-drawer-slide-in 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* Smaller than the modal's 32px spinner — this is a status badge, not the
+   main event. */
+.ll-copy-drawer__spinner {
+  width: 22px;
+  height: 22px;
+  border-width: 2px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.ll-copy-drawer__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: $brand-verdigris;
+  margin-top: 2px;
+}
+.ll-copy-drawer__body {
+  flex: 1;
+  min-width: 0;
+}
+.ll-copy-drawer__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+  word-break: break-word;
+}
+.ll-copy-drawer__hint {
+  margin: 3px 0 0;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: rgba($la-navy, 0.65);
+  word-break: break-word;
+}
+/* Result-card actions. The card waits to be answered rather than fading, so the
+   choice has to be reachable — full-size targets, not text links. */
+.ll-copy-drawer__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.ll-copy-drawer__btn {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba($la-navy, 0.18);
+  background: #fff;
+  color: $la-navy;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.ll-copy-drawer__btn:hover {
+  background: rgba($la-navy, 0.06);
+  color: $la-navy;
+}
+.ll-copy-drawer__btn--primary {
+  background: $brand-verdigris;
+  border-color: $brand-verdigris;
+  color: #fff;
+}
+.ll-copy-drawer__btn--primary:hover {
+  /* color.adjust(), not the deprecated global darken(), and not a hardcoded hex:
+     this sheet already `@use`s sass:color (top of file) and derives its palette
+     that way (see the .fitzgerald-*-soft variants in _variables.scss), so the
+     hover stays tied to $brand-verdigris and follows the brand color if it moves. */
+  background: color.adjust($brand-verdigris, $lightness: -7%);
+  border-color: color.adjust($brand-verdigris, $lightness: -7%);
+  color: #fff;
+}
+.ll-copy-drawer__btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px $brand-verdigris;
+}
+.ll-copy-drawer__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba($la-navy, 0.5);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  flex-shrink: 0;
+}
+.ll-copy-drawer__close:hover {
+  background: rgba($la-navy, 0.08);
+  color: $la-navy;
+}
+.ll-copy-drawer__close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px $brand-verdigris;
+}
+
+/* Result states reuse the toast's accent language */
+.ll-copy-drawer--done {
+  border-left-color: #2ecc71;
+}
+.ll-copy-drawer--done .ll-copy-drawer__icon { color: #2ecc71; }
+.ll-copy-drawer--error {
+  border-left-color: $brand-danger;
+}
+.ll-copy-drawer--error .ll-copy-drawer__icon { color: $brand-danger; }
+
+@keyframes ll-copy-drawer-slide-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ll-copy-drawer { animation: none; }
+  .ll-copy-drawer__spinner { animation: none; }
+}
+@media (max-width: 480px) {
+  .ll-copy-drawer {
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    max-width: none;
+  }
+}
+/* Lift clear of .ll-toast while one is on screen. Both are fixed at z-index 10000;
+   at <=480px the toast also goes full-width at bottom:12px, so at rest the two
+   occupy the SAME strip and this drawer — later in application.hbs, equal z-index —
+   painted straight over it. They also overlap on mid-width desktops (~144px at
+   900px). Offset = toast height + its bottom offset + a gap.
+   MUST come after the <=480px block above: both selectors are single-class, so
+   source order decides and the generic `bottom: 12px` would otherwise win on
+   phones — exactly the case this fixes. Only applied while a toast is showing, so
+   the resting position is unchanged. */
+.ll-copy-drawer--above-toast {
+  bottom: 100px;
+}
+@media (max-width: 480px) {
+  .ll-copy-drawer--above-toast {
+    bottom: 84px;
+  }
+}
+
 /* ── Tooltip background override (keep last) ──
    Anything on an ancestor that drops opacity/filter would bleed through the
    ::after pseudo. Isolate the tooltip into its own stacking context with a
@@ -90627,6 +92012,27 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
    data-URI used by the caseload avatar so both contexts read as
    one component family).
    ────────────────────────────────────────────────────────────────── */
+/* User-select button grid alignment. The Bootstrap `.row` is float-based, so unequal
+   card heights (2-line usernames + the "not available" line) make columns catch on
+   taller neighbors and stagger out of a grid. Flex-wrap lays them in clean rows;
+   stretching each column and filling the button gives equal-height cards per row. The
+   button's inline `margin-bottom` row-spacing is relocated to the column (needs
+   !important to beat the inline style) so cards can equalize. */
+.user-select-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+.user-select-grid > [class*="col-"] {
+  display: flex;
+  margin-bottom: 20px;
+}
+.user-select-grid > [class*="col-"] > .user_select,
+.user-select-grid > [class*="col-"] > .btn-group {
+  width: 100%;
+  height: 100%;
+  margin-bottom: 0 !important;
+}
 .modal-content .user_select.btn,
 .user-select-modern .user_select.btn {
   display: inline-flex !important;
@@ -91484,6 +92890,9 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   padding: 0;
   margin: 0;
   gap: 6px;
+  /* Collapsed rail: the magnifier is a click target that expands the panel + focuses the
+     search field (open_board_search_panel), so it reads as interactive. */
+  cursor: pointer;
 }
 /* Every icon-bearing control → a centered label-OVER-icon stack
    (was a 40px icon-only square; now auto height so the small label
