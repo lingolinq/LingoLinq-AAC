@@ -32,17 +32,14 @@
 /* This is a Node CLI script, not app code — the shared .eslintrc.js assumes a
    browser env, so `process` reads as undefined without this. Declared per-file
    rather than by widening the project config. */
-import puppeteer from 'puppeteer';
 import { readFileSync } from 'node:fs';
+import { cliArgs, launch, login, assertAppReady } from './qa-helpers.mjs';
 
-const arg = (name, dflt) => {
-  const i = process.argv.indexOf(name);
-  return i !== -1 && process.argv[i + 1] ? process.argv[i + 1] : dflt;
-};
-const BASE = arg('--base', 'http://localhost:8184');
-const USER = arg('--user', 'example');
-const PASS = arg('--pass', 'password');
-const HEADED = process.argv.includes('--headed');
+// Shared with scripts/tour-board-picker-probe.mjs. The /login/device
+// interstitial handling in qa-helpers is subtle enough that a second copy would
+// drift; this script used to carry one.
+const opts = cliArgs(process.argv);
+const { BASE, arg } = opts;
 const ALL = process.argv.includes('--all');
 const ONLY = arg('--only', null);
 
@@ -79,62 +76,6 @@ function record(modal, status, checks, detail) {
       if (v !== true) { console.log(`         ${k}: ${v}`); }
     }
   }
-}
-
-async function login(page) {
-  await page.goto(BASE + '/login', { waitUntil: 'networkidle2', timeout: 60000 });
-  await page.waitForSelector('#identification', { timeout: 20000 }).catch(() => {});
-  // Already signed in (persisted session)? Then there is no login form.
-  const hasForm = await page.$('#identification');
-  if (!hasForm) { return true; }
-
-  await page.type('#identification', USER);
-  await page.type('#password', PASS);
-  await page.keyboard.press('Enter');
-
-  await page.waitForFunction(() => !document.querySelector('#identification'), { timeout: 45000 })
-    .catch(() => { throw new Error('login did not complete — check --user/--pass'); });
-
-  /*
-   * "Trust this device" (/login/device) is a SEPARATE route after the form, and
-   * the app is not usable behind it — modals opened there render over a
-   * half-booted shell and nothing works, which silently invalidates the whole
-   * sweep. Wait for the button to actually exist before clicking; note
-   * page.waitForTimeout() was REMOVED in Puppeteer 24, so a `?.()` call on it is
-   * a silent no-op rather than a wait.
-   */
-  const trust = await page
-    .waitForSelector('button.login-btn--device', { timeout: 10000 })
-    .catch(() => null);
-  if (trust) {
-    await trust.click().catch(() => {});
-  }
-
-  // Only past /login is the app real. Fail loudly rather than auditing a shell.
-  await page
-    .waitForFunction(() => !/\/login/.test(window.location.pathname), { timeout: 30000 })
-    .catch(() => {
-      throw new Error('stuck on ' + page.url() + ' — never reached the app');
-    });
-  await new Promise((r) => setTimeout(r, 1500));
-  return true;
-}
-
-/*
- * Open modals directly rather than hunting for a UI path to each one.
- * utils/modal.js assigns itself to `window.modal` (:666) and its open/close
- * delegate to the modal SERVICE via _getService(), so this drives exactly the
- * same code path a real click does — including _syncBodyModalOpen.
- */
-async function assertModalServiceReachable(page) {
-  const ok = await page.evaluate(() => {
-    try {
-      if (!window.modal) { return 'window.modal is undefined'; }
-      if (typeof window.modal.open !== 'function') { return 'window.modal.open is not a function'; }
-      return !!window.modal._getService() || 'modal._getService() returned nothing (app not booted?)';
-    } catch (e) { return 'threw: ' + e.message; }
-  });
-  if (ok !== true) { throw new Error('cannot reach the modal service in-page (' + ok + ')'); }
 }
 
 async function auditModal(page, template) {
@@ -294,16 +235,13 @@ async function auditModal(page, template) {
 }
 
 async function main() {
-  const browser = await puppeteer.launch({
-    headless: !HEADED,
-    args: ['--no-sandbox', '--disable-dev-shm-usage', '--window-size=1280,900']
-  });
-  const page = await browser.newPage();
-  await page.setViewport({ width: 1280, height: 900 });
-
+  let browser;
   try {
-    await login(page);
-    await assertModalServiceReachable(page);
+    const launched = await launch(opts);
+    browser = launched.browser;
+    const page = launched.page;
+    await login(page, opts);
+    await assertAppReady(page);
 
     let targets = DEFAULT_MODALS;
     if (ONLY) {
@@ -316,7 +254,7 @@ async function main() {
       targets = m ? m[1].split(',').map((s) => s.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean) : DEFAULT_MODALS;
     }
 
-    console.log(`\nAuditing ${targets.length} modals at ${BASE} as "${USER}"\n`);
+    console.log(`\nAuditing ${targets.length} modals at ${BASE} as "${opts.USER}"\n`);
     for (const t of targets) {
       const r = await auditModal(page, t);
       record(t, r.status, r.checks, r.detail);
@@ -334,8 +272,14 @@ async function main() {
     console.error('\nHARNESS ERROR:', e.message);
     process.exitCode = 2;
   } finally {
-    await browser.close();
+    // browser may be undefined if launch() itself threw — and an unhandled
+    // rejection would exit 1, indistinguishable from the documented
+    // "a modal failed its audit" exit code.
+    if (browser) { await browser.close().catch(() => {}); }
   }
 }
 
-main();
+main().catch((e) => {
+  console.error('\nHARNESS ERROR:', e && e.message ? e.message : e);
+  process.exit(2);
+});
