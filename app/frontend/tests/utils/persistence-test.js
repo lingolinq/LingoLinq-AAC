@@ -1567,6 +1567,46 @@ describe("persistence", function() {
         });
       });
 
+      it("should not report a save as complete before the local write has landed (regression: store()/find() race, test 1473)", function() {
+        db_wait(function() {
+          queryLog.real_lookup = true;
+          setPersistenceOnline(false);
+          var record = null;
+          var final_record = null;
+          var final_error = null;
+
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          board.save().then(function(res) {
+            record = res;
+          });
+
+          waitsFor(function() { return record; });
+          runs(function() {
+            record.set('name', 'My Gnarly Board');
+            // Deliberately NO setTimeout between the save resolving and the find:
+            // a fixed sleep would just be a guess at how long the local write
+            // takes, and would re-hide the very race this test exists to catch.
+            // persistence.find() is still async on its own (utils/persistence.js
+            // schedules its lookup on a setTimeout(..., 0)).
+            record.save().then(function() {
+              persistence.find('board', record.id).then(function(res) {
+                final_record = res;
+              }, function() {
+                final_error = {error: 'persistence.find rejected'};
+              });
+            }, function() {
+              final_error = {error: 'record.save rejected'};
+            });
+          });
+          waitsFor(function() { return final_record || final_error; });
+          runs(function() {
+            expect(final_error).toEqual(null);
+            expect(final_record.id).toEqual(record.id);
+            expect(final_record.name).toEqual("My Gnarly Board");
+          });
+        });
+      });
+
       it("should mark a locally-updated record as changed for later sync", function() {
         db_wait(function() {
           queryLog.real_lookup = true;
@@ -2579,6 +2619,53 @@ describe("persistence", function() {
 
     xit("should decrypt encrypted results", function() {
       expect('test').toEqual('todo');
+    });
+  });
+
+  describe("service store()/find() race", function() {
+    // app/services/persistence.js#store carries the same completion-ordering bug
+    // as app/utils/persistence.js#store, but nothing reaches it through the Ember
+    // Data adapter: app/adapters/application.js mixes in the UTILS DSExtend, so
+    // the adapter-path regression test above never executes a single line of the
+    // service's store(). This test drives the DI service instance directly, the
+    // way app/models/user.js, app/services/session.js and app/utils/eval.js do.
+    it("should not resolve the service store() before the local write has landed", function() {
+      db_wait(function() {
+        var svc = null;
+        if(typeof LingoLinq !== 'undefined' && LingoLinq.testOwner && typeof LingoLinq.testOwner.lookup === 'function') {
+          try {
+            var looked_up = LingoLinq.testOwner.lookup('service:persistence');
+            if(looked_up && !looked_up.isDestroyed && !looked_up.isDestroying) {
+              svc = looked_up;
+            }
+          } catch(e) { /* owner mid-teardown */ }
+        }
+        // Fail loudly rather than quietly no-op'ing: a test that skips itself when
+        // the lookup misses would leave the service's store() with zero coverage
+        // while still reporting green.
+        expect(!!svc).toEqual(true);
+        expect(typeof svc.store).toEqual('function');
+        expect(typeof svc.find).toEqual('function');
+
+        var final_record = null;
+        var final_error = null;
+        // Deliberately NO setTimeout between the store resolving and the find:
+        // a fixed sleep would only be a guess at how long the local write takes
+        // and would re-hide the race. svc.find() is async on its own.
+        svc.store('board', {id: 'svc_race_board', key: 'svc/race', name: "Service Race Board"}, 'svc_race_board').then(function() {
+          return svc.find('board', 'svc_race_board');
+        }).then(function(res) {
+          final_record = res;
+        }, function() {
+          final_error = {error: 'service store()/find() rejected'};
+        });
+
+        waitsFor(function() { return final_record || final_error; });
+        runs(function() {
+          expect(final_error).toEqual(null);
+          expect(final_record.name).toEqual("Service Race Board");
+        });
+      });
     });
   });
 });
