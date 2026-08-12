@@ -1,12 +1,93 @@
 name: Deploy to Cloud Run
 
-# GATED / INERT scaffold for the Render -> GCP Cloud Run migration (Phase 2 groundwork).
+# Production deploy pipeline for GCP Cloud Run.
 #
-# This workflow does NOTHING until migration Phase 1 provisions the GCP project and sets
-# the repository variables below. It is workflow_dispatch-only (never runs on push/PR) and
-# the `guard` job no-ops the whole run when vars.GCP_PROJECT_ID is empty. Authentication is
-# keyless via Workload Identity Federation -- no long-lived JSON service-account key is ever
-# stored in GitHub.
+# LIVE: a push to `main` CREATES a production deployment, which then proceeds once a reviewer
+# approves it in the `production` environment. That deployment runs DB migrations against prod
+# Cloud SQL, rolls out a new web revision with no traffic, health-checks it, shifts traffic,
+# and replaces the worker pool. `workflow_dispatch` is retained for manual redeploys and
+# rollforwards, but only on `main` (see the ref guard on the deploy job).
+#
+# Do not read "every push deploys" too literally. A queued run can be cancelled while pending
+# (see CONCURRENCY below), so a merge can be superseded before it ever deploys. And a run that
+# sits unapproved does not deploy at all until someone acts on it.
+#
+# DO NOT assume `main` only receives vetted, staging-tested code. It does not. Release PRs from
+# `staging` are the common case, but hotfix branches merge DIRECTLY into `main` and that is the
+# intended workflow for urgent fixes (e.g. #734 scot/fix/bedrock-runtime-main-hotfix and #726
+# scot/fix/empty-button-sets-prod-hotfix, both 2026-08-02/03). Nothing restricts the source
+# branch of a PR into `main`. What makes automatic deploy acceptable is therefore NOT
+# provenance, it is the four gates below, and removing any of them removes the safety:
+#   1. Required status checks on `main` (rspec, build-and-test, audit-artifacts-integrity,
+#      codex-review-tests, security-scan, secret-detection) with enforce_admins on, so no PR
+#      merges red against the base it was tested against, whatever branch it came from.
+#      Note `strict` is FALSE, deliberately: requiring every PR to be up to date with `main`
+#      before merging would block a hotfix behind a merge-back. The residual risk is real --
+#      a PR green against base X can merge after `main` has advanced to Y, so `main` can be
+#      red while every individual merge was green. The health gate below catches only the
+#      subset of that which stops the app booting or answering; it is a boot smoke test, not a
+#      backstop for behavioural regressions, authorization bugs, or anything a test would find.
+#   2. The `production` environment on the deploy job: `main`-only branch policy plus required
+#      reviewers. A pause, an audit record, and a kill switch. NOT a two-person control; see
+#      the note on the `environment:` key below for what actually enforces that.
+#   3. The ref guard + the WIF provider's `assertion.ref` condition, so no other ref can
+#      deploy or even mint a deploy token.
+#   4. The candidate rollout: the new revision takes NO user traffic until it has answered
+#      two consecutive health probes on its own tagged URL, and traffic is then pinned to
+#      that exact verified revision by name.
+#
+# MIGRATIONS MUST BE EXPAND-CONTRACT. This is a hard rule for anything that reaches `main`,
+# and it is a consequence of the step order below, which no amount of care in this file can
+# remove: migrate -> web -> worker. That order leaves two windows where schema and code
+# disagree, and automation means nobody is watching them:
+#   * Between the migrate Job and the web deploy, the NEW schema serves the OLD web code.
+#   * Between the web deploy and the worker deploy, the NEW web code enqueues onto workers
+#     still running the OLD image.
+# So, in the release that changes the code:
+#   ALLOWED  -- add a column/table/index, add a nullable field, backfill, add a new job class,
+#               start dual-writing.
+#   FORBIDDEN -- drop or rename a column/table, add a NOT NULL constraint without a default,
+#               change a column type in place, or remove a job class that old workers may
+#               still dequeue.
+# Destructive changes ship in a LATER release, after the code that depended on the old shape
+# is gone from production. If you cannot make a change expand-contract, do not put it through
+# the automatic path: take the site down, or deploy it by hand with someone watching.
+#
+# The `guard` job still no-ops the whole run when vars.GCP_PROJECT_ID is empty, so the
+# workflow stays inert in a fork or a repo where the migration vars were never set.
+# Authentication is keyless via Workload Identity Federation -- no long-lived JSON
+# service-account key is ever stored in GitHub.
+#
+# WHY `on: push` AND NOT `on: workflow_run` (CI-gated): a workflow_run trigger only fires when
+# the workflow file is on the repo's DEFAULT branch, and this repo's default branch is
+# `staging`, not `main`. A workflow_run-triggered run also resolves github.ref and GITHUB_SHA
+# to the default branch, so it would build `staging` code and deploy it as prod unless every
+# checkout and image tag were rewritten to workflow_run.head_sha. The CI gate belongs on the
+# merge instead: require the CI checks on `main` in branch protection, so nothing reaches
+# `main` red in the first place.
+#
+# CONCURRENCY: one fixed group across BOTH triggers, because there is ONE production database
+# and ONE shared `lingolinq-migrate` Job. Do not scope the group by ref. Two known limits, so
+# nobody reads more safety into this than it provides:
+#   - It is NOT a distributed lock. `gcloud run jobs execute --wait` is a client-side poll;
+#     killing the GitHub job does not stop the server-side execution. If a run hits the job's
+#     `timeout-minutes` ceiling, is cancelled, or its runner dies, the lock releases while the
+#     execution may still be writing to prod. That ceiling is set above the migrate Job's own
+#     `--task-timeout` precisely so a valid long migration cannot trip it, but a cancel or a
+#     dead runner still can. A real mutex would need a Postgres advisory lock inside the
+#     migration task. Tracked as follow-up, not solved here.
+#   - GitHub keeps only ONE pending run per group and cancels the older pending one when a new
+#     run queues, regardless of `cancel-in-progress`. Three merges in quick succession deploy
+#     the 1st and 3rd; the 2nd shows `cancelled`. On a linear `main` that is benign, since the
+#     3rd contains the 2nd, but it means "every push deploys" is not literally true.
+#   - A run AWAITING ENVIRONMENT APPROVAL counts as in-progress and holds this group for as
+#     long as the approval sits unactioned, which can be days. Every merge behind it queues,
+#     and each new one cancels the previously pending one. Approve or reject promptly; an
+#     ignored approval quietly stops all production deploys. Nothing in this workflow stops a
+#     late approval from shipping the commit it was created for, even if `main` has moved on:
+#     see the note where the staleness guard used to be. Reject stale approvals by hand.
+# `cancel-in-progress: false` is still right: cancelling a run partway through the migration
+# Job is the one thing guaranteed to hurt.
 #
 # Pipeline (when enabled): build image -> push to Artifact Registry -> run DB migration as a
 # dedicated Cloud Run Job (gen2 + Cloud SQL) -> deploy web service -> deploy worker pool.
@@ -45,12 +126,20 @@ name: Deploy to Cloud Run
 #   per-instance CA, fetched from the live instance) -- the app's Redis client loads it to
 #   verify the rediss:// TLS chain.
 #
-# MANUAL TRIGGER (only meaningful after Phase 1):
-#   gh workflow run deploy-cloudrun.yml
+# MANUAL TRIGGER (redeploy without a new commit, or deploy a specific ref):
+#   gh workflow run deploy-cloudrun.yml --ref main
 # ---------------------------------------------------------------------------------------
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
+
+# Serialize deploys across BOTH triggers. cancel-in-progress is deliberately false: see the
+# CONCURRENCY note above.
+concurrency:
+  group: deploy-cloudrun
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -75,9 +164,28 @@ jobs:
   deploy:
     name: Build and deploy
     needs: guard
-    if: needs.guard.outputs.enabled == 'true'
+    # Ref guard: production is `main` and only `main`. Without this, ANY collaborator with
+    # Actions write could `workflow_dispatch` this workflow on any branch or tag and deploy it
+    # to prod, migrations included. That is not hypothetical -- run 28881107723 (2026-07-07)
+    # deployed `--ref staging` to production. The WIF provider carries the matching
+    # `assertion.ref` condition, so a non-main ref cannot mint a deploy token either.
+    if: needs.guard.outputs.enabled == 'true' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # Protected environment: `main`-only deployment branch policy plus required reviewers.
+    # What this actually gives you, stated precisely so nobody over-trusts it: a PAUSE before
+    # anything touches prod, a Deployments API AUDIT RECORD of who released what, and a KILL
+    # SWITCH (disable the environment and auto-deploy stops without editing this file).
+    # It is NOT a two-person control: `prevent_self_review` is false, so whoever merges can
+    # approve their own deployment. That is deliberate, so a single on-call engineer can ship
+    # a hotfix at 2am. The actual two-person control is upstream and stronger: CODEOWNERS
+    # (`* @swahlquist @MelissaOneil`) plus `require_code_owner_reviews` plus a required
+    # approving review on `main`, which forces a second human onto every PR that gets here.
+    environment: production
+    # 90, not 45. The migrate Job is allowed --task-timeout 3600s (60 min), so a 45 minute job
+    # ceiling could cancel the workflow WHILE a valid long migration is still running
+    # server-side: GitHub would release the concurrency slot and report failure while prod is
+    # mid-DDL. This ceiling must stay strictly greater than build + 3600s + deploys + probes.
+    timeout-minutes: 90
     permissions:
       contents: read
       id-token: write
@@ -104,7 +212,21 @@ jobs:
       # MAPS_KEY is intentionally NOT here: it is a client-public key emitted at asset-precompile
       # (globals.js.erb), not read at runtime, so it is passed as a Docker build ARG in the
       # "Build and push image" step (alongside DEFAULT_HOST), not mounted at runtime.
-      NON_BOOT_SECRETS: AWS_KEY=AWS_KEY:latest,AWS_SECRET=AWS_SECRET:latest,GOOGLE_TTS_TOKEN=GOOGLE_TTS_TOKEN:latest,GOOGLE_PLACES_TOKEN=GOOGLE_PLACES_TOKEN:latest,GOOGLE_TRANSLATE_TOKEN=GOOGLE_TRANSLATE_TOKEN:latest,GOOGLE_OAUTH_CLIENT_ID=GOOGLE_OAUTH_CLIENT_ID:latest,GOOGLE_OAUTH_CLIENT_SECRET=GOOGLE_OAUTH_CLIENT_SECRET:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,SENTRY_DSN=SENTRY_DSN:latest,SMS_ENCRYPTION_KEY=SMS_ENCRYPTION_KEY:latest,INTERNAL_API_TOKEN=INTERNAL_API_TOKEN:latest,CACHE_TOKEN=CACHE_TOKEN:latest,OPENSYMBOLS_SECRET=OPENSYMBOLS_SECRET:latest,IPLOCATE_API_KEY=IPLOCATE_API_KEY:latest,YOUTUBE_API_KEY=YOUTUBE_API_KEY:latest
+      #
+      # BEDROCK_AWS_KEY / BEDROCK_AWS_SECRET are the Tier 1 runtime AI credentials read by
+      # lib/ai_client.rb (board generation, word prediction, prediction seeding, eval narration).
+      # They are SEPARATE from AWS_KEY/AWS_SECRET on purpose: those are the least-privilege S3/SES
+      # IAM user (scripts/gcp/iam/lingolinq-cloudrun-s3-ses-policy.json) and have no Bedrock invoke
+      # permission. ai_client.rb deliberately refuses to fall back to them, because doing so once
+      # made `configured?` true while every request returned AccessDenied. Both halves are required;
+      # a partial pair is ignored atomically. No BEDROCK_AWS_REGION entry is needed while Bedrock
+      # runs in the same region as S3: bedrock_region falls back to AWS_REGION, already set to
+      # us-west-2 in APP_ENV_VARS_STATIC. If Bedrock moves region, add BEDROCK_AWS_REGION there
+      # (a region string is not a secret and does not belong in this list).
+      #
+      # ANTHROPIC_API_KEY remains listed but is now INERT: no code under app/ lib/ config/ reads it
+      # since the Bedrock cutover. Removing it is deliberately out of scope here (see PR body).
+      NON_BOOT_SECRETS: AWS_KEY=AWS_KEY:latest,AWS_SECRET=AWS_SECRET:latest,BEDROCK_AWS_KEY=BEDROCK_AWS_KEY:latest,BEDROCK_AWS_SECRET=BEDROCK_AWS_SECRET:latest,GOOGLE_TTS_TOKEN=GOOGLE_TTS_TOKEN:latest,GOOGLE_PLACES_TOKEN=GOOGLE_PLACES_TOKEN:latest,GOOGLE_TRANSLATE_TOKEN=GOOGLE_TRANSLATE_TOKEN:latest,GOOGLE_OAUTH_CLIENT_ID=GOOGLE_OAUTH_CLIENT_ID:latest,GOOGLE_OAUTH_CLIENT_SECRET=GOOGLE_OAUTH_CLIENT_SECRET:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,SENTRY_DSN=SENTRY_DSN:latest,SMS_ENCRYPTION_KEY=SMS_ENCRYPTION_KEY:latest,INTERNAL_API_TOKEN=INTERNAL_API_TOKEN:latest,CACHE_TOKEN=CACHE_TOKEN:latest,OPENSYMBOLS_SECRET=OPENSYMBOLS_SECRET:latest,IPLOCATE_API_KEY=IPLOCATE_API_KEY:latest,YOUTUBE_API_KEY=YOUTUBE_API_KEY:latest
       # Non-secret runtime config (Group B) + perf tuning (Group C), web + worker only. S3 bucket
       # names + AWS/SES regions are not secret. Stripe PUBLISHABLE key, registration email, and the
       # Redis namespace come from repo Variables (assembled below) so no env-specific value is
@@ -120,7 +242,30 @@ jobs:
       # ARN). Uploader.fronted_url rewrites stored bucket URLs to this domain at serialization
       # time; stable (non-presigned) URLs are required by the Ember offline cache, which is
       # URL-keyed and does not strip X-Amz-* params.
-      APP_ENV_VARS_STATIC: AWS_REGION=us-west-2,SES_REGION=us-west-2,UPLOADS_S3_BUCKET=lingolinq-prod-uploads,STATIC_S3_BUCKET=lingolinq-prod-static,UPLOADS_S3_NO_ACL=1,UPLOADS_S3_CDN=https://d34sa6lc5jfe66.cloudfront.net,SENTRY_ENVIRONMENT=production,RAILS_LOG_TO_STDOUT=true,RAILS_SERVE_STATIC_FILES=true,RUBY_YJIT_ENABLE=1,WEB_CONCURRENCY=2
+      # REMOTE_EXTRA_DATA=1: gates the detach-to-S3 path for BoardDownstreamButtonSet
+      # buttons and LogSession events (ExtraData#extra_data_too_big?). With it unset,
+      # BoardDownstreamButtonSet#generate_defaults still stripped data['buttons'] for
+      # any set over 200 buttons while detach_extra_data no-op'd, destroying the set on
+      # the next save -- which zeroed 1754 of 2061 prod button sets (find-a-button and
+      # button-set loading broken library-wide, diagnosed 2026-08-01, PR #724).
+      # PROVENANCE, do not restate this as a migration regression without checking:
+      # the variable is absent from tracked config everywhere in this repo AND from the
+      # 2026-06-30 45-var Render prod env accounting, so it was most likely never set on
+      # Render prod either. Vintage unknown; it was NOT confirmed to be a GCP cutover drop.
+      # Enabling it here is a deliberate production enablement decision (Scot, 2026-08-01),
+      # not a restoration: the code now degrades safely to inline storage when this is
+      # unset, but inline means every button set lives in Postgres and ships whole in the
+      # API response (~1MB for a 3717-button set), which is a bad steady state.
+      # BEDROCK_EXPECTED_AWS_ACCOUNT: the AWS account docs/legal/AWS_BAA_ACCEPTED.md is scoped to.
+      # AiClient.account_verified? calls sts:GetCallerIdentity under the exact Bedrock credential
+      # and REFUSES to build a client unless the account matches, so a credential belonging to any
+      # other account fails AI closed instead of putting PHI-bearing inference outside the BAA
+      # boundary (finding LL-1b0d78dbe6). An account id is an identifier, not a secret -- it is
+      # already quoted throughout docs/legal -- so it belongs here, not in Secret Manager. It lives
+      # in config rather than in Ruby so an account migration is a config change. The "Assert BAA
+      # account is configured" step below fails the deploy if this is ever dropped: unset means
+      # AiClient SKIPS the check, so a silent removal would silently disable the control.
+      APP_ENV_VARS_STATIC: BEDROCK_EXPECTED_AWS_ACCOUNT=239044785114,AWS_REGION=us-west-2,SES_REGION=us-west-2,UPLOADS_S3_BUCKET=lingolinq-prod-uploads,STATIC_S3_BUCKET=lingolinq-prod-static,UPLOADS_S3_NO_ACL=1,UPLOADS_S3_CDN=https://d34sa6lc5jfe66.cloudfront.net,REMOTE_EXTRA_DATA=1,SENTRY_ENVIRONMENT=production,RAILS_LOG_TO_STDOUT=true,RAILS_SERVE_STATIC_FILES=true,RUBY_YJIT_ENABLE=1,WEB_CONCURRENCY=2
       # REDIS_TLS_VERIFY_HOSTNAME=false is set on every deploy below: Memorystore is reached by
       # private IP and its server cert is issued for the instance, not the IP, so hostname
       # matching cannot pass. CA-chain verification (VERIFY_PEER against REDIS_CA_CERT) stays on.
@@ -129,6 +274,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      # NO STALENESS GUARD HERE, DELIBERATELY. An earlier version of this workflow had one, and
+      # it could not work: `actions/checkout` fetches refspec `+<github.sha>:refs/remotes/origin/main`
+      # on a push event, so after checkout `origin/main` IS this run's own SHA. Any comparison
+      # against the checkout-local ref is a tautology that passes on every input, including a
+      # genuinely stale one, while printing two matching SHAs and a green check. A control that
+      # cannot fail is worse than a documented gap, because people trust it.
+      #
+      # THE GAP, stated plainly: an environment approval can sit for days, and the job then
+      # resumes with the ORIGINAL github.sha. Approving a forgotten deployment ships that
+      # commit, and its migrations, onto a schema that may have moved. Nothing here stops it.
+      # Mitigation is procedural: approve or reject promptly (the concurrency note above
+      # explains why a pending approval also blocks every later deploy), and if an approval is
+      # older than the current tip of `main`, reject it and let the newer run deploy.
+      #
+      # If this is re-introduced, it MUST resolve the tip from the API rather than the local
+      # ref -- `gh api repos/${{ github.repository }}/git/ref/heads/main --jq .object.sha` --
+      # and it MUST be tested against a deliberately stale SHA before anyone relies on it.
       - name: Authenticate to Google Cloud (Workload Identity Federation)
         uses: google-github-actions/auth@v3
         with:
@@ -205,6 +367,46 @@ jobs:
           [ -n "${V_REDIS_NAMESPACE_SUFFIX:-}" ] && ev="$ev,REDIS_NAMESPACE_SUFFIX=$V_REDIS_NAMESPACE_SUFFIX"
           echo "APP_ENV_VARS=$ev" >> "$GITHUB_ENV"
 
+      - name: Assert BAA account is configured
+        # The other half of finding LL-1b0d78dbe6. AiClient.account_verified? enforces that the
+        # Bedrock credential resolves to the BAA'd AWS account, but it SKIPS that enforcement when
+        # BEDROCK_EXPECTED_AWS_ACCOUNT is unset (deliberately, so local dev and CI do not need an
+        # AWS round trip to build a client). That skip is safe only if a production deploy cannot
+        # lose the variable, so assert it here rather than trusting it.
+        #
+        # Checks the ASSEMBLED APP_ENV_VARS, not the APP_ENV_VARS_STATIC constant, so the guard
+        # sees the string that is actually about to be deployed.
+        #
+        # The account check itself deliberately does NOT run here: this step executes as the CI
+        # service account, which cannot read BEDROCK_AWS_KEY (the deploy SA is granted
+        # secretmanager.viewer, never secretAccessor -- see the presence probe above). Verifying
+        # the account from CI would require expanding that grant. The app does it instead, under
+        # the exact credential, at no extra privilege.
+        run: |
+          set -euo pipefail
+          account="$(printf '%s' "$APP_ENV_VARS" | tr ',' '\n' \
+                      | sed -n 's/^BEDROCK_EXPECTED_AWS_ACCOUNT=//p' | head -1)"
+          if [ -z "$account" ]; then
+            echo "::error::BEDROCK_EXPECTED_AWS_ACCOUNT is not in APP_ENV_VARS. Without it AiClient"
+            echo "skips the sts:GetCallerIdentity account assertion, so a Bedrock credential from a"
+            echo "non-BAA'd AWS account would be used silently. Restore it in APP_ENV_VARS_STATIC."
+            exit 1
+          fi
+          # 12 digits is the AWS account-id format. A typo'd or truncated value would otherwise
+          # deploy an assertion that can never match, failing every AI feature closed at runtime
+          # with a mismatch that looks like a credential problem.
+          #
+          # Deliberately STRICTER than AiClient.expected_aws_account, which strips punctuation so
+          # the grouped form 2390-4478-5114 used in docs/legal still matches. This value is
+          # authored here, in this file, so it should be canonical; the app is lenient because it
+          # also has to accept a value set by hand somewhere else. Strict where we write it,
+          # tolerant where we read it -- not an inconsistency to "fix".
+          if ! printf '%s' "$account" | grep -Eq '^[0-9]{12}$'; then
+            echo "::error::BEDROCK_EXPECTED_AWS_ACCOUNT='$account' is not a 12-digit AWS account id."
+            exit 1
+          fi
+          echo "BAA account assertion is configured (account $account)."
+
       - name: Run database migration (Cloud Run Job)
         # Strictly incremental: db:migrate only. NEVER db:prepare here -- db:prepare can
         # load db/schema.rb (force: :cascade drops tables) if it decides the DB is
@@ -219,6 +421,14 @@ jobs:
         # hanging against an unreachable address. `private-ranges-only` routes ONLY RFC1918 /
         # Google ranges through the VPC; public egress (S3/SES/etc.) still uses the default
         # path, so this does not force all traffic through the VPC. (Phase 3.)
+        # --max-retries 0 is MANDATORY, not tuning. The Job default is 3 retries at a 600s task
+        # timeout. 13 migrations use `disable_ddl_transaction!`, including
+        # 20260702120000_add_retention_cleanup_indexes.rb, which builds indexes with
+        # `algorithm: :concurrently` on log_session_boards / progresses / board_button_sounds.
+        # A CREATE INDEX CONCURRENTLY killed at the timeout leaves an INVALID index behind; the
+        # automatic retry then dies on PG::DuplicateTable, and the migration never records in
+        # schema_migrations -- a partially advanced prod schema needing manual DBA repair.
+        # Retrying a Rails migration is never correct. Fail once, loudly, and stop.
         run: |
           gcloud run jobs deploy lingolinq-migrate \
             --image "$IMAGE" \
@@ -231,15 +441,38 @@ jobs:
             --vpc-egress private-ranges-only \
             --command bundle \
             --args "exec,rake,db:migrate" \
+            --max-retries 0 \
+            --task-timeout 3600s \
             --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false" \
             --set-secrets "$BOOT_SECRETS"
           gcloud run jobs execute lingolinq-migrate \
             --region "${{ vars.GCP_REGION }}" \
             --wait
 
-      - name: Deploy web service
+      # Record the revision that is actually SERVING, before anything changes it. Do not derive
+      # the rollback target later from "second newest revision": revision lists are ordered by
+      # creation, include revisions that never took traffic, and a previous failed deploy would
+      # otherwise become the recommended rollback target during an incident.
+      - name: Record current serving revision
+        run: |
+          set -euo pipefail
+          PREV="$(gcloud run services describe lingolinq-web \
+            --region "${{ vars.GCP_REGION }}" --format=json \
+            | jq -r '[.status.traffic[] | select(.percent == 100) | .revisionName][0] // empty')"
+          if [ -z "$PREV" ]; then
+            echo "::warning::Could not determine a single 100% traffic revision; rollback hints will be omitted."
+          fi
+          echo "PREV_REVISION=$PREV" >> "$GITHUB_ENV"
+          echo "Currently serving: ${PREV:-<none>}"
+
+      # --no-traffic --tag candidate: the new revision is created and reachable at its own
+      # candidate URL, but users stay on the current revision until the health gate passes.
+      # This is what makes the probe a real pre-traffic gate rather than a post-mortem.
+      - name: Deploy web service (no traffic)
         run: |
           gcloud run deploy lingolinq-web \
+            --no-traffic \
+            --tag candidate \
             --image "$IMAGE" \
             --region "${{ vars.GCP_REGION }}" \
             --service-account "lingolinq-run@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
@@ -254,6 +487,185 @@ jobs:
             --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false,$APP_ENV_VARS" \
             --set-secrets "$BOOT_SECRETS,$NON_BOOT_SECRETS" \
             --allow-unauthenticated
+
+      # COUPLING WITH THE PLANNED INGRESS LOCKDOWN -- READ BEFORE RUNNING phase5-frontend-lb.sh.
+      # This probe runs from a GitHub-hosted runner on the public internet and reaches the
+      # revision through its candidate---* tag URL. Cloud Run ingress restrictions apply to tag
+      # URLs as well as the main service URL. The moment `scripts/gcp/phase5-frontend-lb.sh`
+      # sets `--ingress=internal-and-cloud-load-balancing`, this probe starts failing on every
+      # attempt, and because the gate is fail-closed the outcome is: migration applied, traffic
+      # pinned to the OLD revision, worker pool never updated, deploy red. Every deploy, until
+      # someone notices. Before that lockdown lands, this probe must move behind the LB (a
+      # tag-targeted serverless NEG) or run from inside the VPC. Do not flip ingress and this
+      # workflow in the same change without deciding which one moves first.
+      #
+      # Probe the CANDIDATE revision by its own tagged URL, before it takes any user traffic.
+      # Probing the main service URL would be worthless here and actively dangerous: it would
+      # answer from the CURRENT revision and pass regardless of whether the new one works.
+      #
+      # What this proves and what it does not: /api/v1/health runs a `SELECT 1` and a Redis
+      # PING. It proves the new image boots, reaches Cloud SQL through the socket, reaches
+      # Memorystore over TLS, and can answer an HTTP request against the migrated schema. It
+      # does NOT prove schema-code compatibility in general, because Rails loads column
+      # metadata lazily per model, so a migration that breaks one model can still pass. The
+      # expand-contract rule in the header is the control for that; this is a boot smoke test.
+      #
+      # Two consecutive 200s, not one: a single 200 can come from an instance that is about to
+      # crash-loop on a later request.
+      - name: Verify candidate revision health
+        run: |
+          set -euo pipefail
+          CAND_JSON="$(gcloud run services describe lingolinq-web \
+            --region "${{ vars.GCP_REGION }}" --format=json \
+            | jq -c '[.status.traffic[] | select(.tag == "candidate")][0] // empty')"
+          TAG_URL="$(printf '%s' "$CAND_JSON" | jq -r '.url // empty')"
+          CANDIDATE_REV="$(printf '%s' "$CAND_JSON" | jq -r '.revisionName // empty')"
+          if [ -z "$TAG_URL" ] || [ -z "$CANDIDATE_REV" ]; then
+            echo "::error::No candidate-tagged revision on lingolinq-web. The --tag candidate deploy did not take."
+            exit 1
+          fi
+          # Pin the IMMUTABLE revision name now. The traffic shift must target this exact
+          # revision, not "whatever is latest at shift time": a concurrent manual
+          # `gcloud run deploy` between this probe and the shift would otherwise put 100% of
+          # production traffic on a revision nobody probed. GitHub concurrency does not
+          # serialize humans running gcloud.
+          echo "CANDIDATE_REV=$CANDIDATE_REV" >> "$GITHUB_ENV"
+          echo "Candidate revision: $CANDIDATE_REV"
+          echo "Probing candidate at $TAG_URL/api/v1/health"
+          OK=0
+          for i in $(seq 1 12); do
+            if ! CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$TAG_URL/api/v1/health")"; then
+              CODE=000
+            fi
+            case "$CODE" in
+              200) OK=$((OK + 1)); echo "  attempt $i: HTTP 200 (consecutive: $OK)" ;;
+              *)   OK=0;          echo "  attempt $i: HTTP $CODE" ;;
+            esac
+            if [ "$OK" -ge 2 ]; then
+              echo "Candidate healthy on two consecutive probes."
+              exit 0
+            fi
+            sleep 15
+          done
+          # Strip the public tag off the FAILING revision before giving up. Without this it stays
+          # reachable at a stable unauthenticated candidate---* URL indefinitely.
+          gcloud run services update-traffic lingolinq-web \
+            --region "${{ vars.GCP_REGION }}" --remove-tags candidate || \
+            echo "::warning::Failed to remove the candidate tag; do it by hand."
+          echo "::error::Candidate revision $CANDIDATE_REV never returned two consecutive 200s from /api/v1/health."
+          echo "::error::"
+          echo "::error::STATE OF PRODUCTION RIGHT NOW, read this before touching anything:"
+          echo "::error::  * No user traffic was shifted. Users are on ${PREV_REVISION:-the previous revision}."
+          echo "::error::  * The worker pool was NOT replaced."
+          echo "::error::  * Traffic is now PINNED to that revision by name. \`latestRevision\` is CLEARED,"
+          echo "::error::    because --no-traffic converts the allocation to a named target. A manual"
+          echo "::error::    \`gcloud run deploy\` will therefore create a revision serving 0% and report"
+          echo "::error::    success. Shift traffic explicitly after any manual deploy."
+          echo "::error::  * The database migration for this release HAS already been applied. If it is"
+          echo "::error::    not backward compatible, the revision users are on may now be broken too."
+          echo "::error::"
+          echo "::error::DO NOT RUN \`--to-latest\`. The latest READY revision right now is"
+          echo "::error::$CANDIDATE_REV, the one that just failed this gate. Ready is not healthy: this"
+          echo "::error::probe exists to catch revisions that start but do not work. --to-latest would put"
+          echo "::error::100% of live traffic on it."
+          echo "::error::"
+          if [ -n "${PREV_REVISION:-}" ]; then
+            echo "::error::To re-assert the known-good revision explicitly:"
+            echo "::error::  gcloud run services update-traffic lingolinq-web --region ${{ vars.GCP_REGION }} --to-revisions $PREV_REVISION=100"
+          else
+            # No single 100% predecessor was recorded (split traffic, or the describe failed).
+            # Do NOT print a placeholder command: `<prev>` is shell redirection, not a visible
+            # blank, so a copy-paste yields "bash: prev: No such file or directory" and gcloud
+            # never runs. Send the operator to look the revision up instead.
+            echo "::error::No single known-good predecessor was recorded before this deploy."
+            echo "::error::Find the revision to pin to, then pin it deliberately:"
+            echo "::error::  gcloud run revisions list --service lingolinq-web --region ${{ vars.GCP_REGION }} --sort-by=~metadata.creationTimestamp"
+            echo "::error::  gcloud run services update-traffic lingolinq-web --region ${{ vars.GCP_REGION }} --to-revisions <that-revision>=100"
+          fi
+          echo "::error::To diagnose the failed revision WITHOUT exposing it publicly:"
+          echo "::error::  gcloud run revisions describe $CANDIDATE_REV --region ${{ vars.GCP_REGION }}"
+          echo "::error::  gcloud logging read 'resource.labels.revision_name=\"$CANDIDATE_REV\"' --freshness=1h --limit=100"
+          echo "::error::Do NOT re-tag it to reach it over HTTP. A tag is a stable public"
+          echo "::error::unauthenticated URL onto the production database, outside the load balancer"
+          echo "::error::and Cloud Armor. Removing it is why this step stripped the tag above."
+          echo "::error::To roll FORWARD, push a fixed commit and let this workflow verify it."
+          exit 1
+
+      # Traffic shift, gated on the probe above. Pin to the EXACT revision that was probed, by
+      # immutable name. Do NOT use --to-latest here, for two reasons found in review:
+      #   1. Cloud Run resolves LATEST to the newest READY revision at the moment the command
+      #      runs, which is not necessarily the revision that just passed the probe. A
+      #      concurrent manual deploy would send all production traffic to an unprobed image.
+      #   2. --to-latest silently REVERSES a human incident rollback. After someone pins to a
+      #      known-good revision, a redeploy of the same bad SHA would pass this probe (it is a
+      #      boot smoke test and cannot see a functional bug) and restore the bad revision.
+      # Consequence to know: the service is deliberately left PINNED by name after every
+      # deploy, so `latestRevision` stays cleared. That is intended. Each deploy re-pins to its
+      # own verified revision. A manual `gcloud run deploy` outside this workflow will create a
+      # revision that serves 0% until someone shifts traffic to it on purpose.
+      # The candidate tag is removed in the same call, so no unauthenticated candidate---* URL
+      # outlives the release.
+      - name: Shift traffic to the verified revision
+        run: |
+          set -euo pipefail
+          if [ -z "${CANDIDATE_REV:-}" ]; then
+            echo "::error::CANDIDATE_REV is unset; refusing to shift traffic."
+            exit 1
+          fi
+          gcloud run services update-traffic lingolinq-web \
+            --region "${{ vars.GCP_REGION }}" \
+            --to-revisions "$CANDIDATE_REV=100" \
+            --remove-tags candidate
+          # Read back who is serving. This read is LOAD-BEARING (it is the assert), so it is
+          # guarded rather than left to `set -e`: a bare assignment failure would abort the step
+          # between the completed traffic shift and the un-run worker deploy, stranding new web
+          # code against old workers, and none of the diagnostics below would print. Distinguish
+          # "could not read" from "read fine, wrong revision" -- they need different responses.
+          SERVING=""
+          DESCRIBE_OK=1
+          for attempt in 1 2 3; do
+            if SERVING="$(gcloud run services describe lingolinq-web \
+                 --region "${{ vars.GCP_REGION }}" --format=json 2>/dev/null \
+                 | jq -r '[.status.traffic[] | select(.percent == 100) | .revisionName][0] // empty')"; then
+              DESCRIBE_OK=0
+              break
+            fi
+            DESCRIBE_OK=1
+            sleep 5
+          done
+          if [ "$DESCRIBE_OK" != "0" ]; then
+            echo "::error::Could not read back the traffic allocation after the shift (3 attempts)."
+            echo "::error::The shift command itself SUCCEEDED, so traffic is most likely on $CANDIDATE_REV,"
+            echo "::error::but that is unverified. The worker pool has NOT been replaced. Confirm with:"
+            echo "::error::  gcloud run services describe lingolinq-web --region ${{ vars.GCP_REGION }} --format='value(status.traffic)'"
+            exit 1
+          fi
+          if [ "$SERVING" != "$CANDIDATE_REV" ]; then
+            echo "::error::Traffic shift did not land where expected."
+            echo "::error::  probed and intended: $CANDIDATE_REV"
+            echo "::error::  actually serving:    ${SERVING:-<none, or a split with no 100% target>}"
+            echo "::error::Production may be serving an unverified revision. Investigate before proceeding."
+            exit 1
+          fi
+          echo "Now serving: $SERVING (was: ${PREV_REVISION:-<unknown>})"
+          # Belt-and-braces only, never a gate. --remove-tags above already succeeded (set -e
+          # would have killed the step otherwise), so this should not fire; it catches a human
+          # racing the runner or a lagging read. Non-blocking on purpose, BUT a failed read is
+          # reported as a failed read rather than silently collapsing to "no tag" -- otherwise
+          # the one case this exists to report is the one case it cannot report.
+          REMAINING_TAG=""
+          if ! REMAINING_TAG="$(gcloud run services describe lingolinq-web \
+               --region "${{ vars.GCP_REGION }}" --format=json 2>/dev/null \
+               | jq -r '[.status.traffic[] | select(.tag == "candidate")] | length')"; then
+            REMAINING_TAG=""
+          fi
+          if [ -z "$REMAINING_TAG" ]; then
+            echo "::warning::Could not verify that the candidate tag was removed. Check by hand:"
+            echo "::warning::  gcloud run services describe lingolinq-web --region ${{ vars.GCP_REGION }} --format='value(status.traffic)'"
+          elif [ "$REMAINING_TAG" != "0" ]; then
+            echo "::warning::A candidate tag is still present on lingolinq-web. Remove it by hand:"
+            echo "::warning::  gcloud run services update-traffic lingolinq-web --region ${{ vars.GCP_REGION }} --remove-tags candidate"
+          fi
 
       - name: Deploy worker pool
         run: |
@@ -270,3 +682,22 @@ jobs:
             --vpc-egress private-ranges-only \
             --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false,$APP_ENV_VARS" \
             --set-secrets "$BOOT_SECRETS,$NON_BOOT_SECRETS"
+
+      # Read back what actually landed. The "verify secrets are seeded" step above proves the
+      # secrets EXIST in Secret Manager before deploying; it cannot prove the deployed revision
+      # still REFERENCES them. Revision lingolinq-web-00014 (2026-08-04) dropped exactly
+      # BEDROCK_AWS_KEY and BEDROCK_AWS_SECRET while every secret container stayed healthy, and
+      # the Tier 1 runtime AI path failed closed for ~54 minutes with nothing reporting it.
+      # This asserts the linkage on every revision actually serving traffic (all nonzero
+      # percent targets under a canary/rollback split), so a deploy that loses a secret
+      # fails the run instead of shipping a silently degraded revision.
+      # NOTE: this guards CI deploys only. A human running `gcloud run deploy` bypasses this
+      # workflow entirely, which is how 00014 happened; see the script header.
+      - name: Assert deployed secrets landed
+        run: |
+          bash scripts/gcp/assert-runtime-secrets.sh \
+            --project "${{ vars.GCP_PROJECT_ID }}" \
+            --region "${{ vars.GCP_REGION }}" \
+            --service lingolinq-web \
+            --worker-pool lingolinq-worker \
+            --required "$BOOT_SECRETS,$NON_BOOT_SECRETS"
