@@ -252,20 +252,31 @@ module FeatureFlags
     user.eu_under_16? && !user.eu_ai_parental_consent_active?
   end
 
+  # Shared vocabulary for AI preference values. Keep this in sync with the
+  # frontend mirror in app/frontend/app/utils/ai_feature_gate.js.
+  AI_PREF_TRUE_VALUES = [true, 'true', '1', 1].freeze
+  AI_PREF_FALSE_VALUES = [false, 'false', '0', 0].freeze
+
+  def self.ai_pref_value(val)
+    return true if AI_PREF_TRUE_VALUES.include?(val)
+    return false if AI_PREF_FALSE_VALUES.include?(val)
+    nil
+  end
+
   # Per-user AI preference gate.
-  # - Master (ai_features_enabled) nil => grandfather allowed (legacy users).
-  # - Master false => block all AI.
-  # - Master true => USER_PREF_AI_FEATURES require prefs[feature] == true;
-  #   other AI_FEATURES follow the master (allowed).
+  # - Master absent (nil) => grandfather allowed for legacy users.
+  # - Master explicit opt-out or unrecognized => block all AI.
+  # - Master explicit opt-in => per-feature AI prefs require an explicit opt-in;
+  #   other AI features follow the master.
   def self.user_pref_allows_ai?(feature, user)
     return true unless user
     prefs = user.settings && user.settings['preferences']
     return true unless prefs.is_a?(Hash)
     master = prefs['ai_features_enabled']
     return true if master.nil?
-    return false if master == false || master.to_s == 'false'
+    return false unless ai_pref_value(master) == true
     return true unless USER_PREF_AI_FEATURES.include?(feature.to_s)
     val = prefs[feature.to_s]
-    val == true || val.to_s == 'true'
+    ai_pref_value(val) == true
   end
 end

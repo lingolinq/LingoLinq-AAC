@@ -67,6 +67,45 @@ describe('ai_feature_gate', function() {
         ai_features_enabled: true
       }), 'comprehensive_eval_ai')).toEqual(true);
     });
+
+    it('fails closed on an unrecognized master value', function() {
+      ['', '   ', 'maybe', {}].forEach(function(value) {
+        expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+          ai_features_enabled: value
+        }), 'ai_board_generation')).toEqual(false);
+        expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+          ai_features_enabled: value
+        }), 'comprehensive_eval_ai')).toEqual(false);
+      });
+    });
+
+    it('recognizes numeric boolean forms consistently', function() {
+      [0, '0'].forEach(function(off) {
+        expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+          ai_features_enabled: off
+        }), 'ai_board_generation')).toEqual(false);
+      });
+      [1, '1'].forEach(function(on) {
+        expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+          ai_features_enabled: on,
+          ai_board_generation: on
+        }), 'ai_board_generation')).toEqual(true);
+      });
+    });
+  });
+
+  describe('aiPrefValue', function() {
+    it('maps recognized values and rejects everything else', function() {
+      [true, 'true', 1, '1'].forEach(function(value) {
+        expect(aiFeatureGate.aiPrefValue(value)).toEqual(true);
+      });
+      [false, 'false', 0, '0'].forEach(function(value) {
+        expect(aiFeatureGate.aiPrefValue(value)).toEqual(false);
+      });
+      ['', 'maybe', null, undefined, {}].forEach(function(value) {
+        expect(aiFeatureGate.aiPrefValue(value)).toEqual(null);
+      });
+    });
   });
 
   describe('aiFeatureEnabled', function() {

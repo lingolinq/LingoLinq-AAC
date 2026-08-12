@@ -4,10 +4,15 @@
  * Feature flags control rollout; preferences control user opt-in.
  *
  * Pref semantics (match lib/feature_flags.rb#user_pref_allows_ai?):
- * - Master (ai_features_enabled) nil => grandfather allow
- * - Master false => block all AI
- * - Master true => USER_PREF_AI_FEATURES require prefs[feature] == true;
- *   other AI features follow the master (allowed)
+ * - Master (ai_features_enabled) ABSENT (null/undefined) => grandfather allow
+ * - Master an explicit opt-out (false/'false'/0/'0') => block all AI
+ * - Master PRESENT but unrecognized ('', 'maybe', an object) => block all AI
+ * - Master an explicit opt-in => USER_PREF_AI_FEATURES require
+ *   prefs[feature] == true; other AI features follow the master
+ *
+ * Unrecognized values fail CLOSED, matching the server. A blank per-feature
+ * child while the master is explicitly true also stays blocked because it is
+ * an incomplete opt-in.
  */
 
 var USER_PREF_AI_FEATURES = {
@@ -17,12 +22,13 @@ var USER_PREF_AI_FEATURES = {
   ai_symbol_search: true
 };
 
-function truthy(val) {
-  return val === true || val === 'true';
-}
+var AI_PREF_TRUE_VALUES = [true, 'true', '1', 1];
+var AI_PREF_FALSE_VALUES = [false, 'false', '0', 0];
 
-function falsy(val) {
-  return val === false || val === 'false';
+function aiPrefValue(val) {
+  if(AI_PREF_TRUE_VALUES.indexOf(val) !== -1) { return true; }
+  if(AI_PREF_FALSE_VALUES.indexOf(val) !== -1) { return false; }
+  return null;
 }
 
 /**
@@ -42,9 +48,9 @@ function prefAllowsAi(user, feature) {
 
   var master = prefs.ai_features_enabled;
   if(master === undefined || master === null) { return true; }
-  if(falsy(master)) { return false; }
+  if(aiPrefValue(master) !== true) { return false; }
   if(!USER_PREF_AI_FEATURES[feature]) { return true; }
-  return truthy(prefs[feature]);
+  return aiPrefValue(prefs[feature]) === true;
 }
 
 /**
@@ -61,8 +67,9 @@ function aiFeatureEnabled(appState, feature) {
 
 export default {
   USER_PREF_AI_FEATURES: USER_PREF_AI_FEATURES,
+  aiPrefValue: aiPrefValue,
   prefAllowsAi: prefAllowsAi,
   aiFeatureEnabled: aiFeatureEnabled
 };
 
-export { USER_PREF_AI_FEATURES, prefAllowsAi, aiFeatureEnabled };
+export { USER_PREF_AI_FEATURES, aiPrefValue, prefAllowsAi, aiFeatureEnabled };

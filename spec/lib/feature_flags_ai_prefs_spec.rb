@@ -91,6 +91,27 @@ describe FeatureFlags, 'AI prefs and EU parental gate' do
       expect(FeatureFlags.user_pref_allows_ai?('comprehensive_eval_ai', u)).to eq(true)
       expect(FeatureFlags.user_pref_allows_ai?('ai_compliance_logging', u)).to eq(true)
     end
+
+    it 'fails closed on an unrecognized master value for every AI feature' do
+      ['', '   ', 'maybe', {}].each do |value|
+        u = User.new(settings: { 'preferences' => { 'ai_features_enabled' => value } })
+        expect(FeatureFlags.user_pref_allows_ai?('ai_board_generation', u)).to eq(false)
+        expect(FeatureFlags.user_pref_allows_ai?('comprehensive_eval_ai', u)).to eq(false)
+      end
+    end
+
+    it 'recognizes numeric boolean forms consistently' do
+      [0, '0'].each do |off|
+        u = User.new(settings: { 'preferences' => { 'ai_features_enabled' => off } })
+        expect(FeatureFlags.user_pref_allows_ai?('ai_board_generation', u)).to eq(false)
+      end
+      [1, '1'].each do |on|
+        u = User.new(settings: { 'preferences' => {
+          'ai_features_enabled' => on, 'ai_board_generation' => on
+        } })
+        expect(FeatureFlags.user_pref_allows_ai?('ai_board_generation', u)).to eq(true)
+      end
+    end
   end
 
   describe '.ai_feature_enabled_for?' do
