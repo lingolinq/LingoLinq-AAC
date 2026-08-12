@@ -150,6 +150,63 @@ decisions.each do |key, val|
   end
 end
 
+# --- appliesWhen condition trees ----------------------------------------------
+# A condition is a tri-state boolean tree over launch-profile decisions: a leaf
+# is a decision key string; interior nodes are {'allOf' => [...]} or
+# {'anyOf' => [...]}. Kleene evaluation keeps undecided propagation
+# conservative: an unresolved operand yields :undecided unless the operator is
+# already decided without it (anyOf with a true operand; allOf with a false one).
+
+def validate_condition(node, decisions, path)
+  errs = []
+  case node
+  when String
+    errs << "#{path}: unknown launch-profile key: #{node}" unless decisions.key?(node)
+  when Hash
+    ops = node.keys & %w[allOf anyOf]
+    if ops.size != 1 || node.keys.size != 1
+      errs << "#{path}: condition node must have exactly one key, allOf or anyOf"
+    elsif !node[ops.first].is_a?(Array) || node[ops.first].empty?
+      errs << "#{path}: #{ops.first} must be a non-empty array"
+    else
+      node[ops.first].each_with_index do |child, i|
+        errs.concat(validate_condition(child, decisions, "#{path}.#{ops.first}[#{i}]"))
+      end
+    end
+  else
+    errs << "#{path}: condition must be a decision-key string or an allOf/anyOf node"
+  end
+  errs
+end
+
+def eval_condition(node, decisions)
+  case node
+  when String
+    v = decisions[node]
+    v == true ? :true : (v == false ? :false : :undecided)
+  when Hash
+    if node['allOf']
+      vals = node['allOf'].map { |n| eval_condition(n, decisions) }
+      return :false if vals.include?(:false)
+      vals.all?(:true) ? :true : :undecided
+    else
+      vals = (node['anyOf'] || []).map { |n| eval_condition(n, decisions) }
+      return :true if vals.include?(:true)
+      vals.all?(:false) ? :false : :undecided
+    end
+  else
+    :true
+  end
+end
+
+def condition_keys(node)
+  case node
+  when String then [node]
+  when Hash then (node['allOf'] || node['anyOf'] || []).flat_map { |n| condition_keys(n) }.uniq
+  else []
+  end
+end
+
 # --- READINESS-MILESTONES validation ------------------------------------------
 mmeta = milestones['meta'] || {}
 requirements = milestones['requirements'] || []
@@ -183,8 +240,11 @@ requirements.each do |r|
     failures << "[#{rid}] dangling finding ref: #{fid}" unless findings_by_id.key?(fid)
   end
   aw = r['appliesWhen'] || {}
-  (aw['decisions'] || []).each do |dk|
-    failures << "[#{rid}] appliesWhen.decisions references unknown launch-profile key: #{dk}" unless decisions.key?(dk)
+  if aw.key?('decisions')
+    failures << "[#{rid}] appliesWhen.decisions is the retired flat any-of form; encode appliesWhen.condition (allOf/anyOf tree)"
+  end
+  if aw.key?('condition')
+    failures.concat(validate_condition(aw['condition'], decisions, "[#{rid}] appliesWhen.condition"))
   end
 end
 declared = mmeta['directRequirementCount']
@@ -265,6 +325,21 @@ work.each do |w|
   if w['inclusionReason'] == 'advances-readiness-requirement' && (w['requirements'] || []).empty?
     warnings << "[#{wid}] inclusionReason is advances-readiness-requirement but no requirements are linked"
   end
+  outcome_enum = lmeta['outcomeStateEnum'] || []
+  if w['outcomeState'] && !outcome_enum.include?(w['outcomeState'])
+    failures << "[#{wid}] outcomeState #{w['outcomeState'].inspect} not in outcomeStateEnum"
+  end
+  if w['outcomeState'] == 'superseded-evidence' && !w['correctedBy']
+    failures << "[#{wid}] outcomeState superseded-evidence requires correctedBy referencing the corrective work record"
+  end
+end
+work.each do |w|
+  next unless w['correctedBy']
+  wid = w['id'] || '(no id)'
+  unless work_ids.include?(w['correctedBy'])
+    failures << "[#{wid}] correctedBy #{w['correctedBy'].inspect} does not resolve to a work record"
+  end
+  failures << "[#{wid}] correctedBy must reference a different record" if w['correctedBy'] == w['id']
 end
 
 # near-duplicate cluster slugs (warn only, never merge)
@@ -345,15 +420,14 @@ snapshots.each_with_index do |snap, i|
 end
 
 # --- derived requirement status -----------------------------------------------
-# appliesWhen.decisions: any-of semantics. Any true -> applies; all false ->
-# not applicable under this profile; otherwise any undecided -> decision-needed.
 def applicability(req, decisions)
-  keys = (req['appliesWhen'] || {})['decisions'] || []
-  return :applies if keys.empty?
-  vals = keys.map { |k| decisions[k] }
-  return :applies if vals.any? { |v| v == true }
-  return :not_applicable if vals.all? { |v| v == false }
-  :decision_needed
+  cond = (req['appliesWhen'] || {})['condition']
+  return :applies if cond.nil?
+  case eval_condition(cond, decisions)
+  when :true then :applies
+  when :false then :not_applicable
+  else :decision_needed
+  end
 end
 
 profile_evidence = profile['evidence'] || {}
@@ -381,7 +455,8 @@ requirements.each do |r|
   case applicability(r, decisions)
   when :decision_needed
     state = 'decision-needed'
-    reasons << "gated by undecided decision(s): #{((r['appliesWhen'] || {})['decisions'] || []).select { |k| decisions[k] == 'undecided' }.join(', ')}"
+    undecided = condition_keys((r['appliesWhen'] || {})['condition']).select { |k| decisions[k] == 'undecided' }
+    reasons << "gated by undecided decision(s): #{undecided.join(', ')}"
     if hs == 'claimed-done'
       sub, why = claimed_done_substate(r, open_status, profile_evidence)
       reasons << "underlying evidence state if enabled: #{sub}#{why ? " (#{why})" : ''}"
@@ -422,8 +497,14 @@ requirements.select { |r| r['type'] == 'invariant' }.each do |r|
   end
 end
 
+# Only requirements whose CURRENT derived state is decision-needed are "gated":
+# a condition can reference an undecided key yet already be resolved (anyOf with
+# a true operand, allOf with a false one) - listing those would be misleading.
 decisions.select { |_, v| v == 'undecided' }.each_key do |k|
-  affected = requirements.select { |r| ((r['appliesWhen'] || {})['decisions'] || []).include?(k) }.map { |r| r['id'] }
+  affected = requirements.select do |r|
+    derived.dig(r['id'], 'state') == 'decision-needed' &&
+      condition_keys((r['appliesWhen'] || {})['condition']).include?(k)
+  end.map { |r| r['id'] }
   warnings << "[launch-profile] #{k} is undecided; #{affected.size} requirement(s) render decision-needed: #{affected.join(', ')}" if affected.any?
 end
 
@@ -486,6 +567,7 @@ end
 # --- source freshness (deterministic: ages relative to reference date) --------
 def freshness(src, ref_date)
   return ['red', 'numeric contradiction with canonical state (overrides age)'] if src['contradictsCanonical']
+  return ['red', 'canonical copy marked SUPERSEDED; successor still draft (overrides age)'] if src['superseded']
   lod = src['lastObservedDate']
   if lod.nil?
     return src['kind'] == 'production' ? ['yellow', 'no explicit observation recorded; never inferred'] : ['yellow', 'no observation recorded']
@@ -603,7 +685,10 @@ def render_dashboard(ctx)
   else
     out << "| Decision | Current value | Requirements gated |\n|---|---|---|\n"
     pending.each do |k|
-      gated = ctx[:requirements].select { |r| ((r['appliesWhen'] || {})['decisions'] || []).include?(k) }.map { |r| "`#{r['id']}`" }
+      gated = ctx[:requirements].select do |r|
+        ctx[:derived].dig(r['id'], 'state') == 'decision-needed' &&
+          condition_keys((r['appliesWhen'] || {})['condition']).include?(k)
+      end.map { |r| "`#{r['id']}`" }
       out << "| #{k} | undecided | #{gated.empty? ? '-' : gated.join(', ')} |\n"
     end
     out << "\nUndecided applicability renders **⚪ Decision needed**, never silently blocked or not-required.\n\n"
@@ -632,8 +717,15 @@ def render_dashboard(ctx)
   out << "| Ledger records | #{wm['records']} |\n"
   out << "| Distinct control/capability clusters | #{wm['distinctClusters']} |\n"
   out << "| Preventive controls added | #{wm['preventiveControls']} |\n"
-  out << "| Findings moved out of open (latest snapshot) | #{wm['movedOutOfOpen'] || 'n/a (needs 2+ snapshots)'} |\n\n"
-  out << "Release duplicates and smoke PRs never inflate distinct-cluster counts; records sharing a cluster count once.\n\n"
+  out << "| Findings moved out of open (latest snapshot) | #{wm['movedOutOfOpen'] || 'n/a (needs 2+ snapshots)'} |\n"
+  out << "| Superseded-evidence records (claim later disproved; correction linked) | #{wm['supersededEvidence']} |\n\n"
+  out << "Release duplicates and smoke PRs never inflate distinct-cluster counts; records sharing a cluster count once.\n"
+  superseded_records = ctx[:work].select { |w| w['outcomeState'] == 'superseded-evidence' }
+  superseded_records.each do |w|
+    corr = ctx[:work].find { |c| c['id'] == w['correctedBy'] }
+    out << "Superseded evidence preserved, never laundered: `#{w['id']}` (#{w['title']}) was corrected by `#{w['correctedBy']}`#{corr ? " (#{corr['title']})" : ''}.\n"
+  end
+  out << "\n"
 
   out << "## Six readiness cards\n\n"
   (ctx[:milestones]['readinessCards'] || []).each do |c|
@@ -720,7 +812,8 @@ work_metrics = {
   'records' => work.size,
   'distinctClusters' => clusters.size,
   'preventiveControls' => work.count { |w| w['inclusionReason'] == 'adds-preventive-control' },
-  'movedOutOfOpen' => latest_snap ? (latest_snap.dig('findingFlowSincePrior', 'movedOutOfOpen') || []).size : nil
+  'movedOutOfOpen' => latest_snap ? (latest_snap.dig('findingFlowSincePrior', 'movedOutOfOpen') || []).size : nil,
+  'supersededEvidence' => work.count { |w| w['outcomeState'] == 'superseded-evidence' }
 }
 reference_date = if latest_snap
                    Date.parse(Time.iso8601(latest_snap['generatedAt']).strftime('%F'))

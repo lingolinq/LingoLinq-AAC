@@ -17,68 +17,176 @@
     },
     "directRequirementCount": 40,
     "milestones": [
-      { "id": "adult-beta", "title": "Controlled Adult / SLP / Teacher Beta", "order": 1, "inheritsFrom": [] },
-      { "id": "school-beta", "title": "School / Minor Beta", "order": 2, "inheritsFrom": ["adult-beta"] },
-      { "id": "public-mvp", "title": "Public MVP", "order": 3, "inheritsFrom": ["adult-beta", "school-beta"], "inheritanceNote": "Inherits applicable UNRESOLVED blockers only; school-beta inheritance is conditional on the mvpIncludesMinors launch-profile decision." },
-      { "id": "district-ready", "title": "District Procurement Ready", "order": 4, "inheritsFrom": [], "inheritanceNote": "May inherit public-mvp blockers if policy requires; not enabled in v0.2." },
-      { "id": "long-term-assurance", "title": "Long-Term Assurance", "order": 5, "inheritsFrom": [] }
+      {
+        "id": "adult-beta",
+        "title": "Controlled Adult / SLP / Teacher Beta",
+        "order": 1,
+        "inheritsFrom": []
+      },
+      {
+        "id": "school-beta",
+        "title": "School / Minor Beta",
+        "order": 2,
+        "inheritsFrom": [
+          "adult-beta"
+        ]
+      },
+      {
+        "id": "public-mvp",
+        "title": "Public MVP",
+        "order": 3,
+        "inheritsFrom": [
+          "adult-beta",
+          "school-beta"
+        ],
+        "inheritanceNote": "Inherits applicable UNRESOLVED blockers only; school-beta inheritance is conditional on the mvpIncludesMinors launch-profile decision."
+      },
+      {
+        "id": "district-ready",
+        "title": "District Procurement Ready",
+        "order": 4,
+        "inheritsFrom": [],
+        "inheritanceNote": "May inherit public-mvp blockers if policy requires; not enabled in v0.2."
+      },
+      {
+        "id": "long-term-assurance",
+        "title": "Long-Term Assurance",
+        "order": 5,
+        "inheritsFrom": []
+      }
     ],
-    "typeEnum": ["invariant", "deliverable"],
-    "humanStatusEnum": ["in-progress", "blocked", "accepted-for-milestone", "not-required", "future", "claimed-done"],
-    "derivedStatusEnum": ["done", "done-awaiting-verification", "done-awaiting-reconciliation", "decision-needed"],
-    "verificationEnum": ["code-only", "code-and-runtime", "attestation", "external-review"],
-    "areaEnum": ["privacy-security", "ai-trust", "children-school", "accessibility", "data-lifecycle", "infrastructure", "supply-chain", "audit-governance", "product-reliability", "district-readiness"],
-    "appliesWhenSemantics": "appliesWhen.decisions lists LAUNCH-PROFILE.json decision keys gating applicability (any-of: requirement applies if any listed decision is true). If none is true and at least one is 'undecided', the derived status is decision-needed. Empty list = always applies. appliesWhen.summary is the human-readable condition.",
+    "typeEnum": [
+      "invariant",
+      "deliverable"
+    ],
+    "humanStatusEnum": [
+      "in-progress",
+      "blocked",
+      "accepted-for-milestone",
+      "not-required",
+      "future",
+      "claimed-done"
+    ],
+    "derivedStatusEnum": [
+      "done",
+      "done-awaiting-verification",
+      "done-awaiting-reconciliation",
+      "decision-needed"
+    ],
+    "verificationEnum": [
+      "code-only",
+      "code-and-runtime",
+      "attestation",
+      "external-review"
+    ],
+    "areaEnum": [
+      "privacy-security",
+      "ai-trust",
+      "children-school",
+      "accessibility",
+      "data-lifecycle",
+      "infrastructure",
+      "supply-chain",
+      "audit-governance",
+      "product-reliability",
+      "district-readiness"
+    ],
+    "appliesWhenSemantics": "appliesWhen.condition is a tri-state boolean tree over LAUNCH-PROFILE.json decisions. A leaf is a decision key string; interior nodes are {\"allOf\": [...]} or {\"anyOf\": [...]}. Kleene evaluation: anyOf is true if any operand is true and false only if all are false; allOf is false if any operand is false and true only if all are true; anything else is undecided. Omitted condition = always applies. An undecided result renders decision-needed (conservative), never blocked or not-required. The earlier flat any-of appliesWhen.decisions form is retired and rejected by the validator. appliesWhen.summary is the human-readable condition.",
     "findingSemantics": "findingIds must exist in audit-reports/FINDINGS.json (validated; read-only cross-reference). findingScope is a prose description of an aggregate finding class (e.g. launch-relevant WCAG Mediums) that cannot be pinned to specific IDs. Invariants compute over FINDINGS.json each generation and never store completion status.",
-    "readinessCardStatusEnum": ["green", "yellow", "orange", "red", "future"]
+    "readinessCardStatusEnum": [
+      "green",
+      "yellow",
+      "orange",
+      "red",
+      "future"
+    ]
   },
   "readinessCards": [
     {
       "id": "security-privacy",
       "title": "Security & Privacy",
       "status": "yellow",
-      "strengths": ["Infrastructure hardening", "Dependency/security controls", "Evidence governance", "Deployment assertions"],
-      "gaps": ["Raw AI cache", "Privileged-access residuals", "Verification debt"],
+      "strengths": [
+        "Infrastructure hardening",
+        "Dependency/security controls",
+        "Evidence governance",
+        "Deployment assertions"
+      ],
+      "gaps": [
+        "AI cache finding awaiting register reconciliation (fix merged in #788)",
+        "Privileged-access residuals",
+        "Verification debt"
+      ],
       "next": "Close/verify launch-relevant Highs and confirm beta configuration"
     },
     {
       "id": "ai-trust",
       "title": "AI Trust",
       "status": "yellow",
-      "strengths": ["Bedrock routing", "Model allowlists and endpoint controls", "Org/user/child consent enforcement"],
-      "gaps": ["Raw word-prediction cache", "Bedrock account-proof automation", "Final disclosure applicability/enablement"],
+      "strengths": [
+        "Bedrock routing",
+        "Model allowlists and endpoint controls",
+        "Org/user/child consent enforcement"
+      ],
+      "gaps": [
+        "Word-prediction cache reconciliation/verification (LL-16ef84ad9a fix merged, register row still open)",
+        "Bedrock account-proof runtime verification",
+        "Final disclosure applicability/enablement"
+      ],
       "next": "Resolve launch-profile decisions and verify runtime controls"
     },
     {
       "id": "accessibility",
       "title": "Accessibility",
       "status": "yellow",
-      "strengths": ["Major Ember/accessibility modernization", "Accessible AI disclosure work"],
-      "gaps": ["Terms switch scanning", "Terms ordering", "Launch-relevant core AAC accessibility Mediums"],
+      "strengths": [
+        "Major Ember/accessibility modernization",
+        "Accessible AI disclosure work"
+      ],
+      "gaps": [
+        "Terms switch scanning",
+        "Terms ordering",
+        "Launch-relevant core AAC accessibility Mediums"
+      ],
       "next": "Cohort-specific switch/eye-gaze/keyboard/screen-reader verification"
     },
     {
       "id": "student-data-lifecycle",
       "title": "Student Data Lifecycle",
       "status": "orange",
-      "strengths": ["Parent-consent and offboarding architecture exists"],
-      "gaps": ["Seat-reclaim/re-consent cluster", "Hard-delete media completeness"],
+      "strengths": [
+        "Parent-consent and offboarding architecture exists"
+      ],
+      "gaps": [
+        "Seat-reclaim/re-consent cluster",
+        "Hard-delete media completeness"
+      ],
       "next": "Verify the #737/#721 class of lifecycle fixes before school/minor beta"
     },
     {
       "id": "district-trust-pack",
       "title": "District Trust Pack",
-      "status": "yellow",
-      "strengths": ["Current attested internal/external compliance materials exist"],
-      "gaps": ["Publication/index freshness", "Trust-pack coherence"],
-      "next": "Generate trust pack from canonical current sources"
+      "status": "orange",
+      "strengths": [
+        "Compliance document program with attestation and register governance exists"
+      ],
+      "gaps": [
+        "Internal/external Drive overview copies marked SUPERSEDED 2026-08-11; cleanup drafts pending re-attestation",
+        "Publication/index freshness",
+        "Trust-pack coherence"
+      ],
+      "next": "Re-attest the 2026-08-11 cleanup drafts, then regenerate the trust pack from canonical current sources"
     },
     {
       "id": "evidence-of-value",
       "title": "Evidence of Value",
       "status": "orange",
-      "strengths": ["Technical beta readiness improving"],
-      "gaps": ["Structured AAC-user/SLP/teacher outcomes still immature"],
+      "strengths": [
+        "Technical beta readiness improving"
+      ],
+      "gaps": [
+        "Structured AAC-user/SLP/teacher outcomes still immature"
+      ],
       "next": "Collect beta usability and outcome evidence deliberately"
     }
   ],
@@ -93,7 +201,9 @@
       "findingIds": [],
       "findingScope": "aggregate: all open Critical findings",
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "always", "decisions": [] },
+      "appliesWhen": {
+        "summary": "always"
+      },
       "whyItMatters": "A controlled beta should not proceed with a known unresolved Critical affecting the cohort."
     },
     {
@@ -104,10 +214,15 @@
       "text": "Raw communication is not retained in an unsafe pre-scrubber or process-global AI cache.",
       "humanStatus": "claimed-done",
       "blocking": true,
-      "findingIds": ["LL-16ef84ad9a"],
+      "findingIds": [
+        "LL-16ef84ad9a"
+      ],
       "findingScope": null,
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "runtime AI word prediction is enabled", "decisions": ["aiWordPredictionEnabled"] },
+      "appliesWhen": {
+        "summary": "runtime AI word prediction is enabled",
+        "condition": "aiWordPredictionEnabled"
+      },
       "whyItMatters": "AAC utterances may contain highly sensitive communication content and must not be retained outside the intended minimization boundary."
     },
     {
@@ -121,7 +236,16 @@
       "findingIds": [],
       "findingScope": null,
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "AI features are enabled", "decisions": ["aiWordPredictionEnabled", "aiFocusWordsEnabled"] },
+      "appliesWhen": {
+        "summary": "AI features are enabled",
+        "condition": {
+          "anyOf": [
+            "aiWordPredictionEnabled",
+            "aiFocusWordsEnabled",
+            "aiBoardGenerationEnabled"
+          ]
+        }
+      },
       "whyItMatters": "Unknown consent intent must not be converted into permission."
     },
     {
@@ -135,7 +259,10 @@
       "findingIds": [],
       "findingScope": null,
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "focus-word AI is enabled", "decisions": ["aiFocusWordsEnabled"] },
+      "appliesWhen": {
+        "summary": "focus-word AI is enabled",
+        "condition": "aiFocusWordsEnabled"
+      },
       "whyItMatters": "Cached AI output must not bypass consent and child-protection controls."
     },
     {
@@ -146,10 +273,26 @@
       "text": "Required direct-interaction AI disclosure is presented and enforced for covered users before the covered interaction occurs.",
       "humanStatus": "in-progress",
       "blocking": true,
-      "findingIds": ["LL-a9d6d5a46b"],
+      "findingIds": [
+        "LL-a9d6d5a46b"
+      ],
       "findingScope": "LL-a9d6d5a46b applies where the disclosure surface is rendered",
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "jurisdiction and feature combination requires Article 50 or equivalent disclosure", "decisions": ["euUsersIncluded"] },
+      "appliesWhen": {
+        "summary": "jurisdiction and feature combination requires Article 50 or equivalent disclosure",
+        "condition": {
+          "allOf": [
+            "euUsersIncluded",
+            {
+              "anyOf": [
+                "aiWordPredictionEnabled",
+                "aiFocusWordsEnabled",
+                "aiBoardGenerationEnabled"
+              ]
+            }
+          ]
+        }
+      },
       "whyItMatters": "Transparency obligations must work in the actual runtime path, not only exist in code."
     },
     {
@@ -160,10 +303,14 @@
       "text": "Required Terms/consent flow is reachable with switch scanning for the beta cohort.",
       "humanStatus": "blocked",
       "blocking": true,
-      "findingIds": ["LL-104bfa61dc"],
+      "findingIds": [
+        "LL-104bfa61dc"
+      ],
       "findingScope": null,
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "Terms/consent is presented", "decisions": [] },
+      "appliesWhen": {
+        "summary": "Terms/consent is presented"
+      },
       "whyItMatters": "A switch-scanning AAC user must not be trapped at a mandatory modal."
     },
     {
@@ -174,10 +321,14 @@
       "text": "Intro/onboarding cannot replace required Terms before the user has had the opportunity to review and agree.",
       "humanStatus": "blocked",
       "blocking": true,
-      "findingIds": ["LL-53cb93fab1"],
+      "findingIds": [
+        "LL-53cb93fab1"
+      ],
       "findingScope": null,
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "Terms is required for the user/session", "decisions": [] },
+      "appliesWhen": {
+        "summary": "Terms is required for the user/session"
+      },
       "whyItMatters": "Required consent presentation cannot be silently skipped by modal ordering."
     },
     {
@@ -191,7 +342,9 @@
       "findingIds": [],
       "findingScope": null,
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "production or production-like beta", "decisions": [] },
+      "appliesWhen": {
+        "summary": "production or production-like beta"
+      },
       "whyItMatters": "Beta reliability and assurance depend on knowing exactly what code was released and verified."
     },
     {
@@ -205,7 +358,9 @@
       "findingIds": [],
       "findingScope": "aggregate: launch-relevant WCAG Mediums and Highs",
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "always; exact modalities depend on cohort", "decisions": [] },
+      "appliesWhen": {
+        "summary": "always; exact modalities depend on cohort"
+      },
       "whyItMatters": "Accessibility failures on core AAC communication paths are product-readiness failures, not peripheral polish."
     },
     {
@@ -219,7 +374,9 @@
       "findingIds": [],
       "findingScope": "aggregate: launch-relevant reliability findings including remediated-unverified items",
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "always", "decisions": [] },
+      "appliesWhen": {
+        "summary": "always"
+      },
       "whyItMatters": "A supervised beta still requires reliable core communication and data-preservation paths."
     },
     {
@@ -233,7 +390,10 @@
       "findingIds": [],
       "findingScope": "related COPPA findings where applicable",
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "under-13 consumer/family use", "decisions": ["minorsIncluded"] },
+      "appliesWhen": {
+        "summary": "under-13 consumer/family use",
+        "condition": "minorsIncluded"
+      },
       "whyItMatters": "Child participation cannot depend on an implied or missing guardian authorization path."
     },
     {
@@ -244,10 +404,20 @@
       "text": "District seat reclaim/offboarding cannot silently convert an under-13 child into a consumer trial without required re-consent or a defined lawful transition.",
       "humanStatus": "in-progress",
       "blocking": true,
-      "findingIds": ["LL-f150e0e828"],
+      "findingIds": [
+        "LL-f150e0e828"
+      ],
       "findingScope": null,
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "school-managed minors", "decisions": ["schoolManagedAccounts", "minorsIncluded"] },
+      "appliesWhen": {
+        "summary": "school-managed minors",
+        "condition": {
+          "allOf": [
+            "schoolManagedAccounts",
+            "minorsIncluded"
+          ]
+        }
+      },
       "whyItMatters": "School-to-family transition is a high-risk lifecycle boundary for COPPA and notice obligations."
     },
     {
@@ -261,7 +431,10 @@
       "findingIds": [],
       "findingScope": "related #737 consent-lifecycle cluster",
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "parental consent is applicable", "decisions": ["minorsIncluded"] },
+      "appliesWhen": {
+        "summary": "parental consent is applicable",
+        "condition": "minorsIncluded"
+      },
       "whyItMatters": "Expired or declined consent must have a deterministic privacy-preserving lifecycle."
     },
     {
@@ -272,10 +445,20 @@
       "text": "Hard deletion includes UserVideo and standalone/off-board voice recordings and other covered media.",
       "humanStatus": "in-progress",
       "blocking": true,
-      "findingIds": ["LL-854b1d3853"],
+      "findingIds": [
+        "LL-854b1d3853"
+      ],
       "findingScope": null,
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "school/minor deletion or erasure", "decisions": ["minorsIncluded", "schoolManagedAccounts"] },
+      "appliesWhen": {
+        "summary": "school/minor deletion or erasure",
+        "condition": {
+          "anyOf": [
+            "minorsIncluded",
+            "schoolManagedAccounts"
+          ]
+        }
+      },
       "whyItMatters": "Deletion claims are incomplete if sensitive media survives as orphaned rows/objects."
     },
     {
@@ -289,7 +472,21 @@
       "findingIds": [],
       "findingScope": null,
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "school-managed accounts with AI-capable features", "decisions": ["schoolManagedAccounts"] },
+      "appliesWhen": {
+        "summary": "school-managed accounts with AI-capable features",
+        "condition": {
+          "allOf": [
+            "schoolManagedAccounts",
+            {
+              "anyOf": [
+                "aiWordPredictionEnabled",
+                "aiFocusWordsEnabled",
+                "aiBoardGenerationEnabled"
+              ]
+            }
+          ]
+        }
+      },
       "whyItMatters": "Districts need a meaningful tenant-level control over optional AI processing."
     },
     {
@@ -303,7 +500,21 @@
       "findingIds": [],
       "findingScope": "related AI consent findings where applicable",
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "minors and AI features", "decisions": ["minorsIncluded"] },
+      "appliesWhen": {
+        "summary": "minors and AI features",
+        "condition": {
+          "allOf": [
+            "minorsIncluded",
+            {
+              "anyOf": [
+                "aiWordPredictionEnabled",
+                "aiFocusWordsEnabled",
+                "aiBoardGenerationEnabled"
+              ]
+            }
+          ]
+        }
+      },
       "whyItMatters": "Child-protection policy must be an enforcement boundary, not UI-only guidance."
     },
     {
@@ -317,7 +528,10 @@
       "findingIds": [],
       "findingScope": null,
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "school-sponsored accounts", "decisions": ["schoolManagedAccounts"] },
+      "appliesWhen": {
+        "summary": "school-sponsored accounts",
+        "condition": "schoolManagedAccounts"
+      },
       "whyItMatters": "District and family responsibilities must be clear before real school-managed users are onboarded."
     },
     {
@@ -328,10 +542,15 @@
       "text": "Parent/student/Terms/consent flows are usable with the relevant AAC access methods for the cohort.",
       "humanStatus": "blocked",
       "blocking": true,
-      "findingIds": ["LL-104bfa61dc", "LL-53cb93fab1"],
+      "findingIds": [
+        "LL-104bfa61dc",
+        "LL-53cb93fab1"
+      ],
       "findingScope": "plus applicable modal/accessibility findings",
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "consent or Terms flows apply", "decisions": [] },
+      "appliesWhen": {
+        "summary": "consent or Terms flows apply"
+      },
       "whyItMatters": "A compliant consent path that an AAC user cannot operate is not a usable consent path."
     },
     {
@@ -345,7 +564,9 @@
       "findingIds": [],
       "findingScope": "related disclosure/document findings",
       "verificationRequired": "attestation",
-      "appliesWhen": { "summary": "always", "decisions": [] },
+      "appliesWhen": {
+        "summary": "always"
+      },
       "whyItMatters": "Customer-facing claims must describe the system that actually runs."
     },
     {
@@ -356,10 +577,21 @@
       "text": "The serving Bedrock credential is demonstrably tied to the BAA-covered AWS account when Bedrock is enabled.",
       "humanStatus": "claimed-done",
       "blocking": true,
-      "findingIds": ["LL-1b0d78dbe6"],
+      "findingIds": [
+        "LL-1b0d78dbe6"
+      ],
       "findingScope": null,
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "Bedrock runtime AI is enabled", "decisions": ["aiWordPredictionEnabled", "aiFocusWordsEnabled"] },
+      "appliesWhen": {
+        "summary": "Bedrock runtime AI is enabled",
+        "condition": {
+          "anyOf": [
+            "aiWordPredictionEnabled",
+            "aiFocusWordsEnabled",
+            "aiBoardGenerationEnabled"
+          ]
+        }
+      },
       "whyItMatters": "Contract coverage is not sufficient unless the actual serving credential is proven to belong to the covered account."
     },
     {
@@ -373,7 +605,9 @@
       "findingIds": [],
       "findingScope": "related release-control issues",
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "production", "decisions": [] },
+      "appliesWhen": {
+        "summary": "production"
+      },
       "whyItMatters": "Public launch requires repeatable, attributable release assurance."
     },
     {
@@ -384,10 +618,14 @@
       "text": "Seed/test/admin credentials are rotated, removed, disabled, or converted to a governed break-glass posture before customer-facing use.",
       "humanStatus": "blocked",
       "blocking": true,
-      "findingIds": ["LL-caaf8e20ec"],
+      "findingIds": [
+        "LL-caaf8e20ec"
+      ],
       "findingScope": null,
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "customer-facing production", "decisions": [] },
+      "appliesWhen": {
+        "summary": "customer-facing production"
+      },
       "whyItMatters": "A memorable seeded admin credential is incompatible with customer-ready privileged access."
     },
     {
@@ -400,7 +638,9 @@
       "findingIds": [],
       "findingScope": "aggregate: launch-relevant High remediated-unverified findings",
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "always", "decisions": [] },
+      "appliesWhen": {
+        "summary": "always"
+      },
       "whyItMatters": "Public MVP should not treat 'code probably fixed' as equivalent to verified closure for launch-relevant Highs."
     },
     {
@@ -414,7 +654,9 @@
       "findingIds": [],
       "findingScope": null,
       "verificationRequired": "attestation",
-      "appliesWhen": { "summary": "production data", "decisions": [] },
+      "appliesWhen": {
+        "summary": "production data"
+      },
       "whyItMatters": "Response procedures must point responders to current systems, providers, and recovery paths."
     },
     {
@@ -428,7 +670,9 @@
       "findingIds": [],
       "findingScope": null,
       "verificationRequired": "attestation",
-      "appliesWhen": { "summary": "district sales/procurement", "decisions": [] },
+      "appliesWhen": {
+        "summary": "district sales/procurement"
+      },
       "whyItMatters": "District reviewers need a coherent packet, not a collection of inconsistent source documents."
     },
     {
@@ -442,7 +686,9 @@
       "findingIds": [],
       "findingScope": "applicable subprocessor findings",
       "verificationRequired": "attestation",
-      "appliesWhen": { "summary": "district sales/procurement", "decisions": [] },
+      "appliesWhen": {
+        "summary": "district sales/procurement"
+      },
       "whyItMatters": "Vendor diligence depends on a complete and truthful subprocessor/data-flow inventory."
     },
     {
@@ -453,10 +699,17 @@
       "text": "Retention/deletion schedule is documented and the material lifecycle controls are operationally verified.",
       "humanStatus": "in-progress",
       "blocking": true,
-      "findingIds": ["LL-1890f6a922", "LL-14edf1a801", "LL-caf2528468", "LL-3bb2e2eaad"],
+      "findingIds": [
+        "LL-1890f6a922",
+        "LL-14edf1a801",
+        "LL-caf2528468",
+        "LL-3bb2e2eaad"
+      ],
       "findingScope": "as applicable",
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "district sales/procurement", "decisions": [] },
+      "appliesWhen": {
+        "summary": "district sales/procurement"
+      },
       "whyItMatters": "Districts increasingly ask not only what retention is promised but how it is technically enforced."
     },
     {
@@ -470,7 +723,9 @@
       "findingIds": [],
       "findingScope": "applicable AI findings",
       "verificationRequired": "attestation",
-      "appliesWhen": { "summary": "AI is offered", "decisions": [] },
+      "appliesWhen": {
+        "summary": "AI is offered"
+      },
       "whyItMatters": "AI procurement review increasingly requires clear data-flow and governance answers."
     },
     {
@@ -484,7 +739,9 @@
       "findingIds": [],
       "findingScope": "applicable WCAG findings",
       "verificationRequired": "external-review",
-      "appliesWhen": { "summary": "always", "decisions": [] },
+      "appliesWhen": {
+        "summary": "always"
+      },
       "whyItMatters": "District accessibility review requires evidence beyond informal claims."
     },
     {
@@ -498,7 +755,9 @@
       "findingIds": [],
       "findingScope": null,
       "verificationRequired": "attestation",
-      "appliesWhen": { "summary": "district sales/procurement", "decisions": [] },
+      "appliesWhen": {
+        "summary": "district sales/procurement"
+      },
       "whyItMatters": "Procurement teams need a credible operational response posture."
     },
     {
@@ -509,10 +768,14 @@
       "text": "Production email authentication and domain alignment are verified for the customer-facing mail path.",
       "humanStatus": "in-progress",
       "blocking": true,
-      "findingIds": ["LL-abd6c88733"],
+      "findingIds": [
+        "LL-abd6c88733"
+      ],
       "findingScope": null,
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "product email is used", "decisions": [] },
+      "appliesWhen": {
+        "summary": "product email is used"
+      },
       "whyItMatters": "Password reset, consent, and school communications depend on trustworthy authenticated mail."
     },
     {
@@ -526,7 +789,9 @@
       "findingIds": [],
       "findingScope": "applicable supply-chain findings",
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "always", "decisions": [] },
+      "appliesWhen": {
+        "summary": "always"
+      },
       "whyItMatters": "District security review increasingly examines software supply-chain assurance."
     },
     {
@@ -540,7 +805,9 @@
       "findingIds": [],
       "findingScope": null,
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "deployment/buyer requires it", "decisions": [] },
+      "appliesWhen": {
+        "summary": "deployment/buyer requires it"
+      },
       "whyItMatters": "Interoperability is increasingly a procurement and implementation criterion."
     },
     {
@@ -554,7 +821,9 @@
       "findingIds": [],
       "findingScope": null,
       "verificationRequired": "external-review",
-      "appliesWhen": { "summary": "buyer/stage warrants it", "decisions": [] },
+      "appliesWhen": {
+        "summary": "buyer/stage warrants it"
+      },
       "whyItMatters": "Formal accessibility conformance reporting may become a procurement expectation."
     },
     {
@@ -568,7 +837,9 @@
       "findingIds": [],
       "findingScope": null,
       "verificationRequired": "external-review",
-      "appliesWhen": { "summary": "buyer/stage warrants it", "decisions": [] },
+      "appliesWhen": {
+        "summary": "buyer/stage warrants it"
+      },
       "whyItMatters": "SOC 2 may become valuable evidence but is not the immediate launch finish line."
     },
     {
@@ -579,10 +850,14 @@
       "text": "Mature privileged access with MFA, centralized auditability, least privilege, and governed break-glass.",
       "humanStatus": "in-progress",
       "blocking": false,
-      "findingIds": ["LL-7f7372e3eb"],
+      "findingIds": [
+        "LL-7f7372e3eb"
+      ],
       "findingScope": "plus related privileged findings",
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "always", "decisions": [] },
+      "appliesWhen": {
+        "summary": "always"
+      },
       "whyItMatters": "Strong privileged-access governance reduces insider and operator risk."
     },
     {
@@ -596,7 +871,9 @@
       "findingIds": [],
       "findingScope": "applicable retention findings",
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "always", "decisions": [] },
+      "appliesWhen": {
+        "summary": "always"
+      },
       "whyItMatters": "Manual or partial retention enforcement does not scale with customer growth."
     },
     {
@@ -610,7 +887,9 @@
       "findingIds": [],
       "findingScope": null,
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "company stage warrants it", "decisions": [] },
+      "appliesWhen": {
+        "summary": "company stage warrants it"
+      },
       "whyItMatters": "Continuous detection and operational response become more important as scale and threat exposure grow."
     },
     {
@@ -624,7 +903,9 @@
       "findingIds": [],
       "findingScope": null,
       "verificationRequired": "code-and-runtime",
-      "appliesWhen": { "summary": "request volume warrants it", "decisions": [] },
+      "appliesWhen": {
+        "summary": "request volume warrants it"
+      },
       "whyItMatters": "Manual DSAR handling becomes fragile at scale."
     },
     {
@@ -638,7 +919,9 @@
       "findingIds": [],
       "findingScope": null,
       "verificationRequired": "external-review",
-      "appliesWhen": { "summary": "ongoing", "decisions": [] },
+      "appliesWhen": {
+        "summary": "ongoing"
+      },
       "whyItMatters": "Independent validation reduces blind spots and stale assurance claims."
     }
   ]

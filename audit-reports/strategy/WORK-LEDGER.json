@@ -18,7 +18,9 @@
     "kindEnum": ["engineering-control", "product-feature", "security-fix", "privacy-fix", "accessibility-fix", "compliance-governance", "audit-tooling", "infrastructure", "vendor-contract", "investigation", "production-verification", "documentation", "finding-discovery", "finding-reconciliation", "release", "incident-remediation"],
     "workstreamEnum": ["privacy-security", "ai-trust", "children-school", "accessibility", "data-lifecycle", "infrastructure", "supply-chain", "audit-governance", "product-reliability", "district-readiness", "evidence-value"],
     "inclusionReasonEnum": ["remediates-risk", "discovers-risk", "advances-readiness-requirement", "adds-preventive-control", "adds-district-trust-capability", "advances-accessibility", "advances-release-assurance", "adds-audit-automation-or-evidence"],
-    "verificationEnum": ["code-only", "code-and-runtime", "attestation", "external-review"]
+    "verificationEnum": ["code-only", "code-and-runtime", "attestation", "external-review"],
+    "outcomeStateEnum": ["superseded-evidence"],
+    "outcomeStateSemantics": "Absent outcomeState = the record stands as durable evidence. outcomeState=superseded-evidence marks a record whose central claim was later disproved or retracted; it MUST carry correctedBy referencing the corrective work record. The ledger preserves the failed-verification -> correction history; it never silently presents superseded evidence as durable success."
   },
   "work": [
     {
@@ -117,15 +119,29 @@
     {
       "id": "WORK-2026-07-30-PR697",
       "date": "2026-07-30",
-      "title": "Record verified Bedrock BAA operative conditions (logging OFF + creds in BAA'd account)",
+      "title": "Record Bedrock BAA operative conditions (logging OFF + creds in BAA'd account) - central credential claim later retracted",
       "kind": "production-verification",
       "workstream": "ai-trust",
       "accountableOwner": "swahlquist",
       "inclusionReason": "advances-release-assurance",
       "cluster": "bedrock-baa-routing",
       "verification": "code-and-runtime",
+      "outcomeState": "superseded-evidence",
+      "correctedBy": "WORK-2026-08-04-PR725",
       "requirements": ["public-mvp-bedrock-account-proof"],
       "source": { "type": "github-pr", "repository": "lingolinq/LingoLinq-AAC", "number": 697 }
+    },
+    {
+      "id": "WORK-2026-08-04-PR725",
+      "date": "2026-08-04",
+      "title": "Retract the unverifiable Bedrock credential attestation and reconcile the corpus",
+      "kind": "compliance-governance",
+      "workstream": "ai-trust",
+      "accountableOwner": "swahlquist",
+      "inclusionReason": "discovers-risk",
+      "cluster": "bedrock-baa-routing",
+      "requirements": ["public-mvp-bedrock-account-proof"],
+      "source": { "type": "github-pr", "repository": "lingolinq/LingoLinq-AAC", "number": 725 }
     },
     {
       "id": "WORK-2026-07-28-PR700",

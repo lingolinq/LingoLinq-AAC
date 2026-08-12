@@ -11,10 +11,10 @@
     "sources": [
       { "id": "git-findings", "kind": "repo", "name": "Canonical Git findings (audit-reports/FINDINGS.json)", "lastObservedDate": "2026-08-11", "observedBy": "readiness-dashboard v0.2 implementation", "note": "Source of truth; read live at every render." },
       { "id": "git-strategy", "kind": "repo", "name": "Git strategy inputs (audit-reports/strategy/)", "lastObservedDate": "2026-08-11", "observedBy": "readiness-dashboard v0.2 implementation", "note": "This layer; requirement matrix PROPOSED, not yet ratified." },
-      { "id": "notion-findings-mirror", "kind": "notion", "name": "Notion findings data source", "lastObservedDate": "2026-08-08", "observedBy": "manual observation (historical fixture; no live connector in v0.2)", "note": "Last known query reflected the 123-row baseline of 2026-08-08; canonical register has since moved." },
-      { "id": "notion-compliance-home", "kind": "notion", "name": "Notion Compliance Home", "lastObservedDate": "2026-08-08", "observedBy": "manual observation (historical fixture; no live connector in v0.2)", "contradictsCanonical": true, "note": "Last known headline showed 118 total / 54 open / 7 awaiting QA / 50 verified closed - a numeric contradiction with the canonical register; contradiction overrides freshness age." },
-      { "id": "drive-internal-program", "kind": "drive", "name": "Drive internal Compliance & Security Program", "lastObservedDate": "2026-08-04", "observedBy": "manual observation (historical fixture; no live connector in v0.2)", "note": "Last known attested 2026-08-04." },
-      { "id": "drive-external-overview", "kind": "drive", "name": "Drive external Security, Privacy & Compliance Overview", "lastObservedDate": "2026-08-06", "observedBy": "manual observation (historical fixture; no live connector in v0.2)", "note": "Last known attested 2026-08-04, published 2026-08-06." },
+      { "id": "notion-findings-mirror", "kind": "notion", "name": "Notion findings data source", "lastObservedDate": "2026-08-11", "observedBy": "Codex review of PR #792 (historical fixture; no live connector in v0.2)", "note": "Matches canonical status buckets: 125 total / 62 open / 8 High / 29 Medium / 25 Low / 51 verified-closed." },
+      { "id": "notion-compliance-home", "kind": "notion", "name": "Notion Compliance Home", "lastObservedDate": "2026-08-11", "observedBy": "Codex review of PR #792 (historical fixture; no live connector in v0.2)", "contradictsCanonical": true, "note": "Still shows 118 total / 54 open / 7 awaiting QA / 50 verified closed - a numeric contradiction with the canonical register; contradiction overrides freshness age." },
+      { "id": "drive-internal-program", "kind": "drive", "name": "Drive internal Compliance & Security Program", "lastObservedDate": "2026-08-11", "observedBy": "Codex review of PR #792 (historical fixture; no live connector in v0.2)", "superseded": true, "note": "The 2026-08-04 attested copy is now renamed SUPERSEDED; a 2026-08-11 cleanup draft exists (DRAFT - DO NOT SHARE). No current attested copy." },
+      { "id": "drive-external-overview", "kind": "drive", "name": "Drive external Security, Privacy & Compliance Overview", "lastObservedDate": "2026-08-11", "observedBy": "Codex review of PR #792 (historical fixture; no live connector in v0.2)", "superseded": true, "note": "The 2026-08-04 attested / 2026-08-06 published copy is now renamed SUPERSEDED / DO NOT SHARE; a 2026-08-11 cleanup draft exists. No current attested copy." },
       { "id": "drive-publication-status", "kind": "drive", "name": "Drive Compliance Publication Status index", "lastObservedDate": "2026-07-23", "observedBy": "manual observation (historical fixture; no live connector in v0.2)", "note": "Last known generated 2026-07-23; stale relative to subsequent attestations." },
       { "id": "production-evidence", "kind": "production", "name": "Production revision/config evidence", "lastObservedDate": null, "observedBy": null, "note": "Must be explicitly captured per observation; never inferred. No observation recorded yet." }
     ]
@@ -23,6 +23,7 @@
   "decisions": {
     "aiWordPredictionEnabled": "undecided",
     "aiFocusWordsEnabled": "undecided",
+    "aiBoardGenerationEnabled": "undecided",
     "euUsersIncluded": "undecided",
     "minorsIncluded": "undecided",
     "schoolManagedAccounts": "undecided",

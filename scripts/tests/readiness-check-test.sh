@@ -93,9 +93,25 @@ expect "dangling finding ref fails" "READINESS-MILESTONES.json" \
   "doc['requirements'].find{|r| r['id']=='adult-beta-ai-cache'}['findingIds']=['LL-doesnotexist']" \
   "dangling finding ref: LL-doesnotexist"
 
-expect "appliesWhen referencing unknown decision fails" "READINESS-MILESTONES.json" \
-  "doc['requirements'].find{|r| r['id']=='adult-beta-ai-cache'}['appliesWhen']['decisions']=['flyingCarsEnabled']" \
+expect "condition referencing unknown decision fails" "READINESS-MILESTONES.json" \
+  "doc['requirements'].find{|r| r['id']=='adult-beta-ai-cache'}['appliesWhen']['condition']='flyingCarsEnabled'" \
   "unknown launch-profile key: flyingCarsEnabled"
+
+expect "retired flat decisions form fails" "READINESS-MILESTONES.json" \
+  "doc['requirements'].find{|r| r['id']=='adult-beta-ai-cache'}['appliesWhen']['decisions']=['aiWordPredictionEnabled']" \
+  "retired flat any-of form"
+
+expect "malformed condition node fails" "READINESS-MILESTONES.json" \
+  "doc['requirements'].find{|r| r['id']=='adult-beta-ai-cache'}['appliesWhen']['condition']={'allOf'=>['minorsIncluded'],'anyOf'=>['euUsersIncluded']}" \
+  "must have exactly one key"
+
+expect "superseded-evidence without correctedBy fails" "WORK-LEDGER.json" \
+  "doc['work'].find{|w| w['id']=='WORK-2026-07-30-PR697'}.delete('correctedBy')" \
+  "requires correctedBy referencing the corrective work record"
+
+expect "dangling correctedBy fails" "WORK-LEDGER.json" \
+  "doc['work'].find{|w| w['id']=='WORK-2026-07-30-PR697'}['correctedBy']='WORK-9999-01-01-PR0'" \
+  "does not resolve to a work record"
 
 expect "missing schemaVersion fails" "WORK-LEDGER.json" \
   "doc['meta'].delete('schemaVersion')" \
@@ -152,11 +168,53 @@ expect "openFindingIds referencing unknown finding fails" "SNAPSHOTS.json" \
   "doc['snapshots'][0]['openFindingIds'][0]='LL-doesnotexist'" \
   "references unknown finding: LL-doesnotexist"
 
-echo "readiness-check-test: reconciliation is a warning, not a failure"
+echo "readiness-check-test: allOf/anyOf applicability (Kleene tri-state)"
+# allOf false-dominates: with minorsIncluded=false, seat-reclaim (allOf schoolManagedAccounts +
+# minorsIncluded) resolves not-required even though schoolManagedAccounts stays undecided,
+# so it must vanish from the dashboard entirely (no blocker row, no pending-decision listing).
 reset_work
 ruby -rjson -e "
   doc=JSON.parse(File.read('$WORK_DIR/LAUNCH-PROFILE.json'))
+  doc['decisions']['minorsIncluded']=false
+  File.write('$WORK_DIR/LAUNCH-PROFILE.json', JSON.pretty_generate(doc)+\"\n\")
+"
+ruby scripts/readiness-check.rb >/dev/null 2>&1
+if ruby scripts/readiness-check.rb --check >/dev/null 2>&1 \
+   && ! grep -qF 'school-beta-seat-reclaim' "$WORK_DIR/READINESS-DASHBOARD.md"; then
+  pass "allOf with a false operand resolves not-required (false dominates undecided)"
+else
+  fail "allOf false-domination broken: seat-reclaim still rendered with minorsIncluded=false"
+fi
+
+# anyOf true-dominates: with only aiFocusWordsEnabled=true, adult-beta-ai-master-consent
+# (anyOf of the three AI decisions) resolves APPLICABLE despite two undecided operands,
+# and its claimed-done derives done-awaiting-verification.
+reset_work
+ruby -rjson -e "
+  doc=JSON.parse(File.read('$WORK_DIR/LAUNCH-PROFILE.json'))
+  doc['decisions']['aiFocusWordsEnabled']=true
+  File.write('$WORK_DIR/LAUNCH-PROFILE.json', JSON.pretty_generate(doc)+\"\n\")
+"
+ruby scripts/readiness-check.rb >/dev/null 2>&1
+# Resolution is visible two ways: ai-focus-consent (leaf true) renders its claimed-done
+# substate in top blockers, and ai-master-consent (anyOf with two operands still undecided)
+# disappears from the pending-decisions table because its condition is already resolved.
+if ruby scripts/readiness-check.rb --check >/dev/null 2>&1 \
+   && grep -qF '`adult-beta-ai-focus-consent` (Done, awaiting verification)' "$WORK_DIR/READINESS-DASHBOARD.md" \
+   && ! grep -qF 'adult-beta-ai-master-consent' "$WORK_DIR/READINESS-DASHBOARD.md"; then
+  pass "anyOf with a true operand resolves applicable (true dominates undecided)"
+else
+  fail "anyOf true-domination broken: focus-words=true did not resolve the anyOf conditions"
+fi
+
+echo "readiness-check-test: reconciliation is a warning, not a failure"
+reset_work
+# org-ai-control's condition is allOf(schoolManagedAccounts, anyOf(AI features)), so both
+# operands must be true for the requirement to be applicable at all.
+ruby -rjson -e "
+  doc=JSON.parse(File.read('$WORK_DIR/LAUNCH-PROFILE.json'))
   doc['decisions']['schoolManagedAccounts']=true
+  doc['decisions']['aiWordPredictionEnabled']=true
   File.write('$WORK_DIR/LAUNCH-PROFILE.json', JSON.pretty_generate(doc)+\"\n\")
   doc=JSON.parse(File.read('$WORK_DIR/READINESS-MILESTONES.json'))
   doc['requirements'].find{|r| r['id']=='school-beta-org-ai-control'}['findingIds']=['LL-16ef84ad9a']

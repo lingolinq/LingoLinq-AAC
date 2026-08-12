@@ -14,7 +14,7 @@
 **Open Critical:** 0  
 **Verified Critical closures:** 7  
 **Overall posture:** 🟡 Moving toward controlled beta  
-**Pending launch decisions:** aiWordPredictionEnabled; aiFocusWordsEnabled; euUsersIncluded; minorsIncluded; schoolManagedAccounts; mvpIncludesMinors
+**Pending launch decisions:** aiWordPredictionEnabled; aiFocusWordsEnabled; aiBoardGenerationEnabled; euUsersIncluded; minorsIncluded; schoolManagedAccounts; mvpIncludesMinors
 
 ## Current finding baseline
 
@@ -56,7 +56,7 @@ decision-dependent while `mvpIncludesMinors` is undecided).
   - gated by undecided decision(s): aiWordPredictionEnabled
   - underlying evidence state if enabled: done-awaiting-reconciliation (linked finding(s) still open: LL-16ef84ad9a)
 - 🟡 `adult-beta-ai-disclosure` (Decision needed) - Required direct-interaction AI disclosure is presented and enforced for covered users before the covered interaction occurs. [LL-a9d6d5a46b]
-  - gated by undecided decision(s): euUsersIncluded
+  - gated by undecided decision(s): euUsersIncluded, aiWordPredictionEnabled, aiFocusWordsEnabled, aiBoardGenerationEnabled
 - 🟡 `adult-beta-ai-focus-consent` (Decision needed) - Focus-word generation enforces user, organization, COPPA, EU-under-16, and applicable disclosure gates before a cache hit can return AI output.
   - gated by undecided decision(s): aiFocusWordsEnabled
   - underlying evidence state if enabled: done-awaiting-verification (code-and-runtime verification required; no evidence recorded in LAUNCH-PROFILE evidence)
@@ -65,21 +65,21 @@ decision-dependent while `mvpIncludesMinors` is undecided).
 
 - 🔴 `school-beta-accessible-consent` (Blocked) - Parent/student/Terms/consent flows are usable with the relevant AAC access methods for the cohort. [LL-104bfa61dc, LL-53cb93fab1]
 - 🟡 `school-beta-child-ai-enforcement` (Decision needed) - COPPA/minor AI restrictions are enforced server-side and cannot be bypassed by direct API use or cached output.
-  - gated by undecided decision(s): minorsIncluded
+  - gated by undecided decision(s): minorsIncluded, aiWordPredictionEnabled, aiFocusWordsEnabled, aiBoardGenerationEnabled
   - underlying evidence state if enabled: done-awaiting-verification (code-and-runtime verification required; no evidence recorded in LAUNCH-PROFILE evidence)
 - 🟡 `school-beta-consent-expiry` (Decision needed) - Declined or expired parental consent leads to a safe, defined account/data outcome rather than indefinite ambiguous access.
   - gated by undecided decision(s): minorsIncluded
 - 🟡 `school-beta-hard-delete-media` (Decision needed) - Hard deletion includes UserVideo and standalone/off-board voice recordings and other covered media. [LL-854b1d3853]
   - gated by undecided decision(s): minorsIncluded, schoolManagedAccounts
 - 🟡 `school-beta-org-ai-control` (Decision needed) - A school/district organization can disable covered third-party AI processing for its users.
-  - gated by undecided decision(s): schoolManagedAccounts
+  - gated by undecided decision(s): schoolManagedAccounts, aiWordPredictionEnabled, aiFocusWordsEnabled, aiBoardGenerationEnabled
   - underlying evidence state if enabled: done-awaiting-verification (code-and-runtime verification required; no evidence recorded in LAUNCH-PROFILE evidence)
 
 ### Top blockers - Public MVP
 
 - 🔴 `public-mvp-admin-credential` (Blocked) - Seed/test/admin credentials are rotated, removed, disabled, or converted to a governed break-glass posture before customer-facing use. [LL-caaf8e20ec]
 - 🟡 `public-mvp-bedrock-account-proof` (Decision needed) - The serving Bedrock credential is demonstrably tied to the BAA-covered AWS account when Bedrock is enabled. [LL-1b0d78dbe6]
-  - gated by undecided decision(s): aiWordPredictionEnabled, aiFocusWordsEnabled
+  - gated by undecided decision(s): aiWordPredictionEnabled, aiFocusWordsEnabled, aiBoardGenerationEnabled
   - underlying evidence state if enabled: done-awaiting-verification (code-and-runtime verification required; no evidence recorded in LAUNCH-PROFILE evidence)
 - 🔴 `public-mvp-high-verification` (invariant) - 3 High remediated-unverified finding(s) awaiting verification: LL-705b10bcd7, LL-90045bb29c, LL-a95e9c5f7c
 - 🟡 `public-mvp-incident-runbook` (In progress) - Incident/breach runbook matches current runtime/vendor architecture and is operationally usable.
@@ -102,8 +102,9 @@ decision-dependent while `mvpIncludesMinors` is undecided).
 
 | Decision | Current value | Requirements gated |
 |---|---|---|
-| aiWordPredictionEnabled | undecided | `adult-beta-ai-cache`, `adult-beta-ai-master-consent`, `public-mvp-bedrock-account-proof` |
-| aiFocusWordsEnabled | undecided | `adult-beta-ai-master-consent`, `adult-beta-ai-focus-consent`, `public-mvp-bedrock-account-proof` |
+| aiWordPredictionEnabled | undecided | `adult-beta-ai-cache`, `adult-beta-ai-master-consent`, `adult-beta-ai-disclosure`, `school-beta-org-ai-control`, `school-beta-child-ai-enforcement`, `public-mvp-bedrock-account-proof` |
+| aiFocusWordsEnabled | undecided | `adult-beta-ai-master-consent`, `adult-beta-ai-focus-consent`, `adult-beta-ai-disclosure`, `school-beta-org-ai-control`, `school-beta-child-ai-enforcement`, `public-mvp-bedrock-account-proof` |
+| aiBoardGenerationEnabled | undecided | `adult-beta-ai-master-consent`, `adult-beta-ai-disclosure`, `school-beta-org-ai-control`, `school-beta-child-ai-enforcement`, `public-mvp-bedrock-account-proof` |
 | euUsersIncluded | undecided | `adult-beta-ai-disclosure` |
 | minorsIncluded | undecided | `school-beta-parent-consent`, `school-beta-seat-reclaim`, `school-beta-consent-expiry`, `school-beta-hard-delete-media`, `school-beta-child-ai-enforcement` |
 | schoolManagedAccounts | undecided | `school-beta-seat-reclaim`, `school-beta-hard-delete-media`, `school-beta-org-ai-control`, `school-beta-school-authorization` |
@@ -120,23 +121,25 @@ Run `ruby scripts/readiness-check.rb --snapshot` after register changes to build
 
 | Metric | Count |
 |---|---:|
-| Ledger records | 15 |
+| Ledger records | 16 |
 | Distinct control/capability clusters | 13 |
 | Preventive controls added | 5 |
 | Findings moved out of open (latest snapshot) | 0 |
+| Superseded-evidence records (claim later disproved; correction linked) | 1 |
 
 Release duplicates and smoke PRs never inflate distinct-cluster counts; records sharing a cluster count once.
+Superseded evidence preserved, never laundered: `WORK-2026-07-30-PR697` (Record Bedrock BAA operative conditions (logging OFF + creds in BAA'd account) - central credential claim later retracted) was corrected by `WORK-2026-08-04-PR725` (Retract the unverifiable Bedrock credential attestation and reconcile the corpus).
 
 ## Six readiness cards
 
 ### Security & Privacy - 🟡
 **Strengths:** Infrastructure hardening; Dependency/security controls; Evidence governance; Deployment assertions  
-**Gaps:** Raw AI cache; Privileged-access residuals; Verification debt  
+**Gaps:** AI cache finding awaiting register reconciliation (fix merged in #788); Privileged-access residuals; Verification debt  
 **Next:** Close/verify launch-relevant Highs and confirm beta configuration
 
 ### AI Trust - 🟡
 **Strengths:** Bedrock routing; Model allowlists and endpoint controls; Org/user/child consent enforcement  
-**Gaps:** Raw word-prediction cache; Bedrock account-proof automation; Final disclosure applicability/enablement  
+**Gaps:** Word-prediction cache reconciliation/verification (LL-16ef84ad9a fix merged, register row still open); Bedrock account-proof runtime verification; Final disclosure applicability/enablement  
 **Next:** Resolve launch-profile decisions and verify runtime controls
 
 ### Accessibility - 🟡
@@ -149,10 +152,10 @@ Release duplicates and smoke PRs never inflate distinct-cluster counts; records 
 **Gaps:** Seat-reclaim/re-consent cluster; Hard-delete media completeness  
 **Next:** Verify the #737/#721 class of lifecycle fixes before school/minor beta
 
-### District Trust Pack - 🟡
-**Strengths:** Current attested internal/external compliance materials exist  
-**Gaps:** Publication/index freshness; Trust-pack coherence  
-**Next:** Generate trust pack from canonical current sources
+### District Trust Pack - 🟠
+**Strengths:** Compliance document program with attestation and register governance exists  
+**Gaps:** Internal/external Drive overview copies marked SUPERSEDED 2026-08-11; cleanup drafts pending re-attestation; Publication/index freshness; Trust-pack coherence  
+**Next:** Re-attest the 2026-08-11 cleanup drafts, then regenerate the trust pack from canonical current sources
 
 ### Evidence of Value - 🟠
 **Strengths:** Technical beta readiness improving  
@@ -183,10 +186,10 @@ last-observed historical fixtures in v0.2 (no live Notion/Drive connectors; live
 |---|---|---|
 | Canonical Git findings (audit-reports/FINDINGS.json) | 🟢 | last observed 2026-08-11 (0d before reference date). Source of truth; read live at every render. |
 | Git strategy inputs (audit-reports/strategy/) | 🟢 | last observed 2026-08-11 (0d before reference date). This layer; requirement matrix PROPOSED, not yet ratified. |
-| Notion findings data source | 🟡 | last observed 2026-08-08 (3d before reference date). Last known query reflected the 123-row baseline of 2026-08-08; canonical register has since moved. |
-| Notion Compliance Home | 🔴 | numeric contradiction with canonical state (overrides age). Last known headline showed 118 total / 54 open / 7 awaiting QA / 50 verified closed - a numeric contradiction with the canonical register; contradiction overrides freshness age. |
-| Drive internal Compliance & Security Program | 🟢 | last observed 2026-08-04 (7d before reference date). Last known attested 2026-08-04. |
-| Drive external Security, Privacy & Compliance Overview | 🟢 | last observed 2026-08-06 (5d before reference date). Last known attested 2026-08-04, published 2026-08-06. |
+| Notion findings data source | 🟢 | last observed 2026-08-11 (0d before reference date). Matches canonical status buckets: 125 total / 62 open / 8 High / 29 Medium / 25 Low / 51 verified-closed. |
+| Notion Compliance Home | 🔴 | numeric contradiction with canonical state (overrides age). Still shows 118 total / 54 open / 7 awaiting QA / 50 verified closed - a numeric contradiction with the canonical register; contradiction overrides freshness age. |
+| Drive internal Compliance & Security Program | 🔴 | canonical copy marked SUPERSEDED; successor still draft (overrides age). The 2026-08-04 attested copy is now renamed SUPERSEDED; a 2026-08-11 cleanup draft exists (DRAFT - DO NOT SHARE). No current attested copy. |
+| Drive external Security, Privacy & Compliance Overview | 🔴 | canonical copy marked SUPERSEDED; successor still draft (overrides age). The 2026-08-04 attested / 2026-08-06 published copy is now renamed SUPERSEDED / DO NOT SHARE; a 2026-08-11 cleanup draft exists. No current attested copy. |
 | Drive Compliance Publication Status index | 🔴 | last observed 2026-07-23 (19d before reference date). Last known generated 2026-07-23; stale relative to subsequent attestations. |
 | Production revision/config evidence | 🟡 | no explicit observation recorded; never inferred. Must be explicitly captured per observation; never inferred. No observation recorded yet. |
 
