@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: contentHash drift — ATTESTED means stop; unattested means regenerate-register](#gotcha-contenthash-drift--attested-means-stop-unattested-means-regenerate-register)
 - [Gotcha: Rails reserves `params['action']` — consent APIs must use `decision` or member approve/deny routes](#gotcha-rails-reserves-paramsaction--consent-apis-must-use-decision-or-member-approvedeny-routes)
 - [Gotcha: `pending_supervisor_requests` was never serialized — fetch the relationships index instead](#gotcha-pending_supervisor_requests-was-never-serialized--fetch-the-relationships-index-instead)
 - [Gotcha: Capacitor offline AAC needs SQLite + Filesystem shims — IndexedDB-only is not speak-ready](#gotcha-capacitor-offline-aac-needs-sqlite--filesystem-shims--indexeddb-only-is-not-speak-ready)
@@ -9483,6 +9484,24 @@ Callers (and jasmine `toEqual` tests) treat the resolved object as `{available, 
 **Surface:** Ember test module map (`app/frontend/tests/**`).
 
 Relative imports like `../../app/utils/foo` from `tests/unit/utils/` resolve as `frontend/tests/app/utils/foo` and fail to load (`Could not find module`). Use the app module prefix: `import … from 'frontend/utils/foo'`. Example miss: `board-attribution-test.js` (merged in #771).
+
+## Gotcha: contentHash drift — ATTESTED means stop; unattested means regenerate-register
+
+**Surface:** CI `audit-artifacts-integrity` → `document-register-render.rb --check` (post-#766 messaging).
+
+Two different failures share “contentHash drift” wording. **Attested** rows have
+`attestation.attestedBy` + pinned `attestedContentHash` (what Scot signed). **Unattested** rows
+have empty `attestation: {}` — only a living `contentHash`.
+
+- Unattested drift → `scripts/regenerate-register.sh`, commit JSON + `.md`. Safe.
+- Attested drift → do **not** run render (bumps hash, dirties register, fails next as “attested
+  revision no longer exists” — the #721 footgun). Revert the file or Scot `/re-attest-record`
+  (Path A supersede for `docs/legal/**`).
+
+Example this session: Capability Ledger (`docs/legal/CAPABILITY_LEDGER.md`) is unattested; line
+drift from `feature_flags.rb` only needed regenerate after the ledger JSON line bump. Skills:
+`.claude/skills/re-attest-record/SKILL.md`, `promote-finding/SKILL.md`; guide:
+`docs/legal/COMPLIANCE_DOCS_GUIDE.md`.
 
 ## Gotcha: Rails reserves `params['action']` — consent APIs must use `decision` or member approve/deny routes
 
