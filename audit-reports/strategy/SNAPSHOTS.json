@@ -10,26 +10,26 @@
   },
   "snapshots": [
     {
-      "generatedAt": "2026-08-11T19:49:24Z",
+      "generatedAt": "2026-08-11T23:53:23Z",
       "sources": {
-        "findingsSha": "3a8340cce6e4",
+        "findingsSha": "92f616fa373b",
         "workLedgerSha": "29a4f1f3d0b9",
-        "readinessSha": "48a51bd137b9",
+        "readinessSha": "87bb5a17a535",
         "launchProfileSha": "9d1205dbc165"
       },
       "findings": {
         "total": 125,
-        "open": 63,
+        "open": 62,
         "openBySeverity": {
           "critical": 0,
-          "high": 9,
+          "high": 8,
           "medium": 29,
           "low": 25
         },
         "remediatedUnverified": 5,
         "acceptedRisk": 5,
         "superseded": 2,
-        "verifiedClosed": 50
+        "verifiedClosed": 51
       },
       "openFindingIds": [
         "LL-0196a680c5",
@@ -41,7 +41,6 @@
         "LL-14edf1a801",
         "LL-16ef84ad9a",
         "LL-1890f6a922",
-        "LL-1b0d78dbe6",
         "LL-1bb85a2ef5",
         "LL-1e2ab28aab",
         "LL-310b464be4",
@@ -106,7 +105,6 @@
         "LL-14edf1a801": "medium",
         "LL-16ef84ad9a": "high",
         "LL-1890f6a922": "medium",
-        "LL-1b0d78dbe6": "high",
         "LL-1bb85a2ef5": "medium",
         "LL-1e2ab28aab": "medium",
         "LL-310b464be4": "medium",

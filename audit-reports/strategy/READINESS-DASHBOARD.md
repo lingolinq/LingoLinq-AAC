@@ -4,7 +4,7 @@
 > Generated from `audit-reports/strategy/*.json` + `audit-reports/FINDINGS.json` by `scripts/readiness-check.rb`.
 > Edit the JSON sources and re-render; `--check` enforces sync in CI (audit-artifacts-integrity).
 >
-> Data as of: 2026-08-11T19:49:24Z | Strategy generated: 2026-08-11
+> Data as of: 2026-08-11T23:53:23Z | Strategy generated: 2026-08-11
 
 > ⚠️ **PROPOSED - requires Scot ratification.** Every requirement status, blocker flag, and
 > applicability interpretation below is a proposal (proposed 2026-08-11). Nothing here is
@@ -21,15 +21,15 @@
 | Metric | Count |
 |---|---:|
 | Total findings | 125 |
-| Open | 63 |
+| Open | 62 |
 | Open Critical | 0 |
-| Open High | 9 |
+| Open High | 8 |
 | Open Medium | 29 |
 | Open Low | 25 |
 | Remediated, unverified | 5 |
 | Accepted risk | 5 |
 | Superseded | 2 |
-| Verified closed | 50 |
+| Verified closed | 51 |
 | Verified-closed Critical | 7 |
 
 ## Milestones
@@ -54,28 +54,33 @@ decision-dependent while `mvpIncludesMinors` is undecided).
 - 🔴 `adult-beta-terms-scanning` (Blocked) - Required Terms/consent flow is reachable with switch scanning for the beta cohort. [LL-104bfa61dc]
 - 🟡 `adult-beta-ai-cache` (Decision needed) - Raw communication is not retained in an unsafe pre-scrubber or process-global AI cache. [LL-16ef84ad9a]
   - gated by undecided decision(s): aiWordPredictionEnabled
+  - underlying evidence state if enabled: done-awaiting-reconciliation (linked finding(s) still open: LL-16ef84ad9a)
 - 🟡 `adult-beta-ai-disclosure` (Decision needed) - Required direct-interaction AI disclosure is presented and enforced for covered users before the covered interaction occurs. [LL-a9d6d5a46b]
   - gated by undecided decision(s): euUsersIncluded
 - 🟡 `adult-beta-ai-focus-consent` (Decision needed) - Focus-word generation enforces user, organization, COPPA, EU-under-16, and applicable disclosure gates before a cache hit can return AI output.
   - gated by undecided decision(s): aiFocusWordsEnabled
+  - underlying evidence state if enabled: done-awaiting-verification (code-and-runtime verification required; no evidence recorded in LAUNCH-PROFILE evidence)
 
 ### Top blockers - School / Minor Beta
 
 - 🔴 `school-beta-accessible-consent` (Blocked) - Parent/student/Terms/consent flows are usable with the relevant AAC access methods for the cohort. [LL-104bfa61dc, LL-53cb93fab1]
 - 🟡 `school-beta-child-ai-enforcement` (Decision needed) - COPPA/minor AI restrictions are enforced server-side and cannot be bypassed by direct API use or cached output.
   - gated by undecided decision(s): minorsIncluded
+  - underlying evidence state if enabled: done-awaiting-verification (code-and-runtime verification required; no evidence recorded in LAUNCH-PROFILE evidence)
 - 🟡 `school-beta-consent-expiry` (Decision needed) - Declined or expired parental consent leads to a safe, defined account/data outcome rather than indefinite ambiguous access.
   - gated by undecided decision(s): minorsIncluded
 - 🟡 `school-beta-hard-delete-media` (Decision needed) - Hard deletion includes UserVideo and standalone/off-board voice recordings and other covered media. [LL-854b1d3853]
   - gated by undecided decision(s): minorsIncluded, schoolManagedAccounts
 - 🟡 `school-beta-org-ai-control` (Decision needed) - A school/district organization can disable covered third-party AI processing for its users.
   - gated by undecided decision(s): schoolManagedAccounts
+  - underlying evidence state if enabled: done-awaiting-verification (code-and-runtime verification required; no evidence recorded in LAUNCH-PROFILE evidence)
 
 ### Top blockers - Public MVP
 
 - 🔴 `public-mvp-admin-credential` (Blocked) - Seed/test/admin credentials are rotated, removed, disabled, or converted to a governed break-glass posture before customer-facing use. [LL-caaf8e20ec]
 - 🟡 `public-mvp-bedrock-account-proof` (Decision needed) - The serving Bedrock credential is demonstrably tied to the BAA-covered AWS account when Bedrock is enabled. [LL-1b0d78dbe6]
   - gated by undecided decision(s): aiWordPredictionEnabled, aiFocusWordsEnabled
+  - underlying evidence state if enabled: done-awaiting-verification (code-and-runtime verification required; no evidence recorded in LAUNCH-PROFILE evidence)
 - 🔴 `public-mvp-high-verification` (invariant) - 3 High remediated-unverified finding(s) awaiting verification: LL-705b10bcd7, LL-90045bb29c, LL-a95e9c5f7c
 - 🟡 `public-mvp-incident-runbook` (In progress) - Incident/breach runbook matches current runtime/vendor architecture and is operationally usable.
 - 🟡 `public-mvp-privacy-truth` (In progress) - Public privacy, AI, processor, retention, and data-flow disclosures match production behavior and current architecture.

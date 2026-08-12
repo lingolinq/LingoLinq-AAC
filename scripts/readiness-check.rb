@@ -359,31 +359,42 @@ end
 profile_evidence = profile['evidence'] || {}
 open_status = ->(fid) { findings_by_id[fid] && findings_by_id[fid]['status'] == 'open' }
 
+# For a claimed-done deliverable, the evidence state beneath the claim:
+# reconciliation owed (linked finding still open in the register) beats
+# verification owed (required verification with no recorded evidence) as the
+# more conservative headline; both reasons are surfaced when both apply.
+def claimed_done_substate(req, open_status, profile_evidence)
+  open_linked = (req['findingIds'] || []).select { |fid| open_status.call(fid) }
+  return ['done-awaiting-reconciliation', "linked finding(s) still open: #{open_linked.join(', ')}"] if open_linked.any?
+  if req['verificationRequired'] != 'code-only' && !profile_evidence[req['id']]
+    return ['done-awaiting-verification', "#{req['verificationRequired']} verification required; no evidence recorded in LAUNCH-PROFILE evidence"]
+  end
+  ['done', nil]
+end
+
 derived = {}
 requirements.each do |r|
   next if r['type'] == 'invariant'
   state = nil
   reasons = []
+  hs = r['humanStatus']
   case applicability(r, decisions)
   when :decision_needed
     state = 'decision-needed'
     reasons << "gated by undecided decision(s): #{((r['appliesWhen'] || {})['decisions'] || []).select { |k| decisions[k] == 'undecided' }.join(', ')}"
+    if hs == 'claimed-done'
+      sub, why = claimed_done_substate(r, open_status, profile_evidence)
+      reasons << "underlying evidence state if enabled: #{sub}#{why ? " (#{why})" : ''}"
+    end
   when :not_applicable
     state = 'not-required'
     reasons << 'excluded by launch-profile decisions'
   else
-    hs = r['humanStatus']
     if hs == 'claimed-done'
-      open_linked = (r['findingIds'] || []).select { |fid| open_status.call(fid) }
-      if open_linked.any?
-        state = 'done-awaiting-reconciliation'
-        reasons << "linked finding(s) still open: #{open_linked.join(', ')}"
-        warnings << "[#{r['id']}] claimed-done but linked finding(s) still open (#{open_linked.join(', ')}) - rendered done-awaiting-reconciliation, not done"
-      elsif r['verificationRequired'] != 'code-only' && !profile_evidence[r['id']]
-        state = 'done-awaiting-verification'
-        reasons << "#{r['verificationRequired']} verification required; no evidence recorded in LAUNCH-PROFILE evidence"
-      else
-        state = 'done'
+      state, why = claimed_done_substate(r, open_status, profile_evidence)
+      reasons << why if why
+      if state == 'done-awaiting-reconciliation'
+        warnings << "[#{r['id']}] claimed-done but linked finding(s) still open - rendered done-awaiting-reconciliation, not done"
       end
     else
       state = hs
@@ -659,7 +670,12 @@ end
 if mode == :snapshot
   now = Time.now.utc.iso8601
   if snapshots.any? { |s| s['generatedAt'] == now }
-    abort "readiness-check: a snapshot with identity #{now} already exists; re-run to get a distinct timestamp"
+    # Second-granularity identity collision: the prior snapshot was taken within
+    # this same clock second. Wait it out once rather than aborting - the retaken
+    # timestamp is still the real clock, never a fabricated increment.
+    sleep 1
+    now = Time.now.utc.iso8601
+    abort "readiness-check: snapshot identity #{now} still collides; re-run" if snapshots.any? { |s| s['generatedAt'] == now }
   end
   open_ids = open_findings.map { |f| f['id'] }.sort
   new_snap = {
