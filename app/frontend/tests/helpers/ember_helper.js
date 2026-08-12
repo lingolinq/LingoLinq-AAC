@@ -203,18 +203,27 @@ var fake_dbman = function() {
     store_internal: function(store, record, success, error) {
       repo[store] = repo[store] || [];
 
-      var original_id = record[index_id(store)].replace(new RegExp("^" + store + "::"), '');
-      result.remove(store, original_id, function() {
-        var new_record = {};
-        for(var k in record) {
-          new_record[k] = record[k];
-        }
-
-        repo[store].push(new_record);
-        wait_call(success, record);
-      }, function() {
-        error({error: 'pre-remove failed'});
+      // Replace in place, atomically. This used to delegate to the public async
+      // remove(), which emptied the record out of the repo and only re-inserted
+      // it inside remove()'s success callback -- a randomized wait_call later.
+      // That left a window in which the record did not exist in the repo at all,
+      // so a concurrent find() legitimately reported "no record found" and any
+      // test reading during the gap failed nondeterministically. Widening
+      // wait_call's delay reproduced it on demand; keeping the swap synchronous
+      // closes the window without changing observable store/find semantics.
+      if(!record || record[index_id(store)] === undefined) {
+        return wait_call(error, {error: 'no record id'});
+      }
+      var record_id = record[index_id(store)];
+      var new_record = {};
+      for(var k in record) {
+        new_record[k] = record[k];
+      }
+      repo[store] = repo[store].filter(function(existing) {
+        return existing[index_id(store)] != record_id;
       });
+      repo[store].push(new_record);
+      wait_call(success, record);
     },
     remove_internal: function(store, key, success, error) {
       repo[store] = repo[store] || [];
