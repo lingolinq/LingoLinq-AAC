@@ -475,7 +475,7 @@ describe AiClient do
 
   describe '.bedrock_model' do
     it 'prefixes anthropic. when missing' do
-      expect(described_class.bedrock_model('claude-haiku-4-5')).to eq('anthropic.claude-haiku-4-5')
+      expect(described_class.bedrock_model('claude-haiku-4-5')).to eq('us.anthropic.claude-haiku-4-5-20251001-v1:0')
     end
 
     it 'leaves an already-prefixed id alone' do
