@@ -771,7 +771,16 @@ var persistence = Service.extend({
         }, function(error) {
           root.errors = root.errors || [];
           root.errors.push({error: error, message: "Failed to store object", object: obj, store: store, key: key});
-          reject(error);
+          // Deliberately resolve, not reject. store() has never rejected on a
+          // failed write (see "should not reject (but log an error) on a failed
+          // storage attempt"), and several callers fire-and-forget the returned
+          // promise, so rejecting here would surface as an unhandled rejection.
+          // Changing that contract is deferred to PERSIST-ARCH-02. What this
+          // phase does change is the TIMING: the settlement now happens after
+          // the write attempt has finished rather than before it has started.
+          // Not resolving here at all would leave the promise pending forever,
+          // which is strictly worse than the original bug.
+          resolve(obj);
         });
       } else {
         // Unchanged pre-existing behavior: with extras not ready there is no
