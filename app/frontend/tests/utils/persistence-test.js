@@ -1534,6 +1534,37 @@ describe("persistence", function() {
           var final_record = null;
           var final_error = null;
 
+          // TEMPORARY DIAGNOSTIC (test 1473, tracked separately). This test fails
+          // deterministically in CI and cannot be reproduced locally, so capture the
+          // rejection reason and the persistence-root state into the assertion value
+          // where the TAP reporter will print it. Revert once the cause is known.
+          var ser = function(err) {
+            try { return JSON.stringify(err, Object.getOwnPropertyNames(err || {})); }
+            catch(e) { return String(err); }
+          };
+          var diag = function(label, extra) {
+            var win = window.persistence;
+            var km_mod = (persistence.known_missing && persistence.known_missing.board) || {};
+            var km_win = (win && win.known_missing && win.known_missing.board) || {};
+            var rec_id = null;
+            try { rec_id = record && record.get && record.get('id'); } catch(e) { rec_id = 'ERR'; }
+            return [
+              label,
+              'mod_online=' + ser(persistence.get('online')),
+              'win_present=' + ser(!!win),
+              'win_is_mod=' + ser(win === persistence),
+              'win_online=' + ser(win && win.get && win.get('online')),
+              'win_destroyed=' + ser(!!(win && (win.isDestroyed || win.isDestroying))),
+              'rec_id=' + ser(rec_id),
+              'km_mod_hit=' + ser(!!(rec_id && km_mod[rec_id])),
+              'km_win_hit=' + ser(!!(rec_id && km_win[rec_id])),
+              'km_mod_n=' + ser(Object.keys(km_mod).length),
+              'km_win_n=' + ser(Object.keys(km_win).length),
+              'extras_ready=' + ser(!!(window.lingoLinqExtras && window.lingoLinqExtras.get && window.lingoLinqExtras.get('ready'))),
+              'detail=' + extra
+            ].join(' | ');
+          };
+
           var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function(res) {
             record = res;
@@ -1547,15 +1578,16 @@ describe("persistence", function() {
             setTimeout(function() {
               record.set('name', 'My Gnarly Board');
               record.save().then(function(res) {
+                if(!res) { final_error = diag('SAVE_RESOLVED_NULL', 'none'); return; }
                 expect(res.id).toEqual(record.id);
                 setTimeout(function() {
                   persistence.find('board', record.id).then(function(res) {
                     final_record = res;
                   }, function(err) {
-                    final_error = err || new Error('persistence.find rejected');
+                    final_error = diag('FIND_REJECTED', ser(err));
                   });
                 }, 50);
-              }, function() { dbg(); });
+              }, function(err) { final_error = diag('SAVE_REJECTED', ser(err)); dbg(); });
             }, 50);
           });
           waitsFor(function() { return final_record || final_error; });
