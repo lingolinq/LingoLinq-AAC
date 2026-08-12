@@ -2668,4 +2668,223 @@ describe("persistence", function() {
       });
     });
   });
+
+  describe("store() settlement timing", function() {
+    // The two race tests above are eventual-consistency tests: they prove the
+    // record IS findable once the save reports done. These four are timing
+    // tests: they hold the underlying write open by hand and assert directly
+    // that store()'s promise has NOT settled yet. Because the stubbed write
+    // cannot settle on its own, any settlement observed during the hold window
+    // is store() settling early -- deterministic, not a timing guess.
+    //
+    // store() must RESOLVE on write failure, never reject. Callers such as
+    // next_eventual_store() (app/utils/persistence.js) fire-and-forget the
+    // returned promise, and tests/utils/persistence-test.js:601 pins that
+    // contract. Changing it is deferred to PERSIST-ARCH-02. What this phase
+    // changes is only WHEN the settlement happens.
+
+    function serviceInstance() {
+      if(typeof LingoLinq !== 'undefined' && LingoLinq.testOwner && typeof LingoLinq.testOwner.lookup === 'function') {
+        try {
+          var looked_up = LingoLinq.testOwner.lookup('service:persistence');
+          if(looked_up && !looked_up.isDestroyed && !looked_up.isDestroying) {
+            return looked_up;
+          }
+        } catch(e) { /* owner mid-teardown */ }
+      }
+      return null;
+    }
+
+    // The service's store() logs to `this` or to window.persistence depending on
+    // which one already carries a known_missing map, so check both rather than
+    // guessing. Deliberately does NOT inspect known_missing (see PR #796's
+    // Proxy-observation trap).
+    function loggedStoreErrors() {
+      var found = [];
+      var roots = [];
+      if(window.persistence) { roots.push(window.persistence); }
+      var svc = serviceInstance();
+      if(svc && roots.indexOf(svc) == -1) { roots.push(svc); }
+      roots.forEach(function(root) {
+        (root.errors || []).forEach(function(err) {
+          if(err && err.message == "Failed to store object") { found.push(err); }
+        });
+      });
+      return found;
+    }
+
+    function resetLoggedErrors() {
+      if(window.persistence) { window.persistence.errors = []; }
+      var svc = serviceInstance();
+      if(svc) { svc.errors = []; }
+    }
+
+    // NOTE ON REACHING THE UTILS IMPLEMENTATION.
+    // window.persistence is the DI SERVICE instance by the time a test body runs
+    // (the service's init() does window.persistence = this, and service priming
+    // runs after this file's beforeEach), and the module's default export is a
+    // Proxy that forwards to window.persistence -- `persistence.create` is not
+    // even a function at that point. So neither window.persistence nor the
+    // imported Proxy can be used to reach app/utils/persistence.js#store.
+    // The Ember Data adapter path can: app/adapters/application.js mixes in the
+    // UTILS DSExtend, whose offline createRecord calls the utils module-local
+    // `persistence.store(...)` directly and settles the save promise from its
+    // handlers. So "board.save() is still pending" == "utils store() is still
+    // pending", through the real production path.
+
+    // Holds every write the stub is asked for, so a stray concurrent write
+    // cannot silently overwrite the settle handle we are about to use.
+    function stubHeldWrites(settlers) {
+      stub(lingoLinqExtras.storage, 'store', function(store, record, key) {
+        return new RSVP.Promise(function(res, rej) {
+          settlers.push({resolve: res, reject: rej});
+        });
+      });
+    }
+
+    it("should leave the utils store() pending until the underlying write resolves", function() {
+      db_wait(function() {
+        queryLog.real_lookup = true;
+        setPersistenceOnline(false);
+        var settlers = [];
+        stubHeldWrites(settlers);
+
+        var settled = null;
+        var held = false;
+        var board = LingoLinq.store.createRecord('board', {key: 'ok/utils-pending', name: "Utils Pending Board"});
+        board.save().then(function() {
+          settled = 'resolved';
+        }, function() {
+          settled = 'rejected';
+        });
+        setTimeout(function() { held = true; }, 25);
+
+        waitsFor(function() { return held; });
+        runs(function() {
+          // The stubbed write cannot settle on its own, so a settled save here
+          // could only mean store() settled before the write.
+          expect(settled).toEqual(null);
+          expect(settlers.length > 0).toEqual(true);
+          settlers.forEach(function(s) { s.resolve({}); });
+        });
+        waitsFor(function() { return settled; });
+        runs(function() {
+          expect(settled).toEqual('resolved');
+        });
+      });
+    });
+
+    it("should resolve (never reject or hang) the utils store() when the underlying write fails, only after it settles", function() {
+      db_wait(function() {
+        queryLog.real_lookup = true;
+        setPersistenceOnline(false);
+        resetLoggedErrors();
+        var settlers = [];
+        stubHeldWrites(settlers);
+
+        var settled = null;
+        var held = false;
+        var board = LingoLinq.store.createRecord('board', {key: 'ok/utils-failing', name: "Utils Failing Board"});
+        board.save().then(function() {
+          settled = 'resolved';
+        }, function() {
+          settled = 'rejected';
+        });
+        setTimeout(function() { held = true; }, 25);
+
+        waitsFor(function() { return held; });
+        runs(function() {
+          expect(settled).toEqual(null);
+          expect(loggedStoreErrors().length).toEqual(0);
+          expect(settlers.length > 0).toEqual(true);
+          settlers.forEach(function(s) { s.reject({error: 'write failed'}); });
+        });
+        waitsFor(function() { return settled; });
+        runs(function() {
+          // Contract preserved: a failed local write is logged, not rejected.
+          // Only the timing changed. Flipping this to a rejection is
+          // PERSIST-ARCH-02, deliberately not done here.
+          expect(settled).toEqual('resolved');
+          var errors = loggedStoreErrors();
+          expect(errors.length > 0).toEqual(true);
+          expect(errors[0].store).toEqual("board");
+        });
+      });
+    });
+
+    it("should leave the service store() pending until the underlying write resolves", function() {
+      db_wait(function() {
+        var svc = serviceInstance();
+        expect(!!svc).toEqual(true);
+        expect(typeof svc.store).toEqual('function');
+
+        var write_resolve = null;
+        stub(lingoLinqExtras.storage, 'store', function(store, record, key) {
+          return new RSVP.Promise(function(res, rej) {
+            write_resolve = res;
+          });
+        });
+
+        var settled = null;
+        var held = false;
+        svc.store('settings', {ok: 'svc_pending'}, 'svc_pending_check').then(function() {
+          settled = 'resolved';
+        }, function() {
+          settled = 'rejected';
+        });
+        setTimeout(function() { held = true; }, 25);
+
+        waitsFor(function() { return held; });
+        runs(function() {
+          expect(settled).toEqual(null);
+          expect(typeof write_resolve).toEqual('function');
+          write_resolve({});
+        });
+        waitsFor(function() { return settled; });
+        runs(function() {
+          expect(settled).toEqual('resolved');
+        });
+      });
+    });
+
+    it("should resolve (never reject or hang) the service store() when the underlying write fails, only after it settles", function() {
+      db_wait(function() {
+        var svc = serviceInstance();
+        expect(!!svc).toEqual(true);
+        resetLoggedErrors();
+
+        var write_reject = null;
+        stub(lingoLinqExtras.storage, 'store', function(store, record, key) {
+          return new RSVP.Promise(function(res, rej) {
+            write_reject = rej;
+          });
+        });
+
+        var settled = null;
+        var held = false;
+        svc.store('settings', {ok: 'svc_failing'}, 'svc_failing_check').then(function() {
+          settled = 'resolved';
+        }, function() {
+          settled = 'rejected';
+        });
+        setTimeout(function() { held = true; }, 25);
+
+        waitsFor(function() { return held; });
+        runs(function() {
+          expect(settled).toEqual(null);
+          expect(loggedStoreErrors().length).toEqual(0);
+          expect(typeof write_reject).toEqual('function');
+          write_reject({error: 'write failed'});
+        });
+        waitsFor(function() { return settled; });
+        runs(function() {
+          expect(settled).toEqual('resolved');
+          var errors = loggedStoreErrors();
+          expect(errors.length > 0).toEqual(true);
+          expect(errors[0].store).toEqual("settings");
+          expect(errors[0].key).toEqual("svc_failing_check");
+        });
+      });
+    });
+  });
 });
