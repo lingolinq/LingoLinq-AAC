@@ -98,32 +98,29 @@ class SupervisorConsentService
     relationship = SupervisorRelationship.find_by(consent_response_token: token)
     return { error: 'invalid_or_expired_token' } unless relationship && relationship.token_valid?
 
-    relationship.update!(
-      status: 'approved',
-      consent_responded_at: Time.current,
-      activated_at: Time.current,
-      consent_response_token: nil
-    )
+    finalize_approve(relationship)
+  end
 
-    link_type = relationship.user_link_type
-    User.link_supervisor_to_user(relationship.supervisor_user, relationship.communicator_user, nil, link_type)
+  # Logged-in communicator approves from the in-app pending list (relationship id, not email token).
+  def approve_as_party(relationship:, actor:)
+    auth_error = party_response_error(relationship, actor)
+    return auth_error if auth_error
 
-    SupervisorMailer.schedule_delivery(:consent_approved, relationship.global_id)
-
-    { relationship: relationship }
+    finalize_approve(relationship)
   end
 
   def deny(token:)
     relationship = SupervisorRelationship.find_by(consent_response_token: token)
     return { error: 'invalid_or_expired_token' } unless relationship && relationship.token_valid?
 
-    relationship.update!(
-      status: 'denied',
-      consent_responded_at: Time.current,
-      consent_response_token: nil
-    )
+    finalize_deny(relationship)
+  end
 
-    { relationship: relationship }
+  def deny_as_party(relationship:, actor:)
+    auth_error = party_response_error(relationship, actor)
+    return auth_error if auth_error
+
+    finalize_deny(relationship)
   end
 
   def revoke(relationship:, revoker:, reason: nil)
@@ -145,6 +142,43 @@ class SupervisorConsentService
     User.unlink_supervisor_from_user(relationship.supervisor_user, relationship.communicator_user)
 
     SupervisorMailer.schedule_delivery(:supervisor_revoked, relationship.global_id, revoker_type)
+
+    { relationship: relationship }
+  end
+
+  private
+
+  def party_response_error(relationship, actor)
+    return { error: 'not_authorized' } unless actor && relationship && relationship.communicator_user_id == actor.id
+    return { error: 'not_pending' } unless relationship.status == 'pending'
+    if relationship.consent_token_expires_at.present? && relationship.consent_token_expires_at <= Time.current
+      return { error: 'invalid_or_expired_token' }
+    end
+    nil
+  end
+
+  def finalize_approve(relationship)
+    relationship.update!(
+      status: 'approved',
+      consent_responded_at: Time.current,
+      activated_at: Time.current,
+      consent_response_token: nil
+    )
+
+    link_type = relationship.user_link_type
+    User.link_supervisor_to_user(relationship.supervisor_user, relationship.communicator_user, nil, link_type)
+
+    SupervisorMailer.schedule_delivery(:consent_approved, relationship.global_id)
+
+    { relationship: relationship }
+  end
+
+  def finalize_deny(relationship)
+    relationship.update!(
+      status: 'denied',
+      consent_responded_at: Time.current,
+      consent_response_token: nil
+    )
 
     { relationship: relationship }
   end

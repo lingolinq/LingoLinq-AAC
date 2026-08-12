@@ -20,6 +20,8 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: Rails reserves `params['action']` — consent APIs must use `decision` or member approve/deny routes](#gotcha-rails-reserves-paramsaction--consent-apis-must-use-decision-or-member-approvedeny-routes)
+- [Gotcha: `pending_supervisor_requests` was never serialized — fetch the relationships index instead](#gotcha-pending_supervisor_requests-was-never-serialized--fetch-the-relationships-index-instead)
 - [Gotcha: Capacitor offline AAC needs SQLite + Filesystem shims — IndexedDB-only is not speak-ready](#gotcha-capacitor-offline-aac-needs-sqlite--filesystem-shims--indexeddb-only-is-not-speak-ready)
 - [Gotcha: `capabilities.storage.status()` resolve shape is a contract — do not add diagnostic keys](#gotcha-capabilitiesstoragestatus-resolve-shape-is-a-contract--do-not-add-diagnostic-keys)
 - [Speak vs edit: Default symbols still showed OpenSymbols in speak mode](#speak-vs-edit-default-symbols-still-showed-opensymbols-in-speak-mode)
@@ -9481,3 +9483,15 @@ Callers (and jasmine `toEqual` tests) treat the resolved object as `{available, 
 **Surface:** Ember test module map (`app/frontend/tests/**`).
 
 Relative imports like `../../app/utils/foo` from `tests/unit/utils/` resolve as `frontend/tests/app/utils/foo` and fail to load (`Could not find module`). Use the app module prefix: `import … from 'frontend/utils/foo'`. Example miss: `board-attribution-test.js` (merged in #771).
+
+## Gotcha: Rails reserves `params['action']` — consent APIs must use `decision` or member approve/deny routes
+
+**Surface:** `Api::SupervisorRelationshipsController#consent_response`, Ember `consent-response` / `pending-consent-requests`.
+
+`params['action']` is always the controller action name (`consent_response`, `approve`, …). A body field named `action` does not carry the client's approve/deny intent. Ship `decision` / `consent_action`, or call `PUT …/approve` / `PUT …/deny` so `action_name` is the decision. Treating `params['id']` as a consent token when the client sent a relationship global id silently breaks in-app approve/deny; authenticated party approve needs `approve_as_party` / `deny_as_party` by global id. See task log `2026-08-12-supervisor-consent-ship.md`.
+
+## Gotcha: `pending_supervisor_requests` was never serialized — fetch the relationships index instead
+
+**Surface:** Ember `user.pending_supervisor_requests` attr + `PendingConsentRequests`.
+
+The User model exposes `pending_supervisor_requests`, but `lib/json_api/user.rb` never populates it. Enabling `supervisor_consent_flow` alone shows an empty pending list. Load pending rows from `GET /api/v1/supervisor_relationships?role=communicator&status=pending` and map into the UI shape (`id`, `requester_name`, `requester_avatar_url`, `permission_level`).
