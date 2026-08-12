@@ -229,6 +229,10 @@ describe AiClient do
       # backwards pin a cached failure, which is why the code moved off it.
       it 'retries a failed check after the retry window, without re-probing inside it' do
         now = 1_000.0
+        # and_call_original first: without it, ANY other clock_gettime call inside the
+        # example (added instrumentation, Rack::Timeout) raises "unexpected arguments"
+        # rather than failing legibly.
+        allow(Process).to receive(:clock_gettime).and_call_original
         allow(Process).to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC) { now }
 
         sts = double('sts')
@@ -340,6 +344,56 @@ describe AiClient do
         3.times { described_class.account_verified? }
       end
       expect(logger).to have_received(:info).with(/verified against AWS account 239044785114/).once
+    end
+  end
+
+  # The region is interpolated into every endpoint hostname in this file, so an
+  # unvalidated value escapes the host and defeats the STS pin AND classic_base_url
+  # with one env var.
+  describe '.bedrock_region validation' do
+    %w[us-west-2 eu-central-1 us-gov-west-1 ap-southeast-2 il-central-1].each do |good|
+      it "accepts the well-formed region #{good}" do
+        with_env('BEDROCK_AWS_REGION' => good) do
+          expect(described_class.bedrock_region).to eq(good)
+        end
+      end
+    end
+
+    it 'strips surrounding whitespace rather than rejecting it' do
+      with_env('BEDROCK_AWS_REGION' => '  us-west-2  ') do
+        expect(described_class.bedrock_region).to eq('us-west-2')
+      end
+    end
+
+    [
+      'evil.example.com/',
+      'us-west-2.evil.com',
+      'us-west-2/../..',
+      'us-west-2:8080',
+      'US-WEST-2',
+      'localhost'
+    ].each do |bad|
+      it "refuses #{bad.inspect} and fails AI closed" do
+        with_env('BEDROCK_AWS_REGION' => bad, 'BEDROCK_AWS_KEY' => 'k', 'BEDROCK_AWS_SECRET' => 's') do
+          expect(described_class.bedrock_region).to eq('')
+          expect(described_class.configured?).to eq(false)
+          expect(described_class.build).to be_nil
+        end
+      end
+    end
+
+    # The concrete attack: the host of the "pinned" URL must never leave AWS.
+    it 'cannot be used to move the STS or Bedrock host off amazonaws.com' do
+      with_env('BEDROCK_AWS_REGION' => 'evil.example.com/',
+               'BEDROCK_AWS_KEY' => 'k', 'BEDROCK_AWS_SECRET' => 's',
+               'BEDROCK_EXPECTED_AWS_ACCOUNT' => '239044785114') do
+        expect(Aws::STS::Client).not_to receive(:new)
+        expect(described_class.account_verified?).to eq(false)
+        # The point is the host never leaves AWS. With the region refused it degrades
+        # to an unresolvable amazonaws.com name, not to the attacker's host.
+        expect(URI.parse(described_class.classic_base_url).host).to end_with('.amazonaws.com')
+        expect(described_class.classic_base_url).not_to include('evil.example.com')
+      end
     end
   end
 

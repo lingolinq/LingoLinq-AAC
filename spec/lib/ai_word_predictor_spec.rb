@@ -3,6 +3,57 @@
 require 'spec_helper'
 
 describe AiWordPredictor do
+  # The account assertion must not sit in front of the response cache: a FAILED
+  # check re-probes every 60s while holding a process-global mutex, which would
+  # stall requests that were about to return instantly from CACHE.
+  describe 'the account assertion and the response cache' do
+    after { AiClient.reset_account_verification! }
+
+    it 'serves a cache hit without probing STS' do
+      described_class::CACHE.clear
+      # Key shape is "locale:sentence:time_of_day:topic"; normalize_context(nil)
+      # yields time_of_day 'unspecified' and an empty topic.
+      described_class::CACHE['en:hello there:unspecified:'] =
+        { words: %w[friend world], ts: Time.now }
+
+      begin
+        ENV['BEDROCK_AWS_REGION'] = 'us-west-2'
+        ENV['BEDROCK_AWS_KEY'] = 'k'
+        ENV['BEDROCK_AWS_SECRET'] = 's'
+        ENV['BEDROCK_EXPECTED_AWS_ACCOUNT'] = '239044785114'
+        AiClient.reset_account_verification!
+
+        expect(Aws::STS::Client).not_to receive(:new)
+        expect(described_class.predict(sentence: 'Hello There')).to eq(%w[friend world])
+      ensure
+        %w[BEDROCK_AWS_REGION BEDROCK_AWS_KEY BEDROCK_AWS_SECRET
+           BEDROCK_EXPECTED_AWS_ACCOUNT].each { |k| ENV.delete(k) }
+        described_class::CACHE.clear
+      end
+    end
+
+    it 'still refuses past the cache when the account does not verify' do
+      described_class::CACHE.clear
+      begin
+        ENV['BEDROCK_AWS_REGION'] = 'us-west-2'
+        ENV['BEDROCK_AWS_KEY'] = 'k'
+        ENV['BEDROCK_AWS_SECRET'] = 's'
+        ENV['BEDROCK_EXPECTED_AWS_ACCOUNT'] = '239044785114'
+        AiClient.reset_account_verification!
+
+        sts = double('sts')
+        allow(sts).to receive(:get_caller_identity)
+          .and_return(double('id', account: '111122223333'))
+        allow(Aws::STS::Client).to receive(:new).and_return(sts)
+
+        expect(described_class.predict(sentence: 'a fresh uncached sentence')).to eq([])
+      ensure
+        %w[BEDROCK_AWS_REGION BEDROCK_AWS_KEY BEDROCK_AWS_SECRET
+           BEDROCK_EXPECTED_AWS_ACCOUNT].each { |k| ENV.delete(k) }
+        described_class::CACHE.clear
+      end
+    end
+  end
   def anthropic_response(text)
     usage = double('usage', input_tokens: 10, output_tokens: 5)
     block = double('text_block', type: 'text', text: text)

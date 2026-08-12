@@ -34,7 +34,7 @@ on_worker_boot do
   # latency this is avoiding, not a lost worker. It no-ops when no expected
   # account is configured.
   begin
-    AiClient.account_verified? if defined?(AiClient)
+    AiClient.available? if defined?(AiClient)
   rescue StandardError => e
     warn "[puma] Bedrock account assertion warm-up skipped: #{e.class}: #{e.message}"
   end
