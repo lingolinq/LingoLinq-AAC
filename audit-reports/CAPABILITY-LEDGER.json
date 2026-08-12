@@ -134,7 +134,7 @@
       "domain": "ai-features",
       "claimLanguage": "AI features (board generation and word prediction) use Anthropic Claude.",
       "antiClaim": "The prior Google Gemini fallback was DISABLED 2026-07-09 (Gemini Developer/AI-Studio endpoint data-handling terms inadequate for child data); there is no runtime Gemini path today. Runtime AI egresses to Claude on AWS Bedrock (the Bedrock Mantle Messages API via lib/ai_client.rb), not the direct api.anthropic.com endpoint; enforced in CI by scripts/ai-endpoint-guard.sh. Only pseudonymized data is sent (see cap pii-scrubber-pseudonymization).",
-      "currentEvidence": { "file": "lib/ai_word_predictor.rb", "line": 168, "snippet": "provider: :claude," },
+      "currentEvidence": { "file": "lib/ai_word_predictor.rb", "line": 318, "snippet": "provider: :claude," },
       "introducedEvidence": { "note": "Bedrock routing switch (lib/ai_client.rb, AiClient.build) recorded in docs/legal/AWS_BAA_ACCEPTED.md + docs/legal/ANTHROPIC_BAA_ACCEPTED.md 2026-07-24; Gemini fallback removal in docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2 and docs/legal/AI_GOVERNANCE_MEMO.md" },
       "frameworks": ["GDPR", "EU-AI-Act"],
       "notes": "Runtime constructs the sanctioned Claude client via AiClient.build (Bedrock Mantle); no direct Anthropic client or ANTHROPIC_API_KEY read on the runtime seams (CI guard scripts/ai-endpoint-guard.sh). Subprocessors listed in docs/legal/SUBPROCESSORS.md; that register's Gemini row may need a runtime-status update to reflect the 2026-07-09 disable (flagged separately, not fixed here).",
