@@ -2757,14 +2757,20 @@ describe("persistence", function() {
         }, function() {
           settled = 'rejected';
         });
-        setTimeout(function() { held = true; }, 25);
 
+        // Wait for the write to START rather than assuming how quickly Ember
+        // Data reaches it -- a fixed window here is a load-dependent guess and
+        // flakes under a full-suite run. Once the stub HAS been called the
+        // write is held by us and can never settle on its own, so the hold
+        // below is deterministic. store() calls storage.store() before it ever
+        // settles, so an early settlement is still caught.
+        waitsFor(function() { return settlers.length > 0; });
+        runs(function() { setTimeout(function() { held = true; }, 25); });
         waitsFor(function() { return held; });
         runs(function() {
-          // The stubbed write cannot settle on its own, so a settled save here
+          // The held write cannot settle on its own, so a settled save here
           // could only mean store() settled before the write.
           expect(settled).toEqual(null);
-          expect(settlers.length > 0).toEqual(true);
           settlers.forEach(function(s) { s.resolve({}); });
         });
         waitsFor(function() { return settled; });
@@ -2790,13 +2796,14 @@ describe("persistence", function() {
         }, function() {
           settled = 'rejected';
         });
-        setTimeout(function() { held = true; }, 25);
 
+        // See the sibling test: wait for the write to start, then hold it.
+        waitsFor(function() { return settlers.length > 0; });
+        runs(function() { setTimeout(function() { held = true; }, 25); });
         waitsFor(function() { return held; });
         runs(function() {
           expect(settled).toEqual(null);
           expect(loggedStoreErrors().length).toEqual(0);
-          expect(settlers.length > 0).toEqual(true);
           settlers.forEach(function(s) { s.reject({error: 'write failed'}); });
         });
         waitsFor(function() { return settled; });
@@ -2818,12 +2825,8 @@ describe("persistence", function() {
         expect(!!svc).toEqual(true);
         expect(typeof svc.store).toEqual('function');
 
-        var write_resolve = null;
-        stub(lingoLinqExtras.storage, 'store', function(store, record, key) {
-          return new RSVP.Promise(function(res, rej) {
-            write_resolve = res;
-          });
-        });
+        var settlers = [];
+        stubHeldWrites(settlers);
 
         var settled = null;
         var held = false;
@@ -2832,13 +2835,14 @@ describe("persistence", function() {
         }, function() {
           settled = 'rejected';
         });
-        setTimeout(function() { held = true; }, 25);
 
+        // See the utils siblings: wait for the write to start, then hold it.
+        waitsFor(function() { return settlers.length > 0; });
+        runs(function() { setTimeout(function() { held = true; }, 25); });
         waitsFor(function() { return held; });
         runs(function() {
           expect(settled).toEqual(null);
-          expect(typeof write_resolve).toEqual('function');
-          write_resolve({});
+          settlers.forEach(function(s) { s.resolve({}); });
         });
         waitsFor(function() { return settled; });
         runs(function() {
@@ -2853,12 +2857,8 @@ describe("persistence", function() {
         expect(!!svc).toEqual(true);
         resetLoggedErrors();
 
-        var write_reject = null;
-        stub(lingoLinqExtras.storage, 'store', function(store, record, key) {
-          return new RSVP.Promise(function(res, rej) {
-            write_reject = rej;
-          });
-        });
+        var settlers = [];
+        stubHeldWrites(settlers);
 
         var settled = null;
         var held = false;
@@ -2867,14 +2867,15 @@ describe("persistence", function() {
         }, function() {
           settled = 'rejected';
         });
-        setTimeout(function() { held = true; }, 25);
 
+        // See the utils siblings: wait for the write to start, then hold it.
+        waitsFor(function() { return settlers.length > 0; });
+        runs(function() { setTimeout(function() { held = true; }, 25); });
         waitsFor(function() { return held; });
         runs(function() {
           expect(settled).toEqual(null);
           expect(loggedStoreErrors().length).toEqual(0);
-          expect(typeof write_reject).toEqual('function');
-          write_reject({error: 'write failed'});
+          settlers.forEach(function(s) { s.reject({error: 'write failed'}); });
         });
         waitsFor(function() { return settled; });
         runs(function() {
