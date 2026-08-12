@@ -13,7 +13,7 @@
       "proposedBy": "codex-handoff-v0.2 (encoded from READINESS-REQUIREMENTS-v0.2.md)",
       "ratifiedBy": null,
       "ratifiedDate": null,
-      "note": "PROPOSED - requires Scot ratification. Every humanStatus, blocking flag, and appliesWhen interpretation below is a proposal until ratification."
+      "note": "PROPOSED at the matrix level - rows may carry their own ratification object once Scot ratifies them individually (milestone-by-milestone review). A row without a ratification object is a proposal. meta.ratification.status flips to ratified only when Scot has ratified every row."
     },
     "directRequirementCount": 40,
     "milestones": [
@@ -196,7 +196,7 @@
       "milestone": "adult-beta",
       "type": "invariant",
       "area": "privacy-security",
-      "text": "No unresolved Critical finding affects the selected beta configuration.",
+      "text": "No open Critical findings exist in the canonical findings register.",
       "blocking": true,
       "findingIds": [],
       "findingScope": "aggregate: all open Critical findings",
@@ -204,7 +204,13 @@
       "appliesWhen": {
         "summary": "always"
       },
-      "whyItMatters": "A controlled beta should not proceed with a known unresolved Critical affecting the cohort."
+      "whyItMatters": "A controlled beta should not proceed with a known unresolved Critical affecting the cohort.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-11",
+        "via": "PR #792 draft-review instruction (Adult Beta milestone pass)"
+      }
     },
     {
       "id": "adult-beta-ai-cache",
@@ -223,7 +229,13 @@
         "summary": "runtime AI word prediction is enabled",
         "condition": "aiWordPredictionEnabled"
       },
-      "whyItMatters": "AAC utterances may contain highly sensitive communication content and must not be retained outside the intended minimization boundary."
+      "whyItMatters": "AAC utterances may contain highly sensitive communication content and must not be retained outside the intended minimization boundary.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-11",
+        "via": "PR #792 draft-review instruction (Adult Beta milestone pass)"
+      }
     },
     {
       "id": "adult-beta-ai-master-consent",
@@ -246,7 +258,13 @@
           ]
         }
       },
-      "whyItMatters": "Unknown consent intent must not be converted into permission."
+      "whyItMatters": "Unknown consent intent must not be converted into permission.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-11",
+        "via": "PR #792 draft-review instruction (Adult Beta milestone pass)"
+      }
     },
     {
       "id": "adult-beta-ai-focus-consent",
@@ -263,14 +281,20 @@
         "summary": "focus-word AI is enabled",
         "condition": "aiFocusWordsEnabled"
       },
-      "whyItMatters": "Cached AI output must not bypass consent and child-protection controls."
+      "whyItMatters": "Cached AI output must not bypass consent and child-protection controls.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-11",
+        "via": "PR #792 draft-review instruction (Adult Beta milestone pass)"
+      }
     },
     {
       "id": "adult-beta-ai-disclosure",
       "milestone": "adult-beta",
       "type": "deliverable",
       "area": "ai-trust",
-      "text": "Required direct-interaction AI disclosure is presented and enforced for covered users before the covered interaction occurs.",
+      "text": "For users/interactions covered by an applicable direct-interaction AI disclosure obligation, the required disclosure is presented before the covered AI interaction.",
       "humanStatus": "in-progress",
       "blocking": true,
       "findingIds": [
@@ -293,7 +317,13 @@
           ]
         }
       },
-      "whyItMatters": "Transparency obligations must work in the actual runtime path, not only exist in code."
+      "whyItMatters": "Transparency obligations must work in the actual runtime path, not only exist in code.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-11",
+        "via": "PR #792 draft-review instruction (Adult Beta milestone pass)"
+      }
     },
     {
       "id": "adult-beta-terms-scanning",
@@ -311,7 +341,13 @@
       "appliesWhen": {
         "summary": "Terms/consent is presented"
       },
-      "whyItMatters": "A switch-scanning AAC user must not be trapped at a mandatory modal."
+      "whyItMatters": "A switch-scanning AAC user must not be trapped at a mandatory modal.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-11",
+        "via": "PR #792 draft-review instruction (Adult Beta milestone pass)"
+      }
     },
     {
       "id": "adult-beta-terms-ordering",
@@ -329,7 +365,13 @@
       "appliesWhen": {
         "summary": "Terms is required for the user/session"
       },
-      "whyItMatters": "Required consent presentation cannot be silently skipped by modal ordering."
+      "whyItMatters": "Required consent presentation cannot be silently skipped by modal ordering.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-11",
+        "via": "PR #792 draft-review instruction (Adult Beta milestone pass)"
+      }
     },
     {
       "id": "adult-beta-release-safety",
@@ -343,9 +385,16 @@
       "findingScope": null,
       "verificationRequired": "code-and-runtime",
       "appliesWhen": {
-        "summary": "production or production-like beta"
+        "summary": "production or production-like beta",
+        "condition": "productionBeta"
       },
-      "whyItMatters": "Beta reliability and assurance depend on knowing exactly what code was released and verified."
+      "whyItMatters": "Beta reliability and assurance depend on knowing exactly what code was released and verified.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-11",
+        "via": "PR #792 draft-review instruction (Adult Beta milestone pass)"
+      }
     },
     {
       "id": "adult-beta-core-aac-accessibility",
@@ -361,7 +410,13 @@
       "appliesWhen": {
         "summary": "always; exact modalities depend on cohort"
       },
-      "whyItMatters": "Accessibility failures on core AAC communication paths are product-readiness failures, not peripheral polish."
+      "whyItMatters": "Accessibility failures on core AAC communication paths are product-readiness failures, not peripheral polish.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-11",
+        "via": "PR #792 draft-review instruction (Adult Beta milestone pass)"
+      }
     },
     {
       "id": "adult-beta-core-reliability",
@@ -377,7 +432,13 @@
       "appliesWhen": {
         "summary": "always"
       },
-      "whyItMatters": "A supervised beta still requires reliable core communication and data-preservation paths."
+      "whyItMatters": "A supervised beta still requires reliable core communication and data-preservation paths.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-11",
+        "via": "PR #792 draft-review instruction (Adult Beta milestone pass)"
+      }
     },
     {
       "id": "school-beta-parent-consent",

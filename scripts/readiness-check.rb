@@ -246,6 +246,21 @@ requirements.each do |r|
   if aw.key?('condition')
     failures.concat(validate_condition(aw['condition'], decisions, "[#{rid}] appliesWhen.condition"))
   end
+  # Per-row ratification: absent = proposed. Present means Scot ratified this
+  # row; it must say so completely (who + parseable date), and no other status
+  # value is legal - a script never marks a row anything else.
+  if (rat = r['ratification'])
+    if rat['status'] != 'ratified'
+      failures << "[#{rid}] ratification.status must be \"ratified\" when the object is present (absent = proposed)"
+    else
+      failures << "[#{rid}] ratification requires ratifiedBy" if rat['ratifiedBy'].to_s.strip.empty?
+      begin
+        Date.iso8601(rat['ratifiedDate'].to_s)
+      rescue ArgumentError, TypeError
+        failures << "[#{rid}] ratification.ratifiedDate #{rat['ratifiedDate'].inspect} is not an ISO date"
+      end
+    end
+  end
 end
 declared = mmeta['directRequirementCount']
 if declared && declared != requirements.size
@@ -557,6 +572,7 @@ rollups = {}
   rollups[mid] = {
     'title' => m['title'],
     'direct' => direct.size,
+    'ratified' => direct.count { |r| (r['ratification'] || {})['status'] == 'ratified' },
     'counts' => counts,
     'inherited' => inherited.map { |r| r['id'] },
     'inheritedConditional' => inherited_conditional.map { |r| r['id'] },
@@ -613,9 +629,16 @@ def render_dashboard(ctx)
   out << ">\n"
   out << "> Data as of: #{ctx[:as_of]} | Strategy generated: #{mmeta['generatedDate']}\n\n"
   if proposed
-    out << "> ⚠️ **PROPOSED - requires Scot ratification.** Every requirement status, blocker flag, and\n"
-    out << "> applicability interpretation below is a proposal (proposed #{ratif['proposedDate']}). Nothing here is\n"
-    out << "> canonical strategy until `meta.ratification.status` is flipped to `ratified` by Scot.\n\n"
+    ratified_count = ctx[:requirements].count { |r| (r['ratification'] || {})['status'] == 'ratified' }
+    if ratified_count.positive?
+      out << "> ⚠️ **PARTIALLY RATIFIED - #{ratified_count} of #{ctx[:requirements].size} requirements ratified by Scot** (per-row\n"
+      out << "> `ratification` objects; milestone-by-milestone review). Every row without one remains a\n"
+      out << "> proposal. `meta.ratification.status` flips to `ratified` only when Scot has ratified all rows.\n\n"
+    else
+      out << "> ⚠️ **PROPOSED - requires Scot ratification.** Every requirement status, blocker flag, and\n"
+      out << "> applicability interpretation below is a proposal (proposed #{ratif['proposedDate']}). Nothing here is\n"
+      out << "> canonical strategy until `meta.ratification.status` is flipped to `ratified` by Scot.\n\n"
+    end
   end
 
   pending = ctx[:decisions].select { |_, v| v == 'undecided' }.keys
@@ -638,14 +661,14 @@ def render_dashboard(ctx)
   out << "| Verified-closed Critical | #{m['verifiedClosedCritical']} |\n\n"
 
   out << "## Milestones\n\n"
-  out << "| Milestone | Direct reqs | Inherited blockers | Blocked | Decision needed | In progress | Awaiting verification | Awaiting reconciliation | Done |\n"
-  out << "|---|---:|---|---:|---:|---:|---:|---:|---:|\n"
+  out << "| Milestone | Direct reqs | Ratified | Inherited blockers | Blocked | Decision needed | In progress | Awaiting verification | Awaiting reconciliation | Done |\n"
+  out << "|---|---:|---:|---|---:|---:|---:|---:|---:|---:|\n"
   (mmeta['milestones'] || []).each do |mm|
     r = ctx[:rollups][mm['id']]
     c = r['counts']
     inherited_cell = r['inherited'].size.to_s
     inherited_cell += " (+#{r['inheritedConditional'].size} decision-dependent)" if r['inheritedConditional'].any?
-    out << "| #{r['title']} | #{r['direct']} | #{inherited_cell} | #{c['blocked']} | #{c['decision-needed']} | #{c['in-progress']} | #{c['done-awaiting-verification']} | #{c['done-awaiting-reconciliation']} | #{c['done']} |\n"
+    out << "| #{r['title']} | #{r['direct']} | #{r['ratified']} | #{inherited_cell} | #{c['blocked']} | #{c['decision-needed']} | #{c['in-progress']} | #{c['done-awaiting-verification']} | #{c['done-awaiting-reconciliation']} | #{c['done']} |\n"
   end
   out << "\nDirect requirement total: **#{ctx[:requirements].size}**\n\n"
   out << "Inheritance (computed, never duplicated as rows): school-beta inherits applicable unresolved adult-beta\n"

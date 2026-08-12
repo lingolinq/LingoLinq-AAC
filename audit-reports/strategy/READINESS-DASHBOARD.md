@@ -6,9 +6,9 @@
 >
 > Data as of: 2026-08-11T23:53:23Z | Strategy generated: 2026-08-11
 
-> ⚠️ **PROPOSED - requires Scot ratification.** Every requirement status, blocker flag, and
-> applicability interpretation below is a proposal (proposed 2026-08-11). Nothing here is
-> canonical strategy until `meta.ratification.status` is flipped to `ratified` by Scot.
+> ⚠️ **PARTIALLY RATIFIED - 10 of 40 requirements ratified by Scot** (per-row
+> `ratification` objects; milestone-by-milestone review). Every row without one remains a
+> proposal. `meta.ratification.status` flips to `ratified` only when Scot has ratified all rows.
 
 **Launch profile:** `adult-beta-initial`  
 **Open Critical:** 0  
@@ -34,13 +34,13 @@
 
 ## Milestones
 
-| Milestone | Direct reqs | Inherited blockers | Blocked | Decision needed | In progress | Awaiting verification | Awaiting reconciliation | Done |
-|---|---:|---|---:|---:|---:|---:|---:|---:|
-| Controlled Adult / SLP / Teacher Beta | 10 | 0 | 2 | 4 | 3 | 0 | 0 | 0 |
-| School / Minor Beta | 8 | 9 | 1 | 7 | 0 | 0 | 0 | 0 |
-| Public MVP | 6 | 9 (+8 decision-dependent) | 1 | 1 | 3 | 0 | 0 | 0 |
-| District Procurement Ready | 9 | 0 | 0 | 0 | 8 | 0 | 0 | 0 |
-| Long-Term Assurance | 7 | 0 | 0 | 0 | 2 | 0 | 0 | 0 |
+| Milestone | Direct reqs | Ratified | Inherited blockers | Blocked | Decision needed | In progress | Awaiting verification | Awaiting reconciliation | Done |
+|---|---:|---:|---|---:|---:|---:|---:|---:|---:|
+| Controlled Adult / SLP / Teacher Beta | 10 | 10 | 0 | 2 | 4 | 3 | 0 | 0 | 0 |
+| School / Minor Beta | 8 | 0 | 9 | 1 | 7 | 0 | 0 | 0 | 0 |
+| Public MVP | 6 | 0 | 9 (+8 decision-dependent) | 1 | 1 | 3 | 0 | 0 | 0 |
+| District Procurement Ready | 9 | 0 | 0 | 0 | 0 | 8 | 0 | 0 | 0 |
+| Long-Term Assurance | 7 | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 0 |
 
 Direct requirement total: **40**
 
@@ -55,7 +55,7 @@ decision-dependent while `mvpIncludesMinors` is undecided).
 - 🟡 `adult-beta-ai-cache` (Decision needed) - Raw communication is not retained in an unsafe pre-scrubber or process-global AI cache. [LL-16ef84ad9a]
   - gated by undecided decision(s): aiWordPredictionEnabled
   - underlying evidence state if enabled: done-awaiting-reconciliation (linked finding(s) still open: LL-16ef84ad9a)
-- 🟡 `adult-beta-ai-disclosure` (Decision needed) - Required direct-interaction AI disclosure is presented and enforced for covered users before the covered interaction occurs. [LL-a9d6d5a46b]
+- 🟡 `adult-beta-ai-disclosure` (Decision needed) - For users/interactions covered by an applicable direct-interaction AI disclosure obligation, the required disclosure is presented before the covered AI interaction. [LL-a9d6d5a46b]
   - gated by undecided decision(s): euUsersIncluded, aiWordPredictionEnabled, aiFocusWordsEnabled, aiBoardGenerationEnabled
 - 🟡 `adult-beta-ai-focus-consent` (Decision needed) - Focus-word generation enforces user, organization, COPPA, EU-under-16, and applicable disclosure gates before a cache hit can return AI output.
   - gated by undecided decision(s): aiFocusWordsEnabled

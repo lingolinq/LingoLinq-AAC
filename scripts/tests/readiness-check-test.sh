@@ -88,6 +88,14 @@ expect "requirement count assertion" "READINESS-MILESTONES.json" \
   "doc['meta']['directRequirementCount']=41" \
   "meta.directRequirementCount=41 but 40 requirements are encoded"
 
+expect "row ratification with a non-ratified status fails" "READINESS-MILESTONES.json" \
+  "doc['requirements'].find{|r| r['id']=='adult-beta-ai-cache'}['ratification']['status']='approved-ish'" \
+  "ratification.status must be \"ratified\" when the object is present"
+
+expect "row ratification without ratifiedBy fails" "READINESS-MILESTONES.json" \
+  "doc['requirements'].find{|r| r['id']=='adult-beta-ai-cache'}['ratification'].delete('ratifiedBy')" \
+  "ratification requires ratifiedBy"
+
 echo "readiness-check-test: reference integrity"
 expect "dangling finding ref fails" "READINESS-MILESTONES.json" \
   "doc['requirements'].find{|r| r['id']=='adult-beta-ai-cache'}['findingIds']=['LL-doesnotexist']" \
