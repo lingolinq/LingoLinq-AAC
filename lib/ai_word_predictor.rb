@@ -162,7 +162,7 @@ module AiWordPredictor
     end
 
     def resolve_api_config
-      return nil unless AiClient.configured?
+      return nil unless AiClient.available?
 
       {
         provider: :claude,
@@ -172,7 +172,7 @@ module AiWordPredictor
     end
 
     def call_anthropic(config, sentence, locale, count, context)
-      client = AiClient.build
+      client = AiClient.build!
       client.messages.create(
         model: config[:model],
         max_tokens: 60,

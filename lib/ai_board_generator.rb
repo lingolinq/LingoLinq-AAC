@@ -529,7 +529,7 @@ module AiBoardGenerator
     # Bedrock (BAA/HIPAA path) via AiClient, not the direct api.anthropic.com endpoint -- there is
     # no direct-Anthropic fallback.
     def resolve_api_config
-      return nil unless AiClient.configured?
+      return nil unless AiClient.available?
 
       {
         provider: :claude,
@@ -539,7 +539,7 @@ module AiBoardGenerator
     end
 
     def call_anthropic(region:, model:, system_prompt:, user_prompt:, cell_count:)
-      client = AiClient.build
+      client = AiClient.build!
       client.messages.create(
         model: model,
         max_tokens: completion_max_tokens(cell_count),

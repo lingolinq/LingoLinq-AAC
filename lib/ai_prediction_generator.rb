@@ -108,7 +108,7 @@ module AiPredictionGenerator
     # data). Runtime AI now egresses to Claude on AWS Bedrock (BAA/HIPAA path) via AiClient, not
     # the direct api.anthropic.com endpoint -- there is no direct-Anthropic fallback.
     def resolve_api_config
-      return nil unless AiClient.configured?
+      return nil unless AiClient.available?
 
       {
         provider: :claude,
@@ -226,7 +226,7 @@ module AiPredictionGenerator
     end
 
     def call_anthropic(config, prompt)
-      client = AiClient.build
+      client = AiClient.build!
       response = client.messages.create(
         model: config[:model],
         max_tokens: 4096,

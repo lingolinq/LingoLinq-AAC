@@ -11,6 +11,7 @@ describe AiClient do
       AWS_KEY AWS_SECRET
       AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
       BEDROCK_EXPECTED_AWS_ACCOUNT
+      AWS_ENDPOINT_URL AWS_ENDPOINT_URL_STS
     ]
     keys.each do |key|
       previous[key] = ENV[key]
@@ -224,9 +225,11 @@ describe AiClient do
 
       # A permanently-cached failure would darken AI for the life of the process after one
       # transient blip, so the failure entry must expire while a success need not.
+      # Stubs the MONOTONIC clock, not Time.now: wall clock would let an NTP step
+      # backwards pin a cached failure, which is why the code moved off it.
       it 'retries a failed check after the retry window, without re-probing inside it' do
-        now = Time.now
-        allow(Time).to receive(:now) { now }
+        now = 1_000.0
+        allow(Process).to receive(:clock_gettime).with(Process::CLOCK_MONOTONIC) { now }
 
         sts = double('sts')
         allow(sts).to receive(:get_caller_identity).and_raise(StandardError, 'timeout')
@@ -261,6 +264,146 @@ describe AiClient do
         with_env(bedrock_env('BEDROCK_EXPECTED_AWS_ACCOUNT' => '239044785114')) do
           expect(described_class.build).to eq(client)
         end
+      end
+    end
+
+    # Set-but-unparseable is NOT the same as unset. Collapsing them is a silent off
+    # switch: `none`, `REDACTED` and an unexpanded `${VAR}` all normalize to empty.
+    context 'when the expected account is set but malformed' do
+      # '' and '   ' are in this list deliberately: `--set-env-vars NAME=` produces a
+      # present-but-blank var that reads as configured on the revision. The only way
+      # to skip the assertion is for the variable not to exist at all.
+      ['none', 'REDACTED', '${BEDROCK_ACCOUNT}', '', '   ', 'account-2390', '23904478'].each do |bad|
+        it "refuses rather than skipping for #{bad.inspect}" do
+          expect(Aws::STS::Client).not_to receive(:new)
+          with_env(bedrock_env('BEDROCK_EXPECTED_AWS_ACCOUNT' => bad)) do
+            expect(described_class.account_verified?).to eq(false)
+            expect(described_class.build).to be_nil
+          end
+        end
+      end
+    end
+
+    # The reviewer's point: every other test stubs Aws::STS::Client.new, so it proves
+    # which kwargs were PASSED, not that the SDK honors them. These construct a REAL
+    # client and read its resolved config. No network is involved.
+    describe 'the real STS client configuration' do
+      def real_sts_config(env = {})
+        cfg = nil
+        with_env(bedrock_env('BEDROCK_EXPECTED_AWS_ACCOUNT' => '239044785114').merge(env)) do
+          allow(Aws::STS::Client).to receive(:new).and_wrap_original do |orig, *args, **kw|
+            client = orig.call(*args, **kw)
+            cfg = client.config
+            raise StandardError, 'stop before any network call'
+          end
+          described_class.account_verified?
+        end
+        cfg
+      end
+
+      # The load-bearing one. aws-sdk-core resolves an unpinned client's host from
+      # AWS_ENDPOINT_URL / AWS_ENDPOINT_URL_STS. Unpinned, anything that can set an
+      # env var on the revision points GetCallerIdentity at a host that answers with
+      # the expected account, the assertion passes, and build then calls the REAL
+      # Bedrock endpoint with a NON-BAA credential. Green control, defeated control.
+      it 'pins the endpoint so an env var cannot redirect the verifier' do
+        expect(real_sts_config.endpoint.to_s).to eq('https://sts.us-west-2.amazonaws.com')
+      end
+
+      it 'stays pinned even when AWS_ENDPOINT_URL_STS is set' do
+        cfg = real_sts_config('AWS_ENDPOINT_URL_STS' => 'https://evil-sts.example.com')
+        expect(cfg.endpoint.to_s).to eq('https://sts.us-west-2.amazonaws.com')
+      end
+
+      it 'stays pinned even when the global AWS_ENDPOINT_URL is set' do
+        cfg = real_sts_config('AWS_ENDPOINT_URL' => 'https://evil.example.com')
+        expect(cfg.endpoint.to_s).to eq('https://sts.us-west-2.amazonaws.com')
+      end
+
+      # A blackholed endpoint measured 10.33s at the SDK default retry_limit of 1.
+      # Word prediction is typing assistance; that budget is not acceptable inline.
+      it 'bounds the inline latency budget' do
+        cfg = real_sts_config
+        expect(cfg.retry_limit).to eq(0)
+        expect(cfg.http_open_timeout).to eq(2)
+        expect(cfg.http_read_timeout).to eq(3)
+      end
+    end
+
+    # A control that is silent when it passes cannot be distinguished from a control
+    # that is switched off.
+    it 'logs once on successful verification so the control is attestable' do
+      stub_sts('239044785114')
+      logger = double('logger').as_null_object
+      allow(Rails).to receive(:logger).and_return(logger)
+      with_env(bedrock_env('BEDROCK_EXPECTED_AWS_ACCOUNT' => '239044785114')) do
+        3.times { described_class.account_verified? }
+      end
+      expect(logger).to have_received(:info).with(/verified against AWS account 239044785114/).once
+    end
+  end
+
+  describe '.available? and .build!' do
+    def bedrock_env(extra = {})
+      {
+        'BEDROCK_AWS_REGION' => 'us-west-2',
+        'BEDROCK_AWS_KEY' => 'bedrock-key',
+        'BEDROCK_AWS_SECRET' => 'bedrock-secret'
+      }.merge(extra)
+    end
+
+    before { described_class.reset_account_verification! }
+    after { described_class.reset_account_verification! }
+
+    def stub_sts(account)
+      sts = double('sts')
+      allow(sts).to receive(:get_caller_identity).and_return(double('identity', account: account))
+      allow(Aws::STS::Client).to receive(:new).and_return(sts)
+      sts
+    end
+
+    # configured? must stay a pure ENV read. Folding the account check into it would
+    # hand a network call to every future caller by accident (a serializer, a health
+    # endpoint, an admin page), and would make existing specs depend on STS stubbing.
+    it 'keeps configured? pure and makes no STS call' do
+      expect(Aws::STS::Client).not_to receive(:new)
+      with_env(bedrock_env('BEDROCK_EXPECTED_AWS_ACCOUNT' => '239044785114')) do
+        expect(described_class.configured?).to eq(true)
+      end
+    end
+
+    it 'is false when config is present but the account does not verify' do
+      stub_sts('111122223333')
+      with_env(bedrock_env('BEDROCK_EXPECTED_AWS_ACCOUNT' => '239044785114')) do
+        expect(described_class.configured?).to eq(true)
+        expect(described_class.available?).to eq(false)
+      end
+    end
+
+    it 'is true when config is present and the account verifies' do
+      stub_sts('239044785114')
+      with_env(bedrock_env('BEDROCK_EXPECTED_AWS_ACCOUNT' => '239044785114')) do
+        expect(described_class.available?).to eq(true)
+      end
+    end
+
+    # Before the account assertion, `configured? => build != nil` held, so no seam
+    # carried a nil guard. build! is the belt that keeps a future seam from
+    # rediscovering that with a NoMethodError on nil.
+    it 'raises a legible error instead of returning nil' do
+      stub_sts('111122223333')
+      with_env(bedrock_env('BEDROCK_EXPECTED_AWS_ACCOUNT' => '239044785114')) do
+        expect { described_class.build! }
+          .to raise_error(AiClient::NotAvailableError, /No AI call was made/)
+      end
+    end
+
+    it 'returns the client when one can be built' do
+      stub_sts('239044785114')
+      client = double('bedrock_client')
+      allow(Anthropic::BedrockClient).to receive(:new).and_return(client)
+      with_env(bedrock_env('BEDROCK_EXPECTED_AWS_ACCOUNT' => '239044785114')) do
+        expect(described_class.build!).to eq(client)
       end
     end
   end
