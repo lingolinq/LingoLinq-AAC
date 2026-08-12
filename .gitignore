@@ -186,3 +186,7 @@ app/frontend/scratchpad/
 dump.rdb
 .cursor/rules/clear-explanations.mdc
 .cursor/rules/recommend-brain-skills.mdc
+
+# readiness-check test harness scratch copies (per-PID; removed by trap, but a
+# SIGKILL mid-run must not leave an addable directory in the tree)
+audit-reports/strategy-test.*

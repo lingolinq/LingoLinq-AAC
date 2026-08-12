@@ -2,9 +2,9 @@
   "meta": {
     "artifact": "readiness-snapshots",
     "title": "LingoLinq Findings Snapshots",
-    "description": "Append-only time series of findings-register states, used to derive risk movement (new / movedOutOfOpen / reopened / severityChanged) between generations. Every snapshot stores the full open-finding ID set so flow is derived from prior/current ID sets, never from mutable counters. Multiple snapshots per day are allowed; generatedAt (full ISO 8601 timestamp) is the unique identity. Prior snapshots must never be mutated or reordered. Snapshots are appended ONLY by `ruby scripts/readiness-check.rb --snapshot` - the one mode permitted to read the wall clock.",
+    "description": "Append-only time series of findings-register states, used to derive risk movement (new / movedOutOfOpen / reopened / severityChanged) between generations. Every snapshot stores the full open-finding ID set so flow is derived from prior/current ID sets, never from mutable counters. Multiple snapshots per day are allowed; generatedAt (full ISO 8601 timestamp) is the unique identity. Prior snapshots must never be mutated or reordered. Snapshots are appended ONLY by `ruby scripts/readiness-check.rb --snapshot` - the one mode permitted to read the wall clock. Each record after the first pins its predecessor's exact bytes via priorSnapshotSha.",
     "owner": "Scot Wahlquist",
-    "governance": "Append-only. Nobody hand-edits or reorders existing snapshot records; the validator hard-fails on identity collision, timestamp regression, or a stored flow that disagrees with the flow recomputed from adjacent openFindingIds sets.",
+    "governance": "Append-only. Nobody hand-edits or reorders existing snapshot records; the validator hard-fails on identity collision, timestamp regression, a stored flow that disagrees with the flow recomputed from adjacent openFindingIds sets, severity-map/count disagreement, or a broken priorSnapshotSha chain. Honest limit: a rewrite that regenerates flows AND chain shas for the entire subsequent history is self-consistent to the validator - it necessarily touches every later record, and diff review of this file is the control for that case.",
     "schemaVersion": "0.1.0",
     "generatedDate": "2026-08-11"
   },

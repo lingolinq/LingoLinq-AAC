@@ -1,3 +1,7 @@
 # CODEOWNERS - These users are required reviewers for all PRs
 # All files require review from swahlquist or MelissaOneil before merging
 * @swahlquist @MelissaOneil
+
+# Readiness strategy layer carries Scot-only governance state (per-row
+# ratification, launch-profile decisions); its PRs require Scot specifically.
+/audit-reports/strategy/ @swahlquist

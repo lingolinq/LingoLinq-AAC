@@ -26,12 +26,17 @@
 #     adding a person is a JSON edit, never a script change.
 #   - no dangling refs: requirement->finding, work->finding, work->requirement,
 #     appliesWhen.decisions->launch-profile keys, snapshot openFindingIds
-#   - FINDINGS.json sanity: every status in the 5-value enum and the
-#     per-status buckets sum to the total (verified disjoint before enabling)
-#   - snapshots: append-only structure - generatedAt strictly increasing and
-#     unique, and each record's stored findingFlowSincePrior must equal the
-#     flow recomputed from the adjacent openFindingIds sets (a mutated or
-#     falsified prior snapshot fails)
+#   - FINDINGS.json sanity: unique finding ids; every status/severity in enum
+#   - snapshots: generatedAt strictly increasing and unique; each record's
+#     stored findingFlowSincePrior must equal the flow recomputed from the
+#     adjacent openFindingIds sets; openFindingSeverities must agree with
+#     openFindingIds and the stored openBySeverity counts; and each record
+#     after the first pins its predecessor's exact bytes via priorSnapshotSha.
+#     HONEST LIMIT: these checks make a QUIET one-record history edit
+#     impossible, but a determined editor who rewrites every subsequent
+#     record (flows + chain shas) can still produce a self-consistent fake -
+#     that rewrite necessarily touches the whole snapshot history and must be
+#     caught by diff review of SNAPSHOTS.json, not by this validator.
 #   - in --check: the committed dashboard render must match byte-for-byte
 #
 # WARNINGS (printed, exit stays 0)
@@ -107,6 +112,7 @@ warnings = []
 findings = findings_doc['findings'] || []
 findings_by_id = {}
 findings.each do |f|
+  failures << "[findings] duplicate finding id: #{f['id']} (lookup would silently collapse; refuse to proceed)" if findings_by_id.key?(f['id'])
   findings_by_id[f['id']] = f
   unless FINDING_STATUS_ENUM.include?(f['status'])
     failures << "[findings] #{f['id']}: status #{f['status'].inspect} not in #{FINDING_STATUS_ENUM.join('/')}"
@@ -117,9 +123,6 @@ findings.each do |f|
 end
 status_counts = Hash.new(0)
 findings.each { |f| status_counts[f['status']] += 1 }
-if status_counts.values.sum != findings.size
-  failures << "[findings] status buckets sum to #{status_counts.values.sum}, expected total #{findings.size}"
-end
 open_findings = findings.select { |f| f['status'] == 'open' }
 open_by_sev = Hash.new(0)
 open_findings.each { |f| open_by_sev[f['severity']] += 1 }
@@ -147,6 +150,21 @@ failures << "[#{PROFILE_JSON}] profile name missing" unless profile['profile']
 decisions.each do |key, val|
   unless [true, false, 'undecided'].include?(val)
     failures << "[#{PROFILE_JSON}] decision #{key}: value #{val.inspect} must be true, false, or \"undecided\""
+  end
+end
+pmeta = profile['meta'] || {}
+begin
+  Date.iso8601(pmeta['generatedDate'].to_s)
+rescue ArgumentError, TypeError
+  failures << "[#{PROFILE_JSON}] meta.generatedDate #{pmeta['generatedDate'].inspect} is not an ISO date"
+end
+(pmeta['sources'] || []).each do |src|
+  lod = src['lastObservedDate']
+  next if lod.nil?
+  begin
+    Date.iso8601(lod.to_s)
+  rescue ArgumentError, TypeError
+    failures << "[#{PROFILE_JSON}] source #{src['id']}: lastObservedDate #{lod.inspect} is not an ISO date (Date.parse fallbacks would borrow the system clock)"
   end
 end
 
@@ -179,23 +197,29 @@ def validate_condition(node, decisions, path)
   errs
 end
 
+# Total function: malformed or unknown nodes evaluate :undecided (conservative -
+# a broken condition must surface as decision-needed, never silently hide a
+# requirement). validate_condition still hard-fails such nodes; this is the
+# fail-safe direction if one ever reaches evaluation anyway.
 def eval_condition(node, decisions)
   case node
   when String
     v = decisions[node]
     v == true ? :true : (v == false ? :false : :undecided)
   when Hash
-    if node['allOf']
-      vals = node['allOf'].map { |n| eval_condition(n, decisions) }
+    if (list = node['allOf']).is_a?(Array) && !list.empty?
+      vals = list.map { |n| eval_condition(n, decisions) }
       return :false if vals.include?(:false)
       vals.all?(:true) ? :true : :undecided
-    else
-      vals = (node['anyOf'] || []).map { |n| eval_condition(n, decisions) }
+    elsif (list = node['anyOf']).is_a?(Array) && !list.empty?
+      vals = list.map { |n| eval_condition(n, decisions) }
       return :true if vals.include?(:true)
       vals.all?(:false) ? :false : :undecided
+    else
+      :undecided
     end
   else
-    :true
+    :undecided
   end
 end
 
@@ -265,6 +289,26 @@ end
 declared = mmeta['directRequirementCount']
 if declared && declared != requirements.size
   failures << "[requirements] meta.directRequirementCount=#{declared} but #{requirements.size} requirements are encoded"
+end
+# Matrix-level ratification is only as true as the rows underneath it: "ratified"
+# is legal ONLY when every row carries a complete ratification object, and must
+# itself say who and when. Anything else lets a one-line meta edit suppress the
+# PROPOSED banner and present 30 proposals as canonical strategy.
+mrat = mmeta['ratification'] || {}
+unless %w[proposed ratified].include?(mrat['status'])
+  failures << "[meta.ratification] status #{mrat['status'].inspect} must be proposed or ratified"
+end
+if mrat['status'] == 'ratified'
+  unratified = requirements.reject { |r| (r['ratification'] || {})['status'] == 'ratified' }.map { |r| r['id'] }
+  if unratified.any?
+    failures << "[meta.ratification] status is ratified but #{unratified.size} row(s) carry no ratification: #{unratified.first(5).join(', ')}#{unratified.size > 5 ? ', ...' : ''}"
+  end
+  failures << '[meta.ratification] ratified requires ratifiedBy' if mrat['ratifiedBy'].to_s.strip.empty?
+  begin
+    Date.iso8601(mrat['ratifiedDate'].to_s)
+  rescue ArgumentError, TypeError
+    failures << "[meta.ratification] ratifiedDate #{mrat['ratifiedDate'].inspect} is not an ISO date"
+  end
 end
 cards = milestones['readinessCards'] || []
 cards.each do |c|
@@ -432,6 +476,36 @@ snapshots.each_with_index do |snap, i|
   if stored_flow != expected_flow
     failures << "#{label} findingFlowSincePrior disagrees with flow recomputed from adjacent openFindingIds sets (prior snapshots are immutable; regenerate via --snapshot only)"
   end
+  sev_map = snap['openFindingSeverities']
+  if sev_map.is_a?(Hash)
+    if sev_map.keys.sort != ids.sort
+      failures << "#{label} openFindingSeverities keys disagree with openFindingIds"
+    end
+    sev_map.each_value do |s|
+      failures << "#{label} openFindingSeverities carries unknown severity #{s.inspect}" unless SEVERITY_ENUM.include?(s)
+    end
+    by_sev = snap.dig('findings', 'openBySeverity')
+    if by_sev.is_a?(Hash)
+      SEVERITY_ENUM.each do |s|
+        counted = sev_map.values.count(s)
+        if by_sev[s] && by_sev[s] != counted
+          failures << "#{label} findings.openBySeverity.#{s}=#{by_sev[s]} disagrees with openFindingSeverities (#{counted})"
+        end
+      end
+    end
+  else
+    failures << "#{label} openFindingSeverities must be a map of finding id -> severity"
+  end
+  # Hash chain: each record after the first pins the exact bytes of its
+  # predecessor, so rewriting snapshot k breaks the sha stored in k+1 (and a
+  # colluding rewrite must cascade through every later record - visible in
+  # review as a diff touching the whole history, never a quiet one-record edit).
+  if i.positive?
+    expected_sha = Digest::SHA256.hexdigest(JSON.generate(snapshots[i - 1]))
+    if snap['priorSnapshotSha'] != expected_sha
+      failures << "#{label} priorSnapshotSha does not match the prior snapshot record (history rewrite, reorder, or missing chain field)"
+    end
+  end
 end
 
 # --- derived requirement status -----------------------------------------------
@@ -584,11 +658,14 @@ end
 def freshness(src, ref_date)
   return ['red', 'numeric contradiction with canonical state (overrides age)'] if src['contradictsCanonical']
   return ['red', 'canonical copy marked SUPERSEDED; successor still draft (overrides age)'] if src['superseded']
+  # Repo-kind rows are the local files this render just read - they are live by
+  # construction, not fixtures, and never age.
+  return ['green', 'read live from the repository at every render'] if src['kind'] == 'repo'
   lod = src['lastObservedDate']
   if lod.nil?
     return src['kind'] == 'production' ? ['yellow', 'no explicit observation recorded; never inferred'] : ['yellow', 'no observation recorded']
   end
-  age = (ref_date - Date.parse(lod)).to_i
+  age = (ref_date - Date.iso8601(lod)).to_i
   age = 0 if age.negative?
   thresholds = case src['kind']
                when 'repo' then [1, 3]
@@ -627,7 +704,7 @@ def render_dashboard(ctx)
   out << "> Generated from `audit-reports/strategy/*.json` + `audit-reports/FINDINGS.json` by `scripts/readiness-check.rb`.\n"
   out << "> Edit the JSON sources and re-render; `--check` enforces sync in CI (audit-artifacts-integrity).\n"
   out << ">\n"
-  out << "> Data as of: #{ctx[:as_of]} | Strategy generated: #{mmeta['generatedDate']}\n\n"
+  out << "> Findings baseline: live from `FINDINGS.json` at render | Risk movement since snapshot: #{ctx[:as_of]} | Strategy generated: #{mmeta['generatedDate']}\n\n"
   if proposed
     ratified_count = ctx[:requirements].count { |r| (r['ratification'] || {})['status'] == 'ratified' }
     if ratified_count.positive?
@@ -660,15 +737,37 @@ def render_dashboard(ctx)
   out << "| Verified closed | #{m['verifiedClosed']} |\n"
   out << "| Verified-closed Critical | #{m['verifiedClosedCritical']} |\n\n"
 
+  unlinked = ctx[:unlinked_open]
+  out << "### Open findings not linked to any requirement\n\n"
+  if unlinked.empty?
+    out << "None - every open finding is linked to at least one requirement row.\n\n"
+  else
+    by_sev = Hash.new(0)
+    unlinked.each { |f| by_sev[f['severity']] += 1 }
+    out << "#{unlinked.size} of #{m['open']} open findings are linked to no requirement row and therefore appear in no\n"
+    out << "milestone or blocker view above (#{SEVERITY_ENUM.map { |s| "#{by_sev[s]} #{s}" }.join(' / ')}). The milestone cards are a\n"
+    out << "readiness lens, never a complete risk inventory - `FINDINGS.md` remains the full register.\n"
+    serious = unlinked.select { |f| %w[critical high].include?(f['severity']) }.sort_by { |f| [f['severity'] == 'critical' ? 0 : 1, f['id']] }
+    if serious.any?
+      out << "Unlinked Critical/High:\n"
+      serious.each { |f| out << "- `#{f['id']}` (#{f['severity']}) - #{f['title'].to_s[0, 110]}\n" }
+    end
+    out << "\n"
+  end
+
   out << "## Milestones\n\n"
-  out << "| Milestone | Direct reqs | Ratified | Inherited blockers | Blocked | Decision needed | In progress | Awaiting verification | Awaiting reconciliation | Done |\n"
-  out << "|---|---:|---:|---|---:|---:|---:|---:|---:|---:|\n"
+  out << "| Milestone | Direct reqs | Ratified | Inherited blockers | Blocked | Decision needed | In progress | Awaiting verification | Awaiting reconciliation | Done | Other |\n"
+  out << "|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---|\n"
   (mmeta['milestones'] || []).each do |mm|
     r = ctx[:rollups][mm['id']]
     c = r['counts']
     inherited_cell = r['inherited'].size.to_s
     inherited_cell += " (+#{r['inheritedConditional'].size} decision-dependent)" if r['inheritedConditional'].any?
-    out << "| #{r['title']} | #{r['direct']} | #{r['ratified']} | #{inherited_cell} | #{c['blocked']} | #{c['decision-needed']} | #{c['in-progress']} | #{c['done-awaiting-verification']} | #{c['done-awaiting-reconciliation']} | #{c['done']} |\n"
+    # Every state gets a column so the row always sums to Direct reqs - states
+    # with no dedicated column would otherwise vanish from the table entirely.
+    other_parts = %w[future not-required accepted-for-milestone invariant-holding invariant-failing]
+                  .select { |s| c[s].positive? }.map { |s| "#{c[s]} #{s}" }
+    out << "| #{r['title']} | #{r['direct']} | #{r['ratified']} | #{inherited_cell} | #{c['blocked']} | #{c['decision-needed']} | #{c['in-progress']} | #{c['done-awaiting-verification']} | #{c['done-awaiting-reconciliation']} | #{c['done']} | #{other_parts.empty? ? '0' : other_parts.join('; ')} |\n"
   end
   out << "\nDirect requirement total: **#{ctx[:requirements].size}**\n\n"
   out << "Inheritance (computed, never duplicated as rows): school-beta inherits applicable unresolved adult-beta\n"
@@ -712,6 +811,10 @@ def render_dashboard(ctx)
         ctx[:derived].dig(r['id'], 'state') == 'decision-needed' &&
           condition_keys((r['appliesWhen'] || {})['condition']).include?(k)
       end.map { |r| "`#{r['id']}`" }
+      if k == 'mvpIncludesMinors'
+        n = ctx[:rollups].dig('public-mvp', 'inheritedConditional')&.size.to_i
+        gated << "controls public-mvp inheritance of #{n} unresolved school-beta blocker(s)"
+      end
       out << "| #{k} | undecided | #{gated.empty? ? '-' : gated.join(', ')} |\n"
     end
     out << "\nUndecided applicability renders **⚪ Decision needed**, never silently blocked or not-required.\n\n"
@@ -750,7 +853,10 @@ def render_dashboard(ctx)
   end
   out << "\n"
 
-  out << "## Six readiness cards\n\n"
+  out << "## Six readiness cards (curated)\n\n"
+  out << "These cards are hand-authored judgment maintained in `READINESS-MILESTONES.json` - their traffic\n"
+  out << "lights are NOT computed from the data above. For computed state, read the milestone table and\n"
+  out << "invariants sections; where they disagree, the computed sections govern.\n\n"
   (ctx[:milestones]['readinessCards'] || []).each do |c|
     out << "### #{c['title']} - #{LIGHT[c['status']]}\n"
     out << "**Strengths:** #{c['strengths'].join('; ')}  \n"
@@ -792,9 +898,21 @@ if mode == :snapshot
     now = Time.now.utc.iso8601
     abort "readiness-check: snapshot identity #{now} still collides; re-run" if snapshots.any? { |s| s['generatedAt'] == now }
   end
+  last = snapshots.last
+  if last
+    last_t = begin
+      Time.iso8601(last['generatedAt'])
+    rescue ArgumentError, TypeError
+      nil
+    end
+    if last_t && Time.iso8601(now) <= last_t
+      abort "readiness-check: current clock #{now} does not advance past the latest snapshot #{last['generatedAt']}; refusing to append a non-monotonic record (future-dated prior or clock step)"
+    end
+  end
   open_ids = open_findings.map { |f| f['id'] }.sort
   new_snap = {
     'generatedAt' => now,
+    'priorSnapshotSha' => last ? Digest::SHA256.hexdigest(JSON.generate(last)) : nil,
     'sources' => {
       'findingsSha' => Digest::SHA256.hexdigest(File.read(FINDINGS_JSON))[0, 12],
       'workLedgerSha' => Digest::SHA256.hexdigest(File.read(LEDGER_JSON))[0, 12],
@@ -839,10 +957,13 @@ work_metrics = {
   'supersededEvidence' => work.count { |w| w['outcomeState'] == 'superseded-evidence' }
 }
 reference_date = if latest_snap
-                   Date.parse(Time.iso8601(latest_snap['generatedAt']).strftime('%F'))
+                   Date.iso8601(Time.iso8601(latest_snap['generatedAt']).strftime('%F'))
                  else
-                   Date.parse((profile['meta'] || {})['generatedDate'] || '1970-01-01')
+                   Date.iso8601((profile['meta'] || {})['generatedDate'] || '1970-01-01')
                  end
+
+linked_ids = requirements.flat_map { |r| r['findingIds'] || [] }.to_set
+unlinked_open = open_findings.reject { |f| linked_ids.include?(f['id']) }.sort_by { |f| f['id'] }
 
 ctx = {
   milestones: milestones, requirements: requirements, derived: derived,
@@ -850,6 +971,7 @@ ctx = {
   profile: profile, decisions: decisions, snapshots: snapshots,
   work: work, work_metrics: work_metrics, identities: identities,
   sources: (profile['meta'] || {})['sources'] || [],
+  unlinked_open: unlinked_open,
   reference_date: reference_date,
   as_of: snapshots.last ? snapshots.last['generatedAt'] : "#{(profile['meta'] || {})['generatedDate']} (no snapshot yet)"
 }

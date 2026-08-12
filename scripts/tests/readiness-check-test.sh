@@ -23,8 +23,10 @@ LIVE_SNAPSHOT=$(mktemp -d)
 cp -r "$LIVE_DIR/." "$LIVE_SNAPSHOT/"
 FINDINGS_SNAPSHOT=$(mktemp)
 cp audit-reports/FINDINGS.json "$FINDINGS_SNAPSHOT"
+PRIOR_SCRATCH=$(mktemp)
+FINDINGS_SCRATCH=$(mktemp)
 
-cleanup() { rm -rf "$WORK_DIR" "$LIVE_SNAPSHOT" "$FINDINGS_SNAPSHOT"; }
+cleanup() { rm -rf "$WORK_DIR" "$LIVE_SNAPSHOT" "$FINDINGS_SNAPSHOT" "$PRIOR_SCRATCH" "$FINDINGS_SCRATCH"; }
 trap cleanup EXIT
 trap 'cleanup; exit 130' INT
 trap 'cleanup; exit 143' TERM
@@ -95,6 +97,16 @@ expect "row ratification with a non-ratified status fails" "READINESS-MILESTONES
 expect "row ratification without ratifiedBy fails" "READINESS-MILESTONES.json" \
   "doc['requirements'].find{|r| r['id']=='adult-beta-ai-cache'}['ratification'].delete('ratifiedBy')" \
   "ratification requires ratifiedBy"
+
+# The load-bearing governance case: a one-line meta edit must not be able to
+# suppress the PROPOSED banner while rows remain unratified.
+expect "matrix flipped to ratified with unratified rows fails" "READINESS-MILESTONES.json" \
+  "doc['meta']['ratification']['status']='ratified'; doc['meta']['ratification']['ratifiedBy']='anyone'; doc['meta']['ratification']['ratifiedDate']='2026-08-12'" \
+  "status is ratified but 30 row(s) carry no ratification"
+
+expect "matrix ratification with unknown status fails" "READINESS-MILESTONES.json" \
+  "doc['meta']['ratification']['status']='mostly-ratified'" \
+  "must be proposed or ratified"
 
 echo "readiness-check-test: reference integrity"
 expect "dangling finding ref fails" "READINESS-MILESTONES.json" \
@@ -175,6 +187,57 @@ expect "snapshot timestamp regression fails" "SNAPSHOTS.json" \
 expect "openFindingIds referencing unknown finding fails" "SNAPSHOTS.json" \
   "doc['snapshots'][0]['openFindingIds'][0]='LL-doesnotexist'" \
   "references unknown finding: LL-doesnotexist"
+
+expect "severity-map tampering fails" "SNAPSHOTS.json" \
+  "k=doc['snapshots'][0]['openFindingSeverities'].keys.first; doc['snapshots'][0]['openFindingSeverities'][k]=(doc['snapshots'][0]['openFindingSeverities'][k]=='low' ? 'high' : 'low')" \
+  "disagrees with openFindingSeverities"
+
+# Colluding history rewrite: build a 2-snapshot chain, then rewrite snapshot #0
+# (the naive flow check alone cannot see this - #0's own flow is trivially
+# empty - but #1's priorSnapshotSha pins #0's exact bytes).
+reset_work
+ruby scripts/readiness-check.rb --snapshot >/dev/null 2>&1
+ruby -rjson -e "
+  doc=JSON.parse(File.read('$WORK_DIR/SNAPSHOTS.json'))
+  dropped=doc['snapshots'][0]['openFindingIds'].pop
+  doc['snapshots'][0]['openFindingSeverities'].delete(dropped)
+  doc['snapshots'][0]['findings']['open']=doc['snapshots'][0]['openFindingIds'].size
+  File.write('$WORK_DIR/SNAPSHOTS.json', JSON.pretty_generate(doc)+\"\n\")
+"
+ruby scripts/readiness-check.rb >/dev/null 2>&1
+if ruby scripts/readiness-check.rb --check 2>&1 | grep -qF "priorSnapshotSha does not match"; then
+  pass "rewriting the first snapshot breaks the successor's hash chain"
+else
+  fail "hash chain did not catch a rewrite of the first snapshot"
+fi
+
+# --snapshot must refuse to append behind a future-dated prior record.
+reset_work
+ruby -rjson -e "
+  doc=JSON.parse(File.read('$WORK_DIR/SNAPSHOTS.json'))
+  doc['snapshots'][0]['generatedAt']='2100-01-01T00:00:00Z'
+  File.write('$WORK_DIR/SNAPSHOTS.json', JSON.pretty_generate(doc)+\"\n\")
+"
+if ruby scripts/readiness-check.rb --snapshot 2>&1 | grep -qF "does not advance past the latest snapshot"; then
+  pass "--snapshot refuses a non-monotonic append behind a future-dated prior"
+else
+  fail "--snapshot appended behind a future-dated prior snapshot"
+fi
+
+echo "readiness-check-test: canonical register sanity"
+# Duplicate finding IDs must hard-fail (lookup would silently collapse one record).
+cp audit-reports/FINDINGS.json "$FINDINGS_SCRATCH"
+ruby -rjson -e "
+  doc=JSON.parse(File.read('$FINDINGS_SCRATCH'))
+  doc['findings'] << doc['findings'].first.dup
+  File.write('$FINDINGS_SCRATCH', JSON.pretty_generate(doc)+\"\n\")
+"
+reset_work
+if READINESS_FINDINGS_JSON="$FINDINGS_SCRATCH" ruby scripts/readiness-check.rb --check 2>&1 | grep -qF "duplicate finding id"; then
+  pass "duplicate finding id in FINDINGS.json fails"
+else
+  fail "duplicate finding id was silently collapsed"
+fi
 
 echo "readiness-check-test: allOf/anyOf applicability (Kleene tri-state)"
 # allOf false-dominates: with minorsIncluded=false, seat-reclaim (allOf schoolManagedAccounts +
@@ -267,12 +330,12 @@ reset_work
 ruby -rjson -e "
   doc=JSON.parse(File.read('$WORK_DIR/SNAPSHOTS.json'))
   \$stdout.write(JSON.generate(doc['snapshots'][0]))
-" > /tmp/readiness-test-prior.$$ 2>/dev/null
+" > "$PRIOR_SCRATCH" 2>/dev/null
 snap_count_before=$(ruby -rjson -e "puts JSON.parse(File.read('$WORK_DIR/SNAPSHOTS.json'))['snapshots'].size")
 if ruby scripts/readiness-check.rb --snapshot >/dev/null 2>&1; then
   snap_count_after=$(ruby -rjson -e "puts JSON.parse(File.read('$WORK_DIR/SNAPSHOTS.json'))['snapshots'].size")
   prior_after=$(ruby -rjson -e "\$stdout.write(JSON.generate(JSON.parse(File.read('$WORK_DIR/SNAPSHOTS.json'))['snapshots'][0]))")
-  if [ "$snap_count_after" -eq $((snap_count_before + 1)) ] && [ "$prior_after" = "$(cat /tmp/readiness-test-prior.$$)" ]; then
+  if [ "$snap_count_after" -eq $((snap_count_before + 1)) ] && [ "$prior_after" = "$(cat "$PRIOR_SCRATCH")" ]; then
     pass "--snapshot appends exactly one record and leaves prior snapshots byte-identical"
   else
     fail "--snapshot mutated prior snapshots or appended wrong count (before=$snap_count_before after=$snap_count_after)"
@@ -289,7 +352,6 @@ if ruby scripts/readiness-check.rb --snapshot >/dev/null 2>&1; then
 else
   fail "--snapshot failed on a clean copy"
 fi
-rm -f /tmp/readiness-test-prior.$$
 
 echo "readiness-check-test: determinism"
 reset_work

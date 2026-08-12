@@ -4,7 +4,7 @@
 > Generated from `audit-reports/strategy/*.json` + `audit-reports/FINDINGS.json` by `scripts/readiness-check.rb`.
 > Edit the JSON sources and re-render; `--check` enforces sync in CI (audit-artifacts-integrity).
 >
-> Data as of: 2026-08-11T23:53:23Z | Strategy generated: 2026-08-11
+> Findings baseline: live from `FINDINGS.json` at render | Risk movement since snapshot: 2026-08-11T23:53:23Z | Strategy generated: 2026-08-11
 
 > ⚠️ **PARTIALLY RATIFIED - 10 of 40 requirements ratified by Scot** (per-row
 > `ratification` objects; milestone-by-milestone review). Every row without one remains a
@@ -32,15 +32,23 @@
 | Verified closed | 51 |
 | Verified-closed Critical | 7 |
 
+### Open findings not linked to any requirement
+
+49 of 62 open findings are linked to no requirement row and therefore appear in no
+milestone or blocker view above (0 critical / 1 high / 24 medium / 24 low). The milestone cards are a
+readiness lens, never a complete risk inventory - `FINDINGS.md` remains the full register.
+Unlinked Critical/High:
+- `LL-522c1a6d13` (high) - Masquerade produces no AuditEvent; the site-admin branch impersonates any user with no disclosure record
+
 ## Milestones
 
-| Milestone | Direct reqs | Ratified | Inherited blockers | Blocked | Decision needed | In progress | Awaiting verification | Awaiting reconciliation | Done |
-|---|---:|---:|---|---:|---:|---:|---:|---:|---:|
-| Controlled Adult / SLP / Teacher Beta | 10 | 10 | 0 | 2 | 4 | 3 | 0 | 0 | 0 |
-| School / Minor Beta | 8 | 0 | 9 | 1 | 7 | 0 | 0 | 0 | 0 |
-| Public MVP | 6 | 0 | 9 (+8 decision-dependent) | 1 | 1 | 3 | 0 | 0 | 0 |
-| District Procurement Ready | 9 | 0 | 0 | 0 | 0 | 8 | 0 | 0 | 0 |
-| Long-Term Assurance | 7 | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 0 |
+| Milestone | Direct reqs | Ratified | Inherited blockers | Blocked | Decision needed | In progress | Awaiting verification | Awaiting reconciliation | Done | Other |
+|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---|
+| Controlled Adult / SLP / Teacher Beta | 10 | 10 | 0 | 2 | 4 | 3 | 0 | 0 | 0 | 1 invariant-holding |
+| School / Minor Beta | 8 | 0 | 9 | 1 | 7 | 0 | 0 | 0 | 0 | 0 |
+| Public MVP | 6 | 0 | 9 (+8 decision-dependent) | 1 | 1 | 3 | 0 | 0 | 0 | 1 invariant-failing |
+| District Procurement Ready | 9 | 0 | 0 | 0 | 0 | 8 | 0 | 0 | 0 | 1 future |
+| Long-Term Assurance | 7 | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 5 future |
 
 Direct requirement total: **40**
 
@@ -108,7 +116,7 @@ decision-dependent while `mvpIncludesMinors` is undecided).
 | euUsersIncluded | undecided | `adult-beta-ai-disclosure` |
 | minorsIncluded | undecided | `school-beta-parent-consent`, `school-beta-seat-reclaim`, `school-beta-consent-expiry`, `school-beta-hard-delete-media`, `school-beta-child-ai-enforcement` |
 | schoolManagedAccounts | undecided | `school-beta-seat-reclaim`, `school-beta-hard-delete-media`, `school-beta-org-ai-control`, `school-beta-school-authorization` |
-| mvpIncludesMinors | undecided | - |
+| mvpIncludesMinors | undecided | controls public-mvp inheritance of 8 unresolved school-beta blocker(s) |
 
 Undecided applicability renders **⚪ Decision needed**, never silently blocked or not-required.
 
@@ -130,7 +138,11 @@ Run `ruby scripts/readiness-check.rb --snapshot` after register changes to build
 Release duplicates and smoke PRs never inflate distinct-cluster counts; records sharing a cluster count once.
 Superseded evidence preserved, never laundered: `WORK-2026-07-30-PR697` (Record Bedrock BAA operative conditions (logging OFF + creds in BAA'd account) - central credential claim later retracted) was corrected by `WORK-2026-08-04-PR725` (Retract the unverifiable Bedrock credential attestation and reconcile the corpus).
 
-## Six readiness cards
+## Six readiness cards (curated)
+
+These cards are hand-authored judgment maintained in `READINESS-MILESTONES.json` - their traffic
+lights are NOT computed from the data above. For computed state, read the milestone table and
+invariants sections; where they disagree, the computed sections govern.
 
 ### Security & Privacy - 🟡
 **Strengths:** Infrastructure hardening; Dependency/security controls; Evidence governance; Deployment assertions  
@@ -184,8 +196,8 @@ last-observed historical fixtures in v0.2 (no live Notion/Drive connectors; live
 
 | Source | State | Detail |
 |---|---|---|
-| Canonical Git findings (audit-reports/FINDINGS.json) | 🟢 | last observed 2026-08-11 (0d before reference date). Source of truth; read live at every render. |
-| Git strategy inputs (audit-reports/strategy/) | 🟢 | last observed 2026-08-11 (0d before reference date). This layer; requirement matrix PROPOSED, not yet ratified. |
+| Canonical Git findings (audit-reports/FINDINGS.json) | 🟢 | read live from the repository at every render. Source of truth; read live at every render. |
+| Git strategy inputs (audit-reports/strategy/) | 🟢 | read live from the repository at every render. This layer; requirement matrix PROPOSED, not yet ratified. |
 | Notion findings data source | 🟢 | last observed 2026-08-11 (0d before reference date). Matches canonical status buckets: 125 total / 62 open / 8 High / 29 Medium / 25 Low / 51 verified-closed. |
 | Notion Compliance Home | 🔴 | numeric contradiction with canonical state (overrides age). Still shows 118 total / 54 open / 7 awaiting QA / 50 verified closed - a numeric contradiction with the canonical register; contradiction overrides freshness age. |
 | Drive internal Compliance & Security Program | 🔴 | canonical copy marked SUPERSEDED; successor still draft (overrides age). The 2026-08-04 attested copy is now renamed SUPERSEDED; a 2026-08-11 cleanup draft exists (DRAFT - DO NOT SHARE). No current attested copy. |

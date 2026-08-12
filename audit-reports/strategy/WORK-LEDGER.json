@@ -2,7 +2,7 @@
   "meta": {
     "artifact": "work-ledger",
     "title": "LingoLinq Readiness Work Ledger",
-    "description": "Record of material compliance/security/readiness work only - NOT an all-GitHub activity database. A work item either enters the ledger or it does not; no partial entries for qualifying fragments of otherwise non-qualifying work. Initial seed: 15 representative records chosen across the ten readiness areas named in the v0.2 handoff. Related implementation/release/hotfix PRs may be separate records sharing one cluster; distinct-control counts deduplicate by cluster.",
+    "description": "Record of material compliance/security/readiness work only - NOT an all-GitHub activity database. A work item either enters the ledger or it does not; no partial entries for qualifying fragments of otherwise non-qualifying work. Initial seed: representative records chosen across the ten readiness areas named in the v0.2 handoff (the record count lives in the data, not this prose). Related implementation/release/hotfix PRs may be separate records sharing one cluster; distinct-control counts deduplicate by cluster.",
     "owner": "Scot Wahlquist",
     "governance": "No developer ranking or leaderboard is ever derived from this file. accountableOwner must reference a kind=human identity; AI tools appear only in people.implementationTools and people.reviewTools.",
     "schemaVersion": "0.1.0",
