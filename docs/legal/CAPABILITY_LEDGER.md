@@ -16,7 +16,7 @@
 | Password authentication (bcrypt-hashed, via the passwords concern / GoSecure) | `app/models/user.rb:98` | NOT passwordless / device-JWT-only. |
 | Server-side at-rest encryption of sensitive fields (secure_serialize / SECURE_ENCRYPTION_KEY) | `app/models/concerns/secure_serialize.rb:1` | NOT end-to-end encryption; LingoLinq holds the keys. Do not claim 'zero readable keys' or E2EE. |
 | PiiScrubber pseudonymizes (scrubs direct identifiers from) payloads before AI egress | `lib/pii_scrubber.rb:215` | NOT de-identified or anonymized. Pseudonymized data is still personal data; does not meet HIPAA Safe Harbor. |
-| COPPA hard-gate blocks AI generation for under-13 users awaiting parental consent | `lib/ai_board_generator.rb:43` | This is an under-13 (COPPA) gate; it does NOT itself enforce an EU under-16 (GDPR Art. 8) block on the AI path (see cap eu-under16-ai-block). |
+| COPPA hard-gate blocks AI generation for under-13 users awaiting parental consent | `lib/ai_board_generator.rb:44` | This is an under-13 (COPPA) gate; it does NOT itself enforce an EU under-16 (GDPR Art. 8) block on the AI path (see cap eu-under16-ai-block). |
 | Jurisdiction detection primitive (EU vs non-EU) exists | `app/models/lingo_linq/jurisdiction.rb:58` | The EU jurisdiction primitive gates the Art. 50(1) disclosure modal (built and staged, gated OFF behind the article_50_disclosure flag; see cap art50-1-disclosure-modal) and, via the Phase 4 call-context helper, stamps jurisdiction on AiApiLog rows; it does not by itself drive an under-16 AI block. |
 | Full hard-delete of a user on request (flush_user_completely) | `lib/flusher.rb:401` | There is no automatic time-based wipe (no 48h/180d purge); deletion is on request / policy-driven. |
 | AiApiLog audit trail with scrubbed summary columns / IP redaction | `app/models/ai_api_log.rb:30` | Redaction is pseudonymization of the log record, not anonymization. |
@@ -33,7 +33,7 @@
 | Capability | Evidence (HEAD) | Anti-claim / note |
 |---|---|---|
 | TOTP two-factor authentication (ROTP), currently OPTIONAL | `app/models/concerns/passwords.rb:95` | NOT mandatory; do not claim enforced MFA for all users or admins. |
-| EU AI Act Article 50(2) machine-readable output marking -- board-generation slice only | `lib/ai_board_generator.rb:134` | The Art. 50(2) obligation is NOT closed: this slice marks board generation ONLY. Other AI-output surfaces (generate_focus_words, AiWordPredictor.predict, eval narration, AiPredictionGenerator) are not yet marked, and durable persistence of the marker (board.settings + relinking copy_for) is follow-up. Also distinct from the Art. 50(1) disclosure modal (see cap art50-1-disclosure-modal). |
+| EU AI Act Article 50(2) machine-readable output marking -- board-generation slice only | `lib/ai_board_generator.rb:143` | The Art. 50(2) obligation is NOT closed: this slice marks board generation ONLY. Other AI-output surfaces (generate_focus_words, AiWordPredictor.predict, eval narration, AiPredictionGenerator) are not yet marked, and durable persistence of the marker (board.settings + relinking copy_for) is follow-up. Also distinct from the Art. 50(1) disclosure modal (see cap art50-1-disclosure-modal). |
 
 ## Deliberately not done -- out-of-scope by design (3)
 
