@@ -94,7 +94,19 @@ record may not once it is signed. It refuses (1) an attested dated row whose slu
 (2) an `attestedDate` earlier than the record's own filename date, since a signature cannot predate
 what it signs, (3) a successor dated before the record it supersedes, (4) any new non-dated
 `docs/legal/` record, with pre-rule names grandfathered through the closed, shrink-only
-`meta.legalNamingGrandfathered` list, and (5) a filename whose date component is not a real date.
+`meta.legalNamingGrandfathered` list, (5) a filename whose date component is not a real date,
+(6) a wrong-cased path such as `docs/Legal/`, and (7) any allowlist entry that was not already a
+non-dated `docs/legal/` row at the **base revision**.
+
+Check (7) is what actually keeps the allowlist closed, and it exists because independent review
+found that checks (4) and (5) alone did not. Adding a new non-dated record **and** adding its path
+to `meta.legalNamingGrandfathered` in the same change passed both: the row was listed, and the entry
+was not stale. The list that was supposed to be closed could be grown by the very change it was
+meant to reject. The allowlist is therefore not self-certifying: legitimacy comes from git history,
+since a record created in this change cannot have existed at the base revision, whatever the diff
+says about the list. It is deliberately **not** an in-repo baseline file, which would be as editable
+as the list it polices. If the base revision cannot be read the check refuses rather than skipping,
+because "I could not verify the allowlist" and "the allowlist is fine" are different claims.
 
 Check (1) tests the convention **positively** rather than blacklisting status tokens, and that is a
 correction rather than a preference. The blacklist version was written first and was probed past

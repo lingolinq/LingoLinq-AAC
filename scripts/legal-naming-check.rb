@@ -61,10 +61,22 @@
 #   4. NEW NON-DATED RECORDS ARE BARRED; EXISTING ONES ARE GRANDFATHERED.
 #      `SCREAMING_SNAKE.md` records that predate the rule keep their names, because
 #      renaming breaks every inbound reference for no compliance benefit. They are
-#      listed in `meta.legalNamingGrandfathered`, which is a CLOSED set: any docs/legal
-#      git-canonical row that is neither dated nor on that list is a new violation.
-#      The list may only shrink. A stale entry (a path no longer in the register) is
-#      itself an error, so the list cannot quietly accumulate dead weight.
+#      listed in `meta.legalNamingGrandfathered`: any docs/legal git-canonical row that
+#      is neither dated nor on that list is a new violation. A stale entry (a path no
+#      longer in the register) is itself an error, so the list cannot accumulate dead
+#      weight. See CHECK 7 for what actually keeps the list closed.
+#
+#   6. WRONG-CASED docs/legal PATHS ARE REFUSED, NOT SKIPPED.
+#      Scope selection is case-insensitive, so `docs/Legal/...` is judged. It used to
+#      fall out of scope entirely and exit 0 reporting "0 docs/legal rows".
+#
+#   7. THE GRANDFATHER ALLOWLIST CANNOT CERTIFY ITSELF.
+#      A path may be grandfathered only if it ALREADY EXISTED as a non-dated
+#      git-canonical docs/legal row at the BASE revision, read from git history.
+#      Without this, adding a new record and allowlisting it in the same change passes
+#      both CHECK 4 (it is listed) and CHECK 4b (it is not stale), so the "closed" list
+#      could be grown by the very change it was meant to reject. Found in independent
+#      review, not by the author. Fails closed when the base cannot be read.
 #
 #   5. DATED FILENAMES CARRY A REAL DATE.
 #      `2026-13-45_x.md` matches the shape but is not a date. Checked explicitly so a
@@ -94,11 +106,25 @@
 
 require 'json'
 require 'date'
+require 'shellwords'
+require 'English'
 
 register_override = nil
 if (i = ARGV.index('--register'))
   register_override = ARGV[i + 1]
   abort('legal-naming-check: --register needs a path') if register_override.nil?
+end
+
+# Revision the grandfather allowlist is judged against. See BASELINE below.
+base_ref = 'origin/staging'
+if (i = ARGV.index('--base-ref'))
+  base_ref = ARGV[i + 1]
+  abort('legal-naming-check: --base-ref needs a git revision') if base_ref.nil?
+end
+repo_root_override = nil
+if (i = ARGV.index('--repo-root'))
+  repo_root_override = ARGV[i + 1]
+  abort('legal-naming-check: --repo-root needs a path') if repo_root_override.nil?
 end
 
 REGISTER = register_override || File.expand_path('../audit-reports/DOCUMENT-REGISTER.json', __dir__)
@@ -161,10 +187,18 @@ unless grandfathered.is_a?(Array)
 end
 grandfathered = grandfathered.map(&:to_s)
 
-# Only git-canonical docs/legal rows describe files this rule governs. Drive- and
-# Notion-canonical rows carry URLs in canonicalLocation and are out of scope.
+# Scope selection is CASE-INSENSITIVE, and that is a fix rather than a nicety.
+#
+# It was `start_with?(LEGAL_PREFIX)`, which is case-sensitive, so an attested
+# `docs/Legal/2026-08-13_thing_draft.md` fell out of scope entirely and the checker exited 0
+# reporting "0 docs/legal rows". A guard that can be stepped around by capitalising a
+# directory name is not a guard. Wrong casing is now IN scope and is itself a violation
+# (CHECK 6), because on a case-sensitive filesystem `docs/Legal/` is a different directory
+# that no register rule governs, and on a case-insensitive one it silently aliases the real
+# thing.
 rows = documents.select do |d|
-  d['canonicalSystem'].to_s == 'git' && d['canonicalLocation'].to_s.start_with?(LEGAL_PREFIX)
+  d['canonicalSystem'].to_s.casecmp?('git') &&
+    d['canonicalLocation'].to_s.downcase.start_with?(LEGAL_PREFIX)
 end
 
 by_id = documents.to_h { |d| [d['id'].to_s, d] }
@@ -297,6 +331,73 @@ stale.each do |loc|
   problems << "meta.legalNamingGrandfathered lists #{loc}, which is no longer a git-canonical " \
               'docs/legal row. Remove it: the list is closed and may only shrink, and a stale entry ' \
               'is a slot a future non-dated record could occupy without review.'
+end
+
+# CHECK 6: wrong-cased docs/legal paths.
+rows.each do |row|
+  loc = row['canonicalLocation'].to_s
+  next if loc.start_with?(LEGAL_PREFIX)
+
+  problems << "#{row['title'].inspect} (#{row['id']}): #{loc} differs in case from " \
+              "#{LEGAL_PREFIX.inspect}. On a case-sensitive filesystem that is a different " \
+              'directory no register rule governs; on a case-insensitive one it silently aliases the ' \
+              'real one. Either way it was previously a way to step outside this checker entirely, ' \
+              'so it is refused rather than skipped.'
+end
+
+# CHECK 7: THE ALLOWLIST CANNOT LAUNDER A NEW RECORD.
+#
+# CHECK 4 lets a non-dated row through when its path is on meta.legalNamingGrandfathered, and
+# CHECK 4b only catches entries that no longer match a row. Together they left the obvious
+# hole, found in independent review: add `docs/legal/BRAND_NEW.md` AND add that path to the
+# allowlist in the SAME change, and both checks pass. The list that was supposed to be closed
+# could be grown by the very PR it was meant to reject.
+#
+# So the allowlist is not self-certifying. Its legitimacy comes from git history: a path may be
+# grandfathered only if it ALREADY EXISTED as a non-dated git-canonical docs/legal row at the
+# base revision. A record created in this change cannot satisfy that, whatever the diff says
+# about the list.
+#
+# Deliberately NOT an in-repo baseline file: that would be as editable as the list it polices,
+# and the same PR could edit both. Git history is the one input a PR cannot rewrite in passing.
+#
+# Bootstrap note: this works even though the change that INTRODUCED
+# meta.legalNamingGrandfathered had no such key at its base, because the baseline is computed
+# from base ROWS, not from the base list. The 24 legacy records were already rows at base.
+#
+# Fails CLOSED. If the base revision cannot be read, the check refuses rather than skipping,
+# because "I could not verify the allowlist" and "the allowlist is fine" are not the same claim.
+if register_override.nil? || !ARGV.index('--base-ref').nil?
+  repo_root = repo_root_override || File.expand_path('..', __dir__)
+  base_json = `git -C #{repo_root.shellescape} show #{base_ref.shellescape}:audit-reports/DOCUMENT-REGISTER.json 2>/dev/null`
+  if !$CHILD_STATUS.success? || base_json.strip.empty?
+    problems << "cannot read audit-reports/DOCUMENT-REGISTER.json at base revision " \
+                "#{base_ref.inspect}, so meta.legalNamingGrandfathered cannot be verified as " \
+                'closed. This refuses rather than skipping: an unverifiable allowlist is the exact ' \
+                'condition an allowlist-laundering change would produce. Fetch the base branch, or ' \
+                'pass --base-ref with a revision that exists.'
+  else
+    begin
+      base_reg = JSON.parse(base_json)
+      base_allowed = (base_reg['documents'] || []).select do |d|
+        d['canonicalSystem'].to_s.casecmp?('git') &&
+          d['canonicalLocation'].to_s.downcase.start_with?(LEGAL_PREFIX) &&
+          dated_parts(d['canonicalLocation']).nil?
+      end.map { |d| d['canonicalLocation'].to_s }
+
+      (grandfathered - base_allowed).each do |loc|
+        problems << "meta.legalNamingGrandfathered lists #{loc}, which was NOT a non-dated " \
+                    "docs/legal row at base revision #{base_ref}. The allowlist is closed: it " \
+                    'grandfathers records that predate the naming rule, so a path can only be added ' \
+                    'to it if it already existed. Adding a new record and allowlisting it in the ' \
+                    'same change is the bypass this check exists to stop. New records must be ' \
+                    "#{LEGAL_PREFIX}<YYYY-MM-DD>_<kebab-slug>.<ext>."
+      end
+    rescue JSON::ParserError => e
+      problems << "base revision #{base_ref} has an unparseable register (#{e.message}), so the " \
+                  'allowlist cannot be verified as closed. Refusing rather than skipping.'
+    end
+  end
 end
 
 dated_count = rows.count { |r| dated_parts(r['canonicalLocation']) }

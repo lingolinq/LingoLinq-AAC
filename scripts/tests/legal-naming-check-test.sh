@@ -222,6 +222,89 @@ JSON
 expect_fail "a new statusEnum value the token list does not cover is refused" \
   "$TMP/enum.json" "STATUS_TOKEN does not cover"
 
+echo "legal-naming-check-test: CHECK 6, wrong-cased docs/legal paths"
+
+build_register "$TMP/c6.json" '[
+  {"id":"DOC-a","title":"Wrong case","canonicalSystem":"git",
+   "canonicalLocation":"docs/Legal/2026-08-13_thing_draft.md","status":"approved",
+   "attestation":{"attestedBy":"Scot","attestedDate":"2026-08-13","attestedContentHash":"x"}}
+]'
+# Regression guard: this path previously fell OUT of scope entirely and the checker exited 0
+# reporting "0 docs/legal rows", so capitalising a directory name stepped around the whole gate.
+expect_fail "docs/Legal wrong-case path is in scope and refused" "$TMP/c6.json" "differs in case"
+
+echo "legal-naming-check-test: CHECK 7, the allowlist cannot launder a new record"
+
+# These need real git history, because the baseline is deliberately NOT an in-repo file that
+# the same change could edit. Build a throwaway repo with a base commit.
+GITFX="$TMP/gitfx"
+mkdir -p "$GITFX/audit-reports"
+(
+  cd "$GITFX" || exit 1
+  git init -q .
+  cat > audit-reports/DOCUMENT-REGISTER.json <<'JSON'
+{"meta":{"statusEnum":["draft","approved","published","superseded","archived"],
+ "legalNamingGrandfathered":["docs/legal/LEGACY.md"]},
+ "documents":[{"id":"D1","title":"Legacy","canonicalSystem":"git",
+  "canonicalLocation":"docs/legal/LEGACY.md","status":"draft","attestation":{}}]}
+JSON
+  git add -A
+  git -c user.email=t@example.invalid -c user.name=test commit -qm base
+  git branch -f base HEAD
+) || fail "could not build the git fixture"
+
+# expect_fail_git <name> <needle>   (register is always $GITFX's working copy)
+expect_fail_git() {
+  local name="$1" needle="$2" out
+  out="$(ruby "$CHECK" --register "$GITFX/audit-reports/DOCUMENT-REGISTER.json" \
+         --base-ref base --repo-root "$GITFX" --check 2>&1)"
+  if [ $? -eq 0 ]; then
+    fail "$name (checker exited 0; it should have refused)"
+  elif ! printf '%s' "$out" | grep -qi -- "$needle"; then
+    fail "$name (refused, but not for the expected reason; wanted /$needle/)"
+  else
+    pass "$name"
+  fi
+}
+
+# The bypass found in independent review: add a new non-dated row AND allowlist it, same change.
+cat > "$GITFX/audit-reports/DOCUMENT-REGISTER.json" <<'JSON'
+{"meta":{"statusEnum":["draft","approved","published","superseded","archived"],
+ "legalNamingGrandfathered":["docs/legal/LEGACY.md","docs/legal/BRAND_NEW.md"]},
+ "documents":[{"id":"D1","title":"Legacy","canonicalSystem":"git",
+  "canonicalLocation":"docs/legal/LEGACY.md","status":"draft","attestation":{}},
+              {"id":"D2","title":"Laundered","canonicalSystem":"git",
+  "canonicalLocation":"docs/legal/BRAND_NEW.md","status":"draft","attestation":{}}]}
+JSON
+expect_fail_git "a new non-dated row allowlisted in the SAME change is refused" "was NOT a non-dated"
+
+# Adding a properly dated record alongside an unchanged allowlist must still pass.
+cat > "$GITFX/audit-reports/DOCUMENT-REGISTER.json" <<'JSON'
+{"meta":{"statusEnum":["draft","approved","published","superseded","archived"],
+ "legalNamingGrandfathered":["docs/legal/LEGACY.md"]},
+ "documents":[{"id":"D1","title":"Legacy","canonicalSystem":"git",
+  "canonicalLocation":"docs/legal/LEGACY.md","status":"draft","attestation":{}},
+              {"id":"D2","title":"New dated","canonicalSystem":"git",
+  "canonicalLocation":"docs/legal/2026-08-13_new-thing.md","status":"draft","attestation":{}}]}
+JSON
+out="$(ruby "$CHECK" --register "$GITFX/audit-reports/DOCUMENT-REGISTER.json" \
+       --base-ref base --repo-root "$GITFX" --check 2>&1)"
+if [ $? -eq 0 ]; then
+  pass "adding a properly DATED new record is still allowed"
+else
+  fail "adding a properly DATED new record is still allowed (wrongly refused)"
+  printf '%s\n' "$out" | sed 's/^/         /' | head -3
+fi
+
+# Unverifiable baseline must REFUSE, not skip.
+out="$(ruby "$CHECK" --register "$GITFX/audit-reports/DOCUMENT-REGISTER.json" \
+       --base-ref no-such-ref --repo-root "$GITFX" --check 2>&1)"
+if [ $? -ne 0 ] && printf '%s' "$out" | grep -qi "cannot be verified as\|cannot read"; then
+  pass "an unreadable base revision refuses rather than skipping"
+else
+  fail "an unreadable base revision refuses rather than skipping"
+fi
+
 echo "legal-naming-check-test: the live register still passes"
 expect_pass "live DOCUMENT-REGISTER.json passes" "$REPO_ROOT/audit-reports/DOCUMENT-REGISTER.json"
 

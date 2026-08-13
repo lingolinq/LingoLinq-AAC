@@ -130,11 +130,15 @@ jobs:
         run: npx ember test
 
   # Blocking gate for the audit/compliance system's own generated artifacts. These
-  # are deterministic, stdlib-only render checks (no gems, no network, no git
-  # history) that fail ONLY if a generated markdown drifts from its JSON source of
-  # truth - so making them blocking is low-friction and keeps the register's
-  # human-readable mirrors honest. (citation-check.rb is intentionally NOT gated
-  # here: a repo-wide blocking citation check is a broader policy decision.)
+  # are deterministic, stdlib-only render checks (no gems, no network) that fail ONLY
+  # if a generated markdown drifts from its JSON source of truth - so making them
+  # blocking is low-friction and keeps the register's human-readable mirrors honest.
+  # (citation-check.rb is intentionally NOT gated here: a repo-wide blocking citation
+  # check is a broader policy decision.)
+  #
+  # ONE EXCEPTION to "no git history": legal-naming-check.rb reads the register at the
+  # base revision, because its grandfather allowlist cannot be allowed to certify
+  # itself. That is why a base-branch fetch step appears below.
   audit-artifacts-integrity:
     runs-on: ubuntu-latest
 
@@ -165,8 +169,19 @@ jobs:
       - name: Verify capability ledger (currentEvidence resolves at HEAD; negativeEvidence scoping)
         run: ruby scripts/capability-check.rb --check
 
+      # legal-naming-check verifies meta.legalNamingGrandfathered against the BASE revision,
+      # so unlike the render checks above it does need a little git history. Without it the
+      # check fails closed by design, because "I could not verify the allowlist" is not the
+      # same claim as "the allowlist is fine". Fetch only the base branch, not full history.
+      - name: Fetch base branch for the naming allowlist baseline
+        env:
+          BASE_BRANCH: ${{ github.base_ref || github.ref_name }}
+        run: git fetch --no-tags --depth=1 origin "$BASE_BRANCH:refs/remotes/origin/$BASE_BRANCH"
+
       - name: Verify docs/legal naming rule (attested rows carry no status token)
-        run: ruby scripts/legal-naming-check.rb --check
+        env:
+          BASE_BRANCH: ${{ github.base_ref || github.ref_name }}
+        run: ruby scripts/legal-naming-check.rb --base-ref "origin/$BASE_BRANCH" --check
 
       # The rule above is unfixable once violated, because attestation freezes the
       # filename permanently. So the guard itself is tested here rather than trusted:
