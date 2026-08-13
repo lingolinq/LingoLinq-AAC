@@ -13,8 +13,21 @@
 **Launch profile:** `adult-beta-initial`  
 **Open Critical:** 0  
 **Verified Critical closures:** 7  
+**Unmapped Critical/High:** 1 🔴 (see governance exception section below)<br>
 **Overall posture:** 🟡 Moving toward controlled beta  
 **Pending launch decisions:** aiWordPredictionEnabled; aiFocusWordsEnabled; aiBoardGenerationEnabled; euUsersIncluded; minorsIncluded; schoolManagedAccounts; mvpIncludesMinors
+
+## ⚠️ Unmapped Critical/High findings (governance exception)
+
+1 open Critical/High finding(s) are linked to **no** requirement and therefore drive
+**no** milestone card, blocker list, or inherited-blocker count above or below. Each remains open in
+the canonical register with reconciliation owed, regardless of any engineering work already merged
+against it, until it is either linked to an applicable requirement or Scot explicitly assesses it as
+not launch-relevant (a governance decision this layer never makes on its own).
+
+| Finding | Severity | Disposition | Title |
+|---|---|---|---|
+| `LL-522c1a6d13` | high | untriaged | Masquerade produces no AuditEvent; the site-admin branch impersonates any user with no disclosure re |
 
 ## Current finding baseline
 
@@ -32,13 +45,14 @@
 | Verified closed | 51 |
 | Verified-closed Critical | 7 |
 
-### Open findings not linked to any requirement
+### Open findings not linked to any requirement (informational)
 
-49 of 62 open findings are linked to no requirement row and therefore appear in no
-milestone or blocker view above (0 critical / 1 high / 24 medium / 24 low). The milestone cards are a
-readiness lens, never a complete risk inventory - `FINDINGS.md` remains the full register.
-Unlinked Critical/High:
-- `LL-522c1a6d13` (high) - Masquerade produces no AuditEvent; the site-admin branch impersonates any user with no disclosure record
+49 of 62 open findings are linked to no requirement row (0 critical / 1 high / 24 medium / 24 low).
+The milestone cards are a readiness lens, never a complete risk inventory - `FINDINGS.md` remains the
+full register. Critical/High items in this count are the same ones called out as a governance
+exception above; Medium/Low items are informational only and **never** automatically become a
+milestone blocker - blocking status is a property of a linked, ratified requirement, not of a
+finding's severity by itself.
 
 ## Milestones
 

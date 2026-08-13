@@ -350,11 +350,23 @@ else
   fail "--snapshot appended behind a future-dated prior snapshot"
 fi
 
-echo "readiness-check-test: unlinked-open-finding visibility cannot be suppressed"
+echo "readiness-check-test: unmapped Critical/High governance exception (distinct from the informational list)"
+# Baseline: LL-522c1a6d13 (high, masquerade AuditEvent) is unlinked in the live
+# data today and must already appear in the dedicated exception section, not
+# merely folded into the larger informational count.
+reset_work
+ruby scripts/readiness-check.rb >/dev/null 2>&1
+if grep -qF '## ⚠️ Unmapped Critical/High findings (governance exception)' "$WORK_DIR/READINESS-DASHBOARD.md" \
+   && sed -n '/## ⚠️ Unmapped Critical\/High/,/## Current finding baseline/p' "$WORK_DIR/READINESS-DASHBOARD.md" | grep -qF 'LL-522c1a6d13'; then
+  pass "the live unmapped High (LL-522c1a6d13) renders in its own governance-exception section today"
+else
+  fail "LL-522c1a6d13 is not in the dedicated exception section"
+fi
+
 # LL-16ef84ad9a (high) is currently linked via adult-beta-ai-cache. Removing
-# that link must surface it in the unlinked section, not make it disappear -
-# proving the invisible-risk fix actually reacts to a findingIds edit rather
-# than being frozen prose.
+# that link must move it into the dedicated exception section specifically -
+# not just the larger informational list - proving the split reacts to a live
+# findingIds edit rather than being frozen prose.
 reset_work
 ruby -rjson -e "
   doc=JSON.parse(File.read('$WORK_DIR/READINESS-MILESTONES.json'))
@@ -362,15 +374,40 @@ ruby -rjson -e "
   File.write('$WORK_DIR/READINESS-MILESTONES.json', JSON.pretty_generate(doc)+\"\n\")
 "
 ruby scripts/readiness-check.rb >/dev/null 2>&1
-if grep -qF '`LL-16ef84ad9a` (high)' "$WORK_DIR/READINESS-DASHBOARD.md"; then
-  pass "unlinking a requirement's findingIds surfaces the finding in the unlinked-open section (not silently hidden)"
+dashboard="$WORK_DIR/READINESS-DASHBOARD.md"
+exception_section=$(sed -n '/## ⚠️ Unmapped Critical\/High/,/## Current finding baseline/p' "$dashboard")
+if echo "$exception_section" | grep -qF 'LL-16ef84ad9a' \
+   && grep -qF '**Unmapped Critical/High:** 2' "$dashboard"; then
+  pass "unlinking a currently-linked High moves it into the exception section and the header count updates"
 else
-  fail "unlinking a High finding did not surface it in the unlinked-open section"
+  fail "unlinking a High did not move it into the exception section / update the header count"
 fi
 
-# The heading itself must be UNCONDITIONAL - present even in the (currently
-# hypothetical) all-linked case - so a reader can never mistake "no heading"
-# for "nothing to report" if a future edit ever breaks the render.
+# When every open Critical/High is linked, the exception section must state
+# "None" EXPLICITLY - never simply omit the section, so absence-of-content can
+# never be mistaken for absence-of-check.
+reset_work
+ruby -rjson -e "
+  doc=JSON.parse(File.read('$WORK_DIR/READINESS-MILESTONES.json'))
+  findings=JSON.parse(File.read('audit-reports/FINDINGS.json'))['findings']
+  ch_ids=findings.select{|f| f['status']=='open' && %w[critical high].include?(f['severity'])}.map{|f| f['id']}
+  r=doc['requirements'].find{|r| r['id']=='adult-beta-ai-cache'}
+  r['findingIds']=(r['findingIds']+ch_ids).uniq
+  File.write('$WORK_DIR/READINESS-MILESTONES.json', JSON.pretty_generate(doc)+\"\n\")
+"
+ruby scripts/readiness-check.rb >/dev/null 2>&1
+dashboard="$WORK_DIR/READINESS-DASHBOARD.md"
+exception_section=$(sed -n '/## ⚠️ Unmapped Critical\/High/,/## Current finding baseline/p' "$dashboard")
+if echo "$exception_section" | grep -qF 'None - every open Critical/High finding is linked' \
+   && grep -qF '**Unmapped Critical/High:** 0 - none' "$dashboard"; then
+  pass "the exception section states None explicitly (and the header count is 0) when every Critical/High is linked"
+else
+  fail "the exception section did not state an explicit None when all Critical/High findings are linked"
+fi
+
+# The general informational section still exists for Medium/Low context, its
+# heading remains unconditional, and it correctly cross-references the
+# dedicated exception section rather than duplicating a bare severity list.
 reset_work
 ruby -rjson -e "
   doc=JSON.parse(File.read('$WORK_DIR/READINESS-MILESTONES.json'))
@@ -379,11 +416,43 @@ ruby -rjson -e "
   File.write('$WORK_DIR/READINESS-MILESTONES.json', JSON.pretty_generate(doc)+\"\n\")
 "
 ruby scripts/readiness-check.rb >/dev/null 2>&1
-if grep -qF '### Open findings not linked to any requirement' "$WORK_DIR/READINESS-DASHBOARD.md" \
+if grep -qF '### Open findings not linked to any requirement (informational)' "$WORK_DIR/READINESS-DASHBOARD.md" \
    && grep -qF 'None - every open finding is linked' "$WORK_DIR/READINESS-DASHBOARD.md"; then
-  pass "the unlinked-open heading renders unconditionally, even when the list is empty"
+  pass "the informational section heading renders unconditionally, even when the list is empty"
 else
-  fail "the unlinked-open heading was suppressed when the list became empty"
+  fail "the informational section heading was suppressed when the list became empty"
+fi
+
+# Medium/Low unlinked findings must never automatically become a milestone
+# blocker: an unlinked finding cannot appear in ANY milestone's Top Blockers
+# list, because blocking status derives only from a linked, ratified,
+# blocking=true requirement - never from severity alone. Structurally true by
+# construction (top_blockers iterates `requirements`, never `findings`
+# directly), verified here against the live open Medium/Low set.
+reset_work
+ruby scripts/readiness-check.rb >/dev/null 2>&1
+medium_low_unlinked=$(ruby -rjson -e "
+  findings=JSON.parse(File.read('audit-reports/FINDINGS.json'))['findings']
+  reqs=JSON.parse(File.read('$WORK_DIR/READINESS-MILESTONES.json'))['requirements']
+  linked=reqs.flat_map{|r| r['findingIds']||[]}.to_set
+  open_ml=findings.select{|f| f['status']=='open' && %w[medium low].include?(f['severity'])}
+  puts open_ml.reject{|f| linked.include?(f['id'])}.map{|f| f['id']}
+")
+# No unlinked Medium/Low id may appear anywhere under a "Top blockers" heading
+# in the render (top_blockers is derived only from linked requirements).
+blocker_sections=$(awk '/^### Top blockers/{p=1} /^## /{if($0 !~ /^### Top blockers/) p=0} p' "$WORK_DIR/READINESS-DASHBOARD.md")
+leaked=0
+for fid in $medium_low_unlinked; do
+  if echo "$blocker_sections" | grep -qF "$fid"; then
+    leaked=1
+  fi
+done
+if [ -n "$medium_low_unlinked" ] && [ "$leaked" -eq 0 ]; then
+  pass "no unlinked Medium/Low finding appears in any milestone's Top Blockers list"
+elif [ -z "$medium_low_unlinked" ]; then
+  fail "test fixture assumption broken: expected at least one unlinked Medium/Low open finding to exist"
+else
+  fail "an unlinked Medium/Low finding leaked into a Top Blockers list"
 fi
 
 echo "readiness-check-test: canonical register sanity"

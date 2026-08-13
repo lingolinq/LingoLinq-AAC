@@ -47,6 +47,20 @@
 #     never a silent pass presented as protection.
 #   - in --check: the committed dashboard render must match byte-for-byte
 #
+# UNMAPPED CRITICAL/HIGH FINDINGS
+#   Open findings with no requirement link are informational (a Medium/Low
+#   audit item was never meant to become a milestone requirement on its own -
+#   blocking status belongs to a linked, ratified requirement, never to
+#   severity alone). An open Critical/High with no link is different: it is
+#   rendered in its own "governance exception" section, ahead of every other
+#   content block including the finding baseline table and the milestone
+#   cards, plus a header stat, so it cannot be missed by reading only the top
+#   of the document or a single milestone card. It stays listed there,
+#   canonical-register truth intact (open, reconciliation owed, independent of
+#   any engineering work already merged against it), until a human links it to
+#   an applicable requirement or Scot explicitly assesses it as not
+#   launch-relevant - this layer never makes that call itself.
+#
 # WARNINGS (printed, exit stays 0)
 #   - claimed-done deliverable with a linked finding still open (renders as
 #     done-awaiting-reconciliation; deliberately NOT a CI failure)
@@ -793,11 +807,42 @@ def render_dashboard(ctx)
 
   pending = ctx[:decisions].select { |_, v| v == 'undecided' }.keys
   no_crit = ctx[:invariants].dig('adult-beta-no-critical', 'pass')
+  unmapped_ch = ctx[:unmapped_critical_high]
   out << "**Launch profile:** `#{ctx[:profile]['profile']}`  \n"
   out << "**Open Critical:** #{m['openBySeverity']['critical']}  \n"
   out << "**Verified Critical closures:** #{m['verifiedClosedCritical']}  \n"
+  # <br>, not a trailing double-space hard-break like its sibling lines: this
+  # is a newly-introduced line, and `git diff --check` flags trailing
+  # whitespace on genuinely new/changed lines even though the same
+  # double-space convention is already pervasive (and un-flagged, because
+  # unchanged) throughout the rest of this generated file.
+  out << "**Unmapped Critical/High:** #{unmapped_ch.size}#{unmapped_ch.any? ? " #{LIGHT['red']} (see governance exception section below)" : ' - none'}<br>\n"
   out << "**Overall posture:** #{no_crit ? LIGHT['yellow'] : LIGHT['red']} #{no_crit ? 'Moving toward controlled beta' : 'Open Critical blocks beta'}  \n"
   out << "**Pending launch decisions:** #{pending.empty? ? 'none' : pending.join('; ')}\n\n"
+
+  # Positioned before every other content block, including the finding
+  # baseline table and the milestone cards, so a reader who reads only the top
+  # of the document - or only a single milestone card - still cannot miss a
+  # material open Critical/High that no requirement currently covers. This is
+  # a governance EXCEPTION list, distinct from the larger Medium/Low
+  # informational one below: presence here means "someone must decide", not
+  # "here is more context."
+  out << "## ⚠️ Unmapped Critical/High findings (governance exception)\n\n"
+  if unmapped_ch.empty?
+    out << "None - every open Critical/High finding is linked to at least one requirement row.\n\n"
+  else
+    out << "#{unmapped_ch.size} open Critical/High finding(s) are linked to **no** requirement and therefore drive\n"
+    out << "**no** milestone card, blocker list, or inherited-blocker count above or below. Each remains open in\n"
+    out << "the canonical register with reconciliation owed, regardless of any engineering work already merged\n"
+    out << "against it, until it is either linked to an applicable requirement or Scot explicitly assesses it as\n"
+    out << "not launch-relevant (a governance decision this layer never makes on its own).\n\n"
+    out << "| Finding | Severity | Disposition | Title |\n|---|---|---|---|\n"
+    unmapped_ch.each do |f|
+      disp = f.dig('disposition', 'state') || 'untriaged'
+      out << "| `#{f['id']}` | #{f['severity']} | #{disp} | #{f['title'].to_s[0, 100]} |\n"
+    end
+    out << "\n"
+  end
 
   out << "## Current finding baseline\n\n"
   out << "| Metric | Count |\n|---|---:|\n"
@@ -811,21 +856,18 @@ def render_dashboard(ctx)
   out << "| Verified-closed Critical | #{m['verifiedClosedCritical']} |\n\n"
 
   unlinked = ctx[:unlinked_open]
-  out << "### Open findings not linked to any requirement\n\n"
+  out << "### Open findings not linked to any requirement (informational)\n\n"
   if unlinked.empty?
     out << "None - every open finding is linked to at least one requirement row.\n\n"
   else
     by_sev = Hash.new(0)
     unlinked.each { |f| by_sev[f['severity']] += 1 }
-    out << "#{unlinked.size} of #{m['open']} open findings are linked to no requirement row and therefore appear in no\n"
-    out << "milestone or blocker view above (#{SEVERITY_ENUM.map { |s| "#{by_sev[s]} #{s}" }.join(' / ')}). The milestone cards are a\n"
-    out << "readiness lens, never a complete risk inventory - `FINDINGS.md` remains the full register.\n"
-    serious = unlinked.select { |f| %w[critical high].include?(f['severity']) }.sort_by { |f| [f['severity'] == 'critical' ? 0 : 1, f['id']] }
-    if serious.any?
-      out << "Unlinked Critical/High:\n"
-      serious.each { |f| out << "- `#{f['id']}` (#{f['severity']}) - #{f['title'].to_s[0, 110]}\n" }
-    end
-    out << "\n"
+    out << "#{unlinked.size} of #{m['open']} open findings are linked to no requirement row (#{SEVERITY_ENUM.map { |s| "#{by_sev[s]} #{s}" }.join(' / ')}).\n"
+    out << "The milestone cards are a readiness lens, never a complete risk inventory - `FINDINGS.md` remains the\n"
+    out << "full register. Critical/High items in this count are the same ones called out as a governance\n"
+    out << "exception above; Medium/Low items are informational only and **never** automatically become a\n"
+    out << "milestone blocker - blocking status is a property of a linked, ratified requirement, not of a\n"
+    out << "finding's severity by itself.\n\n"
   end
 
   out << "## Milestones\n\n"
@@ -1041,6 +1083,8 @@ reference_date = if latest_snap
 
 linked_ids = requirements.flat_map { |r| r['findingIds'] || [] }.to_set
 unlinked_open = open_findings.reject { |f| linked_ids.include?(f['id']) }.sort_by { |f| f['id'] }
+unmapped_critical_high = unlinked_open.select { |f| %w[critical high].include?(f['severity']) }
+                                       .sort_by { |f| [f['severity'] == 'critical' ? 0 : 1, f['id']] }
 
 ctx = {
   milestones: milestones, requirements: requirements, derived: derived,
@@ -1049,6 +1093,7 @@ ctx = {
   work: work, work_metrics: work_metrics, identities: identities,
   sources: (profile['meta'] || {})['sources'] || [],
   unlinked_open: unlinked_open,
+  unmapped_critical_high: unmapped_critical_high,
   reference_date: reference_date,
   as_of: snapshots.last ? snapshots.last['generatedAt'] : "#{(profile['meta'] || {})['generatedDate']} (no snapshot yet)"
 }
