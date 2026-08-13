@@ -676,7 +676,13 @@
       "appliesWhen": {
         "summary": "always"
       },
-      "whyItMatters": "Customer-facing claims must describe the system that actually runs."
+      "whyItMatters": "Customer-facing claims must describe the system that actually runs.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-13",
+        "via": "PR #792 draft-review instruction (Public MVP milestone pass). Evidence-note correction: the earlier draft cited the stale Notion Compliance Home count contradiction as primary evidence; that only proves internal-dashboard/mirror staleness, not a privacy-disclosure mismatch. The correct evidence is LAUNCH-PROFILE.json meta.sources[drive-external-overview]: the customer-facing Drive 'Security, Privacy & Compliance Overview' (2026-08-04 attested / 2026-08-06 published copy) is renamed SUPERSEDED with no current attested copy, only an 2026-08-11 DRAFT - DO NOT SHARE cleanup draft - so the actual public-facing disclosure surface is unreconciled, substantiating in-progress/blocking as-is. humanStatus and blocking unchanged."
+      }
     },
     {
       "id": "public-mvp-bedrock-account-proof",
@@ -701,7 +707,13 @@
           ]
         }
       },
-      "whyItMatters": "Contract coverage is not sufficient unless the actual serving credential is proven to belong to the covered account."
+      "whyItMatters": "Contract coverage is not sufficient unless the actual serving credential is proven to belong to the covered account.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-13",
+        "via": "PR #792 draft-review instruction (Public MVP milestone pass)"
+      }
     },
     {
       "id": "public-mvp-release-control",
@@ -717,7 +729,13 @@
       "appliesWhen": {
         "summary": "production"
       },
-      "whyItMatters": "Public launch requires repeatable, attributable release assurance."
+      "whyItMatters": "Public launch requires repeatable, attributable release assurance.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-13",
+        "via": "PR #792 draft-review instruction (Public MVP milestone pass)"
+      }
     },
     {
       "id": "public-mvp-admin-credential",
@@ -735,7 +753,13 @@
       "appliesWhen": {
         "summary": "customer-facing production"
       },
-      "whyItMatters": "A memorable seeded admin credential is incompatible with customer-ready privileged access."
+      "whyItMatters": "A memorable seeded admin credential is incompatible with customer-ready privileged access.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-13",
+        "via": "PR #792 draft-review instruction (Public MVP milestone pass)"
+      }
     },
     {
       "id": "public-mvp-high-verification",
@@ -750,7 +774,13 @@
       "appliesWhen": {
         "summary": "always"
       },
-      "whyItMatters": "Public MVP should not treat 'code probably fixed' as equivalent to verified closure for launch-relevant Highs."
+      "whyItMatters": "Public MVP should not treat 'code probably fixed' as equivalent to verified closure for launch-relevant Highs.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-13",
+        "via": "PR #792 draft-review instruction (Public MVP milestone pass)"
+      }
     },
     {
       "id": "public-mvp-incident-runbook",
@@ -766,7 +796,13 @@
       "appliesWhen": {
         "summary": "production data"
       },
-      "whyItMatters": "Response procedures must point responders to current systems, providers, and recovery paths."
+      "whyItMatters": "Response procedures must point responders to current systems, providers, and recovery paths.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-13",
+        "via": "PR #792 draft-review instruction (Public MVP milestone pass). humanStatus stays in-progress: docs/legal/BREACH_RUNBOOK.md (git canonical) is approved/attested 2026-08-04, but per DOCUMENT-REGISTER.json the branded Drive mirror was last attested 2026-06-19 (predates the runbook's later GCP/Cloud Run refresh) and the July v2.2 refresh has not had a dedicated semantic/runtime promotion review. Not upgraded to claimed-done in this pass."
+      }
     },
     {
       "id": "district-ready-trust-pack",

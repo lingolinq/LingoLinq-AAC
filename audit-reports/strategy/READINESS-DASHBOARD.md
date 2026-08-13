@@ -6,7 +6,7 @@
 >
 > Findings baseline: live from `FINDINGS.json` at render | Risk movement since snapshot: 2026-08-11T23:53:23Z | Strategy generated: 2026-08-11
 
-> ⚠️ **PARTIALLY RATIFIED - 18 of 40 requirements ratified by Scot** (per-row
+> ⚠️ **PARTIALLY RATIFIED - 24 of 40 requirements ratified by Scot** (per-row
 > `ratification` objects; milestone-by-milestone review). Every row without one remains a
 > proposal. `meta.ratification.status` flips to `ratified` only when Scot has ratified all rows.
 
@@ -60,7 +60,7 @@ finding's severity by itself.
 |---|---:|---:|---|---:|---:|---:|---:|---:|---:|---|
 | Controlled Adult / SLP / Teacher Beta | 10 | 10 | 0 | 2 | 4 | 3 | 0 | 0 | 0 | 1 invariant-holding |
 | School / Minor Beta | 8 | 8 | 9 | 1 | 7 | 0 | 0 | 0 | 0 | 0 |
-| Public MVP | 6 | 0 | 9 (+8 decision-dependent) | 1 | 1 | 3 | 0 | 0 | 0 | 1 invariant-failing |
+| Public MVP | 6 | 6 | 9 (+8 decision-dependent) | 1 | 1 | 3 | 0 | 0 | 0 | 1 invariant-failing |
 | District Procurement Ready | 9 | 0 | 0 | 0 | 0 | 8 | 0 | 0 | 0 | 1 future |
 | Long-Term Assurance | 7 | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 5 future |
 
