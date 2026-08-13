@@ -113,7 +113,10 @@ module AiPredictionGenerator
       {
         provider: :claude,
         region: AiClient.bedrock_region,
-        model: AiClient.bedrock_model(ENV.fetch('ANTHROPIC_MODEL', 'anthropic.claude-haiku-4-5'))
+        # runtime_model, not bedrock_model -- see the note in AiBoardGenerator's
+        # resolve_api_config. bedrock_model passes an unvetted override through to
+        # the wire; runtime_model enforces ALLOWED_RUNTIME_MODELS first.
+        model: AiClient.runtime_model('anthropic.claude-haiku-4-5')
       }
     end
 

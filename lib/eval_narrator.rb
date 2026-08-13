@@ -107,7 +107,15 @@ module EvalNarrator
     # deterministic local template and no eval data leaves for the AI
     # provider. This default-safe posture is in addition to the ai_allowed_for?
     # COPPA/org gate, not a replacement for it.
-    if anthropic_configured? && payload['use_anthropic'] == true && ai_allowed_for?(user)
+    #
+    # Order is load-bearing. anthropic_configured? calls AiClient.available?, which
+    # performs the sts:GetCallerIdentity account assertion; a FAILED assertion
+    # re-probes every 60s holding a process-global mutex for up to 5s. Evaluating it
+    # first made EVERY draft pay that cost, including template-only drafts that never
+    # asked for AI and AI-ineligible users about to be refused. The two cheap local
+    # checks decide whether an AI call is wanted and permitted, so they come first
+    # and Ruby's left-to-right && short-circuits the probe away entirely.
+    if payload['use_anthropic'] == true && ai_allowed_for?(user) && anthropic_configured?
       begin
         narrative, marker = draft_via_anthropic(payload, user)
         return { 'narrative' => narrative, 'ai_generated' => marker }
