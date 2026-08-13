@@ -1214,6 +1214,77 @@ body.md-home-focused #content > .ember-view:empty {
   .board_status {
     color: #ccc;
   }
+  .board-load-error__message {
+    color: rgba(255, 255, 255, 0.92);
+  }
+  .board-load-error__retrying {
+    color: rgba(255, 255, 255, 0.65);
+  }
+  .board-load-error__retry-link {
+    color: rgba(255, 255, 255, 0.7);
+  }
+  .board-load-error__retry-link:hover,
+  .board-load-error__retry-link:focus-visible {
+    color: rgba(255, 255, 255, 0.95);
+  }
+}
+
+/* Classic / board-alt load failure: escape hatches (Home / Back / Exit Speak).
+   Mirrors board-detail's error recovery so Try Again is not the only exit. */
+.board-load-error,
+.board_status {
+  .board-load-error__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 16px 0 8px;
+    max-width: 640px;
+  }
+  .board-load-error__action {
+    font-size: 1.05rem;
+    min-height: 48px;
+    padding: 12px 22px;
+    border-radius: 10px;
+  }
+  .board-load-error__retry-link {
+    appearance: none;
+    background: none;
+    border: none;
+    display: inline-block;
+    margin-top: 8px;
+    padding: 10px 16px;
+    min-height: 44px;
+    font-size: 1rem;
+    color: rgba(0, 0, 0, 0.55);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .board-load-error__retry-link:hover,
+  .board-load-error__retry-link:focus-visible {
+    color: rgba(0, 0, 0, 0.9);
+  }
+}
+.board-load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 240px;
+  padding: 48px 24px;
+  text-align: center;
+}
+.board-load-error__message {
+  font-size: 1.15rem;
+  margin: 0;
+  max-width: 520px;
+}
+.board-load-error__retrying {
+  font-size: 1rem;
+  margin: 0;
+  font-style: italic;
 }
 
 /* ==========================================================================
@@ -68380,18 +68451,55 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   margin: 0;
   font-style: italic;
 }
-.md-board-detail-error__retry {
-  font-size: 17px;
+.md-board-detail-error__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  max-width: 640px;
+}
+.md-board-detail-error__action {
+  font-size: 1.05rem;
+  min-height: 48px;
+  padding: 12px 22px;
+  border-radius: 10px;
+}
+.md-board-detail-error__action--primary {
+  font-weight: 600;
+}
+.md-board-detail-error__retry,
+.md-board-detail-error__retry-link {
+  font-size: 1rem;
   padding: 10px 24px;
 }
+.md-board-detail-error__retry-link {
+  appearance: none;
+  background: none;
+  border: none;
+  color: rgba($la-navy, 0.65);
+  text-decoration: underline;
+  cursor: pointer;
+  min-height: 44px;
+}
+.md-board-detail-error__retry-link:hover,
+.md-board-detail-error__retry-link:focus-visible {
+  color: rgba($la-navy, 0.95);
+}
 /* Dark board surface: the navy message/retry text is invisible against the
-   dark canvas — flip both to light. (The "Try Again" btn is white-on-dark
-   already, so it needs no override.) */
+   dark canvas — flip both to light. */
 .md-board-detail--dark .md-board-detail-error__message {
   color: rgba(255, 255, 255, 0.92);
 }
 .md-board-detail--dark .md-board-detail-error__retrying {
   color: rgba(255, 255, 255, 0.65);
+}
+.md-board-detail--dark .md-board-detail-error__retry-link {
+  color: rgba(255, 255, 255, 0.7);
+}
+.md-board-detail--dark .md-board-detail-error__retry-link:hover,
+.md-board-detail--dark .md-board-detail-error__retry-link:focus-visible {
+  color: rgba(255, 255, 255, 0.95);
 }
 
 /* ── Board background layer (VSD / scene display): scoped via :has(#board_bg)

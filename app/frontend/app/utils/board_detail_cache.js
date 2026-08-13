@@ -19,6 +19,7 @@
 
 import persistence from './persistence';
 import boardPrefetchPlanner from './board_prefetch_planner';
+import boardsPageListCache from './boards_page_list_cache';
 import { later as runLater } from '@ember/runloop';
 import RSVP from 'rsvp';
 import LingoLinq from '../app';
@@ -221,6 +222,24 @@ function _prefetch_pipeline_complete(user, phaseDone) {
     return false;
   }
   return true;
+}
+
+/* Wait out a foreground Mine-list fetch so catalog /tree warm does not
+   starve boards-page pagination. Caps wait so a stuck busy flag cannot
+   block prefetch forever. */
+function _wait_while_mine_list_busy(maxWaitMs) {
+  maxWaitMs = maxWaitMs === undefined ? 120000 : maxWaitMs;
+  var started = _now();
+  var check = function() {
+    if (!boardsPageListCache.isMineListBusy()) {
+      return RSVP.resolve();
+    }
+    if ((_now() - started) >= maxWaitMs) {
+      return RSVP.resolve();
+    }
+    return _later_promise(200).then(check);
+  };
+  return check();
 }
 
 function _later_promise(ms) {
@@ -690,35 +709,41 @@ export default {
     if (boardPrefetchPlanner.publicPrefetchEnabled(user) && !phaseDone.phase4) {
       chain = chain.then(function() {
         if (_document_hidden() || !_is_online()) { return RSVP.resolve(); }
-        return boardPrefetchPlanner.fetchBoardListsForPrefetch(
-          persistence.ajax.bind(persistence),
-          user,
-          { includeOwned: false, includePublic: true }
-        ).then(function(listData) {
-          var seen = {};
-          var phased = boardPrefetchPlanner.buildPhasedLookups(user, {
-            catalogBoards: listData.catalogBoards,
-            globalBoards: listData.globalBoards,
-            includeLiked: false
-          });
-          phased.phase1.concat(phased.phase2, phased.phase3).forEach(function(l) { seen[l] = true; });
-          var publicLookups = boardPrefetchPlanner.collectPublicLookups(
+        /* Defer catalog/global /tree flood until boards-page Mine list
+           finishes (or the wait cap elapses). Home/liked/owned phases
+           above stay eager. */
+        return _wait_while_mine_list_busy().then(function() {
+          if (_document_hidden() || !_is_online()) { return RSVP.resolve(); }
+          return boardPrefetchPlanner.fetchBoardListsForPrefetch(
+            persistence.ajax.bind(persistence),
             user,
-            listData.catalogBoards,
-            listData.globalBoards,
-            seen
-          );
-          if (!publicLookups.length) {
-            phaseDone.phase4 = true;
-            return RSVP.resolve();
-          }
-          return _process_roots_sequentially(_this, publicLookups, warm_opts, gapMs).then(function(completed) {
-            _complete_phase_if_done(phaseDone, 'phase4', completed);
+            { includeOwned: false, includePublic: true }
+          ).then(function(listData) {
+            var seen = {};
+            var phased = boardPrefetchPlanner.buildPhasedLookups(user, {
+              catalogBoards: listData.catalogBoards,
+              globalBoards: listData.globalBoards,
+              includeLiked: false
+            });
+            phased.phase1.concat(phased.phase2, phased.phase3).forEach(function(l) { seen[l] = true; });
+            var publicLookups = boardPrefetchPlanner.collectPublicLookups(
+              user,
+              listData.catalogBoards,
+              listData.globalBoards,
+              seen
+            );
+            if (!publicLookups.length) {
+              phaseDone.phase4 = true;
+              return RSVP.resolve();
+            }
+            return _process_roots_sequentially(_this, publicLookups, warm_opts, gapMs).then(function(completed) {
+              _complete_phase_if_done(phaseDone, 'phase4', completed);
+            }, function() {
+              delete phaseDone.phase4;
+            });
           }, function() {
             delete phaseDone.phase4;
           });
-        }, function() {
-          delete phaseDone.phase4;
         });
       });
     }

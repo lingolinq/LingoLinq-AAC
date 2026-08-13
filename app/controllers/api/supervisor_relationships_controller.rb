@@ -83,14 +83,30 @@ class Api::SupervisorRelationshipsController < ApplicationController
   end
 
   def consent_response
-    token = params['token'] || params['consent_response_token'] || params['id']
-    action = params['action']
-    
+    decision = consent_decision
+    unless decision == 'approve' || decision == 'deny'
+      return api_error 400, { error: 'invalid_decision' }
+    end
+
+    token = params['token'].presence || params['consent_response_token'].presence
     service = SupervisorConsentService.new
-    result = if action == 'approve'
-               service.approve(token: token)
+
+    result = if token.present?
+               decision == 'approve' ? service.approve(token: token) : service.deny(token: token)
+             elsif params['id'].present? && @api_user
+               # In-app pending list: relationship global id + authenticated communicator
+               rel = SupervisorRelationship.find_by_global_id(params['id'])
+               return unless exists?(rel, params['id'])
+               if decision == 'approve'
+                 service.approve_as_party(relationship: rel, actor: @api_user)
+               else
+                 service.deny_as_party(relationship: rel, actor: @api_user)
+               end
+             elsif params['id'].present?
+               # Unauthenticated path where the consent token was passed as :id
+               decision == 'approve' ? service.approve(token: params['id']) : service.deny(token: params['id'])
              else
-               service.deny(token: token)
+               { error: 'invalid_or_expired_token' }
              end
 
     if result[:error]
@@ -100,7 +116,7 @@ class Api::SupervisorRelationshipsController < ApplicationController
       actor_id = @api_user&.global_id || rel&.communicator_user&.global_id || 'consent_flow'
       AuditEvent.log_command(actor_id, {
         'type' => 'supervisor_consent_response',
-        'decision' => action,
+        'decision' => decision,
         'relationship_id' => rel&.global_id,
         'supervisor_id' => rel&.supervisor_user&.global_id,
         'communicator_id' => rel&.communicator_user&.global_id
@@ -142,6 +158,19 @@ class Api::SupervisorRelationshipsController < ApplicationController
   end
 
   private
+
+  # Rails reserves params['action'] for the controller action name, so clients must
+  # send decision/consent_action (or hit PUT approve/deny member routes).
+  def consent_decision
+    explicit = params['decision'].presence || params['consent_action'].presence
+    return explicit if explicit == 'approve' || explicit == 'deny'
+
+    name = action_name.to_s
+    return 'approve' if name == 'approve'
+    return 'deny' if name == 'deny'
+
+    nil
+  end
 
   def user_is_party?(rel)
     unless @api_user && (rel.supervisor_user_id == @api_user.id || rel.communicator_user_id == @api_user.id)

@@ -1,6 +1,7 @@
 import { module, test } from 'qunit';
 import RSVP from 'rsvp';
 import boardDetailCache from 'frontend/utils/board_detail_cache';
+import boardsPageListCache from 'frontend/utils/boards_page_list_cache';
 import LingoLinq from 'frontend/app';
 import { setupTest } from '../../helpers';
 import { chainPersistenceAjax, persistenceTarget, stubOnPersistence } from '../../helpers/persistence-stub';
@@ -87,6 +88,7 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
   hooks.beforeEach(function() {
     restoreStubs();
     boardDetailCache.clear();
+    boardsPageListCache.setMineListBusy(false);
     resetDocumentHiddenForTest();
     stashLingoLinqGlobals();
     stubBoardDetailCacheOnline();
@@ -94,6 +96,7 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
 
   hooks.afterEach(function() {
     boardDetailCache.clear();
+    boardsPageListCache.setMineListBusy(false);
     restoreDocumentHidden();
     restoreLingoLinqTestGlobals();
     restoreStubs();
@@ -780,6 +783,79 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
     }, function(err) {
       LingoLinq.store = origStore;
       LingoLinq.appState = origAppState;
+      throw err;
+    });
+  });
+
+  test('prefetch pipeline defers phase-4 catalog /tree until Mine list busy clears', function(assert) {
+    assert.expect(3);
+    var done = assert.async();
+    var treeOrder = [];
+    var catalogListStarted = false;
+    var sawCatalogWhileBusy = false;
+    var origAppState = LingoLinq.appState;
+
+    boardsPageListCache.setMineListBusy(true);
+
+    LingoLinq.appState = {
+      get: function(path) {
+        if (path === 'feature_flags.catalog_board_prefetch') { return true; }
+        if (path === 'feature_flags.background_board_prefetch') { return false; }
+        return null;
+      }
+    };
+
+    stubBoardDetailCacheAjax(function(url) {
+      if (url.indexOf('/tree') !== -1) {
+        var key = url.split('/boards/')[1].split('/tree')[0];
+        treeOrder.push(key);
+        return RSVP.resolve({
+          root: { board: { key: key, id: '1_x', buttons: [] } },
+          descendants: []
+        });
+      }
+      if (url.indexOf('user_id=lingolinq') !== -1 || url.indexOf('q=&') !== -1) {
+        catalogListStarted = true;
+        if (boardsPageListCache.isMineListBusy()) {
+          sawCatalogWhileBusy = true;
+        }
+        return RSVP.resolve({
+          board: url.indexOf('user_id=lingolinq') !== -1
+            ? [{ key: 'lingolinq/cat', id: '9_1' }]
+            : [],
+          meta: { more: false }
+        });
+      }
+      return RSVP.reject({ error: 'unexpected ' + url });
+    });
+
+    var user = {
+      get: function(k) {
+        if (k === 'feature_flags') { return prefetchFeatureFlags({ catalog: true, background: false }); }
+        if (k === 'id') { return '1_50'; }
+        if (k === 'preferences.home_board') { return null; }
+        if (k === 'preferences.skin') { return 'default'; }
+        if (k === 'preferences.preferred_symbols') { return 'original'; }
+        if (k === 'preferences.locale') { return 'en'; }
+        return null;
+      }
+    };
+
+    var pipeline = runPrefetchPipeline(user, { skin: 'default', preferred_symbols: 'original' });
+
+    setTimeout(function() {
+      assert.notOk(catalogListStarted, 'phase-4 has not started while Mine busy');
+      boardsPageListCache.setMineListBusy(false);
+    }, 50);
+
+    pipeline.then(function() {
+      LingoLinq.appState = origAppState;
+      assert.notOk(sawCatalogWhileBusy, 'catalog list waited until Mine busy cleared');
+      assert.notStrictEqual(treeOrder.indexOf('lingolinq/cat'), -1, 'catalog tree runs after Mine busy clears');
+      done();
+    }, function(err) {
+      LingoLinq.appState = origAppState;
+      done();
       throw err;
     });
   });

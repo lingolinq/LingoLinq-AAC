@@ -99,4 +99,21 @@ module('Unit | Utility | boards-page-list-cache', function(hooks) {
     assert.equal(window.localStorage.getItem('unrelated_key'), 'keep');
     window.localStorage.removeItem('unrelated_key');
   });
+
+  test('hasFreshSnapshot tracks unexpired Mine snapshots', function(assert) {
+    assert.notOk(boardsPageListCache.hasFreshSnapshot('1_77'));
+    boardsPageListCache.write('1_77', [{ id: '1_8', key: 'u/b', name: 'B' }]);
+    assert.ok(boardsPageListCache.hasFreshSnapshot('1_77'));
+    boardsPageListCache.clear('1_77');
+    assert.notOk(boardsPageListCache.hasFreshSnapshot('1_77'));
+  });
+
+  test('setMineListBusy / isMineListBusy gate for catalog prefetch deferral', function(assert) {
+    boardsPageListCache.setMineListBusy(false);
+    assert.notOk(boardsPageListCache.isMineListBusy());
+    boardsPageListCache.setMineListBusy(true);
+    assert.ok(boardsPageListCache.isMineListBusy());
+    boardsPageListCache.clearAll();
+    assert.notOk(boardsPageListCache.isMineListBusy(), 'clearAll clears busy flag');
+  });
 });

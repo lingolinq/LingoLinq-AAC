@@ -2939,9 +2939,16 @@ export default Service.extend({
           var _controller = editManager.controller;
           var doProcessButtons = function() {
             runNext(function() {
-              if(_controller && !_controller.isDestroyed && typeof _controller.processButtons === 'function') {
-                _controller.processButtons();
+              if(!_controller || _controller.isDestroyed || typeof _controller.processButtons !== 'function') {
+                return;
               }
+              /* Board may have been deleted while speak mode was open;
+                 processButtons/_build_from_raw must not set attrs on it. */
+              var board = _controller.get && _controller.get('model');
+              if(board && typeof board.get === 'function' && board.get('isDeleted')) {
+                return;
+              }
+              _controller.processButtons();
             });
           };
           if(fullscreenPromise && typeof fullscreenPromise.then === 'function') {

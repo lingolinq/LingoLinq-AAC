@@ -362,14 +362,15 @@ Any path not covered is listed under "Not covered", not omitted.
 
 ### P3. Generated Artifacts + Git Metadata (compliance/register PRs)
 Run before every push (these mirror the CI job `audit-artifacts-integrity`, so a
-green preflight means that job will not block the PR):
-  ruby scripts/compliance-notion-publish.rb            # regenerates the Notion page on disk
-  ruby scripts/compliance-notion-publish.rb --check     # exit 1 if the page drifts from FINDINGS
-  ruby scripts/document-register-render.rb --check       # exit 1 on register / hash / bundle drift
-  ruby scripts/compliance-calendar-render.rb --check     # exit 1 if calendar render drifts
-  ruby scripts/compliance-publication-status.rb --check  # exit 1 if publication-status report drifts
-  ruby scripts/capability-check.rb --check               # exit 1 if capability-ledger currentEvidence fails to resolve at HEAD / negativeEvidence scoping drifts
-  git diff --check                                       # whitespace / conflict markers
+green preflight means that job will not block the PR). Prefer the one wrapper:
+  scripts/regenerate-register.sh --check   # verify only (or omit --check to regenerate)
+Or the individual checks:
+  ruby scripts/compliance-notion-publish.rb --check
+  ruby scripts/document-register-render.rb --check
+  ruby scripts/compliance-calendar-render.rb --check
+  ruby scripts/compliance-publication-status.rb --check
+  ruby scripts/capability-check.rb --check
+  git diff --check
   # exec-bit: only for CHANGED scripts that a doc/skill invokes DIRECTLY (./script),
   # not every non-exec file in scripts/ (most .rb/.py run via `ruby`/`python` and are
   # correctly 100644). List the directly-invoked ones explicitly, e.g.:
@@ -378,6 +379,11 @@ green preflight means that job will not block the PR):
   #   done
 If a doc instructs running a script directly (./script, no interpreter prefix), the
 executable bit is part of the PR. If a check fails, fix it in THIS PR before pushing.
+
+**contentHash drift triage (after #766):** read whether the FAIL names an **ATTESTED**
+row. Unattested → `scripts/regenerate-register.sh` and commit. Attested → stop, do
+**not** run render; revert the file or ping Scot (`/re-attest-record`). See
+`docs/legal/COMPLIANCE_DOCS_GUIDE.md` ("When CI is red").
 
 ### P4. Cross-Doc Consistency Sweep (touching docs/legal/** or audit-reports/**)
 When changing any claim in one compliance doc:

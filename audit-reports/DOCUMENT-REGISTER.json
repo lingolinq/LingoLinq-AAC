@@ -361,8 +361,8 @@
             "location": "docs/legal/AWS_BAA_2026-02.pdf"
           },
           {
-            "title": "AWS BAA acceptance record",
-            "location": "docs/legal/AWS_BAA_ACCEPTED.md"
+            "title": "AWS BAA Acceptance and Runtime Status Record (2026-08-12)",
+            "location": "docs/legal/2026-08-12_aws-baa-acceptance-record.md"
           },
           {
             "title": "Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record",
@@ -1207,7 +1207,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/AWS_BAA_ACCEPTED.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "HIPAA"
       ],
@@ -1226,9 +1226,7 @@
       },
       "correctionNote": "CORRECTION 2026-08-02, SUPERSEDED 2026-08-04 (not an attestation; only Scot attests). The 2026-07-27 attestation note asserted the deployed lingolinq-web credential was verified to resolve to AWS account 2390-4478-5114. That verification is RETRACTED and stays retracted: it was false when made, and no revision from 00001-2vn (2026-06-29) through 00012-x8z (2026-08-02T20:31Z) carried a Bedrock credential. The 2026-08-02 wording 'has ever carried' was an unbounded absolute and is corrected to that bounded range, because revision 00013-76w (2026-08-03T08:23:02Z) did mount the credentials. The operative condition was then independently verified for the first time on 2026-08-04 (sts:GetCallerIdentity returned 239044785114, principal user/lingolinq-bedrock-runtime); that verification is dated 2026-08-04 and does not revive the 2026-07-27 claim. The attestation object is left unmodified because it records what was signed. Re-attested by Scot Wahlquist 2026-08-04.",
       "contentHash": "376b1e18ce5297a8d9c23257850c1b028805d502090167b2a7b0c440941da2b9",
-      "bundles": [
-        "baa"
-      ],
+      "bundles": [],
       "mirrors": [],
       "id": "DOC-286318ff28",
       "retention": {
@@ -1238,7 +1236,79 @@
         "status": "draft"
       },
       "legalHold": false,
-      "dispositionEligibleAfter": null
+      "dispositionEligibleAfter": null,
+      "supersededBy": "DOC-211a60d29e"
+    },
+    {
+      "title": "AWS BAA Acceptance and Runtime Status Record",
+      "description": "Acceptance and provenance record for the signed AWS BAA, with Bedrock runtime status re-verified across all 18 lingolinq-web revisions on 2026-08-11. Supersedes the 2026-08-04 acceptance record.",
+      "type": "evidence",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-11_aws-baa-acceptance-record.md",
+      "status": "superseded",
+      "frameworks": [
+        "HIPAA"
+      ],
+      "lastReviewed": "2026-08-11",
+      "nextReviewDue": "2027-05-11",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-08-11",
+        "attestedContentHash": "d6d4fb76887c8c28c9e1f865b4ae60dc59dd8b9f8601d67346020ce692e330aa",
+        "priorAttestations": [],
+        "note": "Attested 2026-08-11 by Scot Wahlquist, CEO, on the exact bytes at the pinned hash. Path A supersession of DOC-286318ff28, whose file, filename, location, and 2026-08-04 attestation are frozen and were not modified by this cycle; priorAttestations is empty because these are new bytes and the lineage is carried by the supersedes pointer. Scope of this pin: the acceptance facts; the credential-mount history and serving state re-verified across all 18 lingolinq-web revisions within the 2026-08-11T18:41Z to 18:47Z evidence window, including the non-monotonic gap on 00014-5rw; the status of the BAA account assertion (built and merged to staging in PR #768, not enforcing in production because BEDROCK_EXPECTED_AWS_ACCOUNT is absent from serving revision 00018-cup); the nine corrections to the predecessor's frozen text; the evidentiary boundaries; and the verification standard. Explicitly NOT attested: any claim that an in-app Bedrock call succeeded in production. Bedrock model-invocation logging is carried forward at its original 2026-07-27 verification date and could not be re-verified at this evidence time, because bedrock:GetModelInvocationLoggingConfiguration is denied for the available principal."
+      },
+      "contentHash": "d6d4fb76887c8c28c9e1f865b4ae60dc59dd8b9f8601d67346020ce692e330aa",
+      "bundles": [],
+      "mirrors": [],
+      "id": "DOC-211a60d29e",
+      "retention": {
+        "class": "executed-agreement",
+        "rule": "term + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-286318ff28",
+      "supersededBy": "DOC-82e90ba16a"
+    },
+    {
+      "title": "AWS BAA Acceptance and Runtime Status Record (2026-08-12)",
+      "description": "Current standalone acceptance and provenance record for the signed AWS BAA, with Bedrock runtime status re-verified across all 18 lingolinq-web revisions on 2026-08-12. Supersedes the 2026-08-11 record.",
+      "type": "evidence",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-12_aws-baa-acceptance-record.md",
+      "status": "approved",
+      "frameworks": [
+        "HIPAA"
+      ],
+      "lastReviewed": "2026-08-12",
+      "nextReviewDue": "2027-05-11",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-08-12",
+        "attestedContentHash": "a5f2c59512fa04fa2c3f45c66fec2cc95ff3f8f76bb24e35046cd43a9566ea38",
+        "priorAttestations": [],
+        "note": "Attested 2026-08-12 by Scot Wahlquist, CEO, on the exact bytes at the pinned hash. Third record in a Path A chain: DOC-286318ff28 (attested 2026-08-04) superseded by DOC-211a60d29e (attested 2026-08-11) superseded by this record. Both predecessors keep their files, filenames, locations, attestations, and pinned hashes unmodified; this cycle changed only their lifecycle fields and bundle membership. priorAttestations is empty because these are new bytes and the lineage is carried by the supersedes pointer. Scope of this pin: the acceptance facts; the credential-mount history and serving state re-verified across all 18 lingolinq-web revisions on 2026-08-12 (sweep completing 16:29Z, remaining checks 16:30Z), including the non-monotonic gap on 00014-5rw; the status of the BAA account assertion (built and merged to staging in PR #768, not enforcing in production because BEDROCK_EXPECTED_AWS_ACCOUNT is absent from every revision including serving revision 00018-cup); the corrections to both predecessors; the evidentiary boundaries; and the verification standard. Explicitly NOT attested: any claim that an in-app Bedrock call succeeded in production, and any restatement of the 2026-07-27 model-invocation-logging check or the 2026-08-04 and 2026-08-10 caller-identity verifications as currently verified rather than carried forward at their own dates. Both the model-invocation-logging and CloudWatch checks were re-attempted 2026-08-12T16:30Z and remain denied for principal user/lingolinq-app."
+      },
+      "contentHash": "a5f2c59512fa04fa2c3f45c66fec2cc95ff3f8f76bb24e35046cd43a9566ea38",
+      "bundles": [
+        "baa"
+      ],
+      "mirrors": [],
+      "id": "DOC-82e90ba16a",
+      "retention": {
+        "class": "executed-agreement",
+        "rule": "term + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-211a60d29e"
     },
     {
       "title": "Compliance Status Snapshot (2026-06-18)",
@@ -1314,7 +1384,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "3a8340cce6e41530a55ccce8315009232ef2247b32272bc80b4d5126b0eecee3",
+      "contentHash": "92f616fa373b82df0a4d4861e6a7a187c79567b34e0ecbe03300a7aa8292e630",
       "bundles": [],
       "mirrors": [
         {
@@ -2819,7 +2889,7 @@
       "lastReviewed": "2026-07-12",
       "nextReviewDue": "2027-01-12",
       "attestation": {},
-      "contentHash": "3de878c43ee13445e27e260e993150243b1101e80c862a1ee633a8147e23401f",
+      "contentHash": "2ef7f0b8fc65cbadf7ff45cf0d2d5928ef0a1ff834cb9cfad915d8f58eae2f19",
       "bundles": [],
       "mirrors": [
         {
@@ -2852,7 +2922,7 @@
       "lastReviewed": "2026-07-22",
       "nextReviewDue": "2027-07-22",
       "attestation": {},
-      "contentHash": "8f813636f42784c3909a2026a867de0d31cfd4d968a5d251574bac1dcfcfb771",
+      "contentHash": "d154d1747c5a61ed347ab697073d8084aeafdd6f656818b31eb96bf3276938f1",
       "bundles": [],
       "mirrors": [],
       "notes": "Written for IA report sec 9.2 (folder READMEs so agents stop filing things in the wrong place).",
