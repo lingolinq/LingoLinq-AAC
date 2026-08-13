@@ -858,8 +858,10 @@ var pictureGrabber = EmberObject.extend({
   },
   clear: function() {
     this.clear_image_preview();
-    this.controller.set('image_search', null);
-    var stream = this.controller.get('webcam.stream');
+    var controller = this.controller;
+    if(!controller || controller.isDestroyed || controller.isDestroying) { return; }
+    controller.set('image_search', null);
+    var stream = controller.get('webcam.stream');
     if(stream && stream.stop) {
       stream.stop();
     } else if(stream && stream.getTracks) {
@@ -869,15 +871,17 @@ var pictureGrabber = EmberObject.extend({
         }
       });
     }
-    this.controller.set('webcam', null);
-    this.controller.set('webcam', null);
+    controller.set('webcam', null);
+    controller.set('webcam', null);
     var vid = document.getElementById('webcam_video');
     if(vid) { vid.srcObject = null; vid.removeAttribute('src'); }
     var upload = document.getElementById('image_upload');
     if(upload) { upload.value = ''; }
   },
   clear_image_preview: function() {
-    this.controller.set('image_preview', null);
+    var controller = this.controller;
+    if(!controller || controller.isDestroyed || controller.isDestroying) { return; }
+    controller.set('image_preview', null);
   },
   normalize_preview_license: function(preview) {
     var license = preview && preview.license;

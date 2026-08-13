@@ -23,6 +23,7 @@ file (see [README.md](README.md)).
 - [Gotcha: contentHash drift — ATTESTED means stop; unattested means regenerate-register](#gotcha-contenthash-drift--attested-means-stop-unattested-means-regenerate-register)
 - [Gotcha: Rails reserves `params['action']` — consent APIs must use `decision` or member approve/deny routes](#gotcha-rails-reserves-paramsaction--consent-apis-must-use-decision-or-member-approvedeny-routes)
 - [Gotcha: `pending_supervisor_requests` was never serialized — fetch the relationships index instead](#gotcha-pending_supervisor_requests-was-never-serialized--fetch-the-relationships-index-instead)
+- [Gotcha: button-settings Speak must sync vocalization via change_button — set-field alone does not persist](#gotcha-button-settings-speak-must-sync-vocalization-via-change_button--set-field-alone-does-not-persist)
 - [Gotcha: Capacitor offline AAC needs SQLite + Filesystem shims — IndexedDB-only is not speak-ready](#gotcha-capacitor-offline-aac-needs-sqlite--filesystem-shims--indexeddb-only-is-not-speak-ready)
 - [Gotcha: `capabilities.storage.status()` resolve shape is a contract — do not add diagnostic keys](#gotcha-capabilitiesstoragestatus-resolve-shape-is-a-contract--do-not-add-diagnostic-keys)
 - [Speak vs edit: Default symbols still showed OpenSymbols in speak mode](#speak-vs-edit-default-symbols-still-showed-opensymbols-in-speak-mode)
@@ -9514,3 +9515,9 @@ drift from `feature_flags.rb` only needed regenerate after the ledger JSON line 
 **Surface:** Ember `user.pending_supervisor_requests` attr + `PendingConsentRequests`.
 
 The User model exposes `pending_supervisor_requests`, but `lib/json_api/user.rb` never populates it. Enabling `supervisor_consent_flow` alone shows an empty pending list. Load pending rows from `GET /api/v1/supervisor_relationships?role=communicator&status=pending` and map into the UI shape (`id`, `requester_name`, `requester_avatar_url`, `permission_level`).
+
+## Gotcha: button-settings Speak must sync vocalization via change_button — set-field alone does not persist
+
+**Surface:** `button-settings` Sound → Speak (`model.vocalization`).
+
+`set-field` updates only the in-modal Button. Board save serializes `board.buttons`, so Speak edits disappear unless synced with `editManager.change_button` (same class of bug as `urlChanged` / `labelChanged`). Closing can also hit `pictureGrabber.clear_image_preview` during teardown; unguarded `controller.set('image_preview', null)` throws “calling set on destroyed object”, which the image-save error path surfaces as a misleading **upload failed** alert. Guard destroyed controllers in clear, and flush vocalization on close. Task log: `2026-08-13-button-settings-vocalization-save.md`.

@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-08-12T23:13:56.037Z
+# Generated: 2026-08-13T21:08:41.848Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -91,11 +91,11 @@ app/components/button-listener.js|ember/require-super-in-lifecycle-hooks|51|3|1|
 app/components/button-preview.js|ember/require-super-in-lifecycle-hooks|14|3|1|04fd54f45db7
 app/components/button-set.js|ember/no-runloop|226|9|2|5addc2170315
 app/components/button-set.js|ember/require-computed-property-dependencies|306|19|1|f4e704a7bafe
-app/components/button-settings.js|ember/no-runloop|1157|7|2|5addc2170315
-app/components/button-settings.js|ember/no-runloop|1259|11|2|5addc2170315
-app/components/button-settings.js|ember/no-runloop|1642|9|2|5addc2170315
+app/components/button-settings.js|ember/no-runloop|1167|7|2|5addc2170315
+app/components/button-settings.js|ember/no-runloop|1269|11|2|5addc2170315
+app/components/button-settings.js|ember/no-runloop|1657|9|2|5addc2170315
 app/components/button-settings.js|ember/no-runloop|230|9|2|5addc2170315
-app/components/button-settings.js|ember/no-runloop|757|5|2|5addc2170315
+app/components/button-settings.js|ember/no-runloop|767|5|2|5addc2170315
 app/components/button-tracker.js|ember/require-super-in-lifecycle-hooks|9|3|1|04fd54f45db7
 app/components/chart-sankey-parts-of-speech.js|ember/require-super-in-lifecycle-hooks|87|3|1|04fd54f45db7
 app/components/chart-sankey-parts-of-speech.js|ember/require-super-in-lifecycle-hooks|91|3|1|04fd54f45db7
@@ -376,10 +376,10 @@ app/controllers/bulk_purchase.js|ember/no-runloop|46|5|2|5addc2170315
 app/controllers/bulk_purchase.js|ember/no-runloop|56|9|2|5addc2170315
 app/controllers/button-set.js|ember/no-runloop|60|11|2|5addc2170315
 app/controllers/button-set.js|ember/require-computed-property-dependencies|103|19|1|99b85e93bc77
-app/controllers/button-settings.js|ember/no-runloop|1106|9|2|5addc2170315
+app/controllers/button-settings.js|ember/no-runloop|1118|9|2|5addc2170315
 app/controllers/button-settings.js|ember/no-runloop|130|9|2|5addc2170315
-app/controllers/button-settings.js|ember/no-runloop|563|5|2|5addc2170315
-app/controllers/button-settings.js|ember/no-runloop|820|9|2|5addc2170315
+app/controllers/button-settings.js|ember/no-runloop|569|5|2|5addc2170315
+app/controllers/button-settings.js|ember/no-runloop|826|9|2|5addc2170315
 app/controllers/caseload.js|ember/no-runloop|280|9|2|513c0395fe72
 app/controllers/confirm-delete-board.js|ember/no-runloop|120|13|2|5addc2170315
 app/controllers/confirm-delete-board.js|ember/no-runloop|134|23|2|5addc2170315
@@ -722,13 +722,13 @@ app/services/app-state.js|ember/require-computed-property-dependencies|3404|31|1
 app/services/app-state.js|ember/require-computed-property-dependencies|3407|40|1|c9d22bf53d58
 app/services/beta-welcome-mode.js|ember/no-runloop|39|22|2|b7a9757b024f
 app/services/beta-welcome-mode.js|ember/no-runloop|43|7|2|513c0395fe72
-app/services/content-grabbers.js|ember/no-runloop|1357|21|2|5addc2170315
-app/services/content-grabbers.js|ember/no-runloop|1362|11|2|513c0395fe72
-app/services/content-grabbers.js|ember/no-runloop|1369|11|2|513c0395fe72
-app/services/content-grabbers.js|ember/no-runloop|1595|7|2|9ccbb762d93a
-app/services/content-grabbers.js|ember/no-runloop|2251|7|2|5addc2170315
-app/services/content-grabbers.js|ember/no-runloop|2340|7|2|5addc2170315
-app/services/content-grabbers.js|ember/no-runloop|2606|9|2|5addc2170315
+app/services/content-grabbers.js|ember/no-runloop|1361|21|2|5addc2170315
+app/services/content-grabbers.js|ember/no-runloop|1366|11|2|513c0395fe72
+app/services/content-grabbers.js|ember/no-runloop|1373|11|2|513c0395fe72
+app/services/content-grabbers.js|ember/no-runloop|1599|7|2|9ccbb762d93a
+app/services/content-grabbers.js|ember/no-runloop|2255|7|2|5addc2170315
+app/services/content-grabbers.js|ember/no-runloop|2344|7|2|5addc2170315
+app/services/content-grabbers.js|ember/no-runloop|2610|9|2|5addc2170315
 app/services/content-grabbers.js|ember/no-runloop|385|5|2|5addc2170315
 app/services/content-grabbers.js|ember/no-runloop|567|9|2|513c0395fe72
 app/services/content-grabbers.js|ember/no-runloop|655|5|2|5addc2170315
