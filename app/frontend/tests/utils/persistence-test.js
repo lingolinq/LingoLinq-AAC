@@ -24,7 +24,7 @@ import editManager from '../../utils/edit_manager';
 import capabilities from '../../utils/capabilities';
 import contentGrabbers from '../../utils/content_grabbers';
 import LingoLinq from '../../app';
-import { run as emberRun, later } from '@ember/runloop';
+import { run as emberRun } from '@ember/runloop';
 import $ from 'jquery';
 import { persistenceTarget, stubOnPersistence, installDefaultPersistenceAjaxStub } from '../helpers/persistence-stub';
 import { appStateTarget } from '../helpers/service-stub';
@@ -363,7 +363,7 @@ describe("persistence", function() {
           expect(record.hat).toEqual(rnd);
           expect(board.get('fresh')).toEqual(true);
           LingoLinq.sync_testing = true;
-          later(function() {
+          setTimeout(function() {
             board.set('retrieved', (new Date()).getTime() - (6 * 60 * 1000));
             refreshed = true;
           }, 10);
@@ -1529,9 +1529,10 @@ describe("persistence", function() {
       it("should update a locally-created record that hasn't been persisted yet", function() {
         db_wait(function() {
           queryLog.real_lookup = true;
-          persistence.set('online', false);
+          setPersistenceOnline(false);
           var record = null;
           var final_record = null;
+          var final_error = null;
 
           var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function(res) {
@@ -1543,20 +1544,23 @@ describe("persistence", function() {
             expect(!!record.get('id').match(/^tmp_/)).toEqual(true);
             expect(!!record.get('key').match(/^tmp_.+\/cool/)).toEqual(true);
             expect(record.get('name')).toEqual("My Awesome Board");
-            later(function() {
+            setTimeout(function() {
               record.set('name', 'My Gnarly Board');
               record.save().then(function(res) {
                 expect(res.id).toEqual(record.id);
                 setTimeout(function() {
                   persistence.find('board', record.id).then(function(res) {
                     final_record = res;
-                  }, function() { dbg(); });
+                  }, function(err) {
+                    final_error = err || new Error('persistence.find rejected');
+                  });
                 }, 50);
               }, function() { dbg(); });
             }, 50);
           });
-          waitsFor(function() { return final_record; });
+          waitsFor(function() { return final_record || final_error; });
           runs(function() {
+            expect(final_error).toEqual(null);
             expect(final_record.id).toEqual(record.id);
             expect(final_record.name).toEqual("My Gnarly Board");
           });
@@ -1580,7 +1584,7 @@ describe("persistence", function() {
             expect(!!record.get('id').match(/^tmp_/)).toEqual(true);
             expect(!!record.get('key').match(/^tmp_.+\/cool/)).toEqual(true);
             expect(record.get('name')).toEqual("My Awesome Board");
-            later(function() {
+            setTimeout(function() {
               record.set('name', 'My Gnarly Board');
               record.save().then(function(res) {
                 setTimeout(function() {
@@ -1629,7 +1633,7 @@ describe("persistence", function() {
             expect(!!record.get('key').match(/^tmp_.+\/cool/)).toEqual(true);
             expect(record.get('name')).toEqual("My Awesome Board");
             var tmp_id = record.get('id');
-            later(function() {
+            setTimeout(function() {
               persistence.set('online', true);
               record.set('name', 'My Gnarly Board');
               record.save().then(function(res) {
@@ -1680,7 +1684,7 @@ describe("persistence", function() {
 
           waitsFor(function() { return record; });
           runs(function() {
-            later(function() {
+            setTimeout(function() {
               expect(record.get('id')).toEqual("1234");
               expect(record.get('name')).toEqual("Righteous Board");
               persistence.set('online', false);
@@ -1692,14 +1696,12 @@ describe("persistence", function() {
           });
           waitsFor(function() { return updated_record; });
           runs(function() {
-            emberRun(function() {
-              expect(updated_record.get('id')).toEqual("1234");
-              expect(updated_record.get('name')).toEqual("My Gnarly Board");
-              persistence.set('online', true);
-              updated_record.set('name', 'Super Board');
-              updated_record.save().then(function(res) {
-                final_record = res;
-              });
+            expect(updated_record.get('id')).toEqual("1234");
+            expect(updated_record.get('name')).toEqual("My Gnarly Board");
+            persistence.set('online', true);
+            updated_record.set('name', 'Super Board');
+            updated_record.save().then(function(res) {
+              final_record = res;
             });
           });
           waitsFor(function() { return final_record; });
@@ -1743,7 +1745,7 @@ describe("persistence", function() {
             tmp_id = record.get('id');
             expect(!!record.get('key').match(/^tmp_.+\/cool/)).toEqual(true);
             expect(record.get('name')).toEqual("My Awesome Board");
-            later(function() {
+            setTimeout(function() {
               persistence.set('online', true);
               record.set('name', 'My Gnarly Board');
               record.save().then(function(res) {
@@ -1806,7 +1808,7 @@ describe("persistence", function() {
             tmp_id = record.get('id');
             expect(!!record.get('key').match(/^tmp_.+\/cool/)).toEqual(true);
             expect(record.get('name')).toEqual("My Awesome Board");
-            later(function() {
+            setTimeout(function() {
               persistence.set('online', true);
               record.set('name', 'My Gnarly Board');
               record.save().then(function(res) {
@@ -1906,7 +1908,7 @@ describe("persistence", function() {
             expect(!!record.get('id').match(/^tmp_/)).toEqual(true);
             expect(!!record.get('key').match(/^tmp_.+\/cool/)).toEqual(true);
             expect(record.get('name')).toEqual("My Awesome Board");
-            later(function() {
+            setTimeout(function() {
               record_id = record.id;
               record.deleteRecord();
               record.save().then(function(res) {
@@ -1931,7 +1933,7 @@ describe("persistence", function() {
           persistence.removals = [];
           board.deleteRecord();
           board.save().then(function(res) {
-            later(function() {
+            setTimeout(function() {
               persistence.find('board', '1234').then(function() { dbg(); }, function() {
                 deleted = true;
               });
@@ -1940,7 +1942,7 @@ describe("persistence", function() {
           var found_deletion = null;
           waitsFor(function() { return deleted && persistence.removals.length > 0; });
           runs(function() {
-            later(function() {
+            setTimeout(function() {
               lingoLinqExtras.storage.find('deletion', 'board_1234').then(function() {
                 found_deletion = true;
               });
@@ -2580,5 +2582,3 @@ describe("persistence", function() {
     });
   });
 });
-
-

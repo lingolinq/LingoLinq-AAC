@@ -8,7 +8,7 @@ export default modal.ModalController.extend({
   opening: function() {
     var _this = this;
     _this.set('player', null);
-    var host = window.default_host || capabilities.fallback_host;
+    var host = capabilities.video_player_host();
     var url = null;
     var opts = [];
     if(this.get('model.video.id') && this.get('model.video.type')) {
