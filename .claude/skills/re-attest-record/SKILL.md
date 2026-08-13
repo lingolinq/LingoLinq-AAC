@@ -7,6 +7,18 @@ allowed-tools: Read, Grep, Glob, Bash, Edit
 
 # /re-attest-record: re-attest after compliance-record bytes change
 
+## First: is this even a re-attest case?
+
+CI `document-register-render.rb --check` can fail two different ways with similar wording:
+
+| FAIL text | Attested? | Your move |
+|---|---|---|
+| `contentHash drift for "…"` … `(run render)` | **No** (`attestation: {}` or empty) | Do **not** use this skill. Run `scripts/regenerate-register.sh` and commit. |
+| `contentHash drift on the ATTESTED row` … `/re-attest-record` | **Yes** | This skill (Scot only). **Do not run render** — it bumps `contentHash`, dirties the register, then fails again as "attested revision no longer exists" (the #721 footgun; fixed messaging in #766). |
+| `attested revision no longer exists` | **Yes** (already re-rendered or hash already bumped) | This skill. Revert the mistaken register edit if you already rendered; then Path A/B below. |
+
+Rule of thumb: if the message says **ATTESTED**, stop and ping Scot. If it says **run render**, regenerate.
+
 Every git row in `audit-reports/DOCUMENT-REGISTER.json` with an `attestation` block pins
 `attestedContentHash` = the sha256 of the exact bytes Scot attested. `contentHash` tracks the file
 as it is NOW. `scripts/document-register-render.rb --check` (CI job `audit-artifacts-integrity`,
