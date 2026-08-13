@@ -1,10 +1,10 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 #
-# render-domain-reports.rb - renders 5 per-finder-domain markdown audit reports from the
+# render-domain-reports.rb - renders 6 per-finder-domain markdown audit reports from the
 # findings register (audit-reports/FINDINGS.json). One report per /audit-run finder domain:
-# privacy, infra, api, dependency, accessibility. Code/path evidence only (the register is
-# already PII-free); these are DRAFT views of the SSOT, not a separate source of truth.
+# privacy, infra, api, dependency, accessibility, code-hygiene. Code/path evidence only (the
+# register is already PII-free); these are DRAFT views of the SSOT, not a separate source of truth.
 #
 # Usage: ruby scripts/render-domain-reports.rb [--outdir DIR]
 #   Defaults to audit-reports/domain-reports/<auditedDate>/.
@@ -20,17 +20,19 @@ outdir = if (i = ARGV.index('--outdir')) then ARGV[i + 1]
          else "audit-reports/domain-reports/#{meta['auditedDate']}" end
 FileUtils.mkdir_p(outdir)
 
-DOMAINS = %w[privacy infra api dependency accessibility].freeze
+DOMAINS = %w[privacy infra api dependency accessibility code-hygiene].freeze
 DOMAIN_TITLES = {
   'privacy'       => 'Privacy & Data Protection (GDPR / FERPA / COPPA / HIPAA)',
   'infra'         => 'Infrastructure & Security (SOC2-style)',
   'api'           => 'API Contract (Ember <-> Rails)',
   'dependency'    => 'Dependency Freshness & CVEs',
-  'accessibility' => 'Accessibility (WCAG 2.1 AA / EN 301 549)'
+  'accessibility' => 'Accessibility (WCAG 2.1 AA / EN 301 549)',
+  'code-hygiene'  => 'Dead Code & AI-Slop'
 }.freeze
 FINDER = {
   'privacy' => 'privacy-auditor', 'infra' => 'infra-auditor', 'api' => 'api-auditor',
-  'dependency' => 'dependency-auditor', 'accessibility' => 'accessibility-auditor'
+  'dependency' => 'dependency-auditor', 'accessibility' => 'accessibility-auditor',
+  'code-hygiene' => 'code-hygiene-auditor'
 }.freeze
 
 # Explicit classification for the 15 pre-attribution (2026-04-09 seed + early-June) findings
@@ -47,8 +49,8 @@ MANUAL = {
 def domain_of(f)
   return MANUAL[f['id']] if MANUAL.key?(f['id'])
   n = f['notes'].to_s
-  if n =~ /Surfaced by (privacy|infra|api|dependency|accessibility) finder/ then return $1 end
-  if n =~ /(privacy|infra|api|dependency|accessibility) (?:auditor|finder)/ then return $1 end
+  if n =~ /Surfaced by (privacy|infra|api|dependency|accessibility|code-hygiene) finder/ then return $1 end
+  if n =~ /(privacy|infra|api|dependency|accessibility|code-hygiene) (?:auditor|finder)/ then return $1 end
   fw = f['frameworks'] || []
   return 'accessibility' if fw.include?('WCAG')
   return 'infra' if fw.include?('SOC2')

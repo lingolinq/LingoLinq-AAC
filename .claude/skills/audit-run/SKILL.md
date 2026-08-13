@@ -79,10 +79,17 @@ register-shaped findings with `status: "open"`.
 | `api-auditor`           | api           | api-contract-audit |
 | `dependency-auditor`    | dependency    | dependency-audit |
 | `accessibility-auditor` | accessibility | accessibility-audit |
+| `code-hygiene-auditor`  | code-hygiene  | code-hygiene-audit |
 
 Prompt each with: the `auditedSha`, the scan scope from its skill, and
 "cross-check `audit-reports/FINDINGS.json` first; reference an existing `id` rather than
 duplicating." Collect each finder's JSON `{domain, auditedSha, findings:[...]}`.
+
+> **`code-hygiene-auditor` always greps the full tree for references, even in a diff-scoped
+> light run.** Its "dead code" claims depend on proving zero reachable call sites anywhere, not
+> just within the diff; treat the diff (the monthly-light scoping described above) as the
+> candidate list of files to re-check, not as a restriction on where it may search for
+> references to them.
 
 > RETIRED from the fan-out (Phase 2): `ember-stabilization` and `rails-upgrade` (migration-era,
 > shipped) and the 0-100 `mvp-readiness` score (decision 5.9.2: the headline is now the count of
@@ -103,7 +110,7 @@ ruby scripts/audit-merge.rb \
   --sha <auditedSha> --ref <auditedRef> --date <YYYY-MM-DD> \
   --in /tmp/finder-privacy.json --in /tmp/finder-infra.json \
   --in /tmp/finder-api.json --in /tmp/finder-dependency.json \
-  --in /tmp/finder-accessibility.json \
+  --in /tmp/finder-accessibility.json --in /tmp/finder-code-hygiene.json \
   --out audit-reports/FINDINGS.json --summary /tmp/audit-summary.json
 ```
 
