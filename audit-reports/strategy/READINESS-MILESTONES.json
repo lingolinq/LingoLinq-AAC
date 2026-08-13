@@ -455,7 +455,13 @@
         "summary": "under-13 consumer/family use",
         "condition": "minorsIncluded"
       },
-      "whyItMatters": "Child participation cannot depend on an implied or missing guardian authorization path."
+      "whyItMatters": "Child participation cannot depend on an implied or missing guardian authorization path.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-13",
+        "via": "PR #792 draft-review instruction (School Beta milestone pass)"
+      }
     },
     {
       "id": "school-beta-seat-reclaim",
@@ -479,7 +485,13 @@
           ]
         }
       },
-      "whyItMatters": "School-to-family transition is a high-risk lifecycle boundary for COPPA and notice obligations."
+      "whyItMatters": "School-to-family transition is a high-risk lifecycle boundary for COPPA and notice obligations.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-13",
+        "via": "PR #792 draft-review instruction (School Beta milestone pass)"
+      }
     },
     {
       "id": "school-beta-consent-expiry",
@@ -496,7 +508,13 @@
         "summary": "parental consent is applicable",
         "condition": "minorsIncluded"
       },
-      "whyItMatters": "Expired or declined consent must have a deterministic privacy-preserving lifecycle."
+      "whyItMatters": "Expired or declined consent must have a deterministic privacy-preserving lifecycle.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-13",
+        "via": "PR #792 draft-review instruction (School Beta milestone pass)"
+      }
     },
     {
       "id": "school-beta-hard-delete-media",
@@ -504,7 +522,7 @@
       "type": "deliverable",
       "area": "data-lifecycle",
       "text": "Hard deletion includes UserVideo and standalone/off-board voice recordings and other covered media.",
-      "humanStatus": "in-progress",
+      "humanStatus": "claimed-done",
       "blocking": true,
       "findingIds": [
         "LL-854b1d3853"
@@ -520,7 +538,13 @@
           ]
         }
       },
-      "whyItMatters": "Deletion claims are incomplete if sensitive media survives as orphaned rows/objects."
+      "whyItMatters": "Deletion claims are incomplete if sensitive media survives as orphaned rows/objects.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-13",
+        "via": "PR #792 draft-review instruction (School Beta milestone pass); humanStatus upgraded in-progress -> claimed-done after verifying merged PR #721 (lib/flusher.rb flush_user_content now sweeps ButtonSound.where(user_id:) and UserVideo.where(user_id:) via flush_record, and both models include Uploadable's after_destroy :schedule_remote_removal_if_unique, so S3 objects are actually removed too). LL-854b1d3853 stays linked and open; the derived status is expected to reconcile-gate on that finding, not on missing engineering."
+      }
     },
     {
       "id": "school-beta-org-ai-control",
@@ -548,7 +572,13 @@
           ]
         }
       },
-      "whyItMatters": "Districts need a meaningful tenant-level control over optional AI processing."
+      "whyItMatters": "Districts need a meaningful tenant-level control over optional AI processing.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-13",
+        "via": "PR #792 draft-review instruction (School Beta milestone pass)"
+      }
     },
     {
       "id": "school-beta-child-ai-enforcement",
@@ -576,7 +606,13 @@
           ]
         }
       },
-      "whyItMatters": "Child-protection policy must be an enforcement boundary, not UI-only guidance."
+      "whyItMatters": "Child-protection policy must be an enforcement boundary, not UI-only guidance.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-13",
+        "via": "PR #792 draft-review instruction (School Beta milestone pass)"
+      }
     },
     {
       "id": "school-beta-school-authorization",
@@ -593,7 +629,13 @@
         "summary": "school-sponsored accounts",
         "condition": "schoolManagedAccounts"
       },
-      "whyItMatters": "District and family responsibilities must be clear before real school-managed users are onboarded."
+      "whyItMatters": "District and family responsibilities must be clear before real school-managed users are onboarded.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-13",
+        "via": "PR #792 draft-review instruction (School Beta milestone pass)"
+      }
     },
     {
       "id": "school-beta-accessible-consent",
@@ -612,7 +654,13 @@
       "appliesWhen": {
         "summary": "consent or Terms flows apply"
       },
-      "whyItMatters": "A compliant consent path that an AAC user cannot operate is not a usable consent path."
+      "whyItMatters": "A compliant consent path that an AAC user cannot operate is not a usable consent path.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-13",
+        "via": "PR #792 draft-review instruction (School Beta milestone pass)"
+      }
     },
     {
       "id": "public-mvp-privacy-truth",

@@ -6,7 +6,7 @@
 >
 > Findings baseline: live from `FINDINGS.json` at render | Risk movement since snapshot: 2026-08-11T23:53:23Z | Strategy generated: 2026-08-11
 
-> ⚠️ **PARTIALLY RATIFIED - 10 of 40 requirements ratified by Scot** (per-row
+> ⚠️ **PARTIALLY RATIFIED - 18 of 40 requirements ratified by Scot** (per-row
 > `ratification` objects; milestone-by-milestone review). Every row without one remains a
 > proposal. `meta.ratification.status` flips to `ratified` only when Scot has ratified all rows.
 
@@ -59,7 +59,7 @@ finding's severity by itself.
 | Milestone | Direct reqs | Ratified | Inherited blockers | Blocked | Decision needed | In progress | Awaiting verification | Awaiting reconciliation | Done | Other |
 |---|---:|---:|---|---:|---:|---:|---:|---:|---:|---|
 | Controlled Adult / SLP / Teacher Beta | 10 | 10 | 0 | 2 | 4 | 3 | 0 | 0 | 0 | 1 invariant-holding |
-| School / Minor Beta | 8 | 0 | 9 | 1 | 7 | 0 | 0 | 0 | 0 | 0 |
+| School / Minor Beta | 8 | 8 | 9 | 1 | 7 | 0 | 0 | 0 | 0 | 0 |
 | Public MVP | 6 | 0 | 9 (+8 decision-dependent) | 1 | 1 | 3 | 0 | 0 | 0 | 1 invariant-failing |
 | District Procurement Ready | 9 | 0 | 0 | 0 | 0 | 8 | 0 | 0 | 0 | 1 future |
 | Long-Term Assurance | 7 | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 5 future |
@@ -93,6 +93,7 @@ decision-dependent while `mvpIncludesMinors` is undecided).
   - gated by undecided decision(s): minorsIncluded
 - 🟡 `school-beta-hard-delete-media` (Decision needed) - Hard deletion includes UserVideo and standalone/off-board voice recordings and other covered media. [LL-854b1d3853]
   - gated by undecided decision(s): minorsIncluded, schoolManagedAccounts
+  - underlying evidence state if enabled: done-awaiting-reconciliation (linked finding(s) still open: LL-854b1d3853)
 - 🟡 `school-beta-org-ai-control` (Decision needed) - A school/district organization can disable covered third-party AI processing for its users.
   - gated by undecided decision(s): schoolManagedAccounts, aiWordPredictionEnabled, aiFocusWordsEnabled, aiBoardGenerationEnabled
   - underlying evidence state if enabled: done-awaiting-verification (code-and-runtime verification required; no evidence recorded in LAUNCH-PROFILE evidence)

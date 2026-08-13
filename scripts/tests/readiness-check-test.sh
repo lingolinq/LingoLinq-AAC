@@ -111,7 +111,7 @@ expect "row ratification without ratifiedBy fails" "READINESS-MILESTONES.json" \
 # suppress the PROPOSED banner while rows remain unratified.
 expect "matrix flipped to ratified with unratified rows fails" "READINESS-MILESTONES.json" \
   "doc['meta']['ratification']['status']='ratified'; doc['meta']['ratification']['ratifiedBy']='anyone'; doc['meta']['ratification']['ratifiedDate']='2026-08-12'" \
-  "status is ratified but 30 row(s) carry no ratification"
+  "status is ratified but 22 row(s) carry no ratification"
 
 expect "matrix ratification with unknown status fails" "READINESS-MILESTONES.json" \
   "doc['meta']['ratification']['status']='mostly-ratified'" \
