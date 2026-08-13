@@ -104,18 +104,68 @@ describe 'Tier 1 runtime AI controls' do
           end
         end
 
+        # SAME-FAMILY variants are the subtle bypass. These all canonicalize to
+        # the vetted alias `anthropic.claude-haiku-4-5`, so a gate that checked
+        # the canonical family accepted every one of them while bedrock_model
+        # passed the operator's ORIGINAL profile id through untouched. The date
+        # case selects an unvetted future revision; the eu./apac. cases move
+        # inference to another geography, which is a data-residency change the
+        # BAA and Article 50 analysis never contemplated.
+        {
+          'us.anthropic.claude-haiku-4-5-20990101-v1:0' => 'an unvetted future revision',
+          'eu.anthropic.claude-haiku-4-5-20251001-v1:0' => 'EU geography',
+          'apac.anthropic.claude-haiku-4-5-20251001-v1:0' => 'APAC geography'
+        }.each do |variant, why|
+          it "refuses a same-family variant selecting #{why}" do
+            with_env(env_for(seam, 'ANTHROPIC_MODEL' => variant)) do
+              model = described.send(:resolve_api_config)[:model]
+              expect(model).not_to eq(variant)
+              expect(model).to eq(VETTED_WIRE_ID)
+            end
+          end
+        end
+
+        # The tightening must not reject the forms it is meant to accept. The
+        # legacy dated value is what the old .env.example documented, so real
+        # deployments still carry it.
+        ['anthropic.claude-haiku-4-5', 'claude-haiku-4-5-20251001', VETTED_WIRE_ID].each do |good|
+          it "still resolves the supported form #{good.inspect}" do
+            with_env(env_for(seam, 'ANTHROPIC_MODEL' => good)) do
+              expect(described.send(:resolve_api_config)[:model]).to eq(VETTED_WIRE_ID)
+            end
+          end
+        end
+
         # ALLOWED_RUNTIME_MODELS currently holds exactly one entry, and it is the
         # default at all three seams. So asserting that an allowed override
         # produces the default wire id proves NOTHING -- refusing it produces the
         # same string. Widening the allowlist for this example is what makes
         # "honoured" and "refused" distinguishable at all.
+        # Approving a model takes BOTH a place on the allowlist AND a verified
+        # inference-profile row. That is not ceremony: the gate now compares the
+        # id that will actually be sent, so an alias with no profile row resolves
+        # to something Bedrock would reject and is correctly refused. Stubbing
+        # only ALLOWED_RUNTIME_MODELS here would fail, which is the design
+        # working -- "approved in principle" is not "verified invokable".
         it 'honours an allowlisted override that differs from the default' do
           stub_const('AiClient::ALLOWED_RUNTIME_MODELS',
                      %w[anthropic.claude-haiku-4-5 anthropic.claude-opus-4-7].freeze)
+          stub_const('AiClient::CLASSIC_PROFILE_IDS', {
+            'anthropic.claude-haiku-4-5' => VETTED_WIRE_ID,
+            'anthropic.claude-opus-4-7' => 'us.anthropic.claude-opus-4-7-20260115-v1:0'
+          }.freeze)
           with_env(env_for(seam, 'ANTHROPIC_MODEL' => 'anthropic.claude-opus-4-7')) do
             model = described.send(:resolve_api_config)[:model]
-            expect(model).to eq('anthropic.claude-opus-4-7')
+            expect(model).to eq('us.anthropic.claude-opus-4-7-20260115-v1:0')
             expect(model).not_to eq(VETTED_WIRE_ID)
+          end
+        end
+
+        it 'refuses an allowlisted alias that has no verified profile row' do
+          stub_const('AiClient::ALLOWED_RUNTIME_MODELS',
+                     %w[anthropic.claude-haiku-4-5 anthropic.claude-opus-4-7].freeze)
+          with_env(env_for(seam, 'ANTHROPIC_MODEL' => 'anthropic.claude-opus-4-7')) do
+            expect(described.send(:resolve_api_config)[:model]).to eq(VETTED_WIRE_ID)
           end
         end
 
