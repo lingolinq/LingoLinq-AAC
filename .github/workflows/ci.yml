@@ -165,6 +165,16 @@ jobs:
       - name: Verify capability ledger (currentEvidence resolves at HEAD; negativeEvidence scoping)
         run: ruby scripts/capability-check.rb --check
 
+      - name: Verify docs/legal naming rule (attested rows carry no status token)
+        run: ruby scripts/legal-naming-check.rb --check
+
+      # The rule above is unfixable once violated, because attestation freezes the
+      # filename permanently. So the guard itself is tested here rather than trusted:
+      # a check only ever seen passing on clean data proves the data is clean, not that
+      # the check works.
+      - name: Verify the docs/legal naming guards actually fire
+        run: scripts/tests/legal-naming-check-test.sh
+
   codex-review-tests:
     runs-on: ubuntu-latest
 

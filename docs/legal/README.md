@@ -86,6 +86,24 @@ result as a new row while orphaning or pruning the old one. **A record must neve
 `_draft` path**, because rule 3 would then freeze a filename asserting a status the register alone
 is entitled to carry, and the name could never be corrected.
 
+**This section is mechanically enforced.** `scripts/legal-naming-check.rb` runs in CI's
+`audit-artifacts-integrity` job and in `scripts/regenerate-register.sh`. It is register-aware rather
+than a filename regex, because the rule that matters is a relationship between a row's attestation
+state and its path, not a pattern: an unattested draft may sit at a `_draft` path and the same
+record may not once it is signed. It refuses (1) an attested dated row whose filename carries a
+status token, (2) an `attestedDate` earlier than the record's own filename date, since a signature
+cannot predate what it signs, (3) a successor dated before the record it supersedes, (4) any new
+non-dated `docs/legal/` record, with pre-rule names grandfathered through the closed, shrink-only
+`meta.legalNamingGrandfathered` list, and (5) a filename whose date component is not a real date.
+
+Note what is deliberately absent: **there is no exemption list for the four dated `_draft` records
+above.** Check (1) fires only on rows that carry an attestation, so their exemption expires by
+construction the moment one is attested, with nothing to remember to delete. A hand-maintained
+exemption list is what let earlier drift persist, so the enforcement does not add another one.
+`scripts/tests/legal-naming-check-test.sh` asserts every one of those checks actually fires,
+because a guard only ever observed passing on clean data proves the data is clean, not that the
+guard works, and this particular rule is unfixable once violated.
+
 ## Retention
 
 Retention class is declared per row in the register, not per folder. Documents in this directory are
