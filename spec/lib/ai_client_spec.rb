@@ -204,6 +204,17 @@ describe AiClient do
         end
       end
 
+      # Tightening the normalizer must not narrow it past the forms it is meant
+      # to accept: grouping separators and surrounding whitespace still resolve.
+      ['2390 4478 5114', ' 239044785114 ', "239044785114\n"].each do |grouped|
+        it "still accepts the supported form #{grouped.inspect}" do
+          stub_sts('239044785114')
+          with_env(bedrock_env('BEDROCK_EXPECTED_AWS_ACCOUNT' => grouped)) do
+            expect(described_class.account_verified?).to eq(true)
+          end
+        end
+      end
+
       it 'fails when the credential belongs to a different account' do
         stub_sts('111122223333')
         with_env(bedrock_env('BEDROCK_EXPECTED_AWS_ACCOUNT' => '239044785114')) do
@@ -321,7 +332,12 @@ describe AiClient do
       # '' and '   ' are in this list deliberately: `--set-env-vars NAME=` produces a
       # present-but-blank var that reads as configured on the revision. The only way
       # to skip the assertion is for the variable not to exist at all.
-      ['none', 'REDACTED', '${BEDROCK_ACCOUNT}', '', '   ', 'account-2390', '23904478'].each do |bad|
+      # The two prefix/suffix cases are the regression guard for the normalizer.
+      # It used to gsub every non-digit away, so both of these collapsed to the
+      # real account id and were ACCEPTED -- a value nobody intended passing the
+      # check that exists to catch exactly that.
+      ['none', 'REDACTED', '${BEDROCK_ACCOUNT}', '', '   ', 'account-2390', '23904478',
+       'prefix239044785114suffix', '239044785114-OLD'].each do |bad|
         it "refuses rather than skipping for #{bad.inspect}" do
           expect(Aws::STS::Client).not_to receive(:new)
           with_env(bedrock_env('BEDROCK_EXPECTED_AWS_ACCOUNT' => bad)) do

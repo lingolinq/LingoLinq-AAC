@@ -420,10 +420,30 @@ module AiClient
   # a HIPAA control off without anyone editing a line of policy. So the only way
   # to skip the assertion is for the variable not to exist. Blank is a
   # misconfiguration and refuses like any other.
+  # Normalization strips ONLY digit-grouping punctuation, and only from a value
+  # that is digits-with-grouping end to end.
+  #
+  # This used to be gsub(/\D/, ''), which deleted every non-digit character
+  # rather than only the supported separators. That turned
+  # "prefix239044785114suffix" into a valid account id, so a value nobody
+  # intended sailed past the check that exists to catch exactly that. It could
+  # not make a WRONG account pass -- STS still returns the real one and the
+  # comparison still fails -- but it accepted invalid security configuration and
+  # said nothing, which defeats the "misconfigured is not the same as
+  # unconfigured" contract stated above.
+  #
+  # An invalid value is returned UNCHANGED rather than coerced. It then fails the
+  # ACCOUNT_ID_FORMAT check in account_verified?, which refuses and logs, so a
+  # typo surfaces as a misconfiguration instead of being silently repaired.
+  ACCOUNT_GROUPING_FORMAT = /\A\d[\d\s-]*\d\z/
+
   def expected_aws_account
     return nil unless ENV.key?(EXPECTED_ACCOUNT_ENV)
 
-    ENV[EXPECTED_ACCOUNT_ENV].to_s.gsub(/\D/, '')
+    raw = ENV[EXPECTED_ACCOUNT_ENV].to_s.strip
+    return raw unless raw.match?(ACCOUNT_GROUPING_FORMAT)
+
+    raw.gsub(/[\s-]/, '')
   end
 
   # STS endpoint, pinned rather than resolved from the environment.
