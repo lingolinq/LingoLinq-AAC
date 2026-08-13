@@ -85,13 +85,17 @@ describe 'Tier 1 runtime AI controls' do
           end
         end
 
-        it 'REFUSES a disallowed override and falls back to the vetted default' do
+        it 'REFUSES a disallowed override, falls back, and logs the refusal' do
+          allow(Rails.logger).to receive(:warn)
           with_env(env_for(seam, 'ANTHROPIC_MODEL' => DISALLOWED_PROFILE_ID)) do
             model = described.send(:resolve_api_config)[:model]
             expect(model).not_to eq(DISALLOWED_PROFILE_ID)
             expect(model).not_to include('fable')
             expect(model).to eq(VETTED_WIRE_ID)
           end
+          # A silent fallback would be indistinguishable from a typo'd env var.
+          expect(Rails.logger).to have_received(:warn)
+            .with(/is not in ALLOWED_RUNTIME_MODELS/)
         end
 
         it 'refuses a bare alias outside the allowlist too, not only the profile form' do
@@ -100,10 +104,28 @@ describe 'Tier 1 runtime AI controls' do
           end
         end
 
-        it 'honours an override that IS on the allowlist' do
+        # ALLOWED_RUNTIME_MODELS currently holds exactly one entry, and it is the
+        # default at all three seams. So asserting that an allowed override
+        # produces the default wire id proves NOTHING -- refusing it produces the
+        # same string. Widening the allowlist for this example is what makes
+        # "honoured" and "refused" distinguishable at all.
+        it 'honours an allowlisted override that differs from the default' do
+          stub_const('AiClient::ALLOWED_RUNTIME_MODELS',
+                     %w[anthropic.claude-haiku-4-5 anthropic.claude-opus-4-7].freeze)
+          with_env(env_for(seam, 'ANTHROPIC_MODEL' => 'anthropic.claude-opus-4-7')) do
+            model = described.send(:resolve_api_config)[:model]
+            expect(model).to eq('anthropic.claude-opus-4-7')
+            expect(model).not_to eq(VETTED_WIRE_ID)
+          end
+        end
+
+        it 'does not log a refusal when the override is allowed' do
+          allow(Rails.logger).to receive(:warn)
           with_env(env_for(seam, 'ANTHROPIC_MODEL' => 'anthropic.claude-haiku-4-5')) do
             expect(described.send(:resolve_api_config)[:model]).to eq(VETTED_WIRE_ID)
           end
+          expect(Rails.logger).not_to have_received(:warn)
+            .with(/is not in ALLOWED_RUNTIME_MODELS/)
         end
       end
     end
