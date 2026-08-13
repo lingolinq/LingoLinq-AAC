@@ -174,8 +174,11 @@ describe User, :type => :model do
       expect(perms['model']).to eq(true)
       expect(perms['set_goals']).to eq(true)
       expect(perms['view_deleted_boards']).to eq(nil)
-      expect(perms['view_word_map']).to eq(true)
-      expect(perms['view_detailed']).to eq(true)
+      # Modeling-only links lose USAGE DATA and PROFILE DETAIL: they keep only
+      # existence + model (+ set_goals, which the lapsed-billing carve-out above
+      # deliberately preserves). Narrowed in user.rb:63-65,85.
+      expect(perms['view_word_map']).to eq(nil)
+      expect(perms['view_detailed']).to eq(nil)
     end
   end
   
