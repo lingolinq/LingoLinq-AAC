@@ -12,6 +12,7 @@ describe AiClient do
       AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
       BEDROCK_EXPECTED_AWS_ACCOUNT
       AWS_ENDPOINT_URL AWS_ENDPOINT_URL_STS
+      BEDROCK_PLANE
     ]
     keys.each do |key|
       previous[key] = ENV[key]
@@ -93,17 +94,60 @@ describe AiClient do
       end
     end
 
-    it 'constructs BedrockMantleClient with aws_secret_access_key (Mantle keyword)' do
+    # The two plane clients do NOT share a secret-key keyword, and passing the
+    # wrong one raises ArgumentError rather than degrading, so the keyword is
+    # asserted per plane. Both also take base_url explicitly: leaving it nil lets
+    # the gem's `base_url ||= ENV.fetch(...)` hand an env var the power to
+    # redirect every runtime AI request off the BAA'd AWS path, so the host is
+    # part of the contract these examples pin.
+    it 'defaults to the classic plane and passes the classic aws_secret_key keyword' do
       with_env(
         'BEDROCK_AWS_REGION' => 'us-west-2',
         'BEDROCK_AWS_KEY' => 'bedrock-key',
         'BEDROCK_AWS_SECRET' => 'bedrock-secret'
       ) do
+        client = double('bedrock_classic_client')
+        expect(Anthropic::BedrockMantleClient).not_to receive(:new)
+        expect(Anthropic::BedrockClient).to receive(:new).with(
+          aws_region: 'us-west-2',
+          aws_access_key: 'bedrock-key',
+          aws_secret_key: 'bedrock-secret',
+          base_url: 'https://bedrock-runtime.us-west-2.amazonaws.com'
+        ).and_return(client)
+
+        expect(described_class.build).to eq(client)
+      end
+    end
+
+    it 'degrades an unrecognized BEDROCK_PLANE to classic rather than to Mantle' do
+      with_env(
+        'BEDROCK_AWS_REGION' => 'us-west-2',
+        'BEDROCK_AWS_KEY' => 'bedrock-key',
+        'BEDROCK_AWS_SECRET' => 'bedrock-secret',
+        'BEDROCK_PLANE' => 'mantel'
+      ) do
+        client = double('bedrock_classic_client')
+        expect(Anthropic::BedrockMantleClient).not_to receive(:new)
+        allow(Anthropic::BedrockClient).to receive(:new).and_return(client)
+
+        expect(described_class.build).to eq(client)
+      end
+    end
+
+    it 'constructs BedrockMantleClient with aws_secret_access_key (Mantle keyword)' do
+      with_env(
+        'BEDROCK_AWS_REGION' => 'us-west-2',
+        'BEDROCK_AWS_KEY' => 'bedrock-key',
+        'BEDROCK_AWS_SECRET' => 'bedrock-secret',
+        'BEDROCK_PLANE' => 'mantle'
+      ) do
         client = double('bedrock_mantle_client')
+        expect(Anthropic::BedrockClient).not_to receive(:new)
         expect(Anthropic::BedrockMantleClient).to receive(:new).with(
           aws_region: 'us-west-2',
           aws_access_key: 'bedrock-key',
-          aws_secret_access_key: 'bedrock-secret'
+          aws_secret_access_key: 'bedrock-secret',
+          base_url: 'https://bedrock-mantle.us-west-2.api.aws/anthropic'
         ).and_return(client)
 
         expect(described_class.build).to eq(client)
