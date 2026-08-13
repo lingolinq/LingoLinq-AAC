@@ -90,6 +90,48 @@ build_register "$TMP/c1-expire.json" '[
 expect_fail "grandfathered _draft exemption expires automatically on attestation" \
   "$TMP/c1-expire.json" "status token"
 
+# The four cases below all slipped an earlier suffix-blacklist version of CHECK 1.
+# They are kept as permanent regression guards so a future "simplification" back to a
+# blacklist cannot quietly reopen them.
+
+build_register "$TMP/c1-upper.json" '[
+  {"id":"DOC-a","title":"Uppercase token","canonicalSystem":"git",
+   "canonicalLocation":"docs/legal/2026-08-12_thing_DRAFT.md","status":"approved",
+   "attestation":{"attestedBy":"Scot","attestedDate":"2026-08-12","attestedContentHash":"x"}}
+]'
+expect_fail "UPPERCASE status token is refused (case-insensitive)" "$TMP/c1-upper.json" "status token"
+
+build_register "$TMP/c1-mid.json" '[
+  {"id":"DOC-a","title":"Token mid-slug","canonicalSystem":"git",
+   "canonicalLocation":"docs/legal/2026-08-12_draft_thing.md","status":"approved",
+   "attestation":{"attestedBy":"Scot","attestedDate":"2026-08-12","attestedContentHash":"x"}}
+]'
+expect_fail "status token NOT in final position is refused" "$TMP/c1-mid.json" "status token"
+
+build_register "$TMP/c1-case.json" '[
+  {"id":"DOC-a","title":"TitleCase slug","canonicalSystem":"git",
+   "canonicalLocation":"docs/legal/2026-08-12_Thing-Name.md","status":"approved",
+   "attestation":{"attestedBy":"Scot","attestedDate":"2026-08-12","attestedContentHash":"x"}}
+]'
+expect_fail "non-kebab-case slug is refused even with no status token" \
+  "$TMP/c1-case.json" "not\\s*kebab-case"
+
+# Worst row to skip: malformed AND signed. attested? must be the UNION of the fields.
+build_register "$TMP/c1-nodate.json" '[
+  {"id":"DOC-a","title":"Signed but undated","canonicalSystem":"git",
+   "canonicalLocation":"docs/legal/2026-08-12_thing_draft.md","status":"approved",
+   "attestation":{"attestedBy":"Scot","attestedContentHash":"x"}}
+]'
+expect_fail "attestation with no attestedDate still counts as attested" \
+  "$TMP/c1-nodate.json" "status token"
+
+build_register "$TMP/c1-good.json" '[
+  {"id":"DOC-a","title":"Legitimate","canonicalSystem":"git",
+   "canonicalLocation":"docs/legal/2026-08-12_aws-baa-acceptance-record.md","status":"approved",
+   "attestation":{"attestedBy":"Scot","attestedDate":"2026-08-12","attestedContentHash":"x"}}
+]'
+expect_pass "a legitimate attested kebab-case record is allowed" "$TMP/c1-good.json"
+
 echo "legal-naming-check-test: CHECK 2, a signature cannot predate its record"
 
 build_register "$TMP/c2-bad.json" '[

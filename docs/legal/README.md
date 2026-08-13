@@ -90,11 +90,20 @@ is entitled to carry, and the name could never be corrected.
 `audit-artifacts-integrity` job and in `scripts/regenerate-register.sh`. It is register-aware rather
 than a filename regex, because the rule that matters is a relationship between a row's attestation
 state and its path, not a pattern: an unattested draft may sit at a `_draft` path and the same
-record may not once it is signed. It refuses (1) an attested dated row whose filename carries a
-status token, (2) an `attestedDate` earlier than the record's own filename date, since a signature
-cannot predate what it signs, (3) a successor dated before the record it supersedes, (4) any new
-non-dated `docs/legal/` record, with pre-rule names grandfathered through the closed, shrink-only
+record may not once it is signed. It refuses (1) an attested dated row whose slug is not kebab-case,
+(2) an `attestedDate` earlier than the record's own filename date, since a signature cannot predate
+what it signs, (3) a successor dated before the record it supersedes, (4) any new non-dated
+`docs/legal/` record, with pre-rule names grandfathered through the closed, shrink-only
 `meta.legalNamingGrandfathered` list, and (5) a filename whose date component is not a real date.
+
+Check (1) tests the convention **positively** rather than blacklisting status tokens, and that is a
+correction rather than a preference. The blacklist version was written first and was probed past
+three ways within minutes: `_DRAFT` (the match was case-sensitive), `_draft_thing` (the token was
+not in the final position), and `Thing-Name` (no token at all, but still off-convention and still
+frozen forever). A blacklist has to enumerate every evasion; requiring the slug to be lowercase
+alphanumerics separated by single hyphens, with `_` reserved as the date boundary, has none to
+enumerate. "Attested" is likewise the union of the attestation fields rather than `attestedDate`
+alone, so a half-filled attestation block is judged rather than excused.
 
 Note what is deliberately absent: **there is no exemption list for the four dated `_draft` records
 above.** Check (1) fires only on rows that carry an attestation, so their exemption expires by

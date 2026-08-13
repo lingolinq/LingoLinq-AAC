@@ -31,11 +31,20 @@
 # WHAT IT CHECKS (register rows whose canonicalSystem is git and whose
 # canonicalLocation is under docs/legal/)
 #
-#   1. ATTESTED DATED RECORDS CARRY NO STATUS TOKEN.
-#      A dated row with a populated `attestation` block must not have a
-#      `_draft` / `_approved` / `_published` / `_superseded` / `_archived` suffix.
-#      This is the rule rule 3 makes unfixable after the fact: once signed, the name
-#      can never be corrected, so it must be right before signing.
+#   1. AN ATTESTED DATED RECORD'S SLUG IS KEBAB-CASE.
+#      Lowercase alphanumerics separated by single hyphens, with `_` reserved as the
+#      date boundary and appearing nowhere else. This is rule 3's unfixable case: once
+#      signed the name can never be corrected, only superseded, so it must be right
+#      BEFORE signing.
+#
+#      Stated as a positive test for the convention rather than a blacklist of status
+#      tokens, because the blacklist version of this check shipped and was then probed
+#      past three ways in a few minutes (`_DRAFT` uppercase, `_draft_thing` with the
+#      token not final, and a TitleCase slug). A blacklist needs every evasion
+#      enumerated; a convention test needs none.
+#
+#      "Attested" here means ANY populated field in the attestation block, not
+#      attestedDate specifically. See ATTESTATION_FIELDS.
 #
 #   2. A SIGNATURE CANNOT PREDATE THE RECORD IT SIGNS.
 #      For a dated row, `attestation.attestedDate` must not be EARLIER than the date
@@ -95,11 +104,26 @@ end
 REGISTER = register_override || File.expand_path('../audit-reports/DOCUMENT-REGISTER.json', __dir__)
 
 LEGAL_PREFIX = 'docs/legal/'
-# `<YYYY-MM-DD>_<slug><ext>`; slug and extension captured so the status token and the
-# date can be judged separately.
-DATED = %r{\A#{Regexp.escape(LEGAL_PREFIX)}(\d{4}-\d{2}-\d{2})_([^/]+?)(\.[^./]+)\z}
-# The statusEnum values, as a filename suffix. Kept in sync with meta.statusEnum below.
-STATUS_TOKEN = /_(draft|approved|published|superseded|archived)\z/
+# `<YYYY-MM-DD>_<slug><ext>`; slug and extension captured so the slug and the date can
+# be judged separately. Case-insensitive so a stray `docs/Legal/` is judged rather than
+# silently falling out of scope.
+DATED = %r{\A#{Regexp.escape(LEGAL_PREFIX)}(\d{4}-\d{2}-\d{2})_([^/]+?)(\.[^./]+)\z}i
+#
+# The slug of an ATTESTED dated record must be kebab-case: lowercase alphanumerics
+# separated by single hyphens, with no underscore anywhere.
+#
+# Deliberately stricter than "does it end in _draft", and it replaced exactly that
+# narrower check after probing found ways past it: `_DRAFT` (the token match was
+# case-sensitive) and `_draft_thing` (token not in the final position). Enumerating
+# evasions of a suffix rule is a losing game. The convention itself is the rule --
+# `<YYYY-MM-DD>_<kebab-slug>` reserves `_` as the date boundary, so any further
+# underscore is off-convention whatever follows it -- and a positive test for the
+# convention has no evasion list to keep up to date.
+KEBAB_SLUG = /\A[a-z0-9]+(-[a-z0-9]+)*\z/
+# Used only to give a precise message when the off-convention slug is specifically a
+# status token. Case-insensitive and position-independent, for the message alone;
+# KEBAB_SLUG is what actually decides.
+STATUS_TOKEN = /(\A|_)(draft|approved|published|superseded|archived)(_|\z)/i
 
 def die(msg)
   warn "legal-naming-check: #{msg}"
@@ -146,9 +170,19 @@ end
 by_id = documents.to_h { |d| [d['id'].to_s, d] }
 problems = []
 
+# Fails CLOSED: any populated attestation field means the row is treated as attested.
+#
+# An earlier version required attestedDate specifically, which let a row carrying
+# attestedBy + attestedContentHash but no date slip the naming check entirely. That is
+# the worst possible row to skip: it is both malformed AND signed. Treating "signed" as
+# the union of the fields means a partially-filled block is judged, not excused.
+ATTESTATION_FIELDS = %w[attestedBy attestedDate attestedContentHash].freeze
+
 def attested?(row)
   att = row['attestation']
-  att.is_a?(Hash) && !att.empty? && !att['attestedDate'].to_s.strip.empty?
+  return false unless att.is_a?(Hash)
+
+  ATTESTATION_FIELDS.any? { |f| !att[f].to_s.strip.empty? }
 end
 
 def dated_parts(location)
@@ -193,18 +227,28 @@ rows.each do |row|
 
   token = STATUS_TOKEN.match(parts[:slug])
 
-  # CHECK 1: the rule that matters. Attested + status token is unfixable after the fact.
-  if attested?(row) && token
-    problems << "#{label}: #{loc} is ATTESTED but its filename carries the status token " \
-                "#{token[1].inspect}. Status lives in the register row (statusEnum), not the name: " \
+  # CHECK 1: the rule that matters. An off-convention name on an attested record is
+  # unfixable after the fact, so this tests the convention positively (kebab-case)
+  # rather than blacklisting the status tokens it is most likely to be violated by.
+  if attested?(row) && !KEBAB_SLUG.match?(parts[:slug])
+    if token
+      problems << "#{label}: #{loc} is ATTESTED but its filename carries the status token " \
+                  "#{token[2].downcase.inspect}. Status lives in the register row (statusEnum), not the name: " \
                 'rule 3 freezes an attested filename permanently, so the token would either become ' \
                 'false at the first status change or force a rename rule 3 forbids. An unattested ' \
                 'record may sit at this path, but it must LEAVE it before being attested, and via ' \
                 'Path A supersession rather than an in-place rename (docs/legal/README.md, ' \
                 '"Transition rule"): create a new statusless dated file, add a row that supersedes ' \
                 'this one, mark this row superseded with a reciprocal pointer, retarget live bundle ' \
-                'requiredDocs, then attest ONLY the successor. Renaming in place would change the ' \
-                'DOC- id, which is sha256(canonicalLocation)[0,10], breaking the permanent-ID promise.'
+                  'requiredDocs, then attest ONLY the successor. Renaming in place would change the ' \
+                  'DOC- id, which is sha256(canonicalLocation)[0,10], breaking the permanent-ID promise.'
+    else
+      problems << "#{label}: #{loc} is ATTESTED but its slug #{parts[:slug].inspect} is not " \
+                  'kebab-case. An attested filename is frozen permanently (rule 3), so it must match ' \
+                  'the convention exactly: lowercase alphanumerics separated by single hyphens, with ' \
+                  '`_` reserved as the date boundary and appearing nowhere else. Rename before ' \
+                  'attesting, or if the record is already attested, supersede it (Path A).'
+    end
   end
 
   # CHECK 2: a signature cannot predate the record it signs.
