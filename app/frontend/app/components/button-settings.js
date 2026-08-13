@@ -316,6 +316,16 @@ export default Component.extend({
       label: this.get('model.label')
     });
   }),
+  // Sound tab "Speak" binds with set-field to model.vocalization only. Without this
+  // sync, board.buttons never gets the new speak text (same class of bug as urlChanged),
+  // so closing/saving the board keeps the old vocalization even though the modal preview
+  // showed the edit.
+  vocalizationChanged: observer('model.vocalization', function() {
+    if(!this.get('handle_updates') || !this.get('model.id')) { return; }
+    editManager.change_button(this.get('model.id'), {
+      vocalization: this.get('model.vocalization')
+    });
+  }),
   // The URL field is bound with a plain `set-field model.url`, which updates ONLY the
   // in-modal Button model — it never reached board.buttons the way labelChanged does.
   // board-detail speak mode rebuilds its display buttons from board.buttons (via
@@ -1589,8 +1599,13 @@ export default Component.extend({
       if(borderEl && borderEl.value) {
         this.set('model.border_color', borderEl.value);
       }
+      // Flush speak text + colors onto board.buttons before pending image work / destroy.
+      // vocalizationChanged covers live edits; this covers close-time sound_id clears and
+      // any path that mutated model.vocalization without firing the observer yet.
       if(this.get('model.id')) {
         editManager.change_button(this.get('model.id'), {
+          vocalization: this.get('model.vocalization'),
+          sound_id: this.get('model.sound_id'),
           background_color: this.get('model.background_color'),
           border_color: this.get('model.border_color')
         });
