@@ -1,0 +1,31 @@
+<div class={{this.elem_class}} style={{this.elem_style}}>
+  {{! Inner card so the column's own padding stays as the gutter between charts. }}
+  <div class="report-chart-card">
+    <div class="report-chart-card__head">
+      <h3 class="report-chart-card__title">{{t "Parts of Speech" key="parts_of_speech"}}</h3>
+    </div>
+
+    <div class="report-chart-card__body report-chart-card__body--scroll">
+      {{#if this.rows}}
+        {{! Each row names itself and prints its own share, so identity never
+            rests on colour alone and no legend is needed. }}
+        <ul class="report-bar-list">
+          {{#each this.rows as |row|}}
+            {{! Name and share first, bar last: the grid places children in DOM
+                order, so a track written between them would take a row of its
+                own and leave the value stranded on a third. }}
+            <li class="report-bar-list__row">
+              <span class="report-bar-list__label">{{row.label}}</span>
+              <span class="report-bar-list__value">{{row.percent_label}}</span>
+              <span class="report-bar-list__track" aria-hidden="true">
+                <span class="report-bar-list__bar" style={{row.style}}></span>
+              </span>
+            </li>
+          {{/each}}
+        </ul>
+      {{else}}
+        <p class="report-chart-card__empty">{{t "No data available" key="no_data"}}</p>
+      {{/if}}
+    </div>
+  </div>
+</div>

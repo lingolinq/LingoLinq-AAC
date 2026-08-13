@@ -203,11 +203,18 @@ export default Controller.extend({
     return null;
   },
 
-  _enterSpeakModeForSuperviseeId: function(boardUserId, modeling, superviseeForModelingOnlyCheck) {
+  // `modeling` picks which mode we enter, and it maps to set_speak_mode_user's
+  // `keep_as_self`: true keeps the supporter as themselves on the communicator's
+  // board (modeling), false makes them the speaking user (speak-as).
+  //
+  // A modeling-only link used to be blocked from the speak-as path here. That
+  // guard was UI policy, not a backend constraint: api/logs_controller#create
+  // requires only `allowed?(user, 'model')` (logs_controller.rb:187), which every
+  // supervisor including modeling-only holds (user.rb:63), and it records
+  // `:author => @api_user` regardless of client mode — so the supporter is
+  // attributed server-side either way. Modelers may now Speak.
+  _enterSpeakModeForSuperviseeId: function(boardUserId, modeling) {
     if (!boardUserId) {
-      return;
-    }
-    if (superviseeForModelingOnlyCheck && superviseeForModelingOnlyCheck.modeling_only && !modeling) {
       return;
     }
     var appState = this.get('appState');
@@ -348,9 +355,6 @@ export default Controller.extend({
     // Open the static "Managing Your Caseload" guide modal (info button next to
     // the "People you support" subheader) — maps the row quick-action icons and
     // explains what opening a communicator's card lets you do.
-    showCaseloadGuide: function() {
-      modal.open('modals/caseload-guide');
-    },
     // Toggle the selected supervisee. Clicking a row in the compact
     // student list opens that supervisee's full card below; clicking
     // the same row again (or another row) collapses or switches.
@@ -405,7 +409,7 @@ export default Controller.extend({
       if (boardUserId == null && supervisee.user_name) {
         boardUserId = supervisee.user_name;
       }
-      this._enterSpeakModeForSuperviseeId(boardUserId, true, supervisee);
+      this._enterSpeakModeForSuperviseeId(boardUserId, true);
     },
     caseload_speak_as: function(supervisee) {
       if (!supervisee) {
@@ -415,7 +419,7 @@ export default Controller.extend({
       if (boardUserId == null && supervisee.user_name) {
         boardUserId = supervisee.user_name;
       }
-      this._enterSpeakModeForSuperviseeId(boardUserId, false, supervisee);
+      this._enterSpeakModeForSuperviseeId(boardUserId, false);
     },
 
     stats: function(userName) {

@@ -11,6 +11,7 @@
 @use "goals";
 @use "search";
 @use "board_picker";
+@use "reports";
 
 // All design-token variables ($brand-*, $color-*, $aac-*, $la-*, $cat-*,
 // $nav_*, $page-footer-*, $ll-bento-*) live in _variables.scss above.
@@ -44488,39 +44489,58 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    (keeps any fixed descendants safe) and reads crisper than the frosted
    glass here. */
 .md-workspace .md-stats-page {
-  /* Translucent frosted panel (more transparent than the earlier opaque
-     gradient) so the page background reads through — keeps the subtle
-     top-down white tint but at ~0.62 alpha + a backdrop blur for the glass
-     read. Scoped to `.md-stats-page` so it's the stats page ONLY. Safe to
-     blur here: the stats date-filter is native selects (no fixed dropdowns)
-     and this panel holds no fixed overlay. */
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0%, rgba(251, 252, 254, 0.34) 100%) !important;
+  /* This panel now carries the report's glass surface: the treatment that used
+     to sit on `.communication-report::before` (verdigris + denim corner blooms
+     over a white-to-ice diagonal, white hairline, deep soft drop) moved out here
+     so the page reads as ONE card instead of a card inside a card. That
+     pseudo-element is now fully transparent (see _reports.scss).
+     Scoped to `.md-stats-page` so it's the stats page ONLY. Safe to blur here:
+     the stats date-filter is native selects (no fixed dropdowns) and this panel
+     holds no fixed overlay. */
+  background:
+    radial-gradient(circle at 12% 4%, rgba(42, 157, 143, 0.1), transparent 432px),
+    radial-gradient(circle at 94% 8%, rgba(76, 134, 216, 0.12), transparent 480px),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(244, 248, 255, 0.76)) !important;
 
-  -webkit-backdrop-filter: blur(22px) saturate(1.35) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(125%) !important;
 
-  backdrop-filter: blur(22px) saturate(1.35) !important;
+  backdrop-filter: blur(24px) saturate(125%) !important;
 
   will-change: transform !important;
 
   transform: translateZ(0) !important;
 
-  border: 1px solid rgba($la-navy, 0.10) !important;
+  border: 1px solid rgba(255, 255, 255, 0.86) !important;
 
   border-radius: 32px !important;
 
   box-shadow:
-    0 6px 40px rgba($la-navy, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    0 24px 64px rgba(27, 54, 93, 0.1) !important;
 
-  padding: clamp(18px, 2.4vw, 30px) !important;
+  /* The panel's own inset. `.md-stats-main` inside carries no margin or padding,
+     so this is the only gutter between the panel edge and the report content.
+     No top inset — the report heading sits flush to the top of the panel. */
+  padding: 0 clamp(18px, 2.4vw, 30px) clamp(18px, 2.4vw, 30px) !important;
+
+  /* Clears the page hero above it. */
+  margin-top: 24px !important;
 
   min-height: auto !important;
 
   color: var(--md-ink) !important;
 
 }
+/* Compare mode is a different STATE, not an override of the rule above: it has no
+   report header sitting flush to the panel top (the side-by-side period filters
+   start the content instead), so the top inset comes back. */
+.md-workspace .md-stats-page:has(.md-stats-compare-row) {
+  padding-top: clamp(18px, 2.4vw, 30px) !important;
+}
 .md-workspace .md-stats-main {
-  padding-bottom: calc(24px + var(--bottombar-height, 59px)) !important;
+  /* No padding — the bottom-navbar clearance this used to reserve now comes from
+     the workspace's own bottom padding, not an inset on the report column. */
+  padding: 0 !important;
 
 }
 .md-shell--reports-view .md-stats-main {
@@ -51680,6 +51700,14 @@ a.md-goal-nav-action:hover,
    equal-specificity source-order tie. */
 .md-grid.md-grid--layout-focused {
   grid-template-columns: repeat(4, 1fr) !important;
+  /* 14px, against the base `.md-grid`'s 28px. The four action cards share one
+     row here, so every px removed from the three gutters is returned to the
+     columns — 42px reclaimed, ~10px wider per card. That is what keeps the
+     title's trailing arrow on the SAME line as the title text: at 28px the
+     longer labels ("Create a Board", "Edit Dashboard") ran out of room and
+     orphaned the arrow onto a second line, so the four headers sat at different
+     heights. Matches the 16px the <=1024px flex fallback already uses. */
+  gap: 14px !important;
 }
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button {
   min-height: 0 !important;
@@ -58648,12 +58676,11 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 }
 .md-stats-main {
   max-width: 1120px;
-  margin: 5rem auto 0;
-  /* Top padding 18px → 8px and side padding tightened ~22% to compress the
-     overall vertical rhythm (the page read too airy between sections). */
-  padding: 8px calc((16px + 2rem) * 1.55) 24px;
-  /* Reserve space above the fixed bottom navbar so content doesn't overflow into it */
-  padding-bottom: calc((24px + var(--bottombar-height, 59px)) / 2);
+  /* No margin or padding — the report's own cards carry their spacing. `auto` is
+     kept on the horizontal axis ONLY so the 1120px column stays centred in the
+     workspace; it contributes no fixed inset. */
+  margin: 0 auto;
+  padding: 0;
 }
 
 /* Stats hero: about-page style — transparent container, eyebrow badge, title, separator */
@@ -59124,6 +59151,10 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   gap: 8px;
   width: 100%;
   max-width: 100%;
+  /* `min-width: auto` would size this to the widest line its period row can
+     make and let it spill past the header column on a phone. Zeroed so the row
+     inside is the thing that gives, not the layout around it. */
+  min-width: 0;
   margin: 0;
   padding: 0;
   background: none;
@@ -59154,24 +59185,41 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 .md-stats-filter__period-head .md-stats-section-head__label {
   font-size: 15px !important;
 }
-/* Controls row — the period select + compare button, side by side. */
+/* Controls pair — the period select + compare button, inline after the label.
+   `nowrap` + `min-width: 0`: the pair holds one line at every width, and the
+   space that runs out comes off the controls' own widths (the compare caption
+   wraps inside the button) rather than dropping one of them to a new line. */
 .md-stats-filter__period-controls {
   display: flex;
   flex-direction: row;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 14px;
-  width: 100%;
+  flex-wrap: nowrap;
+  gap: 10px;
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
 }
 /* Compare button — sits next to the period select in the controls row.
    Height matched to the select so the two line up. */
 .md-stats-filter__period-bar .md-stats-filter__compare {
-  height: 42px !important;
-  min-height: 42px !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
+  /* 44px, not 42: this is the report's comparison action and has to clear the
+     44x44 minimum target size, so "compact" is spent on horizontal padding and
+     type size rather than height. The period-select trigger below matches it.
+     A FLOOR rather than a fixed height, because the caption wraps to two lines
+     in the narrow widths where the row would otherwise have to break — at every
+     width that fits one line this still resolves to exactly 44px. */
+  height: auto !important;
+  min-height: 44px !important;
+  padding: 0 14px !important;
+  font-size: 14px !important;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  text-align: center;
+  /* A flex item's default `min-width: auto` is its longest line, which would
+     make this button refuse to narrow and push the row off-screen instead of
+     wrapping its caption. */
+  min-width: 0;
   gap: 6px;
   /* Match the boards-page "New Board" CTA (.ub-boards-page__new-board-btn ~l.60554):
      subtle 135deg verdigris→denim translucent gradient, white hairline border,
@@ -59197,8 +59245,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     0 10px 22px rgba($la-navy, 0.28) !important;
 }
 .md-stats-filter__period-bar .md-stats-period-select__trigger {
-  height: 42px;
-  min-height: 42px;
+  /* Matched to the 44px compare button above (44x44 minimum target size). */
+  height: 44px;
+  min-height: 44px;
   /* Raised "lift" — layered soft shadow + a subtle hover rise. */
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.6) inset,
@@ -59227,15 +59276,41 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    ~4px. Zero it so the select centers with the label and compare button. */
 .md-stats-filter__period-bar .md-stats-filter__period-wrap {
   margin: 0 !important;
+  /* The wrap owns the select's width (the trigger below fills it), so shrinking
+     this box actually narrows the control instead of letting it overflow and sit
+     on top of the "Report period:" label. 92px is the floor at which the longest
+     period name is still readable. */
+  flex: 1 1 auto;
+  min-width: 92px;
 }
-/* Mobile: stack the select + compare button full-width under the label. */
+/* The label, the period select and the compare action stay on ONE row at every
+   width — they read as a single sentence ("Report period: <last 2 months>
+   <compare…>"), and splitting them across lines lost that. Nothing stacks them
+   at a breakpoint any more; instead the two controls shrink and the compare
+   button's caption wraps inside itself. */
 @media (max-width: 600px) {
-  .md-stats-filter__period-controls {
-    flex-direction: column;
-    align-items: stretch;
-  }
   .md-stats-filter__period-controls .md-stats-filter__compare {
     justify-content: center;
+  }
+  /* Phone: ~296px of column has to hold the label, the period pill and the
+     compare action side by side. The type steps down one notch and the gaps
+     tighten so all three stay on the line and stay legible; the compare
+     caption takes the remaining width and wraps inside its own button. */
+  .md-stats-filter__period-bar .md-stats-filter__period-stack,
+  .md-stats-filter__period-bar .md-stats-filter__period-controls {
+    gap: 6px;
+  }
+  .md-stats-filter__period-bar .md-stats-filter__period-title {
+    font-size: 13px;
+  }
+  .md-stats-filter__period-bar .md-stats-period-select__trigger {
+    padding: 0 10px;
+    font-size: 13px;
+  }
+  .md-stats-filter__period-bar .md-stats-filter__compare {
+    flex: 1 1 auto;
+    padding: 0 10px !important;
+    font-size: 13px !important;
   }
 }
 /* Secondary "+ Compare period" button + its leading plus. */
@@ -59252,6 +59327,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   justify-content: center;
   gap: 8px;
   width: 100%;
+  min-width: 0;
 }
 .md-stats-filter__row--stacked {
   flex-direction: row;
@@ -59261,11 +59337,14 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 }
 .md-stats-filter__period-stack {
   display: flex;
+  /* One inline row: "Report period:" label, then the select and the compare
+     action beside it. */
   flex-direction: row;
   align-items: center;
   justify-content: center;
   gap: 10px;
   width: auto;
+  min-width: 0;
   max-width: 100%;
 }
 .md-stats-filter__period-head {
@@ -59285,6 +59364,10 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 .md-stats-filter__period-title {
   display: inline;
   width: auto;
+  /* Never the thing that wraps or shrinks: it is the row's label, so the space
+     comes out of the controls beside it. */
+  flex: 0 0 auto;
+  white-space: nowrap;
   margin: 0;
   padding: 0;
   text-align: left;
@@ -59362,10 +59445,16 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-width: 160px;
+  /* Compact: 128px min (was 160) and tighter padding. Height is set to the 44px
+     target minimum by the period-bar rule above. */
+  /* No intrinsic floor: the trigger fills whatever width its wrap is given
+     (`.md-stats-filter__period-wrap` carries the 92px floor in the period row),
+     so it can never overflow its own box and land on the label beside it. */
+  min-width: 0;
+  width: 100%;
   height: 26px;
   min-height: 26px;
-  padding: 0 28px 0 12px;
+  padding: 0 24px 0 10px;
   line-height: 1;
   border-radius: 999px;
   border: 1px solid rgba(0, 0, 0, 0.08);
@@ -68216,15 +68305,15 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     padding-left: 0 !important;
     padding-right: 0 !important;
   }
+  /* Direction is NOT overridden here: the label stays on the same row as the
+     period select and the compare action at every width (see the base rule). */
   .md-stats-filter__period-stack {
-    flex-direction: column !important;
     padding-left: 0.5rem !important;
-
     padding-right: 0.5rem !important;
-
   }
-  /* Stacked here (column), the period bar is tall — the base 999px pill radius then
-     reads as an oversized pill. Use a card radius so it reads as a panel. */
+  /* The compare button's caption wraps to two lines in this range, so the bar is
+     taller than one control — the base 999px pill radius would read as an
+     oversized pill. Use a card radius so it reads as a panel. */
   .md-stats-filter__period-bar {
     border-radius: 24px !important;
   }
@@ -98430,3 +98519,56 @@ body.md-tour--centered-step .shepherd-modal-overlay-container.shepherd-modal-is-
     font-size: 13px;
   }
 }
+
+/* ── Focused View: boards-page CTAs wear the home hero's surface ───────────
+   "+ New Board" and "Set / Change Home Board" are the boards page's two primary
+   entrypoints and are deliberately one button family (same pill radius, same
+   translucent teal→denim gradient in Gentle View — see
+   `.ub-boards-page__new-board-btn` ~l.63224 and `.ub-boards-page` &__set-home-btn
+   ~l.66017). In FOCUSED View they instead take the surface of the home page's
+   hero (`.md-card--speak-focused` ~l.50573): the same
+   `$focus-hero-center → $focus-hero-edge` radial in oklab, so the CTA a user
+   meets on Boards is visibly the same material as the one they press on Home.
+   THE INK HAS TO FLIP WITH THE FILL. The Gentle pill is a LIGHT translucent
+   surface carrying dark `var(--md-ink)` text and a `currentColor` icon; the hero
+   surface is a dark navy. Reusing it without switching to `$focus-on-dark`
+   (#fff) would leave near-black text on near-black ground. The hero already
+   pairs this exact gradient with `$focus-on-dark`, so the pairing is proven.
+   Border and rim follow the hero for the same reason — a white 0.5 rim reads as
+   a bright halo on a dark fill.
+   Scoped on `body.ll-layout-focused`, the app-wide Focused flag set in
+   app.js:511, so this cannot leak into Gentle View. (0,2,1) clears both base
+   rules at (0,1,0); the only higher-specificity rule on either button is the
+   ≤768px `align-self` at ~l.63672, which sets no colour. */
+body.ll-layout-focused .ub-boards-page__new-board-btn,
+body.ll-layout-focused .ub-boards-page__set-home-btn {
+  background: radial-gradient(ellipse at center in oklab,
+    #{$focus-hero-center} 0%,
+    #{$focus-hero-edge} 100%);
+  color: $focus-on-dark;
+  border: 1px solid rgba($focus-on-dark, 0.14);
+  box-shadow:
+    inset 0 2px 0 rgba($focus-on-dark, 0.30),
+    inset 0 -5px 10px rgba($focus-shadow-ink, 0.30),
+    0 2px 5px rgba($focus-shadow-ink, 0.24),
+    0 10px 22px rgba($focus-shadow-ink, 0.30);
+}
+/* Hover mirrors the hero's: lift + deeper shadow + a faint brand glow. The
+   gradient is restated because the base hover rules swap it back to the light
+   Gentle pill, and box-shadow does not cascade per layer. */
+body.ll-layout-focused .ub-boards-page__new-board-btn:hover,
+body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
+  background: radial-gradient(ellipse at center in oklab,
+    #{$focus-hero-center} 0%,
+    #{$focus-hero-edge} 100%);
+  color: $focus-on-dark;
+  border-color: rgba($focus-on-dark, 0.22);
+  box-shadow:
+    inset 0 2px 0 rgba($focus-on-dark, 0.34),
+    inset 0 -5px 10px rgba($focus-shadow-ink, 0.32),
+    0 3px 7px rgba($focus-shadow-ink, 0.28),
+    0 14px 28px rgba($focus-shadow-ink, 0.36),
+    0 0 20px rgba($focus-hero-glow, 0.12);
+}
+/* The icon inherits via `fill="currentColor"` in the markup, so the colour
+   above already carries it — no separate rule needed. */

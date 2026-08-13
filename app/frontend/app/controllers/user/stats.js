@@ -10,6 +10,7 @@ import app_state from '../../utils/app_state';
 import modal from '../../utils/modal';
 import Utils from '../../utils/misc';
 import Stats from '../../utils/stats';
+import ReportSummary from '../../utils/report_summary';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
@@ -58,24 +59,50 @@ export default Controller.extend({
       return !!((this.get('usage_stats.has_data') && !this.get('status')) || (this.get('usage_stats2.has_data') && !this.get('status2')));
     }
   ),
-  // Explicit display values so templates update when usage_stats is replaced (binding fix)
-  display_total_sessions: computed('usage_stats', 'usage_stats.total_sessions', function() { var s = this.get('usage_stats'); return s ? s.get('total_sessions') : undefined; }),
-  display_total_words: computed('usage_stats', 'usage_stats.total_words', function() { var s = this.get('usage_stats'); return s ? s.get('total_words') : undefined; }),
-  display_total_utterances: computed('usage_stats', 'usage_stats.total_utterances', function() { var s = this.get('usage_stats'); return s ? s.get('total_utterances') : undefined; }),
-  display_total_buttons: computed('usage_stats', 'usage_stats.total_buttons', function() { var s = this.get('usage_stats'); return s ? s.get('total_buttons') : undefined; }),
-  display_words_per_utterance: computed('usage_stats', 'usage_stats.words_per_utterance', function() { var s = this.get('usage_stats'); return s ? s.get('words_per_utterance') : undefined; }),
-  display_words_per_minute: computed('usage_stats', 'usage_stats.words_per_minute', function() { var s = this.get('usage_stats'); return s ? s.get('words_per_minute') : undefined; }),
-  display_utterances_per_minute: computed('usage_stats', 'usage_stats.utterances_per_minute', function() { var s = this.get('usage_stats'); return s ? s.get('utterances_per_minute') : undefined; }),
-  display_buttons_per_minute: computed('usage_stats', 'usage_stats.buttons_per_minute', function() { var s = this.get('usage_stats'); return s ? s.get('buttons_per_minute') : undefined; }),
-  // Right side (compare) display values
-  display_total_sessions2: computed('usage_stats2', 'usage_stats2.total_sessions', function() { var s = this.get('usage_stats2'); return s ? s.get('total_sessions') : undefined; }),
-  display_total_words2: computed('usage_stats2', 'usage_stats2.total_words', function() { var s = this.get('usage_stats2'); return s ? s.get('total_words') : undefined; }),
-  display_total_utterances2: computed('usage_stats2', 'usage_stats2.total_utterances', function() { var s = this.get('usage_stats2'); return s ? s.get('total_utterances') : undefined; }),
-  display_total_buttons2: computed('usage_stats2', 'usage_stats2.total_buttons', function() { var s = this.get('usage_stats2'); return s ? s.get('total_buttons') : undefined; }),
-  display_words_per_utterance2: computed('usage_stats2', 'usage_stats2.words_per_utterance', function() { var s = this.get('usage_stats2'); return s ? s.get('words_per_utterance') : undefined; }),
-  display_words_per_minute2: computed('usage_stats2', 'usage_stats2.words_per_minute', function() { var s = this.get('usage_stats2'); return s ? s.get('words_per_minute') : undefined; }),
-  display_utterances_per_minute2: computed('usage_stats2', 'usage_stats2.utterances_per_minute', function() { var s = this.get('usage_stats2'); return s ? s.get('utterances_per_minute') : undefined; }),
-  display_buttons_per_minute2: computed('usage_stats2', 'usage_stats2.buttons_per_minute', function() { var s = this.get('usage_stats2'); return s ? s.get('buttons_per_minute') : undefined; }),
+  // The former `display_*` computeds (totals and per-minute rates, both sides)
+  // were removed with the last template that read them: compare mode now renders
+  // from `compareMetrics` / `compareMetrics2`, which read the same usage_stats
+  // fields through utils/report_summary.js.
+  // "Communication progress" summary. All derivation lives in
+  // utils/report_summary.js (pure, unit-tested); the controller only exposes it.
+  // Single-period only — compare mode keeps its existing side-by-side panels.
+  report_summary: computed(
+    'usage_stats',
+    'usage_stats.has_data',
+    'usage_stats.days',
+    'usage_stats.total_utterances',
+    'usage_stats.total_sessions',
+    'usage_stats.words_per_utterance',
+    function() {
+      return ReportSummary.analyze(this.get('usage_stats'));
+    }
+  ),
+  formattedDateRange: alias('report_summary.formattedDateRange'),
+  hasReportData: alias('report_summary.hasReportData'),
+  comparisonAvailable: alias('report_summary.comparisonAvailable'),
+  comparisonPeriodLabel: alias('report_summary.comparisonPeriodLabel'),
+  comparisonBasis: alias('report_summary.comparisonBasis'),
+  primaryInsight: alias('report_summary.primaryInsight'),
+  summaryMetrics: alias('report_summary.summaryMetrics'),
+  reportInsights: alias('report_summary.reportInsights'),
+  hasInsights: alias('report_summary.hasInsights'),
+  secondaryMetrics: alias('report_summary.secondaryMetrics'),
+  reportTrend: alias('report_summary.trend'),
+  // Compare mode: the same eight figures per period the old panels showed,
+  // rendered with the summary's KPI card instead of a Bootstrap panel.
+  compareMetrics: computed('usage_stats', 'usage_stats.total_sessions', function() {
+    return ReportSummary.comparePanelMetrics(this.get('usage_stats'));
+  }),
+  compareMetrics2: computed('usage_stats2', 'usage_stats2.total_sessions', function() {
+    return ReportSummary.comparePanelMetrics(this.get('usage_stats2'));
+  }),
+  /** Icon for the primary takeaway — never color-only, and never a false "up". */
+  primaryInsightIcon: computed('report_summary.primaryInsight.tone', function() {
+    var tone = this.get('report_summary.primaryInsight.tone');
+    if(tone === 'positive') { return 'trend-up'; }
+    if(tone === 'negative') { return 'trend-down'; }
+    return 'activity';
+  }),
   wordPairsForSankey: computed('usage_stats.word_pairs', function() {
     var pairs = this.get('usage_stats.word_pairs') || {};
     var arr = Object.keys(pairs).map(function(k) {

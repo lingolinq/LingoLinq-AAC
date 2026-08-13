@@ -18,10 +18,11 @@
     </header>
 <div class="md-stats-page">
   <main class="md-stats-main">
-    {{!-- Focused View header/subheader — shown ONLY in Focused View via CSS (the
-         gentle-view hero + .md-stats-hero-card serve that role otherwise). Mirrors the
-         home page Boards card head (title + verdigris accent + sub + gradient divider),
-         adapted for Reports. --}}
+    {{!-- Focused View header/subheader — shown ONLY in Focused View via CSS, and
+         only on the states that do NOT render the "Communication progress"
+         summary (login / premium-required / logging-off). When the summary is on
+         screen it carries the page title itself, so _focused-view.scss suppresses
+         this head via :has(.communication-report). --}}
     <div class="md-stats-main__focus-head">
       <h3 class="md-card__title">{{t "Reports" key="reports"}} <span class="md-card__title-accent--verdigris">{{t "(Usage & Progress)" key="reports_focus_accent"}}</span></h3>
       <div class="md-card__sub">{{t "View usage and progress" key="reports_card_sub"}}</div>
@@ -40,12 +41,14 @@
       </button>
     </div>
     {{/if}}
-    <section class="md-stats-hero-card" aria-labelledby="md-stats-hero-title">
-      <div class="md-stats-hero__head">
-        <h1 id="md-stats-hero-title" class="md-stats-hero__title">{{t "%{un}'s Reports" key="usage_reports_for" un=this.model.user_name}}</h1>
-      </div>
-    </section>
-    <hr class="la-about-hero-separator" aria-hidden="true">
+    {{#if this.usage_stats2}}
+      <section class="md-stats-hero-card" aria-labelledby="md-stats-hero-title">
+        <div class="md-stats-hero__head">
+          <h1 id="md-stats-hero-title" class="md-stats-hero__title">{{t "%{un}'s Reports" key="usage_reports_for" un=this.model.user_name}}</h1>
+        </div>
+      </section>
+      <hr class="la-about-hero-separator" aria-hidden="true">
+    {{/if}}
     {{#unless this.usage_stats}}
       <div class="md-card__loading md-card__loading--reports">
         <div class="md-spinner" aria-hidden="true">
@@ -57,212 +60,191 @@
         <p class="md-card__loading-text">{{t "Loading reports..." key="loading_reports"}}</p>
       </div>
     {{/unless}}
-    {{#if this.usage_stats}}
-      <div class="md-stats-compare-filter-group{{if this.usage_stats2 " md-stats-compare-filter-group--active" ""}}">
-        {{#if this.usage_stats2}}
-          <span class="md-stats-compare-filter-group__badge">{{t "Compare report periods" key="compare_report_periods"}}</span>
-        {{/if}}
-        <div class="row{{if this.usage_stats2 " md-stats-compare-row md-stats-compare-row--filter" ""}}" style='page-break-inside: avoid;'>
+    {{#if this.usage_stats2}}
+      {{!-- Compare mode is unchanged: side-by-side period filters, then the two
+            LoadStatus columns and the compare stat groups below. --}}
+      <div class="md-stats-compare-filter-group md-stats-compare-filter-group--active">
+        <span class="md-stats-compare-filter-group__badge">{{t "Compare report periods" key="compare_report_periods"}}</span>
+        <div class="row md-stats-compare-row md-stats-compare-row--filter" style='page-break-inside: avoid;'>
           <Stats::DataFilter @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} @status={{this.status}} @app_state={{this.app_state}} @snapshots={{this.snapshots}} @compare_to={{this.ctrlAction "compare_to"}} @clear_side={{this.ctrlAction "clear_left_side"}} @update_filter={{this.ctrlAction "update_left_filter"}} />
-          {{#if this.usage_stats2}}
-            <div class="md-stats-compare-filter-group__between" aria-hidden="true">
-              <img src={{path "images/compare-reports.png"}} alt="" class="md-stats-compare-filter-group__between-img">
-            </div>
-            <Stats::DataFilter @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @status={{this.status2}} @snapshots={{this.snapshots}} @right_side={{true}} @clear_side={{this.ctrlAction "clear_right_side"}} @update_filter={{this.ctrlAction "update_right_filter"}} />
-          {{/if}}
+          <div class="md-stats-compare-filter-group__between" aria-hidden="true">
+            <img src={{path "images/compare-reports.png"}} alt="" class="md-stats-compare-filter-group__between-img">
+          </div>
+          <Stats::DataFilter @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @status={{this.status2}} @snapshots={{this.snapshots}} @right_side={{true}} @clear_side={{this.ctrlAction "clear_right_side"}} @update_filter={{this.ctrlAction "update_right_filter"}} />
         </div>
       </div>
-    {{/if}}
-    {{#unless this.usage_stats2}}{{#if this.some_data}}
-      <div class="md-stats-section-head md-stats-section-head--first">
-        <h2 class="md-stats-section-head__label">{{t "Report Summary" key="report_summary"}}</h2>
-        <span class="md-stats-section-head__rule" aria-hidden="true"></span>
-      </div>
-    {{/if}}{{/unless}}
-    <div class="row{{if this.usage_stats2 " md-stats-compare-row" ""}}{{unless this.usage_stats2 " md-stats-summary-row md-stats-summary-row--1" ""}}" style='page-break-inside: avoid;'>
-      <Stats::LoadStatus @status={{this.status}} @ref_status={{this.status2}} @side_by_side={{this.usage_stats2}} />
-      {{#if this.usage_stats2}}
+      <div class="row md-stats-compare-row" style='page-break-inside: avoid;'>
+        <Stats::LoadStatus @status={{this.status}} @ref_status={{this.status2}} @side_by_side={{true}} />
         <Stats::LoadStatus @status={{this.status2}} @ref_status={{this.status}} @side_by_side={{true}} @right_side={{true}} />
-      {{/if}}
-      {{#if this.some_data}}
-        {{#unless this.usage_stats2}}
-          <div class="col-sm-3 col-xs-6">
-            <div class="panel panel-default summary">
-              <div class="panel-heading"><span class="md-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" focusable="false"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 1.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>{{t "Total Sessions" key="total_sessions"}}</div>
-              <div class="panel-body">{{delimit this.display_total_sessions}}</div>
-            </div>
+      </div>
+    {{else}}
+      {{!-- Communication progress — the single-period summary. Replaces the old
+            "%{un}'s Reports" hero + REPORT SUMMARY grid of eight equal-weight
+            panels with one takeaway, three KPIs, a trend, and observations.
+            Every value below is read from the same usage_stats fields the old
+            panels used; the five secondary values are demoted, not dropped.
+            Everything from "Communication Usage" down is unchanged. --}}
+      <section class="report-panel communication-report" aria-labelledby="communication-report-title">
+        <header class="communication-report__header">
+          <div class="communication-report__heading">
+            <h1 id="communication-report-title">{{t "Progress and Usage" key="progress_and_usage"}}</h1>
+            {{#if this.formattedDateRange}}
+              <p class="communication-report__date-range">{{this.formattedDateRange}}</p>
+            {{/if}}
           </div>
-          <div class="col-sm-3 col-xs-6">
-            <div class="panel panel-default summary">
-              <div class="panel-heading"><span class="md-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" focusable="false"><path d="M20 4H4a1.5 1.5 0 0 0-1.5 1.5v9A1.5 1.5 0 0 0 4 16h3v3.5L11.5 16H20a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 20 4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span>{{t "Total Words" key="total_words"}}</div>
-              <div class="panel-body">{{delimit this.display_total_words}}</div>
+
+          {{#if this.usage_stats}}
+            <div class="communication-report__controls" role="group" aria-label={{t "Report controls" key="report_controls"}}>
+              <Stats::DataFilter @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} @status={{this.status}} @app_state={{this.app_state}} @snapshots={{this.snapshots}} @compare_to={{this.ctrlAction "compare_to"}} @clear_side={{this.ctrlAction "clear_left_side"}} @update_filter={{this.ctrlAction "update_left_filter"}} />
             </div>
-          </div>
-          <div class="col-sm-3 col-xs-6">
-            <div class="panel panel-default summary">
-              <div class="panel-heading"><span class="md-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" focusable="false"><path d="M21 11.5a8.5 8.5 0 0 1-12.6 7.4L3.5 20.5l1.6-4.9A8.5 8.5 0 1 1 21 11.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="8.5" cy="11.5" r="1.05" fill="currentColor"/><circle cx="12" cy="11.5" r="1.05" fill="currentColor"/><circle cx="15.5" cy="11.5" r="1.05" fill="currentColor"/></svg></span>{{t "Total utterances" key="total_utterances"}}</div>
-              <div class="panel-body">{{delimit this.display_total_utterances}}</div>
+          {{/if}}
+        </header>
+
+        {{!-- Reuses the page's existing load-status component for the in-flight and
+              failed states; "no data" is handled by the empty state below, and the
+              first-load spinner by the .md-card__loading block above. --}}
+        {{#if (or this.status.loading this.status.error)}}
+          <Stats::LoadStatus @status={{this.status}} @ref_status={{this.status2}} />
+        {{/if}}
+
+        {{#if this.hasReportData}}
+          <section class="progress-highlight progress-highlight--{{this.primaryInsight.tone}}" aria-labelledby="progress-highlight-title">
+            <div class="progress-highlight__icon" aria-hidden="true">
+              <Stats::ReportIcon @name={{this.primaryInsightIcon}} />
             </div>
-          </div>
-          <div class="col-sm-3 col-xs-6">
-            <div class="panel panel-default summary">
-              <div class="panel-heading"><span class="md-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" focusable="false"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6" stroke="currentColor" stroke-width="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6" stroke="currentColor" stroke-width="1.8"/></svg></span>{{t "Total Buttons" key="total_buttons"}}</div>
-              <div class="panel-body">{{delimit this.display_total_buttons}}</div>
+
+            <div class="progress-highlight__content">
+              {{!-- No eyebrow here: the compared range is already named in the
+                    description below and stated in full under the KPI row. --}}
+              <h2 id="progress-highlight-title">{{this.primaryInsight.title}}</h2>
+
+              <p class="progress-highlight__description">{{this.primaryInsight.description}}</p>
             </div>
+          </section>
+
+          <section class="report-kpis" aria-label={{t "Communication summary" key="communication_summary"}}>
+            {{#each this.summaryMetrics as |metric|}}
+              <article class="report-kpi report-kpi--{{metric.key}}">
+                <div class="report-kpi__icon" aria-hidden="true">
+                  <Stats::ReportIcon @name={{metric.icon}} />
+                </div>
+
+                <div class="report-kpi__content">
+                  <p class="report-kpi__value">{{metric.formattedValue}}</p>
+                  <h3 class="report-kpi__label">{{metric.label}}</h3>
+                </div>
+
+                {{#if metric.context}}
+                  {{!-- The arrow + percentage is the visual cue and the caption
+                        under it names what the change measures and over which
+                        dates; the sr-only sentence carries the same meaning, so
+                        direction never rests on color or an arrow alone. --}}
+                  <p class="report-kpi__change report-kpi__change--{{metric.tone}}">
+                    <span class="report-kpi__change-value" aria-hidden="true">{{metric.context}}</span>
+                    <span class="report-kpi__change-caption" aria-hidden="true">{{metric.contextLabel}}</span>
+                    <span class="sr-only">{{metric.accessibleContext}}</span>
+                  </p>
+                {{/if}}
+              </article>
+            {{/each}}
+          </section>
+
+          {{#if this.comparisonBasis}}
+            <p class="report-kpis__basis">{{this.comparisonBasis}}</p>
+          {{/if}}
+
+          <div class="report-analysis">
+            <Stats::CommunicationTrend @trend={{this.reportTrend}} @draw_id={{this.usage_stats.draw_id}} />
+
+            <aside class="report-insights" aria-labelledby="report-insights-title">
+              <div class="report-panel-heading">
+                <div>
+                  <p class="report-panel-heading__eyebrow">{{t "Highlights" key="report_panel_highlights"}}</p>
+                  <h2 id="report-insights-title">{{t "What stands out" key="what_stands_out"}}</h2>
+                </div>
+              </div>
+
+              {{#if this.hasInsights}}
+                <ul class="report-insights__list">
+                  {{#each this.reportInsights as |insight|}}
+                    <li class="report-insight">
+                      <div class="report-insight__icon" aria-hidden="true">
+                        <Stats::ReportIcon @name={{insight.icon}} />
+                      </div>
+
+                      <div class="report-insight__content">
+                        <h3>{{insight.title}}</h3>
+                        <p>{{insight.description}}</p>
+                      </div>
+                    </li>
+                  {{/each}}
+                </ul>
+              {{else}}
+                <p class="report-insights__empty">{{t "More insights will appear as communication activity is recorded." key="more_insights_later"}}</p>
+              {{/if}}
+            </aside>
           </div>
-        {{/unless}}
-      {{/if}}
-    </div>
+
+          {{!-- Secondary values — the same figures the old summary grid showed at
+                equal weight, kept on the page but demoted below the takeaway. --}}
+          <dl class="report-secondary" aria-label={{t "Additional totals and rates" key="additional_totals_and_rates"}}>
+            {{#each this.secondaryMetrics as |metric|}}
+              <div class="report-secondary__item">
+                <dt class="report-secondary__label">{{metric.label}}</dt>
+                <dd class="report-secondary__value">{{metric.formattedValue}}</dd>
+              </div>
+            {{/each}}
+          </dl>
+        {{else if this.usage_stats}}
+          <section class="communication-report__empty">
+            <h2>{{t "No communication activity yet" key="no_communication_activity_yet"}}</h2>
+            <p>{{t "Activity and progress insights will appear here after communication sessions are recorded." key="no_communication_activity_yet_desc"}}</p>
+          </section>
+        {{/if}}
+      </section>
+    {{/if}}
     {{#if this.some_data}}
+      {{!-- Everything below the summary sits in the same panel container the
+            summary uses, so both blocks share one gutter and one max width. --}}
+      <div class="report-panel report-details">
       {{#if this.usage_stats2}}
-        {{! Compare mode: one row with left group and right group, each with 4 rows of stats }}
+        {{!-- Compare mode: the same eight figures per period, now rendered with
+              the summary's KPI card (compact variant) instead of the old
+              Bootstrap panels with tinted header strips. Values and order are
+              unchanged; decimals follow the report's one-place convention. --}}
         <div class="row md-stats-compare-row" style='page-break-inside: avoid;'>
           <div class="col-sm-6 col-xs-12 md-stats-compare-group">
             <div class="md-stats-compare-group__inner">
-              <div class="row md-stats-compare-group__row">
-                <div class="col-sm-6 col-xs-6">
-                  <div class="panel panel-default summary">
-                    <div class="panel-heading">{{t "Total Sessions" key="total_sessions"}}</div>
-                    <div class="panel-body">{{delimit this.display_total_sessions}}</div>
-                  </div>
-                </div>
-                <div class="col-sm-6 col-xs-6">
-                  <div class="panel panel-default summary">
-                    <div class="panel-heading">{{t "Total Words" key="total_words"}}</div>
-                    <div class="panel-body">{{delimit this.display_total_words}}</div>
-                  </div>
-                </div>
-              </div>
-              <div class="row md-stats-compare-group__row">
-                <div class="col-sm-6 col-xs-6">
-                  <div class="panel panel-default summary">
-                    <div class="panel-heading">{{t "Total utterances" key="total_utterances"}}</div>
-                    <div class="panel-body">{{delimit this.display_total_utterances}}</div>
-                  </div>
-                </div>
-                <div class="col-sm-6 col-xs-6">
-                  <div class="panel panel-default summary">
-                    <div class="panel-heading">{{t "Total Buttons" key="total_buttons"}}</div>
-                    <div class="panel-body">{{delimit this.display_total_buttons}}</div>
-                  </div>
-                </div>
-              </div>
-              <div class="row md-stats-compare-group__row">
-                <div class="col-sm-6 col-xs-6">
-                  <div class="panel panel-default summary">
-                    <div class="panel-heading">{{t "Words per utterance" key="words_per_utterance"}}</div>
-                    <div class="panel-body">{{round this.display_words_per_utterance}}</div>
-                  </div>
-                </div>
-                <div class="col-sm-6 col-xs-6">
-                  <div class="panel panel-default summary">
-                    <div class="panel-heading">{{t "Words per minute" key="words_per_minute"}}</div>
-                    <div class="panel-body">{{round this.display_words_per_minute}}</div>
-                  </div>
-                </div>
-              </div>
-              <div class="row md-stats-compare-group__row">
-                <div class="col-sm-6 col-xs-6">
-                  <div class="panel panel-default summary">
-                    <div class="panel-heading">{{t "Utterances per minute" key="utterances_per_minute"}}</div>
-                    <div class="panel-body">{{round this.display_utterances_per_minute}}</div>
-                  </div>
-                </div>
-                <div class="col-sm-6 col-xs-6">
-                  <div class="panel panel-default summary">
-                    <div class="panel-heading">{{t "Buttons per minute" key="buttons_per_minute"}}</div>
-                    <div class="panel-body">{{round this.display_buttons_per_minute}}</div>
-                  </div>
-                </div>
-              </div>
+              <section class="report-kpis report-kpis--compare" aria-label={{t "Period 1 summary" key="period_1_summary"}}>
+                {{#each this.compareMetrics as |metric|}}
+                  <article class="report-kpi report-kpi--compact report-kpi--{{metric.key}}">
+                    <div class="report-kpi__icon" aria-hidden="true">
+                      <Stats::ReportIcon @name={{metric.icon}} />
+                    </div>
+                    <div class="report-kpi__content">
+                      <p class="report-kpi__value">{{metric.formattedValue}}</p>
+                      <h3 class="report-kpi__label">{{metric.label}}</h3>
+                    </div>
+                  </article>
+                {{/each}}
+              </section>
             </div>
           </div>
           <div class="col-sm-6 col-xs-12 md-stats-compare-group">
             <div class="md-stats-compare-group__inner">
-              <div class="row md-stats-compare-group__row">
-                <div class="col-sm-6 col-xs-6">
-                  <div class="panel panel-default summary">
-                    <div class="panel-heading">{{t "Total Sessions" key="total_sessions"}}</div>
-                    <div class="panel-body">{{delimit this.display_total_sessions2}}</div>
-                  </div>
-                </div>
-                <div class="col-sm-6 col-xs-6">
-                  <div class="panel panel-default summary">
-                    <div class="panel-heading">{{t "Total Words" key="total_words"}}</div>
-                    <div class="panel-body">{{delimit this.display_total_words2}}</div>
-                  </div>
-                </div>
-              </div>
-              <div class="row md-stats-compare-group__row">
-                <div class="col-sm-6 col-xs-6">
-                  <div class="panel panel-default summary">
-                    <div class="panel-heading">{{t "Total utterances" key="total_utterances"}}</div>
-                    <div class="panel-body">{{delimit this.display_total_utterances2}}</div>
-                  </div>
-                </div>
-                <div class="col-sm-6 col-xs-6">
-                  <div class="panel panel-default summary">
-                    <div class="panel-heading">{{t "Total Buttons" key="total_buttons"}}</div>
-                    <div class="panel-body">{{delimit this.display_total_buttons2}}</div>
-                  </div>
-                </div>
-              </div>
-              <div class="row md-stats-compare-group__row">
-                <div class="col-sm-6 col-xs-6">
-                  <div class="panel panel-default summary">
-                    <div class="panel-heading">{{t "Words per utterance" key="words_per_utterance"}}</div>
-                    <div class="panel-body">{{round this.display_words_per_utterance2}}</div>
-                  </div>
-                </div>
-                <div class="col-sm-6 col-xs-6">
-                  <div class="panel panel-default summary">
-                    <div class="panel-heading">{{t "Words per minute" key="words_per_minute"}}</div>
-                    <div class="panel-body">{{round this.display_words_per_minute2}}</div>
-                  </div>
-                </div>
-              </div>
-              <div class="row md-stats-compare-group__row">
-                <div class="col-sm-6 col-xs-6">
-                  <div class="panel panel-default summary">
-                    <div class="panel-heading">{{t "Utterances per minute" key="utterances_per_minute"}}</div>
-                    <div class="panel-body">{{round this.display_utterances_per_minute2}}</div>
-                  </div>
-                </div>
-                <div class="col-sm-6 col-xs-6">
-                  <div class="panel panel-default summary">
-                    <div class="panel-heading">{{t "Buttons per minute" key="buttons_per_minute"}}</div>
-                    <div class="panel-body">{{round this.display_buttons_per_minute2}}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      {{else}}
-        {{! Single period: one row with 4 panels (Words per utterance, Words per minute, Utterances per minute, Buttons per minute) }}
-        <div class="row md-stats-summary-row md-stats-summary-row--2" style='page-break-inside: avoid;'>
-          <div class="col-sm-3 col-xs-6">
-            <div class="panel panel-default summary">
-              <div class="panel-heading">{{t "Words per utterance" key="words_per_utterance"}}</div>
-              <div class="panel-body">{{round this.display_words_per_utterance}}</div>
-            </div>
-          </div>
-          <div class="col-sm-3 col-xs-6">
-            <div class="panel panel-default summary">
-              <div class="panel-heading">{{t "Words per minute" key="words_per_minute"}}</div>
-              <div class="panel-body">{{round this.display_words_per_minute}}</div>
-            </div>
-          </div>
-          <div class="col-sm-3 col-xs-6">
-            <div class="panel panel-default summary">
-              <div class="panel-heading">{{t "Utterances per minute" key="utterances_per_minute"}}</div>
-              <div class="panel-body">{{round this.display_utterances_per_minute}}</div>
-            </div>
-          </div>
-          <div class="col-sm-3 col-xs-6">
-            <div class="panel panel-default summary">
-              <div class="panel-heading">{{t "Buttons per minute" key="buttons_per_minute"}}</div>
-              <div class="panel-body">{{round this.display_buttons_per_minute}}</div>
+              <section class="report-kpis report-kpis--compare" aria-label={{t "Period 2 summary" key="period_2_summary"}}>
+                {{#each this.compareMetrics2 as |metric|}}
+                  <article class="report-kpi report-kpi--compact report-kpi--{{metric.key}}">
+                    <div class="report-kpi__icon" aria-hidden="true">
+                      <Stats::ReportIcon @name={{metric.icon}} />
+                    </div>
+                    <div class="report-kpi__content">
+                      <p class="report-kpi__value">{{metric.formattedValue}}</p>
+                      <h3 class="report-kpi__label">{{metric.label}}</h3>
+                    </div>
+                  </article>
+                {{/each}}
+              </section>
             </div>
           </div>
         </div>
@@ -295,7 +277,7 @@
           <span class="md-stats-section-head__rule" aria-hidden="true"></span>
         </div>
       {{/unless}}
-      <div class="row{{if this.usage_stats2 " md-stats-compare-row" ""}}" style='page-break-inside: avoid;'>
+      <div class="row md-stats-vocab-row{{if this.usage_stats2 " md-stats-compare-row" ""}}" style='page-break-inside: avoid;'>
         <Stats::CoreList @core={{this.model.core_lists}} @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} @word_cloud={{this.ctrlAction "word_cloud_left"}} @word_data={{this.ctrlAction "word_data"}} @edit_permission={{this.model.permissions.edit}} @modify_core={{this.ctrlAction "modify_core"}} />
         {{#if this.usage_stats2}}
           <Stats::CoreList @core={{this.model.core_lists}} @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} @word_cloud={{this.ctrlAction "word_cloud_right"}} @word_data={{this.ctrlAction "word_data"}} @edit_permission={{this.model.permissions.edit}} @modify_core={{this.ctrlAction "modify_core"}} />
@@ -304,9 +286,9 @@
         {{#if this.usage_stats2}}
           <Stats::CoreFringe @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} />
         {{/if}}
-        <Stats::PartsOfSpeechPie @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} />
+        <Stats::PartsOfSpeechBreakdown @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} />
         {{#if this.usage_stats2}}
-          <Stats::PartsOfSpeechPie @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} />
+          <Stats::PartsOfSpeechBreakdown @usage_stats={{this.usage_stats2}} @ref_stats={{this.usage_stats}} @side_by_side={{true}} @right_side={{true}} />
         {{/if}}
         <Stats::SankeyPartsOfSpeech @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} />
         {{#if this.usage_stats2}}
@@ -366,6 +348,7 @@
           {{/if}}
         </div>
       {{/unless}}
+      </div>
     {{/if}}
   {{else if this.model.permissions.edit}}
     <section class="md-stats-hero-card" aria-labelledby="md-stats-hero-title">

@@ -21,6 +21,8 @@ file (see [README.md](README.md)).
 ## Index
 
 - [Gotcha: Cloud Run secret assertions must check every nonzero-percent traffic target](#gotcha-cloud-run-secret-assertions-must-check-every-nonzero-percent-traffic-target)
+- [Gotcha: `rem` is a trap in this codebase — the root font-size is 10px, so write px](#gotcha-rem-is-a-trap-in-this-codebase--the-root-font-size-is-10px-so-write-px)
+- [Pattern: derive report narrative in a pure util, never in the template or from absent data](#pattern-derive-report-narrative-in-a-pure-util-never-in-the-template-or-from-absent-data)
 - [Gotcha: Ember Data model ids in tests must be strings — numeric `set('id', N)` fails throwOnUnhandled](#gotcha-ember-data-model-ids-in-tests-must-be-strings--numeric-setid-n-fails-throwonunhandled)
 - [Gotcha: batch-path nil is not “missing opts” — key presence vs value](#gotcha-batch-path-nil-is-not-missing-opts--key-presence-vs-value)
 - [Gotcha: compliance segment stamps must use validated org ids, not raw params](#gotcha-compliance-segment-stamps-must-use-validated-org-ids-not-raw-params)
@@ -10381,3 +10383,299 @@ running against the `/login/device` interstitial instead of the app. Assert you 
 app (URL no longer matches `/login`) rather than trusting a sleep.
 
 **Evidence:** [`2026-08-10-modal-scroll-and-close-app-wide.md`](./2026-08-10-modal-scroll-and-close-app-wide.md).
+
+---
+
+## Pattern: a new per-variant style must be `:not()`-guarded when its class is ALSO on the disabled variant
+
+**Where this bites:** the caseload row's quick actions. `.md-caseload__quick-action--speak`
+appears on three elements: the live `<button>` AND both `<span role="note">` unavailable
+placeholders, which carry `--empty` as well (`caseload.hbs` ~155-171). The same shape exists
+for any `--empty` / `--<action>` pair in that row.
+
+**The trap:** `--empty`'s flat-grey disabled surface is declared at (0,2,0)
+(`.md-caseload__list-quick .md-caseload__quick-action--empty`) near the TOP of
+`_caseload.scss`. A new variant rule written the way its siblings are written —
+`.md-caseload__quick-action.md-caseload__quick-action--<action>`, also (0,2,0) — lands ~1000
+lines LATER, so **equal specificity resolves on source order and the new colour silently
+repaints the disabled placeholders too.** Nothing errors; the disabled state just stops
+looking disabled, which is an accessibility regression (the row communicates unavailability
+with surface + ink + border, deliberately not with opacity).
+
+**Do this:** scope the variant so it *cannot* match the disabled element, on the base rule and
+on every state:
+
+```scss
+.md-caseload__list-quick .md-caseload__quick-action--speak:not(.md-caseload__quick-action--empty) { … }
+/* …and the same guard on :hover and :active */
+```
+
+Verify by grepping the COMPILED css for the new colour and confirming every selector carrying
+it also carries the guard — reading the SCSS is not enough, because the failure is an
+ordering effect you cannot see in one rule.
+
+**Two companions in the same row:**
+- The row has a shared `:hover` / `:active` that tints EVERY button verdigris. Any variant
+  with its own hue must restate both states in its own hue or it flips teal mid-interaction.
+- Light tints are ~1.3:1 against the white row, so the BORDER carries WCAG 1.4.11 (3:1), not
+  the fill. Alphas do not transfer between hues: `#4C86D8` at 0.62 clears 3:1 but
+  `#4E8060` (sage) at 0.62 measures only 2.36:1 and needs 0.80. Compute per hue.
+
+**Evidence:** [`2026-08-12-caseload-speak-sage-glass.md`](./2026-08-12-caseload-speak-sage-glass.md).
+
+---
+
+## Gotcha: a variant with its own `:hover` but no `:active` has NO press feedback for mouse users
+
+**Symptom:** a button visibly arms on hover but nothing happens when you click and hold — the
+pane never pushes in. Keyboard activation of the same button flashes the WRONG hue.
+
+**Cause — one omission, two opposite cascade failures.** Found on the caseload row's Model
+button, which had `--model` base + `:hover` rules but no `:active` of its own, so presses fell
+through to the row's shared `.md-caseload__quick-action:active` (0,2,0):
+
+- **Mouse:** a mouse-down is *also* a hover. `--model:hover` is (0,3,0) and outranks the shared
+  (0,2,0) `:active`, so the hover declarations simply persist through the press. The press rule
+  never paints. Higher-specificity `:hover` **silently swallows** a lower-specificity `:active`.
+- **Keyboard** (Space/Enter — no hover): shared `:active` (0,2,0) ties the variant's BASE rule
+  (0,2,0) and sits later in source, so it wins — repainting the button in the shared state's
+  hue (verdigris here), not the variant's.
+
+**Rule of thumb:** in a family where the shared `:hover`/`:active` carry a hue, any variant that
+overrides `:hover` **must** also override `:active`, at specificity ≥ its own `:hover`, placed
+AFTER the `:hover` block so it wins the same-specificity tie during a press. Overriding one
+state and not the other is never correct.
+
+**Cheap way to spot it:** list the variant's emitted selectors in the COMPILED css and check
+each hue-bearing rank has base → `:hover` → `:active` in that order. In `_caseload.scss`,
+`--choose-board` and `--speak` both had the full set; `--model` was the one missing a press
+state, which is what made "it's an omission, not a design choice" verifiable rather than a
+guess.
+
+**Evidence:** [`2026-08-12-caseload-speak-sage-glass.md`](./2026-08-12-caseload-speak-sage-glass.md).
+
+---
+
+## Gotcha: `backdrop-filter` over an OPAQUE backdrop is visually inert but still costs a compositing layer
+
+**Symptom:** elements don't paint until you scroll them in and out of view, then appear.
+Worst on lists, where the cost multiplies per row.
+
+**Check before adding OR keeping `backdrop-filter`:** what is actually behind the element?
+In `_caseload.scss` the row buttons sit on `.md-caseload__list-row`, whose background is
+`linear-gradient(180deg, #ffffff, rgba($la-navy, 0.02))` — flat and opaque. Blurring flat
+white renders nothing, and `saturate()` has no saturation to boost on white. The filter was
+pure cost: one compositing layer per button per row.
+
+**The trap is that it looks load-bearing.** These rules are commented as "GLASS", so the
+filter reads as the thing making them glassy. It isn't — the gloss sweep (a white
+`linear-gradient` fading to transparent) and the inset rim do all the visible work.
+Removing `backdrop-filter` from all seven `.md-caseload__quick-action` rules changed nothing
+on screen.
+
+**Rule of thumb:** `backdrop-filter` earns its cost only over VARIED or SEMI-TRANSPARENT
+content — a modal veil over a board, a bar over scrolling content. Over a solid card, delete it.
+
+**Fast audit** (maps every declaration to its owning rule, so you can see which sit on solid
+backgrounds):
+```
+python3 - <<'PY'
+import re
+sel=''
+for i,l in enumerate(open('app/frontend/app/styles/_caseload.scss'),1):
+    if l.rstrip().endswith('{'): sel=l.strip()
+    if re.match(r'\s*-?(webkit-)?backdrop-filter:\s*blur', l): print(i, sel, l.strip())
+PY
+```
+
+**Evidence:** [`2026-08-12-caseload-speak-sage-glass.md`](./2026-08-12-caseload-speak-sage-glass.md).
+
+## Gotcha: `rem` is a trap in this codebase — the root font-size is 10px, so write px
+
+`app.scss` inherits bootstrap's `html { font-size: 10px }` (called out in a comment at
+`app/frontend/app/styles/app.scss:5366`). Every `rem` therefore renders at **62.5% of the
+usual size**: `1rem` is 10px, not 16px; `3rem` is 30px, not 48px.
+
+This bites hardest when importing a design spec written against a normal 16px base. A new
+Reports partial authored straight from such a spec rendered with 9.5px body text (below the
+14px WCAG floor and far below this app's AAC type requirement) and a 30px-tall primary CTA
+(below the 44×44 minimum target). Nothing errored, nothing warned, and the mistake is
+invisible in the SCSS — only measuring the rendered page exposes it.
+
+**Rules:**
+1. Write **px** in new partials. The existing partials (`_modern_pages.scss` has zero `rem`)
+   already do this deliberately.
+2. If porting a spec that uses `rem`, multiply every value by 16 to get the intended px.
+3. `rem` inside **media query** parameters is unaffected — media queries evaluate against the
+   *initial* 16px root font-size, not the document's. So `@media (max-width: 70rem)` really is
+   1120px while `min-height: 3rem` in the same file is 30px. That inconsistency is exactly why
+   px-everywhere is the safer convention here.
+4. Verify by measuring, not by reading: `getComputedStyle(document.documentElement).fontSize`
+   returning `10px` is the tell, and a quick Puppeteer pass over
+   `getBoundingClientRect()` catches undersized targets that the stylesheet looks fine about.
+
+**Evidence:** [`2026-08-12-reports-summary-redesign.md`](./2026-08-12-reports-summary-redesign.md).
+
+## Pattern: derive report narrative in a pure util, never in the template or from absent data
+
+The Reports summary needs sentences ("Communication increased this period", "↑ 18%"). Two
+traps, both avoided by putting the derivation in a plain module (`app/frontend/app/utils/
+report_summary.js`) that takes a Stats object and returns a fully-formed view model:
+
+1. **Only claim what the pipeline actually measures.** `lib/stats.rb` has no prompting or
+   independence metric anywhere (`modeled_*` is *partner modeling*, not prompting), so any
+   "becoming more independent" phrasing would be fabricated. Grep the server-side derivation
+   before writing a sentence about it.
+2. **There is no previous-period payload in single-period mode.** `usage_stats2` only exists
+   in explicit compare mode. Rather than firing a second `/stats/daily` request or inventing a
+   baseline, the summary splits the selected range's `days` payload in half and compares later
+   vs earlier — and every generated string *names the earlier half's dates*, so the claim is
+   exact instead of implying a period that was never fetched. Guard rails: needs ≥4 days and a
+   non-empty earlier half, and a ±5% dead band so noise reads as "steady".
+
+A pure util also makes all of this unit-testable without rendering (12 QUnit tests, no Mirage,
+no `setupApplicationTest`) — which is the only practical way to lock down "never claims X".
+
+**Evidence:** [`2026-08-12-reports-summary-redesign.md`](./2026-08-12-reports-summary-redesign.md).
+
+## Pattern: restyling markup that carries a SHARED global class — keep the class, answer every compound bucket
+
+CLAUDE.md says to preserve existing styling class names, so a restyle usually adds its own
+class *alongside* the legacy one rather than replacing it. That works, but only if you enumerate
+the legacy rule's compound variants — a single base override silently leaks the rest.
+
+The Reports core word list renders `class="report-word-chip weighted_word weight_N"`, where
+`weighted_word` / `weight_N` come from `utils/stats.js:134` and are also used by the word cloud
+and `Stats::WeightedWords`. app.scss styles them as **one base plus five compound rules**
+(`.weighted_word`, then `.weighted_word.weight_10, .weighted_word.weight_9`, `…8, …7`, `…6, …5`,
+`…4, …3`, `…0` — app.scss:18515-18543). Because `_reports.scss` is `@use`d and therefore emitted
+*first*, a chip rule at `.report-chart-card .report-word-chip` (0,2,0) beats the bare base
+(0,1,0) but **ties** with every `.weighted_word.weight_N` (0,2,0) — and a tie loses to source
+order. Buckets 3-10 and 0 would have kept app.scss's greys while 1-2 took the new skin.
+
+**Recipe:**
+1. Grep the legacy selector for compounds, not just the base: `grep -n "\.weighted_word" app.scss`
+   — and remember nested SCSS hides them as `&.weight_10`, so grep the *compiled* CSS when unsure.
+2. Give every compound bucket a matching rule one level more specific
+   (`.report-chart-card .report-word-chip.weight_9`, 0,3,0). Buckets with no compound rule
+   (here `weight_1` / `weight_2`) can fall through to your base.
+3. Verify from the rendered page, not the stylesheet: group the live nodes by bucket and read
+   back `getComputedStyle` per bucket. Six buckets appeared on real data; all six resolved to the
+   new scale, which is the only proof that nothing fell through.
+
+Same shape applies when composing a shared reset like `.md-link-btn` from a partial: the reset
+lives in app.scss (emitted later), so the partial's rules must be compound to win — do not reach
+for `!important` (rule 7).
+
+**Evidence:** [`2026-08-12-reports-core-parts-of-speech-cards.md`](./2026-08-12-reports-core-parts-of-speech-cards.md).
+
+## Gotcha: a hand-rolled `margin-top: 56px` on a chart is a MISSING HEADING, not a layout offset
+
+`core-fringe.hbs` and `parts-of-speech-pie.hbs` each wrapped their chart in
+`<div style="margin-top: 56px">`. The number was not geometry — it was the height of the *sibling*
+card's `<h3>`, hand-copied so the untitled charts would line up with the titled one. Two costs:
+the cards had no accessible name at all, and the offset broke the moment the neighbour's title
+wrapped. Giving each chart a real card head deleted the magic number and named the card. When you
+find a bare pixel offset on an untitled panel, check whether the panel is missing its heading
+before treating the number as a spacing decision.
+
+**Evidence:** [`2026-08-12-reports-core-parts-of-speech-cards.md`](./2026-08-12-reports-core-parts-of-speech-cards.md).
+
+## Gotcha: `{{t "Some Text" key="existing_key"}}` silently renders the LOCALE value, not your text
+
+`i18n.t` (`app/frontend/app/utils/i18n.js:50-54`) prefers `langs[preferred][key]` and only falls
+back to the inline string when the key is absent. So reusing a key that already means something
+else makes the inline default dead code: `sankey-parts-of-speech.hbs` read
+`{{t "Parts of Speech Flow" key="parts_of_speech"}}` and had always rendered **"Parts of Speech"**,
+because `en.json` defines `parts_of_speech` as `"Parts of Speech"`. Nobody noticed until a second
+card legitimately claimed that title and the page showed the same heading twice. When adding a
+heading, grep `public/locales/en.json` for the key you are about to reuse and confirm its value
+matches the words you typed. The corollary is the safe part: a key that exists in `en.json` but
+not in other locales falls back to the inline string, so adding en-only keys never breaks a locale.
+
+**Evidence:** [`2026-08-12-reports-core-parts-of-speech-cards.md`](./2026-08-12-reports-core-parts-of-speech-cards.md).
+
+## Technique: batch the edits, verify ONCE — a Puppeteer round on this app costs ~3-4 minutes
+
+Live-checking a Reports change means: launch Chrome, load `/login`, seed the fields,
+sign in, wait out the token round-trip, then reload the page once per viewport with a
+~10s settle for the charts. That is 3-4 minutes per run, and it does not get cheaper by
+checking fewer things. Verifying one CSS variable at a time turns a twenty-minute task
+into an hour.
+
+**Do:** make every edit the diagnosis calls for, then run one script that measures ALL of
+them across ALL widths and screenshots each. **Don't:** re-run the harness after each
+single-property change to see whether that one landed.
+
+Two corollaries that saved rounds once adopted:
+- **Measure the whole chain in one probe.** When a box is the wrong width, walk
+  `el.parentElement` to the viewport in a single `page.evaluate` and dump
+  `width / left / right / min-width / flex / display` for every ancestor. The culprit
+  (here: an Ember component's `div.ember-view` sitting as a flex item with the default
+  `min-width: auto`) shows up immediately; guessing at it costs a round each time.
+- **Byte-identical numbers across two runs mean the CSS did not rebuild, not that the
+  fix failed.** Confirm with `curl -s localhost:8184/assets/frontend.css | grep -A5 '<selector>'`
+  before re-diagnosing — that check is seconds, a re-run is minutes.
+
+**Evidence:** [`2026-08-12-reports-core-parts-of-speech-cards.md`](./2026-08-12-reports-core-parts-of-speech-cards.md).
+
+## Gotcha: an Ember classic component's `div.ember-view` is a flex item with `min-width: auto`
+
+`Stats::DataFilter` renders `<div class="ember-view"><div class="md-stats-filter">…`, and
+that outer wrapper — which appears in no template and therefore in no stylesheet — becomes
+a flex item of whatever row it is dropped into. Its default `min-width: auto` resolves to
+the min-content width of everything inside (here the whole period row on one line, 381px),
+so at 390px it held the header open at 381px and pushed the page sideways while every
+element *inside* it reported `min-width: 0` and looked innocent.
+
+Whenever a flex row containing a classic component overflows, style the wrapper:
+`.<row> > .ember-view { min-width: 0 }`. Same trap for `overflow: hidden` and `flex: 1`
+that you meant to apply to the component's own root element.
+
+**Evidence:** [`2026-08-12-reports-core-parts-of-speech-cards.md`](./2026-08-12-reports-core-parts-of-speech-cards.md).
+
+## Gotcha: a control with its own `min-width` OVERFLOWS the wrapper you let shrink
+
+Making a flex wrapper shrinkable (`min-width: 0`) does not narrow a control inside it that
+carries its own floor. `.md-stats-period-select__trigger { min-width: 128px }` inside a wrap
+that collapsed to 46px simply drew 128px wide, centred, spilling ~40px to the LEFT and
+landing on top of the label beside it. The rendered symptom reads as clipped text, so it is
+easy to chase as an overflow/z-index problem; the measurement (`trigger.left < label.right`)
+names it instantly.
+
+**Rule:** exactly one box in the pair owns the width. Either the wrap owns it (wrap
+`flex: 1 1 auto; min-width: <floor>`, control `min-width: 0; width: 100%`) or the control
+does (wrap `flex: 0 0 auto`). Splitting the floor across both is what produces the overflow.
+
+**Evidence:** [`2026-08-12-reports-core-parts-of-speech-cards.md`](./2026-08-12-reports-core-parts-of-speech-cards.md).
+
+## Gotcha: a two-column grid row puts a full-width child on its OWN row — DOM order decides who lands where
+
+`.report-bar-list__row` is `grid-template-columns: 1fr auto` with three children: label,
+value, and a track carrying `grid-column: 1 / -1`. Written label → track → value, the track
+auto-places on row 2 and the value is pushed to row 3 — the row silently renders at 64px
+instead of 32px (`grid-template-rows: 21.42px 8px 21.42px` is the tell), and a 9-row list
+comes out 576px instead of 292px. Nothing errors; the list just scrolls.
+
+Put the full-width spanning child LAST in the markup, or place everything explicitly with
+`grid-row`. And when a list is unexpectedly tall, read `getComputedStyle(row).gridTemplateRows`
+before touching any gap or font size — it says how many rows you actually got.
+
+**Evidence:** [`2026-08-12-reports-core-parts-of-speech-cards.md`](./2026-08-12-reports-core-parts-of-speech-cards.md).
+
+## Technique: run the chart palette through a validator before restyling a chart
+
+The Reports parts-of-speech pie derived nine slice colors at runtime from the Fitzgerald key
+(`stats_colors.partsOfSpeechColor` = `tinycolor(fill).saturate(10).darken(20)`). Computing the
+nine hexes and checking them took two minutes and settled the design question outright:
+`article` and `other` resolve to the SAME color (`#a38f8f` — `other` matches no `types` entry
+and falls back to the same `#ccc` fill as `article`), `conjunction` is the neighbouring grey,
+worst adjacent CVD separation ΔE 4.3, six of nine below 3:1 on the card. The chart could not
+be read no matter how it was skinned, so the fix was the FORM (sorted, directly-labelled bars
+in one hue), not the paint.
+
+Domain color coding — Fitzgerald part-of-speech colors are a real AAC convention and match the
+user's own boards — is a genuine reason to keep a palette, but only where something else
+carries identity. On a labelled bar list the label carries it; on a nine-slice pie nothing does.
+
+**Evidence:** [`2026-08-12-reports-core-parts-of-speech-cards.md`](./2026-08-12-reports-core-parts-of-speech-cards.md).
