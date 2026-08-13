@@ -371,6 +371,76 @@ async function testDryRunNeverPuts() {
   check('dry-run: issues NO PUT even with pending changes', putRequests().length === 0);
 }
 
+// A --service prod run must not read, calculate, or fail on values belonging to
+// dev/staging. BEDROCK_AWS_KEY is required:true and scoped to ['dev','staging']
+// because prod runs on Cloud Run and mounts it from Secret Manager, so before
+// the fix the read loop still walked dev and staging for it and a missing
+// 1Password entry there aborted the whole prod run via the fail-closed guard.
+async function testServiceFilterDoesNotFailOnUnselectedEnvironments() {
+  resetState();
+  routeHandler = (options) => {
+    if (options.method === 'GET') return { statusCode: 200, body: envVarPage([['UNMANAGED', 'preserve-me']], true) };
+    return { statusCode: 200, body: '[]' };
+  };
+  const readsAttempted = [];
+  await sync(TEST_SERVICE, 'op', true, {
+    isSignedIn: () => true,
+    readSecret: (vault, item, field) => { readsAttempted.push(`${vault}/${item}/${field}`); return null; },
+  });
+  check('--service prod: no dev/staging Bedrock failure blocks the run',
+    !syncFailures.some(f => f.startsWith('dev:') || f.startsWith('staging:')),
+    JSON.stringify(syncFailures));
+  check('--service prod: never reads the dev/staging-only Bedrock item',
+    !readsAttempted.some(r => r.includes('BEDROCK_RUNTIME_AI')),
+    JSON.stringify(readsAttempted));
+}
+
+// A --service prod run must not compute prod values for dev/staging-scoped keys.
+async function testServiceFilterNeverPutsUnselectedScopedKeys() {
+  resetState();
+  routeHandler = (options) => {
+    if (options.method === 'GET') return { statusCode: 200, body: envVarPage([['UNMANAGED', 'preserve-me']], true) };
+    return { statusCode: 200, body: '[]' };
+  };
+  await sync(TEST_SERVICE, 'env', true);
+  const puts = putRequests();
+  const putServices = [...new Set(puts.map(r => r.path.match(/^\/v1\/services\/([^/]+)/)[1]))];
+  check('--service prod: PUTs only the selected service',
+    JSON.stringify(putServices) === JSON.stringify(['srv-test-prod']),
+    JSON.stringify(putServices));
+  for (const request of puts) {
+    const keys = new Set(JSON.parse(request.body).map(item => item.key));
+    check('--service prod: carries no dev/staging-scoped Bedrock settings',
+      !['BEDROCK_AWS_KEY', 'BEDROCK_AWS_SECRET', 'BEDROCK_AWS_REGION', 'BEDROCK_EXPECTED_AWS_ACCOUNT']
+        .some(key => keys.has(key)),
+      JSON.stringify([...keys]));
+  }
+}
+
+// `required` was enforced on the 1Password path only. With --source env, a .env
+// missing a credential still wrote the defaultValue keys (region, expected
+// account) -- exactly the partial configuration the guard claims to prevent.
+async function testEnvSourceEnforcesRequiredBedrockPair() {
+  resetState();
+  const envPath = path.join(testConfigDir, '.env');
+  const original = fs.readFileSync(envPath, 'utf8');
+  fs.writeFileSync(envPath, 'BEDROCK_AWS_KEY=test-bedrock-key\n'); // secret half absent
+  try {
+    routeHandler = (options) => {
+      if (options.method === 'GET') return { statusCode: 200, body: envVarPage([['UNMANAGED', 'preserve-me']], true) };
+      return { statusCode: 200, body: '[]' };
+    };
+    await sync(RENDER_SCOPE_SERVICES, 'env', true);
+    check('--source env: a missing required credential fails the sync',
+      ['dev:BEDROCK_AWS_SECRET', 'staging:BEDROCK_AWS_SECRET'].every(f => syncFailures.includes(f)),
+      JSON.stringify(syncFailures));
+    check('--source env: no partial static Bedrock config is PUT',
+      putRequests().length === 0);
+  } finally {
+    fs.writeFileSync(envPath, original);
+  }
+}
+
 // --- run --------------------------------------------------------------------
 
 (async () => {
@@ -389,6 +459,9 @@ async function testDryRunNeverPuts() {
   await testPartialReadThrowsAndNeverPuts();
   testMainExitsNonZeroOnReadFailure();
   await testDryRunNeverPuts();
+  await testServiceFilterDoesNotFailOnUnselectedEnvironments();
+  await testServiceFilterNeverPutsUnselectedScopedKeys();
+  await testEnvSourceEnforcesRequiredBedrockPair();
 
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail > 0 ? 1 : 0);

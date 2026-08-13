@@ -169,7 +169,21 @@ const KEY_MANIFEST = {
   // LEADER_POSTGRES_URL:  set manually on prod for Octopus sharding
 };
 
-function renderEnvironmentsFor(config) {
+// Which Render environments a manifest key applies to, narrowed to the ones this
+// run actually targets.
+//
+// `selected` is the --service filter. Passing it matters for more than tidiness:
+// BEDROCK_AWS_KEY is deliberately scoped to ['dev', 'staging'] because prod runs
+// on Cloud Run and mounts that pair from Secret Manager. Without the narrowing, a
+// `--service prod` run still iterated dev and staging for that key, and because
+// the key is `required: true`, a missing dev/staging 1Password entry aborted the
+// whole run via the fail-closed guard -- blocking a prod sync on credentials prod
+// does not use and must never receive.
+//
+// An EMPTY intersection is a normal outcome, not an error: it means this key does
+// not apply to the selected environment. Only the manifest declaration itself is
+// validated as non-empty.
+function renderEnvironmentsFor(config, selected = null) {
   const environments = config.renderEnvironments || Object.keys(RENDER_SERVICES);
   if (!Array.isArray(environments) || environments.length === 0) {
     throw new Error('Manifest renderEnvironments must be a non-empty array');
@@ -179,11 +193,14 @@ function renderEnvironmentsFor(config) {
       throw new Error(`Manifest names unknown Render environment: ${environment}`);
     }
   }
-  return environments;
+  if (!selected) { return environments; }
+  return environments.filter(environment => selected.includes(environment));
 }
 
-function valuesForRenderEnvironments(config, value) {
-  return Object.fromEntries(renderEnvironmentsFor(config).map(environment => [environment, value]));
+function valuesForRenderEnvironments(config, value, selected = null) {
+  return Object.fromEntries(
+    renderEnvironmentsFor(config, selected).map(environment => [environment, value])
+  );
 }
 
 const ENV_FILE_PATH = path.join(os.homedir(), 'ai-company-brain', 'config', '.env');
@@ -441,6 +458,11 @@ async function sync(services, source, apply, dependencies = {}) {
   const readSecret = dependencies.readSecret || opRead;
   console.log(`\n=== Sync Render Env Vars (source: ${source}, mode: ${apply ? 'APPLY' : 'DRY-RUN'}) ===\n`);
 
+  // The --service filter, as the caller already narrowed it. Every manifest
+  // lookup below is scoped to this so a targeted run neither reads, calculates,
+  // nor fails on values belonging to an environment it is not touching.
+  const selected = Object.keys(services);
+
   // Load desired values
   let desiredValues = {};
 
@@ -453,7 +475,7 @@ async function sync(services, source, apply, dependencies = {}) {
     for (const [key, config] of Object.entries(KEY_MANIFEST)) {
       // Handle keys with static default values (no 1Password needed)
       if (config.defaultValue) {
-        desiredValues[key] = valuesForRenderEnvironments(config, config.defaultValue);
+        desiredValues[key] = valuesForRenderEnvironments(config, config.defaultValue, selected);
         continue;
       }
       if (config.shared) {
@@ -466,14 +488,14 @@ async function sync(services, source, apply, dependencies = {}) {
         }
         const val = readSecret(vaultName, config.item, config.field);
         if (val) {
-          desiredValues[key] = valuesForRenderEnvironments(config, val);
+          desiredValues[key] = valuesForRenderEnvironments(config, val, selected);
         } else {
           console.warn(`  Warning: Could not read ${vaultName}/${config.item}/${config.field}`);
         }
       } else if (config.perEnv) {
         // Read once per allowed environment from that environment's vault.
         desiredValues[key] = {};
-        for (const env of renderEnvironmentsFor(config)) {
+        for (const env of renderEnvironmentsFor(config, selected)) {
           const vaultName = VAULTS[env];
           const val = readSecret(vaultName, config.item, config.field);
           if (val) {
@@ -495,9 +517,21 @@ async function sync(services, source, apply, dependencies = {}) {
     const envVars = loadEnvFile(ENV_FILE_PATH);
     for (const [key, config] of Object.entries(KEY_MANIFEST)) {
       if (config.defaultValue) {
-        desiredValues[key] = valuesForRenderEnvironments(config, config.defaultValue);
+        desiredValues[key] = valuesForRenderEnvironments(config, config.defaultValue, selected);
       } else if (envVars[key]) {
-        desiredValues[key] = valuesForRenderEnvironments(config, envVars[key]);
+        desiredValues[key] = valuesForRenderEnvironments(config, envVars[key], selected);
+      } else if (config.required) {
+        // `required` was previously enforced on the 1Password path only, so a
+        // --source env run with a .env missing one or both Bedrock credentials
+        // still wrote BEDROCK_AWS_REGION and BEDROCK_EXPECTED_AWS_ACCOUNT (both
+        // defaultValue keys, so neither depends on the .env). That is exactly
+        // the partial configuration the guard below says it prevents: the
+        // service comes up with Bedrock control settings and no credential, and
+        // AI is dark with nothing to indicate why. Report per targeted
+        // environment so the message names what will not be synced.
+        for (const env of renderEnvironmentsFor(config, selected)) {
+          reportRequiredManifestValueFailure(key, env, `${key} is absent from ${ENV_FILE_PATH}`);
+        }
       }
     }
   }

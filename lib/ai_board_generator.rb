@@ -60,7 +60,12 @@ module AiBoardGenerator
       if api_config.blank?
         err = { words: nil, name: nil, description: nil, error: 'AI board generation is not configured' }
         err.merge!(dev_diag(:configuration,
-          'Set ANTHROPIC_API_KEY in the environment (not only .env for the asset pipeline) and restart Rails. The GEMINI_API_KEY fallback is disabled -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'))
+          'Set BEDROCK_AWS_KEY and BEDROCK_AWS_SECRET (both -- a half pair is ignored), and ' \
+          'BEDROCK_AWS_REGION or AWS_REGION, then restart Rails. If BEDROCK_EXPECTED_AWS_ACCOUNT ' \
+          'is set, the credential must also resolve to that AWS account or AI stays closed; the ' \
+          'preceding [AiClient] log line says which check failed. ANTHROPIC_API_KEY is NOT read ' \
+          'at runtime -- AI egresses to Claude on AWS Bedrock, not api.anthropic.com. The ' \
+          'GEMINI_API_KEY fallback is disabled -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'))
         return err
       end
 
@@ -268,7 +273,12 @@ module AiBoardGenerator
       if api_config.blank?
         err = { words: nil, title: nil, error: 'AI board generation is not configured' }
         err.merge!(dev_diag(:configuration,
-          'Set ANTHROPIC_API_KEY in the environment (not only .env for the asset pipeline) and restart Rails. The GEMINI_API_KEY fallback is disabled -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'))
+          'Set BEDROCK_AWS_KEY and BEDROCK_AWS_SECRET (both -- a half pair is ignored), and ' \
+          'BEDROCK_AWS_REGION or AWS_REGION, then restart Rails. If BEDROCK_EXPECTED_AWS_ACCOUNT ' \
+          'is set, the credential must also resolve to that AWS account or AI stays closed; the ' \
+          'preceding [AiClient] log line says which check failed. ANTHROPIC_API_KEY is NOT read ' \
+          'at runtime -- AI egresses to Claude on AWS Bedrock, not api.anthropic.com. The ' \
+          'GEMINI_API_KEY fallback is disabled -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'))
         return err
       end
 

@@ -110,6 +110,45 @@ describe AiWordPredictor do
       expect(with_pii).to eq(already_scrubbed)
     end
 
+    # Removing the raw sentence from the key was necessary but not sufficient.
+    # AAC utterances are short, high-frequency and drawn from a small realistic
+    # space, so an UNSALTED SHA-256 of one is recoverable by dictionary attack --
+    # by exactly the reader LL-16ef84ad9a is written about, someone who can
+    # inspect process memory. The per-process salt is what makes "not
+    # recoverable" true rather than merely "not plaintext".
+    it 'salts the digest, so the key is not a reversible hash of the utterance' do
+      sentence = 'i want to go to the hospital'
+      described_class.predict(sentence: sentence)
+      key = described_class::CACHE.keys.first
+
+      scrubbed = PiiScrubber.redact_for_ai(sentence)[:payload]
+      ctx = described_class.send(:normalize_context, nil)
+      unsalted = Digest::SHA256.hexdigest(
+        [
+          described_class.send(:cache_scope, nil),
+          'en',
+          scrubbed.to_s.strip.downcase,
+          ctx[:time_of_day].to_s,
+          ctx[:topic].to_s
+        ].join("\x00")
+      )
+
+      # An attacker who knows the algorithm and guesses the sentence still cannot
+      # confirm the guess without the salt, which never leaves the process.
+      expect(key).not_to eq(unsalted)
+      expect(described_class::CACHE_SALT).to match(/\A[0-9a-f]{64}\z/)
+    end
+
+    it 'still returns a cache hit for a repeated utterance in the same process' do
+      # The salt must not defeat the cache it protects: it is constant per
+      # process, so an identical request still hits.
+      described_class.predict(sentence: 'i want more juice')
+      described_class.predict(sentence: 'i want more juice')
+
+      expect(described_class::CACHE.size).to eq(1)
+      expect(described_class).to have_received(:call_anthropic).once
+    end
+
     context 'tenant isolation' do
       # managing_organization_id is a plain integer column; cache_scope reads it
       # rather than calling User#managing_organization, which would query.

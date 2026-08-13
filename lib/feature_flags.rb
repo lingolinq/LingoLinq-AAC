@@ -67,7 +67,27 @@ module FeatureFlags
               'find_multiple_buttons', 'new_speak_menu', 'swipe_pages', 'inflections_overlay',
               'ios_head_tracking', 'emergency_boards', 'evaluations',
               'vertical_ios_head_tracking', 'remote_modeling', 'auto_inflections', 'focus_word_highlighting',
-              'skin_tones', 'lessons', 'profiles', 'other_menu', 'ai_board_generation', 'ai_word_prediction',
+              'skin_tones', 'lessons', 'profiles', 'other_menu', 'ai_board_generation',
+              # DEVELOP/TESTING SCOPE ONLY -- not production-ready. Enabling this
+              # here widens the runtime-AI surface to an ingress that has NO
+              # server-side EU AI Act Article 50(1) backstop.
+              #
+              # Of the five runtime-AI ingresses, exactly ONE carries a server-side
+              # disclosure gate: boards#generate_labels. words#predict,
+              # word_suggestions#create, integrations#focus_generate_words and
+              # eval_sessions#narrate each enforce only the flag + COPPA +
+              # EU-under-16 checks. The Article 50 disclosure on those four is
+              # CLIENT-SIDE ONLY (app/frontend/app/utils/article50_gate.js), so a
+              # caller holding a valid API token reaches them directly without
+              # ever rendering a notice.
+              #
+              # That is why production's first user AI call went through board
+              # generation and logged article_50_disclosure_shown=true: it is the
+              # one seam that can prove it. Do NOT carry this entry to `main`
+              # until the shared server-side guard lands at all five ingresses
+              # (plan item P1). Until then this flag means "testable on develop",
+              # not "compliant in production".
+              'ai_word_prediction',
               'google_sso', 'quick_screen_eval', 'multi_user_board_import',
               'customize_menu', # TEMPORARY: forced ON for everyone during testing. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON (see the rollout policy above AVAILABLE_FRONTEND_FEATURES).
               'home_tour', # TEMPORARY (spike — 2026-05-27): ON for everyone so Traci can validate the Shepherd.js home-page tour in the browser. REMOVE from this list before merging the spike out of traci/styling/styling-updates — the canonical state is AVAILABLE-only (beta opt-in per user).
