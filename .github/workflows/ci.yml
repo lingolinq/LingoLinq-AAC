@@ -144,7 +144,12 @@ jobs:
 
     steps:
       - name: Checkout repository
+        # fetch-depth: 0 (not the default shallow clone) so the readiness
+        # strategy layer's append-only check can read SNAPSHOTS.json as it
+        # existed at the PR's base sha - see the readiness-check.rb step below.
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
@@ -209,6 +214,13 @@ jobs:
         run: scripts/tests/legal-naming-check-test.sh
 
       - name: Verify readiness strategy layer + dashboard render
+        # READINESS_BASE_SHA is the exact base commit (not a moving branch
+        # name), so the append-only comparison in readiness-check.rb pins to
+        # what this specific PR is based on. Non-PR pushes compare a commit
+        # against itself (a trivial self-match, since there is no "shrinking
+        # from base" scenario on a direct push already merged to staging).
+        env:
+          READINESS_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
         run: ruby scripts/readiness-check.rb --check
 
       - name: Verify readiness-check guards (stored-derived-status, provenance, append-only snapshots)

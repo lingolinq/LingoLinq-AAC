@@ -3,5 +3,12 @@
 * @swahlquist @MelissaOneil
 
 # Readiness strategy layer carries Scot-only governance state (per-row
-# ratification, launch-profile decisions); its PRs require Scot specifically.
+# ratification, launch-profile decisions); its PRs should be reviewed by Scot
+# specifically. NOTE (verified 2026-08-12 via `gh api .../branches/staging/protection`
+# and `gh api .../rules/branches/staging`): staging currently has NO required
+# pull-request reviews and require_code_owner_review=false, so this entry is a
+# review-routing convention only, not yet a technical merge gate on this repo.
+# It becomes a real structural control once "Require a pull request before
+# merging" + "Require review from Code Owners" are enabled on staging's branch
+# protection - a repo-wide policy change out of scope for this PR.
 /audit-reports/strategy/ @swahlquist

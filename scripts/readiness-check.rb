@@ -30,13 +30,21 @@
 #   - snapshots: generatedAt strictly increasing and unique; each record's
 #     stored findingFlowSincePrior must equal the flow recomputed from the
 #     adjacent openFindingIds sets; openFindingSeverities must agree with
-#     openFindingIds and the stored openBySeverity counts; and each record
-#     after the first pins its predecessor's exact bytes via priorSnapshotSha.
-#     HONEST LIMIT: these checks make a QUIET one-record history edit
-#     impossible, but a determined editor who rewrites every subsequent
-#     record (flows + chain shas) can still produce a self-consistent fake -
-#     that rewrite necessarily touches the whole snapshot history and must be
-#     caught by diff review of SNAPSHOTS.json, not by this validator.
+#     openFindingIds and the stored openBySeverity counts; each record after
+#     the first pins its predecessor's exact bytes via priorSnapshotSha
+#     (an INTERNAL CONSISTENCY control - it makes a quiet one-record edit
+#     detectable, but a determined editor who rewrites every subsequent
+#     record's flow and chain sha in step can still produce a file that is
+#     internally self-consistent). The actual append-only ENFORCEMENT
+#     boundary is separate: in --check, every snapshot already present on the
+#     PR's base branch must appear as a byte-identical, same-order prefix of
+#     the current file (verify_base_append_only!). That comparison is what
+#     makes a full coordinated history rewrite fail CI, not the hash chain.
+#     Base-history comparison requires a resolvable base ref/sha
+#     (READINESS_BASE_REF or READINESS_BASE_SHA env, wired by CI from the
+#     PR's base sha) or an explicit READINESS_BASE_SNAPSHOTS_FILE; outside
+#     --check (local dev, no base ref available) this degrades to a WARNING,
+#     never a silent pass presented as protection.
 #   - in --check: the committed dashboard render must match byte-for-byte
 #
 # WARNINGS (printed, exit stays 0)
@@ -69,6 +77,7 @@ require 'digest'
 require 'set'
 require 'date'
 require 'time'
+require 'open3'
 
 # Env overrides exist for the test harness only (scripts/tests/readiness-check-test.sh
 # works on a COPY of the live strategy dir); CI and normal use leave them unset.
@@ -508,6 +517,70 @@ snapshots.each_with_index do |snap, i|
   end
 end
 
+# --- append-only ENFORCEMENT: compare against the PR base branch --------------
+# priorSnapshotSha (above) is an internal-consistency control only: a rewrite
+# that regenerates every subsequent record's flow and chain sha in lockstep
+# stays internally valid. The actual boundary is this comparison - every
+# snapshot already committed on the base branch must survive as a byte-
+# identical, same-order prefix of the current file. Two ways to supply the
+# base version (first present wins), so this is testable without real git
+# plumbing:
+#   READINESS_BASE_SNAPSHOTS_FILE - a local file path (tests; also usable in
+#     CI if the base ref was checked out to a sibling path)
+#   READINESS_BASE_REF / READINESS_BASE_SHA - a git ref or sha; read via
+#     `git cat-file`/`git show <ref>:audit-reports/strategy/SNAPSHOTS.json`
+# Returns [:ok], [:no_base] (nothing to compare against - legitimate, e.g. the
+# file is new on this branch), or [:unresolvable, reason] (base could not be
+# obtained at all - in --check this is a HARD FAILURE, never a silent skip).
+def load_base_snapshots
+  if (path = ENV['READINESS_BASE_SNAPSHOTS_FILE'])
+    return [:no_base, nil] unless File.file?(path)
+    return [:ok, (JSON.parse(File.read(path))['snapshots'] || [])]
+  end
+  ref = ENV['READINESS_BASE_SHA'] || ENV['READINESS_BASE_REF']
+  return [:unresolvable, 'no base ref supplied (READINESS_BASE_REF/READINESS_BASE_SHA/READINESS_BASE_SNAPSHOTS_FILE all unset)'] unless ref
+
+  path_in_ref = "#{ref}:#{SNAPSHOTS_JSON}"
+  file_at_ref_ok = system('git', 'cat-file', '-e', path_in_ref, err: File::NULL, out: File::NULL)
+  unless file_at_ref_ok
+    # Distinguish "ref doesn't resolve at all" from "ref resolves but the file
+    # doesn't exist there yet" - only the latter is a legitimate no-base case.
+    ref_ok = system('git', 'cat-file', '-e', ref, err: File::NULL, out: File::NULL)
+    return ref_ok ? [:no_base, nil] : [:unresolvable, "base ref #{ref.inspect} does not resolve locally (fetch it before running --check)"]
+  end
+  raw, status = Open3.capture2('git', 'show', path_in_ref)
+  return [:unresolvable, "git show #{path_in_ref} failed"] unless status.success?
+
+  [:ok, (JSON.parse(raw)['snapshots'] || [])]
+rescue JSON::ParserError => e
+  [:unresolvable, "base SNAPSHOTS.json did not parse: #{e.message}"]
+end
+
+def verify_base_append_only!(current_snapshots, failures, warnings, mode)
+  outcome, payload = load_base_snapshots
+  case outcome
+  when :no_base
+    return
+  when :unresolvable
+    if mode == :check
+      failures << "[snapshots vs base] append-only enforcement could not run: #{payload}. Refusing to pass --check without it (base comparison, not the hash chain, is the append-only boundary)."
+    else
+      warnings << "[snapshots vs base] base-history comparison skipped (#{payload}); this is a LOCAL run with no enforcement, not append-only protection."
+    end
+    return
+  when :ok
+    base_snapshots = payload
+  end
+  base_snapshots.each_with_index do |base_snap, i|
+    cur = current_snapshots[i]
+    if cur.nil?
+      failures << "[snapshots vs base] base snapshot ##{i} (#{base_snap['generatedAt']}) is missing from this branch - snapshots may only be appended, never removed"
+    elsif cur != base_snap
+      failures << "[snapshots vs base] base snapshot ##{i} (#{base_snap['generatedAt']}) does not match this branch's record at the same position - historical snapshots must stay byte-identical and in order"
+    end
+  end
+end
+
 # --- derived requirement status -----------------------------------------------
 def applicability(req, decisions)
   cond = (req['appliesWhen'] || {})['condition']
@@ -935,6 +1008,10 @@ if mode == :snapshot
   snapshots << new_snap
   snapshots_doc['snapshots'] = snapshots
 end
+
+# Runs after any --snapshot append so the final state (what will actually be
+# committed) is what gets compared to base, not a pre-append snapshot list.
+verify_base_append_only!(snapshots, failures, warnings, mode)
 
 # --- report + write -----------------------------------------------------------
 warnings.each { |w| warn "readiness-check WARNING: #{w}" }

@@ -18,6 +18,12 @@ cd "$(git rev-parse --show-toplevel)" || exit 1
 LIVE_DIR=audit-reports/strategy
 WORK_DIR=audit-reports/strategy-test.$$
 export READINESS_STRATEGY_DIR="$WORK_DIR"
+# verify_base_append_only! requires a resolvable base in --check mode. Tests
+# below that are NOT specifically exercising base-compare set this to a path
+# that never exists, which resolves to the legitimate no-base case (nothing to
+# compare yet - this layer's own reality on origin/staging today). The
+# base-compare tests override this per-invocation to exercise the real paths.
+export READINESS_BASE_SNAPSHOTS_FILE="$PWD/audit-reports/strategy-test-no-base-sentinel.$$.json"
 
 LIVE_SNAPSHOT=$(mktemp -d)
 cp -r "$LIVE_DIR/." "$LIVE_SNAPSHOT/"
@@ -25,8 +31,11 @@ FINDINGS_SNAPSHOT=$(mktemp)
 cp audit-reports/FINDINGS.json "$FINDINGS_SNAPSHOT"
 PRIOR_SCRATCH=$(mktemp)
 FINDINGS_SCRATCH=$(mktemp)
+BASE_SCRATCH=$(mktemp)
+BASE_SCRATCH2=$(mktemp)
+REWRITE_SCRIPT=$(mktemp)
 
-cleanup() { rm -rf "$WORK_DIR" "$LIVE_SNAPSHOT" "$FINDINGS_SNAPSHOT" "$PRIOR_SCRATCH" "$FINDINGS_SCRATCH"; }
+cleanup() { rm -rf "$WORK_DIR" "$LIVE_SNAPSHOT" "$FINDINGS_SNAPSHOT" "$PRIOR_SCRATCH" "$FINDINGS_SCRATCH" "$BASE_SCRATCH" "$BASE_SCRATCH2" "$REWRITE_SCRIPT"; }
 trap cleanup EXIT
 trap 'cleanup; exit 130' INT
 trap 'cleanup; exit 143' TERM
@@ -211,6 +220,123 @@ else
   fail "hash chain did not catch a rewrite of the first snapshot"
 fi
 
+echo "readiness-check-test: append-only ENFORCEMENT (base-branch comparison, not the hash chain)"
+# The load-bearing case Codex asked for: a coordinated rewrite that regenerates
+# EVERY subsequent record's chain sha and flow in lockstep is internally
+# self-consistent (the hash chain alone cannot see it - proven first below),
+# so append-only must be enforced by comparing against what the base branch
+# actually committed, not by re-deriving internal consistency.
+reset_work
+ruby scripts/readiness-check.rb --snapshot >/dev/null 2>&1   # now 2 snapshots: seed + new
+cp "$WORK_DIR/SNAPSHOTS.json" "$BASE_SCRATCH"                # the valid, un-rewritten "base" version
+
+cat > "$REWRITE_SCRIPT" <<'RUBY'
+require 'json'
+require 'digest'
+require 'set'
+
+def recompute_flow(prior_snaps, snap)
+  cur = (snap['openFindingIds'] || []).to_set
+  prior = prior_snaps.last
+  return { 'new' => [], 'movedOutOfOpen' => [], 'reopened' => [], 'severityChanged' => [] } if prior.nil?
+  prior_open = (prior['openFindingIds'] || []).to_set
+  ever_open = prior_snaps.flat_map { |s| s['openFindingIds'] || [] }.to_set
+  newly_open = cur - prior_open
+  reopened = newly_open.select { |id| ever_open.include?(id) }.sort
+  new_ids = (newly_open - reopened).sort
+  moved = (prior_open - cur).sort
+  cur_sev = snap['openFindingSeverities'] || {}
+  prior_sev = prior['openFindingSeverities'] || {}
+  sev_changed = (cur & prior_open).select { |id| cur_sev[id] != prior_sev[id] }.sort
+  { 'new' => new_ids, 'movedOutOfOpen' => moved, 'reopened' => reopened, 'severityChanged' => sev_changed }
+end
+
+path = ARGV[0]
+doc = JSON.parse(File.read(path))
+snaps = doc['snapshots']
+
+# Rewrite snapshot #0: drop one open finding id and fix ITS OWN internal
+# fields, exactly as an attacker covering their tracks would.
+dropped = snaps[0]['openFindingIds'].pop
+snaps[0]['openFindingSeverities'].delete(dropped)
+snaps[0]['findings']['open'] = snaps[0]['openFindingIds'].size
+snaps[0]['findings']['openBySeverity'].each_key do |sev|
+  snaps[0]['findings']['openBySeverity'][sev] = snaps[0]['openFindingSeverities'].values.count(sev)
+end
+
+# Cascade the cover-up into every subsequent record: recompute its chain sha
+# and its flow against the (now mutated) history, so the WHOLE file stays
+# internally self-consistent - no naive per-record check can see this.
+(1...snaps.size).each do |i|
+  snaps[i]['priorSnapshotSha'] = Digest::SHA256.hexdigest(JSON.generate(snaps[i - 1]))
+  snaps[i]['findingFlowSincePrior'] = recompute_flow(snaps[0...i], snaps[i])
+end
+
+File.write(path, JSON.pretty_generate(doc) + "\n")
+RUBY
+ruby "$REWRITE_SCRIPT" "$WORK_DIR/SNAPSHOTS.json"
+
+ruby scripts/readiness-check.rb >/dev/null 2>&1
+if ruby scripts/readiness-check.rb --check >/dev/null 2>&1; then
+  pass "fully-cascaded history rewrite is internally self-consistent (hash chain alone cannot detect it - this is the property base-comparison exists for)"
+else
+  fail "the fabricated rewrite was not internally self-consistent; test fixture is wrong, re-check REWRITE_SCRIPT against recompute_flow"
+fi
+
+base_check_out=$(READINESS_BASE_SNAPSHOTS_FILE="$BASE_SCRATCH" ruby scripts/readiness-check.rb --check 2>&1)
+if echo "$base_check_out" | grep -qF "does not match this branch's record at the same position"; then
+  pass "base-branch comparison catches the fully-cascaded rewrite that the hash chain missed"
+else
+  fail "base-branch comparison did NOT catch the fully-cascaded history rewrite"
+  echo "$base_check_out" | head -5
+fi
+
+# A base with MORE snapshots than current (a deletion) must also fail.
+reset_work
+ruby scripts/readiness-check.rb --snapshot >/dev/null 2>&1
+cp "$WORK_DIR/SNAPSHOTS.json" "$BASE_SCRATCH2"
+ruby -rjson -e "
+  doc=JSON.parse(File.read('$WORK_DIR/SNAPSHOTS.json'))
+  doc['snapshots'].pop
+  File.write('$WORK_DIR/SNAPSHOTS.json', JSON.pretty_generate(doc)+\"\n\")
+"
+ruby scripts/readiness-check.rb >/dev/null 2>&1
+if READINESS_BASE_SNAPSHOTS_FILE="$BASE_SCRATCH2" ruby scripts/readiness-check.rb --check 2>&1 | grep -qF "is missing from this branch"; then
+  pass "removing a base snapshot (not just editing one) is caught by base comparison"
+else
+  fail "a deleted base snapshot was not caught"
+fi
+
+# Unresolvable base ref must hard-fail --check (never a silent pass presented
+# as protection). `env -u` UNSETS the harness-wide FILE default so the script
+# actually falls through to the REF path instead of short-circuiting to :no_base.
+reset_work
+if env -u READINESS_BASE_SNAPSHOTS_FILE READINESS_BASE_REF=refs/does-not-exist-anywhere \
+     ruby scripts/readiness-check.rb --check 2>&1 | grep -qF "Refusing to pass --check without it"; then
+  pass "an unresolvable base ref hard-fails --check rather than silently skipping enforcement"
+else
+  fail "an unresolvable base ref did not hard-fail --check"
+fi
+
+# A resolvable base ref where the file legitimately does not exist yet (this
+# layer's own first-introduction case) must pass cleanly.
+reset_work
+if READINESS_BASE_SNAPSHOTS_FILE=/definitely/does/not/exist.json ruby scripts/readiness-check.rb --check >/dev/null 2>&1; then
+  pass "a base with no SNAPSHOTS.json file yet is treated as legitimate (nothing to compare)"
+else
+  fail "a legitimately-absent base file was wrongly treated as a failure"
+fi
+
+# Outside --check (local dev), an unresolvable base must warn, never claim protection silently.
+reset_work
+local_out=$(env -u READINESS_BASE_SNAPSHOTS_FILE READINESS_BASE_REF=refs/does-not-exist-anywhere \
+              ruby scripts/readiness-check.rb 2>&1)
+if echo "$local_out" | grep -qF "base-history comparison skipped" && ! echo "$local_out" | grep -qF "FAILURE"; then
+  pass "local (non --check) mode warns instead of silently claiming append-only protection"
+else
+  fail "local mode did not warn on an unresolvable base ref"
+fi
+
 # --snapshot must refuse to append behind a future-dated prior record.
 reset_work
 ruby -rjson -e "
@@ -222,6 +348,42 @@ if ruby scripts/readiness-check.rb --snapshot 2>&1 | grep -qF "does not advance 
   pass "--snapshot refuses a non-monotonic append behind a future-dated prior"
 else
   fail "--snapshot appended behind a future-dated prior snapshot"
+fi
+
+echo "readiness-check-test: unlinked-open-finding visibility cannot be suppressed"
+# LL-16ef84ad9a (high) is currently linked via adult-beta-ai-cache. Removing
+# that link must surface it in the unlinked section, not make it disappear -
+# proving the invisible-risk fix actually reacts to a findingIds edit rather
+# than being frozen prose.
+reset_work
+ruby -rjson -e "
+  doc=JSON.parse(File.read('$WORK_DIR/READINESS-MILESTONES.json'))
+  doc['requirements'].find{|r| r['id']=='adult-beta-ai-cache'}['findingIds']=[]
+  File.write('$WORK_DIR/READINESS-MILESTONES.json', JSON.pretty_generate(doc)+\"\n\")
+"
+ruby scripts/readiness-check.rb >/dev/null 2>&1
+if grep -qF '`LL-16ef84ad9a` (high)' "$WORK_DIR/READINESS-DASHBOARD.md"; then
+  pass "unlinking a requirement's findingIds surfaces the finding in the unlinked-open section (not silently hidden)"
+else
+  fail "unlinking a High finding did not surface it in the unlinked-open section"
+fi
+
+# The heading itself must be UNCONDITIONAL - present even in the (currently
+# hypothetical) all-linked case - so a reader can never mistake "no heading"
+# for "nothing to report" if a future edit ever breaks the render.
+reset_work
+ruby -rjson -e "
+  doc=JSON.parse(File.read('$WORK_DIR/READINESS-MILESTONES.json'))
+  findings=JSON.parse(File.read('audit-reports/FINDINGS.json'))['findings'].select{|f| f['status']=='open'}.map{|f| f['id']}
+  doc['requirements'].find{|r| r['id']=='adult-beta-ai-cache'}['findingIds']=findings
+  File.write('$WORK_DIR/READINESS-MILESTONES.json', JSON.pretty_generate(doc)+\"\n\")
+"
+ruby scripts/readiness-check.rb >/dev/null 2>&1
+if grep -qF '### Open findings not linked to any requirement' "$WORK_DIR/READINESS-DASHBOARD.md" \
+   && grep -qF 'None - every open finding is linked' "$WORK_DIR/READINESS-DASHBOARD.md"; then
+  pass "the unlinked-open heading renders unconditionally, even when the list is empty"
+else
+  fail "the unlinked-open heading was suppressed when the list became empty"
 fi
 
 echo "readiness-check-test: canonical register sanity"

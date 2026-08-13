@@ -143,8 +143,13 @@ verify_all() {
   # attestation freezes the filename permanently.
   step "verify: the docs/legal naming guards actually fire" \
     bash scripts/tests/legal-naming-check-test.sh || rc=1
+  # The append-only check needs origin/staging fetched locally to compare
+  # against; refresh it here rather than assuming the caller already has.
+  # If the fetch itself fails (offline), readiness-check.rb fails closed on
+  # an unresolvable base rather than silently skipping the comparison.
+  git fetch origin staging --quiet 2>/dev/null || true
   step "verify: readiness strategy layer + dashboard render" \
-    ruby scripts/readiness-check.rb --check || rc=1
+    env READINESS_BASE_REF=origin/staging ruby scripts/readiness-check.rb --check || rc=1
   step "verify: readiness-check guards (derived-status, provenance, snapshots)" \
     bash scripts/tests/readiness-check-test.sh || rc=1
   return $rc
