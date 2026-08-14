@@ -130,11 +130,15 @@ jobs:
         run: npx ember test
 
   # Blocking gate for the audit/compliance system's own generated artifacts. These
-  # are deterministic, stdlib-only render checks (no gems, no network, no git
-  # history) that fail ONLY if a generated markdown drifts from its JSON source of
-  # truth - so making them blocking is low-friction and keeps the register's
-  # human-readable mirrors honest. (citation-check.rb is intentionally NOT gated
-  # here: a repo-wide blocking citation check is a broader policy decision.)
+  # are deterministic, stdlib-only render checks (no gems, no network) that fail ONLY
+  # if a generated markdown drifts from its JSON source of truth - so making them
+  # blocking is low-friction and keeps the register's human-readable mirrors honest.
+  # (citation-check.rb is intentionally NOT gated here: a repo-wide blocking citation
+  # check is a broader policy decision.)
+  #
+  # ONE EXCEPTION to "no git history": legal-naming-check.rb reads the register at the
+  # base revision, because its grandfather allowlist cannot be allowed to certify
+  # itself. That is why a base-branch fetch step appears below.
   audit-artifacts-integrity:
     runs-on: ubuntu-latest
 
@@ -164,6 +168,45 @@ jobs:
 
       - name: Verify capability ledger (currentEvidence resolves at HEAD; negativeEvidence scoping)
         run: ruby scripts/capability-check.rb --check
+
+      # legal-naming-check verifies meta.legalNamingGrandfathered against the BASE revision,
+      # so unlike the render checks above it does need a little git history.
+      #
+      # The baseline is the EVENT'S EXACT SHA, not a branch name, and that distinction is a
+      # fix. Resolving `origin/<branch>` meant a push run compared the branch against
+      # itself: self-comparing, trivially satisfied, and bypassable by pushing directly to
+      # a protected branch. Pull requests use the base commit the PR actually forked from;
+      # pushes use the pre-push SHA, so the comparison spans what the push introduced.
+      #
+      # Fails closed if neither is available, because "I could not verify the allowlist" is
+      # not the same claim as "the allowlist is fine". Push triggers here are limited to
+      # main/develop/staging, which always have a real predecessor, so the all-zeros
+      # new-branch case cannot arise on this workflow.
+      - name: Resolve and fetch the naming allowlist baseline
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          BASE_SHA="${PR_BASE_SHA:-$PUSH_BEFORE_SHA}"
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            echo "::error::No usable base SHA for the docs/legal naming allowlist baseline." >&2
+            echo "Refusing rather than skipping: an unverifiable allowlist is exactly what an" >&2
+            echo "allowlist-laundering change would produce." >&2
+            exit 1
+          fi
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          echo "NAMING_BASE_SHA=$BASE_SHA" >> "$GITHUB_ENV"
+
+      - name: Verify docs/legal naming rule (attested rows carry no status token)
+        run: ruby scripts/legal-naming-check.rb --base-ref "$NAMING_BASE_SHA" --check
+
+      # The rule above is unfixable once violated, because attestation freezes the
+      # filename permanently. So the guard itself is tested here rather than trusted:
+      # a check only ever seen passing on clean data proves the data is clean, not that
+      # the check works.
+      - name: Verify the docs/legal naming guards actually fire
+        run: scripts/tests/legal-naming-check-test.sh
 
   codex-review-tests:
     runs-on: ubuntu-latest
