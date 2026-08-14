@@ -130,6 +130,39 @@ describe Api::SupervisorRelationshipsController, type: :controller do
       json = JSON.parse(response.body)
       expect(json['meta']['message']).to eq(SupervisorConsentService::GENERIC_LOOKUP_MESSAGE)
     end
+
+    it "should create a request by username" do
+      token_user
+      u2 = User.create
+      expect(SupervisorMailer).to receive(:schedule_delivery).with(:consent_request, anything)
+      post :create, params: {
+        supervisor_relationship: {
+          communicator_lookup: u2.user_name,
+          permission_level: 'edit_boards'
+        }
+      }
+      expect(response).to be_successful
+      rel = SupervisorRelationship.last
+      expect(rel.communicator_user).to eq(u2)
+      expect(rel.supervisor_user).to eq(@user)
+      expect(rel.status).to eq('pending')
+    end
+
+    it "should create a request by email" do
+      token_user
+      u2 = User.create
+      u2.settings['email'] = 'lookup-comm@example.com'
+      u2.save
+      expect(SupervisorMailer).to receive(:schedule_delivery).with(:consent_request, anything)
+      post :create, params: {
+        supervisor_relationship: {
+          communicator_lookup: 'lookup-comm@example.com',
+          permission_level: 'view_only'
+        }
+      }
+      expect(response).to be_successful
+      expect(SupervisorRelationship.last.communicator_user).to eq(u2)
+    end
   end
 
   describe "approve" do
@@ -174,6 +207,40 @@ describe Api::SupervisorRelationshipsController, type: :controller do
       expect(response).to be_successful
     end
 
+    it "should let the logged-in communicator approve by relationship id without a token" do
+      token_user
+      supervisor = User.create
+      rel = SupervisorRelationship.create!(
+        supervisor_user: supervisor,
+        communicator_user: @user,
+        status: 'pending',
+        permission_level: 'edit_boards'
+      )
+      rel.generate_consent_token!
+      allow(SupervisorMailer).to receive(:schedule_delivery)
+      put :approve, params: { id: rel.global_id }
+      expect(response).to be_successful
+      expect(rel.reload.status).to eq('approved')
+      expect(@user.reload.supervisor_user_ids).to include(supervisor.global_id)
+    end
+
+    it "should not let the supervisor approve their own request by id" do
+      token_user
+      communicator = User.create
+      rel = SupervisorRelationship.create!(
+        supervisor_user: @user,
+        communicator_user: communicator,
+        status: 'pending',
+        permission_level: 'view_only'
+      )
+      rel.generate_consent_token!
+      put :approve, params: { id: rel.global_id }
+      expect(response).not_to be_successful
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('not_authorized')
+      expect(rel.reload.status).to eq('pending')
+    end
+
     it "should return error for invalid token" do
       put :approve, params: { id: 'bogus', consent_response_token: 'bogus' }
       expect(response).not_to be_successful
@@ -198,9 +265,44 @@ describe Api::SupervisorRelationshipsController, type: :controller do
       expect(json['supervisor_relationship']['status']).to eq('denied')
     end
 
+    it "should let the logged-in communicator deny by relationship id without a token" do
+      token_user
+      supervisor = User.create
+      rel = SupervisorRelationship.create!(
+        supervisor_user: supervisor,
+        communicator_user: @user,
+        status: 'pending'
+      )
+      rel.generate_consent_token!
+      put :deny, params: { id: rel.global_id }
+      expect(response).to be_successful
+      expect(rel.reload.status).to eq('denied')
+    end
+
     it "should return error for invalid token" do
       put :deny, params: { id: 'bogus', consent_response_token: 'bogus' }
       expect(response).not_to be_successful
+    end
+  end
+
+  describe "consent_response" do
+    it "should approve via token using decision param (not Rails action)" do
+      u1 = User.create
+      u2 = User.create
+      rel = SupervisorRelationship.create!(
+        supervisor_user: u1,
+        communicator_user: u2,
+        status: 'pending',
+        permission_level: 'view_only'
+      )
+      rel.generate_consent_token!
+      allow(SupervisorMailer).to receive(:schedule_delivery)
+      post :consent_response, params: {
+        token: rel.consent_response_token,
+        decision: 'approve'
+      }
+      expect(response).to be_successful
+      expect(rel.reload.status).to eq('approved')
     end
   end
 

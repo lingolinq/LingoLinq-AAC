@@ -97,6 +97,7 @@ describe Converters::ApiJsonBundle do
       expect(image).to be_present
       expect(image.settings['preserve_source_image']).to eq(true)
       expect(image.needs_library_url_enrichment?).to eq(false)
+      expect(image.skin_capable_url).to eq(nil)
     end
 
     it 'imports button sounds when sounds[] stubs are filled from sound_urls' do

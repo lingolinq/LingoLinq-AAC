@@ -1430,6 +1430,13 @@ export default Controller.extend(prefClasses, {
     // building out the button grid while navigating away just wastes CPU and
     // can cause observer churn on a torn-down controller.
     if(this.get('_exiting') || this.isDestroyed || this.isDestroying) { return; }
+    /* After deleteRecord()+save, exiting speak mode still schedules
+       processButtons → here. Ember Data forbids set() on deleted records
+       ("Attempted to set 'buttons' on the deleted record"). Bail early. */
+    var modelForGuard = this.get('model');
+    if(modelForGuard && typeof modelForGuard.get === 'function' && modelForGuard.get('isDeleted')) {
+      return;
+    }
     var _this = this;
     if(!(raw.images && raw.images.length)) {
       if(_this._board_detail_images && _this._board_detail_images.length) {
@@ -1481,7 +1488,7 @@ export default Controller.extend(prefClasses, {
           _this._last_raw.images = _this._board_detail_images;
         }
         var board_early = _this.get('model');
-        if(board_early && board_early.set) {
+        if(board_early && board_early.set && !(board_early.get && board_early.get('isDeleted'))) {
           if(raw.translations !== undefined) { board_early.set('translations', raw.translations); }
           if(raw.buttons !== undefined) { board_early.set('buttons', raw.buttons); }
           if(raw.locale !== undefined) { board_early.set('locale', raw.locale); }
@@ -1496,7 +1503,7 @@ export default Controller.extend(prefClasses, {
     var image_map = raw.image_urls || {};
     (raw.images || []).forEach(function(img) {
       if(img && img.id) {
-        var url = img.skin_url || img.url;
+        var url = (_this._preferred_symbols && img.skin_url) ? img.skin_url : img.url; // library preferred_symbols only
         if(url) {
           image_map[String(img.id)] = url;
         }
@@ -1524,7 +1531,7 @@ export default Controller.extend(prefClasses, {
     if(board && board.get && !raw.translations && board.get('translations')) {
       raw.translations = board.get('translations');
     }
-    if(board && board.set) {
+    if(board && board.set && !(board.get && board.get('isDeleted'))) {
       if(raw.translations !== undefined) { board.set('translations', raw.translations); }
       if(raw.buttons !== undefined) { board.set('buttons', raw.buttons); }
       if(raw.locale !== undefined) { board.set('locale', raw.locale); }
@@ -1953,6 +1960,10 @@ export default Controller.extend(prefClasses, {
     // payload onto model.buttons MUST sync that payload into _last_raw
     // first (see saveButtonChanges) — otherwise this clobbers the save
     // with a pre-edit snapshot (notably newly assigned image_ids).
+    var model = this.get('model');
+    if(model && typeof model.get === 'function' && model.get('isDeleted')) {
+      return;
+    }
     if(this._last_raw) {
       this._build_from_raw(this._last_raw);
     }
@@ -2352,6 +2363,31 @@ export default Controller.extend(prefClasses, {
       return i18n.t('error_no_local', "This board is not available offline.");
     }
   }),
+  /* Broken-board recovery: Home when the referenced communicator (or
+     current user) has a home board or a session entry board to land on. */
+  error_show_home: computed(
+    'app_state.referenced_user.preferences.home_board.key',
+    'app_state.currentUser.preferences.home_board.key',
+    'app_state.board_detail_entry_board.user_name',
+    'app_state.board_detail_entry_board.boardname',
+    function() {
+      if(this.get('app_state.referenced_user.preferences.home_board.key')) { return true; }
+      if(this.get('app_state.currentUser.preferences.home_board.key')) { return true; }
+      var entry = this.get('app_state.board_detail_entry_board');
+      return !!(entry && entry.user_name && entry.boardname);
+    }
+  ),
+  /* Exit Speak is supervisor-facing (supporter role or actively modeling).
+     Communicators stay in speak mode and use Home / Back instead. */
+  error_show_exit_speak: computed(
+    'app_state.speak_mode',
+    'app_state.currentUser.supporter_role',
+    'app_state.modeling',
+    function() {
+      if(!this.get('app_state.speak_mode')) { return false; }
+      return !!(this.get('app_state.currentUser.supporter_role') || this.get('app_state.modeling'));
+    }
+  ),
 
   description_info_expanded: false,
   cc_license: computed('model.license.type', function() {
@@ -5673,8 +5709,11 @@ export default Controller.extend(prefClasses, {
       // Home is a board-to-board exit like any other and was entirely unguarded
       // — it even cleared board_detail_nav_history on the way out.
       if(this.board_lock_blocks_exit()) { return; }
-      // Prefer the user's saved home board
-      var home = this.get('app_state.currentUser.preferences.home_board');
+      // Prefer the active communicator's home (modeling / speak-as), then
+      // the signed-in user's — so broken-link recovery and the Home control
+      // land on the board the current speak session is for.
+      var home = this.get('app_state.referenced_user.preferences.home_board') ||
+        this.get('app_state.currentUser.preferences.home_board');
       if(home && home.key) {
         this.set('app_state.board_detail_nav_history', []);
         var parts = home.key.split('/');

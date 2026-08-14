@@ -535,12 +535,31 @@
     {{!-- Main Content Area --}}
     <main class="md-board-detail-main">
       {{#if this.model.error}}
-        <div class="md-board-detail-error">
+        <div class="md-board-detail-error" role="alert">
           <p class="md-board-detail-error__message">{{this.error_message}}</p>
           {{#if this.retrying}}
             <p class="md-board-detail-error__retrying">{{t "Trying again..." key="trying_again"}}</p>
           {{else}}
-            <button type="button" class="btn btn-default btn-lg md-board-detail-error__retry" data-bd-action="re_transition" {{on "click" (this.ctrlAction "re_transition")}}>
+            {{!-- Broken links rarely recover with retry. Offer Home / Back
+                 for everyone; supervisors also get Exit Speak Mode. --}}
+            <div class="md-board-detail-error__actions">
+              {{#if this.error_show_home}}
+                <button type="button" class="btn btn-primary btn-lg md-board-detail-error__action md-board-detail-error__action--primary" data-bd-action="go_home" {{on "click" (this.ctrlAction "go_home")}}>
+                  {{t "Go to Home Board" key="error_go_to_home_board"}}
+                </button>
+              {{/if}}
+              {{#if this.show_board_back_nav}}
+                <button type="button" class="btn btn-default btn-lg md-board-detail-error__action" data-bd-action="go_back" {{on "click" (this.ctrlAction "go_back")}}>
+                  {{t "Go Back" key="error_go_back"}}
+                </button>
+              {{/if}}
+              {{#if this.error_show_exit_speak}}
+                <button type="button" class="btn btn-default btn-lg md-board-detail-error__action" data-bd-action="exit_speak_mode" {{on "click" (this.ctrlAction "exit_speak_mode")}}>
+                  {{t "Exit Speak Mode" key="exit_speak_mode"}}
+                </button>
+              {{/if}}
+            </div>
+            <button type="button" class="md-board-detail-error__retry-link" data-bd-action="re_transition" {{on "click" (this.ctrlAction "re_transition")}}>
               {{t "Try Again" key="try_again"}}
             </button>
           {{/if}}

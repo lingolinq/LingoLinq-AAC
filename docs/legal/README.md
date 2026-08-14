@@ -57,11 +57,34 @@ Also acceptable here: executed instruments that have no better home and are smal
 
 ## Naming
 
-`<YYYY-MM-DD>_<kebab-slug>_<status>.<ext>` for new dated records, ISO dates only so lexical sort
-equals chronological sort. Status is a controlled token from the register's `statusEnum`. No `v2`,
-no `final`, no initials: the date plus the status carries everything a version number was doing and
-cannot lie. Existing `SCREAMING_SNAKE.md` filenames are grandfathered and are not being renamed,
+`<YYYY-MM-DD>_<kebab-slug>.<ext>` for new dated records, ISO dates only so lexical sort equals
+chronological sort. **The filename carries no status token.** Status is a mutable property of the
+register row (`statusEnum`), and rule 3 above freezes an attested file's name permanently, so a
+status encoded in the name would either become false at the first status change or force a rename
+that rule 3 forbids. The register is the single source of truth for status. No `v2`, no `final`, no
+initials, no status: the date plus the register row carries everything a version number was doing
+and cannot lie. Existing `SCREAMING_SNAKE.md` filenames are grandfathered and are not being renamed,
 because renaming breaks every inbound reference for no compliance benefit.
+
+Four dated records created before this rule are **also grandfathered in place** and are not renamed
+here, for the same reason: `2026-08-09_compliance-posture-report_draft.md`,
+`2026-08-09_compliance-program_draft.md`, `2026-08-09_compliance-program-overview_draft.md`, and
+`2026-08-09_data-retention_draft.md`. None is attested, so rule 3's freeze has not engaged on any of
+them.
+
+**Transition rule for those four.** A grandfathered dated `_draft` record may remain at its current
+path **while it is unattested**. Before any such record is attested, leave that path via **Path A
+supersession** (see `/re-attest-record`), not an in-place rename: create a new statusless dated file
+`<YYYY-MM-DD>_<kebab-slug>.<ext>`, add a new register row that `supersedes` the `_draft` row, mark
+the `_draft` row `superseded` with reciprocal `supersededBy`, retarget live bundle
+`requiredDocs.location` entries, repair prose references, then attest **only the successor**.
+**Do not rename the existing registered path in place.** Document IDs are
+`DOC-` + `sha256(canonicalLocation)[0,10]` (`meta.idAlgorithm`;
+`scripts/document-register-render.rb` `expected_id` / render overwrite), so an in-place rename
+changes the DOC-id, breaks the register's permanent-ID promise, and makes the Notion sync treat the
+result as a new row while orphaning or pruning the old one. **A record must never be attested at a
+`_draft` path**, because rule 3 would then freeze a filename asserting a status the register alone
+is entitled to carry, and the name could never be corrected.
 
 ## Retention
 

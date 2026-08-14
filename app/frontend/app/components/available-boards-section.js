@@ -108,19 +108,24 @@ export default Component.extend({
       };
     };
     // A FACTORY, like every other wrapper in this component — it RETURNS the
-    // handler. Templates bind it bare: `{{on "click" (this.sendAction "name")}}`.
-    // Do NOT convert this to invoke `send()` immediately: the bare subexpression
-    // is evaluated at RENDER time, so an immediate-invoke version fires the
-    // action during render (Ember then asserts "already been used previously in
-    // the same computation") and hands `{{on}}` an `undefined` handler, leaving
-    // the whole folders accordion dead to clicks.
+    // handler. Templates bind it bare: `{{on "click" (this.sendAction "name")}}`,
+    // same as `ctrlAction`. Both halves have to match, and this is the pairing
+    // the component settled on; the two ways to break it are:
     //
-    // The immediate-invoke form is only correct alongside `(fn this.sendAction …)`
-    // bindings, which this template no longer uses — mixing the two halves is the
-    // regression covered by tests/integration/available-boards-folders-test.js.
-    // Dispatches to `self` (this component). Handlers that need the raw DOM event
-    // (updateFolderFilter, drag/drop) use `selfEventAction` instead; the event is
-    // popped here because every `sendAction` binding is a click-only action.
+    //   • `(fn this.sendAction …)` — calls the FACTORY on click and throws the
+    //     returned handler away, so the action never runs.
+    //   • making this invoke `send()` immediately — the bare subexpression is
+    //     evaluated at RENDER time, so the action fires during render (Ember
+    //     then asserts "already been used previously in the same computation",
+    //     e.g. toggling `foldersExpanded` after `aria-expanded` has read it) and
+    //     `{{on}}` receives an `undefined` handler, leaving the folders
+    //     accordion dead to clicks.
+    //
+    // Mixing the two halves is the regression covered by
+    // tests/integration/available-boards-folders-test.js. Dispatches to `self`
+    // (this component). Handlers that need the raw DOM event
+    // (updateFolderFilter, drag/drop) use `selfEventAction` instead; the event
+    // is popped here because every `sendAction` binding is click-only.
     this.sendAction = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function() {

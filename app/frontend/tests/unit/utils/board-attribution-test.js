@@ -1,6 +1,6 @@
 import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
-import { boardAttributionOwner } from '../../app/utils/board_attribution';
+import { boardAttributionOwner } from 'frontend/utils/board_attribution';
 
 function makeBoard(attrs) {
   return EmberObject.create(attrs || {});

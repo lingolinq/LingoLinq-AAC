@@ -7,6 +7,18 @@ allowed-tools: Read, Grep, Glob, Bash, Edit
 
 # /re-attest-record: re-attest after compliance-record bytes change
 
+## First: is this even a re-attest case?
+
+CI `document-register-render.rb --check` can fail two different ways with similar wording:
+
+| FAIL text | Attested? | Your move |
+|---|---|---|
+| `contentHash drift for "…"` … `(run render)` | **No** (`attestation: {}` or empty) | Do **not** use this skill. Run `scripts/regenerate-register.sh` and commit. |
+| `contentHash drift on the ATTESTED row` … `/re-attest-record` | **Yes** | This skill (Scot only). **Do not run render** — it bumps `contentHash`, dirties the register, then fails again as "attested revision no longer exists" (the #721 footgun; fixed messaging in #766). |
+| `attested revision no longer exists` | **Yes** (already re-rendered or hash already bumped) | This skill. Revert the mistaken register edit if you already rendered; then Path A/B below. |
+
+Rule of thumb: if the message says **ATTESTED**, stop and ping Scot. If it says **run render**, regenerate.
+
 Every git row in `audit-reports/DOCUMENT-REGISTER.json` with an `attestation` block pins
 `attestedContentHash` = the sha256 of the exact bytes Scot attested. `contentHash` tracks the file
 as it is NOW. `scripts/document-register-render.rb --check` (CI job `audit-artifacts-integrity`,
@@ -84,9 +96,20 @@ Use this for any planned change to an attested file under `docs/legal/**`.
 
 2. **Create the successor file** under `docs/legal/` with the dated naming convention from
    `docs/legal/README.md`:
-   `<YYYY-MM-DD>_<kebab-slug>_<status>.<ext>`
-   (ISO date, controlled status token, no `v2` / `final` / initials). Copy forward only what should
+   `<YYYY-MM-DD>_<kebab-slug>.<ext>`
+   (ISO date, no status token, no `v2` / `final` / initials). Copy forward only what should
    remain true; fix stale claims in the **new** file.
+
+   **The filename carries NO status token** (rule changed 2026-08-10; this step previously said
+   `<YYYY-MM-DD>_<kebab-slug>_<status>.<ext>`). Status is a mutable property of the register row,
+   and rule 3 freezes an attested file's name permanently, so a status in the name would either go
+   false at the first status change or force a rename that rule 3 forbids. A record must **never**
+   be attested at a `_draft` path. If the live record is one of the four grandfathered dated
+   `_draft` files, do **not** rename that path in place (DOC-ids hash `canonicalLocation`; an
+   in-place rename changes identity and breaks Notion sync). Create this statusless successor as a
+   **new** file + new register row that `supersedes` the `_draft` row, mark the `_draft` row
+   superseded, retarget live bundles, then attest only the successor
+   (`docs/legal/README.md` Naming → Transition rule).
 
 3. **Add a new register row** in `audit-reports/DOCUMENT-REGISTER.json` for the successor:
    - Leave `id` and `contentHash` empty for git rows (render fills them).

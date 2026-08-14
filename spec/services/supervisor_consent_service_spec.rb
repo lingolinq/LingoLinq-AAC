@@ -81,6 +81,22 @@ describe SupervisorConsentService, :type => :model do
       expect(rel.lookup_method).to eq('email')
     end
 
+    it "should find communicator by username" do
+      supervisor = User.create
+      communicator = User.create
+      expect(SupervisorMailer).to receive(:schedule_delivery).with(:consent_request, anything)
+      result = service.request_access(
+        supervisor: supervisor,
+        lookup_key: communicator.user_name,
+        permission_level: 'edit_boards'
+      )
+      expect(result[:message]).to eq(SupervisorConsentService::GENERIC_LOOKUP_MESSAGE)
+      rel = SupervisorRelationship.last
+      expect(rel.communicator_user).to eq(communicator)
+      expect(rel.lookup_method).to eq('username')
+      expect(rel.permission_level).to eq('edit_boards')
+    end
+
     it "should return same message when communicator not found (enumeration protection)" do
       supervisor = User.create
       result = service.request_access(
@@ -153,6 +169,39 @@ describe SupervisorConsentService, :type => :model do
     end
   end
 
+  describe "#approve_as_party" do
+    it "should approve when actor is the communicator" do
+      supervisor = User.create
+      communicator = User.create
+      rel = SupervisorRelationship.create!(
+        supervisor_user: supervisor,
+        communicator_user: communicator,
+        status: 'pending',
+        permission_level: 'edit_boards'
+      )
+      rel.generate_consent_token!
+      expect(SupervisorMailer).to receive(:schedule_delivery).with(:consent_approved, rel.global_id)
+      result = service.approve_as_party(relationship: rel, actor: communicator)
+      expect(result[:error]).to be_nil
+      expect(rel.reload.status).to eq('approved')
+      expect(communicator.reload.supervisor_user_ids).to include(supervisor.global_id)
+    end
+
+    it "should reject when actor is the supervisor" do
+      supervisor = User.create
+      communicator = User.create
+      rel = SupervisorRelationship.create!(
+        supervisor_user: supervisor,
+        communicator_user: communicator,
+        status: 'pending'
+      )
+      rel.generate_consent_token!
+      result = service.approve_as_party(relationship: rel, actor: supervisor)
+      expect(result[:error]).to eq('not_authorized')
+      expect(rel.reload.status).to eq('pending')
+    end
+  end
+
   describe "#deny" do
     it "should deny a valid token" do
       supervisor = User.create
@@ -186,6 +235,22 @@ describe SupervisorConsentService, :type => :model do
     it "should return error for invalid token" do
       result = service.deny(token: 'bogus')
       expect(result[:error]).to eq('invalid_or_expired_token')
+    end
+  end
+
+  describe "#deny_as_party" do
+    it "should deny when actor is the communicator" do
+      supervisor = User.create
+      communicator = User.create
+      rel = SupervisorRelationship.create!(
+        supervisor_user: supervisor,
+        communicator_user: communicator,
+        status: 'pending'
+      )
+      rel.generate_consent_token!
+      result = service.deny_as_party(relationship: rel, actor: communicator)
+      expect(result[:error]).to be_nil
+      expect(rel.reload.status).to eq('denied')
     end
   end
 

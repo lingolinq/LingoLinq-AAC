@@ -15,9 +15,16 @@ module JsonApi::Board
     json['key'] = board.shallow_key
     json['shallow_clone'] = true if board.instance_variable_get('@sub_id')
     json['simple_refs'] = true if args[:skip_subs]
-    json['buttons'] = board.buttons || []
-    ['grid', 'intro', 'background'].each do |key|
-      json[key] = BoardContent.load_content(board, key)
+    # Index/list pages only need tile metadata. Shipping full buttons +
+    # BoardContent blobs for every owned sub-board dominates Mine-tab
+    # payload/CPU (boards page filters hundreds of rows down to roots).
+    # Show/tree keep the full shape. See 2026-08-10-boards-page-load-perf.
+    list_summary = !!args[:paginated]
+    unless list_summary
+      json['buttons'] = board.buttons || []
+      ['grid', 'intro', 'background'].each do |key|
+        json[key] = BoardContent.load_content(board, key)
+      end
     end
     ['name', 'prefix', 'description', 'image_url', 'stars', 'forks', 'word_suggestions', 'locale', 'home_board', 'categories', 'dim_header', 'small_header'].each do |key|
       json[key] = board.settings[key]
@@ -31,8 +38,21 @@ module JsonApi::Board
     json['sort_score'] = ((board.popularity || -1) + 1) * (board.any_upstream ? 1 : 2)
 
     list = [board.settings['locale'] || 'en']
-    trans = (BoardContent.load_content(board, 'translations') || {})
-    trans.each{|k, h| if h.is_a?(Hash); list += h.keys; end }
+    trans = {}
+    if list_summary
+      # Avoid scanning every button translation key for tile locale chips;
+      # settings locales cover that. When a request locale is present, still
+      # load translations for localized_name (board_content is eager-loaded
+      # on index). Do not rewrite button labels — list payloads omit buttons.
+      list += Array(board.settings['locales'])
+      if args[:locale]
+        trans = (BoardContent.load_content(board, 'translations') || {})
+        list += (trans['board_name'] || {}).keys
+      end
+    else
+      trans = (BoardContent.load_content(board, 'translations') || {})
+      trans.each{|k, h| if h.is_a?(Hash); list += h.keys; end }
+    end
     json['translated_locales'] = list.select{|loc| !loc.blank? }.uniq
     json['style'] = board.settings['board_style'] if board.settings['board_style']
     if args[:locale]
@@ -42,7 +62,7 @@ module JsonApi::Board
       if matching
         json['localized_name'] = (trans['board_name'] || {})[matching] || json['name']
         json['localized_locale'] = matching
-        if !args[:permissions]
+        if !list_summary && !args[:permissions]
           json['buttons'].each do |button|
             btn_tran = trans[button['id'].to_s]
             if btn_tran && btn_tran[matching]
@@ -61,10 +81,12 @@ module JsonApi::Board
     json['created'] = (board.created_at || Time.current).iso8601
     json['updated'] = board.settings['last_updated'] || (board.updated_at || Time.current).iso8601
     # This checks for updated/newly-added launch URLs for previously-defined apps
-    self.trace_execution_scoped(['json/board/apps']) do
-      json['buttons'].each do |button|
-        if button['apps']
-          button['apps'] = AppSearcher.update_apps(button['apps'])
+    unless list_summary
+      self.trace_execution_scoped(['json/board/apps']) do
+        json['buttons'].each do |button|
+          if button['apps']
+            button['apps'] = AppSearcher.update_apps(button['apps'])
+          end
         end
       end
     end
@@ -187,6 +209,15 @@ module JsonApi::Board
       json['board']['hc_image_ids'] = {}
       json['board']['sound_urls'] = board.settings['sound_urls'] || {}
       schedule_skin_enrichment = false
+      # When a logged-in user prefers Default symbols (id: original), never let a
+      # background library skin match replace the button's source URL. Anonymous
+      # board JSON keeps the legacy skin_url preference for library boards.
+      preferred_symbols = nil
+      prefer_original_images = false
+      if args[:permissions] && args[:permissions].respond_to?(:settings)
+        preferred_symbols = (args[:permissions].settings || {}).dig('preferences', 'preferred_symbols')
+        prefer_original_images = preferred_symbols.blank? || preferred_symbols == 'original' || preferred_symbols == 'default'
+      end
       hash['images'].each{|i|
         # Lite skips the per-image ButtonImage.find_by_global_id skin lookup
         # (the dominant N+1: one query per image per board across the tree,
@@ -194,20 +225,31 @@ module JsonApi::Board
         # from the already-resolved hash url, so prefetched thumbnails render;
         # they just fall back to the base url instead of a skin-capable one
         # until the full per-board fetch enriches them.
+        bi = nil
         if i['id'] && !args[:as_lite]
           bi = ButtonImage.find_by_global_id(i['id']) rescue nil
           if bi
+            # skin_capable_url is safe for preserve_source_image (own URL only;
+            # never enrichment label-search swaps).
             skin_url = bi.skin_capable_url
-            if skin_url && skin_url != i['url']
+            # Omit skin_url from the image payload when the user prefers Default
+            # symbols. Speak-mode board-detail (and older packaged clients) still
+            # do `skin_url || url` and would otherwise paint enrichment matches.
+            if skin_url && skin_url != i['url'] && !prefer_original_images
               i['skin_url'] = skin_url
             end
             schedule_skin_enrichment = true if bi.needs_library_url_enrichment?
           end
         end
-        # For simple_refs (tree/bulk) the images[] wrapper is omitted for
-        # payload size — expose skin-capable library URLs via image_urls so
-        # the client skin_image_map can rewrite .varianted-skin → .variant-{tone}.
-        json['board']['image_urls'][i['id']] = i['skin_url'].presence || i['url']
+        # JsonApi::Image.as_json already stamps skin_url whenever skin_capable_url
+        # differs from url. Clear it for Default/original so clients that do
+        # `skin_url || url` cannot paint enrichment matches.
+        i.delete('skin_url') if prefer_original_images
+        # Prefer skin-capable library URLs only when the user asked for a symbol
+        # library (opensymbols / arasaac / …). "Default symbols" (original) keeps
+        # the settings_for URL so board-detail does not paint enrichment matches.
+        use_skin = i['skin_url'].present? && !prefer_original_images
+        json['board']['image_urls'][i['id']] = use_skin ? i['skin_url'] : i['url']
         (i['alternates'] || []).each do |alternate|
           json['board']['image_urls']["#{i['id']}-#{alternate['library']}"] = alternate['url'] unless alternate['library'] == 'unknown'
         end
