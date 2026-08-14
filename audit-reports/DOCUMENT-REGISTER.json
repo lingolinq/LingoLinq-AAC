@@ -2949,7 +2949,7 @@
       "lastReviewed": "2026-07-22",
       "nextReviewDue": "2027-07-22",
       "attestation": {},
-      "contentHash": "ea9d0dc6bd81505e7d9e835c714feada4a875a81ed0566f2a611f696e4ac564f",
+      "contentHash": "316491d2db5f612f233998edfcff9a03620ce19d2c22cad13bd3e9222af471e6",
       "bundles": [],
       "mirrors": [],
       "notes": "Written for IA report sec 9.2 (folder READMEs so agents stop filing things in the wrong place).",

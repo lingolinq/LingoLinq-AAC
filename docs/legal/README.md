@@ -108,14 +108,32 @@ says about the list. It is deliberately **not** an in-repo baseline file, which 
 as the list it polices. If the base revision cannot be read the check refuses rather than skipping,
 because "I could not verify the allowlist" and "the allowlist is fine" are different claims.
 
-Check (1) tests the convention **positively** rather than blacklisting status tokens, and that is a
-correction rather than a preference. The blacklist version was written first and was probed past
-three ways within minutes: `_DRAFT` (the match was case-sensitive), `_draft_thing` (the token was
-not in the final position), and `Thing-Name` (no token at all, but still off-convention and still
-frozen forever). A blacklist has to enumerate every evasion; requiring the slug to be lowercase
-alphanumerics separated by single hyphens, with `_` reserved as the date boundary, has none to
-enumerate. "Attested" is likewise the union of the attestation fields rather than `attestedDate`
-alone, so a half-filled attestation block is judged rather than excused.
+Check (1) is really two independent tests, and keeping them independent is a correction rather than
+a preference:
+
+- **(1a) no status word may appear as a slug component**, split on **either** `-` or `_`, in any
+  position, case-insensitively. So `thing-draft`, `thing_draft`, `draft-thing`, and `THING-DRAFT`
+  are all refused.
+- **(1b) the slug must be kebab-case**: lowercase alphanumerics separated by single hyphens, with
+  `_` reserved as the date boundary. This catches off-convention names carrying no status word at
+  all, such as `Thing-Name`, which are equally frozen once attested.
+
+They were briefly folded into one test on the assumption that kebab-case subsumed the status rule.
+**It does not**, and independent review found the hole: `2026-08-13_thing-draft.md` is perfectly
+valid kebab-case, so the combined check passed it and never consulted the status rule. A rule keyed
+to one separator is a rule with a documented workaround. Before that, an earlier suffix-blacklist
+version was probed past three more ways (`_DRAFT` case-sensitivity, a non-final `_draft_thing`, and
+`Thing-Name`). The lesson is recorded because the pattern repeats: each version looked complete
+until someone tried to break it.
+
+"Attested" is the union of the attestation fields rather than `attestedDate` alone, so a half-filled
+attestation block is judged rather than excused.
+
+**Known conservatism.** (1a) refuses a legitimate slug that happens to contain a status word as a
+component, such as `superseded-records-index`. That is deliberate: the author can rename freely
+before attesting and never after, so refusing costs a rename while permitting costs a permanently
+frozen misleading name. If such a record is ever genuinely needed, rename it (for example
+`records-index-for-retired-docs`) rather than weakening the check.
 
 Note what is deliberately absent: **there is no exemption list for the four dated `_draft` records
 above.** Check (1) fires only on rows that carry an attestation, so their exemption expires by

@@ -73,7 +73,7 @@ build_register "$TMP/c1-bad.json" '[
    "canonicalLocation":"docs/legal/2026-08-12_thing_draft.md","status":"approved",
    "attestation":{"attestedBy":"Scot","attestedDate":"2026-08-12","attestedContentHash":"x"}}
 ]'
-expect_fail "attested record at a _draft path is refused" "$TMP/c1-bad.json" "status token"
+expect_fail "attested record at a _draft path is refused" "$TMP/c1-bad.json" "status component"
 
 build_register "$TMP/c1-ok.json" '[
   {"id":"DOC-a","title":"Unattested draft path","canonicalSystem":"git",
@@ -88,7 +88,7 @@ build_register "$TMP/c1-expire.json" '[
    "attestation":{"attestedBy":"Scot","attestedDate":"2026-08-09","attestedContentHash":"x"}}
 ]'
 expect_fail "grandfathered _draft exemption expires automatically on attestation" \
-  "$TMP/c1-expire.json" "status token"
+  "$TMP/c1-expire.json" "status component"
 
 # The four cases below all slipped an earlier suffix-blacklist version of CHECK 1.
 # They are kept as permanent regression guards so a future "simplification" back to a
@@ -99,14 +99,14 @@ build_register "$TMP/c1-upper.json" '[
    "canonicalLocation":"docs/legal/2026-08-12_thing_DRAFT.md","status":"approved",
    "attestation":{"attestedBy":"Scot","attestedDate":"2026-08-12","attestedContentHash":"x"}}
 ]'
-expect_fail "UPPERCASE status token is refused (case-insensitive)" "$TMP/c1-upper.json" "status token"
+expect_fail "UPPERCASE status token is refused (case-insensitive)" "$TMP/c1-upper.json" "status component"
 
 build_register "$TMP/c1-mid.json" '[
   {"id":"DOC-a","title":"Token mid-slug","canonicalSystem":"git",
    "canonicalLocation":"docs/legal/2026-08-12_draft_thing.md","status":"approved",
    "attestation":{"attestedBy":"Scot","attestedDate":"2026-08-12","attestedContentHash":"x"}}
 ]'
-expect_fail "status token NOT in final position is refused" "$TMP/c1-mid.json" "status token"
+expect_fail "status token NOT in final position is refused" "$TMP/c1-mid.json" "status component"
 
 build_register "$TMP/c1-case.json" '[
   {"id":"DOC-a","title":"TitleCase slug","canonicalSystem":"git",
@@ -123,7 +123,7 @@ build_register "$TMP/c1-nodate.json" '[
    "attestation":{"attestedBy":"Scot","attestedContentHash":"x"}}
 ]'
 expect_fail "attestation with no attestedDate still counts as attested" \
-  "$TMP/c1-nodate.json" "status token"
+  "$TMP/c1-nodate.json" "status component"
 
 build_register "$TMP/c1-good.json" '[
   {"id":"DOC-a","title":"Legitimate","canonicalSystem":"git",
@@ -131,6 +131,30 @@ build_register "$TMP/c1-good.json" '[
    "attestation":{"attestedBy":"Scot","attestedDate":"2026-08-12","attestedContentHash":"x"}}
 ]'
 expect_pass "a legitimate attested kebab-case record is allowed" "$TMP/c1-good.json"
+
+# HYPHEN-DELIMITED STATUS TOKENS.
+#
+# These are valid kebab-case, so an earlier version that folded the status rule into the
+# kebab-case test passed every one of them and never consulted the status rule at all.
+# Found in independent review. The status check is now independent of kebab-case and splits
+# on BOTH separators, so each separator/position variant below is asserted explicitly.
+for variant in thing-draft thing-approved draft-thing thing-published thing-superseded \
+               thing-archived thing_draft THING-DRAFT; do
+  build_register "$TMP/c1a-$variant.json" '[
+    {"id":"DOC-a","title":"Hyphen token","canonicalSystem":"git",
+     "canonicalLocation":"docs/legal/2026-08-13_'"$variant"'.md","status":"approved",
+     "attestation":{"attestedBy":"Scot","attestedDate":"2026-08-13","attestedContentHash":"x"}}
+  ]'
+  expect_fail "status component in '$variant' is refused" "$TMP/c1a-$variant.json" "status component"
+done
+
+# An UNattested record with a hyphen token is still allowed, same as the underscore form:
+# the rule engages at attestation, not before.
+build_register "$TMP/c1a-unattested.json" '[
+  {"id":"DOC-a","title":"Unattested hyphen token","canonicalSystem":"git",
+   "canonicalLocation":"docs/legal/2026-08-13_thing-draft.md","status":"draft","attestation":{}}
+]'
+expect_pass "UNattested record with a hyphen status token is allowed" "$TMP/c1a-unattested.json"
 
 echo "legal-naming-check-test: CHECK 2, a signature cannot predate its record"
 
@@ -220,7 +244,7 @@ cat > "$TMP/enum.json" <<'JSON'
 }
 JSON
 expect_fail "a new statusEnum value the token list does not cover is refused" \
-  "$TMP/enum.json" "STATUS_TOKEN does not cover"
+  "$TMP/enum.json" "STATUS_WORDS does not cover"
 
 echo "legal-naming-check-test: CHECK 6, wrong-cased docs/legal paths"
 

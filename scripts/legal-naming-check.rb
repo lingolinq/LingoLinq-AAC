@@ -148,8 +148,23 @@ DATED = %r{\A#{Regexp.escape(LEGAL_PREFIX)}(\d{4}-\d{2}-\d{2})_([^/]+?)(\.[^./]+
 KEBAB_SLUG = /\A[a-z0-9]+(-[a-z0-9]+)*\z/
 # Used only to give a precise message when the off-convention slug is specifically a
 # status token. Case-insensitive and position-independent, for the message alone;
-# KEBAB_SLUG is what actually decides.
-STATUS_TOKEN = /(\A|_)(draft|approved|published|superseded|archived)(_|\z)/i
+# The status words, tested as whole slug COMPONENTS split on either separator.
+#
+# This is a SEPARATE check from KEBAB_SLUG, and that separation is a fix. An earlier
+# version folded the two together on the assumption that kebab-case subsumed the status
+# rule. It does not: `2026-08-13_thing-draft.md` is perfectly valid kebab-case, so it
+# satisfied KEBAB_SLUG and the status rule was then never consulted at all. Same for
+# `thing-approved`, `draft-thing`, and every other hyphen-delimited variant. Found in
+# independent review.
+#
+# Splitting on BOTH `-` and `_` is the point: the separator a violator reaches for is not
+# knowable in advance, and a rule keyed to one of them is a rule with a documented
+# workaround.
+STATUS_WORDS = %w[draft approved published superseded archived].freeze
+
+def status_components(slug)
+  slug.to_s.split(/[-_]+/).select { |c| STATUS_WORDS.include?(c.downcase) }
+end
 
 def die(msg)
   warn "legal-naming-check: #{msg}"
@@ -172,11 +187,10 @@ die('register has no "documents" array') unless documents.is_a?(Array)
 # new status is added to the enum, this check would silently stop catching it.
 enum = meta['statusEnum']
 if enum.is_a?(Array)
-  known = %w[draft approved published superseded archived]
-  missing = enum.map(&:to_s) - known
+  missing = enum.map(&:to_s) - STATUS_WORDS
   unless missing.empty?
-    die("meta.statusEnum has value(s) #{missing.inspect} that STATUS_TOKEN does not cover. " \
-        'Add them to STATUS_TOKEN in this script, or the naming rule stops being enforced for them.')
+    die("meta.statusEnum has value(s) #{missing.inspect} that STATUS_WORDS does not cover. " \
+        'Add them to STATUS_WORDS in this script, or the naming rule stops being enforced for them.')
   end
 end
 
@@ -259,30 +273,36 @@ rows.each do |row|
     next
   end
 
-  token = STATUS_TOKEN.match(parts[:slug])
+  # CHECK 1a: no status word anywhere in the slug, as a whole component.
+  #
+  # Independent of CHECK 1b, deliberately. Folding them together is what produced the
+  # `thing-draft` bypass: that slug is valid kebab-case, so a combined check passed it and
+  # never looked at the status rule.
+  tokens = status_components(parts[:slug])
+  if attested?(row) && !tokens.empty?
+    problems << "#{label}: #{loc} is ATTESTED but its slug carries the status " \
+                "component#{tokens.size > 1 ? 's' : ''} #{tokens.map(&:downcase).uniq.inspect}. " \
+                'Status lives in the register row (statusEnum), not the name: rule 3 freezes an ' \
+                'attested filename permanently, so the token would either become false at the first ' \
+                'status change or force a rename rule 3 forbids. Note this catches BOTH separators ' \
+                '(`thing-draft` and `thing_draft`) and any position, because a rule keyed to one ' \
+                'separator is a rule with a documented workaround. An unattested record may sit at ' \
+                'such a path, but it must LEAVE it before being attested, and via Path A ' \
+                'supersession rather than an in-place rename (docs/legal/README.md, "Transition ' \
+                'rule"): create a new statusless dated file, add a row that supersedes this one, ' \
+                'mark this row superseded with a reciprocal pointer, retarget live bundle ' \
+                'requiredDocs, then attest ONLY the successor. Renaming in place would change the ' \
+                'DOC- id, which is sha256(canonicalLocation)[0,10], breaking the permanent-ID promise.'
+  end
 
-  # CHECK 1: the rule that matters. An off-convention name on an attested record is
-  # unfixable after the fact, so this tests the convention positively (kebab-case)
-  # rather than blacklisting the status tokens it is most likely to be violated by.
+  # CHECK 1b: the slug is kebab-case. Catches off-convention names with no status word,
+  # e.g. `Thing-Name` or `thing_name`, which are equally frozen once attested.
   if attested?(row) && !KEBAB_SLUG.match?(parts[:slug])
-    if token
-      problems << "#{label}: #{loc} is ATTESTED but its filename carries the status token " \
-                  "#{token[2].downcase.inspect}. Status lives in the register row (statusEnum), not the name: " \
-                'rule 3 freezes an attested filename permanently, so the token would either become ' \
-                'false at the first status change or force a rename rule 3 forbids. An unattested ' \
-                'record may sit at this path, but it must LEAVE it before being attested, and via ' \
-                'Path A supersession rather than an in-place rename (docs/legal/README.md, ' \
-                '"Transition rule"): create a new statusless dated file, add a row that supersedes ' \
-                'this one, mark this row superseded with a reciprocal pointer, retarget live bundle ' \
-                  'requiredDocs, then attest ONLY the successor. Renaming in place would change the ' \
-                  'DOC- id, which is sha256(canonicalLocation)[0,10], breaking the permanent-ID promise.'
-    else
-      problems << "#{label}: #{loc} is ATTESTED but its slug #{parts[:slug].inspect} is not " \
-                  'kebab-case. An attested filename is frozen permanently (rule 3), so it must match ' \
-                  'the convention exactly: lowercase alphanumerics separated by single hyphens, with ' \
-                  '`_` reserved as the date boundary and appearing nowhere else. Rename before ' \
-                  'attesting, or if the record is already attested, supersede it (Path A).'
-    end
+    problems << "#{label}: #{loc} is ATTESTED but its slug #{parts[:slug].inspect} is not " \
+                'kebab-case. An attested filename is frozen permanently (rule 3), so it must match ' \
+                'the convention exactly: lowercase alphanumerics separated by single hyphens, with ' \
+                '`_` reserved as the date boundary and appearing nowhere else. Rename before ' \
+                'attesting, or if the record is already attested, supersede it (Path A).'
   end
 
   # CHECK 2: a signature cannot predate the record it signs.
