@@ -1492,7 +1492,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "92f616fa373b82df0a4d4861e6a7a187c79567b34e0ecbe03300a7aa8292e630",
+      "contentHash": "61f6be125cf323d9c4f4d30e99f1351030cfb36594ab27a71ae4e5dcde14876c",
       "bundles": [],
       "mirrors": [
         {
@@ -3160,6 +3160,33 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "id": "DOC-9e70bd81e4"
+    },
+    {
+      "title": "code-hygiene-auditor agent definition",
+      "description": "Read-only dead-code and AI-slop finder for LingoLinq-AAC, added 2026-08-12 to the /audit-run fan-out.",
+      "type": "agent-config",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": ".claude/agents/code-hygiene-auditor.md",
+      "status": "published",
+      "frameworks": [],
+      "lastReviewed": "2026-08-12",
+      "nextReviewDue": "2027-02-12",
+      "attestation": {},
+      "contentHash": "c9f43e41bf85f31a59051726705ef38b5f8b34407589b212d12547ac84eb8c2e",
+      "bundles": [],
+      "mirrors": [],
+      "retention": {
+        "class": "operational-config",
+        "rule": "retain while in use; supersession + 1 year",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "agent-config is not a record class in the sec 5.2 starting table; operational-config was added for it and needs counsel confirmation."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-9208eb99d2"
     },
     {
       "title": "Compliance Posture Report (branded, 2026-07-16 re-attest)",

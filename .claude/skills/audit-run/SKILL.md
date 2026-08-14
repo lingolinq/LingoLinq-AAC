@@ -32,6 +32,15 @@ light run**. The cadence is tracked in `audit-reports/compliance-calendar.json`
     finder either runs its FULL frontend scope or is skipped entirely - it is never passed the
     diff scope. If it is skipped in a light run, say so in the run-log `runs.jsonl` line
     (`skipped: ["accessibility"]`) so its absence is explicit, not silent.
+  - **Exception - `code-hygiene-auditor` also never runs diff-only, for the same reason as
+    accessibility, plus one more.** A "dead code" claim requires proving zero reachable
+    references ANYWHERE in the tree, not just within the diff - restricting its own reads to the
+    diff would make every dead-code verification unreliable. So in a monthly light run it either
+    runs its FULL scope (heavier than the other light-run finders, since "full scope" here means
+    "grep the whole tree for every candidate," not just "read more files") or is skipped
+    entirely, following the exact same `skipped: ["code-hygiene"]` run-log convention as
+    accessibility above. There is no cheaper middle ground for this domain; do not try to invent
+    a diff-scoped mode for it.
 
 Either way the register `FINDINGS.json` is updated mechanically and citation-check must stay
 green; only Scot closes, downgrades, or accepts risk.
@@ -53,7 +62,7 @@ SHA so `scripts/citation-check.rb` can validate snippets against the exact tree 
    must anchor to a committed SHA).
 
 ## Step 2: Fan out the read-only finders (parallel)
-Spawn the five domain finders concurrently with the Agent tool, passing each the `auditedSha`.
+Spawn the six domain finders concurrently with the Agent tool, passing each the `auditedSha`.
 They are read-only (no Edit/Write; a PreToolUse guard blocks mutating Bash) and emit
 register-shaped findings with `status: "open"`.
 
@@ -84,12 +93,6 @@ register-shaped findings with `status: "open"`.
 Prompt each with: the `auditedSha`, the scan scope from its skill, and
 "cross-check `audit-reports/FINDINGS.json` first; reference an existing `id` rather than
 duplicating." Collect each finder's JSON `{domain, auditedSha, findings:[...]}`.
-
-> **`code-hygiene-auditor` always greps the full tree for references, even in a diff-scoped
-> light run.** Its "dead code" claims depend on proving zero reachable call sites anywhere, not
-> just within the diff; treat the diff (the monthly-light scoping described above) as the
-> candidate list of files to re-check, not as a restriction on where it may search for
-> references to them.
 
 > RETIRED from the fan-out (Phase 2): `ember-stabilization` and `rails-upgrade` (migration-era,
 > shipped) and the 0-100 `mvp-readiness` score (decision 5.9.2: the headline is now the count of

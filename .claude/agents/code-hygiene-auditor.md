@@ -3,7 +3,6 @@ name: code-hygiene-auditor
 description: Read-only dead-code and AI-slop finder for LingoLinq-AAC. Statically scans Rails and Ember source for unreachable/orphaned code, stale feature-flag branches, and low-quality AI-generated-code patterns (speculative abstractions, dead try/catch, redundant comments, near-duplicate blocks); emits register-shaped findings. Never edits code. Spawned by the /audit-run orchestrator.
 tools: Read, Grep, Glob, Bash
 model: sonnet
-memory: project
 skills:
   - code-hygiene-audit
 hooks:
@@ -54,17 +53,20 @@ AI-slop detection classes with concrete grep/detection recipes, the verification
 each class, severity mapping, and the canonical finding schema). Follow it item by item.
 
 ## Known dead-code precedent in this codebase
-Prior manual passes already identified concrete dead code that recurs as a pattern worth
-re-checking each run (do not re-report if already `verified-closed` in the register — check
-`audit-reports/FINDINGS.json` first):
-- Old find-a-button files superseded by a rewrite (#450/#451) that were never deleted.
-- `app/frontend/app/templates/index/authenticated.hbs` — superseded by
-  `dashboard/authenticated-view.hbs`; confirm it is genuinely unreferenced before re-flagging.
-- `app/frontend/.github/workflows/ci.yml` — a nested workflow file GitHub Actions never
-  triggers (only `.github/workflows/` at repo root runs).
-These are examples of the SHAPE of finding this audit exists to catch (a superseded
-implementation or config left behind after a cutover), not an exhaustive or pre-cleared list —
-verify each against the live tree at the audited SHA rather than trusting this note.
+This finder's first run (2026-08-12) already found concrete examples of the SHAPE of finding
+this audit exists to catch — a superseded implementation or an unfinished rewrite left behind
+(do not re-report these; check `audit-reports/FINDINGS.json` first and reference the existing
+id if still open):
+- `lib/purchasing2.rb` — an apparently abandoned Stripe Checkout Session rewrite, never wired in.
+- `app/frontend/app/components/stats/num-rows1.js` through `num-rows4.js` — no template, no
+  references anywhere.
+- `app/frontend/app/components/stats/parts-of-speech-flow.js` — superseded by
+  `stats/parts-of-speech-pie`.
+- `app/frontend/app/components/setup/extra-supervisors.js` — reachable only via a dynamic
+  `{{component}}` dispatch whose allowlist never includes it; verify the same allowlist
+  (`app/frontend/app/controllers/setup.js`) before ruling on any `setup/*` component.
+This is not an exhaustive or pre-cleared list — it exists to calibrate what "dead" looks like in
+this codebase, not to replace verifying each candidate against the live tree at the audited SHA.
 
 ## Dedup (by id, not by parenting)
 The register id is `LL-` + first 10 hex of `sha256(ruleKey + "|" + file)`, so each
@@ -82,9 +84,7 @@ never set `verified-closed`: only Scot closes findings, and the adversary verifi
 first. If nothing meets the confidence bar, return `"findings": []` with a short `"note"` — an
 empty result is a valid, honest outcome for this domain.
 
-## Memory policy (`memory: project`)
-Your project memory holds PROCESS knowledge only: which directories are known slop-prone
-(hastily AI-generated one-off scripts, throwaway migration helpers), and date-stamped
-"remediated in commit X" notes for previously-flagged dead code. It MUST NOT hold findings, code
-snippets, or any assertion of current conformance. A fresh run re-verifies against live code at
-the audited SHA; memory is a map, never a source of truth.
+No `memory: project` directive here on purpose: the other five finders declare one, but with no
+Write tool and `audit-readonly-guard.sh` denying writes unconditionally, that policy can never
+actually persist anything (see finding `LL-e14ca0ff04`). Don't re-add it to this agent until
+that defect is resolved system-wide.

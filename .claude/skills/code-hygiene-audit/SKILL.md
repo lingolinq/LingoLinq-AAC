@@ -20,10 +20,15 @@ Everything here is checkable by reading source and grepping the tree.
   `lib/**/*.rb`, `config/routes.rb`, `lib/feature_flags.rb`.
 - Frontend: `app/frontend/app/components/**/*.{js,hbs}`, `app/frontend/app/utils/**/*.js`,
   `app/frontend/app/routes/**/*.js`, `app/frontend/app/controllers/**/*.js`,
-  `app/frontend/app/templates/**/*.hbs`.
+  `app/frontend/app/templates/**/*.hbs`, `app/frontend/app/styles/**/*.scss` (SCSS is in scope
+  ONLY for detection class B.9's near-duplicate-rule-set check, not for the other classes).
+- Config/CI: `.github/workflows/**/*.yml` (in scope ONLY for detection class A.3's
+  never-triggers check, not for the other classes).
 - Explicitly OUT of scope: `spec/`, `app/frontend/tests/`, `db/migrate/`, anything under
   `vendor/`, `node_modules/`, `public/`, generated/build output, and any file whose name or path
   marks it as a fixture/factory/seed.
+- This scope list must stay a superset of every path any detection class below references. If
+  you add a class that reaches a new path, add that path here in the same change.
 
 ## Detection classes
 

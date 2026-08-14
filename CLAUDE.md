@@ -522,7 +522,7 @@ Phase 2; their content was migrated into the `.claude/` layout below.
 | `scripts/audit-merge.rb` | Deterministic register reconciler (never auto-closes) |
 
 ### Running a Full Audit
-1. Invoke `/audit-run` (user-only skill). It stamps the audited SHA, fans out the five
+1. Invoke `/audit-run` (user-only skill). It stamps the audited SHA, fans out the six
    read-only finders in parallel, reconciles results into `audit-reports/FINDINGS.json` via
    `scripts/audit-merge.rb`, runs the `adversary` agent as verifier, and validates with
    `scripts/citation-check.rb`.
