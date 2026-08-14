@@ -180,9 +180,21 @@ end
 # can be corrected. `final` is worse than `v2`, because it is a claim about the future that
 # an attested filename can never take back.
 MARKER_WORDS = %w[final].freeze
-# `v2`, `V2`, `v10`. Deliberately NOT bare digits: `2026-08-14_annex-2.md` is a part
-# number, not a version marker, and refusing it would be a false positive.
-VERSION_COMPONENT = /\Av\d+\z/i
+#
+# A DEFINED version grammar: `v<number>` with an optional prerelease suffix
+# `alpha` / `beta` / `rc`, itself optionally numbered. So `v2`, `V2`, `v10`, `v2beta`,
+# `v2alpha`, `v10rc1`.
+#
+# The earlier form was `\Av\d+\z`, exact digits only, which let `policy-v2beta` through.
+# I had recorded that as a "known limit"; it was not one. A limit is a boundary the stated
+# rule does not reach, and the rule here is "no version markers", which `v2beta` plainly
+# is. Calling a gap a limit is how a gap survives review, so the grammar is widened to
+# cover the shape rather than the label being defended.
+#
+# Deliberately a GRAMMAR, not substring matching on "v": `v2ray` is a real product name
+# and is left passing as an explicit control, and broad matching would refuse it. Also not
+# bare digits: `annex-2` is a part number, not a version.
+VERSION_COMPONENT = /\Av\d+(?:(?:alpha|beta|rc)\d*)?\z/i
 
 def marker_components(slug)
   slug.to_s.split(/[-_]+/).select do |c|

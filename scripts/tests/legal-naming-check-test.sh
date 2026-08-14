@@ -163,7 +163,8 @@ echo "legal-naming-check-test: CHECK 1c, finality and version markers"
 # uppercase forms were caught only INCIDENTALLY by the kebab-case rule, which is accidental
 # coverage that vanishes the moment someone lowercases; they are asserted here explicitly.
 for variant in policy-final policy-v2 policy-v10 final-policy v2 \
-               POLICY-FINAL policy-V2 policy_final; do
+               POLICY-FINAL policy-V2 policy_final \
+               policy-v2beta policy-v10rc1 policy-v2alpha policy-v2rc policy-V2BETA; do
   build_register "$TMP/c1c-$variant.json" '[
     {"id":"DOC-a","title":"Marker","canonicalSystem":"git",
      "canonicalLocation":"docs/legal/2026-08-14_'"$variant"'.md","status":"approved",
@@ -181,6 +182,16 @@ build_register "$TMP/c1c-annex.json" '[
    "attestation":{"attestedBy":"Scot","attestedDate":"2026-08-14","attestedContentHash":"x"}}
 ]'
 expect_pass "a bare part number (annex-2) is NOT treated as a version marker" "$TMP/c1c-annex.json"
+
+# The version rule is a defined GRAMMAR, v<number> with an optional alpha/beta/rc suffix,
+# not substring matching on a leading "v". `v2ray` is a real product name and must survive,
+# which is what stops the fix for `v2beta` from turning into a broad-match false positive.
+build_register "$TMP/c1c-v2ray.json" '[
+  {"id":"DOC-a","title":"Product name","canonicalSystem":"git",
+   "canonicalLocation":"docs/legal/2026-08-14_policy-v2ray.md","status":"approved",
+   "attestation":{"attestedBy":"Scot","attestedDate":"2026-08-14","attestedContentHash":"x"}}
+]'
+expect_pass "v2ray is NOT a version marker (grammar, not substring matching)" "$TMP/c1c-v2ray.json"
 
 # Initials are NOT mechanically enforced: there is no testable rule that separates author
 # initials from legitimate abbreviations such as `eu`, `ai`, or `us`. This asserts the

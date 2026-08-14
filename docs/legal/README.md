@@ -110,9 +110,9 @@ enforced. The harness asserts the current behaviour, so if a defined rule for in
 added, that expectation has to be flipped deliberately rather than drifting.
 
 Check (7) is what actually keeps the allowlist closed, and it exists because independent review
-found that checks (4) and (5) alone did not. Adding a new non-dated record **and** adding its path
-to `meta.legalNamingGrandfathered` in the same change passed both: the row was listed, and the entry
-was not stale. The list that was supposed to be closed could be grown by the very change it was
+found that check (4) and its stale-entry companion (4b) alone did not. Adding a new non-dated
+record **and** adding its path to `meta.legalNamingGrandfathered` in the same change passed both:
+check (4) saw a listed path, and check (4b) saw nothing stale. The list that was supposed to be closed could be grown by the very change it was
 meant to reject. The allowlist is therefore not self-certifying: legitimacy comes from git history,
 since a record created in this change cannot have existed at the base revision, whatever the diff
 says about the list. It is deliberately **not** an in-repo baseline file, which would be as editable
