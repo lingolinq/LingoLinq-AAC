@@ -37,17 +37,26 @@ function errorMessageFor(err) {
 }
 
 function copyBoardAndSaveHome(board, user, lib, locale, onSuccess, onError) {
+  /* Held in the closure because `saveHomeBoard` resolves with the USER record,
+     not the board — reading its resolution value would hand onSuccess the wrong
+     object. */
+  var copied = null;
   return editManager.copy_board(board, 'links_copy_as_home', user, false, lib).then(function(copiedBoard) {
-    return saveHomeBoard(user, copiedBoard, locale).then(function() {
-      if (onSuccess) { onSuccess(copiedBoard); }
-      return copiedBoard;
-    });
+    copied = copiedBoard;
+    return saveHomeBoard(user, copiedBoard, locale);
   }).catch(function(err) {
-    /* `.catch` at the END of the chain, not a reject handler on copy_board: the
-       old shape only covered a failed COPY, so a copy the server accepted whose
-       home-board assignment it then discarded resolved as a success. */
+    /* `.catch` covers the COPY and the ASSIGNMENT — the old shape only had a
+       reject handler on copy_board, so a copy the server accepted whose
+       home-board assignment it then discarded resolved as a success.
+       It deliberately does NOT cover onSuccess (below): that callback drives
+       navigation and UI in its callers, and inside this guarded region a throw
+       there reported "We couldn't set up your board" for a board that had in
+       fact been copied and assigned. */
     onError(errorMessageFor(err));
     return RSVP.reject(err);
+  }).then(function() {
+    if (onSuccess) { onSuccess(copied); }
+    return copied;
   });
 }
 

@@ -13,6 +13,14 @@
 var BOARD_PREFIX = 'll_last_board_';
 var LOCATION_PREFIX = 'll_last_location_';
 
+/* How long a recorded location stays resumable. See last_location for why an
+   unbounded lifetime is a retention problem on a shared device. 30 days is the
+   longest gap for which "carry on where you left off" is still the behaviour a
+   user would expect; it is NOT a considered privacy retention limit — that, and
+   whether these records should survive a logout on a shared device at all, is a
+   product/compliance decision this file cannot make on its own. */
+var MAX_LOCATION_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
 // Routes that must never be recorded as "where the user left off". Restoring
 // any of these on login is either wrong (marketing pages, the login flow
 // itself), destructive (one-shot wizards and purchase flows re-entered from the
@@ -100,6 +108,19 @@ var session_history = {
       var res = JSON.parse(stored);
       // A record written before a route joined SKIP_ROUTES must not be restored.
       if(!res || !res.url || !session_history.recordable_route(res.route)) { return null; }
+      /* `at` was written from the start and never read, so these records lived
+         forever. They name a communicator (`/bethany/logs`) and therefore
+         evidence a supervisory relationship and which record pages were opened,
+         in plain localStorage on what is often a shared school device — so an
+         unbounded lifetime is a data-retention question, not just tidiness.
+         Expiring them also matches what the feature is for: "carry on where you
+         left off" is about the last session, not one from last term. Stale
+         entries are deleted on read rather than merely ignored, so the data
+         actually goes away. */
+      if(!res.at || ((new Date()).getTime() - res.at) > MAX_LOCATION_AGE_MS) {
+        session_history.clear_location(user_name);
+        return null;
+      }
       return res;
     } catch(e) {
       return null;

@@ -204,19 +204,24 @@
                        The icon keeps the chevron (and its flip on expand) because
                        that is what says "this opens in place"; the label supplies
                        the meaning. aria-expanded mirrors the header trigger. --}}
-                  {{#if supervisee.modeling_only}}
-                    <span class="md-caseload__quick-action md-caseload__quick-action--empty md-caseload__quick-action--more" role="note" aria-label={{t "More actions — feature unavailable. Upgrade your account for usage reports, progress tracking, goals, assessments and full profile access." key="more_locked_aria"}} data-tip={{t "Feature unavailable: Upgrade your account for usage reports, progress tracking, goals, assessments and full profile access." key="caseload_upgrade_tip"}}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg><span class="md-caseload__quick-label" aria-hidden="true">{{t "More Actions" key="caseload_qa_more"}}</span>
-                      <span class="md-caseload__action-lock" aria-hidden="true"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8.75 10.5V7.75a3.25 3.25 0 0 1 6.5 0v2.75" stroke="#2A9D8F" stroke-width="1.8" stroke-linecap="round" fill="none"/><rect x="4.75" y="10.5" width="14.5" height="9.25" rx="2.4" fill="none" stroke="#8A93A3" stroke-width="1.8"/></svg></span>
-                    </span>
-                  {{else}}
+                  {{!-- NOT gated on modeling_only. This toggle only opens the
+                        panel, and the panel is legitimately available on a
+                        modeling-only link: it carries Speak, Home Board and
+                        Modeling Ideas, which `model` permission grants. The
+                        genuinely restricted items inside it — badges (:382) and
+                        goals (:526) — carry their own "not available when you
+                        are linked as modeling-only" copy.
+                        It used to render a locked <span role="note"> here saying
+                        the feature was unavailable, while clicking anywhere on
+                        the row opened the panel regardless (the row header
+                        carries selectSupervisee), so the lock claimed something
+                        the UI immediately contradicted. --}}
                   <button type="button" class="md-caseload__quick-action md-caseload__quick-action--more" aria-expanded={{if (is-equal supervisee.user_name this.selectedSupervisee) "true" "false"}} aria-controls={{concat "caseload-panel-" supervisee.user_name}} aria-label={{concat (t "More actions for" key="caseload_more_actions_for") " " supervisee.user_name}}>
                     <span class="md-caseload__list-chevron" aria-hidden="true">
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                     </span>
                     <span class="md-caseload__quick-label" aria-hidden="true">{{t "More Actions" key="caseload_qa_more"}}</span>
                   </button>
-                  {{/if}}
                 </div>
                 </div>{{!-- /.md-caseload__list-header --}}
                 {{#if (is-equal supervisee.user_name this.selectedSupervisee)}}
@@ -370,8 +375,20 @@
                         <span class="md-caseload__goal-empty-icon" aria-hidden="true">
                           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6" stroke="#2A9D8F"/><path d="M15.5 13l1.5 8-5-3-5 3 1.5-8" stroke="#46505F"/></svg>
                         </span>
-                        <p class="md-caseload__goal-empty-title">{{t "No badge in progress" key="no_badge_in_progress"}}</p>
-                        <p class="md-caseload__goal-empty-desc">{{t "Badges are earned through goals — set one up to start tracking progress." key="badges_empty_desc"}}</p>
+                        {{!-- On a modeling-only link this block is NOT "there is no
+                             badge" — the badge query is refused (badges_controller
+                             requires `view_detailed`, which ca629dda9 withholds from
+                             modeling-only links), so a badge may well exist and simply
+                             cannot be read. Saying "No badge in progress" there states
+                             something the app does not know, and inviting the supporter
+                             to "set one up" points at an action the same link forbids.
+                             The explanatory hint below stays as the detail. --}}
+                        {{#if supervisee.modeling_only}}
+                          <p class="md-caseload__goal-empty-title">{{t "Badge progress not available" key="badge_progress_not_available"}}</p>
+                        {{else}}
+                          <p class="md-caseload__goal-empty-title">{{t "No badge in progress" key="no_badge_in_progress"}}</p>
+                          <p class="md-caseload__goal-empty-desc">{{t "Badges are earned through goals — set one up to start tracking progress." key="badges_empty_desc"}}</p>
+                        {{/if}}
                         {{#if this.persistence.online}}
                           {{#unless (is-equal supervisee.can_set_goals false)}}
                             <button type="button" class="md-caseload__goal-empty-add" {{on "click" (this.ctrlActionNoBubble "set_goal" supervisee)}}>

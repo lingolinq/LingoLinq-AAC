@@ -148,9 +148,20 @@ $bp-target: 44px;
 .bp-options {
   position: fixed;
   inset: 0;
-  /* Below the create-board chooser's 6000 — the two never coexist, but if a
-     future flow opened both, the chooser is the one that must win. */
-  z-index: 5900;
+  /* BELOW Bootstrap's modal layer (.modal-backdrop 1040 / .modal 1050), not
+     above it. This scrim was 5900 — chosen only against the create-board
+     chooser's 6000 — which put it over every dialog its own buttons can open:
+       • "Create New Board" runs appState.check_for_needing_purchase(), whose
+         promise settles ONLY when the user dismisses the premium-required
+         modal. Painted behind the scrim it was invisible and unclickable, so
+         for an expired or modeling-only supporter the flow hung with no way
+         out but a page reload.
+       • Quick Assign's failure paths call modal.error(...) — the message
+         landed under the scrim, so the button just re-enabled in silence.
+     1030 keeps it over the page and its chrome (navbar ~1000-1001) while both
+     the backdrop and the dialog clear it. Still below the create-board
+     chooser's 6000, so that ordering is unchanged. */
+  z-index: 1030;
   display: flex;
   align-items: center;
   justify-content: center;

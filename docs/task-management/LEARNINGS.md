@@ -10854,3 +10854,255 @@ The User model exposes `pending_supervisor_requests`, but `lib/json_api/user.rb`
 **Surface:** `button-settings` Sound → Speak (`model.vocalization`).
 
 `set-field` updates only the in-modal Button. Board save serializes `board.buttons`, so Speak edits disappear unless synced with `editManager.change_button` (same class of bug as `urlChanged` / `labelChanged`). Closing can also hit `pictureGrabber.clear_image_preview` during teardown; unguarded `controller.set('image_preview', null)` throws “calling set on destroyed object”, which the image-save error path surfaces as a misleading **upload failed** alert. Guard destroyed controllers in clear, and flush vocalization on close. Task log: `2026-08-13-button-settings-vocalization-save.md`.
+
+## Gotcha: a singleton controller + `deactivate`-only teardown leaves global state null on the SECOND visit
+
+**Surface:** `/board-picker?user_id=X`, but the shape applies to any route that mirrors
+controller state into a service.
+
+`routes/board-picker.js#deactivate` nulled `appState.setup_user`; the controller kept
+its own `setup_user`, because Ember controllers are singletons and nothing cleared it.
+The resolver then guarded on `if (user_id != setup_user.id)` — a cheap "already
+loaded, skip the fetch" test — so on a second visit to the same id the ids matched,
+the whole block was skipped, and the *service* copy stayed null for the entire visit.
+Consumers split: the page header read the controller (right name), while
+`board-preview-overlay#pick_for_home` read `appState.setup_user || currentUser` and
+silently fell through to the supervisor. A supporter's pick was written to their own
+account while the page said otherwise.
+
+**Rule:** if teardown clears a mirrored copy, the resolver must RE-ASSERT it on every
+pass, not only when the source has to be re-fetched. Keep the fetch guarded; never
+guard the assignment. And clear both copies in the same hook — asymmetric teardown is
+what makes visit 2 differ from visit 1, which is why this class never shows up in a
+single-visit manual test.
+
+**Evidence:** [`2026-08-13-branch-vs-staging-adversarial-review.md`](./2026-08-13-branch-vs-staging-adversarial-review.md).
+
+## Gotcha: Ember query params are STICKY per controller — a bare transition inherits the last value
+
+`queryParams: ['user_id']` with no `resetController` means Ember restores the previous
+value on any later transition that does not specify one. In this repo that meant a
+supporter who opened the picker for a communicator (`?user_id=X`) and later opened it
+**for themselves** from any of six links that pass no query — `getting-started.hbs:52`,
+`modeling-ideas.hbs:89`, `guided-tour.js:556/633/800`, `create-board-new.js:1805`,
+`controllers/user/index.js:1537` — landed back in the supervisee flow. Two callers
+(`dashboard-user-boards.hbs:44`, `user/boards.hbs:97`) pass `user_id=null` explicitly,
+which masked it on the common paths and is why it survived review.
+
+**Rule:** any query param that scopes WHO an action writes to needs a `resetController`
+clearing it on `isExiting`. Passing `user_id=null` at some call sites is not a fix — it
+is a per-caller workaround that hides the default.
+
+**The trap inside the fix:** clearing the param notifies its observer, and **Ember
+observers are async** — they fire on the next flush, after the hook returns, on a route
+you have already left. Here that late pass re-resolved the setup user to the *current*
+user and would have re-introduced the very wrong-target write being fixed. Gate the
+resolver on a `_route_active` flag set in `setupController` and cleared as the FIRST
+statement of `resetController`; do not rely on `deactivate` vs `resetController`
+ordering.
+
+**Evidence:** [`2026-08-13-branch-vs-staging-adversarial-review.md`](./2026-08-13-branch-vs-staging-adversarial-review.md).
+
+## Technique: check whether a server flag is reachable from the CLIENT before fixing the branch it guards
+
+An adversarial review flagged `user.rb:2949-2957` — the org home-board copy takes an
+async `Progress.schedule` early return without writing `home_board`, so the client
+would resolve the user's OLD board. Real code, real early return, wrong conclusion:
+`grep -rn "'async'" app/ lib/ --include=*.rb` shows `non_user_params['async']` is set
+only by `organization.rb:1875` (true) and `subscription.rb:656` (false) — both
+server-side. No controller ever puts it in `non_user_params`, so a browser PUT always
+takes the sync branch, which does write the preference and save.
+
+**Rule:** when a finding depends on a flag being set, grep for every PRODUCER of that
+flag, not just its consumers, before writing the fix. One grep separated a real bug
+(the unconfirmed write on the same path) from a phantom, and stopped a fix being
+written for an unreachable branch — which would have been untestable and would have
+implied a defect that does not exist.
+
+**Evidence:** [`2026-08-13-branch-vs-staging-adversarial-review.md`](./2026-08-13-branch-vs-staging-adversarial-review.md).
+
+## Gotcha: the class a template writes is not always the method that "decides" it — check the template, not the helper
+
+An adversarial review reported that the board PREVIEW colours folder buttons the live
+board leaves white, and prescribed skipping part-of-speech colour for folders because
+`board-detail.js#pos_css_class` returns `'folder'` before it looks at POS. The premise
+was right, the prescription was wrong: `board-detail-grid.hbs:53` never calls
+`pos_css_class`. It writes
+`md-board-detail-symbol-card--{{or btn.part_of_speech btn.painted_part_of_speech btn.suggested_part_of_speech 'default'}}`
+straight from the raw fields. `pos_css_class` gates one thing only —
+`resolve_unknown_buttons` (`:3738`), which filters on `pos === 'default'` — so folders
+are excluded from the LOOKED-UP type and nothing else. An authored `part_of_speech` on
+a folder paints on the live board, and the prescribed fix would have stopped the
+preview painting it: a new parity bug in the opposite direction.
+
+**Rule:** when a finding says "X decides the colour/class", grep the TEMPLATE for the
+class it actually emits before changing anything. A well-named method often turns out
+to gate a narrower step than its name suggests.
+
+**Same file, second instance:** the preview suppressed POS whenever `border_color` was
+set, its comment claiming to mirror the board. The board's suppressor is
+`{{unless btn.background_color '…--no-color'}}` — `background_color` only — and
+`--no-color` (`app.scss:80413`) sets `outline-color: transparent` and nothing else, so
+it never fights the POS background at all. Read the RULE BODY before believing a class
+name suppresses anything.
+
+**Evidence:** [`2026-08-13-branch-vs-staging-adversarial-review.md`](./2026-08-13-branch-vs-staging-adversarial-review.md).
+
+## Pattern: a "feature unavailable" lock must match what the UI actually does
+
+The caseload row rendered a locked `<span role="note">` for modeling-only links saying
+More Actions was unavailable — while the row header's own click handler opened the
+panel regardless. Two things were wrong, and only one of them was the lock: the panel
+is legitimately available on a modeling-only link (it carries Speak, Home Board and
+Modeling Ideas, all granted by `model`), and the items that genuinely are restricted
+already carried their own "not available when you are linked as modeling-only" copy
+inside it.
+
+**Rule:** before gating a container on a permission, check what is INSIDE it. Gating
+the panel would have removed capability the link actually has; the honest fix was to
+delete the false lock and leave the per-item gating that was already correct. A lock
+the next click contradicts is worse than no lock — it teaches users to ignore locks.
+
+Note the boundary that made this a UI defect and not a leak: the server still refuses
+the restricted data (`allowed?` → 400), so nothing was exposed. Check where the real
+enforcement is before rating a UI affordance as a data-protection finding.
+
+**Evidence:** [`2026-08-13-branch-vs-staging-adversarial-review.md`](./2026-08-13-branch-vs-staging-adversarial-review.md).
+
+## Gotcha: bucketing a time series forward from index 0 puts the short bucket on the NEWEST point
+
+`report_summary.js#buildTrend` opened a weekly bucket every 7 rows counting from the
+start, so any range that is not a multiple of 7 ended on a partial bucket: a 60-day
+range plotted a 4-day sum beside 7-day sums — a ~43% fall created entirely by bucket
+width, on the most recent point of a communicator's progress chart.
+
+**Rule:** anchor buckets to the END of the range (`remainder = rows.length % size`,
+first boundary at `remainder`), so the short bucket is the oldest point, where a reader
+is least likely to read it as a trend. Carry the bucket's span (`days`) on each point
+so a consumer can disclose it. Do not "fix" this by averaging unless the legend and the
+data table change units with it, and never by dropping the remainder — that silently
+discards real days.
+
+**Evidence:** [`2026-08-13-branch-vs-staging-adversarial-review.md`](./2026-08-13-branch-vs-staging-adversarial-review.md).
+
+## Gotcha: an overlay's z-index is chosen against the wrong neighbour
+
+`.bp-options` sat at `z-index: 5900` with a comment explaining the choice — entirely in
+terms of the create-board chooser's 6000. Nobody had compared it to Bootstrap's modal
+layer (`.modal-backdrop` 1040 / `.modal` 1050), which every button in that overlay can
+open. `check_for_needing_purchase()` returns a promise that settles ONLY when the user
+dismisses `premium-required`, so painting that dialog behind the scrim hung the flow
+with no exit but a reload.
+
+**Rule:** a full-viewport overlay's z-index has to be justified against everything it
+can SUMMON, not just the sibling it visually competes with. When the comment names only
+one neighbour, that is the tell. Check whether the overlay's own actions can open a
+modal, a flash, or an error dialog — and if the answer is yes, it belongs below the
+modal layer, not above it.
+
+**Evidence:** [`2026-08-13-branch-vs-staging-adversarial-review.md`](./2026-08-13-branch-vs-staging-adversarial-review.md).
+
+## Click-testing UI fixes: how a browser probe passes without testing anything (2026-08-14)
+
+From click-testing the adversarial-review fixes (H4/H5/H3/M2/M9) on
+`traci/styling/styling-updates`. Every item below cost real time in that session.
+
+1. **`el.click()` cannot detect a z-index/overlay bug — it bypasses hit testing.**
+   For anything about stacking, covering scrims, or "is this actually clickable",
+   dispatch a REAL mouse click at the element's centre (Puppeteer `elementHandle.click()`
+   / CDP) so the topmost element receives it, and assert with
+   `document.elementFromPoint()` that the node you hit is the element or a descendant.
+   A probe using `el.click()` passes cleanly against the broken build.
+
+2. **A probe that never observes its window must FAIL, not pass.** Make the
+   observation itself an assertion: "≥N in-flight frames sampled or FAIL". Two M2 runs
+   reported a spotless DOM while testing nothing — first by selecting "Custom Filter"
+   (which fires no request), then by re-selecting the period already displayed. Only the
+   frame-count guard exposed them. Same shape for races: assert the late response
+   actually arrived late AND carried the wrong data, or the race was never created.
+
+3. **Widen the window instead of racing it.** Request interception with a fixed delay
+   on the specific URL (`/stats/daily`, `/badges?user_id=<A>`) turns an unobservable
+   millisecond window into a deterministic multi-second one. This is what made H5's race
+   reproducible after the register had recorded it as "fixed by inspection, not reproduced".
+
+4. **Negative-control in place, no git needed.** While the dialog was open, forcing
+   `.bp-options` back to its pre-fix `z-index: 5900` re-covered the close button —
+   proving the check bites. Cheap, and the only evidence a passing check is not vacuous.
+
+5. **`aria-selected` is not a reliable "currently selected" signal in this app.**
+   `Stats::PeriodSelect` binds it to `is-equal this.selection item.id`, and
+   `usage_stats.filter` is UNSET on a default load (`controllers/user/stats.js:296`
+   treats absent and `'last_2_months'` as the same), so nothing is marked selected while
+   that period is on screen. Compare against the trigger's visible label instead.
+
+6. **Check the finding is even testable against seed data BEFORE writing the probe.**
+   M9 needed >10 badges across the caseload and H5 needed two DISTINGUISHABLE badges;
+   the seeded demo caseload has 16 communicators and exactly ONE badge, and `db/seeds.rb`
+   creates no badges at all. Similarly H4 needs an expired/modeling-only supporter and
+   all three seeded SLPs are `org_sponsored_supporter`. Survey the data first; a probe
+   written against absent data reports SKIP at best and a false PASS at worst.
+
+7. **Client-side gates can be armed in-page instead of mutating the DB — when the
+   defect is client-side.** H4 needs `modeling_only`, a computed; setting its plain
+   dependency `modeling_session` on `appState.sessionUser` arms the exact code path
+   (`models/user.js:414`) without touching data. Legitimate because H4's defect is
+   stacking + promise settlement, and the account state is only the trigger. It would
+   NOT be legitimate for something like M9, where server paging is the thing under test.
+
+8. **Two states that come from the same template branch can never disagree — don't
+   assert on them.** The caseload badge caption's name and the panel id both derive from
+   `{{#if (is-equal supervisee.user_name this.selectedSupervisee)}}`, so comparing them
+   would "pass" forever. H5 is only visible as "panel is B's but the BADGE is A's",
+   which is why the seeded badges carry per-user names.
+
+9. **Dev DB access recipe** (the obvious guesses all fail): `DB_USER=tracid` with **no**
+   password over the unix socket (`psql -h localhost` forces TCP and fails md5), plus
+   `SECURE_NONCE_KEY` / `SECURE_ENCRYPTION_KEY`, which `GoSecure.validate_encryption_key`
+   demands at boot (`config/environment.rb:27`). Read them off the running server with
+   `tr '\0' '\n' < /proc/<pid>/environ`. `User` has `billing_state` / `modeling_only?` /
+   `premium_supporter?` — there is no `expired?` or `currently_premium?`.
+
+## Permission testing in this codebase: three grants that silently invalidate your test subject (2026-08-14)
+
+Trying to exercise a permission DENIAL (`view_detailed` false) took four candidate
+accounts before one worked, because three separate grants keep it true:
+
+1. **Org managers bypass the modeling-only split.** `user.rb:87` grants
+   `view_detailed`/`supervise`/`set_goals` on `Organization.manager_for?` with **no**
+   `modeling_only_for?` condition, so an org manager keeps full access on a
+   modeling-only link. `sarah_chen_slp` is a manager — never use her to test a denial.
+2. **`settings['public'] == true` grants `view_detailed` to EVERYONE** (`user.rb:58`),
+   including users with no relationship at all — verify with an unrelated user before
+   trusting any allow result. Several seeded demo communicators are public
+   (`aiden_parker`, `bella_martinez`, `charlie_kim`, `luna_garcia`).
+3. **`modeling_only_for?` has three independent triggers** (`supervising.rb:121-125`):
+   the supporter's own `modeling_only?`, the relationship's `permission_level`, and a
+   per-link `state['modeling_only']` flag. Only the third is per-link.
+
+Corollaries:
+- **Check for pre-existing fixtures before creating any.** A seeded modeling-only link
+  (`marcus_williams_slp` → `ethan_brown`) already existed; the survey missed it because
+  the query filtered on a **non-existent `link_type` column** and silently matched
+  nothing. `UserLink` stores `record_code` as a real COLUMN and `type`/`state` inside
+  `data` — filtering on the wrong one returns empty rather than erroring.
+- **Not every seeded account can log in.** `elena_rodriguez_slp` fails
+  `valid_password?('demo2025!')` while the other two SLPs pass. Check
+  `valid_password?` in the console before blaming the probe.
+- Mutating a `UserLink`'s serialized `data` needs a **reassignment**
+  (`l.data = l.data.deep_dup.tap{...}`); in-place mutation may not mark the column
+  dirty. Follow with `touch` on both users to bust the permission cache.
+
+## Ember Data 5.3: `toArray()` is gone, and a defensive guard turns that into a false NEGATIVE (2026-08-14)
+
+`store.query(...)` results have **no `toArray`** in Ember Data 5.3 (`typeof` is
+`undefined`), though `.length` still works. Code written defensively as
+`rows.toArray ? rows.toArray().map(...) : []` therefore yields `[]` — and a check
+asking "does this endpoint leak data?" answered **"0 records, no leak"** when the true
+answer was 8 records including the leaked one. `Array.from(rows)` works.
+
+The general rule this is an instance of: **a read that cannot be performed must FAIL
+loudly, not fall back to an empty value.** An empty fallback inside a security or
+regression check converts "I could not look" into "there is nothing there". Always log
+HOW the read succeeded (length, access path) alongside the result, so a vacuous read is
+visible in the output rather than indistinguishable from a clean one.

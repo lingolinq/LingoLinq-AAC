@@ -21,7 +21,7 @@
  *   node scripts/modal-audit-qa.mjs
  *   node scripts/modal-audit-qa.mjs --user example --pass password
  *   node scripts/modal-audit-qa.mjs --all          # sweep every converted modal
- *   node scripts/modal-audit-qa.mjs --only modals/caseload-guide,modeling-intro
+ *   node scripts/modal-audit-qa.mjs --only modeling-intro,speak-mode-intro
  *   node scripts/modal-audit-qa.mjs --headed       # watch it run
  *
  * Exit code is 1 if any modal FAILS an audit, so this is CI-usable. Modals that
@@ -49,7 +49,8 @@ const ONLY = arg('--only', null);
  * modal-container.js, where many WILL skip for want of a model.
  */
 const DEFAULT_MODALS = [
-  'modals/caseload-guide',   // the reported reproducer (caseload info button)
+  // `modals/caseload-guide` was the reported reproducer (caseload info button);
+  // dropped from the sweep when the component was deleted with the caseload tour.
   'modeling-intro',
   'speak-mode-intro',        // already used init() — the control case
   'about-lingolinq',

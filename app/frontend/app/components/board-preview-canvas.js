@@ -29,6 +29,21 @@ const STALL_MS = 12000;
 // word cache makes every board after the first free.
 const POS_WAIT_MS = 1500;
 
+/* Mirrors the folder test at the top of board-detail.js#pos_css_class
+   (:3715-3721). That method is what `resolve_unknown_buttons` filters on, so a
+   folder never reaches the part-of-speech lookup on the live board and never
+   gains a `suggested_part_of_speech`. The preview had no such test and called
+   `cached_pos_for_label` for every uncoloured button, so a board whose category
+   folders are labelled "Food" / "People" / "Play" previewed them orange and
+   green and then opened with them white. */
+function is_folder_button(button) {
+  if(!button) { return false; }
+  var load_board = button.get ? button.get('load_board') : button.load_board;
+  var link_disabled = button.get ? button.get('link_disabled') : button.link_disabled;
+  var folder_action = button.get ? button.get('folderAction') : button.folderAction;
+  return !!((load_board && !link_disabled) || folder_action);
+}
+
 export default Component.extend({
   appState: service('app-state'),
   persistence: service('persistence'),
@@ -147,8 +162,16 @@ export default Component.extend({
     var res = [];
     (board.translated_buttons(locale, locale) || []).forEach(function(button) {
       if(!button || !button.label) { return; }
-      if(button.background_color || button.border_color) { return; }
+      /* Only `background_color` suppresses the POS fill, matching the live
+         board. `--no-color` (app.scss:80413) sets `outline-color` and nothing
+         else, so a button with an author-set BORDER colour still takes its
+         part-of-speech background there — the preview's extra `border_color`
+         test was painting those white. */
+      if(button.background_color) { return; }
       if(button.part_of_speech || button.painted_part_of_speech || button.suggested_part_of_speech) { return; }
+      // Folders never get a LOOKED-UP part of speech on the live board, so there
+      // is nothing to look up here either — see is_folder_button.
+      if(is_folder_button(button)) { return; }
       res.push(button.label);
     });
     return res;
@@ -167,12 +190,29 @@ export default Component.extend({
     var pos_key = board && board.get && board.get('id');
     pos_key = pos_key && (pos_key + '::' + (this.get('locale') || ''));
     if(pos_key && this._pos_attempted_for !== pos_key) {
-      this._pos_attempted_for = pos_key;
       var labels = this._labels_needing_pos(board);
       if(labels.length && words_needing_lookup(labels).length) {
+        /* Latched HERE, not before `_labels_needing_pos` — the key is "we have
+           started the lookup for this board+locale", so latching it earlier
+           burned the attempt on a render where `board.buttons` had not arrived
+           yet (models/board.js:539 returns [] until it has). Every later redraw
+           then painted from whatever the session cache happened to hold while
+           the live board resolved the full set. */
+        this._pos_attempted_for = pos_key;
         var persistenceSvc = this.persistence;
+        /* Render generation. The timeout and the lookup race each other, and a
+           lookup that settles AFTER POS_WAIT_MS used to call draw() a second
+           time — two independent pending/emitted/stall_timer closures against
+           one <canvas>, where the first could reach onCanvasReady and lift the
+           modal's loading overlay onto a half-drawn board while the second was
+           still loading images. Whichever fires first claims the generation;
+           the loser becomes a no-op. */
+        this._pos_render_generation = (this._pos_render_generation || 0) + 1;
+        var generation = this._pos_render_generation;
         var draw = function() {
           if(_this.isDestroyed || _this.isDestroying) { return; }
+          if(_this._pos_render_drawn === generation) { return; }
+          _this._pos_render_drawn = generation;
           _this._draw_canvas();
         };
         var clear_wait = function() {
@@ -768,10 +808,18 @@ export default Component.extend({
                        out-specifies every POS rule, so an author-uncoloured button
                        is near-white there regardless of its part of speech. */
                     var pos_fill = null, pos_border = null;
-                    if(!button.background_color && !button.border_color && fitz_colors && !dark) {
+                    if(!button.background_color && fitz_colors && !dark) {
+                      /* The looked-up type is the ONLY part folders are excluded
+                         from: `resolve_unknown_buttons` filters on
+                         `pos_css_class(btn) === 'default'` and that returns
+                         'folder' first (board-detail.js:3715-3721), so the live
+                         board never invents a colour for a category folder. An
+                         AUTHORED part_of_speech on a folder still paints there —
+                         the template reads the raw fields (board-detail-grid.hbs:53)
+                         — so it must still paint here. */
                       var pos_type = button.part_of_speech || button.painted_part_of_speech ||
                                      button.suggested_part_of_speech ||
-                                     (button.label ? cached_pos_for_label(button.label) : null);
+                                     ((button.label && !is_folder_button(button)) ? cached_pos_for_label(button.label) : null);
                       var pos_c = pos_type && color_for_type(pos_type, fitz_colors);
                       if(pos_c) { pos_fill = pos_c.fill; pos_border = pos_c.border; }
                     }

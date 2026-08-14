@@ -373,6 +373,27 @@ export default Component.extend({
     if (key) { app_state.set('board_detail_tour_pending_speak', key); }
     if (locale) { app_state.set('label_locale', locale); }
     var parts = key.split('/');
+    /* TWO OBSERVATIONS FROM THE SELF-PICK CLICK-TESTS, DEFERRED (2026-08-14).
+       Both were seen in this path; neither is explained, and neither blocked the
+       finding H3 was about — the home board stored correctly and was confirmed by
+       re-reading the user from the server.
+
+       1. A self-pick landed on `/<user>/boards` — the pickingForOther destination —
+          even though `pickingForOther` is false here, so it is THIS transition to
+          user.board-detail that runs. So it is very unlikely to be a wrong-branch
+          bug. A 404 was logged in that run; the leading (UNCONFIRMED) hypothesis is
+          that board-detail fails to load the just-created copy and something
+          redirects to /boards.
+       2. A separate run (a different communicator, same self-pick path) never
+          reached a terminal state within 180s. Not investigated; may be nothing
+          more than a slow dev-stack copy.
+
+       To pick this up: `node scripts/adversarial-review-qa.mjs --only h3b
+       --self-id <a communicator with no copy of the picked board>` on a quiet
+       stack. The harness already emits a NAV block — the URL trail plus the
+       setup_user/currentUser ids this function branches on — which should settle
+       (1) in a single run. See
+       docs/task-management/2026-08-14-click-test-adversarial-fixes.md. */
     var go = function() {
       if (parts.length >= 2 && routerSvc) {
         var isDark = true;

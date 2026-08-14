@@ -1,7 +1,6 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
-import i18n from '../utils/i18n';
 
 /**
  * Information pill naming the account a supporter is currently viewing.
@@ -32,12 +31,17 @@ export default Component.extend({
      property of the `computed` import. `computed.reads(...)` throws at module
      evaluation on Ember 5 and blanks the whole app. A plain computed avoids the
      question entirely. */
-  message: computed('appState.supervising_context.display_name', function() {
-    var name = this.get('appState.supervising_context.display_name');
-    if(!name) { return null; }
-    /* NEW key, not a re-word of supervising_context_viewing: that key still
-       carries "…'s account" in the other 12 locales, and dropping the noun from
-       the English default alone would leave them saying something different. */
-    return i18n.t('supervising_context_viewing_name', "Viewing %{name}", { name: name });
+  /* The RAW name; the sentence is assembled by `{{t}}` in the template.
+     Interpolating here instead meant escaping it twice: `i18n.t` runs every
+     value through escapeHtmlForInterpolation (i18n.js:14-22) and returns a
+     PLAIN string — only the `{{t}}` helper wraps the result in htmlSafe
+     (template_helpers.js:104) — so `{{this.message}}` escaped the already-escaped
+     text and a communicator called O'Brien was announced as
+     "Viewing O&#39;Brien" by the one component whose job is naming them.
+     The `supervising_context_viewing_name` key stays as-is: the older
+     `supervising_context_viewing` still carries "…'s account" in the other 12
+     locales. */
+  display_name: computed('appState.supervising_context.display_name', function() {
+    return this.get('appState.supervising_context.display_name') || null;
   })
 });

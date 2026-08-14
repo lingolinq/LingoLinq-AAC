@@ -195,7 +195,12 @@
               </div>
             {{/each}}
           </dl>
-        {{else if this.usage_stats}}
+        {{!-- `not this.status` for the same reason hasReportData now carries it:
+              mid-reload the summary is correctly hidden, and without this guard
+              the empty state took its place and announced "No communication
+              activity yet" about a period that had not been fetched. During a
+              load neither branch renders — Stats::LoadStatus above says so. --}}
+        {{else if (and this.usage_stats (not this.status))}}
           <section class="communication-report__empty">
             <h2>{{t "No communication activity yet" key="no_communication_activity_yet"}}</h2>
             <p>{{t "Activity and progress insights will appear here after communication sessions are recorded." key="no_communication_activity_yet_desc"}}</p>
@@ -254,6 +259,13 @@
           <h2 class="md-stats-section-head__label">{{t "Communication Usage" key="communication_usage"}}</h2>
           <span class="md-stats-section-head__rule" aria-hidden="true"></span>
         </div>
+      {{else}}
+        {{!-- Compare mode hides the visible section rules (they would repeat over
+              two columns), which left the whole compare report with no h2 at all:
+              h1 -> h3 straight to the KPI labels, so heading navigation gave a
+              screen-reader user no section structure. The heading still exists
+              for them. --}}
+        <h2 class="sr-only">{{t "Communication Usage" key="communication_usage"}}</h2>
       {{/unless}}
       <div class="row{{if this.usage_stats2 " md-stats-compare-row" ""}}" style='page-break-inside: avoid;'>
         <Stats::WordUsage @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} @show_logs="show_logs" />
@@ -276,6 +288,8 @@
           <h2 class="md-stats-section-head__label">{{t "Vocabulary Analysis" key="vocabulary_analysis"}}</h2>
           <span class="md-stats-section-head__rule" aria-hidden="true"></span>
         </div>
+      {{else}}
+        <h2 class="sr-only">{{t "Vocabulary Analysis" key="vocabulary_analysis"}}</h2>
       {{/unless}}
       <div class="row md-stats-vocab-row{{if this.usage_stats2 " md-stats-compare-row" ""}}" style='page-break-inside: avoid;'>
         <Stats::CoreList @core={{this.model.core_lists}} @usage_stats={{this.usage_stats}} @ref_stats={{this.usage_stats2}} @side_by_side={{this.usage_stats2}} @word_cloud={{this.ctrlAction "word_cloud_left"}} @word_data={{this.ctrlAction "word_data"}} @edit_permission={{this.model.permissions.edit}} @modify_core={{this.ctrlAction "modify_core"}} />

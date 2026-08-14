@@ -68,7 +68,11 @@
          description, which gave the panel a second introduction.) --}}
     {{#if this.showInlineCategoryFilter}}
       <div class="bp-results-head">
-        <h3 class="bp-results-head__title">{{this.resultsTitle}}</h3>
+        {{!-- h2, not h3: the page's only other heading is its <h1>, and the
+              <h2 class="md-home-boards-picker__section-header"> that used to sit
+              between them was removed in this same redesign, leaving h1 -> h3
+              (WCAG 1.3.1 structure). --}}
+        <h2 class="bp-results-head__title">{{this.resultsTitle}}</h2>
         {{#if this.resultsCountLabel}}
           {{!-- Decorative separator only: aria-hidden so the count is still
                announced as its own phrase after the heading, without a stray

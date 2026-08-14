@@ -67,6 +67,31 @@ module('Unit | Utility | report summary', function() {
     assert.ok(res.primaryInsight.title.indexOf('independent') === -1, 'never claims independence');
   });
 
+  test('a zero-utterance baseline never reports "steady" against a KPI that says increase', function(assert) {
+    // Sessions in both halves, but utterances only in the later one — the common
+    // shape when a communicator uses buttons before using the sentence box.
+    // The comparison is "available" (it is gated on sessions), but there is no
+    // utterance baseline to characterise a trend against, so the headline must
+    // fall back to the neutral snapshot rather than claiming no change.
+    var days = span(28, function(idx) {
+      var later = idx >= 14;
+      return {total_sessions: 1, total_utterances: later ? 20 : 0, total_words: later ? 40 : 0, words_per_utterance: later ? 2 : 0};
+    });
+    var res = analyze(stats(days, totalsFor(days)));
+
+    assert.ok(res.comparisonAvailable, 'sessions in the earlier half still make a comparison available');
+    assert.strictEqual(res.primaryInsight.title.indexOf('steady'), -1,
+      'must not claim the period stayed steady when it went from no utterances to some');
+    assert.strictEqual(res.primaryInsight.tone, 'neutral', 'snapshot tone, not a trend claim');
+
+    // And it must not contradict the Utterances KPI sitting beside it. That KPI
+    // is deterministic here: the earlier half is 0, below MIN_BASE_FOR_PERCENT,
+    // so countChange takes the absolute-delta branch and reports the rise.
+    var utterances = res.summaryMetrics.filter(function(m) { return m.key === 'utterances'; })[0];
+    assert.strictEqual(utterances.contextLabel, 'Increase',
+      'the KPI reports the rise, so the headline must not have called it steady');
+  });
+
   test('every change is labelled in words and the dates are stated for the row', function(assert) {
     // No arrow may appear without a word naming its direction, and no percentage
     // without the reader being able to see what period it compares.
@@ -281,5 +306,26 @@ module('Unit | Utility | report summary', function() {
     assert.equal(weekly.trend.granularity, 'week', 'long range aggregates to weeks');
     assert.equal(weekly.trend.points.length, 6, 'six weekly buckets');
     assert.equal(weekly.trend.points[0].utterances, 28, 'weekly bucket sums its days');
+  });
+
+  test('a range that is not a whole number of weeks puts the short bucket FIRST', function(assert) {
+    // 30 days = 4 whole weeks + 2. Bucketing forward from index 0 left the
+    // remainder on the most recent point, so the chart ended on a 2-day sum
+    // beside 7-day sums — a ~70% drop created purely by bucket width, which
+    // reads as a collapse in recent activity.
+    var days = span(30, {total_sessions: 1, total_utterances: 10, total_words: 20});
+    var res = analyze(stats(days, {total_sessions: 30, total_utterances: 300}));
+    var points = res.trend.points;
+
+    assert.strictEqual(res.trend.granularity, 'week', 'long range aggregates to weeks');
+    assert.strictEqual(points.length, 5, '2 leading days + four whole weeks');
+    assert.strictEqual(points[0].days, 2, 'the short bucket is the FIRST one');
+    assert.strictEqual(points[points.length - 1].days, 7, 'the most recent bucket is a whole week');
+    assert.strictEqual(points[points.length - 1].utterances, 70, 'and sums a whole week of days');
+
+    // Every bucket after the first covers the same span, so no step in the line
+    // is an artefact of how the days were grouped.
+    var tail = points.slice(1).map(function(p) { return p.days; });
+    assert.deepEqual(tail, [7, 7, 7, 7], 'all remaining buckets are equal width');
   });
 });

@@ -2,7 +2,7 @@ import Component from '@ember/component';
 import i18n from '../../utils/i18n';
 import { htmlSafe } from '@ember/template';
 import { computed } from '@ember/object';
-import { from_counts } from '../../utils/proportions';
+import { from_counts, plain } from '../../utils/proportions';
 
 // Written as literal `i18n.t` calls so `i18n_generator.rb` can find the keys —
 // the part-of-speech name arrives from the server as a bare string, and a
@@ -26,9 +26,39 @@ function part_of_speech_label(key) {
     question: i18n.t('part_of_speech_question', "Question"),
     negation: i18n.t('part_of_speech_negation', "Negation"),
     number: i18n.t('part_of_speech_number', "Number"),
+    // Live type strings in this codebase that the first pass missed — they come
+    // from the Fitzgerald `types` arrays in app.js:375-386 and from
+    // utils/parts_of_speech.js, and reach the stats payload as
+    // `event.parts_of_speech.types[0]` (log_session.rb:604).
+    social: i18n.t('part_of_speech_social', "Social"),
+    expletive: i18n.t('part_of_speech_expletive', "Exclamation"),
     other: i18n.t('part_of_speech_other', "Other")
   };
   return labels[key] || key;
+}
+
+/* Several dictionary spellings mean one part of speech.
+   `utils/parts_of_speech.js#normalize_aac_types` folds the noun variants for
+   COLOURING, and app.js:378 groups `nominative` with `noun` in the Fitzgerald
+   palette — but the stats pipeline stores `types[0]` verbatim
+   (log_session.rb:604), so without folding them here the chart lists two rows
+   that split one part of speech's share between them. */
+function canonical_part_of_speech(key) {
+  if(key === 'plural noun' || key === 'plural_noun' || key === 'noun phrase' || key === 'nominative') {
+    return 'noun';
+  }
+  return key;
+}
+
+/* Sums the counts of every spelling that folds to the same part of speech,
+   before any share is computed. */
+function fold_counts(counts) {
+  var res = {};
+  Object.keys(counts || {}).forEach(function(key) {
+    var canonical = canonical_part_of_speech(key);
+    res[canonical] = (res[canonical] || 0) + (parseInt(counts[key], 10) || 0);
+  });
+  return res;
 }
 
 export default Component.extend({
@@ -59,7 +89,7 @@ export default Component.extend({
     function() {
       var stats = this.get('usage_stats');
       var parts = stats && (stats.get('modeling') ? stats.get('modeled_parts_of_speech') : stats.get('parts_of_speech'));
-      var res = from_counts(parts, {label_for: part_of_speech_label});
+      var res = from_counts(fold_counts(plain(parts)), {label_for: part_of_speech_label});
       return res.rows.map(function(row) {
         return Object.assign({}, row, {
           style: htmlSafe('width: ' + row.percent + '%;')

@@ -305,11 +305,27 @@ export default Controller.extend({
     // things — "still loading" and "there is no badge" — and the empty state
     // must not flash while the request is in flight.
     this.set('badgeLoading', true);
-    this._badgesByUser().then(function(for_users) {
-      var badges = for_users[user_id] || [];
-      var best = Badge.best_next_badge(badges, null);
+    /* Every write below has to re-check that this response still describes the
+       row on screen. `_badgesForUser` only populates its cache after the FIRST
+       query resolves, so clicking row A then row B inside that window fires two
+       concurrent queries with no ordering guarantee — and if A's lands last it
+       used to set `selectedBadge` to A's badge while `selectedSupervisee` was
+       already B. The panel captions the tile with `supervisee.user_name`
+       (caseload.hbs:354), so that rendered one communicator's badge progress
+       under another communicator's name — and because the nested findRecord
+       handler DID guard, B's own detail load then correctly refused to
+       overwrite it, leaving the mismatch on screen rather than flickering past.
+       Safe as a precondition: selectSupervisee sets `selectedSupervisee`
+       immediately before calling this (:416-417). */
+    var stale = function() {
+      return _this.isDestroyed || _this.isDestroying ||
+             _this.get('selectedSupervisee') !== supervisee.user_name;
+    };
+    this._badgesForUser(user_id).then(function(badges) {
+      if (stale()) { return; }
+      var best = Badge.best_next_badge(badges || [], null);
       if (!best) {
-        if (!_this.isDestroyed && !_this.isDestroying) { _this.set('badgeLoading', false); }
+        _this.set('badgeLoading', false);
         return;
       }
       // Keep the summary visible while the detailed record loads, so the tile
@@ -317,38 +333,59 @@ export default Controller.extend({
       _this.set('selectedBadge', best);
       _this.set('badgeLoading', false);
       _this.get('store').findRecord('badge', best.get('id')).then(function(full) {
-        // Guard against a race: the supporter may have collapsed this row, or
-        // opened a different one, while the request was in flight.
-        if (_this.isDestroyed || _this.isDestroying) { return; }
-        if (_this.get('selectedSupervisee') !== supervisee.user_name) { return; }
+        // Same guard: the supporter may have collapsed this row, or opened a
+        // different one, while the request was in flight.
+        if (stale()) { return; }
         _this.set('selectedBadge', full);
       }, function() { /* keep the summary record — it still renders */ });
     }, function() {
       // A failed lookup is not proof there is no badge, but the panel has
       // nothing to show either way — fall through to the empty state, which
       // offers a useful next step rather than an error the supporter cannot act on.
-      if (!_this.isDestroyed && !_this.isDestroying) { _this.set('badgeLoading', false); }
+      if (stale()) { return; }
+      _this.set('badgeLoading', false);
     });
   },
 
-  _badgesByUser: function() {
+  /* Badges for ONE communicator, cached per user id.
+     This used to be a single `{user_id: me, recent: 1}` query covering the
+     supporter and every supervisee at once, which the API paginates at
+     DEFAULT_PAGE = 10 (lib/json_api/badge.rb:5) with no ordering and no
+     `per_page` sent (json_api/json.rb:24,30) — SQL `LIMIT 11`. A supporter with
+     more than a handful of communicators therefore got at most 10 rows in
+     arbitrary order, and because the `recent` branch also returns EARNED badges
+     that best_next_badge immediately discards, the supporter's own recently
+     earned badges could consume the whole page and leave every supervisee panel
+     showing "No badge in progress".
+     Raising per_page only moves the ceiling (MAX_PAGE is 25). The panel opens
+     one communicator at a time, so scoping the request to that communicator
+     removes the ceiling entirely — and the non-`recent` branch of
+     badges_controller#index is exactly this query (`user_id` + not superseded,
+     not disabled). One request per row, cached for the session. */
+  _badgesForUser: function(user_id) {
     var _this = this;
-    var cached = this.get('_superviseeBadges');
-    if (cached) { return RSVP.resolve(cached); }
-    var me = this.get('model.id') || this.get('appState.sessionUser.id');
-    if (!me) { return RSVP.reject(); }
-    return this.get('store').query('badge', {user_id: me, recent: 1}).then(function(badges) {
-      var for_users = {};
-      badges.forEach(function(badge) {
-        var uid = badge.get('user_id');
-        for_users[uid] = for_users[uid] || [];
-        for_users[uid].push(badge);
-      });
+    if (!user_id) { return RSVP.reject(); }
+    var cache = this.get('_superviseeBadges') || {};
+    if (cache[user_id]) { return RSVP.resolve(cache[user_id]); }
+    return this.get('store').query('badge', {user_id: user_id}).then(function(badges) {
+      var list = [];
+      badges.forEach(function(badge) { list.push(badge); });
       if (!_this.isDestroyed && !_this.isDestroying) {
-        _this.set('_superviseeBadges', for_users);
+        // Re-read: another row's request may have populated the cache meanwhile.
+        var current = _this.get('_superviseeBadges') || {};
+        var next = Object.assign({}, current);
+        next[user_id] = list;
+        _this.set('_superviseeBadges', next);
       }
-      return for_users;
+      return list;
     });
+  },
+
+  /* Drops the per-user badge cache. The controller is a singleton that survives
+     route exit, so without this a badge earned (or a goal-with-badge added)
+     after the first look stayed invisible for the rest of the session. */
+  _clearBadgeCache: function() {
+    if (!this.isDestroyed && !this.isDestroying) { this.set('_superviseeBadges', null); }
   },
 
   actions: {
@@ -472,6 +509,17 @@ export default Controller.extend({
         // refresh.
         modal.open('new-goal', { user: user_model }).then(function(res) {
           if (!res) { return; }
+          /* A goal can carry a badge, so the cached badge list for this
+             communicator is now stale — the empty state's own "Add Goal with
+             Badge" CTA otherwise kept saying "No badge in progress" for the
+             rest of the session, including after re-navigating to /caseload. */
+          _this._clearBadgeCache();
+          if (_this.get('selectedSupervisee')) {
+            var open_row = (_this.get('supervisees') || []).filter(function(s) {
+              return s.user_name === _this.get('selectedSupervisee');
+            })[0];
+            if (open_row) { _this._loadBadgeForSupervisee(open_row); }
+          }
           var current = _this.get('appState.currentUser');
           if (current && typeof current.reload === 'function') {
             current.reload();

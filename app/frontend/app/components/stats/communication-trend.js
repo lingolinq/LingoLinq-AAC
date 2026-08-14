@@ -32,14 +32,18 @@ export default Component.extend({
 
   didInsertElement: function() {
     this._super(...arguments);
+    // The observer is armed by _doDraw, alongside the chart it observes. Doing
+    // it here as well returned silently whenever the component mounted with
+    // `trend.available` false — no container yet — and never retried, so that
+    // chart stayed non-responsive to resize for the component's whole life.
     this.draw();
-    this._setupResizeObserver();
   },
 
   willDestroyElement: function() {
     this._super(...arguments);
     this._teardownResizeObserver();
     this._chart = null;
+    this._chart_node = null;
     this._data = null;
   },
 
@@ -108,8 +112,20 @@ export default Component.extend({
 
   _doDraw: function(container, data) {
     if(!container || !data) { return; }
+    /* Re-check the CONTAINER, not just whether a chart exists. The template
+       destroys `.report-trend__chart` whenever `trend.available` is false
+       (communication-trend.hbs:21-22), so on an available -> unavailable ->
+       available cycle the cached chart was still bound to the detached node and
+       drew into nothing — a permanently blank card above a populated data
+       table. Rebuilding also re-arms the resize observer against the new node. */
+    if(this._chart && this._chart_node !== container) {
+      this._teardownResizeObserver();
+      this._chart = null;
+    }
     if(!this._chart) {
       this._chart = new window.google.visualization.LineChart(container);
+      this._chart_node = container;
+      this._setupResizeObserver();
     }
     this._chart.draw(data, this._buildOptions(container));
   },
@@ -117,6 +133,8 @@ export default Component.extend({
   _setupResizeObserver: function() {
     var container = this._chart_container();
     if(!container || typeof window.ResizeObserver === 'undefined') { return; }
+    // Replacing an existing observer would leak the old one's handle.
+    this._teardownResizeObserver();
     var _this = this;
     // Redraw only — no Ember state changes here, so no run loop is needed.
     this._resizeObserver = new window.ResizeObserver(function() {

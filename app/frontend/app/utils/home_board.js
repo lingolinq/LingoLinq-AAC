@@ -22,17 +22,25 @@ import RSVP from 'rsvp';
  *
  * Rejects with `{error: 'home_board_not_saved'}` so callers surface a failure
  * instead of a false success. */
-export function saveHomeBoard(user, board, locale) {
+export function saveHomeBoard(user, board, locale, options) {
   if(!user || !user.save || !board || !board.get) {
     return RSVP.reject({error: 'home_board_not_saved', reason: 'missing user or board'});
   }
+  options = options || {};
   var expected_id = board.get('id');
   var expected_key = board.get('key');
-  user.set('preferences.home_board', {
+  var prefs = {
     id: expected_id,
-    key: expected_key,
-    locale: locale
-  });
+    key: expected_key
+  };
+  /* Only sent when the caller has one. An explicit `locale: undefined` would
+     change the payload for callers that never set it (edit_manager's copy
+     flows), and this function is meant to be adoptable without altering what
+     the server receives. Same for `level`, which the board-copy flows carry and
+     the picker flows do not; the 0 < level < 10 bound is the copy flow's own. */
+  if(locale) { prefs.locale = locale; }
+  if(options.level && options.level > 0 && options.level < 10) { prefs.level = options.level; }
+  user.set('preferences.home_board', prefs);
   return user.save().then(function(saved) {
     var record = saved && saved.get ? saved : user;
     var stored = record.get('preferences.home_board');

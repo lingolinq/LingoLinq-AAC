@@ -58805,9 +58805,6 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   font-style: italic;
   font-weight: 800;
 }
-.md-stats-hero__action {
-  flex-shrink: 0;
-}
 /* Reports page: inherits the project-wide thin-line divider from the base rule;
    only the bottom-margin tweak remains here. */
 .md-stats-page .la-about-hero-separator {
@@ -58891,9 +58888,6 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   margin-right: 6px;
   color: rgba($la-navy, 0.5);
 }
-.md-stats-summary-row--1 .panel.panel-default.summary .panel-heading .md-stat-icon {
-  color: $brand-verdigris-aa;
-}
 /* Summary panels → md-miniStat style (stats page). Stronger surface +
    shadow than the washed-out 0.65 white so the metric cards read as
    solid, elevated tiles (matches the home/board-detail card language). */
@@ -58971,33 +58965,8 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    Visual hierarchy — the PRIMARY totals (row 1) read heavier than the rate
    metrics (row 2): more-saturated header + deeper shadow + larger value;
    row 2 is deliberately quieter. */
-.md-stats-summary-row--1 .panel.panel-default.summary .panel-heading {
-  background: linear-gradient(180deg, rgba(44, 183, 176, 0.26) 0%, rgba(44, 183, 176, 0.14) 100%);
-}
-.md-stats-summary-row--2 .panel.panel-default.summary .panel-heading {
-  background: linear-gradient(180deg, rgba(91, 141, 239, 0.12) 0%, rgba(91, 141, 239, 0.06) 100%);
-}
 /* Row 1 (primary): deeper shadow + slightly larger value. */
-.md-stats-summary-row--1 .panel.panel-default.summary {
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    0 3px 8px rgba($la-navy, 0.10),
-    0 14px 30px rgba($la-navy, 0.13) !important;
-}
-.md-stats-summary-row--1 .panel.panel-default.summary .panel-body {
-  font-size: clamp(32px, 3.7vw, 46px);
-}
 /* Row 2 (rates): quieter surface, flatter shadow, smaller muted value. */
-.md-stats-summary-row--2 .panel.panel-default.summary {
-  background: rgba(255, 255, 255, 0.72) !important;
-  box-shadow:
-    0 1px 3px rgba($la-navy, 0.05),
-    0 4px 12px rgba($la-navy, 0.05) !important;
-}
-.md-stats-summary-row--2 .panel.panel-default.summary .panel-body {
-  font-size: clamp(24px, 2.7vw, 34px);
-  color: rgba($la-navy, 0.74);
-}
 /* Compare view row tints: need .md-stats-page so they override base .panel-heading { background: transparent } */
 .md-stats-page .md-stats-compare-group .md-stats-compare-group__row:nth-child(1) .panel-heading {
   background: linear-gradient(180deg, rgba(44, 183, 176, 0.18) 0%, rgba(44, 183, 176, 0.1) 100%);
@@ -59107,13 +59076,6 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 }
 .md-stats-page .md-stats-modeling-toggle__option:focus-visible {
   @include focus-ring;
-}
-.md-stats-page .md-stats-modeling-toggle__heading {
-  margin-top: 0;
-  margin-bottom: 8px;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--md-ink);
 }
 
 /* Word Usage chart: modern card container + chart styling */
@@ -59238,24 +59200,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    without the section head's large vertical margin. The head hugs its content,
    so the rule gets a FIXED short width (the section-head's `flex: 1 1 auto`
    would otherwise collapse to 0 here — no remaining space to fill). */
-.md-stats-filter__period-head {
-  width: auto;
-  max-width: 100%;
-  margin: 0 !important;
-}
-.md-stats-filter__period-head .md-stats-section-head__rule {
-  flex: 0 0 auto;
-  width: 200px;
-  max-width: 46vw;
-  height: 3px;
-  border-radius: 3px;
-}
 /* The REPORT PERIOD filter label is smaller than the page section headers
    (it's a control label, not a top-level section). !important to beat the
    `.md-stats-section-head__label` clamp above. */
-.md-stats-filter__period-head .md-stats-section-head__label {
-  font-size: 15px !important;
-}
 /* Controls pair — the period select + compare button, inline after the label.
    `nowrap` + `min-width: 0`: the pair holds one line at every width, and the
    space that runs out comes off the controls' own widths (the compare caption
@@ -59418,20 +59365,6 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   min-width: 0;
   max-width: 100%;
 }
-.md-stats-filter__period-head {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  width: auto;
-  gap: 8px;
-}
-.md-stats-filter__period-head .form-group {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  position: relative;
-  top: 4px;
-}
 .md-stats-filter__period-title {
   display: inline;
   width: auto;
@@ -59448,24 +59381,6 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   color: var(--md-muted);
   line-height: 1.35;
   white-space: nowrap;
-}
-.md-stats-filter__period-divider {
-  display: none;
-}
-.md-stats-filter__period-below {
-  display: flex;
-  justify-content: center;
-  width: auto;
-}
-.md-stats-filter__period-below .md-stats-filter__compare {
-  margin-left: 0;
-  height: auto;
-  min-height: 28px;
-  padding: 6px 14px;
-  font-size: 14px;
-  white-space: nowrap;
-  text-align: center;
-  line-height: 1;
 }
 .md-stats-filter__period-wrap {
   display: flex;

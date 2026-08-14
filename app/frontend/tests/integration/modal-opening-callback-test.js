@@ -50,9 +50,13 @@ QUnit.module('Integration | modal @opening callback', function(hooks) {
     return seen;
   }
 
+  /* speak-mode-intro is the init-based specimen (components/speak-mode-intro.js:35-37
+     assign onClose/onOpening/onClosing inside init()). It replaced caseload-guide,
+     which was the original specimen and has since been deleted along with the
+     guided tour it hosted. */
   QUnit.test('init-based component: modal-dialog receives a real callback', async function(assert) {
     const seen = spyOnModalDialog(this.owner);
-    await render(hbs`<CaseloadGuide />`);
+    await render(hbs`<SpeakModeIntro />`);
 
     assert.true(seen.marker, 'SPY CHECK: the modal-dialog override is what rendered');
     assert.ok(seen.didRenders > 0, 'SPY CHECK: modal-dialog didRender ran at all');

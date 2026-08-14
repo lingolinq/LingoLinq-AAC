@@ -775,7 +775,17 @@ export default Service.extend({
   // RESTORE, so flipping the flag on takes effect immediately instead of waiting
   // for users to build up new history.
   record_session_location: function() {
-    var user_name = this.get('currentUser.user_name') || this.get('sessionUser.user_name');
+    /* sessionUser FIRST — it is the identity the READER uses. routes/index.js
+       resolves `findRecord('user','self')` and calls
+       `sessionHistory.last_location(model.user_name)`, i.e. the logged-in
+       account. `currentUser` is NOT that account in speak mode: set_current_user
+       (:2417) points it at `speakModeUser` whenever one is set, so a supporter
+       speaking as a communicator filed every location under the COMMUNICATOR's
+       key while their own resume point stayed frozen at whatever preceded speak
+       mode — and the communicator's slot is skipped by the login path anyway,
+       so the writes were simply orphaned. currentUser remains the fallback for
+       the pre-session-record window where sessionUser is not yet assigned. */
+    var user_name = this.get('sessionUser.user_name') || this.get('currentUser.user_name');
     if(!user_name || !this.session.get('isAuthenticated')) { return; }
     var route = null, url = null;
     try {
@@ -2115,6 +2125,14 @@ export default Service.extend({
     this.set('already_homed', false);
     this.set('already_scrolled', false);
     this.set('setup_user', null);
+    /* Sibling of setup_user, and cleared for the same reason: it holds the user
+       record whose page is being viewed, which the supervising-context pill
+       reads. Today the omission is masked — SPA logout transitions to `index`
+       before this runs, and routes/user#resetController clears it on the way out
+       — but that masking is incidental to hook ordering, and on a shared device
+       a previous account's record surviving a logout is exactly what this method
+       exists to prevent. */
+    this.set('page_user', null);
     this.set('pairing', null);
 
     // Per-user route memory (next route transition would overwrite anyway,
@@ -3697,7 +3715,13 @@ export default Service.extend({
          opened, so the pill is suppressed on the whole board-detail subtree
          (.index = speak, .edit = editing). */
       var route = this.get('current_route') || '';
-      if(route.indexOf('user.board-detail') === 0) { return null; }
+      /* BOTH full-viewport board routes. `user.board-alt` (router.js:150,
+         `/:user_id/board/:boardname`) is where anyone with
+         `preferences.board_view_style === 'classic'` is sent (app-state.js:965-976),
+         so testing only `board-detail` left the pill floating over a live
+         classic board — pointer-events:none, so it could not steal a tap, but it
+         still occluded buttons on a communication surface. */
+      if(route.indexOf('user.board-detail') === 0 || route.indexOf('user.board-alt') === 0) { return null; }
       var context = supervising_context_for(this.get('page_user')) ||
                     supervising_context_for(this.get('setup_user'));
       if(!context) { return null; }

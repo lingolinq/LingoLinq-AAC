@@ -78,7 +78,16 @@ export default Controller.extend({
     }
   ),
   formattedDateRange: alias('report_summary.formattedDateRange'),
-  hasReportData: alias('report_summary.hasReportData'),
+  /* Gated on `status` as well as the payload, the same way `some_data` gates the
+     detail block below. `report_summary.hasReportData` only knows whether the
+     stats object it was handed has data — but `load_charts` sets `status` and
+     leaves the PREVIOUS `usage_stats` in place until the new period resolves,
+     while `onPeriodChange` mutates `usage_stats.filter` immediately. A bare
+     alias therefore showed the old period's KPIs, insights and trend underneath
+     the newly-selected period's name for the whole request. */
+  hasReportData: computed('report_summary.hasReportData', 'status', function() {
+    return !!(this.get('report_summary.hasReportData') && !this.get('status'));
+  }),
   comparisonAvailable: alias('report_summary.comparisonAvailable'),
   comparisonPeriodLabel: alias('report_summary.comparisonPeriodLabel'),
   comparisonBasis: alias('report_summary.comparisonBasis'),

@@ -1052,10 +1052,14 @@ $report-icon-tints: (
 
 // Width is set inline to the row's own percentage of the total, so the mark can
 // never disagree with the number printed beside it.
+// No `min-width` floor. One was here to keep a tiny share visible, but it made
+// the mark disagree with its own label — in a ~300px track a row printed as
+// 0.2% drew at ~1%, and every sub-1% category drew identically whatever it
+// said. The row already names itself and prints its exact share, so a hairline
+// bar is honest where a floored one is not.
 .report-bar-list__bar {
   display: block;
   height: 100%;
-  min-width: 3px;
   border-radius: 999px;
   background: var(--report-verdigris-aa);
 }
@@ -1336,11 +1340,17 @@ $report-icon-tints: (
     align-items: flex-start;
   }
 
-  .report-kpis {
+  /* `:not()`-guarded because compare mode carries BOTH classes. A media query
+     adds no specificity, and these sit later in the file than
+     `.report-kpis--compare` / `.report-kpi--compact`, so an unguarded rule at
+     equal specificity silently won: compare mode lost its two-column grid from
+     864px down (not 576px as authored, which made the 576px compare block below
+     dead code) and every compact card grew 28px — ~224px per column over eight. */
+  .report-kpis:not(.report-kpis--compare) {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .report-kpi {
+  .report-kpi:not(.report-kpi--compact) {
     min-height: 104px;
   }
 }

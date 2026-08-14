@@ -52,10 +52,10 @@ export default Component.extend({
         fringe_style: htmlSafe('width: ' + fringe_percent + '%;'),
         // The track is decorative on its own — this sentence is what a screen
         // reader announces in its place.
-        summary: i18n.t('core_fringe_summary', "%{core_percent} of words used were core words, %{fringe_percent} were fringe words.", {
-          core_percent: percent_label(core_percent),
-          fringe_percent: percent_label(fringe_percent)
-        })
+        // ONE LINE on purpose: i18n_generator.rb parses `i18n.t(` line by line and
+        // needs the closing paren on the same line (:109-127), so a wrapped call
+        // is reported "== MISSING ==" and blocks generation entirely.
+        summary: i18n.t('core_fringe_summary', "%{core_percent} of words used were core words, %{fringe_percent} were fringe words.", {core_percent: percent_label(core_percent), fringe_percent: percent_label(fringe_percent)})
       };
     }
   )

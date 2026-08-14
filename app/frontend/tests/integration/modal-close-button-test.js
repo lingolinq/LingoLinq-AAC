@@ -19,8 +19,8 @@ import * as QUnit from 'qunit';
  * Defect 1 — the X close button.
  *
  * 258 close buttons app-wide bind `{{on "click" (this.ctrlAction "close")}}`, a
- * factory defined in init(). caseload-guide and modeling-intro instead bound
- * `{{on "click" this.onClose}}` — a bare property they assigned in
+ * factory defined in init(). modeling-intro instead bound
+ * `{{on "click" this.onClose}}` — a bare property it assigned in
  * didInsertElement, i.e. AFTER the template installs the modifier. The modifier
  * captured `undefined` and threw
  * `Cannot read properties of undefined (reading 'bind')` at install, leaving the
@@ -40,7 +40,9 @@ QUnit.module('Unit | modal close handlers are bound before render', function(hoo
    * button on `{{#if @onClose}}`, so an undefined handler meant the close button
    * was never RENDERED — and @onCancel / @onSubmitSuccess were dead as well.
    */
-  ['caseload-guide', 'modeling-intro', 'beta-feedback-modal', 'speak-mode-intro'].forEach(function(name) {
+  /* caseload-guide was the first case found and is no longer in the list because
+     the component was deleted with the caseload guided tour. */
+  ['modeling-intro', 'beta-feedback-modal', 'speak-mode-intro'].forEach(function(name) {
     QUnit.test(name + ' exposes its handlers at construction', function(assert) {
       var component = this.owner.factoryFor('component:' + name).create();
 

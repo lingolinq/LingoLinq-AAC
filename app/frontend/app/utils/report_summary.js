@@ -232,6 +232,17 @@ function buildPrimaryInsight(stats, comparison) {
   if(!comparison.available) { return snapshot; }
 
   var pct = percentChange(comparison.later.utterances, comparison.earlier.utterances);
+  /* `comparison.available` is gated on SESSIONS in the earlier half, but this
+     headline is about UTTERANCES. With sessions but no utterances to compare
+     against, percentChange returns null and toneForPercent(null) reads as
+     'neutral' — which printed "Communication stayed steady" while the Utterances
+     KPI beside it took the small-baseline branch and read "Increase". Two
+     contradictory claims about the same metric, and the steady one is the
+     false one: going from no utterances to some is the opposite of no change.
+     Fall back to the neutral snapshot, which states the totals without
+     characterising a trend there is no baseline for. Common trigger: button use
+     without the sentence box early in the range. */
+  if(pct === null) { return snapshot; }
   var tone = toneForPercent(pct);
   if(tone === 'positive') {
     return {
@@ -400,15 +411,27 @@ function buildTrend(rows) {
     };
   }
 
+  /* Buckets are anchored to the END of the range, so any short week is the
+     FIRST point, never the last. Counting weeks forward from index 0 left the
+     remainder on the most recent bucket — a 60-day range ended on a 4-day sum
+     plotted beside 7-day sums, i.e. a ~43% drop produced purely by bucket
+     width. On a progress chart that reads as a collapse in the communicator's
+     recent activity, which is the one misreading this panel must not cause.
+     Sums are kept (not averaged) so the values still mean what the legend and
+     the data table say; `days` travels with each point so a consumer can
+     disclose a short leading bucket. */
+  var remainder = rows.length % 7;
   var buckets = [];
   var current = null;
   rows.forEach(function(row, idx) {
-    if(idx % 7 === 0) {
-      current = {key: row.day, label: formatDay(row.day), utterances: 0, words: 0};
+    // The first boundary falls at the remainder, then every 7 rows after it.
+    if(idx === 0 || idx === remainder || (idx > remainder && (idx - remainder) % 7 === 0)) {
+      current = {key: row.day, label: formatDay(row.day), utterances: 0, words: 0, days: 0};
       buckets.push(current);
     }
     current.utterances += num(row['total_utterances']);
     current.words += num(row['total_words']);
+    current.days += 1;
   });
   return {available: true, granularity: 'week', points: buckets};
 }
@@ -486,11 +509,10 @@ export function analyze(stats) {
     // Spelled out under the KPI row so the arrows are never unexplained: every
     // change on this page is the later half of the selected range measured
     // against its earlier half, both named by their actual dates.
-    comparisonBasis: comparison.available ? i18n.t(
-      'report_comparison_basis',
-      "Every change below compares the later half of the selected period (%{later}) with its earlier half (%{earlier}).",
-      {later: comparison.later_label, earlier: comparison.label}
-    ) : '',
+    // ONE LINE: i18n_generator.rb scans for `i18n.t(` line by line (:96-127), so a
+    // wrapped call is invisible to it — this key silently never reached en.json and
+    // was therefore never sent for translation.
+    comparisonBasis: comparison.available ? i18n.t('report_comparison_basis', "Every change below compares the later half of the selected period (%{later}) with its earlier half (%{earlier}).", {later: comparison.later_label, earlier: comparison.label}) : '',
     primaryInsight: buildPrimaryInsight(stats, comparison),
     summaryMetrics: buildSummaryMetrics(stats, comparison),
     reportInsights: insights,

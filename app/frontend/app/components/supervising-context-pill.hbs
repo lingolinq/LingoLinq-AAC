@@ -1,4 +1,4 @@
-{{#if this.message}}
+{{#if this.display_name}}
   {{!-- The anchor is a zero-height positioned wrapper: it gives the absolutely
        positioned pill a containing block INSIDE the scrolling #content, so the
        pill scrolls away with the page instead of following the reader down it.
@@ -11,7 +11,7 @@
       <span class="ll-supervising-pill__status" aria-hidden="true">
         <span class="ll-supervising-pill__status-dot"></span>
       </span>
-      <span class="ll-supervising-pill__text">{{this.message}}</span>
+      <span class="ll-supervising-pill__text">{{t "Viewing %{name}" key="supervising_context_viewing_name" name=this.display_name}}</span>
     </div>
   </div>
 {{/if}}

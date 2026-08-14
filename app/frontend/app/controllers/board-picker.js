@@ -93,9 +93,16 @@ export default Controller.extend({
   // `!user.save` guard in assign_default_home_board and showed "Home board update
   // failed unexpectedly". The supervisor flow (?user_id=X) was unaffected, which is
   // why the QA script — which only exercises --supervisee — passed 27/27 over it.
+  /* Set by routes/board-picker on entry and cleared on exit. `appState.setup_user`
+     is global state that outlives this route, so the controller must not keep
+     writing to it once the route is gone — the async observer below otherwise
+     fires one last time during teardown. */
+  _route_active: false,
+
   _resolve_setup_user: function() {
     var _this = this;
     if (!_this.appState || !_this.appState.controller) { return; }
+    if (!_this.get('_route_active')) { return; }
 
     var new_setup_user_id = _this.get('user_id');
     if (_this.appState.controller.get('setup_user_id') !== new_setup_user_id) {
@@ -103,7 +110,21 @@ export default Controller.extend({
     }
 
     if (_this.get('user_id')) {
-      if (_this.get('user_id') != _this.get('setup_user.id')) {
+      if (_this.get('user_id') == _this.get('setup_user.id')) {
+        /* Already resolved, but appState may NOT still hold it. This controller
+           is a singleton, so `setup_user` survives route teardown, while
+           routes/board-picker#deactivate nulls `appState.setup_user` — so on a
+           second visit to the same ?user_id the old `!=` guard skipped this
+           whole block and left appState null for the entire visit.
+           `board-preview-overlay#pick_for_home` reads
+           `app_state.get('setup_user') || app_state.get('currentUser')`, so the
+           pick was assigned to THE SUPERVISOR while the page header (which reads
+           this controller's copy) still named the communicator.
+           appState is the copy every consumer reads, so re-assert it on every
+           pass rather than only when the record has to be fetched. */
+        _this.set('other_user', null);
+        _this.appState.set('setup_user', _this.get('setup_user'));
+      } else {
         _this.set('other_user', { loading: true });
         _this.set('setup_user', null);
         _this.appState.set('setup_user', null);
