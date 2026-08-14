@@ -818,7 +818,13 @@
       "appliesWhen": {
         "summary": "district sales/procurement"
       },
-      "whyItMatters": "District reviewers need a coherent packet, not a collection of inconsistent source documents."
+      "whyItMatters": "District reviewers need a coherent packet, not a collection of inconsistent source documents.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-13",
+        "via": "PR #792 draft-review instruction (District Ready milestone pass). Evidence: per DOCUMENT-REGISTER.json, the git-canonical 'LingoLinq Security, Privacy & Compliance Overview' is itself status=superseded (not just its mirrors). Per LAUNCH-PROFILE.json meta.sources, both drive-internal-program and drive-external-overview are superseded:true with only 2026-08-11 DRAFT - DO NOT SHARE cleanup copies pending re-attestation; no current attested trust-pack source exists anywhere. humanStatus/blocking unchanged."
+      }
     },
     {
       "id": "district-ready-subprocessors",
@@ -834,7 +840,13 @@
       "appliesWhen": {
         "summary": "district sales/procurement"
       },
-      "whyItMatters": "Vendor diligence depends on a complete and truthful subprocessor/data-flow inventory."
+      "whyItMatters": "Vendor diligence depends on a complete and truthful subprocessor/data-flow inventory.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-13",
+        "via": "PR #792 draft-review instruction (District Ready milestone pass). Evidence: per DOCUMENT-REGISTER.json, the git-canonical Subprocessor Register is approved and current (attested 2026-08-08), but the Drive branded copy districts actually see is attested 2026-06-19 - 7 weeks stale, predating the August refresh - and a 2026-07-06 re-branded draft has never been formally added to the register per the standing project_subprocessor_register_july_refresh_pending follow-up. 'Internally consistent' is not yet true of the customer-facing artifact. humanStatus/blocking unchanged."
+      }
     },
     {
       "id": "district-ready-retention",
@@ -855,7 +867,13 @@
       "appliesWhen": {
         "summary": "district sales/procurement"
       },
-      "whyItMatters": "Districts increasingly ask not only what retention is promised but how it is technically enforced."
+      "whyItMatters": "Districts increasingly ask not only what retention is promised but how it is technically enforced.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-13",
+        "via": "PR #792 draft-review instruction (District Ready milestone pass). Evidence: all 4 linked findings confirmed open in FINDINGS.json (LL-1890f6a922 accepted/backlogged, LL-14edf1a801/LL-caf2528468/LL-3bb2e2eaad untriaged) - none closed or remediated-unverified. humanStatus/blocking unchanged."
+      }
     },
     {
       "id": "district-ready-ai-governance",
@@ -871,7 +889,13 @@
       "appliesWhen": {
         "summary": "AI is offered"
       },
-      "whyItMatters": "AI procurement review increasingly requires clear data-flow and governance answers."
+      "whyItMatters": "AI procurement review increasingly requires clear data-flow and governance answers.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-13",
+        "via": "PR #792 draft-review instruction (District Ready milestone pass). Evidence: git-canonical AI Governance Memo is published/current (attested 2026-08-04); the Drive branded copy districts see is attested 2026-06-19, 7 weeks stale. The org-level AI-disable control is real and server-side (lib/feature_flags.rb#ai_enabled_for?, verified during the School Beta pass), but Bedrock account-proof still has no recorded runtime evidence beyond code/test verification. humanStatus/blocking unchanged."
+      }
     },
     {
       "id": "district-ready-accessibility",
@@ -883,11 +907,17 @@
       "blocking": true,
       "findingIds": [],
       "findingScope": "applicable WCAG findings",
-      "verificationRequired": "external-review",
+      "verificationRequired": "attestation",
       "appliesWhen": {
         "summary": "always"
       },
-      "whyItMatters": "District accessibility review requires evidence beyond informal claims."
+      "whyItMatters": "District accessibility review requires evidence beyond informal claims.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-13",
+        "via": "PR #792 draft-review instruction (District Ready milestone pass). verificationRequired changed external-review -> attestation: the requirement text asks only for documented automated/manual testing, known limitations, and remediation status, not independent conformance review - independent formal review is assurance-vpat-acr's job under Long-Term Assurance, and requiring it here made the two milestones overlap/reversed. Verified this is a safe change: verificationRequired only affects rendering via claimed_done_substate (scripts/readiness-check.rb:619-620), which runs only for humanStatus=claimed-done; this row stays in-progress, so the change has no effect on current derived status or rendering, only on what would be asked for if this row is later promoted. humanStatus/blocking unchanged. Evidence: 12 open WCAG-flavored findings in FINDINGS.json (2 High, 10 Medium), all from internal automated scans; no external accessibility review has occurred, so in-progress remains correct regardless of the verification-mode change."
+      }
     },
     {
       "id": "district-ready-incident-response",
@@ -903,7 +933,13 @@
       "appliesWhen": {
         "summary": "district sales/procurement"
       },
-      "whyItMatters": "Procurement teams need a credible operational response posture."
+      "whyItMatters": "Procurement teams need a credible operational response posture.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-13",
+        "via": "PR #792 draft-review instruction (District Ready milestone pass). Evidence, distinguishing repo from mirror as this row is specifically about the customer-facing artifact: docs/legal/BREACH_RUNBOOK.md (git) is approved, attested 2026-07-28, GCP/Cloud Run-refreshed; the Drive branded mirror - what a district actually receives - is attested 2026-06-19, predating that refresh. Distinct scope from public-mvp-incident-runbook (that row is the runbook's own operational usability, not the customer-facing summary artifact's currency). humanStatus/blocking unchanged."
+      }
     },
     {
       "id": "district-ready-email-domain",
@@ -921,7 +957,13 @@
       "appliesWhen": {
         "summary": "product email is used"
       },
-      "whyItMatters": "Password reset, consent, and school communications depend on trustworthy authenticated mail."
+      "whyItMatters": "Password reset, consent, and school communications depend on trustworthy authenticated mail.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-13",
+        "via": "PR #792 draft-review instruction (District Ready milestone pass). Evidence: LL-abd6c88733 confirmed open, low severity, untriaged. Git history shows only register-tracking commits (#624, #641) - no SPF/DKIM/MAIL FROM fix has landed. humanStatus/blocking unchanged."
+      }
     },
     {
       "id": "district-ready-supply-chain",
@@ -937,7 +979,13 @@
       "appliesWhen": {
         "summary": "always"
       },
-      "whyItMatters": "District security review increasingly examines software supply-chain assurance."
+      "whyItMatters": "District security review increasingly examines software supply-chain assurance.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-13",
+        "via": "PR #792 draft-review instruction (District Ready milestone pass). Evidence: current ci.yml shows real hardening since some findings were filed - secret-detection (gitleaks) is now its own blocking job (exit-code 1, wired to required-status-checks) and bundle-audit has no continue-on-error (blocking); brakeman and npm audit remain continue-on-error:true (advisory). Multiple supply-chain findings remain open (LL-107c9fb665 Render auto-deploy bypasses CI gating, LL-5ae3d7ca2c no GITHUB_TOKEN permissions scoping, several EOL/abandoned deps). LL-52ff2a9a79 ('security-scan entirely non-blocking') is now partially stale given the gitleaks/bundle-audit hardening, but per instruction that is left alone for a later compliance-registrar re-triage pass, not rewritten here - FINDINGS.json stays read-only to this layer. humanStatus/blocking unchanged."
+      }
     },
     {
       "id": "district-ready-interoperability",
@@ -945,7 +993,7 @@
       "type": "deliverable",
       "area": "district-readiness",
       "text": "Required import/export/admin interoperability for the intended deployment model is documented and tested.",
-      "humanStatus": "future",
+      "humanStatus": "in-progress",
       "blocking": false,
       "findingIds": [],
       "findingScope": null,
@@ -953,7 +1001,13 @@
       "appliesWhen": {
         "summary": "deployment/buyer requires it"
       },
-      "whyItMatters": "Interoperability is increasingly a procurement and implementation criterion."
+      "whyItMatters": "Interoperability is increasingly a procurement and implementation criterion.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-13",
+        "via": "PR #792 draft-review instruction (District Ready milestone pass). humanStatus changed future -> in-progress: real, spec-tested admin/deployment interoperability already exists - SAML SSO (Organization#find_saml_user/find_saml_alias/find_by_saml_issuer, extensive rspec coverage) plus CSV bulk user import via SAML (Organization#import_saml_users(csv_str)), plus the longstanding OBF/OBZ board import/export (lib/exporter.rb, lib/converters/). 'future' incorrectly implied no capability exists yet. Not upgraded to claimed-done: no district-facing setup documentation for the SAML/CSV import flow was found, so 'documented and tested' is not yet fully met. blocking stays false (unchanged)."
+      }
     },
     {
       "id": "assurance-vpat-acr",
