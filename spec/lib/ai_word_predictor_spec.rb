@@ -3,6 +3,229 @@
 require 'spec_helper'
 
 describe AiWordPredictor do
+  # The account assertion must not sit in front of the response cache: a FAILED
+  # check re-probes every 60s while holding a process-global mutex, which would
+  # stall requests that were about to return instantly from CACHE.
+  describe 'the account assertion and the response cache' do
+    after { AiClient.reset_account_verification! }
+
+    it 'serves a cache hit without probing STS' do
+      described_class::CACHE.clear
+      # The key is an opaque digest of SCRUBBED, tenant-scoped input, so it can no
+      # longer be written as a literal. Build it the way production does.
+      # normalize_context(nil) yields time_of_day 'unspecified' and an empty topic.
+      key = described_class.send(
+        :cache_key_for, 'hello there', 'en',
+        { time_of_day: 'unspecified', topic: '' }, nil
+      )
+      described_class::CACHE[key] =
+        { words: %w[friend world], ts: Process.clock_gettime(Process::CLOCK_MONOTONIC) }
+
+      begin
+        ENV['BEDROCK_AWS_REGION'] = 'us-west-2'
+        ENV['BEDROCK_AWS_KEY'] = 'k'
+        ENV['BEDROCK_AWS_SECRET'] = 's'
+        ENV['BEDROCK_EXPECTED_AWS_ACCOUNT'] = '239044785114'
+        AiClient.reset_account_verification!
+
+        expect(Aws::STS::Client).not_to receive(:new)
+        expect(described_class.predict(sentence: 'Hello There')).to eq(%w[friend world])
+      ensure
+        %w[BEDROCK_AWS_REGION BEDROCK_AWS_KEY BEDROCK_AWS_SECRET
+           BEDROCK_EXPECTED_AWS_ACCOUNT].each { |k| ENV.delete(k) }
+        described_class::CACHE.clear
+      end
+    end
+
+    it 'still refuses past the cache when the account does not verify' do
+      described_class::CACHE.clear
+      begin
+        ENV['BEDROCK_AWS_REGION'] = 'us-west-2'
+        ENV['BEDROCK_AWS_KEY'] = 'k'
+        ENV['BEDROCK_AWS_SECRET'] = 's'
+        ENV['BEDROCK_EXPECTED_AWS_ACCOUNT'] = '239044785114'
+        AiClient.reset_account_verification!
+
+        sts = double('sts')
+        allow(sts).to receive(:get_caller_identity)
+          .and_return(double('id', account: '111122223333'))
+        allow(Aws::STS::Client).to receive(:new).and_return(sts)
+
+        expect(described_class.predict(sentence: 'a fresh uncached sentence')).to eq([])
+      ensure
+        %w[BEDROCK_AWS_REGION BEDROCK_AWS_KEY BEDROCK_AWS_SECRET
+           BEDROCK_EXPECTED_AWS_ACCOUNT].each { |k| ENV.delete(k) }
+        described_class::CACHE.clear
+      end
+    end
+  end
+  # Finding LL-16ef84ad9a: the cache key used to be
+  # "#{locale}:#{sentence.strip.downcase}:..." built BEFORE PiiScrubber ran, in a
+  # process-global hash with no tenant discriminator and no expiry until capacity
+  # eviction. Each property below is one clause of that finding.
+  describe 'response-cache confidentiality (LL-16ef84ad9a)' do
+    let(:predict_call) { ->(**kw) { described_class.predict(**kw) } }
+
+    around(:each) do |example|
+      old = ENV.to_h.slice('BEDROCK_AWS_REGION', 'BEDROCK_AWS_KEY', 'BEDROCK_AWS_SECRET')
+      ENV['BEDROCK_AWS_REGION'] = 'us-west-2'
+      ENV['BEDROCK_AWS_KEY'] = 'test-bedrock-key'
+      ENV['BEDROCK_AWS_SECRET'] = 'test-bedrock-secret'
+      described_class::CACHE.clear
+      PiiScrubber.reset_blocklist!
+      example.run
+    ensure
+      %w[BEDROCK_AWS_REGION BEDROCK_AWS_KEY BEDROCK_AWS_SECRET].each { |k| ENV.delete(k) }
+      old.each { |k, v| ENV[k] = v }
+      described_class::CACHE.clear
+      PiiScrubber.reset_blocklist!
+    end
+
+    before(:each) do
+      allow(AiApiLog).to receive(:log_ai_call)
+      allow(FeatureFlags).to receive(:ai_feature_enabled_for?).and_return(true)
+      allow(described_class).to receive(:call_anthropic)
+        .and_return(anthropic_response('play, go, eat, help'))
+    end
+
+    it 'never puts the user sentence in the key' do
+      described_class.predict(sentence: 'i want to go to the hospital')
+
+      expect(described_class::CACHE.size).to eq(1)
+      key = described_class::CACHE.keys.first
+      expect(key).to match(/\A[0-9a-f]{64}\z/)
+      %w[hospital want go].each { |word| expect(key).not_to include(word) }
+    end
+
+    it 'keys on scrubbed text, so redacted PII cannot reach the key' do
+      described_class.predict(sentence: 'email me at jane@example.com')
+      with_pii = described_class::CACHE.keys.first
+
+      described_class::CACHE.clear
+      described_class.predict(sentence: 'email me at [REDACTED_EMAIL]')
+      already_scrubbed = described_class::CACHE.keys.first
+
+      # Identical because the key is derived AFTER redaction. If the raw sentence
+      # still reached the key these would differ, which is the regression guard.
+      expect(with_pii).to eq(already_scrubbed)
+    end
+
+    # Removing the raw sentence from the key was necessary but not sufficient.
+    # AAC utterances are short, high-frequency and drawn from a small realistic
+    # space, so an UNSALTED SHA-256 of one is recoverable by dictionary attack --
+    # by exactly the reader LL-16ef84ad9a is written about, someone who can
+    # inspect process memory. The per-process salt is what makes "not
+    # recoverable" true rather than merely "not plaintext".
+    it 'salts the digest, so the key is not a reversible hash of the utterance' do
+      sentence = 'i want to go to the hospital'
+      described_class.predict(sentence: sentence)
+      key = described_class::CACHE.keys.first
+
+      scrubbed = PiiScrubber.redact_for_ai(sentence)[:payload]
+      ctx = described_class.send(:normalize_context, nil)
+      unsalted = Digest::SHA256.hexdigest(
+        [
+          described_class.send(:cache_scope, nil),
+          'en',
+          scrubbed.to_s.strip.downcase,
+          ctx[:time_of_day].to_s,
+          ctx[:topic].to_s
+        ].join("\x00")
+      )
+
+      # An attacker who knows the algorithm and guesses the sentence still cannot
+      # confirm the guess without the salt, which never leaves the process.
+      expect(key).not_to eq(unsalted)
+      expect(described_class::CACHE_SALT).to match(/\A[0-9a-f]{64}\z/)
+    end
+
+    it 'still returns a cache hit for a repeated utterance in the same process' do
+      # The salt must not defeat the cache it protects: it is constant per
+      # process, so an identical request still hits.
+      described_class.predict(sentence: 'i want more juice')
+      described_class.predict(sentence: 'i want more juice')
+
+      expect(described_class::CACHE.size).to eq(1)
+      expect(described_class).to have_received(:call_anthropic).once
+    end
+
+    context 'tenant isolation' do
+      # managing_organization_id is a plain integer column; cache_scope reads it
+      # rather than calling User#managing_organization, which would query.
+      let(:district_a) { User.new(settings: {}).tap { |u| u.managing_organization_id = 11 } }
+      let(:district_b) { User.new(settings: {}).tap { |u| u.managing_organization_id = 22 } }
+      let(:same_as_a)  { User.new(settings: {}).tap { |u| u.managing_organization_id = 11 } }
+
+      it 'does not let one organization read another organization entry' do
+        described_class.predict(sentence: 'i feel sick today', user: district_a)
+        expect(described_class::CACHE.size).to eq(1)
+
+        described_class.predict(sentence: 'i feel sick today', user: district_b)
+
+        # A second distinct entry, not a hit on district A's.
+        expect(described_class::CACHE.size).to eq(2)
+        expect(described_class).to have_received(:call_anthropic).twice
+      end
+
+      it 'still shares within one organization, so the cache keeps working' do
+        described_class.predict(sentence: 'i feel sick today', user: district_a)
+        described_class.predict(sentence: 'i feel sick today', user: same_as_a)
+
+        expect(described_class::CACHE.size).to eq(1)
+        expect(described_class).to have_received(:call_anthropic).once
+      end
+
+      it 'gives a user with no sponsoring organization a private scope' do
+        loner = User.new(settings: {})
+        allow(loner).to receive(:global_id).and_return('1_999')
+
+        expect(described_class.send(:cache_scope, loner)).to eq('user:1_999')
+        expect(described_class.send(:cache_scope, district_a)).to eq('org:11')
+        expect(described_class.send(:cache_scope, nil)).to eq('anon')
+      end
+    end
+
+    context 'expiry' do
+      it 'does not serve an entry past the TTL' do
+        described_class.predict(sentence: 'i want to')
+        key = described_class::CACHE.keys.first
+        described_class::CACHE[key][:ts] -= (described_class::CACHE_TTL + 1)
+
+        described_class.predict(sentence: 'i want to')
+
+        expect(described_class).to have_received(:call_anthropic).twice
+      end
+
+      it 'sweeps expired entries on write instead of holding them until the cache fills' do
+        described_class.predict(sentence: 'first sentence')
+        stale_key = described_class::CACHE.keys.first
+        described_class::CACHE[stale_key][:ts] -= (described_class::CACHE_TTL + 1)
+
+        # A write for an unrelated sentence, nowhere near CACHE_MAX.
+        described_class.predict(sentence: 'a completely different sentence')
+
+        expect(described_class::CACHE).not_to have_key(stale_key)
+        expect(described_class::CACHE.size).to eq(1)
+      end
+
+      it 'uses a monotonic timestamp so a wall-clock step cannot extend an entry' do
+        described_class.predict(sentence: 'i want to')
+        ts = described_class::CACHE.values.first[:ts]
+
+        expect(ts).to be_a(Float)
+        expect(ts).to be_within(5.0).of(Process.clock_gettime(Process::CLOCK_MONOTONIC))
+      end
+    end
+
+    it 'applies the same protection to the token entry point' do
+      described_class.predict_from_tokens(words: %w[i feel sick], user: nil)
+
+      key = described_class::CACHE.keys.first
+      expect(key).to match(/\A[0-9a-f]{64}\z/)
+      expect(key).not_to include('sick')
+    end
+  end
+
   def anthropic_response(text)
     usage = double('usage', input_tokens: 10, output_tokens: 5)
     block = double('text_block', type: 'text', text: text)

@@ -107,7 +107,15 @@ module EvalNarrator
     # deterministic local template and no eval data leaves for the AI
     # provider. This default-safe posture is in addition to the ai_allowed_for?
     # COPPA/org gate, not a replacement for it.
-    if anthropic_configured? && payload['use_anthropic'] == true && ai_allowed_for?(user)
+    #
+    # Order is load-bearing. anthropic_configured? calls AiClient.available?, which
+    # performs the sts:GetCallerIdentity account assertion; a FAILED assertion
+    # re-probes every 60s holding a process-global mutex for up to 5s. Evaluating it
+    # first made EVERY draft pay that cost, including template-only drafts that never
+    # asked for AI and AI-ineligible users about to be refused. The two cheap local
+    # checks decide whether an AI call is wanted and permitted, so they come first
+    # and Ruby's left-to-right && short-circuits the probe away entirely.
+    if payload['use_anthropic'] == true && ai_allowed_for?(user) && anthropic_configured?
       begin
         narrative, marker = draft_via_anthropic(payload, user)
         return { 'narrative' => narrative, 'ai_generated' => marker }
@@ -236,10 +244,19 @@ module EvalNarrator
     [narrative, marker]
   end
 
-  # Claude-on-AWS-Bedrock call (Mantle client via AiClient). Isolated so specs can
-  # stub the network boundary, matching AiWordPredictor / AiBoardGenerator.
+  # Claude-on-AWS-Bedrock call via AiClient (whichever plane BEDROCK_PLANE selects).
+  # Isolated so specs can stub the network boundary, matching AiWordPredictor /
+  # AiBoardGenerator.
+  #
+  # NOTE: `model` here is the allowlisted alias, deliberately NOT passed through
+  # AiClient.bedrock_model. On the classic plane the current default alias
+  # (Opus 4.7) has no inference-profile mapping because that model is absent from
+  # the classic catalog entirely, so this call fails and draft_narrative falls back
+  # to the deterministic template. Routing eval narration to an invokable model is
+  # a separate change: it alters the model named in the Article 50 and consent
+  # disclosures, so it needs those updated in the same commit.
   def self.call_anthropic(model:, system_prompt:, user_content:)
-    client = AiClient.build
+    client = AiClient.build!
     client.messages.create(
       model: model,
       max_tokens: 1200,
@@ -326,8 +343,14 @@ module EvalNarrator
     Rails.logger.warn "EvalNarrator: failed to log AI API call: #{e.message}" if defined?(Rails)
   end
 
+  # Asks AiClient whether the ACTIVE Bedrock plane's client class is loaded,
+  # rather than naming one plane's constant. Hardcoding BedrockMantleClient here
+  # was a latent bug: the constant is defined by the anthropic gem regardless of
+  # which plane is selected, so this check passed even when the Mantle client
+  # could never be built, and it would have gone false for the wrong reason had
+  # the gem ever dropped that constant while classic was active.
   def self.anthropic_configured?
-    AiClient.configured? && defined?(::Anthropic::BedrockMantleClient)
+    AiClient.available? && AiClient.client_defined?
   end
 
   # Template-based deterministic draft. Pulls only fields that are

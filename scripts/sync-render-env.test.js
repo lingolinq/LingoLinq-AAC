@@ -18,6 +18,20 @@
 
 const https = require('https');
 const { EventEmitter } = require('events');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
+// The synchronizer normally reads the operator's brain .env file. Tests must
+// never load it: even masked output can disclose secret prefixes in CI logs.
+const testHome = fs.mkdtempSync(path.join(os.tmpdir(), 'sre-home-'));
+const testConfigDir = path.join(testHome, 'ai-company-brain', 'config');
+fs.mkdirSync(testConfigDir, { recursive: true });
+fs.writeFileSync(path.join(testConfigDir, '.env'), [
+  'BEDROCK_AWS_KEY=test-bedrock-key',
+  'BEDROCK_AWS_SECRET=test-bedrock-secret',
+].join('\n'));
+os.homedir = () => testHome;
 
 // --- https mock (patch before exercising the module under test) ------------
 
@@ -47,7 +61,13 @@ process.env.RENDER_API_KEY = 'test-key-never-used-for-real-calls';
 // Keep notifyKeyRotation on its deterministic "skipping" path.
 delete process.env.GOOGLE_CHAT_WEBHOOK_KEY_ROTATION;
 
-const { getRenderEnvVars, sync, syncFailures } = require('./sync-render-env.js');
+const {
+  getRenderEnvVars,
+  sync,
+  syncFailures,
+  KEY_MANIFEST,
+  valuesForRenderEnvironments,
+} = require('./sync-render-env.js');
 
 // --- tiny harness -----------------------------------------------------------
 
@@ -77,6 +97,25 @@ function envVarPage(pairs, withCursor) {
     envVar: { key, value },
     ...(withCursor ? { cursor: `cur-${key}-${i}` } : {}),
   })));
+}
+
+function testBedrockTargetsOnlyDevAndStaging() {
+  const expected = { dev: 'test-value', staging: 'test-value' };
+  for (const key of [
+    'BEDROCK_AWS_KEY',
+    'BEDROCK_AWS_SECRET',
+    'BEDROCK_AWS_REGION',
+    'BEDROCK_EXPECTED_AWS_ACCOUNT',
+  ]) {
+    const values = valuesForRenderEnvironments(KEY_MANIFEST[key], 'test-value');
+    check(`Bedrock Render scope: ${key} targets dev and staging only`,
+      JSON.stringify(values) === JSON.stringify(expected), JSON.stringify(values));
+  }
+  check('Bedrock credential source is environment-specific',
+    KEY_MANIFEST.BEDROCK_AWS_KEY.perEnv === true &&
+      KEY_MANIFEST.BEDROCK_AWS_SECRET.perEnv === true &&
+      !KEY_MANIFEST.BEDROCK_AWS_KEY.vault &&
+      KEY_MANIFEST.BEDROCK_AWS_KEY.item === 'BEDROCK_RUNTIME_AI');
 }
 
 // --- tests ------------------------------------------------------------------
@@ -152,6 +191,52 @@ async function testRepeatedCursorThrows() {
 }
 
 const TEST_SERVICE = { prod: { id: 'srv-test-prod', name: 'test-prod', branch: 'main' } };
+const RENDER_SCOPE_SERVICES = {
+  dev: { id: 'srv-test-dev', name: 'test-dev', branch: 'develop' },
+  staging: { id: 'srv-test-staging', name: 'test-staging', branch: 'staging' },
+  prod: { id: 'srv-test-prod', name: 'test-prod', branch: 'main' },
+};
+
+async function testBedrockSyncNeverTargetsRenderProd() {
+  resetState();
+  const defaults = [
+    ['LD_PRELOAD', '/usr/lib/x86_64-linux-gnu/libjemalloc.so.2'],
+    ['MALLOC_CONF', 'background_thread:true,narenas:2,dirty_decay_ms:1000'],
+    ['RAILS_SERVE_STATIC_FILES', 'enabled'],
+    ['UNMANAGED', 'preserve-me'],
+  ];
+  routeHandler = (options) => {
+    if (options.method === 'GET') return { statusCode: 200, body: envVarPage(defaults, true) };
+    return { statusCode: 200, body: '[]' };
+  };
+  await sync(RENDER_SCOPE_SERVICES, 'env', true);
+  const puts = putRequests();
+  const putServices = puts.map(request => request.path.match(/^\/v1\/services\/([^/]+)/)[1]).sort();
+  check('Bedrock sync: applies only to Render dev and staging',
+    JSON.stringify(putServices) === JSON.stringify(['srv-test-dev', 'srv-test-staging']));
+  for (const request of puts) {
+    const keys = new Set(JSON.parse(request.body).map(item => item.key));
+    check(`Bedrock sync: ${request.path} carries all four required settings`,
+      ['BEDROCK_AWS_KEY', 'BEDROCK_AWS_SECRET', 'BEDROCK_AWS_REGION', 'BEDROCK_EXPECTED_AWS_ACCOUNT']
+        .every(key => keys.has(key)));
+  }
+}
+
+async function testMissingRequiredBedrockCredentialsAbortBeforeAnyPut() {
+  resetState();
+  routeHandler = (options) => {
+    if (options.method === 'GET') return { statusCode: 200, body: envVarPage([['UNMANAGED', 'preserve-me']], true) };
+    return { statusCode: 200, body: '[]' };
+  };
+  await sync(RENDER_SCOPE_SERVICES, 'op', true, {
+    isSignedIn: () => true,
+    readSecret: () => null,
+  });
+  check('Bedrock sync: missing required credentials fail the sync',
+    ['dev:BEDROCK_AWS_KEY', 'dev:BEDROCK_AWS_SECRET', 'staging:BEDROCK_AWS_KEY', 'staging:BEDROCK_AWS_SECRET']
+      .every(failure => syncFailures.includes(failure)), JSON.stringify(syncFailures));
+  check('Bedrock sync: missing credentials issue NO partial static-config PUT', putRequests().length === 0);
+}
 
 async function testApplySkipsOnReadFailure() {
   resetState();
@@ -240,9 +325,6 @@ function testMainExitsNonZeroOnReadFailure() {
   // preloaded via --require so no real network is touched, and assert the
   // process-level exit-1 contract the GitHub Actions workflow depends on.
   const { execFileSync } = require('child_process');
-  const fs = require('fs');
-  const os = require('os');
-  const path = require('path');
   const mockPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'sre-test-')), 'https-401-mock.js');
   fs.writeFileSync(mockPath, `
     const https = require('https');
@@ -264,7 +346,11 @@ function testMainExitsNonZeroOnReadFailure() {
     output = execFileSync(
       process.execPath,
       ['--require', mockPath, path.join(__dirname, 'sync-render-env.js'), '--source', 'env'],
-      { encoding: 'utf8', env: { ...process.env, RENDER_API_KEY: 'test-key' }, stdio: 'pipe' }
+      {
+        encoding: 'utf8',
+        env: { ...process.env, HOME: testHome, RENDER_API_KEY: 'test-key' },
+        stdio: 'pipe',
+      }
     );
   } catch (err) {
     exitCode = err.status;
@@ -285,21 +371,97 @@ async function testDryRunNeverPuts() {
   check('dry-run: issues NO PUT even with pending changes', putRequests().length === 0);
 }
 
+// A --service prod run must not read, calculate, or fail on values belonging to
+// dev/staging. BEDROCK_AWS_KEY is required:true and scoped to ['dev','staging']
+// because prod runs on Cloud Run and mounts it from Secret Manager, so before
+// the fix the read loop still walked dev and staging for it and a missing
+// 1Password entry there aborted the whole prod run via the fail-closed guard.
+async function testServiceFilterDoesNotFailOnUnselectedEnvironments() {
+  resetState();
+  routeHandler = (options) => {
+    if (options.method === 'GET') return { statusCode: 200, body: envVarPage([['UNMANAGED', 'preserve-me']], true) };
+    return { statusCode: 200, body: '[]' };
+  };
+  const readsAttempted = [];
+  await sync(TEST_SERVICE, 'op', true, {
+    isSignedIn: () => true,
+    readSecret: (vault, item, field) => { readsAttempted.push(`${vault}/${item}/${field}`); return null; },
+  });
+  check('--service prod: no dev/staging Bedrock failure blocks the run',
+    !syncFailures.some(f => f.startsWith('dev:') || f.startsWith('staging:')),
+    JSON.stringify(syncFailures));
+  check('--service prod: never reads the dev/staging-only Bedrock item',
+    !readsAttempted.some(r => r.includes('BEDROCK_RUNTIME_AI')),
+    JSON.stringify(readsAttempted));
+}
+
+// A --service prod run must not compute prod values for dev/staging-scoped keys.
+async function testServiceFilterNeverPutsUnselectedScopedKeys() {
+  resetState();
+  routeHandler = (options) => {
+    if (options.method === 'GET') return { statusCode: 200, body: envVarPage([['UNMANAGED', 'preserve-me']], true) };
+    return { statusCode: 200, body: '[]' };
+  };
+  await sync(TEST_SERVICE, 'env', true);
+  const puts = putRequests();
+  const putServices = [...new Set(puts.map(r => r.path.match(/^\/v1\/services\/([^/]+)/)[1]))];
+  check('--service prod: PUTs only the selected service',
+    JSON.stringify(putServices) === JSON.stringify(['srv-test-prod']),
+    JSON.stringify(putServices));
+  for (const request of puts) {
+    const keys = new Set(JSON.parse(request.body).map(item => item.key));
+    check('--service prod: carries no dev/staging-scoped Bedrock settings',
+      !['BEDROCK_AWS_KEY', 'BEDROCK_AWS_SECRET', 'BEDROCK_AWS_REGION', 'BEDROCK_EXPECTED_AWS_ACCOUNT']
+        .some(key => keys.has(key)),
+      JSON.stringify([...keys]));
+  }
+}
+
+// `required` was enforced on the 1Password path only. With --source env, a .env
+// missing a credential still wrote the defaultValue keys (region, expected
+// account) -- exactly the partial configuration the guard claims to prevent.
+async function testEnvSourceEnforcesRequiredBedrockPair() {
+  resetState();
+  const envPath = path.join(testConfigDir, '.env');
+  const original = fs.readFileSync(envPath, 'utf8');
+  fs.writeFileSync(envPath, 'BEDROCK_AWS_KEY=test-bedrock-key\n'); // secret half absent
+  try {
+    routeHandler = (options) => {
+      if (options.method === 'GET') return { statusCode: 200, body: envVarPage([['UNMANAGED', 'preserve-me']], true) };
+      return { statusCode: 200, body: '[]' };
+    };
+    await sync(RENDER_SCOPE_SERVICES, 'env', true);
+    check('--source env: a missing required credential fails the sync',
+      ['dev:BEDROCK_AWS_SECRET', 'staging:BEDROCK_AWS_SECRET'].every(f => syncFailures.includes(f)),
+      JSON.stringify(syncFailures));
+    check('--source env: no partial static Bedrock config is PUT',
+      putRequests().length === 0);
+  } finally {
+    fs.writeFileSync(envPath, original);
+  }
+}
+
 // --- run --------------------------------------------------------------------
 
 (async () => {
+  testBedrockTargetsOnlyDevAndStaging();
   await testReadFailureThrows();
   await testNonArrayResponseThrows();
   await testEmptyOkReadReturnsEmpty();
   await testPaginationFollowsCursor();
   await testShortPageStopsPagination();
   await testRepeatedCursorThrows();
+  await testBedrockSyncNeverTargetsRenderProd();
+  await testMissingRequiredBedrockCredentialsAbortBeforeAnyPut();
   await testApplySkipsOnReadFailure();
   await testApplyRefusesEmptyCurrentList();
   await testApplyPreservesUnmanagedVars();
   await testPartialReadThrowsAndNeverPuts();
   testMainExitsNonZeroOnReadFailure();
   await testDryRunNeverPuts();
+  await testServiceFilterDoesNotFailOnUnselectedEnvironments();
+  await testServiceFilterNeverPutsUnselectedScopedKeys();
+  await testEnvSourceEnforcesRequiredBedrockPair();
 
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail > 0 ? 1 : 0);

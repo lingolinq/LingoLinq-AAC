@@ -67,6 +67,9 @@ gem 'aws-sdk-ses', '~> 1'
 gem 'aws-sdk-elastictranscoder', '~> 1'
 gem 'aws-sdk-cloudfront', '~> 1'
 gem 'aws-sdk-s3', '~> 1'
+# Required by Anthropic::BedrockClient (classic Bedrock plane, see lib/ai_client.rb).
+# The gem hard-requires this at construction; signing still uses aws-sdk-core.
+gem 'aws-sdk-bedrockruntime', '~> 1'
 gem 'http-2'
 gem 'resque', '~> 3.0'
 gem 'puma', '~> 7.2', '>= 7.2.1' # >= 7.2.1 clears CVE-2026-47736 / CVE-2026-47737 (PROXY protocol v1 parser)

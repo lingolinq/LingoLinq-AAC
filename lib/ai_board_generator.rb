@@ -23,13 +23,14 @@ module AiBoardGenerator
     # include_core_words: when true, mix 40-60% core vocabulary with topic-specific; when false, topic-specific only.
     # user: optional User object for audit logging and feature flag checks
     def generate_words(prompt:, rows:, columns:, locale: 'en', include_core_words: true, user: nil)
-      api_config = resolve_api_config
-      if api_config.blank?
-        err = { words: nil, name: nil, description: nil, error: 'AI board generation is not configured' }
-        err.merge!(dev_diag(:configuration,
-          'Set ANTHROPIC_API_KEY in the environment (not only .env for the asset pipeline) and restart Rails. The GEMINI_API_KEY fallback is disabled -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'))
-        return err
-      end
+      # Consent gates run BEFORE resolve_api_config, and the order is load-bearing.
+      # resolve_api_config calls AiClient.available?, which performs the
+      # sts:GetCallerIdentity account assertion. A FAILED assertion re-probes every
+      # 60s while holding a process-global mutex for up to 5s, so checking it first
+      # made a COPPA-blocked or org-opted-out user wait on a network call before
+      # being told no. These three gates are pure local reads; they decide whether
+      # an AI call is permitted at all, which is logically upstream of whether the
+      # credential is usable.
 
       # Check org-level AI opt-out (FERPA/HIPAA compliance)
       if !FeatureFlags.ai_feature_enabled_for?('ai_board_generation', user)
@@ -52,6 +53,19 @@ module AiBoardGenerator
         err = { words: nil, name: nil, description: nil, error: 'AI features require parental consent for this account' }
         err.merge!(dev_diag(:eu_ai_consent_pending,
           'FeatureFlags.eu_under16_blocks_ai_for?(user) returned true. The user is eu_under_16 without eu_ai_parental_consent_active.'))
+        return err
+      end
+
+      api_config = resolve_api_config
+      if api_config.blank?
+        err = { words: nil, name: nil, description: nil, error: 'AI board generation is not configured' }
+        err.merge!(dev_diag(:configuration,
+          'Set BEDROCK_AWS_KEY and BEDROCK_AWS_SECRET (both -- a half pair is ignored), and ' \
+          'BEDROCK_AWS_REGION or AWS_REGION, then restart Rails. If BEDROCK_EXPECTED_AWS_ACCOUNT ' \
+          'is set, the credential must also resolve to that AWS account or AI stays closed; the ' \
+          'preceding [AiClient] log line says which check failed. ANTHROPIC_API_KEY is NOT read ' \
+          'at runtime -- AI egresses to Claude on AWS Bedrock, not api.anthropic.com. The ' \
+          'GEMINI_API_KEY fallback is disabled -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'))
         return err
       end
 
@@ -233,14 +247,7 @@ module AiBoardGenerator
       missing_count = [requested_count - existing_words.length, 0].max
       return { words: [], title: nil, error: nil } if missing_count.zero?
 
-      api_config = resolve_api_config
-      if api_config.blank?
-        err = { words: nil, title: nil, error: 'AI board generation is not configured' }
-        err.merge!(dev_diag(:configuration,
-          'Set ANTHROPIC_API_KEY in the environment (not only .env for the asset pipeline) and restart Rails. The GEMINI_API_KEY fallback is disabled -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'))
-        return err
-      end
-
+      # Consent gates before resolve_api_config -- see the note in generate_words.
       if !FeatureFlags.ai_feature_enabled_for?('ai_board_generation', user)
         err = { words: nil, title: nil, error: 'AI features are disabled for this organization' }
         err.merge!(dev_diag(:org_ai_disabled,
@@ -259,6 +266,19 @@ module AiBoardGenerator
         err = { words: nil, title: nil, error: 'AI features require parental consent for this account' }
         err.merge!(dev_diag(:eu_ai_consent_pending,
           'FeatureFlags.eu_under16_blocks_ai_for?(user) returned true. The user is eu_under_16 without eu_ai_parental_consent_active.'))
+        return err
+      end
+
+      api_config = resolve_api_config
+      if api_config.blank?
+        err = { words: nil, title: nil, error: 'AI board generation is not configured' }
+        err.merge!(dev_diag(:configuration,
+          'Set BEDROCK_AWS_KEY and BEDROCK_AWS_SECRET (both -- a half pair is ignored), and ' \
+          'BEDROCK_AWS_REGION or AWS_REGION, then restart Rails. If BEDROCK_EXPECTED_AWS_ACCOUNT ' \
+          'is set, the credential must also resolve to that AWS account or AI stays closed; the ' \
+          'preceding [AiClient] log line says which check failed. ANTHROPIC_API_KEY is NOT read ' \
+          'at runtime -- AI egresses to Claude on AWS Bedrock, not api.anthropic.com. The ' \
+          'GEMINI_API_KEY fallback is disabled -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'))
         return err
       end
 
@@ -529,17 +549,25 @@ module AiBoardGenerator
     # Bedrock (BAA/HIPAA path) via AiClient, not the direct api.anthropic.com endpoint -- there is
     # no direct-Anthropic fallback.
     def resolve_api_config
-      return nil unless AiClient.configured?
+      return nil unless AiClient.available?
 
       {
         provider: :claude,
         region: AiClient.bedrock_region,
-        model: AiClient.bedrock_model(ENV.fetch('ANTHROPIC_MODEL', DEFAULT_MODEL))
+        # runtime_model, NOT bedrock_model. bedrock_model resolves an id to its wire
+        # form and asks no questions: it passes an already-resolved inference-profile
+        # id straight through by design. So reading ANTHROPIC_MODEL here and handing
+        # it to bedrock_model let an operator point a Tier 1 seam at ANY Bedrock
+        # model -- including a mandatory-retention Covered Model that student
+        # utterances must never reach -- while ALLOWED_RUNTIME_MODELS sat unused.
+        # runtime_model performs the same resolution BEHIND that allowlist, refusing
+        # an unvetted override and falling back to the vetted default.
+        model: AiClient.runtime_model(DEFAULT_MODEL)
       }
     end
 
     def call_anthropic(region:, model:, system_prompt:, user_prompt:, cell_count:)
-      client = AiClient.build
+      client = AiClient.build!
       client.messages.create(
         model: model,
         max_tokens: completion_max_tokens(cell_count),

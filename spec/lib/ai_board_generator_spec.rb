@@ -91,7 +91,7 @@ describe AiBoardGenerator do
       expect(result[:ai_generated]).to be_a(Hash)
       expect(Art50Marker.verify(result[:ai_generated])).to eq(true)
       expect(result[:ai_generated]['provider']).to eq('claude')
-      expect(result[:ai_generated]['model']).to eq(AiBoardGenerator::DEFAULT_MODEL)
+      expect(result[:ai_generated]['model']).to eq(AiClient.bedrock_model(AiBoardGenerator::DEFAULT_MODEL))
       expect(logged[:ai_content_marked]).to eq(true)
       expect(logged[:ai_generated_content_id]).to eq(result[:ai_generated]['content_id'])
     end

@@ -819,6 +819,10 @@ class User < ApplicationRecord
     ai_board_suggestions ai_symbol_search
   ].freeze
 
+  def self.normalize_ai_preference_value(val)
+    FeatureFlags.ai_pref_value(val)
+  end
+
   def registration_country
     c = self.settings && self.settings['country']
     return c if c.present?
@@ -900,11 +904,10 @@ class User < ApplicationRecord
     out = {}
     feature_keys = EU_AI_PREF_KEYS - ['ai_features_enabled']
     feature_keys.each do |k|
-      val = raw[k]
-      out[k] = true if [true, 'true', '1', 1].include?(val)
+      out[k] = true if normalize_ai_preference_value(raw[k]) == true
     end
     master = raw['ai_features_enabled']
-    if out.any? || [true, 'true', '1', 1].include?(master)
+    if out.any? || normalize_ai_preference_value(master) == true
       out['ai_features_enabled'] = true
     end
     out
@@ -971,7 +974,7 @@ class User < ApplicationRecord
       self.settings['preferences'] ||= {}
       if requested.is_a?(Hash)
         EU_AI_PREF_KEYS.each do |k|
-          self.settings['preferences'][k] = true if requested[k]
+          self.settings['preferences'][k] = true if self.class.normalize_ai_preference_value(requested[k]) == true
         end
       end
       self.save!
@@ -2204,6 +2207,11 @@ class User < ApplicationRecord
         # Convert them back to actual booleans.
         val = true if val == 'true'
         val = false if val == 'false'
+        if EU_AI_PREF_KEYS.include?(attr)
+          normalized = User.normalize_ai_preference_value(val)
+          next if normalized.nil?
+          val = normalized
+        end
         self.settings['preferences'][attr] = val
       end
     end
