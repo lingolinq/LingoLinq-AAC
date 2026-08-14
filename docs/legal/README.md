@@ -86,17 +86,28 @@ result as a new row while orphaning or pruning the old one. **A record must neve
 `_draft` path**, because rule 3 would then freeze a filename asserting a status the register alone
 is entitled to carry, and the name could never be corrected.
 
-**This section is mechanically enforced.** `scripts/legal-naming-check.rb` runs in CI's
-`audit-artifacts-integrity` job and in `scripts/regenerate-register.sh`. It is register-aware rather
-than a filename regex, because the rule that matters is a relationship between a row's attestation
-state and its path, not a pattern: an unattested draft may sit at a `_draft` path and the same
-record may not once it is signed. It refuses (1) an attested dated row whose slug is not kebab-case,
+**Most of this section is mechanically enforced, and one part is not.** `scripts/legal-naming-check.rb`
+runs in CI's `audit-artifacts-integrity` job and in `scripts/regenerate-register.sh`. It is
+register-aware rather than a filename regex, because the rule that matters is a relationship between
+a row's attestation state and its path, not a pattern: an unattested draft may sit at a `_draft`
+path and the same record may not once it is signed. It refuses (1a) an attested row whose slug
+carries a **status word** as a component, (1b) an attested row whose slug is **not kebab-case**,
+(1c) an attested row whose slug carries a **finality or version marker** (`final`, `v2`, `v10`),
 (2) an `attestedDate` earlier than the record's own filename date, since a signature cannot predate
 what it signs, (3) a successor dated before the record it supersedes, (4) any new non-dated
 `docs/legal/` record, with pre-rule names grandfathered through the closed, shrink-only
 `meta.legalNamingGrandfathered` list, (5) a filename whose date component is not a real date,
 (6) a wrong-cased path such as `docs/Legal/`, and (7) any allowlist entry that was not already a
 non-dated `docs/legal/` row at the **base revision**.
+
+**Initials are NOT mechanically enforced.** The rule above bars them, and that remains the
+convention, but no check implements it, because there is no testable rule that separates author
+initials from legitimate abbreviations: `eu-ai-act-plan`, `us-state-privacy`, and `ai-governance`
+all lead with short components that a naive initials rule would refuse. A check that fires on
+legitimate names is worse than none, because it trains people to work around the checker. Stated
+here rather than left implied, since a reader would otherwise reasonably assume the whole section is
+enforced. The harness asserts the current behaviour, so if a defined rule for initials is ever
+added, that expectation has to be flipped deliberately rather than drifting.
 
 Check (7) is what actually keeps the allowlist closed, and it exists because independent review
 found that checks (4) and (5) alone did not. Adding a new non-dated record **and** adding its path
@@ -130,10 +141,12 @@ until someone tried to break it.
 attestation block is judged rather than excused.
 
 **Known conservatism.** (1a) refuses a legitimate slug that happens to contain a status word as a
-component, such as `superseded-records-index`. That is deliberate: the author can rename freely
-before attesting and never after, so refusing costs a rename while permitting costs a permanently
-frozen misleading name. If such a record is ever genuinely needed, rename it (for example
-`records-index-for-retired-docs`) rather than weakening the check.
+component, such as `superseded-records-index`, and (1c) does the same for `final`, which is a real
+term of art in `hipaa-omnibus-final-rule`. That is deliberate: the author can rename freely before
+attesting and never after, so refusing costs a rename while permitting costs a permanently frozen
+misleading name. If such a record is genuinely needed, rename it (`records-index-for-retired-docs`,
+`hipaa-omnibus-rule`) rather than weakening the check. Note (1c) does **not** refuse a bare part
+number: `annex-2` is a part, not a version, and only the `v`-prefixed form is treated as a marker.
 
 Note what is deliberately absent: **there is no exemption list for the four dated `_draft` records
 above.** Check (1) fires only on rows that carry an attestation, so their exemption expires by

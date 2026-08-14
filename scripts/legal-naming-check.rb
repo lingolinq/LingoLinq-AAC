@@ -166,6 +166,30 @@ def status_components(slug)
   slug.to_s.split(/[-_]+/).select { |c| STATUS_WORDS.include?(c.downcase) }
 end
 
+# Finality and version markers, tested as whole slug components exactly like STATUS_WORDS
+# and, again, INDEPENDENTLY of both the status test and the kebab-case test.
+#
+# The README's naming rule bars "no v2, no final, no initials, no status", but only the
+# status half was enforced. `policy-final`, `policy-v2`, and `policy-v10` are valid
+# kebab-case carrying no status word, so they passed. The uppercase forms `POLICY-FINAL`
+# and `policy-V2` were caught, but only INCIDENTALLY by the kebab-case rule, which is
+# accidental coverage that disappears the moment someone lowercases.
+#
+# Rationale for barring them at all is the same as for status: the date plus the register
+# row already carries everything a version marker was doing, and unlike the name, the row
+# can be corrected. `final` is worse than `v2`, because it is a claim about the future that
+# an attested filename can never take back.
+MARKER_WORDS = %w[final].freeze
+# `v2`, `V2`, `v10`. Deliberately NOT bare digits: `2026-08-14_annex-2.md` is a part
+# number, not a version marker, and refusing it would be a false positive.
+VERSION_COMPONENT = /\Av\d+\z/i
+
+def marker_components(slug)
+  slug.to_s.split(/[-_]+/).select do |c|
+    MARKER_WORDS.include?(c.downcase) || VERSION_COMPONENT.match?(c)
+  end
+end
+
 def die(msg)
   warn "legal-naming-check: #{msg}"
   exit 1
@@ -293,6 +317,19 @@ rows.each do |row|
                 'mark this row superseded with a reciprocal pointer, retarget live bundle ' \
                 'requiredDocs, then attest ONLY the successor. Renaming in place would change the ' \
                 'DOC- id, which is sha256(canonicalLocation)[0,10], breaking the permanent-ID promise.'
+  end
+
+  # CHECK 1c: no finality or version marker. Independent of 1a and 1b for the same reason
+  # they are independent of each other: `policy-final` and `policy-v2` are valid kebab-case
+  # carrying no status word, so any check that leans on those two misses them entirely.
+  markers = marker_components(parts[:slug])
+  if attested?(row) && !markers.empty?
+    problems << "#{label}: #{loc} is ATTESTED but its slug carries the finality/version " \
+                "marker#{markers.size > 1 ? 's' : ''} #{markers.map(&:downcase).uniq.inspect}. " \
+                'The date plus the register row already carries everything a version marker was ' \
+                'doing, and unlike the filename the row can be corrected later. `final` is the worst ' \
+                'of them: it is a claim about the future that an attested filename can never take ' \
+                'back. Supersede with a new dated record instead of versioning the name.'
   end
 
   # CHECK 1b: the slug is kebab-case. Catches off-convention names with no status word,

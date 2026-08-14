@@ -156,6 +156,44 @@ build_register "$TMP/c1a-unattested.json" '[
 ]'
 expect_pass "UNattested record with a hyphen status token is allowed" "$TMP/c1a-unattested.json"
 
+echo "legal-naming-check-test: CHECK 1c, finality and version markers"
+
+# The README bars "no v2, no final, no initials, no status", but only the status half was
+# enforced. These are valid kebab-case carrying no status word, so they passed. The
+# uppercase forms were caught only INCIDENTALLY by the kebab-case rule, which is accidental
+# coverage that vanishes the moment someone lowercases; they are asserted here explicitly.
+for variant in policy-final policy-v2 policy-v10 final-policy v2 \
+               POLICY-FINAL policy-V2 policy_final; do
+  build_register "$TMP/c1c-$variant.json" '[
+    {"id":"DOC-a","title":"Marker","canonicalSystem":"git",
+     "canonicalLocation":"docs/legal/2026-08-14_'"$variant"'.md","status":"approved",
+     "attestation":{"attestedBy":"Scot","attestedDate":"2026-08-14","attestedContentHash":"x"}}
+  ]'
+  expect_fail "finality/version marker in '$variant' is refused" \
+    "$TMP/c1c-$variant.json" "finality/version marker"
+done
+
+# False-positive controls. A bare part number is NOT a version marker, and refusing it
+# would be wrong; likewise a legitimate record name must survive all three sub-checks.
+build_register "$TMP/c1c-annex.json" '[
+  {"id":"DOC-a","title":"Part number","canonicalSystem":"git",
+   "canonicalLocation":"docs/legal/2026-08-14_annex-2.md","status":"approved",
+   "attestation":{"attestedBy":"Scot","attestedDate":"2026-08-14","attestedContentHash":"x"}}
+]'
+expect_pass "a bare part number (annex-2) is NOT treated as a version marker" "$TMP/c1c-annex.json"
+
+# Initials are NOT mechanically enforced: there is no testable rule that separates author
+# initials from legitimate abbreviations such as `eu`, `ai`, or `us`. This asserts the
+# CURRENT, honest behaviour so the README's narrowed wording and the code stay in step. If a
+# defined rule for initials is ever added, this expectation must flip deliberately.
+build_register "$TMP/c1c-initials.json" '[
+  {"id":"DOC-a","title":"Initials","canonicalSystem":"git",
+   "canonicalLocation":"docs/legal/2026-08-14_sw-policy.md","status":"approved",
+   "attestation":{"attestedBy":"Scot","attestedDate":"2026-08-14","attestedContentHash":"x"}}
+]'
+expect_pass "initials are NOT mechanically enforced (documented gap, not a silent one)" \
+  "$TMP/c1c-initials.json"
+
 echo "legal-naming-check-test: CHECK 2, a signature cannot predate its record"
 
 build_register "$TMP/c2-bad.json" '[
