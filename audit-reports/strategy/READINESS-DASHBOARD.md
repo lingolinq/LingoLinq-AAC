@@ -6,9 +6,12 @@
 >
 > Findings baseline: live from `FINDINGS.json` at render | Risk movement since snapshot: 2026-08-11T23:53:23Z | Strategy generated: 2026-08-11
 
-> ⚠️ **PARTIALLY RATIFIED - 33 of 40 requirements ratified by Scot** (per-row
-> `ratification` objects; milestone-by-milestone review). Every row without one remains a
-> proposal. `meta.ratification.status` flips to `ratified` only when Scot has ratified all rows.
+> ✅ **RATIFIED - all 40 of 40 requirements ratified by Scot** on
+> 2026-08-15 (per-row `ratification` objects, completed milestone-by-milestone). This records
+> Scot's explicit governance approval, not a GitHub-authenticated one: staging branch protection requires
+> no approving reviews and no code-owner review, so CODEOWNERS routing on this path is a convention, not an
+> enforced approval boundary. Ratifying the requirement matrix does not decide any pending launch-profile
+> decision below - those remain a separate governance action.
 
 **Launch profile:** `adult-beta-initial`  
 **Open Critical:** 0  
@@ -62,7 +65,7 @@ finding's severity by itself.
 | School / Minor Beta | 8 | 8 | 9 | 1 | 7 | 0 | 0 | 0 | 0 | 0 |
 | Public MVP | 6 | 6 | 9 (+8 decision-dependent) | 1 | 1 | 3 | 0 | 0 | 0 | 1 invariant-failing |
 | District Procurement Ready | 9 | 9 | 0 | 0 | 0 | 9 | 0 | 0 | 0 | 0 |
-| Long-Term Assurance | 7 | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 5 future |
+| Long-Term Assurance | 7 | 7 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 5 future |
 
 Direct requirement total: **40**
 

@@ -110,8 +110,8 @@ expect "row ratification without ratifiedBy fails" "READINESS-MILESTONES.json" \
 # The load-bearing governance case: a one-line meta edit must not be able to
 # suppress the PROPOSED banner while rows remain unratified.
 expect "matrix flipped to ratified with unratified rows fails" "READINESS-MILESTONES.json" \
-  "doc['meta']['ratification']['status']='ratified'; doc['meta']['ratification']['ratifiedBy']='anyone'; doc['meta']['ratification']['ratifiedDate']='2026-08-12'" \
-  "status is ratified but 7 row(s) carry no ratification"
+  "doc['meta']['ratification']['status']='ratified'; doc['meta']['ratification']['ratifiedBy']='anyone'; doc['meta']['ratification']['ratifiedDate']='2026-08-12'; doc['requirements'].first.delete('ratification')" \
+  "status is ratified but 1 row(s) carry no ratification"
 
 expect "matrix ratification with unknown status fails" "READINESS-MILESTONES.json" \
   "doc['meta']['ratification']['status']='mostly-ratified'" \

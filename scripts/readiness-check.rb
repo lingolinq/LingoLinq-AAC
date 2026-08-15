@@ -803,6 +803,13 @@ def render_dashboard(ctx)
       out << "> applicability interpretation below is a proposal (proposed #{ratif['proposedDate']}). Nothing here is\n"
       out << "> canonical strategy until `meta.ratification.status` is flipped to `ratified` by Scot.\n\n"
     end
+  else
+    out << "> ✅ **RATIFIED - all #{ctx[:requirements].size} of #{ctx[:requirements].size} requirements ratified by Scot** on\n"
+    out << "> #{ratif['ratifiedDate']} (per-row `ratification` objects, completed milestone-by-milestone). This records\n"
+    out << "> Scot's explicit governance approval, not a GitHub-authenticated one: staging branch protection requires\n"
+    out << "> no approving reviews and no code-owner review, so CODEOWNERS routing on this path is a convention, not an\n"
+    out << "> enforced approval boundary. Ratifying the requirement matrix does not decide any pending launch-profile\n"
+    out << "> decision below - those remain a separate governance action.\n\n"
   end
 
   pending = ctx[:decisions].select { |_, v| v == 'undecided' }.keys

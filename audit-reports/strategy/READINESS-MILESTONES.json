@@ -8,12 +8,12 @@
     "schemaVersion": "0.1.0",
     "generatedDate": "2026-08-11",
     "ratification": {
-      "status": "proposed",
+      "status": "ratified",
       "proposedDate": "2026-08-11",
       "proposedBy": "codex-handoff-v0.2 (encoded from READINESS-REQUIREMENTS-v0.2.md)",
-      "ratifiedBy": null,
-      "ratifiedDate": null,
-      "note": "PROPOSED at the matrix level - rows may carry their own ratification object once Scot ratifies them individually (milestone-by-milestone review). A row without a ratification object is a proposal. meta.ratification.status flips to ratified only when Scot has ratified every row."
+      "ratifiedBy": "Scot Wahlquist",
+      "ratifiedDate": "2026-08-15",
+      "note": "RATIFIED at the matrix level: all 40 direct requirement rows carry a complete per-row ratification object (status/ratifiedBy/ratifiedDate), completed across five milestone-by-milestone passes (Adult Beta 2026-08-11, School Beta 2026-08-13, Public MVP 2026-08-13, District Ready 2026-08-14, Long-Term Assurance 2026-08-15) via explicit PR #792 draft-review instructions. This flip is a hard-fail-gated fact, not an assertion: scripts/readiness-check.rb refuses status=ratified unless every row's ratification object is present and complete (status=ratified, non-empty ratifiedBy, ISO ratifiedDate) - see scripts/tests/readiness-check-test.sh 'matrix flipped to ratified with unratified rows fails'. This record is the artifact of Scot's explicit governance approval, not a GitHub-authenticated approval: staging branch protection currently requires no approving reviews and no code-owner review (verified 2026-08-12 via `gh api .../branches/staging/protection` and `gh api .../rules/branches/staging`), so the CODEOWNERS entry on this path is a review-routing convention, not an enforced approval boundary. Ratifying the requirement matrix does NOT decide any of the 7 LAUNCH-PROFILE.json launch-configuration decisions (aiWordPredictionEnabled, aiFocusWordsEnabled, aiBoardGenerationEnabled, euUsersIncluded, minorsIncluded, schoolManagedAccounts, mvpIncludesMinors), which remain undecided and require their own separate deliberate pass."
     },
     "directRequirementCount": 40,
     "milestones": [
@@ -1014,7 +1014,7 @@
       "milestone": "long-term-assurance",
       "type": "deliverable",
       "area": "accessibility",
-      "text": "Produce a formal VPAT/ACR when commercially appropriate.",
+      "text": "Produce a formal VPAT/ACR, informed by assistive-technology user testing and independent accessibility review, when commercially appropriate.",
       "humanStatus": "future",
       "blocking": false,
       "findingIds": [],
@@ -1023,7 +1023,13 @@
       "appliesWhen": {
         "summary": "buyer/stage warrants it"
       },
-      "whyItMatters": "Formal accessibility conformance reporting may become a procurement expectation."
+      "whyItMatters": "Formal accessibility conformance reporting may become a procurement expectation.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-15",
+        "via": "PR #792 draft-review instruction (Long-Term Assurance milestone pass). Wording refined to match verificationRequired: external-review - the requirement now explicitly names assistive-technology user testing and independent accessibility review as what a formal VPAT/ACR must be informed by, so a self-authored draft mapping cannot be read as satisfying it. Evidence: docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md is status=draft and explicitly 'NOT attested by design' pending exactly that testing/review, per DOCUMENT-REGISTER.json - the current draft does not satisfy this refined target and is not promoted merely because it exists. humanStatus/blocking unchanged."
+      }
     },
     {
       "id": "assurance-soc2",
@@ -1039,7 +1045,13 @@
       "appliesWhen": {
         "summary": "buyer/stage warrants it"
       },
-      "whyItMatters": "SOC 2 may become valuable evidence but is not the immediate launch finish line."
+      "whyItMatters": "SOC 2 may become valuable evidence but is not the immediate launch finish line.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-15",
+        "via": "PR #792 draft-review instruction (Long-Term Assurance milestone pass). Evidence: docs/legal/COMPLIANCE_PROGRAM.md:288 states the formal SOC 2 program (risk assessments, training cadence, KPIs, internal audit schedule) is 'In progress / deferred; enterprise maturity, staged as the team grows' - internal control-hardening using SOC2 as a self-assessment lens, not a contracted third-party audit engagement (no CPA/auditor engaged, no scoped audit period found). 'Independent' assurance has not started; future/non-blocking remains accurate. humanStatus/blocking unchanged."
+      }
     },
     {
       "id": "assurance-privileged-access",
@@ -1057,7 +1069,13 @@
       "appliesWhen": {
         "summary": "always"
       },
-      "whyItMatters": "Strong privileged-access governance reduces insider and operator risk."
+      "whyItMatters": "Strong privileged-access governance reduces insider and operator risk.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-15",
+        "via": "PR #792 draft-review instruction (Long-Term Assurance milestone pass). Evidence: LL-7f7372e3eb confirmed open; its stored evidence (Heroku CLI mismatch) is stale, but bin/audit_console's current header comment self-documents this same finding ID as still tracking a real, current gap (Reline bypasses the Readline hook on Ruby 3.4; the un-keyed-console refusal never fires). The finding's disposition rationale ('owned by the Render-to-GCP migration thread') is also now stale since that migration completed without fixing this. in-progress remains accurate, not overstated. humanStatus/blocking unchanged."
+      }
     },
     {
       "id": "assurance-retention-automation",
@@ -1073,7 +1091,13 @@
       "appliesWhen": {
         "summary": "always"
       },
-      "whyItMatters": "Manual or partial retention enforcement does not scale with customer growth."
+      "whyItMatters": "Manual or partial retention enforcement does not scale with customer growth.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-15",
+        "via": "PR #792 draft-review instruction (Long-Term Assurance milestone pass). Evidence: lib/data_policy_enforcer.rb#enforce_retention! is real, org-policy-driven automated retention purging, genuinely scheduled via lib/tasks/scheduler.rake:138 (not just an unused library method). Real, tracked completeness gaps remain - exactly the 4 linked findings, all still open. in-progress accurately reflects real automation with real gaps. humanStatus/blocking unchanged."
+      }
     },
     {
       "id": "assurance-security-operations",
@@ -1089,7 +1113,13 @@
       "appliesWhen": {
         "summary": "company stage warrants it"
       },
-      "whyItMatters": "Continuous detection and operational response become more important as scale and threat exposure grow."
+      "whyItMatters": "Continuous detection and operational response become more important as scale and threat exposure grow.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-15",
+        "via": "PR #792 draft-review instruction (Long-Term Assurance milestone pass). Evidence: real point tools exist (Sentry app-error monitoring, GCP Cloud Logging/Cloud Monitoring/Security Command Center, Cloudflare, GuardDuty referenced in the breach runbook's detection table), but no unified SIEM correlating events across sources and no dedicated security-operations practice (on-call security rotation, tuned detection rules, alert-triage SLAs) beyond the incident-response runbook itself. The requirement's 'mature ... in place' bar is not yet met by point tools alone. future/non-blocking remains accurate. humanStatus/blocking unchanged."
+      }
     },
     {
       "id": "assurance-dsar-automation",
@@ -1105,14 +1135,20 @@
       "appliesWhen": {
         "summary": "request volume warrants it"
       },
-      "whyItMatters": "Manual DSAR handling becomes fragile at scale."
+      "whyItMatters": "Manual DSAR handling becomes fragile at scale.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-15",
+        "via": "PR #792 draft-review instruction (Long-Term Assurance milestone pass). Evidence: only one self-service deletion trigger found (subscription.rb:629 calls Flusher.flush_user_content on account cancellation) - a real but single, unscoped action, not a request-intake/SLA-tracked/admin-queue workflow. No data-export or access-request self-service capability found at all. A manual/partial deletion trigger exists but is distinct from 'scalable, auditable, operationally repeatable' DSAR workflows. future/non-blocking remains accurate. humanStatus/blocking unchanged."
+      }
     },
     {
       "id": "assurance-continuous-validation",
       "milestone": "long-term-assurance",
       "type": "deliverable",
       "area": "audit-governance",
-      "text": "Periodic independent penetration, accessibility, privacy, and evidence-refresh testing is established.",
+      "text": "Establish risk- and stage-appropriate periodic independent security, accessibility, privacy, and evidence validation as customer requirements, company scale, and resources warrant.",
       "humanStatus": "future",
       "blocking": false,
       "findingIds": [],
@@ -1121,7 +1157,13 @@
       "appliesWhen": {
         "summary": "ongoing"
       },
-      "whyItMatters": "Independent validation reduces blind spots and stale assurance claims."
+      "whyItMatters": "Independent validation reduces blind spots and stale assurance claims. This is future assurance/maturity evidence, not a launch-compliance prerequisite: absence of a paid third-party pentest does not by itself mean LingoLinq is noncompliant, though a specific district may someday require one as its own procurement condition. Current launch resources should prioritize fixing known security/privacy/accessibility issues and maintaining the real preventive controls already in place, not a dated pentest commitment this stage cannot yet fund.",
+      "ratification": {
+        "status": "ratified",
+        "ratifiedBy": "Scot Wahlquist",
+        "ratifiedDate": "2026-08-15",
+        "via": "PR #792 draft-review instruction (Long-Term Assurance milestone pass). Wording refined from a flat 'periodic independent ... testing is established' statement to a risk/stage-triggered framing, so the row does not read as a near-term paid-pentest obligation the company cannot yet fund. Evidence: docs/legal/COMPLIANCE_STATUS_2026-04-23.md lists an annual third-party pentest as an unstarted backlog item with a cost estimate ($8-20K / 2-3 weeks), not a committed engagement; the only testing that runs today is the internal /audit-run and /ember-audit-run finder-agent automation, which is explicitly internal, not independent third-party review. Deliberately not converted into a dated commitment (e.g. 'annual pentest beginning 2026/2027') - the trigger is risk, stage, buyer requirements, scale, and resources, not a calendar date. humanStatus/blocking unchanged (future, non-blocking)."
+      }
     }
   ]
 }
