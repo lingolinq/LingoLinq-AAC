@@ -178,3 +178,9 @@ HANDOFF-*.md
 # scripts, test-run logs, pre-merge file snapshots). Nothing here is part of
 # the build; keep it out of the repo the same way per-task working logs are.
 app/frontend/scratchpad/
+
+# Redis persistence dumps: local-dev-only artifacts, never belong in git or
+# in a container image (finding LL-6af580a23a: a stale dump.rdb shipped in
+# every prod image for ~6 months before this rule existed).
+*.rdb
+dump.rdb

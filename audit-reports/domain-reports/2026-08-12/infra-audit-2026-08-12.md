@@ -2,11 +2,11 @@
 
 **Run date:** 2026-08-12  |  **Finder:** `infra-auditor`  |  **Audited commit:** `d67ed76e0a16` (`scot/feat/code-hygiene-auditor`)
 
-**Open findings in this domain:** 33  (0 CRITICAL · 7 HIGH · 12 MEDIUM · 14 LOW)
+**Open findings in this domain:** 32  (0 CRITICAL · 6 HIGH · 12 MEDIUM · 14 LOW)
 
 > DRAFT view of the findings register (`audit-reports/FINDINGS.json`), the single source of truth. Statuses are verified against live code at the audited commit. Only Scot closes a finding, downgrades severity, or accepts risk. Evidence is code/path only; no student or patient data appears here.
 
-## HIGH (7)
+## HIGH (6)
 
 ### Production Cloud Run service is deployed with public ingress, so the direct run.app URL bypasses the load balancer and its attached Cloud Armor policy
 
@@ -34,15 +34,6 @@
 - **First seen:** 2026-08-12  |  **Last seen:** 2026-08-12  |  **Disposition:** untriaged
 - **Adversary:** confirmed -- register.js:217 is the only length check anywhere; User model has zero validates declarations; api/v1/users#create is exempt from require_api_token. Rack::Attack throttles the endpoint but that is not a strength policy.
 - **Remediation:** Enforce the password policy at the Rails layer, where the boundary actually is. Add validation in app/models/concerns/passwords.rb#generate_password (or a User validation) rejecting passwords below a documented minimum -- NIST SP 800-63B calls for at least 8 characters -- and apply it on every write path: registration (api/v1/users create), password change (app/models/user.rb:2542), password reset (users_controller#password_reset:949), valet password generation, and the org/subscription-driven set at app/models/concerns/subscription.rb:645. Consider a breached-password check against a k-anonymity list rather than composition rules, per the same NIST guidance. Then raise the client-side hint to match, so the UX and the boundary agree.
-
-### A Redis RDB persistence snapshot is tracked in git at the repository root, is not gitignored, and is copied into every production container image
-
-- **ID:** `LL-6af580a23a`  |  **ruleKey:** `redis-rdb-snapshot-committed-to-repository`  |  **confidence:** high
-- **Location:** runtime: `bash:git ls-files / git log`
-- **Frameworks:** SOC2, HIPAA, FERPA
-- **First seen:** 2026-08-12  |  **Last seen:** 2026-08-12  |  **Disposition:** untriaged
-- **Adversary:** confirmed -- git ls-files confirms the 774KB blob is tracked at this SHA with no .gitignore/.dockerignore exclusion. Inspected format only (not content secrets): a REDIS0010 snapshot with ~6,705 keys from a development environment (LogSession/Board/ButtonImage/Resque queue key patterns).
-- **Remediation:** Treat this as a potential exposure, not just untidiness, and handle it in that order: (1) have a human with authority inspect the file offline to determine whether it contains live cache material -- the app's Redis holds the admin console token map ('/admin/auth/<token>' -> user global_id, lib/admin_constraint.rb:4), the token_popout auth stash (session_controller.rb:499-504), the permission cache and throttle counters; (2) if it contains anything live, rotate the affected material (admin tokens expire on a 2-hour TTL, but treat CACHE_TOKEN and any stashed identifiers as exposed); (3) git rm --cached dump.rdb, add *.rdb to .gitignore and .dockerignore, and decide with Scot whether history rewriting is warranted given the repository is public under AGPLv3; (4) add an .rdb rule to .gitleaks.toml or a pre-commit check so it cannot recur.
 
 ### Audited-console wrapper still shells to Heroku CLI; not operative on Render so console access is unaudited
 
