@@ -60,9 +60,17 @@ class User < ApplicationRecord
 
   add_permissions('edit', 'manage_supervision', 'view_deleted_boards') {|user| user.edit_permission_for?(self, true) && !user.valet_mode? }
   add_permissions('edit', 'edit_boards', 'manage_supervision', 'view_deleted_boards') {|user| user.edit_permission_for?(self, false) && !user.valet_mode? }
-  add_permissions('view_existence', 'view_detailed', 'model') {|user| user.supervisor_for?(self) && !user.valet_mode?}
+  # Modeling-only supporters get EXISTENCE + MODEL only. `view_detailed` is split
+  # out below so a modeling-only link cannot read profile detail (email, name,
+  # location, description, membership, board-set stats — see json_api/user.rb:459)
+  # or list the communicator's boards (boards_controller:77). Board `view` for
+  # modeling comes from `model` (board.rb:87), NOT from `view_detailed`, so Model
+  # and Speak are unaffected by the split.
+  add_permissions('view_existence', 'model') {|user| user.supervisor_for?(self) && !user.valet_mode?}
+  add_permissions('view_detailed') {|user| user.supervisor_for?(self) && !user.modeling_only_for?(self) && !user.valet_mode? }
   add_permissions('view_existence', 'view_detailed', 'model', 'supervise', 'view_deleted_boards', 'set_goals') {|user| user.supervisor_for?(self) && !user.modeling_only_for?(self) && !user.valet_mode? }
-  add_permissions('view_detailed', 'model', ['basic_supervision']) {|user| user.supervisor_for?(self) && !user.valet_mode? }
+  add_permissions('model', ['basic_supervision']) {|user| user.supervisor_for?(self) && !user.valet_mode? }
+  add_permissions('view_detailed', ['basic_supervision']) {|user| user.supervisor_for?(self) && !user.modeling_only_for?(self) && !user.valet_mode? }
   add_permissions('view_detailed', 'view_deleted_boards', 'model', 'set_goals', ['basic_supervision']) {|user| user.supervisor_for?(self) && !user.modeling_only_for?(self) && !user.valet_mode? }
   # Billing-only modeling supporters (subscription lapsed) could lose set_goals even though they
   # still supervise and model; per-link "modeling only" supervision still must not set goals.
@@ -72,7 +80,9 @@ class User < ApplicationRecord
 
     true
   }
-  add_permissions('view_word_map', ['*']) {|user| user.supervisor_for?(self) && !user.valet_mode? }
+  # Word map is USAGE DATA (users_controller:1137) — not available to a
+  # modeling-only link.
+  add_permissions('view_word_map', ['*']) {|user| user.supervisor_for?(self) && !user.modeling_only_for?(self) && !user.valet_mode? }
   add_permissions('manage_supervision', 'support_actions', 'link_auth') {|user| Organization.manager_for?(user, self) && !user.valet_mode? }
   add_permissions('view_existence', 'view_detailed', 'model', 'supervise', 'view_deleted_boards', 'set_goals', 'link_auth') {|user| Organization.manager_for?(user, self, true) && !user.valet_mode? }
   add_permissions('admin_support_actions', 'support_actions', 'view_deleted_boards') {|user| Organization.admin_manager?(user) && !user.valet_mode? }

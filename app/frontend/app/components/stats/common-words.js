@@ -10,11 +10,16 @@ export default Component.extend({
       return htmlSafe('col-sm-4');
     }
   }),
+  // The old inline `height: 400px; overflow: auto; padding-top: 23px` belonged to
+  // the bare-table layout: the padding nudged the table down to clear the
+  // neighbouring chart's heading, and the fixed height gave it a scroll box.
+  // `.report-chart-card` now owns both — the padding was offsetting this column
+  // 23px below its neighbour, and the 400px fought the card's own height.
   elem_style: computed('right_side', function() {
     if(this.get('right_side')) {
-      return htmlSafe('height: 400px; overflow: auto; padding-top: 23px; border-left: 1px solid #eee;');
+      return htmlSafe('border-left: 1px solid #eee;');
     } else {
-      return htmlSafe('height: 400px; overflow: auto; padding-top: 23px;');
+      return htmlSafe('');
     }
   }),
   init() {

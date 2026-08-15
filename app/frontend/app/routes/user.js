@@ -60,6 +60,20 @@ export default Route.extend({
       return finish(data);
     });
   },
+  /* Publish "whose account is this page" so app-level chrome (the supervising
+     context pill) can name it. Set on the PARENT `:user_id` route rather than in
+     each of the ~20 child routes — one set/clear pair covers every child, and
+     resetController on exit is exactly when the context stops applying. */
+  setupController: function(controller, model) {
+    this._super.apply(this, arguments);
+    this.appState.set('page_user', model);
+  },
+  resetController: function(controller, isExiting) {
+    this._super.apply(this, arguments);
+    if(isExiting) {
+      this.appState.set('page_user', null);
+    }
+  },
   actions: {
     error: function(error, transition) {
       // Handle 404 errors gracefully to prevent console errors
@@ -81,6 +95,19 @@ export default Route.extend({
         // Transition to error route for 404s
         this.router.transitionTo('error');
         return false; // Don't bubble the error
+      }
+      /* 400 is this API's PERMISSION DENIED, not a malformed request:
+         application_controller#allowed? renders `api_error 400` (:300) for every
+         denial. It reaches here routinely — a supporter following a link to a
+         communicator they can only model for is refused `view_detailed`
+         (user.rb:70), which gates both the user payload and the board list
+         (boards_controller:77). Bubbling it produced an unhandled rejection and
+         a blank route rather than a page, so it is routed to the same error
+         screen a 404 gets: the outcome for the reader is identical — this page
+         cannot be shown for this account. */
+      if(status == 400 || status == '400' || status == 403 || status == '403') {
+        this.router.transitionTo('error');
+        return false;
       }
       // Let other errors bubble up
       return true;

@@ -31,6 +31,18 @@ module FeatureFlags
               'dashboard_drag_layout', 'boards_page_owner_dedup', 'edit_sidebar',
               'sentence_bar_editing',
               'text_symbol_fallback',
+              # Per-user session resume: return a user to the page they were last
+              # on when they log back in. Communicator-only accounts are exempt by
+              # design (they always land on their board). Read by
+              # app/frontend/app/routes/index.js#afterModel; the recording side
+              # (utils/session_history.js) runs regardless so flipping this on
+              # takes effect immediately.
+              'session_resume',
+              # Supporter-facing "Viewing <communicator>'s account" pill, fixed to
+              # the upper-left of any page that isn't the supporter's own. Read by
+              # app-state#supervising_context; with it OFF the computed returns
+              # null and the component renders nothing at all.
+              'supervising_context_banner',
               # EU launch (GDPR Art. 8): make the registration parental-consent
               # age gate jurisdiction-aware (EU under-16 vs default under-13).
               # AVAILABLE-only => OFF for everyone by default; with it OFF the
@@ -73,7 +85,9 @@ module FeatureFlags
               'edit_sidebar', # TEMPORARY (2026-06-25): forced ON for everyone so Traci can validate the speak-mode "Edit Sidebar" panel in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'sentence_bar_editing', # TEMPORARY (2026-06-27): forced ON for everyone to validate the speak-bar active-edit controls (remove + reorder chips) in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'supervisor_consent_flow', # TEMPORARY (2026-08-12): forced ON for everyone to validate supervisor→communicator consent invites (request by username/email + approve). Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
-              'text_symbol_fallback'] # Default ON so imported OBF text-only buttons render their labels as symbols; keep registered for rollback through system feature settings.
+              'text_symbol_fallback', # Default ON so imported OBF text-only buttons render their labels as symbols; keep registered for rollback through system feature settings.
+              'supervising_context_banner', # TEMPORARY (2026-08-09): forced ON for everyone to validate the supporter "Viewing X's account" pill in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'session_resume'] # TEMPORARY (2026-08-09): forced ON for everyone to validate per-user session resume in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
   DISABLED_CANARY_FEATURES = []
   FEATURE_DATES = {
     'word_suggestion_images' => 'Jan 21, 2017',

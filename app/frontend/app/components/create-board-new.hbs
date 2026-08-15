@@ -33,12 +33,13 @@
         </div>
       </div>
     </div>
-    {{!-- Create-method chooser: shown on entry (standalone page only). Stylized
-         options that rise in successively (staggered animation-delay +
-         nb-chooser-rise), each routing into its flow: Create My Own → the regular
-         form (dismiss), Import Board(s) → the native file picker, Paste HTML /
-         Import from another platform (when enabled) → their modals, Generate with AI → the
-         in-page AI flow. --}}
+    {{!-- Create-method chooser: shown on entry (standalone page only). Options
+         rise in successively (staggered animation-delay + nb-chooser-rise), each
+         routing into its flow: Create My Own → the regular form (dismiss),
+         Generate with AI → the in-page AI flow, Import Board(s) → the native file
+         picker, Paste HTML / Import from another platform (when enabled) → their
+         modals. The first two are promoted to full chooser buttons (OR between
+         them, OR after the pair); the rest render as slate-gray links below. --}}
     {{#if (and this.standalone this.show_create_chooser)}}
       <div class="nb-create-chooser" role="dialog" aria-modal="true" aria-label={{t "How would you like to create your board?" key="create_chooser_title"}}>
         <div class="nb-create-chooser__panel">
@@ -58,45 +59,25 @@
               <span class="nb-create-chooser__btn-label">{{t "Create My Own Board" key="create_my_own_board"}}</span>
             </button>
             <span class="nb-create-chooser__or" style="animation-delay: 0.25s" aria-hidden="true"><span class="nb-create-chooser__or-text">{{t "OR" key="or_separator_caps"}}</span></span>
-            <button type="button" class="nb-create-chooser__btn nb-create-chooser__btn--import" style="animation-delay: 0.45s" {{on "click" (this.ctrlAction "choose_import")}}>
-              <span class="nb-create-chooser__btn-icon" aria-hidden="true">
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
+            <button type="button" class="nb-create-chooser__btn nb-create-chooser__btn--ai" style="animation-delay: 0.45s" {{on "click" (this.ctrlAction "choose_ai")}}>
+              <span class="nb-ai-sparkle-badge nb-create-chooser__sparkle-badge" aria-hidden="true">
+                <span class="nb-ai-sparkle nb-create-chooser__sparkle"></span>
               </span>
-              <span class="nb-create-chooser__btn-label">{{t "Import Board(s)" key="import_boards"}}</span>
+              <span class="nb-create-chooser__btn-label">{{t "Generate with AI" key="generate_with_ai"}}</span>
             </button>
-            {{#if this.paste_html_import_enabled}}
-              <span class="nb-create-chooser__or" style="animation-delay: 0.55s" aria-hidden="true"><span class="nb-create-chooser__or-text">{{t "OR" key="or_separator_caps"}}</span></span>
-              <button type="button" class="nb-create-chooser__btn nb-create-chooser__btn--paste" style="animation-delay: 0.65s" {{on "click" (this.ctrlAction "choose_paste_html")}}>
-                <span class="nb-create-chooser__btn-icon" aria-hidden="true">
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                </span>
-                <span class="nb-create-chooser__btn-label">{{t "Paste HTML" key="paste_html"}}</span>
-              </button>
-              <span class="nb-create-chooser__or" style="animation-delay: 0.75s" aria-hidden="true"><span class="nb-create-chooser__or-text">{{t "OR" key="or_separator_caps"}}</span></span>
-              <button type="button" class="nb-create-chooser__btn nb-create-chooser__btn--json" style="animation-delay: 0.85s" {{on "click" (this.ctrlAction "choose_json_bundle")}}>
-                <span class="nb-create-chooser__btn-icon" aria-hidden="true">
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                </span>
-                <span class="nb-create-chooser__btn-label">{{t "Import Board from Another Platform" key="import_json_bundle"}}</span>
-              </button>
-            {{/if}}
-            {{#if this.paste_html_import_enabled}}
-              <span class="nb-create-chooser__or" style="animation-delay: 0.95s" aria-hidden="true"><span class="nb-create-chooser__or-text">{{t "OR" key="or_separator_caps"}}</span></span>
-              <button type="button" class="nb-create-chooser__btn nb-create-chooser__btn--ai" style="animation-delay: 1.05s" {{on "click" (this.ctrlAction "choose_ai")}}>
-                <span class="nb-ai-sparkle-badge nb-create-chooser__sparkle-badge" aria-hidden="true">
-                  <span class="nb-ai-sparkle nb-create-chooser__sparkle"></span>
-                </span>
-                <span class="nb-create-chooser__btn-label">{{t "Generate with AI" key="generate_with_ai"}}</span>
-              </button>
-            {{else}}
-              <span class="nb-create-chooser__or" style="animation-delay: 0.65s" aria-hidden="true"><span class="nb-create-chooser__or-text">{{t "OR" key="or_separator_caps"}}</span></span>
-              <button type="button" class="nb-create-chooser__btn nb-create-chooser__btn--ai" style="animation-delay: 0.85s" {{on "click" (this.ctrlAction "choose_ai")}}>
-                <span class="nb-ai-sparkle-badge nb-create-chooser__sparkle-badge" aria-hidden="true">
-                  <span class="nb-ai-sparkle nb-create-chooser__sparkle"></span>
-                </span>
-                <span class="nb-create-chooser__btn-label">{{t "Generate with AI" key="generate_with_ai"}}</span>
-              </button>
-            {{/if}}
+            <span class="nb-create-chooser__or" style="animation-delay: 0.65s" aria-hidden="true"><span class="nb-create-chooser__or-text">{{t "OR" key="or_separator_caps"}}</span></span>
+            {{!-- Secondary methods: Create My Own / Generate with AI are the two
+                 promoted keys above; every remaining method drops to a small
+                 slate-gray text link here. Real <button>s (they fire actions —
+                 file picker, import modals — they don't navigate), so they reuse
+                 the .md-link-btn link-semantics primitive. --}}
+            <div class="nb-create-chooser__alt" style="animation-delay: 0.75s">
+              <button type="button" class="md-link-btn nb-create-chooser__alt-link" {{on "click" (this.ctrlAction "choose_import")}}>{{t "Import Board(s)" key="import_boards"}}</button>
+              {{#if this.paste_html_import_enabled}}
+                <button type="button" class="md-link-btn nb-create-chooser__alt-link" {{on "click" (this.ctrlAction "choose_paste_html")}}>{{t "Paste HTML" key="paste_html"}}</button>
+                <button type="button" class="md-link-btn nb-create-chooser__alt-link" {{on "click" (this.ctrlAction "choose_json_bundle")}}>{{t "Import Board from Another Platform" key="import_json_bundle"}}</button>
+              {{/if}}
+            </div>
           </div>
         </div>
       </div>
