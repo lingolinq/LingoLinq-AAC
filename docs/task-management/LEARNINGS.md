@@ -11230,3 +11230,100 @@ Debugging technique worth reusing: browser-only state is observable from the she
 `npx playwright` against `localhost:8184` (chromium is already installed; log in via
 `/login`, fields `#identification` / `#password`). Far better than asking the user to run
 console commands and relay results.
+
+## Gotcha: `adapters/application.js` overrode `ajax()` and silently form-encoded every write (2026-08-15)
+
+`RESTAdapter#ajax` is not just a transport call — it is what invokes `ajaxOptions()`,
+and `ajaxOptions()` is what sets `contentType: application/json`, `dataType: 'json'`
+and `JSON.stringify(data)`. An override that calls `$.ajax(options)` directly (added in
+`248150d15`, 2026-01-18, to make extras.js' Authorization patch apply) skips it, and
+jQuery then form-encodes the body. Nothing warns; the request still succeeds.
+
+Form encoding loses three things the API can never recover:
+
+* **Arrays become index-keyed objects.** Rails builds an Array only for `a[]=`;
+  `log[events][0][type]` parses as `{'events' => {'0' => …}}`. Downstream
+  `params['events'].map{|e| e['user_id']}` then yields `['0', {...}]` and raises
+  `TypeError: no implicit conversion of String into Integer`.
+* **Numbers become strings** — `event['window_width'] > 0` →
+  `ArgumentError: comparison of String with 0 failed`.
+* **Booleans become strings** — `false` arrives as `"false"`, truthy in **both** Ruby
+  and JS. This is the one that forces a client-side fix: no server-side coercion can
+  tell the boolean from the string, so a failed eval trial silently reads as passed.
+
+Lessons:
+
+1. **When overriding a framework method to inject one concern, call the framework's own
+   option builder — don't hand it your raw input.** `$.ajax(this.ajaxOptions(url, type, options))`
+   keeps both the auth patch and the request semantics.
+2. **`extend({useFetch: false})` does NOT override a native class field.** Upstream
+   declares `useFetch = true` as a class field; field initializers run on the instance
+   after the prototype is built, so the `extend` property is overwritten before the first
+   request. Assign it in `init()` instead. The failure mode is nasty: `ajaxOptions` takes
+   the fetch branch and returns `{body}`, jQuery ignores `body` and form-encodes `data`
+   anyway, so the body is form-encoded while the header claims JSON and Rails answers
+   `ActionDispatch::Http::Parameters::ParseError`.
+3. **A 200 from an endpoint that enqueues work proves nothing.** `process_as_follow_on`
+   returns a synthetic `fake-…/pending` record and the real write happens in Resque. When
+   the job raises, the queues drain to empty and look healthy. Check
+   `redis-cli llen lingolinq-development:failed`, not queue depth.
+
+## Gotcha: `""` is truthy in Ruby, and a serialized client model sends `""` for every unset attribute (2026-08-15)
+
+`user_id = params['user_id'] || params['log']['user_id']; user = user_id ? find_by_path(user_id) : @api_user`
+looks safe and is not. The Ember client serializes the whole model, so an unset
+`user_id` arrives as `""` rather than being omitted — `""` is truthy, so it reached
+`find_by_path("")`, got nil, and `allowed?(nil, …)` rejected the request as
+`Not authorized`. Use `.presence`, not truthiness, on any id that comes from a
+serialized client model.
+
+Diagnostic tell worth remembering: `allowed?` adds `resource_class` / `resource_id` to
+its error body **only when the object is non-nil**. Their absence in a captured 400 says
+the object was nil — i.e. a lookup MISS, not a permission denial. That distinction was
+the whole difference between "the SLP lacks permission" and "we looked up the empty
+string".
+
+## Gotcha: permissions are Redis-cached, so `allows?` can disagree with the DB (2026-08-15)
+
+`Permissable` caches permission sets in Redis for 30 minutes
+(`app/models/concerns/permissions.rb` → `Permissable.permissions_redis`). A `rails
+runner` process and the running server can therefore return **different** answers for
+the same `allows?` call, and a stale entry survives edits to the underlying links.
+
+Before concluding that supervisor data was lost, check the durable state directly:
+`UserLink.where(user_id: communicator.id)`, `user.permissions_for(other)`, and
+`GET /api/v1/users/self`. If those look right and `allows?` says false, it is the cache.
+`u.touch` on both users changes the cache key and forces a recompute.
+
+Corollary for this repo: a browser login currently re-poisons that cache — see
+`HANDOFF-evals-not-saving.md`, "Environment problem". Open, unowned, pre-existing.
+
+## Pattern: a recompute that returns fresh objects will destroy the input the user is typing in (2026-08-15)
+
+`{{#each}}` keys on `@identity`. A computed that maps over a schema and returns **new
+plain objects** each time therefore forces Ember to tear down and rebuild every item's
+DOM whenever it invalidates — including a focused `<input>`. In `eval-workbook`,
+`writeField` called `notifyPropertyChange('workbook')` on every keystroke to refresh the
+"started" badges, so each field accepted exactly ONE character before the element was
+destroyed and focus fell back to `<body>`. The form was unusable, and it compiled, linted
+and passed static review.
+
+Fix shape: **separate stable structure from reactive status.** The structural computed
+depends only on structural keys; the per-keystroke status (badges, counters) hangs off a
+`revision` counter the writer increments, and the template reads it from a side map
+(`{{get this.startedMap section.id}}`). Genuinely structural edits — adding or removing a
+repeating row — still invalidate the structure, which is correct because nobody is
+mid-keystroke when they click a button.
+
+Detection technique, since this is invisible to unit tests and to `fill()`-style test
+helpers (which set `.value` and fire one event):
+
+```js
+await p.focus(sel);
+await p.evaluate(s => { document.querySelector(s).__mark = 'M'; }, sel);
+for (const ch of 'board') { await p.keyboard.type(ch); await p.waitForTimeout(120); }
+// same_node false / still_focused false / value === 'b'  => the node is being rebuilt
+```
+
+General lesson: **"it renders" and "it can be used" are different claims.** Only typing
+character by character, with focus assertions, distinguishes them.

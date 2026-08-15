@@ -499,6 +499,48 @@ describe Api::LogsController, :type => :controller do
       expect(log.data['event_summary']).to eq('cool')
     end
 
+    it "should treat a blank log[user_id] as absent rather than as a lookup" do
+      # The Ember client serializes the WHOLE Log model on every push, so an
+      # unset user_id arrives as "" instead of being omitted. "" is truthy in
+      # Ruby, so this used to reach find_by_path(""), come back nil, and reject
+      # the push with "Not authorized (permission: model)" — which silently
+      # blocked every log push from the web app.
+      token_user
+      post :create, params: {:log => {
+        :user_id => '',
+        :events => [{'user_id' => @user.global_id, 'timestamp' => 5.hours.ago.to_i, 'type' => 'button', 'button' => {'label' => 'blank-uid', 'spoken' => true, 'board' => {'id' => '1_1'}}}]
+      }}
+      expect(response).to be_successful
+      Worker.process_queues
+      expect(LogSession.last.data['event_summary']).to eq('blank-uid')
+    end
+
+    it "should still reject a log[user_id] that names a user who does not exist" do
+      # The blank-string allowance above must not turn into "any unresolvable
+      # user_id falls back to the caller".
+      token_user
+      post :create, params: {:log => {:user_id => 'no_such_user_at_all', :events => []}}
+      assert_unauthorized
+    end
+
+    it "should accept events that arrive as an index-keyed hash" do
+      # A form-encoded body (`log[events][0][type]=…`) parses into
+      # {'events' => {'0' => …}}, not an Array — Rails only builds an Array for
+      # `a[]=`. Every consumer iterates events as an Array, so an unnormalized
+      # Hash raised TypeError deep in the background job: the POST answered 200
+      # and the push then vanished with no user-visible error.
+      token_user
+      post :create, params: {:log => {:events => {
+        '0' => {'user_id' => @user.global_id, 'timestamp' => 5.hours.ago.to_i, 'type' => 'button', 'button' => {'label' => 'first', 'spoken' => true, 'board' => {'id' => '1_1'}}},
+        '1' => {'user_id' => @user.global_id, 'timestamp' => 5.hours.ago.to_i + 10, 'type' => 'button', 'button' => {'label' => 'second', 'spoken' => true, 'board' => {'id' => '1_1'}}}
+      }}}
+      expect(response).to be_successful
+      Worker.process_queues
+      log = LogSession.last
+      # Order preserved by numeric index, not by hash insertion or string sort.
+      expect(log.data['event_summary']).to eq('first second')
+    end
+
     it "should persist a tiered eval report's data through the real create path" do
       token_user
       post :create, params: {:log => {

@@ -1231,10 +1231,31 @@ class LogSession < ApplicationRecord
     sessions.map(&:global_id)
   end
 
+  # A form-encoded request turns a JSON array of events into a Hash keyed by the
+  # string index — Rails only builds an Array for `a[]=`, and the Ember client
+  # posts `log[events][0][type]=…` because adapters/application.js overrides
+  # `ajax` and so never runs Ember Data's `ajaxOptions` (which is what would set
+  # a JSON content type). Every consumer downstream iterates events as an Array;
+  # `{'0' => {...}}.map{|e| e['user_id']}` yields `['0', {...}]` and blows up on
+  # `Array#[]("user_id")`, which killed the whole background job — so a log push
+  # answered 200 and then silently did nothing.
+  #
+  # Same normalization the assessment tallies already get in generate_defaults.
+  # Sorted numerically because event order is meaningful, and only applied when
+  # every key is an index, so a genuine Hash is never mangled.
+  def self.normalize_events(params)
+    events = params && params['events']
+    return params unless events.is_a?(Hash)
+    return params unless events.keys.all? { |k| k.to_s.match?(/\A\d+\z/) }
+    params['events'] = events.keys.sort_by(&:to_i).map { |k| events[k] }
+    params
+  end
+
   def self.process_as_follow_on(params, non_user_params)
     raise "user required" if !non_user_params[:user]
     raise "author required" if !non_user_params[:author]
     raise "device required" if !non_user_params[:device]
+    normalize_events(params)
     # TODO: marrying across devices could be really cool, i.e. teacher is using their phone to
     # track pass/fail while the student uses the device to communicate. WHAAAAT?!
     stash_params = nil
@@ -1337,7 +1358,11 @@ class LogSession < ApplicationRecord
     raise "user required" if !non_user_params[:user]
     raise "author required" if !non_user_params[:author]
     raise "device required" if !non_user_params[:device]
-    
+    # Also normalized here, not only on the way in: a stash written before this
+    # fix still holds the index-keyed Hash, and those are exactly the pushes that
+    # never landed. This lets them replay instead of failing forever.
+    normalize_events(params)
+
     # filter to only those users and events the author has supervise permissions for
     valid_events = []
     user_ids = (params['events'] || []).map{|e| e['user_id'] }.compact.uniq

@@ -182,7 +182,16 @@ class Api::LogsController < ApplicationController
 
   def create
     ip = request.remote_ip
-    user_id = params['user_id'] || (params['log'] && params['log']['user_id'])
+    # `.presence`, not a bare truthiness check: the Ember client form-encodes the
+    # WHOLE Log model on every push, so an unset `user_id` arrives as the empty
+    # string rather than being omitted. "" is truthy in Ruby, so the old check
+    # sent it to find_by_path, got nil back, and rejected the request with
+    # `Not authorized (permission: model)` — which is what silently blocked EVERY
+    # log push from the web app (usage logs, evals, assessments alike), while
+    # looking like a permission problem.
+    #
+    # Blank means "no user specified", which is the @api_user's own log.
+    user_id = params['user_id'].presence || (params['log'] && params['log']['user_id'].presence)
     user = user_id ? User.find_by_path(user_id) : @api_user
     return unless allowed?(user, 'model')
     
