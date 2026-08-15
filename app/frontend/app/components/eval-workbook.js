@@ -151,9 +151,9 @@ export default Component.extend({
   }),
 
   progressLabel: computed('startedCount', 'sectionCount', function() {
-    return i18n.t('workbook_progress', "%{n} of %{t} sections started", {
-      n: this.get('startedCount'), t: this.get('sectionCount')
-    });
+    // One line — i18n_generator.rb needs the closing ")" on the same line as the
+    // English string, or the key is reported MISSING and blocks generation.
+    return i18n.t('workbook_progress', "%{n} of %{t} sections started", {n: this.get('startedCount'), t: this.get('sectionCount')});
   }),
 
   // The schema decorated with its labels and current values — everything the

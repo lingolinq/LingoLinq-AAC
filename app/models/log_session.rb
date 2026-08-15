@@ -1074,6 +1074,46 @@ class LogSession < ApplicationRecord
                     if s && s.log_type == 'eval' && s.user == user && s.author == self.author
                       s.process({eval: evl})
                       params = nil
+                    elsif s && s.log_type == 'eval'
+                      # An eval RESUMED by a different author (or for a different user)
+                      # deliberately becomes that author's OWN new record rather than
+                      # overwriting the original — see the "should create a new copy if
+                      # the eval was resumed by a different author" spec. That stays.
+                      #
+                      # What must not carry over is `ref_id`. The fork is written from
+                      # the submitted blob, so a payload copied from someone else's eval
+                      # (the non-author workbook save the UI already blocks in
+                      # components/eval-workbook.js#isAuthor) would produce a SECOND eval
+                      # holding the SAME ref_id. utils/eval#find_saved_log_id matches on
+                      # ref_id and takes the FIRST hit, so from that point on which
+                      # record a later workbook save binds to is decided by list order —
+                      # for BOTH accounts. That function's own comment calls its matching
+                      # STRICT and deliberately omits a "just take the newest" fallback
+                      # precisely to avoid attaching a workbook to the wrong evaluation;
+                      # a duplicated ref_id defeats it.
+                      #
+                      # Dropping just the identifier keeps the resumed-eval flow intact
+                      # while making the fork addressable only as itself. Not raised:
+                      # this runs inside process_delayed_follow_on, so raising would only
+                      # land the job in the failed queue where nothing surfaces it.
+                      if evl['ref_id']
+                        params = {eval: evl.reject { |k, _v| k.to_s == 'ref_id' }}
+                        # Same pattern as the log_error branch above. global_ids only —
+                        # never eval content.
+                        AuditEvent.create!(
+                          event_type: 'eval_author_mismatch',
+                          record_id: s.global_id,
+                          summary: 'forked eval for a different author; dropped inherited ref_id',
+                          data: {
+                            'type' => 'eval_author_mismatch',
+                            'target_log_id' => s.global_id,
+                            'target_author_id' => s.related_global_id(s.author_id),
+                            'target_user_id' => s.related_global_id(s.user_id),
+                            'requesting_author_id' => self.related_global_id(self.author_id),
+                            'requesting_user_id' => user && user.global_id
+                          }
+                        )
+                      end
                     end
                   end
                 elsif event && event['share']

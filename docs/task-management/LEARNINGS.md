@@ -11425,3 +11425,95 @@ every unset attribute clobbered its setting on every save (`user.rb` PREFERENCE_
 guarded by `!= nil`, and `""` passes that guard while `nil` does not).
 
 See `docs/task-management/2026-08-15-adapter-json-blast-radius.md` for the full sweep.
+
+## Technique: replay the REAL captured request body — a hand-built payload tests nothing (2026-08-15)
+
+Probing an authorization boundary with a payload you constructed from reading the code is
+close to worthless, because the most likely outcome is that your payload is malformed and
+the request dies *before* reaching the decision you meant to test — while returning the
+same 200 a correct refusal would.
+
+Concretely: a hand-built eval-hijack POST put the blob at `log.data.eval`, returned
+`200 {"pending":true}`, and changed nothing. That reads exactly like "the server refused."
+It wasn't. `redis-cli llen lingolinq-development:failed` went 3497 → 3498 with
+`no valid events to process out of 0` — the job never reached an author check. The real
+client sends the eval inside `log.events[0].eval` (`utils/eval#save_workbook` →
+`stashes.log_event`, so it is an EVENT, not a `data` key).
+
+The reliable method:
+
+1. drive the real UI with Playwright and capture the request:
+   `p.on('request', rq => { if (rq.method()==='POST') body = rq.postData(); })`
+2. write it to disk, mutate only the one field you are attacking,
+3. replay with `curl --data-binary @body.json` under the other account's token.
+
+Only then does a "nothing happened" result mean refusal. Pair it with the failed-queue
+delta every time — in this codebase the HTTP response is a synthetic
+`fake-…/pending` record and the real write is a Resque job, so the queue counter is the
+only thing that distinguishes "refused" from "died".
+
+## Gotcha: before guarding against a behaviour, check whether a spec SPECIFIES it (2026-08-15)
+
+A non-author's eval save was forking the record, so the obvious fix was to refuse the
+write when `s.author != self.author`. That broke `log_session_spec.rb:1171` — "should
+create a new copy if the eval was resumed by a different author" — which specifies the
+fork as intended: two clinicians can each hold their own eval of the same communicator,
+and the second author's work must not overwrite the first's.
+
+The real defect was narrower than the behaviour it lived inside: the fork inherited the
+original's `ref_id`, and `utils/eval#find_saved_log_id` matches on `ref_id` and takes the
+first hit. Two records answering to one id made "which record does a workbook save bind
+to" list-order dependent, for BOTH accounts. In the pre-existing spec the fork carries no
+`ref_id`, which is exactly why that spec never caught it.
+
+Fix: drop only the inherited identifier, keep the fork. Rule of thumb — when a guard you
+add breaks an existing test, the test is usually describing a case you did not know
+about; re-scope the guard to the actual harm rather than deleting the test. RULE #0 §3.
+
+## Gotcha: `window.app_state` does not exist — it is `window.LingoLinq.appState` (2026-08-15)
+
+`utils/app_state.js` resolves the singleton via `LingoLinq.appState`, and `app.js:1006`
+exposes only `window.LingoLinq`. A Playwright probe reading `window.app_state.get(...)`
+returns `null` for everything, silently — including values you can see are set on screen.
+
+Two consequences worth internalising beyond the specific global:
+
+- **A probe that reports `null` for something you KNOW is set is broken, not evidence.**
+  Always include a control field (`currentUser` while plainly logged in). If the control
+  is null, throw the run away rather than interpreting it.
+- **Don't select a button by its CSS class alone when the class is shared.**
+  `.md-board-preview__action--primary` is worn by whichever primary CTA that footer
+  branch rendered; clicking it "worked" while pressing the wrong control entirely. Match
+  on the accessible text instead, and assert the label you matched.
+
+Working probe:
+
+```js
+const flags = () => p.evaluate(() => {
+  const as = window.LingoLinq && window.LingoLinq.appState;
+  const nm = (u) => (u && u.get) ? u.get('user_name') : (u === null ? null : String(u));
+  return { setup_user: nm(as.get('setup_user')), currentUser: nm(as.get('currentUser')) };
+});
+```
+
+## Gotcha: a DB read taken right after a backgrounded write is not a verdict (2026-08-15)
+
+Picking a home board for a supervisee schedules a `Progress`-backed copy (95 boards, in
+this case). Reading `settings['preferences']['home_board']` seconds later returned `NONE`
+twice, and I twice concluded the UI was reporting success while nothing persisted.
+
+It was persisting; my reads were racing the job. The thing that settled it was the full
+request trace — `PUT /api/v1/users/1_33` sent
+`{"id":"hannah_lee/vocal-flair-60","key":...}` and the server returned
+`{"id":"1_1458","key":...,"locale":"en_US"}`, a RESOLVED id, which is proof of a kept
+write in a way a racing `SELECT` is not.
+
+Order of evidence for "did this save?": the server's response body first, then a fresh
+reload, then the failed-queue delta. A bare model read immediately after a scheduled job
+is the weakest of the four and the easiest to misread as a bug.
+
+Related trap in the same flow: `saveHomeBoard` (`utils/home_board.js`) verifies the save
+by re-reading `preferences.home_board` off the SAVED record. That is only meaningful
+because the server re-serializes from its own record — had the response omitted the key,
+Ember Data would have kept the optimistic local value and the check would have verified
+its own write.

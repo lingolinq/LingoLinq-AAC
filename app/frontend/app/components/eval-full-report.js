@@ -53,9 +53,10 @@ export default Component.extend({
   gridLabel: computed('recommendation.grid_size', function() {
     var grid = this.get('recommendation.grid_size');
     if (!grid) { return null; }
-    return i18n.t('full_report_grid_label', "%{rows} × %{cols} (%{cells} buttons)", {
-      rows: grid.rows, cols: grid.cols, cells: grid.cells
-    });
+    // Kept on ONE line: i18n_generator.rb scans for the closing ")" on the same
+    // line as the English string and counts the call MISSING without it, which
+    // blocks generation of every locale file. See i18n_generator.rb:124-134.
+    return i18n.t('full_report_grid_label', "%{rows} × %{cols} (%{cells} buttons)", {rows: grid.rows, cols: grid.cols, cells: grid.cells});
   }),
 
   buttonSizeLabel: computed('recommendation.button_size', function() {
@@ -116,9 +117,7 @@ export default Component.extend({
       rows.push({
         id: 'display',
         label: i18n.t('full_feature_display', "Display / grid capacity"),
-        value: i18n.t('full_feature_display_value', "Supports at least a %{rows} × %{cols} grid (%{cells} buttons)", {
-          rows: rec.grid_size.rows, cols: rec.grid_size.cols, cells: rec.grid_size.cells
-        }),
+        value: i18n.t('full_feature_display_value', "Supports at least a %{rows} × %{cols} grid (%{cells} buttons)", {rows: rec.grid_size.rows, cols: rec.grid_size.cols, cells: rec.grid_size.cells}),
         evidence: i18n.t('full_feature_display_evidence', "Largest grid mastered during the evaluation", {})
       });
     }
@@ -157,9 +156,7 @@ export default Component.extend({
         id: 'symbols',
         label: i18n.t('full_feature_symbols', "Symbol representation"),
         value: rec.library.compared ?
-          i18n.t('full_feature_symbols_compared', "%{lib} (%{p}% accuracy — highest of %{n} libraries trialled)", {
-            lib: rec.library.name, p: rec.library.pct, n: rec.library.ranked.length
-          }) :
+          i18n.t('full_feature_symbols_compared', "%{lib} (%{p}% accuracy — highest of %{n} libraries trialled)", {lib: rec.library.name, p: rec.library.pct, n: rec.library.ranked.length}) :
           i18n.t('full_feature_symbols_single', "%{lib} (%{p}% accuracy)", { lib: rec.library.name, p: rec.library.pct }),
         evidence: rec.library.compared ?
           i18n.t('full_feature_symbols_evidence_compared', "Per-library trial accuracy", {}) :
@@ -170,9 +167,7 @@ export default Component.extend({
       rows.push({
         id: 'literacy',
         label: i18n.t('full_feature_literacy', "Text access"),
-        value: i18n.t('full_feature_literacy_value', "%{c} of %{t} word-only items correct (%{p}%)", {
-          c: rec.literacy.correct, t: rec.literacy.trials, p: rec.literacy.pct
-        }),
+        value: i18n.t('full_feature_literacy_value', "%{c} of %{t} word-only items correct (%{p}%)", {c: rec.literacy.correct, t: rec.literacy.trials, p: rec.literacy.pct}),
         evidence: i18n.t('full_feature_literacy_evidence', "Literacy probes — words shown without symbols", {})
       });
     }
@@ -180,9 +175,7 @@ export default Component.extend({
       rows.push({
         id: 'expressive',
         label: i18n.t('full_feature_expressive', "Composed output"),
-        value: i18n.t('full_feature_expressive_value', "Longest response %{n} words across %{p} open-ended prompts", {
-          n: rec.expressive.max_words, p: rec.expressive.prompts
-        }),
+        value: i18n.t('full_feature_expressive_value', "Longest response %{n} words across %{p} open-ended prompts", {n: rec.expressive.max_words, p: rec.expressive.prompts}),
         evidence: i18n.t('full_feature_expressive_evidence', "Open-ended prompt responses", {})
       });
     }

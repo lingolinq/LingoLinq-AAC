@@ -11,7 +11,7 @@ import * as QUnit from 'qunit';
  * What the flag drives: inside the tour, a card tap must open the board PREVIEW
  * (whose CTA becomes "Pick this Board") rather than navigating the user away to
  * Speak Mode and abandoning the tour (board-icon.js, board-preview.js
- * #tour_pick). The only other writer that sets it TRUE is
+ * #pick_for_home_mode). The only other writer that sets it TRUE is
  * board-preview-overlay.js#_handlePickError, an error path, so nothing
  * compensated on the normal open.
  *

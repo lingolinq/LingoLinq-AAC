@@ -570,7 +570,11 @@ var modal = EmberObject.extend({
         allow_style: allow_style,
         callback: callback,
         remove: remove,
-        // opts.recommend → "recommended home board" header (see board-preview-overlay.hbs).
+        // opts.recommend marks this as a RECOMMENDED-board preview, which swaps the
+        // footer to the single "Pick this Board" CTA that assigns the board to
+        // `setup_user || currentUser` (board-preview.js#pick_for_home_mode →
+        // board-preview-overlay#pick_for_home). Used by the eval report's
+        // "Preview & choose for <user>" card via utils/recommended_home_board.
         recommend: !!(opts && opts.recommend)
       });
     }
