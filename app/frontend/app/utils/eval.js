@@ -18,6 +18,7 @@ import speecher_singleton from './speecher';
 import utterance_singleton from './utterance';
 import modal_singleton from './modal';
 import capabilities_singleton from './capabilities';
+import RSVP from 'rsvp';
 
 // select language when starting assessment
 
@@ -213,6 +214,12 @@ var evaluation = {
     evaluation.stashes.log_event(assessment, assessment.user_id, evaluation.appState.get('sessionUser.id'));
     if(evaluation.persistence.get('online')) {
       evaluation.stashes.push_log();
+    } else {
+      // Offline, the eval is stashed and will sync later — but until this point
+      // that was SILENT: the flow still navigated to a complete-looking results
+      // page, so an SLP who pressed Save had no way to know the evaluation was
+      // not on their account yet. Say so, once, at the moment of saving.
+      evaluation.modal.notice(evaluation.i18n.t('eval_saved_offline_pending', "Evaluation saved on this device. It will upload to the account once you're back online."), true);
     }
     // Concluded + saved — drop the in-progress snapshot so it can't resurrect a
     // finished eval on the next visit.
@@ -221,6 +228,102 @@ var evaluation = {
     evaluation.appState.controller.router.transitionTo('user.log', assessment.user_name, 'last-eval');
     assessment = {};
     working = {};
+  },
+  // Persist the SLP's report workbook (components/eval-workbook — the funding /
+  // IEP sections an eval cannot measure) onto the eval it belongs to.
+  //
+  // There is NO endpoint that merges into a saved eval. `PUT /api/v1/logs/:id`
+  // reaches `process_params` with `update_only`, which writes only `highlighted`
+  // and per-event notes (log_session.rb:1678-1730) — `data['eval']` is in the
+  // other branch and unreachable. The one supported way to rewrite a saved eval
+  // is the one `resume()` already uses: re-send the whole eval event. The server
+  // matches it to the existing LogSession by `log_session_id` (exact, no time
+  // bound) or by `ref_id` (a 72h scan), then calls `s.process({eval: ...})`,
+  // which REPLACES `data['eval']` wholesale (log_session.rb:1058-1077, 1810;
+  // covered by spec/models/log_session_spec.rb "should process resumed evals by
+  // ref_id"). Hence we send the COMPLETE assessment, never a patch.
+  //
+  // The server also requires the same author and user; when they don't match it
+  // creates a DUPLICATE eval record instead of updating (log_session.rb:1108).
+  // Callers must gate on authorship — components/eval-workbook does, and refuses
+  // to save rather than forking the record.
+  //
+  // Delivery is asynchronous by design (stash -> 10s-throttled push -> Resque),
+  // so this resolves when the event is QUEUED, not when the server has it. The
+  // in-memory assessment is updated synchronously so the page keeps showing what
+  // was entered either way, and an offline save rides the normal stash sync.
+  // `local_only` keeps the workbook on this device WITHOUT sending it. That is
+  // the correct behaviour when the eval has no saved record to attach to yet:
+  // sending it anyway would not update anything, it would file a SECOND
+  // evaluation (log_session.rb:1108). So we hold it, and it attaches on the next
+  // save once a record exists.
+  save_workbook: function(opts) {
+    opts = opts || {};
+    var src = opts.assessment;
+    if(!src || !opts.workbook) { return RSVP.reject({error: 'no_assessment'}); }
+    // Strip functions/cycles the same way the progress snapshot does, so what we
+    // send is exactly what can be stored.
+    var copy = evaluation._json_safe(src);
+    if(!copy) { return RSVP.reject({error: 'unserializable'}); }
+    copy.report_workbook = opts.workbook;
+    // stashes.log_event decides an object is an eval by the presence of
+    // mastery_cutoff (services/stashes.js:528). An assessment that somehow lacks
+    // it would be filed as an unrecognized event and silently dropped.
+    copy.mastery_cutoff = copy.mastery_cutoff || mastery_cutoff;
+    copy.non_mastery_cutoff = copy.non_mastery_cutoff || non_mastery_cutoff;
+    // Exact match beats the ref_id scan whenever we know the record.
+    if(opts.log_id) { copy.log_session_id = opts.log_id; }
+    var uid = copy.user_id || opts.user_id;
+    if(uid) {
+      copy.user_id = uid;
+      evaluation.appState.set('last_assessment_for_' + String(uid), copy);
+    }
+    if(copy.user_name) {
+      evaluation.appState.set('last_assessment_for_uname_' + copy.user_name, copy);
+    }
+    if(opts.local_only) {
+      return RSVP.resolve({queued: false, local_only: true, assessment: copy});
+    }
+    evaluation.stashes.log_event(copy, uid, evaluation.appState.get('sessionUser.id'));
+    var online = !!evaluation.persistence.get('online');
+    if(online) { evaluation.stashes.push_log(); }
+    return RSVP.resolve({queued: true, online: online, assessment: copy});
+  },
+  // Find the saved LogSession for an eval we only hold in memory.
+  //
+  // The last-eval page never learns its own log id: an eval is pushed as an
+  // event through a JobStash and the create response is a synthetic
+  // "fake-…/pending" record, with the real LogSession written later by a Resque
+  // job. Without an id, a workbook save can only fall back to the server's
+  // ref_id scan, which is bounded to ~72h and fails entirely for an eval
+  // recovered from a snapshot written before ref_id existed. Reading the id back
+  // off the logs index removes both limits.
+  //
+  // MATCHING IS STRICT. Attaching a workbook to the wrong evaluation would be
+  // worse than not saving it, so we match only on ref_id or on the eval's own
+  // start time — `started_at` is derived server-side from data['eval']['started']
+  // (log_session.rb:279), so it is the same number, not an approximation. There
+  // is deliberately NO "just take the newest eval" fallback.
+  find_saved_log_id: function(user_id, assessment) {
+    if(!user_id || !assessment) { return RSVP.resolve(null); }
+    var ref_id = assessment.ref_id;
+    var started = parseInt(assessment.started, 10) || 0;
+    if(!ref_id && !started) { return RSVP.resolve(null); }
+    if(!evaluation.persistence.get('online')) { return RSVP.resolve(null); }
+    var url = '/api/v1/logs?user_id=' + encodeURIComponent(user_id) + '&type=eval&per_page=25';
+    return evaluation.persistence.ajax(url, {type: 'GET'}).then(function(res) {
+      var logs = (res || {}).log || [];
+      var match = null;
+      if(ref_id) {
+        match = logs.find(function(l) { return l.evaluation && l.evaluation.ref_id == ref_id; });
+      }
+      if(!match && started) {
+        // time_id is (started_at).to_i — the same epoch second the eval recorded.
+        // Allow a couple of seconds for rounding on the way through.
+        match = logs.find(function(l) { return Math.abs((parseInt(l.time_id, 10) || 0) - started) <= 2; });
+      }
+      return match ? match.id : null;
+    }, function() { return null; });
   },
   last_assessment_from_memory: function(userId, userName) {
     if (userId != null && userId !== '') {
@@ -901,6 +1004,11 @@ var evaluation = {
     } else if(assessment.access_meethod == 'head') {
       res.access_method = evaluation.i18n.t('head_tracking', "Head Tracking");
     }
+    // `res.access_method` above is the LOCALIZED label for display, which
+    // overwrites the raw key copied from the assessment. Keep the raw key too —
+    // eval_full_recommend maps it to a selection channel (touch/scan/gaze) for
+    // the feature-match + goal language, and a translated label can't be matched.
+    res.access_method_key = assessment.access_method || 'touch';
     res.access_settings = []; //assessment;
     res.access_settings.push({key: evaluation.i18n.t('mastery', "mastery"), val: assessment.mastery_cutoff * 100, percent: true});
     res.access_settings.push({key: evaluation.i18n.t('non-mastery', "non-mastery"), val: assessment.non_mastery_cutoff * 100, percent: true});
@@ -1395,6 +1503,14 @@ evaluation.callback = function(key) {
   working.ref = working.ref || {};
   working.level = working.level || 0;
   assessment.started = assessment.started || (new Date()).getTime() / 1000;
+  // Stamp the reattach key at START, not at persist(). The server uses ref_id to
+  // recognize a re-sent eval as the SAME LogSession rather than a new one
+  // (log_session.rb:1062-1073), and persist() only assigned it on the way out —
+  // so every in-progress snapshot written to IndexedDB carried no ref_id, and an
+  // eval recovered from one (reload / crash / returning to last-eval in a fresh
+  // session) could not be matched back to its own saved record. persist() keeps
+  // its `||=` so an eval already stamped is never re-keyed.
+  assessment.ref_id = assessment.ref_id || ("tmp." + (new Date()).getTime() + "." + (Math.random()));
   var level = levels[working.level];
   var step = level[working.step];
   // level_id keys every recorded response (assessment.events[level_id]) and is how

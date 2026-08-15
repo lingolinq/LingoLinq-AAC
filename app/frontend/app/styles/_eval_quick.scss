@@ -953,7 +953,7 @@ body.evq-gaze-mode { cursor: crosshair; }
   gap: 8px;
 
   .evq-report__eyebrow {
-    font-size: 11px;
+    font-size: 14px;
     text-transform: uppercase;
     letter-spacing: 0.16em;
     color: $evq-accent;
@@ -983,7 +983,7 @@ body.evq-gaze-mode { cursor: crosshair; }
   background: #ffffff;
   border: 1px solid $evq-border;
   border-radius: $evq-radius-pill;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: $evq-text-muted;
   letter-spacing: -0.005em;
@@ -1031,7 +1031,7 @@ body.evq-gaze-mode { cursor: crosshair; }
 }
 
 .evq-card__label {
-  font-size: 11px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: $evq-text-muted;
@@ -1047,7 +1047,7 @@ body.evq-gaze-mode { cursor: crosshair; }
 }
 
 .evq-card__hint {
-  font-size: 12px;
+  font-size: 14px;
   color: $evq-text-muted;
 }
 
@@ -1060,7 +1060,7 @@ body.evq-gaze-mode { cursor: crosshair; }
   padding: 0;
   border: 0;
   background: none;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: $evq-accent;
   text-decoration: underline;
@@ -1088,7 +1088,7 @@ body.evq-gaze-mode { cursor: crosshair; }
   border-radius: $evq-radius-pill;
   background: $evq-accent-soft;
   color: $evq-accent;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -1109,7 +1109,7 @@ body.evq-gaze-mode { cursor: crosshair; }
 }
 
 .evq-report__promote-reasons {
-  font-size: 13px;
+  font-size: 14px;
   color: $evq-text-muted;
 }
 
@@ -1478,7 +1478,7 @@ body.evq-gaze-mode { cursor: crosshair; }
   gap: 8px;
 }
 .evq-saved__eyebrow {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.10em;
@@ -1502,7 +1502,7 @@ body.evq-gaze-mode { cursor: crosshair; }
   border-radius: 999px;
   background: rgba($la-navy, 0.06);
   border: 1px solid rgba($la-navy, 0.12);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1516,7 +1516,7 @@ body.evq-gaze-mode { cursor: crosshair; }
     text-transform: none;
     letter-spacing: 0;
     font-weight: 600;
-    font-size: 13px;
+    font-size: 14px;
   }
 }
 .evq-saved__grid {
@@ -1537,7 +1537,7 @@ body.evq-gaze-mode { cursor: crosshair; }
   grid-column: 1 / -1;
 }
 .evq-saved__card-label {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.10em;
@@ -1550,7 +1550,7 @@ body.evq-gaze-mode { cursor: crosshair; }
   line-height: 1.2;
 }
 .evq-saved__card-hint {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   color: rgba($la-navy, 0.65);
 }
@@ -1576,7 +1576,7 @@ body.evq-gaze-mode { cursor: crosshair; }
 }
 .evq-saved__targeted-eyebrow {
   display: block;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.10em;
@@ -1604,7 +1604,7 @@ body.evq-gaze-mode { cursor: crosshair; }
   border-radius: 10px;
 }
 .evq-saved__targeted-label {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.10em;
@@ -1617,7 +1617,7 @@ body.evq-gaze-mode { cursor: crosshair; }
   line-height: 1.2;
 }
 .evq-saved__targeted-hint {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   color: rgba($la-navy, 0.65);
 }
@@ -1633,7 +1633,7 @@ body.evq-gaze-mode { cursor: crosshair; }
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: rgba($la-navy, 0.78);
 }
@@ -1651,7 +1651,7 @@ body.evq-gaze-mode { cursor: crosshair; }
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: rgba($la-navy, 0.78);
 }
@@ -1669,7 +1669,7 @@ body.evq-gaze-mode { cursor: crosshair; }
 }
 .evq-saved__notes-label {
   display: inline-block;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.10em;
@@ -1701,7 +1701,7 @@ body.evq-gaze-mode { cursor: crosshair; }
 }
 .evq-report__targeted-eyebrow {
   display: block;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.10em;
@@ -1729,7 +1729,7 @@ body.evq-gaze-mode { cursor: crosshair; }
   border-radius: 10px;
 }
 .evq-report__targeted-label {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.10em;
@@ -1742,7 +1742,7 @@ body.evq-gaze-mode { cursor: crosshair; }
   line-height: 1.2;
 }
 .evq-report__targeted-hint {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   color: rgba($la-navy, 0.65);
 }
@@ -1758,7 +1758,7 @@ body.evq-gaze-mode { cursor: crosshair; }
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: rgba($la-navy, 0.78);
 }
@@ -1776,7 +1776,7 @@ body.evq-gaze-mode { cursor: crosshair; }
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: rgba($la-navy, 0.78);
 }
@@ -1802,7 +1802,7 @@ body.evq-gaze-mode { cursor: crosshair; }
 }
 .evq-report__goals-eyebrow {
   display: block;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.10em;
@@ -1817,7 +1817,7 @@ body.evq-gaze-mode { cursor: crosshair; }
 }
 .evq-report__goals-lede {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: rgba($la-navy, 0.72);
   line-height: 1.5;
@@ -1841,7 +1841,7 @@ body.evq-gaze-mode { cursor: crosshair; }
   &[data-category="strategic"]   { border-color: rgba(232, 122, 111, 0.32); }
 }
 .evq-report__goals-cat-label {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.10em;
@@ -1894,7 +1894,7 @@ body.evq-gaze-mode { cursor: crosshair; }
   margin: 4px 0 16px;
 }
 .evq-report__notes-label {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.10em;
@@ -1929,8 +1929,433 @@ body.evq-gaze-mode { cursor: crosshair; }
   border: 1px solid rgba($brand-danger, 0.25);
   border-radius: 8px;
   color: $brand-danger;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
+}
+
+// =====================================================================
+// Full-eval report (.evq-report--full) — components/eval-full-report
+// =====================================================================
+// The same report surface, rendered inside the classic Bootstrap page at
+// user.log / last-eval rather than the full-bleed .evq shell. It sits above the
+// existing trial tables, so it needs its own outer spacing and must not inherit
+// the flow shell's viewport sizing.
+
+.evq-report--full {
+  margin: 0 0 28px;
+}
+
+// `.md-eval-report h3` (app.scss ~58946) is the authoritative heading rule for
+// the legacy report's own section titles, and at 1 class + 1 element it
+// out-specifies the single-class .evq-* heading rules — which app.scss also
+// beats on source order, since `@use "eval_quick"` sits at the top of the file.
+// This component's headings live INSIDE that container but are not part of that
+// report, so re-assert their own spacing with a component-scoped selector
+// (2 classes) rather than an !important patch, which would not have worked here
+// anyway at equal specificity.
+.evq-report--full .evq-report__targeted-title,
+.evq-report--full .evq-report__goals-title,
+.evq-report--full .evq-report__missing-title {
+  margin-top: 0;
+}
+
+// Medical / School switch. A funding report and an IEP have conflicting rules
+// about naming a product, so the mode is an explicit choice, not a preference.
+.evq-report__modes {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.evq-report__mode-note {
+  margin: 0;
+  max-width: 68ch;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: rgba($la-navy, 0.72);
+}
+
+// Feature match — the standards-spine section a funding reviewer reads first.
+// Rendered as a table because it is quoted into reports verbatim.
+.evq-report__features {
+  margin: 0;
+  padding: 20px 22px;
+  background: linear-gradient(180deg, #ffffff 0%, rgba($brand-verdigris, 0.04) 100%);
+  border: 1px solid rgba($brand-verdigris, 0.18);
+  border-radius: 14px;
+}
+
+.evq-report__features-table {
+  margin: 14px 0 0;
+  background: #fff;
+  font-size: 14px;
+
+  th {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.10em;
+    color: rgba($la-navy, 0.65);
+  }
+}
+
+.evq-report__feature-label {
+  font-weight: 700;
+  color: $la-navy;
+  white-space: nowrap;
+}
+
+.evq-report__feature-value {
+  font-weight: 600;
+  color: rgba($la-navy, 0.88);
+}
+
+.evq-report__feature-evidence {
+  font-size: 14px;
+  font-weight: 500;
+  color: $evq-text-muted;
+}
+
+// Report workbook (components/eval-workbook) — the sections the eval cannot
+// measure, as a fillable form. Honey-bronze rule marks it as the "this still
+// needs you" surface, matching .evq-report__promote.
+.evq-workbook {
+  display: block;
+  background: rgba($brand-honey-bronze, 0.08);
+  border: 1px solid rgba($brand-honey-bronze, 0.32);
+  border-left: 3px solid $brand-honey-bronze;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.evq-workbook__toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 16px 20px;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid rgba($brand-verdigris, 0.75);
+    outline-offset: -3px;
+  }
+}
+
+.evq-workbook__toggle-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.evq-workbook__title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: $la-navy;
+}
+
+.evq-workbook__count {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.12);
+  border-radius: $evq-radius-pill;
+  font-size: 14px;
+  font-weight: 700;
+  color: $evq-text-muted;
+  font-variant-numeric: tabular-nums;
+}
+
+.evq-workbook__subtitle {
+  display: block;
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: rgba($la-navy, 0.72);
+}
+
+.evq-workbook__chevron {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: rgba($la-navy, 0.55);
+  transition: transform 0.15s ease;
+
+  .evq-workbook--open > .evq-workbook__toggle & { transform: rotate(180deg); }
+}
+
+// Bodies live in the DOM whether open or not (so the page prints complete) —
+// open/closed is a CSS state, not a render condition.
+.evq-workbook__body {
+  display: none;
+  padding: 0 20px 18px;
+  flex-direction: column;
+  gap: 8px;
+
+  .evq-workbook--open > & { display: flex; }
+}
+
+.evq-workbook__readonly {
+  margin: 0 0 6px;
+  padding: 10px 14px;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.12);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: rgba($la-navy, 0.78);
+}
+
+// One accordion per report section.
+.evq-workbook__section {
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 10px;
+  overflow: hidden;
+
+  &--open { border-color: rgba($brand-verdigris, 0.35); }
+}
+
+.evq-workbook__section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid rgba($brand-verdigris, 0.75);
+    outline-offset: -3px;
+  }
+
+  .evq-workbook__chevron { margin-top: 0; }
+  .evq-workbook__section--open & .evq-workbook__chevron { transform: rotate(180deg); }
+}
+
+.evq-workbook__section-title {
+  flex: 1 1 auto;
+  font-size: 14px;
+  font-weight: 700;
+  color: $la-navy;
+}
+
+.evq-workbook__section-badge {
+  flex: 0 0 auto;
+  padding: 2px 9px;
+  border-radius: $evq-radius-pill;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: $evq-accent-soft;
+  color: $evq-accent;
+
+  &--empty {
+    background: rgba($la-navy, 0.06);
+    color: rgba($la-navy, 0.55);
+  }
+}
+
+.evq-workbook__section-body {
+  display: none;
+  padding: 0 14px 14px;
+  flex-direction: column;
+  gap: 12px;
+
+  .evq-workbook__section--open > & { display: flex; }
+}
+
+.evq-workbook__section-hint {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: rgba($la-navy, 0.65);
+}
+
+.evq-workbook__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: 12px;
+}
+
+.evq-workbook__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.evq-workbook__label {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba($la-navy, 0.60);
+}
+
+// Same field treatment as the comprehensive-runner SETT inputs, so every
+// SLP-authored field in the eval looks and focuses alike.
+.evq-workbook__input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba($la-navy, 0.12);
+  border-radius: 10px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  color: $la-navy;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+
+  &--long {
+    resize: vertical;
+    min-height: 90px;
+  }
+
+  &:focus,
+  &:focus-visible {
+    outline: none;
+    border-color: rgba($brand-verdigris, 0.45);
+    box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.15);
+  }
+
+  &:disabled {
+    background: rgba($la-navy, 0.03);
+    color: rgba($la-navy, 0.55);
+    cursor: not-allowed;
+  }
+}
+
+// Repeating rows (less-costly trials, daily needs by environment).
+.evq-workbook__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.evq-workbook__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+  gap: 10px;
+  align-items: end;
+  padding: 12px;
+  background: rgba($la-navy, 0.02);
+  border: 1px solid rgba($la-navy, 0.08);
+  border-radius: 8px;
+}
+
+.evq-workbook__row-remove,
+.evq-workbook__add-row {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 14px;
+  font-weight: 700;
+  color: $evq-accent;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+
+  &:hover { text-decoration: none; }
+  &:focus-visible {
+    outline: 2px solid rgba($brand-verdigris, 0.75);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+}
+
+.evq-workbook__row-remove {
+  align-self: end;
+  padding-bottom: 10px;
+  color: $brand-danger;
+}
+
+.evq-workbook__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.evq-workbook__status {
+  font-size: 14px;
+  font-weight: 600;
+  color: $evq-text-muted;
+
+  &--saved { color: $evq-accent; }
+  &--error { color: $brand-danger; }
+}
+
+// Print — user.log is a printed clinical document (the page has a Print action
+// and a visible-print-block header). Bootstrap's print reset strips every
+// background, so the report has to survive as structure: keep cards whole
+// across page breaks, drop the interactive controls, and release the flow
+// shell's viewport height so no blank trailing page is produced.
+@media print {
+  .evq-report--full {
+    box-shadow: none;
+    border-color: rgba(0, 0, 0, 0.25);
+    break-inside: auto;
+  }
+  .evq-report__modes,
+  .evq-report__actions,
+  .evq-workbook__actions,
+  .evq-workbook__add-row,
+  .evq-workbook__row-remove,
+  .evq-btn,
+  .evq-card__link {
+    display: none !important;
+  }
+  // Printed for a funding submission, the workbook's ANSWERS are the point, so
+  // the collapsed UI state must not decide what reaches the page: every STARTED
+  // section is forced open regardless of what the SLP left expanded on screen,
+  // and untouched sections are dropped so the print is the report, not the form.
+  .evq-workbook__body { display: flex !important; }
+  .evq-workbook__section--started > .evq-workbook__section-body { display: flex !important; }
+  .evq-workbook__section:not(.evq-workbook__section--started) { display: none !important; }
+  .evq-workbook__chevron,
+  .evq-workbook__section-badge,
+  .evq-workbook__section-hint,
+  .evq-workbook__readonly,
+  .evq-workbook__subtitle {
+    display: none !important;
+  }
+  .evq-card,
+  .evq-report__goals-cat,
+  .evq-report__targeted-card,
+  .evq-workbook__section,
+  .evq-report__features {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .evq-workbook__input {
+    border: 0 !important;
+    padding-left: 0 !important;
+  }
+  .evq {
+    min-height: 0 !important;
+  }
 }
 
 // =====================================================================

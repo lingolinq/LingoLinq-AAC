@@ -145,32 +145,46 @@ export default Controller.extend({
       this.set('processed_profile.history', this.get('history_result.results'))
     }
   }),
-  processed_assessment: computed(
+  // The RAW eval blob, before analyze() derives display values off a copy.
+  // Anything that needs to WRITE back to the eval (the report workbook) must
+  // start from this, because analyze() returns a copy carrying derived fields
+  // that must never be persisted, and `data['eval']` is replaced wholesale on
+  // save (see evaluation.save_workbook).
+  raw_assessment: computed(
     'model.type',
     'model.eval_in_memory',
     'model.evaluation',
-    'model.profile',
     'user.id',
     'user.user_name',
     'eval_memory_fallback',
     'eval_memory_fallback.user_id',
     function() {
-      if(this.get('model.type') == 'eval') {
-        var assessment = this.get('model.evaluation');
-        if(this.get('model.eval_in_memory')) {
-          assessment = evaluation.last_assessment_from_memory(this.get('user.id'), this.get('user.user_name')) || {};
-          // In-memory is empty on a fresh load / reload (appState wiped). Fall back
-          // to the durable in-progress snapshot (IndexedDB, loaded by
-          // load_eval_fallback) so the results page recovers the eval instead of
-          // rendering blank. Point-of-use user match: this controller is a
-          // singleton reused across communicators, so never render a fallback that
-          // belongs to a different user (defense on top of the observer's reset).
-          if(!(assessment && (assessment.events || assessment.started)) &&
-             this.get('eval_memory_fallback') &&
-             String(this.get('eval_memory_fallback.user_id')) == String(this.get('user.id'))) {
-            assessment = this.get('eval_memory_fallback');
-          }
+      if(this.get('model.type') != 'eval') { return null; }
+      var assessment = this.get('model.evaluation');
+      if(this.get('model.eval_in_memory')) {
+        assessment = evaluation.last_assessment_from_memory(this.get('user.id'), this.get('user.user_name')) || {};
+        // In-memory is empty on a fresh load / reload (appState wiped). Fall back
+        // to the durable in-progress snapshot (IndexedDB, loaded by
+        // load_eval_fallback) so the results page recovers the eval instead of
+        // rendering blank. Point-of-use user match: this controller is a
+        // singleton reused across communicators, so never render a fallback that
+        // belongs to a different user (defense on top of the observer's reset).
+        if(!(assessment && (assessment.events || assessment.started)) &&
+           this.get('eval_memory_fallback') &&
+           String(this.get('eval_memory_fallback.user_id')) == String(this.get('user.id'))) {
+          assessment = this.get('eval_memory_fallback');
         }
+      }
+      return assessment;
+    }
+  ),
+  processed_assessment: computed(
+    'model.type',
+    'model.profile',
+    'raw_assessment',
+    function() {
+      if(this.get('model.type') == 'eval') {
+        var assessment = this.get('raw_assessment');
         window.current_assesment = assessment;
         return evaluation.analyze(assessment);
       }

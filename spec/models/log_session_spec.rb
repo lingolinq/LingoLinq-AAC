@@ -1287,6 +1287,58 @@ describe LogSession, :type => :model do
       expect(log.author).to eq(u)
       expect(log.data['eval']).to eq({'b' => 1, 'ref_id' => ref_id})
     end
+
+    it "should attach a report workbook to an existing eval by ref_id without duplicating it" do
+      # The SLP report workbook (app/frontend/app/utils/eval_workbook.js) is saved
+      # by re-sending the whole eval blob, because no endpoint merges into a saved
+      # eval. This pins the two properties that makes that safe: the workbook
+      # lands on the SAME record, and re-saving does not create a second eval.
+      u2 = User.create
+      u = User.create
+      User.link_supervisor_to_user(u, u2, nil, true)
+      d = Device.create(:user => u)
+      ref_id = "tmp.#{Time.now.to_i * 1000}.0.98765"
+
+      eval_blob = {'name' => 'Full Eval', 'mastery_cutoff' => 0.69, 'ref_id' => ref_id}
+      s = LogSession.new(:data => {'events' => [{
+        'timestamp' => User.default_log_session_duration + 101,
+        'type' => 'eval', 'user_id' => u2.global_id, 'eval' => eval_blob
+      }]}, :user => u, :author => u, :device => d)
+      s.split_out_later_sessions(true)
+
+      expect(LogSession.where(log_type: 'eval').count).to eq(1)
+      log = LogSession.find_by(log_type: 'eval')
+      expect(log.data['eval']['report_workbook']).to eq(nil)
+
+      workbook = {
+        'medical' => {
+          'least_costly' => {'rows' => [
+            {'option' => 'low-tech board', 'trial_length' => '4 weeks',
+             'training' => 'parent + aide', 'reason' => 'could not repair breakdowns'}
+          ]},
+          'attestations' => {'slp_name' => 'A. Clinician', 'npi' => '1234567890'}
+        },
+        'school' => {'sett' => {'student' => 'uses 2-symbol combos'}}
+      }
+      s2 = LogSession.new(:data => {'events' => [{
+        'timestamp' => User.default_log_session_duration + 102,
+        'type' => 'eval', 'user_id' => u2.global_id,
+        'eval' => eval_blob.merge({'report_workbook' => workbook, 'log_session_id' => log.global_id})
+      }]}, :user => u, :author => u, :device => d)
+      s2.split_out_later_sessions(true)
+
+      # Same record, not a second eval.
+      expect(LogSession.where(log_type: 'eval').count).to eq(1)
+      log.reload
+      expect(log.global_id).to eq(LogSession.find_by(log_type: 'eval').global_id)
+      expect(log.data['eval']['report_workbook']).to eq(workbook)
+      # The eval's own data is still intact alongside it.
+      expect(log.data['eval']['name']).to eq('Full Eval')
+      expect(log.data['eval']['ref_id']).to eq(ref_id)
+      # And it is exposed back to the client under the 'evaluation' key.
+      json = JsonApi::Log.as_json(log.reload, :wrapper => true)
+      expect(json['log']['evaluation']['report_workbook']).to eq(workbook)
+    end
   end
 
   describe "handle_alert" do

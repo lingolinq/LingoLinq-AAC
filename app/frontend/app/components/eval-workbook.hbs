@@ -1,0 +1,118 @@
+{{!-- The fill-in half of the report: the sections an eval cannot measure but a
+     funding submission or IEP still requires. Collapsed by default so it never
+     pushes the measured results off screen.
+
+     Bodies are ALWAYS rendered and hidden with CSS rather than {{#if}}-gated,
+     because this page is printed: a collapsed accordion that isn't in the DOM
+     prints as an empty heading, and only one section is open at a time.
+     Print then force-shows every started section and drops the chrome.
+
+     Labels come pre-resolved on `displaySections` — they must NOT be looked up
+     with {{get}} here, because the label keys contain dots and {{get}} would
+     read them as property paths and render nothing. --}}
+<button type="button" class="evq-workbook__toggle" aria-expanded={{if this.expanded "true" "false"}} aria-controls="evq-workbook-body" {{on "click" (this.ctrlAction "toggle")}}>
+  <span class="evq-workbook__toggle-text">
+    <span class="evq-workbook__title">
+      {{#if this.isSchoolMode}}
+        {{t "IEP report workbook" key="workbook_title_school"}}
+      {{else}}
+        {{t "Funding report workbook" key="workbook_title_medical"}}
+      {{/if}}
+      <span class="evq-workbook__count">{{this.progressLabel}}</span>
+    </span>
+    <span class="evq-workbook__subtitle">
+      {{t "This evaluation measures access, display and symbol skills. Fill in the sections below from your own observation — they save with this evaluation." key="workbook_subtitle"}}
+    </span>
+  </span>
+  <svg class="evq-workbook__chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <polyline points="6 9 12 15 18 9"></polyline>
+  </svg>
+</button>
+
+<div id="evq-workbook-body" class="evq-workbook__body">
+  {{#if this.readOnlyReason}}
+    <p class="evq-workbook__readonly" role="note">{{this.readOnlyReason}}</p>
+  {{/if}}
+
+  {{#each this.displaySections as |section|}}
+    <div class="evq-workbook__section {{if (is_equal this.openSection section.id) 'evq-workbook__section--open'}} {{if section.started 'evq-workbook__section--started'}}">
+      <button type="button" class="evq-workbook__section-toggle" aria-expanded={{if (is_equal this.openSection section.id) "true" "false"}} aria-controls={{concat "evq-workbook-section-" section.id}} {{on "click" (this.ctrlAction "toggleSection" section.id)}}>
+        <span class="evq-workbook__section-title">{{section.label}}</span>
+        {{#if section.started}}
+          <span class="evq-workbook__section-badge">{{t "started" key="workbook_section_started"}}</span>
+        {{else}}
+          <span class="evq-workbook__section-badge evq-workbook__section-badge--empty">{{t "empty" key="workbook_section_empty"}}</span>
+        {{/if}}
+        <svg class="evq-workbook__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </button>
+
+      <div id={{concat "evq-workbook-section-" section.id}} class="evq-workbook__section-body">
+        <p class="evq-workbook__section-hint">{{section.hint}}</p>
+
+        {{#if section.isTextarea}}
+          <div class="evq-workbook__field">
+            <label class="evq-workbook__label" for={{concat "wb-" section.id "-notes"}}>
+              {{section.notesLabel}}
+            </label>
+            <textarea id={{concat "wb-" section.id "-notes"}} class="evq-workbook__input evq-workbook__input--long" rows="4" disabled={{unless this.canEdit true}} {{on "input" (this.fieldWriter section.value "notes")}}>{{section.value.notes}}</textarea>
+          </div>
+
+        {{else if section.isFields}}
+          <div class="evq-workbook__fields">
+            {{#each section.fields as |field|}}
+              <div class="evq-workbook__field">
+                <label class="evq-workbook__label" for={{concat "wb-" section.id "-" field.key}}>
+                  {{field.label}}
+                </label>
+                <input id={{concat "wb-" section.id "-" field.key}} type="text" class="evq-workbook__input" value={{get section.value field.key}} disabled={{unless this.canEdit true}} {{on "input" (this.fieldWriter section.value field.key)}} />
+              </div>
+            {{/each}}
+          </div>
+
+        {{else if section.isRows}}
+          <div class="evq-workbook__rows">
+            {{#each section.rows as |row index|}}
+              <div class="evq-workbook__row">
+                {{#each section.columns as |col|}}
+                  <div class="evq-workbook__field">
+                    <label class="evq-workbook__label" for={{concat "wb-" section.id "-" index "-" col.key}}>
+                      {{col.label}}
+                    </label>
+                    <input id={{concat "wb-" section.id "-" index "-" col.key}} type="text" class="evq-workbook__input" value={{get row col.key}} disabled={{unless this.canEdit true}} {{on "input" (this.fieldWriter row col.key)}} />
+                  </div>
+                {{/each}}
+                {{#if this.canEdit}}
+                  <button type="button" class="evq-workbook__row-remove" aria-label={{t "Remove this row" key="workbook_remove_row"}} {{on "click" (this.ctrlActionNoBubble "removeRow" section.id index)}}>
+                    {{t "Remove" key="workbook_remove"}}
+                  </button>
+                {{/if}}
+              </div>
+            {{/each}}
+            {{#if this.canEdit}}
+              <button type="button" class="evq-workbook__add-row" {{on "click" (this.ctrlActionNoBubble "addRow" section.id)}}>
+                {{t "Add another" key="workbook_add_row"}}
+              </button>
+            {{/if}}
+          </div>
+        {{/if}}
+      </div>
+    </div>
+  {{/each}}
+
+  {{#if this.canEdit}}
+    <div class="evq-workbook__actions">
+      {{#if this.saveMessage}}
+        <span class={{this.saveStatusClass}} role="status">{{this.saveMessage}}</span>
+      {{/if}}
+      <button type="button" class="evq-btn evq-btn--primary" disabled={{this.saving}} {{on "click" (this.ctrlAction "save")}}>
+        {{#if this.saving}}
+          {{t "Saving…" key="workbook_saving"}}
+        {{else}}
+          {{t "Save workbook" key="workbook_save"}}
+        {{/if}}
+      </button>
+    </div>
+  {{/if}}
+</div>

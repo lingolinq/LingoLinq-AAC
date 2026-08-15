@@ -27,25 +27,10 @@
       <strong class="evq-card__value">{{this.gridLabel}}</strong>
     </article>
 
-    {{!-- Recommended page set: the Vocal Flair whose button count matches the
-         recommended grid. Opens the shared board-preview modal so the SLP can
-         choose it for the communicator being evaluated. --}}
+    {{!-- Recommended page set — shared with the full-eval report (eval-full-report),
+         so the board-preview / setup_user wiring lives in ONE component. --}}
     {{#if this.vocalFlairButtons}}
-      <article class="evq-card evq-card--flair">
-        <span class="evq-card__label">{{t "Recommended page set" key="report_page_set"}}</span>
-        <strong class="evq-card__value">{{this.vocalFlairLabel}}</strong>
-        {{#if this.canAssignVocalFlair}}
-          <button type="button" class="evq-card__link" {{on "click" (this.ctrlAction "openVocalFlair")}} disabled={{this.loadingVocalFlair}}>
-            {{#if this.loadingVocalFlair}}
-              {{t "Opening preview…" key="report_page_set_loading"}}
-            {{else}}
-              {{t "Preview & choose for %{user}" key="report_page_set_open_for" user=this.vocalFlairForLabel}}
-            {{/if}}
-          </button>
-        {{else}}
-          <small class="evq-card__hint">{{t "Start this eval from a communicator's account to assign their board." key="report_page_set_no_user"}}</small>
-        {{/if}}
-      </article>
+      <EvalPageSetCard @buttons={{this.vocalFlairButtons}} @user={{this.user}} />
     {{/if}}
 
     {{!-- Symbol library: hidden on single-library deployments (eval_single_library),

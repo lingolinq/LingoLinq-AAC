@@ -11106,3 +11106,127 @@ loudly, not fall back to an empty value.** An empty fallback inside a security o
 regression check converts "I could not look" into "there is nothing there". Always log
 HOW the read succeeded (length, access path) alongside the result, so a vacuous read is
 visible in the output rather than indistinguishable from a clean one.
+
+## Pattern: LingoLinq has TWO eval pipelines — check which one produced the page before "fixing" a report (2026-08-14)
+
+"The new report isn't showing on `/:user/logs/last-eval`" is almost never a broken
+render. There are two independent evals and they end in different places:
+
+| | Tiered eval | Full eval |
+|---|---|---|
+| Entry | `eval.quick` route (caseload link) | speak-mode boards, `app_state.eval_mode`, `obf/eval-*` |
+| Engine | `utils/eval_session.js` + `utils/eval_recommend.js` | `utils/eval.js` |
+| Ends at | `user.logs` list after `session.persist()` | **`user.log` / `last-eval`** (`eval.js:221`) |
+| Renderer | `eval-quick-report` / `eval-saved-summary` | `templates/user/log.hbs` raw trial tables |
+
+`routes/user/log.js:13` builds an **in-memory** log for `last-eval` with no
+`tiered_eval`, so the `{{#if this.model.tiered_eval_type}}` branch at `log.hbs:2`
+can never match there — it always falls through to the legacy `processed_assessment`
+renderer. Anything built only for the tiered flow is invisible on that page **by
+construction**, not by regression. Confirm which pipeline ran before diagnosing:
+a tiered eval leaves a `log_sessions` row, a full eval may leave nothing (memory +
+an IndexedDB `eval_progress_<uid>` snapshot only).
+
+Two traps when bridging them:
+
+1. **`analyze()` overwrites the raw access key with a localized label**
+   (`eval.js:892-903` — `res = Object.assign({}, assessment)` then
+   `res.access_method = <translated>`). Anything that needs to *branch* on the access
+   method must read the raw key, so `analyze()` now also emits `access_method_key`.
+   Same shape of trap anywhere a display label is written back over its own source value.
+2. **`GRID_BANDS[].band` labels describe the Quick Screen's EXTRAPOLATION, not a size.**
+   The Quick Screen probes stop at 4×6, so 24 demonstrated cells recommend the
+   84-button band. The full eval tests 1×2 → 8×14 directly (`eval.js:1099-1137`, clusters
+   24/60/112 = 4×6, 6×10, 8×14) and reports the largest grid actually mastered — so the
+   demonstrated grid IS the recommendation, and reusing the band label prints a mastered
+   4×6 as `tiny`. Share `GRID_BANDS` for *which published sizes exist*; do not carry its
+   labels across. Bonus: those clusters line up 1:1 with `VOCAL_FLAIR_BUTTON_COUNTS`
+   (24/40/60/84/112), so the page-set recommendation needs no heuristic.
+
+## Gotcha: an AAC eval report is TWO documents with conflicting rules — brand naming is the fork (2026-08-14)
+
+Per `docs/AAC_EVALUATION_STANDARDS.md` §2, a medical/funding report **must** name
+manufacturer + product + HCPCS, and a school/IEP report **must not** — naming a product
+in an IEP obligates the district to provide that exact product. So any recommendation UI
+that names a board/page set (`eval-page-set-card`, "Vocal Flair 84") is medical-mode only
+and must be replaced by feature language in school mode. This is a hard content rule, not
+a display preference: a single "eval report" that always names the product is wrong half
+the time. Related §6 rule — do not print a fabricated confidence number for a battery with
+no fixed denominator; report data volume (scored trials, accuracy, latency) instead.
+
+## Gotcha: a saved eval can only be rewritten by RE-SENDING it — and a mismatch silently forks the record (2026-08-14)
+
+There is no merge-into-a-saved-eval endpoint. `PUT /api/v1/logs/:id` reaches
+`LogSession#process_params` with `update_only`, which writes **only** `highlighted` and
+per-event notes (`log_session.rb:1678-1730`); `data['eval']` lives in the other branch and
+is unreachable on update. The client also never learns an eval's log id — evals are pushed
+as events through a `JobStash` and the response is a synthetic `fake-…/pending` record
+(`json_api/log.rb:13-18`), with the real LogSession created later in Resque. (Hence the
+long-standing `// TODO: how to get log_session_id for in-memory evaluation` in
+`controllers/user/log.js`.)
+
+The one supported rewrite is the resume path: **re-send the whole eval event**. The server
+matches it to the existing record by `log_session_id` (exact, unbounded) or by `ref_id` (a
+Ruby-side scan over evals created in roughly the last 72h — `data` is encrypted, so no SQL
+match is possible), then calls `s.process({eval: ...})`, which **replaces `data['eval']`
+wholesale** (`log_session.rb:1058-1077`, `1810`).
+
+Three consequences, all load-bearing:
+
+1. **Send the complete blob, never a patch** — and start from the RAW eval, not
+   `evaluation.analyze()`'s return value, which is an `Object.assign` copy carrying derived
+   display fields that must not be persisted. (This is why `controllers/user/log.js` now
+   has a `raw_assessment` computed that `processed_assessment` derives from.)
+2. **Authorship is a data-integrity boundary, not a permission nicety.** The reattach
+   requires `s.user == user && s.author == self.author`; when it fails the server does not
+   error — it creates a **duplicate eval LogSession** (`log_session.rb:1108`). Verified by
+   negative-control spec: a mismatched `ref_id` produced 2 eval logs and the new data never
+   reached the original. Any UI that re-sends an eval must gate on authorship first.
+3. **The write is asynchronous and unconfirmable** (stash → 10s-throttled push → Resque),
+   so UI must say "saved, syncing", never a bare "saved".
+
+Anything stored inside the eval blob (e.g. `data['eval']['report_workbook']`) rides along
+for free and reads back under `json['evaluation']` (`json_api/log.rb:102`) — no server
+change needed. But do NOT write `eval_mode` onto a legacy eval record: both
+`generate_defaults` (`log_session.rb:286-315`) and the serializer (`json_api/log.rb:82-104`)
+branch on it before `data['eval']`, so it would silently switch the record's date derivation
+and JSON shape.
+
+## Gotcha: `stashes.online` is seeded ONLY by an observer that never fires on a machine that starts online (2026-08-14)
+
+Symptom: nothing is ever logged to the server — no sessions, no evals, no assessments.
+`log_sessions` gets no new rows, `job_stashes` gets none, Resque queues sit empty, and
+`log/development.log` records **zero** `POST /api/v1/logs`. Everything piles up in
+`localStorage['lingolinqStash-usage_log']` instead, silently.
+
+Root cause: `push_log`'s guard is `this.get('online')` on the **stashes service**
+(`services/stashes.js`), which is a DIFFERENT flag from `persistence.get('online')`.
+The only thing that propagated a value into it was persistence's `on_connect`, an
+`observer('online', ...)` (`utils/persistence.js:3959`, `services/persistence.js:3945`).
+Observers fire on CHANGE. Persistence initializes its own flag from `navigator.onLine`,
+so when a machine is online at boot and stays online, that flag never changes, the
+observer never fires, and `stashes.online` stays **`undefined`** — falsy — for the whole
+session. Every push returns silently at the guard.
+
+Observed directly with Playwright against the running dev app (no user console needed):
+```
+navigator.onLine          -> true
+persistence.get('online') -> true
+stashes.get('online')     -> undefined     <-- every push silently dropped
+```
+
+Fix: seed it in `services/stashes.js#setup()` from the same source persistence uses
+(`this.set('online', navigator.onLine)`); the observer still keeps them in step afterwards.
+
+Two general lessons:
+1. **Two flags with the same name on two objects will drift.** `persistence.online`,
+   `stashes.online` and `navigator.onLine` are three separate things here; verifying one
+   in the console proves nothing about the one the write path actually reads.
+2. **A guard seeded only by an observer has no value until the observed thing CHANGES.**
+   If the initial state is already the steady state, the observer never runs. Seed
+   explicitly; don't let an observer be the sole initializer.
+
+Debugging technique worth reusing: browser-only state is observable from the shell with
+`npx playwright` against `localhost:8184` (chromium is already installed; log in via
+`/login`, fields `#identification` / `#password`). Far better than asking the user to run
+console commands and relay results.
