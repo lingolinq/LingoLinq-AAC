@@ -11327,3 +11327,48 @@ for (const ch of 'board') { await p.keyboard.type(ch); await p.waitForTimeout(12
 
 General lesson: **"it renders" and "it can be used" are different claims.** Only typing
 character by character, with focus assertions, distinguishes them.
+
+## Gotcha: a transient instance flag that changes permissions but not the cache key (2026-08-15)
+
+`User#valet_mode?` is `!!@valet_mode` — a per-instance, per-request flag, not a column.
+Nearly every rule in `User` is guarded by `&& !user.valet_mode?`, so it changes the answer
+completely. But Permissable keys its permission cache on `user.cache_key`
+(id + `updated_at`) plus the scopes, and the flag is in **neither**. A valet-mode
+computation and an ordinary one therefore share one Redis slot for 30 minutes, and
+whichever ran first wins.
+
+How it surfaced: every login PUTs the whole user model to `/users/self`; a user with a
+valet password configured sends `valet_login: true` with `valet_password: null` (the UI
+never echoes the secret back), which made `set_valet_password` treat a no-op re-save as a
+fresh enable — regenerating the secret AND calling `assert_valet_mode!` on the in-memory
+user. The rest of that request then computed permissions as a valet, and
+`JsonApi::User.build_json` cached "no model, no supervise" for every supervisee. Ordinary
+requests read it and 400'd for the next half hour: the supervisor was locked out of their
+own communicators.
+
+Lessons:
+
+1. **If a value changes what a cached computation returns, it belongs in the cache key.**
+   Folding it into the scopes works when the cache key already includes scopes, and is
+   safe when no rule declares that scope name (a scope match needs one intersection hit,
+   so an extra unmatched entry partitions the cache without granting anything).
+2. **Configuring a credential is not authenticating with it.** `set_valet_password`
+   asserting valet mode conflated "this account has a valet login" with "this request IS
+   the valet." The existing specs called `assert_valet_mode!` themselves, which is the tell
+   that the method was never meant to do it.
+3. **The direction you observe is not the only direction.** Here a restricted computation
+   denied a legitimate user. The inverse — a valet session reading the permissive entry a
+   normal session cached — is privilege escalation through the same slot.
+
+Debugging technique that broke the deadlock: **instrument the cache WRITE, not the read.**
+Logging inside `permissions_for` after `super` reports the inputs at read time, which look
+perfectly healthy on a cache hit and sent me chasing phantom data loss. `set_cached` only
+runs on a miss, so logging there — with the user stashed in a `Thread.current` by a thin
+`permissions_for` override — captured `valet=true` and the exact `caller` in one run.
+
+Corollary bug found alongside: `Permissable#allows?` appends `'*'` to the scopes and then
+passes the already-appended array to `permissions_for`, which appends it AGAIN. So
+`allows?` reads `scopes_full,*,*` while a direct `permissions_for` reads `scopes_full,*` —
+two cache entries for one question, free to disagree indefinitely, because a correct value
+computed via one path never repairs the other. If `allows?` and `permissions_for` ever
+disagree at the same instant, this is why.
