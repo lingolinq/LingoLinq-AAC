@@ -19,10 +19,13 @@ import openRecommendedHomeBoard from '../utils/recommended_home_board';
  * We point it at the person this eval is for; without that the copy lands on
  * whoever is signed in, which for a school SLP is their own account.
  *
- * setup_user is deliberately NOT restored when the query settles — the SLP picks
- * a board from the modal seconds later, and pick_for_home reads setup_user at
- * THAT moment. It is cleared in willDestroyElement instead, so it cannot leak
- * past this report.
+ * setup_user is NOT managed by this component. pick_for_home reads it seconds
+ * later, when the SLP picks from the modal, so the override has to outlive
+ * whatever opened the preview — and this card unmounts the moment the report
+ * switches to School mode (it is medical-only). Clearing it on teardown, as this
+ * component used to, reset setup_user while the preview was still open and sent
+ * the board to the signed-in SLP's own account. utils/recommended_home_board now
+ * owns the override and releases it when the preview closes.
  *
  * tagName/classNames reproduce the original inline markup exactly, so the card
  * keeps its place in the .evq-report__grid it is rendered into.
@@ -71,26 +74,25 @@ export default Component.extend({
     };
   },
 
-  willDestroyElement() {
-    this._super(...arguments);
-    if (this.get('_priorSetupUser') !== undefined) {
-      this.set('appState.setup_user', this.get('_priorSetupUser'));
-    }
-  },
-
   actions: {
+    // The board must land on the COMMUNICATOR, not the signed-in SLP. That is
+    // done by pointing app_state.setup_user at them, which
+    // board-preview-overlay#pick_for_home reads when the SLP picks — seconds
+    // after this returns.
+    //
+    // Deliberately NOT managed here. This component unmounts whenever the report
+    // switches to School mode (the card is medical-only), and restoring
+    // setup_user on teardown while the preview was still open sent the board to
+    // the SLP's own account. openRecommendedHomeBoard now owns the override and
+    // releases it when the preview closes, so it lives exactly as long as the
+    // thing that reads it.
     open: function() {
       var n = this.get('buttons');
       if (!n) { return; }
       var _this = this;
-      var evaluatee = this.get('user');
-      if (evaluatee && evaluatee.get) {
-        this.set('_priorSetupUser', this.get('appState.setup_user') || null);
-        this.set('appState.setup_user', evaluatee);
-      }
       _this.set('loading', true);
       var done = function() { _this.set('loading', false); };
-      openRecommendedHomeBoard(n).then(done, done);
+      openRecommendedHomeBoard(n, this.get('user')).then(done, done);
     }
   }
 });

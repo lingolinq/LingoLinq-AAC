@@ -29,7 +29,47 @@ export function vocalFlairButtonsForGrid(grid) {
   return best;
 }
 
-export default function openRecommendedHomeBoard(buttons) {
+// Point board-preview-overlay#pick_for_home at a specific communicator, for as
+// long as the preview is open.
+//
+// That overlay resolves its target as `app_state.setup_user || app_state.currentUser`,
+// and it reads it at PICK time — seconds after the preview opens. So the override
+// has to outlive whatever opened the preview. It previously belonged to the
+// calling component, restored in willDestroyElement, which is wrong: the eval
+// report's page-set card unmounts when the SLP switches the report to School mode,
+// and doing that with the preview still open reset setup_user to null. The next
+// pick would then land the communicator's board on the signed-in SLP's own
+// account — the exact outcome the card exists to prevent.
+//
+// Tying it to the preview's own lifetime is what makes it correct: set before
+// opening, restore once the preview is gone, however it went away.
+function claim_setup_user(for_user) {
+  if (!for_user || !for_user.get) { return; }
+  var prior = app_state.get('setup_user') || null;
+  app_state.set('setup_user', for_user);
+  var release = function() {
+    // Only give it back if it is still ours — a later flow may have legitimately
+    // claimed it in the meantime, and clobbering that would just move the bug.
+    if (app_state.get('setup_user') === for_user) {
+      app_state.set('setup_user', prior);
+    }
+  };
+  // No close callback exists on the board preview (services/modal#_openBoardPreview
+  // resolves immediately), so watch for it to disappear. Bounded so a preview that
+  // never opens can't leave a timer running forever.
+  var waited = 0;
+  var opened = false;
+  var tick = function() {
+    if (modal.board_preview_open()) { opened = true; }
+    else if (opened) { return release(); }
+    waited = waited + 400;
+    if (waited > (10 * 60 * 1000)) { return release(); }
+    setTimeout(tick, 400);
+  };
+  setTimeout(tick, 400);
+}
+
+export default function openRecommendedHomeBoard(buttons, for_user) {
   var n = VOCAL_FLAIR_BUTTON_COUNTS.indexOf(buttons) >= 0 ? buttons : 84;
   var exact = new RegExp('(^|/)vocal-flair-' + n + '$');
   var loose = new RegExp('vocal-flair-' + n);
@@ -47,6 +87,9 @@ export default function openRecommendedHomeBoard(buttons) {
       return;
     }
     board.preview_locale = board.get('localized_locale') || app_state.get('label_locale');
+    // Claimed only once we know a preview is actually going to open — an early
+    // return above (no board found) must not leave setup_user pointing anywhere.
+    claim_setup_user(for_user);
     // recommend:true swaps the preview header to the "We recommend this board" copy.
     modal.board_preview(board, board.preview_locale, false, null, { recommend: true });
   }, function() {

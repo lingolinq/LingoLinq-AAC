@@ -1511,6 +1511,15 @@ evaluation.callback = function(key) {
   // session) could not be matched back to its own saved record. persist() keeps
   // its `||=` so an eval already stamped is never re-keyed.
   assessment.ref_id = assessment.ref_id || ("tmp." + (new Date()).getTime() + "." + (Math.random()));
+  // Stamp WHO is running this eval, for the same reason ref_id is stamped here:
+  // it has to survive into the IndexedDB snapshot. The results page can recover
+  // an eval that only exists in that snapshot, and the workbook attached there is
+  // re-sent under whoever is signed in AT THAT MOMENT. The server only updates a
+  // saved eval in place when the author matches and otherwise files a DUPLICATE
+  // (log_session.rb:1075), so on a shared device — one iPad, two SLPs, which is
+  // the normal case here — the second SLP could fork the first's evaluation.
+  // Recording the author is what lets components/eval-workbook refuse.
+  assessment.author_id = assessment.author_id || evaluation.appState.get('sessionUser.id') || null;
   var level = levels[working.level];
   var step = level[working.step];
   // level_id keys every recorded response (assessment.events[level_id]) and is how

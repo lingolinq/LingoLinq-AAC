@@ -246,6 +246,14 @@ var modal = EmberObject.extend({
         !!(service && service.get('currentTemplate'));
     }
   },
+  // The board preview is NOT tracked by `currentTemplate` — the service stores it
+  // on its own `boardPreview` property (services/modal#_openBoardPreview), so
+  // `is_open('board-preview')` cannot see it. Callers that need to know whether
+  // the preview is still up must ask this.
+  board_preview_open: function() {
+    var service = this._getService();
+    return !!(service && service.get('boardPreview'));
+  },
   is_closeable: function() {
     var modal = document.querySelector(".modal");
     return modal && modal.getAttribute('data-uncloseable') != 'true';

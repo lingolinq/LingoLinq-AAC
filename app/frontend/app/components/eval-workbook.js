@@ -246,11 +246,31 @@ export default Component.extend({
 
   // Author check mirrors the server's: it only updates in place when the eval's
   // author matches, and creates a duplicate record otherwise.
-  isAuthor: computed('log.author.id', 'appState.sessionUser.id', 'log.eval_in_memory', function() {
-    if (this.get('log.eval_in_memory')) { return true; }
+  isAuthor: computed('log.author.id', 'appState.sessionUser.id', 'log.eval_in_memory', 'assessment.author_id', function() {
+    var me = this.get('appState.sessionUser.id');
+    // An in-memory eval has no saved LogSession to read an author off, so it
+    // carries its own: utils/eval stamps `author_id` when the eval starts, and
+    // that survives into the IndexedDB snapshot the results page recovers from.
+    //
+    // This CANNOT fall back to `true`. The snapshot is keyed by communicator, not
+    // by evaluator, so on a shared device a second SLP can open the first SLP's
+    // unsaved eval for the same communicator. Saving a workbook from that account
+    // re-sends the eval under the wrong author, and the server answers by filing a
+    // DUPLICATE evaluation rather than updating (log_session.rb:1075).
+    //
+    // Fails closed when the stamp is missing — a snapshot from a build before this
+    // existed reads as not-mine and the workbook goes read-only. That is the right
+    // trade: those snapshots expire within EVAL_PROGRESS_MAX_AGE_S, and a
+    // read-only workbook costs some retyping while a forked evaluation corrupts
+    // the clinical record.
+    if (this.get('log.eval_in_memory')) {
+      var recorded = this.get('assessment.author_id');
+      if (!recorded || !me) { return false; }
+      return String(recorded) === String(me);
+    }
     var author = this.get('log.author.id');
     if (!author) { return false; }
-    return String(author) === String(this.get('appState.sessionUser.id'));
+    return String(author) === String(me);
   }),
 
   hasSaveTarget: computed('assessment', 'logId', function() {
