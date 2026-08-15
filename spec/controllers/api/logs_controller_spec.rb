@@ -541,6 +541,100 @@ describe Api::LogsController, :type => :controller do
       expect(log.data['event_summary']).to eq('first second')
     end
 
+    # The Ember adapter sends JSON request bodies again as of 6df5b1bbc; between
+    # 248150d15 (2026-01-18) and that fix it form-encoded every write, which
+    # flattens every scalar to a String.
+    #
+    # These specs use a raw `body:` deliberately, because the `params:` style used
+    # by every other spec in this file CANNOT cover the JSON contract: Rails'
+    # controller-test harness stringifies scalar params, so `params: {:x => true}`
+    # reaches the controller as "true" and `:x => 4` as "4". Nested Arrays and
+    # Hashes keep their structure either way, which is why the index-keyed-hash
+    # spec above is meaningful — but a handler that only accepts the STRING form
+    # of a boolean or number passes the whole `params:` suite and still fails in
+    # the browser. Only these specs would catch that.
+    describe "create with a raw JSON body" do
+      it "should keep event numbers as numbers, not strings" do
+        # log_session.rb's stats derivation compares window_width against 0
+        # directly. A form-encoded body delivers "1024", and String > Integer
+        # raises "comparison of String with 0 failed" deep in the background job
+        # — the POST answers 200 and the push then vanishes with nothing
+        # user-visible.
+        token_user
+        request.headers['Content-Type'] = 'application/json'
+        post :create, params: {}, body: {
+          :log => {
+            :events => [
+              {'user_id' => @user.global_id, 'timestamp' => 5.hours.ago.to_i, 'type' => 'button',
+               'window_width' => 1024, 'window_height' => 768,
+               'button' => {'label' => 'wide', 'spoken' => true, 'board' => {'id' => '1_1'}}}
+            ]
+          }
+        }.to_json
+        expect(response).to be_successful
+        Worker.process_queues
+        log = LogSession.last
+        expect(log.data['event_summary']).to eq('wide')
+        expect(log.data['stats']['window_width']).to eq(1024)
+        expect(log.data['stats']['window_width']).to be_a(Integer)
+        expect(log.data['stats']['window_height']).to eq(768)
+      end
+
+      it "should keep false as false rather than the truthy string 'false'" do
+        # This is the fault no server-side coercion can repair: "false" is truthy
+        # in BOTH Ruby and JavaScript, so a form-encoded eval blob reads every
+        # failed trial as passed. The scored result is silently wrong rather than
+        # missing.
+        token_user
+        request.headers['Content-Type'] = 'application/json'
+        post :create, params: {}, body: {
+          :log => {
+            :log_type => 'eval',
+            :user_id => @user.global_id,
+            :data => {
+              :eval_mode => 'comprehensive',
+              :duration_s => 42,
+              :events => [
+                {'ts' => Time.now.to_i * 1000, 'subtest' => 'stage_probe', 'correct' => false, 'trials' => 3},
+                {'ts' => Time.now.to_i * 1000, 'subtest' => 'stage_probe', 'correct' => true,  'trials' => 3}
+              ]
+            }
+          }
+        }.to_json
+        expect(response).to be_successful
+        log = LogSession.last
+        expect(log.log_type).to eq('eval')
+        expect(log.data['events'][0]['correct']).to eq(false)
+        expect(log.data['events'][1]['correct']).to eq(true)
+        # eq(false) alone would not catch "false" -> class assertions make the
+        # failure mode explicit if this ever regresses.
+        expect(log.data['events'][0]['correct']).to be_a(FalseClass)
+        expect(log.data['events'][0]['trials']).to eq(3)
+        expect(log.data['events'][0]['trials']).to be_a(Integer)
+      end
+
+      it "should store duration_s as a number, not a numeric string" do
+        # The sibling tiered-eval spec above has to write `duration_s.to_i`
+        # precisely because `params:` stringifies it. Over a real JSON body it
+        # arrives as an Integer and needs no coercion — and started_at is derived
+        # from it, so the type is not merely cosmetic.
+        token_user
+        request.headers['Content-Type'] = 'application/json'
+        post :create, params: {}, body: {
+          :log => {
+            :log_type => 'eval',
+            :user_id => @user.global_id,
+            :data => {:eval_mode => 'comprehensive', :duration_s => 42, :events => []}
+          }
+        }.to_json
+        expect(response).to be_successful
+        log = LogSession.last
+        expect(log.data['duration_s']).to eq(42)
+        expect(log.data['duration_s']).to be_a(Integer)
+        expect(log.started_at).to be_within(1.minute).of(Time.now - 42.seconds)
+      end
+    end
+
     it "should persist a tiered eval report's data through the real create path" do
       token_user
       post :create, params: {:log => {

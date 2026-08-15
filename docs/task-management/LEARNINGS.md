@@ -11372,3 +11372,56 @@ passes the already-appended array to `permissions_for`, which appends it AGAIN. 
 two cache entries for one question, free to disagree indefinitely, because a correct value
 computed via one path never repairs the other. If `allows?` and `permissions_for` ever
 disagree at the same instant, this is why.
+
+## Gotcha: Rails controller specs stringify scalar params — a green suite proves nothing about the JSON contract (2026-08-15)
+
+`post :create, params: {:x => true, :y => 4}` in a controller spec does **not** deliver a
+boolean and an integer. Rails' test harness flattens scalars to Strings, so the controller
+receives `"true"` and `"4"`. Nested Arrays and Hashes keep their structure. Probed directly
+against `Api::BoardsController`:
+
+```
+params: {:board => {:public => true, :rows => 4, :tags => ['a','b']}}
+  => "public"=>"true" (String), "rows"=>"4" (String), "tags"=>Array
+body:   {...}.to_json  + request.headers['Content-Type'] = 'application/json'
+  => "public"=>true (TrueClass), "rows"=>4 (Integer), "tags"=>Array
+```
+
+Consequences, both of which bit on this branch:
+
+1. **The `params:` style tests the form-encoded shape, not the JSON one.** After
+   `6df5b1bbc` restored JSON request bodies, the entire backend suite still exercised the
+   old wire format for scalars. A handler that accepts only `params['x'] == 'true'` passes
+   every spec in the repo and fails in the browser. Arrays are the exception — preserved
+   in both modes — which is why index-keyed-Hash handling *was* genuinely covered.
+2. **It silently launders type bugs into passing assertions.** The tell is a spec that
+   coerces before asserting: `expect(log.data['duration_s'].to_i).to eq(42)`. The `.to_i`
+   is there because the harness stringified it. Over a real JSON body the value is an
+   Integer and needs no coercion — so the `.to_i` was hiding the fact that the type was
+   never being tested.
+
+To pin a JSON contract, post a raw body:
+
+```ruby
+request.headers['Content-Type'] = 'application/json'
+put :update, params: {:id => b.global_id}, body: {:board => {...}}.to_json
+```
+
+`params:` still supplies path params (`:id`); the body is parsed and merged.
+
+**Always run the negative control.** Re-post the same assertions the `params:` way; only
+the ones that FAIL are regression detectors. Of nine specs added here, six failed the
+control (numbers, `false`, `duration_s`, button ids, numeric preferences, the no-clobber
+guard) and three passed it — because `board.rb`'s flag normalization and
+`process_boolean` already repair the string forms. Those three are contract pins, worth
+keeping but not worth counting as coverage. Without the control you cannot tell the two
+apart, and a "passing" spec that would pass either way proves nothing about the change
+it was written for.
+
+The control also produces evidence you cannot get any other way: posting an omitted
+preference the `params:` way showed a stored `750` being **overwritten with `""`**,
+confirming from observed behavior — not from reading the code — that under form encoding
+every unset attribute clobbered its setting on every save (`user.rb` PREFERENCE_PARAMS is
+guarded by `!= nil`, and `""` passes that guard while `nil` does not).
+
+See `docs/task-management/2026-08-15-adapter-json-blast-radius.md` for the full sweep.
