@@ -9,7 +9,13 @@
 
      Labels come pre-resolved on `displaySections` — they must NOT be looked up
      with {{get}} here, because the label keys contain dots and {{get}} would
-     read them as property paths and render nothing. --}}
+     read them as property paths and render nothing. (Section ids have no dots,
+     so `{{get this.startedMap section.id}}` below is safe.)
+
+     The started/empty badge reads `startedMap`, NOT a field on `section`:
+     `displaySections` must stay cached while the SLP types, or {{#each}}
+     rebuilds the section and destroys the focused input. See the note on
+     `displaySections`. --}}
 <button type="button" class="evq-workbook__toggle" aria-expanded={{if this.expanded "true" "false"}} aria-controls="evq-workbook-body" {{on "click" (this.ctrlAction "toggle")}}>
   <span class="evq-workbook__toggle-text">
     <span class="evq-workbook__title">
@@ -35,10 +41,10 @@
   {{/if}}
 
   {{#each this.displaySections as |section|}}
-    <div class="evq-workbook__section {{if (is_equal this.openSection section.id) 'evq-workbook__section--open'}} {{if section.started 'evq-workbook__section--started'}}">
+    <div class="evq-workbook__section {{if (is_equal this.openSection section.id) 'evq-workbook__section--open'}} {{if (get this.startedMap section.id) 'evq-workbook__section--started'}}">
       <button type="button" class="evq-workbook__section-toggle" aria-expanded={{if (is_equal this.openSection section.id) "true" "false"}} aria-controls={{concat "evq-workbook-section-" section.id}} {{on "click" (this.ctrlAction "toggleSection" section.id)}}>
         <span class="evq-workbook__section-title">{{section.label}}</span>
-        {{#if section.started}}
+        {{#if (get this.startedMap section.id)}}
           <span class="evq-workbook__section-badge">{{t "started" key="workbook_section_started"}}</span>
         {{else}}
           <span class="evq-workbook__section-badge evq-workbook__section-badge--empty">{{t "empty" key="workbook_section_empty"}}</span>

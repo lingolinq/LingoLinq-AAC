@@ -41,6 +41,13 @@ export default Component.extend({
   expanded: false,
   openSection: null,
   saveState: null,
+  // Bumped on every keystroke. The workbook values are PLAIN objects mutated in
+  // place, so nothing invalidates on its own; this counter is what the derived
+  // status (started badges, progress line) watches.
+  //
+  // It exists specifically so keystrokes do NOT invalidate `workbook` and with
+  // it `displaySections` — see the comment there.
+  revision: 0,
 
   init() {
     this._super(...arguments);
@@ -121,8 +128,22 @@ export default Component.extend({
     return wb[this.get('mode') === 'school' ? 'school' : 'medical'] || {};
   }),
 
-  startedCount: computed('workbook', 'mode', function() {
+  startedCount: computed('workbook', 'mode', 'revision', function() {
     return workbook_schema.startedCount(this.get('mode'), this.get('workbook'));
+  }),
+
+  // Per-section started/empty state, keyed by section id.
+  //
+  // Deliberately NOT a field on the `displaySections` objects: it is the only
+  // part of a section that changes while the SLP types, and putting it there
+  // would force the whole structure to recompute on every keystroke.
+  startedMap: computed('workbook', 'mode', 'sections', 'activeValues', 'revision', function() {
+    var values = this.get('activeValues') || {};
+    var map = {};
+    (this.get('sections') || []).forEach(function(section) {
+      map[section.id] = workbook_schema.sectionStarted(section, values[section.id] || {});
+    });
+    return map;
   }),
 
   sectionCount: computed('sections', function() {
@@ -143,6 +164,22 @@ export default Component.extend({
   // a dot as a PATH separator, so `{{get this.labels "sec.least_costly"}}` asks
   // for labels.sec.least_costly and silently renders nothing. Plain JS lookup
   // treats the same string as one literal key.
+  //
+  // THIS MUST NOT RECOMPUTE WHILE THE SLP IS TYPING. It returns fresh plain
+  // objects every time, and `{{#each}}` keys on @identity, so a recompute tears
+  // down and rebuilds every section body — including the focused input. When
+  // keystrokes invalidated it, each field accepted exactly ONE character before
+  // the element was destroyed and focus fell back to <body>: the workbook could
+  // not be filled in at all.
+  //
+  // So the dependent keys here are structural only (which sections exist, in
+  // which mode, with which labels and which value objects). Everything that
+  // changes per keystroke — the started badges, the progress line — hangs off
+  // `revision` instead, and the values themselves are mutated in place inside
+  // the objects this already handed to the template.
+  //
+  // Row add/remove DOES change structure, so those actions still invalidate
+  // `workbook` on purpose.
   displaySections: computed('mode', 'sections', 'workbook', 'activeValues', 'labels', function() {
     var labels = this.get('labels');
     var values = this.get('activeValues');
@@ -155,8 +192,10 @@ export default Component.extend({
         isRows: section.type === 'rows',
         label: labels['sec.' + section.id],
         hint: labels['hint.' + section.id],
-        value: value,
-        started: workbook_schema.sectionStarted(section, value)
+        value: value
+        // No `started` here on purpose — it is the one per-section value that
+        // changes as the SLP types, and it lives on `startedMap` instead so
+        // this structure can stay cached. See the note above.
       };
       if (section.type === 'fields') {
         out.fields = (section.fields || []).map(function(field) {
@@ -347,9 +386,11 @@ export default Component.extend({
 
   writeField(target, key, value) {
     emberSet(target, key, value);
-    // Plain-object writes don't invalidate computeds watching `workbook`, so the
-    // badges and progress line have to be told.
-    this.notifyPropertyChange('workbook');
+    // Plain-object writes don't invalidate computeds on their own, so the badges
+    // and progress line have to be told. Bump `revision` rather than notifying
+    // `workbook`: notifying `workbook` also invalidates `displaySections`, which
+    // rebuilds the section DOM and destroys the input being typed into.
+    this.incrementProperty('revision');
     this.set('saveState', null);
     this.scheduleSave();
   },
@@ -429,6 +470,8 @@ export default Component.extend({
       if (!section) { return; }
       var rows = this.get('activeValues')[sectionId].rows;
       rows.push(workbook_schema.blankRow(section));
+      // Structural change — the row list itself is different — so this one DOES
+      // have to rebuild the section. Nobody is mid-keystroke when they click it.
       this.notifyPropertyChange('workbook');
     },
     removeRow: function(sectionId, index) {
