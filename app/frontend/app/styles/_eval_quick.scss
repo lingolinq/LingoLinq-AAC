@@ -1051,6 +1051,27 @@ body.evq-gaze-mode { cursor: crosshair; }
   color: $evq-text-muted;
 }
 
+// Recommended page-set card: the value is a board name, and the action below it
+// opens the shared board-preview modal. Styled as an inline link-button rather
+// than a full .evq-btn so it reads as part of the card, not a page-level action.
+.evq-card__link {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: $evq-accent;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { text-decoration: none; }
+  &:disabled { color: $evq-text-muted; cursor: default; text-decoration: none; }
+  &:focus-visible { outline: 2px solid rgba($brand-verdigris, 0.75); outline-offset: 3px; border-radius: 4px; }
+}
+
 .evq-card__chips {
   list-style: none;
   margin: 8px 0 0 0;

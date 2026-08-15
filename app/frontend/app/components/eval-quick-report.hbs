@@ -27,16 +27,41 @@
       <strong class="evq-card__value">{{this.gridLabel}}</strong>
     </article>
 
-    <article class="evq-card">
-      <span class="evq-card__label">{{t "Symbol library" key="report_library"}}</span>
-      <strong class="evq-card__value">
-        {{#if this.recommendation.library}}
-          {{this.recommendation.library}}
+    {{!-- Recommended page set: the Vocal Flair whose button count matches the
+         recommended grid. Opens the shared board-preview modal so the SLP can
+         choose it for the communicator being evaluated. --}}
+    {{#if this.vocalFlairButtons}}
+      <article class="evq-card evq-card--flair">
+        <span class="evq-card__label">{{t "Recommended page set" key="report_page_set"}}</span>
+        <strong class="evq-card__value">{{this.vocalFlairLabel}}</strong>
+        {{#if this.canAssignVocalFlair}}
+          <button type="button" class="evq-card__link" {{on "click" (this.ctrlAction "openVocalFlair")}} disabled={{this.loadingVocalFlair}}>
+            {{#if this.loadingVocalFlair}}
+              {{t "Opening preview…" key="report_page_set_loading"}}
+            {{else}}
+              {{t "Preview & choose for %{user}" key="report_page_set_open_for" user=this.vocalFlairForLabel}}
+            {{/if}}
+          </button>
         {{else}}
-          {{t "Not enough data yet" key="report_library_unknown"}}
+          <small class="evq-card__hint">{{t "Start this eval from a communicator's account to assign their board." key="report_page_set_no_user"}}</small>
         {{/if}}
-      </strong>
-    </article>
+      </article>
+    {{/if}}
+
+    {{!-- Symbol library: hidden on single-library deployments (eval_single_library),
+         where the comparison subtest does not run and there is no choice to report. --}}
+    {{#if this.librarySelectionActive}}
+      <article class="evq-card">
+        <span class="evq-card__label">{{t "Symbol library" key="report_library"}}</span>
+        <strong class="evq-card__value">
+          {{#if this.recommendation.library}}
+            {{this.recommendation.library}}
+          {{else}}
+            {{t "Not enough data yet" key="report_library_unknown"}}
+          {{/if}}
+        </strong>
+      </article>
+    {{/if}}
 
     <article class="evq-card">
       <span class="evq-card__label">{{t "Communicator stage" key="report_stage"}}</span>

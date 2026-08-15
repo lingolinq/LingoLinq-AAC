@@ -7,6 +7,7 @@ import editManager from '../utils/edit_manager';
 import persistence from '../utils/persistence';
 import eval_board_builder from '../utils/eval_board_builder';
 import goals_grid from '../utils/eval_goals_grid';
+import openRecommendedHomeBoard, { vocalFlairButtonsForGrid } from '../utils/recommended_home_board';
 
 /*
  * eval-quick-report — final summary card.
@@ -148,6 +149,40 @@ export default Component.extend({
     });
   }),
 
+  // Symbol-library card is hidden on single-library deployments — there is no
+  // choice to report. Mirrors the subtest filtering in eval_session.
+  librarySelectionActive: computed('appState.feature_flags.eval_single_library', function() {
+    return !this.get('appState.feature_flags.eval_single_library');
+  }),
+
+  // The Vocal Flair set matching the recommended grid. The five published sets
+  // (24/40/60/84/112) line up 1:1 with GRID_BANDS, so this is a direct read.
+  vocalFlairButtons: computed('recommendation.grid_size', function() {
+    var grid = this.get('recommendation.grid_size');
+    if (!grid) { return null; }
+    return vocalFlairButtonsForGrid(grid);
+  }),
+
+  // routes/eval/quick resolves `user` from params.user_id, and leaves it NULL when
+  // the eval is run unattached to a communicator. Assigning in that state would
+  // silently copy the board onto the signed-in SLP's own account — the exact
+  // failure this feature exists to avoid — so the action is gated, not defaulted.
+  canAssignVocalFlair: computed('user', function() {
+    var u = this.get('user');
+    return !!(u && u.get && u.get('user_name'));
+  }),
+
+  vocalFlairForLabel: computed('user', function() {
+    var u = this.get('user');
+    return (u && u.get) ? (u.get('user_name') || '') : '';
+  }),
+
+  vocalFlairLabel: computed('vocalFlairButtons', function() {
+    var n = this.get('vocalFlairButtons');
+    if (!n) { return ''; }
+    return i18n.t('report_vocal_flair_name', "Vocal Flair %{n}", { n: n });
+  }),
+
   gridLabel: computed('recommendation.grid_size', function() {
     const grid = this.get('recommendation.grid_size');
     if (!grid) { return ''; }
@@ -185,7 +220,48 @@ export default Component.extend({
   },
 
 
+  // Clear the setup_user override set by openVocalFlair so it cannot leak into
+  // an unrelated flow if the SLP closes the preview without picking.
+  willDestroyElement() {
+    this._super(...arguments);
+    if (this.get('_priorSetupUser') !== undefined) {
+      this.set('appState.setup_user', this.get('_priorSetupUser'));
+    }
+  },
+
   actions: {
+    // Open the recommended Vocal Flair set in the shared board-preview modal
+    // (recommend:true header + "Pick this Board"), so the SLP chooses the board
+    // for the communicator being evaluated through the same flow the standalone
+    // board picker uses. Reuses recommended_home_board rather than duplicating
+    // the query/preview logic.
+    openVocalFlair: function() {
+      var n = this.get('vocalFlairButtons');
+      if (!n) { return; }
+      var _this = this;
+
+      // The board must become the COMMUNICATOR'S home board, not the SLP's.
+      // board-preview-overlay#pick_for_home resolves its target as
+      // `app_state.setup_user || app_state.currentUser` — setup_user is the same
+      // lever the standalone picker uses to act on a supervisee
+      // (controllers/board-picker#_resolve_setup_user). Point it at the person
+      // this eval is for; without this the copy lands on whoever is signed in,
+      // which for a school SLP is their own account.
+      var evaluatee = this.get('user');
+      if (evaluatee && evaluatee.get) {
+        this.set('_priorSetupUser', this.get('appState.setup_user') || null);
+        this.set('appState.setup_user', evaluatee);
+      }
+
+      // NOTE: setup_user is deliberately NOT restored when the query settles —
+      // the SLP picks a board from the modal later, and pick_for_home reads
+      // setup_user at THAT moment. It is cleared in willDestroyElement instead,
+      // so it cannot leak past this report.
+      _this.set('loadingVocalFlair', true);
+      var done = function() { _this.set('loadingVocalFlair', false); };
+      openRecommendedHomeBoard(n).then(done, done);
+    },
+
     notesChanged(value) {
       const session = this.get('session');
       if (session && session.set) {

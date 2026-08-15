@@ -8075,5 +8075,11 @@
   "n_orgs": "0 orgs || 1 org || %{n} orgs",
   "org_name_lower": "org name",
   "admin_user_name_lower": "admin user name",
-  "add_org": "Add Organization"
+  "add_org": "Add Organization",
+  "report_page_set": "Recommended page set",
+  "report_page_set_open": "Preview & choose this board",
+  "report_page_set_loading": "Opening preview…",
+  "report_vocal_flair_name": "Vocal Flair %{n}",
+  "report_page_set_open_for": "Preview & choose for %{user}",
+  "report_page_set_no_user": "Start this eval from a communicator's account to assign their board."
 }
