@@ -296,6 +296,7 @@
 /* Active row — and any hovered or keyboard-focused row, which preview the
    selected look: full-strength + slightly wider so it reads as selected. */
 .md-caseload__list-row--active::before,
+.md-caseload__list-row--highlighted::before,
 .md-caseload__list-row:hover::before,
 .md-caseload__list-row:focus-within::before {
   width: 5px;
@@ -327,6 +328,7 @@
    + ring/glow) so mousing over OR tabbing to it shows what expanding will look
    like. Resting rows stay plain (see base rule). */
 .md-caseload__list-row--active,
+.md-caseload__list-row--highlighted,
 .md-caseload__list-row:hover,
 .md-caseload__list-row:focus-within {
   border-color: rgba($brand-verdigris, 0.55);
@@ -343,6 +345,25 @@
     0 0 20px rgba($brand-verdigris, 0.14),
     0 10px 26px rgba($brand-verdigris, 0.20);
 }
+/* Deep-link highlight — the row is NOT expanded (a modeling-only link, whose panel
+   actions are gated), so the shared selected treatment above is all the row gets and
+   there is nothing on screen to say "this is the one you came for". A single
+   attention pulse on arrival does that, then settles into the plain selected look.
+   One shot, not a loop: a persistent pulse next to real content is a distraction and
+   an accessibility problem. Honoured only where motion is welcome — the
+   prefers-reduced-motion block below drops it, leaving the static selected styling,
+   which is already a sufficient non-motion cue. */
+@keyframes md-caseload-highlight-pulse {
+  0%   { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 1), 0 0 0 1px rgba($brand-verdigris, 0.30), 0 0 0 0 rgba($brand-verdigris, 0.55); }
+  100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 1), 0 0 0 1px rgba($brand-verdigris, 0.30), 0 0 0 14px rgba($brand-verdigris, 0); }
+}
+.md-caseload__list-row--highlighted {
+  animation: md-caseload-highlight-pulse 1.1s ease-out 2;
+}
+@media (prefers-reduced-motion: reduce) {
+  .md-caseload__list-row--highlighted { animation: none; }
+}
+
 /* Selected-row accent — a teal left edge on the header signals the
    open row without adding another box. */
 .md-caseload__list-row--active .md-caseload__list-header {
@@ -415,7 +436,12 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 12px;
+  /* Column gap unchanged at 12px (avatar → name). Row gap is smaller and only
+     ever applies when .md-caseload__list-status renders a second row; it matches
+     the 9px `.md-caseload__list-name-row` uses between the name and its badge, so
+     the badge block reads as one stack whichever row it lands on. */
+  column-gap: 12px;
+  row-gap: 9px;
   padding: 4px 0;
   color: inherit;
   /* It's a real <button> for keyboard operability — strip the native button
@@ -428,6 +454,23 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+/* Above the mobile breakpoint, make the trigger a pure flexible spacer: `flex-basis:
+   0` instead of `auto`. A flex container collects items into lines using each item's
+   HYPOTHETICAL main size, which for `basis: auto` is its max-content width — so with
+   `auto` the trigger's own content could still be measured as wide enough to evict
+   the quick-action toolbar to a second line, even after the status badges moved to
+   their own grid row. At basis 0 the trigger contributes nothing to that decision:
+   the toolbar keeps its natural width on row one and the trigger simply grows into
+   whatever is left, which is exactly the "identity column PLUS flexible spacer" role
+   the rule above already describes. The name ellipsises (it already does) and the
+   badge rows wrap inside the space that remains.
+   NOT applied at <=640px: there the toolbar is MEANT to drop to its own line (see the
+   640px block below), and pinning it beside the name would crush both. */
+@media (min-width: 641px) {
+  .md-caseload__list-trigger {
+    flex-basis: 0;
+  }
 }
 .md-caseload__list-trigger:focus-visible {
   outline: 2px solid $brand-verdigris-aa;
@@ -492,6 +535,40 @@
 /* Badge row under the name — access level, then setup state when one applies.
    A wrapping row so a second badge sits BESIDE the first instead of starting a
    third line, and so a narrow column drops it cleanly rather than overflowing. */
+/* STATUS BADGE ROW — the trigger's optional SECOND grid row ("Board needed",
+   "<thing> needed"). Spans both tracks so it starts under the AVATAR, not indented
+   under the name.
+   WHY IT IS ITS OWN ROW: these badges used to sit beside the role badge inside
+   `.md-caseload__list-name-row`. A flex container sizes its wrap decisions off each
+   item's MAX-CONTENT width, and the trigger is a flex item of
+   `.md-caseload__list-header` — so every extra badge widened the trigger's
+   max-content and, past two badges, pushed the whole quick-action toolbar onto a
+   second line. Moving them to their own grid row takes them out of that
+   measurement, so the avatar/name/role line stays narrow and the toolbar keeps its
+   place beside the name. */
+.md-caseload__list-status {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  /* RIGHT-ALIGNED. This row spans the full width beneath the avatar, so left-aligned
+     badges would float in the empty space under the avatar with nothing above them.
+     Pushing them right sets them under the quick-action toolbar, which is itself
+     right-aligned — so the row reads as two right-anchored blocks rather than one
+     stray line. Wrapping still fills right-to-left from here. */
+  justify-content: flex-end;
+  /* Same gutter as the role badge row so both badge groups align. */
+  gap: 10px;
+  min-width: 0;
+}
+/* Collapse entirely when no status badge applies — most rows. `:empty` will not do:
+   the template leaves whitespace and comment nodes inside the wrapper, so it is
+   never truly empty. `:has()` tests for a real badge child instead, which also means
+   adding a third status badge later needs no change here. Without this, every clean
+   row would pay the grid's 9px row-gap for an invisible row. */
+.md-caseload__list-status:not(:has(.md-caseload__list-access)) {
+  display: none;
+}
 .md-caseload__list-badges {
   display: flex;
   flex-wrap: wrap;
@@ -608,6 +685,38 @@
     0 0 0 2px rgba($brand-verdigris, 0.16),
     0 0 4px 0 rgba($brand-verdigris, 0.38);
 }
+/* ACTION REQUIRED — the row-level attention badge (utils/dashboard_sections
+   #attentionBadgeFor, rendered in templates/caseload.hbs). Wears the same badge
+   chassis as the others (.md-caseload__list-access above), so only the colour
+   family and the glyph differ.
+   AMBER, not the setup badge's teal: both can appear on the SAME row, and a
+   shared colour would make two different asks read as one repeated notice. The
+   fill is the Ideas button's fawn ramp poured lighter (.16/.24 against its
+   .16/.26) — the same "a badge is a STATUS, not a control" move --setup makes
+   with the Model button's denim.
+   Ink #6B4E0E measures 6.51:1 on the darkest stop (#F2EBDF over the white row).
+   Re-measure if either the ramp or the ink moves; the ink does NOT follow the
+   fill automatically. */
+.md-caseload__list-access--attention {
+  color: #6B4E0E;
+  background: linear-gradient(160deg,
+    rgba($brand-soft-fawn, 0.16) 0%,
+    rgba($brand-soft-fawn, 0.24) 100%);
+  border-color: rgba(107, 78, 14, 0.26);
+  /* Close to --setup's 7px so a row carrying BOTH badges spaces them alike; 6px
+     because the glyph is optically wider than that badge's 7px dot.
+     No ::before dot here — this badge ships a real warning glyph in the markup,
+     since "action required" needs a recognisable shape rather than a colour cue
+     alone (a dot would leave amber-vs-teal as the only signal, which is exactly
+     the distinction a red/green-deficient user cannot make). */
+  gap: 6px;
+}
+/* Inherits `currentColor` from the badge, so the glyph can never drift from the
+   ink the contrast above was measured against. */
+.md-caseload__list-access-icon {
+  flex: none;
+  display: block;
+}
 .md-caseload__list-quick {
   /* Holds the full action set. `0 1 auto` (was `1 1 auto`): the identity column
      now absorbs the row's slack, so this toolbar sits at its natural width —
@@ -618,6 +727,18 @@
      drops to its own line as a WHOLE when the row is too narrow. */
   flex: 0 1 auto;
   min-width: 0;
+  /* RIGHT-ALIGN WHEN WRAPPED. Enough badges on the identity line (e.g. an access
+     badge + "Board needed" + an attention badge) push this toolbar onto its own
+     line, where it would otherwise start hard against the left edge and read as a
+     detached second row. `auto` pins it to the right instead, so it stays visually
+     tied to the row above.
+     Deliberately `margin-left` and NOT `align-self`/`justify-content` on the
+     parent: on the SHARED line the identity column is `flex: 1 1 auto` and already
+     eats every pixel of slack, so this auto margin resolves to 0 and the
+     single-line layout — including the "same starting x in every row" alignment
+     the note above depends on — is completely unchanged. It only has room to act
+     on a line where this toolbar is the sole item. */
+  margin-left: auto;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1548,11 +1669,10 @@ a.md-caseload__quick-action {
    purple ($brand-smart-blue and $brand-dusty-denim-aa both 219°), so it is denim
    rotated -12° to 203° — bluer, less purple — and then saturated with the rest.
    Navy labels measure 6.9–10.9:1 on every stop of every ramp at these values. */
-$caseload-model-blue:       #3AA6EA;  // denim rotated -12deg, S 64.2% → 80.3%
-$caseload-speak-denim:      #3A83EA;  // $brand-dusty-denim,   S 64.2% → 80.3%
-$caseload-reports-sage:     #48865E;  // $color-sage-dark,     S 24.3% → 30.3%
-$caseload-ideas-champagne:  #D3B070;  // $brand-soft-fawn,     S 42.2% → 52.8%
-$caseload-model-blue-aa:    #2880C9;  // border only — $brand-dusty-denim-aa rotated the same
+/* These five moved to _variables.scss (search `$caseload-model-blue`) so the
+   Focused View overlay can derive its darkened ramp from the SAME source values
+   instead of re-declaring the hexes. They arrive here via `@use "variables" as *`
+   at the top of this file; nothing else about their use changed. */
 /* ── 1b. WORKFLOW PRIMARY: Model. Shares the leading slot with Choose Board and
    wears the same halo one hue over; the ramp is what separates them. */
 .md-caseload__quick-action.md-caseload__quick-action--model {

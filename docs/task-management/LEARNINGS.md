@@ -136,6 +136,13 @@ file (see [README.md](README.md)).
 - [Gotcha: set-field on nested model fields needs nested observer deps (videoChanged pattern)](#gotcha-set-field-on-nested-model-fields-needs-nested-observer-deps-videochanged-pattern)
 - [Gotcha: embed-frame `data-user_token` is UserIntegration#user_token, not User#user_token](#gotcha-embed-frame-data-user_token-is-userintegrationuser_token-not-useruser_token)
 - [Gotcha: private uploads bucket — server-side OBZ/OBF import must use signed_internal_url](#gotcha-private-uploads-bucket--server-side-obzobf-import-must-use-signed_internal_url)
+- [Gotcha: redirecting away from `routes/index.js` silently skips the session-entry compliance gates](#gotcha-redirecting-away-from-routesindexjs-silently-skips-the-session-entry-compliance-gates)
+- [Fact: "SLP" is not a distinguishable role on the frontend — `supporter_role` is the only gate](#fact-slp-is-not-a-distinguishable-role-on-the-frontend--supporter_role-is-the-only-gate)
+- [Fact: pill-nav order is plain template source order — unlike the dashboard card grid](#fact-pill-nav-order-is-plain-template-source-order--unlike-the-dashboard-card-grid)
+- [Gotcha: Focused View's hero is a bespoke ELEMENT, not hero styling applied to a card](#gotcha-focused-views-hero-is-a-bespoke-element-not-hero-styling-applied-to-a-card)
+- [Gotcha: `md-grid--hero-<key>` is only on the HOME tab — scope with `:not()`, not a positive match](#gotcha-md-grid--hero-key-is-only-on-the-home-tab--scope-with-not-not-a-positive-match)
+- [Gotcha: the `sass` CLI is broken in this repo — compile with the JS API to syntax-check app.scss](#gotcha-the-sass-cli-is-broken-in-this-repo--compile-with-the-js-api-to-syntax-check-appscss)
+- [Gotcha: "This board is not currently available." is board-detail's INLINE error, and it swallows every cause](#gotcha-this-board-is-not-currently-available-is-board-details-inline-error-and-it-swallows-every-cause)
 
 ---
 
@@ -11106,3 +11113,253 @@ loudly, not fall back to an empty value.** An empty fallback inside a security o
 regression check converts "I could not look" into "there is nothing there". Always log
 HOW the read succeeded (length, access path) alongside the result, so a vacuous read is
 visible in the output rather than indistinguishable from a clean one.
+
+---
+
+## Gotcha: redirecting away from `routes/index.js` silently skips the session-entry compliance gates
+
+**Surface:** any change that lands a user somewhere other than the dashboard on
+login — a "default landing page", a role-specific home, a deep-link resume.
+
+`routes/index.js#setupController` is the **only** host, besides
+`routes/bento.js`, for the two session-entry gates: the **terms-agree** modal
+(`index.js:189, 207`) and the **EU AI Act Art.50** disclosure
+(`maybeShowSessionEntryGate`, `index.js:195, 271`). `grep -rn
+"maybeShowSessionEntryGate" app/frontend/app` returns those two routes and
+nothing else.
+
+The trap is that this is invisible from `afterModel`. `replaceWith(...)` there
+aborts the transition, so index's `setupController` never runs — and the reason
+the historical `replaceWith('user.home', ...)` fallback was safe is a
+non-obvious inheritance detail: **`routes/user/home.js` extends `IndexRoute`**
+and inherits its `setupController` (it overrides `model`/`afterModel` only, with
+no `_super`, which is also why it does not re-trigger index's `afterModel` and
+loop). Redirect anywhere *else* — `caseload`, a board, an org page — and the
+gates are gone with no error, no test failure, and no visible symptom.
+
+**Note the hole pre-exists** on the session-resume path (`replaceWith(last.url)`,
+`index.js:98-115`, resumes to arbitrary routes). Finding a pre-existing bypass is
+not licence to widen it: converting "gate fires on first login" into "gate never
+fires for this population" is a real regression, and first-login users are
+exactly who terms-agree exists for.
+
+**How to apply:** before adding any new post-login destination, check whether a
+session-entry gate is pending and defer to the dashboard while one is — the user
+satisfies the gate once and gets the new destination from the next login onward.
+Check the gate with the shared predicate, never a forked copy:
+
+```js
+import { sessionEntryGatePending } from '../utils/article50_gate';
+// terms-agree uses index.js's own predicate; Art.50 uses the shared one
+if (model.get('id') && model.get('user_name') && !model.get('terms_agree')) { return true; }
+return sessionEntryGatePending(model);
+```
+
+`utils/article50_gate.js` states its own design rule — *"D-02: ONE shared source
+of gate logic"* — so when you need a *read-only* version of a gate check, add an
+exported predicate to that module and have the existing opener call it, rather
+than re-deriving `needsAcknowledgement`'s appState-shaped wrapper at the call
+site.
+
+**Related trap in the same file:** auto-open-speak-mode
+(`index.js:190`) is gated on `!supporter_view`, and `supporter_role` implies
+`supporter_view` (`models/user.js:513`). So supporters have *never* auto-spoken —
+worth confirming before assuming a supporter-facing landing change breaks it.
+
+**First seen in:** [2026-08-14-slp-caseload-default-and-pill-order.md](./2026-08-14-slp-caseload-default-and-pill-order.md)
+
+---
+
+## Fact: "SLP" is not a distinguishable role on the frontend — `supporter_role` is the only gate
+
+`preferences.role` is a **two-value** enum, `communicator` | `supporter`
+(picker source of truth: `controllers/user/preferences.js:481-484`), exposed as
+`supporter_role` (`models/user.js:507-509`).
+
+"Therapist / SLP" exists **only** as a signup-time `registration_type`
+(`app.js:265-285`). The backend collapses `therapist|parent|teacher|other|
+manually-added-supervisor` → `role = 'supporter'` on first save
+(`app/models/user.rb:2307-2314`). `registration_type` *is* retained in
+preferences (`user.rb:139-143`, whitelisted at `user.rb:1959`) and the backend
+reads it via `supporter_registration?`, but **no frontend code reads it as a UI
+predicate** — so the Ember app cannot tell an SLP from a parent or a teacher.
+
+This is not a gap to work around; it is the existing convention. Every
+SLP-flavored surface already gates on `supporter_role`: the Caseload pill
+(`user-pill-nav.hbs`), the Caseload card
+(`utils/dashboard_sections.js:29`), and the component literally named the **"SLP
+hero"** (`authenticated-view.hbs`, `authenticated-view.js:56-89` —
+whose `roleName` resolves to Admin / Manager / Supervisor, never "Therapist").
+
+**How to apply:** when a request says "for SLP users", implement it as
+`supporter_role` and say so. Do **not** add an `slp`/`therapist` boolean or start
+reading `registration_type` on the frontend — that would split one population
+into two inconsistent ones (e.g. a Caseload pill that is visible for parents but
+ordered differently for therapists) for no user-visible benefit. Companion to
+[the `!supporter_role` communicator-gate pattern](#pattern-supporter_role-is-the-canonical-communicator-gate--never-invent-a-communicator_role-boolean).
+
+**First seen in:** [2026-08-14-slp-caseload-default-and-pill-order.md](./2026-08-14-slp-caseload-default-and-pill-order.md)
+
+---
+
+## Fact: pill-nav order is plain template source order — unlike the dashboard card grid
+
+Two different ordering mechanisms live one file apart; do not apply the wrong rule.
+
+- **Dashboard cards** (`.md-grid`) are placed by named `grid-template-areas` per
+  breakpoint × variant — reorder in SCSS, never in the DOM (see [that
+  pattern](#pattern-dashboard-card-order-is-driven-by-grid-template-areas-per-breakpoint--variant--reorder-there-never-the-dom)).
+- **Pill-nav** (`.md-pillnav`) is a plain flex `<nav>` whose order **is** DOM
+  order. Nothing data-driven feeds it: `sectionOrder` /
+  `preferences.dashboard_order` reorder *cards* only. To move a pill, move the
+  block in the template.
+
+There are **three** render sites that must stay in sync, and missing one makes
+the order silently revert at narrow widths:
+1. `components/user-pill-nav.hbs` — shared nav for the user-level pages
+   (consumed by `organizations.hbs`, `user/stats.hbs`, `caseload.hbs`,
+   `user/boards.hbs`).
+2. `components/dashboard/authenticated-view.hbs` — the desktop `<nav>`.
+3. `components/dashboard/authenticated-view.hbs` — the
+   `.md-pillnav-dropdown` `<ul role="listbox">` responsive mirror of #2.
+
+Also note the two navs use **different gate expressions for the same pill**:
+`user-pill-nav.hbs` reads `currentUser.supporter_role` directly, while
+`authenticated-view.hbs` reads `sectionAvailable.caseload` (availability, which
+ignores the user's hide preference) — both bottom out at `supporter_role` today,
+but they are not interchangeable, and the card uses `sectionVisibility` instead.
+
+**Free win when reordering a conditionally-rendered pill:** if the pill only
+renders for a subset of users (Caseload → supporters), moving it to the front is
+automatically a no-op for everyone else — no new conditional, no duplicated
+markup.
+
+**First seen in:** [2026-08-14-slp-caseload-default-and-pill-order.md](./2026-08-14-slp-caseload-default-and-pill-order.md)
+
+---
+
+## Gotcha: Focused View's hero is a bespoke ELEMENT, not hero styling applied to a card
+
+**Surface:** the home dashboard Focused View (`.md-grid--layout-focused`).
+
+The obvious mental model — "one card gets promoted to hero" — is wrong. Focused
+View's hero is a **separate, always-rendered element** with its own markup:
+`.md-card--speak-focused` (a "Hey \<name\>" greeting bar that IS the Speak button,
+`authenticated-view.hbs`), shown by `app.scss` only under
+`.md-grid--layout-focused`, which simultaneously sets
+`.md-card--speak-as-button { display: none }`. The card and its hero are two
+different DOM nodes that swap.
+
+Consequences that will mislead you:
+- The generic `md-grid--fullspan-speak` showcase rules look like the hero, but are
+  **inert in Focused** — their only target (`--speak-as-button`) is hidden.
+  Diagnosing "speak is the hero" by finding those rules gives the wrong cause.
+- `md-grid--fullspan-caseload` is deliberately scoped `.md-grid--layout-gentle`
+  (explicit comment in app.scss: *"so Focused keeps its existing caseload treatment
+  until its own supervisor view is built"*). A supervisor's Caseload had **no**
+  Focused hero — nothing was overriding it, the view had never been built.
+- **`md-grid--fullspan-*` is a GENTLE-View concept.** In Focused every non-action
+  card is full-width by construction, so emitting fullspan hands the showcase to
+  whatever happens to stack. It is now suppressed for `layout === 'focused'` in
+  `gridLayoutState`.
+
+**How to add a Focused hero for another section:** add a `md-card--<key>-focused`
+element next to the card, comma-append its selectors to the EXISTING
+`--speak-focused` rule blocks (one authoritative rule per visual, per Rule #0.7),
+and swap on `md-grid--hero-<key>`.
+
+**First seen in:** [2026-08-14-slp-dashboard-label-focused-order-and-hero.md](./2026-08-14-slp-dashboard-label-focused-order-and-hero.md)
+
+---
+
+## Gotcha: `md-grid--hero-<key>` is only on the HOME tab — scope with `:not()`, not a positive match
+
+`gridLayoutState` emits `md-grid--hero-<key>` (focusedHeroKey: caseload/org/speak),
+but the template applies the two class sources **asymmetrically**
+(`authenticated-view.hbs`, the `.md-grid` element):
+
+```hbs
+class="md-grid … {{this.dashboardLayoutClass}} … {{if (is-equal this.activeTab "home") this.gridClassString}}"
+```
+
+`dashboardLayoutClass` (`md-grid--layout-focused`) is applied **always**;
+`gridClassString` — which carries `md-grid--hero-*`, `md-grid--fullspan-*`,
+`md-grid--boards-full` — only when `activeTab == "home"`. The inline `gridStyle`
+(grid-template-areas) is gated the same way.
+
+So on the Boards / Reports / Extras tabs the grid is `layout-focused` with **no hero
+class at all**. Re-scoping an existing focused rule to a positive
+`.md-grid--hero-speak` therefore silently drops it on every non-home tab. Use
+`:not(.md-grid--hero-<other>)` instead: the match set stays identical everywhere
+except the genuinely new case, and specificity rises rather than falls.
+
+Same reasoning applies to any future per-hero or per-fullspan CSS.
+
+**First seen in:** [2026-08-14-slp-dashboard-label-focused-order-and-hero.md](./2026-08-14-slp-dashboard-label-focused-order-and-hero.md)
+
+---
+
+## Gotcha: the `sass` CLI is broken in this repo — compile with the JS API to syntax-check app.scss
+
+`npx sass …` dies with `ERR_REQUIRE_ESM` (`node_modules/sass/sass.js` does
+`require("chokidar")`, which is ESM-only). It exits **0** on that crash, so a CI-style
+`&& echo ok` will report success while having compiled nothing.
+
+Use the JS API instead — this is the fastest way to prove an `app.scss` edit compiles
+and, more usefully, to check **real** specificity/source order in the OUTPUT rather
+than eyeballing nesting:
+
+```bash
+cd app/frontend && node -e "
+const sass=require('sass');
+const r=sass.compile('app/styles/app.scss',{loadPaths:['app/styles'],style:'expanded'});
+require('fs').writeFileSync('/tmp/out.css', r.css); console.log('OK', r.css.length);
+"
+grep -n '^\.md-grid \.md-card\.md-card--caseload {' /tmp/out.css   # then compare line numbers
+```
+
+Comparing compiled line numbers is the only reliable way to settle the recurring
+[equal-specificity-source-order](#pattern-important-does-not-beat-source-order-at-equal-specificity--bump-specificity-with-a-compound-selector-instead)
+question in this 60k-line stylesheet. Note dart-sass is not the production compiler
+(SassC), so treat it as a syntax/ordering check, not a byte-for-byte guarantee.
+
+**First seen in:** [2026-08-14-slp-dashboard-label-focused-order-and-hero.md](./2026-08-14-slp-dashboard-label-focused-order-and-hero.md)
+
+---
+
+## Gotcha: "This board is not currently available." is board-detail's INLINE error, and it swallows every cause
+
+The string `error_not_available` has one live producer/renderer pair:
+`controllers/user/board-detail.js#error_message` → `templates/user/board-detail.hbs`
+(route `user.board-detail`). It is **not** a page of its own — only `<main>` is
+replaced by `div.md-board-detail-error`, so the board chrome stays.
+
+The three look-alike sites are dead ends: `templates/board.hbs` renders different
+messages (`board_deleted` / `board_doesnt_exist` / `no_permissions` /
+`board_not_synced`); `templates/user/board-alt/index.hbs` is **shadowed** (its route
+sets `templateName: 'board/index'`); and the `error_message` computeds in
+`routes/board/index.js` / `routes/user/board-alt/index.js` live on the **Route** and
+are never aliased onto the controller, so the template renders them empty. Don't waste
+a debugging pass on them.
+
+**Why it is a bad error:** the route tries `/boards/<key>/tree?root_only=1` then falls
+back to `/boards/<key>`; if both fail the model resolves to `{error: true}`. There is
+**no status discrimination, no retry, and no timeout** — 401/403/404/5xx/network abort
+and the offline short-circuit (`services/persistence.js`, `{offline: true,
+short_circuit: true}`) all render the same sentence. Worse, the message picks its
+wording from `persistence.online` at RENDER time while the request was short-circuited
+at MODEL time, so an offline cause can display the online wording.
+
+**Two traps worth remembering:** `board_key` is built from
+`modelFor('user').user_name`, **not** `params.user_id` — and `routes/user.js` documents
+that the API may return the current user for a different requested path, so a boot race
+can produce a wrong-owner key. And `session_history`'s SKIP_ROUTES excludes
+`user.board-detail.edit` but **not** `user.board-detail`, so a supporter can be resumed
+onto a dead board; the resume-failure fallback never fires because the model always
+*resolves* (with the error POJO) rather than rejecting.
+
+**Diagnose with:** `localStorage.ll_board_cache_diag = 1` → `utils/board_cache_diag.js`
+emits `model:cache_miss` / `model:root_only_response` / `model:tree_fallback_show` /
+`model:background_tree_fail`.
+
+**First seen in:** [2026-08-14-slp-dashboard-label-focused-order-and-hero.md](./2026-08-14-slp-dashboard-label-focused-order-and-hero.md)

@@ -569,6 +569,288 @@ body.ll-layout-focused {
 }
 
 // -----------------------------------------------------------------------------
+// Caseload page — Focused View
+// -----------------------------------------------------------------------------
+// The caseload page (templates/caseload.hbs) renders its OWN shell,
+// `.md-shell--caseload`, so none of the dashboard's `.md-shell--layout-focused`
+// rules reach it — the same situation the Boards/Reports section above solves.
+// Gentle View on this page stays completely untouched: every rule below is anchored
+// on `body.ll-layout-focused`, which only exists when the user has picked Focused
+// View (set_layout_scope in app.js).
+//
+// Values are copied from the focused DASHBOARD chrome so the two pages read as one
+// experience: the active-pill gradient (app.scss:43947), the shell padding reset
+// (app.scss:50977), the workspace spacing (app.scss:50964) and the pill-nav offset
+// (app.scss:43942).
+body.ll-layout-focused {
+
+  // 1. PILL-NAV — same active-pill treatment as the focused dashboard: the 135deg
+  //    gradient ending on dusty denim instead of the gentle charcoal-blue.
+  //    (0,4,1) + !important beats the base `.md-pillnav__pill.is-active` (0,2,0).
+  .md-shell--caseload .md-pillnav__pill.active,
+  .md-shell--caseload .md-pillnav__pill.is-active {
+    background: linear-gradient(135deg, $focus-accent-from, $focus-pill-accent-to) !important;
+    border-color: rgba($focus-pill-accent-to, 0.3) !important;
+  }
+
+  // 2. HIDDEN HEADER/SUBHEADER — drop the "My Caseload" / "People you support" hero,
+  //    mirroring the dashboard hiding its "It's great to see you" hero in Focused.
+  //    The pill-nav already names the page, so the hero is redundant, and it is the
+  //    single biggest block of vertical space above the list. `.md-caseload__hero`
+  //    exists on that header purely as a style hook and had no rules before this.
+  .md-shell--caseload .md-caseload__hero { display: none !important; }
+
+  // 3. MOVE `.md-caseload` UP. It has no top margin of its own — the space above it
+  //    is entirely inherited chrome, reclaimed a layer at a time. Each override sits
+  //    one level deeper than the base it beats, because every base already uses
+  //    !important:
+  //      #content         topbar + 1rem               (app.scss:58736-58740)
+  //      .md-shell        padding-top: 3rem           (app.scss:43771)
+  //      .md-workspace    margin 40px / padding 40px  (app.scss:43832-43834)
+  //      .md-pillnav      margin-top: 42px            (app.scss:44094)
+  //      .md-card--sup    padding: 2rem 0 4rem        (app.scss:57739)
+  .md-shell--caseload { padding-top: 0 !important; }
+
+  // #content LAYER — this is what left the caseload pill-nav sitting 16px BELOW
+  // every other focused page's. `content_class` (controllers/application.js) gives
+  // the caseload route `modern-dashboard`, NOT `index`, so it takes
+  // `#content.modern-dashboard { padding-top: calc(topbar + 1rem) }`
+  // (app.scss:58736-58740) and never matches the focused reset at app.scss:51013,
+  // which is scoped `#content.index.with_user:has(.md-shell--layout-focused)` and
+  // drops the extra space to `topbar` alone. This is that same reset, re-aimed at
+  // the caseload shell so the two pages agree.
+  //
+  // Scoped through `:has(.md-shell--caseload)` rather than the bare
+  // `.modern-dashboard` class because that class is not caseload-exclusive, and
+  // gated by the enclosing `body.ll-layout-focused` so GENTLE caseload keeps its
+  // current spacing untouched. Lands at (2,3,1), beating both the base rule and
+  // its ≤1024px counterpart at (2,1,0) — matching the focused dashboard, which
+  // likewise resolves to `topbar` at every width.
+  #within_ember #content.modern-dashboard:has(.md-shell--caseload) {
+    padding-top: var(--topbar-height) !important;
+  }
+
+  .md-shell--caseload > .md-workspace {
+    padding-top: 32px !important;
+    margin-top: 16px !important;
+  }
+
+  .md-shell--caseload .md-workspace > .md-pillnav {
+    margin-top: 48px !important;
+  }
+
+  // The article wrapping the hero + list adds another 2rem above the now-hidden
+  // header. Bottom padding is left alone so the list keeps its footer breathing room.
+  .md-shell--caseload .md-card--sup { padding-top: 0 !important; }
+
+  // 4. BUTTONS 30% DARKER, 25% MORE SATURATED. Every quick-action fill is an ALPHA
+  //    TINT of a source colour layered over the light row, so both moves have to
+  //    happen on the TINT — lowering opacity would only make the button paler. Each
+  //    rule below restates its gentle counterpart's exact gradient with the tint
+  //    wrapped in `color.scale(..., $lightness: -30%, $saturation: 25%)`, so alphas,
+  //    stops and white-gloss layers stay byte-identical to Gentle and only the colour
+  //    moves.
+  //
+  //    Saturation is nearly luminance-neutral here, so it costs almost no contrast:
+  //    navy on the darkest stop moves 6.15->6.14 (Model), 6.24->6.23 (Speak),
+  //    6.51->6.66 (Reports), 8.14->8.27 (Ideas). Worst case 6.14:1.
+  //
+  //    BORDERS ARE DELIBERATELY NOT DARKENED: they use the measured AA tokens
+  //    ($brand-dusty-denim-aa, $brand-verdigris-aa) contrast-checked against the row;
+  //    darkening the fill only moves it further from the border.
+  //
+  //    CONTRAST CAVEAT: _variables.scss records that navy labels measure 6.9-10.9:1
+  //    on every stop of every ramp AT THE GENTLE VALUES, and _caseload.scss carries a
+  //    prior incident where a mechanical ~28% darken dropped a tag to ~3.9:1. These
+  //    fills are low-alpha (0.16-0.48) over a light row, so the composite stays light
+  //    and the navy label keeps a wide margin — but re-measure before pushing further.
+  .md-caseload__quick-action.md-caseload__quick-action--model {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.20) 30%, rgba(255, 255, 255, 0) 58%), linear-gradient(160deg, rgba(color.scale(color.scale(color.scale($caseload-model-blue, $lightness: -30%, $saturation: 25%), $lightness: -20%, $saturation: 25%), $lightness: -20%, $saturation: 25%), 0.28) 0%, rgba(color.scale(color.scale(color.scale($caseload-model-blue, $lightness: -30%, $saturation: 25%), $lightness: -20%, $saturation: 25%), $lightness: -20%, $saturation: 25%), 0.38) 100%) !important;
+  }
+  .md-caseload__quick-action.md-caseload__quick-action--model:hover {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.60) 0%, rgba(255, 255, 255, 0.22) 30%, rgba(255, 255, 255, 0) 58%), linear-gradient(160deg, rgba(color.scale(color.scale(color.scale($caseload-model-blue, $lightness: -30%, $saturation: 25%), $lightness: -20%, $saturation: 25%), $lightness: -20%, $saturation: 25%), 0.36) 0%, rgba(color.scale(color.scale(color.scale($caseload-model-blue, $lightness: -30%, $saturation: 25%), $lightness: -20%, $saturation: 25%), $lightness: -20%, $saturation: 25%), 0.48) 100%) !important;
+  }
+  .md-caseload__list-quick .md-caseload__quick-action--speak:not(.md-caseload__quick-action--empty) {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.20) 30%, rgba(255, 255, 255, 0) 58%), linear-gradient(160deg, rgba(color.scale(color.scale(color.scale($caseload-speak-denim, $lightness: -30%, $saturation: 25%), $lightness: -15%, $saturation: 15%), $saturation: 20%), 0.22) 0%, rgba(color.scale(color.scale(color.scale($caseload-speak-denim, $lightness: -30%, $saturation: 25%), $lightness: -15%, $saturation: 15%), $saturation: 20%), 0.30) 100%) !important;
+  }
+  .md-caseload__list-quick .md-caseload__quick-action--speak:not(.md-caseload__quick-action--empty):hover {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.60) 0%, rgba(255, 255, 255, 0.22) 30%, rgba(255, 255, 255, 0) 58%), linear-gradient(160deg, rgba(color.scale(color.scale(color.scale($caseload-speak-denim, $lightness: -30%, $saturation: 25%), $lightness: -15%, $saturation: 15%), $saturation: 20%), 0.30) 0%, rgba(color.scale(color.scale(color.scale($caseload-speak-denim, $lightness: -30%, $saturation: 25%), $lightness: -15%, $saturation: 15%), $saturation: 20%), 0.40) 100%) !important;
+  }
+  .md-caseload__quick-action.md-caseload__quick-action--ideas:not(.md-caseload__quick-action--empty) {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.20) 30%, rgba(255, 255, 255, 0) 58%), linear-gradient(160deg, rgba(color.scale(color.scale(color.scale($caseload-ideas-champagne, $lightness: -30%, $saturation: 25%), $lightness: -15%, $saturation: 15%), $saturation: 20%), 0.16) 0%, rgba(color.scale(color.scale(color.scale($caseload-ideas-champagne, $lightness: -30%, $saturation: 25%), $lightness: -15%, $saturation: 15%), $saturation: 20%), 0.26) 100%) !important;
+  }
+  .md-caseload__quick-action.md-caseload__quick-action--ideas:hover:not(.md-caseload__quick-action--empty) {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.60) 0%, rgba(255, 255, 255, 0.22) 30%, rgba(255, 255, 255, 0) 58%), linear-gradient(160deg, rgba(color.scale(color.scale(color.scale($caseload-ideas-champagne, $lightness: -30%, $saturation: 25%), $lightness: -15%, $saturation: 15%), $saturation: 20%), 0.24) 0%, rgba(color.scale(color.scale(color.scale($caseload-ideas-champagne, $lightness: -30%, $saturation: 25%), $lightness: -15%, $saturation: 15%), $saturation: 20%), 0.36) 100%) !important;
+  }
+  .md-caseload__quick-action.md-caseload__quick-action--reports:not(.md-caseload__quick-action--empty) {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.20) 30%, rgba(255, 255, 255, 0) 58%), linear-gradient(160deg, rgba(color.scale(color.scale(color.scale($caseload-reports-sage, $lightness: -30%, $saturation: 25%), $lightness: -15%, $saturation: 15%), $saturation: 20%), 0.18) 0%, rgba(color.scale(color.scale(color.scale($caseload-reports-sage, $lightness: -30%, $saturation: 25%), $lightness: -15%, $saturation: 15%), $saturation: 20%), 0.28) 100%) !important;
+  }
+  .md-caseload__quick-action.md-caseload__quick-action--reports:hover:not(.md-caseload__quick-action--empty) {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.60) 0%, rgba(255, 255, 255, 0.22) 30%, rgba(255, 255, 255, 0) 58%), linear-gradient(160deg, rgba(color.scale(color.scale(color.scale($caseload-reports-sage, $lightness: -30%, $saturation: 25%), $lightness: -15%, $saturation: 15%), $saturation: 20%), 0.26) 0%, rgba(color.scale(color.scale(color.scale($caseload-reports-sage, $lightness: -30%, $saturation: 25%), $lightness: -15%, $saturation: 15%), $saturation: 20%), 0.38) 100%) !important;
+  }
+
+  // Choose Board is the one live variant whose fill is literal rgb() triplets rather
+  // than a $caseload-* token, so its two stops are scaled in place: -20% lightness,
+  // +25% saturation. Navy on the darkest stop 6.57 -> 6.06 (teal) and 6.48 -> 6.05
+  // (blue), both clear of 4.5:1.
+  .md-shell--caseload .md-caseload__quick-action--choose-board {
+    background:
+      linear-gradient(180deg,
+        rgba(255, 255, 255, 0.58) 0%,
+        rgba(255, 255, 255, 0.22) 30%,
+        rgba(255, 255, 255, 0) 58%),
+      linear-gradient(135deg,
+        rgba(color.scale(color.scale(rgb(31, 128, 123), $lightness: -20%, $saturation: 25%), $lightness: -20%, $saturation: 25%), 0.44) 0%,
+        rgba(color.scale(color.scale(rgb(21, 85, 210), $lightness: -20%, $saturation: 25%), $lightness: -20%, $saturation: 25%), 0.38) 100%) !important;
+  }
+
+  // The neutral "more" chevron button is a literal grey ramp (no $caseload-* token
+  // behind it), so its stops are scaled in place. TWO LAYERS like the four workflow
+  // buttons above: the white top-gloss sheen over the colour ramp. `background` is a
+  // SHORTHAND, so the single-layer version this replaces silently dropped that gloss
+  // — which is what made this button read flat beside its neighbours. Gloss stops are
+  // the siblings' REST values verbatim (0.55/0.20/0 at 0%/30%/58%).
+  //
+  // -30% to sit in the same focused family, then +10% back: it is the QUIETEST
+  // control in the row — overflow, not workflow (see the gentle rule's note in
+  // _caseload.scss) — so it stays a step lighter than Model / Speak / Reports /
+  // Ideas rather than competing with them. Written as the composed scale off the
+  // GENTLE source hexes (#F6F8FA / #EBEFF4 / #E2E7EE, _caseload.scss "5. MORE
+  // ACTIONS") so the relationship to gentle stays legible.
+  .md-shell--caseload .md-caseload__quick-action--more:not(.md-caseload__quick-action--empty) {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.20) 30%, rgba(255, 255, 255, 0) 58%),
+      linear-gradient(160deg,
+        color.scale(color.scale(#F6F8FA, $lightness: -30%), $lightness: 10%) 0%,
+        color.scale(color.scale(#EBEFF4, $lightness: -30%), $lightness: 10%) 55%,
+        color.scale(color.scale(#E2E7EE, $lightness: -30%), $lightness: 10%) 100%) !important;
+  }
+  // HOVER — the rest rule above is (0,4,1) + !important, which outranks gentle's own
+  // (0,4,0) hover, so without this the button has NO hover response in Focused View
+  // while all four neighbours do. Siblings' HOVER gloss (0.60/0.22/0) over gentle's
+  // HOVER ramp put through the identical -30% then +10%, so the hover DELTA matches
+  // gentle exactly and only the focused offset moves. Background only: gentle's hover
+  // also darkens border-color to #495469 and nothing here overrides this button's
+  // border, so that still applies and is inherited rather than restated.
+  .md-shell--caseload .md-caseload__quick-action--more:hover:not(.md-caseload__quick-action--empty) {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.60) 0%, rgba(255, 255, 255, 0.22) 30%, rgba(255, 255, 255, 0) 58%),
+      linear-gradient(160deg,
+        color.scale(color.scale(#EEF1F5, $lightness: -30%), $lightness: 10%) 0%,
+        color.scale(color.scale(#E2E7EE, $lightness: -30%), $lightness: 10%) 55%,
+        color.scale(color.scale(#D8DFE8, $lightness: -30%), $lightness: 10%) 100%) !important;
+  }
+
+  // The locked/unavailable placeholders already funnel their colour through a single
+  // `--empty-tint` custom property per variant (raw "R, G, B"), so darkening them is
+  // one declaration each — no gradient restatement needed.
+  .md-shell--caseload .md-caseload__quick-action--empty { --empty-tint: 72, 133, 170; }
+  .md-shell--caseload .md-caseload__quick-action--empty.md-caseload__quick-action--speak { --empty-tint: 72, 112, 170; }
+  .md-shell--caseload .md-caseload__quick-action--empty.md-caseload__quick-action--reports { --empty-tint: 104, 139, 116; }
+  .md-shell--caseload .md-caseload__quick-action--empty.md-caseload__quick-action--ideas { --empty-tint: 153, 131, 89; }
+  .md-shell--caseload .md-caseload__quick-action--empty.md-caseload__quick-action--more { --empty-tint: 110, 118, 133; }
+
+  // 5. ROLE + STATUS BADGES — DARKER FILLS + VISIBLE OUTLINES. Same reasoning as the
+  //    buttons: each fill is a low-alpha tint over the light row, so the move happens
+  //    on the TINT and every alpha stays byte-identical to gentle. Derived from the
+  //    gentle tokens rather than restated as hexes so the two stay linked.
+  //
+  //    NET -40% lightness (-25%, then a further -20%) plus +25% saturation, written
+  //    as one composed scale per badge rather than a nested pair, so the value you
+  //    read is the value that ships. Saturation is near luminance-neutral on these
+  //    low-alpha tints — it moved every ink by at most 0.06 (Viewer 10.35 -> 10.35,
+  //    Editor 5.22 -> 5.25, Modeling 5.14 -> 5.15, Board needed 5.22 -> 5.18,
+  //    Attention 5.66 -> 5.72).
+  //
+  //    OUTLINES: gentle gives the role badges `border: 1px solid transparent` (the
+  //    base .md-caseload__list-access rule) so they read as fills with no edge, which
+  //    is what makes them wash out. Each now takes its own tint at 0.55 alpha — the
+  //    same hue as the fill, so the badge still reads as one object, just delimited.
+  //
+  //    INK on each badge's DARKEST stop at the final value: Viewer 10.35, Editor
+  //    5.25, Modeling 5.15, Board needed 5.18, Attention 5.72 — all clear 4.5:1. TWO
+  //    of the five needed their ink brought down to get there; see the notes below.
+  .md-shell--caseload .md-caseload__list-access--view {
+    background: rgba(color.scale($la-navy, $lightness: -40%, $saturation: 25%), 0.08) !important;
+    border-color: rgba(color.scale($la-navy, $lightness: -40%, $saturation: 25%), 0.55) !important;
+  }
+  .md-shell--caseload .md-caseload__list-access--setup {
+    background: linear-gradient(160deg,
+      rgba(color.scale($brand-dusty-denim, $lightness: -40%, $saturation: 25%), 0.14) 0%,
+      rgba(color.scale($brand-dusty-denim, $lightness: -40%, $saturation: 25%), 0.20) 100%) !important;
+    border-color: rgba(color.scale($brand-dusty-denim, $lightness: -40%, $saturation: 25%), 0.55) !important;
+  }
+  .md-shell--caseload .md-caseload__list-access--attention {
+    background: linear-gradient(160deg,
+      rgba(color.scale($brand-soft-fawn, $lightness: -40%, $saturation: 25%), 0.16) 0%,
+      rgba(color.scale($brand-soft-fawn, $lightness: -40%, $saturation: 25%), 0.24) 100%) !important;
+    border-color: rgba(color.scale($brand-soft-fawn, $lightness: -40%, $saturation: 25%), 0.55) !important;
+  }
+  // EDITOR and MODELING each carry an INK change with their fill — the other three
+  // did not need one.
+  // Editor's gentle ink is $brand-verdigris-aa (#1A7B7A), which _variables.scss
+  // documents as "4.73:1 on white". The badge is not white: it is verdigris at 0.12
+  // over the row, where that ink ALREADY measures 4.43:1 before anything here
+  // touches it. #176B6A restores 5.23:1 at the darker fill.
+  // Modeling's #9A5B00 lands at 4.32:1 on the darker amber; #8A5100 gives 5.14:1.
+  // NOTE: Editor's 4.43:1 is PRE-EXISTING and still applies in GENTLE view, which
+  // this overlay must not touch. Flagged for a separate fix — see the task log.
+  .md-shell--caseload .md-caseload__list-access--edit {
+    background: rgba(color.scale($brand-verdigris, $lightness: -40%, $saturation: 25%), 0.12) !important;
+    border-color: rgba(color.scale($brand-verdigris, $lightness: -40%, $saturation: 25%), 0.55) !important;
+    color: #176B6A !important;
+  }
+  .md-shell--caseload .md-caseload__list-access--modeling {
+    background: rgba(color.scale(#F2B95A, $lightness: -40%, $saturation: 25%), 0.20) !important;
+    border-color: rgba(color.scale(#F2B95A, $lightness: -40%, $saturation: 25%), 0.55) !important;
+    color: #8A5100 !important;
+  }
+
+  // 6. AVATAR DISC — the outer circle takes the SAME gradient as the active
+  //    pill-nav item (135deg $focus-accent-from -> $focus-pill-accent-to, i.e.
+  //    #7693B9 -> #4C86D8), so the roster's identity column and the nav share one
+  //    accent. Written as the same literal gradient rather than a new token,
+  //    matching the pill rule at the top of this caseload block — change both
+  //    together.
+  //
+  //    Applies to BOTH avatar branches: the photo <img> and the placeholder <span>
+  //    share `.md-caseload__list-avatar`. On a photo the fill sits behind the image
+  //    (object-fit: cover) so it only shows through transparency or a failed load;
+  //    on the placeholder it is the visible disc.
+  .md-shell--caseload .md-caseload__list-avatar {
+    background: linear-gradient(135deg, $focus-accent-from, $focus-pill-accent-to) !important;
+    border-color: rgba($focus-pill-accent-to, 0.3) !important;
+  }
+  // The placeholder declares its own light navy gradient, so it has to be restated
+  // here or it would win over the disc rule above.
+  // `color` is kept in step with the glyph stroke below rather than left white:
+  // the disc has no text of its own today, so this only feeds `currentColor`, but a
+  // stray white here would silently re-whiten any future glyph that inherits it.
+  .md-shell--caseload .md-caseload__list-avatar--placeholder {
+    background: linear-gradient(135deg, $focus-accent-from, $focus-pill-accent-to) !important;
+    color: $brand-charcoal-dark !important;
+  }
+  // The person glyph is drawn with hard-coded #46505F / #2A9D8F strokes in the
+  // markup, both of which disappear against this darker disc, so it is restated
+  // here as a DARK grey. Reuses $brand-charcoal-dark (#374151) rather than a new
+  // hex — the same charcoal the More Actions button uses for its ink.
+  //
+  // Mid-greys are the trap here: #8A93A3 sits almost exactly on this gradient's
+  // luminance and measures 1.02:1 — invisible. Contrast only recovers by moving
+  // well DARKER (or to white), which is why this is charcoal and not a mid grey.
+  //
+  // CONTRAST: 3.26:1 on the lighter gradient stop, 2.80:1 on the darker one.
+  // Deliberately softer than the label beside it, and acceptable
+  // ONLY because this glyph is `aria-hidden` decoration inside a placeholder disc —
+  // it carries no information the row does not already state in text, so neither
+  // the 4.5:1 text floor nor the 3:1 non-text-component floor applies. Do NOT reuse
+  // this grey for a glyph that IS the only carrier of its meaning.
+  .md-shell--caseload .md-caseload__list-avatar--placeholder svg * {
+    stroke: $brand-charcoal-dark !important;
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Account page pill-nav (.md-pillnav--user) — Focused View
 // -----------------------------------------------------------------------------
 // It already matches the home pill-nav in Gentle View (same charcoal-blue active

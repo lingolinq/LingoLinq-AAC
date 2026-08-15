@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-08-14T20:11:29.962Z
+# Generated: 2026-08-15T02:21:35.137Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -138,13 +138,13 @@ app/components/dashboard-supervisors-modal.js|ember/no-runloop|51|7|2|5addc21703
 app/components/dashboard-supervisors-modal.js|ember/no-runloop|64|7|2|5addc2170315
 app/components/dashboard-supervisors-modal.js|ember/no-runloop|77|7|2|5addc2170315
 app/components/dashboard-user-boards.js|ember/no-runloop|74|7|2|9ccbb762d93a
-app/components/dashboard/authenticated-view.js|ember/no-runloop|1291|7|2|5addc2170315
-app/components/dashboard/authenticated-view.js|ember/no-runloop|1526|11|2|5addc2170315
-app/components/dashboard/authenticated-view.js|ember/no-runloop|1603|11|2|5addc2170315
-app/components/dashboard/authenticated-view.js|ember/require-computed-property-dependencies|204|20|1|7bc964be3126
-app/components/dashboard/authenticated-view.js|ember/require-computed-property-dependencies|365|15|1|51a7a47cf59c
-app/components/dashboard/authenticated-view.js|ember/require-computed-property-dependencies|471|21|1|51a7a47cf59c
-app/components/dashboard/authenticated-view.js|ember/require-computed-property-dependencies|948|18|1|366050fc9f63
+app/components/dashboard/authenticated-view.js|ember/no-runloop|1300|7|2|5addc2170315
+app/components/dashboard/authenticated-view.js|ember/no-runloop|1533|11|2|5addc2170315
+app/components/dashboard/authenticated-view.js|ember/no-runloop|1610|11|2|5addc2170315
+app/components/dashboard/authenticated-view.js|ember/require-computed-property-dependencies|205|20|1|7bc964be3126
+app/components/dashboard/authenticated-view.js|ember/require-computed-property-dependencies|366|15|1|51a7a47cf59c
+app/components/dashboard/authenticated-view.js|ember/require-computed-property-dependencies|472|21|1|51a7a47cf59c
+app/components/dashboard/authenticated-view.js|ember/require-computed-property-dependencies|954|18|1|366050fc9f63
 app/components/display-style.js|ember/require-super-in-lifecycle-hooks|788|3|1|04fd54f45db7
 app/components/dwell-tracker.js|ember/no-runloop|271|11|2|5addc2170315
 app/components/dwell-tracker.js|ember/no-runloop|325|11|2|5addc2170315
@@ -181,7 +181,7 @@ app/components/focus-words.js|ember/require-computed-property-dependencies|229|2
 app/components/focus-words.js|ember/require-computed-property-dependencies|64|14|1|2842efb9082b
 app/components/grid-listener.js|ember/require-super-in-lifecycle-hooks|35|3|1|04fd54f45db7
 app/components/grid-listener.js|ember/require-super-in-lifecycle-hooks|42|3|1|04fd54f45db7
-app/components/guided-tour.js|ember/no-incorrect-calls-with-inline-anonymous-functions|549|39|1|2da67c91d637
+app/components/guided-tour.js|ember/no-incorrect-calls-with-inline-anonymous-functions|561|39|1|2da67c91d637
 app/components/guided-tour.js|ember/no-runloop|421|9|2|5addc2170315
 app/components/guided-tour.js|ember/no-runloop|428|5|2|513c0395fe72
 app/components/guided-tour.js|ember/no-runloop|469|36|2|5addc2170315
@@ -190,13 +190,15 @@ app/components/guided-tour.js|ember/no-runloop|492|5|2|513c0395fe72
 app/components/guided-tour.js|ember/no-runloop|518|36|2|5addc2170315
 app/components/guided-tour.js|ember/no-runloop|534|9|2|5addc2170315
 app/components/guided-tour.js|ember/no-runloop|541|5|2|513c0395fe72
-app/components/guided-tour.js|ember/no-runloop|549|5|2|513c0395fe72
-app/components/guided-tour.js|ember/no-runloop|639|7|2|5addc2170315
-app/components/guided-tour.js|ember/no-runloop|688|9|2|5addc2170315
-app/components/guided-tour.js|ember/no-runloop|691|5|2|513c0395fe72
-app/components/guided-tour.js|ember/no-runloop|709|9|2|5addc2170315
-app/components/guided-tour.js|ember/no-runloop|712|5|2|513c0395fe72
-app/components/guided-tour.js|ember/require-super-in-lifecycle-hooks|1034|3|1|04fd54f45db7
+app/components/guided-tour.js|ember/no-runloop|561|5|2|513c0395fe72
+app/components/guided-tour.js|ember/no-runloop|599|30|2|5addc2170315
+app/components/guided-tour.js|ember/no-runloop|601|27|2|513c0395fe72
+app/components/guided-tour.js|ember/no-runloop|682|7|2|5addc2170315
+app/components/guided-tour.js|ember/no-runloop|731|9|2|5addc2170315
+app/components/guided-tour.js|ember/no-runloop|734|5|2|513c0395fe72
+app/components/guided-tour.js|ember/no-runloop|752|9|2|5addc2170315
+app/components/guided-tour.js|ember/no-runloop|755|5|2|513c0395fe72
+app/components/guided-tour.js|ember/require-super-in-lifecycle-hooks|1077|3|1|04fd54f45db7
 app/components/icon-select.js|no-dupe-keys|46|3|2|6095746a3304
 app/components/inbox.js|ember/require-return-from-computed|93|43|1|8c8d53fa71e0
 app/components/integration.js|ember/require-super-in-lifecycle-hooks|6|3|1|04fd54f45db7
@@ -380,7 +382,7 @@ app/controllers/button-settings.js|ember/no-runloop|1118|9|2|5addc2170315
 app/controllers/button-settings.js|ember/no-runloop|130|9|2|5addc2170315
 app/controllers/button-settings.js|ember/no-runloop|569|5|2|5addc2170315
 app/controllers/button-settings.js|ember/no-runloop|826|9|2|5addc2170315
-app/controllers/caseload.js|ember/no-runloop|420|9|2|513c0395fe72
+app/controllers/caseload.js|ember/no-runloop|484|9|2|513c0395fe72
 app/controllers/confirm-delete-board.js|ember/no-runloop|120|13|2|5addc2170315
 app/controllers/confirm-delete-board.js|ember/no-runloop|134|23|2|5addc2170315
 app/controllers/confirm-delete-board.js|ember/no-runloop|85|17|2|5addc2170315
@@ -620,7 +622,7 @@ app/routes/board/index.js|ember/no-runloop|152|7|2|5addc2170315
 app/routes/board/index.js|ember/require-computed-property-dependencies|203|18|1|7342f52fef46
 app/routes/board/index.js|no-useless-catch|131|9|1|9dd89265ed20
 app/routes/goals/goal.js|ember/no-runloop|13|9|2|5addc2170315
-app/routes/index.js|ember/no-runloop|199|11|2|5addc2170315
+app/routes/index.js|ember/no-runloop|237|11|2|5addc2170315
 app/routes/organization.js|ember/no-runloop|13|9|2|5addc2170315
 app/routes/organization/room.js|ember/no-runloop|13|9|2|5addc2170315
 app/routes/privacy.js|ember/no-runloop|27|13|2|5addc2170315

@@ -31603,8 +31603,21 @@ body.md-ds-active .app-navbar__home-actions { display: none !important; }
   max-width: 40ch;
 }
 /* "Choose your display style" step — a WIDER modal to fit the three options
-   side-by-side plus the Gentle Layout preview below; text uses full width. */
-.shepherd-element.md-ds-modal--display {
+   side-by-side plus the Gentle Layout preview below; text uses full width.
+
+   SPECIFICITY (0,3,0), via the redundant-looking `.md-ds-modal` in the selector:
+   this step also carries `md-tour__step--intro`, and the SHORT-VIEWPORT rule
+   `@media (max-height: 800px) .shepherd-element.md-tour__step--intro`
+   (app.scss ~97049) re-imposes `transform: translateX(-50%) !important` + a
+   `top: 12px` meant for the CENTERED tour cards. At (0,2,0) that rule tied with
+   this one and won on source order, so on any viewport 1024px wide or less AND
+   800px tall or less the modal got `left: 0` from the media block below AND a
+   translateX(-50%) on top — sliding it half its own width (50vw) off the LEFT
+   edge. Going to (0,3,0) here settles it by specificity at every viewport size,
+   and leaves the intro/outro ranking that rule's own comment documents intact.
+   (The "Customize" step never showed the bug because its `:has()` rule below is
+   already (0,3,0).) */
+.shepherd-element.md-ds-modal.md-ds-modal--display {
   /* Roomy panel for the live home-page preview: 80% of the viewport on larger
      screens (centered, the dimmed page showing at the sides), full-width at
      1024px and below. Full height either way; scrolls vertically. */
@@ -31621,7 +31634,9 @@ body.md-ds-active .app-navbar__home-actions { display: none !important; }
   overflow-y: auto !important;
 }
 @media (max-width: 1024px) {
-  .shepherd-element.md-ds-modal--display {
+  /* Same (0,3,0) as above, and for the same reason — this is the rule that was
+     actually being overridden on short viewports. */
+  .shepherd-element.md-ds-modal.md-ds-modal--display {
     width: 100vw !important;
     max-width: 100vw !important;
     left: 0 !important;
@@ -31745,23 +31760,31 @@ body.md-ds-active .app-navbar__home-actions { display: none !important; }
   .md-ds-welcome__cards { flex-direction: column; }
   .md-ds-welcome__progress { padding: 0; justify-content: center; }
 }
+/* The two layout-style cards sit SIDE-BY-SIDE with the OR divider between them.
+   `nowrap` keeps the divider from being stranded on a wrapped row — the narrow
+   fallback is the explicit column stack in the media query near the end of this
+   file, not flex wrapping. */
 .md-ds-options {
   display: flex;
   flex-direction: row;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
   gap: 12px;
   margin: 8px auto 0;
   max-width: 920px;
 }
-/* Stylized "— OR —" divider between the two layout-style buttons: the word OR
-   flanked by short hairline dashes, so the pair reads as an either/or choice.
-   A flex child of .md-ds-options, vertically centered between the cards. */
+/* Stylized OR divider between the two layout-style buttons, so the pair reads as
+   an either/or choice. Side-by-side (the default) it's a VERTICAL rule: the word
+   OR with a hairline running the full card height above and below it. Stacked
+   (narrow screens) the same element rotates into the horizontal "— OR —" between
+   the two cards — see the media query at the end of this file. */
 .md-ds-options__or {
   flex: 0 0 auto;
-  align-self: center;
+  align-self: stretch;
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   font-size: 14px;
   font-weight: 700;
@@ -31772,8 +31795,11 @@ body.md-ds-active .app-navbar__home-actions { display: none !important; }
 .md-ds-options__or::before,
 .md-ds-options__or::after {
   content: "";
-  width: 18px;
-  height: 2px;
+  /* Grow to fill the card height as a vertical hairline; `min-height` keeps a
+     visible tick even when the cards are short. */
+  flex: 1 1 auto;
+  width: 2px;
+  min-height: 18px;
   border-radius: 2px;
   background: rgba($la-navy, 0.2);
 }
@@ -31781,11 +31807,14 @@ body.md-ds-active .app-navbar__home-actions { display: none !important; }
    white surface, hairline border, layered raised shadow + hover lift. Number
    badge reuses the .beta-welcome-steps__num glass circle. */
 .md-ds-option {
-  /* Hug the content so there's no dead space to the right of the short bullet
-     lines; cards don't grow, can shrink, and still stretch to equal HEIGHT
-     (container align-items defaults to stretch). Cap the width so any future
-     long line wraps instead of overflowing. */
-  flex: 0 1 auto;
+  /* Side-by-side: the two cards share the row EQUALLY (`flex: 1 1 0` ignores the
+     differing content widths) and stretch to equal HEIGHT (container align-items
+     defaults to stretch). `min-width: 0` lets them shrink instead of overflowing;
+     the cap keeps a long line from stretching a card past a readable measure.
+     Stacked (narrow screens) they hug their content again — see the media query
+     at the end of this file. */
+  flex: 1 1 0;
+  min-width: 0;
   max-width: 420px;
   overflow: hidden;
   display: flex;
@@ -32480,17 +32509,38 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   display: none !important;
 }
 
-/* Responsive — stack the three options into a centered COLUMN (Focused, then
-   the OR on its OWN centered row, then Gentle) once there isn't room for the two
-   420px cards + the OR to sit side-by-side. The display modal is 80vw (100vw at
-   <=1024), so a full side-by-side row only fits on very wide viewports
-   (>=$aac-breakpoint-xl → 80vw ≈ 1024px of content); below that the row wraps
-   and the OR would otherwise be stranded inline beside a card. `align-items:
-   center` centers both the cards and the OR row horizontally. */
-@media (max-width: $aac-breakpoint-xl) {
+/* Responsive fallback — stack the two options into a centered COLUMN (Gentle,
+   the OR on its OWN centered row, then Focused) once there is no longer room for
+   them side-by-side. Threshold from the cards' measured natural width, not a
+   round guess: each card's widest line is its longest bullet ("Prefer a softer,
+   more relaxed interface", 14px Lexend) which makes the card 331px at max-content;
+   two equal-width cards + the 24px OR column + two 12px gaps need ~711px of
+   content. The display modal is 100vw at <=1024px with 28px of side padding
+   (56px) and a ~15px scrollbar, so the row stops fitting just under ~782px of
+   viewport — 800px stacks with a little slack. Above 1024px the modal is 80vw
+   (>=820px of panel), which always clears the row. `align-items: center` centers
+   both the cards and the OR row horizontally. */
+@media (max-width: 800px) {
   .md-ds-options {
     flex-direction: column;
     align-items: center;
+  }
+  /* Stacked, the cards hug their content again (equal-width sharing only makes
+     sense across a row; in a column `flex: 1 1 0` would equalize HEIGHTS). */
+  .md-ds-option {
+    flex: 0 1 auto;
+  }
+  /* Divider rotates back to the horizontal "— OR —" rule between the two cards. */
+  .md-ds-options__or {
+    flex-direction: row;
+    align-self: center;
+  }
+  .md-ds-options__or::before,
+  .md-ds-options__or::after {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 2px;
+    min-height: 0;
   }
 }
 .md-hero--dashboard-user {
@@ -50657,11 +50707,18 @@ a.md-goal-nav-action:hover,
 /* Default-hidden — the base `.md-grid .md-card.md-card--speak { display:flex
    !important }` would otherwise show it in every layout, so this hide is
    (0,3,0)+!important. */
-.md-grid .md-card.md-card--speak-focused { display: none !important; }
+.md-grid .md-card.md-card--speak-focused,
+.md-grid .md-card.md-card--caseload-focused { display: none !important; }
 
-/* Focused: show the greeting bar (the whole thing is the Speak button), hide the
-   standard Speak card. */
-.md-grid.md-grid--layout-focused .md-card.md-card--speak-focused {
+/* Focused: show the hero bar (the whole thing is the button), hide the standard
+   card it replaces. WHICH card is the hero comes from md-grid--hero-<key>
+   (focusedHeroKey: 'caseload' for supervisors, 'speak' for communicators).
+   The speak selectors are scoped with :not(.md-grid--hero-caseload) rather than a
+   positive .md-grid--hero-speak, because gridClassString — and therefore the hero
+   class — is only applied on the home tab (see authenticated-view.hbs), so a
+   positive scope would silently drop the Speak hero everywhere else. */
+.md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload) .md-card.md-card--speak-focused,
+.md-grid.md-grid--layout-focused.md-grid--hero-caseload .md-card.md-card--caseload-focused {
   display: flex !important;
   flex-direction: row !important;
   align-items: center !important;
@@ -50674,6 +50731,9 @@ a.md-goal-nav-action:hover,
   color: $focus-on-dark !important;
   font: inherit !important;
   cursor: pointer !important;
+  /* The Caseload hero is a <LinkTo> (the Speak one is a <button>), so kill the
+     anchor underline here rather than in a separate override. */
+  text-decoration: none !important;
   /* Discrete object, not a full-bleed banner: breathing room around it + a rim,
      and a transition so the hover/press states animate. */
   margin: 6px 6px 10px !important;
@@ -50698,7 +50758,8 @@ a.md-goal-nav-action:hover,
 }
 /* Hover: a clear "press me" cue — lift 2px, deepen the drop shadow, and bloom a
    faint brand-blue glow around the whole card so it reads as interactive. */
-.md-grid.md-grid--layout-focused .md-card.md-card--speak-focused:hover {
+.md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload) .md-card.md-card--speak-focused:hover,
+.md-grid.md-grid--layout-focused.md-grid--hero-caseload .md-card.md-card--caseload-focused:hover {
   transform: translateY(-2px) !important;
   box-shadow:
     inset 0 3px 0 rgba($focus-on-dark, 0.40),
@@ -50710,33 +50771,50 @@ a.md-goal-nav-action:hover,
 }
 /* Active: PRESS — depress down, collapse the drop shadow + invert to an inset
    "pushed-in" shadow (the decisive "it's a button" cue). */
-.md-grid.md-grid--layout-focused .md-card.md-card--speak-focused:active {
+.md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload) .md-card.md-card--speak-focused:active,
+.md-grid.md-grid--layout-focused.md-grid--hero-caseload .md-card.md-card--caseload-focused:active {
   transform: translateY(2px) !important;
   box-shadow:
     inset 0 2px 5px rgba($focus-shadow-ink, 0.35),
     inset 0 1px 0 rgba($focus-on-dark, 0.18),
     0 1px 2px rgba($focus-shadow-ink, 0.18) !important;
 }
+/* Each hero replaces its own standard card. Speak Mode has NO non-hero presentation
+   in Focused View: when it is the hero the bar above replaces it, and when it is not
+   (a supervisor, whose hero is Caseload) it is dropped from the dashboard entirely —
+   an SLP works from their caseload here, and gridLayoutState drops the `speak` key
+   from the packed order too so no empty grid row/gap is left behind. The standard
+   Caseload card is hidden only when the Caseload hero is showing. */
 .md-grid.md-grid--layout-focused .md-card.md-card--speak-as-button { display: none !important; }
+.md-grid.md-grid--layout-focused.md-grid--hero-caseload .md-card.md-card--caseload-as-button { display: none !important; }
 /* Larger screens only (above the wrap breakpoint): nudge the centered icon+text
    group 8px to the LEFT via asymmetric padding (24/40 keeps the 64px total, so
    the justify-center group shifts left 8px). Small screens keep their centering. */
 @media (min-width: 1025px) {
-  .md-grid.md-grid--layout-focused .md-card.md-card--speak-focused {
+  .md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload) .md-card.md-card--speak-focused,
+  .md-grid.md-grid--layout-focused.md-grid--hero-caseload .md-card.md-card--caseload-focused {
     padding-left: 24px !important;
     padding-right: 40px !important;
   }
 }
-.md-card--speak-focused__icon { color: $focus-on-dark; line-height: 0; }
+.md-card--speak-focused__icon,
+.md-card--caseload-focused__icon { color: $focus-on-dark; line-height: 0; }
+/* Caseload badge — same 126px display box as the Speak badge above, so the two
+   heroes carry identical visual weight. object-fit keeps the source's 247x252
+   aspect inside the box. */
+.md-card--caseload-focused__img { width: 126px; height: 126px; display: block; object-fit: contain; }
 /* Speech badge bumped ~12.5% (112→126px) so it clearly wins over the text and
    becomes the hero's unmistakable focal point. */
 .md-card--speak-focused__img { width: 126px; height: 126px; display: block; object-fit: contain; }
 /* Image on the left, title + subheader stacked + LEFT-aligned on the right. */
-.md-card--speak-focused__text { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; }
-.md-card--speak-focused__title { font-size: 25px; font-weight: 800; letter-spacing: -0.01em; color: $focus-on-dark; }
+.md-card--speak-focused__text,
+.md-card--caseload-focused__text { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; }
+.md-card--speak-focused__title,
+.md-card--caseload-focused__title { font-size: 25px; font-weight: 800; letter-spacing: -0.01em; color: $focus-on-dark; }
 /* Divider between the title and subheader: a left→right fading hairline
    (white, on the dark button). */
-.md-card--speak-focused__divider {
+.md-card--speak-focused__divider,
+.md-card--caseload-focused__divider {
   width: 100%;
   height: 1px;
   margin: 3px 0;
@@ -50745,10 +50823,12 @@ a.md-goal-nav-action:hover,
 /* Clear secondary line under the "Let's Communicate" title: a touch smaller
    (17→15) with a little more space from the divider, so it stops competing with
    the title. Brightened to ~88% white for legibility at the smaller size. */
-.md-card--speak-focused__sub { font-size: 15px; font-weight: 500; color: rgba($focus-on-dark, 0.88); margin-top: 4px; }
+.md-card--speak-focused__sub,
+.md-card--caseload-focused__sub { font-size: 15px; font-weight: 500; color: rgba($focus-on-dark, 0.88); margin-top: 4px; }
 /* The "→" reads as an intentional "go" affordance, not trailing punctuation:
    brighter (full white vs the 0.78 sub) and a touch larger + bolder. */
-.md-card--speak-focused__arrow {
+.md-card--speak-focused__arrow,
+.md-card--caseload-focused__arrow {
   color: $focus-on-dark;
   font-size: 1.5em;
   font-weight: 700;
@@ -60477,7 +60557,6 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    color, plus a soft ambient glow behind the icon in the SAME color. !important
    so they win over the base .md-extras-card__icon-wrap background. (supervisors
    moved blue-grey → dusty-denim to match its denim icon.) */
-.md-extras-card__icon-wrap--intro        { background: rgba($brand-verdigris, 0.12) !important;    box-shadow: 0 0 14px rgba($brand-verdigris, 0.28) !important; }
 .md-extras-card__icon-wrap--sync_details { background: rgba($brand-dusty-denim, 0.12) !important;   box-shadow: 0 0 14px rgba($brand-dusty-denim, 0.28) !important; }
 .md-extras-card__icon-wrap--goals        { background: rgba($brand-stormy-teal, 0.12) !important;   box-shadow: 0 0 14px rgba($brand-stormy-teal, 0.28) !important; }
 .md-extras-card__icon-wrap--reports      { background: rgba($brand-dusty-denim, 0.12) !important;   box-shadow: 0 0 14px rgba($brand-dusty-denim, 0.28) !important; }
@@ -61016,9 +61095,20 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
      listed explicitly because the account-page active-pill rule
      (app.scss ~41743) is specificity (0,4,1) — higher than the generic
      fix — so matching that specificity (and winning on source order)
-     is required for the account pills to come out symmetric too. */
+     is required for the account pills to come out symmetric too.
+
+     `:first-child` is in the SAME list for the same reason, and is the
+     case that was missed: `.md-pillnav__pill:first-child` (app.scss
+     ~44212) also hard-sets `padding-left: 18px !important`, and at
+     (0,2,0) it outranks the plain `.md-pillnav__pill` (0,1,0) that
+     applies the 12px above — so the FIRST pill in every nav kept an
+     18px left inset while all its siblings tightened to 12px. Most
+     visible on the caseload page, where Caseload is the first pill.
+     Listed here at equal (0,2,0) and later in source, so it wins. */
+  .md-pillnav__pill:first-child,
   .md-pillnav__pill.is-active:not(:first-child),
   a.md-pillnav__pill.active:not(:first-child),
+  .md-pillnav--user a.md-pillnav__pill:first-child,
   .md-pillnav--user a.md-pillnav__pill.is-active:not(:first-child),
   .md-pillnav--user a.md-pillnav__pill.active:not(:first-child) {
     padding-left: 12px !important;
@@ -61538,6 +61628,13 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   .md-grid--layout-focused > .md-card--speak-focused { order: var(--ord-speak, 3) !important; flex: 1 1 100% !important; }
   .md-grid--layout-focused > .md-card--boards { order: var(--ord-boards, 5) !important; flex: 1 1 100% !important; }
   .md-grid--layout-focused > .md-card--caseload { order: var(--ord-caseload, 1) !important; flex: 1 1 100% !important; }
+  /* Supervisor-only list cards. focusedLayout() emits each as its OWN full-width
+     grid row, so they must keep that full width once `display:flex` above makes the
+     inline grid-template inert — without an explicit basis they fall back to
+     `flex: 0 1 auto` and shrink to their content, rendering narrower than the
+     Caseload hero above them. */
+  .md-grid--layout-focused > .md-card--rooms { order: var(--ord-rooms, 2) !important; flex: 1 1 100% !important; }
+  .md-grid--layout-focused > .md-card--attention { order: var(--ord-attention, 3) !important; flex: 1 1 100% !important; }
   .md-grid--layout-focused > .md-card--org-management { order: var(--ord-org, 4) !important; flex: 1 1 100% !important; }
   .md-grid--layout-focused > .md-card--account { order: var(--ord-account, 2) !important; }
   .md-grid--layout-focused > .md-card--create-board { order: var(--ord-createboard, 6) !important; }
@@ -61591,7 +61688,8 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 /* Focused View — center the Speak hero ("Let's Communicate") title + subtitle on
    small screens, where the icon+text stack rather than sit side-by-side. */
 @media (max-width: 460px) {
-  .md-card--speak-focused__text {
+  .md-card--speak-focused__text,
+  .md-card--caseload-focused__text {
     align-items: center !important;
     text-align: center !important;
   }

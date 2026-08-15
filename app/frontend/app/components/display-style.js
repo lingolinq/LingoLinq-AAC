@@ -1075,6 +1075,14 @@ export default Component.extend({
   // single-quoted attribute.
   _gentlePreviewHtml: function(opts) {
     opts = opts || {};
+    // The preview is a CLONE of the live `.md-grid--dashboard`. This component is
+    // now also mounted on the caseload page (app-navbar-authenticated-inner.hbs)
+    // so a supporter can switch view style from there, and that page has no
+    // dashboard grid to clone — `_buildGentleViewClone` would bail and leave an
+    // empty preview panel. Render the chooser on its own instead: picking
+    // Gentle/Focused still works, it just doesn't show a preview of a page the
+    // user isn't currently on.
+    if (!document.querySelector('.md-grid--dashboard:not(.md-ds-preview__clone)')) { return ''; }
     var withToggles = opts.toggles !== false;
     var dragOn = (opts.drag !== false) && !!this.get('appState.feature_flags.dashboard_drag_layout');
     var savedLayout = this.get('appState.currentUser.preferences.dashboard_layout') || 'gentle';

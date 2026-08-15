@@ -406,15 +406,15 @@ $report-icon-tints: (
   'total-sessions': $teal-light,
   'total-words': $teal-light,
 
-  'utterances': caseload.$caseload-speak-denim,
-  'total-utterances': caseload.$caseload-speak-denim,
-  'total-buttons': caseload.$caseload-speak-denim,
+  'utterances': $caseload-speak-denim,
+  'total-utterances': $caseload-speak-denim,
+  'total-buttons': $caseload-speak-denim,
 
-  'words-per-utterance': caseload.$caseload-reports-sage,
-  'words-per-minute': caseload.$caseload-reports-sage,
+  'words-per-utterance': $caseload-reports-sage,
+  'words-per-minute': $caseload-reports-sage,
 
-  'utterances-per-minute': caseload.$caseload-ideas-champagne,
-  'buttons-per-minute': caseload.$caseload-ideas-champagne
+  'utterances-per-minute': $caseload-ideas-champagne,
+  'buttons-per-minute': $caseload-ideas-champagne
 );
 
 @each $metric, $tint in $report-icon-tints {

@@ -1,17 +1,22 @@
 <nav class="md-pillnav md-pillnav--dashboard" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
-  {{#if (is-equal @active "home")}}
-    <span class="md-pillnav__pill is-active" aria-current="page">{{t "Home" key="home"}}</span>
-  {{else}}
-    <LinkTo @route="user.home" @model={{@userName}} class="md-pillnav__pill">{{t "Home" key="home"}}</LinkTo>
-  {{/if}}
-
-  {{! Supervisors get a Caseload pill just right of Home, matching the home page. }}
+  {{! Supervisors lead with Caseload — it is their workspace and their default
+      landing page on login (see routes/index.js `_land_on_default`) — so Home
+      sits just to its right. This pill only renders for `supporter_role`, so
+      communicators are unaffected and still lead with Home. }}
   {{#if this.appState.currentUser.supporter_role}}
     {{#if (is-equal @active "caseload")}}
       <span class="md-pillnav__pill is-active" aria-current="page">{{t "Caseload" key="caseload_pill"}}</span>
     {{else}}
       <LinkTo @route="caseload" class="md-pillnav__pill">{{t "Caseload" key="caseload_pill"}}</LinkTo>
     {{/if}}
+  {{/if}}
+
+  {{! Reads "Dashboard" for supporters, "Home" for communicators — see
+      helpers/home-pill-label.js. }}
+  {{#if (is-equal @active "home")}}
+    <span class="md-pillnav__pill is-active" aria-current="page">{{home-pill-label this.appState.currentUser.supporter_role}}</span>
+  {{else}}
+    <LinkTo @route="user.home" @model={{@userName}} class="md-pillnav__pill">{{home-pill-label this.appState.currentUser.supporter_role}}</LinkTo>
   {{/if}}
 
   {{#if this.appState.currentUser.has_management_responsibility}}

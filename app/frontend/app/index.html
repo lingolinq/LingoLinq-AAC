@@ -50,6 +50,15 @@
          paints with the card. -->
     <link rel="preload" as="image" href="{{rootURL}}images/caseload-light.png" type="image/png" fetchpriority="high" />
 
+    <!-- Preload the Focused View "My Caseload" hero image — the supervisor's
+         counterpart to the Speak hero above (focusedHeroKey resolves 'caseload'
+         for supporters). Same reasoning: its card is display:none until Focused
+         View is active AND caseload is the hero, so without this the browser
+         fetches it only as the card appears. Only the WebP is preloaded: every
+         browser that would pick the PNG fallback also ignores this hint's type,
+         and preloading both would double the bytes for one displayed image. -->
+    <link rel="preload" as="image" href="{{rootURL}}images/caseload-dark.webp" type="image/webp" fetchpriority="high" />
+
     <!-- Preload the guided-tour welcome-card map illustrations. These are CSS
          background-images on the tour's welcome step (.md-tour__step--welcome
          .shepherd-text in app.scss: tour-map-dark.png for Focused View,

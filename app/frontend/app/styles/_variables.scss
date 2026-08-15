@@ -526,3 +526,26 @@ $focus-text-muted:       #8A97A8;
 // color-mix() values — use ONLY via #{} interpolation in gradients (not rgba()).
 $focus-btn-base:         color-mix(in oklch, $brand-dusty-denim, gray 22%);
 $focus-btn-edge:         color-mix(in oklch, $focus-btn-base, black 14%);
+
+// =============================================================================
+// CASELOAD — quick-action fill tints
+// =============================================================================
+// The caseload row quick-action ramps. Saturated variants of brand tokens, kept
+// separate because saturating the brand tokens at source would repaint unrelated
+// surfaces app-wide; the BORDERS still use the shared AA tokens. Model's azure is
+// doubly derived: the palette has no entry at its hue — $brand-dusty-denim sits at
+// 215 deg and every other blue token is further toward purple ($brand-smart-blue and
+// $brand-dusty-denim-aa both 219 deg), so it is denim rotated -12 deg to 203 deg —
+// bluer, less purple — then saturated with the rest.
+//
+// Navy labels measure 6.9-10.9:1 on every stop of every ramp AT THESE VALUES.
+// Anything that darkens them (see the Focused View ramp in _focused-view.scss)
+// moves the fill TOWARD the navy label and must re-check contrast.
+//
+// Defined here rather than in _caseload.scss so _focused-view.scss can derive its
+// darkened Focused ramp from the same source values instead of duplicating hexes.
+$caseload-model-blue:       #3AA6EA;  // denim rotated -12deg, S 64.2% → 80.3%
+$caseload-speak-denim:      #3A83EA;  // $brand-dusty-denim,   S 64.2% → 80.3%
+$caseload-reports-sage:     #48865E;  // $color-sage-dark,     S 24.3% → 30.3%
+$caseload-ideas-champagne:  #D3B070;  // $brand-soft-fawn,     S 42.2% → 52.8%
+$caseload-model-blue-aa:    #2880C9;  // border only — $brand-dusty-denim-aa rotated the same

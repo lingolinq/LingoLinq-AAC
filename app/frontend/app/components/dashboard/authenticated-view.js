@@ -19,6 +19,7 @@ import i18n from '../../utils/i18n';
 import { filterRootBoards } from '../../utils/board-roots';
 import sessionHistory from '../../utils/session_history';
 import { availableHomeSections, sectionHidden, gridLayoutState, focusedHeroKey, communicatorsNeedingAttention } from '../../utils/dashboard_sections';
+import { homePillLabel } from '../../helpers/home-pill-label';
 
 export default Component.extend({
   tagName: '',
@@ -901,9 +902,14 @@ export default Component.extend({
   // 'off' | 'thin' | 'thick' – cycle: first toggle = thin, second = thick, third = off
   sectionBorderMode: 'off',
 
-  activeTabLabel: computed('activeTab', function() {
+  // Feeds the responsive .md-pillnav-dropdown trigger, so the label it shows for
+  // the home tab has to match the pill itself — supporters read "Dashboard" —
+  // hence the shared homePillLabel rather than a second copy of that rule.
+  // (Defaults are double-quoted per the i18n convention: a single-quoted default
+  // is silently DELETED by the next i18n_generator.rb run.)
+  activeTabLabel: computed('activeTab', 'appState.currentUser.supporter_role', function() {
     var tab = this.get('activeTab');
-    var labels = { home: i18n.t('home', 'Home'), boards: i18n.t('boards', 'Boards'), reports: i18n.t('reports', 'Reports'), extras: i18n.t('extras', 'Extras'), supervisors: i18n.t('supervisors', 'Supervisors') };
+    var labels = { home: homePillLabel(this.get('appState.currentUser.supporter_role')), boards: i18n.t('boards', "Boards"), reports: i18n.t('reports', "Reports"), extras: i18n.t('extras', "Extras"), supervisors: i18n.t('supervisors', "Supervisors") };
     return labels[tab] || labels.home;
   }),
   /** Index route @model is the logged-in user; @user is registration placeholder — use model for boards embed */
@@ -1185,8 +1191,11 @@ export default Component.extend({
     var showReports = !supporterRole;
     var lessons = appState.get('feature_flags.lessons') && user && user.get('currently_premium_or_fully_purchased');
     var emergencyBoards = appState.get('feature_flags.emergency_boards');
+    // NOTE: there is deliberately no Setup/Getting-Started card here. The `setup`
+    // route still exists and is still reachable by its own means, but the Extras
+    // page no longer advertises it to ANY user (the matching 'intro' branches in
+    // `extraAction` and the card-icon switch were removed with it).
     return [
-      { title_key: 'learn_and_setup_card', title_default: 'Setup', subtitle_key: 'get_started_subtitle', subtitle_default: 'Get started', image: 'images/pastel-getting-started.svg', action: 'intro', btn_key: 'learn_action', btn_default: 'Learn', show: !modelingOnly },
       { title_key: 'sync', title_default: 'Sync', subtitle_key: 'sync_subtitle', subtitle_default: 'Sync your data', image: 'images/pastel-logging.png', action: 'sync_details', btn_key: 'sync', btn_default: 'Sync', show: !externalDevice },
       { title_key: 'goals', title_default: 'Goals', subtitle_key: 'goals_subtitle', subtitle_default: 'Track progress', image: 'images/pastel-reports2.png', action: 'goals', btn_key: 'view', btn_default: 'View', show: !!perms },
       // Reports — surfaced here for users who don't have it in the pill-nav.
@@ -1476,9 +1485,7 @@ export default Component.extend({
           active.blur();
         }
       } catch(e) { }
-      if (name === 'intro') {
-        this.get('router').transitionTo('setup', { queryParams: { user_id: null, page: null } });
-      } else if (name === 'newBoard') {
+      if (name === 'newBoard') {
         var go = function() { _this.get('router').transitionTo('create-board-new'); };
         if (this.appState.check_for_needing_purchase) {
           this.appState.check_for_needing_purchase().then(go, go);

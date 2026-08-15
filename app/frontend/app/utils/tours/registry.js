@@ -14,6 +14,7 @@ import { buildHomeSteps } from './home';
 import { buildBoardPickerSteps } from './board-picker';
 import { buildBoardDetailSteps } from './board-detail';
 import { buildBoardDetailSpeakSteps } from './board-detail-speak';
+import { buildCaseloadSteps } from './caseload';
 
 // Board-detail EDIT mode is a STATE (app_state.edit_mode), not its own route —
 // both `user.board-detail.index` and `user.board-detail.edit` can be in edit
@@ -28,6 +29,14 @@ function tourBuilderFor(route, layout, editMode) {
     // The thunk forwards caller options (e.g. { handoff: true } when the tour
     // will hand off to the board picker) through to the step builder.
     return function(options) { return buildHomeSteps(view, options); };
+  }
+  // The caseload page — a SUPPORTER's home base. Registering it here is also what
+  // makes the navbar "Take a tour" trigger appear there: <GuidedTour /> is already
+  // mounted on this page (app-navbar-authenticated-inner.hbs gates it on
+  // `empty_header`, not on route) and self-hides on `hasTour`.
+  if (route === 'caseload') {
+    var clView = (layout === 'focused') ? 'focused' : 'gentle';
+    return function(options) { return buildCaseloadSteps(clView, options); };
   }
   if (route === 'board-picker') {
     var bpView = (layout === 'focused') ? 'focused' : 'gentle';
@@ -54,6 +63,9 @@ function tourBuilderFor(route, layout, editMode) {
 function tourKeyFor(route, layout, editMode) {
   if (route === 'user.home') {
     return 'home_' + ((layout === 'focused') ? 'focused' : 'gentle');
+  }
+  if (route === 'caseload') {
+    return 'caseload_' + ((layout === 'focused') ? 'focused' : 'gentle');
   }
   if (route === 'board-picker') {
     return 'board_picker_' + ((layout === 'focused') ? 'focused' : 'gentle');
