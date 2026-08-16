@@ -888,16 +888,43 @@ describe Uploader do
     end
 
     it "should not raise when a fallback guessed delete itself errors, and should still try the next index" do
+      # A genuine delete error (permission, network, throttling) is not proof
+      # an index doesn't exist -- remote_remove already returns a clean nil
+      # for a confirmed-absent object (head_object 404), so anything that
+      # raises here is a real error. Stopping on it the same way as a clean
+      # "not found" would silently truncate the guess sequence on a transient
+      # blip; this proves index 2 is still attempted (and recovered) despite
+      # index 1 erroring on both extensions.
       stem = 'videos/1/2/3/1_5-deniedfailv1723500000.mp4'
-      allow(Aws::S3::Client).to receive(:new).and_raise(Aws::S3::Errors::AccessDenied.new(nil, 'denied'))
+      s3_client = instance_double(Aws::S3::Client)
+      call_count = 0
+      allow(Aws::S3::Client).to receive(:new) do
+        call_count += 1
+        raise Aws::S3::Errors::AccessDenied.new(nil, 'denied') if call_count == 1
+        s3_client
+      end
       allow(Rails.logger).to receive(:error)
       allow(Rails.logger).to receive(:info)
-      allow(Uploader).to receive(:remote_remove).and_raise(StandardError.new('boom'))
+
+      errored = ["#{stem}.00001.png", "#{stem}.00001.jpg"]
+      errored.each do |key|
+        allow(s3_client).to receive(:head_object).with(bucket: uploads_bucket, key: key).and_raise(Aws::S3::Errors::ServiceUnavailable.new(nil, 'unavailable'))
+      end
+      allow(s3_client).to receive(:head_object).with(bucket: uploads_bucket, key: "#{stem}.00002.png").and_return(Aws::S3::Types::HeadObjectOutput.new)
+      allow(s3_client).to receive(:delete_object).with(bucket: uploads_bucket, key: "#{stem}.00002.png").and_return(true)
+      absent = ["#{stem}.00002.jpg", "#{stem}.00003.png", "#{stem}.00003.jpg"]
+      absent.each do |key|
+        allow(s3_client).to receive(:head_object).with(bucket: uploads_bucket, key: key).and_raise(Aws::S3::Errors::NotFound.new(nil, 'Not Found'))
+      end
+
       expect { Uploader.remote_remove_thumbnail_family(stem, 'UserVideo', '1_5') }.to_not raise_error
-      # Every raised call is treated as "not found" for short-circuit
-      # purposes (found_this_index stays false), so the bounded loop still
-      # terminates after index 1 rather than hanging or propagating.
+
+      expect(s3_client).to have_received(:delete_object).with(bucket: uploads_bucket, key: "#{stem}.00002.png")
       expect(Rails.logger).to have_received(:error).with(/fallback delete failed/).twice
+      expect(Rails.logger).to have_received(:info).with(/fallback.*deleted=1/)
+      # Bounded: stops after index 3 comes back cleanly empty in both
+      # formats (not the errored index 1), never probes index 4.
+      expect(s3_client).to_not have_received(:head_object).with(bucket: uploads_bucket, key: "#{stem}.00004.png")
     end
 
     it "should log a positive success-path summary with matched/deleted counts" do

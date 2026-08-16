@@ -321,6 +321,7 @@ module Uploader
       (1..FALLBACK_MAX_GUESS).each do |n|
         count = n.to_s.rjust(5, '0')
         found_this_index = false
+        errored_this_index = false
         ['png', 'jpg'].each do |ext|
           key = "#{stem}.#{count}.#{ext}"
           begin
@@ -329,10 +330,18 @@ module Uploader
               deleted += 1
             end
           rescue StandardError => e
+            # remote_remove itself already treats a confirmed-absent object
+            # (head_object 404) as a clean nil return, never a raise -- so
+            # anything landing here is a genuine error (permission, network,
+            # throttling), not proof this index doesn't exist. Stopping on it
+            # the same way as a clean "not found" would silently truncate the
+            # guess sequence on a transient blip, defeating the whole point
+            # of this fallback (see the enumeration-failure log line above).
+            errored_this_index = true
             Rails.logger.error("Uploader.remote_remove_thumbnail_family fallback delete failed owner=#{owner} stem=#{stem} key=#{key}: #{e.class}: #{e.message}")
           end
         end
-        break unless found_this_index
+        break if !found_this_index && !errored_this_index
       end
       Rails.logger.info("Uploader.remote_remove_thumbnail_family fallback owner=#{owner} stem=#{stem} deleted=#{deleted}")
       return
