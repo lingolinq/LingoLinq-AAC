@@ -207,7 +207,11 @@ _No record is under legal hold. A hold suspends all disposition for the rows it 
 
 19 attested git record(s). `attestation.attestedContentHash` pins the bytes that were attested; `ruby scripts/document-register-render.rb --check` fails when a pinned hash stops matching the file. Drive and Notion rows are out of scope: their hashes are operator-supplied, so there is nothing CI can verify.
 
-**No pinned attestation has drifted.** Every record that pins a hash still matches the attested bytes.
+**1 record(s) have drifted from their attested bytes.** Only Scot re-attests; never edit the pinned hash to clear this.
+
+| Title | Location | Attested | Pinned | Current |
+|---|---|---|---|---|
+| Incident Response and Breach Runbook | `docs/legal/BREACH_RUNBOOK.md` | 2026-08-01 | `2b788387259b` | `20d8d992e8bb` |
 
 Every attested git record pins the bytes it was attested against.
 
@@ -276,4 +280,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_77 documents tracked. 52 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 7 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
+_77 documents tracked. 52 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 7 superseded record(s). 1 drifted attestation(s), 0 attested record(s) with no pinned hash, 1 record(s) AWAITING RE-ATTESTATION. 23 bundle gap(s) across 6 bundle(s)._
