@@ -361,7 +361,7 @@
                      not in two places. --}}
                 <div class="ub-boards-page__folder-context-boards" role="region" aria-label={{t "Boards in folder" key="boards_in_folder"}}>
                   <div
-                    class="ub-boards-page__board-grid"
+                    class="ub-boards-page__board-grid {{if this.compactBoards 'll-boards-grid--compact'}}"
                     aria-describedby={{this.boardGridAriaDescribedby}}
                   >
                     {{#each this.boardsCtrl.boards_page_visible_results key="board.id" as |board|}}
@@ -382,7 +382,7 @@
                                 </svg>
                               </span>
                             {{/if}}
-                            <BoardIcon @board={{board}} @onAction={{this.onOpenBoardInUserView}} @removeType={{this.boardsCtrl.board_list.remove_type}} @removeLabel={{this.boardsCtrl.board_list.remove_label}} @removeIcon={{this.boardsCtrl.board_list.remove_icon}} @removeCallback={{if this.boardsCtrl.model.permissions.edit (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board)}} />
+                            <BoardIcon @board={{board}} @compactRow={{this.compactBoards}} @onAction={{this.onOpenBoardInUserView}} @removeType={{this.boardsCtrl.board_list.remove_type}} @removeLabel={{this.boardsCtrl.board_list.remove_label}} @removeIcon={{this.boardsCtrl.board_list.remove_icon}} @removeCallback={{if this.boardsCtrl.model.permissions.edit (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board)}} />
                             {{#if this.boardsCtrl.model.permissions.edit}}
                               {{#if board.board.id}}
                                 <button class="board_action" type="button" {{on "click" (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board)}}>
@@ -660,6 +660,22 @@
           </button>
         {{/if}}
         </div>{{!-- /.ub-boards-page__tabs-row --}}
+        {{!-- Board display density — the SAME control as the board picker's, reusing its
+             `bp-segmented` classes and markup so the two are one component visually and
+             behaviourally. Compact first, matching the picker's order and for the same
+             reason: a segmented control reads left-to-right as least-to-most detail.
+             Native <button>s with aria-pressed, so the state is not carried by colour
+             alone. The compact STYLING is shared too — both pages emit
+             `ll-boards-grid--compact` and the rules live once in _board_picker.scss. --}}
+        <div class="bp-segmented ub-boards-page__density" role="group" aria-label={{t "Board display style" key="board_picker_display_style"}}>
+          <button type="button" class="bp-segmented__option {{if this.compactBoards "bp-segmented__option--active"}}" aria-pressed={{if this.compactBoards "true" "false"}} {{on "click" (this.sendAction "setCompactBoards" true)}}>
+            {{t "Compact" key="board_picker_compact"}}
+          </button>
+          <button type="button" class="bp-segmented__option {{unless this.compactBoards "bp-segmented__option--active"}}" aria-pressed={{unless this.compactBoards "true" "false"}} {{on "click" (this.sendAction "setCompactBoards" false)}}>
+            {{t "Detailed" key="board_picker_detailed"}}
+          </button>
+        </div>
+
       {{/unless}}
 
       {{!-- Folder-context drill-in row (FOLDER · name · edit/delete ·
@@ -669,7 +685,7 @@
            folder, without the duplicate header. --}}
 
       <div
-        class="ub-boards-page__board-grid {{if this.boardsCtrl.mineTagFolderDrillIn 'ub-boards-page__board-grid--in-folder'}}"
+        class="ub-boards-page__board-grid {{if this.boardsCtrl.mineTagFolderDrillIn 'ub-boards-page__board-grid--in-folder'}} {{if this.compactBoards 'll-boards-grid--compact'}}"
         aria-describedby={{this.boardGridAriaDescribedby}}
       >
         {{#each this.boardsCtrl.boards_page_visible_results key="board.id" as |board|}}
@@ -703,7 +719,7 @@
                      it. The Preview chip (with its "N boards" count)
                      still provides the cluster-inspection
                      affordance. --}}
-                <BoardIcon @board={{board}} @onAction={{this.onOpenBoardInUserView}} @removeType={{this.boardsCtrl.board_list.remove_type}} @removeLabel={{this.boardsCtrl.board_list.remove_label}} @removeIcon={{this.boardsCtrl.board_list.remove_icon}} @removeCallback={{if this.boardsCtrl.model.permissions.edit (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board)}} />
+                <BoardIcon @board={{board}} @compactRow={{this.compactBoards}} @onAction={{this.onOpenBoardInUserView}} @removeType={{this.boardsCtrl.board_list.remove_type}} @removeLabel={{this.boardsCtrl.board_list.remove_label}} @removeIcon={{this.boardsCtrl.board_list.remove_icon}} @removeCallback={{if this.boardsCtrl.model.permissions.edit (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board)}} />
                 {{#if this.boardsCtrl.model.permissions.edit}}
                   {{#if board.board.id}}
                     <button class="board_action" type="button" {{on "click" (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board)}}>
@@ -714,15 +730,28 @@
               </div>
             {{/unless}}
           {{else if board.orphan}}
+            {{!-- ORPHAN CLUSTERS ARE HIDDEN IN COMPACT. These are not real boards: the
+                 controller synthesises an unsaved record named "Orphan Boards id:<id>"
+                 (controllers/user/index.js ~770) to group boards whose parent is not in
+                 the list. The row's only affordance is drilling into the cluster, and
+                 compact deliberately suppresses the Preview chip that presents it — so in
+                 it showed a raw internal label with a global id and no useful action.
+                 Guarded in the TEMPLATE rather than hidden in CSS so it leaves the DOM and
+                 the accessibility tree entirely, instead of being an invisible tab stop.
+                 Hidden in BOTH densities — see `showOrphanClusters` in the .js for the
+                 flag and the trade-off (the clustered boards have no other entry point on
+                 this page, so they are no longer listed here). --}}
+            {{#if this.showOrphanClusters}}
             {{#if board.children}}
               <div class="ub-boards-page__board-item board_with_action simple_board_holder">
-                <BoardIcon @board={{board}} @onAction={{this.onLoadChildren}} />
+                <BoardIcon @board={{board}} @compactRow={{this.compactBoards}} @onAction={{this.onLoadChildren}} />
                 {{#if this.boardsCtrl.model.permissions.edit}}
                   <button type="button" class="board_action" {{on "click" (this.ctrlAction "remove_board" "delete_orphans" board)}}>
                     <span title={{t "delete" key="delete"}}><span class="glyphicon glyphicon-trash"></span></span>
                   </button>
                 {{/if}}
               </div>
+            {{/if}}
             {{/if}}
           {{/if}}
         {{/each}}

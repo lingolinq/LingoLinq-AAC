@@ -11867,3 +11867,148 @@ writes to. Once the routine sets both `width` and `height` on the box, reading e
 next pass feeds the calculation its own output and the size drifts.
 
 **First seen in:** [2026-08-15-display-style-side-by-side-preview.md](./2026-08-15-display-style-side-by-side-preview.md)
+
+---
+
+## Gotcha: a component arg that reads like STYLING can carry behaviour — `@compactRow` hijacked the click
+
+**Surface:** the Boards page reused `<BoardIcon @compactRow={{…}}>` to get the picker's
+compact row look. Every card on the page then stopped opening its board — clicking one
+opened a preview instead. Found only because Traci noticed one odd row.
+
+**Why:** `compactRow` was doing double duty. It gated the compact markup *and* a branch in
+`board-icon.js` that turned the click into a preview — behaviour that only ever made sense
+inside the board **picker**, where picking a board is the point. Importing the look
+imported the behaviour.
+
+**Fix shape:** split the flag by responsibility rather than special-casing the new caller —
+`compactRow` = the compact LOOK, `pickOpensPreview` = the picker's click behaviour
+([board-icon.js:366-374](../../app/frontend/app/components/board-icon.js#L366-L374)). The
+picker passes both ([board-picker.hbs:197](../../app/frontend/app/components/board-picker.hbs#L197));
+the Boards page passes only `compactRow`.
+
+**The general check:** before reusing a component flag for its appearance, grep the
+component's **JS** for that flag, not just its template. A flag with hits in both files is
+two features wearing one name. And when a shared component is reused on a new page,
+click-test the *unchanged* mode too — the regression here was in the default (detailed)
+path, which nobody thought to re-test.
+
+**First seen in:** [2026-08-16-focused-view-colour-and-pillnav-alignment.md](./2026-08-16-focused-view-colour-and-pillnav-alignment.md)
+
+---
+
+## Gotcha: a `%`-positioned background moves when CONTENT height changes — and a `background:` shorthand `!important` blocks the longhand fix
+
+**Surface:** the board-picker page background visibly changed when toggling Compact ↔
+Detailed. The background declaration is byte-identical in both states.
+
+**Why:** `.md-shell`'s mesh is six radial-gradients positioned in **percentages**, and the
+shell's height is content-driven (measured 1269px compact vs 2550px detailed). Percentage
+positions resolve against the painting area, so the whole mesh re-positions and re-stretches
+when the list gets shorter. `background-attachment: fixed` resolves it against the viewport
+instead. Scope it to the page that flips content height in place — fixed attachment is
+expensive to repaint while scrolling on some mobile browsers.
+
+**Two traps in landing that one-line fix**
+([`_board_picker.scss:55-80`](../../app/frontend/app/styles/_board_picker.scss#L55-L80)):
+1. **A `background:` shorthand resets every sub-property.** `.md-shell`'s background is an
+   `!important` shorthand, so it also sets `background-attachment: scroll !important` — a
+   plain longhand loses silently. The flag is required, not decoration.
+2. **`!important` alone still was not enough.** The partial is `@use`d, so it emits before
+   app.scss; at an equal (0,1,0) tie with both sides `!important`, source order decided and
+   app.scss won. `.md-shell.md-shell--board-picker` (0,2,0) wins outright. Same family as
+   [the `@use`d-partial gotcha](#gotcha-a-rule-in-an-used-partial-loses-to-an-equal-specificity-rule-in-appscss--the-partial-is-emitted-first),
+   which bit **three** times in this one session.
+
+**First seen in:** [2026-08-16-focused-view-colour-and-pillnav-alignment.md](./2026-08-16-focused-view-colour-and-pillnav-alignment.md)
+
+---
+
+## Technique: when a COLUMN is narrow but the viewport is wide, media queries are inert — use `@container`
+
+Splitting the Boards page into a 1/4 folders column and a 3/4 boards column put content into
+a ~300px column on a 1400px screen. Every `@media (max-width: …)` rule written for it was
+dead: the viewport was never narrow. `container-type: inline-size` on the column plus
+`@container <name> (max-width: …)` is the tool, and it is **already used in `app.scss`**
+(e.g. [`app.scss:51002`](../../app/frontend/app/styles/app.scss#L51002)) — no new dependency,
+no polyfill question.
+
+**The tell:** a breakpoint rule that "does nothing" while the element is visibly narrow.
+Check what the rule is measuring — the viewport, or the box.
+
+**First seen in:** [2026-08-16-focused-view-colour-and-pillnav-alignment.md](./2026-08-16-focused-view-colour-and-pillnav-alignment.md)
+
+---
+
+## Technique: diff eslint against a HEAD baseline — this repo has grandfathered errors
+
+`npx eslint <file>` on a touched frontend file returns errors that were already there. A
+clean run is not the bar; **no new errors** is. Compare against the same file at HEAD:
+
+```bash
+git show HEAD:app/frontend/app/components/board-icon.js \
+  | npx eslint --stdin --stdin-filename app/frontend/app/components/board-icon.js
+```
+
+Baselines measured 2026-08-16: `available-boards-section.js` 5, `board-picker.js` 6,
+`board-icon.js` 6. Same discipline as
+[proving a pre-existing failure with a baseline build](#pattern-prove-pre-existing-failure-with-a-baseline-build--never-by-reasoning-alone).
+
+**First seen in:** [2026-08-16-focused-view-colour-and-pillnav-alignment.md](./2026-08-16-focused-view-colour-and-pillnav-alignment.md)
+
+---
+
+## Gotcha: two asset bundles exist — check WHICH one loaded before believing a change is absent
+
+A live browser session loads the Ember dev output (`/assets/frontend.js` + `.css`). A plain
+request can instead be served Sprockets-fingerprinted `application.debug-<hash>` assets,
+which can be **stale**. "My CSS/JS change isn't showing" is as often the wrong bundle as a
+wrong rule. Confirm first, from the console:
+
+```js
+[...document.scripts].map(s => s.src).filter(s => /assets/.test(s))
+```
+
+**Related:** static assets returning 500 means the backend is down or restarting — images
+cannot fail for application reasons, so don't debug the app for it.
+
+**First seen in:** [2026-08-16-focused-view-colour-and-pillnav-alignment.md](./2026-08-16-focused-view-colour-and-pillnav-alignment.md)
+
+---
+
+## Fact: "Orphan Boards id:…" rows are a SYNTHETIC record, not a board
+
+[`controllers/user/index.js:770`](../../app/frontend/app/controllers/user/index.js#L770)
+does `createRecord('board', {name: "Orphan Boards id:" + id})` to cluster boards whose
+parent is missing. It has no key, no real record behind it, and its label is a raw
+untranslated string. Treat it as a UI grouping artifact: do not chase it as a data bug, do
+not assume clicking it can work, and remember that **hiding those rows removes the only
+entry point to the boards inside them** — flatten the children or give the row a real
+i18n'd label + action if that access matters.
+
+**First seen in:** [2026-08-16-focused-view-colour-and-pillnav-alignment.md](./2026-08-16-focused-view-colour-and-pillnav-alignment.md)
+
+---
+
+## Technique: layout offsets across breakpoints are MEASURED, not derived — use a per-width QA probe
+
+Aligning the pill-nav across five pages and splitting the Boards page into columns both
+produced values that cannot be reasoned out of the stylesheet: the contributing padding is
+non-monotonic (Gentle view runs 40 → 52 → 40 across widths), and the winning rule is often
+in a different file from the one being edited. Both were settled by sweeping real widths in
+a headless browser and reading computed values.
+
+Two committed probes now exist — run from `app/frontend` on Node 22:
+
+```bash
+node scripts/focused-layout-qa.mjs   # pill-nav offsets + page backgrounds, per width/view
+node scripts/boards-columns-qa.mjs   # boards 1/4-3/4 split, per width/view
+```
+
+**Re-measure after any change to the surrounding padding; do not carry the numbers forward
+by assumption.** Six defects in one session were caught only by measuring — including a
+*false-pass* pixel test that sampled dead space, so also assert the probe is sampling a
+node that actually has ink (see
+[measure a page's "ink box" from LEAF elements](#technique-measure-a-pages-ink-box-from-leaf-elements-not-containers)).
+
+**First seen in:** [2026-08-16-focused-view-colour-and-pillnav-alignment.md](./2026-08-16-focused-view-colour-and-pillnav-alignment.md)

@@ -24,13 +24,12 @@ export default Component.extend({
   category_explainer_overflows: false,
   public_boards_has_more: false,
   public_boards_loading_more: false,
-  /* Board-card density. false = detailed cards (the default, unchanged);
-     true = compact cards showing only icon, name and Preview. The compact
-     state is applied as a modifier class on the grid and the trimming is done
-     in CSS rather than by branching board-icon.hbs — that component renders on
-     the dashboard, boards page and search too, and this density choice belongs
-     to the picker alone. */
-  compact_boards: false,
+  /* Board-card density. true = compact cards showing only icon, name and Preview;
+     false = detailed cards. COMPACT IS NOW THE DEFAULT (2026-08-16) — most pickers hold
+     more boards than fit as detailed cards, so the denser view is the more useful
+     starting point. The compact state is applied as a modifier class on the grid and the
+     trimming is done in CSS rather than by branching board-icon.hbs. */
+  compact_boards: true,
   /* Toolbar lead: which set of boards is on screen, and how many. The count is a
      plain reflection of what the (unchanged) filtering pipeline produced — it
      does not re-filter anything. */

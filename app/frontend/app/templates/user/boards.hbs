@@ -1,5 +1,23 @@
 <div class="md-shell md-shell--reports-view">
   <div class="md-workspace">
+    {{!-- Layout selector — SIDE-BY-SIDE (Folders 1/4 left, Boards 3/4 right) vs
+         TOP-DOWN (the original stacked order), so the two can be compared on the real
+         page. Sits here rather than in `.ub-boards-page__page-header` because that
+         header is `display: none` in Focused View, which would hide the selector on
+         exactly one of the two views it exists to compare.
+         RENDERED BEFORE <UserPillNav> so it is the workspace's first flex child and can
+         align to the content box's right edge; it carries `height: 0`, so despite coming
+         first it takes no vertical space and does NOT push the pill-nav down.
+         BEHIND `boards_side_by_side_layout` (lib/feature_flags.rb), which is CURRENTLY IN
+         BOTH `AVAILABLE_FRONTEND_FEATURES` AND `ENABLED_FRONTEND_FEATURES` — i.e.
+         TEMPORARILY FORCED ON FOR EVERYONE (2026-08-16) so the selector can be compared
+         on the real page without a per-user opt-in. Removing it from the ENABLED list
+         before production go-live returns it to beta-opt-in, and with the flag off this
+         never renders, no `data-boards-layout` is ever set on <body>, and the page keeps
+         the TOP-DOWN layout it has today. --}}
+    {{#if this.app_state.feature_flags.boards_side_by_side_layout}}
+      <BoardsLayoutToggle />
+    {{/if}}
     <UserPillNav @active="boards" @userName={{this.model.user_name}} />
 {{!-- Full-viewport loading overlay — uses the same `.ll-premium-progress`
      chrome as the bootstrap skeleton (boards/index.html.erb +

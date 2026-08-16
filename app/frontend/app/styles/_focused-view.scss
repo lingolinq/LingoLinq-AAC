@@ -107,7 +107,7 @@ $focus-extras-icon-colors: (
 body.ll-layout-focused {
   .md-shell--reports-view .md-pillnav__pill.active,
   .md-shell--reports-view .md-pillnav__pill.is-active {
-    background: linear-gradient(135deg, $focus-accent-from, $focus-pill-accent-to) !important;
+    background: linear-gradient(135deg, $focus-pill-active-from, $focus-pill-active-to) !important;
     border-color: rgba($focus-pill-accent-to, 0.3) !important;
   }
   // Page layout — these standalone pages otherwise keep the base 40px-all-around
@@ -118,12 +118,36 @@ body.ll-layout-focused {
   // Reports (user/stats) routes — goTab transitions there — so the dashboard, with its
   // own `.md-shell--layout-focused` workspace rules, is untouched.)
   // (0,3,1) + !important beats the base `.md-workspace` padding (0,1,0 + !important).
+  // PILL-NAV HEIGHT IS MATCHED TO THE DASHBOARD BY MEASUREMENT, not by copying the
+  // dashboard's declarations. Copying them was tried first and made it WORSE (+40px):
+  // this shell keeps the base `.md-workspace` 40px top margin that the focused
+  // dashboard shell overrides, and that margin collapses differently against the
+  // workspace padding here, so the same numbers do not produce the same position.
+  // The values below are the ones that measure equal to the dashboard's gap at every
+  // breakpoint — verified with scripts/focused-layout-qa.mjs, which prints the gap
+  // below the topbar per width per page. RE-RUN IT if you touch these.
+  // SIDES ARE UNCHANGED at 16px: the narrower gutter is deliberate on these pages.
   .md-shell--reports-view > .md-workspace {
     padding: 16px 16px 0px !important;
-    // Smaller screens get more top room (the navbar/pill-nav stack tighter up top).
+    // 1024 -> 950: the base workspace margin drops here, which cost 2px against the
+    // dashboard; 60px restores it.
     @media (max-width: 1024px) {
-      padding: 58px 16px 0px !important;
+      padding: 60px 16px 0px !important;
     }
+    // Below 950 the dashboard drops its own 16px workspace margin (app.scss ~62111),
+    // taking its gap from 42 to 26. This tracks that step.
+    @media (max-width: 950px) {
+      padding: 44px 16px 0px !important;
+    }
+  }
+  // Held at 0 at EVERY width. The global
+  // `@media (max-width: 640px) { .md-workspace > .md-pillnav { margin-top: 48px } }`
+  // (app.scss ~62001) targets a bare `.md-workspace` child, so it caught these two
+  // pages and lurched the nav 48px down at 640 — the +62px step in the measurements.
+  // The dashboard is unaffected by that rule because its own 48px is already applied
+  // at all widths; these pages need it pinned instead.
+  .md-shell--reports-view .md-workspace > .md-pillnav {
+    margin-top: 0 !important;
   }
 }
 
@@ -144,6 +168,24 @@ body.ll-layout-focused {
 // very small screens too.
 .md-shell--layout-focused.md-shell--extras-view > .md-workspace {
   padding: 32px 40px 0px !important;
+}
+
+// PAGE BACKGROUND — match Boards / Reports / Caseload, not the dashboard.
+// The Extras route renders the DASHBOARD component, so its `#content` carries
+// `.index.with_user` (measured: `index modern-dashboard extras-page with_user
+// new_index`) and therefore picks up the home route's blue->gold->green tint wash
+// from `#within_ember:has(.page-footer) #content.index.with_user` (app.scss ~645).
+// Boards (`.boards-page`), Reports (`.stats-page`) and the caseload
+// (`.modern-dashboard`) never match that selector, so they sit on the flat
+// `--md-bg` instead — which left Extras as the only non-dashboard page wearing the
+// dashboard's wash.
+//
+// Scoped on `.extras-page`, a class that exists ONLY on this route, and gated on
+// `body.ll-layout-focused` — so the GENTLE Extras page and the focused DASHBOARD
+// both keep the wash untouched. (2,4,0) + !important beats the (2,3,0) + !important
+// gradient rule, which matters because this file is `@use`d and so emits FIRST.
+body.ll-layout-focused #within_ember #content.index.with_user.extras-page {
+  background: var(--md-bg, #eef1f6) !important;
 }
 
 // Focused Extras page — hide the hero and restyle the setup cards + their icons to
@@ -278,6 +320,19 @@ body.ll-layout-focused .md-user-summary {
   //    button surface — desaturated dusty-denim glossy gradient + white text/icons
   //    (mirrors `.md-grid.md-grid--layout-focused .md-card--boards .md-btn--wide`).
   //    hover/focus reuse the same fill so they don't flash back to the light base.
+  // ALL FOUR share one rule again. This was briefly split so New Board and Change Home
+  // Board could be 10% darker than Show More; Show More now takes the same darkening, so
+  // the split has been collapsed rather than left in place as two rules that happen to
+  // agree — one surface, one authoritative declaration.
+  //
+  // 10% DARKER (2026-08-16) is applied HERE and not on `$focus-btn-base` /
+  // `$focus-btn-edge`: those tokens also drive the home dashboard's "View All Boards"
+  // button (app.scss ~51227) and the focused board-picker CTA, neither of which moves.
+  // `color-mix(… 90%, black)` and NOT `color.scale()`: both tokens are themselves CSS
+  // `color-mix()` values (_variables.scss ~544-545), so Sass colour functions cannot
+  // operate on them — the same constraint the Model tile's hover records.
+  // CONTRAST: the ink is white ($focus-on-dark) on a fill that is getting DARKER, so
+  // white-on-fill can only improve. No AA risk in this direction.
   .ub-boards-page__boards-summary-new-btn,
   .ub-boards-page__new-board-btn,
   .ub-boards-page__set-home-btn,
@@ -293,8 +348,8 @@ body.ll-layout-focused .md-user-summary {
     color: $focus-on-dark !important;
     border-color: rgba($focus-on-dark, 0.18) !important;
     background: linear-gradient(160deg in oklab,
-      #{$focus-btn-base} 0%,
-      #{$focus-btn-edge} 100%) !important;
+      color-mix(in oklab, #{$focus-btn-base} 90%, black) 0%,
+      color-mix(in oklab, #{$focus-btn-edge} 90%, black) 100%) !important;
   }
   // The Change Home Board glyph has its OWN verdigris `color` (app.scss:60930) and its
   // SVG paints with fill=currentColor, so it doesn't inherit the white button text —
@@ -329,16 +384,21 @@ body.ll-layout-focused .md-user-summary {
   // the INACTIVE bg: the focused pill-nav active gradient 20% lighter. The ACTIVE
   // My/Public pill gets the full (darker) gradient; the More toggle is excluded from
   // the active rule, so it always stays on the inactive bg. White label on the fill.
+  //
+  // Built from `$focus-pill-active-*` — the SAME tokens the pill-nav's active pill uses
+  // (_variables.scss), so this strip tracks the pill-nav's 10-point desaturation instead
+  // of drifting 10 points more saturated than the nav sitting directly above it. The
+  // inactive variants scale from the desaturated stop, so the whole strip moves together.
   .ub-boards-page__tabs--boards > li > a {
     color: $focus-on-dark !important;
     border-color: rgba($focus-on-dark, 0.18) !important;
     background: linear-gradient(135deg,
-      color.scale($focus-accent-from, $lightness: 20%),
-      color.scale($focus-pill-accent-to, $lightness: 20%)) !important;
+      color.scale($focus-pill-active-from, $lightness: 20%),
+      color.scale($focus-pill-active-to, $lightness: 20%)) !important;
     box-shadow: none !important;
   }
   .ub-boards-page__tabs--boards > li.is-active:not(.dropdown) > a {
-    background: linear-gradient(135deg, $focus-accent-from, $focus-pill-accent-to) !important;
+    background: linear-gradient(135deg, $focus-pill-active-from, $focus-pill-active-to) !important;
   }
   // The "More" toggle is never a "selected" filter, so pin it to the INACTIVE bg in
   // EVERY state — resting, when a More option is selected (li.is-active), and on
@@ -352,8 +412,8 @@ body.ll-layout-focused .md-user-summary {
     color: $focus-on-dark !important;
     border-color: rgba($focus-on-dark, 0.18) !important;
     background: linear-gradient(135deg,
-      color.scale($focus-accent-from, $lightness: 20%),
-      color.scale($focus-pill-accent-to, $lightness: 20%)) !important;
+      color.scale($focus-pill-active-from, $lightness: 20%),
+      color.scale($focus-pill-active-to, $lightness: 20%)) !important;
     box-shadow: none !important;
   }
 
@@ -561,7 +621,7 @@ body.ll-layout-focused {
   .board-picker-page .md-home-boards-picker__tabs.ub-boards-page__tabs--boards > li.is-active > a {
     color: $focus-on-dark !important;
     border-color: rgba($focus-on-dark, 0.18) !important;
-    background: linear-gradient(135deg, $focus-accent-from, $focus-pill-accent-to) !important;
+    background: linear-gradient(135deg, $focus-pill-active-from, $focus-pill-active-to) !important;
     box-shadow:
       0 6px 16px rgba($focus-shadow-ink, 0.18),
       inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
@@ -589,7 +649,7 @@ body.ll-layout-focused {
   //    (0,4,1) + !important beats the base `.md-pillnav__pill.is-active` (0,2,0).
   .md-shell--caseload .md-pillnav__pill.active,
   .md-shell--caseload .md-pillnav__pill.is-active {
-    background: linear-gradient(135deg, $focus-accent-from, $focus-pill-accent-to) !important;
+    background: linear-gradient(135deg, $focus-pill-active-from, $focus-pill-active-to) !important;
     border-color: rgba($focus-pill-accent-to, 0.3) !important;
   }
 
@@ -633,6 +693,14 @@ body.ll-layout-focused {
   .md-shell--caseload > .md-workspace {
     padding-top: 32px !important;
     margin-top: 16px !important;
+    // MATCHES the focused dashboard's own ≤950px step (app.scss ~62111). That rule is
+    // scoped to `.md-shell--layout-focused`, a class the caseload shell never carries
+    // (it renders its own static shell), so without this the caseload kept a 16px top
+    // margin the dashboard had already dropped — measured as the caseload pill-nav
+    // sitting exactly 16px lower than the dashboard's at every width below 950px.
+    @media (max-width: 950px) {
+      margin-top: 0 !important;
+    }
   }
 
   .md-shell--caseload .md-workspace > .md-pillnav {
@@ -815,11 +883,21 @@ body.ll-layout-focused {
   // `color.scale` on the source gives the tint at an exact saturation and lightness in
   // one step, so `$sat` and `$light` mean what they say. $src is always a real Sass
   // colour here (a $caseload-* token or a literal), so this is available.
-  @mixin caseload-focused-tile-bg($src, $mix: 38%, $light: 37%, $sat: 31.5%) {
+  // `$sat` is the DEFAULT for the loud end of the set (Model / Choose Board / Ideas).
+  // Raised 31.5% -> 41.5% with the rest of the row; see the note on the mixin below.
+  @mixin caseload-focused-tile-bg($src, $mix: 38%, $light: 37%, $sat: 41.5%, $darken: 0%) {
     // ABSOLUTE saturation via `color.change`, not a relative `color.scale`. Scaling is
     // proportional to each source's own saturation, so one factor produced a 62% Speak
     // beside a 23% Reports — the set has to be even, so the target is stated outright.
-    $tint: color.scale(color.change($src, $saturation: $sat), $lightness: $light);
+    // Because it is absolute, the finished pixel's HSL saturation equals this number
+    // exactly — measured, not assumed — so the value here is the value you see.
+    // `$darken` is applied to the FINISHED tint, so it composes with `$light` instead of
+    // fighting it, and the edge stop below scales from the darkened centre — which keeps
+    // the ramp's shape identical rather than flattening it. Default 0% is a true no-op,
+    // so the tiles that do not pass it are untouched.
+    $tint: color.scale(
+      color.scale(color.change($src, $saturation: $sat), $lightness: $light),
+      $lightness: -$darken);
     // A shallow ramp: the edge is 9% darker than the centre. It stays shallow on purpose —
     // a wide one spans too much luminance for a single ink, which is what forced white to
     // fail the light centre (2.66-3.09:1) and navy the dark edge (2.46-3.45:1) earlier.
@@ -827,8 +905,28 @@ body.ll-layout-focused {
       #{$tint} 0%,
       #{color.scale($tint, $lightness: -9%)} 100%) !important;
   }
-  @mixin caseload-focused-tile($src, $mix: 38%, $light: 37%, $sat: 31.5%) {
-    @include caseload-focused-tile-bg($src, $mix, $light, $sat);
+  // SATURATION, +10 POINTS ACROSS THE ROW (2026-08-16). Every quick-action tile took a
+  // flat +10 percentage points: Model / Choose Board / Ideas 31.5% -> 41.5%, Speak /
+  // Reports 15% -> 25%, More Actions 7.5% -> 17.5%. Points, not a multiplier — the
+  // parameter is an absolute saturation, so x1.1 would have moved Model only 3.2 points
+  // and this file already records a `$sat` nudge that "changed almost nothing".
+  //
+  // COST IN CONTRAST: none worth the name. Saturation is luminance-neutral on these
+  // fills, so the #0F172A label ink (set at (0,4,0) by the list-header rule above) moved
+  // by hundredths, and every tile IMPROVED. Measured on both gradient stops, centre/edge:
+  //   Model / Choose Board 7.91/6.63 -> 7.98/6.73   Speak   9.42/7.73 -> 9.27/7.56
+  //   Reports              7.89/6.72 -> 8.36/7.24   Ideas  10.99/9.33 -> 11.24/9.64
+  //   More Actions        15.96/13.00 -> 12.58/10.24  (its drop is the `$darken`, not $sat)
+  // Worst case in the set is Model's dark edge at 6.73:1, against a 4.5:1 AA floor.
+  // Measured on the COMPILED app.css, not on a re-derivation of these mixins.
+  //
+  // KNOWN SIDE EFFECT, accepted: More Actions gains the most in RELATIVE terms (+133%),
+  // so the row's loud-to-quiet gap narrows from 1 : 2 : 4.2 to 1 : 1.43 : 2.37 across
+  // More : Speak : Model. It is still the least-tinted tile, and at HSL L 85.5% it is
+  // still comfortably the LIGHTEST of the six (Ideas, the next lightest, is 76.9%), so
+  // it goes on reading as overflow rather than workflow.
+  @mixin caseload-focused-tile($src, $mix: 38%, $light: 37%, $sat: 41.5%, $darken: 0%) {
+    @include caseload-focused-tile-bg($src, $mix, $light, $sat, $darken);
     border-color: rgba($la-navy, 0.22) !important;
     // NAVY ink, not white. The fills are now 25% lighter than the CTA's; white on them
     // measured 2.66-3.09:1, well under the 4.5:1 floor. Navy is what makes this lightness
@@ -913,7 +1011,7 @@ body.ll-layout-focused {
     // Light blue, through the same mixin as its neighbours. It was briefly the pill-nav
     // gradient darkened 18%, which needed white ink to stay legible; back to a light tile
     // with dark ink so the whole row reads as one family again.
-    @include caseload-focused-tile-bg($caseload-model-blue, $light: 23%, $sat: 31.5%);
+    @include caseload-focused-tile-bg($caseload-model-blue, $light: 23%, $sat: 41.5%);
     border-color: rgba($focus-pill-accent-to, 0.35) !important;
     // NAVY ink, not white. The fills are now 25% lighter than the CTA's; white on them
     // measured 2.66-3.09:1, well under the 4.5:1 floor. Navy is what makes this lightness
@@ -950,7 +1048,7 @@ body.ll-layout-focused {
     // 26) kept it reading blue-GREY rather than blue: at this tile's saturation the hue
     // angle is barely perceptible, so rotating it was never going to be the lever. The
     // source is already the blue that was wanted.
-    @include caseload-focused-tile($caseload-speak-denim, $light: 41%, $sat: 15%);
+    @include caseload-focused-tile($caseload-speak-denim, $light: 41%, $sat: 25%);
   }
   .md-caseload__list-quick .md-caseload__quick-action--speak:not(.md-caseload__quick-action--empty):hover {
     @include caseload-focused-tile-hover;
@@ -959,13 +1057,15 @@ body.ll-layout-focused {
     // Champagne is the palette's lightest source, so it reaches the contrast floor
     // first: at the 20% lift its siblings use it measured 4.26:1 white-on-fill,
     // under 4.5:1. Capped at 12% — the most lift it takes while staying legible.
+    // No `$sat` — this one rides the mixin default, which is the loud end of the set
+    // (41.5%) and moved with the rest of the row.
     @include caseload-focused-tile($caseload-ideas-champagne, $light: 37%);
   }
   .md-caseload__quick-action.md-caseload__quick-action--ideas:hover:not(.md-caseload__quick-action--empty) {
     @include caseload-focused-tile-hover;
   }
   .md-caseload__quick-action.md-caseload__quick-action--reports:not(.md-caseload__quick-action--empty) {
-    @include caseload-focused-tile($caseload-reports-sage, $light: 41%, $sat: 15%);
+    @include caseload-focused-tile($caseload-reports-sage, $light: 41%, $sat: 25%);
   }
   .md-caseload__quick-action.md-caseload__quick-action--reports:hover:not(.md-caseload__quick-action--empty) {
     @include caseload-focused-tile-hover;
@@ -983,7 +1083,7 @@ body.ll-layout-focused {
     // Light blue, through the same mixin as its neighbours. It was briefly the pill-nav
     // gradient darkened 18%, which needed white ink to stay legible; back to a light tile
     // with dark ink so the whole row reads as one family again.
-    @include caseload-focused-tile-bg($caseload-model-blue, $light: 23%, $sat: 31.5%);
+    @include caseload-focused-tile-bg($caseload-model-blue, $light: 23%, $sat: 41.5%);
     border-color: rgba($focus-pill-accent-to, 0.35) !important;
     // NAVY ink, not white. The fills are now 25% lighter than the CTA's; white on them
     // measured 2.66-3.09:1, well under the 4.5:1 floor. Navy is what makes this lightness
@@ -1025,7 +1125,12 @@ body.ll-layout-focused {
     // Neutral source, so this lands as the least tinted tile in the set — it stays the
     // overflow control rather than competing with the four named actions, exactly as its
     // gentle counterpart does.
-    @include caseload-focused-tile(#E2E7EE, $mix: 26%, $light: 45%, $sat: 7.5%);
+    // `$darken: 10%` — this tile only. It was the palest thing in the row by a wide
+    // margin (its centre stop was a near-white #F0F2F5), so it read as a gap rather than
+    // as a control. Darkening the finished tint keeps its `$light: 45%` relationship to
+    // the gentle source legible instead of burying the move in a re-tuned lightness.
+    // Measured: centre HSL L 95.04% -> 85.54%, i.e. exactly 10% darker; ink 12.58:1.
+    @include caseload-focused-tile(#E2E7EE, $mix: 26%, $light: 45%, $sat: 17.5%, $darken: 10%);
   }
   .md-shell--caseload .md-caseload__quick-action--more:hover:not(.md-caseload__quick-action--empty) {
     @include caseload-focused-tile-hover;
@@ -1071,7 +1176,10 @@ body.ll-layout-focused {
   // longer a hue-specific ink to tune. Measured white-on-fill per variant before shipping.
   // Viewer matches the MORE ACTIONS tile.
   .md-shell--caseload .md-caseload__list-access--view { @include caseload-focused-badge(#E2E7EE, $light: -11%, $sat: 0%); }
-  // Board needed matches the MODEL tile — same source, lightness and saturation.
+  // Board needed takes the MODEL tile's SOURCE HUE, at its own lightness (48% vs 23%).
+  // It no longer shares Model's saturation: the +10-point lift was scoped to the
+  // quick-action BUTTONS, and this is a status badge beside the name, not a control.
+  // Left at 31.5% deliberately — restate it here if the badges are ever moved to match.
   .md-shell--caseload .md-caseload__list-access--setup { // Light blue, through the same mixin as its neighbours. It was briefly the pill-nav
     // gradient darkened 18%, which needed white ink to stay legible; back to a light tile
     // with dark ink so the whole row reads as one family again.
@@ -1142,11 +1250,22 @@ body.ll-layout-focused {
   // `color` is kept in step with the glyph stroke below rather than left white:
   // the disc has no text of its own today, so this only feeds `currentColor`, but a
   // stray white here would silently re-whiten any future glyph that inherits it.
-  // The DISC itself takes the More Actions tile's fill — the same values, through the same
-  // mixin, so the two can never drift. It was a light blue accent gradient, which read as
-  // a different material from everything else in the row.
+  // The DISC takes the More Actions tile's SOURCE and lightness. It was a light blue
+  // accent gradient, which read as a different material from everything else in the row.
+  //
+  // IT IS NOT AN EXACT MATCH, despite what this comment claimed until 2026-08-16: the
+  // include omitted `$sat`, so the disc has always ridden the mixin DEFAULT while More
+  // Actions passed its own much lower value (31.5% vs 7.5%). The two drifted the day the
+  // default and the tile stopped agreeing; nobody noticed because the disc is a small
+  // neutral circle. `$sat: 31.5%` is now stated OUTRIGHT so the disc keeps the exact
+  // colour it ships today and can no longer be moved by an unrelated default change —
+  // which is what would otherwise have happened when the row went to 41.5%.
+  //
+  // OPEN QUESTION for Traci: if the disc is genuinely meant to match More Actions, it
+  // should take `$sat: 17.5%, $darken: 10%` like the tile does. Left alone deliberately —
+  // that is a visible change to an element outside the "button colours" request.
   .md-shell--caseload .md-caseload__list-avatar--placeholder {
-    @include caseload-focused-tile-bg(#E2E7EE, $mix: 26%, $light: 45%);
+    @include caseload-focused-tile-bg(#E2E7EE, $mix: 26%, $light: 45%, $sat: 31.5%);
     color: $focus-on-dark !important;
   }
   // The person glyph is drawn with hard-coded #46505F / #2A9D8F strokes in the
@@ -1182,7 +1301,7 @@ body.ll-layout-focused {
 // here. (0,4,2) beats the base `.md-pillnav--user a.md-pillnav__pill.active` (0,3,1).
 body.ll-layout-focused .md-pillnav--user a.md-pillnav__pill.active,
 body.ll-layout-focused .md-pillnav--user a.md-pillnav__pill.is-active {
-  background: linear-gradient(135deg, $focus-accent-from, $focus-pill-accent-to) !important;
+  background: linear-gradient(135deg, $focus-pill-active-from, $focus-pill-active-to) !important;
   border-color: rgba($focus-pill-accent-to, 0.3) !important;
 }
 

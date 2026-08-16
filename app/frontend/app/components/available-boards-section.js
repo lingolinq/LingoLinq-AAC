@@ -13,6 +13,28 @@ import buildEventAction from '../utils/event_action';
 export default Component.extend({
   tagName: '',
 
+  /* Board-card density for the Boards page, mirroring the picker's own control
+     (components/board-picker.js#compact_boards). true = compact rows showing only icon,
+     name and Preview; false = the detailed cards.
+     DEFAULTS TO COMPACT, matching the picker (2026-08-16, requested). This does change
+     what existing users see on load — the denser list is now the starting point on both
+     surfaces, and the toggle is right there to go back to the detailed cards.
+     The compact styling itself is NOT duplicated — both pages emit the shared
+     `ll-boards-grid--compact` modifier and the rules live once in _board_picker.scss. */
+  compactBoards: true,
+
+  /* Orphan CLUSTER rows ("Orphan Boards id:<id>") are not rendered on the Boards page at
+     all (2026-08-16, requested). They are synthetic placeholders, not boards — the
+     controller creates an unsaved record per cluster (controllers/user/index.js ~770) to
+     group boards whose parent is missing from the list. The row shows a raw internal
+     label with a global id and offers no useful action, so it reads as broken.
+     A named flag rather than a deleted branch: the markup, its drill-in and its
+     delete-orphans action are all still in the template, so restoring the row is flipping
+     this to `true` rather than reconstructing it.
+     TRADE-OFF: the boards clustered under these rows have no other entry point on this
+     page, so they are no longer listed here. */
+  showOrphanClusters: false,
+
   appState: service('app-state'),
   modal: service('modal'),
   persistence: service('persistence'),
@@ -280,6 +302,11 @@ export default Component.extend({
   dragSourceTag: null,
 
   actions: {
+    /* Same contract as the picker's `set_compact_boards`. Bound through this component's
+       `sendAction` FACTORY (see the note at ~111), so the template binds it BARE. */
+    setCompactBoards(compact) {
+      this.set('compactBoards', !!compact);
+    },
     toggleFoldersExpanded() {
       this.toggleProperty('foldersExpanded');
       /* Persist the new state so the user's choice survives a

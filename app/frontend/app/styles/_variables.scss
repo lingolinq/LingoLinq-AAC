@@ -514,6 +514,23 @@ $focus-accent-from:      $brand-blue-grey;
 $focus-nav-accent-to:    $brand-charcoal-blue;
 $focus-pill-accent-to:   $focus-accent;
 
+// — Focused View ACTIVE PILL fill —
+// The active pill carries ONE gradient across every page that has a pill-nav: the
+// dashboard (.md-shell--layout-focused), the caseload, Boards/Reports
+// (.md-shell--reports-view) and the account pages (.md-pillnav--user). That gradient
+// was written out as a literal at all four sites, with a "change them together" comment
+// standing in for the link — so these tokens exist to make the link real. Change here
+// and all four move; there is nowhere left for them to drift apart.
+//
+// DESATURATED 10 POINTS from the chrome accents above (2026-08-16). They get their own
+// tokens rather than a change to `$focus-accent-from` / `$focus-pill-accent-to` because
+// those two are used ~25 times for borders, focus rings and card edges that are
+// contrast-engineered and must NOT follow the fill.
+// Points, not a multiplier, matching the quick-action `$sat` convention in
+// _focused-view.scss: S 32.37% -> 22.37% and 64.22% -> 54.22%.
+$focus-pill-active-from: color.adjust($focus-accent-from, $saturation: -10%);    // #8094AF
+$focus-pill-active-to:   color.adjust($focus-pill-accent-to, $saturation: -10%); // #5788CD
+
 // — Focused Boards card surface —
 // Cool blue-gray glass tints (used with alpha over the shell gradient).
 $focus-surface-top:      #ECF1FA;  // rgb(236, 241, 250)

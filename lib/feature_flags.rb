@@ -29,6 +29,18 @@ module FeatureFlags
               'portrait_orientation_overlay', 'signup_default_library_boards',
               'english_first_board_generation', 'signup_spanish_library_boards',
               'dashboard_drag_layout', 'boards_page_owner_dedup', 'edit_sidebar',
+              # Boards page: offers a selector for SIDE-BY-SIDE (Folders 1/4 left,
+              # Boards 3/4 right) versus TOP-DOWN (the original stacked order), so the
+              # two arrangements can be compared on the real page. CURRENTLY ALSO IN
+              # ENABLED_FRONTEND_FEATURES (forced ON for everyone) so the selector is
+              # visible without a per-user opt-in — see the TEMPORARY note there, and
+              # REMOVE IT FROM THAT LIST BEFORE PRODUCTION GO-LIVE, which returns this
+              # to the canonical AVAILABLE-only / beta-opt-in state. Off, the selector
+              # does not render and the page keeps the TOP-DOWN layout, which is the
+              # pre-existing behaviour. Read by
+              # app/frontend/app/templates/user/boards.hbs and applied by
+              # app/frontend/app/components/boards-layout-toggle.js.
+              'boards_side_by_side_layout',
               'sentence_bar_editing',
               'text_symbol_fallback',
               # Per-user session resume: return a user to the page they were last
@@ -87,7 +99,8 @@ module FeatureFlags
               'supervisor_consent_flow', # TEMPORARY (2026-08-12): forced ON for everyone to validate supervisor→communicator consent invites (request by username/email + approve). Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'text_symbol_fallback', # Default ON so imported OBF text-only buttons render their labels as symbols; keep registered for rollback through system feature settings.
               'supervising_context_banner', # TEMPORARY (2026-08-09): forced ON for everyone to validate the supporter "Viewing X's account" pill in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
-              'session_resume'] # TEMPORARY (2026-08-09): forced ON for everyone to validate per-user session resume in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'session_resume', # TEMPORARY (2026-08-09): forced ON for everyone to validate per-user session resume in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'boards_side_by_side_layout'] # TEMPORARY (2026-08-16): forced ON for everyone so the Boards-page layout selector (side-by-side vs top-down) is visible for design comparison without a per-user opt-in. TURN THIS OFF BEFORE PRODUCTION GO-LIVE — remove from this list, returning to AVAILABLE-only (beta opt-in per user), per the rollout policy above AVAILABLE_FRONTEND_FEATURES. With it removed the selector stops rendering and the page falls back to the TOP-DOWN layout, which is the pre-existing behaviour.
   DISABLED_CANARY_FEATURES = []
   FEATURE_DATES = {
     'word_suggestion_images' => 'Jan 21, 2017',

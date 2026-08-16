@@ -99,7 +99,7 @@
       <p>{{t "If spelling works well for them, keyboard boards with word prediction can speed things up. Many include quick phrases too." key="keyboards_1"}}</p>
       {{!-- Hardcoded keyboard placeholders (alphabetic + QWERTY) — styled to
            match the real board cards, with a mini keyboard preview. --}}
-      <div class="md-home-boards-picker__grid {{if this.compact_boards "md-home-boards-picker__grid--compact"}}">
+      <div class="md-home-boards-picker__grid {{if this.compact_boards "ll-boards-grid--compact"}}">
         {{#each this.keyboard_placeholders as |kb|}}
           <div class="md-home-boards-picker__board simple_board_holder">
             <div class="btn simple_board_icon md-home-boards-picker__keyboard-placeholder" aria-label={{kb.name}}>
@@ -168,11 +168,13 @@
                labelled group; aria-pressed carries the state programmatically
                so it is not conveyed by colour alone. --}}
           <div class="bp-segmented" role="group" aria-label={{t "Board display style" key="board_picker_display_style"}}>
-            <button type="button" class="bp-segmented__option {{unless this.compact_boards "bp-segmented__option--active"}}" aria-pressed={{unless this.compact_boards "true" "false"}} {{on "click" (this.ctrlAction "set_compact_boards" false)}}>
-              {{t "Detailed" key="board_picker_detailed"}}
-            </button>
+            {{!-- COMPACT FIRST: it is the default view, and a segmented control reads
+                 left-to-right as least-to-most detail. --}}
             <button type="button" class="bp-segmented__option {{if this.compact_boards "bp-segmented__option--active"}}" aria-pressed={{if this.compact_boards "true" "false"}} {{on "click" (this.ctrlAction "set_compact_boards" true)}}>
               {{t "Compact" key="board_picker_compact"}}
+            </button>
+            <button type="button" class="bp-segmented__option {{unless this.compact_boards "bp-segmented__option--active"}}" aria-pressed={{unless this.compact_boards "true" "false"}} {{on "click" (this.ctrlAction "set_compact_boards" false)}}>
+              {{t "Detailed" key="board_picker_detailed"}}
             </button>
           </div>
         </div>
@@ -188,11 +190,11 @@
             <h3 class="setup-board-category__brand-title">{{group.title}}</h3>
             {{#if (is-equal group.result.state "loaded")}}
               {{#if group.result.boards.length}}
-                <div class="md-home-boards-picker__grid {{if this.compact_boards "md-home-boards-picker__grid--compact"}}">
+                <div class="md-home-boards-picker__grid {{if this.compact_boards "ll-boards-grid--compact"}}">
                   {{#each group.result.boards as |board|}}
                     {{#if board.key}}
                       <div class="md-home-boards-picker__board simple_board_holder">
-                        <BoardIcon @board={{board}} @prefetchPreview={{true}} @compactRow={{this.compact_boards}} />
+                        <BoardIcon @board={{board}} @prefetchPreview={{true}} @compactRow={{this.compact_boards}} @pickOpensPreview={{true}} />
                       </div>
                     {{/if}}
                   {{/each}}
@@ -212,7 +214,7 @@
            category_boards grid + fallback search (nothing is tagged "keyboards",
            so it was falling back to unrelated popular boards). --}}
       {{#unless this.category.keyboards}}
-      <div class="md-home-boards-picker__grid {{if this.compact_boards "md-home-boards-picker__grid--compact"}}">
+      <div class="md-home-boards-picker__grid {{if this.compact_boards "ll-boards-grid--compact"}}">
         {{#if this.display_category_boards.loading}}
           <div class="md-home-boards-picker__grid-message">
             {{t "Loading boards..." key="loading_boards"}}
@@ -225,7 +227,7 @@
           {{#each this.display_category_boards as |board|}}
             {{#if board.key}}
               <div class="md-home-boards-picker__board simple_board_holder">
-                <BoardIcon @board={{board}} @prefetchPreview={{true}} @compactRow={{this.compact_boards}} />
+                <BoardIcon @board={{board}} @prefetchPreview={{true}} @compactRow={{this.compact_boards}} @pickOpensPreview={{true}} />
               </div>
             {{/if}}
           {{/each}}

@@ -556,16 +556,27 @@
    measurement, so the avatar/name/role line stays narrow and the toolbar keeps its
    place beside the name. */
 .md-caseload__list-status {
-  grid-column: 1 / -1;
+  /* LEFT-ALIGNED, AND IN THE NAME'S TRACK — at every width (2026-08-16).
+     This rule used to be `grid-column: 1 / -1` + `justify-content: flex-end`, which
+     right-anchored the badges under the quick-action toolbar on full-size screens. The
+     stated reason was that spanning from column 1 put them under the AVATAR, where
+     left-aligned chips would float with nothing above them — but the fix for that is to
+     stop spanning from column 1, not to push them to the far right. Column 2 is the
+     name's own track, so they now sit directly beneath the username at every width and
+     the two badge groups share one left edge instead of splitting to opposite margins.
+     Every narrower breakpoint already did exactly this; only the full-size case was the
+     odd one out, which is what made the alignment look inconsistent as the window grew.
+     `grid-column: 2` auto-flows this to row 2 (641-768px re-places it into row 1 of a
+     third track, and <=640px pins it to row 2 explicitly — both still left-aligned). */
+  grid-column: 2;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  /* RIGHT-ALIGNED. This row spans the full width beneath the avatar, so left-aligned
-     badges would float in the empty space under the avatar with nothing above them.
-     Pushing them right sets them under the quick-action toolbar, which is itself
-     right-aligned — so the row reads as two right-anchored blocks rather than one
-     stray line. Wrapping still fills right-to-left from here. */
-  justify-content: flex-end;
+  justify-content: flex-start;
+  /* Pulls the chip 4px left of the name's text edge so its rounded corner reads as
+     flush with the name rather than inset by its own padding — the same nudge
+     `.md-caseload__list-badges` carries, which is what lines the two groups up. */
+  margin-left: -4px;
   /* Same gutter as the role badge row so both badge groups align. */
   gap: 10px;
   min-width: 0;
@@ -597,18 +608,11 @@
   .md-caseload__list-badges {
     margin-left: -4px;
   }
-  /* LEFT-ALIGNED from 1024px down, and STARTING WHERE THE ROLE BADGE STARTS. The base
-     rule right-anchors this row and spans it from column 1, so it began under the AVATAR
-     and ran to the right edge — leaving the two badge groups on different left edges.
-     Column 2 puts it in the same track as the name and its role badge, and the same -4px
-     nudge those badges carry lines the two chips' rounded edges up exactly.
-     (Both are overridden further down: 641-768px moves this onto the name's own line,
-     and <=640px keeps column 2 but drops it below the name.) */
-  .md-caseload__list-status {
-    grid-column: 2;
-    justify-content: flex-start;
-    margin-left: -4px;
-  }
+  /* The `.md-caseload__list-status` override that used to live here — column 2,
+     flex-start, -4px — was folded into the BASE rule on 2026-08-16, because those are
+     now the values at EVERY width rather than a small-screen correction to a
+     right-anchored default. Restating them here would be two rules that only happen to
+     agree. See the base rule for the reasoning. */
 }
 /* 769-1024px: pull the badge row UP under the name. Grid row 1 is otherwise sized by the
    tallest item in it — the avatar (60px, and 72px in Focused View) rather than the 24px

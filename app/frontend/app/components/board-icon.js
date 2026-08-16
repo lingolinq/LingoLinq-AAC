@@ -359,13 +359,19 @@ export default Component.extend({
         return;
       }
 
-      /* Compact board-picker rows: the WHOLE card is the preview target, and the
+      /* Compact board-PICKER rows: the WHOLE card is the preview target, and the
          board is chosen from inside the preview ("Pick this Board"). Routing here
          rather than in the template keeps one activation path for click, Enter and
-         Space. Opt-in via @compactRow — every other surface (dashboard, boards
-         page, search, detailed picker cards) is untouched and still picks
-         directly. */
-      if(_this.get('compactRow')) {
+         Space.
+         GATED ON `pickOpensPreview`, NOT on `compactRow` alone (2026-08-16). The two
+         used to be the same flag, which meant anything opting into the compact LOOK
+         also silently inherited this picker-only BEHAVIOUR. When the Boards page began
+         reusing the compact rows, every card there stopped opening its board and started
+         opening a preview instead — and the synthetic "Orphan Boards id:…" cluster row
+         (an unsaved record with no key or id, see controllers/user/index.js ~770) had
+         nothing to preview, so it read as completely dead.
+         `compactRow` now means the compact LOOK only; the picker passes both. */
+      if(_this.get('compactRow') && _this.get('pickOpensPreview')) {
         _this.send('board_preview', board_record);
         return;
       }
