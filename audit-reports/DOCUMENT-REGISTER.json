@@ -1067,7 +1067,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-08-15_incident-response-breach-runbook.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "HIPAA",
         "GDPR",
@@ -1075,7 +1075,12 @@
       ],
       "lastReviewed": "2026-08-15",
       "nextReviewDue": "2027-08-02",
-      "attestation": {},
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-08-16",
+        "attestedContentHash": "ebe2c69f63ac34714106a6f47378da2cb19122352de174edeb270d352f4dc87d",
+        "note": "Attested 2026-08-16 by Scot Wahlquist, CEO. First attestation of this record; it supersedes DOC-d4e3b8be32 (docs/legal/BREACH_RUNBOOK.md), which remains frozen at the v2.2.1 bytes attested 2026-08-01 (2b788387259bc315fc4b1e5a10817f55ae2d9eae02988236b245c5f62ede1907) with its own attestation block unaltered. Delivered as a Path A supersession rather than a same-row re-pin, so the register keeps its byte-level link to that earlier signature. VERIFIED BEFORE ATTESTING, not assumed: section 7 states that runtime AI egress to AWS Bedrock is ACTIVE and must be included in incident scoping. Confirmed against production on 2026-08-15 and re-confirmed 2026-08-16: BEDROCK_AWS_KEY and BEDROCK_AWS_SECRET mounted on the serving revision lingolinq-web-00020-per, AiClient.configured? true, and 63 of 63 logged calls since the 2026-08-12 deploy succeeded on inference profile us.anthropic.claude-haiku-4-5-20251001-v1:0. Section 7 also records, and an MFA-session check confirmed, that Bedrock model-invocation logging has no destination configured in us-west-2, us-east-1, or us-east-2, and that account data retention is inherit resolving to the model default default, with no zero-data-retention guarantee claimed. This corrects the v2.2.2 \"dormant, no runtime model egress on any path\" marking, which was accurate on 2026-08-02 and was overtaken by PR #734. Review dates deliberately follow the attested bytes rather than the usual today+interval rebase: the frozen file states Last reviewed 2026-08-15 and Next review 2027-08-02, and the register must not contradict the bytes that were attested. Evidence pack: outputs/docs/2026-08-15-bedrock-runtime-verification-evidence.md; see also PR #722 and #734."
+      },
       "bundles": [
         "soc2-evidence",
         "school-dpa-package",
