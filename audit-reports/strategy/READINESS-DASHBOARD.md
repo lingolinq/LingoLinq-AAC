@@ -16,7 +16,7 @@
 **Launch profile:** `adult-beta-initial`  
 **Open Critical:** 0  
 **Verified Critical closures:** 7  
-**Unmapped Critical/High:** 1 🔴 (see governance exception section below)<br>
+**Unmapped Critical/High:** 0 - none<br>
 **Overall posture:** 🟡 Moving toward controlled beta  
 **Pending launch decisions:** none
 
@@ -40,35 +40,27 @@ Decided by Scot Wahlquist on 2026-08-16 (PR #792 draft-review instruction (Codex
 
 ## ⚠️ Unmapped Critical/High findings (governance exception)
 
-1 open Critical/High finding(s) are linked to **no** requirement and therefore drive
-**no** milestone card, blocker list, or inherited-blocker count above or below. Each remains open in
-the canonical register with reconciliation owed, regardless of any engineering work already merged
-against it, until it is either linked to an applicable requirement or Scot explicitly assesses it as
-not launch-relevant (a governance decision this layer never makes on its own).
-
-| Finding | Severity | Disposition | Title |
-|---|---|---|---|
-| `LL-522c1a6d13` | high | untriaged | Masquerade produces no AuditEvent; the site-admin branch impersonates any user with no disclosure re |
+None - every open Critical/High finding is linked to at least one requirement row.
 
 ## Current finding baseline
 
 | Metric | Count |
 |---|---:|
 | Total findings | 125 |
-| Open | 62 |
+| Open | 61 |
 | Open Critical | 0 |
-| Open High | 8 |
+| Open High | 7 |
 | Open Medium | 29 |
 | Open Low | 25 |
 | Remediated, unverified | 5 |
 | Accepted risk | 5 |
 | Superseded | 2 |
-| Verified closed | 51 |
+| Verified closed | 52 |
 | Verified-closed Critical | 7 |
 
 ### Open findings not linked to any requirement (informational)
 
-49 of 62 open findings are linked to no requirement row (0 critical / 1 high / 24 medium / 24 low).
+48 of 61 open findings are linked to no requirement row (0 critical / 0 high / 24 medium / 24 low).
 The milestone cards are a readiness lens, never a complete risk inventory - `FINDINGS.md` remains the
 full register. Critical/High items in this count are the same ones called out as a governance
 exception above; Medium/Low items are informational only and **never** automatically become a

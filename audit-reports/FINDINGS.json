@@ -4395,7 +4395,7 @@
         "FERPA",
         "HIPAA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/controllers/application_controller.rb",
@@ -4408,18 +4408,18 @@
       "owner": "unassigned",
       "remediation": {
         "options": "Write an AuditEvent at masquerade authorization in both branches of application_controller.rb (site-admin at :181, org-manager at :188-205), recording the acting operator, the target user, and the branch that authorized it. Prior art already exists in this codebase and should be generalized rather than reinvented: app/controllers/concerns/api/schema_explorer.rb:102-104 defines audit_user_key as (@true_user || @api_user)&.global_id precisely so a disclosure is booked to the admin who performed the read rather than the account being viewed as. That treatment covers one endpoint and nothing else. Note masquerade has no session concept to hook: it is a per-request as_user_id param or X-As-User-Id header (:177), so the event must be emitted on the authorization path, and de-duplicated per operator/target rather than per request. The org-manager branch already caches its authorization decision in Redis for 30 minutes (:195), which is a natural de-dup window; the site-admin branch has no cache and no gate at all.",
-        "timeframe": "30d"
+        "timeframe": "done"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "0e4e91ca033a8199d453b0e137f74d96a3fe2254",
+        "verifierNote": "Re-verified 2026-08-16 against origin/staging (application_controller.rb/its spec identical, no branch drift): both masquerade authorization branches (site-admin :184, org-manager :201) call record_masquerade_audit! before impersonation and fail closed (503) if the write does not persist. AuditEvent attributed to the operator (not the target); payload records acting_as (target) and branch (site_admin|org_manager). Dedup: Redis-keyed per operator/target, 30-minute TTL. spec/controllers/application_controller_spec.rb: 23/23 passing (site-admin write, org-manager write, denied-org-manager no-write, fail-closed refusal, dedup window). Remediated in PR #755 (merge 0e4e91ca0, 2026-08-05).",
+        "attestation": "Scot Wahlquist, 2026-08-16: I approve LL-522c1a6d13 as verified-closed. The original finding was valid: masquerade authorization did not create an AuditEvent. PR #755 remediated the finding by adding a fail-closed, deduplicated AuditEvent to both authorization branches. Verification is based on the control's presence in the current code and passing automated test coverage; it does not claim that a first real production masquerade execution with this AuditEvent has been observed."
       },
       "disposition": {
-        "state": "untriaged",
-        "decidedBy": "",
-        "decidedDate": "",
-        "rationale": ""
+        "state": "fixed",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-08-16",
+        "rationale": "The original finding was valid: application_controller.rb had zero AuditEvent writes on masquerade authorization at the time it was promoted from PR #742's adversary review. PR #755 remediated it by adding a fail-closed, deduped AuditEvent write to both authorization branches. Verification is based on control existence in code plus automated (RSpec) coverage of both branches, the fail-closed path, and dedup - not on observing a first real production masquerade execution with this AuditEvent."
       },
       "source": {
         "kind": "pr-review",

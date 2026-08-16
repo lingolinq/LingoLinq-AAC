@@ -396,22 +396,33 @@ else
 fi
 
 echo "readiness-check-test: unmapped Critical/High governance exception (distinct from the informational list)"
-# Baseline: LL-522c1a6d13 (high, masquerade AuditEvent) is unlinked in the live
-# data today and must already appear in the dedicated exception section, not
-# merely folded into the larger informational count.
+# Baseline: every open Critical/High is linked in the live data today (verified
+# 2026-08-16 after LL-522c1a6d13 was reconciled to verified-closed via PR #755 -
+# it was the last live unlinked High), so the section must explicitly say None
+# rather than omitting itself. Self-contained synthetic case (assurance-privileged-access's
+# link to LL-7f7372e3eb, an open High) proves the section reacts to an unlink at
+# all, independent of whatever happens to be linked/unlinked in the live data on
+# any given day - a live-data baseline for this exact assertion broke once
+# already (2026-08-16) when the live unlinked High it named got closed.
 reset_work
+ruby -rjson -e "
+  doc=JSON.parse(File.read('$WORK_DIR/READINESS-MILESTONES.json'))
+  doc['requirements'].find{|r| r['id']=='assurance-privileged-access'}['findingIds']=[]
+  File.write('$WORK_DIR/READINESS-MILESTONES.json', JSON.pretty_generate(doc)+\"\n\")
+"
 ruby scripts/readiness-check.rb >/dev/null 2>&1
 if grep -qF '## ⚠️ Unmapped Critical/High findings (governance exception)' "$WORK_DIR/READINESS-DASHBOARD.md" \
-   && sed -n '/## ⚠️ Unmapped Critical\/High/,/## Current finding baseline/p' "$WORK_DIR/READINESS-DASHBOARD.md" | grep -qF 'LL-522c1a6d13'; then
-  pass "the live unmapped High (LL-522c1a6d13) renders in its own governance-exception section today"
+   && sed -n '/## ⚠️ Unmapped Critical\/High/,/## Current finding baseline/p' "$WORK_DIR/READINESS-DASHBOARD.md" | grep -qF 'LL-7f7372e3eb'; then
+  pass "unlinking an open High renders it in its own governance-exception section"
 else
-  fail "LL-522c1a6d13 is not in the dedicated exception section"
+  fail "an unlinked open High is not in the dedicated exception section"
 fi
 
-# LL-16ef84ad9a (high) is currently linked via adult-beta-ai-cache. Removing
-# that link must move it into the dedicated exception section specifically -
-# not just the larger informational list - proving the split reacts to a live
-# findingIds edit rather than being frozen prose.
+# LL-16ef84ad9a (high) is currently linked via adult-beta-ai-cache, and (as of
+# 2026-08-16) is the only currently-linked open High/Critical in the live data,
+# so unlinking it alone takes the live baseline (0, verified above) to exactly
+# 1 - not any other number - proving the header count is actually recomputed
+# from this specific edit rather than a stale/hardcoded figure.
 reset_work
 ruby -rjson -e "
   doc=JSON.parse(File.read('$WORK_DIR/READINESS-MILESTONES.json'))
@@ -422,7 +433,7 @@ ruby scripts/readiness-check.rb >/dev/null 2>&1
 dashboard="$WORK_DIR/READINESS-DASHBOARD.md"
 exception_section=$(sed -n '/## ⚠️ Unmapped Critical\/High/,/## Current finding baseline/p' "$dashboard")
 if echo "$exception_section" | grep -qF 'LL-16ef84ad9a' \
-   && grep -qF '**Unmapped Critical/High:** 2' "$dashboard"; then
+   && grep -qF '**Unmapped Critical/High:** 1' "$dashboard"; then
   pass "unlinking a currently-linked High moves it into the exception section and the header count updates"
 else
   fail "unlinking a High did not move it into the exception section / update the header count"
