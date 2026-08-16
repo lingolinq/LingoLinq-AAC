@@ -1065,8 +1065,37 @@ class LogSession < ApplicationRecord
                       ref, ts, etc = evl['ref_id'].split(/\./)
                       cutoff = [Time.at(ts.to_i /  1000) - 24.hours, 72.hours.ago].min
                       if cutoff
-                        s = LogSession.where(log_type: 'eval').where(['created_at > ?', cutoff]).detect do |ls|
-                          ls.data['eval'] && ls.data['eval']['ref_id'] == evl['ref_id']
+                        # `data` is secure_serialize'd (line 29), so `ref_id` lives
+                        # inside an ENCRYPTED column and no SQL predicate can reach
+                        # it — the match has to happen in Ruby. What can be fixed is
+                        # how much is resident while it does.
+                        #
+                        # `.detect` on a relation goes through Enumerable, which
+                        # materializes EVERY matching row first — unbounded, and each
+                        # row decrypts a full eval blob. Batching with an early exit
+                        # keeps at most batch_size in memory and stops at the first
+                        # hit, which for the common case (the eval was just written)
+                        # is the first batch.
+                        #
+                        # NOT scoped to `user` or `author`, deliberately: the fork
+                        # path below has to be able to find an eval belonging to
+                        # someone else, and `eval_setup` in log_session_spec builds
+                        # the original with `:user => author` and then resends under
+                        # a different communicator — so a user-scoped query fails
+                        # "should not let a non-author's fork inherit the ref_id
+                        # (ref_id-only match)". Checked against the spec rather than
+                        # assumed; the obvious narrowing is not available here.
+                        #
+                        # find_each imposes primary-key order where `.detect` had
+                        # none. That is a strict improvement: if legacy duplicate
+                        # ref_ids exist (possible before the fork fix below started
+                        # dropping inherited ones) this now deterministically picks
+                        # the ORIGINAL rather than an arbitrary row.
+                        LogSession.where(log_type: 'eval').where(['created_at > ?', cutoff]).find_each(batch_size: 200) do |ls|
+                          if ls.data['eval'] && ls.data['eval']['ref_id'] == evl['ref_id']
+                            s = ls
+                            break
+                          end
                         end
                       end
                     end
