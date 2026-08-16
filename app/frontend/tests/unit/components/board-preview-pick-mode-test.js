@@ -1,5 +1,5 @@
 import { setupTest } from 'frontend/tests/helpers';
-import { run } from '@ember/runloop';
+import { destroy } from '@ember/destroyable';
 import * as QUnit from 'qunit';
 
 /*
@@ -46,7 +46,7 @@ QUnit.module('Unit | board-preview pick mode', function(hooks) {
     assert.true(c.get('pick_for_home_mode'),
       'the eval report opens the preview with recommend:true and nothing else; without this its "Preview & choose for <user>" CTA cannot assign at all');
 
-    run(() => c.destroy());
+    destroy(c);
   });
 
   QUnit.test('still offers the assign CTA inside the board-picker tour', function(assert) {
@@ -58,7 +58,7 @@ QUnit.module('Unit | board-preview pick mode', function(hooks) {
     assert.true(c.get('pick_for_home_mode'),
       'routes/board-picker.js arms this flag for the whole route visit; the tour must keep its "Pick this Board" CTA');
 
-    run(() => c.destroy());
+    destroy(c);
   });
 
   /*
@@ -77,7 +77,7 @@ QUnit.module('Unit | board-preview pick mode', function(hooks) {
     assert.false(c.get('pick_for_home_mode'),
       'an ordinary board preview must keep "Try This Board"; an assign CTA here would reassign a home board from the library');
 
-    run(() => c.destroy());
+    destroy(c);
   });
 
   QUnit.test('treats an explicitly false recommend as ordinary', function(assert) {
@@ -90,7 +90,7 @@ QUnit.module('Unit | board-preview pick mode', function(hooks) {
 
     assert.false(c.get('pick_for_home_mode'), 'false must not be read as "assign"');
 
-    run(() => c.destroy());
+    destroy(c);
   });
 
   /*
@@ -104,15 +104,17 @@ QUnit.module('Unit | board-preview pick mode', function(hooks) {
     app.set('tour_board_picker_active', true);
     const inTour = build(this.owner, {});
     const tourLabel = inTour.get('dismiss_label');
-    run(() => inTour.destroy());
+    destroy(inTour);
 
     app.set('tour_board_picker_active', false);
     const recommended = build(this.owner, { recommend: true });
     const recommendLabel = recommended.get('dismiss_label');
-    run(() => recommended.destroy());
+    destroy(recommended);
 
-    assert.ok(tourLabel && tourLabel.length, 'tour dismiss label resolves');
-    assert.ok(recommendLabel && recommendLabel.length, 'recommended dismiss label resolves');
+    assert.ok(tourLabel, 'tour dismiss label resolves');
+    assert.ok(tourLabel.length, 'tour dismiss label is not empty');
+    assert.ok(recommendLabel, 'recommended dismiss label resolves');
+    assert.ok(recommendLabel.length, 'recommended dismiss label is not empty');
     assert.notStrictEqual(tourLabel, recommendLabel,
       'a recommended preview has no picker to go "Back to Picker" to, so it must not reuse the tour label');
   });

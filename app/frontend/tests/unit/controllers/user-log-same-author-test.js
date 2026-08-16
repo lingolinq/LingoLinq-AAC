@@ -1,5 +1,4 @@
 import { setupTest } from 'frontend/tests/helpers';
-import { run } from '@ember/runloop';
 import EmberObject from '@ember/object';
 import * as QUnit from 'qunit';
 
@@ -74,12 +73,12 @@ QUnit.module('Unit | user/log same_author', function(hooks) {
 
     assert.true(!!controller.get('same_author'), 'starts true for the author');
 
-    run(() => app.set('sessionUser', EmberObject.create({ id: '1_33' })));
+    app.set('sessionUser', EmberObject.create({ id: '1_33' }));
 
     assert.false(!!controller.get('same_author'),
       'switching to a non-author must invalidate the computed — a stale true here is the bug this key fixes');
 
-    run(() => app.set('sessionUser', EmberObject.create({ id: '1_24' })));
+    app.set('sessionUser', EmberObject.create({ id: '1_24' }));
 
     assert.true(!!controller.get('same_author'), 'and back again');
   });
