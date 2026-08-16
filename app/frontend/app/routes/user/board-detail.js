@@ -304,7 +304,7 @@ export default Route.extend({
     // These are personal VIEWING preferences of whoever is using the app
     // right now, not properties of the board's author. Every toggle that
     // writes them (set_folder_style, toggle_folder_colored_face,
-    // toggle_shrink_labels_to_fit, toggle_soft_borders, toggle_hide_speak_bar,
+    // toggle_soft_borders, toggle_hide_speak_bar,
     // set_speak_menu_item_hidden) saves to `app_state.currentUser`, so the
     // read here must mirror that source. Reading from `user`
     // (modelFor('user') === the URL/board-owner) made these revert to their
@@ -327,7 +327,6 @@ export default Route.extend({
     var folder_colored_face_saved = pref_user && pref_user.get && pref_user.get('preferences.folder_colored_face');
     controller.set('folder_colored_face', folder_colored_face_saved == null ? true : !!folder_colored_face_saved);
     controller.set('folder_dropdown_open', false);
-    controller.set('shrink_labels_to_fit', !!(pref_user && pref_user.get && pref_user.get('preferences.shrink_labels_to_fit')));
     // Soft borders default to ON for every user. Only the explicit
     // saved value of `false` turns them off; an undefined / unset
     // preference (new users, existing users who never touched the

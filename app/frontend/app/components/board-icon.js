@@ -11,6 +11,7 @@ import paint_view_switch_overlay from '../utils/view_switch_overlay';
 import { board_view_route } from '../utils/board_view';
 import warm_board_preview from '../utils/board_preview_warmer';
 import buildEventAction from '../utils/event_action';
+import { boardAttributionOwner } from '../utils/board_attribution';
 
 export default Component.extend({
   appState: service('app-state'),
@@ -41,12 +42,60 @@ export default Component.extend({
     var _this = this;
     this._onMouseEnter = function() { _this._maybe_prefetch_preview(); };
     if (this.element) { this.element.addEventListener('mouseenter', this._onMouseEnter); }
+    this._observeCompactNameWidth();
+  },
+  didRender: function() {
+    this._super(...arguments);
+    this._syncCompactNameSize();
   },
   willDestroyElement: function() {
     if (this._onMouseEnter && this.element) {
       this.element.removeEventListener('mouseenter', this._onMouseEnter);
     }
+    if (this._nameResizeObserver) {
+      this._nameResizeObserver.disconnect();
+      this._nameResizeObserver = null;
+    }
     this._super(...arguments);
+  },
+  /* Compact picker rows only: when a board name is long enough to hit the
+     two-line clamp, step it down to 14px so more of the name is readable before
+     the ellipsis (styles/_board_picker.scss, `.board-icon__name--clamped`). CSS
+     has no way to ask "is this text clamped?", so it is measured after layout
+     and the answer carried as a class. The full name is still on the tile's
+     aria-label and the .name title attribute either way. */
+  _syncCompactNameSize: function() {
+    if (this.isDestroyed || this.isDestroying) { return; }
+    if (!this.get('compactRow') || !this.element) { return; }
+    var el = this.element.querySelector('.name');
+    if (!el) { return; }
+    /* Measure at the BASE size: dropping the class first means a name that now
+       fits — wider card after a resize, or a different board — returns to 16px
+       instead of latching small forever. Reading scrollHeight right after
+       flushes the style change, so the comparison is against 16px. */
+    el.classList.remove('board-icon__name--clamped');
+    if (el.scrollHeight > el.clientHeight + 1) {
+      el.classList.add('board-icon__name--clamped');
+    }
+  },
+  _observeCompactNameWidth: function() {
+    var _this = this;
+    if (!this.get('compactRow') || !this.element || typeof ResizeObserver === 'undefined') { return; }
+    var el = this.element.querySelector('.name');
+    if (!el) { return; }
+    var last_width = null;
+    /* WIDTH only. The class this callback toggles changes the element's HEIGHT,
+       so reacting to height would re-enter the observer on every toggle. Width
+       is what actually decides whether the name still clamps — it changes at the
+       one/two-column breakpoint and on any window resize. */
+    this._nameResizeObserver = new ResizeObserver(function(entries) {
+      var entry = entries && entries[0];
+      var width = entry && entry.contentRect ? Math.round(entry.contentRect.width) : null;
+      if (width === last_width) { return; }
+      last_width = width;
+      _this._syncCompactNameSize();
+    });
+    this._nameResizeObserver.observe(el);
   },
   focusIn: function() { this._maybe_prefetch_preview(); },
   touchStart: function() { this._maybe_prefetch_preview(); },
@@ -134,8 +183,14 @@ export default Component.extend({
     }
     return this.get('board_record.name');
   }),
-  long_username: computed('board_record.user_name', function() {
-    var name = this.get('board_record.user_name') || '';
+  /* Owner credit for the tile footer — always shown (leaf and folder
+     boards). Maps the canonical lingolinq publisher slug to the
+     OpenAAC brand; otherwise prefers user_name, then key prefix. */
+  board_attribution_owner: computed('board_record.user_name', 'board_record.key', function() {
+    return boardAttributionOwner(this.get('board_record'));
+  }),
+  long_username: computed('board_attribution_owner', function() {
+    var name = this.get('board_attribution_owner') || '';
     return name.length > 25;
   }),
   display_class: computed('children', function() {
@@ -297,13 +352,24 @@ export default Component.extend({
       var _this = this;
       // Use board_record if available, otherwise use the parameter
       var board_record = this.get('board_record') || board;
-      
+
       // If board_record is not available, the action should not have been triggered
       // (template should guard against this), but return early as a safety check
       if(!board_record) {
         return;
       }
-      
+
+      /* Compact board-picker rows: the WHOLE card is the preview target, and the
+         board is chosen from inside the preview ("Pick this Board"). Routing here
+         rather than in the template keeps one activation path for click, Enter and
+         Space. Opt-in via @compactRow — every other surface (dashboard, boards
+         page, search, detailed picker cards) is untouched and still picks
+         directly. */
+      if(_this.get('compactRow')) {
+        _this.send('board_preview', board_record);
+        return;
+      }
+
       if(_this.get('noop')) {
         return;
       } else if(_this.onActionOverride && typeof _this.onActionOverride === 'function') {

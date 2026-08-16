@@ -49,22 +49,22 @@ describe Supervising, :type => :model do
       })
       User.link_supervisor_to_user(u2, u, nil, false)
       expect(u2.modeling_only?).to eq(true)
+      # Modeling-only links lose USAGE DATA and PROFILE DETAIL: they keep only
+      # existence + model (+ set_goals, which the lapsed-billing carve-out
+      # deliberately preserves). Narrowed in user.rb:63-65,85.
       expect(u.permissions_for(u2)).to eq({
         'user_id' => u2.global_id,
         'view_existence' => true,
-        'view_detailed' => true,
-        'view_word_map' => true,
         'model' => true,
         'set_goals' => true,
       })
       User.link_supervisor_to_user(u2, u, nil, true)
 
       expect(u2.edit_permission_for?(u)).to eq(false)
+      # Still modeling-only here (u2 is expired), so the same narrowing applies.
       expect(u.permissions_for(u2)).to eq({
         'user_id' => u2.global_id,
         'view_existence' => true,
-        'view_detailed' => true,
-        'view_word_map' => true,
         'model' => true,
         'set_goals' => true
       })
@@ -469,9 +469,11 @@ describe Supervising, :type => :model do
       expect(perms['delete']).to eq(nil)
       expect(perms['supervise']).to eq(nil)
       expect(perms['model']).to eq(true)
-      expect(perms['view_detailed']).to eq(true)
       expect(perms['view_existence']).to eq(true)
-      expect(perms['view_word_map']).to eq(true)
+      # Modeling-only links lose USAGE DATA and PROFILE DETAIL — this link is
+      # explicitly modeling_only (asserted above). Narrowed in user.rb:63-65,85.
+      expect(perms['view_detailed']).to eq(nil)
+      expect(perms['view_word_map']).to eq(nil)
     end
 
     it "should raise an error when supervisor adding fails" do

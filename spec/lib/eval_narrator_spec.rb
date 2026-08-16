@@ -81,7 +81,7 @@ describe EvalNarrator do
       it 'rejects Covered Models (Fable / Mythos), unknown, and non-string ids' do
         expect(described_class.allowed_model?('anthropic.claude-fable-5')).to eq(false)
         expect(described_class.allowed_model?('anthropic.claude-mythos-5')).to eq(false)
-        expect(described_class.allowed_model?('gpt-5.5')).to eq(false)
+        expect(described_class.allowed_model?('not-a-real-model')).to eq(false)
         expect(described_class.allowed_model?('')).to eq(false)
         expect(described_class.allowed_model?(nil)).to eq(false)
       end

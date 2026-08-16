@@ -14,10 +14,17 @@ module AiBoardGenerator
 
   class << self
     # Generates word labels, suggested name, and description for an AAC board using Claude.
-    # Requires ANTHROPIC_API_KEY. The prior GEMINI_API_KEY fallback (Gemini Developer/AI-Studio
-    # endpoint) was disabled 2026-07-09 -- its data-handling terms could not be confirmed adequate
-    # for child data (see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2). A Vertex AI fallback
-    # may replace this in a future change.
+    # Requires AWS Bedrock credentials (BEDROCK_AWS_KEY + BEDROCK_AWS_SECRET, or
+    # AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY, and a region from BEDROCK_AWS_REGION /
+    # AWS_REGION / AWS_DEFAULT_REGION). See lib/ai_client.rb, which is the single
+    # construction point: the direct api.anthropic.com route (ANTHROPIC_API_KEY) is
+    # intentionally not built at runtime and there is no fallback to it, so an unconfigured
+    # Bedrock path degrades here rather than egressing on a non-BAA route. ANTHROPIC_MODEL is
+    # still honoured as a model-id override; it is normalized to the active plane's form.
+    # The prior GEMINI_API_KEY fallback (Gemini Developer/AI-Studio endpoint) was disabled
+    # 2026-07-09 -- its data-handling terms could not be confirmed adequate for child data
+    # (see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2). A Vertex AI fallback may
+    # replace this in a future change.
     # Returns { words: [...], name: "...", description: "...", error: nil } on success,
     # or { words: nil, name: nil, description: nil, error: "..." } on failure.
     # include_core_words: when true, mix 40-60% core vocabulary with topic-specific; when false, topic-specific only.
@@ -27,7 +34,15 @@ module AiBoardGenerator
       if api_config.blank?
         err = { words: nil, name: nil, description: nil, error: 'AI board generation is not configured' }
         err.merge!(dev_diag(:configuration,
-          'Set ANTHROPIC_API_KEY in the environment (not only .env for the asset pipeline) and restart Rails. The GEMINI_API_KEY fallback is disabled -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'))
+          'This path routes through AWS Bedrock (lib/ai_client.rb). Set a complete credential ' \
+          'pair: BEDROCK_AWS_KEY + BEDROCK_AWS_SECRET (preferred) or AWS_ACCESS_KEY_ID + ' \
+          'AWS_SECRET_ACCESS_KEY (standard SDK fallback). Both halves of a pair are required; ' \
+          'a partial pair is ignored. Also set a region via BEDROCK_AWS_REGION, AWS_REGION, or ' \
+          'AWS_DEFAULT_REGION, in the Rails process environment (not only .env for the asset ' \
+          'pipeline), then restart Rails. AWS_KEY / AWS_SECRET are deliberately NOT used as a ' \
+          'fallback: those are the S3/SES least-privilege credentials and lack Bedrock invoke ' \
+          'permissions. ANTHROPIC_API_KEY no longer configures this path. The GEMINI_API_KEY ' \
+          'fallback is disabled -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'))
         return err
       end
 
@@ -237,7 +252,15 @@ module AiBoardGenerator
       if api_config.blank?
         err = { words: nil, title: nil, error: 'AI board generation is not configured' }
         err.merge!(dev_diag(:configuration,
-          'Set ANTHROPIC_API_KEY in the environment (not only .env for the asset pipeline) and restart Rails. The GEMINI_API_KEY fallback is disabled -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'))
+          'This path routes through AWS Bedrock (lib/ai_client.rb). Set a complete credential ' \
+          'pair: BEDROCK_AWS_KEY + BEDROCK_AWS_SECRET (preferred) or AWS_ACCESS_KEY_ID + ' \
+          'AWS_SECRET_ACCESS_KEY (standard SDK fallback). Both halves of a pair are required; ' \
+          'a partial pair is ignored. Also set a region via BEDROCK_AWS_REGION, AWS_REGION, or ' \
+          'AWS_DEFAULT_REGION, in the Rails process environment (not only .env for the asset ' \
+          'pipeline), then restart Rails. AWS_KEY / AWS_SECRET are deliberately NOT used as a ' \
+          'fallback: those are the S3/SES least-privilege credentials and lack Bedrock invoke ' \
+          'permissions. ANTHROPIC_API_KEY no longer configures this path. The GEMINI_API_KEY ' \
+          'fallback is disabled -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'))
         return err
       end
 
@@ -529,17 +552,20 @@ module AiBoardGenerator
     # Bedrock (BAA/HIPAA path) via AiClient, not the direct api.anthropic.com endpoint -- there is
     # no direct-Anthropic fallback.
     def resolve_api_config
-      return nil unless AiClient.configured?
+      return nil unless AiClient.available?
 
       {
         provider: :claude,
         region: AiClient.bedrock_region,
-        model: AiClient.bedrock_model(ENV.fetch('ANTHROPIC_MODEL', DEFAULT_MODEL))
+        # runtime_model, not bedrock_model: it applies the Tier 1 ALLOWED_RUNTIME_MODELS
+        # gate to the ANTHROPIC_MODEL override, so this student-data path cannot be
+        # pointed at an unvetted model by an env var.
+        model: AiClient.runtime_model(DEFAULT_MODEL)
       }
     end
 
     def call_anthropic(region:, model:, system_prompt:, user_prompt:, cell_count:)
-      client = AiClient.build
+      client = AiClient.build!
       client.messages.create(
         model: model,
         max_tokens: completion_max_tokens(cell_count),

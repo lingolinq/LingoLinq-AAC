@@ -416,7 +416,11 @@ module Uploader
   def self.remote_zip(url, &block)
     result = []
     Progress.update_current_progress(0.1, :downloading_file)
-    response = SafeHttp.get(url)
+    # Private uploads bucket: unsigned GET 403s; sign before fetch (see
+    # Converters::Utils.remote_to_boards / signed_internal_url).
+    fetch_url = signed_internal_url(url).presence || url
+    response = SafeHttp.get(fetch_url)
+    raise "failed to download zip (#{response.code})" unless response.success?
     Progress.update_current_progress(0.2, :processing_file)
     file = Tempfile.new('stash')
     file.binmode

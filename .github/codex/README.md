@@ -6,6 +6,48 @@ comment. The workflow keeps routing, head-SHA binding, and final status
 resolution in CI-owned fields so model output cannot choose which PR or commit
 receives the result.
 
+## Approved reviewer models
+
+Mirrored here from the company approved-reviewer registry so the pin in
+`scripts/codex-review-run-chunks.py` cites something resolvable from inside this
+repo. The registry is the source of truth; changing a model here without
+amending it there is registry drift. Approval authority is Scot.
+
+| Row | Credential | Approved model ids | Tier |
+| --- | --- | --- | --- |
+| Codex CLI (CI `codex-review` gate) | OpenAI platform API key, pay-per-use, project-scoped, no BAA | `gpt-5.6-terra` (default), `gpt-5.6-luna` | Tier 2 dev-loop only |
+| Codex CLI (interactive / local) | Consumer OpenAI OAuth, no BAA | `gpt-5.6-terra` (default), `gpt-5.6-sol` (careful) | Tier 2 dev-loop only |
+
+`gpt-5.6-sol` is approved for the interactive row ONLY and must not be used by
+this workflow.
+
+**Both legs of the chunked path run `gpt-5.6-terra`.** The chunk leg is the only
+leg that reads the diff; synthesis sees model-authored chunk summaries and the
+CI-computed structural index, never raw code. A defect the chunk pass misses is
+therefore unreachable to synthesis, so detection strength has to live on the
+chunk leg. Convergence does not substitute for it: runs 2 and 3 re-sample the
+same model on the same prompt, which corrects sampling variance, not a blind
+spot. `gpt-5.6-luna` remains registry-approved as an A/B comparison arm, but
+moving it onto the production detection path is a reviewer-strength change, not a
+config tweak: it takes a PR that edits `DEFAULT_CHUNK_MODEL` in
+`scripts/codex-review-run-chunks.py`, and review.
+
+**Neither id is runtime-overridable, deliberately.** An earlier revision read
+both from repo variables so a bad pin could be corrected without shipping a PR
+through the gate the pin was breaking. Review rejected that: a repo variable is
+settable with no PR and no review, so the hatch let anyone move the code-reading
+leg onto a weaker model silently, which is the exact thing the pin exists to
+prevent. Changing a reviewer model is a reviewed change. If terra itself becomes
+unusable, the remaining levers are `CODEX_REVIEW_EVIDENCE_MODE=bounded`,
+`CODEX_REVIEW_CHUNKED_SCOPE=none`, and the documented admin exception.
+
+The models actually used are recorded in the W2 envelope as `chunk_model` /
+`synthesis_model`, so the audit artifact names the reviewer.
+
+Note that `CODEX_REVIEW_CHUNKED_SCOPE` decides who reaches this path at all (see
+Evidence modes below), so a change here does not necessarily apply to every
+author's PRs.
+
 ## Evidence modes
 
 `CODEX_REVIEW_EVIDENCE_MODE` controls the diff evidence strategy:
@@ -144,14 +186,56 @@ chunk findings are defanged before prompt assembly.
 
 ## Watchdog and heartbeat
 
-`codex-watchdog.yml` is scheduled every 10 minutes and fails pending
-`codex-review/deep-pass` statuses once they are at least 30 minutes old. Treat
-that as the design target, not a precise service-level guarantee: GitHub can
-delay or skip scheduled workflows. Chunked reviews can legitimately take longer
-than the old 2-3 model-call path, so `scripts/codex-review-run-chunks.py`
-reposts pending status before every model call and retry. Heartbeat failures are
-non-fatal; they are progress hints, not correctness gates. A real hang stops
-heartbeating and the watchdog still fails closed when the scheduled sweep runs.
+**Watchdog recovery is best-effort. There is no 30-minute SLA.** (Issue #710.)
+
+`codex-watchdog.yml` has two triggers, but **both run the same job behind the
+same age gate**, so neither one provides prompt recovery:
+
+- **`workflow_run`.** Fires when a review job concludes, however it concluded.
+  It then runs the identical `fail-stale-pending` job, whose only writer is
+  gated on `age_min -ge 30`. For a status younger than that it finds nothing
+  and exits. There is no `github.event_name` branching in the file.
+- **`schedule`.** A sweep requested every 10 minutes, subject to the same age
+  gate. This is the only trigger that covers a run which hangs and never
+  completes, because a still-running job emits no `workflow_run` event.
+
+Do not treat `workflow_run` as a fast path. `audit-reports/deep-pass-admin-overrides.md`
+records a run that concluded at the auth step and still took **41 minutes** to
+resolve (`05:39:18Z pending` to `06:20:56Z failure`). The `workflow_run` trigger
+fired; the age gate was what it waited on.
+
+Prompt resolution comes from `codex-review.yml`'s own terminal-status step
+(PR #702), which runs on all exit paths and typically resolves in under a
+minute. That is a different mechanism. Do not credit this watchdog with it.
+
+The 30 minutes is the age at which a status becomes **eligible** to be failed.
+It is not a deadline, and nothing bounds how long a status can stay pending.
+GitHub does not guarantee scheduled workflows run on time and drops them under
+load: on 2026-07-29 four consecutive `*/10` firings were missed, no sweep ran
+for about 45 minutes, and PR #701 sat pending for 77 minutes. Nothing was
+misconfigured.
+
+This is load-bearing in **at least two** places:
+
+1. **The status-write-failure path**, where `codex-review.yml` provably cannot
+   resolve its own status because the status API is what is failing.
+2. **A hung `codex exec`.** `run_model` in `scripts/codex-review-run-chunks.py`
+   passes no `timeout=` to `subprocess.run`, so the job stalls to the 90-minute
+   ceiling and emits no `workflow_run` completion event while it hangs. The
+   scheduled sweep is the only cover, and it is a known unfixed limit rather
+   than a hypothetical status-API outage.
+
+Everywhere else `codex-review.yml`'s own terminal-status step (PR #702)
+resolves the status. A strict bound would need a monitor outside GitHub
+Actions; scheduling cannot provide one. There is also no `workflow_dispatch`
+on the watchdog, so there is currently no operator lever and no audited manual
+path (issue #717).
+
+Chunked reviews can legitimately take longer than the old 2-3 model-call path,
+so `scripts/codex-review-run-chunks.py` reposts pending status before every
+model call and retry. Heartbeat failures are non-fatal; they are progress hints,
+not correctness gates. A real hang stops heartbeating and the watchdog fails it
+closed whenever the next sweep happens to run.
 
 Measured smoke timing:
 
@@ -161,16 +245,17 @@ Measured smoke timing:
 - Total workflow wall-clock: about 2 minutes 27 seconds.
 - Reasoning effort: none, as currently shipped by
   `scripts/codex-review-run-chunks.py`.
-- Heartbeats fired about every 5-6 seconds, far inside the 30-minute watchdog
-  window.
+- Heartbeats fired about every 5-6 seconds, far below the 30-minute staleness
+  threshold.
 
 The 16-chunk worst case has not been live-smoked yet. Using the #685 timing as
 a rough lower-bound throughput check, assuming the smoke had no structural
 retries (75 s / 14 invocations = about 5.4 s per invocation), 51 logical calls
 would be about 4.5 minutes of reviewer-step time. A 102-invocation case would
 be about 9 minutes only if retries fail fast. A single hung `codex exec`
-dominates that estimate and is bounded only by the 90-minute job timeout, with
-the watchdog expected to fail the stale status when its scheduled sweep runs.
+dominates that estimate and is bounded only by the 90-minute job timeout. The
+watchdog will fail the stale status, but only once it is 30 minutes old AND a
+scheduled sweep actually runs, which is best-effort and unbounded.
 Each model call still posts a pending-status heartbeat before it starts. Treat
 5.4 s as a floor, not an estimate: per-call latency scales with prompt size, and
 the manifest block embedded in every chunk prompt grows with chunk count.
@@ -180,9 +265,10 @@ Two known limits this cap raise does not address, both unchanged from the
 
 - `run_model` passes no `timeout=` to `subprocess.run`, so a single hung
   `codex exec` stops heartbeating and stalls the job until the 90-minute
-  ceiling. The watchdog is designed to flip the status once a scheduled sweep
-  sees it at least 30 minutes stale, so the merge gate still resolves
-  fail-closed, but the runner minutes and operator wait time are spent.
+  ceiling. The watchdog flips the status once a scheduled sweep sees it at
+  least 30 minutes stale, so the merge gate does resolve fail-closed, but the
+  timing is best-effort: the sweep may be delayed or skipped, and the runner
+  minutes and operator wait time are spent either way.
 - The synthesis prompt embeds every chunk review verbatim
   (`chunk_result_group` keeps the full `review` object for each run), so its
   input scales with chunks times runs: up to 48 full review objects at this
@@ -191,9 +277,9 @@ Two known limits this cap raise does not address, both unchanged from the
   prompt too large to answer degrades to an invalid review and blocks, which is
   correct but moves the failure from chunking to synthesis.
 
-If real timings approach the watchdog threshold, keep the fail-closed
-status behavior and revisit chunk parallelism or job boundaries as a separate
-design.
+If real timings approach the 30-minute staleness threshold, keep the
+fail-closed status behavior and revisit chunk parallelism or job boundaries as a
+separate design. Do not treat the watchdog as a timing backstop it cannot be.
 
 Chunked evidence is still opt-in through `CODEX_REVIEW_EVIDENCE_MODE=chunked`;
 the workflow defaults to bounded evidence. Do not make chunked evidence the

@@ -461,6 +461,17 @@ fi
 # ---------------------------------------------------------------------------------------
 # 3. [LOCKDOWN GATE] flip the web service to LB-only ingress. RUN LAST, after LB validated.
 # ---------------------------------------------------------------------------------------
+#
+# COUPLING WITH THE DEPLOY PIPELINE -- READ BEFORE RUNNING THIS STEP.
+# `.github/workflows/deploy-cloudrun.yml` health-gates every production deploy by probing the
+# new revision through its `candidate---*` TAG URL, from a GitHub-hosted runner on the public
+# internet. Cloud Run ingress restrictions apply to tag URLs, not just the main service URL.
+# So the moment this lockdown lands, that probe fails on every attempt, and the gate is
+# fail-closed: each deploy will apply its migration, leave traffic PINNED to the old revision,
+# never update the worker pool, and go red. Every deploy, until someone connects the two.
+# Before running this step, either move the probe behind the LB (a tag-targeted serverless NEG)
+# or run it from inside the VPC, and update the comment above the probe step in that workflow.
+# Do not treat a red deploy after lockdown as a deploy-pipeline bug; it is this line.
 if [ "$CONFIRM_INGRESS_LOCKDOWN" = "1" ]; then
   # Refuse to lock down ingress in the SAME run that builds the LB: lockdown must come only AFTER
   # the LB path is validated in the rehearsal, otherwise the service goes LB-only while the managed

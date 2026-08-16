@@ -56,7 +56,7 @@
               </div>
             </div>
           {{/if}}
-          <BoardPreview @key={{this.model_key}} @back={{this.back_func}} @option={{this.modal.boardPreview.option}} @locale={{this.modal.boardPreview.locale}} @onSelect={{this.ctrlAction "select"}} @onPickForHome={{this.ctrlAction "pick_for_home"}} @dark_mode={{true}} @onLoadingChange={{this.ctrlAction "set_preview_loading"}} @onCanvasProgress={{this.ctrlAction "set_preview_progress"}} />
+          <BoardPreview @key={{this.model_key}} @back={{this.back_func}} @option={{this.modal.boardPreview.option}} @locale={{this.modal.boardPreview.locale}} @onSelect={{this.ctrlAction "select"}} @onPickForHome={{this.ctrlAction "pick_for_home"}} @dark_mode={{this.board_dark_mode}} @onLoadingChange={{this.ctrlAction "set_preview_loading"}} @onCanvasProgress={{this.ctrlAction "set_preview_progress"}} />
         </div>
       {{/if}}
     </div>

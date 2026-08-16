@@ -125,6 +125,32 @@ function activePersistenceRoot() {
   return persistence;
 }
 
+// Every object that may be carrying a known_missing negative-lookup cache.
+// find() reads known_missing from activePersistenceRoot(), which is not always
+// the same object store() ran its write against, so a clear that only touches
+// one of them can leave a stale miss behind.
+function persistenceRoots() {
+  var roots = [];
+  var add = function(root) {
+    if(root && roots.indexOf(root) == -1) {
+      roots.push(root);
+    }
+  };
+  add(activePersistenceRoot());
+  add(persistence);
+  if(window.persistence && typeof window.persistence.get === 'function' && !window.persistence.isDestroyed && !window.persistence.isDestroying) {
+    add(window.persistence);
+  }
+  return roots;
+}
+
+function clear_known_missing(store_name) {
+  persistenceRoots().forEach(function(root) {
+    root.known_missing = root.known_missing || {};
+    root.known_missing[store_name] = {};
+  });
+}
+
 function extrasIsReady() {
   var e = window.lingoLinqExtras;
   if (!e) { return false; }
@@ -671,8 +697,7 @@ var persistence = EmberObject.extend({
   store: function(store, obj, key, eventually) {
     // TODO: more nuanced wipe of known_missing would be more efficient
     var root = activePersistenceRoot();
-    root.known_missing = root.known_missing || {};
-    root.known_missing[store] = {};
+    clear_known_missing(store);
 
     var _this = this;
 
@@ -723,18 +748,33 @@ var persistence = EmberObject.extend({
         RSVP.all(promises).then(function() {
           // Completely clear known_missing for the store when a new
           // record is persisted
-          root.known_missing = root.known_missing || {};
-          root.known_missing[store] = {};
+          clear_known_missing(store);
           root.stores.push({object: obj});
           root.log = root.log || [];
           root.log.push({message: "Successfully stored object", object: obj, store: store, key: key});
+          // Only report the save as complete once the local write has actually
+          // landed; resolving earlier lets a find() issued by the caller race
+          // the write, miss, and poison known_missing for that record.
+          resolve(obj);
         }, function(error) {
           root.errors = root.errors || [];
           root.errors.push({error: error, message: "Failed to store object", object: obj, store: store, key: key});
+          // Deliberately resolve, not reject. store() has never rejected on a
+          // failed write (see "should not reject (but log an error) on a failed
+          // storage attempt"), and several callers fire-and-forget the returned
+          // promise, so rejecting here would surface as an unhandled rejection.
+          // Changing that contract is deferred to PERSIST-ARCH-02. What this
+          // phase does change is the TIMING: the settlement now happens after
+          // the write attempt has finished rather than before it has started.
+          // Not resolving here at all would leave the promise pending forever,
+          // which is strictly worse than the original bug.
+          resolve(obj);
         });
+      } else {
+        // Unchanged pre-existing behavior: with extras not ready there is no
+        // write to wait on, so store() resolves immediately as it always has.
+        resolve(obj);
       }
-
-      resolve(obj);
     });
   },
   normalize_url: function(url) {

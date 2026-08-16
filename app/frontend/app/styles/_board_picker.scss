@@ -1,0 +1,802 @@
+@use "variables" as *;
+@use "focus" as *;
+
+/* ==============================================================
+   BOARD PICKER — page chrome + compact board rows
+   ==============================================================
+   Owns everything the standalone home-board picker adds on top of the shared
+   `md-home-boards-picker__*` layout that also serves setup and /search/home.
+   Kept in its own partial (rather than appended to app.scss) so the compact and
+   detailed views stay separable and neither becomes a pile of overrides.
+
+   Two naming families live here on purpose:
+     bp-*                              NEW page chrome — heading, toolbar,
+                                       search, segmented control. Nothing else
+                                       in the app uses these names.
+     .md-home-boards-picker__grid--compact …
+                                       COMPACT-ONLY modifiers on the existing
+                                       card markup. Every one is scoped inside
+                                       that modifier, so the detailed view keeps
+                                       its current appearance untouched.
+
+   Palette comes from _variables.scss ($la-navy #1B365D, $brand-verdigris
+   #2A9D8F, $brand-verdigris-aa #1A7B7A, $brand-dusty-denim-aa #2860C9,
+   $brand-charcoal-dark #374151). Verdigris is used for borders, dots and fills
+   only — never for body text on white, where the AA-dark variants are used.
+   ============================================================== */
+
+// Spacing scale — 4 / 8 / 12 / 16 / 24 / 32.
+$bp-space-xs:  4px;
+$bp-space-sm:  8px;
+$bp-space-md:  12px;
+$bp-space-lg:  16px;
+$bp-space-xl:  24px;
+$bp-space-2xl: 32px;
+
+// One hairline + one elevation recipe, reused rather than re-invented per box.
+$bp-border:      1px solid rgba($la-navy, 0.10);
+$bp-border-soft: 1px solid rgba($la-navy, 0.08);
+$bp-radius-card: 14px;
+$bp-radius-ctrl: 12px;
+$bp-shadow-card: 0 4px 14px rgba($la-navy, 0.06);
+$bp-shadow-card-hover: 0 8px 20px rgba($la-navy, 0.10);
+
+/* Minimum interactive target. AAC users include people with significant motor
+   differences — this floor is not negotiable at any breakpoint. */
+$bp-target: 44px;
+
+/* --------------------------------------------------------------
+   1. Page heading
+   -------------------------------------------------------------- */
+/* Left-aligned, not centred: everything below it — the category rail, the
+   results panel, the board rows — starts on the same left edge, and a centred
+   title made the top of the page read as a separate introductory band.
+   A ROW, not a block: the supervisor flow puts an "OR / Create My Own Board"
+   aside opposite the heading (see .bp-page-head__aside). With no aside — the
+   self flow — a single flex child lays out exactly as the block did. */
+.md-shell--board-picker .bp-page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: $bp-space-md $bp-space-xl;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+}
+/* Heading column. The 340px basis is the wrap trigger: narrower than that and
+   the aside drops to its own row rather than squeezing the title. */
+.md-shell--board-picker .bp-page-head__text {
+  flex: 1 1 340px;
+  min-width: 0;
+}
+.md-shell--board-picker .bp-page-head__aside {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: $bp-space-md;
+}
+/* Way back to the entry overlay (.bp-options), which owns the quick-assign and
+   create-a-board shortcuts. Deliberately a LINK, not one of the page's pills:
+   the shortcuts themselves live in the overlay, and a second pill up here read
+   as a third competing action. A <button> underneath — it reopens an overlay,
+   it does not navigate — so the button chrome is stripped back to link
+   appearance while the 44px target floor is kept. */
+.md-shell--board-picker .bp-page-head__options-link {
+  display: inline-flex;
+  align-items: center;
+  gap: $bp-space-sm;
+  min-height: $bp-target;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: $brand-verdigris-aa;
+  font-size: 15px;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.md-shell--board-picker .bp-page-head__options-link:hover {
+  color: $la-navy;
+}
+.md-shell--board-picker .bp-page-head__options-link:focus-visible {
+  @include focus-ring($la-navy, 3px, 2px);
+}
+/* Only the box fixes live here. Size / weight / colour / alignment are set in
+   app.scss on `.md-shell--board-picker .md-card--board-picker .md-hero--home-boards
+   .md-hero__title` (~5220) — that rule carries `!important` to beat the global
+   `.md-hero__title`, so any type declaration here would be dead weight.
+   `display` and `height` undo the legacy `h1 { display: inline-block;
+   height: 60px }` (app.scss ~1826, written for the old nav-header logo row).
+   Nothing else on this page sets an h1 height, so that bare element rule was
+   winning: it pinned the heading box to 60px with the text at the top, and the
+   ~37px of dead space below it read as a gap before the subtitle. The
+   title→subtitle gap is the SUBTITLE's margin-top — the global
+   `.md-hero__title { margin: 0 !important }` (~44534) kills any margin here. */
+.md-shell--board-picker .bp-page-head__title {
+  display: block;
+  height: auto;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.md-shell--board-picker .bp-page-head__subtitle {
+  /* Owns the title→subtitle gap (the h1's own margin is pinned to 0 by a global
+     !important — see .bp-page-head__title above). This element carries only the
+     bp-* class, so nothing competes for its margin. */
+  margin: $bp-space-sm 0 0;
+  font-size: 16px;
+  line-height: 1.45;
+  color: $brand-charcoal-dark;
+}
+
+/* --------------------------------------------------------------
+   2. Supervisor entry overlay (.bp-options)
+   Shown to a supporter opening the picker for a communicator, before they
+   engage with the grid: browse, quick-assign, or create.
+
+   RELATIONSHIP TO .nb-create-chooser (app.scss ~54560): same SHAPE on purpose —
+   scrim, one panel, title, hairline separator, stacked options with OR between
+   them — because it is the same kind of decision. Everything that carries
+   identity is different on purpose, so a supporter never mistakes this for the
+   create-board chooser:
+     scrim    verdigris -> navy, not navy -> navy
+     panel    wider (520), accent bar across the top, LEFT-aligned copy
+     eyebrow  a task chip ("Home board setup") the chooser does not have
+     options  left-aligned with a fixed icon well; the chooser centres its pairs
+   -------------------------------------------------------------- */
+.bp-options {
+  position: fixed;
+  inset: 0;
+  /* BELOW Bootstrap's modal layer (.modal-backdrop 1040 / .modal 1050), not
+     above it. This scrim was 5900 — chosen only against the create-board
+     chooser's 6000 — which put it over every dialog its own buttons can open:
+       • "Create New Board" runs appState.check_for_needing_purchase(), whose
+         promise settles ONLY when the user dismisses the premium-required
+         modal. Painted behind the scrim it was invisible and unclickable, so
+         for an expired or modeling-only supporter the flow hung with no way
+         out but a page reload.
+       • Quick Assign's failure paths call modal.error(...) — the message
+         landed under the scrim, so the button just re-enabled in silence.
+     1030 keeps it over the page and its chrome (navbar ~1000-1001) while both
+     the backdrop and the dialog clear it. Still below the create-board
+     chooser's 6000, so that ordering is unchanged. */
+  z-index: 1030;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $bp-space-xl;
+  overflow-y: auto;
+  background: radial-gradient(120% 90% at 50% 38%, rgba($brand-verdigris-aa, 0.55), rgba($la-navy, 0.82));
+  backdrop-filter: blur(7px) saturate(0.92);
+  -webkit-backdrop-filter: blur(7px) saturate(0.92);
+}
+.bp-options__panel {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  padding: $bp-space-xl ($bp-space-xl + $bp-space-sm) ($bp-space-xl + $bp-space-sm);
+  border-radius: 20px;
+  overflow: hidden;              /* clips the accent bar to the rounded corner */
+  background: #fff;
+  border: $bp-border;
+  box-shadow: 0 24px 60px rgba($la-navy, 0.30), 0 4px 12px rgba($la-navy, 0.14);
+  text-align: left;
+}
+/* Accent bar — the fastest read that this is not the create-board chooser. */
+.bp-options__panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: linear-gradient(90deg, $brand-verdigris-aa 0%, rgba($brand-dusty-denim-aa, 0.85) 100%);
+}
+.bp-options__close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  border: $bp-border;
+  background: rgba($la-navy, 0.04);
+  color: rgba($la-navy, 0.55);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.bp-options__close:hover {
+  background: rgba($la-navy, 0.09);
+  color: $la-navy;
+}
+.bp-options__close:focus-visible {
+  @include focus-ring($la-navy, 3px, 2px);
+}
+.bp-options__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: $bp-space-xs;
+  margin-bottom: $bp-space-md;
+  padding: 5px $bp-space-md;
+  border-radius: 999px;
+  background: rgba($brand-verdigris, 0.12);
+  color: $brand-verdigris-aa;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.bp-options__title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 750;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: $la-navy;
+}
+.bp-options__subtitle {
+  margin: $bp-space-sm 0 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: $brand-charcoal-dark;
+}
+/* The app's modern divider: verdigris→navy hairline fading at both ends. Same
+   recipe as .nb-create-chooser__separator, left-anchored rather than centred to
+   match this panel's alignment. */
+.bp-options__separator {
+  height: 2px;
+  margin: $bp-space-lg 0 $bp-space-xl;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba($brand-verdigris-aa, 0.55) 0%,
+    rgba($la-navy, 0.32) 45%,
+    rgba($la-navy, 0) 100%
+  );
+}
+.bp-options__list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: $bp-space-sm;
+}
+.bp-options__btn {
+  display: flex;
+  align-items: center;
+  /* The icon + label travel together as one CENTRED group, the same way the
+     create-board chooser sets its options — the row is the target, so the label
+     reads as the middle of it rather than as a list item hanging off a rail. */
+  justify-content: center;
+  gap: $bp-space-lg;
+  width: 100%;
+  min-height: 68px;
+  padding: $bp-space-md $bp-space-lg;
+  border-radius: $bp-radius-ctrl;
+  border: 1px solid rgba($la-navy, 0.14);
+  background: linear-gradient(180deg, #ffffff 0%, #f4f7fb 100%);
+  color: $la-navy;
+  font-size: 17px;
+  font-weight: 650;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: $bp-shadow-card;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.bp-options__btn:hover:not([disabled]) {
+  border-color: rgba($brand-verdigris-aa, 0.45);
+  box-shadow: $bp-shadow-card-hover;
+  transform: translateY(-1px);
+}
+.bp-options__btn:focus-visible {
+  @include focus-ring($la-navy, 3px, 2px);
+}
+.bp-options__btn[disabled] {
+  opacity: 0.6;
+  cursor: default;
+  box-shadow: none;
+}
+/* Fixed well so the three glyphs read as one set however wide each path is. */
+.bp-options__btn-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba($brand-verdigris, 0.10);
+  color: $brand-verdigris-aa;
+}
+.bp-options__btn-label {
+  min-width: 0;
+}
+/* Quick assign is the shortcut, not the default — a warmer well marks it as the
+   different KIND of action without promoting it above browsing. */
+.bp-options__btn--quick .bp-options__btn-icon {
+  background: rgba($brand-dusty-denim, 0.14);
+  color: $brand-dusty-denim-aa;
+}
+/* In-flight ellipsis: three dots fading in sequence. A copy of a full board set
+   runs for minutes, and a static "…" makes a working page look hung. */
+.bp-options__dots {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+  margin-left: 4px;
+  /* Reserve the full width up front so the label doesn't jitter as dots fade. */
+  min-width: 21px;
+}
+.bp-options__dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.25;
+  animation: bp-options-dot 1.2s ease-in-out infinite;
+}
+.bp-options__dot:nth-child(2) { animation-delay: 0.2s; }
+.bp-options__dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bp-options-dot {
+  0%, 70%, 100% { opacity: 0.25; transform: translateY(0); }
+  35%           { opacity: 1;    transform: translateY(-2px); }
+}
+/* What the wait is FOR. 14px keeps it clearly secondary to the 17px option
+   labels while staying readable. */
+.bp-options__progress-note {
+  margin: $bp-space-sm 0 0;
+  padding: 0 $bp-space-xs;
+  font-size: 14px;
+  line-height: 1.45;
+  color: $brand-charcoal-dark;
+  text-align: center;
+}
+.bp-options__or {
+  display: flex;
+  align-items: center;
+  gap: $bp-space-md;
+  color: rgba($la-navy, 0.45);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+.bp-options__or::before,
+.bp-options__or::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: rgba($la-navy, 0.12);
+}
+
+/* --------------------------------------------------------------
+   3. Results panel head + toolbar
+   The panel reads top to bottom as: WHICH boards (head) -> what they are
+   (description) -> controls (toolbar) -> the boards. The head and the toolbar
+   were one row until this pass, which put the controls above the description
+   and gave the panel a second introduction.
+   -------------------------------------------------------------- */
+/* Title and count on one baseline-aligned row, separated by a middot. */
+.bp-results-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  margin: 0 0 7px;
+}
+.bp-results-head__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 1.25;
+  color: $la-navy;
+}
+.bp-results-head__sep {
+  /* Big and solid enough to actually read as a separator — at 16px/0.30 the
+     middot was nearly invisible against the panel. `line-height: 1` keeps the
+     taller glyph from growing the baseline-aligned row. */
+  color: rgba($la-navy, 0.55);
+  font-size: 24px;
+  line-height: 1;
+}
+.bp-results-head__count {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: $brand-charcoal-dark;
+}
+/* Controls only. Shares the board grid's left edge; the search field goes
+   full-width once the row wraps rather than shrinking below the touch floor. */
+.bp-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px $bp-space-lg;
+  margin: 0 0 15px;
+}
+.bp-toolbar__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: $bp-space-lg;
+  /* Grow to fill the toolbar line so the two controls can sit at opposite ends.
+     Without this the block is content-sized, and once the toolbar wraps it is
+     the only item on its line — where the parent's `space-between` parks it
+     left with all the slack stranded to its right. `space-between` here (rather
+     than an auto margin on the switcher) keeps ONE alignment mechanism, and it
+     is what puts search first / switcher second on every line. */
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* --------------------------------------------------------------
+   4. Search
+   -------------------------------------------------------------- */
+.bp-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  /* Grows with the toolbar up to a readable ceiling — past ~450px a search
+     field is mostly empty space. */
+  width: min(100%, 450px);
+  flex: 1 1 280px;
+}
+.bp-search__icon {
+  position: absolute;
+  left: 14px;
+  display: inline-flex;
+  color: rgba($la-navy, 0.55);
+  pointer-events: none;
+}
+.bp-search__input {
+  width: 100%;
+  /* 46px: matches the segmented control beside it (44px segments + its 1px
+     borders), so the two read as one toolbar row. */
+  height: 46px;
+  padding: 0 40px 0 42px;
+  /* A visible edge, not a hairline — this is an input, and it has to look like
+     one against the panel behind it. */
+  border: 1px solid rgba($la-navy, 0.18);
+  border-radius: $bp-radius-ctrl;
+  background: #FFFFFF;
+  color: $la-navy;
+  font-size: 15px;
+  line-height: 1.3;
+  appearance: none;
+}
+.bp-search__input::placeholder {
+  color: rgba($la-navy, 0.55);
+  opacity: 1;
+}
+.bp-search__input:focus-visible {
+  @include focus-ring($la-navy, 3px, 2px);
+  border-color: $brand-verdigris-aa;
+}
+.bp-search__clear {
+  position: absolute;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: $brand-charcoal-dark;
+  cursor: pointer;
+}
+.bp-search__clear:hover {
+  background: rgba($la-navy, 0.06);
+  color: $la-navy;
+}
+.bp-search__clear:focus-visible { @include focus-ring($la-navy, 3px, 2px); }
+
+/* --------------------------------------------------------------
+   5. Segmented control (board display style)
+   -------------------------------------------------------------- */
+/* Visually matched to the page's top pill-nav (`.md-pillnav` /
+   `.md-pillnav__pill` in app.scss ~:43927) so the two controls read as one
+   family: fully rounded shell, near-white fill, hairline border, whisper
+   shadow, `overflow: hidden` so the active pill's corners clip to the shell,
+   and the same 135deg blue-grey -> charcoal-blue gradient on the active pill.
+
+   NOT reusing the `.md-pillnav` classes directly: that rule set is
+   `!important` throughout and carries `max-width: 1120px` + `margin: 42px auto`,
+   which would have to be unwound with a stack of counter-overrides inside a
+   toolbar. Mirroring the recipe with the same tokens is the smaller change.
+
+   One deliberate divergence: the nav's pills are 32px tall, below the $bp-target
+   touch floor this page is held to. Each segment is a full 44px here, and with
+   the shell's 1px border that puts the control at 46px — the same height as the
+   search field beside it, so the toolbar reads as one row. The segments fill the
+   shell (no inner padding), so `overflow: hidden` clips the active pill's
+   corners to the shell's radius. */
+.bp-segmented {
+  display: inline-flex;
+  align-items: stretch;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid rgba($la-navy, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+.bp-segmented__option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: $bp-target;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(75, 78, 92, 0.85);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.bp-segmented__option:hover:not(.bp-segmented__option--active) {
+  background: rgba($la-navy, 0.05);
+  color: $la-navy;
+}
+.bp-segmented__option--active {
+  background: linear-gradient(135deg, $brand-blue-grey, $brand-charcoal-blue);
+  color: #FFFFFF;
+}
+.bp-segmented__option:focus-visible { @include focus-ring($la-navy, 3px, 2px); }
+
+/* --------------------------------------------------------------
+   6. Compact board rows
+   Every rule below is scoped inside `--compact`; the detailed cards are
+   untouched.
+
+   BOTH grid classes are chained on the container rule. The `.md-shell--board-picker`
+   ancestor alone only TIES the page's own grid rule (app.scss ~5259, also
+   (0,2,0)) — and that one is emitted later (`@use "board_picker"` is line 13 of
+   app.scss), so it was quietly winning and this whole rule was inert. Chaining
+   `.md-home-boards-picker__grid.md-home-boards-picker__grid--compact` makes it
+   (0,3,0), which wins on merit rather than on source order.
+   -------------------------------------------------------------- */
+.md-shell--board-picker .md-home-boards-picker__grid.md-home-boards-picker__grid--compact {
+  /* One column, two from 1024px up (see the media query below). Fixed column
+     counts rather than `auto-fit`: auto-fit re-flows at whatever width the
+     tracks happen to reach, so the count could change by one between two similar
+     viewports — for scanning and for switch/eye-gaze users a predictably 1-up or
+     2-up list is worth more than an opportunistic extra track. */
+  grid-template-columns: 1fr;
+  justify-content: stretch;
+  /* A quarter tighter than the 10px it replaced — compact rows read as one list,
+     not as separate cards floating apart. */
+  gap: $bp-space-sm;
+  /* Each card is its own height. The default `stretch` made every card in a row
+     as tall as the tallest — one two-line title dragged all its neighbours up to
+     ~96px, which is what made "compact" read as "detailed". */
+  align-items: start;
+}
+@media (min-width: 1024px) {
+  .md-shell--board-picker .md-home-boards-picker__grid.md-home-boards-picker__grid--compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* Same reason: the holder must not stretch either (the page's own rule sets
+   `align-self: stretch` at (0,2,0), so this answers at (0,3,0)).
+
+   Padding 0: the holder carries `padding: 5px` from the legacy
+   `.simple_board_holder` (app.scss ~10320), which the detailed gallery cards
+   want as breathing room inside their grid cell. On a compact row it is a
+   second, invisible gutter stacked on the grid's own 8px — it made the real
+   spacing 18px and inset every card from the panel edges by 5px. The grid gap
+   is the one thing that should control the rhythm here. */
+.md-shell--board-picker .md-home-boards-picker__grid--compact .md-home-boards-picker__board {
+  align-self: start;
+  padding: 0;
+}
+
+/* Card shell: one border, one restrained shadow — no halo.
+   SINGLE row. The Preview pill is suppressed in compact (board-icon.hbs
+   @compactRow), so the second grid row it used to occupy was empty and only
+   added height. One row also means `align-items: center` centres the title
+   against the icon rather than baseline-ing it to a phantom row.
+   Height: 48px icon + 8px top + 8px bottom = 64px for a single-line title — 8px
+   off the previous 72px. The icon had to come down with it: at 54px it alone set
+   a 72px floor no padding change could get under. A two-line title grows that
+   card and only that card.
+
+   DEPTH. Three surfaces, each a step above the one behind it: the flat panel,
+   the card lifted off it by a two-layer shadow (a tight contact shadow plus a
+   wider ambient one — one blurred shadow alone reads as a smudge), and the
+   thumbnail tile lifted off the card by its own hairline shadow. The card's
+   background is a barely-there vertical gradient rather than flat white, which
+   is what keeps a 64px row from looking like a rectangle of paper.
+
+   !important THROUGHOUT, and not by preference: the shared `board-card-modern`
+   mixin (app.scss ~94, included at `.md-home-boards-picker__board
+   .btn.simple_board_icon`) declares radius / border / background / box-shadow /
+   transition with !important. Plain declarations here lose to it no matter how
+   specific they are, which is why the compact rows still carried the gallery
+   card's 28px radius and 0 8px 20px + 0 24px 48px hover shadow. `height: auto`
+   answers the same rule's `height: 100%`. */
+.md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: $bp-space-md;
+  min-height: 64px;
+  height: auto;
+  padding: 8px 14px;
+  border: 1px solid rgba($la-navy, 0.09) !important;
+  border-radius: $bp-radius-card !important;
+  background: linear-gradient(180deg, #FFFFFF 0%, #FAFCFD 100%) !important;
+  box-shadow:
+    0 1px 2px rgba(27, 54, 93, 0.07),
+    0 4px 12px rgba(27, 54, 93, 0.08) !important;
+  text-align: left;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease !important;
+}
+/* The mixin paints a 2px gradient hairline across the top of every card. On a
+   gallery tile it reads as a highlight; on a 72px row it is just noise. */
+.md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon::before {
+  display: none;
+}
+/* Hover raises the same two layers rather than swapping in a different shadow,
+   so the card reads as lifting off the panel instead of changing material. */
+.md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon:hover {
+  border-color: rgba($brand-verdigris, 0.42) !important;
+  box-shadow:
+    0 1px 2px rgba(27, 54, 93, 0.08),
+    0 8px 20px rgba(27, 54, 93, 0.13) !important;
+  transform: translateY(-1px);
+}
+/* Pressed: back down onto the panel — contact shadow only. */
+.md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon:active {
+  transform: none;
+  box-shadow: 0 1px 2px rgba(27, 54, 93, 0.10) !important;
+}
+.md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon:focus-visible {
+  @include focus-ring($la-navy, 3px, 2px);
+}
+
+/* Standardised thumbnail frame — one size, one padding, never cropped.
+   The shared board-card-modern mixin forces width/height/padding with
+   !important, so these must answer in kind at (0,5,0). */
+.md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon img {
+  grid-column: 1;
+  width: 48px !important;
+  height: 48px !important;
+  max-width: none !important;
+  max-height: none !important;
+  padding: 5px !important;
+  margin: 0 !important;
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 10px;
+  background: #FFFFFF;
+  /* Its own hairline shadow — the tile sits ON the card, the card sits on the
+     panel. That third step is most of what "dimension" means at this size. */
+  box-shadow: 0 1px 2px rgba(27, 54, 93, 0.08);
+  object-fit: contain;
+  align-self: center;
+}
+
+/* Title: two intentional lines before clamping, left aligned. */
+.md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon .name {
+  grid-column: 2;
+  width: 100% !important;
+  margin: 0 !important;
+  align-self: center;
+  text-align: left !important;
+  font-size: 16px !important;
+  font-weight: 650 !important;
+  line-height: 1.25 !important;
+  color: $la-navy !important;
+  max-height: 2.5em !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+
+/* Long names step down a size. Set by measurement, not by CSS — board-icon.js
+   #_syncCompactNameSize adds this class only when the name actually overflows
+   the two-line clamp, so 14px is spent on the names that need it and every
+   other row keeps the 16px reading size. `max-height` is in em, so the clamp
+   box follows the smaller size automatically. */
+.md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon .name.board-icon__name--clamped {
+  font-size: 14px !important;
+}
+
+/* Directional affordance — the whole row is the target, this just points. */
+.md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon .board-icon__row-chevron {
+  grid-column: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  /* 26px + the grid's 12px column-gap = 38px reserved at the right edge, so a
+     clamped two-line title runs out of room before it reaches the chevron. */
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  /* Third in the card's hierarchy — title, then thumbnail, then this. A shallow
+     well rather than a bare glyph: it gives the right edge a defined affordance
+     without competing with the name. */
+  background: rgba($la-navy, 0.04);
+  color: rgba($la-navy, 0.42);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon:hover .board-icon__row-chevron {
+  background: rgba($brand-verdigris, 0.12);
+  color: $brand-verdigris-aa;
+}
+
+/* Suppressed in compact: size chip, language marker, CC-By credit, byline.
+   `.author` needs the full chain — the board-card-modern mixin declares
+   `display: flex !important` for it at (0,4,0). */
+.md-home-boards-picker__grid--compact .board-icon__info,
+.md-home-boards-picker__grid--compact .board-icon__lang-marker,
+.md-home-boards-picker__grid--compact .board-icon__credit {
+  display: none !important;
+}
+.md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon .author {
+  display: none !important;
+}
+
+/* --------------------------------------------------------------
+   7. Motion + responsive
+   -------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  /* !important to match the shell rule, which has to out-shout the mixin. */
+  .md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon {
+    transition: none !important;
+  }
+  .md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon:hover {
+    transform: none;
+  }
+  .md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon .board-icon__row-chevron {
+    transition: none;
+  }
+  .bp-options__btn {
+    transition: none;
+  }
+  .bp-options__btn:hover:not([disabled]) {
+    transform: none;
+  }
+  /* Hold the dots at full strength rather than animating them — the label and
+     the progress note still say the work is running. */
+  .bp-options__dot {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+@media (max-width: 900px) {
+  .bp-toolbar__controls { width: 100%; }
+  /* Search takes the slack once the toolbar wraps, up to its own ceiling — the
+     switcher stays its natural size at the right end of the row. */
+  .bp-search { flex: 1 1 240px; }
+}
+
+@media (max-width: 640px) {
+  /* (The phone size for the page title lives in app.scss beside the rule that
+     sets its desktop size — at (0,2,0) it could not win from here, media query
+     or not.) */
+  .bp-toolbar__controls { gap: $bp-space-sm; }
+  /* Each control takes a full row rather than shrinking below a usable size. */
+  .bp-search { flex: 1 1 100%; width: 100%; }
+  .bp-segmented { flex: 1 1 100%; width: 100%; }
+  .bp-segmented__option { flex: 1 1 50%; padding: 0 $bp-space-md; }
+  .md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon img {
+    width: 50px !important;
+    height: 50px !important;
+  }
+}

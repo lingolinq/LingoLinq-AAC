@@ -8,13 +8,41 @@ import { computed } from '@ember/object';
 import i18n from '../utils/i18n';
 import { inject as service } from '@ember/service';
 import { schedule, debounce, cancel } from '@ember/runloop';
+import persistence from '../utils/persistence';
+import {
+  filterBoardsPageTopLevelRoots,
+  dedupeByName,
+  boardsPagePreferUserNames,
+  sortByNameNatural
+} from '../utils/board-roots';
 
 export default Component.extend({
   appState: service('app-state'),
   router: service('router'),
   boardSearchQuery: '',
-  used_category_fallback: false,
+  searchAtTop: false,
   category_explainer_overflows: false,
+  public_boards_has_more: false,
+  public_boards_loading_more: false,
+  /* Board-card density. false = detailed cards (the default, unchanged);
+     true = compact cards showing only icon, name and Preview. The compact
+     state is applied as a modifier class on the grid and the trimming is done
+     in CSS rather than by branching board-icon.hbs — that component renders on
+     the dashboard, boards page and search too, and this density choice belongs
+     to the picker alone. */
+  compact_boards: false,
+  /* Toolbar lead: which set of boards is on screen, and how many. The count is a
+     plain reflection of what the (unchanged) filtering pipeline produced — it
+     does not re-filter anything. */
+  resultsTitle: computed('categories', function() {
+    var selected = (this.get('categories') || []).find(function(c) { return c && c.selected; });
+    return (selected && selected.name) || i18n.t('board_picker_all_boards', "All available boards");
+  }),
+  resultsCountLabel: computed('display_category_boards.[]', 'display_category_boards.loading', 'display_category_boards.error', function() {
+    var boards = this.get('display_category_boards');
+    if(!boards || boards.loading || boards.error || boards.length == null) { return null; }
+    return i18n.t('board_picker_board_count', "board", { count: boards.length });
+  }),
   // Brand-group results for the tabbed (setup) Robust Vocabularies view.
   // Each holds { state: 'loading' | 'loaded' | 'error', boards: [...] }.
   quick_core_group: null,
@@ -34,6 +62,8 @@ export default Component.extend({
   willInsertElement: function() {
     if(this.get('include_mine')) {
       this.send('set_category', 'mine');
+    } else if(this.get('searchAtTop')) {
+      this.send('set_category', 'available_boards');
     } else {
       this.send('set_category', 'robust');
     }
@@ -135,24 +165,81 @@ export default Component.extend({
     var overflows = el.scrollHeight > el.clientHeight;
     this.set('category_explainer_overflows', overflows);
   },
-  categories: computed('current_category', 'include_mine', function() {
+  categories: computed('current_category', 'include_mine', 'searchAtTop', function() {
     var res = [];
     var _this = this;
-    if(this.get('include_mine')) {
-      var cat = $.extend({}, {name: i18n.t('my_home_boards', "My Home Boards"), id: 'mine'});
-      if(_this.get('current_category') == cat.id) {
+    var searchAtTop = this.get('searchAtTop');
+    var includeMine = this.get('include_mine');
+    var current = _this.get('current_category');
+
+    function pushMine() {
+      var cat = $.extend({}, {
+        name: searchAtTop
+          ? i18n.t('my_boards', "My Boards")
+          : i18n.t('my_home_boards', "My Home Boards"),
+        id: 'mine'
+      });
+      if (current === cat.id) {
         cat.selected = true;
       }
       res.push(cat);
     }
+
+    if (searchAtTop) {
+      var availableCat = {
+        name: i18n.t('board_picker_available_boards', "All Available Boards"),
+        id: 'available_boards'
+      };
+      if (current === 'available_boards') {
+        availableCat.selected = true;
+      }
+      res.push(availableCat);
+    }
+    if (includeMine && !searchAtTop) {
+      pushMine();
+    }
     LingoLinq.board_categories.forEach(function(c) {
       var cat = $.extend({}, c);
-      if(_this.get('current_category') == c.id) {
+      if (current === c.id) {
         cat.selected = true;
       }
       res.push(cat);
     });
     return res;
+  }),
+  boardSearchActive: computed('boardSearchQuery', function() {
+    return !!((this.get('boardSearchQuery') || '').trim());
+  }),
+  showInlineCategoryFilter: computed('searchAtTop', 'category', 'tabbed', 'robust_tabbed', function() {
+    if (!this.get('searchAtTop')) {
+      return false;
+    }
+    var category = this.get('category');
+    if (!category || category.keyboards) {
+      return false;
+    }
+    if (this.get('robust_tabbed')) {
+      return false;
+    }
+    return true;
+  }),
+  display_category_boards: computed('searchAtTop', 'boardSearchQuery', 'category_boards.[]', function() {
+    var boards = this.get('category_boards');
+    if (!boards || boards.loading || boards.error) {
+      return boards;
+    }
+    if (!this.get('searchAtTop')) {
+      return boards;
+    }
+    var q = (this.get('boardSearchQuery') || '').trim().toLowerCase();
+    if (!q) {
+      return boards;
+    }
+    return boards.filter(function(board) {
+      var name = (board.get && board.get('name')) || board.name || '';
+      var key = (board.get && board.get('key')) || board.key || '';
+      return name.toLowerCase().indexOf(q) !== -1 || key.toLowerCase().indexOf(q) !== -1;
+    });
   }),
   // True only in the setup tabbed view with Robust Vocabularies active —
   // the gate for showing the Quick Core / Vocal Flair brand cards.
@@ -184,15 +271,11 @@ export default Component.extend({
       _this.set(def.prop, { state: 'loading' });
       LingoLinq.store.query('board', { public: true, q: def.q, sort: 'home_popularity', per_page: 50 }).then(function(data) {
         if(_this.isDestroyed || _this.isDestroying) { return; }
-        var seen = Object.create(null);
         var matched = [];
         if(data && data.forEach) {
           data.forEach(function(b) {
             var key = (b && b.get && b.get('key')) || '';
             if(!def.re.test(key)) { return; }
-            var name = (b.get && b.get('name')) || '';
-            if(name && seen[name]) { return; }
-            if(name) { seen[name] = true; }
             matched.push(b);
           });
         }
@@ -200,6 +283,9 @@ export default Component.extend({
           var an = (a.get && a.get('name')) || '';
           var bn = (b.get && b.get('name')) || '';
           return an.localeCompare(bn, undefined, { numeric: true, sensitivity: 'base' });
+        });
+        matched = dedupeByName(matched, {
+          preferUserNames: boardsPagePreferUserNames(_this.appState)
         });
         _this.set(def.prop, { state: 'loaded', boards: matched });
       }, function() {
@@ -220,10 +306,19 @@ export default Component.extend({
     if (!rec) { return 0; }
     return typeof rec.get === 'function' ? (rec.get('length') || 0) : (rec.length || 0);
   },
+  /** Root tiles only, one row per display name, then A–Z (numeric-aware). */
+  _preparePickerBoardList: function(boards) {
+    var subjectId = this._subjectBoardUserId();
+    var roots = filterBoardsPageTopLevelRoots(boards || [], subjectId);
+    var deduped = dedupeByName(roots, {
+      preferUserNames: boardsPagePreferUserNames(this.appState)
+    });
+    return sortByNameNatural(deduped);
+  },
   /**
    * Load boards for a browse category (robust, cause_effect, …).
    * Order: subject’s starred public in category → supervisor’s starred public in category (if different user)
-   * → popular public in category → popular public overall (when the catalog has no tagged boards).
+   * → popular public boards tagged with that category. Empty categories show "None found".
    */
   _resolveCategoryBoards: function(categoryId) {
     var _this = this;
@@ -248,43 +343,143 @@ export default Component.extend({
         category: categoryId
       });
     }
-    function publicAny() {
-      return LingoLinq.store.query('board', {
-        public: true,
-        sort: 'home_popularity',
-        per_page: 6
-      });
-    }
-    function tryPublicThenAny() {
-      return publicCategorized().then(function(pub) {
-        if (_this._recordLength(pub) > 0) {
-          return { boards: pub, fallback: false };
-        }
-        return publicAny().then(function(pop) {
-          var n = _this._recordLength(pop);
-          return { boards: n ? pop : [], fallback: n > 0 };
-        });
-      });
-    }
 
     return starredQuery(subjectId).then(function(data) {
       if (_this._recordLength(data) > 0) {
-        return { boards: data, fallback: false };
+        return data;
       }
       if (supervisorId && subjectId !== supervisorId) {
         return starredQuery(supervisorId).then(function(data2) {
           if (_this._recordLength(data2) > 0) {
-            return { boards: data2, fallback: false };
+            return data2;
           }
-          return tryPublicThenAny();
+          return publicCategorized();
         });
       }
-      return tryPublicThenAny();
-    }).then(function(result) {
-      _this.set('used_category_fallback', !!(result && result.fallback));
-      _this.set('category_boards', result ? result.boards : []);
+      return publicCategorized();
+    }).then(function(boards) {
+      _this.set('category_boards', _this._preparePickerBoardList(boards));
     }).catch(function() {
       _this.set('category_boards', { error: true });
+    });
+  },
+  _refreshAvailableBoardsDisplay: function() {
+    if (!this._available_mine_done || !this._available_public_initial_done) {
+      return;
+    }
+    var mine = this._available_mine_accumulated || [];
+    var pub = this._available_public_accumulated || [];
+    var combined = mine.slice();
+    pub.forEach(function(b) { if (b) { combined.push(b); } });
+    this.set('category_boards', this._preparePickerBoardList(combined));
+  },
+  _loadAvailableBoards: function() {
+    var _this = this;
+    this.set('public_boards_has_more', false);
+    this.set('public_boards_loading_more', false);
+    this._public_boards_next_offset = null;
+    this._available_mine_accumulated = [];
+    this._available_public_accumulated = [];
+    this._available_mine_done = false;
+    this._available_public_initial_done = false;
+    this._loadAvailableMinePages();
+    this._loadAvailablePublicPage(null);
+  },
+  _loadAvailableMinePages: function(userId, offset, accumulated) {
+    var _this = this;
+    userId = userId || _this._subjectBoardUserId();
+    if (!userId) {
+      _this._available_mine_done = true;
+      _this._refreshAvailableBoardsDisplay();
+      return;
+    }
+    var nextAcc = accumulated ? accumulated.slice() : [];
+    var args = { user_id: userId, include_shared: 1, sort: 'home_popularity', per_page: 50 };
+    if (offset != null) { args.offset = offset; }
+    LingoLinq.store.query('board', args).then(function(data) {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      if (data && data.forEach) {
+        data.forEach(function(b) { if (b) { nextAcc.push(b); } });
+      }
+      _this._available_mine_accumulated = nextAcc;
+      var meta = null;
+      try { meta = persistence.meta('board', data); } catch (e) { meta = null; }
+      if (meta && meta.more) {
+        _this._loadAvailableMinePages(userId, meta.next_offset, nextAcc);
+      } else {
+        _this._available_mine_done = true;
+        _this._refreshAvailableBoardsDisplay();
+      }
+    }).catch(function() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      _this._available_mine_accumulated = nextAcc;
+      _this._available_mine_done = true;
+      _this._refreshAvailableBoardsDisplay();
+    });
+  },
+  _loadAvailablePublicPage: function(offset) {
+    var _this = this;
+    var args = { public: true, sort: 'home_popularity', per_page: 24 };
+    if (offset != null) { args.offset = offset; }
+    if (offset != null) {
+      _this.set('public_boards_loading_more', true);
+    }
+    LingoLinq.store.query('board', args).then(function(data) {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      var next = (_this._available_public_accumulated || []).slice();
+      if (data && data.forEach) {
+        data.forEach(function(b) { if (b) { next.push(b); } });
+      }
+      _this._available_public_accumulated = next;
+      if (offset == null) {
+        _this._available_public_initial_done = true;
+      }
+      _this._refreshAvailableBoardsDisplay();
+      _this.set('public_boards_loading_more', false);
+      var meta = null;
+      try { meta = persistence.meta('board', data); } catch (e) { meta = null; }
+      _this.set('public_boards_has_more', !!(meta && meta.more));
+      _this._public_boards_next_offset = (meta && meta.more) ? meta.next_offset : null;
+    }).catch(function() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      _this.set('public_boards_loading_more', false);
+      if (offset == null) {
+        _this._available_public_initial_done = true;
+      }
+      _this._refreshAvailableBoardsDisplay();
+    });
+  },
+  _loadMyBoardRoots: function() {
+    var userId = this._subjectBoardUserId();
+    if (!userId) {
+      this.set('category_boards', { error: true });
+      return;
+    }
+    this._loadMyBoardRootsPage(userId, null, []);
+  },
+  _loadMyBoardRootsPage: function(userId, offset, accumulated) {
+    var _this = this;
+    var args = { user_id: userId, include_shared: 1, sort: 'home_popularity', per_page: 50 };
+    if (offset != null) { args.offset = offset; }
+    LingoLinq.store.query('board', args).then(function(data) {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      var next = accumulated.slice();
+      if (data && data.forEach) {
+        data.forEach(function(b) { if (b) { next.push(b); } });
+      }
+      _this.set('category_boards', _this._preparePickerBoardList(next));
+      var meta = null;
+      try { meta = persistence.meta('board', data); } catch (e) { meta = null; }
+      if (meta && meta.more) {
+        _this._loadMyBoardRootsPage(userId, meta.next_offset, next);
+      }
+    }).catch(function() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      if (accumulated && accumulated.length) {
+        _this.set('category_boards', _this._preparePickerBoardList(accumulated));
+      } else {
+        _this.set('category_boards', { error: true });
+      }
     });
   },
   init() {
@@ -313,40 +508,61 @@ export default Component.extend({
   },
 
   actions: {
+    /* Explicit set rather than a toggle: the segmented control has two named
+       options, so each one asserts its own state (re-pressing the active option
+       is a no-op instead of flipping to the other view). */
+    set_compact_boards: function(compact) {
+      this.set('compact_boards', !!compact);
+    },
     set_category: function(str) {
       var res = {};
       res[str] = true;
       this.set('current_category', str);
       this.set('category', res);
       this.set('show_category_explainer', false);
-      this.set('used_category_fallback', false);
       this.set('boardSearchQuery', '');
+      this.set('public_boards_has_more', false);
+      this.set('public_boards_loading_more', false);
       this.set('category_boards', {loading: true});
       this._scheduleExplainOverflowCheck();
       var _this = this;
-      if(str == 'mine') {
-        LingoLinq.store.query('board', {user_id: _this._subjectBoardUserId(), include_shared: 1, sort: 'home_popularity', per_page: 9}).then(function(data) {
-          _this.set('category_boards', data);
-        }, function(err) {
-          _this.set('category_boards', {error: true});
-        });
+      if(str == 'available_boards') {
+        _this._loadAvailableBoards();
+      } else if(str == 'mine') {
+        _this._loadMyBoardRoots();
       } else if(_this.get('tabbed') && str == 'robust') {
         // Setup Robust Vocabularies renders the Quick Core / Vocal Flair
         // brand cards instead of the flat category grid.
         _this._loadBrandGroups();
-      } else if(_this.get('tabbed') && str == 'cause_effect') {
-        // Board-picker page: Cause and Effect is "coming soon" — no catalog yet,
-        // so skip the board query (the template renders a coming-soon button
-        // instead of a grid). The non-tabbed /search/home picker keeps its prior
-        // behavior (loads boards via the else branch below).
-        _this.set('category_boards', []);
       } else {
         _this._resolveCategoryBoards(str);
+      }
+    },
+    load_more_public_boards: function(ev) {
+      if (ev && ev.preventDefault) {
+        ev.preventDefault();
+      }
+      if (!this.get('public_boards_has_more') || this.get('public_boards_loading_more')) {
+        return;
+      }
+      this._loadAvailablePublicPage(this._public_boards_next_offset);
+    },
+    clear_board_search: function(ev) {
+      if (ev && ev.preventDefault) {
+        ev.preventDefault();
+      }
+      this.set('boardSearchQuery', '');
+      var input = this.element && this.element.querySelector('#board-picker-search-q');
+      if (input && input.focus) {
+        input.focus();
       }
     },
     go_search_boards: function(ev) {
       if (ev && ev.preventDefault) {
         ev.preventDefault();
+      }
+      if (this.get('searchAtTop')) {
+        return;
       }
       var q = (this.get('boardSearchQuery') || '').trim();
       var loc = (i18n.langs || {}).preferred || (typeof navigator !== 'undefined' && navigator.language) || 'en';
@@ -357,7 +573,7 @@ export default Component.extend({
       var _this = this;
       _this.set('more_category_boards', {loading: true});
       LingoLinq.store.query('board', {public: true, sort: 'home_popularity', per_page: 9, category: this.get('current_category')}).then(function(data) {
-        _this.set('more_category_boards', data);
+        _this.set('more_category_boards', _this._preparePickerBoardList(data));
       }, function(err) {
         _this.set('more_category_boards', {error: true});
       });

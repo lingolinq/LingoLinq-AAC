@@ -4,6 +4,7 @@ import {
   expect
 } from 'frontend/tests/helpers/jasmine';
 import aiFeatureGate from '../../utils/ai_feature_gate';
+import gateCases from '../fixtures/ai_pref_gate_cases';
 
 function userWithPrefs(prefs) {
   return {
@@ -66,6 +67,134 @@ describe('ai_feature_gate', function() {
       expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
         ai_features_enabled: true
       }), 'comprehensive_eval_ai')).toEqual(true);
+    });
+
+    // Legacy rows stored "" for the master pref. It records no readable
+    // decision, so it fails CLOSED like any other unrecognized value rather than
+    // being read as "never decided" and grandfathered.
+    it('denies an unreadable master rather than grandfathering it', function() {
+      ['', '   ', 'maybe', {}].forEach(function(bad) {
+        expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+          ai_features_enabled: bad
+        }), 'ai_board_generation')).toEqual(false);
+      });
+    });
+
+    it('denies an unreadable master for features outside USER_PREF_AI_FEATURES', function() {
+      ['', 'maybe'].forEach(function(bad) {
+        expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+          ai_features_enabled: bad
+        }), 'comprehensive_eval_ai')).toEqual(false);
+      });
+    });
+
+    it('denies an unreadable master even when the child is an explicit opt-in', function() {
+      expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+        ai_features_enabled: '',
+        ai_board_generation: true
+      }), 'ai_board_generation')).toEqual(false);
+    });
+
+    // Guards against a future refactor to a generic falsiness test, which would
+    // reclassify an explicit opt-OUT as "never decided" and re-enable AI.
+    it('keeps an explicit false blocking', function() {
+      [false, 'false'].forEach(function(off) {
+        expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+          ai_features_enabled: off
+        }), 'ai_board_generation')).toEqual(false);
+      });
+    });
+
+    // Master true with a blank or missing child is an INCOMPLETE opt-in and must
+    // stay blocked, or the UI would manufacture per-feature consent.
+    it('still blocks when master is true but the child pref is blank or missing', function() {
+      ['', '   '].forEach(function(child) {
+        expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+          ai_features_enabled: true,
+          ai_board_generation: child
+        }), 'ai_board_generation')).toEqual(false);
+      });
+      expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+        ai_features_enabled: true
+      }), 'ai_board_generation')).toEqual(false);
+    });
+
+    // A stored 0 / '0' is an explicit opt-OUT the write path accepts. It is not
+    // blank and does not === false, so it previously fell through to "allowed",
+    // and for features outside USER_PREF_AI_FEATURES it was allowed outright.
+    it('blocks on a numeric master opt-out for per-feature AI', function() {
+      [0, '0'].forEach(function(off) {
+        expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+          ai_features_enabled: off,
+          ai_board_generation: true
+        }), 'ai_board_generation')).toEqual(false);
+      });
+    });
+
+    it('blocks on a numeric master opt-out for non-per-feature AI', function() {
+      [0, '0'].forEach(function(off) {
+        expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+          ai_features_enabled: off
+        }), 'comprehensive_eval_ai')).toEqual(false);
+      });
+    });
+
+    it('accepts the numeric opt-in forms for master and child', function() {
+      [1, '1'].forEach(function(on) {
+        expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+          ai_features_enabled: on,
+          ai_board_generation: on
+        }), 'ai_board_generation')).toEqual(true);
+      });
+    });
+
+    it('blocks a numeric child opt-out under an enabled master', function() {
+      [0, '0'].forEach(function(off) {
+        expect(aiFeatureGate.prefAllowsAi(userWithPrefs({
+          ai_features_enabled: true,
+          ai_board_generation: off
+        }), 'ai_board_generation')).toEqual(false);
+      });
+    });
+
+    // The shared behavior table, executed here against the client gate and in
+    // spec/lib/feature_flags_ai_prefs_spec.rb against the server gate. Changing
+    // one side's behavior without the other fails that side's own suite. A Ruby
+    // spec asserts this fixture still matches the canonical
+    // spec/fixtures/ai_pref_gate_cases.json byte-for-byte.
+    describe('shared behavior table', function() {
+      gateCases.cases.forEach(function(c) {
+        it(c.name + ' (' + c.feature + ')', function() {
+          expect(aiFeatureGate.prefAllowsAi(userWithPrefs(c.prefs), c.feature)).toBe(c.expected);
+        });
+      });
+    });
+  });
+
+  // toBe (strict) throughout, not toEqual: this helper's whole job is to keep
+  // false and null distinct, and toEqual would compare them loosely.
+  describe('aiPrefValue', function() {
+    it('maps the recognized true forms', function() {
+      [true, 'true', '1', 1].forEach(function(v) {
+        expect(aiFeatureGate.aiPrefValue(v)).toBe(true);
+      });
+    });
+
+    it('maps the recognized false forms', function() {
+      [false, 'false', '0', 0].forEach(function(v) {
+        expect(aiFeatureGate.aiPrefValue(v)).toBe(false);
+      });
+    });
+
+    it('returns null when no decision is recorded', function() {
+      [null, undefined, '', '  ', 'maybe', 2].forEach(function(v) {
+        expect(aiFeatureGate.aiPrefValue(v)).toBe(null);
+      });
+    });
+
+    it('does not confuse the numeric and boolean forms', function() {
+      expect(aiFeatureGate.aiPrefValue(1)).toBe(true);
+      expect(aiFeatureGate.aiPrefValue(0)).toBe(false);
     });
   });
 

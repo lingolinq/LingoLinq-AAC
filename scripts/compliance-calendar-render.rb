@@ -134,6 +134,21 @@ recurring.each do |item|
 end
 
 lines << ''
+lines << '## Review instructions, regulatory watch, and basis'
+lines << ''
+lines << 'The following details are part of each recurring review record. They are rendered so missed-cycle'
+lines << 'context, required work, and the source basis remain visible with the schedule.'
+
+recurring.each do |item|
+  lines << ''
+  lines << "### #{item['title']}"
+  lines << ''
+  lines << "- **Drafts:** #{item['drafts'] || '(none recorded)'}"
+  lines << "- **Watch:** #{item['watch'] || '(none recorded)'}"
+  lines << "- **Basis:** #{item['basis'] || '(none recorded)'}"
+end
+
+lines << ''
 lines << '## Fixed regulatory dates'
 lines << ''
 lines << '| Date | Status | Obligation | Framework |'

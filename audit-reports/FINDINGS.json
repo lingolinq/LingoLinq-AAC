@@ -1144,7 +1144,7 @@
       "lastSeen": "2026-07-06",
       "owner": "unassigned",
       "remediation": {
-        "options": "Sunset the legacy permanent-token fallback in User.find_by_protected_image_token once the new [protected_image_legacy_token] log line (app/models/user.rb) shows it's no longer hit. The broader User#user_token exposure is tracked separately as LL-90045bb29c.",
+        "options": "Sunset the legacy permanent-token fallback in User.find_by_protected_image_token once the new [protected_image_legacy_token] log line (app/models/user.rb) shows it's no longer hit. The broader User#user_token exposure (login serialization + logged legacy fallbacks) is tracked separately as LL-ebd844a7d0.",
         "timeframe": "90d from 2026-07-06"
       },
       "closureEvidence": {
@@ -1152,7 +1152,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Verified still open 2026-06-12: protected_image (users_controller.rb:869) reads params['user_token'] (:871). | NARROWED 2026-07-06 (PR #540): New protected-image URLs use 30-day signed tokens, but the endpoint still accepts legacy permanent user_token credentials for compatibility. protected_image now calls User.find_by_protected_image_token (users_controller.rb:945), which verifies a purpose-scoped, 30-day expiring signed token (User#protected_image_token, constant-time compare) and falls back, with logging, to the legacy permanent User#find_by_token format so boards/images already cached client-side (offline/IndexedDB) before the change keep resolving. Newly-generated image URLs no longer carry a permanent, non-expiring credential, but User#user_token itself is unchanged and still valid forever via login serialization, lesson-share links, and iframe embeds, and the legacy fallback still accepts it indefinitely for protected_image; remains open, narrowed rather than closed. The broader User#user_token exposure (login serialization, lesson/board access, share URLs) is filed separately as LL-90045bb29c per adversary review of this PR.",
+      "notes": "Verified still open 2026-06-12: protected_image (users_controller.rb:869) reads params['user_token'] (:871). | NARROWED 2026-07-06 (PR #540): New protected-image URLs use 30-day signed tokens, but the endpoint still accepts legacy permanent user_token credentials for compatibility. protected_image now calls User.find_by_protected_image_token (users_controller.rb:945), which verifies a purpose-scoped, 30-day expiring signed token (User#protected_image_token, constant-time compare) and falls back, with logging, to the legacy permanent User#find_by_token format so boards/images already cached client-side (offline/IndexedDB) before the change keep resolving. Newly-generated image URLs no longer carry a permanent, non-expiring credential, but User#user_token itself is unchanged and still valid forever via login serialization, lesson-share links, and iframe embeds, and the legacy fallback still accepts it indefinitely for protected_image; remains open, narrowed rather than closed. The broader User#user_token exposure (login serialization, lesson/board access, share URLs) is filed separately as LL-90045bb29c per adversary review of this PR. | CROSS-REF 2026-08-03: Broader User#user_token residual retargeted from LL-90045bb29c (now remediated-unverified for the cited share-URL scope) to LL-ebd844a7d0. Prior note text that bundled 'iframe embeds' with User#user_token was incorrect -- embed-frame uses UserIntegration#user_token. Lesson-share mint path no longer embeds permanent User#user_token (#568); protected_image legacy fallback on this finding is unchanged.",
       "disposition": {
         "state": "accepted",
         "decidedBy": "Scot Wahlquist",
@@ -1170,7 +1170,7 @@
       "frameworks": [
         "FERPA"
       ],
-      "status": "open",
+      "status": "remediated-unverified",
       "evidence": {
         "type": "code",
         "file": "lib/json_api/user.rb",
@@ -1179,24 +1179,68 @@
         "sha": "fe4fa43541772d39c26145b5ff6103aee4218c80"
       },
       "firstSeen": "2026-07-06",
-      "lastSeen": "2026-07-06",
+      "lastSeen": "2026-08-03",
       "owner": "unassigned",
       "remediation": {
-        "options": "PROPOSED PRIORITY (pending Scot's sign-off): (a) [do first, ~7d, low-risk/no-behavior-change] Switch User.find_by_token's `hash == verifier` (user.rb:2643) to ActiveSupport::SecurityUtils.secure_compare -- the exact pattern already proven safe in this codebase at User.find_by_protected_image_token (user.rb:2677). Closes the timing side-channel independent of anything else here. (b) [~45d] Mint a purpose-scoped, expiring token for lesson/board share links the same way PR #540 did for protected_image (User#protected_image_token / find_by_protected_image_token pattern): add User#lesson_share_token(lifespan) + User.find_by_lesson_share_token, and swap it in at both backend accept points (app/controllers/api/lessons_controller.rb:78,99; app/controllers/boards_controller.rb:101) and all frontend construction sites (app/frontend/app/controllers/organization/lessons.js:156, organization/room.js:119, user/lessons.js:48, app/frontend/app/components/dashboard/authenticated-view.js:1738). This removes the permanent credential from every navigable-URL surface without touching user_token's other uses. (c) [needs its own scoping pass before a timeframe is set -- do not schedule yet] Add expiry/rotation to user_token itself. Higher blast radius: user_token is also handed, in full, to third-party embedded integration tools via the embed-frame component's data-user_token attribute (app/frontend/app/templates/components/embed-frame.hbs, fed by app/frontend/app/routes/board.js:61-67 and app/frontend/app/models/user.js:36) -- a distinct third-party-exposure surface not yet in this finding's cited evidence and not covered by (b); needs its own audit pass before committing to (c)'s scope or schedule.",
-        "timeframe": "proposed: (a) 7d, (b) 45d, (c) unscheduled pending scoping -- awaiting Scot's confirmation"
+        "options": "Cited navigable lesson/board share-URL exposure remediated by (a) #563 constant-time compare + (b) #568 purpose-scoped expiring lesson_share_token + #580 expired-link UX. Residual permanent User#user_token login serialization and logged legacy fallbacks are tracked separately as LL-ebd844a7d0. Formal verified-closed attestation remains Scot's.",
+        "timeframe": "done for cited share-URL scope; residual tracked as LL-ebd844a7d0"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
+        "sha": "e80dc26d4d0c2ffd97fb5e0d7474b408e88705d8",
+        "verifierNote": "Verified 2026-08-03 at staging tip 8cb8b3aa460efc64d0c9eb463ad86a5b8a07a6d0: (a) User.find_by_token uses ActiveSupport::SecurityUtils.secure_compare (PR #563, merge c0eb0c8b7); (b) newly minted lesson/board share links use User#lesson_share_token / User.find_by_lesson_share_token with EXPIRING_LESSON_SHARE_TOKENS kill-switch default ON and logged [lesson_share_legacy_token] fallback (PR #568, merge d067f9cc1); (b-follow-up) graceful expired-link UX via window.lesson_share_token_valid (PR #580, merge e80dc26d4). Newly minted share URLs no longer embed permanent User#user_token. CORRECTION: earlier option-(c)/notes text that treated embed-frame data-user_token as User#user_token was wrong -- board.js feeds tool.get('user_token') from UserIntegration#user_token (lib/json_api/integration.rb), a distinct integration-scoped credential. SUPERSEDED-BY: residual permanent User#user_token login serialization + logged legacy fallbacks tracked as LL-ebd844a7d0. Awaiting Scot's verified-closed attestation.",
         "attestation": ""
       },
-      "notes": "Surfaced by adversary review of PR #542 (narrowing LL-310b464be4): closing that finding once the legacy protected_image fallback is sunset would otherwise orphan this broader, still-live risk from the register. Filed as its own finding per the adversary's recommendation, since Copilot's 'do not create a duplicate finding' guidance on PR #540/#542 referred to protected_image specifically, not this separate login/lesson/board vector. | TRIAGE DRAFT 2026-07-06 (for Scot's review; disposition intentionally left untriaged): Re-verified every cited line directly against code at the worktree's current HEAD -- user.rb:2632 (user_token), user.rb:2638/2643 (find_by_token, plain `==`, confirmed non-constant-time), lib/json_api/user.rb:41 (login serialization), api/lessons_controller.rb:78/99 (show/complete accept token as sole identity), and all 4 frontend window.open() sites -- all confirmed exactly as described, with one path correction: the boards_controller accept point is app/controllers/boards_controller.rb:101 (the non-API controller), not app/controllers/api/boards_controller.rb as originally drafted. PROPOSED SEVERITY: high (up from medium; see full rationale below) -- this field has been updated to 'high' as a draft recommendation, not a final call; only Scot's disposition decision makes it official. Rationale for high over medium: (1) unlike sibling LL-310b464be4, which covers only a sunsetting legacy fallback (90-day retirement path already underway), user_token is the actively-minted PRIMARY login credential for every user with no deprecation in flight; (2) no per-user revocation exists -- because the token is a pure HMAC of global_id with no per-user secret or version component, it is UNCHANGED by password reset, session invalidation, or any account-compromise remediation available today; only a global GoSecure-verifier-key rotation would invalidate it, which would log out every user simultaneously, so in practice it is never rotated per-incident; (3) broad standing acceptance surface -- 2 backend endpoints treat it as a standalone credential, all 4 frontend window.open() sites place it in a plain navigable URL (browser history + Referer leakage to any third party the destination page loads + server access logs), and login-serializes it to every client on every session; (4) covers FERPA-regulated student lesson/board access with no expiry; (5) comparable precedent already in this register: LL-c6dd65a2aa (static, non-rotating shared cache_token with broad blast radius) was rated high. Countervailing factor keeping this below critical: exploitation still requires actually obtaining a specific user's leaked token (via log/history/Referer exposure or a timing attack against the non-constant-time compare, which needs many low-jitter requests) -- it is not open pre-auth to arbitrary callers the way a critical-rated unauthenticated-disclosure finding (e.g. LL-90137ca466) is. ADDITIONAL SCOPE SURFACED (not yet folded into cited evidence, flagged for follow-up): user_token is also handed in full to third-party embedded integration tools via the embed-frame component (see remediation.options item (c)) -- a distinct exposure path beyond the 4 window.open() sites and 2 controllers currently cited; recommend a short follow-up scoping pass on that path specifically before scheduling remediation option (c). | REMEDIATION 2026-07-09 (option (a), constant-time compare): landed via PR #563, merged to staging as merge commit c0eb0c8b757df2004efe54838abf3c3d706d0852. User.find_by_token now uses ActiveSupport::SecurityUtils.secure_compare(hash, verifier) in place of the plain `==`, closing the timing side-channel; behavior-preserving (secure_compare returns false on a length mismatch, does not raise) and covered by two regression specs (valid-token path + same-length wrong-hash mismatch path) in spec/models/user_spec.rb. Dual-reviewer clean: Codex senior-dev Approve and Claude adversary Ship; all CI green (rspec, build-and-test, security-scan, secret-detection, audit-artifacts-integrity). Status intentionally kept open: only phased option (a) is complete; option (b) (~45d purpose-scoped expiring lesson/board share token) and option (c) (user_token expiry/rotation, including the embed-frame third-party exposure surface) remain, and formal closure/severity disposition stays Scot's attestation. | REMEDIATION 2026-07-09 (option (b), purpose-scoped expiring lesson/board share token): landed via PR #568, merged to staging as merge commit d067f9cc145ba09a857c8085c81e47376eae875d. Added User#lesson_share_token(lifespan=LESSON_SHARE_TOKEN_LIFESPAN, default 30.days) and User.find_by_lesson_share_token (app/models/user.rb:2847-2861), mirroring the proven PR #540 protected_image_token pattern -- HMAC scoped by purpose + expiry, verified with ActiveSupport::SecurityUtils.secure_compare against a verifier distinct from user_token. Swapped in at every navigable-URL surface: both API accept points (app/controllers/api/lessons_controller.rb:78,99), the non-API boards accept point (app/controllers/boards_controller.rb:101), the lesson and user serializers (lib/json_api/lesson.rb, lib/json_api/user.rb new attr), all 4 frontend window.open() construction sites, AND both lesson-assigned email templates (app/views/user_mailer/lesson_assigned.html.erb + .text.erb) -- the two email templates being a 5th/6th construction site beyond the original option (b) scope, caught by verifying against real code. Gated behind the EXPIRING_LESSON_SHARE_TOKENS kill-switch (default ON; one-switch env revert via off/0/false/no; lib/feature_flags.rb:122-125) with a logged legacy fallback so permanent-token share links already in the wild keep resolving. Dual-review earned its keep: Codex flagged a real P1 -- the lesson serializer minted a FRESH token into the response's primary id on each render, breaking Ember Data findRecord identity stability; fixed by echoing the client-requested token (extra_user_token) into the id (lib/json_api/lesson.rb:81, commit b94abd3d) and regression-guarded by id-stability specs. Claude adversary verdict Ship-with-conditions; crypto/auth core clean (no forgeable widening, no injection, no kill-switch asymmetry). All CI green (rspec, build-and-test, security-scan, secret-detection, audit-artifacts-integrity), no flake this run. Status intentionally kept OPEN: option (b) removes the permanent credential from lesson/board share URLs and emails, but option (c) (user_token expiry/rotation, including the embed-frame third-party exposure surface) remains, and formal closure/severity disposition stays Scot's attestation. Follow-up scoping captured durably in ~/ai-company-brain/outputs/plans/2026-07-09-lesson-share-token-scope-ll-90045bb29c.md (FOLLOW-UP section): (1) graceful expired-link UX (dedicated route + i18n + boards#lesson handling), (2) email-TTL decision (left at 30d for now).",
+      "notes": "Surfaced by adversary review of PR #542 (narrowing LL-310b464be4): closing that finding once the legacy protected_image fallback is sunset would otherwise orphan this broader, still-live risk from the register. Filed as its own finding per the adversary's recommendation, since Copilot's 'do not create a duplicate finding' guidance on PR #540/#542 referred to protected_image specifically, not this separate login/lesson/board vector. | TRIAGE DRAFT 2026-07-06 (for Scot's review; disposition intentionally left untriaged): Re-verified every cited line directly against code at the worktree's current HEAD -- user.rb:2632 (user_token), user.rb:2638/2643 (find_by_token, plain `==`, confirmed non-constant-time), lib/json_api/user.rb:41 (login serialization), api/lessons_controller.rb:78/99 (show/complete accept token as sole identity), and all 4 frontend window.open() sites -- all confirmed exactly as described, with one path correction: the boards_controller accept point is app/controllers/boards_controller.rb:101 (the non-API controller), not app/controllers/api/boards_controller.rb as originally drafted. PROPOSED SEVERITY: high (up from medium; see full rationale below) -- this field has been updated to 'high' as a draft recommendation, not a final call; only Scot's disposition decision makes it official. Rationale for high over medium: (1) unlike sibling LL-310b464be4, which covers only a sunsetting legacy fallback (90-day retirement path already underway), user_token is the actively-minted PRIMARY login credential for every user with no deprecation in flight; (2) no per-user revocation exists -- because the token is a pure HMAC of global_id with no per-user secret or version component, it is UNCHANGED by password reset, session invalidation, or any account-compromise remediation available today; only a global GoSecure-verifier-key rotation would invalidate it, which would log out every user simultaneously, so in practice it is never rotated per-incident; (3) broad standing acceptance surface -- 2 backend endpoints treat it as a standalone credential, all 4 frontend window.open() sites place it in a plain navigable URL (browser history + Referer leakage to any third party the destination page loads + server access logs), and login-serializes it to every client on every session; (4) covers FERPA-regulated student lesson/board access with no expiry; (5) comparable precedent already in this register: LL-c6dd65a2aa (static, non-rotating shared cache_token with broad blast radius) was rated high. Countervailing factor keeping this below critical: exploitation still requires actually obtaining a specific user's leaked token (via log/history/Referer exposure or a timing attack against the non-constant-time compare, which needs many low-jitter requests) -- it is not open pre-auth to arbitrary callers the way a critical-rated unauthenticated-disclosure finding (e.g. LL-90137ca466) is. ADDITIONAL SCOPE SURFACED (not yet folded into cited evidence, flagged for follow-up): user_token is also handed in full to third-party embedded integration tools via the embed-frame component (see remediation.options item (c)) -- a distinct exposure path beyond the 4 window.open() sites and 2 controllers currently cited; recommend a short follow-up scoping pass on that path specifically before scheduling remediation option (c). | REMEDIATION 2026-07-09 (option (a), constant-time compare): landed via PR #563, merged to staging as merge commit c0eb0c8b757df2004efe54838abf3c3d706d0852. User.find_by_token now uses ActiveSupport::SecurityUtils.secure_compare(hash, verifier) in place of the plain `==`, closing the timing side-channel; behavior-preserving (secure_compare returns false on a length mismatch, does not raise) and covered by two regression specs (valid-token path + same-length wrong-hash mismatch path) in spec/models/user_spec.rb. Dual-reviewer clean: Codex senior-dev Approve and Claude adversary Ship; all CI green (rspec, build-and-test, security-scan, secret-detection, audit-artifacts-integrity). Status intentionally kept open: only phased option (a) is complete; option (b) (~45d purpose-scoped expiring lesson/board share token) and option (c) (user_token expiry/rotation, including the embed-frame third-party exposure surface) remain, and formal closure/severity disposition stays Scot's attestation. | REMEDIATION 2026-07-09 (option (b), purpose-scoped expiring lesson/board share token): landed via PR #568, merged to staging as merge commit d067f9cc145ba09a857c8085c81e47376eae875d. Added User#lesson_share_token(lifespan=LESSON_SHARE_TOKEN_LIFESPAN, default 30.days) and User.find_by_lesson_share_token (app/models/user.rb:2847-2861), mirroring the proven PR #540 protected_image_token pattern -- HMAC scoped by purpose + expiry, verified with ActiveSupport::SecurityUtils.secure_compare against a verifier distinct from user_token. Swapped in at every navigable-URL surface: both API accept points (app/controllers/api/lessons_controller.rb:78,99), the non-API boards accept point (app/controllers/boards_controller.rb:101), the lesson and user serializers (lib/json_api/lesson.rb, lib/json_api/user.rb new attr), all 4 frontend window.open() construction sites, AND both lesson-assigned email templates (app/views/user_mailer/lesson_assigned.html.erb + .text.erb) -- the two email templates being a 5th/6th construction site beyond the original option (b) scope, caught by verifying against real code. Gated behind the EXPIRING_LESSON_SHARE_TOKENS kill-switch (default ON; one-switch env revert via off/0/false/no; lib/feature_flags.rb:122-125) with a logged legacy fallback so permanent-token share links already in the wild keep resolving. Dual-review earned its keep: Codex flagged a real P1 -- the lesson serializer minted a FRESH token into the response's primary id on each render, breaking Ember Data findRecord identity stability; fixed by echoing the client-requested token (extra_user_token) into the id (lib/json_api/lesson.rb:81, commit b94abd3d) and regression-guarded by id-stability specs. Claude adversary verdict Ship-with-conditions; crypto/auth core clean (no forgeable widening, no injection, no kill-switch asymmetry). All CI green (rspec, build-and-test, security-scan, secret-detection, audit-artifacts-integrity), no flake this run. Status intentionally kept OPEN: option (b) removes the permanent credential from lesson/board share URLs and emails, but option (c) (user_token expiry/rotation, including the embed-frame third-party exposure surface) remains, and formal closure/severity disposition stays Scot's attestation. Follow-up scoping captured durably in ~/ai-company-brain/outputs/plans/2026-07-09-lesson-share-token-scope-ll-90045bb29c.md (FOLLOW-UP section): (1) graceful expired-link UX (dedicated route + i18n + boards#lesson handling), (2) email-TTL decision (left at 30d for now). | NARROWED/REMEDIATED 2026-08-03: Cited navigable share-URL scope + timing side-channel complete (#563/#568/#580). Status moved open -> remediated-unverified; closureEvidence.verifierNote filled; attestation left empty for Scot. Residual permanent User#user_token (login serialization at lib/json_api/user.rb:41 + logged legacy accept in find_by_lesson_share_token / find_by_protected_image_token) filed as LL-ebd844a7d0. Embed-frame third-party surface removed from this finding's residual scope -- it uses UserIntegration#user_token, not User#user_token. Disposition object unchanged (Scot-owned).",
       "disposition": {
         "state": "accepted",
         "decidedBy": "Scot Wahlquist",
         "decidedDate": "2026-07-08",
         "rationale": "Severity promoted medium -> high, approved by Scot 2026-07-08: a permanent, non-revocable HMAC credential exposed through navigable share URLs justifies prioritized remediation. Accepted for remediation on the phased plan: (a) ~7d constant-time comparison hardening in User.find_by_token (ActiveSupport::SecurityUtils.secure_compare); (b) ~45d purpose-scoped expiring lesson/board share-token following the PR #540 protected_image pattern; (c) broader user_token rotation scoped and handled as a separately scoped follow-up."
       }
+    },
+    {
+      "id": "LL-ebd844a7d0",
+      "ruleKey": "permanent-user-token-login-serialization",
+      "legacyId": "",
+      "title": "Permanent, non-expiring User#user_token still login-serialized and accepted by logged legacy token fallbacks",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/json_api/user.rb",
+        "line": 41,
+        "snippet": "json['user_token'] = user.user_token",
+        "sha": "8cb8b3aa460efc64d0c9eb463ad86a5b8a07a6d0"
+      },
+      "firstSeen": "2026-08-03",
+      "lastSeen": "2026-08-03",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "(1) Measure hit rates of [lesson_share_legacy_token] and [protected_image_legacy_token] log lines. (2) Sunset those legacy permanent-token fallbacks when quiet -- protected_image sunset already owned by LL-310b464be4; lesson_share sunset is this finding's share of the residual. (3) Separate scoping pass before any primary User#user_token expiry/rotation (higher blast radius; do not schedule until (1)-(2) evidence exists). Explicitly out of scope: embed-frame / UserIntegration#user_token (different credential via lib/json_api/integration.rb + app/models/user_integration.rb).",
+        "timeframe": "proposed: measure 30d, sunset when quiet; primary rotation unscheduled pending scoping"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": "",
+        "reviewer": "melissa",
+        "promotedDate": "2026-08-03"
+      },
+      "notes": "Residual of LL-90045bb29c after options (a)/(b)/#580 remediations. Cited navigable share-URL mint path no longer embeds permanent User#user_token, but User#user_token remains a permanent HMAC of global_id, is still serialized on login (lib/json_api/user.rb:41), and is still accepted via logged legacy fallbacks in User.find_by_lesson_share_token and User.find_by_protected_image_token. Proposed severity medium (down from parent high): worst navigable-URL mint vector is gone; residual is authenticated-client possession plus logged legacy accept. Scot may re-rate. CORRECTION vs parent notes: embed-frame data-user_token is UserIntegration#user_token, not User#user_token -- left out of this finding's evidence on purpose."
     },
     {
       "id": "LL-7a8effae8a",
@@ -4213,6 +4257,246 @@
         "timeframe": "90 days"
       },
       "notes": "Discovered 2026-07-20 during VPC Phase 3 planning. PRE-EXISTING and system-wide (~140 callers). VPC Phase 3 adds the optional labelledBy/describedBy arguments to the shell as part of building its own ai-disclosure accessibility contract, but deliberately does NOT retrofit existing callers -- that retrofit is this finding and remains separate prioritized work. Rated medium rather than high because affected modals are still operable; the defect is that a screen-reader user gets no accessible name for the dialog, not that the dialog is unusable."
+    },
+    {
+      "id": "LL-1b0d78dbe6",
+      "ruleKey": "bedrock-credential-account-unverified",
+      "title": "No check asserts the Bedrock credential resolves to the BAA'd AWS account, so the AWS BAA's operative condition is an untested assumption",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "HIPAA"
+      ],
+      "status": "verified-closed",
+      "evidence": {
+        "type": "code",
+        "file": "lib/ai_client.rb",
+        "line": 89,
+        "snippet": "Anthropic::BedrockMantleClient.new(",
+        "sha": "4a28ed84dd2a799bf9a4d9b0b18df8b628ec8a46"
+      },
+      "firstSeen": "2026-08-02",
+      "lastSeen": "2026-08-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "AiClient.build signs Bedrock with whatever credential pair is present and asserts nothing about which AWS account it belongs to. The AWS BAA (docs/legal/AWS_BAA_ACCEPTED.md) is scoped to a single account, and its stated operative condition is that Bedrock calls run under that account, so a credential from any other account would put PHI-bearing inference outside BAA coverage while every check in the repo stayed green. Add an explicit account assertion: call sts:GetCallerIdentity under the exact credential AiClient will use and compare Account against the BAA'd account id, ideally at deploy time in .github/workflows/deploy-cloudrun.yml as a post-deploy smoke step so a wrong credential fails the deploy rather than surfacing at first inference. A boot-time or first-call assertion that fails closed is an acceptable alternative or addition. Keep the account id in configuration, not hardcoded, so a future account migration is a config change. This is the control whose absence let an unverifiable verification claim stand in an attested compliance document from 2026-07-27 to 2026-08-01; PR 725 retracted the claim but did not add the control.",
+        "timeframe": "before Bedrock is marked operational"
+      },
+      "closureEvidence": {
+        "sha": "9470ffbd7b15980c90c53b300148a8fdd6b8a2e3",
+        "verifierNote": "Control built and merged via PR #768 (merge commit 9470ffbd7b15980c90c53b300148a8fdd6b8a2e3 into staging on 2026-08-10; ancestor-verified). AiClient now calls sts:GetCallerIdentity under the exact credential pair it will sign Bedrock with, against an endpoint pinned to https://sts.<region>.amazonaws.com, and refuses to return a client unless the returned Account equals BEDROCK_EXPECTED_AWS_ACCOUNT (lib/ai_client.rb:508 account_verified?, :570 verify_account, :450 sts_endpoint). It fails closed on mismatch, on any probe error, on a malformed expected-account value, and on a region string that is not a well-formed commercial AWS region: the region is interpolated into the STS hostname, so an unvalidated region would defeat the endpoint pin. The result is memoized per credential+region+expected fingerprint under a mutex with a 60s retry floor on failure and a monotonic clock, and the Puma warm-up at config/puma.rb:37 runs it after fork so a wrong credential surfaces at boot rather than at first inference. All four runtime AI seams gate on AiClient.available? and take a client via AiClient.build!, which raises NotAvailableError rather than returning nil (lib/ai_word_predictor.rb:59,201; lib/ai_board_generator.rb:555,568; lib/ai_prediction_generator.rb:118,238; lib/eval_narrator.rb:251,345). The account id stays in configuration rather than hardcoded, so an account migration is a config change; because an absent env var skips the assertion, the deploy pins it as a plaintext literal (.github/workflows/deploy-cloudrun.yml:273) and reads it back after deploy on both lingolinq-web and the lingolinq-worker worker pool, pinned to the value ^239044785114$ rather than to a 12-digit shape (:716-724, via scripts/gcp/assert-runtime-secrets.sh --required-literal). Covered by 69 examples in spec/lib/ai_client_spec.rb plus a new spec/lib/ai_prediction_generator_spec.rb for the seam that had no spec file at all. Confirmed independently out of band on 2026-08-10: a live sts:GetCallerIdentity under the production Bedrock credential returned account 239044785114, principal user/lingolinq-bedrock-runtime, which is the account docs/legal/AWS_BAA_ACCEPTED.md is scoped to. Three adversarial review rounds preceded merge and two returned BLOCK; the defects they caught were a redirectable STS endpoint, a readback that pinned shape instead of value, an unvalidated region, and a scheduled drift job that could never have authenticated (dropped, filed as issue #769). SCOPE NOTE: production runs main, so the assertion has not yet executed in a production process. Its first production execution emits the log line '[AiClient] Bedrock credential verified against AWS account 239044785114' and lands on the next staging-to-main release, which auto-deploys under #758.",
+        "attestation": "Scot Wahlquist 2026-08-11: attested verified-closed. The automated account assertion this finding asked for is built, test-covered, and merged to staging in #768, and the production Bedrock credential was independently confirmed to resolve to the BAA'd account 239044785114. What remains is deployment, not construction; the production log line is being watched as deploy confirmation, not as evidence the control exists."
+      },
+      "disposition": {
+        "state": "fixed",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-08-11",
+        "rationale": "Closed on the control's existence and test coverage rather than on its first production execution, because the finding is that no check asserts the account and that is no longer true at staging head. Reaching production is tracked as a release watch item on the next staging-to-main merge, not as an open finding."
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": 725,
+        "reviewer": "adversary",
+        "promotedDate": "2026-08-02"
+      },
+      "notes": "Promoted from PR #725 review (adversary) on 2026-08-02. Filed from the PR 725 correction of docs/legal/AWS_BAA_ACCEPTED.md. PREMISE CORRECTED 2026-08-04: the note previously read 'Currently unexercised: no lingolinq-web revision carries a Bedrock credential ... Rated high rather than critical for that reason. It becomes live the moment credentials are mounted (PR 719).' That activation condition WAS met. Revision 00013-76w mounted the credentials at 2026-08-03T08:23:02Z and the path ran for ~22 hours with no such check in place, exactly the gap this finding describes. Credentials were withdrawn at 2026-08-04T06:31:46Z (revision 00014-5rw), so the finding is again unexercised, but it has now been demonstrated live rather than hypothetically. The verification standard was met manually and out-of-band during the window (sts:GetCallerIdentity returned 239044785114, principal user/lingolinq-bedrock-runtime); no automated check performed it, which is the finding. Severity is left at high and its re-rating on this corrected premise is Scot's call, not auto-applied. Verification standard recorded in the AWS BAA correction: re-attestation of the operative condition requires both that the credential env vars are present on the serving revision and that sts:GetCallerIdentity under that credential returns the BAA'd account."
+    },
+    {
+      "id": "LL-16ef84ad9a",
+      "ruleKey": "word-predictor-cache-cross-tenant-unscrubbed-key",
+      "title": "Word-prediction cache holds the raw pre-scrubber user utterance in a process-global structure outside the PiiScrubber boundary, and is not tenant-scoped",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "HIPAA",
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/ai_word_predictor.rb",
+        "line": 47,
+        "snippet": "cache_key = \"#{locale}:#{sentence.strip.downcase}:#{ctx[:time_of_day]}:#{ctx[:topic]}\"",
+        "sha": "9e3560fa2a233316a0469f5cabe9370b25d60064"
+      },
+      "firstSeen": "2026-08-02",
+      "lastSeen": "2026-08-03",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "PRIMARY ISSUE, unscrubbed retention outside the redaction boundary. The cache key is built from the raw sentence BEFORE PiiScrubber runs (lib/ai_word_predictor.rb:47), and entries live in a process-global CACHE constant. CACHE_TTL (1800s / 30 minutes) is checked only when deciding whether to reuse an entry on lookup (lib/ai_word_predictor.rb:48-51); expired entries are not deleted until capacity eviction (CACHE_MAX=500) or overwrite. On a low-traffic process with fewer than 500 distinct keys, a raw utterance can therefore remain in heap memory for the process lifetime, so describing this as 30-minute retention understates the heap-dump exposure. Verbatim, unredacted AAC utterance content, which is exactly what the compliance corpus says is redacted before it is handled, sits in process memory outside that control. It is reachable by a heap dump, a debug endpoint, or any exception reporter that captures locals or constants. Every compliance document that cites PiiScrubber as THE control on user-authored content is inaccurate for as long as this is true. SECONDARY ISSUE, tenant scoping. CACHE has no user, organization, or district discriminator, so two users in different districts who compose the byte-identical sentence share an entry. This is the weaker of the two arguments and should not be led with: the second user already possesses the input they typed, so what they gain is the model's output for their own sentence, not another learner's content. It still contradicts the mandatory district data-isolation requirement and should be fixed. FIX. Key on a hash of the SCRUBBED sentence rather than the raw one, so no verbatim utterance is retained; include a tenant discriminator (organization or user id) in the key; and either delete on TTL expiry or stop claiming a 30-minute retention bound. Then decide explicitly whether a cache shared across tenants is wanted at all for user-composed content.",
+        "timeframe": "before Bedrock is marked operational"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": 725,
+        "reviewer": "adversary",
+        "promotedDate": "2026-08-02"
+      },
+      "notes": "Found by adversary review of PR 725; rationale reordered 2026-08-02 after the same reviewer noted the original write-up led with the weaker cross-tenant argument. Activation and TTL wording corrected 2026-08-03 after Codex review of this PR. PREMISE CORRECTED 2026-08-04: the note previously read 'Currently unexercised while Bedrock is unconfigured: resolve_api_config returns nil and predict returns early at lib/ai_word_predictor.rb:34-35, so nothing reaches the cache write.' That is no longer the operative history. Revision 00013-76w mounted the Bedrock credentials at 2026-08-03T08:23:02Z, and a live AiWordPredictor.predict call completed successfully at 2026-08-04T05:44:42Z, so the cache write at line 135 DID execute in production with a key built from the raw pre-scrubber sentence. The utterance in that single call was an internal verification string containing no user or student data, so no real user content was retained; the defect is nonetheless now demonstrated in production rather than theoretical. Credentials were withdrawn at 2026-08-04T06:31:46Z (revision 00014-5rw), returning the path to unexercised. This finding should be scheduled on its stated fix (hash of the SCRUBBED sentence plus a tenant discriminator) rather than deferred behind an 'unexercised' label, since any future credential mount re-activates it immediately. Once credentials are mounted and resolve_api_config succeeds, the cache write at line 135 runs even when the model call fails -- the rescue at lines 90-94 returns [] and execution still stores CACHE[cache_key] = { words: words, ts: Time.now }. Activation condition is AiClient.configured? (credential pair present), not a successful Bedrock completion; same mount trigger as LL-1b0d78dbe6. Severity HIGH on the unscrubbed-retention argument alone; the reviewer's initial medium was revised up after weighing the mandatory district-isolation rule and for consistency with LL-1b0d78dbe6. Severity remains Scot's call."
+    },
+    {
+      "id": "LL-cde54765c6",
+      "ruleKey": "masquerade-no-operator-indicator",
+      "title": "Masquerade shows no on-screen indication of whose account is being operated",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "HIPAA",
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/controllers/application_controller.rb",
+        "line": 182,
+        "snippet": "@true_user = @api_user",
+        "sha": "dbd5b689e27033a007dc75b015dc11f8940e9e40"
+      },
+      "firstSeen": "2026-08-04",
+      "lastSeen": "2026-08-04",
+      "owner": "Melissa",
+      "remediation": {
+        "options": "Cheapest path (template only, no server change): render the already-stashed operator identity beside the existing Stop Masquerading controls. session.original_user_name is set at masquerade start (app/frontend/app/components/masquerade.js:61, app/frontend/app/controllers/organization.js:48), restored at app/frontend/app/services/session.js:510, and already read by the isMasquerading computed at app/frontend/app/controllers/application.js:52,56 with a stash fallback at :62. Option 2, only if the server must be authoritative: serialize the acting operator via lib/json_api. Scope of @true_user (set at app/controllers/application_controller.rb:182,196): the private_logging checks in app/controllers/api/logs_controller.rb, the PaperTrail whodunnit at :185/:199, and the authorization plus audit-attribution actor in app/controllers/concerns/api/schema_explorer.rb:90,103 and app/controllers/concerns/api/system_settings_access.rb:7. It never reaches lib/json_api. PR #714 (staging, 2026-07-30) added persistent Stop Masquerading controls (app/frontend/app/components/app-navbar-authenticated-inner.hbs:64,183,211; app/frontend/app/templates/application.hbs:928,1276,1304), which signal THAT a masquerade is active but not WHOSE record is open.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Raised manually 2026-08-04 from a working session, not from an /audit-run fan-out. Severity and disposition are Scot's to set. Accountability scope, corrected after dual review: PaperTrail records user:<operator>:as:<target> (app/controllers/application_controller.rb:185,199) ONLY on the models and attributes it versions, namely the Board (app/models/board.rb:64) and User (app/models/user.rb:44) attribute allowlists, and destroy-only on LogSession (app/models/log_session.rb:28). UserGoal carries no has_paper_trail at all. Surviving versions are pruned by User.flush_old_versions (app/models/user.rb:3646). So a masquerading admin's create or update of a student's log session or goal is NOT distinguishable after the fact. This finding covers the UI indicator gap only; the absence of any masquerade AuditEvent is a separate issue and is not yet filed. 2026-08-05: owned by Melissa; Option 1 UI fix on branch fix/melissa-masquerade-operator-indicator (show session.original_user_name beside Stop Masquerading). Status remains open pending Scot disposition after merge.",
+      "source": {
+        "kind": "manual",
+        "pr": "",
+        "reviewer": "scot",
+        "promotedDate": "2026-08-04"
+      }
+    },
+    {
+      "id": "LL-522c1a6d13",
+      "ruleKey": "masquerade-no-audit-event",
+      "title": "Masquerade produces no AuditEvent; the site-admin branch impersonates any user with no disclosure record",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/controllers/application_controller.rb",
+        "line": 181,
+        "snippet": "if admin && admin.manager?(@api_user) && @linked_user",
+        "sha": "dbd5b689e27033a007dc75b015dc11f8940e9e40"
+      },
+      "firstSeen": "2026-08-04",
+      "lastSeen": "2026-08-04",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Write an AuditEvent at masquerade authorization in both branches of application_controller.rb (site-admin at :181, org-manager at :188-205), recording the acting operator, the target user, and the branch that authorized it. Prior art already exists in this codebase and should be generalized rather than reinvented: app/controllers/concerns/api/schema_explorer.rb:102-104 defines audit_user_key as (@true_user || @api_user)&.global_id precisely so a disclosure is booked to the admin who performed the read rather than the account being viewed as. That treatment covers one endpoint and nothing else. Note masquerade has no session concept to hook: it is a per-request as_user_id param or X-As-User-Id header (:177), so the event must be emitted on the authorization path, and de-duplicated per operator/target rather than per request. The org-manager branch already caches its authorization decision in Redis for 30 minutes (:195), which is a natural de-dup window; the site-admin branch has no cache and no gate at all.",
+        "timeframe": "30d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": 742,
+        "reviewer": "adversary",
+        "promotedDate": "2026-08-04"
+      },
+      "notes": "Promoted from PR #742 review (adversary) on 2026-08-04. Surfaced by the Claude adversary pass during dual review of PR #742, and verified against code at that PR's base: grep for AuditEvent in app/controllers/application_controller.rb returns zero occurrences. FERPA accounting-of-disclosures and HIPAA 164.312(b) audit controls therefore have no record that an admin viewed or acted inside a given student account. The site-admin branch grants impersonation of ANY user on Organization.admin.manager? alone, with no consent record. This is the accountability half of the masquerade problem; LL-cde54765c6 covers the separate UI indicator gap and explicitly does not claim to cover this. Related: PaperTrail does not close the gap either, since log_session.rb:28 versions on destroy only, user_goal.rb has no has_paper_trail, and User.flush_old_versions (user.rb:3646) prunes surviving versions."
+    },
+    {
+      "id": "LL-07f1869d92",
+      "ruleKey": "iplocate-ip-egress-ungated-undisclosed-subprocessor",
+      "title": "SubscriptionMailer#new_subscription sends a user's IP address to iplocate.io with no user-type or consent gate, to a third party absent from the subprocessor register (GDPR Art. 28/44, COPPA)",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "COPPA",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/mailers/subscription_mailer.rb",
+        "line": 30,
+        "snippet": "      url = \"https://iplocate.io/api/lookup/#{ip}?apikey=#{ENV['IPLOCATE_API_KEY']}\"",
+        "sha": "c24dce5bae7db5b690790c5148a66c76777cc788"
+      },
+      "firstSeen": "2026-08-08",
+      "lastSeen": "2026-08-08",
+      "owner": "Scot Wahlquist",
+      "remediation": {
+        "options": "Found by the 2026-08-08 quarterly subprocessor review (the cycle that fell due 2026-07-20 and was not performed). SubscriptionMailer#new_subscription reads the user's stored device IP (@user.devices[0].settings['ip_address']) and GETs https://iplocate.io/api/lookup/<ip> whenever ENV['IPLOCATE_API_KEY'] is set, on any new subscription. TWO distinct defects. (1) UNGATED: unlike the sibling call in lib/external_tracker.rb:23, which is gated on external_email_allowed? && supporter_registration? && !cookies_opted_out?, this call site has NO user-type check and NO consent gate, so it can fire for any account type including a child or student account. An IP address is personal data under GDPR and is COPPA-relevant for an under-13 user. (2) UNDISCLOSED: iplocate.io is named nowhere in docs/legal/SUBPROCESSORS.md, so this is an Article 28 register omission of the same class as the three flows recorded on 2026-07-21 and the Speech-to-Text flow recorded on 2026-07-22 (LL-1eb9a2435b). Options: (a) gate this call site to match external_tracker.rb, or drop geolocation from the notification email entirely, since the recipient is an internal admin address (NEW_REGISTRATION_EMAIL) rather than the user; (b) add an iplocate.io subprocessor row with DPA status and a data-flow description; (c) confirm whether a DPA exists with iplocate.io at all. NOT YET ESTABLISHED and needed before triage: whether this path can fire for a child/student account in practice, and whether it has ever fired in production. Stripe is a SEPARATE omission found by the same review and is not part of this finding."
+      }
+    },
+    {
+      "id": "LL-1e2ab28aab",
+      "ruleKey": "hard-delete-omits-logsnapshot",
+      "title": "Hard delete leaves LogSnapshot records undeleted (GDPR right-to-erasure)",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/log_snapshot.rb",
+        "line": 11,
+        "snippet": "  belongs_to :user",
+        "sha": "d7bd0f59b40dd1dc66ff419b32b49e508ec60c49"
+      },
+      "firstSeen": "2026-08-10",
+      "lastSeen": "2026-08-10",
+      "owner": "Melissa",
+      "remediation": {
+        "options": "LogSnapshot rows are keyed by user_id (app/models/log_snapshot.rb:11) and are created through api/snapshots_controller.rb#create. Neither Flusher.flush_user_content nor flush_user_completely references LogSnapshot, user.rb declares no dependent: :destroy for it, log_session.rb declares no has_many, and db/schema.rb declares no foreign keys at all, so nothing cascades at any level. A hard delete therefore leaves log_snapshots rows carrying a supervisor-supplied name, a date range, a device_id and a location_id, keyed to a deleted user. Fix: add a LogSnapshot.where(user_id:) sweep to flush_user_content alongside the ButtonSound / UserVideo sweeps added in PR #721, with regression coverage. Note the retained location_id already dangles, because ClusterLocation is swept at lib/flusher.rb:19. Scoped to LogSnapshot only: UserExtra and ContactMessage are named in the same unverified set in the retention draft but were not traced, and no claim is made about them.",
+        "timeframe": "medium 30-60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-08-10",
+        "rationale": "Confirmed real Article 17 / FERPA erasure defect by manual trace. Set at medium rather than the high carried by LL-854b1d3853: that finding retained a child's actual voice and video content, whereas a LogSnapshot retains only a saved report window (label, date range, device_id, location_id) and its location_id already dangles because ClusterLocation is erased. Accepted; fix by adding the Flusher sweep. Production exposure is NOT established: api/snapshots_controller.rb is a live API path, and static inspection cannot determine whether production rows exist. No claim is made either way."
+      },
+      "source": {
+        "kind": "manual-trace",
+        "reviewer": "claude-compliance-verification",
+        "promotedDate": "2026-08-10"
+      },
+      "notes": "Surfaced 2026-08-10 while verifying the PR #721 Path A successor drafts against code, per the /re-attest-record 'verify the doc is true now' gate. Distinct from LL-854b1d3853, which covers UserVideo and off-board ButtonSound only. Severity and disposition approved by Scot on 2026-08-10 after a recommendation from the Codex reviewer; the agent proposed the row and did not decide it."
     }
   ]
 }

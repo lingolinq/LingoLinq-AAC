@@ -31,6 +31,18 @@ module FeatureFlags
               'dashboard_drag_layout', 'boards_page_owner_dedup', 'edit_sidebar',
               'sentence_bar_editing',
               'text_symbol_fallback',
+              # Per-user session resume: return a user to the page they were last
+              # on when they log back in. Communicator-only accounts are exempt by
+              # design (they always land on their board). Read by
+              # app/frontend/app/routes/index.js#afterModel; the recording side
+              # (utils/session_history.js) runs regardless so flipping this on
+              # takes effect immediately.
+              'session_resume',
+              # Supporter-facing "Viewing <communicator>'s account" pill, fixed to
+              # the upper-left of any page that isn't the supporter's own. Read by
+              # app-state#supervising_context; with it OFF the computed returns
+              # null and the component renders nothing at all.
+              'supervising_context_banner',
               # EU launch (GDPR Art. 8): make the registration parental-consent
               # age gate jurisdiction-aware (EU under-16 vs default under-13).
               # AVAILABLE-only => OFF for everyone by default; with it OFF the
@@ -62,7 +74,7 @@ module FeatureFlags
               'find_multiple_buttons', 'new_speak_menu', 'swipe_pages', 'inflections_overlay',
               'ios_head_tracking', 'emergency_boards', 'evaluations',
               'vertical_ios_head_tracking', 'remote_modeling', 'auto_inflections', 'focus_word_highlighting',
-              'skin_tones', 'lessons', 'profiles', 'other_menu', 'ai_board_generation',
+              'skin_tones', 'lessons', 'profiles', 'other_menu', 'ai_board_generation', 'ai_word_prediction',
               'google_sso', 'quick_screen_eval', 'multi_user_board_import',
               'customize_menu', # TEMPORARY: forced ON for everyone during testing. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON (see the rollout policy above AVAILABLE_FRONTEND_FEATURES).
               'home_tour', # TEMPORARY (spike — 2026-05-27): ON for everyone so Traci can validate the Shepherd.js home-page tour in the browser. REMOVE from this list before merging the spike out of traci/styling/styling-updates — the canonical state is AVAILABLE-only (beta opt-in per user).
@@ -72,7 +84,10 @@ module FeatureFlags
               'dashboard_drag_layout', # TEMPORARY (2026-06-09): forced ON for everyone pre-production to validate the Getting Started drag-to-swap home layout. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'edit_sidebar', # TEMPORARY (2026-06-25): forced ON for everyone so Traci can validate the speak-mode "Edit Sidebar" panel in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'sentence_bar_editing', # TEMPORARY (2026-06-27): forced ON for everyone to validate the speak-bar active-edit controls (remove + reorder chips) in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
-              'text_symbol_fallback'] # Default ON so imported OBF text-only buttons render their labels as symbols; keep registered for rollback through system feature settings.
+              'supervisor_consent_flow', # TEMPORARY (2026-08-12): forced ON for everyone to validate supervisor→communicator consent invites (request by username/email + approve). Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'text_symbol_fallback', # Default ON so imported OBF text-only buttons render their labels as symbols; keep registered for rollback through system feature settings.
+              'supervising_context_banner', # TEMPORARY (2026-08-09): forced ON for everyone to validate the supporter "Viewing X's account" pill in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'session_resume'] # TEMPORARY (2026-08-09): forced ON for everyone to validate per-user session resume in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
   DISABLED_CANARY_FEATURES = []
   FEATURE_DATES = {
     'word_suggestion_images' => 'Jan 21, 2017',
@@ -239,20 +254,71 @@ module FeatureFlags
     user.eu_under_16? && !user.eu_ai_parental_consent_active?
   end
 
+  # The ONE boolean vocabulary for AI preference values. Both the read gate below
+  # and the write path (User.normalize_ai_preference_value, which delegates here)
+  # use it, so a value that can be WRITTEN as an opt-out is always READ as one.
+  #
+  # These lists must stay in sync with the JS mirror in
+  # app/frontend/app/utils/ai_feature_gate.js.
+  AI_PREF_TRUE_VALUES = [true, 'true', '1', 1].freeze
+  AI_PREF_FALSE_VALUES = [false, 'false', '0', 0].freeze
+
+  # Interpret a stored AI preference: true, false, or nil when the value records
+  # no recognizable decision.
+  #
+  # Ruby keeps the two lists from colliding on their own: `1 == true` and
+  # `0 == false` are both false, so a numeric value can only ever match the list
+  # it is written in.
+  def self.ai_pref_value(val)
+    return true if AI_PREF_TRUE_VALUES.include?(val)
+    return false if AI_PREF_FALSE_VALUES.include?(val)
+    nil
+  end
+
   # Per-user AI preference gate.
-  # - Master (ai_features_enabled) nil => grandfather allowed (legacy users).
-  # - Master false => block all AI.
-  # - Master true => USER_PREF_AI_FEATURES require prefs[feature] == true;
-  #   other AI_FEATURES follow the master (allowed).
+  # - Master (ai_features_enabled) ABSENT (nil) => grandfathered allowed. These
+  #   rows predate the consent UI and have never carried a value.
+  # - Master an explicit opt-out (false/'false'/0/'0') => block all AI.
+  # - Master PRESENT but unrecognized ("", "maybe", a stray Hash) => block all
+  #   AI. A value we cannot read is not consent.
+  # - Master an explicit opt-in => USER_PREF_AI_FEATURES additionally require
+  #   prefs[feature] == true; other AI_FEATURES follow the master.
+  #
+  # The unrecognized-master case fails CLOSED on purpose, and that decision cost
+  # a review cycle to get right. Production holds 9 of 31 users with master=""
+  # (blocked from board generation), and the tempting fix — read "" as "never
+  # decided" and grandfather it — converts an unreadable value into an ALLOW.
+  # PaperTrail cannot say how those rows reached ""; `object_changes` is absent
+  # from the schema and `reify` raises on secure_serialize'd settings, so the
+  # intent behind the value is not merely unknown, it is unrecoverable. Writing
+  # "" back to nil has the same effect by another route: it lands the row in the
+  # grandfather bucket above. Neither is consent-preserving, so neither ships.
+  # The recovery path is the user checking the box in preferences, which writes
+  # a real boolean — an affirmative act, which is what consent has to be.
+  #
+  # A blank per-feature CHILD key under an explicitly-true master is likewise
+  # BLOCKED: that state is an INCOMPLETE opt-in, and reading it as permission
+  # would manufacture consent for a specific AI feature the user never gave.
   def self.user_pref_allows_ai?(feature, user)
     return true unless user
     prefs = user.settings && user.settings['preferences']
     return true unless prefs.is_a?(Hash)
     master = prefs['ai_features_enabled']
     return true if master.nil?
-    return false if master == false || master.to_s == 'false'
+    # `unless == true` (not `if == false`) so that BOTH an explicit opt-out and
+    # an unrecognized value deny, and they deny for EVERY AI feature. An earlier
+    # revision returned only on an explicit false, which let an unrecognized
+    # master fall through to the line below and allow the two features outside
+    # USER_PREF_AI_FEATURES — one of which is comprehensive_eval_ai, narration
+    # over student assessment data.
+    #
+    # Read through the shared vocabulary, NOT a literal `master == false ||
+    # master.to_s == 'false'`. That narrower test missed the numeric forms: a
+    # stored 0 or "0" is neither nil nor equal to false, so it read as allowed.
+    return false unless ai_pref_value(master) == true
     return true unless USER_PREF_AI_FEATURES.include?(feature.to_s)
-    val = prefs[feature.to_s]
-    val == true || val.to_s == 'true'
+    # The child must be an explicit opt-IN. nil (absent, blank, or unrecognized)
+    # is an INCOMPLETE opt-in and stays blocked.
+    ai_pref_value(prefs[feature.to_s]) == true
   end
 end

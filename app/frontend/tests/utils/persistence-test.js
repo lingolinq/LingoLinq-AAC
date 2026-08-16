@@ -24,7 +24,7 @@ import editManager from '../../utils/edit_manager';
 import capabilities from '../../utils/capabilities';
 import contentGrabbers from '../../utils/content_grabbers';
 import LingoLinq from '../../app';
-import { run as emberRun, later } from '@ember/runloop';
+import { run as emberRun } from '@ember/runloop';
 import $ from 'jquery';
 import { persistenceTarget, stubOnPersistence, installDefaultPersistenceAjaxStub } from '../helpers/persistence-stub';
 import { appStateTarget } from '../helpers/service-stub';
@@ -363,7 +363,7 @@ describe("persistence", function() {
           expect(record.hat).toEqual(rnd);
           expect(board.get('fresh')).toEqual(true);
           LingoLinq.sync_testing = true;
-          later(function() {
+          setTimeout(function() {
             board.set('retrieved', (new Date()).getTime() - (6 * 60 * 1000));
             refreshed = true;
           }, 10);
@@ -1529,9 +1529,10 @@ describe("persistence", function() {
       it("should update a locally-created record that hasn't been persisted yet", function() {
         db_wait(function() {
           queryLog.real_lookup = true;
-          persistence.set('online', false);
+          setPersistenceOnline(false);
           var record = null;
           var final_record = null;
+          var final_error = null;
 
           var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
           board.save().then(function(res) {
@@ -1543,20 +1544,63 @@ describe("persistence", function() {
             expect(!!record.get('id').match(/^tmp_/)).toEqual(true);
             expect(!!record.get('key').match(/^tmp_.+\/cool/)).toEqual(true);
             expect(record.get('name')).toEqual("My Awesome Board");
-            later(function() {
+            setTimeout(function() {
               record.set('name', 'My Gnarly Board');
               record.save().then(function(res) {
                 expect(res.id).toEqual(record.id);
                 setTimeout(function() {
                   persistence.find('board', record.id).then(function(res) {
                     final_record = res;
-                  }, function() { dbg(); });
+                  }, function(err) {
+                    final_error = err || new Error('persistence.find rejected');
+                  });
                 }, 50);
               }, function() { dbg(); });
             }, 50);
           });
-          waitsFor(function() { return final_record; });
+          waitsFor(function() { return final_record || final_error; });
           runs(function() {
+            expect(final_error).toEqual(null);
+            expect(final_record.id).toEqual(record.id);
+            expect(final_record.name).toEqual("My Gnarly Board");
+          });
+        });
+      });
+
+      it("should not report a save as complete before the local write has landed (regression: store()/find() race, test 1473)", function() {
+        db_wait(function() {
+          queryLog.real_lookup = true;
+          setPersistenceOnline(false);
+          var record = null;
+          var final_record = null;
+          var final_error = null;
+
+          var board = LingoLinq.store.createRecord('board', {key: 'ok/cool', name: "My Awesome Board"});
+          board.save().then(function(res) {
+            record = res;
+          });
+
+          waitsFor(function() { return record; });
+          runs(function() {
+            record.set('name', 'My Gnarly Board');
+            // Deliberately NO setTimeout between the save resolving and the find:
+            // a fixed sleep would just be a guess at how long the local write
+            // takes, and would re-hide the very race this test exists to catch.
+            // persistence.find() is still async on its own (utils/persistence.js
+            // schedules its lookup on a setTimeout(..., 0)).
+            record.save().then(function() {
+              persistence.find('board', record.id).then(function(res) {
+                final_record = res;
+              }, function() {
+                final_error = {error: 'persistence.find rejected'};
+              });
+            }, function() {
+              final_error = {error: 'record.save rejected'};
+            });
+          });
+          waitsFor(function() { return final_record || final_error; });
+          runs(function() {
+            expect(final_error).toEqual(null);
             expect(final_record.id).toEqual(record.id);
             expect(final_record.name).toEqual("My Gnarly Board");
           });
@@ -1580,7 +1624,7 @@ describe("persistence", function() {
             expect(!!record.get('id').match(/^tmp_/)).toEqual(true);
             expect(!!record.get('key').match(/^tmp_.+\/cool/)).toEqual(true);
             expect(record.get('name')).toEqual("My Awesome Board");
-            later(function() {
+            setTimeout(function() {
               record.set('name', 'My Gnarly Board');
               record.save().then(function(res) {
                 setTimeout(function() {
@@ -1629,7 +1673,7 @@ describe("persistence", function() {
             expect(!!record.get('key').match(/^tmp_.+\/cool/)).toEqual(true);
             expect(record.get('name')).toEqual("My Awesome Board");
             var tmp_id = record.get('id');
-            later(function() {
+            setTimeout(function() {
               persistence.set('online', true);
               record.set('name', 'My Gnarly Board');
               record.save().then(function(res) {
@@ -1680,7 +1724,7 @@ describe("persistence", function() {
 
           waitsFor(function() { return record; });
           runs(function() {
-            later(function() {
+            setTimeout(function() {
               expect(record.get('id')).toEqual("1234");
               expect(record.get('name')).toEqual("Righteous Board");
               persistence.set('online', false);
@@ -1692,14 +1736,12 @@ describe("persistence", function() {
           });
           waitsFor(function() { return updated_record; });
           runs(function() {
-            emberRun(function() {
-              expect(updated_record.get('id')).toEqual("1234");
-              expect(updated_record.get('name')).toEqual("My Gnarly Board");
-              persistence.set('online', true);
-              updated_record.set('name', 'Super Board');
-              updated_record.save().then(function(res) {
-                final_record = res;
-              });
+            expect(updated_record.get('id')).toEqual("1234");
+            expect(updated_record.get('name')).toEqual("My Gnarly Board");
+            persistence.set('online', true);
+            updated_record.set('name', 'Super Board');
+            updated_record.save().then(function(res) {
+              final_record = res;
             });
           });
           waitsFor(function() { return final_record; });
@@ -1743,7 +1785,7 @@ describe("persistence", function() {
             tmp_id = record.get('id');
             expect(!!record.get('key').match(/^tmp_.+\/cool/)).toEqual(true);
             expect(record.get('name')).toEqual("My Awesome Board");
-            later(function() {
+            setTimeout(function() {
               persistence.set('online', true);
               record.set('name', 'My Gnarly Board');
               record.save().then(function(res) {
@@ -1806,7 +1848,7 @@ describe("persistence", function() {
             tmp_id = record.get('id');
             expect(!!record.get('key').match(/^tmp_.+\/cool/)).toEqual(true);
             expect(record.get('name')).toEqual("My Awesome Board");
-            later(function() {
+            setTimeout(function() {
               persistence.set('online', true);
               record.set('name', 'My Gnarly Board');
               record.save().then(function(res) {
@@ -1906,7 +1948,7 @@ describe("persistence", function() {
             expect(!!record.get('id').match(/^tmp_/)).toEqual(true);
             expect(!!record.get('key').match(/^tmp_.+\/cool/)).toEqual(true);
             expect(record.get('name')).toEqual("My Awesome Board");
-            later(function() {
+            setTimeout(function() {
               record_id = record.id;
               record.deleteRecord();
               record.save().then(function(res) {
@@ -1931,7 +1973,7 @@ describe("persistence", function() {
           persistence.removals = [];
           board.deleteRecord();
           board.save().then(function(res) {
-            later(function() {
+            setTimeout(function() {
               persistence.find('board', '1234').then(function() { dbg(); }, function() {
                 deleted = true;
               });
@@ -1940,7 +1982,7 @@ describe("persistence", function() {
           var found_deletion = null;
           waitsFor(function() { return deleted && persistence.removals.length > 0; });
           runs(function() {
-            later(function() {
+            setTimeout(function() {
               lingoLinqExtras.storage.find('deletion', 'board_1234').then(function() {
                 found_deletion = true;
               });
@@ -2579,6 +2621,249 @@ describe("persistence", function() {
       expect('test').toEqual('todo');
     });
   });
+
+  describe("service store()/find() race", function() {
+    // app/services/persistence.js#store carries the same completion-ordering bug
+    // as app/utils/persistence.js#store, but nothing reaches it through the Ember
+    // Data adapter: app/adapters/application.js mixes in the UTILS DSExtend, so
+    // the adapter-path regression test above never executes a single line of the
+    // service's store(). This test drives the DI service instance directly, the
+    // way app/models/user.js, app/services/session.js and app/utils/eval.js do.
+    it("should not resolve the service store() before the local write has landed", function() {
+      db_wait(function() {
+        var svc = null;
+        if(typeof LingoLinq !== 'undefined' && LingoLinq.testOwner && typeof LingoLinq.testOwner.lookup === 'function') {
+          try {
+            var looked_up = LingoLinq.testOwner.lookup('service:persistence');
+            if(looked_up && !looked_up.isDestroyed && !looked_up.isDestroying) {
+              svc = looked_up;
+            }
+          } catch(e) { /* owner mid-teardown */ }
+        }
+        // Fail loudly rather than quietly no-op'ing: a test that skips itself when
+        // the lookup misses would leave the service's store() with zero coverage
+        // while still reporting green.
+        expect(!!svc).toEqual(true);
+        expect(typeof svc.store).toEqual('function');
+        expect(typeof svc.find).toEqual('function');
+
+        var final_record = null;
+        var final_error = null;
+        // Deliberately NO setTimeout between the store resolving and the find:
+        // a fixed sleep would only be a guess at how long the local write takes
+        // and would re-hide the race. svc.find() is async on its own.
+        svc.store('board', {id: 'svc_race_board', key: 'svc/race', name: "Service Race Board"}, 'svc_race_board').then(function() {
+          return svc.find('board', 'svc_race_board');
+        }).then(function(res) {
+          final_record = res;
+        }, function() {
+          final_error = {error: 'service store()/find() rejected'};
+        });
+
+        waitsFor(function() { return final_record || final_error; });
+        runs(function() {
+          expect(final_error).toEqual(null);
+          expect(final_record.name).toEqual("Service Race Board");
+        });
+      });
+    });
+  });
+
+  describe("store() settlement timing", function() {
+    // The two race tests above are eventual-consistency tests: they prove the
+    // record IS findable once the save reports done. These four are timing
+    // tests: they hold the underlying write open by hand and assert directly
+    // that store()'s promise has NOT settled yet. Because the stubbed write
+    // cannot settle on its own, any settlement observed during the hold window
+    // is store() settling early -- deterministic, not a timing guess.
+    //
+    // store() must RESOLVE on write failure, never reject. Callers such as
+    // next_eventual_store() (app/utils/persistence.js) fire-and-forget the
+    // returned promise, and tests/utils/persistence-test.js:601 pins that
+    // contract. Changing it is deferred to PERSIST-ARCH-02. What this phase
+    // changes is only WHEN the settlement happens.
+
+    function serviceInstance() {
+      if(typeof LingoLinq !== 'undefined' && LingoLinq.testOwner && typeof LingoLinq.testOwner.lookup === 'function') {
+        try {
+          var looked_up = LingoLinq.testOwner.lookup('service:persistence');
+          if(looked_up && !looked_up.isDestroyed && !looked_up.isDestroying) {
+            return looked_up;
+          }
+        } catch(e) { /* owner mid-teardown */ }
+      }
+      return null;
+    }
+
+    // NOTE: these tests deliberately do NOT assert WHERE a failed write's error
+    // is logged. store() logs to activePersistenceRoot() / `this` / the module
+    // object depending on live state, and merely looking the service up can
+    // move that target (the service's init() reassigns window.persistence), so
+    // an assertion on error location observes harness state rather than the
+    // behavior under test -- the same class of trap as reading known_missing
+    // through the Proxy (PR #796). That a failed write IS logged is already
+    // pinned by "should not reject (but log an error) on a failed storage
+    // attempt" earlier in this file. What these tests own is the TIMING and the
+    // fact that store() resolves rather than rejecting or hanging.
+
+    // NOTE ON REACHING THE UTILS IMPLEMENTATION.
+    // window.persistence is the DI SERVICE instance by the time a test body runs
+    // (the service's init() does window.persistence = this, and service priming
+    // runs after this file's beforeEach), and the module's default export is a
+    // Proxy that forwards to window.persistence -- `persistence.create` is not
+    // even a function at that point. So neither window.persistence nor the
+    // imported Proxy can be used to reach app/utils/persistence.js#store.
+    // The Ember Data adapter path can: app/adapters/application.js mixes in the
+    // UTILS DSExtend, whose offline createRecord calls the utils module-local
+    // `persistence.store(...)` directly and settles the save promise from its
+    // handlers. So "board.save() is still pending" == "utils store() is still
+    // pending", through the real production path.
+
+    // Holds every write the stub is asked for, so a stray concurrent write
+    // cannot silently overwrite the settle handle we are about to use.
+    function stubHeldWrites(settlers) {
+      stub(lingoLinqExtras.storage, 'store', function(store, record, key) {
+        return new RSVP.Promise(function(res, rej) {
+          settlers.push({resolve: res, reject: rej});
+        });
+      });
+    }
+
+    it("should leave the utils store() pending until the underlying write resolves", function() {
+      db_wait(function() {
+        queryLog.real_lookup = true;
+        setPersistenceOnline(false);
+        var settlers = [];
+        stubHeldWrites(settlers);
+
+        var settled = null;
+        var held = false;
+        var board = LingoLinq.store.createRecord('board', {key: 'ok/utils-pending', name: "Utils Pending Board"});
+        board.save().then(function() {
+          settled = 'resolved';
+        }, function() {
+          settled = 'rejected';
+        });
+
+        // Wait for the write to START rather than assuming how quickly Ember
+        // Data reaches it -- a fixed window here is a load-dependent guess and
+        // flakes under a full-suite run. Once the stub HAS been called the
+        // write is held by us and can never settle on its own, so the hold
+        // below is deterministic. store() calls storage.store() before it ever
+        // settles, so an early settlement is still caught.
+        waitsFor(function() { return settlers.length > 0; });
+        runs(function() { setTimeout(function() { held = true; }, 25); });
+        waitsFor(function() { return held; });
+        runs(function() {
+          // The held write cannot settle on its own, so a settled save here
+          // could only mean store() settled before the write.
+          expect(settled).toEqual(null);
+          settlers.forEach(function(s) { s.resolve({}); });
+        });
+        waitsFor(function() { return settled; });
+        runs(function() {
+          expect(settled).toEqual('resolved');
+        });
+      });
+    });
+
+    it("should resolve (never reject or hang) the utils store() when the underlying write fails, only after it settles", function() {
+      db_wait(function() {
+        queryLog.real_lookup = true;
+        setPersistenceOnline(false);
+        var settlers = [];
+        stubHeldWrites(settlers);
+
+        var settled = null;
+        var held = false;
+        var board = LingoLinq.store.createRecord('board', {key: 'ok/utils-failing', name: "Utils Failing Board"});
+        board.save().then(function() {
+          settled = 'resolved';
+        }, function() {
+          settled = 'rejected';
+        });
+
+        // See the sibling test: wait for the write to start, then hold it.
+        waitsFor(function() { return settlers.length > 0; });
+        runs(function() { setTimeout(function() { held = true; }, 25); });
+        waitsFor(function() { return held; });
+        runs(function() {
+          expect(settled).toEqual(null);
+          settlers.forEach(function(s) { s.reject({error: 'write failed'}); });
+        });
+        waitsFor(function() { return settled; });
+        runs(function() {
+          // Contract preserved: a failed local write is logged, not rejected.
+          // Only the timing changed. Flipping this to a rejection is
+          // PERSIST-ARCH-02, deliberately not done here.
+          expect(settled).toEqual('resolved');
+        });
+      });
+    });
+
+    it("should leave the service store() pending until the underlying write resolves", function() {
+      db_wait(function() {
+        var svc = serviceInstance();
+        expect(!!svc).toEqual(true);
+        expect(typeof svc.store).toEqual('function');
+
+        var settlers = [];
+        stubHeldWrites(settlers);
+
+        var settled = null;
+        var held = false;
+        svc.store('settings', {ok: 'svc_pending'}, 'svc_pending_check').then(function() {
+          settled = 'resolved';
+        }, function() {
+          settled = 'rejected';
+        });
+
+        // See the utils siblings: wait for the write to start, then hold it.
+        waitsFor(function() { return settlers.length > 0; });
+        runs(function() { setTimeout(function() { held = true; }, 25); });
+        waitsFor(function() { return held; });
+        runs(function() {
+          expect(settled).toEqual(null);
+          settlers.forEach(function(s) { s.resolve({}); });
+        });
+        waitsFor(function() { return settled; });
+        runs(function() {
+          expect(settled).toEqual('resolved');
+        });
+      });
+    });
+
+    it("should resolve (never reject or hang) the service store() when the underlying write fails, only after it settles", function() {
+      db_wait(function() {
+        var svc = serviceInstance();
+        expect(!!svc).toEqual(true);
+
+        var settlers = [];
+        stubHeldWrites(settlers);
+
+        var settled = null;
+        var held = false;
+        svc.store('settings', {ok: 'svc_failing'}, 'svc_failing_check').then(function() {
+          settled = 'resolved';
+        }, function() {
+          settled = 'rejected';
+        });
+
+        // See the utils siblings: wait for the write to start, then hold it.
+        waitsFor(function() { return settlers.length > 0; });
+        runs(function() { setTimeout(function() { held = true; }, 25); });
+        waitsFor(function() { return held; });
+        runs(function() {
+          expect(settled).toEqual(null);
+          settlers.forEach(function(s) { s.reject({error: 'write failed'}); });
+        });
+        waitsFor(function() { return settled; });
+        runs(function() {
+          // Resolves, does not reject and does not hang. See the note at the
+          // top of this describe for why error LOCATION is not asserted here.
+          expect(settled).toEqual('resolved');
+        });
+      });
+    });
+  });
 });
-
-

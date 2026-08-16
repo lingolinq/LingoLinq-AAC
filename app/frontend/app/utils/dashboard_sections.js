@@ -155,10 +155,12 @@ var AREA = { boards: 'boards', speak: 'speak', extras: 'extras', org: 'org_mgmt'
 var DEFAULT_ORDER = ['caseload', 'attention', 'rooms', 'org', 'speak', 'boards', 'account', 'createboard', 'reports', 'editdashboard', 'extras'];
 
 // Supervisor (non-communicator) Gentle default — distinct from the communicator
-// order so moving cards here never reshuffles a communicator's home. Boards sits
-// directly under My Organizations, and Speak Mode sits next as a FULL-WIDTH row
-// (see dashboardLayout's speak full-width handling for supervisors).
-var SUPERVISOR_DEFAULT_ORDER = ['caseload', 'attention', 'rooms', 'org', 'boards', 'speak', 'account', 'createboard', 'editdashboard', 'reports', 'extras'];
+// order so moving cards here never reshuffles a communicator's home. My Account and
+// Create a Board pair up as a two-up row DIRECTLY under My Caseload (the top
+// full-width row); the supervisor list cards (Attention/Rooms/Organizations), then
+// Boards and the FULL-WIDTH Speak Mode row follow (see dashboardLayout's speak
+// full-width handling for supervisors).
+var SUPERVISOR_DEFAULT_ORDER = ['caseload', 'account', 'createboard', 'attention', 'rooms', 'org', 'boards', 'speak', 'editdashboard', 'reports', 'extras'];
 
 // Focused View (focused) has its OWN default order. Speak becomes the full-width
 // hero and Extras is hidden, so those positions don't matter here; the rest packs

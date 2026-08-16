@@ -43,7 +43,7 @@
             {{/if}}
             <span class="md-sidebar-editor__display">
               <img class="md-board-collection__item-icon" src={{item.image}} alt="" onerror="button_broken_image(this);">
-              <span class="md-board-collection__item-name">{{item.name}}</span>
+              <BoardListItemLabel @board={{hash key=item.key}} @name={{item.name}} />
             </span>
             {{#if item.reorderable}}
               {{!-- Up/down reorder — keyboard + touch friendly companion to the drag
@@ -126,7 +126,7 @@
             <li class="md-board-collection__row md-sidebar-editor__row">
               <span class="md-sidebar-editor__display">
                 <img class="md-board-collection__item-icon" src={{board.image}} alt="" onerror="button_broken_image(this);">
-                <span class="md-board-collection__item-name">{{board.name}}</span>
+                <BoardListItemLabel @board={{if board.record board.record (hash key=board.key)}} @name={{board.name}} />
                 {{#if board.rows}}
                   <span class="md-board-collection__item-count md-board-collection__item-count--grid">{{board.rows}} x {{board.columns}}</span>
                 {{/if}}
@@ -171,7 +171,7 @@
               <li class="md-board-collection__row md-sidebar-editor__row">
                 <span class="md-sidebar-editor__display">
                   <img class="md-board-collection__item-icon" src={{board.image}} alt="" onerror="button_broken_image(this);">
-                  <span class="md-board-collection__item-name">{{board.name}}</span>
+                  <BoardListItemLabel @board={{if board.record board.record (hash key=board.key)}} @name={{board.name}} />
                   {{#if board.rows}}
                     <span class="md-board-collection__item-count md-board-collection__item-count--grid">{{board.rows}} x {{board.columns}}</span>
                   {{/if}}

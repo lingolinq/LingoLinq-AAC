@@ -17,6 +17,7 @@ import modal from '../../utils/modal';
 import sync from '../../utils/sync';
 import i18n from '../../utils/i18n';
 import { filterRootBoards } from '../../utils/board-roots';
+import sessionHistory from '../../utils/session_history';
 import { availableHomeSections, sectionHidden, gridLayoutState, focusedHeroKey, communicatorsNeedingAttention } from '../../utils/dashboard_sections';
 
 export default Component.extend({
@@ -351,20 +352,15 @@ export default Component.extend({
 
     var userName = this.appState.get('currentUser.user_name');
     if(!userName) { return null; }
-    try {
-      var stored = localStorage['ll_last_board_' + userName];
-      if(stored) {
-        var parsed = JSON.parse(stored);
-        if(isObfKey(parsed && parsed.key)) {
-          // Stale synthetic-board entry from a prior session — clean it
-          // out so it doesn't keep showing up on the dashboard.
-          try { delete localStorage['ll_last_board_' + userName]; } catch(e) { }
-          return null;
-        }
-        return (parsed && parsed.name) || null;
-      }
-    } catch(e) { }
-    return null;
+    var stored = sessionHistory.last_board(userName);
+    if(!stored) { return null; }
+    if(isObfKey(stored.key)) {
+      // Stale synthetic-board entry from a prior session — clean it
+      // out so it doesn't keep showing up on the dashboard.
+      sessionHistory.clear_board(userName);
+      return null;
+    }
+    return stored.name || null;
   }),
   needs_sync: computed('persistence.last_sync_at', function() {
     if (!this || typeof this.get !== 'function') { return false; }
@@ -1366,15 +1362,7 @@ export default Component.extend({
         var homeBoard = user && user.get('preferences.home_board');
         var lastBoard = this.stashes.get('root_board_state');
         if (!lastBoard || !lastBoard.key) {
-          var userName = user && user.get('user_name');
-          if (userName) {
-            try {
-              var stored = localStorage['ll_last_board_' + userName];
-              if (stored) {
-                lastBoard = JSON.parse(stored);
-              }
-            } catch(e) { }
-          }
+          lastBoard = sessionHistory.last_board(user && user.get('user_name')) || lastBoard;
         }
         // Continue Speaking: prefer the user's home board; fall back to last board in board-detail
         var target = (homeBoard && homeBoard.key) ? homeBoard : ((lastBoard && lastBoard.key) ? lastBoard : null);
@@ -1399,13 +1387,7 @@ export default Component.extend({
         var u2 = this.appState.get('currentUser');
         var lb = this.stashes.get('root_board_state');
         if (!lb || !lb.key) {
-          var un2 = u2 && u2.get('user_name');
-          if (un2) {
-            try {
-              var s2 = localStorage['ll_last_board_' + un2];
-              if (s2) { lb = JSON.parse(s2); }
-            } catch(e) { }
-          }
+          lb = sessionHistory.last_board(u2 && u2.get('user_name')) || lb;
         }
         if (lb && lb.key) {
           var lbp = lb.key.split('/');

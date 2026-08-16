@@ -62,24 +62,49 @@ describe LingoLinq::Article50Disclosures do
   end
 
   describe 'truthfulness gate 1: vendor allowlist' do
-    it 'names only Anthropic, PBC as a vendor' do
+    # Both entities in the runtime AI path must be named, and no others. AWS is the
+    # PROCESSOR (it operates Bedrock inside LingoLinq's own AWS account under the AWS
+    # BAA); Anthropic is the MODEL PROVIDER, which on Bedrock cannot access prompts or
+    # completions. Pinning this gate to Anthropic alone -- as it did until 2026-08-02 --
+    # made the notice name the wrong processor and the wrong legal basis, and actively
+    # failed CI on the truthful correction.
+    RUNTIME_AI_VENDORS = ['Amazon Web Services, Inc.', 'Anthropic, PBC'].freeze
+
+    it 'names only the two entities actually in the runtime AI path' do
       m = described_class.metadata(1)
       expect(m['vendors']).not_to be_empty
       m['vendors'].each do |vendor|
-        expect(vendor['name']).to eq('Anthropic, PBC')
+        expect(RUNTIME_AI_VENDORS).to include(vendor['name'])
       end
+      expect(m['vendors'].map { |v| v['name'] }).to match_array(RUNTIME_AI_VENDORS)
     end
 
-    it 'lists only Claude Haiku 4.5 and Claude Opus 4.7 as models' do
+    it 'identifies AWS as the operator of the inference, not merely a host' do
+      m = described_class.metadata(1)
+      aws = m['vendors'].find { |v| v['name'] == 'Amazon Web Services, Inc.' }
+      expect(aws['tier']).to include('Amazon Bedrock')
+      expect(aws['tier']).to match(/Business Associate Agreement/i)
+    end
+
+    # Guards the specific falsehood this gate previously permitted.
+    it 'never describes the runtime path as Anthropic\'s commercial API' do
+      serialized = JSON.generate(described_class::REGISTRY)
+      expect(serialized).not_to match(/commercial API \(not/i)
+      expect(serialized).not_to match(/zero-data-retention agreement/i)
+    end
+
+    it 'lists only Claude Haiku 4.5 as a model' do
       m = described_class.metadata(1)
       models = m['vendors'].flat_map { |v| v['models'] }
       expect(models).not_to be_empty
       models.each do |model_string|
-        expect(model_string).to match(/Claude Haiku 4\.5|Claude Opus 4\.7/)
+        expect(model_string).to match(/Claude Haiku 4\.5/)
       end
-      joined = models.join(' ')
-      expect(joined).to include('Claude Haiku 4.5')
-      expect(joined).to include('Claude Opus 4.7')
+      # Opus 4.7 must NOT appear: it is absent from the classic Bedrock catalog, so
+      # eval narration invokes no model and falls back to a local template. Naming a
+      # model that is never invoked overstates exposure to exactly the audience this
+      # notice exists to inform.
+      expect(models.join(' ')).not_to include('Claude Opus 4.7')
     end
 
     it 'never mentions dev-loop review tooling as a runtime vendor anywhere in the serialized registry' do

@@ -588,6 +588,68 @@ describe Api::UsersController, :type => :controller do
       expect(b.reload.shared_with?(u2)).to eq(false)
     end
 
+    # Ember's user.save() serializes the WHOLE record, not just the dirty attribute —
+    # verified against the running app, a real supervisor pick PUTs user_name,
+    # user_token, link, name, email, description and ~20 more keys alongside
+    # preferences. Keep this payload realistic: an earlier guard required the payload
+    # to contain ONLY preferences, which passed a preferences-only spec while every
+    # real pick 400'd.
+    it "should allow a supervise-only supervisor to set home board from a full user payload" do
+      token_user
+      u2 = User.create
+      b = Board.create(:user => u2)
+      User.link_supervisor_to_user(@user, u2, nil, false)
+      put :update, params: {:id => u2.global_id, :user => {
+        :user_name => u2.user_name,
+        :name => 'Hannah Lee',
+        :email => 'someone@example.com',
+        :description => 'AAC user',
+        :public => false,
+        :preferences => {
+          :home_board => {:id => b.global_id, :key => b.key},
+          :skin => 'default',
+          :progress => {:setup_done => true}
+        }
+      }}
+      expect(response).to be_successful
+      expect(u2.reload.settings['preferences']['home_board']['id']).to eq(b.global_id)
+    end
+
+    it "should not let a supervise-only supervisor change anything but the home board" do
+      token_user
+      u2 = User.create
+      b = Board.create(:user => u2)
+      original_name = u2.settings['name']
+      User.link_supervisor_to_user(@user, u2, nil, false)
+      put :update, params: {:id => u2.global_id, :user => {
+        :name => 'Hijacked Name',
+        :email => 'attacker@example.com',
+        :preferences => {:home_board => {:id => b.global_id, :key => b.key}}
+      }}
+      expect(response).to be_successful
+      u2.reload
+      expect(u2.settings['preferences']['home_board']['id']).to eq(b.global_id)
+      expect(u2.settings['name']).to eq(original_name)
+      expect(u2.settings['email']).to_not eq('attacker@example.com')
+    end
+
+    it "should not allow a supervise-only supervisor to update without a home board in preferences" do
+      token_user
+      u2 = User.create
+      User.link_supervisor_to_user(@user, u2, nil, false)
+      put :update, params: {:id => u2.global_id, :user => {:preferences => {:skin => 'default'}}}
+      expect(response).not_to be_successful
+    end
+
+    it "should not accept an empty home_board hash from a supervise-only supervisor" do
+      token_user
+      u2 = User.create
+      User.link_supervisor_to_user(@user, u2, nil, false)
+      put :update, params: {:id => u2.global_id, :user => {:preferences => {:home_board => {}}}}
+      expect(response).not_to be_successful
+      expect(u2.reload.settings['preferences']['home_board']).to eq(nil)
+    end
+
     it "should allow updating token timeouts for the current device" do
       token_user
       expect(@device.settings['long_token']).to eq(nil)

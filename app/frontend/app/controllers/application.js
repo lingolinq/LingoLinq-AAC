@@ -65,6 +65,37 @@ export default Controller.extend({
     }
   ),
 
+  /**
+   * Acting admin username while masquerading. Session first, then auth_settings
+   * stash (same restore-lag fallback as isMasquerading). Used for Stop Masquerading labels.
+   */
+  masqueradeOperatorName: computed(
+    'session.original_user_name',
+    'appState.current_route',
+    'appState.currentUser.id',
+    function() {
+      var name = this.get('session.original_user_name');
+      if (name) {
+        return name;
+      }
+      var stashes = this.stashes || (this.appState && this.appState.stashes);
+      if (stashes && typeof stashes.get_object === 'function') {
+        var auth = stashes.get_object('auth_settings', true) || {};
+        return auth.original_user_name || null;
+      }
+      return null;
+    }
+  ),
+
+  /** Stop Masquerading label including operator when known; plain string if name is blank. */
+  masqueradeStopLabel: computed('masqueradeOperatorName', function() {
+    var name = this.get('masqueradeOperatorName');
+    if (name) {
+      return i18n.t('stop_masquerading_operator', "Stop Masquerading (%{user})", {user: name});
+    }
+    return i18n.t('stop_masquerading', "Stop Masquerading");
+  }),
+
   /** Matches beta-feedback-admin route: site admin or admin_support_actions (e.g. org support). */
   /** Depends on `permissions` as a whole (raw attr), not nested keys — nested CP deps can fail to invalidate. */
   showBetaFeedbackAdminLink: computed(
@@ -142,6 +173,22 @@ export default Controller.extend({
   on_board_detail: computed('appState.current_route', function() {
     var route = this.appState.get('current_route') || '';
     return route === 'user.board-detail.index' || route === 'user.board-detail.edit';
+  }),
+  // ─── TEMPORARY (2026-07-27) — beta-feedback drawer hidden on board-detail SPEAK mode ───
+  // Suppresses the bottom-center "Beta feedback" tab AND its drawer on
+  // `user.board-detail.index` only. Everywhere else is untouched: board-detail EDIT
+  // mode, classic board speak/edit, the home dashboard and every other authenticated
+  // page still render it.
+  //
+  // Deliberately NOT keyed on `on_board_detail`, which is true for BOTH
+  // `user.board-detail.index` and `user.board-detail.edit` — that would have taken
+  // out edit mode too.
+  //
+  // TO RESTORE: delete this computed, and delete the matching
+  // `{{#unless this.hide_beta_feedback_temporarily}}` wrapper in
+  // templates/application.hbs (search for "TEMPORARY (2026-07-27)").
+  hide_beta_feedback_temporarily: computed('appState.current_route', function() {
+    return (this.appState.get('current_route') || '') === 'user.board-detail.index';
   }),
   /** True when the current page is the regular board view (not board-alt)
    *  AND a board is actually loaded. When a board route fails to resolve
@@ -377,7 +424,11 @@ export default Controller.extend({
       translate_locale: decision.translate_locale,
       disconnect: decision.disconnect,
       new_owner: decision.new_owner,
-      copy_finished: copy_finished
+      copy_finished: copy_finished,
+      // When the copy was initiated to EDIT the board (copy-to-edit, incl. a board
+      // previewed via the edit-mode Board Collections drawer), the completion lands the
+      // user in edit mode of the new copy instead of the default speak-mode jump.
+      for_editing: for_editing
     });
   },
   board_levels: computed(function () {
@@ -1212,15 +1263,23 @@ export default Controller.extend({
     copy_and_edit_board: function(source_board, skip_source_resolution) {
       var _this = this;
       var edit_copy = function(board) {
-        if(board) {
-          _this.appState.jump_to_board({
-            id: board.id,
-            key: board.key
-          });
-          runLater(function() {
-            if(_this && _this.appState) { _this.appState.toggle_edit_mode(); }
-          });
+        if(!board) { return; }
+        // `board` may be the copiedBoard model OR the copying-board close payload
+        // ({ copied: true, id, key }) — both carry `key`.
+        var key = (board.get && board.get('key')) || board.key;
+        var parts = key ? String(key).split('/') : [];
+        if(parts.length >= 2) {
+          // Transition STRAIGHT into the copy's edit route (same as the edit-mode
+          // finish_copy). The old path did jump_to_board (speak) + toggle_edit_mode(),
+          // but toggle_edit_mode re-checks permissions.edit — still stale/false on the
+          // brand-new copy — and re-showed the "Edit this Board" copy prompt. A direct
+          // edit transition skips that re-check; the copy is owned, so editing/saving works.
+          _this.stashes.persist('copy_on_save', null);
+          _this.get('router').transitionTo('user.board-detail.edit', parts[0], parts.slice(1).join('/'));
+          return;
         }
+        // Fallback (no usable key): previous jump-to-board behavior.
+        _this.appState.jump_to_board({ id: board.id, key: board.key });
       };
       this.appState.check_for_needing_purchase().then(function() {
         _this.copy_board(null, true, null, edit_copy, source_board, skip_source_resolution).then(edit_copy, function() { });

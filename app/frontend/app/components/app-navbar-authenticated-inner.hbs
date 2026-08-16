@@ -62,8 +62,8 @@
   {{/unless}}
   <span id="identity" class="app-navbar-auth-nav--desktop advanced_selection identity-with-dark-toggle">
     {{#if this.application.isMasquerading}}
-      <button type="button" class="md-pillnav__stop-masquerade" aria-label={{t "Stop Masquerading" key="stop_masquerading"}} title={{t "Stop Masquerading" key="stop_masquerading"}} {{on "click" this.onStopMasquerading}}>
-        {{t "Stop Masquerading" key="stop_masquerading"}}
+      <button type="button" class="md-pillnav__stop-masquerade" aria-label={{this.application.masqueradeStopLabel}} title={{this.application.masqueradeStopLabel}} {{on "click" this.onStopMasquerading}}>
+        {{this.application.masqueradeStopLabel}}
       </button>
     {{/if}}
     {{#unless this.appState.currentBoardState.id}}
@@ -181,7 +181,7 @@
         </li>
         <li class="divider ll-theme-picker-divider-bottom" role="separator" style="display: none;"></li>
         {{#if this.application.isMasquerading}}
-        <li><a href="#" {{on "click" this.onStopMasquerading}}>{{t "Stop Masquerading" key="stop_masquerading"}}</a></li>
+        <li><a href="#" {{on "click" this.onStopMasquerading}}>{{this.application.masqueradeStopLabel}}</a></li>
         {{/if}}
         <li><a href="#" {{on "click" this.onInvalidateSession}}>{{t "Sign Out" key="logout"}}</a></li>
       </ul>
@@ -209,7 +209,7 @@
     {{/if}}
     <div class="la-mobile-drawer__divider la-mobile-drawer__divider--modern"></div>
     {{#if this.application.isMasquerading}}
-    <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{on "click" this.onCloseDrawerAndStopMasquerading}}>{{t "Stop Masquerading" key="stop_masquerading"}}</button>
+    <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{on "click" this.onCloseDrawerAndStopMasquerading}}>{{this.application.masqueradeStopLabel}}</button>
     {{/if}}
     {{#unless this.appState.currentBoardState.id}}
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{on "click" this.onCloseDrawerAndGoUpgrade}}>{{t "Upgrade" key="upgrade"}}</button>

@@ -1,0 +1,52 @@
+<div class="report-panel-heading">
+  <div>
+    <p class="report-panel-heading__eyebrow">{{t "Activity" key="report_panel_activity"}}</p>
+    <h2 id="communication-trend-title">{{t "Communication over time" key="communication_over_time"}}</h2>
+  </div>
+
+  {{#if this.trend.available}}
+    <ul class="report-trend__legend" aria-label={{t "Chart legend" key="chart_legend"}}>
+      <li class="report-trend__legend-item">
+        <span class="report-trend__legend-swatch report-trend__legend-swatch--primary" aria-hidden="true"></span>
+        {{t "Utterances" key="report_kpi_utterances"}}
+      </li>
+      <li class="report-trend__legend-item">
+        <span class="report-trend__legend-swatch report-trend__legend-swatch--secondary" aria-hidden="true"></span>
+        {{t "Total Words" key="total_words"}}
+      </li>
+    </ul>
+  {{/if}}
+</div>
+
+{{#if this.trend.available}}
+  <div class="report-trend__chart" role="img" aria-label={{t "Line chart of utterances and words over the selected period. The same values are listed in the table below." key="communication_trend_chart_alt"}}></div>
+
+  {{! The chart library's tooltips are pointer-only, so every plotted value is
+      also reachable from the keyboard here. }}
+  <details class="report-trend__data">
+    <summary class="report-trend__data-summary">{{t "View the numbers behind this chart" key="view_chart_data"}}</summary>
+    <div class="report-trend__data-scroll">
+      <table>
+        <caption>{{this.granularity_label}}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{{this.period_label}}</th>
+            <th scope="col">{{t "Utterances" key="report_kpi_utterances"}}</th>
+            <th scope="col">{{t "Total Words" key="total_words"}}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each this.trend.points as |point|}}
+            <tr>
+              <th scope="row">{{point.label}}</th>
+              <td>{{delimit point.utterances}}</td>
+              <td>{{delimit point.words}}</td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+  </details>
+{{else}}
+  <p class="report-trend__unavailable">{{t "Trend data is unavailable for this period." key="trend_data_unavailable"}}</p>
+{{/if}}

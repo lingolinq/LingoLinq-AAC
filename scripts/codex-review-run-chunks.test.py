@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import importlib.util
 import json
+import os
 import pathlib
 import tempfile
 import unittest
@@ -114,10 +115,94 @@ class RunChunksTest(unittest.TestCase):
 
             try:
                 run_chunks.subprocess.run = fake_run
-                self.assertTrue(run_chunks.run_model(object(), prompt, "schema.json", output))
+                self.assertTrue(
+                    run_chunks.run_model(
+                        object(), prompt, "schema.json", output, model=run_chunks.CHUNK_MODEL
+                    )
+                )
                 self.assertEqual(len(calls), 2)
             finally:
                 run_chunks.subprocess.run = original
+
+    def test_detection_leg_is_not_weaker_than_synthesis_leg(self):
+        # Regression guard. The chunk leg is the ONLY leg that reads the diff:
+        # synthesis consumes model-authored chunk summaries, so a defect the
+        # chunk pass misses is unreachable to it. Pinning a cheaper/weaker model
+        # to the chunk leg therefore silently weakens the whole gate with no
+        # failing signal. This shipped once; it should not ship twice.
+        self.assertEqual(
+            run_chunks.DEFAULT_CHUNK_MODEL,
+            run_chunks.DEFAULT_SYNTHESIS_MODEL,
+            "chunk leg must not default to a different (weaker) model than synthesis",
+        )
+        # Equality alone is not enough: downgrading BOTH legs to luna would keep
+        # them equal while still moving the only leg that reads code onto the
+        # weaker tier. Pin the actual value.
+        self.assertEqual(run_chunks.DEFAULT_CHUNK_MODEL, "gpt-5.6-terra")
+        self.assertEqual(run_chunks.DEFAULT_SYNTHESIS_MODEL, "gpt-5.6-terra")
+    def test_models_are_not_runtime_overridable(self):
+        # The reviewer model must not be changeable by anything that does not go
+        # through review. An env/repo-variable hatch here would let the
+        # code-reading leg be moved onto a weaker model with no PR and no
+        # approval, which is the defect this module's pin exists to prevent.
+        for var in ("CODEX_CHUNK_MODEL", "CODEX_SYNTHESIS_MODEL"):
+            with self.subTest(var=var):
+                self.assertNotIn(
+                    var,
+                    MODULE_PATH.read_text(),
+                    f"{var} reintroduces a no-review path to weaken the gate",
+                )
+        original = os.environ.get("CODEX_CHUNK_MODEL")
+        try:
+            os.environ["CODEX_CHUNK_MODEL"] = "gpt-5.6-luna"
+            spec = importlib.util.spec_from_file_location("reimported", MODULE_PATH)
+            reimported = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(reimported)
+            self.assertEqual(reimported.CHUNK_MODEL, "gpt-5.6-terra")
+        finally:
+            if original is None:
+                os.environ.pop("CODEX_CHUNK_MODEL", None)
+            else:
+                os.environ["CODEX_CHUNK_MODEL"] = original
+
+    def test_run_model_requires_an_explicit_model(self):
+        # `model` is keyword-only and required so a new call site cannot silently
+        # inherit whichever leg's default happened to be the parameter default.
+        with self.assertRaises(TypeError):
+            run_chunks.run_model(object(), "prompt.md", "schema.json", "out.json")
+
+    def test_each_leg_invokes_its_own_model(self):
+        # Captures the constructed argv and asserts the `-m` value, so the
+        # per-leg assignment is checked rather than assumed.
+        seen = []
+        original = run_chunks.subprocess.run
+
+        class Ok:
+            returncode = 0
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            prompt = root / "prompt.md"
+            prompt.write_text("prompt")
+            output = root / "out.json"
+
+            def fake_run(command, **_kwargs):
+                seen.append(command[command.index("-m") + 1])
+                output.write_text(json.dumps({"verdict": "APPROVE"}))
+                return Ok()
+
+            try:
+                run_chunks.subprocess.run = fake_run
+                run_chunks.run_model(
+                    object(), prompt, "schema.json", output, model=run_chunks.CHUNK_MODEL
+                )
+                run_chunks.run_model(
+                    object(), prompt, "schema.json", output, model=run_chunks.SYNTHESIS_MODEL
+                )
+            finally:
+                run_chunks.subprocess.run = original
+
+        self.assertEqual(seen, [run_chunks.CHUNK_MODEL, run_chunks.SYNTHESIS_MODEL])
 
     def test_needs_tiebreak_for_approve_block_split(self):
         with tempfile.TemporaryDirectory() as tmp:

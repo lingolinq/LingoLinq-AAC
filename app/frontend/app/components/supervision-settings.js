@@ -160,6 +160,12 @@ export default Component.extend({
       }, function() { });
     },
     add_supervisee: function() {
+      // When consent flow is on, open the same request modal as "Request Access"
+      // instead of only showing the dead-end "communicator must add you" explainer.
+      if (this.get('appState.feature_flags.supervisor_consent_flow')) {
+        modalUtil.open('request-supervision', {user: this.get('model')});
+        return;
+      }
       this.set('add_supervisee_hit', !this.get('add_supervisee_hit'));
     },
     update_alias: function(org) {

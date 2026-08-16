@@ -1,0 +1,11 @@
+<%# Status badge for the standalone parental-consent pages (complete + revoke,
+    both the standard and EU-AI variants). Keys off @success: teal check on
+    success, red x on an invalid/expired link. Decorative — the h1/body carry
+    the meaning for assistive tech. Styled by .box__badge in the parental_consent layout. %>
+<div class="box__badge box__badge--<%= @success ? 'ok' : 'err' %>" aria-hidden="true">
+  <% if @success %>
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+  <% else %>
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  <% end %>
+</div>

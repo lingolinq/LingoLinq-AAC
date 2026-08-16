@@ -21,6 +21,15 @@ export default Component.extend({
   /** @type {string} id attribute for filter input (avoid duplicate ids on dashboard embed). */
   filterInputId: 'ub-boards-filter-input',
 
+  boardPickerQuery: computed('boardsCtrl.model.id', 'appState.currentUser.id', function() {
+    var modelId = this.get('boardsCtrl.model.id');
+    var currentId = this.appState.get('currentUser.id');
+    if (modelId && currentId && modelId != currentId) {
+      return { user_id: modelId };
+    }
+    return {};
+  }),
+
   editingFolderName: false,
   editFolderNameValue: '',
   confirmingFolderDelete: false,
@@ -84,6 +93,11 @@ export default Component.extend({
     // generic ctrlAction above discards (5.12 upgrade #490), so the search
     // box never filtered. ctrlAction is unchanged for clicks.
     this.eventAction = buildEventAction(function() { return self.get('boardsCtrl'); });
+    // Same contract for this component's own actions (folders filter, folder
+    // drill-in search, drag-and-drop onto folder tiles). sendAction still
+    // strips DOM events — same bug class as ctrlAction — so anything that
+    // reads event.target / event.dataTransfer must use this wrapper instead.
+    this.selfEventAction = buildEventAction(function() { return self; });
     this.ctrlActionNoBubble = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function(event) {
@@ -93,6 +107,25 @@ export default Component.extend({
         if (ctrl) { ctrl.send.apply(ctrl, [actionName].concat(bound)); }
       };
     };
+    // A FACTORY, like every other wrapper in this component — it RETURNS the
+    // handler. Templates bind it bare: `{{on "click" (this.sendAction "name")}}`,
+    // same as `ctrlAction`. Both halves have to match, and this is the pairing
+    // the component settled on; the two ways to break it are:
+    //
+    //   • `(fn this.sendAction …)` — calls the FACTORY on click and throws the
+    //     returned handler away, so the action never runs.
+    //   • making this invoke `send()` immediately — the bare subexpression is
+    //     evaluated at RENDER time, so the action fires during render (Ember
+    //     then asserts "already been used previously in the same computation",
+    //     e.g. toggling `foldersExpanded` after `aria-expanded` has read it) and
+    //     `{{on}}` receives an `undefined` handler, leaving the folders
+    //     accordion dead to clicks.
+    //
+    // Mixing the two halves is the regression covered by
+    // tests/integration/available-boards-folders-test.js. Dispatches to `self`
+    // (this component). Handlers that need the raw DOM event
+    // (updateFolderFilter, drag/drop) use `selfEventAction` instead; the event
+    // is popped here because every `sendAction` binding is click-only.
     this.sendAction = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function() {

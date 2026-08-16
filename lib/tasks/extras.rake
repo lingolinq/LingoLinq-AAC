@@ -334,6 +334,11 @@ end
 # freshness guard, so concurrent/queued rebuilds of overlapping board trees race
 # and can produce empty sets. One board at a time is the correct, prod-proven mode
 # (this mirrors the button-set half of extras:fix_prod_setup).
+#
+# Runs in two passes. Pass 1 rebuilds true roots (no upstream, has downstream). Pass 2
+# sweeps every remaining board whose set is empty but whose board HAS buttons -- copied
+# trees, leaves, and standalone boards are all structurally unreachable from pass 1. See
+# the pass-2 comment for why. Exits nonzero if any board with buttons ends up empty.
 task "extras:rebuild_button_sets" => :environment do
   # Preflight. Without REMOTE_EXTRA_DATA the detach-to-S3 path is a no-op, and this
   # task used to run to "completion" while writing button_count=0 for every set over
@@ -395,9 +400,57 @@ task "extras:rebuild_button_sets" => :environment do
     end
   end
   puts "\nRebuilt #{processed} root boards (#{errored} errors)."
-  puts "Sub-boards reference their root's set via source_id, so the whole tree is covered."
+
+  # Pass 2: sweep boards the root pass cannot reach.
+  #
+  # The root selection above requires `upstream.empty? && downstream.any?`. A COPIED tree
+  # never satisfies that: every board in it carries an upstream link back to the original
+  # it was copied from, so nothing in the copy qualifies as a root. Nor do those boards
+  # inherit a source_id, because the ORIGINAL root's linked_board_ids reference its own
+  # children, not the copies. Leaf boards (no downstream) and standalone boards (no links
+  # at all) are unreachable for the same structural reason.
+  #
+  # This used to be papered over with "sub-boards reference their root's set via source_id,
+  # so the whole tree is covered", which is simply false for those shapes: after a full
+  # root rebuild of prod on 2026-08-02, 144 boards that HAD buttons still reported
+  # button_count=0 (copies owned by bob/scotw/melissaoneil/prodtest, plus
+  # lingolinq/crisis-vocabulary). Rebuilding them directly repaired 144/144.
+  #
+  # A set is only legitimately empty when its board genuinely has no buttons.
+  puts "\nPass 2: sweeping boards unreachable from any root..."
+  swept = 0; swept_ok = 0; swept_errored = 0
+  stubborn = []
+  BoardDownstreamButtonSet.find_each do |bs|
+    next unless (bs.data['button_count'] || 0) == 0
+    board = (bs.board rescue nil)
+    next unless board
+    next if (board.buttons.length rescue 0) == 0
+    swept += 1
+    begin
+      BoardDownstreamButtonSet.update_for(board.global_id, true)
+      fresh = board.reload.board_downstream_button_set
+      if (fresh && (fresh.data['button_count'] || 0)).to_i > 0
+        swept_ok += 1
+      else
+        stubborn << board.key
+      end
+    rescue => e
+      swept_errored += 1
+      puts "  ERROR #{board.key}: #{e.class}: #{e.message}"
+    end
+  end
+  puts "  Swept #{swept} unreachable board(s): #{swept_ok} repaired, #{stubborn.length} still empty, #{swept_errored} errors."
+
+  if stubborn.any?
+    puts "\nWARNING: #{stubborn.length} board(s) have buttons but their set still reports zero:"
+    stubborn.first(20).each { |k| puts "  #{k}" }
+    puts "  ...and #{stubborn.length - 20} more" if stubborn.length > 20
+  end
+  errored += swept_errored
+  empty += stubborn
+
   if empty.any? || errored > 0
-    puts "\nFAILED: #{empty.length} root board(s) rebuilt to button_count=0, #{errored} raised:"
+    puts "\nFAILED: #{empty.length} board(s) rebuilt to button_count=0, #{errored} raised:"
     empty.first(20).each { |k| puts "  #{k}" }
     puts "  ...and #{empty.length - 20} more" if empty.length > 20
     puts "A root board with children that rebuilds to zero buttons is a failure, not a success."

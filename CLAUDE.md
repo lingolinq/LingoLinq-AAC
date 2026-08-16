@@ -19,6 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 6. **Keep the code modular and organized — never write spaghetti.** Each change should live in the smallest sensible unit (component, helper, service, partial, mixin) with a single, clear responsibility. Reuse existing primitives instead of duplicating logic; extract a shared unit when the same idea appears in two places. Name things for what they are, group related code together, and don't bolt new behavior onto an already-overloaded file or function just because it's convenient. If a change would tangle responsibilities, stop and propose the split first.
 7. **When changing a styling rule, edit the original — do not stack a new one on top.** Locate the existing selector that governs the element (in `app.scss` or the relevant partial) and modify it in place so each component has one authoritative rule. Do not introduce a new selector with higher specificity, an override block at the bottom of the file, or an `!important` patch just to win the cascade. Only add a new rule when the element genuinely has no existing style; if uncertain whether a rule already exists, search first.
 8. **Track every researched task in a markdown log; distill durable lessons to a shared learnings doc.** As soon as a task requires research (diagnosis, multi-file exploration, multiple iterations), create `docs/task-management/YYYY-MM-DD-<kebab-task-name>.md` and use it as a live working log: goal, hypotheses, attempts, what worked, what failed, evidence (file:line), decisions. Update it as you go, not at the end. **Before** starting a task, skim `docs/task-management/LEARNINGS.md` for prior findings that apply. **On** successful completion, distill any durable patterns — root-cause patterns, reusable techniques, codebase gotchas — into that same `LEARNINGS.md` so future tasks benefit. Skip the per-task file only for truly trivial edits (one-line/typo) that need no investigation.
+9. **If it makes a task more efficient, always spawn subagents — don't ask first.** Any task that splits into independent slices (multi-file code review, audits, broad searches, migrations, verification across many routes) should be fanned out to parallel subagents rather than worked through serially. Launch them in a single message so they run concurrently, and give each one an explicit file list, the repo-specific traps to check, and a rule to label every finding CONFIRMED (traced in code) vs PLAUSIBLE (needs a runtime check). This is standing authorization: do not wait to be asked, and do not sit single-threaded through work that parallelizes. It does not relax rules 1-4 — a subagent's report is evidence to verify, not a verified finding, and anything acted on still needs its own root-cause confirmation.
 
 ## Branching (mandatory before ANY code change)
 
@@ -362,14 +363,15 @@ Any path not covered is listed under "Not covered", not omitted.
 
 ### P3. Generated Artifacts + Git Metadata (compliance/register PRs)
 Run before every push (these mirror the CI job `audit-artifacts-integrity`, so a
-green preflight means that job will not block the PR):
-  ruby scripts/compliance-notion-publish.rb            # regenerates the Notion page on disk
-  ruby scripts/compliance-notion-publish.rb --check     # exit 1 if the page drifts from FINDINGS
-  ruby scripts/document-register-render.rb --check       # exit 1 on register / hash / bundle drift
-  ruby scripts/compliance-calendar-render.rb --check     # exit 1 if calendar render drifts
-  ruby scripts/compliance-publication-status.rb --check  # exit 1 if publication-status report drifts
-  ruby scripts/capability-check.rb --check               # exit 1 if capability-ledger currentEvidence fails to resolve at HEAD / negativeEvidence scoping drifts
-  git diff --check                                       # whitespace / conflict markers
+green preflight means that job will not block the PR). Prefer the one wrapper:
+  scripts/regenerate-register.sh --check   # verify only (or omit --check to regenerate)
+Or the individual checks:
+  ruby scripts/compliance-notion-publish.rb --check
+  ruby scripts/document-register-render.rb --check
+  ruby scripts/compliance-calendar-render.rb --check
+  ruby scripts/compliance-publication-status.rb --check
+  ruby scripts/capability-check.rb --check
+  git diff --check
   # exec-bit: only for CHANGED scripts that a doc/skill invokes DIRECTLY (./script),
   # not every non-exec file in scripts/ (most .rb/.py run via `ruby`/`python` and are
   # correctly 100644). List the directly-invoked ones explicitly, e.g.:
@@ -378,6 +380,11 @@ green preflight means that job will not block the PR):
   #   done
 If a doc instructs running a script directly (./script, no interpreter prefix), the
 executable bit is part of the PR. If a check fails, fix it in THIS PR before pushing.
+
+**contentHash drift triage (after #766):** read whether the FAIL names an **ATTESTED**
+row. Unattested → `scripts/regenerate-register.sh` and commit. Attested → stop, do
+**not** run render; revert the file or ping Scot (`/re-attest-record`). See
+`docs/legal/COMPLIANCE_DOCS_GUIDE.md` ("When CI is red").
 
 ### P4. Cross-Doc Consistency Sweep (touching docs/legal/** or audit-reports/**)
 When changing any claim in one compliance doc:

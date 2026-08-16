@@ -55,8 +55,6 @@
 | Subprocessor Register (branded) | drive | [open](https://docs.google.com/document/d/13i7PUAZO-_lyUrObdB3CLDQ5KB9s5GNL7XHpcBCRn_M/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
 | Vendor and Subprocessor Management Policy | drive | [open](https://docs.google.com/document/d/1fmBOfw-peYUpdwmttHC3hqzU_5c3OMNgBSN4NDK7mAM/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
 | Written Information Security Program (WISP) | drive | [open](https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit) | 2026-06-19 | published | Review date is older than 2026-07-23. |
-| AI Data-Flow Classification | git | `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md` | 2026-07-22 | approved | Review date is older than 2026-07-23. |
-| AI Data-Sharing Consent: Rationale and Policy | git | `docs/legal/AI_DATA_SHARING_CONSENT.md` | 2026-07-09 | approved | Review date is older than 2026-07-23. |
 | AWS Business Associate Agreement (signed PDF) | git | `docs/legal/AWS_BAA_2026-02.pdf` | 2026-05-11 | published | Review date is older than 2026-07-23. |
 | Accessibility Conformance Report (ACR / VPAT) | git | `docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md` | 2026-06-16 | draft | Review date is older than 2026-07-23. |
 | Agent config - diff-compliance-check | git | `.claude/agents/diff-compliance-check.md` | 2026-07-22 | published | Review date is older than 2026-07-23. |
@@ -66,7 +64,6 @@
 | Audit Reports Index (audit-reports/README.md) | git | `audit-reports/README.md` | 2026-06-16 | published | Review date is older than 2026-07-23. |
 | Compliance Calendar (compliance-calendar.json) | git | `audit-reports/compliance-calendar.json` | 2026-06-16 | published | Review date is older than 2026-07-23. |
 | Compliance Docs Guide (runbook) | git | `docs/legal/COMPLIANCE_DOCS_GUIDE.md` | 2026-06-21 | published | Review date is older than 2026-07-23. |
-| Compliance Program | git | `docs/legal/COMPLIANCE_PROGRAM.md` | 2026-07-22 | approved | Review date is older than 2026-07-23. |
 | Document Register (this file) | git | `audit-reports/DOCUMENT-REGISTER.json` | 2026-06-21 | published | Review date is older than 2026-07-23. |
 | EU AI Act Article 50 Transparency: Implementation Milestone Plan | git | `docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md` | 2026-07-14 | draft | Review date is older than 2026-07-23. |
 | Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | 2026-06-19 | published | Review date is older than 2026-07-23. |
@@ -159,19 +156,19 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 
 | Class | Rule | Disposition | Rows | Status |
 |---|---|---|---|---|
-| `executed-agreement` | term + 7 years | archive | 6 | draft |
+| `executed-agreement` | term + 7 years | archive | 8 | draft |
 | `corporate-permanent` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `grant-record` | award + 7 years | archive | 0 | unused (no record of this class exists yet) |
-| `policy-version` | supersession + 7 years | archive | 33 | draft |
+| `policy-version` | supersession + 7 years | archive | 37 | draft |
 | `audit-evidence` | 7 years | archive | 17 | draft |
 | `attestation-record` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `dsar-case` | 3 years | delete | 0 | unused (no record of this class exists yet) |
 | `questionnaire-response` | 3 years | delete | 0 | unused (no record of this class exists yet) |
 | `superseded-draft` | 1 year | delete | 0 | unused (no record of this class exists yet) |
-| `working-note` | 90 days | delete | 0 | unused (no record of this class exists yet) |
+| `working-note` | 90 days | delete | 1 | draft |
 | `operational-config` | retain while in use; supersession + 1 year | archive | 14 | draft |
 
-All 70 rows carry a retention block.
+All 77 rows carry a retention block.
 
 No retention rule has been approved. Nothing in this register is eligible for disposition.
 
@@ -208,7 +205,7 @@ _No record is under legal hold. A hold suspends all disposition for the rows it 
 
 ## Attestation Integrity
 
-17 attested git record(s). `attestation.attestedContentHash` pins the bytes that were attested; `ruby scripts/document-register-render.rb --check` fails when a pinned hash stops matching the file. Drive and Notion rows are out of scope: their hashes are operator-supplied, so there is nothing CI can verify.
+19 attested git record(s). `attestation.attestedContentHash` pins the bytes that were attested; `ruby scripts/document-register-render.rb --check` fails when a pinned hash stops matching the file. Drive and Notion rows are out of scope: their hashes are operator-supplied, so there is nothing CI can verify.
 
 **No pinned attestation has drifted.** Every record that pins a hash still matches the attested bytes.
 
@@ -220,7 +217,13 @@ A superseded record is never edited, renamed, or moved. It keeps its row and its
 
 | Superseded | Location | Replaced by | Still bundled in |
 |---|---|---|---|
+| AWS BAA Acceptance Record | `docs/legal/AWS_BAA_ACCEPTED.md` | AWS BAA Acceptance and Runtime Status Record | (none) |
+| AWS BAA Acceptance and Runtime Status Record | `docs/legal/2026-08-11_aws-baa-acceptance-record.md` | AWS BAA Acceptance and Runtime Status Record (2026-08-12) | (none) |
+| Compliance Posture Report | `docs/legal/COMPLIANCE_POSTURE_REPORT.md` | Compliance Posture Report (2026-08-09 draft) | (none) |
 | Compliance Posture Report (branded) | [open](https://docs.google.com/document/d/1A2cM0m6GvErHwpiMgns258NbN_M2krNB_HyedHJkqpk/edit) | Compliance Posture Report (branded, 2026-07-16 re-attest) | compliance-records-set-2026-06 |
+| Compliance Program | `docs/legal/COMPLIANCE_PROGRAM.md` | Compliance Program (2026-08-09 draft) | compliance-records-set-2026-06 |
+| Data Retention Schedule | `docs/legal/DATA_RETENTION.md` | Data Retention Schedule (2026-08-09 draft) | (none) |
+| LingoLinq Security, Privacy & Compliance Overview | `docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md` | LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft) | (none) |
 
 ## Bundle Gaps
 
@@ -273,4 +276,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_70 documents tracked. 55 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 1 superseded record(s). 0 drifted attestation(s), 0 awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
+_77 documents tracked. 52 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 7 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._

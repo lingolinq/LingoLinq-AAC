@@ -88,15 +88,34 @@ describe Converters::Utils do
 
   describe "remote_to_boards" do
     it "should make a request to the specified url" do
-      res = OpenStruct.new(:body => "bacon", :headers => {'Content-Type' => 'image/png'})
+      res = OpenStruct.new(:body => "bacon", :headers => {'Content-Type' => 'image/png'}, :success? => true, :code => 200)
       expect(SafeHttp).to receive(:get).with("http://example.com/board").and_return(res)
       expect { Converters::Utils.remote_to_boards(nil, "http://example.com/board") }.to raise_error("Unrecognized file type: image/png")
     end
     
     it "should error on unrecognized file type" do
-      res = OpenStruct.new(:body => "bacon", :headers => {'Content-Type' => 'image/png'})
+      res = OpenStruct.new(:body => "bacon", :headers => {'Content-Type' => 'image/png'}, :success? => true, :code => 200)
       expect(SafeHttp).to receive(:get).with("http://example.com/board").and_return(res)
       expect { Converters::Utils.remote_to_boards(nil, "http://example.com/board") }.to raise_error("Unrecognized file type: image/png")
+    end
+
+    it "should fetch uploads-bucket URLs via signed_internal_url" do
+      uploads_bucket = ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'
+      # No .obf/.obz suffix so type detection uses Content-Type only (signing is under test).
+      raw = "https://#{uploads_bucket}.s3.amazonaws.com/imports/boards/1_1/upload-abc"
+      signed = "https://#{uploads_bucket}.s3.us-west-2.amazonaws.com/imports/boards/1_1/upload-abc?X-Amz-Signature=test"
+      expect(Uploader).to receive(:signed_internal_url).with(raw).and_return(signed)
+      res = OpenStruct.new(:body => "bacon", :headers => {'Content-Type' => 'image/png'}, :success? => true, :code => 200)
+      expect(SafeHttp).to receive(:get).with(signed).and_return(res)
+      expect { Converters::Utils.remote_to_boards(nil, raw) }.to raise_error("Unrecognized file type: image/png")
+    end
+
+    it "should raise when the download is not successful" do
+      res = OpenStruct.new(:body => "AccessDenied", :headers => {}, :success? => false, :code => 403)
+      expect(SafeHttp).to receive(:get).with("http://example.com/board.obz").and_return(res)
+      expect {
+        Converters::Utils.remote_to_boards(nil, "http://example.com/board.obz")
+      }.to raise_error("failed to download board file (403)")
     end
     
     it "should download and process an obf file" do
@@ -104,7 +123,7 @@ describe Converters::Utils do
       shell['id'] = '1234'
       shell['name'] = "Cool Board"
 
-      res = OpenStruct.new(:body => shell.to_json, :headers => {'Content-Type' => 'application/obf'})
+      res = OpenStruct.new(:body => shell.to_json, :headers => {'Content-Type' => 'application/obf'}, :success? => true, :code => 200)
       expect(SafeHttp).to receive(:get).with("http://example.com/board").and_return(res)
       b = Board.new
       expect(Converters::LingoLinq).to receive(:from_obf).and_return(b)
@@ -117,7 +136,7 @@ describe Converters::Utils do
       shell['id'] = '1234'
       shell['name'] = "Cool Board"
 
-      res = OpenStruct.new(:body => shell.to_json, :headers => {'Content-Type' => 'application/obz'})
+      res = OpenStruct.new(:body => shell.to_json, :headers => {'Content-Type' => 'application/obz'}, :success? => true, :code => 200)
       expect(SafeHttp).to receive(:get).with("http://example.com/board").and_return(res)
       b = Board.new
       expect(Converters::LingoLinq).to receive(:from_obz).and_return([b])

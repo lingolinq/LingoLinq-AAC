@@ -25,6 +25,7 @@ import {
 } from '../../utils/board-roots';
 import { filterBrandRoots } from '../../utils/board-brands';
 import boardDetailCache from '../../utils/board_detail_cache';
+import boardsPageListCache from '../../utils/boards_page_list_cache';
 
 function invertBoardTagMap(map) {
   var inv = {};
@@ -59,6 +60,26 @@ export default Controller.extend({
   // Alias for template compatibility (template uses this.app_state)
   app_state: alias('appState'),
   persistence: service('persistence'),
+
+  /* "Help me Choose" on the Boards page hands the board-picker the account it is
+     picking for. The picker keys its whole supervisor flow off this `user_id`
+     query param (controllers/board-picker#_resolve_setup_user → setup_user →
+     for_self → the "Choose <name>'s home board" title and the back link), so a
+     supporter on a communicator's Boards page has to arrive with it or the
+     picker will run the SELF flow and offer to set THEIR own home board.
+
+     Null on your own page — Ember drops a query param that equals the
+     controller's default, so the URL stays a clean /board-picker and the picker
+     resolves setup_user to currentUser on its own.
+
+     Global id, not user_name: _resolve_setup_user both does
+     `store.findRecord('user', user_id)` and compares the param against
+     `setup_user.id`, so a handle would re-resolve on every recompute. */
+  homeBoardPickerUserId: computed('model.id', 'appState.currentUser.id', function() {
+    var page_user_id = this.get('model.id');
+    if(!page_user_id || page_user_id === this.get('appState.currentUser.id')) { return null; }
+    return page_user_id;
+  }),
 
   init() {
     this._super(...arguments);
@@ -1035,45 +1056,115 @@ export default Controller.extend({
     if(!args.per_page) { args.per_page = 50; }
     var prior = _this.get(list_name) || [];
     if(prior.error || prior.loading) { prior = []; }
-    if(!append && !prior.length) {
+    /* When a usable completed list is already on screen (SPA re-entry or
+       localStorage hydrate), keep it painted and accumulate pages in a
+       side buffer. Assigning partial pages onto list_name would clear
+       `.done` and re-trigger the boards-page overlay. */
+    var backgroundRefresh = boardsPageListCache.isUsableList(prior);
+    var bufferKey = list_name + ':' + list_id;
+    var isMineList = list_name === 'model.my_boards';
+    /* Within TTL, a usable on-screen Mine list + fresh localStorage
+       snapshot means skip the full-library re-download. Mutations clear
+       the snapshot so the next update_selected still refreshes. */
+    if(isMineList && !append && backgroundRefresh && boardsPageListCache.hasFreshSnapshot(_this.get('model.id'))) {
+      boardsPageListCache.setMineListBusy(false);
+      return;
+    }
+    /* Do not clobber a usable empty list (`[].done`) with {loading:true}. */
+    if(!append && !backgroundRefresh && !prior.length) {
       _this.set(list_name, {loading: true});
     }
+    if(!append && backgroundRefresh) {
+      _this._boards_list_refresh_buffers = _this._boards_list_refresh_buffers || {};
+      _this._boards_list_refresh_buffers[bufferKey] = [];
+    }
+    if(isMineList && !append) {
+      boardsPageListCache.setMineListBusy(true);
+    }
     _this.store.query('board', args).then(function(boards) {
-      if(_this.get('list_id') == list_id) {
-        if(!append && prior.length) {
-          prior = [];
-        }
+      /* Stale page for a superseded list_id: do not clear Mine busy —
+         a newer Mine fetch may own the flag. */
+      if(_this.get('list_id') != list_id) { return; }
 
-        var chunk = boards.slice();
-        if (append && prior.length) {
-          prior = prior.concat(chunk);
+      var chunk = boards.slice();
+      var meta = _this.persistence.meta('board', boards); //_this.store.metadataFor('board');
+
+      if(backgroundRefresh) {
+        var buf = (_this._boards_list_refresh_buffers && _this._boards_list_refresh_buffers[bufferKey]) || [];
+        if(append && buf.length) {
+          buf = buf.concat(chunk);
         } else {
-          prior = chunk;
+          buf = chunk;
         }
-        prior.user_id = _this.get('model.id');
-        _this.set(list_name, prior);
-        var meta = _this.persistence.meta('board', boards); //_this.store.metadataFor('board');
+        buf.user_id = _this.get('model.id');
+        _this._boards_list_refresh_buffers = _this._boards_list_refresh_buffers || {};
+        _this._boards_list_refresh_buffers[bufferKey] = buf;
         if(meta && meta.more) {
           args.per_page = meta.per_page;
           args.offset = meta.next_offset;
-          /* Throttle subsequent pages so a 5-page sweep doesn't fire as
-             a single back-to-back burst (which read as a network
-             "flood" in the dev tools, and competed with foreground
-             traffic like board-preview image loads). 200ms is small
-             enough that the full list still finishes streaming in ~1s
-             for typical cases, and large enough that the requests
-             interleave cleanly with user-initiated work. The list_id
-             check at the top of the function still guards against tab
-             changes during the gap. */
           runLater(function() {
             if(_this.isDestroyed || _this.isDestroying) { return; }
             _this.generate_or_append_to_list(args, list_name, list_id, true);
           }, 200);
         } else {
-          _this.set(list_name + '.done', true);
+          buf.done = true;
+          buf.user_id = _this.get('model.id');
+          _this.set(list_name, buf);
+          if(_this._boards_list_refresh_buffers) {
+            delete _this._boards_list_refresh_buffers[bufferKey];
+          }
+          if(isMineList) {
+            boardsPageListCache.write(_this.get('model.id'), buf);
+            boardsPageListCache.setMineListBusy(false);
+          }
+        }
+        return;
+      }
+
+      if(!append && prior.length) {
+        prior = [];
+      }
+
+      if (append && prior.length) {
+        prior = prior.concat(chunk);
+      } else {
+        prior = chunk;
+      }
+      prior.user_id = _this.get('model.id');
+      _this.set(list_name, prior);
+      if(meta && meta.more) {
+        args.per_page = meta.per_page;
+        args.offset = meta.next_offset;
+        /* Throttle subsequent pages so a 5-page sweep doesn't fire as
+           a single back-to-back burst (which read as a network
+           "flood" in the dev tools, and competed with foreground
+           traffic like board-preview image loads). 200ms is small
+           enough that the full list still finishes streaming in ~1s
+           for typical cases, and large enough that the requests
+           interleave cleanly with user-initiated work. The list_id
+           check at the top of the function still guards against tab
+           changes during the gap. */
+        runLater(function() {
+          if(_this.isDestroyed || _this.isDestroying) { return; }
+          _this.generate_or_append_to_list(args, list_name, list_id, true);
+        }, 200);
+      } else {
+        _this.set(list_name + '.done', true);
+        if(isMineList) {
+          boardsPageListCache.write(_this.get('model.id'), _this.get(list_name));
+          boardsPageListCache.setMineListBusy(false);
         }
       }
     }, function() {
+      if(isMineList && _this.get('list_id') == list_id) {
+        boardsPageListCache.setMineListBusy(false);
+      }
+      if(backgroundRefresh) {
+        if(_this._boards_list_refresh_buffers) {
+          delete _this._boards_list_refresh_buffers[bufferKey];
+        }
+        return;
+      }
       if(_this.get('list_id') == list_id && !prior.length) {
         _this.set(list_name, {error: true});
       }
@@ -1194,13 +1285,10 @@ export default Controller.extend({
      home board (see open_board_in_user_view) and jumps into speak mode
      instead of opening the board. */
   selectingHome: false,
-  hasHomeBoard: computed('appState.referenced_user.preferences.home_board.key', function() {
-    return !!this.appState.get('referenced_user.preferences.home_board.key');
+  hasHomeBoard: computed('model.preferences.home_board.key', function() {
+    return !!this.get('model.preferences.home_board.key');
   }),
-  setHomeButtonLabel: computed('hasHomeBoard', 'selectingHome', function() {
-    if(this.get('selectingHome')) {
-      return i18n.t('cancel_set_home_board', "Cancel");
-    }
+  setHomeButtonLabel: computed('hasHomeBoard', function() {
     return this.get('hasHomeBoard')
       ? i18n.t('change_home_board', "Change Home Board")
       : i18n.t('set_home_board', "Set Home Board");
@@ -1437,10 +1525,17 @@ export default Controller.extend({
         transition.catch(function() { _appState.hide_loading_overlay(); });
       }
     },
-    /* Toggle the "Set / Change Home Board" selection mode. Mirrors the
-       modal's `toggleSetHomeMode` (see controllers/application.js). */
+    /* Legacy entry point — boards page now links to /board-picker instead
+       of inline selection mode. Kept so any stale callers still land on
+       the dedicated picker. */
     toggleSetHomeMode: function() {
-      this.toggleProperty('selectingHome');
+      var modelId = this.get('model.id');
+      var currentId = this.appState.get('currentUser.id');
+      if (modelId && currentId && modelId != currentId) {
+        this.get('router').transitionTo('board-picker', { queryParams: { user_id: modelId } });
+      } else {
+        this.get('router').transitionTo('board-picker');
+      }
     },
     nothing: function() {
     },
@@ -1456,23 +1551,29 @@ export default Controller.extend({
     },
     remove_board: function(action, board) {
       var _this = this;
+      var refreshMine = function() {
+        /* Drop the TTL snapshot so update_selected re-queries instead of
+           treating the pre-mutation list as still fresh. */
+        boardsPageListCache.clear(_this.get('model.id'));
+        _this.update_selected();
+      };
       if(action == 'delete') {
         modal.open('confirm-delete-board', {board: board, redirect: false}).then(function(res) {
           if(res && res.update) {
-            _this.update_selected();
+            refreshMine();
           }
         });
       } else if(action == 'delete_orphans') {
         board.name = board.board.name;
         modal.open('confirm-delete-board', {board: board, redirect: false, orphans: true}).then(function(res) {
           if(res && res.update) {
-            _this.update_selected();
+            refreshMine();
           }
         });
       } else {
         modal.open('confirm-remove-board', {action: action, tag: _this.get('current_tag'), board: board, user: this.get('model')}).then(function(res) {
           if(res && res.update) {
-            _this.update_selected();
+            refreshMine();
           }
         });
       }

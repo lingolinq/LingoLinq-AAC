@@ -16,7 +16,7 @@
         <div class="md-slp-hero">
           <div class="md-slp-hero__text">
             <h1 class="md-hero__title md-slp-hero__title"><span class="md-hero__title--from-left">{{t "My Caseload" key="my_caseload"}}</span></h1>
-            <p class="md-hero__sub md-slp-hero__sub"><span class="md-hero__sub--from-right">{{t "People you" key="people_you_pre"}} <span class="md-hero__gradient-text">{{t "support" key="support_word"}}</span><button type="button" class="md-caseload__guide-btn" {{on "click" (this.ctrlActionNoBubble "showCaseloadGuide")}} aria-label={{t "What can I do on this page?" key="caseload_guide_aria"}} title={{t "What can I do on this page?" key="caseload_guide_aria"}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button></span></p>
+            <p class="md-hero__sub md-slp-hero__sub"><span class="md-hero__sub--from-right">{{t "People you" key="people_you_pre"}} <span class="md-hero__gradient-text">{{t "support" key="support_word"}}</span></span></p>
           </div>
         </div>
       </header>
@@ -32,7 +32,11 @@
               <span class="md-caseload__filter-icon" aria-hidden="true">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               </span>
-              <input type="search" value={{this.superviseeFilter}} class="md-caseload__filter-input" placeholder={{t "Filter by name or goal..." key="filter_supervisees_placeholder"}} aria-label={{t "Filter supervisees" key="filter_supervisees"}} autocomplete="off" {{on "input" (set-field this "superviseeFilter")}} />
+              {{!-- Scope is stated in BOTH the placeholder and the accessible name:
+                   the global "Search Boards" field in the app header looks similar,
+                   and a placeholder alone is neither a label nor visible once the
+                   user has typed. --}}
+              <input type="search" value={{this.superviseeFilter}} class="md-caseload__filter-input" placeholder={{t "Filter caseload by name or goal" key="filter_caseload_placeholder"}} aria-label={{t "Filter caseload" key="filter_caseload"}} autocomplete="off" {{on "input" (set-field this "superviseeFilter")}} />
               {{#if this.superviseeFilter}}
                 <button type="button" class="md-caseload__filter-clear" {{on "click" (this.ctrlActionNoBubble "clearSuperviseeFilter")}} aria-label={{t "Clear filter" key="clear_filter"}} title={{t "Clear filter" key="clear_filter"}}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -72,71 +76,342 @@
                   <span class="md-caseload__list-identity">
                     <span class="md-caseload__list-name-row">
                       <span class="md-caseload__list-name">{{supervisee.user_name}}</span>
-                      {{#if (is-equal supervisee.edit_permission true)}}
-                        <span class="md-caseload__list-access md-caseload__list-access--edit" title={{t "You can view and edit this communicator's boards and settings." key="caseload_access_view_edit_hint"}}>{{t "Editor" key="caseload_access_editor"}}</span>
-                      {{else if (is-equal supervisee.modeling_only true)}}
-                        <span class="md-caseload__list-access md-caseload__list-access--modeling" title={{t "You are linked for modeling only; some supporter tools are limited." key="caseload_access_modeling_only_hint"}}>{{t "Modeling" key="caseload_access_modeling"}}</span>
-                      {{else if (is-equal supervisee.edit_permission false)}}
-                        <span class="md-caseload__list-access md-caseload__list-access--view" title={{t "You can view this communicator's profile and boards; editing is limited by their supervision settings." key="caseload_access_view_only_hint"}}>{{t "Viewer" key="caseload_access_viewer"}}</span>
-                      {{/if}}
+                      {{!-- Badge row: access level, plus the setup-state badge when
+                           one applies. A row so a second badge sits BESIDE the
+                           first rather than starting a third line under the name. --}}
+                      <span class="md-caseload__list-badges">
+                        {{#if (is-equal supervisee.edit_permission true)}}
+                          <span class="md-caseload__list-access md-caseload__list-access--edit" title={{t "You can view and edit this communicator's boards and settings." key="caseload_access_view_edit_hint"}}>{{t "Editor" key="caseload_access_editor"}}</span>
+                        {{else if (is-equal supervisee.modeling_only true)}}
+                          <span class="md-caseload__list-access md-caseload__list-access--modeling" title={{t "You are linked for modeling only; some supporter tools are limited." key="caseload_access_modeling_only_hint"}}>{{t "Model" key="caseload_access_modeling"}}</span>
+                        {{else if (is-equal supervisee.edit_permission false)}}
+                          <span class="md-caseload__list-access md-caseload__list-access--view" title={{t "You can view this communicator's profile and boards; editing is limited by their supervision settings." key="caseload_access_view_only_hint"}}>{{t "Viewer" key="caseload_access_viewer"}}</span>
+                        {{/if}}
+                        {{!-- Setup-state badge. The condition is deliberately the SAME
+                             pair of checks that decides whether the Choose Board button
+                             renders below (no resolved home board, and not a
+                             modeling-only link) — so the badge and the button can never
+                             disagree, and a row showing Model never shows this.
+                             Label is "Board needed", not "Setup needed": the expanded
+                             panel already has a distinct Setup action (Setup User →
+                             intro), so the generic word would name two different tasks
+                             in one card. --}}
+                        {{#unless supervisee.resolved_home_board_key}}
+                          {{#unless supervisee.modeling_only}}
+                            <span class="md-caseload__list-access md-caseload__list-access--setup" title={{t "This communicator has no home board yet — choose one to finish setting them up." key="caseload_board_needed_hint"}}>{{t "Board needed" key="caseload_board_needed"}}</span>
+                          {{/unless}}
+                        {{/unless}}
+                      </span>
                     </span>
-                    {{#if supervisee.displayed_goal_summary}}
-                      <span class="md-caseload__list-goal" title={{supervisee.displayed_goal_summary}}>{{supervisee.displayed_goal_summary}}</span>
-                    {{/if}}
+                    {{!-- No goal caption here: the collapsed row shows identity
+                         only. Goals live in the expanded panel's GOALS block
+                         below (md-caseload__bottom-row__goal), which carries the
+                         count, status, primary tag and the add/edit affordances.
+                         Filtering by goal text still works — the filter reads
+                         displayed_goal_summary from the model, not the DOM. --}}
                   </span>
                 </button>
                 <div class="md-caseload__list-quick" role="group" aria-label={{t "Quick actions" key="quick_actions"}}>
                   {{#if supervisee.resolved_home_board_key}}
                     <button type="button" class="md-caseload__quick-action md-caseload__quick-action--model" {{on "click" (this.ctrlActionNoBubble "caseload_model_for" supervisee)}} aria-label={{concat (t "Model for" key="model_for") " " supervisee.user_name}} title={{concat (t "Model for" key="model_for") " " supervisee.user_name}}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke="#46505F"/><line x1="3" y1="9" x2="21" y2="9" stroke="#46505F"/><line x1="9" y1="9" x2="9" y2="20" stroke="#46505F"/><line x1="15" y1="9" x2="15" y2="20" stroke="#46505F"/><line x1="3" y1="14.5" x2="21" y2="14.5" stroke="#46505F"/><rect x="10" y="10.5" width="4" height="2.5" rx="0.5" fill="#2A9D8F" stroke="none"/></svg><span class="md-caseload__quick-label" aria-hidden="true">{{t "Model" key="caseload_qa_model"}}</span>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9.15" y="9.15" width="5.7" height="5.2" rx="0.8" fill="#2A9D8F" stroke="none"/><rect x="3" y="4" width="18" height="16" rx="2" stroke="#46505F"/><line x1="3" y1="9" x2="21" y2="9" stroke="#46505F"/><line x1="9" y1="9" x2="9" y2="20" stroke="#46505F"/><line x1="15" y1="9" x2="15" y2="20" stroke="#46505F"/><line x1="3" y1="14.5" x2="21" y2="14.5" stroke="#46505F"/></svg><span class="md-caseload__quick-label" aria-hidden="true">{{t "Model" key="caseload_qa_model"}}</span>
                     </button>
-                  {{else if (is-equal supervisee.edit_permission true)}}
-                    {{!-- No home board yet AND edit access → offer the fix in the
-                         same slot: open the home-board picker for THIS communicator
-                         (caseload_set_home_board → setup board_category, user
-                         scoped) so the supporter can help choose one. --}}
-                    <button type="button" class="md-caseload__quick-action md-caseload__quick-action--choose-board" {{on "click" (this.ctrlActionNoBubble "caseload_set_home_board" supervisee)}} aria-label={{concat (t "Choose a home board for" key="choose_home_board_for") " " supervisee.user_name}} title={{t "No home board yet — choose one so you can model on this communicator's board." key="choose_home_board_hint"}}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="14" height="16" rx="2" stroke="#46505F"/><line x1="3" y1="9" x2="17" y2="9" stroke="#46505F"/><line x1="19" y1="13" x2="19" y2="21" stroke="#2A9D8F"/><line x1="15" y1="17" x2="23" y2="17" stroke="#2A9D8F"/></svg><span class="md-caseload__quick-label" aria-hidden="true">{{t "Choose Board" key="caseload_qa_choose_board"}}</span>
-                    </button>
-                  {{else}}
-                    {{!-- No home board yet and VIEW-ONLY access → the supporter
-                         can't set one, so a Choose Board CTA would dead-end. Show a
-                         muted, non-interactive note explaining why instead. --}}
-                    <span class="md-caseload__quick-action md-caseload__quick-action--empty" role="note" aria-label={{t "No home board set for this communicator yet" key="model_unavailable_aria"}} title={{t "This communicator has no home board yet. An editor needs to set one before you can model." key="model_unavailable_hint"}}>
+                  {{else if (is-equal supervisee.modeling_only true)}}
+                    {{!-- Modeling-only links cannot set a home board for the
+                         communicator — show a muted note instead of a dead-end CTA. --}}
+                    <span class="md-caseload__quick-action md-caseload__quick-action--empty" role="note" aria-label={{t "No home board set for this communicator yet" key="model_unavailable_aria"}} data-tip={{t "Modeling needs a home board: an editor must set one for this communicator first." key="model_unavailable_tip"}}>
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor"/><line x1="3" y1="9" x2="21" y2="9" stroke="currentColor"/><line x1="5" y1="19" x2="19" y2="5" stroke="currentColor"/></svg><span class="md-caseload__quick-label" aria-hidden="true">{{t "No board" key="model_unavailable_short"}}</span>
                     </span>
+                  {{else}}
+                    {{!-- No home board yet — supervisors (view or edit) can open
+                         /board-picker?user_id=… for this communicator. --}}
+                    {{!-- Board-plus glyph, restored: this is a setup action, and it
+                         must be identifiable without relying on its teal fill. The
+                         label wraps to two lines under the icon inside the shared
+                         tile width — see the --choose-board rules. Strokes are
+                         recoloured to white in CSS for the solid teal fill. --}}
+                    <button type="button" class="md-caseload__quick-action md-caseload__quick-action--choose-board" {{on "click" (this.ctrlActionNoBubble "caseload_set_home_board" supervisee)}} aria-label={{concat (t "Choose a home board for" key="choose_home_board_for") " " supervisee.user_name}} title={{t "No home board yet — choose one so you can model on this communicator's board." key="choose_home_board_hint"}}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="12.5" height="15" rx="2" stroke="#46505F"/><line x1="2" y1="8.5" x2="14.5" y2="8.5" stroke="#46505F"/><line x1="20" y1="14.5" x2="20" y2="21.5" stroke="#1A7B7A"/><line x1="16.5" y1="18" x2="23.5" y2="18" stroke="#1A7B7A"/></svg><span class="md-caseload__quick-label" aria-hidden="true">{{t "Choose Board" key="caseload_qa_choose_board"}}</span>
+                    </button>
                   {{/if}}
-                  <button type="button" class="md-caseload__quick-action md-caseload__quick-action--note" {{on "click" (this.ctrlActionNoBubble "record_note" supervisee)}} aria-label={{concat (t "New note for" key="new_note_for_lower") " " supervisee.user_name}} title={{t "New Note" key="new_note"}}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9" stroke="#46505F"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4z" stroke="#46505F"/><path d="M15 5l3 3" stroke="#2A9D8F"/></svg><span class="md-caseload__quick-label" aria-hidden="true">{{t "Note" key="caseload_qa_note"}}</span>
-                  </button>
+                  {{!-- Order: Speak, Reports, Note. Speak was promoted out of the
+                       expanded panel into this slot (Assess went the other way,
+                       taking Speak's place in ADDITIONAL ACTIONS) — same action,
+                       same handler, same modeling-only gate, only the location
+                       and therefore the styling family changed. DOM order IS the
+                       visual order (nothing in the row reorders with CSS), so tab
+                       order follows. --}}
+                  {{!-- Speak has ONE precondition now: the communicator must have a
+                       home board. Without one, set_speak_mode_user falls back to the
+                       SUPPORTER's own home board (app-state.js ~2281), which would
+                       drop the supporter onto their own board while attributed to
+                       the communicator.
+                       A modeling-only link USED to be blocked here too. That was UI
+                       policy, not a backend rule: api/logs_controller#create needs
+                       only `allowed?(user, 'model')` (:187), which every supervisor
+                       including modeling-only holds (user.rb:63), and it records the
+                       supporter as `:author` either way. Modelers may now Speak.
+                       The placeholder is a <span role="note"> with no handler, so it
+                       cannot fire, and it states the condition with colour, ink, the
+                       lock badge and a title — not opacity. --}}
+                  {{#if supervisee.resolved_home_board_key}}
+                    <button type="button" class="md-caseload__quick-action md-caseload__quick-action--speak" {{on "click" (this.ctrlActionNoBubble "caseload_speak_as" supervisee)}} aria-label={{concat (t "Speak as" key="speak_as") " " supervisee.user_name}} title={{concat (t "Speak as" key="speak_as") " " supervisee.user_name}}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="10.5 5 6 9 2.5 9 2.5 15 6 15 10.5 19 10.5 5" stroke="#46505F"/><path d="M14.2 9.4a3.6 3.6 0 0 1 0 5.2" stroke="#2A9D8F"/><path d="M17.2 6.8a7.4 7.4 0 0 1 0 10.4" stroke="#2A9D8F"/></svg><span class="md-caseload__quick-label" aria-hidden="true">{{t "Speak" key="speak_short"}}</span>
+                    </button>
+                  {{else}}
+                    <span class="md-caseload__quick-action md-caseload__quick-action--empty md-caseload__quick-action--speak" role="note" aria-label={{t "Speak — available once this communicator has a home board" key="speak_needs_board_aria"}} data-tip={{t "Speak needs a home board: choose one for this communicator and Speak turns on." key="speak_needs_board_tip"}}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="10.5 5 6 9 2.5 9 2.5 15 6 15 10.5 19 10.5 5" stroke="currentColor"/><path d="M14.2 9.4a3.6 3.6 0 0 1 0 5.2" stroke="currentColor"/><path d="M17.2 6.8a7.4 7.4 0 0 1 0 10.4" stroke="currentColor"/></svg><span class="md-caseload__quick-label" aria-hidden="true">{{t "Speak" key="speak_short"}}</span>
+                      <span class="md-caseload__action-lock" aria-hidden="true"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8.75 10.5V7.75a3.25 3.25 0 0 1 6.5 0v2.75" stroke="#2A9D8F" stroke-width="1.8" stroke-linecap="round" fill="none"/><rect x="4.75" y="10.5" width="14.5" height="9.25" rx="2.4" fill="none" stroke="#8A93A3" stroke-width="1.8"/></svg></span>
+                    </span>
+                  {{/if}}
+                  {{#if supervisee.modeling_only}}
+                    <span class="md-caseload__quick-action md-caseload__quick-action--empty md-caseload__quick-action--reports" role="note" aria-label={{t "Reports — feature unavailable. Upgrade your account for usage reports, progress tracking, goals, assessments and full profile access." key="reports_locked_aria"}} data-tip={{t "Feature unavailable: Upgrade your account for usage reports, progress tracking, goals, assessments and full profile access." key="caseload_upgrade_tip"}}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="20" x2="6" y2="14" stroke="#46505F"/><line x1="12" y1="20" x2="12" y2="4" stroke="#2A9D8F"/><line x1="18" y1="20" x2="18" y2="10" stroke="#46505F"/></svg><span class="md-caseload__quick-label" aria-hidden="true">{{t "Reports" key="caseload_qa_reports"}}</span>
+                      <span class="md-caseload__action-lock" aria-hidden="true"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8.75 10.5V7.75a3.25 3.25 0 0 1 6.5 0v2.75" stroke="#2A9D8F" stroke-width="1.8" stroke-linecap="round" fill="none"/><rect x="4.75" y="10.5" width="14.5" height="9.25" rx="2.4" fill="none" stroke="#8A93A3" stroke-width="1.8"/></svg></span>
+                    </span>
+                  {{else}}
                   <LinkTo @route="user.stats" @model={{supervisee.user_name}} class="md-caseload__quick-action md-caseload__quick-action--reports" aria-label={{concat (t "Usage reports for" key="usage_reports_for") " " supervisee.user_name}} title={{t "Usage Reports" key="usage_reports"}}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="20" x2="6" y2="14" stroke="#46505F"/><line x1="12" y1="20" x2="12" y2="4" stroke="#E87A6F"/><line x1="18" y1="20" x2="18" y2="10" stroke="#46505F"/></svg><span class="md-caseload__quick-label" aria-hidden="true">{{t "Reports" key="caseload_qa_reports"}}</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="20" x2="6" y2="14" stroke="#46505F"/><line x1="12" y1="20" x2="12" y2="4" stroke="#2A9D8F"/><line x1="18" y1="20" x2="18" y2="10" stroke="#46505F"/></svg><span class="md-caseload__quick-label" aria-hidden="true">{{t "Reports" key="caseload_qa_reports"}}</span>
                   </LinkTo>
-                  <button type="button" class="md-caseload__quick-action md-caseload__quick-action--assess" {{on "click" (this.ctrlActionNoBubble "quick_assessment" supervisee)}} aria-label={{concat (t "Quick assessment for" key="quick_assessment_for_lower") " " supervisee.user_name}} title={{t "Quick Assessment" key="quick_assessment"}}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4.5h6a1 1 0 0 1 1 1V6h2.5a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19.5v-12A1.5 1.5 0 0 1 5.5 6H8v-.5a1 1 0 0 1 1-1z" stroke="#46505F"/><path d="M9 12.5l2.4 2.4L15.5 10" stroke="#2A9D8F" stroke-width="1.8"/></svg><span class="md-caseload__quick-label" aria-hidden="true">{{t "Assess" key="caseload_qa_assess"}}</span>
-                  </button>
-                  {{!-- Full Eval launches a clinical assessment — gate it behind the
-                       eval flag (currently ENABLED for everyone in beta) so its
-                       rollout can be staged for production like Quick Screen Eval. --}}
-                  {{#if this.appState.feature_flags.quick_screen_eval}}
-                  <button type="button" class="md-caseload__quick-action md-caseload__quick-action--run-eval" {{on "click" (this.ctrlActionNoBubble "run_eval" supervisee)}} aria-label={{concat (t "Run Evaluation" key="run_evaluation") " " supervisee.user_name}} title={{t "Run Evaluation" key="run_evaluation"}}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="6" stroke="#2A9D8F"/><path d="M15.5 13l1.5 8-5-3-5 3 1.5-8" stroke="#46505F"/></svg><span class="md-caseload__quick-label" aria-hidden="true">{{t "Full Eval" key="caseload_qa_run_eval"}}</span>
+                  {{/if}}
+                  {{!-- NOTE: no Setup button here. It used to occupy this slot,
+                       gated on the communicator having no home board — exactly
+                       when Choose Board is also shown — so it was a second
+                       button for the same moment in the same row. Choose Board
+                       is the one that actually completes the step (it opens the
+                       board picker); Setup opened the `intro` walkthrough, which
+                       is still reachable from the dashboard and the app shell. --}}
+                  {{!-- Modeling Ideas was promoted out of ADDITIONAL ACTIONS into
+                       this slot (Full Eval went the other way). Same handler,
+                       same label, same icon — only the location, and therefore
+                       the styling family, changed. --}}
+                  {{#if supervisee.modeling_only}}
+                    <span class="md-caseload__quick-action md-caseload__quick-action--empty md-caseload__quick-action--ideas" role="note" aria-label={{t "Modeling Ideas — feature unavailable. Upgrade your account for usage reports, progress tracking, goals, assessments and full profile access." key="ideas_locked_aria"}} data-tip={{t "Feature unavailable: Upgrade your account for usage reports, progress tracking, goals, assessments and full profile access." key="caseload_upgrade_tip"}}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z" stroke="#2A9D8F"/><path d="M9 18h6" stroke="#46505F"/><path d="M10 22h4" stroke="#46505F"/></svg><span class="md-caseload__quick-label" aria-hidden="true">{{t "Modeling Ideas" key="modeling_ideas"}}</span>
+                      <span class="md-caseload__action-lock" aria-hidden="true"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8.75 10.5V7.75a3.25 3.25 0 0 1 6.5 0v2.75" stroke="#2A9D8F" stroke-width="1.8" stroke-linecap="round" fill="none"/><rect x="4.75" y="10.5" width="14.5" height="9.25" rx="2.4" fill="none" stroke="#8A93A3" stroke-width="1.8"/></svg></span>
+                    </span>
+                  {{else}}
+                  <button type="button" class="md-caseload__quick-action md-caseload__quick-action--ideas" {{on "click" (this.ctrlActionNoBubble "modeling_ideas" supervisee.user_name)}} aria-label={{concat (t "Modeling Ideas" key="modeling_ideas") " " supervisee.user_name}} title={{t "Modeling Ideas" key="modeling_ideas"}}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z" stroke="#2A9D8F"/><path d="M9 18h6" stroke="#46505F"/><path d="M10 22h4" stroke="#46505F"/></svg><span class="md-caseload__quick-label" aria-hidden="true">{{t "Modeling Ideas" key="modeling_ideas"}}</span>
                   </button>
                   {{/if}}
-                  <span class="md-caseload__list-chevron" aria-hidden="true">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                  </span>
+                  {{!-- Was a decorative chevron; now a labelled action in the same
+                       family as its neighbours, so the way into the panel is as
+                       obvious as the shortcuts beside it. NO click handler on
+                       purpose: the header owns `selectSupervisee`, and this
+                       button's click bubbles to it — which is also why it must
+                       NOT use ctrlActionNoBubble like the other quick actions.
+                       The icon keeps the chevron (and its flip on expand) because
+                       that is what says "this opens in place"; the label supplies
+                       the meaning. aria-expanded mirrors the header trigger. --}}
+                  {{!-- NOT gated on modeling_only. This toggle only opens the
+                        panel, and the panel is legitimately available on a
+                        modeling-only link: it carries Speak, Home Board and
+                        Modeling Ideas, which `model` permission grants. The
+                        genuinely restricted items inside it — badges (:382) and
+                        goals (:526) — carry their own "not available when you
+                        are linked as modeling-only" copy.
+                        It used to render a locked <span role="note"> here saying
+                        the feature was unavailable, while clicking anywhere on
+                        the row opened the panel regardless (the row header
+                        carries selectSupervisee), so the lock claimed something
+                        the UI immediately contradicted. --}}
+                  <button type="button" class="md-caseload__quick-action md-caseload__quick-action--more" aria-expanded={{if (is-equal supervisee.user_name this.selectedSupervisee) "true" "false"}} aria-controls={{concat "caseload-panel-" supervisee.user_name}} aria-label={{concat (t "More actions for" key="caseload_more_actions_for") " " supervisee.user_name}}>
+                    <span class="md-caseload__list-chevron" aria-hidden="true">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </span>
+                    <span class="md-caseload__quick-label" aria-hidden="true">{{t "More Actions" key="caseload_qa_more"}}</span>
+                  </button>
                 </div>
                 </div>{{!-- /.md-caseload__list-header --}}
                 {{#if (is-equal supervisee.user_name this.selectedSupervisee)}}
               <div class="md-caseload__card" id={{concat "caseload-panel-" supervisee.user_name}}>
-                <div class="md-caseload__card-top">
-                  {{!-- Identity-row pill — wraps the avatar, COMMUNICATOR
-                {{!-- Bottom row of the header — wraps to a new line
-                     within .md-caseload__card-top via flex-wrap so the
-                     goal chip can sit at the LEFT edge of the card and
-                     the extras chevron stays at the RIGHT edge. Sits
-                     ABOVE the card-top border-bottom divider. --}}
+
+                {{!-- Expanded-panel actions — the non-duplicate actions live
+                     inside the panel (not the row header): Speak, Home Board,
+                     Run Evaluation, Modeling Ideas, Account. Original tile
+                     styling (.md-caseload__actions--tiles / --action--tile). --}}
+                {{!-- Order: actions BEFORE goals. A supporter opening a card is
+                     usually going somewhere (speak, home board, reports); goals
+                     are what they read once they are here. --}}
+                <div class="md-caseload__panel-actions">
+                <div class="md-caseload__actions-eyebrow" aria-hidden="true">{{t "ADDITIONAL ACTIONS" key="quick_actions_eyebrow"}}</div>
+                <div class="md-caseload__actions md-caseload__actions--tiles">
+                  {{!-- Assess took Speak's place here when Speak was promoted to
+                       the row's top actions. Unconditional, exactly as it was in
+                       the row — it has no access-level gate of its own. --}}
+                  {{!-- ALPHABETICAL by visible label — Account, Assess, Eval
+                       History, Full Eval, Home Board, Quick Screen Eval. This
+                       panel is a flat grid of unrelated tools with no natural
+                       priority order, so A-Z is the ordering a supporter can
+                       predict without learning it. DOM order is the visual order
+                       (the grid does not reorder with CSS), so tab order follows.
+                       Two notes for whoever edits this next:
+                       - The Home Board slot renders "Setup" instead when the
+                         communicator has no home board yet. It stays in the
+                         Home Board position rather than jumping to S — the slot
+                         holds one place in the grid, and a tile that moves when
+                         a communicator's state changes is worse than one letter
+                         out of order.
+                       - Eval History, Full Eval and Quick Screen Eval share the
+                         quick_screen_eval flag, so the flag now appears in two
+                         blocks rather than one. Sorting has to win over grouping
+                         here, otherwise the alphabet breaks whenever the flag is
+                         on. --}}
+                  <LinkTo @route="user" @model={{supervisee.user_name}} class="md-caseload__action md-caseload__action--tile md-caseload__action--account" aria-label={{concat (t "Account" key="account") " " supervisee.user_name}} title={{t "Account" key="account"}}>
+                    <span class="md-caseload__action-tile__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#46505F"/><circle cx="12" cy="7" r="4" stroke="#2A9D8F"/></svg></span>
+                    <span class="md-caseload__action-tile__label">{{t "Account" key="account"}}</span>
+                  </LinkTo>
+                  <button type="button" class="md-caseload__action md-caseload__action--tile md-caseload__action--assess" {{on "click" (this.ctrlActionNoBubble "quick_assessment" supervisee)}} aria-label={{concat (t "Quick assessment for" key="quick_assessment_for_lower") " " supervisee.user_name}} title={{t "Quick Assessment" key="quick_assessment"}}>
+                    <span class="md-caseload__action-tile__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4.5h6a1 1 0 0 1 1 1V6h2.5a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19.5v-12A1.5 1.5 0 0 1 5.5 6H8v-.5a1 1 0 0 1 1-1z" stroke="#46505F"/><path d="M9 12.5l2.4 2.4L15.5 10" stroke="#2A9D8F" stroke-width="1.8"/></svg></span>
+                    <span class="md-caseload__action-tile__label">{{t "Assess" key="caseload_qa_assess"}}</span>
+                  </button>
+                  {{#if this.appState.feature_flags.quick_screen_eval}}
+                    <LinkTo @route="user.logs" @model={{supervisee.user_name}} @query={{hash type="eval"}} class="md-caseload__action md-caseload__action--tile md-caseload__action--history" aria-label={{concat (t "Eval history for" key="eval_history_for") " " supervisee.user_name}} title={{t "Eval History" key="eval_history_link"}}>
+                      <span class="md-caseload__action-tile__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7" stroke="#46505F"/><polyline points="3 3.5 3 9 8.5 9" stroke="#46505F"/><path d="M12 8v4l3 2" stroke="#2A9D8F"/></svg></span>
+                      <span class="md-caseload__action-tile__label">{{t "Eval History" key="eval_history_link"}}</span>
+                    </LinkTo>
+                    <button type="button" class="md-caseload__action md-caseload__action--tile md-caseload__action--run-eval" {{on "click" (this.ctrlActionNoBubble "run_eval" supervisee)}} aria-label={{concat (t "Run Evaluation" key="run_evaluation") " " supervisee.user_name}} title={{t "Run Evaluation" key="run_evaluation"}}>
+                      <span class="md-caseload__action-tile__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6" stroke="#2A9D8F"/><path d="M15.5 13l1.5 8-5-3-5 3 1.5-8" stroke="#46505F"/></svg></span>
+                      <span class="md-caseload__action-tile__label">{{t "Full Eval" key="caseload_qa_run_eval"}}</span>
+                    </button>
+                  {{/if}}
+                  {{!-- NOTE: no Home Board tile here. Both of the row's leading
+                       actions already open this communicator's home board —
+                       Model opens it as the supporter, Speak opens it as the
+                       communicator — so a third tile that opens the same board
+                       with no mode attached was the odd one out, not a shortcut.
+                       Nothing else linked to `@route="board"` from this panel. --}}
+                  {{!-- Note came down from the row into Setup's old place. It has
+                       no gate of its own, so it renders unconditionally — and it
+                       lands between Home Board and Quick Screen Eval, which is
+                       where the alphabet wants it anyway. --}}
+                  <button type="button" class="md-caseload__action md-caseload__action--tile md-caseload__action--note" {{on "click" (this.ctrlActionNoBubble "record_note" supervisee)}} aria-label={{concat (t "New note for" key="new_note_for_lower") " " supervisee.user_name}} title={{t "New Note" key="new_note"}}>
+                    <span class="md-caseload__action-tile__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9" stroke="#46505F"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4z" stroke="#46505F"/><path d="M15 5l3 3" stroke="#2A9D8F"/></svg></span>
+                    <span class="md-caseload__action-tile__label">{{t "Note" key="caseload_qa_note"}}</span>
+                  </button>
+                  {{#if this.appState.feature_flags.quick_screen_eval}}
+                    <LinkTo @route="eval.quick" @model={{supervisee.user_name}} class="md-caseload__action md-caseload__action--tile md-caseload__action--eval" aria-label={{concat (t "Quick Screen Eval for" key="quick_screen_eval_for") " " supervisee.user_name}} title={{t "Quick Screen Eval (5 min)" key="quick_screen_eval_link"}}>
+                      <span class="md-caseload__action-tile__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="14" r="8" stroke="#46505F"/><path d="M12 10v4l2 2" stroke="#2A9D8F"/><path d="M9 2h6" stroke="#46505F"/><path d="M19 5l1-1" stroke="#46505F"/></svg></span>
+                      <span class="md-caseload__action-tile__label">{{t "Quick Screen Eval" key="quick_screen_eval"}}</span>
+                    </LinkTo>
+                  {{/if}}
+                </div>
+                </div>{{!-- /.md-caseload__panel-actions --}}
+
+                {{!-- BADGE IN PROGRESS. Same content as the badge-awarded modal's
+                     in-progress branch — image, name, level, time left, progress
+                     bar, and the "to earn this badge…" explanation — laid out on
+                     the goals section's surface so the two read as one family.
+                     Rendered only when the selected communicator actually has a
+                     badge under way (see _loadBadgeForSupervisee); no badge means
+                     no section, rather than an empty placeholder competing with
+                     goals for the supporter's attention.
+                     The whole tile opens the real modal, so this is a preview of
+                     it and never a second, divergent presentation. --}}
+                {{#unless this.badgeLoading}}
+                <div class="md-caseload__bottom-row md-caseload__bottom-row--badge">
+                  <div class="md-caseload__bottom-row__goal">
+                    <div class="md-caseload__goal-header">
+                      <span class="md-caseload__goal-eyebrow-row" aria-hidden="true">
+                        <span class="md-caseload__goal-eyebrow">{{t "BADGE IN PROGRESS" key="caseload_badge_eyebrow"}}</span>
+                      </span>
+                    </div>
+                    {{#if this.selectedBadge}}
+                    <button type="button" class="md-caseload__badge" {{on "click" (this.ctrlActionNoBubble "show_badge" this.selectedBadge)}} aria-label={{concat (t "Badge details for" key="caseload_badge_details_for") " " this.selectedBadge.name}}>
+                      <span class="md-caseload__badge-medal">
+                        {{#if this.selectedBadge.image_url}}
+                          <img src={{this.selectedBadge.image_url}} alt="" onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}}>
+                        {{else}}
+                          <img src={{path "images/badge-fallback.png"}} alt="" onerror='button_broken_image(this)' data-fallback={{path "images/badge-fallback.png"}}>
+                        {{/if}}
+                      </span>
+                      {{!-- Two columns: identity (name + level) on the left, and
+                           everything about PROGRESS — time left, bar, percent,
+                           and what it takes to earn — to its right. They wrap to
+                           a single stack on narrow cards. --}}
+                      <span class="md-caseload__badge-body">
+                        <span class="md-caseload__badge-headings">
+                          <span class="md-caseload__badge-name">{{this.selectedBadge.name}}</span>
+                          {{#if this.selectedBadge.level}}
+                            <span class="md-caseload__badge-level">{{t "Level %{level}" level=this.selectedBadge.level key="level_n2"}}</span>
+                          {{/if}}
+                        </span>
+                        <span class="md-caseload__badge-status">
+                          {{#if this.selectedBadge.time_left}}
+                            <span class="md-caseload__badge-time">{{this.selectedBadge.time_left}}</span>
+                          {{/if}}
+                          {{!-- The bar is aria-hidden and the percentage is stated in
+                               the adjacent status text instead — a progressbar role
+                               here would announce a number with no context, and the
+                               tile's own label already names the badge. --}}
+                          <span class="md-caseload__badge-bar" aria-hidden="true">
+                            <span class="md-caseload__badge-bar__fill" style={{this.selectedBadge.progress_style}}></span>
+                          </span>
+                          <span class="md-caseload__badge-pct" role="status">{{t "%{pct}% complete" key="caseload_badge_pct_complete" pct=this.selectedBadge.progress_out_of_100}}</span>
+                          {{#if this.selectedBadge.completion_explanation}}
+                            <span class="md-caseload__badge-explain">
+                              <span class="md-caseload__badge-explain-lead">{{t "To earn this badge, %{user} needs to:" user=supervisee.user_name key="to_earn_user_needs_to"}}</span>
+                              {{this.selectedBadge.completion_explanation}}
+                            </span>
+                          {{/if}}
+                        </span>
+                      </span>
+                    </button>
+                    {{else}}
+                      {{!-- EMPTY STATE. Reuses the goals empty-state classes
+                           verbatim — same icon slot, title, description and CTA
+                           treatment — so the two sections of this panel stay one
+                           design instead of two that drift apart.
+                           The CTA opens the NEW GOAL flow, and the copy says so:
+                           badges in this product are attached to goals (badge
+                           authoring lives in BadgeSettings on the goals pages,
+                           and the new-goal modal's templates carry badges), so a
+                           button promising a standalone "new badge" would lead
+                           somewhere that does not exist. Same online /
+                           can_set_goals / modeling-only guards as the goals
+                           empty state, for the same reasons. --}}
+                      <div class="md-caseload__goal-empty">
+                        <span class="md-caseload__goal-empty-icon" aria-hidden="true">
+                          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6" stroke="#2A9D8F"/><path d="M15.5 13l1.5 8-5-3-5 3 1.5-8" stroke="#46505F"/></svg>
+                        </span>
+                        {{!-- On a modeling-only link this block is NOT "there is no
+                             badge" — the badge query is refused (badges_controller
+                             requires `view_detailed`, which ca629dda9 withholds from
+                             modeling-only links), so a badge may well exist and simply
+                             cannot be read. Saying "No badge in progress" there states
+                             something the app does not know, and inviting the supporter
+                             to "set one up" points at an action the same link forbids.
+                             The explanatory hint below stays as the detail. --}}
+                        {{#if supervisee.modeling_only}}
+                          <p class="md-caseload__goal-empty-title">{{t "Badge progress not available" key="badge_progress_not_available"}}</p>
+                        {{else}}
+                          <p class="md-caseload__goal-empty-title">{{t "No badge in progress" key="no_badge_in_progress"}}</p>
+                          <p class="md-caseload__goal-empty-desc">{{t "Badges are earned through goals — set one up to start tracking progress." key="badges_empty_desc"}}</p>
+                        {{/if}}
+                        {{#if this.persistence.online}}
+                          {{#unless (is-equal supervisee.can_set_goals false)}}
+                            <button type="button" class="md-caseload__goal-empty-add" {{on "click" (this.ctrlActionNoBubble "set_goal" supervisee)}}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                              <span>{{t "Add Goal with Badge" key="add_goal_with_badge"}}</span>
+                            </button>
+                          {{else}}
+                            {{#if supervisee.modeling_only}}
+                              <span class="md-caseload__goal-hint">{{t "Badges are not available when you are linked as modeling-only for this communicator." key="badges_unavailable_modeling_only_link"}}</span>
+                            {{/if}}
+                          {{/unless}}
+                        {{/if}}
+                      </div>
+                    {{/if}}
+                  </div>
+                </div>
+                {{/unless}}
+
+                {{!-- GOALS. Was the last line INSIDE .md-caseload__card-top
+                     (a flex-wrapped full-width child); it is now a direct child
+                     of the card, below the actions section. Its own surface and
+                     width:100% carry the layout — the flex-basis it used to rely
+                     on is inert here. --}}
                 <div class="md-caseload__bottom-row">
                   <div class="md-caseload__bottom-row__goal">
                     {{!-- GOAL eyebrow + chip — mirrors the ACCESS
@@ -274,64 +549,6 @@
                     {{/if}}
                   </div>
                 </div>
-                </div>{{!-- /.md-caseload__card-top --}}
-
-                {{!-- Expanded-panel actions — the non-duplicate actions live
-                     inside the panel (not the row header): Speak, Home Board,
-                     Run Evaluation, Modeling Ideas, Account. Original tile
-                     styling (.md-caseload__actions--tiles / --action--tile). --}}
-                {{!-- Quick Actions sits in a white, full-width section so the
-                     teal tint stops at Goals (subtle section separation). --}}
-                <div class="md-caseload__panel-actions">
-                <div class="md-caseload__actions-eyebrow" aria-hidden="true">{{t "ADDITIONAL ACTIONS" key="quick_actions_eyebrow"}}</div>
-                <div class="md-caseload__actions md-caseload__actions--tiles">
-                  {{#unless supervisee.modeling_only}}
-                    <button type="button" class="md-caseload__action md-caseload__action--tile md-caseload__action--speak" {{on "click" (this.ctrlActionNoBubble "caseload_speak_as" supervisee)}} aria-label={{concat (t "Speak as" key="speak_as") " " supervisee.user_name}} title={{concat (t "Speak as" key="speak_as") " " supervisee.user_name}}>
-                      <span class="md-caseload__action-tile__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" stroke="#46505F"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07" stroke="#4C86D8"/></svg></span>
-                      <span class="md-caseload__action-tile__label">{{t "Speak" key="speak_short"}}</span>
-                    </button>
-                  {{else}}
-                    {{!-- Speak isn't available on a modeling-only link. Keep a
-                         locked placeholder so the tile grid stays consistent
-                         across access levels and the supporter can see what a
-                         full link would unlock (lock badge + explanatory hint). --}}
-                    <span class="md-caseload__action md-caseload__action--tile md-caseload__action--speak md-caseload__action--locked" role="note" aria-label={{t "Speak — available with a full (non-modeling-only) link" key="speak_locked_aria"}} title={{t "Speak isn't available when you're linked as modeling-only for this communicator." key="speak_locked_hint"}}>
-                      <span class="md-caseload__action-tile__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" stroke="#46505F"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07" stroke="#4C86D8"/></svg></span>
-                      <span class="md-caseload__action-tile__label">{{t "Speak" key="speak_short"}}</span>
-                      <span class="md-caseload__action-lock" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
-                    </span>
-                  {{/unless}}
-                  {{#if supervisee.resolved_home_board_key}}
-                    <LinkTo @route="board" @model={{supervisee.resolved_home_board_key}} class="md-caseload__action md-caseload__action--tile md-caseload__action--setup" aria-label={{concat (t "Home Board" key="home_board") " " supervisee.user_name}} title={{t "Home Board" key="home_board"}}>
-                      <span class="md-caseload__action-tile__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5" stroke="#8B5CF6"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" stroke="#46505F"/></svg></span>
-                      <span class="md-caseload__action-tile__label">{{t "Home Board" key="home_board"}}</span>
-                    </LinkTo>
-                  {{else}}
-                    <button type="button" class="md-caseload__action md-caseload__action--tile md-caseload__action--setup" aria-label={{t "Setup User" key="setup_user"}} title={{t "Setup User" key="setup_user"}} {{on "click" (this.ctrlActionNoBubble "intro" supervisee)}}>
-                      <span class="md-caseload__action-tile__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#46505F"/><circle cx="12" cy="7" r="4" stroke="#8B5CF6"/></svg></span>
-                      <span class="md-caseload__action-tile__label">{{t "Setup" key="setup_short"}}</span>
-                    </button>
-                  {{/if}}
-                  {{#if this.appState.feature_flags.quick_screen_eval}}
-                    <LinkTo @route="eval.quick" @model={{supervisee.user_name}} class="md-caseload__action md-caseload__action--tile md-caseload__action--eval" aria-label={{concat (t "Quick Screen Eval for" key="quick_screen_eval_for") " " supervisee.user_name}} title={{t "Quick Screen Eval (5 min)" key="quick_screen_eval_link"}}>
-                      <span class="md-caseload__action-tile__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="14" r="8" stroke="#46505F"/><path d="M12 10v4l2 2" stroke="#2A9D8F"/><path d="M9 2h6" stroke="#46505F"/><path d="M19 5l1-1" stroke="#46505F"/></svg></span>
-                      <span class="md-caseload__action-tile__label">{{t "Quick Screen Eval" key="quick_screen_eval"}}</span>
-                    </LinkTo>
-                    <LinkTo @route="user.logs" @model={{supervisee.user_name}} @query={{hash type="eval"}} class="md-caseload__action md-caseload__action--tile md-caseload__action--history" aria-label={{concat (t "Eval history for" key="eval_history_for") " " supervisee.user_name}} title={{t "Eval History" key="eval_history_link"}}>
-                      <span class="md-caseload__action-tile__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7" stroke="#46505F"/><polyline points="3 3.5 3 9 8.5 9" stroke="#46505F"/><path d="M12 8v4l3 2" stroke="#2A9D8F"/></svg></span>
-                      <span class="md-caseload__action-tile__label">{{t "Eval History" key="eval_history_link"}}</span>
-                    </LinkTo>
-                  {{/if}}
-                  <button type="button" class="md-caseload__action md-caseload__action--tile md-caseload__action--ideas" {{on "click" (this.ctrlActionNoBubble "modeling_ideas" supervisee.user_name)}} aria-label={{concat (t "Modeling Ideas" key="modeling_ideas") " " supervisee.user_name}} title={{t "Modeling Ideas" key="modeling_ideas"}}>
-                    <span class="md-caseload__action-tile__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z" stroke="#F2B95A"/><path d="M9 18h6" stroke="#46505F"/><path d="M10 22h4" stroke="#46505F"/></svg></span>
-                    <span class="md-caseload__action-tile__label">{{t "Modeling Ideas" key="modeling_ideas"}}</span>
-                  </button>
-                  <LinkTo @route="user" @model={{supervisee.user_name}} class="md-caseload__action md-caseload__action--tile md-caseload__action--account" aria-label={{concat (t "Account" key="account") " " supervisee.user_name}} title={{t "Account" key="account"}}>
-                    <span class="md-caseload__action-tile__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#46505F"/><circle cx="12" cy="7" r="4" stroke="#2A9D8F"/></svg></span>
-                    <span class="md-caseload__action-tile__label">{{t "Account" key="account"}}</span>
-                  </LinkTo>
-                </div>
-                </div>{{!-- /.md-caseload__panel-actions --}}
 
                 {{#if supervisee.current_badge}}
                   {{#if supervisee.premium}}

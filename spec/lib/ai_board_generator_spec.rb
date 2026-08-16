@@ -91,7 +91,14 @@ describe AiBoardGenerator do
       expect(result[:ai_generated]).to be_a(Hash)
       expect(Art50Marker.verify(result[:ai_generated])).to eq(true)
       expect(result[:ai_generated]['provider']).to eq('claude')
-      expect(result[:ai_generated]['model']).to eq(AiBoardGenerator::DEFAULT_MODEL)
+      # The Article 50 marker records the id that was ACTUALLY invoked (the
+      # resolved wire id), not the plane-neutral alias. On the classic Bedrock
+      # plane that is the inference-profile id, which is strictly more precise:
+      # it pins the dated model version AND the routing scope (a `us.` profile
+      # means inference ran in a US region, which is itself relevant to an
+      # EU-jurisdiction data-flow record). Asserted through AiClient.bedrock_model
+      # so this stays correct on either plane.
+      expect(result[:ai_generated]['model']).to eq(AiClient.bedrock_model(AiBoardGenerator::DEFAULT_MODEL))
       expect(logged[:ai_content_marked]).to eq(true)
       expect(logged[:ai_generated_content_id]).to eq(result[:ai_generated]['content_id'])
     end

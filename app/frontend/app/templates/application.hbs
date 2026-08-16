@@ -2,6 +2,7 @@
 <div id="audio"></div>
 <AppLoadingOverlay />
 <AppToast />
+<CopyProgressDrawer />
 <header class="{{this.header_class}} {{if this.useAppNavbarInHeader "header-index-with-dark-toggle"}} {{unless this.isSessionAuthenticated "header--unauthenticated"}} {{if this.hide_header "header--hidden"}}">
   <div id="inner_header">
   {{#if this.useAppNavbarInHeader}}
@@ -926,8 +927,8 @@
             </LinkTo>
             {{/if}}
             {{#if this.isMasquerading}}
-            <button type="button" class="md-pillnav__stop-masquerade" aria-label={{t "Stop Masquerading" key="stop_masquerading"}} title={{t "Stop Masquerading" key="stop_masquerading"}} {{on "click" (this.ctrlAction "stopMasquerading")}}>
-              {{t "Stop Masquerading" key="stop_masquerading"}}
+            <button type="button" class="md-pillnav__stop-masquerade" aria-label={{this.masqueradeStopLabel}} title={{this.masqueradeStopLabel}} {{on "click" (this.ctrlAction "stopMasquerading")}}>
+              {{this.masqueradeStopLabel}}
             </button>
             {{/if}}
             {{#unless this.app_state.currentBoardState.id}}
@@ -1274,7 +1275,7 @@
                 </LinkTo></li>
               {{/if}}
               {{#if this.isMasquerading}}
-                <li><a href="#" {{on "click" (this.ctrlAction "stopMasquerading")}}>{{t "Stop Masquerading" key="stop_masquerading"}}</a></li>
+                <li><a href="#" {{on "click" (this.ctrlAction "stopMasquerading")}}>{{this.masqueradeStopLabel}}</a></li>
               {{/if}}
               {{#unless this.app_state.speak_mode}}
                 <li><a href="#" {{on "click" (this.ctrlAction "invalidateSession")}}>{{t "Sign Out" key="logout"}}</a></li>
@@ -1302,8 +1303,8 @@
       {{/unless}}
       {{else}}
     {{#if this.isMasquerading}}
-      <button type="button" class="md-pillnav__stop-masquerade" aria-label={{t "Stop Masquerading" key="stop_masquerading"}} title={{t "Stop Masquerading" key="stop_masquerading"}} {{on "click" (this.ctrlAction "stopMasquerading")}}>
-        {{t "Stop Masquerading" key="stop_masquerading"}}
+      <button type="button" class="md-pillnav__stop-masquerade" aria-label={{this.masqueradeStopLabel}} title={{this.masqueradeStopLabel}} {{on "click" (this.ctrlAction "stopMasquerading")}}>
+        {{this.masqueradeStopLabel}}
       </button>
     {{/if}}
     {{#unless this.app_state.currentBoardState.id}}
@@ -1478,6 +1479,13 @@
   </div>
 </header>
 {{#if (or this.app_state.currentUser this.app_state.sessionUser)}}
+  {{!-- TEMPORARY (2026-07-27): the beta-feedback drawer + its bottom-center tab are
+       suppressed on board-detail SPEAK mode only (route user.board-detail.index).
+       Every other surface — board-detail EDIT mode, classic board speak/edit, the
+       home dashboard, all other authenticated pages — still renders it.
+       TO RESTORE: remove this {{#unless}} wrapper (and its {{/unless}} below), and
+       delete `hide_beta_feedback_temporarily` from controllers/application.js. --}}
+  {{#unless this.hide_beta_feedback_temporarily}}
   {{#if this.showBetaFeedbackDrawer}}
     {{#if (or this.app_state.speak_mode this.app_state.edit_mode this.on_board_detail)}}
       <button type="button" class="beta-feedback-drawer-tab beta-feedback-drawer-tab--speak {{if this.betaFeedbackDrawerOpen "beta-feedback-drawer-tab--open"}}" {{on "click" this.onToggleBetaFeedbackDrawer}} aria-expanded={{if this.betaFeedbackDrawerOpen "true" "false"}} aria-controls="beta-feedback-top-drawer">
@@ -1492,8 +1500,16 @@
       </aside>
     </div>
   {{/if}}
+  {{/unless}}{{!-- TEMPORARY (2026-07-27) — remove with the {{#unless}} above --}}
 {{/if}}
 <div id="content" class="{{this.content_class}} {{if this.hide_header "content--no-top-padding"}}">
+  {{!-- Supervising context pill. It lives INSIDE #content on purpose: #content is
+       the app's scroll container (#within_ember is fixed/overflow:hidden on the
+       page-footer layout), so a pill rendered outside it would hover over the
+       page as you scroll. Its own wrapper is zero-height and the pill is
+       absolutely positioned, so it adds nothing to this flex column. Self-
+       suppressing — renders nothing on your own pages or with the flag off. --}}
+  <SupervisingContextPill />
   {{ outlet }}
 </div>
 {{#if this.app_state.eval_paused}}

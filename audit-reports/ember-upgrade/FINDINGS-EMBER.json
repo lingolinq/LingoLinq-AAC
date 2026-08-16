@@ -3,9 +3,9 @@
     "schemaVersion": "1.1",
     "register": "LingoLinq-AAC Ember upgrade findings register",
     "description": "Single source of truth for Ember 3.28->5.12 upgrade-regression findings. Separate from the compliance register (audit-reports/FINDINGS.json) on purpose: framework-upgrade bugs are engineering findings, not compliance findings, but they use the SAME merge/citation machinery (scripts/audit-merge.rb, scripts/citation-check.rb) and the same governance: the merge never closes or downgrades; only Scot closes a finding. See audit-reports/ember-upgrade/README.md.",
-    "auditedSha": "8708d1a9e59d21f13a45a746461aa67273c32a0b",
-    "auditedRef": "traci/styling/styling-updates",
-    "auditedDate": "2026-07-22"
+    "auditedSha": "b5fd83fd22da7fe6ad1634ccfd62d7f44c55f00a",
+    "auditedRef": "staging",
+    "auditedDate": "2026-07-29"
   },
   "findings": [
     {
@@ -441,7 +441,7 @@
         "verifierNote": "Verified 2026-07-22: Fixed in 76cc9176: controllers/user/subscription.js now injects session: service(session). Runtime-verified in a real browser via Ember owner introspection: subscription controller this.session is defined and session.isAuthenticated === true, so subscription.hbs:110/199/250 now take the authenticated branch (Cancel-Subscription control) instead of the <LoginForm>. 0 page/console errors on load. Literal cancel-confirm pixels still require a subscribed user (enclosing gate), unrelated to this fix.",
         "attestation": "Traci Day 2026-07-22: authorized verified-closed. Fix committed in 76cc9176 (session: service(session) injected into the 9 user/* controllers). Register governance normally reserves closes for Scot; closed here at operator direction."
       },
-      "notes": "Surfaced by templates finder on 2026-07-22. Class 3B (missing service injection). Provenance proof: controllers/user/subscription.js extends Controller directly and injects only appState (:12), app_state alias (:14), router (:15) - NO session (grep 'session' -> 0 matches). routes/user/subscription.js setupController does not controller.set('session',...). No app-wide session auto-injection (board.js/register.js/user/lessons.js each EXPLICITLY inject session: service('session'), proving no ambient injection). So this.session is undefined and this.session.isAuthenticated is falsy at :110/:199/:250. Impact at :110: inside {{#if this.subscription.show_cancel}} (normal flow for an active subscriber), the always-false check renders the {{else}} branch (:122-127) = login prompt + <LoginForm> to an already-authenticated premium user, so subscription cancellation is inert via the UI. Live user.subscription route. The 2026-07-09 remediation (78bbc855a) added appState/router but missed session; this.session refs predate it. NEEDS ADVERSARY VERIFY + a real browser click-test before fix. [adversary: confirmed \u2014 session injection absent + no ambient injection in 5.12; norm confirmed via controllers/user/lessons.js:15 + board.js:5; reachable + renders falsy without throw.]"
+      "notes": "Surfaced by templates finder on 2026-07-22. Class 3B (missing service injection). Provenance proof: controllers/user/subscription.js extends Controller directly and injects only appState (:12), app_state alias (:14), router (:15) - NO session (grep 'session' -> 0 matches). routes/user/subscription.js setupController does not controller.set('session',...). No app-wide session auto-injection (board.js/register.js/user/lessons.js each EXPLICITLY inject session: service('session'), proving no ambient injection). So this.session is undefined and this.session.isAuthenticated is falsy at :110/:199/:250. Impact at :110: inside {{#if this.subscription.show_cancel}} (normal flow for an active subscriber), the always-false check renders the {{else}} branch (:122-127) = login prompt + <LoginForm> to an already-authenticated premium user, so subscription cancellation is inert via the UI. Live user.subscription route. The 2026-07-09 remediation (78bbc855a) added appState/router but missed session; this.session refs predate it. NEEDS ADVERSARY VERIFY + a real browser click-test before fix. [adversary: confirmed — session injection absent + no ambient injection in 5.12; norm confirmed via controllers/user/lessons.js:15 + board.js:5; reachable + renders falsy without throw.]"
     },
     {
       "id": "LL-63aa8f9e68",
@@ -470,7 +470,123 @@
         "verifierNote": "Verified 2026-07-22: Fixed in 76cc9176: session: service(session) injected into user/{logs,edit,badges,stats,history,goals,recordings,preferences}.js. Runtime-verified: all 8 controllers instantiate with this.session defined and session.isAuthenticated === true; the premium/access-denied gates now render the authenticated branch for logged-in users. Regression sweep across edit/goals/recordings routes: 0 page/console errors.",
         "attestation": "Traci Day 2026-07-22: authorized verified-closed. Fix committed in 76cc9176 (session: service(session) injected into the 9 user/* controllers). Register governance normally reserves closes for Scot; closed here at operator direction."
       },
-      "notes": "Surfaced by templates finder on 2026-07-22. Class 3B, consolidated - same root cause as the subscription HIGH finding, lower impact. Anchor user/logs.hbs:170; identical {{else if this.session.isAuthenticated}} at user/edit.hbs:578, user/badges.hbs:75, user/stats.hbs:377, user/history.hbs:45, user/goals.hbs:395, user/recordings.hbs:111, user/preferences.hbs:2130. Each backing controller has no session property (logs.js uses global LingoLinq.session not this.session). Trailing premium/access-denied gate: authenticated-but-ungated user falls through to the not-logged-in {{else}} instead of 'Premium Membership Required'; feature stays gated, user can navigate away -> LOW. EXCLUDED false positive: eval/quick.hbs @session (legit eval assessment session); brief.hbs this.session is dead-list. [adversary: confirmed \u2014 session injection absent + no ambient injection in 5.12; norm confirmed via controllers/user/lessons.js:15 + board.js:5; reachable + renders falsy without throw.]"
+      "notes": "Surfaced by templates finder on 2026-07-22. Class 3B, consolidated - same root cause as the subscription HIGH finding, lower impact. Anchor user/logs.hbs:170; identical {{else if this.session.isAuthenticated}} at user/edit.hbs:578, user/badges.hbs:75, user/stats.hbs:377, user/history.hbs:45, user/goals.hbs:395, user/recordings.hbs:111, user/preferences.hbs:2130. Each backing controller has no session property (logs.js uses global LingoLinq.session not this.session). Trailing premium/access-denied gate: authenticated-but-ungated user falls through to the not-logged-in {{else}} instead of 'Premium Membership Required'; feature stays gated, user can navigate away -> LOW. EXCLUDED false positive: eval/quick.hbs @session (legit eval assessment session); brief.hbs this.session is dead-list. [adversary: confirmed — session injection absent + no ambient injection in 5.12; norm confirmed via controllers/user/lessons.js:15 + board.js:5; reachable + renders falsy without throw.]"
+    },
+    {
+      "id": "LL-bd7745db40",
+      "ruleKey": "upgrade-dropped-control-button-text-only",
+      "title": "Button Settings lost the per-button \"Show only text (as large as fits)\" checkbox in the Ember 5.12 tab-template consolidation; model.text_only is still persisted server-side but no longer settable from any UI",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/components/button-settings.hbs",
+        "line": 292,
+        "snippet": "<input type=\"checkbox\" checked={{this.model.hide_label}} {{on \"change\" (this.ctrlActionEventValue \"updateHideLabel\" \"checked\")}} {{on \"change\" (set-field this \"model.hide_label\" \"checkbox\")}} />",
+        "sha": "b5fd83fd22da7fe6ad1634ccfd62d7f44c55f00a"
+      },
+      "firstSeen": "2026-07-29",
+      "lastSeen": "2026-07-29",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "The Ember 5.12 upgrade (8ad379acb) consolidated the per-tab editor templates (button-settings-general/picture/action/sound/extras/language.hbs) into components/button-settings.hbs. The Picture tab's text_only checkbox did not survive: the original fork carries it at app/frontend/app/templates/button-settings-picture.hbs:240 as {{input checked=model.text_only type=\"checkbox\"}} with locale key 'stretch_text_only'. Its sibling hide_label control DID survive and is the anchor line here. The property is still persisted (app/models/board.rb:2239 allowlist, coerced to bool at :2248) and is still honored by the classic renderers (templates/button.hbs, button-unbound.hbs, board/index.hbs), so the data path is intact and only the control is missing. FIX PART 1: re-add the checkbox next to hide_label bound to model.text_only, using the modern one-way idiom (native input + (set-field this \"model.text_only\" \"checkbox\")), and restore the 'stretch_text_only' locale string, which was also dropped. FIX PART 2 (REQUIRED, separate defect that PREDATES the upgrade): the modern board-detail render path ignores per-button text_only entirely - components/board-detail-grid.hbs has zero references to it and controllers/user/board-detail.js#_make_btn never carries it onto the display button - so restoring the checkbox alone leaves the feature visually inert on the board view users actually see. Both halves are needed. Note PR #699 adds a DIFFERENT, adjacent mechanism (text_symbol, auto-detected for any labelled image-less button); it is not a substitute for the author-controlled text_only toggle and the two should not share a flag.",
+        "timeframe": "this-sprint"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by ember-upgrade finder on 2026-07-29."
+    },
+    {
+      "id": "LL-64cd8cc85a",
+      "ruleKey": "upgrade-dropped-control-button-book-options",
+      "title": "Button Settings lost all three TarHeel book option checkboxes (book.popup / book.speech / book.utterance) in the Ember 5.12 consolidation, leaving a live bookChanged observer syncing a model no UI can edit",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/components/button-settings.js",
+        "line": 347,
+        "snippet": "bookChanged: observer('model.book', function() {",
+        "sha": "b5fd83fd22da7fe6ad1634ccfd62d7f44c55f00a"
+      },
+      "firstSeen": "2026-07-29",
+      "lastSeen": "2026-07-29",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "The original fork exposes three checkboxes on the Action tab: 'Show book in a popup' (model.book.popup, button-settings-action.hbs:311), 'Automatically read pages aloud' (model.book.speech, :343) and 'Add spoken pages to the vocalization box' (model.book.utterance, :353). components/button-settings.hbs now contains zero 'book' occurrences - only a hint string mentioning TarHeel Reader - while the component JS retains the full book machinery: this bookChanged observer, a load_book observer that queries /api/v1/search/external_resources?source=tarheel_book, and book_status state. The VIDEO equivalents survived the consolidation (model.video.popup checkbox at button-settings.hbs:930), which is what makes this a consolidation omission rather than an intentional removal. Impact is bounded but real: utils/button.js:163-175 (resource_from_url TarHeel init) defaults popup:true, speech:false, utterance:true — so the book pane still opens and spoken pages are added to the vocalization box by default, but authors can never turn popup/utterance OFF and can never turn speech ON. Restore the three checkboxes in the Action/Link section using the modern set-field idiom, mirroring how model.video.popup is bound. ALSO extend bookChanged (button-settings.js:348) to observe model.book.popup / model.book.speech / model.book.utterance (same nested-mutation pattern already documented for videoChanged at :336-342), or call editManager.change_button from each control — otherwise set-field will mutate the in-modal book object without synchronizing the authoritative board button.",
+        "timeframe": "next-sprint"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by ember-upgrade finder on 2026-07-29."
+    },
+    {
+      "id": "LL-7a992d1782",
+      "ruleKey": "upgrade-dropped-control-button-no-skin",
+      "title": "Button Settings lost the per-button skin-tone control (model.no_skin) in the Ember 5.12 consolidation; the property is now only ever set automatically when copying a button, never by an author",
+      "severity": "medium",
+      "confidence": "medium",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/utils/edit_manager.js",
+        "line": 2197,
+        "snippet": "newButton.no_skin = true;",
+        "sha": "b5fd83fd22da7fe6ad1634ccfd62d7f44c55f00a"
+      },
+      "firstSeen": "2026-07-29",
+      "lastSeen": "2026-07-29",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "The original fork exposes this on the Picture tab at button-settings-picture.hbs:214 as {{input checked=model.no_skin type=\"checkbox\"}} labelled 'apply clustered skin tone for this button', shown conditionally when model.image.skinned. components/button-settings.hbs now has zero no_skin references; the only remaining write in the whole frontend is this automatic assignment during button copy. The property is still persisted (app/models/board.rb:2239 allowlist). Note the current editor DOES have a skin_preference BoundSelect (button-settings.hbs:401) but that is the image-SEARCH skin preference, a different setting, and a comment at :268 confirms the search-scoped skin option was deliberately relocated - the per-button toggle was not. Confidence is medium rather than high because the whole skin-tone surface is gated behind the skin_tones feature flag, so this may be judged low-priority rather than a must-fix. Restore the conditional checkbox in the Picture section if per-button skin locking is still wanted.",
+        "timeframe": "backlog"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by ember-upgrade finder on 2026-07-29."
+    },
+    {
+      "id": "LL-02e3d2c875",
+      "ruleKey": "upgrade-dropped-control-button-meta-home",
+      "title": "Button Settings lost the 'Require menu action to return from linked board' checkbox (model.meta_home) in the Ember 5.12 consolidation; it can now only be inherited on copy, never set",
+      "severity": "medium",
+      "confidence": "medium",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/utils/edit_manager.js",
+        "line": 2257,
+        "snippet": "newButton.meta_home = !!(newButton.home_lock && emberGet(currentButton, 'meta_home'));",
+        "sha": "b5fd83fd22da7fe6ad1634ccfd62d7f44c55f00a"
+      },
+      "firstSeen": "2026-07-29",
+      "lastSeen": "2026-07-29",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "The original fork exposes this on the Action tab at button-settings-action.hbs:617 as {{input checked=model.meta_home type=\"checkbox\"}} labelled 'Require menu action to return from linked board', nested under the home_lock option. The parent home_lock control DID survive (button-settings.hbs:687) but its meta_home sub-option did not, so an author can lock a linked board as a temporary home but can no longer require a menu action to leave it. The property is still persisted (app/models/board.rb:2239 allowlist, with an explicit delete-if-falsy at :2240) and app-state/board routes still read a meta_home navigation state. This line is the only remaining write and merely propagates an existing value during copy. Confidence is medium because the derive-from-home_lock behaviour here could plausibly have been an intentional simplification; confirm intent before restoring, then re-add the nested checkbox under the home_lock control.",
+        "timeframe": "backlog"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by ember-upgrade finder on 2026-07-29."
     }
   ]
 }

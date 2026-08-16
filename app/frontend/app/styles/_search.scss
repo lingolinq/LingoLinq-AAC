@@ -190,6 +190,13 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.ub-find-board__preview-owner {
+  margin: 2px 0 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba($la-navy, 0.55);
+  line-height: 1.2;
+}
 .ub-find-board__preview-grid-size { font-size: 12px; color: rgba($la-navy, 0.6); font-weight: 600; }
 .ub-find-board__preview-open { flex-shrink: 0; }
 .ub-find-board__preview-grid-wrap {

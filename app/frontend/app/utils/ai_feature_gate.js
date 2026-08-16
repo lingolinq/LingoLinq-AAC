@@ -4,10 +4,22 @@
  * Feature flags control rollout; preferences control user opt-in.
  *
  * Pref semantics (match lib/feature_flags.rb#user_pref_allows_ai?):
- * - Master (ai_features_enabled) nil => grandfather allow
- * - Master false => block all AI
- * - Master true => USER_PREF_AI_FEATURES require prefs[feature] == true;
- *   other AI features follow the master (allowed)
+ * - Master (ai_features_enabled) ABSENT (null/undefined) => grandfather allow
+ * - Master an explicit opt-out (false/'false'/0/'0') => block all AI
+ * - Master PRESENT but unrecognized ('', 'maybe', an object) => block all AI
+ * - Master an explicit opt-in => USER_PREF_AI_FEATURES require
+ *   prefs[feature] == true; other AI features follow the master
+ *
+ * Unrecognized fails CLOSED, matching the server. Notably '' denies here, so
+ * this file no longer needs a blank test at all — which also removes a real
+ * divergence risk, since Ruby's String#strip and JS's String#trim disagree on
+ * Unicode whitespace in BOTH directions (U+00A0 is blank to trim but not to
+ * strip; NUL is blank to strip but not to trim). Any such split shows up in
+ * production as the UI offering a control the server then refuses with 403.
+ *
+ * A blank per-feature CHILD key while the master is explicitly true stays
+ * BLOCKED: that is an INCOMPLETE opt-in, and allowing it would manufacture
+ * consent the user never gave.
  */
 
 var USER_PREF_AI_FEATURES = {
@@ -17,12 +29,21 @@ var USER_PREF_AI_FEATURES = {
   ai_symbol_search: true
 };
 
-function truthy(val) {
-  return val === true || val === 'true';
-}
+// The ONE boolean vocabulary for AI preference values, mirroring
+// FeatureFlags::AI_PREF_TRUE_VALUES / AI_PREF_FALSE_VALUES. Keep in sync.
+// These previously recognized only true/'true' and false/'false', which meant a
+// stored 0 or '0' was read as neither an opt-out nor blank and fell through to
+// "allowed" — an old numeric opt-out becoming AI egress.
+var AI_PREF_TRUE_VALUES = [true, 'true', '1', 1];
+var AI_PREF_FALSE_VALUES = [false, 'false', '0', 0];
 
-function falsy(val) {
-  return val === false || val === 'false';
+// Returns true, false, or null when the value records no recognizable decision.
+// indexOf compares with ===, so 1 never matches true and 0 never matches false;
+// a numeric value can only match the list it is written in.
+function aiPrefValue(val) {
+  if(AI_PREF_TRUE_VALUES.indexOf(val) !== -1) { return true; }
+  if(AI_PREF_FALSE_VALUES.indexOf(val) !== -1) { return false; }
+  return null;
 }
 
 /**
@@ -41,10 +62,16 @@ function prefAllowsAi(user, feature) {
   if(!prefs || typeof prefs !== 'object') { return true; }
 
   var master = prefs.ai_features_enabled;
+  // Absent master only. Note `prefs.ai_features_enabled` is undefined for a key
+  // that was never written, and null for one explicitly stored as null; both are
+  // the legacy grandfather case.
   if(master === undefined || master === null) { return true; }
-  if(falsy(master)) { return false; }
+  // Deny on an explicit opt-out AND on anything unrecognized, for every feature.
+  if(aiPrefValue(master) !== true) { return false; }
   if(!USER_PREF_AI_FEATURES[feature]) { return true; }
-  return truthy(prefs[feature]);
+  // The child must be an explicit opt-IN; null (absent, blank, or unrecognized)
+  // is an INCOMPLETE opt-in and stays blocked.
+  return aiPrefValue(prefs[feature]) === true;
 }
 
 /**
@@ -61,8 +88,9 @@ function aiFeatureEnabled(appState, feature) {
 
 export default {
   USER_PREF_AI_FEATURES: USER_PREF_AI_FEATURES,
+  aiPrefValue: aiPrefValue,
   prefAllowsAi: prefAllowsAi,
   aiFeatureEnabled: aiFeatureEnabled
 };
 
-export { USER_PREF_AI_FEATURES, prefAllowsAi, aiFeatureEnabled };
+export { USER_PREF_AI_FEATURES, aiPrefValue, prefAllowsAi, aiFeatureEnabled };

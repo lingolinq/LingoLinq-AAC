@@ -58,6 +58,34 @@ describe Api::BoardsController, :type => :controller do
       expect(json['board'][0]['id']).to eq(b.global_id)
     end
 
+    # List tiles only need metadata; shipping buttons/grid for every owned
+    # sub-board dominates Mine-tab payload/CPU. Show keeps the full shape.
+    # See docs/task-management/2026-08-10-boards-page-load-perf.md.
+    it "should omit buttons and board content blobs from index list payloads" do
+      token_user
+      b = Board.create(:user => @user)
+      b.settings['name'] = 'List Tile'
+      b.settings['buttons'] = [{'id' => 1, 'label' => 'hi'}]
+      b.settings['grid'] = {'rows' => 2, 'columns' => 2, 'order' => [[1, nil], [nil, nil]]}
+      b.save
+      get :index, params: {:user_id => @user.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      row = json['board'].detect { |r| r['id'] == b.global_id }
+      expect(row).to be_present
+      expect(row['name']).to eq('List Tile')
+      expect(row).not_to have_key('buttons')
+      expect(row).not_to have_key('grid')
+      expect(row).not_to have_key('intro')
+      expect(row).not_to have_key('background')
+
+      get :show, params: {:id => b.global_id}
+      expect(response).to be_successful
+      show_json = JSON.parse(response.body)
+      expect(show_json['board']['buttons']).to be_present
+      expect(show_json['board']['grid']).to be_present
+    end
+
     it "should not 500 on custom_order sort when a starred board has nil settings" do
       token_user
       u = @user
@@ -1323,6 +1351,29 @@ describe Api::BoardsController, :type => :controller do
       assert_unauthorized
     end
 
+    # The board-picker home-board flow (models/board.js create_copy) posts create
+    # with parent_board_id, so a supervise-only supervisor must be able to COPY a
+    # board for a communicatee. The spec above pins the other half: without a
+    # parent_board_id it is authoring a brand-new board, which stays edit-only.
+    it "should allow a supervise-only supervisor to copy a board for a supervisee" do
+      token_user
+      com = User.create
+      b = Board.create(:user => @user, :public => true)
+      User.link_supervisor_to_user(@user, com, nil, false)
+      post :create, params: {:board => {:name => "my board", :for_user_id => com.global_id, :parent_board_id => b.global_id}}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['board']['user_name']).to eq(com.user_name)
+    end
+
+    it "should not allow a supervise-only supervisor to copy a board for a non-supervisee" do
+      token_user
+      com = User.create
+      b = Board.create(:user => @user, :public => true)
+      post :create, params: {:board => {:name => "my board", :for_user_id => com.global_id, :parent_board_id => b.global_id}}
+      assert_unauthorized
+    end
+
     it "should preserve grid order" do
       token_user
       request.headers['Content-Type'] = 'application/json'
@@ -1432,6 +1483,88 @@ describe Api::BoardsController, :type => :controller do
       expect(response).to have_http_status(:forbidden)
       json = JSON.parse(response.body)
       expect(json['error']).to eq('Feature not available')
+    end
+
+    # Every other example in this block stubs ai_feature_enabled_for? outright,
+    # so the user PREFERENCE half of the gate was never exercised through the
+    # endpoint that actually returned "Feature not available" in production.
+    # These drive the real FeatureFlags.ai_feature_enabled_for? and stub only the
+    # layers around the preference check: the flag registry and ai_enabled_for?.
+    describe "user preference gate (end to end through the endpoint)" do
+      def stub_ai_layers_except_prefs
+        allow(FeatureFlags).to receive(:ai_enabled_for?).and_return(true)
+        allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+        allow(FeatureFlags).to receive(:feature_enabled_for?)
+          .with('ai_board_generation', anything).and_return(true)
+      end
+
+      def post_generate
+        request.headers['Content-Type'] = 'application/json'
+        post :generate_labels, params: {}, body: { prompt: 'snacks', rows: 2, columns: 2 }.to_json
+      end
+
+      it "should 403 when the master preference holds an unreadable value" do
+        token_user
+        stub_ai_layers_except_prefs
+        @user.settings['preferences']['ai_features_enabled'] = ''
+        @user.settings['preferences']['ai_board_generation'] = true
+        @user.save!
+        expect(AiBoardGenerator).not_to receive(:generate_words)
+        post_generate
+        expect(response).to have_http_status(:forbidden)
+        expect(JSON.parse(response.body)['error']).to eq('Feature not available')
+      end
+
+      it "should 403 when the master preference is an explicit numeric opt-out" do
+        token_user
+        stub_ai_layers_except_prefs
+        @user.settings['preferences']['ai_features_enabled'] = 0
+        @user.save!
+        expect(AiBoardGenerator).not_to receive(:generate_words)
+        post_generate
+        expect(response).to have_http_status(:forbidden)
+        expect(JSON.parse(response.body)['error']).to eq('Feature not available')
+      end
+
+      it "should 403 when the master is enabled but the feature was never opted into" do
+        token_user
+        stub_ai_layers_except_prefs
+        @user.settings['preferences']['ai_features_enabled'] = true
+        @user.settings['preferences'].delete('ai_board_generation')
+        @user.save!
+        expect(AiBoardGenerator).not_to receive(:generate_words)
+        post_generate
+        expect(response).to have_http_status(:forbidden)
+      end
+
+      # The recovery path for the affected production rows: ticking the box in
+      # preferences writes a real boolean, and generation works from then on.
+      it "should succeed once the user has affirmatively opted in" do
+        token_user
+        stub_ai_layers_except_prefs
+        @user.settings['preferences']['ai_features_enabled'] = true
+        @user.settings['preferences']['ai_board_generation'] = true
+        @user.save!
+        allow(AiBoardGenerator).to receive(:generate_words).and_return(
+          { words: %w[apple banana carrot drink], name: 'Snacks', description: 'Snack words', error: nil }
+        )
+        post_generate
+        expect(response).to be_successful
+      end
+
+      # A never-written master stays grandfathered; this changeset does not
+      # narrow the existing allowance, only the unreadable-value case.
+      it "should succeed for a legacy account that never wrote the preference" do
+        token_user
+        stub_ai_layers_except_prefs
+        User::EU_AI_PREF_KEYS.each { |k| @user.settings['preferences'].delete(k) }
+        @user.save!
+        allow(AiBoardGenerator).to receive(:generate_words).and_return(
+          { words: %w[apple banana carrot drink], name: 'Snacks', description: 'Snack words', error: nil }
+        )
+        post_generate
+        expect(response).to be_successful
+      end
     end
 
     describe "article_50_disclosure backstop (Phase 3 Plan 03-04, T-03-04-01)" do

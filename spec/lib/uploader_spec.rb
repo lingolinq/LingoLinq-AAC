@@ -1691,11 +1691,30 @@ describe Uploader do
   describe "remote_zip" do
     it "should call the block with the loaded zip" do
       expect(OBF::Utils).to receive(:load_zip).and_yield({zipper: true})
-      res = OpenStruct.new(body: 'abc')
+      res = OpenStruct.new(body: 'abc', success?: true, code: 200)
       expect(SafeHttp).to receive(:get).with('http://www.example.com/import.zip').and_return(res)
       Uploader.remote_zip('http://www.example.com/import.zip') do |zipper|
         expect(zipper).to eq({zipper: true})
       end
+    end
+
+    it "should fetch uploads-bucket URLs via signed_internal_url" do
+      uploads_bucket = ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'
+      raw = "https://#{uploads_bucket}.s3.amazonaws.com/imports/sounds/bank.zip"
+      signed = "#{raw}?X-Amz-Signature=test"
+      expect(Uploader).to receive(:signed_internal_url).with(raw).and_return(signed)
+      expect(OBF::Utils).to receive(:load_zip).and_yield({zipper: true})
+      res = OpenStruct.new(body: 'abc', success?: true, code: 200)
+      expect(SafeHttp).to receive(:get).with(signed).and_return(res)
+      Uploader.remote_zip(raw) { |zipper| expect(zipper).to eq({zipper: true}) }
+    end
+
+    it "should raise when the download is not successful" do
+      res = OpenStruct.new(body: 'AccessDenied', success?: false, code: 403)
+      expect(SafeHttp).to receive(:get).with('http://www.example.com/import.zip').and_return(res)
+      expect {
+        Uploader.remote_zip('http://www.example.com/import.zip') { }
+      }.to raise_error('failed to download zip (403)')
     end
   end
  

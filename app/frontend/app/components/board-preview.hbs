@@ -7,7 +7,7 @@
     {{else if this.model}}
       <div class='md-board-preview__heading'>
         <h3 class='md-board-preview__title'>{{this.model.name}}</h3>
-        <div class='md-board-preview__byline'>{{t "by" key="by"}} {{this.model.user_name}}</div>
+        <div class='md-board-preview__byline'>{{#if (board-attribution-owner this.model)}}{{t "by" key="by"}} {{board-attribution-owner this.model}}{{/if}}</div>
       </div>
       <div class='md-board-preview__description'>
           <span class='md-board-preview__description-text'>{{this.model.description}}</span>

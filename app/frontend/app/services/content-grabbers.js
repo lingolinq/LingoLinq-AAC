@@ -858,8 +858,10 @@ var pictureGrabber = EmberObject.extend({
   },
   clear: function() {
     this.clear_image_preview();
-    this.controller.set('image_search', null);
-    var stream = this.controller.get('webcam.stream');
+    var controller = this.controller;
+    if(!controller || controller.isDestroyed || controller.isDestroying) { return; }
+    controller.set('image_search', null);
+    var stream = controller.get('webcam.stream');
     if(stream && stream.stop) {
       stream.stop();
     } else if(stream && stream.getTracks) {
@@ -869,15 +871,17 @@ var pictureGrabber = EmberObject.extend({
         }
       });
     }
-    this.controller.set('webcam', null);
-    this.controller.set('webcam', null);
+    controller.set('webcam', null);
+    controller.set('webcam', null);
     var vid = document.getElementById('webcam_video');
     if(vid) { vid.srcObject = null; vid.removeAttribute('src'); }
     var upload = document.getElementById('image_upload');
     if(upload) { upload.value = ''; }
   },
   clear_image_preview: function() {
-    this.controller.set('image_preview', null);
+    var controller = this.controller;
+    if(!controller || controller.isDestroyed || controller.isDestroying) { return; }
+    controller.set('image_preview', null);
   },
   normalize_preview_license: function(preview) {
     var license = preview && preview.license;
@@ -2651,17 +2655,28 @@ var soundGrabber = EmberObject.extend({
       a.src = preview.url;
     });
 
+    // Nested sound[user_id] is not rewritten by Rails replace_helper_params.
+    // Never send the literal 'self' (or a blank) — find_by_path treats it as a
+    // user_name and 404s. Prefer a real global id; omit to default to @api_user.
     var user_id = this.controller && this.controller.get('user_id');
+    if(user_id === 'self' || !user_id) {
+      var current = appStateService && appStateService.get('currentUser');
+      user_id = (current && (current.get('_actual_id') || current.get('id'))) || null;
+      if(user_id === 'self') { user_id = null; }
+    }
     var save_sound = sound_load.then(function(data) {
-      var sound = LingoLinq.store.createRecord('sound', {
+      var attrs = {
         content_type: preview.content_type || '',
         url: preview.url,
         name: preview.name,
         duration: data.duration,
         transcription: preview.transcription,
-        license: preview.license,
-        user_id: user_id
-      });
+        license: preview.license
+      };
+      if(user_id) {
+        attrs.user_id = user_id;
+      }
+      var sound = LingoLinq.store.createRecord('sound', attrs);
 
       return window.cg.save_record(sound);
     });
