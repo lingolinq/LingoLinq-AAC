@@ -4497,6 +4497,49 @@
         "promotedDate": "2026-08-10"
       },
       "notes": "Surfaced 2026-08-10 while verifying the PR #721 Path A successor drafts against code, per the /re-attest-record 'verify the doc is true now' gate. Distinct from LL-854b1d3853, which covers UserVideo and off-board ButtonSound only. Severity and disposition approved by Scot on 2026-08-10 after a recommendation from the Codex reviewer; the agent proposed the row and did not decide it."
+    },
+    {
+      "id": "LL-c4566fa37f",
+      "ruleKey": "transcode-webhook-race-orphans-derivative-s3-output",
+      "title": "A ButtonSound/UserVideo record erased mid-transcode, or before/after a lost SNS completion webhook, can leave transcoded output and thumbnails in S3 with no surviving application metadata for the erasure sweep to discover (GDPR Art. 17 / FERPA)",
+      "severity": "medium",
+      "confidence": "medium",
+      "frameworks": [
+        "GDPR",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/transcoder.rb",
+        "line": 36,
+        "snippet": "record.update_media_object(new_record) if record",
+        "sha": "9830a1622e8269b21cd19880997588708cc8a96b"
+      },
+      "firstSeen": "2026-08-15",
+      "lastSeen": "2026-08-15",
+      "owner": "",
+      "remediation": {
+        "options": "Transcoder.handle_event (lib/transcoder.rb) only persists a completed job's output keys by calling record.update_media_object(new_record) if record (line 36) -- ButtonSound#update_media_object / MediaObject#update_media_object (app/models/concerns/media_object.rb) is the sole place transcoded-output and thumbnail keys are written to settings, which is in turn the sole source MediaObject#remove_derivative_remote_data reads from to schedule S3 cleanup on destroy. Two related race windows follow from that: (1) if the owning record is destroyed while Elastic Transcoder is still processing the job (or with the SNS completion notification never delivered/lost/erroring on receipt in app/controllers/api/callbacks_controller.rb), the ETS-produced output/thumbnail objects exist in S3 but are never persisted to any record's settings, so no erasure sweep can ever discover or delete them; (2) even for a job that does complete and call update_media_object, everything between the S3 PUT of transcoded output and that synchronous settings write is a window where the record could be destroyed first, same outcome. This is structurally different from LL-854b1d3853 (persisted-but-unswept metadata, fixed on this branch by MediaObject#remove_derivative_remote_data reading settings that DO exist) -- here the metadata needed to find the object never gets written at all. Remediation is intentionally not prescribed here; likely design directions include a durable external-job/output manifest written before the transcode job is submitted (not after it completes), deletion tombstones keyed by transcoding_key so a late webhook can self-clean after the owning record is gone, explicit cancellation/reconciliation of in-flight ETS jobs on record destroy, and/or a periodic post-delete orphan reconciliation sweep against the bucket. Link: related to LL-854b1d3853 (same ButtonSound/UserVideo S3 erasure surface); whether this keeps LL-854b1d3853 open as a blocker or is a distinct sibling that permits LL-854b1d3853 to close narrowly (persisted/discoverable media erasure only) is Scot's call, not decided here.",
+        "timeframe": "medium -- narrow race window in normal operation, but structurally unfixed by the persisted-metadata sweep landing on this branch; no known production incident, not yet independently verified against a real transcode job"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "manual",
+        "reviewer": "claude-adversary-review",
+        "promotedDate": "2026-08-15"
+      },
+      "notes": "Surfaced 2026-08-15 by the round-5 adversary review pass on the buttonsound-secondary-url-cleanup branch (LL-854b1d3853 remediation work), which fixed persisted-metadata media-erasure gaps (secondary_output, prior_full_filenames, thumbnail families) but explicitly could not reach this async transcode/webhook race without redesigning the transcode job lifecycle -- out of scope for that PR per Scot's direction. Filed as its own finding rather than folded into LL-854b1d3853 so the two remediation efforts (persisted-metadata sweep vs. async-job lifecycle hardening) stay separately trackable. Proposed by the agent; severity, confidence, and the LL-854b1d3853 linkage/blocking relationship are pending Scot's review per repo governance (only Scot sets disposition or closes/downgrades a finding)."
     }
   ]
 }

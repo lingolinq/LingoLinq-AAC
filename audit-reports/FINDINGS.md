@@ -9,7 +9,7 @@
 
 Statuses are verified against live code at the audited SHA, not copied from the dated report prose. Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. Disposition (triage) is orthogonal to status: a finding can be `open` yet `dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.
 
-## Open (62)
+## Open (63)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -47,6 +47,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-cde54765c6 |  | medium | FERPA, HIPAA, SOC2 | untriaged | manual | Masquerade shows no on-screen indication of whose account is being operated | `app/controllers/application_controller.rb`:182 |
 | LL-07f1869d92 |  | medium | GDPR, COPPA, FERPA | untriaged | audit-run | SubscriptionMailer#new_subscription sends a user's IP address to iplocate.io with no user-type or consent gate, to a third party absent from the subprocessor register (GDPR Art. 28/44, COPPA) | `app/mailers/subscription_mailer.rb`:30 |
 | LL-1e2ab28aab |  | medium | GDPR, FERPA | **accepted** | manual-trace | Hard delete leaves LogSnapshot records undeleted (GDPR right-to-erasure) | `app/models/log_snapshot.rb`:11 |
+| LL-c4566fa37f |  | medium | GDPR, FERPA | untriaged | manual | A ButtonSound/UserVideo record erased mid-transcode, or before/after a lost SNS completion webhook, can leave transcoded output and thumbnails in S3 with no surviving application metadata for the erasure sweep to discover (GDPR Art. 17 / FERPA) | `lib/transcoder.rb`:36 |
 | LL-1890f6a922 | P2-5 | medium | GDPR, FERPA | **accepted** | audit-run | DataPolicyEnforcer retention only purges session log sessions | `lib/data_policy_enforcer.rb`:14 |
 | LL-d35cbdb313 | P2-7 | medium | FERPA | **accepted** | audit-run | User creation (incl. org start codes) generates no AuditEvent | `app/controllers/api/users_controller.rb`:244 |
 | LL-310b464be4 | P2-8 | medium | FERPA | **accepted** | audit-run | protected_image accepts user_token via URL parameter | `app/controllers/api/users_controller.rb`:945 |
@@ -161,4 +162,4 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 
 ---
 
-_125 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
+_126 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
