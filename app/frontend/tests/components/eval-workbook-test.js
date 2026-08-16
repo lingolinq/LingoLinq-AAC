@@ -64,6 +64,69 @@ describe('eval-workbook authorship gate', function() {
       component.set('appState', sessionUser('1_24'));
       expect(component.get('isAuthor')).toEqual(false);
     });
+
+    /*
+     * `sessionUser.id` is NOT reliably a global id, so the gate compares
+     * `sessionUser.global_id` instead.
+     *
+     * serializers/application.js pins the session user's record id to the literal
+     * 'self' so Ember Data never re-keys the identifier, parking the real id in
+     * `_actual_id`; app-state.js:456 loads the user through exactly that path. It
+     * is a WINDOW rather than a constant — persistence.js:722 stores the fetched
+     * user under its REAL id, so a later local read (persistence.js:394) resolves
+     * it and the window closes. Measured in a second tab: the 'self' state was live
+     * in 2 of 3 loads when sampled every 250ms, and invisible when sampled after 9s.
+     *
+     * Before models/user.js declared `_actual_id`, Ember Data dropped it and the
+     * record had no usable id at all, so the eval's own author was shown the
+     * read-only banner. These cases pin that state deterministically.
+     */
+    var sessionUserNamed = function(id, user_name, global_id) {
+      return EmberObject.create({
+        sessionUser: EmberObject.create({ id: id, user_name: user_name, global_id: global_id })
+      });
+    };
+
+    it("resolves the author through global_id when id is the 'self' alias", function() {
+      // The root fix: models/user.js#global_id returns `_actual_id` when the record
+      // is keyed 'self'. user_name is left unset here on purpose — global_id alone
+      // must carry the identification.
+      component = this.owner.factoryFor('component:eval-workbook').create({
+        log: EmberObject.create({
+          id: '1_5', eval_in_memory: false,
+          author: EmberObject.create({ id: '1_24', user_name: 'marcus_williams_slp' })
+        }),
+        assessment: { ref_id: 'tmp.1.0.1' }
+      });
+      component.set('appState', sessionUserNamed('self', undefined, '1_24'));
+      expect(component.get('isAuthor')).toEqual(true);
+      expect(component.get('canEdit')).toEqual(true);
+    });
+
+    it("refuses when global_id belongs to a different user", function() {
+      component = this.owner.factoryFor('component:eval-workbook').create({
+        log: EmberObject.create({
+          id: '1_5', eval_in_memory: false,
+          author: EmberObject.create({ id: '1_24', user_name: 'marcus_williams_slp' })
+        }),
+        assessment: { ref_id: 'tmp.1.0.1' }
+      });
+      component.set('appState', sessionUserNamed('self', 'someone_else_slp', '1_99'));
+      expect(component.get('isAuthor')).toEqual(false);
+      expect(component.get('canEdit')).toEqual(false);
+    });
+
+    it("still fails closed when neither id nor global_id identifies the user", function() {
+      component = this.owner.factoryFor('component:eval-workbook').create({
+        log: EmberObject.create({
+          id: '1_5', eval_in_memory: false,
+          author: EmberObject.create({ id: '1_24' })
+        }),
+        assessment: { ref_id: 'tmp.1.0.1' }
+      });
+      component.set('appState', sessionUserNamed('self', 'marcus_williams_slp', undefined));
+      expect(component.get('isAuthor')).toEqual(false);
+    });
   });
 
   describe('in-memory eval (recovered from the snapshot)', function() {

@@ -1,8 +1,10 @@
 import Component from '@ember/component';
 import { computed, set as emberSet } from '@ember/object';
 import { inject as service } from '@ember/service';
+import RSVP from 'rsvp';
 import i18n from '../utils/i18n';
 import evaluation from '../utils/eval';
+import persistence from '../utils/persistence';
 import workbook_schema from '../utils/eval_workbook';
 
 /*
@@ -78,15 +80,19 @@ export default Component.extend({
     // target object rather than a dotted path keeps repeating rows out of
     // Ember-path territory entirely (no "rows.0.option" index traversal) and
     // means one writer covers textareas, field sets and row cells alike.
-    this.fieldWriter = function(target, key) {
+    // sectionId is only used to record WHICH section this session edited, for
+    // the concurrent-save merge (see mergedForSend). It is deliberately not part
+    // of the write itself.
+    this.fieldWriter = function(target, key, sectionId) {
       return function(event) {
         var el = event && event.target;
         if (!el || !target || !key) { return; }
-        self.writeField(target, key, el.value);
+        self.writeField(target, key, el.value, sectionId);
       };
     };
     this.set('workbook', workbook_schema.hydrate(this.get('analysis.report_workbook')));
     this.set('_hydratedFor', this.evalIdentity());
+    this._dirtySections = {};
   },
 
   // Which eval is on screen. The log controller is a singleton reused across
@@ -109,6 +115,10 @@ export default Component.extend({
       this.set('saveState', null);
       this.set('openSection', null);
       this.set('resolvedLogId', null);
+      // A DIFFERENT eval is on screen now. Carrying the previous one's dirty
+      // sections over would lay its answers onto this eval's stored workbook on
+      // the next save — the same cross-eval bleed evalIdentity() exists to stop.
+      this._dirtySections = {};
     }
     this.lookupSavedLog();
   },
@@ -246,7 +256,9 @@ export default Component.extend({
 
   // Author check mirrors the server's: it only updates in place when the eval's
   // author matches, and creates a duplicate record otherwise.
-  isAuthor: computed('log.author.id', 'appState.sessionUser.id', 'log.eval_in_memory', 'assessment.author_id', function() {
+  isAuthor: computed('log.author.id', 'log.author.user_name', 'appState.sessionUser.id',
+      'appState.sessionUser.global_id', 'appState.sessionUser.user_name',
+      'log.eval_in_memory', 'assessment.author_id', function() {
     var me = this.get('appState.sessionUser.id');
     // An in-memory eval has no saved LogSession to read an author off, so it
     // carries its own: utils/eval stamps `author_id` when the eval starts, and
@@ -269,8 +281,29 @@ export default Component.extend({
       return String(recorded) === String(me);
     }
     var author = this.get('log.author.id');
-    if (!author) { return false; }
-    return String(author) === String(me);
+    // `global_id` (models/user.js) is the real backend id on BOTH load paths — the
+    // record's own id when it came from local storage, and the `_actual_id` the
+    // serializer parked when it came from the network as the 'self' alias. Compare
+    // with that, never with `.id`, which is 'self' inside that window.
+    var myGlobal = this.get('appState.sessionUser.global_id') || me;
+    if (author && myGlobal && String(author) === String(myGlobal)) { return true; }
+    // `sessionUser.id` is NOT reliably the user's global id. serializers/
+    // application.js#normalizeResponse deliberately pins the session user's record
+    // id to the literal string 'self' so Ember Data never re-keys the identifier,
+    // and the real id it stashes alongside as `_actual_id` is dropped because the
+    // user model never declares that attr. app-state.js:456 loads the session user
+    // through exactly that path (`findRecord('user', 'self')`).
+    //
+    // Observed live: sessionUser.id === 'self' while log.author.id === '1_24', held
+    // for 40s+. The comparison above then reads as a MISMATCH rather than as "not
+    // known yet", so the eval's own author is shown the read-only banner and cannot
+    // type in their own workbook until a reload. create-board-new.js:1361 guards
+    // `ownerId !== 'self'` for the same reason, so the state is known elsewhere.
+    //
+    // Deliberately NOT falling back to matching user_name. `global_id` covers both
+    // load paths exactly, so a second notion of identity on an authorship gate
+    // would be redundant surface with no case left for it to catch.
+    return false;
   }),
 
   hasSaveTarget: computed('assessment', 'logId', function() {
@@ -411,8 +444,22 @@ export default Component.extend({
     };
   }),
 
-  writeField(target, key, value) {
+  // Sections this session has edited, as a "<mode>:<sectionId>" Set. Not tracked
+  // per field: the merge granularity is the section, and a Set of section keys
+  // avoids the dotted Ember paths this component deliberately stays out of.
+  markSectionDirty(sectionId) {
+    if (!sectionId) { return; }
+    if (!this._dirtySections) { this._dirtySections = {}; }
+    this._dirtySections[(this.get('mode') === 'school' ? 'school' : 'medical') + ':' + sectionId] = true;
+  },
+
+  dirtyKeys() {
+    return Object.keys(this._dirtySections || {});
+  },
+
+  writeField(target, key, value, sectionId) {
     emberSet(target, key, value);
+    this.markSectionDirty(sectionId);
     // Plain-object writes don't invalidate computeds on their own, so the badges
     // and progress line have to be told. Bump `revision` rather than notifying
     // `workbook`: notifying `workbook` also invalidates `displaySections`, which
@@ -440,17 +487,57 @@ export default Component.extend({
     }, this.get('SAVE_DEBOUNCE_MS'));
   },
 
+  // Read the newest stored workbook WITHOUT going through the store.
+  //
+  // Two traps this avoids. (1) `store.findRecord(..., {reload: true})` does NOT
+  // reach the network in this app — persistence.js#findRecord is offline-first
+  // and hard-codes start_with_local, so the flag never gets there (the same trap
+  // documented at utils/board-copy.js:37). (2) `log.reload()` DOES reach the
+  // server, but it mutates the record the report is bound to, so `analysis`
+  // recomputes and the whole report re-renders — every few seconds, while the
+  // SLP is typing. A plain GET answers the question and touches nothing.
+  //
+  // Resolves to null whenever there is nothing safe to merge against (offline,
+  // no resolved id, request failed); callers then send the local copy as before.
+  fetchStoredWorkbook() {
+    var id = this.get('logId');
+    if (!id) { return RSVP.resolve(null); }
+    if (!persistence.get('online')) { return RSVP.resolve(null); }
+    return new RSVP.Promise(function(resolve) {
+      persistence.ajax('/api/v1/logs/' + id, { type: 'GET' }).then(function(data) {
+        var evl = data && data.log && data.log.evaluation;
+        resolve((evl && evl.report_workbook) || null);
+      }, function() { resolve(null); });
+    });
+  },
+
+  // What to actually send: this session's edited sections laid over the newest
+  // stored copy, so a section another session wrote is not wiped by our save.
+  mergedForSend(stored) {
+    if (!stored) { return this.get('workbook'); }
+    return workbook_schema.mergeForSend(stored, this.get('workbook'), this.dirtyKeys());
+  },
+
   // The actual write. Kept free of component state so it can also run while the
   // component is tearing down.
-  sendWorkbook() {
-    return evaluation.save_workbook({
-      assessment: this.get('assessment'),
-      log_id: this.get('logId'),
-      workbook: this.get('workbook'),
-      // No record to attach to yet -> hold it locally. Sending would file a
-      // duplicate evaluation rather than update this one.
-      local_only: !this.get('hasSaveTarget')
-    });
+  //
+  // `skip_merge` is for the teardown path only: an async GET during
+  // willDestroyElement is not reliably completed, and losing the paragraph just
+  // typed is a worse failure than the rare clobber the merge prevents.
+  sendWorkbook(skip_merge) {
+    var _this = this;
+    var send = function(stored) {
+      return evaluation.save_workbook({
+        assessment: _this.get('assessment'),
+        log_id: _this.get('logId'),
+        workbook: _this.mergedForSend(stored),
+        // No record to attach to yet -> hold it locally. Sending would file a
+        // duplicate evaluation rather than update this one.
+        local_only: !_this.get('hasSaveTarget')
+      });
+    };
+    if (skip_merge || !this.get('hasSaveTarget')) { return send(null); }
+    return this.fetchStoredWorkbook().then(send, function() { return send(null); });
   },
 
   savable() {
@@ -481,7 +568,7 @@ export default Component.extend({
     if (this._saveTimer) {
       clearTimeout(this._saveTimer);
       this._saveTimer = null;
-      if (this.savable()) { this.sendWorkbook(); }
+      if (this.savable()) { this.sendWorkbook(true); }
     }
   },
 
@@ -497,6 +584,7 @@ export default Component.extend({
       if (!section) { return; }
       var rows = this.get('activeValues')[sectionId].rows;
       rows.push(workbook_schema.blankRow(section));
+      this.markSectionDirty(sectionId);
       // Structural change — the row list itself is different — so this one DOES
       // have to rebuild the section. Nobody is mid-keystroke when they click it.
       this.notifyPropertyChange('workbook');
@@ -509,6 +597,7 @@ export default Component.extend({
       // Never leave a rows section with no row — there would be nothing to type
       // into and no way back except re-opening the section.
       if (!value.rows.length) { value.rows.push(workbook_schema.blankRow(section)); }
+      this.markSectionDirty(sectionId);
       this.notifyPropertyChange('workbook');
       this.scheduleSave();
     },

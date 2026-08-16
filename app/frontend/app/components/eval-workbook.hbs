@@ -62,7 +62,7 @@
             <label class="evq-workbook__label" for={{concat "wb-" section.id "-notes"}}>
               {{section.notesLabel}}
             </label>
-            <textarea id={{concat "wb-" section.id "-notes"}} class="evq-workbook__input evq-workbook__input--long" rows="4" disabled={{unless this.canEdit true}} {{on "input" (this.fieldWriter section.value "notes")}}>{{section.value.notes}}</textarea>
+            <textarea id={{concat "wb-" section.id "-notes"}} class="evq-workbook__input evq-workbook__input--long" rows="4" disabled={{unless this.canEdit true}} {{on "input" (this.fieldWriter section.value "notes" section.id)}}>{{section.value.notes}}</textarea>
           </div>
 
         {{else if section.isFields}}
@@ -72,7 +72,7 @@
                 <label class="evq-workbook__label" for={{concat "wb-" section.id "-" field.key}}>
                   {{field.label}}
                 </label>
-                <input id={{concat "wb-" section.id "-" field.key}} type="text" class="evq-workbook__input" value={{get section.value field.key}} disabled={{unless this.canEdit true}} {{on "input" (this.fieldWriter section.value field.key)}} />
+                <input id={{concat "wb-" section.id "-" field.key}} type="text" class="evq-workbook__input" value={{get section.value field.key}} disabled={{unless this.canEdit true}} {{on "input" (this.fieldWriter section.value field.key section.id)}} />
               </div>
             {{/each}}
           </div>
@@ -86,7 +86,7 @@
                     <label class="evq-workbook__label" for={{concat "wb-" section.id "-" index "-" col.key}}>
                       {{col.label}}
                     </label>
-                    <input id={{concat "wb-" section.id "-" index "-" col.key}} type="text" class="evq-workbook__input" value={{get row col.key}} disabled={{unless this.canEdit true}} {{on "input" (this.fieldWriter row col.key)}} />
+                    <input id={{concat "wb-" section.id "-" index "-" col.key}} type="text" class="evq-workbook__input" value={{get row col.key}} disabled={{unless this.canEdit true}} {{on "input" (this.fieldWriter row col.key section.id)}} />
                   </div>
                 {{/each}}
                 {{#if this.canEdit}}

@@ -147,12 +147,42 @@ export function isEmpty(workbook) {
   });
 }
 
+// Build the workbook to SEND, given the newest stored copy and this session's
+// local one.
+//
+// A save replaces `data['eval']` wholesale (log_session.rb:1875), so sending the
+// local copy alone discards any section another session wrote while this one was
+// open. Start from `stored` and lay only the sections this session actually
+// edited over the top.
+//
+// `dirtyKeys` are "<mode>:<sectionId>" strings. Keying on EDITED rather than
+// on non-empty is what makes this safe both ways: a section the SLP deliberately
+// cleared is dirty, so the empty value wins and the clear sticks; a section they
+// never opened is not dirty, so the stored text survives. Two sessions editing
+// DIFFERENT sections both keep their work; the same section is last-write-wins,
+// which is the honest limit of a fire-and-forget save path.
+export function mergeForSend(stored, local, dirtyKeys) {
+  const merged = hydrate(stored);
+  if (!local) { return merged; }
+  (dirtyKeys || []).forEach(function(entry) {
+    const split = String(entry).indexOf(':');
+    if (split === -1) { return; }
+    const mode = entry.slice(0, split);
+    const id = entry.slice(split + 1);
+    if (!merged[mode] || !local[mode]) { return; }
+    if (local[mode][id] === undefined) { return; }
+    merged[mode][id] = local[mode][id];
+  });
+  return merged;
+}
+
 export default {
   WORKBOOK_SECTIONS: WORKBOOK_SECTIONS,
   sectionsFor: sectionsFor,
   blankRow: blankRow,
   blankWorkbook: blankWorkbook,
   hydrate: hydrate,
+  mergeForSend: mergeForSend,
   sectionStarted: sectionStarted,
   startedCount: startedCount,
   isEmpty: isEmpty

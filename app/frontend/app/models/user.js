@@ -44,6 +44,31 @@ LingoLinq.User = BaseModel.extend({
       this.set('preferences.progress.setup_done', true);
     }
   },
+  /*
+   * The session user is loaded as `findRecord('user', 'self')`
+   * (services/app-state.js:456) and serializers/application.js#normalizeResponse
+   * deliberately pins that record's id to the literal string 'self', so Ember Data
+   * never re-keys the RecordIdentifier — parking the real global id here.
+   *
+   * Without this attr declared, Ember Data DROPPED `_actual_id` and the record was
+   * left with no usable id at all: `sessionUser.id === 'self'`. Every
+   * `sessionUser.id == <some global id>` comparison in the app then reads as a
+   * mismatch. It only shows up sometimes because it is a WINDOW, not a constant —
+   * persistence.js:722 stores the fetched user under its REAL id and records
+   * `settings/selfUserId`, so a later LOCAL read (persistence.js:394) resolves the
+   * real id and closes it. Until that happens, consumers see 'self'.
+   *
+   * Observed damage: eval-workbook's author gate refused the eval's own author.
+   * Same shape as models/board.js:195 and models/buttonset.js:28; the user model
+   * simply never got it.
+   */
+  _actual_id: attr('string'),
+  /** Backend global_id regardless of which path loaded the record. Compare with this, not `id`. */
+  global_id: computed('id', '_actual_id', function() {
+    var id = this.get('id');
+    if (id && id !== 'self') { return id; }
+    return this.get('_actual_id') || id;
+  }),
   user_name: attr('string'),
   user_token: attr('string'),
   lesson_share_token: attr('string'),

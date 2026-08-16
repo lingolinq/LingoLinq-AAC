@@ -11777,3 +11777,51 @@ Branch on the RECEIVER, not the value: `board.get ? board.get('preview_option') 
 Note `preview_option` is always assigned as a PLAIN property even onto Ember Data records
 (`button-settings.js:1392`, `board-icon.js:318/399`) — it is not a model attr — so reading
 it as one is faithful.
+
+## Gotcha: `ember test` truncations are `browser_disconnect_timeout`, not failing tests (2026-08-16)
+
+Four of six full runs in one session died with:
+
+```
+Error: Browser timeout exceeded: 120s
+# tests 1428   <- suite is 1995
+# skip  14     <- suite has 38
+# fail  1
+Testem finished with non-zero exit code. Tests failed.
+```
+
+...in a DIFFERENT place each time (board-lock twice, speecher, misc). None of the accused
+tests fail in isolation. That is `testem.js`'s `browser_disconnect_timeout: 120` reaping a
+headless browser that stalled for 120s — typically because `ember serve` and/or browser
+probes are competing for the same machine. The `# fail 1` is the reaping, not an assertion.
+
+Two things follow:
+
+1. **`# skip` is the completeness tell.** A complete run of this suite reports 38. Anything
+   less means the run died early and the tally is meaningless. Check it BEFORE reporting a
+   regression — a truncated run mimics a failing one exactly (non-zero exit, a `# fail`
+   line, a named test).
+2. **Don't blind-retry — raise the timeout.** Wrap the repo config instead of editing it:
+
+```js
+const base = require('/abs/path/app/frontend/testem.js');
+module.exports = Object.assign({}, base, { browser_disconnect_timeout: 900 });
+```
+
+```bash
+npx ember test --config-file /abs/path/to/testem-patient.js
+```
+
+That turned a 4-in-6 truncation rate into a clean 7-minute run.
+
+**But do NOT raise it in the committed `testem.js`** — I recommended that before checking,
+and the evidence says otherwise. Across the last 30 `ci.yml` runs the Ember test step
+failed ZERO times (the 6 failures were audit-artifact checks x3, rspec, Ember lint, and
+the capability ledger). CI is not hitting this. And the 120s value is deliberate: the
+workflow comment at `.github/workflows/ci.yml:126-129` wants a wedged runner to "fail fast
+instead of burning the 6h Actions ceiling", backed by a 50-minute step cap. Raising it to
+900s would make a genuinely hung browser burn 15 minutes before reporting instead of 2.
+
+So this is a LOCAL problem with a local cause: `ember serve` and browser probes competing
+with the test run on the same box. Cheapest real fix is to not run them concurrently. The
+wrapped-config trick is a workaround for when you must.
