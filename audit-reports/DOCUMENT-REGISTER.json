@@ -227,8 +227,8 @@
             "location": "https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit"
           },
           {
-            "title": "Incident Response and Breach Runbook",
-            "location": "docs/legal/BREACH_RUNBOOK.md"
+            "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
+            "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
           },
           {
             "title": "Data Retention Schedule (2026-08-09 draft)",
@@ -285,8 +285,8 @@
             "location": "docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md"
           },
           {
-            "title": "Incident Response and Breach Runbook",
-            "location": "docs/legal/BREACH_RUNBOOK.md"
+            "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
+            "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
           },
           {
             "title": "AI Data-Flow Classification",
@@ -323,8 +323,8 @@
             "location": "docs/legal/2026-08-09_data-retention_draft.md"
           },
           {
-            "title": "Incident Response and Breach Runbook",
-            "location": "docs/legal/BREACH_RUNBOOK.md"
+            "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
+            "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
           },
           {
             "title": "Accessibility Conformance Report (ACR / VPAT)",
@@ -385,8 +385,8 @@
             "location": "https://docs.google.com/document/d/1Q6hDhooIQVMArkpn4ppxr4om3-Hx64QmYiIQe0sSWmY/edit"
           },
           {
-            "title": "Incident Response and Breach Runbook",
-            "location": "docs/legal/BREACH_RUNBOOK.md"
+            "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
+            "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
           },
           {
             "title": "Written Information Security Program (WISP)",
@@ -1020,31 +1020,28 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/BREACH_RUNBOOK.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "HIPAA",
         "GDPR",
         "FERPA"
       ],
-      "lastReviewed": "2026-07-28",
-      "nextReviewDue": "2027-07-28",
+      "lastReviewed": "2026-08-02",
+      "nextReviewDue": "2027-08-02",
       "attestation": {
         "attestedBy": "Scot Wahlquist, CEO",
-        "attestedDate": "2026-07-28",
-        "attestedContentHash": "0ee1b92ec130e89215383bcb1ae26de7be5ef6f9fcd1b80d6ad9ae6d41152af1",
+        "attestedDate": "2026-08-01",
+        "attestedContentHash": "2b788387259bc315fc4b1e5a10817f55ae2d9eae02988236b245c5f62ede1907",
         "priorAttestations": [
           "2026-06-21",
-          "2026-07-23"
+          "2026-07-23",
+          "2026-07-28",
+          "2026-07-31"
         ],
-        "note": "Re-attested 2026-07-28 by Scot Wahlquist, CEO. v2.2 refresh after the Dominic SEC-002 review and a current code/evidence check: re-homes incident detection and evidence-capture onto the GCP/Cloud Run + Cloud SQL + Bedrock reality (gcloud logging / Cloud Audit Logs / Cloud SQL clone as primary recovery; Render as write-frozen rollback fallback only), corrects the GDPR/HIPAA/COPPA/NY-Ed-Law notification prose, and removes stale OpenAI/Gemini vendor contacts. Prior attestation 2026-07-23."
+        "note": "Re-attested 2026-08-01 by Scot Wahlquist, CEO, as v2.2.1 (hash 2b788387259bc315fc4b1e5a10817f55ae2d9eae02988236b245c5f62ede1907 @ commit 4ece3a6435). Correction release disclosing four v2.2 drafting defects (self-contradicting draft/attested changelog language; New York Ed Law 2-d; section 4.2 kill list; section 7 vendor contacts). Git-canonical v2.2 bytes are PR #703 commit 456b6735a6, hash 0ee1b92ec130e89215383bcb1ae26de7be5ef6f9fcd1b80d6ad9ae6d41152af1; an earlier register claim that those bytes hashed fbdf49a1 is retracted (no such blob in merged ancestry). Distinct labels: v2.2 = 0ee1b92e... @ 456b6735a6; v2.2.1-interim = 2026-07-31 attestation at 95bc22359cf363e526ca0221a39b1c6f34c1d4afcd353c4c5b5fc8a4d97e5ae6 @ 271b2f961c (superseded before publication; date retained in priorAttestations); v2.2.1 = this 2026-08-01 attestation. Prior attestations: 2026-07-31, 2026-07-28, 2026-07-23, 2026-06-21."
       },
-      "contentHash": "0ee1b92ec130e89215383bcb1ae26de7be5ef6f9fcd1b80d6ad9ae6d41152af1",
-      "bundles": [
-        "soc2-evidence",
-        "school-dpa-package",
-        "security-review",
-        "baa"
-      ],
+      "correctionNote": "CORRECTION 2026-08-02 (not an attestation; only Scot attests). The attestation.note above covers v2.2.1 bytes (2b788387). The document is now v2.2.2: its section 7 Anthropic contact described the runtime AI path as active and asserted active Bedrock egress, which is false (no lingolinq-web revision carries a Bedrock credential; runtime AI dormant since 00011-l7f deployed 2026-07-30T16:37Z). Corrected and disclosed in BREACH_RUNBOOK.md section 13. Operationally material: a responder scoping an incident under v2.2.1 would look for egress that does not exist. Root evidence: the 2026-08-01 correction in docs/legal/AWS_BAA_ACCEPTED.md (PR #725, which must merge first). Re-attestation owed for v2.2.2.",
+      "bundles": [],
       "mirrors": [
         {
           "system": "drive",
@@ -1059,7 +1056,54 @@
         "status": "draft"
       },
       "legalHold": false,
-      "dispositionEligibleAfter": null
+      "dispositionEligibleAfter": null,
+      "contentHash": "2b788387259bc315fc4b1e5a10817f55ae2d9eae02988236b245c5f62ede1907",
+      "supersededBy": "DOC-28f19f73e4"
+    },
+    {
+      "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
+      "description": "Operative incident response and breach runbook, v2.2.3. Supersedes docs/legal/BREACH_RUNBOOK.md, which is frozen at the v2.2.1 bytes attested 2026-08-01. Section 7 corrected 2026-08-15 to state that runtime AI egress to AWS Bedrock is ACTIVE and must be scoped during an incident.",
+      "type": "runbook",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-15_incident-response-breach-runbook.md",
+      "status": "approved",
+      "frameworks": [
+        "HIPAA",
+        "GDPR",
+        "FERPA"
+      ],
+      "lastReviewed": "2026-08-15",
+      "nextReviewDue": "2027-08-02",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-08-16",
+        "attestedContentHash": "ebe2c69f63ac34714106a6f47378da2cb19122352de174edeb270d352f4dc87d",
+        "note": "Attested 2026-08-16 by Scot Wahlquist, CEO. First attestation of this record; it supersedes DOC-d4e3b8be32 (docs/legal/BREACH_RUNBOOK.md), which remains frozen at the v2.2.1 bytes attested 2026-08-01 (2b788387259bc315fc4b1e5a10817f55ae2d9eae02988236b245c5f62ede1907) with its own attestation block unaltered. Delivered as a Path A supersession rather than a same-row re-pin, so the register keeps its byte-level link to that earlier signature. VERIFIED BEFORE ATTESTING, not assumed: section 7 states that runtime AI egress to AWS Bedrock is ACTIVE and must be included in incident scoping. Confirmed against production on 2026-08-15 and re-confirmed 2026-08-16: BEDROCK_AWS_KEY and BEDROCK_AWS_SECRET mounted on the serving revision lingolinq-web-00020-per, AiClient.configured? true, and 63 of 63 logged calls since the 2026-08-12 deploy succeeded on inference profile us.anthropic.claude-haiku-4-5-20251001-v1:0. Section 7 also records, and an MFA-session check confirmed, that Bedrock model-invocation logging has no destination configured in us-west-2, us-east-1, or us-east-2, and that account data retention is inherit resolving to the model default default, with no zero-data-retention guarantee claimed. This corrects the v2.2.2 \"dormant, no runtime model egress on any path\" marking, which was accurate on 2026-08-02 and was overtaken by PR #734. Review dates deliberately follow the attested bytes rather than the usual today+interval rebase: the frozen file states Last reviewed 2026-08-15 and Next review 2027-08-02, and the register must not contradict the bytes that were attested. Evidence pack: outputs/docs/2026-08-15-bedrock-runtime-verification-evidence.md; see also PR #722 and #734."
+      },
+      "bundles": [
+        "soc2-evidence",
+        "school-dpa-package",
+        "security-review",
+        "baa"
+      ],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po/edit"
+        }
+      ],
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-d4e3b8be32",
+      "id": "DOC-28f19f73e4",
+      "contentHash": "ebe2c69f63ac34714106a6f47378da2cb19122352de174edeb270d352f4dc87d"
     },
     {
       "title": "Incident Log",
@@ -1449,7 +1493,7 @@
       "lastReviewed": "2026-06-16",
       "nextReviewDue": "2026-09-16",
       "attestation": {},
-      "contentHash": "edb05d15a1b79a7f8046136fd943e647e60c17239ad189ef40c6876f95193414",
+      "contentHash": "4cddcd9ec580a583a928719a55e043439bfe327234b8d03b68c0ab15304b1b8b",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
