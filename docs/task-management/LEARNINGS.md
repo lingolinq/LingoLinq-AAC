@@ -11636,3 +11636,144 @@ the whole bug.
 
 Confirmed by re-running: with the hooks added the suite completed at 1995/1956/38
 skip/0 fail with zero browser timeouts, and `persistence find` ran normally.
+
+## Technique: negative-control the CHECK, not just the fix — a check that cannot fail is not a check (2026-08-15)
+
+Fixing the `%%` double-percent in the eval reports, I loaded the rendered report at
+`/hannah_lee/logs/1_5383`, found zero `%%` on the page, and nearly called it verified.
+Then ran a control with the bug deliberately restored in both templates: **also zero**.
+That eval carries no motor-map / dynamic-assessment / literacy data, so the blocks holding
+those strings never render. The "passing" check could not have failed.
+
+`EvalSavedSummary` really does render on that route (`templates/user/log.hbs:15`), which is
+what made the check look sound. Rendering the COMPONENT is not the same as rendering the
+BRANCH the string lives in.
+
+**Technique:** after a green check, break the thing on purpose and confirm the check goes
+red. If it stays green, the check is measuring nothing. Cheap, and it caught two worthless
+verifications in one session — the other being feeding the OLD literal into `i18n.t` and
+reporting it still showed `%%`, which only proves `i18n.t` returns the default you hand it.
+
+The verification that actually worked: parse every percent-bearing `{{t "..." key=...}}`
+literal straight out of the templates on disk, push each through the live in-page
+`i18n.t`, assert no `%%`. 24/24, nothing hardcoded, so it cannot drift from the source.
+
+## Gotcha: a truncated Testem run looks exactly like a failing one — `# skip` is the tell (2026-08-15)
+
+Three full `ember test` runs this session; two aborted early and both printed:
+
+```
+# tests 6      <- suite is 1995
+# pass  5
+# skip  0      <- suite has 38
+# fail  1
+Testem finished with non-zero exit code. Tests failed.
+```
+
+That reads as a regression. It is not — the run died at test 6 on
+`Browser timeout exceeded: 120s` and never reached the rest. **The discriminator is
+`# skip`:** a complete run of this suite reports 38, a truncated one reports 0. `# fail 1`
+is the timeout being counted, not an assertion.
+
+I reported "1 failure" before checking, and the conclusion would have been wrong. Check
+`# skip` against the known suite shape BEFORE reporting any regression. Better: have the
+progress monitor assert `# skip 38` and label the result COMPLETE vs TRUNCATED itself.
+
+## Gotcha: `tests/acceptance/board-lock-test.js` times out under machine load (2026-08-15)
+
+Both aborted runs above died inside this one file, on a DIFFERENT test each time. Run in
+isolation it is clean: `ember test --filter "board lock"` gives 3/3 pass. The hangs
+correlate with `ember serve` being up and browser probes hammering it concurrently.
+
+Not a real failure and not branch-specific. If a full run dies here, re-run with the dev
+server quiet before investigating anything else.
+
+## Technique: poll the built asset for a marker before probing — never sleep and hope (2026-08-15)
+
+Every browser probe against the dev server races the Ember rebuild. Sleeping a fixed
+interval either wastes time or silently tests the OLD bundle, which is how a negative
+control quietly turns into a false pass.
+
+Put a unique string in the edit and poll for it:
+
+```bash
+for i in $(seq 1 60); do
+  if curl -s http://localhost:8184/assets/frontend.js --max-time 30 | grep -q "MARKER"; then break; fi
+done
+```
+
+Note the bundle is `/assets/frontend.js` (not `lingolinq-aac.js`), and dev builds keep
+comments, so a comment marker works. Poll for the marker's ABSENCE to confirm a revert.
+
+## Gotcha: `(this.ctrlAction this.onRemove)` only works under a route controller, not angle-bracket invocation (2026-08-15)
+
+`board-preview.hbs` invoked its remove button as `(this.ctrlAction this.onRemove)`. That
+form assumes `onRemove` is an action NAME string and that `send()` will bubble from the
+component to a route controller acting as its `target` — the pre-overlay design, where
+`controllers/board-preview.js` was the target.
+
+The live path is `<BoardPreview>` rendered by `board-preview-overlay.hbs`. Angle-bracket
+invocation does not set `target`, and the passed `onRemove` is a CLOSURE, so `send(fn)`
+fails with:
+
+```
+Assertion Failed: <board-preview> had no action handler for: function () {...}
+```
+
+Match the file's own idiom instead: `(this.ctrlAction "remove")` plus a `remove` action
+that calls `this.onRemove()` if it is a function — exactly how `select`/`pick_for_home`
+already work in that component.
+
+## Pattern: when a template binding looks dead, check the SERVICE before blaming the template (2026-08-15)
+
+`board-preview.hbs`'s `{{#if this.removeContext}}` block never rendered. First diagnosis:
+`board-preview-overlay.hbs` does not pass `@removeContext`. True, but incomplete — the
+chain was broken in FOUR places, and the primary break was upstream of every template:
+
+1. `services/modal.js#_openBoardPreview` built its `boardPreview` object without copying
+   `options.remove`, so `boardPreview.remove` was ALWAYS undefined. `utils/modal.js:564,572`
+   dutifully computed and passed it; the service dropped it on the floor.
+2. the overlay did not forward `@removeContext` / `@onRemove`;
+3. the overlay had no `remove` action;
+4. the component invoked it in the route-controller form (above).
+
+Each link alone is enough to kill the feature, so fixing any one of them changes nothing
+observable — which is exactly why it stayed broken. Trace producer -> transport -> consumer
+and confirm the VALUE survives each hop, rather than stopping at the first missing binding.
+Corroborating evidence that the design was intended: `controllers/board-preview.js:123-134`
+(dead route-era code) already had the correct `remove` action.
+
+## Gotcha: `%%` in an i18n string renders doubled — this i18n layer has no printf escaping (2026-08-15)
+
+`utils/i18n.js` interpolates `%{name}` (regex at :40, substitution at :68) plus a few
+`%app_name%` tokens. There is no `%%` -> `%` unescape anywhere, so a literal `%%` reaches
+the DOM as `%%`:
+
+```
+i18n.t('report_motor_map_pct', "%{p}%% accurate", {p:42})  ->  "42%% accurate"
+i18n.t('__nope',               "%{p}% accurate",  {p:42})  ->  "42% accurate"
+```
+
+A bare `%` is safe: the interpolation regex only consumes `%` when followed by `{word}`.
+`i18n_generator.rb` has no `%%` handling either, confirming it was never a convention —
+`git log -S'%{p}%%'` traces all 8 sites to the Ember 5.12 upgrade (#490), a codemod
+applying printf-style escaping this layer does not use.
+
+Write a single `%`. When fixing, do the locale files too (13 x the same keys) or
+translators inherit the artifact.
+
+## Gotcha: `a || b ? c : d` parses as `(a || b) ? c : d` — bit `utils/modal.js` for years (2026-08-15)
+
+```js
+option: board.preview_option || board.get ? board.get('preview_option') : undefined,
+```
+
+Intent was "read preview_option, tolerating boards with no `.get`". Actual behaviour: `||`
+binds tighter than `?:`, so a plain-object board carrying a truthy `preview_option` took
+the TRUE branch and threw `board.get is not a function`. Ember-record callers never
+noticed because `.get` always exists for them.
+
+Branch on the RECEIVER, not the value: `board.get ? board.get('preview_option') : board.preview_option`.
+Note `preview_option` is always assigned as a PLAIN property even onto Ember Data records
+(`button-settings.js:1392`, `board-icon.js:318/399`) — it is not a model attr — so reading
+it as one is faithful.

@@ -566,7 +566,16 @@ var modal = EmberObject.extend({
       service.open('board-preview', {
         board: board,
         locale: locale || (board.get ? board.get('preview_locale') : board.preview_locale),
-        option: board.preview_option || board.get ? board.get('preview_option') : undefined,
+        // `preview_option` is always assigned as a PLAIN property, even onto Ember
+        // Data records (button-settings.js:1392, board-icon.js:318/399) — it is not
+        // a board attr. Read it back the same way it was written, branching on the
+        // receiver rather than on the value: the previous form,
+        // `board.preview_option || board.get ? board.get(...) : undefined`, parsed
+        // as `(board.preview_option || board.get) ? ... : ...` because `||` binds
+        // tighter than `?:`, so a plain-object board carrying a truthy
+        // preview_option took the true branch and threw "board.get is not a
+        // function". Ember-record callers are unaffected either way.
+        option: board.get ? board.get('preview_option') : board.preview_option,
         allow_style: allow_style,
         callback: callback,
         remove: remove,

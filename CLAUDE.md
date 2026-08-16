@@ -328,6 +328,12 @@ New user-facing features MUST be added behind a feature flag (`lib/feature_flags
 - Some users/orgs are opted into beta features for testing
 - Add to `AVAILABLE_FRONTEND_FEATURES` and conditionally to `ENABLED_FRONTEND_FEATURES`
 
+**This applies to NEW features only.** A small change to a feature that already ships does
+not need a flag — including one that is user-visible, and including one that makes a
+destructive control newly reachable. Bug fixes that restore intended-but-broken behavior
+are never new features. Do not raise the flag question for these; just ship them. When a
+change is large, or genuinely introduces a new capability, ask.
+
 ### Security
 
 - Avoid OWASP Top 10 vulnerabilities (XSS, SQL injection, command injection, etc.)

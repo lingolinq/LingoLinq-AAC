@@ -99,7 +99,7 @@
                button. Danger treatment, far-left + isolated. Label + icon come from
                board_list.remove_* so all four contextual variants (delete, unstar,
                unlink, untag) are covered with their correct copy. --}}
-          <button type='button' class='btn btn-default md-modal-btn md-board-preview__action md-board-preview__action--remove' {{on "click" (this.ctrlAction this.onRemove)}} aria-label={{this.removeContext.label}}>
+          <button type='button' class='btn btn-default md-modal-btn md-board-preview__action md-board-preview__action--remove' {{on "click" (this.ctrlAction "remove")}} aria-label={{this.removeContext.label}}>
             {{#if this.removeContext.icon}}
               <span class='md-board-preview__action--remove-icon {{this.removeContext.icon}}' aria-hidden="true"></span>
             {{/if}}

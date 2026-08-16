@@ -126,7 +126,7 @@
             <span class="evq-report__targeted-label">{{t "Motor map" key="report_targeted_motor_map"}}</span>
             <strong class="evq-report__targeted-value">
               {{#if this.motorMapAccuracyPct}}
-                {{t "%{p}%% accurate" key="report_motor_map_pct" p=this.motorMapAccuracyPct}}
+                {{t "%{p}% accurate" key="report_motor_map_pct" p=this.motorMapAccuracyPct}}
               {{else}}
                 —
               {{/if}}
@@ -183,10 +183,10 @@
           <article class="evq-report__targeted-card">
             <span class="evq-report__targeted-label">{{t "Dynamic assessment" key="report_comprehensive_da"}}</span>
             <strong class="evq-report__targeted-value">
-              {{t "%{p}%% independent" key="report_comprehensive_da_independent" p=this.daSummary.independence_pct}}
+              {{t "%{p}% independent" key="report_comprehensive_da_independent" p=this.daSummary.independence_pct}}
             </strong>
             <small class="evq-report__targeted-hint">
-              {{t "Avg prompt level %{a} · %{s}%% supported · %{n}%% not yet" key="report_comprehensive_da_hint" a=this.daSummary.independence_avg s=this.daSummary.supported_pct n=this.daSummary.not_yet_pct}}
+              {{t "Avg prompt level %{a} · %{s}% supported · %{n}% not yet" key="report_comprehensive_da_hint" a=this.daSummary.independence_avg s=this.daSummary.supported_pct n=this.daSummary.not_yet_pct}}
             </small>
           </article>
         {{/if}}
@@ -195,7 +195,7 @@
             <span class="evq-report__targeted-label">{{t "Literacy probe" key="report_comprehensive_literacy"}}</span>
             <strong class="evq-report__targeted-value">
               {{#if this.literacyAccuracyPct}}
-                {{t "%{p}%%" key="report_targeted_pct" p=this.literacyAccuracyPct}}
+                {{t "%{p}%" key="report_targeted_pct" p=this.literacyAccuracyPct}}
               {{else}}
                 —
               {{/if}}

@@ -217,6 +217,18 @@ export default Component.extend({
         this.onCanvasProgress(loaded, total);
       }
     },
+    // Contextual remove (delete / unstar / unlink / untag): delegate to the
+    // overlay, which closes the preview and fires the tile's own remove callback.
+    // Same closure-action idiom as select/pick_for_home above — the template used
+    // to invoke `(this.ctrlAction this.onRemove)`, which only resolved back when a
+    // route controller was the component's `target` and `onRemove` was an action
+    // NAME. Under the angle-bracket <BoardPreview> the overlay renders, `onRemove`
+    // is a closure, so it has to be called as one.
+    remove: function() {
+      if (this.onRemove && typeof this.onRemove === 'function') {
+        this.onRemove();
+      }
+    },
     // Tour mode "Pick this Board": delegate to the overlay, which sets this board
     // as the user's home board and opens it in speak mode.
     pick_for_home: function() {
