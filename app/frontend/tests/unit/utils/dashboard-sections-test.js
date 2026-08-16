@@ -7,6 +7,7 @@ import { gridLayoutState, reorderInsert, reorderForFocused, DEFAULT_ORDER, FOCUS
 // trailing small spanning full width. It drives every user's home grid AND the
 // Dashboard Design preview, so these invariants must hold.
 
+var AREA_CASELOAD = 'caseload';
 var ALL_KEYS = ['caseload', 'speak', 'extras', 'org', 'account', 'createboard', 'reports', 'editdashboard', 'boards'];
 
 function visFor(on) {
@@ -123,5 +124,85 @@ module('Unit | Utility | dashboard sections layout engine', function() {
       assert.equal(state.areas[state.areas.length - 1], '. sup', 'sup row — ' + (on.join('+') || 'none'));
       assert.ok(/ 0$/.test(state.rows) || state.rows === '0', 'rows end at 0 — ' + (on.join('+') || 'none'));
     });
+  });
+  // ── Focused View now shares Gentle's default ORDER (2026-08-15) ─────────────
+  // Focused used to carry its own FOCUSED_DEFAULT_ORDER, so the same user saw two
+  // unrelated arrangements. Both layouts now start from the same role-aware base
+  // and Focused only promotes its hero to the front. These lock that in.
+
+  test('focused and gentle agree on the relative order of the FULL-WIDTH cards', function(assert) {
+    // The shared thing is the base ORDER LIST, not the rendered reading order. Two
+    // documented packing rules make focused's reading order legitimately differ:
+    //   1. all four utility cards collapse into ONE row at the first utility's slot,
+    //      which pulls editdashboard/reports earlier than gentle shows them;
+    //   2. Speak is dropped entirely when it is not the hero (focusedLayout) —
+    //      it has no non-hero presentation in Focused.
+    // So the invariant is the relative order of the full-width, non-Speak cards.
+    var on = ['caseload', 'account', 'createboard', 'org', 'boards', 'speak', 'reports', 'editdashboard'];
+    var vis = visFor(on);
+    var seq = function(state) {
+      var seen = [], out = [];
+      state.areas.forEach(function(row) {
+        row.split(' ').forEach(function(tok) {
+          if (tok === '.' || tok === 'sup' || seen.indexOf(tok) !== -1) { return; }
+          seen.push(tok); out.push(tok);
+        });
+      });
+      return out;
+    };
+    var structural = function(state) {
+      return seq(state).filter(function(k) {
+        return FOCUSED_ACTION_KEYS.indexOf(k) === -1 && k !== 'extras' && k !== 'speak';
+      });
+    };
+    assert.deepEqual(
+      structural(gridLayoutState(vis, null, 'focused', 'caseload')),
+      structural(gridLayoutState(vis, null, 'gentle')),
+      'caseload/org/boards keep the same relative order in both layouts'
+    );
+  });
+
+  test('focused drops Speak when it is not the hero', function(assert) {
+    // Regression lock for the supervisor Focused View: Speak has no non-hero
+    // presentation there (app.scss hides .md-card--speak-as-button in focused), so
+    // leaving its key in would reserve a full-width row for an invisible card.
+    var vis = visFor(['caseload', 'account', 'boards', 'speak']);
+    var supervisor = gridLayoutState(vis, null, 'focused', 'caseload');
+    assert.notOk(supervisor.areasValue.includes('speak'),
+      'no speak row for a caseload hero');
+    var communicator = gridLayoutState(vis, null, 'focused', 'speak');
+    assert.ok(communicator.areasValue.includes('speak'),
+      'but Speak IS present when it is the hero');
+  });
+
+  test('focused keeps the utility cards contiguous in one row', function(assert) {
+    var vis = visFor(['caseload', 'account', 'createboard', 'org', 'boards', 'speak', 'reports', 'editdashboard']);
+    var state = gridLayoutState(vis, null, 'focused', 'caseload');
+    var rowsWithUtility = state.areas.filter(function(row) {
+      return row.split(' ').some(function(t) { return FOCUSED_ACTION_KEYS.indexOf(t) !== -1; });
+    });
+    assert.equal(rowsWithUtility.length, 1,
+      'all four utility cards share a single row — that collapse is why the reading ' +
+      'order differs from gentle even though the base order is shared');
+  });
+
+  test('focused promotes the role hero to the top row', function(assert) {
+    var vis = visFor(['caseload', 'account', 'boards', 'speak']);
+    var state = gridLayoutState(vis, null, 'focused', 'caseload');
+    var first = state.areas[0].split(' ');
+    assert.ok(first.every(function(t) { return t === AREA_CASELOAD; }),
+      'caseload hero occupies the whole first row for a supervisor');
+  });
+
+  test('a communicator\'s focused layout is unchanged by the shared-order switch', function(assert) {
+    // Regression lock: DEFAULT_ORDER and the retired FOCUSED_DEFAULT_ORDER filter to
+    // the SAME list for a communicator (no caseload/rooms/attention/org), so this
+    // change must be a no-op for them. If this fails, communicators were affected.
+    var vis = visFor(['speak', 'boards', 'account', 'createboard', 'reports', 'editdashboard']);
+    var state = gridLayoutState(vis, null, 'focused');
+    assert.ok(state.areas.indexOf('account createboard reports editdashboard') !== -1,
+      'utility cards still share one row');
+    assert.equal(state.columns, 'repeat(4, 1fr)', 'still 4 columns');
+    assert.ok(!state.areasValue.includes('extras'), 'extras still hidden in focused');
   });
 });

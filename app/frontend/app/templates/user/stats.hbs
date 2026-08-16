@@ -12,10 +12,28 @@
            for every page state — the header sits outside the
            premium/logging/authenticated branches below, which each used to
            carry their own copy of this button. --}}
-      {{#if this.app_state.currentUser.supervisees.length}}
+      {{!-- Supporters get the centered "Select Communicator" control below instead
+           (it opens the same modal), so this hero button is for communicators who
+           happen to supervise someone — not the supporter's primary path. --}}
+      {{#if (and this.app_state.currentUser.supervisees.length (not this.app_state.currentUser.supporter_role))}}
         <button type="button" class="md-btn md-btn--ghost md-reports-hero__action" {{on "click" (this.ctrlAction "switch_communicators")}}>{{t "Switch Communicators" key="switch_communicators"}}</button>
       {{/if}}
     </header>
+    {{!-- Supporter path: a dropdown-style trigger sitting where the stats content
+         would start, pushing .md-stats-page down. A supporter's reports are always
+         ABOUT a communicator (they have no activity of their own to report), so
+         choosing who to look at is the first decision on this page rather than a
+         secondary action tucked in the hero. Opens the same switch-communicators
+         modal the hero button used — `skip_me` in the controller keeps the
+         supporter's own account out of the selectable list. --}}
+    {{#if (and this.app_state.currentUser.supervisees.length this.app_state.currentUser.supporter_role)}}
+      <div class="md-reports-picker">
+        <button type="button" class="md-reports-picker__trigger" {{on "click" (this.ctrlAction "switch_communicators")}} aria-haspopup="dialog">
+          <span class="md-reports-picker__label">{{t "Select Communicator" key="select_communicator"}}</span>
+          <span class="md-reports-picker__chevron" aria-hidden="true"></span>
+        </button>
+      </div>
+    {{/if}}
 <div class="md-stats-page">
   <main class="md-stats-main">
     {{!-- Focused View header/subheader — shown ONLY in Focused View via CSS, and

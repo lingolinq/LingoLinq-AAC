@@ -80,7 +80,9 @@
                   {{/if}}
                   <span class="md-caseload__list-identity">
                     <span class="md-caseload__list-name-row">
-                      <span class="md-caseload__list-name">{{supervisee.user_name}}</span>
+                      {{!-- Wraps at the username's separators rather than mid-word
+                           (see helpers/break-on-separators.js). --}}
+                      <span class="md-caseload__list-name">{{break-on-separators supervisee.user_name}}</span>
                       {{!-- ROLE badge only. The STATUS badges ("Board needed" /
                            "<thing> needed") deliberately do NOT live here — they moved
                            to .md-caseload__list-status below, which is a full-width

@@ -64,7 +64,9 @@
         </div>
       {{/unless}}
     {{/unless}}
-    <UserSelect @select_id="currently_selected_id" @skip_me={{this.model.skip_me}} @allow_all={{this.allow_all}} @buttons={{true}} @selection={{this.currently_selected_id}} @action={{this.ctrlAction "updateCurrentlySelectedId"}} />
+    {{!-- Compact: small rows stacked vertically so picking a communicator reads
+         like a dropdown list rather than a wall of large cards. --}}
+    <UserSelect @select_id="currently_selected_id" @skip_me={{this.model.skip_me}} @allow_all={{this.allow_all}} @buttons={{true}} @compact={{true}} @selection={{this.currently_selected_id}} @action={{this.ctrlAction "updateCurrentlySelectedId"}} />
   </div>
   <div class="modal-footer md-modal-footer">
     <button {{on "click" (this.ctrlAction "close")}} class="btn btn-default md-modal-btn md-modal-btn--cancel">{{t "Cancel" key="cancel"}}</button>

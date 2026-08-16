@@ -1668,19 +1668,30 @@ export default Component.extend({
       }
       modal.open('inline-video', {video: {type: 'youtube', id: id}, hide_overlay: true});
     },
+    // Onboarding, with the wizard replaced by two destinations depending on WHO is
+    // being set up — the split the wizard used to blur:
+    //   • a specific OTHER user  -> the standalone board picker for them
+    //   • a supervisor with no target -> pick the user first, then that picker
+    //   • yourself -> the home page's guided tour
+    // The tour is inherently about the current user's own home page, so it is only
+    // right for the self case; "set up that communicator" means their board picker,
+    // which mirrors setup's user_id/setup_user resolution
+    // (controllers/board-picker.js:10) and is the screen the wizard's board step
+    // used to show for that person.
+    // NOTE: no template dispatches this action today (the Extras card that did was
+    // removed), so it is retained for correctness rather than active use.
     intro: function(user_id) {
       if(window.ga) {
-        window.ga('send', 'event', 'Setup', 'start', 'Setup started');
+        window.ga('send', 'event', 'Onboarding', 'start', 'Onboarding started');
       }
-      this.appState.set('auto_setup', false);
-
       if(user_id) {
-        this.get('router').transitionTo('setup', {queryParams: {user_id: user_id, page: null}});
+        this.get('router').transitionTo('board-picker', {queryParams: {user_id: user_id}});
       } else if(this.appState.get('currentUser.permissions.delete') && (this.appState.get('currentUser.supervisees') || []).length > 0) {
         var prompt = i18n.t('setup_which_user', "Select User to Run Setup");
         this.appState.get('controller').send('switch_communicators', {stay: true, modeling: false, setup: true, skip_me: false, header: prompt});
       } else {
-        this.get('router').transitionTo('setup', {queryParams: {user_id: null, page: null}});
+        this.appState.set('auto_open_home_tour', true);
+        this.appState.return_to_index();
       }
     },
     opening_index: function() {

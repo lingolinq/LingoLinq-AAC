@@ -15,35 +15,30 @@ export default modal.ModalController.extend({
           _this.send('close');
           _this.appState.set('auto_setup', true);
           if(!user.get('preferences.progress.intro_watched')) {
-            // Branch on the home_tour feature flag. When the flag is
-            // ON, new accounts skip the setup wizard entirely and
-            // land on the home page with the Shepherd tour
-            // auto-opening (per Traci's direction 2026-05-27). When
-            // the flag is OFF, fall back to the original setup-wizard
-            // flow so no behavior regresses for accounts/orgs that
-            // haven't opted into the tour.
-            if(_this.appState.get('feature_flags.home_tour')) {
-              // Mark intro_watched so this branch doesn't re-trigger
-              // on future logins (mirrors what setup.js:23-32 does
-              // for users who DO go through the wizard).
-              var preferences = user.get('preferences') || {};
-              var progress = preferences.progress || {};
-              user.set('preferences', preferences);
-              user.set('preferences.progress', progress);
-              user.set('preferences.progress.intro_watched', true);
-              // Signal the HomeTour component to auto-fire its tour
-              // on the next dashboard render. The component observes
-              // this flag and clears it on start (see home-tour.js).
-              _this.appState.set('auto_open_home_tour', true);
-              // Persist the intro_watched flip. Failure here is
-              // non-fatal — the worst case is the user sees this
-              // terms-agree branch again on a future login, which
-              // is the same outcome as today's setup-wizard path
-              // would have if its save failed.
-              user.save().then(null, function() { });
-            } else {
-              _this.router.transitionTo('setup', {queryParams: {user_id: null, page: null}});
-            }
+            // New accounts land on the home page with the Shepherd tour, never
+            // the setup wizard. This used to branch on the `home_tour` feature
+            // flag and fall back to the wizard when it was off; that fallback is
+            // gone (2026-08-15) — setup is being retired as a user-facing
+            // destination, so there is nothing to fall back TO. With the flag off
+            // the user simply lands on their home page and no tour opens, which
+            // is the intended degraded state.
+            //
+            // Mark intro_watched so this branch doesn't re-trigger on future
+            // logins (mirrors what setup.js:23-32 does for wizard users).
+            var preferences = user.get('preferences') || {};
+            var progress = preferences.progress || {};
+            user.set('preferences', preferences);
+            user.set('preferences.progress', progress);
+            user.set('preferences.progress.intro_watched', true);
+            // Signal the GuidedTour component to auto-fire on the next dashboard
+            // render. It observes this flag and clears it on start
+            // (components/guided-tour.js:329). Harmless when `home_tour` is off:
+            // the component isn't mounted, so nothing consumes it.
+            _this.appState.set('auto_open_home_tour', true);
+            // Persist the intro_watched flip. Failure here is non-fatal — the
+            // worst case is the user sees this terms-agree branch again on a
+            // future login.
+            user.save().then(null, function() { });
           }
         }, function() {
           _this.set('agree_error', true);

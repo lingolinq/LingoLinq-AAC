@@ -31618,40 +31618,25 @@ body.md-ds-active .app-navbar__home-actions { display: none !important; }
    (The "Customize" step never showed the bug because its `:has()` rule below is
    already (0,3,0).) */
 .shepherd-element.md-ds-modal.md-ds-modal--display {
-  /* Roomy panel for the live home-page preview: 80% of the viewport on larger
-     screens (centered, the dimmed page showing at the sides), full-width at
-     1024px and below. Full height either way; scrolls vertically. */
-  width: 80vw !important;
-  max-width: 80vw !important;
+  /* FULL-BLEED: the whole viewport, both axes. Every step of this modal now shows
+     page previews, which need all the room available — at 80vw the two previews had
+     to be cropped to fit and could not show the whole page.
+     Previously this was 80vw with two extra rules layering on top (a
+     `max-width: 1024px` media block and a `:has(.md-ds-preview--with-toggles)` rule
+     for the customize step) that each re-declared the same full-width values. Those
+     are folded in here so there is ONE authoritative size rule — per the
+     edit-in-place convention, rather than three rules competing. */
+  width: 100vw !important;
+  max-width: 100vw !important;
   height: 100vh !important;
   max-height: 100vh !important;
   top: 0 !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
+  left: 0 !important;
+  transform: none !important;
   margin: 0 !important;
   border-radius: 0 !important;
   overflow-x: hidden !important;
   overflow-y: auto !important;
-}
-@media (max-width: 1024px) {
-  /* Same (0,3,0) as above, and for the same reason — this is the rule that was
-     actually being overridden on short viewports. */
-  .shepherd-element.md-ds-modal.md-ds-modal--display {
-    width: 100vw !important;
-    max-width: 100vw !important;
-    left: 0 !important;
-    transform: none !important;
-  }
-}
-/* The "Customize your dashboard" step (the toggles variant) goes FULL viewport
-   width at all sizes so the preview has room and the toggles sit as a
-   content-width side panel. Scoped via :has() to the with-toggles preview, so the
-   "choose your display style" step keeps its 80vw panel. */
-.shepherd-element.md-ds-modal--display:has(.md-ds-preview--with-toggles) {
-  width: 100vw !important;
-  max-width: 100vw !important;
-  left: 0 !important;
-  transform: none !important;
 }
 /* Full-width content — override the centered-intro 33ch cap that otherwise
    squishes the options + preview into a narrow centre column. */
@@ -31676,6 +31661,17 @@ body.md-ds-active .app-navbar__home-actions { display: none !important; }
   padding-right: 28px !important;
   box-sizing: border-box !important;
   flex: 1 0 auto;
+}
+/* Style-chooser step ONLY: make the text region a flex column so the two preview rows
+   can divide its height between them. `height: 100%` cannot do this — the region's own
+   height comes from flex-growing inside .shepherd-content, so a percentage child has no
+   definite height to resolve against. Scoped with :has() to the previews variant so the
+   "Customize your dashboard" step, which shares this element's other rules, keeps its
+   existing block layout. */
+.shepherd-element.md-ds-modal--display .shepherd-text:has(.md-ds-options--with-previews) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 .shepherd-element.md-ds-modal--display .shepherd-footer {
   margin-top: 16px;
@@ -31764,6 +31760,10 @@ body.md-ds-active .app-navbar__home-actions { display: none !important; }
    `nowrap` keeps the divider from being stranded on a wrapped row — the narrow
    fallback is the explicit column stack in the media query near the end of this
    file, not flex wrapping. */
+/* Width of the card+button column in the previews layout. Shared by the column itself
+   and the OR divider, so the divider stays centred over the cards rather than over the
+   full-width row — they must not drift apart. */
+$ds-choice-width: 380px;
 .md-ds-options {
   display: flex;
   flex-direction: row;
@@ -31772,6 +31772,242 @@ body.md-ds-active .app-navbar__home-actions { display: none !important; }
   gap: 12px;
   margin: 8px auto 0;
   max-width: 920px;
+}
+/* With per-style page previews the pair STACKS: each style card sits on its own row
+   beside a `→` and a preview of the current page in that style, so the two rows read
+   as "this choice → this result". Wider max-width because each row now carries a card
+   AND a preview. */
+.md-ds-options--with-previews {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  /* Full-bleed modal: use the width, and claim the leftover height so the two preview
+     rows can share it. Without this the rows collapse to their content and the previews
+     stay small however tall the modal is. Grows inside the flex column set on
+     .shepherd-text above.
+     The base rule's `margin: 8px auto 0` must be neutralised horizontally: `auto` side
+     margins on a FLEX ITEM shrink-wrap and centre it, which pinned both rows to their
+     content width and left the previews narrow and portrait-shaped. */
+  max-width: none;
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+  align-self: stretch;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+/* This variant is a column at EVERY width, so the OR divider needs its horizontal
+   "— OR —" form always — not only under the 800px stacking query further down, which
+   is what governs the no-preview layout. Declared here (on the variant) rather than by
+   overriding .md-ds-options__or, so each layout keeps one authoritative rule. */
+.md-ds-options--with-previews > .md-ds-options__or {
+  flex-direction: row;
+  /* Sits over the CHOICE COLUMN, not the full row: the two things it divides are the
+     Gentle and Focused cards on the left, so centring it across the whole width (which
+     includes the previews) floated it away from what it separates. Same width as that
+     column, pinned to the start, and centred within itself. */
+  align-self: flex-start;
+  width: $ds-choice-width;
+  max-width: 100%;
+  justify-content: center;
+}
+.md-ds-options--with-previews > .md-ds-options__or::before,
+.md-ds-options--with-previews > .md-ds-options__or::after {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 2px;
+  min-height: 0;
+}
+/* Rows size to their CONTENT rather than splitting the column height equally. Equal
+   splitting capped each preview at half the leftover height, which forced the fit to be
+   height-constrained and left the panels well short of the right edge. The preview is now
+   scaled to fill the width instead, and the roster cap (PREVIEW_MAX_ROSTER_ROWS) is what
+   keeps the resulting height in bounds; the modal scrolls if it ever does not. */
+.md-ds-optionrow {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+}
+/* The card keeps a readable measure; the preview takes the rest of the row. `min-width:
+   0` so a long label shrinks the flex item instead of overflowing. Centred rather than
+   stretched: the cards hold only a heading and two bullets, so stretching them to the
+   preview's full height left a large blank area under the text. */
+.md-ds-optionrow > .md-ds-optionrow__choice {
+  flex: 0 1 $ds-choice-width;
+  min-width: 0;
+  align-self: center;
+}
+/* Card stacked over its Select button. `align-items: center` shrinks the button to its
+   own content width instead of stretching it to the card's. */
+.md-ds-optionrow__choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.md-ds-optionrow__choice > .md-ds-option {
+  align-self: stretch;
+  /* MUST override the base `flex: 1 1 0`. That basis was written for the side-by-side ROW
+     (where it equalises WIDTH); in this column it resolves against the cross axis and
+     gives the card a height basis of 0, which — with the card's `overflow: hidden` —
+     clipped the description away and left only the title showing. */
+  flex: 0 0 auto;
+}
+.md-ds-optionrow__arrow {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba($la-navy, 0.42);
+}
+/* Preview figure. `:empty` on the viewport collapses the whole figure when there was
+   no page shell to photograph, so the chooser degrades to plain cards rather than
+   showing an empty frame. */
+.md-ds-stylepreview {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.md-ds-stylepreview:has(.md-ds-stylepreview__viewport:empty) {
+  display: none;
+}
+/* The preview window. The iframe inside renders at full viewport size and is scaled to
+   fit this box ENTIRELY (see _fitStylePreview) so the whole page is visible — nothing is
+   cropped. The box takes whatever height the row gives it; `min-height` keeps the page
+   legible if the modal is very short. */
+.md-ds-stylepreview__viewport {
+  position: relative;
+  overflow: hidden;
+  /* BOTH dimensions are set inline by _fitStylePreviews, to the scaled size of the
+     page's actual content — so the panel hugs the page rather than letterboxing it, and
+     a short layout produces a short panel instead of a blank tail. `flex: 0 0 auto` so
+     the column does not stretch it back out to fill the row.
+     Left-aligned in the leftover space (not centred): the figure keeps a full-width flex
+     basis so _fitStylePreviews has a stable box to measure against — centring the
+     shrunken panel inside it opened a ~270px gap after the arrow and broke the
+     "card → preview" adjacency the whole row is meant to convey. */
+  flex: 0 0 auto;
+  width: 100%;
+  margin-inline: 0 auto;
+  /* Floor only for the moment before the fit runs; the inline height supersedes it. */
+  min-height: 80px;
+  border-radius: 12px;
+  border: 1px solid rgba($la-navy, 0.16);
+  background: #fff;
+  box-shadow: 0 2px 10px rgba($la-navy, 0.1);
+}
+.md-ds-stylepreview__frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 0;
+  transform-origin: top left;
+  /* Decorative screenshot — never interactive, so pointer + touch go to the card. */
+  pointer-events: none;
+}
+/* Centred UNDER ITS OWN PANEL, not under the figure. The panel is left-aligned in the
+   figure's leftover space, and those two are only the same width while the scale is
+   below 1:1 — once it clamps (a viewport wider than the page renders at), the panel is
+   narrower than the figure and a figure-centred caption drifts off to the right. So
+   _fitStylePreviews stamps the caption with the panel's width and this centres within
+   that. */
+.md-ds-stylepreview__caption {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba($la-navy, 0.62);
+  text-align: center;
+}
+/* The selected style's preview is the one the user is committing to — give it the
+   same accent treatment the selected card gets, so the pair reads as one unit. */
+.md-ds-optionrow:has(.md-ds-select.is-selected) .md-ds-stylepreview__viewport {
+  border-color: rgba($la-teal, 0.55);
+  box-shadow: 0 3px 14px rgba($la-teal, 0.22);
+}
+.md-ds-optionrow:has(.md-ds-select.is-selected) .md-ds-optionrow__arrow {
+  color: rgba($la-teal, 0.9);
+}
+/* Narrow: each option becomes a COLUMN — card, Select button, arrow, preview stacked —
+   and the arrow rotates to point down at the preview so the "choice → result" reading
+   survives the reflow.
+   Side by side, proximity alone makes it obvious which preview belongs to which card.
+   Stacked, everything is in one vertical line and that grouping is lost, so the row
+   becomes a visible GROUP CONTAINER: its own surface, border and padding, drawing a box
+   around all of one view's content. */
+@media (max-width: 900px) {
+  .md-ds-options--with-previews {
+    /* Wider gap than the in-row spacing, so the break BETWEEN the two groups reads as
+       larger than the spacing inside either one. */
+    gap: 18px;
+  }
+  .md-ds-optionrow {
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 16px;
+    border-radius: 20px;
+    border: 1px solid rgba($la-navy, 0.10);
+    background: rgba(255, 255, 255, 0.42);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  }
+  /* The chosen group is tinted so the selection is still obvious once the cards are no
+     longer beside each other for comparison. */
+  .md-ds-optionrow:has(.md-ds-select.is-selected) {
+    border-color: rgba($la-teal, 0.45);
+    background: rgba($la-teal, 0.06);
+  }
+  /* Was `> .md-ds-option`, which stopped matching when the card gained its `__choice`
+     wrapper — the card is no longer a direct child of the row. */
+  /* Pass-through: the card and its Select button stop being wrapped and become direct
+     flex items of the row, so `order` can place them independently. Stacked, the reading
+     order is card → arrow → preview → caption → BUTTON: you look at the option, see what
+     the page becomes, and only then commit. Side by side the button stays tucked under
+     its card, where the whole choice column is taken in at once.
+     `order` alone cannot do this — the button is nested inside `__choice`, and order only
+     sorts siblings. `__choice` carries no background or border of its own, so dropping its
+     box costs nothing. */
+  .md-ds-optionrow__choice {
+    display: contents;
+  }
+  /* Centred, and the 420px reading-measure cap lifted a little: stretched-with-a-max-width
+     pins the box to the START of the cross axis, which left the card hugging the group's
+     left edge instead of sitting in the middle of it. */
+  .md-ds-optionrow__choice > .md-ds-option {
+    order: 1;
+    align-self: center;
+    width: 100%;
+    max-width: 560px;
+  }
+  .md-ds-optionrow__arrow {
+    order: 2;
+    transform: rotate(90deg);
+  }
+  /* MUST stretch. The row is `align-items: center` here, which makes the figure
+     shrink-to-fit — and `_fitStylePreviews` derives the preview scale from
+     `figure.clientWidth`, so a shrink-wrapped figure collapsed the preview to a fraction
+     of the width available (measured ~220px inside a ~756px group). */
+  .md-ds-stylepreview {
+    order: 3;
+    align-self: stretch;
+    height: auto;
+  }
+  .md-ds-select {
+    order: 4;
+  }
+  /* Full width and centred: pinning it to a 380px column only makes sense while the
+     cards occupy that column, which they no longer do here. */
+  .md-ds-options--with-previews > .md-ds-options__or {
+    align-self: center;
+    width: 100%;
+  }
 }
 /* Stylized OR divider between the two layout-style buttons, so the pair reads as
    an either/or choice. Side-by-side (the default) it's a VERTICAL rule: the word
@@ -31834,12 +32070,138 @@ body.md-ds-active .app-navbar__home-actions { display: none !important; }
     0 1px 2px rgba($la-navy, 0.05),
     0 4px 10px rgba($la-navy, 0.08),
     0 12px 28px rgba($la-navy, 0.10);
-  cursor: pointer;
+  /* No `cursor: pointer`: the card is presentational now, and the Select button inside it
+     is the control. A pointer cursor over non-clickable text would promise an action the
+     card no longer performs. */
   transition: box-shadow 180ms ease-out, transform 140ms ease-out;
   -webkit-tap-highlight-color: transparent;
 }
+/* Select button — the actual control. Sits at the bottom of its card, pushed there by
+   `margin-top: auto` so both buttons line up even when the two descriptions differ in
+   length.
+   Each button is styled as the PRIMARY CTA of the view it selects, so the pair doubles as
+   a swatch of what the buttons look like in each style: "Select Gentle View" wears the
+   Gentle Done button, "Select Focused View" wears the Focused one. The per-view fills are
+   below and are keyed off `data-gst-layout`, NOT off the live `body.ll-layout-focused` —
+   both must be visible at once regardless of which view is currently active.
+   Shape mirrors `.shepherd-element .shepherd-button` (pill, 1.5px border, 600 weight) so
+   these read as the same family of control. */
+.md-ds-select {
+  /* Shrinks to its own content — it sits under the card, not across it. */
+  align-self: center;
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  /* Padding scales with the type so the pill stays proportionate as it shrinks.
+     calc() around the mixed units is REQUIRED — SassC cannot evaluate px + vw at compile
+     time inside clamp() (docs/CSS_SCSS_GUIDELINES.md). */
+  padding: clamp(8px, calc(6px + 0.35vw), 11px) clamp(14px, calc(10px + 0.8vw), 22px);
+  font-family: inherit;
+  /* Fluid and deliberately smaller than the footer CTA: this is a choice, not the
+     page's primary action, and two of them sit in a narrow column. px not rem —
+     bootstrap sets `html { font-size: 10px }`, so rem here would render tiny. */
+  font-size: clamp(13px, calc(11px + 0.32vw), 15px);
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.25;
+  border-radius: $aac-radius-pill;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease,
+              background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+/* GENTLE — mirrors `.shepherd-element .md-tour__btn--primary`: verdigris glass fill,
+   navy text, illuminated bevel. */
+.md-ds-select[data-gst-layout="gentle"] {
+  background: rgba(44, 183, 176, 0.22);
+  border-color: rgba($brand-dusty-denim, 0.28);
+  color: $la-navy;
+  box-shadow:
+    inset 0 2px 1px rgba(255, 255, 255, 1),
+    inset 0 -2px 3px rgba(76, 134, 216, 0.16),
+    0 1px 1px rgba(22, 34, 70, 0.06),
+    0 3px 6px rgba(22, 34, 70, 0.10),
+    0 14px 32px rgba(76, 134, 216, 0.26);
+}
+.md-ds-select[data-gst-layout="gentle"]:hover {
+  background: rgba(44, 183, 176, 0.32);
+  border-color: rgba($brand-dusty-denim, 0.40);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgba(76, 134, 216, 0.14),
+    0 1px 2px rgba(22, 34, 70, 0.10),
+    0 16px 36px rgba(76, 134, 216, 0.30);
+  transform: translateY(-1px);
+}
+.md-ds-select[data-gst-layout="gentle"]:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba($brand-dusty-denim, 0.45),
+    inset 0 1px 1px rgba(255, 255, 255, 0.7),
+    0 10px 24px rgba(76, 134, 216, 0.20);
+}
+/* FOCUSED — mirrors the focused-view primary: glossy desaturated-navy radial fill, white
+   text, raised bevel. Same values as the `body.ll-layout-focused …md-tour__btn--primary`
+   rule further down this file. */
+.md-ds-select[data-gst-layout="focused"] {
+  background: radial-gradient(ellipse at center in oklab,
+    #{$focus-hero-center} 0%,
+    #{$focus-hero-edge} 100%);
+  border-color: rgba($focus-on-dark, 0.14);
+  color: $focus-on-dark;
+  box-shadow:
+    inset 0 2px 0 rgba($focus-on-dark, 0.34),
+    inset 0 -5px 10px rgba($focus-shadow-ink, 0.34),
+    0 3px 8px rgba($focus-shadow-ink, 0.28),
+    0 0 18px rgba($focus-hero-glow, 0.10);
+}
+.md-ds-select[data-gst-layout="focused"]:hover {
+  border-color: rgba($focus-on-dark, 0.2);
+  box-shadow:
+    inset 0 2px 0 rgba($focus-on-dark, 0.38),
+    inset 0 -5px 10px rgba($focus-shadow-ink, 0.36),
+    0 4px 12px rgba($focus-shadow-ink, 0.32),
+    0 0 26px rgba($focus-hero-glow-hover, 0.35);
+  /* No lift — matches the focused primary, which deliberately drops the translateY. */
+  transform: none;
+}
+.md-ds-select[data-gst-layout="focused"]:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba($focus-accent, 0.45),
+    inset 0 2px 0 rgba($focus-on-dark, 0.34),
+    0 6px 14px rgba($focus-shadow-ink, 0.34);
+}
+/* Chosen state is carried by the CHECK MARK plus the card/preview accent (via `:has()`),
+   deliberately NOT by changing the fill — the fill is now information in its own right
+   (it shows what that view's primary button looks like) and must stay put. */
+.md-ds-select__check {
+  display: none;
+  align-items: center;
+}
+.md-ds-select.is-selected .md-ds-select__check {
+  display: inline-flex;
+}
+/* Label swap: "Select Gentle View" → "Selected…". Both are in the DOM; only one is ever
+   displayed, so the accessible name changes with the visual label and no JS rewrites copy.
+   `display: none` (not `visibility`) so the pill re-shrinks to whichever label is showing
+   — the button is sized by its content now. */
+.md-ds-select__label--done {
+  display: none;
+}
+.md-ds-select.is-selected .md-ds-select__label--idle {
+  display: none;
+}
+.md-ds-select.is-selected .md-ds-select__label--done {
+  display: inline;
+}
+/* Lift on hovering the CARD is kept (the card and its button read as one unit), but the
+   focus ring below moved to the button — the card is a <div> now and never takes focus. */
 .md-ds-option:hover,
-.md-ds-option:focus-visible {
+.md-ds-optionrow__choice:has(.md-ds-select:focus-visible) .md-ds-option {
   transform: translateY(-1px);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
@@ -31848,12 +32210,8 @@ body.md-ds-active .app-navbar__home-actions { display: none !important; }
     0 8px 18px rgba($la-navy, 0.10),
     0 20px 44px rgba($la-navy, 0.14);
 }
-.md-ds-option:active {
+.md-ds-optionrow__choice:has(.md-ds-select:active) .md-ds-option {
   transform: translateY(0.5px);
-}
-.md-ds-option:focus-visible {
-  outline: 2px solid rgba($brand-dusty-denim, 0.55);
-  outline-offset: 3px;
 }
 .md-ds-option__label {
   display: flex;
@@ -31968,7 +32326,7 @@ body.md-ds-active .app-navbar__home-actions { display: none !important; }
   }
 }
 /* Selected option (set by the show hook on click) — verdigris ring. */
-.md-ds-option.is-selected {
+.md-ds-optionrow__choice:has(.md-ds-select.is-selected) .md-ds-option {
   border-color: rgba($brand-verdigris, 0.6) !important;
   /* Calm verdigris atmospheric tint layered over the white base — instantly
      identifiable at a glance, but no saturated fill or harsh "selected tab" look. */
@@ -31983,7 +32341,7 @@ body.md-ds-active .app-navbar__home-actions { display: none !important; }
 }
 /* Brighter, slightly thicker divider under the SELECTED layout's title — a small
    accent that reinforces the choice without raising overall visual volume. */
-.md-ds-option.is-selected .md-ds-option__label::after {
+.md-ds-optionrow__choice:has(.md-ds-select.is-selected) .md-ds-option__label::after {
   height: 3px;
   box-shadow: 0 0 6px rgba($brand-verdigris, 0.3);
 }
@@ -60279,6 +60637,61 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     margin: 14px auto 0;
   }
 }
+
+/* Supporter "Select Communicator" picker — sits between the hero and
+   .md-stats-page (so the stats content starts below it) and is styled as a
+   closed dropdown, because that is what it behaves like: it opens the
+   switch-communicators modal to pick whose report to view. Centred and capped so
+   it reads as one deliberate control rather than a full-bleed bar. Communicators
+   never see it (template gates on supporter_role) and keep the hero button. */
+.md-shell--reports-view .md-reports-picker {
+  display: flex;
+  justify-content: center;
+  padding: 4px 16px 0;
+}
+.md-shell--reports-view .md-reports-picker__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  max-width: 420px;
+  padding: 12px 18px;
+  border: 1px solid rgba($la-navy, 0.16);
+  border-radius: 12px;
+  background: $surface-100;
+  box-shadow:
+    0 1px 2px rgba($la-navy, 0.04),
+    0 4px 12px rgba($la-navy, 0.06);
+  color: $la-navy;
+  /* ~30% above a typical web control, per the AAC legibility floor. */
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.md-shell--reports-view .md-reports-picker__trigger:hover {
+  transform: translateY(-1px);
+  border-color: rgba($brand-verdigris, 0.45);
+  box-shadow:
+    0 2px 4px rgba($la-navy, 0.06),
+    0 8px 20px rgba($la-navy, 0.10);
+}
+/* The control opens a dialog, so it must show a visible keyboard focus ring. */
+.md-shell--reports-view .md-reports-picker__trigger:focus-visible {
+  outline: 3px solid rgba($brand-verdigris, 0.55);
+  outline-offset: 2px;
+}
+/* CSS chevron rather than an inline SVG: the trigger is decorative-only here and
+   this keeps the markup to a single span. */
+.md-shell--reports-view .md-reports-picker__chevron {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid rgba($la-navy, 0.55);
+  border-bottom: 2px solid rgba($la-navy, 0.55);
+  transform: translateY(-2px) rotate(45deg);
+}
 .md-shell--reports-view .md-grid {
   grid-template-columns: 1fr !important;
 
@@ -68770,17 +69183,113 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   padding: 48px 24px;
   text-align: center;
 }
+/* The error is presented as a discrete CARD on the board canvas rather than bare
+   centred text, so it reads as a considered state instead of a failure dump. */
+.md-board-detail-error__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 560px;
+  padding: 36px 32px 32px;
+  border-radius: 20px;
+  border: 1px solid rgba($la-navy, 0.10);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 1px 2px rgba($la-navy, 0.04),
+    0 12px 32px rgba($la-navy, 0.10);
+}
+/* Icon disc — RED, not the brand verdigris. A green badge on a failure state
+   reads as "all good" at a glance and contradicts the message underneath, which
+   is the one thing this page must not do. $brand-danger (#C0392B) measures
+   5.44:1 on the card, well past the 3:1 non-text floor. Still a NON-TEXT accent
+   only: no copy on this page is tinted, so the 4.5:1 text floor never applies. */
+.md-board-detail-error__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  color: $brand-danger;
+  background: rgba($brand-danger, 0.10);
+  border: 1px solid rgba($brand-danger, 0.22);
+  /* Anchors the slash below, and clips it to the disc so the bar reads as a
+     chord across the whole badge rather than a rectangle poking out of it. */
+  position: relative;
+  overflow: hidden;
+}
+/* The "unavailable" slash, drawn across the ENTIRE badge rather than just the
+   board glyph. It lives here, not in the SVG, because the badge (68px) is bigger
+   than the icon's 24x24 viewBox — a line long enough to cross the disc would be
+   clipped at the SVG viewport. Over-sized to 130% and rotated about the centre,
+   so after the circular clip the visible bar spans the full diameter at any size.
+   2px matches the glyph's rendered stroke (1.6 at 34/24 scale ≈ 2.3px). */
+.md-board-detail-error__icon::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -15%;
+  width: 130%;
+  height: 2px;
+  margin-top: -1px;
+  border-radius: 2px;
+  background: currentColor;
+  transform: rotate(-45deg);
+}
+.md-board-detail-error__title {
+  /* AAC legibility floor — roughly 30% above a typical web heading at this level. */
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.25;
+  /* Full navy on the white card = 12.12:1. */
+  color: $la-navy;
+  margin: 0;
+  max-width: 480px;
+}
 .md-board-detail-error__message {
   font-size: 19px;
+  line-height: 1.5;
+  /* navy @85% over the card = 7.71:1 — comfortably past the 4.5:1 AA floor. */
   color: rgba($la-navy, 0.85);
   margin: 0;
   max-width: 520px;
 }
 .md-board-detail-error__retrying {
   font-size: 16px;
-  color: rgba($la-navy, 0.6);
+  /* WAS navy @60% = 3.70:1 on the card — an AA FAIL for normal-size text.
+     @75% measures 5.67:1. Italic dropped too: it cost legibility at this size
+     for no semantic gain, and the spinner already signals "in progress". */
+  color: rgba($la-navy, 0.75);
   margin: 0;
-  font-style: italic;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+/* Activity ring for the retry state. Deliberately NEUTRAL navy rather than a
+   status colour: green would repeat the "all good" mis-signal the red badge
+   exists to avoid, and red would imply the retry itself had failed. */
+.md-board-detail-error__spinner {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 2px solid rgba($la-navy, 0.20);
+  border-top-color: $la-navy;
+  animation: md-board-detail-error-spin 0.7s linear infinite;
+}
+@keyframes md-board-detail-error-spin {
+  to { transform: rotate(360deg); }
+}
+/* Respect a reduced-motion preference — this is an AAC app and spinning motion
+   is a known trigger; the text alone still communicates the state. */
+@media (prefers-reduced-motion: reduce) {
+  .md-board-detail-error__spinner {
+    animation: none;
+    border-top-color: rgba($la-navy, 0.20);
+  }
 }
 .md-board-detail-error__actions {
   display: flex;
@@ -68790,8 +69299,12 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   gap: 12px;
   max-width: 640px;
 }
+/* px, NOT rem: this stylesheet inherits bootstrap's `html { font-size: 10px }`
+   (app.scss:5366), so the `1.05rem` these carried rendered at 10.5px and the
+   retry link's `1rem` at 10px — both under the 14px floor, and far under this
+   app's AAC type requirement. See LEARNINGS "rem is a trap in this codebase". */
 .md-board-detail-error__action {
-  font-size: 1.05rem;
+  font-size: 17px;
   min-height: 48px;
   padding: 12px 22px;
   border-radius: 10px;
@@ -68801,29 +69314,56 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 }
 .md-board-detail-error__retry,
 .md-board-detail-error__retry-link {
-  font-size: 1rem;
+  font-size: 15px;
   padding: 10px 24px;
 }
 .md-board-detail-error__retry-link {
   appearance: none;
   background: none;
   border: none;
-  color: rgba($la-navy, 0.65);
+  /* WAS navy @65% = 4.24:1 on the card — just under the 4.5:1 AA floor for
+     normal-size text. @75% measures 5.67:1. */
+  color: rgba($la-navy, 0.75);
   text-decoration: underline;
+  text-underline-offset: 3px;
   cursor: pointer;
   min-height: 44px;
+  border-radius: 8px;
 }
 .md-board-detail-error__retry-link:hover,
 .md-board-detail-error__retry-link:focus-visible {
   color: rgba($la-navy, 0.95);
 }
-/* Dark board surface: the navy message/retry text is invisible against the
-   dark canvas — flip both to light. */
+/* Dark board surface: the navy card + text would be unreadable against the dark
+   canvas, so the whole card flips. Measured on a ~#16202E canvas: white @95%
+   title = 14.9:1, @85% body = 12.2:1, @70% retry text = 8.6:1 — all well past AA. */
+.md-board-detail--dark .md-board-detail-error__card {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.04) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    0 12px 32px rgba(0, 0, 0, 0.35);
+}
+.md-board-detail--dark .md-board-detail-error__icon {
+  /* Lightened danger red — #C0392B is only ~2.2:1 on the dark canvas, under the
+     3:1 non-text floor, so it lifts to #E86B5E (5.23:1) rather than staying the
+     light-mode value. */
+  color: #E86B5E;
+  background: rgba(232, 107, 94, 0.14);
+  border-color: rgba(232, 107, 94, 0.32);
+}
+.md-board-detail--dark .md-board-detail-error__title {
+  color: rgba(255, 255, 255, 0.95);
+}
 .md-board-detail--dark .md-board-detail-error__message {
-  color: rgba(255, 255, 255, 0.92);
+  color: rgba(255, 255, 255, 0.85);
 }
 .md-board-detail--dark .md-board-detail-error__retrying {
-  color: rgba(255, 255, 255, 0.65);
+  color: rgba(255, 255, 255, 0.80);
+}
+.md-board-detail--dark .md-board-detail-error__spinner {
+  border-color: rgba(255, 255, 255, 0.25);
+  border-top-color: rgba(255, 255, 255, 0.92);
 }
 .md-board-detail--dark .md-board-detail-error__retry-link {
   color: rgba(255, 255, 255, 0.7);
@@ -71145,23 +71685,10 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   cursor: pointer;
   transition: background 0.14s ease, color 0.14s ease, box-shadow 0.14s ease, opacity 0.14s ease;
 }
-.md-board-detail-portrait-overlay__btn--primary {
-  min-height: 50px;
-  padding: 12px 20px;
-  border: none;
-  border-radius: 14px;
-  background: $brand-verdigris;
-  color: #fff;
-  box-shadow: 0 8px 22px rgba($brand-verdigris, 0.40);
-}
-.md-board-detail-portrait-overlay__btn--primary:hover {
-  background: color.adjust($brand-verdigris, $lightness: -5%);
-}
-.md-board-detail-portrait-overlay__btn--primary:active {
-  transform: scale(0.98);
-}
-/* Deliberately quiet secondary — a text button, never competing with
-   the primary CTA, but always reachable for non-rotatable setups. */
+/* The only button in every orientation overlay. Kept deliberately quiet — it is an
+   escape hatch, not a call to action; the overlay's own copy carries the instruction.
+   (A `--primary` "Rotate Device" button was removed 2026-08-15 along with its styles;
+   no overlay has a primary action any more.) */
 .md-board-detail-portrait-overlay__btn--secondary {
   padding: 8px;
   border: none;
@@ -92457,6 +92984,72 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   height: 100%;
   margin-bottom: 0 !important;
 }
+
+/* Compact variant (`<UserSelect @compact={{true}} />`, currently the
+   switch-communicators modal) — the SAME markup laid out as a vertical list so
+   picking a communicator reads like a dropdown rather than a grid of large cards.
+   Bootstrap's col-* widths are plain classes, so a full-width override needs no
+   !important; the avatar size, button padding and row gap DO, because the
+   component writes those as inline `style` attributes and inline styles cannot be
+   beaten any other way (same reason the base rules above use it).
+   Scoped to the modifier, so the default card grid is untouched. */
+.user-select-grid--compact {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 6px;
+  /* The card grid's row spacing is per-column; the list uses `gap` instead. */
+  > [class*="col-"] {
+    width: 100%;
+    max-width: 100%;
+    flex: 0 0 auto;
+    margin-bottom: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  /* Row: avatar left, name right, single line — not the centered column stack. */
+  .user_select.btn {
+    flex-direction: row !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    gap: 12px;
+    padding: 8px 14px !important;
+    border-radius: 12px !important;
+    text-align: left !important;
+    /* The card grid wraps long usernames onto a second line to keep cards equal
+       height; a list row has no such constraint, so keep each entry one line. */
+    white-space: nowrap !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .user_select.btn img {
+    height: 32px !important;
+    width: 32px !important;
+    max-width: 32px !important;
+    border-radius: 50%;
+    object-fit: cover;
+    flex: 0 0 auto;
+  }
+  /* The markup separates avatar and name with <br>; in a row that would force a
+     line break, so collapse it. */
+  .user_select.btn br { display: none; }
+  /* With the <br>s collapsed, the "not available" note would run straight into
+     the name ("me not available"). Push it to the row's trailing edge so it reads
+     as a status against that entry — which is what it is. The row stays present
+     rather than hidden because `include_me` (user-select.js) toggles this entry's
+     disabled state when `skip_me` changes at runtime, so it has to exist. */
+  .user_select.btn .text-muted {
+    margin-left: auto;
+    padding-left: 12px;
+    font-size: 12px;
+    font-style: normal;
+    white-space: nowrap;
+  }
+  /* Selected state keeps the verdigris treatment from the base rules but drops the
+     wide halo, which is too heavy at row scale and overlapped its neighbours. */
+  .user_select.btn-info {
+    box-shadow: 0 0 0 2px rgba($brand-verdigris, 0.30) !important;
+  }
+}
 .modal-content .user_select.btn,
 .user-select-modern .user_select.btn {
   display: inline-flex !important;
@@ -92488,9 +93081,13 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   min-width: 0;
   text-align: center;
   white-space: normal !important;
-  overflow-wrap: anywhere;
+  // See the matching note on the other .user_select.btn rule: an underscore is
+  // NOT a break opportunity (UAX #14), so the break comes from the markup — the
+  // `break-on-separators` helper's <wbr> — and this stays `break-word` so that
+  // explicit opportunity is preferred over splitting the token mid-word.
+  overflow-wrap: break-word;
   word-break: break-word;
-  hyphens: auto;
+  hyphens: manual;
 }
 .modal-content .user_select.btn:hover,
 .user-select-modern .user_select.btn:hover {
@@ -92644,15 +93241,24 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
   // Allow long single-token usernames (kevin_anderson, isaac_thompson)
   // to break across lines so they stay inside the card. min-width:0
-  // lets the flex item shrink below its content size; overflow-wrap:
-  // anywhere lets the line break inside the token (modern browsers
-  // honor underscores/hyphens as break candidates without it, but
-  // `anywhere` covers the truly-no-separator case too).
+  // lets the flex item shrink below its content size.
+  //
+  // CORRECTION to the note this rule used to carry: browsers do NOT treat an
+  // underscore as a break candidate — per UAX #14 `_` is class AL (an ordinary
+  // letter), so `aiden_parker` is one unbreakable run. `overflow-wrap: anywhere`
+  // was covering for that, but it lets the browser fill greedily and break
+  // wherever the line happens to run out, which is what produced "aiden_parke / r".
+  // The break opportunity now comes from the markup instead — the
+  // `break-on-separators` helper emits a <wbr> after each separator — so this is
+  // `break-word`, which prefers a real break opportunity and only splits a token
+  // mid-word when it has none (a separator-less name like `aidenparkerson`).
   min-width: 0;
   text-align: center;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   word-break: break-word;
-  hyphens: auto;
+  // `auto` would hyphenate a username into e.g. "aiden_par-ker", inventing a
+  // character that isn't in the name. Usernames get explicit breaks only.
+  hyphens: manual;
 }
 
 /* Avatar swap intentionally NOT applied here — per design decision,
@@ -97694,6 +98300,33 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
 .shepherd-element .md-tour__btn--ghost:focus-visible {
   outline: none;
   border-color: rgba($brand-dusty-denim, 0.6);
+  box-shadow: 0 0 0 3px rgba($brand-dusty-denim, 0.22);
+}
+/* Link variant — for a footer action that is genuinely OPTIONAL and must not
+   compete with the primary button (the display-style modal's "Customize your
+   dashboard", which is now a choice rather than the only way forward). Reads as
+   a text link: no chrome, underlined, brand colour. Kept as a <button> (Shepherd
+   renders footer actions as buttons) so it stays keyboard-operable; the underline
+   is what signals "link" to the eye. */
+.shepherd-element .md-tour__btn--link {
+  color: $brand-dusty-denim;
+  border-color: transparent;
+  background: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 600;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+.shepherd-element .md-tour__btn--link:not(:disabled):hover {
+  color: $brand-blue-black;
+  background: none;
+  border-color: transparent;
+  text-decoration-thickness: 2px;
+}
+.shepherd-element .md-tour__btn--link:focus-visible {
+  outline: none;
+  border-radius: 6px;
   box-shadow: 0 0 0 3px rgba($brand-dusty-denim, 0.22);
 }
 

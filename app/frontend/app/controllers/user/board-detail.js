@@ -2355,6 +2355,8 @@ export default Controller.extend(prefClasses, {
   }),
 
   retrying: false,
+  // The error state's HEADING — the plain statement of what happened. Rendered as
+  // the <h2>; `error_detail` below carries the explanation.
   error_message: computed('model.id', 'model.error', 'persistence.online', function() {
     if(this.get('model.id')) { return null; }
     if(this.persistence && this.persistence.get('online')) {
@@ -2362,6 +2364,20 @@ export default Controller.extend(prefClasses, {
     } else {
       return i18n.t('error_no_local', "This board is not available offline.");
     }
+  }),
+  // The explanation under the heading. The route cannot tell these causes apart —
+  // a 404, a permission change and a dropped connection all reject identically —
+  // so this names the realistic possibilities instead of asserting one. The online
+  // copy is deliberately non-alarming: the most common cause is a transient
+  // failure during the login burst (which the route now retries once), and
+  // nothing else about the account is affected. Saying so stops a momentary
+  // network blip reading as "my boards are gone".
+  error_detail: computed('model.id', 'model.error', 'persistence.online', function() {
+    if(this.get('model.id')) { return null; }
+    if(this.persistence && this.persistence.get('online')) {
+      return i18n.t('board_error_detail', "It may have been renamed, moved, or deleted — or the connection dropped while it was loading. Nothing else on your account is affected.");
+    }
+    return i18n.t('board_error_offline_detail', "You are not connected right now, and this board is not saved on this device yet. Reconnect to open it, or choose a board you have already saved.");
   }),
   /* Broken-board recovery: Home when the referenced communicator (or
      current user) has a home board or a session entry board to land on. */

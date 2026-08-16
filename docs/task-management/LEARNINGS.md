@@ -136,6 +136,11 @@ file (see [README.md](README.md)).
 - [Gotcha: set-field on nested model fields needs nested observer deps (videoChanged pattern)](#gotcha-set-field-on-nested-model-fields-needs-nested-observer-deps-videochanged-pattern)
 - [Gotcha: embed-frame `data-user_token` is UserIntegration#user_token, not User#user_token](#gotcha-embed-frame-data-user_token-is-userintegrationuser_token-not-useruser_token)
 - [Gotcha: private uploads bucket — server-side OBZ/OBF import must use signed_internal_url](#gotcha-private-uploads-bucket--server-side-obzobf-import-must-use-signed_internal_url)
+- [Gotcha: an underscore is NOT a line-break opportunity — wrap identifiers with `<wbr>`, never `overflow-wrap: anywhere`](#gotcha-an-underscore-is-not-a-line-break-opportunity--wrap-identifiers-with-wbr-never-overflow-wrap-anywhere)
+- [Gotcha: styling an `<img>`'s own background paints it BEFORE the image — the loading flash is self-inflicted](#gotcha-styling-an-imgs-own-background-paints-it-before-the-image--the-loading-flash-is-self-inflicted)
+- [Gotcha: ember-shepherd passes a TYPELESS button straight through — that is how a custom `action` works](#gotcha-ember-shepherd-passes-a-typeless-button-straight-through--that-is-how-a-custom-action-works)
+- [Gotcha: `body.ll-layout-focused` scoping makes side-by-side layout comparison impossible in a clone](#gotcha-bodyll-layout-focused-scoping-makes-side-by-side-layout-comparison-impossible-in-a-clone)
+- [Pattern: a class the JS emits is not a class the CSS consumes — grep the stylesheet before trusting a "hook"](#pattern-a-class-the-js-emits-is-not-a-class-the-css-consumes--grep-the-stylesheet-before-trusting-a-hook)
 - [Gotcha: redirecting away from `routes/index.js` silently skips the session-entry compliance gates](#gotcha-redirecting-away-from-routesindexjs-silently-skips-the-session-entry-compliance-gates)
 - [Fact: "SLP" is not a distinguishable role on the frontend — `supporter_role` is the only gate](#fact-slp-is-not-a-distinguishable-role-on-the-frontend--supporter_role-is-the-only-gate)
 - [Fact: pill-nav order is plain template source order — unlike the dashboard card grid](#fact-pill-nav-order-is-plain-template-source-order--unlike-the-dashboard-card-grid)
@@ -10639,6 +10644,14 @@ invisible in the SCSS — only measuring the rendered page exposes it.
    returning `10px` is the tell, and a quick Puppeteer pass over
    `getBoundingClientRect()` catches undersized targets that the stylesheet looks fine about.
 
+**Recurrence (2026-08-15) — it also hides in blocks you are already editing.** The
+board-detail error page shipped `font-size: 1.05rem` on its action buttons and `1rem` on its
+retry link — **10.5px and 10px rendered**. These were pre-existing and survived a full restyle
+of that block, because a `rem` value reads as plausible and the surrounding declarations were
+in px. Rule 5: **when you touch a rule block, convert any `rem` you find in it to px in the
+same pass** — you will not get a second look at it, and a "1rem" sitting next to "font-size:
+19px" two lines up is exactly how a sub-14px control survives a redesign.
+
 **Evidence:** [`2026-08-12-reports-summary-redesign.md`](./2026-08-12-reports-summary-redesign.md).
 
 ## Pattern: derive report narrative in a pure util, never in the template or from absent data
@@ -11363,3 +11376,494 @@ emits `model:cache_miss` / `model:root_only_response` / `model:tree_fallback_sho
 `model:background_tree_fail`.
 
 **First seen in:** [2026-08-14-slp-dashboard-label-focused-order-and-hero.md](./2026-08-14-slp-dashboard-label-focused-order-and-hero.md)
+
+---
+
+## Gotcha: an underscore is NOT a line-break opportunity — wrap identifiers with `<wbr>`, never `overflow-wrap: anywhere`
+
+**Surface:** any place a username/identifier is displayed in a narrow box — the
+`user_select` cards (`app.scss` ~92600 / ~92762), the caseload roster name
+(`_caseload.scss` `.md-caseload__list-name`).
+
+**Symptom:** `aiden_parker` wraps as `aiden_parke` / `r` — split mid-word, one
+character onto the second line.
+
+**Why it happens:** per the Unicode line-breaking algorithm (UAX #14) `_` is class
+**AL — an ordinary letter**. So are `.`, `@` and `+` mid-token. Only hyphens are real
+break opportunities. `aiden_parker` is therefore ONE unbreakable run: it either
+overflows its box, or — with `overflow-wrap: anywhere` — the browser fills the line
+greedily and breaks wherever it happens to run out. `anywhere` is what produces the
+mid-word split; it is not a fix, it is the cause of the ugly break.
+
+A comment in `app.scss` asserted the opposite ("modern browsers honor underscores /
+hyphens as break candidates") — that claim was wrong and had been load-bearing for the
+`anywhere` value. Don't trust it if you see it restated elsewhere.
+
+**Fix recipe:** CSS cannot express "prefer the underscore", so put the break
+opportunity in the MARKUP and let CSS prefer it:
+
+1. Emit `<wbr>` after each separator run — `helpers/break-on-separators.js` does this
+   (`{{break-on-separators supervisee.user_name}}`). `<wbr>` renders nothing and does
+   **not** land in the clipboard, unlike a zero-width space (U+200B), which is a real
+   character that pollutes copy/paste and search.
+2. Set `overflow-wrap: break-word` — **not** `anywhere`. `break-word` splits a token
+   mid-word only when it has no break opportunity at all, so a real `<wbr>` wins;
+   `anywhere` would still break greedily before reaching one.
+3. Set `hyphens: manual`. `auto` will render `aiden_par-ker`, inventing a character
+   that is not in the name — actively wrong for an identifier.
+
+**Escape before inserting.** The helper HTML-escapes first, then inserts only literal
+`<wbr>` tags, so a hostile username cannot inject markup. Pick a separator set that
+shares no characters with the escaped entities (`&amp;` `&lt;` `&gt;` `&quot;` `&#39;`)
+or escaping can manufacture a false break.
+
+**First seen in:** [2026-08-15-reports-picker-display-modal-and-board-error-page.md](./2026-08-15-reports-picker-display-modal-and-board-error-page.md)
+
+---
+
+## Gotcha: styling an `<img>`'s own background paints it BEFORE the image — the loading flash is self-inflicted
+
+**Surface:** the caseload roster avatar (`_focused-view.scss`
+`.md-shell--caseload .md-caseload__list-avatar`), and any avatar/thumbnail where a
+photo branch and a placeholder branch share one class.
+
+**Symptom:** a bold coloured disc appears first and the avatar pops in on top of it a
+moment later. Reported as "the badge renders before the image".
+
+**Root cause:** an `<img>` paints its **background and border at layout time**, but its
+bitmap only paints after the network fetch *and* decode. So any `background` you put on
+the `<img>` element itself is guaranteed to be visible alone for the whole load. Give it
+a loud gradient and you have built a conspicuous two-stage render.
+
+This bites specifically when a rule targets a class shared by BOTH branches — here the
+photo `<img>` and the placeholder `<span>` both carry `.md-caseload__list-avatar`. The
+placeholder wants a filled disc (it is inline SVG, paints in one go, never flashes); the
+`<img>` must not have one. The original comment even anticipated the fill showing
+"through transparency or a failed load" — it just never considered the *loading* state.
+
+**Fix recipe:** put the decorative fill on the **placeholder** branch only, and give the
+`<img>` branch a quiet near-neutral fill (here `$surface-100`, the Gentle baseline,
+whose loading window nobody had ever complained about). Trade-off to state out loud: an
+avatar *with transparency* then shows the neutral colour behind it rather than the
+accent.
+
+**Then check the asset, not just the CSS** — see the companion finding: those avatars
+were 256×256 / ~41.8KB PNGs with 1,689 unique colours, quantised to 256 colours for
+**7.9KB (−81%)** at 2.8% RMSE. Verify the LARGEST render before resizing (here 132px at
+`.md-hero--user__avatar`, so 256×256 had to stay — only the compression changed). And
+check `app/frontend/public/` actually has the directory: `avatars/` was missing there
+entirely, so the Ember dev server never served it and `dist/` shipped without it.
+
+**First seen in:** [2026-08-15-reports-picker-display-modal-and-board-error-page.md](./2026-08-15-reports-picker-display-modal-and-board-error-page.md)
+
+---
+
+## Gotcha: ember-shepherd passes a TYPELESS button straight through — that is how a custom `action` works
+
+**Surface:** any Shepherd step in this repo whose footer needs a button that is not a
+plain next/back/cancel — e.g. the display-style modal's "Done" (completes from a
+non-final step) and its "Customize your dashboard" link.
+
+**The mechanism (`node_modules/ember-shepherd/dist/utils/buttons.js`):**
+
+```js
+function makeButton(button) {
+  const { classes, disabled, label, secondary, text, type } = button;
+  if (!type) { return button; }            // <-- passed through untouched
+  assert(`'type' must be one of 'back', 'cancel', or 'next'`, …);
+  const action = bind(this, function () { this[type](); });
+  return { action, classes, … };
+}
+```
+
+So: **omit `type`** and your `action` survives to Shepherd verbatim. Supplying both is
+pointless — `type` overwrites `action`.
+
+**Drive the tour through the SERVICE, not `this`.** The ember-shepherd tour service
+exposes `next()`, `back()`, `cancel()` and `complete()` (each forwarding to
+`tourObject`). Capture the component in a closure (`var component = this;` at the top of
+the steps builder) and call `component.get('tour').complete()`. That avoids depending on
+how Shepherd binds button callbacks — the same `_this`-capture convention CLAUDE.md
+already mandates for promise executors and plain-object methods.
+
+**Two traps when you change a step's primary button:**
+1. Gates usually key off the **class**, not the type — here `refreshGate` finds
+   `.shepherd-footer .md-tour__btn--primary`. Keep that class on whatever becomes the
+   primary or the disabled-until-valid gate silently stops working.
+2. Any NEW button that advances the flow needs the **same gate applied to it**, or it
+   becomes a way around the disabled primary.
+
+**Steps are built per tour-open** (`_startDisplayStyle` → `_buildSteps()`), so a DOM
+check inside the builder legitimately reflects the current page — that is how the modal
+collapses to a single step when opened off the dashboard.
+
+**First seen in:** [2026-08-15-reports-picker-display-modal-and-board-error-page.md](./2026-08-15-reports-picker-display-modal-and-board-error-page.md)
+
+---
+
+## Gotcha: `body.ll-layout-focused` scoping makes side-by-side layout comparison impossible in a clone
+
+**Surface:** any "show the user Gentle vs Focused next to each other" idea — e.g.
+previewing the CURRENT page in both styles inside the display-style modal.
+
+**The constraint:** Focused View is applied app-wide by a **body class**
+(`sync_layout_scope` in `services/app-state.js` → `LingoLinq.set_layout_scope`), and
+every per-page focused rule is written `body.ll-layout-focused .md-shell--caseload …`
+(see the scoping contract at the top of `styles/_focused-view.scss`). A clone rendered
+inside the modal is still inside that same `<body>`, so it inherits whichever state the
+body is currently in. **Two clones would render identically** — you would show the user
+their current view twice and call it a comparison.
+
+**Where it DOES work:** the home dashboard, because the grid's variant is a class on the
+grid element itself (`md-grid--layout-gentle` / `--layout-focused`), which the preview
+already toggles per clone (`display-style.js` `gridEl.classList.toggle('md-grid--layout-'
++ name, …)`). Element-scoped variants can be compared; body-scoped ones cannot.
+
+**Options when this comes up:** (a) restrict the comparison to the dashboard;
+(b) always preview the dashboard regardless of page, accepting that it is not "this
+page"; (c) refactor the focused overlay from `body.ll-layout-focused` to a container
+class — real work across a 40KB partial, and it risks the "Gentle View is the UNTOUCHED
+baseline" guarantee that partial is built on. Do not promise (a)+(b) semantics without
+saying which one you built.
+
+**Generalisation:** before designing any side-by-side variant preview, check whether the
+variant is toggled by an **ancestor/body** class or an **element** class. Only the latter
+can appear twice on one page.
+
+**First seen in:** [2026-08-15-reports-picker-display-modal-and-board-error-page.md](./2026-08-15-reports-picker-display-modal-and-board-error-page.md)
+
+---
+
+## Pattern: a class the JS emits is not a class the CSS consumes — grep the stylesheet before trusting a "hook"
+
+**Surface:** `gridLayoutState` (`utils/dashboard_sections.js`) emits
+`md-grid--hero-<key>` for the Focused View hero, and `authenticated-view.js` documents
+it as driving "which section gets the full-width hero showcase".
+
+**The finding:** `grep -rn "md-grid--hero" app/frontend/app/styles/` returned **nothing**.
+The class had been emitted, commented as load-bearing, and consumed by no rule at all —
+so the "hero" was actually produced by a completely different mechanism (a purpose-built
+`.md-card--speak-focused` element plus `display:none` on the normal Speak card). Reading
+only the JS and its comments would have produced a confidently wrong diagnosis.
+
+**Why it matters twice over:** an inert class is not just dead weight, it is a *decoy* —
+it makes the next person believe there is a supported hook. It is also an opportunity:
+wiring it up is often the cleanest fix, because the emit side and the naming already
+exist (that is exactly how the caseload hero was implemented, by finally giving
+`md-grid--hero-caseload` rules rather than inventing a new mechanism).
+
+**Rule:** when a comment says a class "drives" something, verify BOTH ends —
+`grep` the emit site *and* the stylesheet — before building on it or explaining it to
+someone. Same discipline as the "same-named computeds diverge" entry above: the name is
+not the contract.
+
+**First seen in:** [2026-08-15-reports-picker-display-modal-and-board-error-page.md](./2026-08-15-reports-picker-display-modal-and-board-error-page.md)
+
+---
+
+## Pattern: deleting a route in this app does NOT 404 — `/:user_id` swallows the URL
+
+**Surface:** a proposed removal of the retired onboarding wizard would have deleted
+`this.route('setup', { path: '/setup'})` from `app/frontend/app/router.js`. (The deletion
+itself was **reverted** — see the entry below — but the routing fact stands and applies to
+any future retirement.)
+
+**The trap:** `this.route('user', { resetNamespace: true, path: '/:user_id' })` is a
+single-segment **catch-all**. Delete any top-level route above it and that path stops
+404-ing and starts resolving as *a user whose id is the route name* — the page renders
+"Error loading user, please make sure you have permission to support this user" instead
+of erroring or redirecting. The router file even documents the ordering requirement
+inline ("Setup must come before user so /setup matches the wizard, not user with id
+'setup'"), which is easy to read as a note about ordering and miss as a note about
+deletion.
+
+**Rule:** when retiring a top-level route whose path is a single segment, keep the route
+entry and reduce it to a **redirect-only stub** (`beforeModel` → `appState.return_to_index()`
++ `RSVP.reject`). Delete the controller, template and components; keep the 20-line guard.
+The same applies to `intro`, `eval`, `board-picker`, `speech`, `demo` — anything declared
+before the `user` route.
+
+**Generalisation:** in any router with a greedy dynamic segment, "delete the route" and
+"make the URL stop working" are different operations. Check what the URL falls through
+*to* before removing an entry.
+
+**First seen in:** [2026-08-15-delete-setup-pages.md](./2026-08-15-delete-setup-pages.md)
+
+---
+
+## Pattern: "retire the access points" ≠ "delete the pages" — confirm which one before removing files
+
+**Surface:** a session handoff recorded that Traci had "confirmed the wizard AND the
+symbol-layout editor are both being deleted." Acting on it removed 41 files
+(`controllers/setup.js`, `templates/setup.hbs`, all 18 `app/components/setup/**`). Traci's
+actual position: *"We shouldn't have a setup deletion → only comments so there are no
+access points. We're not ready to delete the setup pages yet."* Everything was reverted.
+
+**The distinction that got flattened:** closing off a feature has two very different
+end-states, and the code looked identical from the inside —
+* **Access points closed** (what was wanted): route guard refuses every mode, entry points
+  commented out, files stay on disk so the flow can be revived or reworked.
+* **Pages deleted** (what was done): the implementation is gone and reconstructing it means
+  going back through git history.
+
+Comments left in the code by the earlier pass genuinely read as deletion authorisation —
+`routes/setup.js` said *"When the setup pages are finally deleted, this route … go
+together"* and `board-actions.js` said *"Delete this block outright in the same change that
+removes routes/setup.js."* Those were a **plan**, not a decision, and a second-hand handoff
+note is not consent.
+
+**Rule:** a deletion recorded only in a handoff or a code comment is a hypothesis. Re-confirm
+irreversible removals with the person directly, at the time, before running `rm`. Cheap to
+ask; the revert here cost two builds and a careful file-by-file classification.
+
+**What made the revert safe** (worth copying): before any `git checkout`, classify every
+changed file into *"I alone made this dirty"* (safe to `git checkout HEAD --`) vs *"this
+already contained the user's uncommitted work"* (hand-revert only). On a branch with 40+
+uncommitted files a blanket checkout would have destroyed real work. Diff the current
+`git status` against the session-start status to build that split mechanically — and count
+the entries afterwards to prove you landed back on the original shape.
+
+**First seen in:** [2026-08-15-delete-setup-pages.md](./2026-08-15-delete-setup-pages.md)
+
+---
+
+## Pattern: prove "pre-existing failure" with a baseline build — never by reasoning alone
+
+**Surface:** deleting the wizard touched `routes/user/board-detail.js`, where two
+always-true `if (!board_layout_mode)` guards were unwrapped. The legacy `app_state`
+suite then reported 4 failures, three reading
+`calling set on destroyed object: <…user/board-detail::ember353>.paint_mode = false`.
+`paint_mode` was literally on the touched lines.
+
+**Why reasoning was not enough:** the static case was strong — the `= false` setter is
+`utils/edit_manager.js:1679`, `board_layout_mode` appears nowhere in `tests/`, and the
+unwrapped branches were provably always taken. All true, and still only an argument.
+
+**The technique (cheap, ~8 min, no git writes):**
+1. `cp` every file you edited to the scratchpad.
+2. Restore the ones that were **clean at HEAD** with `git show HEAD:<path> > <path>`;
+   hand-revert edits in files that were already dirty in the working tree.
+3. Build to a *separate* output dir (`--output-path .../build-baseline`) and re-run the
+   same filter against it.
+4. Restore from the scratchpad copies, then re-grep for every removed symbol to confirm.
+
+Result here: 86 tests / 4 failed / 246-of-250 assertions, same four test names, same
+assertion text — **byte-identical**, so pre-existing. Note step 2's split: `git show HEAD`
+is only the pre-edit state for files that were clean before you started; on a branch with
+30+ uncommitted files that is a real distinction.
+
+**Rule:** a failure that names a symbol you touched is not pre-existing until a baseline
+build says so. Never `git stash` to get one — this repo requires explicit approval for
+every git write, and a stash mid-task risks the other uncommitted work.
+
+**First seen in:** [2026-08-15-delete-setup-pages.md](./2026-08-15-delete-setup-pages.md)
+
+---
+
+## Gotcha: a zero-match QUnit filter reports "1 tests … 1 failed"
+
+**Surface:** with `ember test` broken here (`require() of ES Module … execa` in testem),
+suites are driven by a Puppeteer harness that takes a QUnit filter string.
+
+**The trap:** filtering on a string that matches **no** test does not report "0 tests" —
+it reports `1 tests completed … with 1 failed`, `0 assertions of 1 passed`. That looks
+exactly like a real regression. Filtering `"dashboard-sections"` (the *filename*) produced
+this; the module is `Unit | Utility | dashboard sections` — **spaces, not hyphens**.
+
+**How to tell in one step:** re-run with a deliberately impossible filter
+(`"zzz-no-such-test"`). Identical output ⇒ your filter matched nothing. Then get the real
+name from the source: `grep -n "module(" <test-file>`.
+
+**Related:** killing a Puppeteer run leaves Chrome processes behind that make every
+*subsequent* run hang to timeout. Run one filter per invocation on its own port rather
+than looping several in one `for` loop, and `pkill` stray chrome after any interrupted run.
+
+**First seen in:** [2026-08-15-delete-setup-pages.md](./2026-08-15-delete-setup-pages.md)
+
+---
+
+## Pattern: to preview a body-scoped style variant, render it in an iframe — not a clone
+
+**Surface:** the Display Style modal had to show the CURRENT page rendered in both Gentle
+and Focused View, side by side. Focused View's rules live in `styles/_focused-view.scss`
+scoped under **`body.ll-layout-focused`**, so two clones inside the same `<body>` inherit
+the same state and render identically. That is why the modal previously showed only ONE
+preview, swapped on selection.
+
+**The fix:** give each preview its own `<iframe>` — its own document, its own `<body>`,
+its own class. Copy the parent's `link[rel=stylesheet]` + `<style>` tags (same URLs ⇒
+cache-served, so it costs a parse, not a download) and `document.write` the markup in.
+`_focused-view.scss` is not touched at all, so its "Gentle View is the UNTOUCHED baseline"
+guarantee stays structurally safe.
+
+**Rejected alternative, and why it matters:** adding a `.ll-scope--focused` container
+scope to that file looks cheaper (~9 top-level selectors). It fails on two counts —
+(1) **specificity**: the file is `@use`d so it emits FIRST and must win by specificity;
+`body.ll-layout-focused` is (0,2,0) and a bare container class is (0,1,0), so it would
+LOSE to base rules; (2) ~24 of its rules key off document-level ancestors such as
+`#within_ember #content.modern-dashboard:has(.md-shell--caseload)`, which cannot resolve
+inside a container — and those are precisely the rules that restyle the caseload page.
+
+**Three traps the iframe approach has of its own — all found by RUNNING it:**
+1. **Do not copy the whole `body.className` blindly.** It contains transient modal state.
+   `md-ds-active` (added while this very modal runs) carries
+   `body.md-ds-active .md-workspace {visibility:hidden}`, which blanked every preview to
+   a bare gradient. Filter out `md-ds-active`, `shepherd-*`, `md-tour-*`.
+2. **Rebuild the ANCESTOR CHAIN, not just the element.** Shallow-clone each ancestor up to
+   `<body>` (ids/classes intact) and nest the deep-cloned shell inside, or every rule that
+   reaches for `#within_ember` / `#content` / `:has()` silently stops matching.
+3. **Body class is not the whole variant.** Element-level classes bound to the saved
+   preference (`md-shell--layout-focused`, `md-grid--layout-gentle|focused`) come along
+   from the clone unchanged, so both frames render the SAME layout. Re-point them per
+   preview. Note a swap alone cannot add a modifier that has no counterpart — the shell
+   only ever gains `--layout-focused` — so toggle that one explicitly.
+
+**Scale to WIDTH and crop, don't fit.** Fit-to-both letterboxes badly when the slot is far
+wider than tall (two previews stacked in a modal): the page rendered at 0.27 with a third
+of the slot blank. Width-scale + crop keeps the top of the page, which is where the
+variants differ. Render the iframe at true viewport width, too — a narrow iframe trips the
+app's width breakpoints and previews the MOBILE layout.
+
+**Honest limitation to state:** this previews CSS only. Anything computed in JS
+(`gridLayoutState` card ordering, `md-grid--hero-<key>`) is not reflected.
+
+**First seen in:** [2026-08-15-display-style-side-by-side-preview.md](./2026-08-15-display-style-side-by-side-preview.md)
+
+---
+
+## Gotcha: `!important` does not beat `!important` — specificity still decides
+
+**Surface:** making a cloned page expand inside a preview iframe needed the app's
+viewport-pinned scroller to release its height. `#content{height:auto !important}` was
+injected last in the document and still lost — the element kept `css-height: 950px` with
+2071px of content inside it.
+
+**Why:** the app's own rule is *also* `!important`, at higher specificity. Between two
+`!important` declarations the normal cascade resumes: specificity first, source order
+only as the tie-break. A bare `#content` (1,0,0) loses to anything like
+`#within_ember #content` (2,0,0) regardless of who is later in the file.
+`html body #within_ember #content` (2,0,2) wins.
+
+**The tell:** when one property from an injected block applies and another does not
+(here `overflow` took effect but `height` did not), it is not "my CSS isn't loading" — it
+is a per-property fight, and only the contested property has a higher-specificity rival.
+That is a much faster diagnosis than re-checking whether the stylesheet is present.
+
+**Related trap in the same fix:** an injected `html,body{overflow:hidden}` (added to hide
+scrollbars, which an iframe's `scrolling="no"` already handles) silently **capped
+`documentElement.scrollHeight` at the frame height**, so every page-height measurement
+read exactly one viewport. If a scroll measurement suspiciously equals the container
+height, look for an overflow rule you added yourself.
+
+**When ancestors are pinned, stop asking them how tall they are.** Even after relaxing
+overflow, `#within_ember` / `#content` / `body` all still laid out at one viewport while
+their content spilled visibly — so `documentElement.scrollHeight`, `body.scrollHeight`
+and the root child's bounding box ALL under-read. Measuring the **lowest bottom edge of
+any element** (`max(rect.bottom)` over `body.querySelectorAll('*')`) is the one
+measurement a constrained ancestor cannot distort.
+
+**First seen in:** [2026-08-15-display-style-side-by-side-preview.md](./2026-08-15-display-style-side-by-side-preview.md)
+
+---
+
+## Gotcha: `margin: … auto …` on a FLEX ITEM shrink-wraps it
+
+**Surface:** `.md-ds-options` carries `margin: 8px auto 0` — harmless centring while it
+was a block. Once its parent became a flex column, both preview rows collapsed to their
+content width and the previews rendered narrow and portrait-shaped inside a full-bleed
+modal.
+
+**Why:** `auto` side margins on a flex item absorb the free space *and* stop the item
+stretching, so `align-self: stretch` never applies. The item ends up shrink-wrapped and
+centred — which looks like "my width rule isn't working".
+
+**Rule:** when converting a container to flex, audit its children for `margin: … auto`
+and `max-width` first. Neutralise them on the variant (`margin-inline: 0; width: 100%;
+align-self: stretch`) rather than fighting it with `!important` widths.
+
+**Related, same fix:** `height: 100%` on a child of a flex-grown parent resolves against
+*nothing* — the parent's height comes from growing, not from a definite value. Use
+`flex: 1 1 auto` on the child (and `min-height: 0`, or it refuses to shrink below its
+content and overflows the container).
+
+**First seen in:** [2026-08-15-display-style-side-by-side-preview.md](./2026-08-15-display-style-side-by-side-preview.md)
+
+---
+
+## Gotcha: `animation: none` hides anything revealed by an entrance animation
+
+**Surface:** the display-style preview injects motion-suppressing CSS into its iframe.
+`*{animation:none !important}` looked obviously safe. It made the caseload page's header
+and subheader vanish from the preview entirely.
+
+**Why:** this codebase reveals hero text with an entrance animation over an initially
+hidden element —
+
+```scss
+.md-hero--dashboard .md-hero__title .md-hero__title--from-left {
+  opacity: 0;
+  animation: la-hero-title-from-left 1s … forwards;   /* `forwards` supplies opacity 1 */
+}
+```
+
+The resting state is `opacity: 0`; the *animation* is what makes it visible. Removing the
+animation removes the only thing that ever set opacity to 1. Same trap for anything using
+`transform: translateX(-100%)` + `forwards`.
+
+**The fix — suppress the motion, keep the result:**
+```css
+*{animation-duration:0s !important; animation-delay:0s !important;}
+```
+Each animation still runs, completes immediately, and applies its `forwards` fill. Use
+this anywhere motion is being stripped (previews, print styles, screenshot harnesses,
+reduced-motion handling) rather than `animation: none`.
+
+**Symptom to recognise:** an element is present in the DOM, has a sensible computed size,
+and reserves layout space — but renders blank. Check `getComputedStyle(el).opacity` before
+suspecting fonts, colour, or a failed clone.
+
+**First seen in:** [2026-08-15-display-style-side-by-side-preview.md](./2026-08-15-display-style-side-by-side-preview.md)
+
+---
+
+## Technique: measure a page's "ink box" from LEAF elements, not containers
+
+**Surface:** scaling a cloned page into a preview panel needs its true content extent.
+Container-based measurements gave two visible defects at once — a white band above the
+content, and a tall blank tail below it.
+
+**Why containers lie at both ends:**
+* **Top** — `.md-shell` / `.md-workspace` / `#content` all start at `y = 0`, so any
+  container measurement reports a content top of 0 and no gap to crop. But the layout
+  still reserves space for a fixed app header that the clone does not include, so the
+  first thing actually *visible* is well below 0.
+* **Bottom** — the shell keeps running to full page height past the last visible row, so
+  a short layout measures just as tall as a long one.
+
+**The measurement that works** — walk elements with no element children, take the
+topmost `rect.top` and lowest `rect.bottom`:
+
+```js
+Array.prototype.forEach.call(doc.body.querySelectorAll('*'), function(n) {
+  if (n.firstElementChild) { return; }        // containers via their leaves
+  var r = n.getBoundingClientRect();
+  if (!r.height || !r.width) { return; }
+  if (r.top < top) { top = r.top; }
+  if (r.bottom > bottom) { bottom = r.bottom; }
+});
+```
+
+Add a few px of bleed (≈8 top / 16 bottom) so a card's border, shadow or padding just
+past its last leaf is not shaved. Then shift the frame by `-top × scale` and size the
+box to `(bottom - top) × scale`.
+
+**Keep ONE scale across sibling previews, but let each box take its own height.** Shared
+scale keeps the two pictures comparable (different zooms would defeat a side-by-side
+comparison); per-box height removes the blank tail under the shorter one. Those are
+independent decisions — it is tempting to conflate them.
+
+**Feedback-loop guard:** measure available space from an ancestor the fit function never
+writes to. Once the routine sets both `width` and `height` on the box, reading either back
+next pass feeds the calculation its own output and the size drifts.
+
+**First seen in:** [2026-08-15-display-style-side-by-side-preview.md](./2026-08-15-display-style-side-by-side-preview.md)

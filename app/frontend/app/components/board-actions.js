@@ -124,15 +124,24 @@ export default Component.extend({
         });
       });
     },
-    board_layout() {
-      var user = this.get('appState.currentUser');
-      if (!user) { return; }
-      var user_id = user.get('id');
-      var board_key = this.get('model.board.key') || this.get('model.board.id');
-      this.get('modal').close();
-      this.get('appState').set('board_layout_mode', board_key);
-      this.get('router').transitionTo('setup', { queryParams: { page: 'symbols', user_id: user_id, mode: 'layout' } });
-    },
+    // SWITCHED OFF — the board SYMBOL-LAYOUT editor, which lives on the `setup`
+    // route under `mode=layout`. The setup pages are NOT deleted (decision
+    // confirmed 2026-08-15); only their access points are closed, and this is one
+    // of them. routes/setup.js currently refuses every mode, so restoring this
+    // transition alone would bounce the user home — the guard has to come off too.
+    // No template invoked `board_layout`, so nothing regressed when it was
+    // switched off. Its coupled state, `appState.board_layout_mode` (set here,
+    // read in routes/user/board-detail.js and cleared by `close_board_layout` at
+    // controllers/setup.js:828), is left dormant in place for the same reason.
+    // board_layout() {
+    //   var user = this.get('appState.currentUser');
+    //   if (!user) { return; }
+    //   var user_id = user.get('id');
+    //   var board_key = this.get('model.board.key') || this.get('model.board.id');
+    //   this.get('modal').close();
+    //   this.get('appState').set('board_layout_mode', board_key);
+    //   this.get('router').transitionTo('setup', { queryParams: { page: 'symbols', user_id: user_id, mode: 'layout' } });
+    // },
     delete() {
       const model = this.get('model');
       if (!model || !model.board) { return; }

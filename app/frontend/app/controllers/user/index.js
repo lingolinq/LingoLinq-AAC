@@ -1304,12 +1304,27 @@ export default Controller.extend({
       console.debug('syncing because manually triggered');
       this.persistence.sync(this.get('model.id'), 'all_reload').then(null, function() { });
     },
+    // Runs against the PROFILE being viewed (`model.id`), which may be a
+    // supervisee — so this goes to the standalone board picker for THAT user, not
+    // to the current user's home tour. The picker is the decoupled replacement for
+    // the wizard's board step and "mirrors setup's user_id / setup_user
+    // resolution" (controllers/board-picker.js:10), so it lands on exactly the
+    // screen the wizard used to open for this person.
+    // `homeBoardPickerUserId` (above) is the established param source: a GLOBAL id,
+    // and null when the profile IS the current user, so a self-visit opens the
+    // plain picker rather than a redundant ?user_id round-trip.
     setup: function() {
+      var other_user_id = this.get('homeBoardPickerUserId');
       if(window.ga) {
-        window.ga('send', 'event', 'Setup', 'start', 'Setup started');
+        window.ga('send', 'event', 'Onboarding', 'start', other_user_id ? 'Board picker opened' : 'Home tour started');
       }
-      this.appState.set('auto_setup', false);
-      this.router.transitionTo('setup', { queryParams: { page: null, user_id: this.get('model.id') } });
+      if(other_user_id) {
+        this.router.transitionTo('board-picker', { queryParams: { user_id: other_user_id } });
+      } else {
+        // Own profile — the home tour is the self-onboarding path.
+        this.appState.set('auto_open_home_tour', true);
+        this.appState.return_to_index();
+      }
     },
     quick_assessment: function() {
       var _this = this;

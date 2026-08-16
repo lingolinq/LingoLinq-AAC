@@ -298,7 +298,7 @@
 .md-caseload__list-row--active::before,
 .md-caseload__list-row--highlighted::before,
 .md-caseload__list-row:hover::before,
-.md-caseload__list-row:focus-within::before {
+.md-caseload__list-row:has(:focus-visible)::before {
   width: 5px;
   opacity: 1;
 }
@@ -327,10 +327,15 @@
    (:focus-within) — collapsed row takes the exact selected styling (border + tint
    + ring/glow) so mousing over OR tabbing to it shows what expanding will look
    like. Resting rows stay plain (see base rule). */
+/* `:has(:focus-visible)`, NOT `:focus-within`. `:focus-within` is also true after a
+   MOUSE click, and the More Actions button keeps focus when it is clicked — so
+   collapsing a row left it stuck in the expanded/selected styling until focus moved
+   elsewhere. `:focus-visible` is the browser's own "should this focus be shown"
+   decision, which is exactly the keyboard case this rule was written for. */
 .md-caseload__list-row--active,
 .md-caseload__list-row--highlighted,
 .md-caseload__list-row:hover,
-.md-caseload__list-row:focus-within {
+.md-caseload__list-row:has(:focus-visible) {
   border-color: rgba($brand-verdigris, 0.55);
   /* Soft verdigris tint across the whole expanded card (header, goals, and the
      now-transparent Quick Actions section) so the surface reads as one cohesive
@@ -508,7 +513,11 @@
      the long-username overflow this rule exists to stop. */
   max-width: 100%;
   min-width: 0;
-  overflow-wrap: anywhere;
+  /* `break-word`, not `anywhere`: the name carries explicit <wbr> break points
+     after its separators (the `break-on-separators` helper — an underscore is not
+     a break opportunity on its own, per UAX #14), and `anywhere` would let the
+     browser fill greedily and split mid-word before reaching one. */
+  overflow-wrap: break-word;
 }
 /* ≥1025px: badges move to the RIGHT of the name and line up in one column down
    the list. 1025 rather than 1024 so "1024 and smaller" keeps the stack.
@@ -587,6 +596,113 @@
 @media (max-width: 1024px) {
   .md-caseload__list-badges {
     margin-left: -4px;
+  }
+  /* LEFT-ALIGNED from 1024px down, and STARTING WHERE THE ROLE BADGE STARTS. The base
+     rule right-anchors this row and spans it from column 1, so it began under the AVATAR
+     and ran to the right edge — leaving the two badge groups on different left edges.
+     Column 2 puts it in the same track as the name and its role badge, and the same -4px
+     nudge those badges carry lines the two chips' rounded edges up exactly.
+     (Both are overridden further down: 641-768px moves this onto the name's own line,
+     and <=640px keeps column 2 but drops it below the name.) */
+  .md-caseload__list-status {
+    grid-column: 2;
+    justify-content: flex-start;
+    margin-left: -4px;
+  }
+}
+/* 769-1024px: pull the badge row UP under the name. Grid row 1 is otherwise sized by the
+   tallest item in it — the avatar (60px, and 72px in Focused View) rather than the 24px
+   name — so the badges waited for the PORTRAIT to end and sat far below the name they
+   belong to. Spanning the avatar across both rows takes it out of row 1's height, leaving
+   the name to size its own row.
+   `span 2`, not `1 / -1`: the trigger declares only `grid-template-columns`, so its rows
+   are implicit and `-1` resolves against an explicit grid that has no row lines — it
+   silently collapses to a single row and nothing moves.
+   Bounded below at 769 because 641-768px puts the badges on the name's own LINE (one row
+   only, where a 2-row span would invent an empty second row), and <=640px carries its own
+   copy of this span. */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .md-caseload__list-avatar {
+    grid-row: 1 / span 2;
+    align-self: center;
+  }
+}
+/* <=768px ($aac-breakpoint-md): role badge AND status badges share the username's line,
+   and the quick-action toolbar takes the next row on its own.
+   The base layout keeps `.md-caseload__list-status` on its own full-width grid row
+   specifically so extra badges cannot inflate the trigger's max-content width and shove
+   the toolbar onto a second line (see the long note on that rule). At this width the
+   toolbar is on its own line BY DESIGN, so that trade-off no longer applies and the
+   badges can rejoin the name — which keeps the identity, role and any alert readable as
+   one statement instead of spread over two lines in a narrow column.
+   Rather than reordering the DOM, the trigger's grid gains a third track and the status
+   block is placed into row 1 beside the identity. */
+@media (max-width: 768px) {
+  /* The base layout stacks the role badge UNDER the name (only >=1025px puts them on one
+     line). Both stacked variants exist to protect the shared line with the toolbar — which
+     is not shared at this width — so the name and its role badge go back onto one line.
+     No fixed 200px name slot like the >=1025px rule: that exists to align badges into a
+     column down the list, and there is not enough width here to spend on alignment. */
+  .md-caseload__list-name-row {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+  }
+  .md-caseload__list-name-row .md-caseload__list-name {
+    flex: 0 1 auto;
+  }
+  /* Full-width flex item — the toolbar always breaks to its own row here rather than
+     only when the badges happen to push it. `margin-left: auto` on the base rule
+     resolves to 0 once this item owns the whole line, so the buttons stay right-aligned
+     via the toolbar's own `justify-content: flex-end`. */
+  .md-caseload__list-header > .md-caseload__list-quick {
+    flex: 0 0 100%;
+  }
+}
+/* 641-768px: enough width for the attention/status badges to join the username line too,
+   so identity, role and any alert read as one statement. A third grid track carries them,
+   which avoids reordering the DOM. */
+@media (max-width: 768px) and (min-width: 641px) {
+  .md-caseload__list-trigger {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .md-caseload__list-status {
+    grid-column: 3;
+    grid-row: 1;
+    /* Left-aligned now: it sits directly after the role badge on a shared line, so the
+       right-anchoring the full-width row needed would open a gap mid-sentence. */
+    justify-content: flex-start;
+  }
+}
+/* <=640px: the alert badges drop BELOW the username. There is no longer room to carry
+   name + role + "<thing> needed" on one line — the badge would squeeze the name to a few
+   ellipsised characters — so it takes the row underneath.
+   `grid-column: 2` (not the base's `1 / -1`): under the NAME, indented past the avatar,
+   so it reads as belonging to the username rather than floating under the portrait. The
+   trigger keeps its base two-track grid here, since the third track above is bounded to
+   641px and up; placing the item in column 2 auto-flows it to row 2.
+   Range-bounded against the block above rather than relying on source order — the same
+   convention the gap rules in this file already follow. */
+@media (max-width: 640px) {
+  /* The AVATAR spans both rows. Without this, grid row 1 is sized by the tallest item in
+     it — the 60px portrait, not the 24px name — so the badge waited for the avatar to end
+     and sat ~48px below the name's top instead of directly beneath it (measured: avatar
+     678-738, name-row only 696-720, badge pushed to 747). Spanning takes the portrait out
+     of row 1's height calculation, leaving the name to size its own row and the badge to
+     follow one 9px row-gap later. */
+  .md-caseload__list-avatar {
+    /* `span 2`, NOT `1 / -1`. The trigger declares `grid-template-columns` only, so every
+       ROW here is implicit — and `-1` resolves against the EXPLICIT grid, which has no row
+       lines, so `1 / -1` silently collapses to a single row and the span never happens.
+       (Computed style still reports `1/-1`, which makes it look applied; the giveaway is
+       that the layout does not move.) */
+    grid-row: 1 / span 2;
+    align-self: center;
+  }
+  .md-caseload__list-status {
+    grid-column: 2;
+    grid-row: 2;
+    justify-content: flex-start;
   }
 }
 .md-caseload__list-access {
@@ -770,6 +886,44 @@
   flex: 0 1 auto;
   min-width: 86px;
   max-width: none;
+}
+/* 641-768px: the toolbar owns its own full-width row here (see the <=768px block
+   above), so the buttons SHARE that row equally instead of bunching at the right
+   and leaving the left half empty. `flex-basis: 0` — not `auto` — is what makes the
+   widths equal: with `auto` each tile would keep its label's natural width and only
+   split the leftover, so "Modelling Ideas" would end up far wider than "Model".
+   The 86px floor above still applies, so they wrap rather than squeeze if a row ever
+   cannot fit them.
+   RANGE BOUNDED AT 641 ON PURPOSE, matching the convention this file already sets for
+   the gap rules: below 640 the toolbar is a deliberately different thing — icon-only
+   44px tiles with labels hidden and Model/Reports dropped entirely — and stretching
+   those would undo that design. Bounding makes the two mutually exclusive rather than
+   leaving it to source order.
+   SPECIFICITY (0,3,0) via the `.md-caseload__list-header` ancestor, rather than relying
+   on source order: three tiles (`--model`, `--choose-board`, `--ideas`) are pinned to a
+   definite `flex: 0 0 86px` FURTHER DOWN this file at (0,2,0), so an equal-specificity
+   rule here loses to them and the row stretches unevenly — measured 86px for Model and
+   Modelling Ideas against 155px for the rest. That 86px pin exists to hold the leading
+   slot at one size down the list; equal `flex: 1 1 0` slots preserve that alignment on
+   its own, because every row divides the same width by the same number of tiles. */
+@media (max-width: 768px) and (min-width: 641px) {
+  /* EQUAL GRID COLUMNS, not `flex: 1 1 0`. Flex was the obvious first move and it did
+     fill the row, but not evenly: with every tile resolving to an identical
+     `basis=0 grow=1 min=86px`, free-space distribution still produced 130px tiles beside
+     a 118px one. `grid-auto-columns: 1fr` states the intent directly — one row, N equal
+     columns — and cannot drift.
+     The row is a fixed, small set of actions at this width, so losing flex's wrapping is
+     not a real loss; the tiles have room to spare (~127px each against an 86px floor). */
+  .md-caseload__list-header > .md-caseload__list-quick {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+  }
+  .md-caseload__list-header .md-caseload__list-quick .md-caseload__quick-action {
+    /* Grid items default to `min-width: auto`, which would let a long caption push its
+       column past its 1fr share and unbalance the set again. */
+    min-width: 0;
+  }
 }
 /* Every tile whose label is too long for one line at the row's width is pinned
    to the same DEFINITE 86px basis — what Note measures — so the row stays one
@@ -1096,32 +1250,68 @@
 }
 
 @media (max-width: 640px) {
-  .md-caseload__list-quick {
-    /* On narrow screens, reduce to the two most-used quick actions
-       (Note + Assessment) to keep the row readable. Model + Reports
-       are still accessible from the full card below. */
-    gap: 3px;
+  /* EQUAL COLUMNS ACROSS THE ROW. The toolbar owns its own line at this width (see the
+     <=768px block), so the buttons divide it instead of bunching at the right and
+     leaving the left half empty. `grid-auto-columns: 1fr` rather than flex `1 1 0` —
+     flex free-space distribution does not come out exactly equal here (measured 130px
+     tiles beside a 118px one at 768px), and this states "N equal columns" directly. */
+  .md-caseload__list-header > .md-caseload__list-quick {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 6px;
+    /* MUST override the base toolbar's `align-items: center`, which was written for the
+       flex layout. Under grid it centres each tile in its track at its own content
+       height, so a two-line caption ("Modelling Ideas") stood 65px tall beside 52px
+       neighbours. `stretch` makes every tile take the row's height, so the tallest
+       caption sets one height for the whole set. */
+    align-items: stretch;
   }
-  /* Compact icon-only on phones — no room for captions alongside the name.
-     Parent-scoped (0,2,0) so it beats the base `a.md-caseload__quick-action`
-     (0,1,1) tile size, which sits LATER in source (the base 52×46 rule). */
-  .md-caseload__list-quick .md-caseload__quick-action {
-    /* Icon-only compact tiles on phones — reset the desktop fill-to-wrap
-       sizing so they wrap tightly. 44px, not the 32px this was: 32 is under
-       the touch-target floor, and these are the primary controls on the
-       smallest screens, where mis-taps cost the most. WHICH buttons show at
-       this width is unchanged. */
-    flex: 0 0 auto;
-    width: 44px;
-    height: 44px;
-    min-height: 0;
+  /* ICON ABOVE CAPTION, and every tile the SAME HEIGHT. These were 44x44 icon-only
+     squares — the row had no width for captions while the toolbar shared a line with the
+     identity. Now that it owns a full row, each button carries its caption, which is what
+     makes the controls self-describing rather than five unlabelled squares.
+     Stacked rather than side-by-side: at ~100px a column there is not enough width to sit
+     a caption beside a glyph without the two-word ones wrapping, and a mix of one- and
+     two-line tiles reads as ragged.
+     EQUAL HEIGHTS come from the grid: items default to `align-self: stretch`, so every
+     tile takes the row's height — the tallest caption sets it and the rest follow. That
+     is why `height` stays `auto` rather than being pinned; `min-height: 44px` is only the
+     touch-target floor for the case where every caption is one line.
+     Parent-scoped (0,3,0) so it beats the `--model/--choose-board/--ideas` tiles pinned
+     to a definite `flex: 0 0 86px` at (0,2,0) further up this file. */
+  .md-caseload__list-header .md-caseload__list-quick .md-caseload__quick-action {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    width: auto;
+    height: auto;
     min-width: 0;
+    min-height: 44px;
     max-width: none;
-    padding: 0;
+    padding: 6px 4px;
     border-radius: 10px;
   }
-  .md-caseload__quick-label {
-    display: none;
+  /* Captions come back. Fluid and small — they share ~100px with a 20px glyph, so this
+     is the one place in the row where sub-14px type is warranted. px not rem: bootstrap
+     sets `html { font-size: 10px }`, so rem would render a tenth of the intended size.
+     calc() around the mixed units is required — SassC cannot evaluate px + vw inside
+     clamp() at compile time (docs/CSS_SCSS_GUIDELINES.md). */
+  .md-caseload__list-header .md-caseload__list-quick .md-caseload__quick-label {
+    display: inline;
+    min-width: 0;
+    font-size: clamp(10px, calc(8px + 0.55vw), 12px);
+    line-height: 1.15;
+    text-align: center;
+    /* MUST release the base label's `white-space: nowrap`. Only `--choose-board` and
+       `--ideas` are given `normal` further down this file, which is why "Modelling Ideas"
+       wrapped correctly while "More Actions" ran straight out of its tile. At ~100px a
+       column, every two-word caption here needs to wrap, so this covers all of them.
+       `overflow-wrap` alone cannot do it — that only breaks WITHIN a word once wrapping
+       is permitted at all. */
+    white-space: normal;
+    overflow-wrap: break-word;
   }
   .md-caseload__quick-action--model,
   .md-caseload__quick-action--reports {

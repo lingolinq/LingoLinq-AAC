@@ -77,6 +77,10 @@ import 'frontend/tests/unit/utils/raw-events-test';
 import 'frontend/tests/unit/models/board-reload-if-lite-test';
 import 'frontend/tests/unit/models/buttonset-cache-fallback-test';
 import 'frontend/tests/unit/components/share-board-guard-test';
+import 'frontend/tests/unit/helpers/break-on-separators-test';
+import 'frontend/tests/unit/helpers/home-pill-label-test';
+import 'frontend/tests/unit/utils/dashboard-sections-test';
+import 'frontend/tests/unit/routes/setup-retired-test';
 /* eslint-enable ember/no-test-import-export */
 
 // loadTests: false — we already pre-loaded all test modules above
