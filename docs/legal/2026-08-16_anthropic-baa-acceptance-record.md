@@ -15,9 +15,9 @@ environment-variable observation in section 2.4, were gathered on **2026-08-16**
 property of deployed configuration and can change with the next deploy, so every current-state claim
 below is bound to that date rather than stated as a standing condition. The git-history observations
 in section 3.1 were made on 2026-08-16 against this repository. Observations carried forward from
-earlier work keep their own dates (2026-07-18, 2026-07-19, 2026-07-24, 2026-07-27, 2026-08-04,
-2026-08-10, and 2026-08-12) and are labelled with them where they appear; this record does not
-restate any of them as freshly verified.
+earlier work keep their own dates (2026-07-18, 2026-07-19, 2026-07-27, 2026-08-04, 2026-08-10, and
+2026-08-12) and are labelled with them where they appear; this record does not restate any of them as
+freshly verified.
 
 ---
 
@@ -138,6 +138,16 @@ The serving service is Cloud Run `lingolinq-web` in `us-central1`, project `ling
 revision from `00013-76w` forward was queried at this evidence time for the Bedrock-capable
 credential variables `BEDROCK_AWS_KEY` and `BEDROCK_AWS_SECRET`.
 
+`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`, the fallback pair that `AiClient#aws_credentials`
+accepts when the dedicated pair is absent, were also checked at this evidence time and are **absent
+from every revision in this range**, so the table below is a complete account of Bedrock capability
+and not merely of the dedicated pair. Two adjacent variables must not be mistaken for that fallback:
+`AWS_KEY` and `AWS_SECRET` are present on every revision, including `00014-5rw`, but they are the
+S3 and SES pair and are **not** read by `AiClient#aws_credentials`. That exclusion is deliberate.
+The code comment above the method records that those credentials lack Bedrock invoke permissions,
+and that falling back to them previously made `configured?` true while every AI request returned
+AccessDenied. Their presence on `00014-5rw` therefore does not make that revision Bedrock-capable.
+
 | Revision | Created (UTC) | Bedrock-capable credential |
 | --- | --- | --- |
 | `00013-76w` | 2026-08-03T08:23:02Z | present |
@@ -216,36 +226,59 @@ dated observation to that picture and does not restate or re-derive it.
 
 The predecessor is not edited; these corrections take effect through this successor.
 
-### 3.1 The operational-status claim was false in the bytes that were attested
+### 3.1 Two false claims, with different origins
 
-The predecessor's final section states, in the present tense, that the Bedrock runtime path "is **not
-operational as of 2026-08-04**" and that credentials "were withdrawn on `00014-5rw`, so the condition
-is again unverifiable and must be re-verified on any future mount."
+**Terminology.** "Operational" is used in this section as the predecessor used it, meaning a
+Bedrock-capable credential is mounted so that `AiClient.configured?` is true. It does not mean that a
+call succeeded; see section 4 point 1.
+
+The predecessor's final section contains two separate false statements, which have different
+histories and should not be treated as one defect:
+
+- **Sentence A**, that the Bedrock runtime path "is **not operational as of 2026-08-04**"
+  (lines 155-158).
+- **Sentence B**, that credentials "were withdrawn on `00014-5rw`, so the condition is again
+  unverifiable and must be re-verified on any future mount" (lines 174-175).
 
 Credentials were restored on revision `00015-9l9` at **2026-08-04T07:25:08Z**. The git history of
-this repository, examined 2026-08-16, dates the predecessor's text against that restoration:
+this repository, examined 2026-08-16, dates each sentence against that restoration. Each
+first-appearance row was established by inspecting the file at that commit, not by reading a diff
+summary.
 
 | Event | Timestamp (UTC) | Relative to restoration |
 | --- | --- | --- |
 | Credentials withdrawn, `00014-5rw` created | 2026-08-04T06:31:46Z | 53m 22s before |
-| The "not operational" sentence first entered the file, commit `2624186d` | 2026-08-04T07:09:39Z | 15m 29s before |
+| **Sentence A** first entered the file, commit `2624186d` | 2026-08-04T07:09:39Z | 15m 29s before |
 | **Credentials restored, `00015-9l9` created** | **2026-08-04T07:25:08Z** | **restoration** |
-| The attested bytes were committed, `8340e88` | 2026-08-04T17:11:06Z | **9h 45m 58s after** |
+| Commit `493c42c7`: sentence A present, **sentence B still absent** | 2026-08-04T16:59:01Z | 9h 33m 53s after |
+| The attested bytes were committed, `8340e88`, and **sentence B first entered the file in that same commit** | 2026-08-04T17:11:06Z | **9h 45m 58s after** |
 | The attested hash was pinned into the register, commit `cfc3195f` | 2026-08-04T21:00:50Z | **13h 35m 42s after** |
 
 The bytes of `8340e88` hash to `bb1ff239ec4cb2f2e1c38a2180c9b3a305417c29b7e9efad3e9a3c0959e455e0`,
 which is the hash pinned in the register, so the attested bytes are that commit's exactly.
 
-Two distinct findings follow, and they should not be collapsed:
+Three distinct findings follow, and they should not be collapsed:
 
-1. **The sentence was true for about fifteen minutes when first written.** At 2026-08-04T07:09:39Z
-   revision `00014-5rw` was serving with no credential, so the claim was accurate at that instant.
-   This was not a fabricated statement.
-2. **The bytes that were attested restated it while it was false.** The 9h46m and 13h36m gaps mean
-   the claim was untrue both when the attested bytes were committed and when the hash was pinned, and
-   the bytes never mention the restoration. The defect is that a perishable, instant-scoped
-   observation was carried forward into a signed record without re-checking, which is the same defect
-   class already corrected on the AWS side.
+1. **Sentence A was true for about fifteen minutes when first written.** At 2026-08-04T07:09:39Z
+   revision `00014-5rw` was the newest revision and carried no Bedrock-capable credential, so the
+   claim was accurate at that instant. This was not a fabricated statement.
+2. **The bytes that were attested restated sentence A while it was false.** The 9h46m and 13h36m gaps
+   mean it was untrue both when the attested bytes were committed and when the hash was pinned, and
+   the bytes never mention the restoration. That defect is a perishable, instant-scoped observation
+   carried forward into a signed record without re-checking.
+3. **Sentence B is a more serious defect: it was authored already false.** It does not exist in the
+   file at `2624186d` (07:09:39Z) or at `493c42c7` (16:59:01Z); it appears for the first time as new
+   text in `8340e88` itself, at 2026-08-04T17:11:06Z, which is 9h45m58s **after** the restoration it
+   says had not happened. There is no instant at which sentence B was true. It was false at
+   authorship, false when attested, false when pinned, and remained uncorrected until this record.
+   This is not staleness. A claim about a condition being "again unverifiable ... on any future
+   mount" was written nearly ten hours after that future mount had already occurred, without the
+   mount being checked.
+
+The practical lesson is finding 3's, not finding 2's: re-checking a carried-forward claim is
+necessary but not sufficient, because a claim newly authored during a correction pass gets no such
+scrutiny at all. New assertions added while correcting a document need the same evidence
+verification as the ones being corrected.
 
 ### 3.2 Corrections by line
 
@@ -254,8 +287,8 @@ Each row cites the predecessor's frozen text by line number as it stands in
 
 | Predecessor text | Line | Status at 2026-08-16 |
 | --- | --- | --- |
-| "the Bedrock path was operational only from 2026-08-03T08:23Z to 2026-08-04T06:31Z (revision `00013-76w`) ... and is **not operational as of 2026-08-04**" | 155-158 | **Superseded.** The window it describes was not closed. Credentials were restored on `00015-9l9` at 2026-08-04T07:25:08Z, and every revision created since carries them. `00020-per` serves 100 percent of traffic at this record's evidence time. |
-| "credentials were withdrawn on `00014-5rw`, so the condition is again unverifiable and must be re-verified on any future mount" | 173-175 | **Superseded.** The future mount it anticipated occurred fifty-three minutes later. The re-verification it required was performed on 2026-08-04 and independently re-confirmed on 2026-08-10, both carried forward in section 3.3. |
+| "the Bedrock path was operational only from 2026-08-03T08:23Z to 2026-08-04T06:31Z (revision `00013-76w`) ... and is **not operational as of 2026-08-04**" (sentence A) | 155-158 | **Superseded as to credentials.** The credential withdrawal it describes was reversed: credentials were restored on `00015-9l9` at 2026-08-04T07:25:08Z, every revision created since carries them, and `00020-per` serves 100 percent of traffic at this record's evidence time. This corrects credential presence only and asserts nothing about whether any call occurred after 2026-08-04T06:31Z. |
+| "credentials were withdrawn on `00014-5rw`, so the condition is again unverifiable and must be re-verified on any future mount" (sentence B) | 174-175 | **Superseded, and false when authored** (section 3.1, finding 3). The future mount it anticipated had already occurred fifty-three minutes after the withdrawal, and nine and three quarter hours before this sentence was written. The re-verification it required was performed on **2026-08-10** (carried forward in section 3.3). The 2026-08-04 verification does **not** satisfy it: that check ran during the `00013-76w` window, before `00014-5rw` was created, so it predates the withdrawal and cannot be a re-verification of a mount that followed it. |
 | "See the correction bullet below and the 2026-08-04 operational-status correction in `docs/legal/AWS_BAA_ACCEPTED.md`" | 158-159 | **Stale pointer.** That record is superseded twice over. The current authority is `docs/legal/2026-08-12_aws-baa-acceptance-record.md`. |
 | "**The designated runtime route is covered by the AWS account BAA** (`docs/legal/AWS_BAA_ACCEPTED.md`)" | 165 | **Correct in substance, stale pointer.** The route is covered by the AWS account BAA; the current record of that BAA is the 2026-08-12 one. |
 | "See `docs/legal/AWS_BAA_ACCEPTED.md` for the evidence and the operational window" | 190 | **Stale pointer**, same redirect. The operational window it points to is itself corrected by the 2026-08-12 record. |
@@ -266,7 +299,9 @@ Each row cites the predecessor's frozen text by line number as it stands in
 - **The operative condition was verified on 2026-08-04 and re-confirmed on 2026-08-10.**
   `sts:GetCallerIdentity` under the production Bedrock credential returned account **239044785114**,
   principal `arn:aws:iam::239044785114:user/lingolinq-bedrock-runtime`. Both are carried forward at
-  their own dates from the 2026-08-12 AWS record and were not re-performed here.
+  their own dates from the 2026-08-12 AWS record and were not re-performed here. Their order matters
+  for the correction in section 3.2: the 2026-08-04 check ran during the `00013-76w` window, so only
+  the 2026-08-10 re-confirmation post-dates the `00015-9l9` mount.
 - **The 2026-07-27 verification claim stays retracted.** No `lingolinq-web` revision from
   `00001-2vn` through `00012-x8z` carried a Bedrock-capable credential, so `AiClient.configured?` was
   false and no Bedrock call could be made. The 2026-08-04 and 2026-08-10 verifications are separate,
@@ -298,7 +333,7 @@ Stated explicitly so this record is not over-read.
    `arn:aws:iam::239044785114:user/lingolinq-app`, as recorded in the 2026-08-12 AWS record.
 4. **Runtime status is revision-scoped and perishable.** Section 2.3 describes `00020-per` at the
    2026-08-16 evidence time. A deploy can change it without any change to this document, which is
-   precisely how the predecessor's claim became false within hours of being written.
+   precisely how the predecessor's sentence A became false within sixteen minutes of being written.
 5. **Presence of an environment variable is not proof of an enforced control.** See section 2.4. This
    is stated as its own boundary because it is the most likely way this record could be over-read.
 6. **No re-verification of Anthropic-side coverage was performed.** Section 1 is carried forward from
@@ -309,29 +344,38 @@ Stated explicitly so this record is not over-read.
 ## 5. Standard for any future verification of the operative condition
 
 The governing standard is the one stated in section 5 of
-`docs/legal/2026-08-12_aws-baa-acceptance-record.md`, which this record adopts by reference rather
-than restating: credential presence on the **serving** revision identified by name and observation
-time, **plus** `sts:GetCallerIdentity` under that exact credential returning 2390-4478-5114, with
-every revision swept rather than only the newest, and with the automated assertion preferred once it
-is confirmed to be enforcing in production.
+`docs/legal/2026-08-12_aws-baa-acceptance-record.md`, which this record adopts, with one tightening:
+prefer the automated assertion once it is confirmed enforcing, not merely present. The standard
+otherwise stands as written there and is not restated here: credential presence on the **serving**
+revision identified by name and observation time, **plus** `sts:GetCallerIdentity` under that exact
+credential returning 2390-4478-5114, with every revision swept rather than only the newest.
 
-This record adds one point from its own cycle:
+This record adds two points from its own cycle:
 
-**Date the observation against the claim, not against the calendar day.** The predecessor's defect
-was not a wrong observation. It was a correct observation, made at 07:09Z, restated in signed bytes
-at 17:11Z, by which time it had been false for nearly ten hours. A same-day timestamp is not a fresh
-one for a property that changes on deploy. Any current-state claim in a compliance record must be
-re-checked at the moment the bytes intended for attestation are written, and must name the revision
-and time it was checked.
+**1. Date the observation against the claim, not against the calendar day.** The predecessor's
+sentence A was not a wrong observation. It was a correct observation, made at 07:09Z, restated in
+signed bytes at 17:11Z, by which time it had been false for nearly ten hours. A same-day timestamp is
+not a fresh one for a property that changes on deploy. Any current-state claim in a compliance record
+must be re-checked at the moment the bytes intended for attestation are written, and must name the
+revision and time it was checked.
+
+**2. Verify claims newly authored during a correction pass, not only the ones being corrected.**
+Sentence B was written into the very commit that was attested, and was false the moment it was
+written (section 3.1, finding 3). A correction pass concentrates scrutiny on the text being changed,
+which is exactly where a newly added assertion escapes it. Treat every new factual sentence in a
+correction as a new claim requiring its own evidence, held to the same standard as the claim it
+replaces. A corollary applies to re-verification specifically: a check offered as satisfying a
+"re-verify on any future mount" requirement must **post-date** the mount, so the ordering of
+timestamps has to be established and not assumed.
 
 ---
 
 ## 6. Attestation
 
 **Attested `<PENDING SCOT ATTESTATION: insert signing date>` by Scot Wahlquist, CEO.** This document
-was drafted by Claude Code from the evidence cited above and attested by Scot Wahlquist. Per the
-governance rule in `audit-reports/DOCUMENT-REGISTER.json`, only Scot Wahlquist attests a compliance
-document.
+was drafted by Claude Code from the evidence cited above and is attested by Scot Wahlquist on the
+date above. Per the governance rule in `audit-reports/DOCUMENT-REGISTER.json`, only Scot Wahlquist
+attests a compliance document.
 
 **Register obligation, stated prospectively.** These bytes are attested before the register records
 the fact, because the attestation is what authorizes the register update and not the reverse. This

@@ -4,13 +4,13 @@
 > Do not hand-edit; edit the JSON (the source of truth) and re-render.
 > The codebase copy is canonical; the Notion board is a one-way mirror; Drive docs are linked, never copied.
 >
-> Generated: 2026-07-23 | Documents: 77 (git 45 / drive 28 / notion 4)
+> Generated: 2026-07-23 | Documents: 78 (git 46 / drive 28 / notion 4)
 
 ## Headline
 
-- **Status:** draft 13, approved 13, published 42, superseded 9
+- **Status:** draft 14, approved 13, published 42, superseded 9
 - **Overdue for review** (as of 2026-07-23): none
-- **Drafts awaiting attestation:** Compliance Posture Report (2026-08-09 draft); Compliance Program (2026-08-09 draft); Compliance Status Snapshot (2026-08-09); Accessibility Conformance Report (ACR / VPAT); Data Retention Schedule (2026-08-09 draft); Accessibility Conformance Report (ACR / VPAT) (branded); LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft); EU AI Act Article 50 Transparency: Implementation Milestone Plan; Compliance Posture Report (branded, 2026-07-16 re-attest); Anthropic Business Associate Agreement (2026-05-06); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Annex A - Clinical BAA Template (DRAFT); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT)
+- **Drafts awaiting attestation:** Compliance Posture Report (2026-08-09 draft); Compliance Program (2026-08-09 draft); Compliance Status Snapshot (2026-08-09); Accessibility Conformance Report (ACR / VPAT); Data Retention Schedule (2026-08-09 draft); Anthropic HIPAA-Ready BAA Acceptance and Runtime Status Record (2026-08-16); Accessibility Conformance Report (ACR / VPAT) (branded); LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft); EU AI Act Article 50 Transparency: Implementation Milestone Plan; Compliance Posture Report (branded, 2026-07-16 re-attest); Anthropic Business Associate Agreement (2026-05-06); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Annex A - Clinical BAA Template (DRAFT); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT)
 
 ## Documents by type
 
@@ -53,10 +53,11 @@
 | LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft) | git | `docs/legal/2026-08-09_compliance-program-overview_draft.md` | draft | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-09 | 2027-07-22 | no | `a0946221bc99` | security-review |
 | Records of Processing Activities (RoPA) and Data Map | Drive | [open](https://docs.google.com/document/d/1x6F8qiqR_7Ojc6-TQGYp2HYBMxjIUTzH0EGCQj8R-qg/edit) | published | GDPR | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, dsar |
 
-### evidence (11)
+### evidence (12)
 
 | Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |
 |---|---|---|---|---|---|---|---|---|---|---|
+| Anthropic HIPAA-Ready BAA Acceptance and Runtime Status Record (2026-08-16) | git | `docs/legal/2026-08-16_anthropic-baa-acceptance-record.md` | draft | HIPAA | Scot Wahlquist | 2026-08-16 | 2027-08-16 | no | `6213af8c35f6` |  |
 | Anthropic HIPAA-Ready BAA Acceptance Record | git | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` | approved | HIPAA, GDPR | Scot Wahlquist | 2026-08-04 | 2027-07-18 | 2026-08-04 | `bb1ff239ec4c` | baa |
 | AWS BAA Acceptance and Runtime Status Record | git | `docs/legal/2026-08-11_aws-baa-acceptance-record.md` | superseded | HIPAA | Scot Wahlquist | 2026-08-11 | 2027-05-11 | 2026-08-11 | `d6d4fb76887c` |  |
 | AWS BAA Acceptance and Runtime Status Record (2026-08-12) | git | `docs/legal/2026-08-12_aws-baa-acceptance-record.md` | approved | HIPAA | Scot Wahlquist | 2026-08-12 | 2027-05-11 | 2026-08-12 | `a5f2c59512fa` | baa |
@@ -215,7 +216,7 @@ What a federal or foundation grant application needs from the compliance library
 
 | Class | Rule | Trigger | Disposition | Rows |
 |---|---|---|---|---|
-| `executed-agreement` | term + 7 years | contract-end | archive | 8 |
+| `executed-agreement` | term + 7 years | contract-end | archive | 9 |
 | `corporate-permanent` | permanent | n/a | archive | 0 |
 | `grant-record` | award + 7 years | close-out | archive | 0 |
 | `policy-version` | supersession + 7 years | superseded | archive | 37 |
@@ -304,4 +305,4 @@ frozen point-in-time binder. Only the pointer is added.
 
 ---
 
-_77 documents. Re-run `ruby scripts/document-register-render.rb --check` to validate ids, git content hashes, and bundle completeness._
+_78 documents. Re-run `ruby scripts/document-register-render.rb --check` to validate ids, git content hashes, and bundle completeness._
