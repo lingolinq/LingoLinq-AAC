@@ -52,6 +52,12 @@ export default Route.extend({
     // auto-speak-launch fork (confirmed by grep, see 03-05-SUMMARY), so there
     // is no auto-launch branch to protect here.
     var art50_checked_inline = false;
+    // LL-53cb93fab1 (applied identically to routes/index.js): modal.open()
+    // unconditionally replaces whatever modal is currently open/pending, so
+    // on the synchronous really_fresh path below, the shared tail's
+    // modal.open('intro') would otherwise bump a terms-agree modal queued
+    // earlier in the same tick before the user ever sees it.
+    var terms_agree_gate_pending_inline = false;
 
     if (model && model.get('id') && model.get('user_name') && !model.get('terms_agree')) {
       if (!model.get('really_fresh') && _this && _this.persistence && typeof _this.persistence.get === 'function' && _this.persistence.get('online')) {
@@ -61,7 +67,7 @@ export default Route.extend({
             // A resolved .then() here is not the same thing as "the user
             // acknowledged" -- modal.open() resolves a bumped modal's promise
             // with {replaced: true}. onlyIfGenuinelyResolved rejects that.
-            modal.open('terms-agree').then(function(result) {
+            modal.open('terms-agree', { scannable: true }).then(function(result) {
               onlyIfGenuinelyResolved(result, model);
             });
           } else {
@@ -75,7 +81,8 @@ export default Route.extend({
         });
       } else if (model.get('really_fresh')) {
         art50_checked_inline = true;
-        modal.open('terms-agree').then(function(result) {
+        terms_agree_gate_pending_inline = true;
+        modal.open('terms-agree', { scannable: true }).then(function(result) {
           onlyIfGenuinelyResolved(result, model);
         });
       }
@@ -123,7 +130,9 @@ export default Route.extend({
     if (controller.update_current_badges) {
       controller.update_current_badges();
     }
-    if (_this.appState.get('show_intro')) {
+    // LL-53cb93fab1: do not let intro bump a terms-agree modal queued to
+    // open this render (see terms_agree_gate_pending_inline above).
+    if (_this.appState.get('show_intro') && !terms_agree_gate_pending_inline) {
       modal.open('intro');
     }
     // EU AI Act Art.50 session-entry opportunity (03-UI-SPEC 7.1): only check

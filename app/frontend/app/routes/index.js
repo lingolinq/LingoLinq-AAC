@@ -134,6 +134,17 @@ export default Route.extend({
     // terms_agree-missing sub-branch below has already claimed responsibility
     // for the Art.50 check this render, so the shared tail doesn't also check.
     var art50_checked_inline = false;
+    // LL-53cb93fab1: modal.open() unconditionally replaces whatever modal is
+    // currently open/pending (see utils/modal.js#open — it resolves the prior
+    // promise with {replaced: true} and swaps in the new template with no
+    // queueing). On the synchronous really_fresh path below, terms-agree opens
+    // first and the shared tail's modal.open('intro') runs later in the SAME
+    // tick, so intro silently wins and bumps terms-agree before it ever
+    // mounts — the user never sees or confirms Terms, and terms_agree stays
+    // false (no false-positive consent, but consent is never presented
+    // either). Tracks whether terms-agree was queued to open synchronously
+    // this render so the shared tail can skip intro rather than bump it.
+    var terms_agree_gate_pending_inline = false;
 
     var progress = _this.appState.get('sessionUser.preferences.progress') || {};
     if(!progress || (!progress.skipped_subscribe_modal && !progress.setup_done)) {
@@ -161,7 +172,7 @@ export default Route.extend({
             // A resolved .then() here is not the same thing as "the user
             // acknowledged" — modal.open() resolves a bumped modal's promise
             // with {replaced: true}. onlyIfGenuinelyResolved rejects that.
-            modal.open('terms-agree').then(function(result) {
+            modal.open('terms-agree', { scannable: true }).then(function(result) {
               onlyIfGenuinelyResolved(result, model);
             });
           } else {
@@ -179,7 +190,8 @@ export default Route.extend({
       } else if(model.get('really_fresh')) {
         // Data is fresh from server, safe to check terms_agree
         art50_checked_inline = true;
-        modal.open('terms-agree').then(function(result) {
+        terms_agree_gate_pending_inline = true;
+        modal.open('terms-agree', { scannable: true }).then(function(result) {
           onlyIfGenuinelyResolved(result, model);
         });
       }
@@ -234,7 +246,13 @@ export default Route.extend({
     controller.checkForBlankSlate();
     controller.subscription_check();
     controller.update_current_badges();
-    if(_this.appState.get('show_intro')) {
+    // LL-53cb93fab1: do not let intro bump a terms-agree modal that was just
+    // queued to open this render (see terms_agree_gate_pending_inline above)
+    // — the compliance-load-bearing Terms gate must not lose the modal to a
+    // discretionary onboarding tour. Intro simply doesn't show this render;
+    // it is not durably lost, since appState.show_intro is unaffected here
+    // and the next render where terms_agree is true will show it normally.
+    if(_this.appState.get('show_intro') && !terms_agree_gate_pending_inline) {
       modal.open('intro');
     }
     // EU AI Act Art.50 session-entry opportunity (03-UI-SPEC 7.1): only check

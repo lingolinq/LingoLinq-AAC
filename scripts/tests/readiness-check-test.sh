@@ -504,6 +504,11 @@ ruby -rjson -e "
   doc['decisions']['euUsersIncluded']='undecided'
   doc['decisions']['minorsIncluded']='undecided'
   doc['decisions']['schoolManagedAccounts']='undecided'
+  # Self-contained against the evidence map too: clear it rather than relying
+  # on the live file happening to have no recorded runtime evidence yet - once
+  # real evidence is recorded for these rows, leaving it in place would derive
+  # 'done' instead of the 'done-awaiting-verification' this case is about.
+  doc['evidence'] = {}
   File.write('$WORK_DIR/LAUNCH-PROFILE.json', JSON.pretty_generate(doc)+\"\n\")
 "
 ruby scripts/readiness-check.rb >/dev/null 2>&1

@@ -136,6 +136,54 @@ describe FeatureFlags do
     end
   end
 
+  # Runtime verification for adult-beta-ai-focus-consent /
+  # adult-beta-ai-master-consent (audit-reports/strategy/READINESS-MILESTONES.json):
+  # exercises the real org-level disable_ai_features toggle directly. Every
+  # existing caller of ai_enabled_for? across the spec suite stubs its return
+  # value rather than driving this method itself, so the org-level AI opt-out
+  # gate had no direct, unstubbed coverage before this. Lightweight doubles
+  # (no database), same style as eu_jurisdiction_spec.rb: ai_enabled_for?
+  # only reads .managing_organization / .organization and the org's .settings.
+  describe "ai_enabled_for?" do
+    def org(settings = {})
+      Struct.new(:settings).new(settings)
+    end
+
+    def user(org_obj: nil)
+      u = Object.new
+      u.define_singleton_method(:managing_organization) { org_obj }
+      u
+    end
+
+    it "returns true for a nil user (fail-open only in the no-user case)" do
+      expect(FeatureFlags.ai_enabled_for?(nil)).to eq(true)
+    end
+
+    it "allows AI when the user has no org at all" do
+      expect(FeatureFlags.ai_enabled_for?(user(org_obj: nil))).to eq(true)
+    end
+
+    it "allows AI when the user's managing organization has not disabled it" do
+      u = user(org_obj: org({}))
+      expect(FeatureFlags.ai_enabled_for?(u)).to eq(true)
+    end
+
+    it "blocks AI for a user whose org has disabled it, fail-closed on the org toggle alone" do
+      # No COPPA/EU/user-pref state is set at all -- the org toggle alone must
+      # be sufficient to block, independent of every other gate layer.
+      u = user(org_obj: org({ 'disable_ai_features' => true }))
+      expect(FeatureFlags.ai_enabled_for?(u)).to eq(false)
+    end
+
+    it "re-allows AI once the org's disable_ai_features setting is cleared" do
+      settings = { 'disable_ai_features' => true }
+      u = user(org_obj: org(settings))
+      expect(FeatureFlags.ai_enabled_for?(u)).to eq(false)
+      settings['disable_ai_features'] = false
+      expect(FeatureFlags.ai_enabled_for?(u)).to eq(true)
+    end
+  end
+
   describe "eu_consent_age" do
     it "is registered as available but OFF by default" do
       expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).to include('eu_consent_age')

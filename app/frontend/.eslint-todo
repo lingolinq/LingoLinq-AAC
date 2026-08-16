@@ -619,7 +619,7 @@ app/routes/board/index.js|ember/no-runloop|152|7|2|5addc2170315
 app/routes/board/index.js|ember/require-computed-property-dependencies|203|18|1|7342f52fef46
 app/routes/board/index.js|no-useless-catch|131|9|1|9dd89265ed20
 app/routes/goals/goal.js|ember/no-runloop|13|9|2|5addc2170315
-app/routes/index.js|ember/no-runloop|199|11|2|5addc2170315
+app/routes/index.js|ember/no-runloop|211|11|2|5addc2170315
 app/routes/organization.js|ember/no-runloop|13|9|2|5addc2170315
 app/routes/organization/room.js|ember/no-runloop|13|9|2|5addc2170315
 app/routes/privacy.js|ember/no-runloop|27|13|2|5addc2170315

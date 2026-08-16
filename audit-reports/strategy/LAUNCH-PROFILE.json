@@ -68,5 +68,18 @@
     ],
     "relatedNotes": "See decisionRationale.notes.schoolManagedAccounts and .cohortAdmissionBoundary for the fuller deployment-vs-employer-affiliation explanation behind items 2-3 and 4-7 above."
   },
-  "evidence": {}
+  "evidence": {
+    "adult-beta-ai-master-consent": {
+      "verifiedBy": "Claude Sonnet 5 (PR #792 draft-review instruction, Codex-relayed execution pass)",
+      "verifiedDate": "2026-08-16",
+      "method": "NOT a click-through of the actual deployed Cloud Run beta environment - this agent has no credentials or browser access to it. This is RSpec-level runtime execution of the real, unmocked production code against a real (local) Rails/Postgres instance: `DB_USER=scotw RAILS_ENV=test bundle exec rspec spec/lib/feature_flags_ai_prefs_spec.rb spec/lib/feature_flags_spec.rb`, driving FeatureFlags.user_pref_allows_ai? and FeatureFlags.ai_feature_enabled_for? directly (not stubbed), covering: master preference nil/absent (grandfathered=allow), explicit false/0/'0' (deny), and specifically UNREADABLE/INVALID values ('', '   ', 'maybe', {}) denying rather than being grandfathered to allow - the exact 'unreadable or invalid master preference fails closed' claim this requirement makes. Also added and ran a new direct, unstubbed spec for the org-level ai_enabled_for? gate (previously only ever exercised via stubs across the whole suite), confirming the org disable_ai_features toggle independently blocks with no other gate state set.",
+      "result": "86/86 examples passing (81 pre-existing + 5 new). Fail-closed behavior on an unreadable/invalid master preference confirmed against real code, not assumed. RECOMMENDATION: a manual spot-check in the actual deployed beta environment (corrupt/clear a real user's ai_features_enabled preference, confirm no AI output) is still worth doing as a final belt-and-suspenders step before or shortly after first invite - this evidence entry does not substitute for that, it substantiates that the underlying logic is real and tested."
+    },
+    "adult-beta-ai-focus-consent": {
+      "verifiedBy": "Claude Sonnet 5 (PR #792 draft-review instruction, Codex-relayed execution pass)",
+      "verifiedDate": "2026-08-16",
+      "method": "Same caveat as adult-beta-ai-master-consent: RSpec-level runtime verification of real code, not a deployed-beta click-through. Ran the full FeatureFlags.ai_feature_enabled_for? gate chain (org / COPPA / EU-under-16 / user-pref / feature-flag, all combined) via spec/lib/feature_flags_ai_prefs_spec.rb, plus the new direct ai_enabled_for? org-gate spec (spec/lib/feature_flags_spec.rb), plus existing real (unstubbed at the business-logic layer) controller-level request specs exercising this gate end-to-end: spec/controllers/api/word_suggestions_controller_spec.rb and the cache-hit-still-gated cases in spec/controllers/api/integrations_controller_spec.rb.",
+      "result": "96/96 examples passing across all four spec files (86 unit-level + 10 controller-level). Confirms the focus-word/AI-output path is blocked when org, COPPA, EU-under-16, or user-pref gates say no - including on a cache hit, not just a fresh generation. Same recommendation as above: a live spot-check in the deployed beta environment is still worth doing before/at first invite, not substituted by this entry."
+    }
+  }
 }
