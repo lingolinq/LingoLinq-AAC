@@ -827,6 +827,14 @@ def render_dashboard(ctx)
   out << "**Overall posture:** #{no_crit ? LIGHT['yellow'] : LIGHT['red']} #{no_crit ? 'Moving toward controlled beta' : 'Open Critical blocks beta'}  \n"
   out << "**Pending launch decisions:** #{pending.empty? ? 'none' : pending.join('; ')}\n\n"
 
+  if (oc = ctx[:profile]['operationalControls'])
+    out << "## Operational launch controls\n\n"
+    out << "**#{oc['title']}** - #{LIGHT['yellow']} **#{oc['controlType']}, not a technical gate.**\n\n"
+    out << "#{oc['note']}\n\n"
+    (oc['requirements'] || []).each { |req| out << "- #{req}\n" }
+    out << "\nDecided by #{oc['decidedBy']} on #{oc['decidedDate']} (#{oc['via']}).\n\n"
+  end
+
   # Positioned before every other content block, including the finding
   # baseline table and the milestone cards, so a reader who reads only the top
   # of the document - or only a single milestone card - still cannot miss a

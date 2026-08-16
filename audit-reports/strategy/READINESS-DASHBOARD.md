@@ -20,6 +20,24 @@
 **Overall posture:** 🟡 Moving toward controlled beta  
 **Pending launch decisions:** none
 
+## Operational launch controls
+
+**Controlled Adult / SLP / Teacher beta - minimum admission/participation control** - 🟡 **operational-process, not a technical gate.**
+
+This is a documented OPERATIONAL control (who Scot/the team actually invites, onboards, and permits to do what), not a technically enforced one. See decisionRationale.notes.enforcementVerification: api/users_controller.rb#create has no age/DOB gate, no school-domain restriction, and no invite-code requirement, and no geofencing exists anywhere in app/ or lib/. No DOB collection, geofencing, or new signup architecture has been added or is planned as part of this control - only if operational evidence later shows this process is insufficient (e.g. an actual out-of-scope admission occurs) would a technical backstop become worth considering.
+
+- Participants are individually approved adults.
+- Adult SLPs/teachers employed by school districts are allowed to participate.
+- Participation is in an individual professional beta-testing capacity, on the participant's own account - not a district-managed deployment.
+- No real student/minor accounts.
+- No identifiable student data entered as part of the beta.
+- No district-provisioned/managed end-user accounts.
+- No inviting students into the beta.
+- No EU participants in the approved cohort.
+- Any request crossing these boundaries is escalated to Scot before proceeding, not resolved unilaterally.
+
+Decided by Scot Wahlquist on 2026-08-16 (PR #792 draft-review instruction (Codex-relayed operational-control pass, following the ratified 40/40 matrix and the launch-profile decisions)).
+
 ## ⚠️ Unmapped Critical/High findings (governance exception)
 
 1 open Critical/High finding(s) are linked to **no** requirement and therefore drive

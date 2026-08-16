@@ -47,5 +47,26 @@
       "silentPassGuard": "This profile deliberately leaves adult-beta-ai-cache / adult-beta-ai-focus-consent / adult-beta-ai-master-consent in their honest done-awaiting-reconciliation / done-awaiting-verification states rather than backfilling profile['evidence'] to force them to a clean 'done' - no entries were added to the evidence map in this change. Backfilling evidence for a paperwork-only gap was explicitly out of scope for this decision pass."
     }
   },
+  "operationalControls": {
+    "id": "adult-beta-admission-control",
+    "title": "Controlled Adult / SLP / Teacher beta - minimum admission/participation control",
+    "controlType": "operational-process",
+    "note": "This is a documented OPERATIONAL control (who Scot/the team actually invites, onboards, and permits to do what), not a technically enforced one. See decisionRationale.notes.enforcementVerification: api/users_controller.rb#create has no age/DOB gate, no school-domain restriction, and no invite-code requirement, and no geofencing exists anywhere in app/ or lib/. No DOB collection, geofencing, or new signup architecture has been added or is planned as part of this control - only if operational evidence later shows this process is insufficient (e.g. an actual out-of-scope admission occurs) would a technical backstop become worth considering.",
+    "decidedBy": "Scot Wahlquist",
+    "decidedDate": "2026-08-16",
+    "via": "PR #792 draft-review instruction (Codex-relayed operational-control pass, following the ratified 40/40 matrix and the launch-profile decisions)",
+    "requirements": [
+      "Participants are individually approved adults.",
+      "Adult SLPs/teachers employed by school districts are allowed to participate.",
+      "Participation is in an individual professional beta-testing capacity, on the participant's own account - not a district-managed deployment.",
+      "No real student/minor accounts.",
+      "No identifiable student data entered as part of the beta.",
+      "No district-provisioned/managed end-user accounts.",
+      "No inviting students into the beta.",
+      "No EU participants in the approved cohort.",
+      "Any request crossing these boundaries is escalated to Scot before proceeding, not resolved unilaterally."
+    ],
+    "relatedNotes": "See decisionRationale.notes.schoolManagedAccounts and .cohortAdmissionBoundary for the fuller deployment-vs-employer-affiliation explanation behind items 2-3 and 4-7 above."
+  },
   "evidence": {}
 }
