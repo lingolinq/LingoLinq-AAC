@@ -215,11 +215,17 @@ var evaluation = {
     if(evaluation.persistence.get('online')) {
       evaluation.stashes.push_log();
     } else {
-      // Offline, the eval is stashed and will sync later — but until this point
-      // that was SILENT: the flow still navigated to a complete-looking results
-      // page, so an SLP who pressed Save had no way to know the evaluation was
-      // not on their account yet. Say so, once, at the moment of saving.
-      evaluation.modal.notice(evaluation.i18n.t('eval_saved_offline_pending', "Evaluation saved on this device. It will upload to the account once you're back online."), true);
+      // Offline, the eval is stashed — but until this point that was SILENT: the
+      // flow still navigated to a complete-looking results page, so an SLP who
+      // pressed Save had no way to know the evaluation was not on their account
+      // yet. Say so, once, at the moment of saving.
+      //
+      // Wording verified against the real offline behaviour: reconnecting alone
+      // does NOT upload it. stashes.js:806 has the TODO for the missing
+      // persistence.online listener, so the queued write goes out on a sync or the
+      // next logged event, not on reconnect. The stash survives reloads, so nothing
+      // is lost — but promising an automatic upload here would be wrong.
+      evaluation.modal.notice(evaluation.i18n.t('eval_saved_offline_pending', "Evaluation saved on this device — not uploaded yet. Reconnect and sync to add it to the account."), true);
     }
     // Concluded + saved — drop the in-progress snapshot so it can't resurrect a
     // finished eval on the next visit.

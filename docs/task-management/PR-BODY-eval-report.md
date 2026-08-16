@@ -51,6 +51,9 @@ preview/fork work described below.
 | JSON scalar contract untested by construction | Fixed | `5228c36cc`, 9 specs, 6 negative-controlled |
 | "Preview & choose for `<user>`" had no choose | Fixed (uncommitted) | see D2 below |
 | Non-author eval fork duplicated `ref_id` | Fixed (uncommitted) | see D1 below |
+| `same_author` never invalidated on session change | Fixed | `user/log.js`, 3 specs, negative-controlled |
+| i18n generation blocked (6 keys invisible to the parser) | Fixed | 0 dups / 0 missing / 8197 strings |
+| `i18n_generator.rb` unusable without a UTF-8 shell locale | Fixed | runs with `LANG`/`LC_ALL` unset |
 
 ---
 
@@ -187,9 +190,6 @@ interpolation intact ("Preview & choose for hannah_lee"); a `*** `-prefixed
 - The ~18 other `process_params` implementations have **no JSON-body coverage**. The
   sweep in `docs/task-management/2026-08-15-adapter-json-blast-radius.md` found them
   clean on four axes, but nothing enforces it.
-- `same_author` (`controllers/user/log.js:224`) has a dead dependency key —
-  `app_state.sessionUser.id`, but the controller has no `app_state` property. Latent
-  staleness only; the fix is injecting the service, matching `user/lessons.js:16-24`.
 - `persistence.createRecord` cannot distinguish "service not ready" from "offline".
 - Concurrent workbook edits are last-write-wins; the author gate limits this to one
   account but not one tab.

@@ -15,6 +15,10 @@ import { inject as service } from '@ember/service';
 
 export default Controller.extend({
   router: service('router'),
+  // Injected so computed dependency keys can actually observe it. The imported
+  // `app_state` singleton above is the same instance, but it lives in module
+  // scope where Ember cannot watch it — see same_author below.
+  appState: service('app-state'),
   title: computed('model.user_name', function() {
     return "Log Details";
   }),
@@ -221,8 +225,19 @@ export default Controller.extend({
       }
     });
   }),
-  same_author: computed('model.author.id', 'app_state.sessionUser.id', function() {
-    return this.get('model.author.id') == app_state.get('sessionUser.id');
+  // Gates the "Resume Evaluation" button (templates/user/log.hbs:620).
+  //
+  // The dependency key used to be 'app_state.sessionUser.id', but this controller
+  // has no `app_state` PROPERTY — it reads the imported singleton from module
+  // scope. Ember resolved that key against the controller, found nothing, and so
+  // the computed never invalidated when the session user changed: after switching
+  // communicators without a full reload, Resume could stay visible for someone who
+  // did not author the eval, or stay hidden from the person who did.
+  //
+  // Injecting the service makes the watched path and the read path the same
+  // object. Matches controllers/user/lessons.js:16-18.
+  same_author: computed('model.author.id', 'appState.sessionUser.id', function() {
+    return this.get('model.author.id') == this.get('appState.sessionUser.id');
   }),
   init() {
     this._super(...arguments);

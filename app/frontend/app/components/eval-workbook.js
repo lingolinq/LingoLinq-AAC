@@ -314,7 +314,14 @@ export default Component.extend({
       // Honest wording: log_event queues the write and the server applies it in
       // a background job, so the data is safe locally but not yet on the server.
       case 'queued':  return i18n.t('workbook_saved_syncing', "Saved. Syncing to the evaluation…");
-      case 'offline': return i18n.t('workbook_saved_offline', "Saved on this device. It will sync when you reconnect.");
+      // Deliberately does NOT promise sync-on-reconnect. Verified offline
+      // end-to-end: reconnecting sets stashes.online but does not drain the queued
+      // write — services/stashes.js:806 carries the TODO for the missing
+      // persistence.online listener, so the push only happens on a sync or the next
+      // logged event. The queue IS persisted (it survives reloads), so the entry is
+      // retained, but "it will sync when you reconnect" was a promise the code does
+      // not keep. Restore that wording only alongside the reconnect listener.
+      case 'offline': return i18n.t('workbook_saved_offline', "Saved on this device — not uploaded yet. Reconnect and sync to add it to the evaluation.");
       case 'local':   return i18n.t('workbook_saved_local', "Kept on this device — not attached to the evaluation yet.");
       case 'error':   return i18n.t('workbook_save_failed', "Could not save the workbook. Your entries are still on screen — try again.");
       default:        return null;

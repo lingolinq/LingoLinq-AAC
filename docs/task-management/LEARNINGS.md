@@ -11517,3 +11517,122 @@ by re-reading `preferences.home_board` off the SAVED record. That is only meanin
 because the server re-serializes from its own record — had the response omitted the key,
 Ember Data would have kept the optimistic local value and the check would have verified
 its own write.
+
+## Gotcha: i18n_generator.rb silently drops any `i18n.t` call whose `)` is on the next line (2026-08-15)
+
+The parser extracts the key and the English string, then scans for the closing `)`
+**on the same line** (`i18n_generator.rb:124-134`). A call formatted like this:
+
+```js
+return i18n.t('workbook_progress', "%{n} of %{t} sections started", {
+  n: this.get('startedCount'), t: this.get('sectionCount')
+});
+```
+
+never finds it, so the key is counted MISSING. Two consequences, both quiet:
+
+1. **Generation is blocked entirely.** `if dups > 0 || missing > 0` prints
+   "FOUND ISSUES, SO NO GENERATION" and no locale file is written — so ONE badly
+   wrapped call stops every other new string from reaching every locale.
+2. **A regenerate DELETES the key.** en.json is rebuilt from the source scan, so a
+   key that was added by hand (and therefore looks fine in the app, because
+   `i18n.t` falls back to its English 2nd argument) vanishes on the next
+   `--generate`, and can never be translated in the meantime.
+
+Six keys on the eval-report branch were in exactly this state. Fix is formatting:
+keep the whole call on one line. The `)` inside the STRING does not help — the scan
+starts after the closing quote.
+
+Run `ruby i18n_generator.rb` with no arguments before finishing any string work: it
+writes nothing and prints `TOTAL DUPS / TOTAL MISSING / TOTAL STRINGS`. Anything
+other than 0/0 needs fixing before the file is committed.
+
+Related: the generator scans BOTH `app/frontend/app/**/*.js` (`:10`) and
+`**/*.hbs` (`:142`), so template-only keys are safe. And it now pins
+`Encoding.default_external = UTF-8` itself — it previously died on the first read of
+en.json in any shell without LANG/LC_ALL set (`"\xE2" on US-ASCII`), which is most
+non-interactive shells.
+
+## Gotcha: an Ember dependency key only works on a real PROPERTY, not a module import (2026-08-15)
+
+`controllers/user/log.js` had:
+
+```js
+import app_state from '../../utils/app_state';
+...
+same_author: computed('model.author.id', 'app_state.sessionUser.id', function() {
+  return this.get('model.author.id') == app_state.get('sessionUser.id');
+}),
+```
+
+The body is correct — `app_state` resolves via module scope. The KEY is not: Ember
+resolves `'app_state.sessionUser.id'` against the controller, which has no
+`app_state` property, so there is nothing to observe and the computed never
+invalidates. It caches on first read and keeps answering for whoever was signed in
+then. Here that gated the "Resume Evaluation" button, so after switching
+communicators without a full reload it could show for a non-author.
+
+This fails silently in both directions — no error, no warning, and the value is
+CORRECT on first read, which is what makes it survive review. Grep for it:
+
+```bash
+grep -rn "computed(" app/frontend/app | grep -E "'(app_state|persistence|modal|capabilities)\."
+```
+
+Any dependency key naming a module import rather than an injected service is dead.
+Fix by injecting (`appState: service('app-state')`) and reading through
+`this.get(...)` so the watched path and the read path are the same object —
+`services/app-state.js:70` assigns `LingoLinq.appState = this` and
+`utils/app_state.js` is a Proxy onto it, so this is the same instance, not a second.
+
+**Test it with a mutation, not a value.** Asserting `same_author === true` passes on
+the broken version too. The only test that catches it reads once, changes
+`sessionUser`, and reads again — of 3 specs written here, that is the single one the
+negative control failed.
+
+## Gotcha: a test that leaks state into a SHARED service hangs the run, it does not fail it (2026-08-15)
+
+A new unit test set `sessionUser` on the `app-state` service to a stub and never
+restored it. `app-state` is a singleton shared by every test in the run, so the stub
+outlived the module and reached the user-scoped `persistence` suite — where it did
+not fail an assertion. It **hung the browser**:
+
+```
+not ok 1513 PuppeteerChrome - error
+  Error: Browser timeout exceeded: 120s
+  Error while executing test: persistence: persistence find - should update freshness of results as applicable
+```
+
+testem killed the run at test 1513 of 1995, so ~480 tests never executed.
+
+Two things make this genuinely hard to spot:
+
+1. **It reads as flaky infrastructure, not a test defect.** "Browser timeout" plus
+   Chrome's GPU/GCM noise in the log looks like an environment problem, and the
+   machine really was loaded. The temptation is to shrug and re-run.
+2. **The truncated summary looks plausible.** It reported `1 fail` and `15 skip`.
+   The skip count is the tell — this suite has 38 skips, and a skip count can only
+   go DOWN if the run ended early. Always compare tests/pass/**skip** against a
+   known-complete baseline; `fail: 1` alone hides that 480 tests never ran.
+
+Fix is the cleanup hook, restoring the PRIOR value rather than blanking it:
+
+```js
+hooks.beforeEach(function() {
+  const app = this.owner.lookup('service:app-state');
+  this._priorSessionUser = app ? app.get('sessionUser') : null;
+});
+hooks.afterEach(function() {
+  const app = this.owner.lookup('service:app-state');
+  if (app) { app.set('sessionUser', this._priorSessionUser || null); }
+});
+```
+
+Rule: any test that writes to `app-state` (`sessionUser`, `currentUser`,
+`setup_user`, `tour_board_picker_active`, …), `stashes`, or `persistence` needs a
+matching `afterEach`. The board-preview spec in the same session already did this
+for `tour_board_picker_active`; the controller spec did not, and that asymmetry was
+the whole bug.
+
+Confirmed by re-running: with the hooks added the suite completed at 1995/1956/38
+skip/0 fail with zero browser timeouts, and `persistence find` ran normally.
