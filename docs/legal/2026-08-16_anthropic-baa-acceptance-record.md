@@ -103,16 +103,28 @@ defaults to a deterministic no-egress local template unless the caller explicitl
 **Residual item, tracked and not a blocker:** free-typed third-party names in `slp_notes` are not
 NER-scrubbed.
 
+**That control list is dated to the direct Anthropic path and is carried forward as adjudicated, not
+as a current-state description of transport.** It was written when runtime seams called
+`api.anthropic.com` directly, so its "Messages-API-only transport on the HIPAA-Ready org key" element
+describes the pre-migration posture. Current runtime transport is Bedrock under the AWS account BAA,
+as section 2 states, and runtime seams no longer read `ANTHROPIC_API_KEY` at all. This record does
+not restate which transport-layer controls apply on the Bedrock path; for that, section 2 and
+`docs/legal/2026-08-12_aws-baa-acceptance-record.md` govern. The non-transport elements of the list
+(PII scrub, structural student-name drop, `etiology` minimization, the model allowlist, the COPPA
+parental-consent gate, per-request opt-in, the org-level AI opt-out, and the no-egress default) are
+properties of the seam rather than of the route.
+
 The classification is recorded at the call site and in `audit-reports/FINDINGS.json`. If eval
 narration is ever repositioned as diagnosis, treatment, or auto-finalized clinical documentation, the
 classification must be reopened with Scot before PHI flows under that use.
 
 **This classification is unaffected by everything in section 2.** Where the seams route does not
-change what they are.
+change what they are. That is a separate point from the one above: the routing move does not disturb
+the Healthcare-Activity adjudication, while it does date the transport element of the control list.
 
 ---
 
-## 2. Runtime routing and operational status as of 2026-08-16
+## 2. Runtime routing and credential state as of 2026-08-16
 
 ### 2.1 The route (unchanged)
 
@@ -260,8 +272,15 @@ which is the hash pinned in the register, so the attested bytes are that commit'
 Three distinct findings follow, and they should not be collapsed:
 
 1. **Sentence A was true for about fifteen minutes when first written.** At 2026-08-04T07:09:39Z
-   revision `00014-5rw` was the newest revision and carried no Bedrock-capable credential, so the
-   claim was accurate at that instant. This was not a fabricated statement.
+   revision `00014-5rw` served 100 percent of traffic and carried no Bedrock-capable credential, so
+   the claim was accurate at that instant. This was not a fabricated statement. The serving state is
+   read from the Cloud Run admin audit log rather than inferred from the revision being newest: the
+   `ReplaceService` completion entry at **2026-08-04T06:32:37.424552Z** records
+   `status.traffic` as a single entry, `lingolinq-web-00014-5rw` at 100 percent. The next
+   service-level audit event in that window is the `ReplaceService` request at 07:25:08.408901Z whose
+   completion entry at 07:25:40.522209Z moves traffic to `00015-9l9`. Those four entries are the only
+   service-level events between 06:31:00Z and 07:30:00Z, so the traffic split was unchanged across
+   the whole interval containing 07:09:39Z.
 2. **The bytes that were attested restated sentence A while it was false.** The 9h46m and 13h36m gaps
    mean it was untrue both when the attested bytes were committed and when the hash was pinned, and
    the bytes never mention the restoration. That defect is a perishable, instant-scoped observation
@@ -372,10 +391,9 @@ timestamps has to be established and not assumed.
 
 ## 6. Attestation
 
-**Attested `<PENDING SCOT ATTESTATION: insert signing date>` by Scot Wahlquist, CEO.** This document
-was drafted by Claude Code from the evidence cited above and is attested by Scot Wahlquist on the
-date above. Per the governance rule in `audit-reports/DOCUMENT-REGISTER.json`, only Scot Wahlquist
-attests a compliance document.
+**Attested 2026-08-16 by Scot Wahlquist, CEO.** This document was drafted by Claude Code from the
+evidence cited above and attested by Scot Wahlquist on 2026-08-16. Per the governance rule in
+`audit-reports/DOCUMENT-REGISTER.json`, only Scot Wahlquist attests a compliance document.
 
 **Register obligation, stated prospectively.** These bytes are attested before the register records
 the fact, because the attestation is what authorizes the register update and not the reverse. This

@@ -57,7 +57,7 @@
 
 | Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Anthropic HIPAA-Ready BAA Acceptance and Runtime Status Record (2026-08-16) | git | `docs/legal/2026-08-16_anthropic-baa-acceptance-record.md` | draft | HIPAA | Scot Wahlquist | 2026-08-16 | 2027-08-16 | no | `6213af8c35f6` |  |
+| Anthropic HIPAA-Ready BAA Acceptance and Runtime Status Record (2026-08-16) | git | `docs/legal/2026-08-16_anthropic-baa-acceptance-record.md` | draft | HIPAA | Scot Wahlquist | 2026-08-16 | 2027-08-16 | no | `50d7771cce4d` |  |
 | Anthropic HIPAA-Ready BAA Acceptance Record | git | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` | approved | HIPAA, GDPR | Scot Wahlquist | 2026-08-04 | 2027-07-18 | 2026-08-04 | `bb1ff239ec4c` | baa |
 | AWS BAA Acceptance and Runtime Status Record | git | `docs/legal/2026-08-11_aws-baa-acceptance-record.md` | superseded | HIPAA | Scot Wahlquist | 2026-08-11 | 2027-05-11 | 2026-08-11 | `d6d4fb76887c` |  |
 | AWS BAA Acceptance and Runtime Status Record (2026-08-12) | git | `docs/legal/2026-08-12_aws-baa-acceptance-record.md` | approved | HIPAA | Scot Wahlquist | 2026-08-12 | 2027-05-11 | 2026-08-12 | `a5f2c59512fa` | baa |

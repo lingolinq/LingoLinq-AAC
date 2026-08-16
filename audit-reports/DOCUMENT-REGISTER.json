@@ -1241,10 +1241,10 @@
       "lastReviewed": "2026-08-16",
       "nextReviewDue": "2027-08-16",
       "attestation": {},
-      "contentHash": "6213af8c35f6185b483545df9f088fdde1264f2524ef1f6a7150825b61b5bc98",
+      "contentHash": "50d7771cce4d8946e1f34f7bcda47d2b5802ac7174d9bd69ddfa4e4d48757121",
       "bundles": [],
       "mirrors": [],
-      "notes": "Path A successor to attested ANTHROPIC_BAA_ACCEPTED.md (DOC-ab3a8c3ed4). Empty attestation until Scot signs; predecessor row is untouched (status:approved, its attestation, and bundles:[\"baa\"] unchanged). id and contentHash below are PLACEHOLDERS, not yet computed: `ruby scripts/document-register-render.rb` (render/write mode) must be run once to backfill the real DOC-<sha256[0,10]> id and the git contentHash before `--check` can pass. `supersedes` is deliberately NOT set on this row: document-register-render.rb's supersession_problems enforces a reciprocal supersedes/supersededBy pair, so setting supersedes here without also setting DOC-ab3a8c3ed4.supersededBy (out of scope today) would fail --check with a one-sided-chain error. Add supersedes (here) and supersededBy + status:superseded (on DOC-ab3a8c3ed4) together, in the same later attestation-time change.",
+      "notes": "Path A successor to attested ANTHROPIC_BAA_ACCEPTED.md (DOC-ab3a8c3ed4). Empty attestation until Scot signs; predecessor row is untouched (status:approved, its attestation, and bundles:[\"baa\"] unchanged). `supersedes` is deliberately NOT set on this row: document-register-render.rb's supersession_problems enforces a reciprocal supersedes/supersededBy pair, so setting supersedes here without also setting DOC-ab3a8c3ed4.supersededBy (out of scope today) would fail --check with a one-sided-chain error. Add supersedes (here) and supersededBy + status:superseded (on DOC-ab3a8c3ed4) together, in the same later attestation-time change.",
       "id": "DOC-91b87f5f7f",
       "retention": {
         "class": "executed-agreement",
