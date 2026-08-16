@@ -21,14 +21,30 @@
   },
   "profile": "adult-beta-initial",
   "decisions": {
-    "aiWordPredictionEnabled": "undecided",
-    "aiFocusWordsEnabled": "undecided",
-    "aiBoardGenerationEnabled": "undecided",
-    "euUsersIncluded": "undecided",
-    "minorsIncluded": "undecided",
-    "schoolManagedAccounts": "undecided",
-    "mvpIncludesMinors": "undecided",
+    "aiWordPredictionEnabled": true,
+    "aiFocusWordsEnabled": true,
+    "aiBoardGenerationEnabled": true,
+    "euUsersIncluded": false,
+    "minorsIncluded": false,
+    "schoolManagedAccounts": false,
+    "mvpIncludesMinors": false,
     "productionBeta": true
+  },
+  "decisionRationale": {
+    "decidedBy": "Scot Wahlquist",
+    "decidedDate": "2026-08-16",
+    "via": "PR #792 draft-review instruction (launch-profile decision pass, following the ratified 40/40 requirement matrix)",
+    "notes": {
+      "minorsIncluded": "false for this cohort. Keeps School Beta's ratified rows correctly not-required for this beta; does not decide COPPA scope for later cohorts, which activate the same ratified rows without any matrix change.",
+      "schoolManagedAccounts": "false for this cohort. Same effect as minorsIncluded for the School Beta rows it jointly and independently gates.",
+      "mvpIncludesMinors": "false. Pure Public MVP inheritance wiring (scripts/readiness-check.rb:722-726) - has zero effect on this beta's own card; deferred as a later, separate Public MVP scope decision.",
+      "euUsersIncluded": "false for this controlled beta cohort. This is a cohort-targeting/inclusion statement, not a technical access claim: it means EU participants are not part of the intended/approved beta cohort and the EU AI Act Art. 50 direct-interaction disclosure obligation is correctly treated as not-required for this cohort. It is NOT a representation that LingoLinq technically blocks EU users from reaching the service generally - no such block exists (verified: no geofencing/IP-country gate anywhere in app/ or lib/, confirmed by a targeted repo search turning up zero real hits).",
+      "enforcementVerification": "Before committing minorsIncluded=false / schoolManagedAccounts=false / euUsersIncluded=false, verified whether cohort exclusion is technically enforced at signup. Finding: it is NOT. api/users_controller.rb#create has no age/date-of-birth gate, no school-domain/org-type restriction, and no invite-code requirement (start_code is optional and only validated if present) - self-registration is open. No geofencing or IP-country blocking exists anywhere in app/ or lib/. The containment for this controlled beta is therefore OPERATIONAL (who Scot/the team actually invites and onboards), not a coded technical admission gate. This does not block applying the profile - the euUsersIncluded note above already anticipates a cohort-targeting rather than technical-block framing - but it means these three false values describe intended beta scope, not a system-enforced boundary, and should not be cited as a technical control in any compliance-facing claim without that caveat. Flagged as a candidate follow-up (a real admission gate: invite code, age question, or geographic scoping) if a technical backstop is later wanted; not built in this pass, which was a launch-profile decision review, not new engineering.",
+      "aiWordPredictionEnabled": "true. Core AAC feature worth testing in the first beta. Its cache-scoping defect (LL-16ef84ad9a) has a real merged code fix (PR #788: ea40011ba 'scope the word prediction cache', 8cffa75c8 'salt the prediction cache'); the finding stays open only pending register reconciliation, not because the code risk is live. Enforced independently by the real server-side ai_word_prediction flag (lib/feature_flags.rb) plus org/user/COPPA/EU gates.",
+      "aiFocusWordsEnabled": "true. adult-beta-ai-focus-consent is claimed-done with zero open linked findings; the only gap is unrecorded runtime-verification evidence (paperwork, not a known defect). Enforced independently by its own real server-side flag plus the same gate family.",
+      "aiBoardGenerationEnabled": "true. Reversed from an initial draft recommendation to keep this off pending broader validation: Scot confirmed the actual first-beta SLP participants will specifically be testing AI board generation, making it a required feature for the intended test, not an optional surface-area expansion. Enforced independently by its own real server-side ai_board_generation flag plus the same org/user/COPPA/EU gate family verified for the other two AI features.",
+      "silentPassGuard": "This profile deliberately leaves adult-beta-ai-cache / adult-beta-ai-focus-consent / adult-beta-ai-master-consent in their honest done-awaiting-reconciliation / done-awaiting-verification states rather than backfilling profile['evidence'] to force them to a clean 'done' - no entries were added to the evidence map in this change. Backfilling evidence for a paperwork-only gap was explicitly out of scope for this decision pass."
+    }
   },
   "evidence": {}
 }

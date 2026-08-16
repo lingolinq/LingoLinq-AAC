@@ -492,9 +492,18 @@ fi
 # (anyOf of the three AI decisions) resolves APPLICABLE despite two undecided operands,
 # and its claimed-done derives done-awaiting-verification.
 reset_work
+# Self-contained: explicitly reset every other decision to undecided rather than
+# relying on the live LAUNCH-PROFILE.json happening to already be undecided -
+# once real launch-profile decisions are made, "only touch aiFocusWordsEnabled"
+# stops reproducing the two-still-undecided scenario this case is about.
 ruby -rjson -e "
   doc=JSON.parse(File.read('$WORK_DIR/LAUNCH-PROFILE.json'))
+  doc['decisions']['aiWordPredictionEnabled']='undecided'
+  doc['decisions']['aiBoardGenerationEnabled']='undecided'
   doc['decisions']['aiFocusWordsEnabled']=true
+  doc['decisions']['euUsersIncluded']='undecided'
+  doc['decisions']['minorsIncluded']='undecided'
+  doc['decisions']['schoolManagedAccounts']='undecided'
   File.write('$WORK_DIR/LAUNCH-PROFILE.json', JSON.pretty_generate(doc)+\"\n\")
 "
 ruby scripts/readiness-check.rb >/dev/null 2>&1
@@ -533,6 +542,38 @@ if [ $recon_rc -eq 0 ] && echo "$recon_out" | grep -qF "rendered done-awaiting-r
 else
   fail "claimed-done + open finding should warn and exit 0 (rc=$recon_rc)"
   echo "$recon_out" | head -5
+fi
+
+echo "readiness-check-test: inheritance-note reflects the actual mvpIncludesMinors state"
+# Regression case: the public-mvp inheritance-note sentence used to be a hardcoded
+# string claiming "decision-dependent while mvpIncludesMinors is undecided" no
+# matter what the decision actually was - once mvpIncludesMinors is genuinely
+# decided, that contradicted the "Pending launch decisions: none" line above it.
+reset_work
+ruby -rjson -e "
+  doc=JSON.parse(File.read('$WORK_DIR/LAUNCH-PROFILE.json'))
+  doc['decisions']['mvpIncludesMinors']=false
+  File.write('$WORK_DIR/LAUNCH-PROFILE.json', JSON.pretty_generate(doc)+\"\n\")
+"
+ruby scripts/readiness-check.rb >/dev/null 2>&1
+if grep -qF 'excluded, since `mvpIncludesMinors` is decided false' "$WORK_DIR/READINESS-DASHBOARD.md" \
+   && ! grep -qF 'decision-dependent while `mvpIncludesMinors` is undecided' "$WORK_DIR/READINESS-DASHBOARD.md"; then
+  pass "mvpIncludesMinors=false renders 'excluded', not the stale 'undecided' wording"
+else
+  fail "inheritance note did not update for mvpIncludesMinors=false"
+fi
+
+reset_work
+ruby -rjson -e "
+  doc=JSON.parse(File.read('$WORK_DIR/LAUNCH-PROFILE.json'))
+  doc['decisions']['mvpIncludesMinors']=true
+  File.write('$WORK_DIR/LAUNCH-PROFILE.json', JSON.pretty_generate(doc)+\"\n\")
+"
+ruby scripts/readiness-check.rb >/dev/null 2>&1
+if grep -qF 'included, since `mvpIncludesMinors` is decided true' "$WORK_DIR/READINESS-DASHBOARD.md"; then
+  pass "mvpIncludesMinors=true renders 'included'"
+else
+  fail "inheritance note did not update for mvpIncludesMinors=true"
 fi
 
 echo "readiness-check-test: check mode behavior"

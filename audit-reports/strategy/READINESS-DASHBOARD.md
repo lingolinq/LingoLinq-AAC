@@ -18,7 +18,7 @@
 **Verified Critical closures:** 7  
 **Unmapped Critical/High:** 1 🔴 (see governance exception section below)<br>
 **Overall posture:** 🟡 Moving toward controlled beta  
-**Pending launch decisions:** aiWordPredictionEnabled; aiFocusWordsEnabled; aiBoardGenerationEnabled; euUsersIncluded; minorsIncluded; schoolManagedAccounts; mvpIncludesMinors
+**Pending launch decisions:** none
 
 ## ⚠️ Unmapped Critical/High findings (governance exception)
 
@@ -61,9 +61,9 @@ finding's severity by itself.
 
 | Milestone | Direct reqs | Ratified | Inherited blockers | Blocked | Decision needed | In progress | Awaiting verification | Awaiting reconciliation | Done | Other |
 |---|---:|---:|---|---:|---:|---:|---:|---:|---:|---|
-| Controlled Adult / SLP / Teacher Beta | 10 | 10 | 0 | 2 | 4 | 3 | 0 | 0 | 0 | 1 invariant-holding |
-| School / Minor Beta | 8 | 8 | 9 | 1 | 7 | 0 | 0 | 0 | 0 | 0 |
-| Public MVP | 6 | 6 | 9 (+8 decision-dependent) | 1 | 1 | 3 | 0 | 0 | 0 | 1 invariant-failing |
+| Controlled Adult / SLP / Teacher Beta | 10 | 10 | 0 | 2 | 0 | 3 | 2 | 1 | 0 | 1 not-required; 1 invariant-holding |
+| School / Minor Beta | 8 | 8 | 8 | 1 | 0 | 0 | 0 | 0 | 0 | 7 not-required |
+| Public MVP | 6 | 6 | 8 | 1 | 0 | 3 | 1 | 0 | 0 | 1 invariant-failing |
 | District Procurement Ready | 9 | 9 | 0 | 0 | 0 | 9 | 0 | 0 | 0 | 0 |
 | Long-Term Assurance | 7 | 7 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 5 future |
 
@@ -71,42 +71,28 @@ Direct requirement total: **40**
 
 Inheritance (computed, never duplicated as rows): school-beta inherits applicable unresolved adult-beta
 blockers; public-mvp inherits unresolved adult-beta and school-beta blockers (school-beta portion is
-decision-dependent while `mvpIncludesMinors` is undecided).
+excluded, since `mvpIncludesMinors` is decided false).
 
 ### Top blockers - Controlled Adult / SLP / Teacher Beta
 
 - 🔴 `adult-beta-terms-ordering` (Blocked) - Intro/onboarding cannot replace required Terms before the user has had the opportunity to review and agree. [LL-53cb93fab1]
 - 🔴 `adult-beta-terms-scanning` (Blocked) - Required Terms/consent flow is reachable with switch scanning for the beta cohort. [LL-104bfa61dc]
-- 🟡 `adult-beta-ai-cache` (Decision needed) - Raw communication is not retained in an unsafe pre-scrubber or process-global AI cache. [LL-16ef84ad9a]
-  - gated by undecided decision(s): aiWordPredictionEnabled
-  - underlying evidence state if enabled: done-awaiting-reconciliation (linked finding(s) still open: LL-16ef84ad9a)
-- 🟡 `adult-beta-ai-disclosure` (Decision needed) - For users/interactions covered by an applicable direct-interaction AI disclosure obligation, the required disclosure is presented before the covered AI interaction. [LL-a9d6d5a46b]
-  - gated by undecided decision(s): euUsersIncluded, aiWordPredictionEnabled, aiFocusWordsEnabled, aiBoardGenerationEnabled
-- 🟡 `adult-beta-ai-focus-consent` (Decision needed) - Focus-word generation enforces user, organization, COPPA, EU-under-16, and applicable disclosure gates before a cache hit can return AI output.
-  - gated by undecided decision(s): aiFocusWordsEnabled
-  - underlying evidence state if enabled: done-awaiting-verification (code-and-runtime verification required; no evidence recorded in LAUNCH-PROFILE evidence)
+- 🟡 `adult-beta-ai-cache` (Done, awaiting reconciliation) - Raw communication is not retained in an unsafe pre-scrubber or process-global AI cache. [LL-16ef84ad9a]
+  - linked finding(s) still open: LL-16ef84ad9a
+- 🟡 `adult-beta-ai-focus-consent` (Done, awaiting verification) - Focus-word generation enforces user, organization, COPPA, EU-under-16, and applicable disclosure gates before a cache hit can return AI output.
+  - code-and-runtime verification required; no evidence recorded in LAUNCH-PROFILE evidence
+- 🟡 `adult-beta-ai-master-consent` (Done, awaiting verification) - Unreadable or invalid AI master preference fails closed.
+  - code-and-runtime verification required; no evidence recorded in LAUNCH-PROFILE evidence
 
 ### Top blockers - School / Minor Beta
 
 - 🔴 `school-beta-accessible-consent` (Blocked) - Parent/student/Terms/consent flows are usable with the relevant AAC access methods for the cohort. [LL-104bfa61dc, LL-53cb93fab1]
-- 🟡 `school-beta-child-ai-enforcement` (Decision needed) - COPPA/minor AI restrictions are enforced server-side and cannot be bypassed by direct API use or cached output.
-  - gated by undecided decision(s): minorsIncluded, aiWordPredictionEnabled, aiFocusWordsEnabled, aiBoardGenerationEnabled
-  - underlying evidence state if enabled: done-awaiting-verification (code-and-runtime verification required; no evidence recorded in LAUNCH-PROFILE evidence)
-- 🟡 `school-beta-consent-expiry` (Decision needed) - Declined or expired parental consent leads to a safe, defined account/data outcome rather than indefinite ambiguous access.
-  - gated by undecided decision(s): minorsIncluded
-- 🟡 `school-beta-hard-delete-media` (Decision needed) - Hard deletion includes UserVideo and standalone/off-board voice recordings and other covered media. [LL-854b1d3853]
-  - gated by undecided decision(s): minorsIncluded, schoolManagedAccounts
-  - underlying evidence state if enabled: done-awaiting-reconciliation (linked finding(s) still open: LL-854b1d3853)
-- 🟡 `school-beta-org-ai-control` (Decision needed) - A school/district organization can disable covered third-party AI processing for its users.
-  - gated by undecided decision(s): schoolManagedAccounts, aiWordPredictionEnabled, aiFocusWordsEnabled, aiBoardGenerationEnabled
-  - underlying evidence state if enabled: done-awaiting-verification (code-and-runtime verification required; no evidence recorded in LAUNCH-PROFILE evidence)
 
 ### Top blockers - Public MVP
 
 - 🔴 `public-mvp-admin-credential` (Blocked) - Seed/test/admin credentials are rotated, removed, disabled, or converted to a governed break-glass posture before customer-facing use. [LL-caaf8e20ec]
-- 🟡 `public-mvp-bedrock-account-proof` (Decision needed) - The serving Bedrock credential is demonstrably tied to the BAA-covered AWS account when Bedrock is enabled. [LL-1b0d78dbe6]
-  - gated by undecided decision(s): aiWordPredictionEnabled, aiFocusWordsEnabled, aiBoardGenerationEnabled
-  - underlying evidence state if enabled: done-awaiting-verification (code-and-runtime verification required; no evidence recorded in LAUNCH-PROFILE evidence)
+- 🟡 `public-mvp-bedrock-account-proof` (Done, awaiting verification) - The serving Bedrock credential is demonstrably tied to the BAA-covered AWS account when Bedrock is enabled. [LL-1b0d78dbe6]
+  - code-and-runtime verification required; no evidence recorded in LAUNCH-PROFILE evidence
 - 🔴 `public-mvp-high-verification` (invariant) - 3 High remediated-unverified finding(s) awaiting verification: LL-705b10bcd7, LL-90045bb29c, LL-a95e9c5f7c
 - 🟡 `public-mvp-incident-runbook` (In progress) - Incident/breach runbook matches current runtime/vendor architecture and is operationally usable.
 - 🟡 `public-mvp-privacy-truth` (In progress) - Public privacy, AI, processor, retention, and data-flow disclosures match production behavior and current architecture.
@@ -126,17 +112,7 @@ decision-dependent while `mvpIncludesMinors` is undecided).
 
 ## Pending launch-profile decisions
 
-| Decision | Current value | Requirements gated |
-|---|---|---|
-| aiWordPredictionEnabled | undecided | `adult-beta-ai-cache`, `adult-beta-ai-master-consent`, `adult-beta-ai-disclosure`, `school-beta-org-ai-control`, `school-beta-child-ai-enforcement`, `public-mvp-bedrock-account-proof` |
-| aiFocusWordsEnabled | undecided | `adult-beta-ai-master-consent`, `adult-beta-ai-focus-consent`, `adult-beta-ai-disclosure`, `school-beta-org-ai-control`, `school-beta-child-ai-enforcement`, `public-mvp-bedrock-account-proof` |
-| aiBoardGenerationEnabled | undecided | `adult-beta-ai-master-consent`, `adult-beta-ai-disclosure`, `school-beta-org-ai-control`, `school-beta-child-ai-enforcement`, `public-mvp-bedrock-account-proof` |
-| euUsersIncluded | undecided | `adult-beta-ai-disclosure` |
-| minorsIncluded | undecided | `school-beta-parent-consent`, `school-beta-seat-reclaim`, `school-beta-consent-expiry`, `school-beta-hard-delete-media`, `school-beta-child-ai-enforcement` |
-| schoolManagedAccounts | undecided | `school-beta-seat-reclaim`, `school-beta-hard-delete-media`, `school-beta-org-ai-control`, `school-beta-school-authorization` |
-| mvpIncludesMinors | undecided | controls public-mvp inheritance of 8 unresolved school-beta blocker(s) |
-
-Undecided applicability renders **⚪ Decision needed**, never silently blocked or not-required.
+None - all launch-profile decisions are made.
 
 ## Risk movement
 

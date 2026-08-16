@@ -892,9 +892,14 @@ def render_dashboard(ctx)
     out << "| #{r['title']} | #{r['direct']} | #{r['ratified']} | #{inherited_cell} | #{c['blocked']} | #{c['decision-needed']} | #{c['in-progress']} | #{c['done-awaiting-verification']} | #{c['done-awaiting-reconciliation']} | #{c['done']} | #{other_parts.empty? ? '0' : other_parts.join('; ')} |\n"
   end
   out << "\nDirect requirement total: **#{ctx[:requirements].size}**\n\n"
+  mvp_minors_state = case ctx[:decisions]['mvpIncludesMinors']
+                      when true then 'included, since `mvpIncludesMinors` is decided true'
+                      when false then 'excluded, since `mvpIncludesMinors` is decided false'
+                      else 'decision-dependent while `mvpIncludesMinors` is undecided'
+                      end
   out << "Inheritance (computed, never duplicated as rows): school-beta inherits applicable unresolved adult-beta\n"
   out << "blockers; public-mvp inherits unresolved adult-beta and school-beta blockers (school-beta portion is\n"
-  out << "decision-dependent while `mvpIncludesMinors` is undecided).\n\n"
+  out << "#{mvp_minors_state}).\n\n"
 
   ctx[:rollups].each do |mid, r|
     next if r['topBlockers'].empty?
