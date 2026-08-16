@@ -340,6 +340,44 @@ cards.each do |c|
   end
 end
 
+# --- LAUNCH-PROFILE evidence shape (code-and-runtime distinguishability) ------
+# A code-and-runtime requirement must record code/test evidence and deployed
+# runtime evidence as separately identifiable sub-objects, each with its own
+# verifiedBy/verifiedDate/method/result. This exists so a truthy-but-empty
+# object (or automated-test-only evidence recorded under a flat legacy shape)
+# can never be mistaken by the renderer for a deployed-environment spot-check
+# that did not happen. A requirement with no runtime sub-object is not "done";
+# claimed_done_substate below reads exactly what this validates.
+requirements.each do |r|
+  next unless r['verificationRequired'] == 'code-and-runtime'
+  ev = (profile['evidence'] || {})[r['id']]
+  next if ev.nil?
+  unless ev.is_a?(Hash)
+    failures << "[#{PROFILE_JSON}] evidence[#{r['id']}] must be an object"
+    next
+  end
+  flat_keys = %w[verifiedBy verifiedDate method result] & ev.keys
+  if flat_keys.any?
+    failures << "[#{PROFILE_JSON}] evidence[#{r['id']}] is code-and-runtime but uses flat legacy field(s) #{flat_keys.join(', ')}; use distinguishable {\"code\":{...}, \"runtime\":{...}} sub-objects instead so automated-test evidence can never be read as a deployed-runtime spot-check"
+  end
+  %w[code runtime].each do |kind|
+    sub = ev[kind]
+    next if sub.nil?
+    unless sub.is_a?(Hash)
+      failures << "[#{PROFILE_JSON}] evidence[#{r['id']}].#{kind} must be an object"
+      next
+    end
+    %w[verifiedBy verifiedDate method result].each do |field|
+      failures << "[#{PROFILE_JSON}] evidence[#{r['id']}].#{kind}.#{field} missing or blank" if sub[field].to_s.strip.empty?
+    end
+    begin
+      Date.iso8601(sub['verifiedDate'].to_s)
+    rescue ArgumentError, TypeError
+      failures << "[#{PROFILE_JSON}] evidence[#{r['id']}].#{kind}.verifiedDate #{sub['verifiedDate'].inspect} is not an ISO date"
+    end
+  end
+end
+
 # --- WORK-LEDGER validation ---------------------------------------------------
 lmeta = ledger['meta'] || {}
 work = ledger['work'] || []
@@ -616,8 +654,26 @@ open_status = ->(fid) { findings_by_id[fid] && findings_by_id[fid]['status'] == 
 def claimed_done_substate(req, open_status, profile_evidence)
   open_linked = (req['findingIds'] || []).select { |fid| open_status.call(fid) }
   return ['done-awaiting-reconciliation', "linked finding(s) still open: #{open_linked.join(', ')}"] if open_linked.any?
-  if req['verificationRequired'] != 'code-only' && !profile_evidence[req['id']]
-    return ['done-awaiting-verification', "#{req['verificationRequired']} verification required; no evidence recorded in LAUNCH-PROFILE evidence"]
+  verif = req['verificationRequired']
+  return ['done', nil] if verif == 'code-only'
+  ev = profile_evidence[req['id']]
+  if verif == 'code-and-runtime'
+    # Truthiness alone is not enough here: code/test evidence and deployed
+    # runtime evidence are recorded as distinguishable sub-objects (validated
+    # above), so automated-test-only evidence can never silently satisfy a
+    # requirement whose text asks for a deployed-environment verification.
+    if ev.is_a?(Hash) && ev['runtime'].is_a?(Hash)
+      return ['done', nil]
+    end
+    reason = if ev.is_a?(Hash) && ev['code'].is_a?(Hash)
+               'code-and-runtime verification required; code/test evidence recorded, but no distinguishable deployed-runtime evidence yet'
+             else
+               'code-and-runtime verification required; no evidence recorded in LAUNCH-PROFILE evidence'
+             end
+    return ['done-awaiting-verification', reason]
+  end
+  unless ev
+    return ['done-awaiting-verification', "#{verif} verification required; no evidence recorded in LAUNCH-PROFILE evidence"]
   end
   ['done', nil]
 end

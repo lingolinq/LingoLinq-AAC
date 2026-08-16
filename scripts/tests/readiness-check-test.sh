@@ -146,6 +146,51 @@ expect "missing schemaVersion fails" "WORK-LEDGER.json" \
   "doc['meta'].delete('schemaVersion')" \
   "meta.schemaVersion missing"
 
+echo "readiness-check-test: code-and-runtime evidence shape (distinguishable code vs runtime)"
+# adult-beta-ai-focus-consent is verificationRequired=code-and-runtime. A flat
+# legacy evidence blob (the exact shape this layer used to accept as truthy)
+# must now hard-fail rather than silently satisfying a runtime claim it never made.
+expect "flat legacy evidence shape on a code-and-runtime requirement fails" "LAUNCH-PROFILE.json" \
+  "doc['evidence']['adult-beta-ai-focus-consent']={'verifiedBy'=>'x','verifiedDate'=>'2026-08-16','method'=>'x','result'=>'x'}" \
+  "uses flat legacy field(s)"
+
+# A placeholder runtime sub-object recorded merely to flip the renderer (empty,
+# or with blank fields) must fail validation rather than pass as a real spot-check.
+expect "empty placeholder runtime sub-object fails" "LAUNCH-PROFILE.json" \
+  "doc['evidence']['adult-beta-ai-focus-consent']={'code'=>{'verifiedBy'=>'x','verifiedDate'=>'2026-08-16','method'=>'x','result'=>'x'},'runtime'=>{}}" \
+  "runtime.verifiedBy missing or blank"
+
+expect "runtime sub-object with a blank field fails" "LAUNCH-PROFILE.json" \
+  "doc['evidence']['adult-beta-ai-focus-consent']={'code'=>{'verifiedBy'=>'x','verifiedDate'=>'2026-08-16','method'=>'x','result'=>'x'},'runtime'=>{'verifiedBy'=>'x','verifiedDate'=>'2026-08-16','method'=>'x','result'=>'   '}}" \
+  "runtime.result missing or blank"
+
+# code/test evidence alone (today's live shape) must validate cleanly - it is not
+# an error to record it, only insufficient by itself to resolve the row to done.
+expect "code-only evidence on a code-and-runtime requirement validates cleanly" "LAUNCH-PROFILE.json" \
+  "doc['evidence']['adult-beta-ai-focus-consent']={'code'=>{'verifiedBy'=>'x','verifiedDate'=>'2026-08-16','method'=>'x','result'=>'x'}}" \
+  ""
+
+# Positive path: once a real runtime sub-object is present alongside code, the
+# row (no open linked findings) resolves all the way to plain 'done' - which,
+# since done rows are resolved rather than blocking, means the id drops out of
+# the rendered Top Blockers list entirely rather than showing any awaiting-* label.
+reset_work
+ruby -rjson -e "
+  doc=JSON.parse(File.read('$WORK_DIR/LAUNCH-PROFILE.json'))
+  doc['evidence']['adult-beta-ai-focus-consent']['runtime']={
+    'verifiedBy'=>'Scot Wahlquist','verifiedDate'=>'2026-08-16',
+    'method'=>'Deployed-beta spot-check (hypothetical, test-only)','result'=>'Confirmed'
+  }
+  File.write('$WORK_DIR/LAUNCH-PROFILE.json', JSON.pretty_generate(doc)+\"\n\")
+"
+ruby scripts/readiness-check.rb >/dev/null 2>&1
+if ruby scripts/readiness-check.rb --check >/dev/null 2>&1 \
+   && ! grep -qF 'adult-beta-ai-focus-consent' "$WORK_DIR/READINESS-DASHBOARD.md"; then
+  pass "code + runtime evidence together resolve a code-and-runtime requirement to done"
+else
+  fail "recording both code and runtime evidence did not resolve the requirement to done"
+fi
+
 echo "readiness-check-test: human vs AI provenance (extensible identities)"
 expect "AI tool as accountableOwner fails" "WORK-LEDGER.json" \
   "doc['work'][0]['accountableOwner']='Claude Code'" \

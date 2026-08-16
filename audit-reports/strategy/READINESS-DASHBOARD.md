@@ -79,9 +79,9 @@ finding's severity by itself.
 
 | Milestone | Direct reqs | Ratified | Inherited blockers | Blocked | Decision needed | In progress | Awaiting verification | Awaiting reconciliation | Done | Other |
 |---|---:|---:|---|---:|---:|---:|---:|---:|---:|---|
-| Controlled Adult / SLP / Teacher Beta | 10 | 10 | 0 | 2 | 0 | 3 | 0 | 1 | 2 | 1 not-required; 1 invariant-holding |
-| School / Minor Beta | 8 | 8 | 6 | 1 | 0 | 0 | 0 | 0 | 0 | 7 not-required |
-| Public MVP | 6 | 6 | 6 | 1 | 0 | 3 | 1 | 0 | 0 | 1 invariant-failing |
+| Controlled Adult / SLP / Teacher Beta | 10 | 10 | 0 | 2 | 0 | 3 | 2 | 1 | 0 | 1 not-required; 1 invariant-holding |
+| School / Minor Beta | 8 | 8 | 8 | 1 | 0 | 0 | 0 | 0 | 0 | 7 not-required |
+| Public MVP | 6 | 6 | 8 | 1 | 0 | 3 | 1 | 0 | 0 | 1 invariant-failing |
 | District Procurement Ready | 9 | 9 | 0 | 0 | 0 | 9 | 0 | 0 | 0 | 0 |
 | Long-Term Assurance | 7 | 7 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 5 future |
 
@@ -97,8 +97,10 @@ excluded, since `mvpIncludesMinors` is decided false).
 - 🔴 `adult-beta-terms-scanning` (Blocked) - Required Terms/consent flow is reachable with switch scanning for the beta cohort. [LL-104bfa61dc]
 - 🟡 `adult-beta-ai-cache` (Done, awaiting reconciliation) - Raw communication is not retained in an unsafe pre-scrubber or process-global AI cache. [LL-16ef84ad9a]
   - linked finding(s) still open: LL-16ef84ad9a
-- 🟡 `adult-beta-core-aac-accessibility` (In progress) - Core communication controls used by the beta cohort are operable and programmatically understandable with the applicable access methods and assistive technology.
-- 🟡 `adult-beta-core-reliability` (In progress) - Known failures capable of materially breaking core board, speech, image, sync, or communication workflows for the beta cohort are remediated and verified under representative use.
+- 🟡 `adult-beta-ai-focus-consent` (Done, awaiting verification) - Focus-word generation enforces user, organization, COPPA, EU-under-16, and applicable disclosure gates before a cache hit can return AI output.
+  - code-and-runtime verification required; code/test evidence recorded, but no distinguishable deployed-runtime evidence yet
+- 🟡 `adult-beta-ai-master-consent` (Done, awaiting verification) - Unreadable or invalid AI master preference fails closed.
+  - code-and-runtime verification required; code/test evidence recorded, but no distinguishable deployed-runtime evidence yet
 
 ### Top blockers - School / Minor Beta
 
