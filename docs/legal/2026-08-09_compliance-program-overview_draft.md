@@ -180,7 +180,11 @@ explicitly marked not operational.
   the `MediaObject` concern scheduling removal of the transcription working copy, prior-transcode
   originals, the video thumbnail, and an abandoned/never-confirmed upload's raw object, all on
   destroy. Thumbnail removal additionally needs `s3:ListBucket` on the uploads-bucket credential
-  (not yet verified in production, with a same-effort delete-attempt fallback if listing fails).
+  (not yet verified in production, with a bounded best-effort fallback -- the first five thumbnail
+  indices only, stopping at the first gap -- if listing fails or is denied). This coverage list is
+  not exhaustive: a transcode job whose completion is never recorded (owning record destroyed
+  mid-job, or a lost/never-delivered SNS completion notification) leaves its S3 output with no
+  persisted application metadata for any sweep to discover, tracked separately as LL-c4566fa37f.
   LL-854b1d3853 remains open pending independent (dual-reviewer) verification of complete
   media-object erasure; account merges transfer license records rather than orphaning them.
 - Organizations can set retention policies, and retention enforcement runs on a schedule.
