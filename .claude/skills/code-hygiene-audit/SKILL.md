@@ -17,11 +17,13 @@ Everything here is checkable by reading source and grepping the tree.
 
 ## Scan scope
 - Backend: `app/models/**/*.rb`, `app/controllers/**/*.rb`, `app/models/concerns/**/*.rb`,
-  `lib/**/*.rb`, `config/routes.rb`, `lib/feature_flags.rb`.
+  `app/services/**/*.rb`, `lib/**/*.rb`, `config/routes.rb`, `config/initializers/**/*.rb`,
+  `lib/feature_flags.rb`.
 - Frontend: `app/frontend/app/components/**/*.{js,hbs}`, `app/frontend/app/utils/**/*.js`,
   `app/frontend/app/routes/**/*.js`, `app/frontend/app/controllers/**/*.js`,
-  `app/frontend/app/templates/**/*.hbs`, `app/frontend/app/styles/**/*.scss` (SCSS is in scope
-  ONLY for detection class B.9's near-duplicate-rule-set check, not for the other classes).
+  `app/frontend/app/services/**/*.js`, `app/frontend/app/templates/**/*.hbs`,
+  `app/frontend/app/styles/**/*.scss` (SCSS is in scope ONLY for detection class B.9's
+  near-duplicate-rule-set check, not for the other classes).
 - Config/CI: `.github/workflows/**/*.yml` (in scope ONLY for detection class A.3's
   never-triggers check, not for the other classes).
 - Explicitly OUT of scope: `spec/`, `app/frontend/tests/`, `db/migrate/`, anything under

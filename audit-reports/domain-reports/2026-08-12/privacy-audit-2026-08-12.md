@@ -237,5 +237,22 @@
 - **Remediation:** Confirm with Scot whether an org's retention_months is meant to reach a sponsored user's entire log history (including logs predating enrollment, or generated under a personal/other-org context), or only logs created within that org's context. Today the query is user_id-scoped only, with no org/context filter, so any sponsoring org that sets retention_months deletes all of that user's aged logs regardless of origin -- for a user sponsored by more than one org, the most-aggressive policy effectively wins for their whole history. If the current behavior is intentional, document it explicitly in DATA_RETENTION.md's LogSession row rather than leaving it implicit; if not, scope the purge query by log ownership/context (e.g. author's org at the time, or a recorded originating-org field).
 
 
+## Remediated (awaiting verification) (2)
+
+Forward-fix applied and independently re-inspected, but not yet independently verified/closed -- still requires Scot's sign-off to close. If a residual is recorded in `closureEvidence.verifierNote`, this finding is NOT fully resolved.
+
+### User#user_token is a permanent, non-expiring credential serialized on login and embedded in navigable lesson/board share URLs
+
+- **ID:** `LL-90045bb29c`  |  **ruleKey:** `permanent-user-token-broad-exposure`  |  **severity:** high
+- **Location:** `lib/json_api/user.rb`:41
+- **Residual:** Verified 2026-08-03 at staging tip 8cb8b3aa460efc64d0c9eb463ad86a5b8a07a6d0: (a) User.find_by_token uses ActiveSupport::SecurityUtils.secure_compare (PR #563, merge c0eb0c8b7); (b) newly minted lesson/board share links use User#lesson_share_token / User.find_by_lesson_share_token with EXPIRING_LESSON_SHARE_TOKENS kill-switch default ON and logged [lesson_share_legacy_token] fallback (PR #568, merge d067f9cc1); (b-follow-up) graceful expired-link UX via window.lesson_share_token_valid (PR #580, merge e80dc26d4). Newly minted share URLs no longer embed permanent User#user_token. CORRECTION: earlier option-(c)/notes text that treated embed-frame data-user_token as User#user_token was wrong -- board.js feeds tool.get('user_token') from UserIntegration#user_token (lib/json_api/integration.rb), a distinct integration-scoped credential. SUPERSEDED-BY: residual permanent User#user_token login serialization + logged legacy fallbacks tracked as LL-ebd844a7d0. Awaiting Scot's verified-closed attestation.
+
+### Text-to-speech posts raw user text to subprocessors absent from the register (Abair has no DPA; Google TTS flow unrowed) (GDPR Art. 28/44)
+
+- **ID:** `LL-a167848115`  |  **ruleKey:** `tts-raw-text-to-undisclosed-subprocessors`  |  **severity:** medium
+- **Location:** `lib/tts.rb`:30
+- **Residual:** Remediated across PR #648 (subprocessor disclosure), PR #667 (Google TTS Pre-GA v1beta1 -> GA v1 repoint + consumer translate_tts fallback removal), and PR #674 (Abair Irish TTS disabled in lib/tts.rb and api/search_controller.rb#audio; regression guards spec/lib/tts_spec.rb + spec/controllers/api/search_controller_spec.rb audio specs). This register PR records the triage/disposition. Unverified pending post-merge citation-check and Scot attestation.
+
+
 ---
 _Generated from the register at `d67ed76e0a161b594fbffa519ab428d0f9b7780b`. Regenerate with `ruby scripts/render-domain-reports.rb`. Do not edit by hand._

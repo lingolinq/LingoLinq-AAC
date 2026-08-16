@@ -65,6 +65,14 @@ open = findings.select { |f| f['status'] == 'open' }
 buckets = Hash.new { |h, k| h[k] = [] }
 open.each { |f| buckets[domain_of(f)] << f }
 
+# LL-6af580a23a (2026-08-16 dual-review): a finding moved out of 'open' via a hand-edit that
+# fixes the forward path but leaves a real residual (see closureEvidence.verifierNote) is easy
+# to lose track of if the domain view just drops it -- the reader has no way to learn it. Render
+# these as their own section so a status move away from 'open' is visible, not silent.
+remediated_unverified = findings.select { |f| f['status'] == 'remediated-unverified' }
+remediated_buckets = Hash.new { |h, k| h[k] = [] }
+remediated_unverified.each { |f| remediated_buckets[domain_of(f)] << f }
+
 def loc(f)
   ev = f['evidence'] || {}
   if ev['file'].to_s != '' then "`#{ev['file']}`#{ev['line'] ? ":#{ev['line']}" : ''}"
@@ -122,6 +130,22 @@ DOMAINS.each do |dom|
       end
     end
   end
+  remfs = remediated_buckets[dom].sort_by { |f| [SEV_ORDER[f['severity']] || 9, f['id']] }
+  unless remfs.empty?
+    out << "\n## Remediated (awaiting verification) (#{remfs.size})\n\n"
+    out << "Forward-fix applied and independently re-inspected, but not yet independently "
+    out << "verified/closed -- still requires Scot's sign-off to close. If a residual is "
+    out << "recorded in `closureEvidence.verifierNote`, this finding is NOT fully resolved.\n\n"
+    remfs.each do |f|
+      out << "### #{f['title']}\n\n"
+      out << "- **ID:** `#{f['id']}`  |  **ruleKey:** `#{f['ruleKey']}`  |  **severity:** #{f['severity']}\n"
+      out << "- **Location:** #{loc(f)}\n"
+      note = f.dig('closureEvidence', 'verifierNote').to_s
+      out << "- **Residual:** #{note}\n" unless note.empty?
+      out << "\n"
+    end
+  end
+
   out << "\n---\n_Generated from the register at `#{meta['auditedSha']}`. Regenerate with "
   out << "`ruby scripts/render-domain-reports.rb`. Do not edit by hand._\n"
 
