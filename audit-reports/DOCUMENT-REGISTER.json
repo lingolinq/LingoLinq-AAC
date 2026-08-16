@@ -227,8 +227,8 @@
             "location": "https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit"
           },
           {
-            "title": "Incident Response and Breach Runbook",
-            "location": "docs/legal/BREACH_RUNBOOK.md"
+            "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
+            "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
           },
           {
             "title": "Data Retention Schedule (2026-08-09 draft)",
@@ -285,8 +285,8 @@
             "location": "docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md"
           },
           {
-            "title": "Incident Response and Breach Runbook",
-            "location": "docs/legal/BREACH_RUNBOOK.md"
+            "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
+            "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
           },
           {
             "title": "AI Data-Flow Classification",
@@ -323,8 +323,8 @@
             "location": "docs/legal/2026-08-09_data-retention_draft.md"
           },
           {
-            "title": "Incident Response and Breach Runbook",
-            "location": "docs/legal/BREACH_RUNBOOK.md"
+            "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
+            "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
           },
           {
             "title": "Accessibility Conformance Report (ACR / VPAT)",
@@ -385,8 +385,8 @@
             "location": "https://docs.google.com/document/d/1Q6hDhooIQVMArkpn4ppxr4om3-Hx64QmYiIQe0sSWmY/edit"
           },
           {
-            "title": "Incident Response and Breach Runbook",
-            "location": "docs/legal/BREACH_RUNBOOK.md"
+            "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
+            "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
           },
           {
             "title": "Written Information Security Program (WISP)",
@@ -1020,7 +1020,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/BREACH_RUNBOOK.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "HIPAA",
         "GDPR",
@@ -1041,12 +1041,7 @@
         "note": "Re-attested 2026-08-01 by Scot Wahlquist, CEO, as v2.2.1 (hash 2b788387259bc315fc4b1e5a10817f55ae2d9eae02988236b245c5f62ede1907 @ commit 4ece3a6435). Correction release disclosing four v2.2 drafting defects (self-contradicting draft/attested changelog language; New York Ed Law 2-d; section 4.2 kill list; section 7 vendor contacts). Git-canonical v2.2 bytes are PR #703 commit 456b6735a6, hash 0ee1b92ec130e89215383bcb1ae26de7be5ef6f9fcd1b80d6ad9ae6d41152af1; an earlier register claim that those bytes hashed fbdf49a1 is retracted (no such blob in merged ancestry). Distinct labels: v2.2 = 0ee1b92e... @ 456b6735a6; v2.2.1-interim = 2026-07-31 attestation at 95bc22359cf363e526ca0221a39b1c6f34c1d4afcd353c4c5b5fc8a4d97e5ae6 @ 271b2f961c (superseded before publication; date retained in priorAttestations); v2.2.1 = this 2026-08-01 attestation. Prior attestations: 2026-07-31, 2026-07-28, 2026-07-23, 2026-06-21."
       },
       "correctionNote": "CORRECTION 2026-08-02 (not an attestation; only Scot attests). The attestation.note above covers v2.2.1 bytes (2b788387). The document is now v2.2.2: its section 7 Anthropic contact described the runtime AI path as active and asserted active Bedrock egress, which is false (no lingolinq-web revision carries a Bedrock credential; runtime AI dormant since 00011-l7f deployed 2026-07-30T16:37Z). Corrected and disclosed in BREACH_RUNBOOK.md section 13. Operationally material: a responder scoping an incident under v2.2.1 would look for egress that does not exist. Root evidence: the 2026-08-01 correction in docs/legal/AWS_BAA_ACCEPTED.md (PR #725, which must merge first). Re-attestation owed for v2.2.2.",
-      "bundles": [
-        "soc2-evidence",
-        "school-dpa-package",
-        "security-review",
-        "baa"
-      ],
+      "bundles": [],
       "mirrors": [
         {
           "system": "drive",
@@ -1062,7 +1057,48 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "contentHash": "20d8d992e8bb7a031a368b87fafeb43a11555975c366de25a617f32250d95154"
+      "contentHash": "2b788387259bc315fc4b1e5a10817f55ae2d9eae02988236b245c5f62ede1907",
+      "supersededBy": "DOC-28f19f73e4"
+    },
+    {
+      "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
+      "description": "Operative incident response and breach runbook, v2.2.3. Supersedes docs/legal/BREACH_RUNBOOK.md, which is frozen at the v2.2.1 bytes attested 2026-08-01. Section 7 corrected 2026-08-15 to state that runtime AI egress to AWS Bedrock is ACTIVE and must be scoped during an incident.",
+      "type": "runbook",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-15_incident-response-breach-runbook.md",
+      "status": "draft",
+      "frameworks": [
+        "HIPAA",
+        "GDPR",
+        "FERPA"
+      ],
+      "lastReviewed": "2026-08-15",
+      "nextReviewDue": "2027-08-02",
+      "attestation": {},
+      "bundles": [
+        "soc2-evidence",
+        "school-dpa-package",
+        "security-review",
+        "baa"
+      ],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po/edit"
+        }
+      ],
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-d4e3b8be32",
+      "id": "DOC-28f19f73e4",
+      "contentHash": "c49c233c1aed82ba62949dc40a6836b3f35c06b998631b585314fd1e4b1f2f76"
     },
     {
       "title": "Incident Log",

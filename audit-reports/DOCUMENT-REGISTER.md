@@ -4,13 +4,13 @@
 > Do not hand-edit; edit the JSON (the source of truth) and re-render.
 > The codebase copy is canonical; the Notion board is a one-way mirror; Drive docs are linked, never copied.
 >
-> Generated: 2026-07-23 | Documents: 77 (git 45 / drive 28 / notion 4)
+> Generated: 2026-07-23 | Documents: 78 (git 46 / drive 28 / notion 4)
 
 ## Headline
 
-- **Status:** draft 13, approved 13, published 42, superseded 9
+- **Status:** draft 14, approved 12, published 42, superseded 10
 - **Overdue for review** (as of 2026-07-23): none
-- **Drafts awaiting attestation:** Compliance Posture Report (2026-08-09 draft); Compliance Program (2026-08-09 draft); Compliance Status Snapshot (2026-08-09); Accessibility Conformance Report (ACR / VPAT); Data Retention Schedule (2026-08-09 draft); Accessibility Conformance Report (ACR / VPAT) (branded); LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft); EU AI Act Article 50 Transparency: Implementation Milestone Plan; Compliance Posture Report (branded, 2026-07-16 re-attest); Anthropic Business Associate Agreement (2026-05-06); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Annex A - Clinical BAA Template (DRAFT); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT)
+- **Drafts awaiting attestation:** Compliance Posture Report (2026-08-09 draft); Compliance Program (2026-08-09 draft); Compliance Status Snapshot (2026-08-09); Accessibility Conformance Report (ACR / VPAT); Data Retention Schedule (2026-08-09 draft); Incident Response and Breach Runbook (2026-08-15 successor); Accessibility Conformance Report (ACR / VPAT) (branded); LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft); EU AI Act Article 50 Transparency: Implementation Milestone Plan; Compliance Posture Report (branded, 2026-07-16 re-attest); Anthropic Business Associate Agreement (2026-05-06); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Annex A - Clinical BAA Template (DRAFT); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT)
 
 ## Documents by type
 
@@ -92,13 +92,14 @@
 | Notion - Compliance Findings board (LL) | Notion | [open](https://app.notion.com/p/1f8451c4a17b4f5b868878ac4386b805) | published |  | Scot Wahlquist | 2026-06-20 | 2026-09-20 | no | (supplied) |  |
 | Roadmap - What's Left (2026-06-19) | Drive | [open](https://docs.google.com/document/d/1f9haDNHifkZQ4qDbZBYMODaWO2KiuwEkrBpUq2Edq4E/edit) | approved |  | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-21 | (supplied) |  |
 
-### runbook (5)
+### runbook (6)
 
 | Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Compliance Docs Guide (runbook) | git | `docs/legal/COMPLIANCE_DOCS_GUIDE.md` | published |  | Scot Wahlquist | 2026-06-21 | 2027-06-21 | no | `c8e466f878b5` |  |
 | docs/legal README (folder charter) | git | `docs/legal/README.md` | published |  | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | `9bdef6d4ae50` |  |
-| Incident Response and Breach Runbook | git | `docs/legal/BREACH_RUNBOOK.md` | approved | HIPAA, GDPR, FERPA | Scot Wahlquist | 2026-08-02 | 2027-08-02 | 2026-08-01 | `20d8d992e8bb` | soc2-evidence, school-dpa-package, security-review, baa |
+| Incident Response and Breach Runbook | git | `docs/legal/BREACH_RUNBOOK.md` | superseded | HIPAA, GDPR, FERPA | Scot Wahlquist | 2026-08-02 | 2027-08-02 | 2026-08-01 | `2b788387259b` |  |
+| Incident Response and Breach Runbook (2026-08-15 successor) | git | `docs/legal/2026-08-15_incident-response-breach-runbook.md` | draft | HIPAA, GDPR, FERPA | Scot Wahlquist | 2026-08-15 | 2027-08-02 | no | `c49c233c1aed` | soc2-evidence, school-dpa-package, security-review, baa |
 | Incident Response and Breach Runbook (branded) | Drive | [open](https://docs.google.com/document/d/1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po/edit) | published | HIPAA, GDPR, FERPA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
 | Notion - Compliance Engineering Onboarding/Handoff | Notion | [open](https://www.notion.so/3845fe8215c28139aa9ec40eda1431c6) | published |  | Scot Wahlquist | 2026-06-19 | 2026-12-19 | no | (supplied) |  |
 
@@ -140,7 +141,7 @@ The attested, externally-released branded binder generated 2026-06-19 and held i
 
 Documents a SOC 2 readiness reviewer expects to see for the security-program controls.
 
-- **Members (13):** Access Control Policy; Business Continuity and Disaster Recovery Plan; Compliance & Data Governance (COMPLIANCE.md); Data Retention Schedule (2026-08-09 draft); Data Retention Schedule (branded); Incident Log; Incident Log (branded); Incident Response and Breach Runbook; Incident Response and Breach Runbook (branded); Security Risk Assessment 2026 Q2; Subprocessor Register; Vendor and Subprocessor Management Policy; Written Information Security Program (WISP)
+- **Members (13):** Access Control Policy; Business Continuity and Disaster Recovery Plan; Compliance & Data Governance (COMPLIANCE.md); Data Retention Schedule (2026-08-09 draft); Data Retention Schedule (branded); Incident Log; Incident Log (branded); Incident Response and Breach Runbook (2026-08-15 successor); Incident Response and Breach Runbook (branded); Security Risk Assessment 2026 Q2; Subprocessor Register; Vendor and Subprocessor Management Policy; Written Information Security Program (WISP)
 - **Required member check:** passing, but 3 known gap(s) recorded below - this bundle is NOT complete
 - **Known gaps (3) - artifacts this bundle needs that do not exist yet:**
   - Independent penetration-test report (none commissioned)
@@ -151,7 +152,7 @@ Documents a SOC 2 readiness reviewer expects to see for the security-program con
 
 What a US school-district diligence / DPA review asks for (FERPA / COPPA / accessibility).
 
-- **Members (15):** Accessibility Conformance Report (ACR / VPAT); Accessibility Conformance Report (ACR / VPAT) (branded); AI Data-Flow Classification; Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT); Compliance Posture Report (2026-08-09 draft); Compliance Posture Report (branded, 2026-07-16 re-attest); COPPA Final-Rule Verification; COPPA Final-Rule Verification (branded); Data Retention Schedule (2026-08-09 draft); Data Retention Schedule (branded); Incident Response and Breach Runbook; Parental Consent (COPPA / under-13) (branded); Parental Consent Email (COPPA / under-13); Subprocessor Register; Subprocessor Register (branded)
+- **Members (15):** Accessibility Conformance Report (ACR / VPAT); Accessibility Conformance Report (ACR / VPAT) (branded); AI Data-Flow Classification; Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT); Compliance Posture Report (2026-08-09 draft); Compliance Posture Report (branded, 2026-07-16 re-attest); COPPA Final-Rule Verification; COPPA Final-Rule Verification (branded); Data Retention Schedule (2026-08-09 draft); Data Retention Schedule (branded); Incident Response and Breach Runbook (2026-08-15 successor); Parental Consent (COPPA / under-13) (branded); Parental Consent Email (COPPA / under-13); Subprocessor Register; Subprocessor Register (branded)
 - **Required member check:** passing, but 3 known gap(s) recorded below - this bundle is NOT complete
 - **Known gaps (3) - artifacts this bundle needs that do not exist yet:**
   - Signed per-district NDPA instances (register-backed series; none executed yet)
@@ -162,7 +163,7 @@ What a US school-district diligence / DPA review asks for (FERPA / COPPA / acces
 
 What a school district or hospital IT security questionnaire asks for. Deliberately SEPARATE from soc2-evidence: this is the customer-facing diligence pack (posture, accessibility, AI data-flow, subprocessors), whereas soc2-evidence is the internal controls-evidence pack. Merging them would force each to carry documents the other reviewer never asks for.
 
-- **Members (11):** Access Control Policy; Accessibility Conformance Report (ACR / VPAT); AI Data-Flow Classification; AI Governance Memo; Compliance Posture Report (2026-08-09 draft); Compliance Posture Report (branded, 2026-07-16 re-attest); Data Retention Schedule (2026-08-09 draft); Incident Response and Breach Runbook; LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft); Subprocessor Register; Written Information Security Program (WISP)
+- **Members (11):** Access Control Policy; Accessibility Conformance Report (ACR / VPAT); AI Data-Flow Classification; AI Governance Memo; Compliance Posture Report (2026-08-09 draft); Compliance Posture Report (branded, 2026-07-16 re-attest); Data Retention Schedule (2026-08-09 draft); Incident Response and Breach Runbook (2026-08-15 successor); LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft); Subprocessor Register; Written Information Security Program (WISP)
 - **Required member check:** passing, but 3 known gap(s) recorded below - this bundle is NOT complete
 - **Known gaps (3) - artifacts this bundle needs that do not exist yet:**
   - SSO / authentication description as a standalone record
@@ -173,7 +174,7 @@ What a school district or hospital IT security questionnaire asks for. Deliberat
 
 What a covered entity (hospital, clinic, or district health service) asks for before executing a BAA. Covers both directions: the BAAs LingoLinq holds upstream with its subprocessors, and the BAA LingoLinq offers downstream to customers.
 
-- **Members (10):** Access Control Policy; Annex A - Clinical BAA Template (DRAFT); Anthropic Business Associate Agreement (2026-05-06); Anthropic HIPAA-Ready BAA Acceptance Record; AWS BAA Acceptance and Runtime Status Record (2026-08-12); AWS Business Associate Agreement (signed PDF); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record; Incident Response and Breach Runbook; Written Information Security Program (WISP)
+- **Members (10):** Access Control Policy; Annex A - Clinical BAA Template (DRAFT); Anthropic Business Associate Agreement (2026-05-06); Anthropic HIPAA-Ready BAA Acceptance Record; AWS BAA Acceptance and Runtime Status Record (2026-08-12); AWS Business Associate Agreement (signed PDF); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record; Incident Response and Breach Runbook (2026-08-15 successor); Written Information Security Program (WISP)
 - **Required member check:** passing, but 3 known gap(s) recorded below - this bundle is NOT complete
 - **Known gaps (3) - artifacts this bundle needs that do not exist yet:**
   - HIPAA workforce training records (do not exist; owed before real PHI, per the Melissa GCP-admin note)
@@ -218,7 +219,7 @@ What a federal or foundation grant application needs from the compliance library
 | `executed-agreement` | term + 7 years | contract-end | archive | 8 |
 | `corporate-permanent` | permanent | n/a | archive | 0 |
 | `grant-record` | award + 7 years | close-out | archive | 0 |
-| `policy-version` | supersession + 7 years | superseded | archive | 37 |
+| `policy-version` | supersession + 7 years | superseded | archive | 38 |
 | `audit-evidence` | 7 years | finding-closed | archive | 17 |
 | `attestation-record` | permanent | n/a | archive | 0 |
 | `dsar-case` | 3 years | case-closed | delete | 0 |
@@ -280,7 +281,7 @@ green build. Verified for git rows only; Drive and Notion hashes are operator-su
 | Data Retention Schedule | 2026-07-23 | `0c748cadd744` | verified |
 | Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record | 2026-07-23 | `3e8f43b12186` | verified |
 | Incident Log | 2026-06-21 | `e4e7c0b98d3f` | verified |
-| Incident Response and Breach Runbook | 2026-08-01 | `2b788387259b` | MISMATCH - re-attestation owed |
+| Incident Response and Breach Runbook | 2026-08-01 | `2b788387259b` | verified |
 | LingoLinq Security, Privacy & Compliance Overview | 2026-08-04 | `63205ea1780c` | verified |
 | Parental Consent Email (COPPA / under-13) | 2026-07-23 | `d7c935ce4743` | verified |
 | Subprocessor Register | 2026-08-08 | `29360a419661` | verified |
@@ -300,8 +301,9 @@ frozen point-in-time binder. Only the pointer is added.
 | Compliance Posture Report (branded) (`DOC-9f6a2412ad`) | Compliance Posture Report (branded, 2026-07-16 re-attest) (`DOC-ae3f9d06ef`) | compliance-records-set-2026-06 |
 | Compliance Program (`DOC-b61994933c`) | Compliance Program (2026-08-09 draft) (`DOC-73a80fc88d`) | compliance-records-set-2026-06 |
 | Data Retention Schedule (`DOC-bff9acf51f`) | Data Retention Schedule (2026-08-09 draft) (`DOC-e62caf7fb9`) | (none) |
+| Incident Response and Breach Runbook (`DOC-d4e3b8be32`) | Incident Response and Breach Runbook (2026-08-15 successor) (`DOC-28f19f73e4`) | (none) |
 | LingoLinq Security, Privacy & Compliance Overview (`DOC-03cb9fe91f`) | LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft) (`DOC-90632edc44`) | (none) |
 
 ---
 
-_77 documents. Re-run `ruby scripts/document-register-render.rb --check` to validate ids, git content hashes, and bundle completeness._
+_78 documents. Re-run `ruby scripts/document-register-render.rb --check` to validate ids, git content hashes, and bundle completeness._
