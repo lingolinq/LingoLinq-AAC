@@ -259,7 +259,6 @@ export default Component.extend({
   isAuthor: computed('log.author.id', 'log.author.user_name', 'appState.sessionUser.id',
       'appState.sessionUser.global_id', 'appState.sessionUser.user_name',
       'log.eval_in_memory', 'assessment.author_id', function() {
-    var me = this.get('appState.sessionUser.id');
     // An in-memory eval has no saved LogSession to read an author off, so it
     // carries its own: utils/eval stamps `author_id` when the eval starts, and
     // that survives into the IndexedDB snapshot the results page recovers from.
@@ -275,17 +274,29 @@ export default Component.extend({
     // trade: those snapshots expire within EVAL_PROGRESS_MAX_AGE_S, and a
     // read-only workbook costs some retyping while a forked evaluation corrupts
     // the clinical record.
+    //
+    // Both sides compare `global_id`, never `.id`. 'self' is a sentinel, not an
+    // identity — it is the same string for EVERY account — so comparing it either
+    // locks the real author out (their global_id resolves, the stamp says 'self')
+    // or, worse, lets a second SLP in on a shared device (both read 'self', which
+    // matches itself). utils/eval no longer stamps it; a snapshot from a build
+    // that did is treated as unusable and fails closed, same as a missing stamp
+    // and for the same reason.
+    // Prefer global_id, fall back to `.id` (it IS the global id on the local-storage
+    // load path, and on any record whose global_id has not computed), then drop the
+    // sentinel from whichever one answered.
+    var myGlobal = this.get('appState.sessionUser.global_id') ||
+                   this.get('appState.sessionUser.id');
+    if (myGlobal === 'self') { myGlobal = null; }
     if (this.get('log.eval_in_memory')) {
       var recorded = this.get('assessment.author_id');
-      if (!recorded || !me) { return false; }
-      return String(recorded) === String(me);
+      if (!recorded || recorded === 'self' || !myGlobal) { return false; }
+      return String(recorded) === String(myGlobal);
     }
-    var author = this.get('log.author.id');
     // `global_id` (models/user.js) is the real backend id on BOTH load paths — the
     // record's own id when it came from local storage, and the `_actual_id` the
-    // serializer parked when it came from the network as the 'self' alias. Compare
-    // with that, never with `.id`, which is 'self' inside that window.
-    var myGlobal = this.get('appState.sessionUser.global_id') || me;
+    // serializer parked when it came from the network as the 'self' alias.
+    var author = this.get('log.author.id');
     if (author && myGlobal && String(author) === String(myGlobal)) { return true; }
     // `sessionUser.id` is NOT reliably the user's global id. serializers/
     // application.js#normalizeResponse deliberately pins the session user's record

@@ -11825,3 +11825,43 @@ instead of burning the 6h Actions ceiling", backed by a 50-minute step cap. Rais
 So this is a LOCAL problem with a local cause: `ember serve` and browser probes competing
 with the test run on the same box. Cheapest real fix is to not run them concurrently. The
 wrapped-config trick is a workaround for when you must.
+
+## Pattern: a sentinel used as an identity compares equal to itself across accounts (2026-08-16)
+
+`serializers/application.js` pins the session user's record id to the literal string
+`'self'` so Ember Data never re-keys the identifier, parking the real id in `_actual_id`.
+Any code that then treats `sessionUser.id` as an identity is comparing a CONSTANT, and
+`'self' === 'self'` is true for every pair of accounts.
+
+This produced two bugs on the same gate, in opposite directions:
+
+- **False deny.** `models/user.js` never declared `_actual_id`, so Ember Data dropped it
+  and the record had no usable id during the window. The eval's own author read as
+  not-the-author and got the read-only banner. Fix: declare the attr, add a `global_id`
+  computed (`_actual_id || id`, matching `board.js`/`buttonset.js`), compare with that.
+- **False allow — the dangerous one.** `utils/eval.js` stamped `assessment.author_id`
+  from `sessionUser.id`, so an eval started inside the window recorded its author as
+  `'self'`. A second SLP on a shared device, also inside the window, matched it and was
+  granted edit on the first SLP's eval — exactly the fork the stamp existed to prevent.
+
+Three things generalize:
+
+1. **A sentinel is not an identity.** Reject it explicitly on BOTH sides of a comparison
+   (`if (x === 'self') { x = null; }`), do not merely prefer the real id. Old persisted
+   data still carries the sentinel long after the writer stops emitting it.
+2. **Fail closed on an ambiguous stamp.** A stored `'self'` cannot be attributed, so the
+   gate refuses it even for the legitimate author. Bounded by
+   `EVAL_PROGRESS_MAX_AGE_S` (24h); retyping a workbook beats forking a clinical record.
+3. **Check the write side, not just the read side.** The read-side fix (`global_id`) was
+   correct and shipped first, and the gate still trusted a poisoned stamp because nothing
+   had audited what WROTE `author_id`. When you fix an identity comparison, grep for every
+   place that persisted that identity.
+
+The window is short (seconds) and that is what hides it — sampling at 9s showed 5/5
+healthy, sampling at 250ms caught it live in 2 of 3 loads. See also the entry on
+negative-controlling the check.
+
+**Removing a fallback is a behaviour change.** Tightening `global_id || id` to `global_id`
+alone broke two passing tests: plain-`EmberObject` test stubs have no `global_id` computed,
+and the old `|| id` had been carrying them. The fix is `global_id || id` with the sentinel
+stripped from whichever answered — preserving every case except the one being excluded.

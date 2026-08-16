@@ -1525,7 +1525,18 @@ evaluation.callback = function(key) {
   // (log_session.rb:1075), so on a shared device — one iPad, two SLPs, which is
   // the normal case here — the second SLP could fork the first's evaluation.
   // Recording the author is what lets components/eval-workbook refuse.
-  assessment.author_id = assessment.author_id || evaluation.appState.get('sessionUser.id') || null;
+  //
+  // Stamp `global_id`, never `.id`. serializers/application.js pins the session
+  // user's record id to the literal string 'self' so Ember Data never re-keys the
+  // identifier, and app-state loads it through exactly that path. Stamping 'self'
+  // is WORSE than stamping nothing: it is not an identity, it is the same value
+  // for every account, so the second SLP's gate compares 'self' === 'self' and
+  // grants edit on the first SLP's eval — precisely the fork this stamp exists to
+  // prevent. `global_id` (models/user.js) is the real backend id on both load
+  // paths; if it is not resolvable yet, stamp null and let the gate fail closed.
+  var stamped_by = evaluation.appState.get('sessionUser.global_id');
+  if(stamped_by == 'self') { stamped_by = null; }
+  assessment.author_id = assessment.author_id || stamped_by || null;
   var level = levels[working.level];
   var step = level[working.step];
   // level_id keys every recorded response (assessment.events[level_id]) and is how
