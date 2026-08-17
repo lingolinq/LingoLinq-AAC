@@ -11865,3 +11865,21 @@ negative-controlling the check.
 alone broke two passing tests: plain-`EmberObject` test stubs have no `global_id` computed,
 and the old `|| id` had been carrying them. The fix is `global_id || id` with the sentinel
 stripped from whichever answered — preserving every case except the one being excluded.
+---
+
+## Gotcha: attestation hash claims must pin retrievable git bytes
+
+Do not invent or retain a content-hash prefix in runbook/register prose unless that exact
+blob is reachable from merged ancestry (usually `git show <commit>:docs/legal/...` → sha256).
+`priorAttestations` stores dates only, so a wrong hash in prose has no mechanical check and
+becomes an unverifiable attestation pin. On BREACH_RUNBOOK, a claimed `fbdf49a1...` v2.2 pin
+had no matching blob; the git-canonical #703 bytes are `0ee1b92e...` @ `456b673`. Prefer
+`version + full sha256 + commit` (and a distinct label per attested byte set — e.g.
+`v2.2.1-interim` vs `v2.2.1`) over truncated prefixes alone. Ref: PR #722 Codex review,
+[`2026-08-02-breach-runbook-codex-review-fixes.md`](./2026-08-02-breach-runbook-codex-review-fixes.md).
+
+## Gotcha: BREACH_RUNBOOK vendor contacts live in §7, not §11
+
+§7 is Vendor Notification List; §11 is Appendix: Key References. Changelog / header /
+register `correctionNote` text that says "§11 vendor contacts" sends responders to the wrong
+procedure. When correcting Anthropic/OpenAI/Google contact rows, cite §7.
