@@ -86,11 +86,106 @@ function aiFeatureEnabled(appState, feature) {
   return prefAllowsAi(user, feature);
 }
 
+function userAttr(user, key) {
+  if(!user) { return undefined; }
+  if(typeof user.get === 'function') { return user.get(key); }
+  return user[key];
+}
+
+/**
+ * UI-only opt-in check. Unlike prefAllowsAi, an absent master is NOT
+ * grandfathered — it is treated as off so Generate with AI can prompt the
+ * user to enable features. Server grandfather is unchanged.
+ *
+ * True only when master is an explicit true AND (for USER_PREF_AI_FEATURES)
+ * the per-feature pref is an explicit true. Missing user / prefs / nil /
+ * false / unrecognized => false.
+ */
+function prefExplicitlyEnabled(user, feature) {
+  if(!user) { return false; }
+  var prefs = userAttr(user, 'preferences');
+  if(!prefs || typeof prefs !== 'object') { return false; }
+  if(aiPrefValue(prefs.ai_features_enabled) !== true) { return false; }
+  if(!USER_PREF_AI_FEATURES[feature]) { return true; }
+  return aiPrefValue(prefs[feature]) === true;
+}
+
+function euAiConsentRequired(user) {
+  return !!userAttr(user, 'eu_under_16') && !userAttr(user, 'eu_ai_parental_consent_active');
+}
+
+function coppaAiBlocked(user) {
+  return !!userAttr(user, 'coppa_parental_consent_pending');
+}
+
+/**
+ * How the create-board AI entry should proceed.
+ * @returns {'allowed'|'needs_opt_in'|'eu_consent'|'blocked_flag'|'blocked_coppa'}
+ */
+function boardGenerationEntry(appState) {
+  if(!appState || typeof appState.get !== 'function') { return 'blocked_flag'; }
+  var user = appState.get('currentUser');
+  if(euAiConsentRequired(user)) { return 'eu_consent'; }
+  if(!appState.get('feature_flags.ai_board_generation')) { return 'blocked_flag'; }
+  if(coppaAiBlocked(user)) { return 'blocked_coppa'; }
+  if(!prefExplicitlyEnabled(user, 'ai_board_generation')) { return 'needs_opt_in'; }
+  return 'allowed';
+}
+
+/**
+ * Turn ON the requested AI feature(s) without writing false over siblings.
+ * Master is set true. Unmentioned USER_PREF keys are left as they were.
+ * Clones the preferences object so Ember Data sees a new attr('raw') value.
+ */
+function applyAiFeaturePrefs(user, features) {
+  var f = features || {};
+  var payload = { ai_features_enabled: true };
+  Object.keys(USER_PREF_AI_FEATURES).forEach(function(k) {
+    if(!!f[k]) { payload[k] = true; }
+  });
+  if(user && typeof user.set === 'function') {
+    var current = userAttr(user, 'preferences');
+    var prefs = {};
+    if(current && typeof current === 'object') {
+      Object.keys(current).forEach(function(k) { prefs[k] = current[k]; });
+    }
+    prefs.ai_features_enabled = true;
+    Object.keys(USER_PREF_AI_FEATURES).forEach(function(k) {
+      if(payload[k] === true) { prefs[k] = true; }
+    });
+    user.set('preferences', prefs);
+  }
+  return payload;
+}
+
+function rollbackAiFeaturePrefs(user) {
+  if(user && typeof user.rollbackAttributes === 'function') {
+    user.rollbackAttributes();
+  }
+}
+
 export default {
   USER_PREF_AI_FEATURES: USER_PREF_AI_FEATURES,
   aiPrefValue: aiPrefValue,
   prefAllowsAi: prefAllowsAi,
-  aiFeatureEnabled: aiFeatureEnabled
+  aiFeatureEnabled: aiFeatureEnabled,
+  prefExplicitlyEnabled: prefExplicitlyEnabled,
+  euAiConsentRequired: euAiConsentRequired,
+  coppaAiBlocked: coppaAiBlocked,
+  boardGenerationEntry: boardGenerationEntry,
+  applyAiFeaturePrefs: applyAiFeaturePrefs,
+  rollbackAiFeaturePrefs: rollbackAiFeaturePrefs
 };
 
-export { USER_PREF_AI_FEATURES, aiPrefValue, prefAllowsAi, aiFeatureEnabled };
+export {
+  USER_PREF_AI_FEATURES,
+  aiPrefValue,
+  prefAllowsAi,
+  aiFeatureEnabled,
+  prefExplicitlyEnabled,
+  euAiConsentRequired,
+  coppaAiBlocked,
+  boardGenerationEntry,
+  applyAiFeaturePrefs,
+  rollbackAiFeaturePrefs
+};
