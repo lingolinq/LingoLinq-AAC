@@ -12,7 +12,7 @@
 |---|---|---|---|
 | 2026-07-14 | Monthly light /audit-run (diff-since-last-run scope, no full re-scan) | SOC2 | monthly |
 | 2026-07-26 | COPPA data-retention enforcement + parental-consent flow check | COPPA | quarterly |
-| 2026-08-31 | Re-brand + re-share BREACH_RUNBOOK Drive mirror to v2.2 (DOC-f576f43250) | HIPAA | one-time |
+| 2026-08-31 | Re-brand + re-share BREACH_RUNBOOK Drive mirror to v2.2.2 (DOC-f576f43250) | HIPAA | one-time |
 | 2026-09-01 | FERPA vendor-disclosure + directory-info posture review | FERPA | annual |
 | 2026-09-01 | GDPR DPA + RoPA + data-residency review | GDPR | annual |
 | 2026-09-01 | SOC 2 control review (continuous monitoring posture) | SOC2 | quarterly |
@@ -38,7 +38,7 @@
 | HIPAA | Google Gemini API fallback path BAA/DPA verification | annual | (none) | 2026-09-01 |
 | SOC2 | Mechanical secret-shaped-string rejector in audit toolchain (LL-b5c30235d3) | one-time | (none) | 2026-09-01 |
 | FERPA | District DPA / SDPC NDPA renewals + registry listing | per-contract (track renewal dates as they are signed) | (none) | (none) |
-| HIPAA | Re-brand + re-share BREACH_RUNBOOK Drive mirror to v2.2 (DOC-f576f43250) | one-time | (none) | 2026-08-31 |
+| HIPAA | Re-brand + re-share BREACH_RUNBOOK Drive mirror to v2.2.2 (DOC-f576f43250) | one-time | (none) | 2026-08-31 |
 
 ## Review instructions, regulatory watch, and basis
 
@@ -123,10 +123,10 @@ context, required work, and the source basis remain visible with the schedule.
 - **Watch:** SDPC NDPA v2.2 (Nov 2025) is the de facto K-12 vendor contract; registry listing is the highest-leverage sales artifact (plan 1.3). nextDue is null until contracts with renewal dates exist.
 - **Basis:** plan 1.2, 1.3, 2.5
 
-### Re-brand + re-share BREACH_RUNBOOK Drive mirror to v2.2 (DOC-f576f43250)
+### Re-brand + re-share BREACH_RUNBOOK Drive mirror to v2.2.2 (DOC-f576f43250)
 
-- **Drafts:** The git-canonical runbook docs/legal/BREACH_RUNBOOK.md is v2.2-attested (2026-07-28, hash 0ee1b92e); the branded Drive mirror DOC-f576f43250 (Google Doc 1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po) still carries v2.1-era content. Regenerate the branded Google Doc from the v2.2 markdown and re-share it into the school-dpa-package, soc2-evidence, and baa bundles, then confirm the refresh in DOCUMENT-REGISTER.json.
-- **Watch:** document-register-render --check is structurally blind to Drive (Drive hashes are operator-supplied), so this drift never fails CI and must be tracked here. Sequence AFTER PR #703 merges so the Drive doc is re-branded from the final attested bytes. No hard regulatory deadline (pre-MVP, no real district users yet); nextDue is advisory.
+- **Drafts:** The git-canonical runbook docs/legal/BREACH_RUNBOOK.md is v2.2.2 (2026-08-02), pending Scot's re-attestation; the branded Drive mirror DOC-f576f43250 (Google Doc 1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po) still carries v2.1-era content and is now three revisions behind. Regenerate the branded Google Doc from the v2.2.2 markdown and re-share it into the school-dpa-package, soc2-evidence, and baa bundles, then confirm the refresh in DOCUMENT-REGISTER.json. Mirror ONLY from v2.2.2 bytes, and only AFTER Scot re-attests them. Two superseded revisions must NOT be used as the source: v2.2 (hash 0ee1b92e @ commit 456b6735a6 / PR #703) is superseded, and v2.2.1 (hash 2b788387) described Anthropic as the active runtime AI provider and asserted active Bedrock egress, which v2.2.2 retracts (see BREACH_RUNBOOK.md section 13). Mirroring either would republish a known-false claim into a customer-shared Drive doc. CORRECTED 2026-08-02: this item previously targeted v2.2.1; also retracts an earlier fbdf49a1 pin that is not retrievable from merged ancestry.
+- **Watch:** document-register-render --check is structurally blind to Drive (Drive hashes are operator-supplied), so this drift never fails CI and must be tracked here. Sequenced AFTER the v2.2.2 re-attestation so the Drive doc is re-branded from the final attested bytes. PR #703 merged 2026-07-29T23:05Z; v2.2.1-interim (2026-07-31) was superseded by v2.2.1 (2026-08-01), then by v2.2.2 on 2026-08-02. No hard regulatory deadline (pre-MVP, no real district users yet); nextDue is advisory.
 - **Basis:** senior-dev content-integrity review of PR #703 (finding M4); docs/legal/BREACH_RUNBOOK.md; DOCUMENT-REGISTER.json DOC-f576f43250
 
 ## Fixed regulatory dates
