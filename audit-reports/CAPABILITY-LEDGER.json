@@ -287,7 +287,7 @@
       "antiClaim": "This gate is NOT the same as signup COPPA (settings['coppa']) or second-tier AI data-sharing VPC (settings['ai_consent'] / government-ID). It only covers EU under-16 AI enablement.",
       "currentEvidence": {
         "file": "lib/feature_flags.rb",
-        "line": 249,
+        "line": 251,
         "snippet": "def self.eu_under16_blocks_ai_for?(user)"
       },
       "frameworks": [

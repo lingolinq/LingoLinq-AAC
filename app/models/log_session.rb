@@ -1074,6 +1074,46 @@ class LogSession < ApplicationRecord
                     if s && s.log_type == 'eval' && s.user == user && s.author == self.author
                       s.process({eval: evl})
                       params = nil
+                    elsif s && s.log_type == 'eval'
+                      # An eval RESUMED by a different author (or for a different user)
+                      # deliberately becomes that author's OWN new record rather than
+                      # overwriting the original — see the "should create a new copy if
+                      # the eval was resumed by a different author" spec. That stays.
+                      #
+                      # What must not carry over is `ref_id`. The fork is written from
+                      # the submitted blob, so a payload copied from someone else's eval
+                      # (the non-author workbook save the UI already blocks in
+                      # components/eval-workbook.js#isAuthor) would produce a SECOND eval
+                      # holding the SAME ref_id. utils/eval#find_saved_log_id matches on
+                      # ref_id and takes the FIRST hit, so from that point on which
+                      # record a later workbook save binds to is decided by list order —
+                      # for BOTH accounts. That function's own comment calls its matching
+                      # STRICT and deliberately omits a "just take the newest" fallback
+                      # precisely to avoid attaching a workbook to the wrong evaluation;
+                      # a duplicated ref_id defeats it.
+                      #
+                      # Dropping just the identifier keeps the resumed-eval flow intact
+                      # while making the fork addressable only as itself. Not raised:
+                      # this runs inside process_delayed_follow_on, so raising would only
+                      # land the job in the failed queue where nothing surfaces it.
+                      if evl['ref_id']
+                        params = {eval: evl.reject { |k, _v| k.to_s == 'ref_id' }}
+                        # Same pattern as the log_error branch above. global_ids only —
+                        # never eval content.
+                        AuditEvent.create!(
+                          event_type: 'eval_author_mismatch',
+                          record_id: s.global_id,
+                          summary: 'forked eval for a different author; dropped inherited ref_id',
+                          data: {
+                            'type' => 'eval_author_mismatch',
+                            'target_log_id' => s.global_id,
+                            'target_author_id' => s.related_global_id(s.author_id),
+                            'target_user_id' => s.related_global_id(s.user_id),
+                            'requesting_author_id' => self.related_global_id(self.author_id),
+                            'requesting_user_id' => user && user.global_id
+                          }
+                        )
+                      end
                     end
                   end
                 elsif event && event['share']
@@ -1231,10 +1271,31 @@ class LogSession < ApplicationRecord
     sessions.map(&:global_id)
   end
 
+  # A form-encoded request turns a JSON array of events into a Hash keyed by the
+  # string index — Rails only builds an Array for `a[]=`, and the Ember client
+  # posts `log[events][0][type]=…` because adapters/application.js overrides
+  # `ajax` and so never runs Ember Data's `ajaxOptions` (which is what would set
+  # a JSON content type). Every consumer downstream iterates events as an Array;
+  # `{'0' => {...}}.map{|e| e['user_id']}` yields `['0', {...}]` and blows up on
+  # `Array#[]("user_id")`, which killed the whole background job — so a log push
+  # answered 200 and then silently did nothing.
+  #
+  # Same normalization the assessment tallies already get in generate_defaults.
+  # Sorted numerically because event order is meaningful, and only applied when
+  # every key is an index, so a genuine Hash is never mangled.
+  def self.normalize_events(params)
+    events = params && params['events']
+    return params unless events.is_a?(Hash)
+    return params unless events.keys.all? { |k| k.to_s.match?(/\A\d+\z/) }
+    params['events'] = events.keys.sort_by(&:to_i).map { |k| events[k] }
+    params
+  end
+
   def self.process_as_follow_on(params, non_user_params)
     raise "user required" if !non_user_params[:user]
     raise "author required" if !non_user_params[:author]
     raise "device required" if !non_user_params[:device]
+    normalize_events(params)
     # TODO: marrying across devices could be really cool, i.e. teacher is using their phone to
     # track pass/fail while the student uses the device to communicate. WHAAAAT?!
     stash_params = nil
@@ -1337,7 +1398,11 @@ class LogSession < ApplicationRecord
     raise "user required" if !non_user_params[:user]
     raise "author required" if !non_user_params[:author]
     raise "device required" if !non_user_params[:device]
-    
+    # Also normalized here, not only on the way in: a stash written before this
+    # fix still holds the index-keyed Hash, and those are exactly the pushes that
+    # never landed. This lets them replay instead of failing forever.
+    normalize_events(params)
+
     # filter to only those users and events the author has supervise permissions for
     valid_events = []
     user_ids = (params['events'] || []).map{|e| e['user_id'] }.compact.uniq

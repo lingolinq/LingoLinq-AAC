@@ -338,6 +338,70 @@ describe Passwords, :type => :model do
       expect(u.settings['valet_password_at']).to eq(nil)
       expect(u.settings['valet_password_disabled']).to eq(nil)
     end
+
+    it "should NOT put the current request into valet mode" do
+      # Configuring a valet password is not the same as authenticating AS the
+      # valet. Asserting it here left the rest of the request believing the
+      # caller was a valet, and every supervisor permission rule in User is
+      # guarded by `&& !user.valet_mode?`.
+      u = User.create
+      expect(u.valet_mode?).to eq(false)
+      u.set_valet_password("baconator")
+      expect(u.valet_mode?).to eq(false)
+      u.set_valet_password(nil)
+      expect(u.valet_mode?).to eq(false)
+    end
+
+    it "should NOT re-generate the password on a blank re-save when one is already set" do
+      # The client never echoes the valet secret back, so an ordinary profile
+      # save (including the PUT /users/self the app issues on login) arrives with
+      # valet_login=true and valet_password=null. Regenerating there silently
+      # rotated the secret out from under anyone holding it.
+      u = User.create
+      u.set_valet_password("baconator")
+      hash = u.settings['valet_password']
+      expect(hash).to_not eq(nil)
+      u.set_valet_password(nil)
+      expect(u.settings['valet_password']).to eq(hash)
+      u.set_valet_password('')
+      expect(u.settings['valet_password']).to eq(hash)
+      # still the working password, not a fresh random one
+      u.assert_valet_mode!
+      expect(u.valid_password?("baconator")).to eq(true)
+    end
+
+    it "should still generate a temporary password when enabling with none set" do
+      u = User.create
+      expect(u.settings['valet_password']).to eq(nil)
+      expect(GoSecure).to receive(:nonce).with('valet_temporary_password').and_return("abcdefghijklmnop")
+      u.set_valet_password(nil)
+      u.assert_valet_mode!
+      expect(u.valid_password?("abcdefghij")).to eq(true)
+    end
+  end
+
+  describe "valet permission caching" do
+    it "should not let a valet-mode computation poison the non-valet cache" do
+      # Permissable keys its cache on user.cache_key (id + updated_at) + scopes,
+      # and valet_mode? is a transient instance flag in neither. Without folding
+      # it into the scopes, whichever ran first won the slot for 30 minutes —
+      # denying a supervisor model/supervise over their own communicators, or (in
+      # the inverse direction) handing a valet session a full permission set.
+      com = User.create
+      sup = User.create
+      User.link_supervisor_to_user(sup, com, nil, true)
+      com.reload; sup.reload
+
+      expect(com.allows?(sup, 'model')).to eq(true)
+
+      valet_sup = User.find_by_global_id(sup.global_id)
+      valet_sup.assert_valet_mode!
+      expect(com.allows?(valet_sup, 'model')).to eq(false)
+
+      # the valet answer must not have overwritten the ordinary one
+      fresh_sup = User.find_by_global_id(sup.global_id)
+      expect(com.allows?(fresh_sup, 'model')).to eq(true)
+    end
   end
   
   describe "valet_password_used!" do

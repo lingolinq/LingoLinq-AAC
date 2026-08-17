@@ -660,6 +660,65 @@ describe Api::UsersController, :type => :controller do
       expect(@device.reload.settings['long_token']).to eq(true)
       expect(@device.inactivity_timeout).to eq(14.days.to_i)
     end
+
+    # `PUT /api/v1/users/self` is the hottest Ember Data write in the app, and
+    # Ember serializes the WHOLE record on every save. As of 6df5b1bbc the body
+    # is JSON again rather than form-encoded, so preference scalars arrive with
+    # their real types.
+    #
+    # A raw `body:` is required to cover this: Rails' controller-test harness
+    # stringifies `params:` scalars, so every other spec in this block asserts
+    # against the old form-encoded shape. User#process_params converts the
+    # strings "true"/"false" back to booleans, but does NOT convert numeric
+    # strings — so a numeric preference is the sharpest probe of the contract.
+    describe "update with a raw JSON body" do
+      it "should store numeric preferences as numbers, not numeric strings" do
+        token_user
+        request.headers['Content-Type'] = 'application/json'
+        put :update, params: {:id => @user.global_id}, body: {
+          :user => {:preferences => {:scanning_interval => 750, :activation_minimum => 100}}
+        }.to_json
+        expect(response).to be_successful
+        prefs = @user.reload.settings['preferences']
+        expect(prefs['scanning_interval']).to eq(750)
+        expect(prefs['scanning_interval']).to be_a(Integer)
+        expect(prefs['activation_minimum']).to eq(100)
+        expect(prefs['activation_minimum']).to be_a(Integer)
+      end
+
+      it "should store boolean preferences as booleans" do
+        token_user
+        request.headers['Content-Type'] = 'application/json'
+        put :update, params: {:id => @user.global_id}, body: {
+          :user => {:preferences => {:vocalize_buttons => false, :clear_on_vocalize => true}}
+        }.to_json
+        expect(response).to be_successful
+        prefs = @user.reload.settings['preferences']
+        expect(prefs['vocalize_buttons']).to eq(false)
+        expect(prefs['vocalize_buttons']).to be_a(FalseClass)
+        expect(prefs['clear_on_vocalize']).to eq(true)
+        expect(prefs['clear_on_vocalize']).to be_a(TrueClass)
+      end
+
+      it "should not clobber an existing preference when the client omits it" do
+        # An attribute the client never set serializes to null (or is omitted)
+        # rather than to "". PREFERENCE_PARAMS is guarded by `!= nil`, so under
+        # the form-encoded shape every unset preference arrived as "" and passed
+        # that guard, overwriting the stored value on every save. Under JSON the
+        # guard correctly skips it.
+        token_user
+        @user.settings['preferences']['scanning_interval'] = 750
+        @user.save
+        request.headers['Content-Type'] = 'application/json'
+        put :update, params: {:id => @user.global_id}, body: {
+          :user => {:preferences => {:scanning_interval => nil, :vocalize_buttons => true}}
+        }.to_json
+        expect(response).to be_successful
+        prefs = @user.reload.settings['preferences']
+        expect(prefs['vocalize_buttons']).to eq(true)
+        expect(prefs['scanning_interval']).to eq(750)
+      end
+    end
   end
   
   describe "create" do
