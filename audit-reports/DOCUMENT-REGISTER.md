@@ -4,22 +4,23 @@
 > Do not hand-edit; edit the JSON (the source of truth) and re-render.
 > The codebase copy is canonical; the Notion board is a one-way mirror; Drive docs are linked, never copied.
 >
-> Generated: 2026-07-23 | Documents: 79 (git 47 / drive 28 / notion 4)
+> Generated: 2026-07-23 | Documents: 80 (git 48 / drive 28 / notion 4)
 
 ## Headline
 
-- **Status:** draft 13, approved 13, published 42, superseded 11
+- **Status:** draft 14, approved 12, published 42, superseded 12
 - **Overdue for review** (as of 2026-07-23): none
-- **Drafts awaiting attestation:** Compliance Posture Report (2026-08-09 draft); Compliance Program (2026-08-09 draft); Compliance Status Snapshot (2026-08-09); Accessibility Conformance Report (ACR / VPAT); Data Retention Schedule (2026-08-09 draft); Accessibility Conformance Report (ACR / VPAT) (branded); LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft); EU AI Act Article 50 Transparency: Implementation Milestone Plan; Compliance Posture Report (branded, 2026-07-16 re-attest); Anthropic Business Associate Agreement (2026-05-06); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Annex A - Clinical BAA Template (DRAFT); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT)
+- **Drafts awaiting attestation:** Compliance Posture Report (2026-08-09 draft); Compliance Program (2026-08-09 draft); Compliance Status Snapshot (2026-08-09); Accessibility Conformance Report (ACR / VPAT); Data Retention Schedule (2026-08-09 draft); Accessibility Conformance Report (ACR / VPAT) (branded); AI Data-Flow Classification (2026-08-17 successor); LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft); EU AI Act Article 50 Transparency: Implementation Milestone Plan; Compliance Posture Report (branded, 2026-07-16 re-attest); Anthropic Business Associate Agreement (2026-05-06); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Annex A - Clinical BAA Template (DRAFT); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT)
 
 ## Documents by type
 
-### policy (13)
+### policy (14)
 
 | Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Access Control Policy | Drive | [open](https://docs.google.com/document/d/1yyibyEBfMiaS8NoHVVW629SkK61C0jo5P5OjUGojOck/edit) | published | SOC2, HIPAA, FERPA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence, security-review, baa |
-| AI Data-Flow Classification | git | `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md` | approved | FERPA, COPPA, HIPAA, GDPR | Scot Wahlquist | 2026-08-08 | 2027-07-22 | 2026-08-08 | `8c1479578f6b` | school-dpa-package, security-review, dsar |
+| AI Data-Flow Classification | git | `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md` | superseded | FERPA, COPPA, HIPAA, GDPR | Scot Wahlquist | 2026-08-08 | 2027-07-22 | 2026-08-08 | `8c1479578f6b` |  |
+| AI Data-Flow Classification (2026-08-17 successor) | git | `docs/legal/2026-08-17_ai-data-flow-classification.md` | draft | FERPA, COPPA, HIPAA, GDPR | Scot Wahlquist | 2026-08-17 | 2027-07-22 | no | `f33b7b134a7d` | school-dpa-package, security-review, dsar |
 | AI Data-Sharing Consent: Rationale and Policy | git | `docs/legal/AI_DATA_SHARING_CONSENT.md` | approved | FERPA, COPPA, GDPR | Scot Wahlquist | 2026-08-04 | 2027-07-09 | 2026-08-04 | `2e5f09a3a6c2` |  |
 | Business Continuity and Disaster Recovery Plan | Drive | [open](https://docs.google.com/document/d/1WIr3aBuFjworFtv9EOisOCSdfLvMSMFWQrFMzkhda00/edit) | published | SOC2 | Scot Wahlquist | 2026-06-19 | 2026-12-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
 | Compliance & Data Governance (COMPLIANCE.md) | git | `COMPLIANCE.md` | approved | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-04 | 2027-07-10 | 2026-08-04 | `72af832942c4` | soc2-evidence |
@@ -153,7 +154,7 @@ Documents a SOC 2 readiness reviewer expects to see for the security-program con
 
 What a US school-district diligence / DPA review asks for (FERPA / COPPA / accessibility).
 
-- **Members (15):** Accessibility Conformance Report (ACR / VPAT); Accessibility Conformance Report (ACR / VPAT) (branded); AI Data-Flow Classification; Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT); Compliance Posture Report (2026-08-09 draft); Compliance Posture Report (branded, 2026-07-16 re-attest); COPPA Final-Rule Verification; COPPA Final-Rule Verification (branded); Data Retention Schedule (2026-08-09 draft); Data Retention Schedule (branded); Incident Response and Breach Runbook (2026-08-15 successor); Parental Consent (COPPA / under-13) (branded); Parental Consent Email (COPPA / under-13); Subprocessor Register; Subprocessor Register (branded)
+- **Members (15):** Accessibility Conformance Report (ACR / VPAT); Accessibility Conformance Report (ACR / VPAT) (branded); AI Data-Flow Classification (2026-08-17 successor); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT); Compliance Posture Report (2026-08-09 draft); Compliance Posture Report (branded, 2026-07-16 re-attest); COPPA Final-Rule Verification; COPPA Final-Rule Verification (branded); Data Retention Schedule (2026-08-09 draft); Data Retention Schedule (branded); Incident Response and Breach Runbook (2026-08-15 successor); Parental Consent (COPPA / under-13) (branded); Parental Consent Email (COPPA / under-13); Subprocessor Register; Subprocessor Register (branded)
 - **Required member check:** passing, but 3 known gap(s) recorded below - this bundle is NOT complete
 - **Known gaps (3) - artifacts this bundle needs that do not exist yet:**
   - Signed per-district NDPA instances (register-backed series; none executed yet)
@@ -164,7 +165,7 @@ What a US school-district diligence / DPA review asks for (FERPA / COPPA / acces
 
 What a school district or hospital IT security questionnaire asks for. Deliberately SEPARATE from soc2-evidence: this is the customer-facing diligence pack (posture, accessibility, AI data-flow, subprocessors), whereas soc2-evidence is the internal controls-evidence pack. Merging them would force each to carry documents the other reviewer never asks for.
 
-- **Members (11):** Access Control Policy; Accessibility Conformance Report (ACR / VPAT); AI Data-Flow Classification; AI Governance Memo; Compliance Posture Report (2026-08-09 draft); Compliance Posture Report (branded, 2026-07-16 re-attest); Data Retention Schedule (2026-08-09 draft); Incident Response and Breach Runbook (2026-08-15 successor); LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft); Subprocessor Register; Written Information Security Program (WISP)
+- **Members (11):** Access Control Policy; Accessibility Conformance Report (ACR / VPAT); AI Data-Flow Classification (2026-08-17 successor); AI Governance Memo; Compliance Posture Report (2026-08-09 draft); Compliance Posture Report (branded, 2026-07-16 re-attest); Data Retention Schedule (2026-08-09 draft); Incident Response and Breach Runbook (2026-08-15 successor); LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft); Subprocessor Register; Written Information Security Program (WISP)
 - **Required member check:** passing, but 3 known gap(s) recorded below - this bundle is NOT complete
 - **Known gaps (3) - artifacts this bundle needs that do not exist yet:**
   - SSO / authentication description as a standalone record
@@ -186,7 +187,7 @@ What a covered entity (hospital, clinic, or district health service) asks for be
 
 What a GDPR data-subject access, rectification, or erasure request requires. The Article 30 RoPA is the spine: it is the artifact a supervisory authority asks for first, and LingoLinq does not qualify for the small-business exemption because it processes children's data systematically and at scale.
 
-- **Members (3):** AI Data-Flow Classification; Data Retention Schedule (2026-08-09 draft); Records of Processing Activities (RoPA) and Data Map
+- **Members (3):** AI Data-Flow Classification (2026-08-17 successor); Data Retention Schedule (2026-08-09 draft); Records of Processing Activities (RoPA) and Data Map
 - **Required member check:** passing, but 5 known gap(s) recorded below - this bundle is NOT complete
 - **Known gaps (5) - artifacts this bundle needs that do not exist yet:**
   - Data-subject identity-verification procedure (does not exist)
@@ -220,7 +221,7 @@ What a federal or foundation grant application needs from the compliance library
 | `executed-agreement` | term + 7 years | contract-end | archive | 9 |
 | `corporate-permanent` | permanent | n/a | archive | 0 |
 | `grant-record` | award + 7 years | close-out | archive | 0 |
-| `policy-version` | supersession + 7 years | superseded | archive | 38 |
+| `policy-version` | supersession + 7 years | superseded | archive | 39 |
 | `audit-evidence` | 7 years | finding-closed | archive | 17 |
 | `attestation-record` | permanent | n/a | archive | 0 |
 | `dsar-case` | 3 years | case-closed | delete | 0 |
@@ -298,6 +299,7 @@ frozen point-in-time binder. Only the pointer is added.
 
 | Superseded record | Replaced by | Still bundled in |
 |---|---|---|
+| AI Data-Flow Classification (`DOC-90b5d33227`) | AI Data-Flow Classification (2026-08-17 successor) (`DOC-6d37a68cf4`) | (none) |
 | Anthropic HIPAA-Ready BAA Acceptance Record (`DOC-ab3a8c3ed4`) | Anthropic HIPAA-Ready BAA Acceptance and Runtime Status Record (2026-08-16) (`DOC-91b87f5f7f`) | (none) |
 | AWS BAA Acceptance and Runtime Status Record (`DOC-211a60d29e`) | AWS BAA Acceptance and Runtime Status Record (2026-08-12) (`DOC-82e90ba16a`) | (none) |
 | AWS BAA Acceptance Record (`DOC-286318ff28`) | AWS BAA Acceptance and Runtime Status Record (`DOC-211a60d29e`) | (none) |
@@ -310,4 +312,4 @@ frozen point-in-time binder. Only the pointer is added.
 
 ---
 
-_79 documents. Re-run `ruby scripts/document-register-render.rb --check` to validate ids, git content hashes, and bundle completeness._
+_80 documents. Re-run `ruby scripts/document-register-render.rb --check` to validate ids, git content hashes, and bundle completeness._

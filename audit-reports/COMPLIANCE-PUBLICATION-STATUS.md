@@ -159,7 +159,7 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 | `executed-agreement` | term + 7 years | archive | 9 | draft |
 | `corporate-permanent` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `grant-record` | award + 7 years | archive | 0 | unused (no record of this class exists yet) |
-| `policy-version` | supersession + 7 years | archive | 38 | draft |
+| `policy-version` | supersession + 7 years | archive | 39 | draft |
 | `audit-evidence` | 7 years | archive | 17 | draft |
 | `attestation-record` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `dsar-case` | 3 years | delete | 0 | unused (no record of this class exists yet) |
@@ -168,7 +168,7 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 | `working-note` | 90 days | delete | 1 | draft |
 | `operational-config` | retain while in use; supersession + 1 year | archive | 14 | draft |
 
-All 79 rows carry a retention block.
+All 80 rows carry a retention block.
 
 No retention rule has been approved. Nothing in this register is eligible for disposition.
 
@@ -217,6 +217,7 @@ A superseded record is never edited, renamed, or moved. It keeps its row and its
 
 | Superseded | Location | Replaced by | Still bundled in |
 |---|---|---|---|
+| AI Data-Flow Classification | `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md` | AI Data-Flow Classification (2026-08-17 successor) | (none) |
 | AWS BAA Acceptance Record | `docs/legal/AWS_BAA_ACCEPTED.md` | AWS BAA Acceptance and Runtime Status Record | (none) |
 | AWS BAA Acceptance and Runtime Status Record | `docs/legal/2026-08-11_aws-baa-acceptance-record.md` | AWS BAA Acceptance and Runtime Status Record (2026-08-12) | (none) |
 | Anthropic HIPAA-Ready BAA Acceptance Record | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` | Anthropic HIPAA-Ready BAA Acceptance and Runtime Status Record (2026-08-16) | (none) |
@@ -278,4 +279,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_79 documents tracked. 52 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 9 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
+_80 documents tracked. 52 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 10 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
