@@ -131,6 +131,88 @@ describe Api::BadgesController, :type => :controller do
       expect(json['badge'].length).to eq(2)
       expect(json['badge'].map{|b| b['id']}.sort).to eq([b.global_id, b2.global_id])
     end
+
+    it "should not include badges for supervisees the caller cannot view in detail" do
+      token_user
+      normal = User.create
+      modeling = User.create
+      User.link_supervisor_to_user(@user, normal, nil, 'edit')
+      User.link_supervisor_to_user(@user, modeling, nil, 'modeling_only')
+
+      # Precondition, asserted so a future permissions change cannot make the
+      # expectation below pass vacuously: a modeling-only link is denied
+      # 'view_detailed', an ordinary supervisor link is not.
+      expect(normal.reload.allows?(@user.reload, 'view_detailed')).to eq(true)
+      expect(modeling.reload.allows?(@user.reload, 'view_detailed')).to eq(false)
+
+      mine = UserBadge.create(:user => @user)
+      visible = UserBadge.create(:user => normal)
+      UserBadge.create(:user => modeling)
+
+      get 'index', params: {:user_id => @user.global_id, recent: true}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      # The modeling-only supervisee's badge must not appear: this branch returns
+      # the supporter AND every supervisee in one payload, so it has to apply the
+      # same per-communicator gate the non-recent branch gets for free.
+      expect(json['badge'].map{|b| b['id']}.sort).to eq([mine.global_id, visible.global_id].sort)
+    end
+
+    it "should not include a modeling-only supervisee's badges even when that account is public" do
+      token_user
+      pub = User.create
+      pub.settings['public'] = true
+      pub.save
+      User.link_supervisor_to_user(@user, pub, nil, 'modeling_only')
+
+      # This is the case `view_detailed` alone could not catch: a public account
+      # grants it to EVERYONE (user.rb:58), so the modeling-only link still passed.
+      expect(pub.reload.allows?(@user.reload, 'view_detailed')).to eq(true)
+      expect(@user.modeling_only_for?(pub)).to eq(true)
+
+      mine = UserBadge.create(:user => @user)
+      UserBadge.create(:user => pub)
+
+      get 'index', params: {:user_id => @user.global_id, recent: true}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['badge'].map{|b| b['id']}).to eq([mine.global_id])
+    end
+
+    it "should not return a public communicator's badges to a modeling-only link on the per-user branch" do
+      token_user
+      pub = User.create
+      pub.settings['public'] = true
+      pub.save
+      User.link_supervisor_to_user(@user, pub, nil, 'modeling_only')
+      UserBadge.create(:user => pub)
+
+      get 'index', params: {:user_id => pub.reload.global_id}
+      expect(response).to_not be_successful
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq("Not authorized")
+      expect(json['modeling_only']).to eq(true)
+    end
+
+    it "should still return the caller's OWN badges when their account is modeling-only" do
+      token_user
+      supervisee = User.create
+      User.link_supervisor_to_user(@user, supervisee, nil, 'edit')
+      @user.expires_at = 2.days.ago
+      @user.save
+      expect(@user.reload.modeling_only?).to eq(true)
+
+      mine = UserBadge.create(:user => @user)
+      UserBadge.create(:user => supervisee)
+
+      get 'index', params: {:user_id => @user.global_id, recent: true}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      # Two guarantees at once: self stays exempt (or a modeling-only supporter
+      # loses their own badges), and a globally modeling-only account is
+      # modeling-only for EVERYONE (supervising.rb:122), so the supervisee drops.
+      expect(json['badge'].map{|b| b['id']}).to eq([mine.global_id])
+    end
   end
   
   describe "show" do
@@ -207,6 +289,49 @@ describe Api::BadgesController, :type => :controller do
       put 'update', params: {:id => b.global_id, :badge => {'highlighted' => true}}
       expect(response).to be_successful
       expect(b.reload.highlighted).to eq(true)
+    end
+  end
+
+  # See the matching blocks in goals_controller_spec.rb / images_controller_spec.rb.
+  # UserBadge#process_params:152-153 reads both flags through `!!params[...]` with
+  # no string coercion, so the form-encoded string "false" becomes TRUE. Every
+  # other spec in this file only ever sets these to true, so nothing here noticed.
+  describe "update with a raw JSON body" do
+    it "should let highlighted be turned OFF" do
+      token_user
+      b = UserBadge.create(:user => @user, :highlighted => true)
+      request.headers['Content-Type'] = 'application/json'
+      put :update, params: {:id => b.global_id}, body: {
+        :badge => {:highlighted => false}
+      }.to_json
+      expect(response).to be_successful
+      expect(b.reload.highlighted).to eq(false)
+      expect(b.highlighted).to be_a(FalseClass)
+    end
+
+    it "should let disabled be turned OFF" do
+      token_user
+      b = UserBadge.create(:user => @user, :disabled => true)
+      request.headers['Content-Type'] = 'application/json'
+      put :update, params: {:id => b.global_id}, body: {
+        :badge => {:disabled => false}
+      }.to_json
+      expect(response).to be_successful
+      expect(b.reload.disabled).to eq(false)
+    end
+
+    it "should not clobber highlighted when the client omits it" do
+      # Unset attributes serialize to null and the `!= nil` guard skips them.
+      # Under the form-encoded shape they arrived as "", passed the guard, and
+      # forced the flag TRUE on every save.
+      token_user
+      b = UserBadge.create(:user => @user, :highlighted => false)
+      request.headers['Content-Type'] = 'application/json'
+      put :update, params: {:id => b.global_id}, body: {
+        :badge => {:highlighted => nil, :disabled => nil}
+      }.to_json
+      expect(response).to be_successful
+      expect(b.reload.highlighted).to eq(false)
     end
   end
 end

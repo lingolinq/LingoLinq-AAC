@@ -10,6 +10,8 @@
 @use "badges";
 @use "goals";
 @use "search";
+@use "board_picker";
+@use "reports";
 
 // All design-token variables ($brand-*, $color-*, $aac-*, $la-*, $cat-*,
 // $nav_*, $page-footer-*, $ll-bento-*) live in _variables.scss above.
@@ -5267,8 +5269,10 @@ tr.accuracy_non_mastered {
 }
 
 /* Board picker route (/board-picker): same card + picker as /search/home, with CTAs above */
+/* The whole page introduction is now the h1 + one sentence, so this is the only
+   gap between the introduction and the two-column layout. */
 .md-card--board-picker__header {
-  margin-bottom: 1.25rem;
+  margin-bottom: 26px;
 }
 .md-card--board-picker .md-card--board-picker__actions {
   margin-bottom: 2rem;
@@ -5282,23 +5286,92 @@ tr.accuracy_non_mastered {
 .md-card--board-picker .board-picker-page__divider {
   margin-bottom: 0;
 }
+/* The shared boards card clips with `overflow: hidden` (~5170) so a fixed-column
+   grid can't poke out of its rounded corner. This page's grids are auto-fit /
+   auto-fill and never overflow, but the clip DOES crop the compact rows' hover
+   shadow flat against the card edge. Scoped to this page only. */
+.md-shell--board-picker .md-card--board-picker {
+  overflow: visible;
+  /* Even padding all round. The shared rule (~5165) reserves 24px top / 2rem
+     bottom for a centred title band this page no longer has. */
+  padding: 28px;
+}
 .md-shell--board-picker .md-card--board-picker .md-hero--home-boards {
   padding: 0 !important;
-  text-align: center;
+  text-align: left;
   margin-bottom: 0;
 }
+/* The authoritative type for the page h1 — !important because the global
+   `.md-hero__title` (~44534) sets its size that way, and (0,4,0) so the weight
+   beats `.md-hero--home-boards .md-hero__title { font-weight: 900 }` (~4901).
+   $la-navy rather than the inherited --md-ink: the same navy the section
+   heading used, which is the reading colour for headings on this page. */
 .md-shell--board-picker .md-card--board-picker .md-hero--home-boards .md-hero__title {
-  font-size: clamp(22px, 5vw, 28px) !important;
-  line-height: 1.15;
+  font-size: 24px !important;
+  font-weight: 700;
+  line-height: 1.2;
+  color: $la-navy;
+  text-align: left;
 }
+/* (No phone override needed: 24px at every width is exactly where the ≤640 rule
+   used to bring this title down to.) */
+/* The title reads as a decorative PILL rather than bare text. Deliberately
+   RECESSED, not raised: it is a label, not a control, so the lighting is
+   inverted from the usual raised-pill recipe — shadow cast INWARD from the top
+   edge, a light catch on the bottom lip, and a veil that darkens at the top
+   instead of the bottom. No outer drop shadow, which is what would read as a
+   pressable button. Stays inline-block so the pill hugs the text and still
+   carries the hero's from-left entrance. */
 .md-shell--board-picker .md-card--board-picker .md-hero--home-boards .md-hero__title .md-hero__title--from-left {
   display: inline-block;
+  max-width: 100%;
+  padding: 0.45em 1.15em;
+  border-radius: 999px;
+  border: 1px solid rgba($brand-verdigris, 0.22);
+  background:
+    linear-gradient(180deg, rgba($la-navy, 0.07) 0%, rgba(255, 255, 255, 0.35) 100%),
+    linear-gradient(135deg, rgba($brand-verdigris, 0.14) 0%, rgba($brand-dusty-denim, 0.12) 100%);
+  box-shadow:
+    inset 0 2px 4px rgba($la-navy, 0.14),
+    inset 0 1px 1px rgba($la-navy, 0.10),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.65);
   font-size: inherit;
   opacity: 0;
   animation: la-hero-title-from-left 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
+/* Outer page container. Wider ceiling than the shared 1200px so the two columns
+   have room at desktop widths, and a real outer gutter (the base rule's
+   `calc(100% - 24px)` left ~12px a side). Internal side padding drops from the
+   shared 40px to 28px; the ≤1280 and ≤1024 rules below step it down further
+   rather than squeezing the cards. */
 .md-shell--board-picker > .md-workspace {
   margin-top: 0 !important;
+  max-width: min(1440px, calc(100% - 56px)) !important;
+  padding-left: 28px !important;
+  padding-right: 28px !important;
+  /* 40px of workspace padding plus the pill-nav's own 42px top margin put 82px
+     of nothing above the first control; 24 + 16 took that to 40 and read as
+     cramped. 32 + 24 = 56px is the middle. THESE TWO NUMBERS ARE COUPLED to the
+     supervising pill's offset — see the `#within_ember:has(.md-shell--board-picker)
+     .ll-supervising-pill` rule (~98040), which keeps the pill's vertical centre
+     on the step control's. Change one, redo the other. */
+  padding-top: 32px !important;
+}
+/* `> .md-workspace > .md-pillnav`, not `.md-shell--board-picker .md-pillnav`:
+   the generic `.md-workspace > .md-pillnav { margin-top: 0; margin-bottom: 12px }`
+   (~1540080 in the compiled sheet) is ALSO (0,2,0) and lands later, so the flat
+   two-class form silently lost and this nav kept a 0 top margin. (0,3,0) wins on
+   merit. Bottom margin doubled from that rule's 12px. */
+.md-shell--board-picker > .md-workspace > .md-pillnav {
+  margin-top: 24px !important;
+  margin-bottom: 24px !important;
+}
+@media (max-width: 1280px) {
+  .md-shell--board-picker > .md-workspace {
+    max-width: calc(100% - 40px) !important;
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+  }
 }
 .md-shell--board-picker .md-card--home-boards__picker {
   margin-top: 1.25rem;
@@ -5339,14 +5412,31 @@ tr.accuracy_non_mastered {
   grid-column: 1 / -1;
   width: 100%;
 }
+/* Bottom margin as well as top: this is the last thing in the results panel, so
+   it owns the gutter between the final control and the panel's bottom edge (on
+   top of the panel's own 24px padding). */
 .md-shell--board-picker .md-home-boards-picker__load-more {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   margin-top: 1.5rem;
+  margin-bottom: 8px;
+}
+/* Where the "load more to see additional public boards" note now lives — it was
+   in the panel's intro paragraph, three lines above the grid it describes. */
+.md-shell--board-picker .md-home-boards-picker__load-more-hint {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: $brand-charcoal-dark;
+  text-align: center;
 }
 .md-shell--board-picker .md-home-boards-picker__load-more-btn {
   min-width: 10rem;
-  font-size: 1rem;
+  /* px, not `1rem`: the root font-size is 10px (bootstrap's `html { font-size:
+     10px }`), so `1rem` here was rendering at 10px. Matches the hint below it. */
+  font-size: 14px;
 }
 /* Category sidebar — icon + label cards matching board-picker mockup */
 .md-shell--board-picker .md-home-boards-picker__layout {
@@ -5356,7 +5446,7 @@ tr.accuracy_non_mastered {
   flex: 1 1 100%;
   width: 100%;
   margin: 0 0 0.25rem;
-  font-size: 22px !important;
+  font-size: 20px !important;
   font-weight: 700;
   letter-spacing: 0.04em;
   color: $la-navy;
@@ -5371,15 +5461,20 @@ tr.accuracy_non_mastered {
   align-self: flex-start;
 }
 /* Right column: one callout panel wrapping explainer, filter, and board grid. */
+/* Results surface: a quiet ground for the board cards, not a nested app. Flat
+   near-white (the old 135deg tint gradient put a bright hotspot in one corner),
+   one verdigris edge accent, no outer shadow and no second border — the cards
+   carry the elevation. The 24px padding is also the bottom gutter after the
+   last card / Load More. */
 .md-shell--board-picker .md-home-boards-picker__category-panel {
-  padding: 1.5rem 1.75rem;
-  border-radius: 14px;
+  padding: 24px 26px 26px;
+  border-radius: 16px;
   border-left: 4px solid rgba(44, 183, 176, 0.55);
-  background: linear-gradient(135deg, rgba(44, 183, 176, 0.06) 0%, rgba(91, 141, 239, 0.04) 100%);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  background: rgba(240, 246, 248, 0.55);
+  box-shadow: none;
 }
 .md-shell--board-picker .md-home-boards-picker__category-panel .category_explainer {
-  margin-bottom: 1.25rem;
+  margin-bottom: 17px;
   padding: 0;
   border: 0;
   border-left: none;
@@ -5387,9 +5482,12 @@ tr.accuracy_non_mastered {
   background: none;
   box-shadow: none;
 }
+/* One short line of context, not a paragraph block: 720px measure so it fits on
+   a single line at desktop widths and wraps at most twice on a phone. */
 .md-shell--board-picker .md-home-boards-picker__category-panel .category_explainer p {
-  font-size: 1.4763125rem;
-  line-height: 1.7;
+  max-width: 720px;
+  font-size: 15px;
+  line-height: 1.45;
   color: var(--md-ink);
   margin: 0;
   font-weight: 500;
@@ -5413,17 +5511,20 @@ tr.accuracy_non_mastered {
 .md-shell--board-picker .md-home-boards-picker__categories {
   gap: 10px;
 }
+/* min-height, not height: "Functional Communication" wraps to two lines and that
+   row grows; every single-line row stays at the floor. */
 .md-shell--board-picker .md-home-boards-picker__category--iconic {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 12px 14px;
-  font-size: 18px;
+  gap: 12px;
+  min-height: 62px;
+  padding: 10px 14px;
+  font-size: 16px;
   font-weight: 700;
   color: $la-navy;
   background: #fff;
   border: 1px solid rgba($la-navy, 0.14);
-  border-radius: 10px;
+  border-radius: 12px;
   box-shadow: none;
 }
 .md-shell--board-picker .md-home-boards-picker__category--iconic:hover {
@@ -5431,19 +5532,23 @@ tr.accuracy_non_mastered {
   border-color: rgba($brand-verdigris-aa, 0.35);
   color: $la-navy;
 }
+/* Selection is carried by the border and the left accent, not by a tint strong
+   enough to compete with the restrained board cards. The accent is an INSET
+   shadow rather than a border-left so the label doesn't shift 3px when a row
+   becomes active — it is an accent, not the elevation the spec rules out. */
 .md-shell--board-picker .md-home-boards-picker__category--iconic.is-active {
-  background: rgba($brand-verdigris, 0.10);
+  background: rgba($brand-verdigris, 0.06);
   border-color: rgba($brand-verdigris-aa, 0.55);
   color: $la-navy;
-  box-shadow: none;
+  box-shadow: inset 3px 0 0 $brand-verdigris-aa;
 }
 .md-shell--board-picker .md-home-boards-picker__category-icon {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 10px;
   background: rgba($brand-verdigris, 0.08);
 }
@@ -5453,7 +5558,7 @@ tr.accuracy_non_mastered {
 .md-shell--board-picker .md-home-boards-picker__category-label {
   flex: 1;
   min-width: 0;
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1.25;
   text-align: left;
 }
@@ -5468,7 +5573,11 @@ tr.accuracy_non_mastered {
 .md-home-boards-picker__nav {
   flex-shrink: 0;
   width: 100%;
-  max-width: 280px;
+  /* The category column is the only fixed-width track in this flex row; the
+     board-preview column beside it is `flex: 1 1 420px` (see
+     .md-home-boards-picker__content), so every pixel taken off this max-width
+     goes straight to the preview area. 280px -> 265px = 15px moved across. */
+  max-width: 265px;
 }
 .md-home-boards-picker__nav-inner {
   position: sticky;
@@ -44451,39 +44560,58 @@ a.md-pillnav__pill.active .md-pillnav__badge,
    (keeps any fixed descendants safe) and reads crisper than the frosted
    glass here. */
 .md-workspace .md-stats-page {
-  /* Translucent frosted panel (more transparent than the earlier opaque
-     gradient) so the page background reads through — keeps the subtle
-     top-down white tint but at ~0.62 alpha + a backdrop blur for the glass
-     read. Scoped to `.md-stats-page` so it's the stats page ONLY. Safe to
-     blur here: the stats date-filter is native selects (no fixed dropdowns)
-     and this panel holds no fixed overlay. */
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0%, rgba(251, 252, 254, 0.34) 100%) !important;
+  /* This panel now carries the report's glass surface: the treatment that used
+     to sit on `.communication-report::before` (verdigris + denim corner blooms
+     over a white-to-ice diagonal, white hairline, deep soft drop) moved out here
+     so the page reads as ONE card instead of a card inside a card. That
+     pseudo-element is now fully transparent (see _reports.scss).
+     Scoped to `.md-stats-page` so it's the stats page ONLY. Safe to blur here:
+     the stats date-filter is native selects (no fixed dropdowns) and this panel
+     holds no fixed overlay. */
+  background:
+    radial-gradient(circle at 12% 4%, rgba(42, 157, 143, 0.1), transparent 432px),
+    radial-gradient(circle at 94% 8%, rgba(76, 134, 216, 0.12), transparent 480px),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(244, 248, 255, 0.76)) !important;
 
-  -webkit-backdrop-filter: blur(22px) saturate(1.35) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(125%) !important;
 
-  backdrop-filter: blur(22px) saturate(1.35) !important;
+  backdrop-filter: blur(24px) saturate(125%) !important;
 
   will-change: transform !important;
 
   transform: translateZ(0) !important;
 
-  border: 1px solid rgba($la-navy, 0.10) !important;
+  border: 1px solid rgba(255, 255, 255, 0.86) !important;
 
   border-radius: 32px !important;
 
   box-shadow:
-    0 6px 40px rgba($la-navy, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    0 24px 64px rgba(27, 54, 93, 0.1) !important;
 
-  padding: clamp(18px, 2.4vw, 30px) !important;
+  /* The panel's own inset. `.md-stats-main` inside carries no margin or padding,
+     so this is the only gutter between the panel edge and the report content.
+     No top inset — the report heading sits flush to the top of the panel. */
+  padding: 0 clamp(18px, 2.4vw, 30px) clamp(18px, 2.4vw, 30px) !important;
+
+  /* Clears the page hero above it. */
+  margin-top: 24px !important;
 
   min-height: auto !important;
 
   color: var(--md-ink) !important;
 
 }
+/* Compare mode is a different STATE, not an override of the rule above: it has no
+   report header sitting flush to the panel top (the side-by-side period filters
+   start the content instead), so the top inset comes back. */
+.md-workspace .md-stats-page:has(.md-stats-compare-row) {
+  padding-top: clamp(18px, 2.4vw, 30px) !important;
+}
 .md-workspace .md-stats-main {
-  padding-bottom: calc(24px + var(--bottombar-height, 59px)) !important;
+  /* No padding — the bottom-navbar clearance this used to reserve now comes from
+     the workspace's own bottom padding, not an inset on the report column. */
+  padding: 0 !important;
 
 }
 .md-shell--reports-view .md-stats-main {
@@ -51643,6 +51771,14 @@ a.md-goal-nav-action:hover,
    equal-specificity source-order tie. */
 .md-grid.md-grid--layout-focused {
   grid-template-columns: repeat(4, 1fr) !important;
+  /* 14px, against the base `.md-grid`'s 28px. The four action cards share one
+     row here, so every px removed from the three gutters is returned to the
+     columns — 42px reclaimed, ~10px wider per card. That is what keeps the
+     title's trailing arrow on the SAME line as the title text: at 28px the
+     longer labels ("Create a Board", "Edit Dashboard") ran out of room and
+     orphaned the arrow onto a second line, so the four headers sat at different
+     heights. Matches the 16px the <=1024px flex fallback already uses. */
+  gap: 14px !important;
 }
 .md-grid--layout-focused .md-card.md-card--badge-action.md-card--as-button {
   min-height: 0 !important;
@@ -54705,12 +54841,50 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   height: 1px;
   background: rgba($la-navy, 0.14);
 }
+/* Secondary create methods. Only "Create My Own Board" and "Generate with AI"
+   get a full chooser key; every other method (file import, Paste HTML, JSON
+   bundle) stacks here as a small slate-gray text link under the closing OR.
+   Column rather than a wrapped row because "Import Board from Another Platform"
+   is long enough to wrap unpredictably once the paste_html flag is on. */
+.nb-create-chooser__alt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  animation: nb-chooser-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+/* Extends the shared `.md-link-btn` reset (button semantics, link appearance)
+   with the chooser's demoted scale. #5A6A85 on the panel's white base is
+   5.34:1 — WCAG AA for normal text at 14px. */
+.nb-create-chooser__alt-link {
+  padding: 3px 6px;
+  border-radius: 6px;
+  color: $brand-slate-blue;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-decoration-color: rgba($brand-slate-blue, 0.40);
+  text-underline-offset: 3px;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
+}
+/* Underline removal on hover comes from `.md-link-btn:hover` (the app-wide link
+   convention), so only the ink darkens here. */
+.nb-create-chooser__alt-link:hover,
+.nb-create-chooser__alt-link:focus-visible {
+  color: $la-navy;
+}
+.nb-create-chooser__alt-link:focus-visible {
+  outline: 2px solid rgba($brand-verdigris-aa, 0.75);
+  outline-offset: 2px;
+}
 @keyframes nb-chooser-rise {
   from { opacity: 0; transform: translateY(18px) scale(0.96); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 @media (prefers-reduced-motion: reduce) {
   .nb-create-chooser__btn,
+  .nb-create-chooser__alt,
   .nb-create-chooser__or { animation: none; }
 }
 /* create-board-new rail: font dropdown extends past the rail's left
@@ -54741,10 +54915,32 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   padding-left: 4px;
   padding-right: 4px;
 }
-/* Preview speak bar — same fill as the home button beside it
-   (rgba(110,122,140,.32)) so the two read as one tier in light mode. */
-.nb-preview-sentence-row .md-board-detail-sentence-bar {
-  background: rgba(110, 122, 140, 0.32);
+/* The preview speak bar's surface is NOT set here. Light mode comes from the
+   shared board-detail light rule (app.scss ~72528, which this preview scope was
+   added to) and dark from `.md-board-detail--dark .md-board-detail-sentence-bar`
+   (~81481, never shell-scoped, so it already reached the preview). A local
+   `background` here would shadow the light-mode glass surface and put the two
+   surfaces back out of sync. */
+/* Left inset for the preview bar's content ("Tapped words will appear here" and
+   the tapped-word chips), which otherwise starts hard against the bar's left
+   edge. Set HERE rather than on the shared light rule, because the two modes
+   inherit DIFFERENT left padding and neither is what this bar wants:
+     light -> 18px  (shared board-detail speak-light rule, `padding: 2px 18px`)
+     dark  ->  4px  (base .md-board-detail-sentence-bar, `2px 10px 2px 4px`)
+   One preview-scoped rule normalises both to the same inset AND leaves the live
+   board-detail bar untouched. An intentional divergence from board-detail's
+   spacing; the surface treatment still matches exactly.
+
+   The selector is four levels deep on purpose, not padding for its own sake. The
+   light rule is `.new-board-mockup-wrap:not(.md-board-detail--dark)
+   .md-board-detail-sentence-bar` = (0,3,0) — `:not()` contributes its argument's
+   specificity — and it sets `padding` as a SHORTHAND, so it overwrites
+   padding-left wholesale. A (0,2,0) or tying (0,3,0) selector loses (this rule
+   sits earlier in the file), and !important is not the answer. This chain is
+   (0,4,0) and mode-agnostic, so it beats the light rule and the dark base alike.
+   Every class in it is a real ancestor: stage > wrap > row > bar. */
+.nb-preview-stage .new-board-mockup-wrap .nb-preview-sentence-row .md-board-detail-sentence-bar {
+  padding-left: 30px;
 }
 /* Speak Bar → "Sentence Bar" size: the preview speak bar grows with
    the chosen vocalization_height so the control has a visible effect
@@ -54791,6 +54987,13 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   font-weight: 600;
   white-space: nowrap;
 }
+/* Dark mode: navy-on-navy is unreadable once the bar becomes the dark
+   translucent slab, so the chip flips to a light-on-dark pair matching the way
+   `.md-board-detail--dark` treats the bar's other inline content. */
+.md-board-detail--dark .nb-preview-sentence-bar__word {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.92);
+}
 /* Drop the right-side 1px divider on the mockup's speak bar (the
    live board-detail bar keeps it; the preview mockup doesn't need
    it). */
@@ -54812,6 +55015,13 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     rgba(255, 255, 255, 0.55) 100%
   ) !important;
 }
+/* The preview wrap is the create page's stand-in for board-detail's
+   `.md-board-detail-main` (the board canvas), so it carries that element's SURFACE
+   in both modes rather than a create-page-specific panel treatment. It was a light
+   recessed "labels div" gradient, which is why the preview read as a washed-out
+   panel while the real board reads as a dark canvas. Geometry (max-width, radius,
+   the squared seam against the Edit Tools rail) stays create-page-specific — those
+   are layout, not theme, and the rail seam depends on them. */
 .new-board-mockup-wrap {
   position: relative;
   width: 100%;
@@ -54820,32 +55030,26 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   margin: 0 auto;
   padding: 14px 0;
   border-radius: 18px;
-  /* Same recessed surface as the labels div (.nb-words-grid). */
-  background: linear-gradient(
-    180deg,
-    rgba(13, 36, 56, 0.06) 0%,
-    rgba(13, 36, 56, 0.02) 35%,
-    rgba(255, 255, 255, 0.55) 100%
-  );
-  border: 1px solid rgba(13, 36, 56, 0.06);
-  box-shadow:
-    inset 0 3px 8px rgba(13, 36, 56, 0.14),
-    inset 0 1px 2px rgba(13, 36, 56, 0.08),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.7),
-    0 1px 0 rgba(255, 255, 255, 0.55);
+  /* LIGHT: matches `.md-board-detail-main` (app.scss ~68455) — the brand
+     dark-charcoal slate canvas the board grid sits on in speak mode. The
+     `:not(.md-board-detail--dark)` board-detail rule also strips that element's
+     border/shadow, so the wrap carries neither. */
+  background: $brand-charcoal-dark;
+  border: none;
+  box-shadow: none;
 }
 .new-board-mockup-wrap--dark {
-  /* Mirrors the .md-shell--board-detail dark page treatment so the preview
-     reads as the actual board background, not a panel. */
-  background:
-    radial-gradient(900px 500px at 10% 5%, rgba($brand-stormy-teal, 0.18), transparent 50%),
-    radial-gradient(800px 400px at 90% 15%, rgba($brand-charcoal-blue, 0.16), transparent 50%),
-    radial-gradient(700px 400px at 50% 95%, rgba($brand-charcoal-dark, 0.22), transparent 55%),
-    linear-gradient(180deg, #1f2937 0%, #111827 100%);
+  /* DARK: matches `.md-board-detail--dark .md-board-detail-main` (app.scss ~81460)
+     — the translucent navy gradient + backdrop-blur, NOT the page canvas. It
+     previously mirrored `.md-shell--board-detail`'s atmospheric halo background,
+     which is the surface *behind* the board rather than the board surface itself. */
+  background: linear-gradient(180deg, rgba(25, 32, 47, 0.74), rgba(19, 25, 38, 0.66));
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 2px 6px rgba(0, 0, 0, 0.25);
+    0 6px 40px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 /* The create-board-new "Show/Hide Preferences" collapsible + the
    ported board-detail prefs inset were removed — every control
@@ -58543,12 +58747,11 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 }
 .md-stats-main {
   max-width: 1120px;
-  margin: 5rem auto 0;
-  /* Top padding 18px → 8px and side padding tightened ~22% to compress the
-     overall vertical rhythm (the page read too airy between sections). */
-  padding: 8px calc((16px + 2rem) * 1.55) 24px;
-  /* Reserve space above the fixed bottom navbar so content doesn't overflow into it */
-  padding-bottom: calc((24px + var(--bottombar-height, 59px)) / 2);
+  /* No margin or padding — the report's own cards carry their spacing. `auto` is
+     kept on the horizontal axis ONLY so the 1120px column stays centred in the
+     workspace; it contributes no fixed inset. */
+  margin: 0 auto;
+  padding: 0;
 }
 
 /* Stats hero: about-page style — transparent container, eyebrow badge, title, separator */
@@ -58601,9 +58804,6 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   color: $brand-smart-blue;
   font-style: italic;
   font-weight: 800;
-}
-.md-stats-hero__action {
-  flex-shrink: 0;
 }
 /* Reports page: inherits the project-wide thin-line divider from the base rule;
    only the bottom-margin tweak remains here. */
@@ -58688,9 +58888,6 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   margin-right: 6px;
   color: rgba($la-navy, 0.5);
 }
-.md-stats-summary-row--1 .panel.panel-default.summary .panel-heading .md-stat-icon {
-  color: $brand-verdigris-aa;
-}
 /* Summary panels → md-miniStat style (stats page). Stronger surface +
    shadow than the washed-out 0.65 white so the metric cards read as
    solid, elevated tiles (matches the home/board-detail card language). */
@@ -58768,33 +58965,8 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    Visual hierarchy — the PRIMARY totals (row 1) read heavier than the rate
    metrics (row 2): more-saturated header + deeper shadow + larger value;
    row 2 is deliberately quieter. */
-.md-stats-summary-row--1 .panel.panel-default.summary .panel-heading {
-  background: linear-gradient(180deg, rgba(44, 183, 176, 0.26) 0%, rgba(44, 183, 176, 0.14) 100%);
-}
-.md-stats-summary-row--2 .panel.panel-default.summary .panel-heading {
-  background: linear-gradient(180deg, rgba(91, 141, 239, 0.12) 0%, rgba(91, 141, 239, 0.06) 100%);
-}
 /* Row 1 (primary): deeper shadow + slightly larger value. */
-.md-stats-summary-row--1 .panel.panel-default.summary {
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    0 3px 8px rgba($la-navy, 0.10),
-    0 14px 30px rgba($la-navy, 0.13) !important;
-}
-.md-stats-summary-row--1 .panel.panel-default.summary .panel-body {
-  font-size: clamp(32px, 3.7vw, 46px);
-}
 /* Row 2 (rates): quieter surface, flatter shadow, smaller muted value. */
-.md-stats-summary-row--2 .panel.panel-default.summary {
-  background: rgba(255, 255, 255, 0.72) !important;
-  box-shadow:
-    0 1px 3px rgba($la-navy, 0.05),
-    0 4px 12px rgba($la-navy, 0.05) !important;
-}
-.md-stats-summary-row--2 .panel.panel-default.summary .panel-body {
-  font-size: clamp(24px, 2.7vw, 34px);
-  color: rgba($la-navy, 0.74);
-}
 /* Compare view row tints: need .md-stats-page so they override base .panel-heading { background: transparent } */
 .md-stats-page .md-stats-compare-group .md-stats-compare-group__row:nth-child(1) .panel-heading {
   background: linear-gradient(180deg, rgba(44, 183, 176, 0.18) 0%, rgba(44, 183, 176, 0.1) 100%);
@@ -58905,13 +59077,6 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 .md-stats-page .md-stats-modeling-toggle__option:focus-visible {
   @include focus-ring;
 }
-.md-stats-page .md-stats-modeling-toggle__heading {
-  margin-top: 0;
-  margin-bottom: 8px;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--md-ink);
-}
 
 /* Word Usage chart: modern card container + chart styling */
 .md-stats-page .md-stats-chart--word-usage {
@@ -59019,6 +59184,10 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   gap: 8px;
   width: 100%;
   max-width: 100%;
+  /* `min-width: auto` would size this to the widest line its period row can
+     make and let it spill past the header column on a phone. Zeroed so the row
+     inside is the thing that gives, not the layout around it. */
+  min-width: 0;
   margin: 0;
   padding: 0;
   background: none;
@@ -59031,42 +59200,44 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    without the section head's large vertical margin. The head hugs its content,
    so the rule gets a FIXED short width (the section-head's `flex: 1 1 auto`
    would otherwise collapse to 0 here — no remaining space to fill). */
-.md-stats-filter__period-head {
-  width: auto;
-  max-width: 100%;
-  margin: 0 !important;
-}
-.md-stats-filter__period-head .md-stats-section-head__rule {
-  flex: 0 0 auto;
-  width: 200px;
-  max-width: 46vw;
-  height: 3px;
-  border-radius: 3px;
-}
 /* The REPORT PERIOD filter label is smaller than the page section headers
    (it's a control label, not a top-level section). !important to beat the
    `.md-stats-section-head__label` clamp above. */
-.md-stats-filter__period-head .md-stats-section-head__label {
-  font-size: 15px !important;
-}
-/* Controls row — the period select + compare button, side by side. */
+/* Controls pair — the period select + compare button, inline after the label.
+   `nowrap` + `min-width: 0`: the pair holds one line at every width, and the
+   space that runs out comes off the controls' own widths (the compare caption
+   wraps inside the button) rather than dropping one of them to a new line. */
 .md-stats-filter__period-controls {
   display: flex;
   flex-direction: row;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 14px;
-  width: 100%;
+  flex-wrap: nowrap;
+  gap: 10px;
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
 }
 /* Compare button — sits next to the period select in the controls row.
    Height matched to the select so the two line up. */
 .md-stats-filter__period-bar .md-stats-filter__compare {
-  height: 42px !important;
-  min-height: 42px !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
+  /* 44px, not 42: this is the report's comparison action and has to clear the
+     44x44 minimum target size, so "compact" is spent on horizontal padding and
+     type size rather than height. The period-select trigger below matches it.
+     A FLOOR rather than a fixed height, because the caption wraps to two lines
+     in the narrow widths where the row would otherwise have to break — at every
+     width that fits one line this still resolves to exactly 44px. */
+  height: auto !important;
+  min-height: 44px !important;
+  padding: 0 14px !important;
+  font-size: 14px !important;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  text-align: center;
+  /* A flex item's default `min-width: auto` is its longest line, which would
+     make this button refuse to narrow and push the row off-screen instead of
+     wrapping its caption. */
+  min-width: 0;
   gap: 6px;
   /* Match the boards-page "New Board" CTA (.ub-boards-page__new-board-btn ~l.60554):
      subtle 135deg verdigris→denim translucent gradient, white hairline border,
@@ -59092,8 +59263,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     0 10px 22px rgba($la-navy, 0.28) !important;
 }
 .md-stats-filter__period-bar .md-stats-period-select__trigger {
-  height: 42px;
-  min-height: 42px;
+  /* Matched to the 44px compare button above (44x44 minimum target size). */
+  height: 44px;
+  min-height: 44px;
   /* Raised "lift" — layered soft shadow + a subtle hover rise. */
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.6) inset,
@@ -59122,15 +59294,41 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    ~4px. Zero it so the select centers with the label and compare button. */
 .md-stats-filter__period-bar .md-stats-filter__period-wrap {
   margin: 0 !important;
+  /* The wrap owns the select's width (the trigger below fills it), so shrinking
+     this box actually narrows the control instead of letting it overflow and sit
+     on top of the "Report period:" label. 92px is the floor at which the longest
+     period name is still readable. */
+  flex: 1 1 auto;
+  min-width: 92px;
 }
-/* Mobile: stack the select + compare button full-width under the label. */
+/* The label, the period select and the compare action stay on ONE row at every
+   width — they read as a single sentence ("Report period: <last 2 months>
+   <compare…>"), and splitting them across lines lost that. Nothing stacks them
+   at a breakpoint any more; instead the two controls shrink and the compare
+   button's caption wraps inside itself. */
 @media (max-width: 600px) {
-  .md-stats-filter__period-controls {
-    flex-direction: column;
-    align-items: stretch;
-  }
   .md-stats-filter__period-controls .md-stats-filter__compare {
     justify-content: center;
+  }
+  /* Phone: ~296px of column has to hold the label, the period pill and the
+     compare action side by side. The type steps down one notch and the gaps
+     tighten so all three stay on the line and stay legible; the compare
+     caption takes the remaining width and wraps inside its own button. */
+  .md-stats-filter__period-bar .md-stats-filter__period-stack,
+  .md-stats-filter__period-bar .md-stats-filter__period-controls {
+    gap: 6px;
+  }
+  .md-stats-filter__period-bar .md-stats-filter__period-title {
+    font-size: 13px;
+  }
+  .md-stats-filter__period-bar .md-stats-period-select__trigger {
+    padding: 0 10px;
+    font-size: 13px;
+  }
+  .md-stats-filter__period-bar .md-stats-filter__compare {
+    flex: 1 1 auto;
+    padding: 0 10px !important;
+    font-size: 13px !important;
   }
 }
 /* Secondary "+ Compare period" button + its leading plus. */
@@ -59147,6 +59345,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   justify-content: center;
   gap: 8px;
   width: 100%;
+  min-width: 0;
 }
 .md-stats-filter__row--stacked {
   flex-direction: row;
@@ -59156,30 +59355,23 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 }
 .md-stats-filter__period-stack {
   display: flex;
+  /* One inline row: "Report period:" label, then the select and the compare
+     action beside it. */
   flex-direction: row;
   align-items: center;
   justify-content: center;
   gap: 10px;
   width: auto;
+  min-width: 0;
   max-width: 100%;
-}
-.md-stats-filter__period-head {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  width: auto;
-  gap: 8px;
-}
-.md-stats-filter__period-head .form-group {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  position: relative;
-  top: 4px;
 }
 .md-stats-filter__period-title {
   display: inline;
   width: auto;
+  /* Never the thing that wraps or shrinks: it is the row's label, so the space
+     comes out of the controls beside it. */
+  flex: 0 0 auto;
+  white-space: nowrap;
   margin: 0;
   padding: 0;
   text-align: left;
@@ -59189,24 +59381,6 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   color: var(--md-muted);
   line-height: 1.35;
   white-space: nowrap;
-}
-.md-stats-filter__period-divider {
-  display: none;
-}
-.md-stats-filter__period-below {
-  display: flex;
-  justify-content: center;
-  width: auto;
-}
-.md-stats-filter__period-below .md-stats-filter__compare {
-  margin-left: 0;
-  height: auto;
-  min-height: 28px;
-  padding: 6px 14px;
-  font-size: 14px;
-  white-space: nowrap;
-  text-align: center;
-  line-height: 1;
 }
 .md-stats-filter__period-wrap {
   display: flex;
@@ -59257,10 +59431,16 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-width: 160px;
+  /* Compact: 128px min (was 160) and tighter padding. Height is set to the 44px
+     target minimum by the period-bar rule above. */
+  /* No intrinsic floor: the trigger fills whatever width its wrap is given
+     (`.md-stats-filter__period-wrap` carries the 92px floor in the period row),
+     so it can never overflow its own box and land on the label beside it. */
+  min-width: 0;
+  width: 100%;
   height: 26px;
   min-height: 26px;
-  padding: 0 28px 0 12px;
+  padding: 0 24px 0 10px;
   line-height: 1;
   border-radius: 999px;
   border: 1px solid rgba(0, 0, 0, 0.08);
@@ -59991,6 +60171,34 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 
   }
 }
+/* "Switch Communicators", relocated out of the stats body into the hero.
+   ABSOLUTELY positioned rather than made a flex sibling of the title on
+   purpose: this hero centres its title and subtitle, and turning it into a
+   flex row would push that centred block off-centre by half the button's
+   width. Pinning the button to the right edge leaves the existing hero
+   composition untouched and simply hangs the control beside it. */
+.md-shell--reports-view .md-hero--reports-dashboard {
+  position: relative !important;
+}
+.md-shell--reports-view .md-reports-hero__action {
+  position: absolute;
+  right: 16px;
+  /* Aligned to the TITLE's optical centre rather than the hero's, so the button
+     sits beside the name it acts on instead of drifting down beside the meta
+     line under it. */
+  top: 34px;
+  z-index: 2;
+  white-space: nowrap;
+}
+/* Below this width the centred title and the pinned button would collide, so
+   the button returns to the flow underneath the hero text and centres itself. */
+@media (max-width: 900px) {
+  .md-shell--reports-view .md-reports-hero__action {
+    position: static;
+    display: block;
+    margin: 14px auto 0;
+  }
+}
 .md-shell--reports-view .md-grid {
   grid-template-columns: 1fr !important;
 
@@ -60435,6 +60643,31 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   .md-workspace {
     margin-top: 0 !important;
     border-radius: 0 !important;
+  }
+  /* Board-picker only: give the picker the full narrow-viewport width by
+     dropping the workspace's 40px side padding (base rule, app.scss ~43647).
+     The category column + board grid are already inset by the card and panel
+     padding inside, so the outer gutter is dead space here. Vertical padding
+     is left alone. */
+  .md-shell--board-picker > .md-workspace {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  /* Same reasoning one level in: `.md-main` carries `padding: 18px 16px 24px
+     !important` (~44554), which on a narrow viewport is a second dead gutter
+     inside the workspace's. Vertical padding is left alone; (0,2,0) + !important
+     is what it takes to beat that base rule. */
+  .md-shell--board-picker .md-main--home-boards {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  /* Narrow viewports: take 16px off the category rail and hand it to the
+     results column. One declaration does both — the results column is
+     `flex: 1 1 420px` (a grower) next to a fixed-width rail, so every pixel off
+     the rail's max-width lands there. The base is 265px (~5423); 249px still
+     holds "Functional Communication" on two lines. */
+  .md-shell--board-picker .md-home-boards-picker__nav {
+    max-width: 249px;
   }
   .md-shell {
     background:
@@ -68058,15 +68291,15 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     padding-left: 0 !important;
     padding-right: 0 !important;
   }
+  /* Direction is NOT overridden here: the label stays on the same row as the
+     period select and the compare action at every width (see the base rule). */
   .md-stats-filter__period-stack {
-    flex-direction: column !important;
     padding-left: 0.5rem !important;
-
     padding-right: 0.5rem !important;
-
   }
-  /* Stacked here (column), the period bar is tall — the base 999px pill radius then
-     reads as an oversized pill. Use a card radius so it reads as a panel. */
+  /* The compare button's caption wraps to two lines in this range, so the bar is
+     taller than one control — the base 999px pill radius would read as an
+     oversized pill. Use a card radius so it reads as a panel. */
   .md-stats-filter__period-bar {
     border-radius: 24px !important;
   }
@@ -70893,7 +71126,8 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    the button's `color: $la-navy`; force the stroke explicitly (scoped to light —
    dark mode keeps its own light glyph via the .md-board-detail--dark rule) so no
    inherited/overriding `color` can wash the icon out on the light button. */
-.md-shell--board-detail:not(.md-board-detail--dark) .md-board-detail-sentence-bar__btn--speak svg {
+.md-shell--board-detail:not(.md-board-detail--dark) .md-board-detail-sentence-bar__btn--speak svg,
+.new-board-mockup-wrap:not(.md-board-detail--dark) .md-board-detail-sentence-bar__btn--speak svg {
   stroke: $la-navy;
 }
 /* The mic svg is the lone flex child of the circular __btn--speak. On very short
@@ -72915,7 +73149,8 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    keep the chip-and-tool breathing room from the prior pass. The
    vertical padding stays at 2px so the bar's height contract with
    the user's `vocalization_height` setting is preserved. */
-.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sentence-bar {
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sentence-bar,
+.new-board-mockup-wrap:not(.md-board-detail--dark) .md-board-detail-sentence-bar {
   padding: 2px 18px;
   gap: 18px;
   /* Glassy glossy surface — SHARED with the edit-mode session bar
@@ -72929,7 +73164,8 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 /* 2. Home + Back buttons — same translucent-white treatment so the nav
    buttons + bar read as one coordinated rail on the bright canvas. */
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-home-btn,
-.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-nav-stack__back {
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-nav-stack__back,
+.new-board-mockup-wrap:not(.md-board-detail--dark) .md-board-detail-home-btn {
   /* Same glassy glossy language as the bar, scaled for a button (smaller sheen
      bloom). */
   background: linear-gradient(
@@ -72949,7 +73185,8 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     0 4px 14px rgba($la-navy, 0.10);
 }
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-home-btn:hover,
-.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-nav-stack__back:hover {
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-nav-stack__back:hover,
+.new-board-mockup-wrap:not(.md-board-detail--dark) .md-board-detail-home-btn:hover {
   background: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0.98) 0%,
@@ -72966,12 +73203,14 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 
 /* 3. Tool buttons (backspace / clear / options chevron) — smaller
    translucent-white chips sitting inside the bar's glass surface. */
-.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sentence-bar__tool-btn {
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sentence-bar__tool-btn,
+.new-board-mockup-wrap:not(.md-board-detail--dark) .md-board-detail-sentence-bar__tool-btn {
   background: rgba(255, 255, 255, 0.55);
   border-color: rgba($la-navy, 0.08);
   color: rgba($la-navy, 0.78);
 }
-.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sentence-bar__tool-btn:hover {
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sentence-bar__tool-btn:hover,
+.new-board-mockup-wrap:not(.md-board-detail--dark) .md-board-detail-sentence-bar__tool-btn:hover {
   background: rgba(255, 255, 255, 0.85);
   color: $la-navy;
 }
@@ -79391,6 +79630,62 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-settings-dropdown-menu li {
   list-style: none;
 }
+/* Account page "Extras" card menu. It carries `.dropdown-menu` too (Bootstrap
+   owns the open/close), so this rule only has to answer the bits Bootstrap sets
+   that the modern skin does not: the menu hangs from the RIGHT edge of the card
+   rather than the left, and Bootstrap's own text styling on the anchors is
+   replaced by .md-settings-dropdown-item. Replaces an inline
+   `style="right: 0; left: auto"` on the element. */
+.md-acct-extras__menu {
+  left: auto;
+  right: 0;
+  min-width: 240px;
+  max-width: none;
+  /* Nothing on this page locks page scroll when the menu opens — but the menu
+     is absolutely positioned, so it does NOT add to the page's scroll height:
+     opened near the bottom of the viewport its tail had nowhere to go and there
+     was nothing to scroll to. Capping the height and letting the MENU scroll
+     keeps every item reachable without the page having to grow. 70vh so it only
+     kicks in when the menu genuinely can't fit.
+     NO `overscroll-behavior: contain` here: `overflow-y: auto` makes this a
+     scroll container even when the items fit (the usual case — five items is
+     ~232px, well under the cap), and containment then SWALLOWS the wheel
+     instead of chaining it, so the page froze whenever the pointer sat over
+     the open menu. Default chaining scrolls the menu first and the page after
+     it bottoms out, which is what the rest of the app's menus do. */
+  max-height: min(70vh, 460px);
+  overflow-y: auto;
+}
+/* Two-tone glyphs, sized and pinned so labels align on one text axis however
+   long the label wraps. */
+.md-acct-extras__icon {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+}
+.md-acct-extras__label {
+  min-width: 0;
+}
+/* Bootstrap 3's `.dropdown-menu > li > a` (0,1,2) out-specifies the flat
+   `.md-settings-dropdown-item` (0,1,0), so the skin's own `display: flex`,
+   `gap`, and `padding` never reached these anchors — they laid out as
+   `display: block` with `padding: 3px 20px`, which put the glyph inline on the
+   text baseline with ZERO space before the label. This selector is (0,2,2), so
+   it wins; it is the one authoritative place the extras items answer Bootstrap
+   (text-decoration was already here for the same reason). */
+.md-acct-extras__menu > li > a.md-settings-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  text-decoration: none;
+}
+.md-acct-extras__menu > li > a.md-settings-dropdown-item:hover,
+.md-acct-extras__menu > li > a.md-settings-dropdown-item:focus {
+  background: rgba($la-navy, 0.06);
+  color: $la-navy;
+  text-decoration: none;
+}
 .md-settings-dropdown-divider {
   height: 1px;
   margin: 6px 8px;
@@ -79984,19 +80279,50 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
      black against the dark board canvas, looking like a hole);
      0.08 lifts the cell visibly above the canvas without competing
      with real buttons. Dot alpha also bumped slightly so the
-     texture stays perceptible against the lifted wash. */
+     texture stays perceptible against the lifted wash.
+
+     Sheen stops darkened ~15% twice (2026-08-07): top highlight
+     0.06 -> 0.051 -> 0.043 (less white), bottom shade 0.05 -> 0.058 -> 0.067
+     (more black). NOTE the flat
+     rgba(255,255,255,0.08) wash below is what sets most of this tile's
+     brightness against the canvas — darkening the whole tile means moving that
+     value, not these two. */
   background:
-    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.12) 0.8px, transparent 1.2px) 0 0 / 10px 10px,
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.12) 1.1px, transparent 1.6px) 0 0 / 14px 14px,
+    linear-gradient(180deg, rgba(255, 255, 255, 0.043) 0%, rgba(255, 255, 255, 0) 55%, rgba(0, 0, 0, 0.067) 100%),
     rgba(255, 255, 255, 0.08) !important;
 }
-/* SPEAK mode (light): the board canvas (.md-board-detail-main) is the 15%-darker
-   surface, so the default navy wash would make empty cells read as holes. Lift
-   them with a white wash instead (mirrors dark mode). Scoped to speak +
-   light so EDIT (light board panel) keeps the navy wash and dark mode keeps its
-   own. !important + higher specificity beat the base rule's !important. */
-.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-symbol-card--empty {
+/* SPEAK mode (light) + the create-board-new live preview: the board canvas
+   (.md-board-detail-main / .new-board-mockup-wrap) is the $brand-charcoal-dark
+   surface, so the base rule's navy wash would make empty cells read as holes.
+   Lift them with a white wash instead. Scoped to speak + light so EDIT (light
+   board panel) keeps the navy wash and dark mode keeps its own; the preview is
+   listed explicitly because it has no .md-shell--board-detail ancestor.
+   !important + higher specificity beat the base rule's !important.
+
+   Dot alpha 0.10 → 0.20 (2026-08-07): against the white-0.5 wash the texture was
+   nearly imperceptible, so the cards read as blank slabs rather than the
+   "empty container" cue the dots are there to give. Darker dots only — the wash
+   stays 0.5 so overall card brightness against the canvas is unchanged.
+
+   Dot RADIUS 0.8 → 1.1px solid / 1.2 → 1.6px feather, then TILE 10 → 14px
+   (2026-08-07). Both matched by the dark-mode rule above so the two modes keep
+   the same texture. The two knobs are independent: the tile sets dot DENSITY
+   (how far apart), the gradient stops set dot SIZE. Bigger dots on the original
+   10px tile read as crowded, so the tile was opened up to keep the texture airy
+   at the larger radius.
+
+   GRADIENT (2026-08-07): a top-lit sheen fading to a faint bottom shade, layered
+   BETWEEN the dots and the flat wash. Kept as its own layer rather than replacing
+   the wash colour — the solid background-color stays, so the card still has a
+   defined fill (and the "is the wash light enough" regression guard in
+   e2e/create-board-new-theme.spec.js keeps working). Both modes use the same
+   shape, scaled to their own alpha budget. */
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-symbol-card--empty,
+.new-board-mockup-wrap:not(.md-board-detail--dark) .md-board-detail-symbol-card--empty {
   background:
-    radial-gradient(circle at 50% 50%, rgba($la-navy, 0.10) 0.8px, transparent 1.2px) 0 0 / 10px 10px,
+    radial-gradient(circle at 50% 50%, rgba($la-navy, 0.20) 1.1px, transparent 1.6px) 0 0 / 14px 14px,
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 55%, rgba($la-navy, 0.05) 100%),
     rgba(255, 255, 255, 0.5) !important;
 }
 .md-board-detail-symbol-card--no-color {
@@ -98076,3 +98402,196 @@ body.md-tour--centered-step .shepherd-modal-overlay-container.shepherd-modal-is-
     margin: 0.25rem 0 0 0;
   }
 }
+
+/* ──────────────────────────────────────────────────────────────
+   SUPERVISING CONTEXT PILL
+   Names the account a supporter is viewing when it isn't their own
+   (components/supervising-context-pill.*).
+
+   ZERO LAYOUT IMPACT BY CONSTRUCTION. The pill is absolutely positioned out of
+   document flow inside a zero-height anchor, so no surrounding element moves by
+   a pixel — an earlier in-flow version pushed every page's content down.
+   pointer-events:none means it can never take a click meant for the page
+   beneath it. These two properties are the contract; everything else here is
+   cosmetic.
+
+   IT SCROLLS AWAY WITH THE PAGE. The pill used to be position:fixed and so
+   followed the reader down every page. It now renders INSIDE #content — the
+   app's real scroll container on every page that scrolls (#within_ember is
+   position:fixed/overflow:hidden on the page-footer layout, so the document
+   itself never scrolls) — anchored to a zero-height wrapper. Keep the anchor:
+   without a positioned ancestor inside the scroller the pill would resolve
+   against #within_ember again and go back to hovering.
+   ────────────────────────────────────────────────────────────── */
+.ll-supervising-pill-anchor {
+  position: relative;
+  height: 0;   /* takes no space in #content's flex column */
+}
+.ll-supervising-pill {
+  position: absolute;
+  /* Measured from the anchor, which sits at #content's CONTENT-box top — after
+     the layout's own top padding. Every layout that shows a header already pads
+     #content past it (`#within_ember #content` ~l.1197, and the bento rules
+     restate the same calc), and the layouts that zero that padding
+     (.board-detail-view, .content--no-top-padding) also zero/hide the header —
+     so a plain gap below the content start clears the chrome everywhere.
+     44px drops the pill clear of the page's own top chrome and lines it up with
+     the board-picker's pill-nav. px, not rem: bootstrap's `html { font-size:
+     10px }` (vendor.css) means 1rem renders at 62.5% of what it reads like. */
+  top: 44px;
+  left: 16px;
+  z-index: 900;   /* above page content, below modals/overlays (1000+) */
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  padding: 7px 16px 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba($brand-verdigris, 0.30);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.78) 100%),
+    linear-gradient(135deg, rgba($brand-verdigris, 0.16) 0%, rgba($brand-stormy-teal, 0.12) 100%);
+  /* Slight glow: soft verdigris halo outside the hairline border, over the
+     standard inset top highlight. Not the raised drop-shadow stack — this is a
+     label, not a control. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    0 0 0 3px rgba($brand-verdigris, 0.07),
+    0 0 14px rgba($brand-verdigris, 0.22),
+    0 1px 3px rgba($la-navy, 0.08);
+  color: $brand-stormy-teal;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+  max-width: calc(100vw - 32px);
+}
+/* Wide screens only: the page chrome below the header (the Home/Caseload/Boards
+   pill row and the hero beneath it) sits lower once there is room for it, and
+   the pill was left stranded up against the header. Drop it 32px so it reads as
+   part of that row. At 1024 and below the chrome tightens back up and 44px is
+   right again, so the base value stands there. */
+@media (min-width: 1025px) {
+  .ll-supervising-pill {
+    top: 76px;
+  }
+}
+/* Board picker: that page sets its own top band (workspace padding-top 32 +
+   pill-nav margin-top 24, ~5260), and the brief for it asks that this pill and
+   the Boards/Choose Board step control share a vertical centre. The step
+   control's centre lands at 118 (#content padding) + 32 + 24 + 21 (half the nav
+   band) = 195px; this pill is ~34px tall, so 195 - 17 = 60px from the same
+   anchor. Coupled to those two values — change them and this moves with them. */
+#within_ember:has(.md-shell--board-picker) .ll-supervising-pill {
+  top: 60px;
+}
+/* Live-session indicator: a dot with an expanding pulse ring. The RING animates,
+   never the dot or the pill, so nothing about the element's box changes. */
+.ll-supervising-pill__status {
+  position: relative;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+}
+.ll-supervising-pill__status-dot {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: $brand-verdigris;
+  box-shadow: 0 0 6px rgba($brand-verdigris, 0.85);
+}
+.ll-supervising-pill__status-dot::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  border: 1.5px solid rgba($brand-verdigris, 0.55);
+  animation: ll-supervising-pulse 2s ease-out infinite;
+}
+@keyframes ll-supervising-pulse {
+  0%   { transform: scale(0.55); opacity: 0.9; }
+  70%  { transform: scale(1.35); opacity: 0; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ll-supervising-pill__status-dot::after {
+    animation: none;
+    opacity: 0.5;
+    transform: scale(1);
+  }
+}
+.ll-supervising-pill__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .ll-supervising-pill {
+    left: 10px;
+    max-width: calc(100vw - 20px);
+    font-size: 13px;
+  }
+}
+
+/* ── Focused View: boards-page CTAs wear the home hero's surface ───────────
+   "+ New Board" and "Set / Change Home Board" are the boards page's two primary
+   entrypoints and are deliberately one button family (same pill radius, same
+   translucent teal→denim gradient in Gentle View — see
+   `.ub-boards-page__new-board-btn` ~l.63224 and `.ub-boards-page` &__set-home-btn
+   ~l.66017). In FOCUSED View they instead take the surface of the home page's
+   hero (`.md-card--speak-focused` ~l.50573): the same
+   `$focus-hero-center → $focus-hero-edge` radial in oklab, so the CTA a user
+   meets on Boards is visibly the same material as the one they press on Home.
+   THE INK HAS TO FLIP WITH THE FILL. The Gentle pill is a LIGHT translucent
+   surface carrying dark `var(--md-ink)` text and a `currentColor` icon; the hero
+   surface is a dark navy. Reusing it without switching to `$focus-on-dark`
+   (#fff) would leave near-black text on near-black ground. The hero already
+   pairs this exact gradient with `$focus-on-dark`, so the pairing is proven.
+   Border and rim follow the hero for the same reason — a white 0.5 rim reads as
+   a bright halo on a dark fill.
+   Scoped on `body.ll-layout-focused`, the app-wide Focused flag set in
+   app.js:511, so this cannot leak into Gentle View. (0,2,1) clears both base
+   rules at (0,1,0); the only higher-specificity rule on either button is the
+   ≤768px `align-self` at ~l.63672, which sets no colour. */
+body.ll-layout-focused .ub-boards-page__new-board-btn,
+body.ll-layout-focused .ub-boards-page__set-home-btn {
+  background: radial-gradient(ellipse at center in oklab,
+    #{$focus-hero-center} 0%,
+    #{$focus-hero-edge} 100%);
+  color: $focus-on-dark;
+  border: 1px solid rgba($focus-on-dark, 0.14);
+  box-shadow:
+    inset 0 2px 0 rgba($focus-on-dark, 0.30),
+    inset 0 -5px 10px rgba($focus-shadow-ink, 0.30),
+    0 2px 5px rgba($focus-shadow-ink, 0.24),
+    0 10px 22px rgba($focus-shadow-ink, 0.30);
+}
+/* Hover mirrors the hero's: lift + deeper shadow + a faint brand glow. The
+   gradient is restated because the base hover rules swap it back to the light
+   Gentle pill, and box-shadow does not cascade per layer. */
+body.ll-layout-focused .ub-boards-page__new-board-btn:hover,
+body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
+  background: radial-gradient(ellipse at center in oklab,
+    #{$focus-hero-center} 0%,
+    #{$focus-hero-edge} 100%);
+  color: $focus-on-dark;
+  border-color: rgba($focus-on-dark, 0.22);
+  box-shadow:
+    inset 0 2px 0 rgba($focus-on-dark, 0.34),
+    inset 0 -5px 10px rgba($focus-shadow-ink, 0.32),
+    0 3px 7px rgba($focus-shadow-ink, 0.28),
+    0 14px 28px rgba($focus-shadow-ink, 0.36),
+    0 0 20px rgba($focus-hero-glow, 0.12);
+}
+/* The icon inherits via `fill="currentColor"` in the markup, so the colour
+   above already carries it — no separate rule needed. */

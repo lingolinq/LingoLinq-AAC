@@ -144,4 +144,51 @@ describe Api::ImagesController, :type => :controller do
       expect(json['errors']).to eq(["bacon"])
     end
   end
+
+  # See the matching block in goals_controller_spec.rb. `params:` scalars are
+  # stringified by the controller-test harness, so the rest of this file asserts
+  # the old form-encoded shape. ButtonImage#process_params:236 reads `avatar`
+  # through `!!params['avatar']` with no string coercion, so the string "false"
+  # becomes TRUE. Only a raw `body:` distinguishes them.
+  describe "create with a raw JSON body" do
+    it "should keep avatar false rather than coercing the string \"false\" to true" do
+      token_user
+      request.headers['Content-Type'] = 'application/json'
+      post :create, body: {
+        :image => {'content_type' => 'image/png', 'avatar' => false}
+      }.to_json
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      bi = ButtonImage.find_by_global_id(json['image']['id'])
+      expect(bi.settings['avatar']).to eq(false)
+      expect(bi.settings['avatar']).to be_a(FalseClass)
+    end
+
+    it "should keep avatar true when sent as a real boolean" do
+      token_user
+      request.headers['Content-Type'] = 'application/json'
+      post :create, body: {
+        :image => {'content_type' => 'image/png', 'avatar' => true}
+      }.to_json
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      bi = ButtonImage.find_by_global_id(json['image']['id'])
+      expect(bi.settings['avatar']).to eq(true)
+    end
+
+    it "should store width and height as Integers" do
+      token_user
+      request.headers['Content-Type'] = 'application/json'
+      post :create, body: {
+        :image => {'content_type' => 'image/png', 'width' => 400, 'height' => 300}
+      }.to_json
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      bi = ButtonImage.find_by_global_id(json['image']['id'])
+      expect(bi.settings['width']).to eq(400)
+      expect(bi.settings['width']).to be_a(Integer)
+      expect(bi.settings['height']).to eq(300)
+      expect(bi.settings['height']).to be_a(Integer)
+    end
+  end
 end

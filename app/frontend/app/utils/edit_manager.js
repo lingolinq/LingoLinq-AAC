@@ -15,6 +15,7 @@ import modal from './modal';
 import progress_tracker from './progress_tracker';
 import word_suggestions from './word_suggestions';
 import i18n from './i18n';
+import { saveHomeBoard } from './home_board';
 import { observer } from '@ember/object';
 import utterance from './utterance';
 
@@ -2546,28 +2547,63 @@ var editManager = EmberObject.extend({
         // TODO: always start with a shallow clone, even if not an org board
         if(user.get('org_board_keys').indexOf(old_board.get('key')) != -1) {
           // use shallow-enabled cloning workflow shown here
+          /* `org` can be undefined: `org_board_keys` is the flattened key list,
+             but `organizations` only carries the orgs whose `home_board_keys`
+             this client actually received. Dereferencing `org.id` threw inside
+             this RSVP executor, where the TypeError is swallowed into a
+             rejection and surfaced as the generic "we couldn't set up your
+             board". Fall through to the normal copy path instead — it does not
+             need the org reference. */
+          /* NOT COVERED BY A CLICK-TEST (2026-08-14). The other two `as_home`
+             cases — supervisor-picks-for-communicator, and communicator with no
+             existing copy — were both driven end to end and confirmed by
+             re-reading the user from the server. This org branch was not: the org
+             home board is private, appears in no board-picker category, and the
+             picker in that layout renders no search box, so the flow cannot be
+             reached from the picker at all. The other producer of this same
+             `links_copy_as_home` decision (board-detail -> "Set as Home Board" ->
+             "Make a New Copy", components/set-as-home.js:180) lives in the board
+             edit panel, which only renders under `edit_mode`. Both guards below
+             fail SAFE — falling through to the normal copy path, or rejecting with
+             a message — so the risk is unverified-not-broken. If you touch this
+             branch, exercise it manually first. See
+             docs/task-management/2026-08-14-click-test-adversarial-fixes.md. */
           var org = (user.get('organizations') || []).find(function(org) { return org.home_board_keys.indexOf(old_board.get('key')) != -1; });
-          user.set('preferences.home_board', {
-            id: old_board.get('id'),
-            key: old_board.get('key'),
-            swap_library: swap_library,
-            shallow: true,
-            copy: true,
-            copy_from_org: org.id
-          });
-          if(level && level > 0 && level < 10) {
-            user.set('preferences.home_board.level', level);
+          if(org && org.id) {
+            user.set('preferences.home_board', {
+              id: old_board.get('id'),
+              key: old_board.get('key'),
+              swap_library: swap_library,
+              shallow: true,
+              copy: true,
+              copy_from_org: org.id
+            });
+            if(level && level > 0 && level < 10) {
+              user.set('preferences.home_board.level', level);
+            }
+            user.save().then(function() {
+              /* Deliberately NOT saveHomeBoard's identity check: this request
+                 asks the server to COPY the org board, so it legitimately
+                 stores a different id than the one sent (user.rb#
+                 copy_to_home_board ~2869). What must be true is that an id came
+                 back at all — without this guard a skipped write fell through to
+                 findRecord(undefined), which reads as "couldn't retrieve the
+                 copied board" rather than "nothing was stored". */
+              var stored_id = user.get('preferences.home_board.id');
+              if(!stored_id) {
+                reject(i18n.t('user_home_failed', "Failed to update user's home board"));
+                return;
+              }
+              LingoLinq.store.findRecord('board', stored_id).then(function(board) {
+                resolve(board);
+              }, function(err) {
+                reject(i18n.t('user_home_find_failed', "Failed to retrieve the copied home board"));
+              })
+            }, function() {
+              reject(i18n.t('user_home_failed', "Failed to update user's home board"));
+            });
+            return;
           }
-          user.save().then(function() {
-            LingoLinq.store.findRecord('board', user.get('preferences.home_board.id')).then(function(board) {
-              resolve(board);
-            }, function(err) {
-              reject(i18n.t('user_home_find_failed', "Failed to retrieve the copied home board"));
-            })
-          }, function() {
-            reject(i18n.t('user_home_failed', "Failed to update user's home board"));
-          });
-          return;
         }
       }
       var save = old_board.create_copy(user, make_public, swap_library, new_owner, disconnect);
@@ -2597,14 +2633,14 @@ var editManager = EmberObject.extend({
           board.set('new_board_ids', new_board_ids);
           board.load_button_set(true);
           if(decision && decision.match(/as_home$/)) {
-            user.set('preferences.home_board', {
-              id: board.get('id'),
-              key: board.get('key')
-            });
-            if(level && level > 0 && level < 10) {
-              user.set('preferences.home_board.level', level);
-            }
-            user.save().then(function() {
+            /* CONFIRMED write. A 200 on the user PUT does not prove the home
+               board was stored — process_home_board (user.rb ~2932) DELETES the
+               preference and returns true when the reference will not resolve,
+               so the old `user.save().then(success)` reported a board that was
+               never set. saveHomeBoard reads the server's own echo back off the
+               record; both rejection shapes land on the same message the caller
+               already handled. */
+            saveHomeBoard(user, board, null, {level: level}).then(function() {
               finalize(true, board);
             }, function() {
               finalize(false, i18n.t('user_home_failed', "Failed to update user's home board"));

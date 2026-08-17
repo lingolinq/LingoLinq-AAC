@@ -1,7 +1,8 @@
 <div class="md-home-boards-picker__layout {{if this.tabbed "md-home-boards-picker__layout--tabbed"}}{{if this.searchAtTop " md-home-boards-picker__layout--search-top"}}">
-  {{#if (and this.searchAtTop (not this.tabbed))}}
-    <h2 class="md-home-boards-picker__section-header">{{t "Select a Category" key="browse_categories"}}</h2>
-  {{/if}}
+  {{!-- No section heading here on purpose. "Browse boards" + "Choose a category,
+       then select a board" restated the page title and its subtitle one band
+       lower, and the two columns immediately below say the same thing by
+       showing it. The page h1 carries the heading role for this content. --}}
   {{#if this.tabbed}}
     {{!-- Tabbed variant (setup board_category) — categories render as the
          boards-page file-folder tabs. Reuses the `ub-boards-page__tabs--boards`
@@ -21,7 +22,7 @@
     <aside class="md-home-boards-picker__nav" aria-label={{t "Browse by category" key="browse_by_category"}}>
       <div class="md-home-boards-picker__nav-inner setup_setting">
         {{#unless this.searchAtTop}}
-          <label class="md-home-boards-picker__nav-label">{{t "Select a Category" key="browse_categories"}}</label>
+          <label class="md-home-boards-picker__nav-label">{{t "Select Category to Preview Boards" key="select_category_to_preview_boards"}}</label>
         {{/unless}}
         <nav class="md-home-boards-picker__categories" role="navigation">
           {{#each this.categories as |category|}}
@@ -61,6 +62,28 @@
     </aside>
   {{/if}}
   <div class="md-home-boards-picker__content{{if this.searchAtTop " md-home-boards-picker__category-panel"}}">
+    {{!-- Panel head: WHICH boards, and how many. It sits above the category
+         description on purpose — name the thing first, explain it second, then
+         its controls. (It used to share a row with the search field below the
+         description, which gave the panel a second introduction.) --}}
+    {{#if this.showInlineCategoryFilter}}
+      <div class="bp-results-head">
+        {{!-- h2, not h3: the page's only other heading is its <h1>, and the
+              <h2 class="md-home-boards-picker__section-header"> that used to sit
+              between them was removed in this same redesign, leaving h1 -> h3
+              (WCAG 1.3.1 structure). --}}
+        <h2 class="bp-results-head__title">{{this.resultsTitle}}</h2>
+        {{#if this.resultsCountLabel}}
+          {{!-- Decorative separator only: aria-hidden so the count is still
+               announced as its own phrase after the heading, without a stray
+               "middle dot". Not routed through i18n because it is punctuation,
+               not translatable copy. The count stays OUTSIDE the h3 so it does
+               not become part of the heading's accessible name. --}}
+          <span class="bp-results-head__sep" aria-hidden="true">&middot;</span>
+          <span class="bp-results-head__count">{{this.resultsCountLabel}}</span>
+        {{/if}}
+      </div>
+    {{/if}}
     <div class={{if this.show_category_explainer "category_explainer full" "category_explainer"}}>
     {{#if this.category.robust}}
       <p>{{t "Rich vocabularies can feel like a lot at first—many communicators grow into them. Focus on what they can access; you can hide buttons and bring them back later. These sets offer core words, motor planning, or conversation, with room for personalization." key="robust_1"}}</p>
@@ -76,7 +99,7 @@
       <p>{{t "If spelling works well for them, keyboard boards with word prediction can speed things up. Many include quick phrases too." key="keyboards_1"}}</p>
       {{!-- Hardcoded keyboard placeholders (alphabetic + QWERTY) — styled to
            match the real board cards, with a mini keyboard preview. --}}
-      <div class="md-home-boards-picker__grid">
+      <div class="md-home-boards-picker__grid {{if this.compact_boards "md-home-boards-picker__grid--compact"}}">
         {{#each this.keyboard_placeholders as |kb|}}
           <div class="md-home-boards-picker__board simple_board_holder">
             <div class="btn simple_board_icon md-home-boards-picker__keyboard-placeholder" aria-label={{kb.name}}>
@@ -98,7 +121,12 @@
     {{else if this.category.mine}}
       <p>{{t "Boards you've created, copied, or had shared with you." key="browse_mine"}}</p>
     {{else if this.category.available_boards}}
-      <p>{{t "Top-level boards you own or that have been shared with you, plus popular public boards from the community catalog. Load more to browse additional public boards." key="board_picker_available_boards_1"}}</p>
+      {{!-- One line of context. The "load more to see additional public boards"
+           half of the old sentence moved down to the Load More control, where it
+           is actually actionable — see md-home-boards-picker__load-more-hint.
+           NEW key rather than re-using board_picker_available_boards_1: the old
+           key still carries the long sentence in the other 12 locales. --}}
+      <p>{{t "Boards you own, boards shared with you, and popular public boards." key="board_picker_available_boards_short"}}</p>
     {{/if}}
     {{#if this.category}}
       {{#if this.category_explainer_overflows}}
@@ -108,25 +136,46 @@
       {{/if}}
     {{/if}}
     </div>
+    {{!-- Search + density switcher. The category title and count used to share
+         this row; they now head the panel ABOVE the description (see
+         .bp-results-head at the top of this block) so the panel reads
+         name -> explanation -> controls -> results. --}}
     {{#if this.showInlineCategoryFilter}}
-      <div class="md-home-boards-picker__search md-home-boards-picker__search--inline">
-        <form class="md-home-boards-picker__search-form" {{on "submit" (this.ctrlAction "go_search_boards")}} role="search">
-          <label for="board-picker-search-q" class="sr-only">{{t "Filter boards" key="board_picker_filter_label"}}</label>
-          <input
-            id="board-picker-search-q"
-            type="search"
-            value={{this.boardSearchQuery}}
-            {{on "input" (set-field this "boardSearchQuery")}}
-            class="form-control md-home-boards-picker__search-input"
-            placeholder={{t "Filter boards by name" key="board_picker_filter_placeholder"}}
-            autocomplete="off"
-          />
-          {{#if this.boardSearchActive}}
-            <button type="button" class="md-home-boards-picker__search-clear" {{on "click" (this.ctrlActionNoBubble "clear_board_search")}} aria-label={{t "Clear filter" key="clear_filter"}} title={{t "Clear filter" key="clear_filter"}}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      <div class="bp-toolbar">
+        <div class="bp-toolbar__controls">
+          <form class="bp-search" {{on "submit" (this.ctrlAction "go_search_boards")}} role="search">
+            <label for="board-picker-search-q" class="sr-only">{{t "Search boards" key="board_picker_search_label"}}</label>
+            <span class="bp-search__icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+            </span>
+            <input
+              id="board-picker-search-q"
+              type="search"
+              value={{this.boardSearchQuery}}
+              {{on "input" (set-field this "boardSearchQuery")}}
+              class="bp-search__input"
+              placeholder={{t "Search boards" key="board_picker_toolbar_search_placeholder"}}
+              autocomplete="off"
+            />
+            {{#if this.boardSearchActive}}
+              <button type="button" class="bp-search__clear" {{on "click" (this.ctrlActionNoBubble "clear_board_search")}} aria-label={{t "Clear search" key="board_picker_clear_search"}} title={{t "Clear search" key="board_picker_clear_search"}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            {{/if}}
+          </form>
+          {{!-- Board display style: a real segmented control, not a text link —
+               switching density is a page-level control. Native <button>s in a
+               labelled group; aria-pressed carries the state programmatically
+               so it is not conveyed by colour alone. --}}
+          <div class="bp-segmented" role="group" aria-label={{t "Board display style" key="board_picker_display_style"}}>
+            <button type="button" class="bp-segmented__option {{unless this.compact_boards "bp-segmented__option--active"}}" aria-pressed={{unless this.compact_boards "true" "false"}} {{on "click" (this.ctrlAction "set_compact_boards" false)}}>
+              {{t "Detailed" key="board_picker_detailed"}}
             </button>
-          {{/if}}
-        </form>
+            <button type="button" class="bp-segmented__option {{if this.compact_boards "bp-segmented__option--active"}}" aria-pressed={{if this.compact_boards "true" "false"}} {{on "click" (this.ctrlAction "set_compact_boards" true)}}>
+              {{t "Compact" key="board_picker_compact"}}
+            </button>
+          </div>
+        </div>
       </div>
     {{/if}}
     {{#if this.category}}
@@ -139,11 +188,11 @@
             <h3 class="setup-board-category__brand-title">{{group.title}}</h3>
             {{#if (is-equal group.result.state "loaded")}}
               {{#if group.result.boards.length}}
-                <div class="md-home-boards-picker__grid">
+                <div class="md-home-boards-picker__grid {{if this.compact_boards "md-home-boards-picker__grid--compact"}}">
                   {{#each group.result.boards as |board|}}
                     {{#if board.key}}
                       <div class="md-home-boards-picker__board simple_board_holder">
-                        <BoardIcon @board={{board}} @prefetchPreview={{true}} />
+                        <BoardIcon @board={{board}} @prefetchPreview={{true}} @compactRow={{this.compact_boards}} />
                       </div>
                     {{/if}}
                   {{/each}}
@@ -163,7 +212,7 @@
            category_boards grid + fallback search (nothing is tagged "keyboards",
            so it was falling back to unrelated popular boards). --}}
       {{#unless this.category.keyboards}}
-      <div class="md-home-boards-picker__grid">
+      <div class="md-home-boards-picker__grid {{if this.compact_boards "md-home-boards-picker__grid--compact"}}">
         {{#if this.display_category_boards.loading}}
           <div class="md-home-boards-picker__grid-message">
             {{t "Loading boards..." key="loading_boards"}}
@@ -176,7 +225,7 @@
           {{#each this.display_category_boards as |board|}}
             {{#if board.key}}
               <div class="md-home-boards-picker__board simple_board_holder">
-                <BoardIcon @board={{board}} @prefetchPreview={{true}} />
+                <BoardIcon @board={{board}} @prefetchPreview={{true}} @compactRow={{this.compact_boards}} />
               </div>
             {{/if}}
           {{/each}}
@@ -196,6 +245,9 @@
                 {{t "Load more" key="load_more"}}
               {{/if}}
             </button>
+            {{!-- Was part of the panel's intro paragraph, three lines above the
+                 grid it describes. It belongs next to the control it explains. --}}
+            <p class="md-home-boards-picker__load-more-hint">{{t "Browse additional public boards from the community catalog." key="board_picker_load_more_hint"}}</p>
           </div>
         {{/if}}
       {{/if}}

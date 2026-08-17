@@ -4,26 +4,23 @@
       {{#unless this.side_by_side}}
         <div class="md-stats-filter__period-bar">
           <div class="md-stats-filter__row md-stats-filter__row--period-actions md-stats-filter__row--stacked">
+            {{!-- One inline row: label, period select, compare action. The colon
+                  is punctuation only, so it is aria-hidden and the label the
+                  select points at stays the plain words. --}}
             <div class="md-stats-filter__period-stack">
-              <div class="md-stats-filter__period-head">
-                <span id="report-period-filter-label" class="md-stats-filter__period-title">{{t "Report period" key="report_period"}}</span>
+              <span id="report-period-filter-label" class="md-stats-filter__period-title">{{t "Report period" key="report_period"}}<span aria-hidden="true">:</span></span>
+              <div class="md-stats-filter__period-controls">
                 <div class="form-group md-stats-filter__period-wrap">
                   <Stats::PeriodSelect @content={{this.filter_list}} @selection={{this.usage_stats.filter}} @action={{this.ctrlAction "onPeriodChange"}} @excludeSelectedFromList={{this.side_by_side}} @labelId="report-period-filter-label" />
                 </div>
-              </div>
-              {{#if this.usage_stats.custom_filter}}
-                {{#unless this.customFilterPendingApply}}
-                  <hr class="md-stats-filter__period-divider" aria-hidden="true">
-                  <div class="md-stats-filter__period-below">
+                {{#if this.usage_stats.custom_filter}}
+                  {{#unless this.customFilterPendingApply}}
                     <button type="button" {{on "click" (this.ctrlAction "compare_to")}} class="md-btn md-btn--ghost md-stats-filter__compare">{{t "Compare with another period" key="compare_with_another_period"}}</button>
-                  </div>
-                {{/unless}}
-              {{else}}
-                <hr class="md-stats-filter__period-divider" aria-hidden="true">
-                <div class="md-stats-filter__period-below">
+                  {{/unless}}
+                {{else}}
                   <button type="button" {{on "click" (this.ctrlAction "compare_to")}} class="md-btn md-btn--ghost md-stats-filter__compare">{{t "Compare with another period" key="compare_with_another_period"}}</button>
-                </div>
-              {{/if}}
+                {{/if}}
+              </div>
             </div>
           </div>
         </div>

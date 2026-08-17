@@ -27,16 +27,26 @@
       <strong class="evq-card__value">{{this.gridLabel}}</strong>
     </article>
 
-    <article class="evq-card">
-      <span class="evq-card__label">{{t "Symbol library" key="report_library"}}</span>
-      <strong class="evq-card__value">
-        {{#if this.recommendation.library}}
-          {{this.recommendation.library}}
-        {{else}}
-          {{t "Not enough data yet" key="report_library_unknown"}}
-        {{/if}}
-      </strong>
-    </article>
+    {{!-- Recommended page set — shared with the full-eval report (eval-full-report),
+         so the board-preview / setup_user wiring lives in ONE component. --}}
+    {{#if this.vocalFlairButtons}}
+      <EvalPageSetCard @buttons={{this.vocalFlairButtons}} @user={{this.user}} />
+    {{/if}}
+
+    {{!-- Symbol library: hidden on single-library deployments (eval_single_library),
+         where the comparison subtest does not run and there is no choice to report. --}}
+    {{#if this.librarySelectionActive}}
+      <article class="evq-card">
+        <span class="evq-card__label">{{t "Symbol library" key="report_library"}}</span>
+        <strong class="evq-card__value">
+          {{#if this.recommendation.library}}
+            {{this.recommendation.library}}
+          {{else}}
+            {{t "Not enough data yet" key="report_library_unknown"}}
+          {{/if}}
+        </strong>
+      </article>
+    {{/if}}
 
     <article class="evq-card">
       <span class="evq-card__label">{{t "Communicator stage" key="report_stage"}}</span>
@@ -116,7 +126,7 @@
             <span class="evq-report__targeted-label">{{t "Motor map" key="report_targeted_motor_map"}}</span>
             <strong class="evq-report__targeted-value">
               {{#if this.motorMapAccuracyPct}}
-                {{t "%{p}%% accurate" key="report_motor_map_pct" p=this.motorMapAccuracyPct}}
+                {{t "%{p}% accurate" key="report_motor_map_pct" p=this.motorMapAccuracyPct}}
               {{else}}
                 —
               {{/if}}
@@ -173,10 +183,10 @@
           <article class="evq-report__targeted-card">
             <span class="evq-report__targeted-label">{{t "Dynamic assessment" key="report_comprehensive_da"}}</span>
             <strong class="evq-report__targeted-value">
-              {{t "%{p}%% independent" key="report_comprehensive_da_independent" p=this.daSummary.independence_pct}}
+              {{t "%{p}% independent" key="report_comprehensive_da_independent" p=this.daSummary.independence_pct}}
             </strong>
             <small class="evq-report__targeted-hint">
-              {{t "Avg prompt level %{a} · %{s}%% supported · %{n}%% not yet" key="report_comprehensive_da_hint" a=this.daSummary.independence_avg s=this.daSummary.supported_pct n=this.daSummary.not_yet_pct}}
+              {{t "Avg prompt level %{a} · %{s}% supported · %{n}% not yet" key="report_comprehensive_da_hint" a=this.daSummary.independence_avg s=this.daSummary.supported_pct n=this.daSummary.not_yet_pct}}
             </small>
           </article>
         {{/if}}
@@ -185,7 +195,7 @@
             <span class="evq-report__targeted-label">{{t "Literacy probe" key="report_comprehensive_literacy"}}</span>
             <strong class="evq-report__targeted-value">
               {{#if this.literacyAccuracyPct}}
-                {{t "%{p}%%" key="report_targeted_pct" p=this.literacyAccuracyPct}}
+                {{t "%{p}%" key="report_targeted_pct" p=this.literacyAccuracyPct}}
               {{else}}
                 —
               {{/if}}

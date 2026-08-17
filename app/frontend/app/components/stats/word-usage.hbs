@@ -1,11 +1,20 @@
 <div class={{this.elem_class}} style={{this.elem_style}}>
-  <div class="md-stats-modeling-toggle modeling_toggle{{if this.usage_stats.modeling " md-stats-modeling-toggle--modeling"}}" role="group" aria-label={{t "Speech or modeling data" key="speech_or_modeling_data"}}>
-    <span class="md-stats-modeling-toggle__slider" aria-hidden="true"></span>
-    <button type="button" class="md-stats-modeling-toggle__option{{unless this.usage_stats.modeling " md-stats-modeling-toggle__option--active"}}" {{on "click" (this.ctrlAction "set_modeling" false)}}>{{t "speech" key="speech_lower"}}</button>
-    <button type="button" class="md-stats-modeling-toggle__option{{if this.usage_stats.modeling " md-stats-modeling-toggle__option--active"}}" {{on "click" (this.ctrlAction "set_modeling" true)}}>{{t "modeling" key="modeling_lower"}}</button>
-  </div>
-  <h3 class="md-stats-modeling-toggle__heading">{{t "Word Usage" key="word_usage"}}</h3>
-  <div class="md-stats-chart md-stats-chart--word-usage">
-    <div class="daily_stats" style="width: 100%; overflow: hidden; height: 320px;"></div>
+  {{! Inner card so the column's own padding stays as the gutter between charts. }}
+  <div class="report-chart-card">
+    <div class="report-chart-card__head">
+      <h3 class="report-chart-card__title">{{t "Word Usage" key="word_usage"}}</h3>
+
+      <div class="md-stats-modeling-toggle modeling_toggle{{if this.usage_stats.modeling " md-stats-modeling-toggle--modeling"}}" role="group" aria-label={{t "Speech or modeling data" key="speech_or_modeling_data"}}>
+        <span class="md-stats-modeling-toggle__slider" aria-hidden="true"></span>
+        <button type="button" class="md-stats-modeling-toggle__option{{unless this.usage_stats.modeling " md-stats-modeling-toggle__option--active"}}" {{on "click" (this.ctrlAction "set_modeling" false)}}>{{t "speech" key="speech_lower"}}</button>
+        <button type="button" class="md-stats-modeling-toggle__option{{if this.usage_stats.modeling " md-stats-modeling-toggle__option--active"}}" {{on "click" (this.ctrlAction "set_modeling" true)}}>{{t "modeling" key="modeling_lower"}}</button>
+      </div>
+    </div>
+
+    <div class="report-chart-card__body">
+      <div class="md-stats-chart md-stats-chart--word-usage">
+        <div class="daily_stats" style="width: 100%; height: 100%; overflow: hidden;"></div>
+      </div>
+    </div>
   </div>
 </div>

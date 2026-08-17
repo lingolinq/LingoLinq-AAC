@@ -246,6 +246,14 @@ var modal = EmberObject.extend({
         !!(service && service.get('currentTemplate'));
     }
   },
+  // The board preview is NOT tracked by `currentTemplate` — the service stores it
+  // on its own `boardPreview` property (services/modal#_openBoardPreview), so
+  // `is_open('board-preview')` cannot see it. Callers that need to know whether
+  // the preview is still up must ask this.
+  board_preview_open: function() {
+    var service = this._getService();
+    return !!(service && service.get('boardPreview'));
+  },
   is_closeable: function() {
     var modal = document.querySelector(".modal");
     return modal && modal.getAttribute('data-uncloseable') != 'true';
@@ -478,6 +486,18 @@ var modal = EmberObject.extend({
         }
       }, 2000);
     }
+    /* `body.modal-open` is DERIVED from service.isOpen(), and the service syncs
+       it on its own open/close (services/modal.js:111,273). This util path
+       clears the service's state by hand instead of calling service.close(), so
+       it never synced — and ~36 components close through here (pick-avatar,
+       tour-board-picker, new-user, …). The class stayed on <body> after the
+       modal unmounted, and Bootstrap's `.modal-open { overflow: hidden }` kept
+       page scroll locked until some later service-path modal happened to close.
+       Sync AFTER every branch above has finished clearing, so isOpen() is
+       reading the settled state. */
+    if (service && typeof service._syncBodyModalOpen === 'function') {
+      service._syncBodyModalOpen();
+    }
   },
   flash: function(text, type, below_header, sticky, opts) {
     if(!this.route) { throw "must call setup before trying to show a flash message"; }
@@ -546,11 +566,24 @@ var modal = EmberObject.extend({
       service.open('board-preview', {
         board: board,
         locale: locale || (board.get ? board.get('preview_locale') : board.preview_locale),
-        option: board.preview_option || board.get ? board.get('preview_option') : undefined,
+        // `preview_option` is always assigned as a PLAIN property, even onto Ember
+        // Data records (button-settings.js:1392, board-icon.js:318/399) — it is not
+        // a board attr. Read it back the same way it was written, branching on the
+        // receiver rather than on the value: the previous form,
+        // `board.preview_option || board.get ? board.get(...) : undefined`, parsed
+        // as `(board.preview_option || board.get) ? ... : ...` because `||` binds
+        // tighter than `?:`, so a plain-object board carrying a truthy
+        // preview_option took the true branch and threw "board.get is not a
+        // function". Ember-record callers are unaffected either way.
+        option: board.get ? board.get('preview_option') : board.preview_option,
         allow_style: allow_style,
         callback: callback,
         remove: remove,
-        // opts.recommend → "recommended home board" header (see board-preview-overlay.hbs).
+        // opts.recommend marks this as a RECOMMENDED-board preview, which swaps the
+        // footer to the single "Pick this Board" CTA that assigns the board to
+        // `setup_user || currentUser` (board-preview.js#pick_for_home_mode →
+        // board-preview-overlay#pick_for_home). Used by the eval report's
+        // "Preview & choose for <user>" card via utils/recommended_home_board.
         recommend: !!(opts && opts.recommend)
       });
     }

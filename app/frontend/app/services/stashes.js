@@ -34,6 +34,21 @@ export default Service.extend({
     if (this.isDestroyed || this.isDestroying) {
       return;
     }
+    // Seed our own `online` flag. The persistence service propagates its value
+    // here via `on_connect`, which is an observer('online') — it fires only when
+    // that flag CHANGES. Persistence initializes its flag from navigator.onLine,
+    // so on a machine that starts online and stays online the observer NEVER
+    // fires and this stayed `undefined` for the entire session.
+    //
+    // That is not cosmetic: push_log's guard is `this.get('online')`, so an
+    // undefined flag silently dropped every log push — no logs, evals, or
+    // assessments ever reached the server, while localStorage quietly filled up.
+    // It failed closed and said nothing, which is why it looked like the eval
+    // report was at fault.
+    //
+    // Seeded from the same source persistence uses, so the two agree from the
+    // first tick; the observer still keeps them in step on any later change.
+    this.set('online', navigator.onLine);
     this.memory_stash = memory_stash;
     this.prefix = 'lingolinqStash-';
     var legacyPrefix = 'cdStash-';
