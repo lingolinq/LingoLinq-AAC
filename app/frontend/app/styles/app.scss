@@ -76172,6 +76172,253 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
      override below), so 120 would over-reserve and leave a dead gap. */
   height: calc(100dvh - 120px);
 }
+
+/* ── Fitzgerald category grouping (flag: board_category_grouping) ─────────────
+   The .md-board-detail-grid__group wrapper is emitted in BOTH modes so the
+   ~200-line cell block in board-detail-grid.hbs is written once instead of
+   duplicated into a grouped branch. Ungrouped it is `display: contents`, so it
+   generates NO box and the base grid above lays out exactly as it did before
+   this feature existed. Only .md-board-detail-grid--grouped gives it a box. */
+.md-board-detail-grid__group {
+  display: contents;
+}
+
+/* Inner button container. Emitted in both modes; `display: contents` when
+   ungrouped so it generates no box and today's grid is untouched. */
+.md-board-detail-grid__group-body {
+  display: contents;
+}
+
+.md-board-detail-grid--grouped .md-board-detail-grid__group-body {
+  display: grid;
+  /* The button grid lives HERE now (moved off __group, which is a plain block
+     stack). Panels hold their own columns so a 3-button group and a 16-button
+     group both read as one block rather than inheriting the board's columns. */
+  grid-template-columns: repeat(var(--bd-group-inner-columns, 4), minmax(0, 1fr));
+  gap: var(--bd-button-gap, 8px);
+  grid-auto-rows: min-content;
+  padding: 7px;
+  border-radius: 10px;
+  /* Glassy inner surface, a couple of steps lighter than the board.
+     Still DERIVED from $brand-charcoal-dark (the board surface it sits on,
+     .md-board-detail-main app.scss:69078) rather than a fresh hex, so it tracks
+     the brand colour if that ever moves. Two layers, per the house recipe in
+     LEARNINGS "Atmospheric depth surface formula": a translucent white veil on
+     top reading as ambient light catching the surface, over a subtle vertical
+     tonal gradient. A flat fill cannot produce the same quality.
+     The inset top highlight + inset bottom shade give it directional lighting
+     (bright above, dark below) so it reads as a recessed glass tray holding the
+     buttons rather than a flat rectangle. */
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.13) 0%, rgba(255, 255, 255, 0.04) 48%, rgba(255, 255, 255, 0.09) 100%),
+    linear-gradient(180deg,
+      #{rgba(color.adjust($brand-charcoal-dark, $lightness: 10%), 0.78)} 0%,
+      #{rgba(color.adjust($brand-charcoal-dark, $lightness: 5%),  0.74)} 100%);
+  /* The base above is TRANSLUCENT on purpose -- that is what separates glass
+     from gloss. The category tint behind shows through and is blurred and
+     saturated by the backdrop filter, so each tray picks up a hint of its own
+     category colour instead of being an opaque slab with a sheen painted on.
+     Same blur+saturate idiom the rest of the app uses for glass surfaces. */
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  backdrop-filter: blur(10px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.24),          /* crisp specular top edge (gloss line) */
+    inset 0 14px 22px -16px rgba(255, 255, 255, 0.18),  /* upper sheen bloom */
+    inset 0 -10px 22px -18px rgba(0, 0, 0, 0.22),       /* lower depth */
+    0 1px 2px rgba(0, 0, 0, 0.10);
+}
+
+/* Dark mode uses the translucent navy the main board surface uses, not the page
+   canvas behind it — same distinction called out at app.scss:55042. */
+.md-board-detail--dark .md-board-detail-grid--grouped .md-board-detail-grid__group-body {
+  /* Same construction against the dark theme's navy: veil over a lifted base.
+     Lighter than the flat translucent navy it replaced so the tray still reads as
+     raised out of the panel in dark mode, where a too-close value goes muddy. */
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.03) 48%, rgba(255, 255, 255, 0.06) 100%),
+    linear-gradient(180deg, rgba(44, 55, 76, 0.76) 0%, rgba(34, 43, 61, 0.72) 100%);
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.14),
+    inset 0 14px 22px -16px rgba(255, 255, 255, 0.10),
+    inset 0 -10px 22px -18px rgba(0, 0, 0, 0.30),
+    0 1px 2px rgba(0, 0, 0, 0.22);
+}
+
+/* Grouped board = category panels tiled across columns.
+   GRID, not multi-column: the base .md-board-detail-grid carries a definite
+   height (calc(100dvh - 120px)), and CSS multicol under a definite height does
+   NOT stop at column-count — it keeps generating columns in the inline
+   direction, which pushed the last panels off-screen to the right. Grid cannot
+   overflow sideways. */
+/* Panels pack ("tetris") with no dead space between them.
+   Multi-column, not grid: a grid tiles ROW-WISE, so every row is as tall as its
+   tallest panel and a 15-button category leaves a gap under every shorter panel
+   beside it. Columns let panels stack independently and the browser balances
+   them for free.
+   The `height: auto` override is what makes this work and is NOT optional. The
+   base .md-board-detail-grid sets height: calc(100dvh - 120px); multi-column
+   under a DEFINITE height does not stop at column-count -- it keeps generating
+   columns sideways, which is what pushed the last categories off-screen on the
+   first attempt. With an indefinite height the browser balances into exactly
+   --bd-group-columns and cannot overflow horizontally. */
+.md-board-detail-grid--grouped {
+  display: block;
+  /* BOTH of these are load-bearing; do not add a height, max-height or overflow
+     back to this rule.
+     Multi-column only balances into `column-count` when its height is
+     INDEFINITE. Give it any definite height -- including a max-height -- and it
+     becomes a fragmentation context that keeps generating columns sideways past
+     the count, and an overflow-x then CLIPS them. That is how a 60-button board
+     rendered all 60 cells into the DOM while only ~40 were reachable on screen.
+     Scrolling is already handled one level up: .md-board-detail-main is the
+     scroll container (overflow-y: auto, min-height: 0, app.scss:69078), so a
+     grouped board taller than the viewport scrolls there instead. */
+  height: auto;
+  columns: var(--bd-group-columns, 3);
+  column-gap: var(--bd-button-gap, 8px);
+}
+
+.md-board-detail-grid--grouped .md-board-detail-grid__group {
+  /* A stack: header, then the button container. The button grid itself moved to
+     __group-body so the buttons can sit on their own surface. */
+  display: block;
+  /* Never split a category across a column break. A group torn in half is worse
+     than no grouping at all for someone scanning for a word. */
+  break-inside: avoid;
+  page-break-inside: avoid;
+  /* Vertical rhythm between stacked panels. In multi-column this is the ONLY
+     spacing between panels in the same column -- column-gap handles the
+     horizontal side, and there is no grid `gap` to fall back on here. */
+  margin: 0 0 var(--bd-button-gap, 8px);
+  padding: 8px;
+  border-radius: 14px;
+
+  /* Inner surface deliberately mirrors the outer board surface so there is a
+     contrast EDGE between group and board for the AAC user (requested). The
+     category tint rides underneath the same glass veil the rest of the app uses,
+     so a group reads as the same material as the board, not a foreign card.
+     Tint comes from --bd-group-fill, set inline from the SAME --fitzgerald-*
+     custom property the buttons inside it use, so panel and buttons can't drift.
+     Recipe: docs/task-management/LEARNINGS.md "Atmospheric depth surface formula". */
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.62) 0%, rgba(255, 255, 255, 0.28) 100%),
+    var(--bd-group-fill, #ffffff);
+  border: 1px solid rgba($la-navy, 0.06);
+  box-shadow:
+    0 1px 2px  rgba($la-navy, 0.04),
+    0 8px 24px rgba($la-navy, 0.07),
+    0 24px 60px rgba($la-navy, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+/* THE cell-height fix. In the ungrouped grid a cell has no intrinsic height at
+   all -- .md-board-detail-grid__cell is `display:flex; min-height:0` and the card
+   inside it is `flex: 1 1 0`, so ALL of its height comes from the parent's
+   `grid-template-rows: repeat(--board-rows, minmax(0,1fr))` on a fixed-height
+   container. A panel's rows are content-sized, and a `flex-basis: 0` child
+   contributes no content height, so without this every button collapsed to a
+   hairline. aspect-ratio gives the cell a height derived from the column width
+   it already has. */
+.md-board-detail-grid--grouped .md-board-detail-grid__cell {
+  aspect-ratio: var(--bd-group-cell-ratio, 1);
+  min-height: 0;
+  /* Slight size reduction, one knob.
+     The cell sits a little inside its grid track instead of filling it, so the
+     button shrinks UNIFORMLY and stays square. Scaling this way rather than
+     flattening the aspect-ratio (which would make buttons wider than tall) or
+     adding a column (which would resize them far more than "slightly"). Centred
+     so the freed space is shared either side and the rows stay visually aligned. */
+  width: var(--bd-group-cell-scale, 85%);
+  justify-self: center;
+}
+
+/* Header spans the panel's full inner width. aria-hidden in the template: the
+   group already carries role="group" + aria-label, so exposing the heading too
+   would make a screen reader announce every category name twice. */
+.md-board-detail-grid--grouped .md-board-detail-grid__group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  /* Straightforward spacing now that __group is a block stack rather than a
+     grid: the header is a normal sibling of the button container, so there is no
+     grid `gap` applying to it and the earlier negative-margin cancellation is no
+     longer needed. */
+  padding: 0 2px 5px;
+  margin-bottom: 5px;
+  /* Divider between the category label and its buttons. Derived from the
+     category's OWN paired text colour rather than a fixed grey, so each panel's
+     rule sits in the same colour family as its tint instead of reading as a
+     foreign line dropped on top. Low alpha keeps it a hairline: at full strength
+     it competes with the buttons for attention, which is the opposite of what a
+     scanning aid should do. */
+  border-bottom: 1px solid color-mix(in srgb, var(--bd-group-text, #{$la-navy}) 25%, transparent);
+}
+
+.md-board-detail-grid--grouped .md-board-detail-grid__group-name {
+  /* 16px fixed. The header is what makes a group identifiable at a glance, so it
+     is sized independently of the buttons rather than scaling with them. */
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  /* Paired text colour from the same Fitzgerald entry as the fill, so contrast
+     is the WCAG-checked pairing already used for the buttons. */
+  color: var(--bd-group-text, #{$la-navy});
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.md-board-detail-grid--grouped .md-board-detail-grid__group-count {
+  /* Matches the category name at 16px (requested) so header and count read as
+     one line rather than a label with a footnote. */
+  font-size: 16px;
+  font-weight: 600;
+  opacity: 0.55;
+  color: var(--bd-group-text, #{$la-navy});
+  flex: 0 0 auto;
+}
+
+/* Narrower viewports drop to fewer columns before shrinking buttons — a smaller
+   button is worse for an AAC user than a taller board. */
+/* These set `columns`, not grid-template-columns — the grouped board is a
+   multi-column context now, and a grid-template-* declaration here would be
+   silently inert. */
+@media (max-width: 1100px) {
+  .md-board-detail-grid--grouped { columns: var(--bd-group-columns-md, 2); }
+}
+@media (max-width: 700px) {
+  .md-board-detail-grid--grouped { columns: 1; }
+}
+
+/* Dark mode: same recipe, glass veil over the tint instead of under white. */
+.md-board-detail--dark .md-board-detail-grid--grouped .md-board-detail-grid__group {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.015) 100%),
+    color-mix(in srgb, var(--bd-group-fill, #ffffff) 26%, #101826);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 1px 2px  rgba(0, 0, 0, 0.30),
+    0 8px 24px rgba(0, 0, 0, 0.34),
+    0 24px 60px rgba(0, 0, 0, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.md-board-detail--dark .md-board-detail-grid--grouped .md-board-detail-grid__group-name,
+.md-board-detail--dark .md-board-detail-grid--grouped .md-board-detail-grid__group-count {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+/* Dark mode overrides the header TEXT colour above but not --bd-group-text, so
+   the divider would still derive from the light-mode paired ink and disappear
+   against a dark panel. Restate it against white. */
+.md-board-detail--dark .md-board-detail-grid--grouped .md-board-detail-grid__group-header {
+  border-bottom-color: rgba(255, 255, 255, 0.16);
+}
 /* SHORT viewports (≤500px tall): the sentence bar shrinks ~27px here (the
    --nb-sb var block also fires at this height — app.scss ~68633), but the grid's
    fixed 120px offset above did not follow, so the top-aligned grid ended ~27px
@@ -76184,7 +76431,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    scroll — narrow-width keeps the 120px offset. Speak mode only — edit mode
    hides the live sentence row (its grid keeps 120px via the edit-scoped rule). */
 @media (max-height: 500px) {
-  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid-sidebar-wrap .md-board-detail-grid {
+  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid-sidebar-wrap .md-board-detail-grid:not(.md-board-detail-grid--grouped) {
     height: calc(100dvh - 93px);
   }
 }
@@ -76197,7 +76444,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    a giant (large/huge) bar on a ≤400px screen is an extreme edge that can still
    scroll a few px. Speak mode only. */
 @media (max-height: 400px) {
-  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid-sidebar-wrap .md-board-detail-grid {
+  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid-sidebar-wrap .md-board-detail-grid:not(.md-board-detail-grid--grouped) {
     height: calc(100dvh - 72px);
   }
 }
@@ -76211,7 +76458,7 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    offset keep the bottom flush). Speak mode only. The prediction rail reads the
    grid's rowGap (parseFloat) so it tightens to match — 4px is a plain length. */
 @media (max-height: 700px) {
-  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid-sidebar-wrap .md-board-detail-grid {
+  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid-sidebar-wrap .md-board-detail-grid:not(.md-board-detail-grid--grouped) {
     gap: 4px !important;
     padding-top: 0;
   }
@@ -80582,7 +80829,11 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   // Folder FRONT color (--btn-bg) 20% darker — i.e. 10% darker than .md-folder-back (which
   // uses 10%) — so the tab reads as a distinct, deeper accent against the folder body; falls
   // back to the prior charcoal-blue when uncolored.
-  background: color-mix(in srgb, var(--btn-bg, #{color.adjust($brand-charcoal-blue, $lightness: 16%)}) 80%, black);
+  // Tab sits 5% darker than the folder FRONT colour — just enough of an edge to
+  // read as its own element without breaking the sense that tab and face are the
+  // same folder. Sits between the face (0%) and .md-folder-back (10% darker), so
+  // the three planes still step back in order: face, tab, body.
+  background: color-mix(in srgb, var(--btn-bg, #{color.adjust($brand-charcoal-blue, $lightness: 16%)}) 95%, black);
   /* Rounded-rectangle tab. A prior version used a trapezoid clip-path
      (polygon(16% 0, 84% 0, 100% 100%, 0 100%)) to angle the sides inward, but
      clip-path RE-CLIPS to the polygon's sharp vertices — it discards the
