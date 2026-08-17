@@ -471,4 +471,133 @@ describe SupervisorConsentService, :type => :model do
       expect(rel.reload.status).to eq('expired')
     end
   end
+
+  # The specs above hand the service a STALE copy and commit the winner's write
+  # first. That proves the recheck runs, but it never puts two transactions in
+  # contention, so it cannot prove the LOCK serializes them. This group does:
+  # two threads, two real connections, both holding a pending copy, racing.
+  #
+  # Transactional fixtures must be off for it. Each thread checks out its own
+  # connection and would otherwise be unable to see rows created inside the
+  # example's uncommitted transaction. Records are therefore committed for real
+  # and torn down explicitly in `after`.
+  describe "genuinely concurrent transitions" do
+    self.use_transactional_tests = false
+
+    # Rows here are really committed, so they must be really removed. Cleanup is
+    # scoped to the ids this group created rather than a blanket delete_all: the
+    # test database carries orphaned rows from other files, and wiping tables
+    # wholesale in a non-transactional group is how one spec file starts
+    # breaking another.
+    before(:each) { @created_user_ids = []; @created_rel_ids = [] }
+
+    after(:each) do
+      SupervisorRelationship.where(id: @created_rel_ids).delete_all
+      UserLink.where(user_id: @created_user_ids).delete_all
+      UserLink.where(secondary_user_id: @created_user_ids).delete_all
+      User.where(id: @created_user_ids).delete_all
+    end
+
+    def make_user
+      u = User.create
+      @created_user_ids << u.id
+      u
+    end
+
+    def make_relationship(attrs)
+      rel = SupervisorRelationship.create!(attrs)
+      @created_rel_ids << rel.id
+      rel
+    end
+
+    # Both threads are held at the gate and released together, so they contend
+    # for the row lock rather than running one after the other.
+    def race(&block)
+      gate = Queue.new
+      results = Queue.new
+      threads = [:approve, :deny].map do |decision|
+        Thread.new do
+          gate.pop
+          begin
+            ActiveRecord::Base.connection_pool.with_connection { results << [decision, block.call(decision)] }
+          rescue => e
+            results << [decision, { error: "raised:#{e.class}" }]
+          end
+        end
+      end
+      2.times { gate << :go }
+      threads.each { |t| t.join(20) }
+      Array.new(results.size) { results.pop }.to_h
+    end
+
+    it "should let exactly one of two simultaneous approve/deny transitions win" do
+      supervisor = make_user
+      communicator = make_user
+      rel = make_relationship(
+        supervisor_user: supervisor,
+        communicator_user: communicator,
+        status: 'pending',
+        permission_level: 'edit_boards'
+      )
+      rel.generate_consent_token!
+      allow(SupervisorMailer).to receive(:schedule_delivery)
+
+      # Each side loads its own copy while the row is still pending: this is the
+      # state both parties are in when the guardian clicks the email link at the
+      # same moment the communicator answers in-app.
+      copies = {
+        approve: SupervisorRelationship.find(rel.id),
+        deny: SupervisorRelationship.find(rel.id)
+      }
+      expect(copies.values.map(&:status)).to eq(['pending', 'pending'])
+
+      svc = SupervisorConsentService.new
+      out = race do |decision|
+        if decision == :approve
+          svc.approve_as_party(relationship: copies[:approve], actor: communicator)
+        else
+          svc.deny_as_party(relationship: copies[:deny], actor: communicator)
+        end
+      end
+
+      winners = out.select { |_d, r| r[:error].nil? }
+      expect(winners.size).to eq(1)
+      expect(out.values.map { |r| r[:error] }.compact).to eq(['not_pending'])
+
+      final = SupervisorRelationship.find(rel.id)
+      expect(final.status).to eq(winners.keys.first == :approve ? 'approved' : 'denied')
+
+      # The invariant the unlocked version could break: the recorded decision and
+      # the actual access must agree. Previously an approve could create the link
+      # and a deny could then land on top, leaving a row that reads 'denied'
+      # while the supervisor still had live access.
+      linked = communicator.reload.supervisor_user_ids.include?(supervisor.global_id)
+      expect(linked).to eq(final.status == 'approved')
+    end
+
+    it "should let exactly one of two simultaneous revokes win" do
+      supervisor = make_user
+      communicator = make_user
+      User.link_supervisor_to_user(supervisor, communicator)
+      rel = make_relationship(
+        supervisor_user: supervisor,
+        communicator_user: communicator,
+        status: 'approved',
+        activated_at: Time.current
+      )
+      allow(SupervisorMailer).to receive(:schedule_delivery)
+
+      copies = {
+        approve: SupervisorRelationship.find(rel.id),
+        deny: SupervisorRelationship.find(rel.id)
+      }
+      svc = SupervisorConsentService.new
+      out = race { |d| svc.revoke(relationship: copies[d], revoker: supervisor) }
+
+      expect(out.values.count { |r| r[:error].nil? }).to eq(1)
+      expect(out.values.map { |r| r[:error] }.compact).to eq(['not_active'])
+      expect(SupervisorRelationship.find(rel.id).status).to eq('revoked')
+      expect(communicator.reload.supervisor_user_ids).to_not include(supervisor.global_id)
+    end
+  end
 end

@@ -257,6 +257,68 @@ describe Api::BadgesController, :type => :controller do
       expect(json['badge'].map{|b| b['id']}).to eq([shown.global_id])
     end
 
+    # Both org specs below put the caller in a SUPERVISORY relationship with the
+    # queried account (`holder`), so `user.allows?(@api_user,'supervise')` is true
+    # and the `highlighted` downgrade is NOT forced. That matters: if the caller
+    # were a stranger to `holder`, the downgrade alone would hide an unhighlighted
+    # badge and the negative spec would pass without ever exercising the
+    # cross-account authorization check it claims to test.
+    it "should not leak a supervisee's badges across an organization boundary" do
+      token_user
+      holder = User.create
+      User.link_supervisor_to_user(@user, holder, nil, 'edit')
+
+      other_org = Organization.create(:settings => {'total_licenses' => 1})
+      comm = User.create
+      other_org.add_user(comm.user_name, true, false)
+      User.link_supervisor_to_user(holder, comm.reload, nil, 'edit')
+
+      my_org = Organization.create(:settings => {'total_licenses' => 1})
+      my_org.add_manager(@user.user_name, true)
+
+      comm.reload
+      @user.reload
+      # Preconditions, asserted so this cannot pass vacuously: the downgrade is
+      # NOT in play, and the caller holds no permission on this communicator.
+      expect(holder.reload.allows?(@user, 'supervise')).to eq(true)
+      expect(Organization.manager_for?(@user, comm, true)).to eq(false)
+      expect(comm.allows?(@user, 'set_goals')).to eq(false)
+
+      leaked = UserBadge.create(:user => comm, :earned => true)
+
+      get 'index', params: {:user_id => holder.global_id, recent: true}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      # Managing SOME org does not authorize reading a communicator in another.
+      expect(json['badge'].map{|b| b['id']}).to_not include(leaked.global_id)
+    end
+
+    it "should return a supervisee's badges to a manager of that supervisee's own org" do
+      token_user
+      holder = User.create
+      User.link_supervisor_to_user(@user, holder, nil, 'edit')
+
+      org = Organization.create(:settings => {'total_licenses' => 2})
+      comm = User.create
+      org.add_user(comm.user_name, false, false)
+      org.add_manager(@user.user_name, true)
+      comm.reload
+      @user.reload
+      User.link_supervisor_to_user(holder, comm, nil, 'edit')
+
+      # The other half of the boundary: a manager OF this communicator's own org
+      # holds set_goals (user.rb:85) and must not be denied by the new check.
+      expect(Organization.manager_for?(@user, comm, true)).to eq(true)
+      expect(comm.reload.allows?(@user, 'set_goals')).to eq(true)
+
+      visible = UserBadge.create(:user => comm, :earned => true)
+
+      get 'index', params: {:user_id => holder.reload.global_id, recent: true}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['badge'].map{|b| b['id']}).to include(visible.global_id)
+    end
+
     it "should still return every supervisee's badges to a legitimate supervisor via recent" do
       token_user
       a = User.create
