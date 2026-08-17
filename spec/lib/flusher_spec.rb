@@ -356,6 +356,33 @@ describe Flusher do
       expect(UserVideo.where(id: other_video.id).count).to eq(1)
     end
 
+    it "should schedule S3 removal of derivative media objects (secondary_output, prior_full_filenames) through the real Flusher.flush_user_content path" do
+      # Exercises MediaObject#remove_derivative_remote_data via the actual
+      # production caller (ButtonSound.where(user_id:).each { flush_record }
+      # in lib/flusher.rb) and a freshly-DB-loaded record, not a direct
+      # in-memory .destroy on the object returned by .create -- the two
+      # differ in whether settings has already been decrypted/memoized
+      # (spec/models/concerns/media_object_spec.rb covers the .destroy path
+      # directly; this covers the sweep that actually calls it in production).
+      u = User.create
+      secondary_key = 'sounds/1/2/3/1_5-secondaryabc1723500000.wav'
+      prior_key = 'sounds/1/2/3/1_5-priorabc.m4a'
+      sound = ButtonSound.create(user: u, settings: {
+        'content_type' => 'audio/mp3',
+        'full_filename' => 'sounds/1/2/3/1_5-currentflush.mp3',
+        'secondary_output' => {'filename' => secondary_key, 'content_type' => 'audio/wav'},
+        'prior_full_filenames' => [prior_key]
+      }, url: 'https://example-uploads.s3.amazonaws.com/sounds/1/2/3/1_5-currentflush.mp3')
+
+      expect(Uploader).to receive(:remote_remove).with(secondary_key)
+      expect(Uploader).to receive(:remote_remove).with(prior_key)
+
+      Flusher.flush_user_content(u.global_id, u.user_name)
+      Worker.process_queues
+
+      expect(ButtonSound.where(id: sound.id).count).to eq(0)
+    end
+
     it "should flush LogSnapshot records for the user without touching other users" do
       u = User.create
       u2 = User.create
