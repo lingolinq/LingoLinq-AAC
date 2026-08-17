@@ -294,6 +294,28 @@
           {{/unless}}
         </div>
 
+        {{!-- CATEGORIZE — opens the full-width category-order panel below. Sits
+             between Board Actions and Search & Filter. Gated on the grouping
+             flag so the rail is unchanged when the feature is off. --}}
+        {{#if this.app_state.feature_flags.board_category_grouping}}
+        <div class="md-board-edit-panel__group md-board-edit-panel__group--categorize">
+          <button type="button"
+            class="md-board-edit-panel__row md-board-edit-panel__row--categorize {{if this.category_order_open 'md-board-edit-panel__row--active'}}"
+            aria-expanded={{if this.category_order_open "true" "false"}}
+            aria-controls="board-category-order-panel"
+            data-bd-action="toggle_category_order"
+            {{on "click" (this.ctrlAction "toggle_category_order")}}>
+            <svg class="md-board-edit-panel__row-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="3" width="7" height="7" rx="1"></rect>
+              <rect x="14" y="3" width="7" height="7" rx="1"></rect>
+              <rect x="3" y="14" width="7" height="7" rx="1"></rect>
+              <rect x="14" y="14" width="7" height="7" rx="1"></rect>
+            </svg>
+            <span class="md-board-edit-panel__label">{{t "Categorize" key="board_categorize"}}</span>
+          </button>
+        </div>
+        {{/if}}
+
         {{!-- SEARCH & FILTER GROUP — the buttons-search input and the
              Filter by Category control share one labelled section,
              mirroring the Share & Export group's group+subheader
@@ -3411,6 +3433,104 @@
         <SidebarEditor @onBack={{this.onCloseSidebarEditor}} />
       </div>
     {{/if}}
+  {{/if}}
+
+  {{!-- CATEGORY ORDER PANEL — full-width takeover.
+        Rendered last in the shell and positioned over the layout, so opening it
+        needs no surgery on the edit page's three-column grid. The preview uses
+        the SAME BoardDetailGrid the live board uses, with @forceGrouping, so what
+        is previewed cannot drift from what ships; @editMode is deliberately false
+        so the preview is not draggable and the real board's drag/swap/paint
+        behaviour is untouched. --}}
+  {{#if this.category_order_open}}
+    <div class="md-board-category-order" id="board-category-order-panel" role="region" aria-label={{t "Categorize board" key="board_categorize_panel"}}>
+      <div class="md-board-category-order__bar">
+        <label class="md-board-category-order__toggle">
+          <input type="checkbox" checked={{this.categorize_enabled}} {{on "change" (this.ctrlAction "toggle_categorize")}}>
+          <span>{{t "Categorize" key="board_categorize"}}</span>
+        </label>
+        <p class="md-board-category-order__hint">{{t "Group this board's buttons by category. Use the arrows to change the order the categories appear in." key="board_categorize_hint"}}</p>
+        <div class="md-board-category-order__bar-actions">
+          <button type="button" class="md-board-category-order__reset" data-bd-action="reset_category_order" {{on "click" (this.ctrlAction "reset_category_order")}}>{{t "Reset order" key="board_categorize_reset"}}</button>
+          <button type="button" class="md-board-category-order__close" data-bd-action="toggle_category_order" {{on "click" (this.ctrlAction "toggle_category_order")}}>{{t "Done" key="done"}}</button>
+        </div>
+      </div>
+
+      <div class="md-board-category-order__body">
+        <ol class="md-board-category-order__list" aria-label={{t "Category order" key="board_category_order"}}>
+          {{#each this.category_order_list as |cat|}}
+            <li class="md-board-category-order__item" style={{safe-style (concat "--bd-group-fill:var(" cat.fillVar ");--bd-group-text:var(" cat.textVar ")")}}>
+              <span class="md-board-category-order__swatch" aria-hidden="true"></span>
+              <span class="md-board-category-order__name">{{cat.label}}</span>
+              <span class="md-board-category-order__controls">
+                <button type="button" class="md-board-category-order__move" disabled={{cat.first}}
+                  aria-label={{concat (t "Move up" key="move_up") " " cat.label}}
+                  {{on "click" (this.ctrlAction "move_category" cat.key "up")}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                </button>
+                <button type="button" class="md-board-category-order__move" disabled={{cat.last}}
+                  aria-label={{concat (t "Move down" key="move_down") " " cat.label}}
+                  {{on "click" (this.ctrlAction "move_category" cat.key "down")}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
+              </span>
+            </li>
+          {{/each}}
+        </ol>
+
+        <div class="md-board-category-order__preview">
+          {{!-- selectButton is wired to the move picker rather than to activation:
+                inside this panel, tapping a button means "move this one", not
+                "speak this one". --}}
+          <BoardDetailGrid
+            @board={{this.model}}
+            @orderedButtons={{this.ordered_buttons}}
+            @forceGrouping={{true}}
+            @selectButton={{this.ctrlAction "begin_category_move"}}
+            @editMode={{false}}
+            @softBorders={{this.soft_borders}}
+            @buttonTextSizeClass={{this.button_text_size_class}}
+            @buttonTextPositionClass={{this.button_text_position_class}}
+            @hiddenButtonsClass={{this.hidden_buttons_class}}
+            @symbolBackgroundClass={{this.symbol_background_class}}
+            @highContrastClass={{this.high_contrast_class}}
+            @buttonShapeClass={{this.button_shape_class}}
+            @gridStyle={{this.grid_style}}
+            @buttonTextSizePx={{this.button_text_size_px}}
+            @buttonSpacingPx={{this.button_spacing_px}}
+            @buttonBorderPx={{this.button_border_px}}
+            @buttonFontStyle={{this.button_font_style}} />
+        </div>
+      </div>
+
+      {{!-- MOVE-TO-CATEGORY PICKER. Moving a button between categories RECOLOURS
+            it on the real board — the category is derived from the colour — so
+            the swatch beside each name is the colour the button will become, not
+            decoration. This is a board edit and follows the board's Save/Cancel,
+            unlike the category order above it. --}}
+      {{#if this.category_move_button}}
+        <div class="md-board-category-order__picker-backdrop" data-bd-action="cancel_category_move" {{on "click" (this.ctrlAction "cancel_category_move")}}></div>
+        <div class="md-board-category-order__picker" role="dialog" aria-modal="true" aria-label={{t "Move button to a category" key="board_move_button_category"}}>
+          <div class="md-board-category-order__picker-head">
+            <span class="md-board-category-order__picker-title">
+              {{t "Move" key="move"}} “{{or this.category_move_button.label this.category_move_button.vocalization}}”
+            </span>
+            <button type="button" class="md-board-category-order__picker-close" data-bd-action="cancel_category_move" {{on "click" (this.ctrlAction "cancel_category_move")}} aria-label={{t "Cancel" key="cancel"}}>×</button>
+          </div>
+          <p class="md-board-category-order__picker-note">{{t "This changes the button's color on the board." key="board_move_button_recolors"}}</p>
+          <div class="md-board-category-order__picker-list">
+            {{#each this.category_order_list as |cat|}}
+              <button type="button" class="md-board-category-order__picker-item"
+                style={{safe-style (concat "--bd-group-fill:var(" cat.fillVar ")")}}
+                {{on "click" (this.ctrlAction "move_button_to_category" cat.key)}}>
+                <span class="md-board-category-order__swatch" aria-hidden="true"></span>
+                <span class="md-board-category-order__name">{{cat.label}}</span>
+              </button>
+            {{/each}}
+          </div>
+        </div>
+      {{/if}}
+    </div>
   {{/if}}
 </div>
 

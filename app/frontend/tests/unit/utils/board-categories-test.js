@@ -2,6 +2,7 @@ import { module, test } from 'qunit';
 import {
   BOARD_CATEGORIES,
   DEFAULT_CATEGORY_ORDER,
+  assign_columns,
   category_for_button,
   normalize_order,
   group_buttons
@@ -294,6 +295,79 @@ module('Unit | Utility | board_categories', function() {
       return acc.concat(g.buttons.map(function(b) { return b.id; }));
     }, []);
     assert.deepEqual(ids, ['real'], 'exactly the one real button survives');
+  });
+
+  /*
+   * Column assignment is the piece that decides how the grouped board looks, so
+   * it is asserted here rather than checked by eye. CSS multi-column balances but
+   * never exposes which panels landed where, which is why nothing could be told
+   * to stretch and the bottom edge stayed ragged.
+   */
+  test('assign_columns keeps the user order intact', function(assert) {
+    var groups = [
+      { key: 'a', count: 8 }, { key: 'b', count: 8 },
+      { key: 'c', count: 8 }, { key: 'd', count: 8 }
+    ];
+    var flat = assign_columns(groups, 2, 4).reduce(function(a, c) { return a.concat(c); }, []);
+    assert.deepEqual(flat.map(function(g) { return g.key; }), ['a', 'b', 'c', 'd'],
+      'reading order survives the split');
+  });
+
+  test('assign_columns never leaves a column empty', function(assert) {
+    // One huge category could otherwise consume the whole first column's target
+    // and starve the rest.
+    var groups = [{ key: 'huge', count: 40 }, { key: 'x', count: 1 }, { key: 'y', count: 1 }];
+    var cols = assign_columns(groups, 3, 4);
+    assert.strictEqual(cols.length, 3, 'all three columns are produced');
+    var empty = cols.map(function(c, i) { return c.length ? null : i; }).filter(function(i) { return i !== null; });
+    assert.deepEqual(empty, [], 'no column is left empty');
+  });
+
+  test('assign_columns loses no group', function(assert) {
+    var groups = [];
+    for(var i = 0; i < 12; i++) { groups.push({ key: 'k' + i, count: (i % 5) + 1 }); }
+    var flat = assign_columns(groups, 3, 4).reduce(function(a, c) { return a.concat(c); }, []);
+    assert.strictEqual(flat.length, 12, 'every category is placed exactly once');
+  });
+
+  test('assign_columns balances by ROWS, not raw button count', function(assert) {
+    // 4 and 5 buttons are 1 and 2 rows at 4 across — much closer in height than
+    // their counts suggest, and height is what actually has to balance.
+    var groups = [{ key: 'a', count: 4 }, { key: 'b', count: 5 }, { key: 'c', count: 4 }, { key: 'd', count: 4 }];
+    var cols = assign_columns(groups, 2, 4);
+    assert.strictEqual(cols.length, 2, 'two columns');
+    assert.strictEqual(cols[0].length, 2, 'first column takes two categories');
+    assert.strictEqual(cols[1].length, 2, 'second column takes the remaining two');
+  });
+
+  test('assign_columns degenerate inputs', function(assert) {
+    assert.deepEqual(assign_columns([], 3, 4), [[]]);
+    assert.deepEqual(assign_columns([{ key: 'a', count: 1 }], 3, 4), [[{ key: 'a', count: 1 }]]);
+    assert.strictEqual(assign_columns([{ key: 'a', count: 1 }, { key: 'b', count: 1 }], 1, 4).length, 1);
+  });
+
+  test('assign_columns minimises the tallest column', function(assert) {
+    // Weight is ceil(buttons/4)+1, so these are 2,2,2,5 rows. The only balanced
+    // split of [2,2,2,5] into two columns is [2,2,2] and [5] — tallest 6 vs 5.
+    // A greedy "close once you pass the average" fill closes after the first two
+    // and leaves 2+5=7, a whole row taller, which is the uneven bottom that has
+    // to be padded out.
+    var groups = [{ key: 'a', count: 4 }, { key: 'b', count: 4 }, { key: 'c', count: 4 }, { key: 'd', count: 16 }];
+    var cols = assign_columns(groups, 2, 4);
+    var heights = cols.map(function(c) {
+      return c.reduce(function(sum, g) { return sum + Math.ceil(g.count / 4) + 1; }, 0);
+    });
+    assert.strictEqual(Math.max.apply(null, heights), 6, 'tallest column is the optimum, not 7');
+  });
+
+  test('assign_columns fills every track even when the optimum needs fewer', function(assert) {
+    // Optimal packing of these into 3 columns only needs 2, which would leave a
+    // trailing grid track empty and a hole down the right of the board.
+    var groups = [{ key: 'a', count: 1 }, { key: 'b', count: 1 }, { key: 'c', count: 1 }];
+    var cols = assign_columns(groups, 3, 4);
+    assert.strictEqual(cols.length, 3, 'every track is used');
+    var empty = cols.map(function(c, i) { return c.length ? null : i; }).filter(function(i) { return i !== null; });
+    assert.deepEqual(empty, [], 'and none of them is empty');
   });
 
   test('group_buttons tolerates empty input', function(assert) {
