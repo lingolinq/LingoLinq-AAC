@@ -176,17 +176,35 @@ class SupervisorConsentService
 
   # Token path. Every failure mode collapses to one generic error so the endpoint
   # does not distinguish "no such token" from "already answered" from "expired".
+  #
+  # A rejection still carries the resolved relationship back to the caller under
+  # `:relationship`, so the controller can attribute the audit entry. Without it,
+  # a REAL token that had expired or been answered produced an error with no
+  # subject, the controller's amplification guard dropped it, and the very
+  # rejections most worth auditing left no trace — while the PR claimed rejected
+  # decisions were audited.
+  #
+  # This does not weaken the generic-error contract: `:error` is identical in
+  # every branch and the relationship is never rendered, only logged. It also
+  # preserves the amplification guard, because an UNRESOLVABLE token still yields
+  # no relationship and so still writes no audit row.
   def transition_by_token(token, &block)
     return { error: 'invalid_or_expired_token' } if token.blank?
 
     relationship = SupervisorRelationship.find_by(consent_response_token: token)
-    return { error: 'invalid_or_expired_token' } unless relationship && relationship.token_valid?
+    return { error: 'invalid_or_expired_token' } unless relationship
+    return token_rejection(relationship) unless relationship.token_valid?
 
     locked_transition(
       relationship,
-      recheck: ->(rel) { rel.token_valid? ? nil : { error: 'invalid_or_expired_token' } },
+      recheck: ->(rel) { rel.token_valid? ? nil : token_rejection(rel) },
       &block
     )
+  end
+
+  # Generic to the client, attributable in the audit log.
+  def token_rejection(relationship)
+    { error: 'invalid_or_expired_token', relationship: relationship }
   end
 
   # In-app path. Preserves this path's more specific error contract

@@ -394,6 +394,56 @@ describe SupervisorConsentService, :type => :model do
       expect(rel.reload.status).to eq('approved')
     end
 
+    it "should return the resolved relationship on an expired-token rejection" do
+      supervisor, communicator, rel = pending_pair
+      token = rel.consent_response_token
+      SupervisorRelationship.where(id: rel.id).update_all(consent_token_expires_at: 1.day.ago)
+
+      result = service.approve(token: token)
+
+      # Generic to the client, attributable in the audit log. Without the
+      # relationship the controller has no subject to name, its amplification
+      # guard drops the entry, and a real token that expired is rejected with no
+      # trace at all -- the case most worth auditing.
+      expect(result[:error]).to eq('invalid_or_expired_token')
+      expect(result[:relationship]).to be_present
+      expect(result[:relationship].id).to eq(rel.id)
+      expect(rel.reload.status).to eq('pending')
+      expect(communicator.reload.supervisor_user_ids).to_not include(supervisor.global_id)
+    end
+
+    it "should return the resolved relationship when the token is invalidated while waiting for the lock" do
+      supervisor, communicator, rel = pending_pair
+      token = rel.consent_response_token
+
+      stale = SupervisorRelationship.find(rel.id)
+      expect(stale.token_valid?).to eq(true)
+      expect(SupervisorRelationship).to receive(:find_by).with(consent_response_token: token).and_return(stale)
+
+      # Invalidated after the pre-lock check passed, so the rejection comes from
+      # the IN-LOCK recheck rather than the early return. That path must attribute
+      # too, otherwise a race loses the audit entry while a plain expiry keeps it.
+      SupervisorRelationship.where(id: rel.id).update_all(
+        status: 'denied', consent_response_token: nil, consent_responded_at: Time.current
+      )
+
+      expect(SupervisorMailer).to_not receive(:schedule_delivery)
+      result = service.approve(token: token)
+
+      expect(result[:error]).to eq('invalid_or_expired_token')
+      expect(result[:relationship]).to be_present
+      expect(result[:relationship].id).to eq(rel.id)
+      expect(communicator.reload.supervisor_user_ids).to_not include(supervisor.global_id)
+    end
+
+    it "should return NO relationship for a token that resolves to nothing" do
+      # The amplification guard depends on this: an unresolvable token must yield
+      # no subject, so the controller writes no audit row for replayed junk.
+      result = service.approve(token: 'not-a-real-token')
+      expect(result[:error]).to eq('invalid_or_expired_token')
+      expect(result[:relationship]).to be_nil
+    end
+
     it "should refuse an approve whose token expired after the caller read it" do
       supervisor, communicator, rel = pending_pair
       token = rel.consent_response_token

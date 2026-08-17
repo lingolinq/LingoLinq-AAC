@@ -238,6 +238,37 @@ describe Api::SupervisorRelationshipsController, type: :controller do
       expect(rel.reload.status).to eq('denied')
     end
 
+    it "should audit an EXPIRED-token rejection with the relationship attached" do
+      token_user
+      supervisor = User.create
+      rel = SupervisorRelationship.create!(
+        supervisor_user: supervisor,
+        communicator_user: @user,
+        status: 'pending',
+        permission_level: 'view_only'
+      )
+      rel.generate_consent_token!
+      token = rel.consent_response_token
+      rel.update_column(:consent_token_expires_at, 1.day.ago)
+
+      # A real token that expired is a rejection worth auditing, and it must name
+      # its subject. This previously fell through the amplification guard and left
+      # no trace, while the PR claimed rejected decisions were audited.
+      expect(AuditEvent).to receive(:log_command).with(anything, hash_including(
+        'type' => 'supervisor_consent_response',
+        'decision' => 'approve',
+        'outcome' => 'rejected',
+        'reason' => 'invalid_or_expired_token',
+        'relationship_id' => rel.global_id,
+        'supervisor_id' => supervisor.global_id,
+        'communicator_id' => @user.global_id
+      )).and_call_original
+
+      put :approve, params: { id: rel.global_id, token: token }
+      expect(response).to_not be_successful
+      expect(rel.reload.status).to eq('pending')
+    end
+
     it "should NOT write an audit row for an unresolvable consent token" do
       token_user
       supervisor = User.create
