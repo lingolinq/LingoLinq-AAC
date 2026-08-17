@@ -21,6 +21,7 @@ file (see [README.md](README.md)).
 ## Index
 
 - [Gotcha: contentHash drift — ATTESTED means stop; unattested means regenerate-register](#gotcha-contenthash-drift--attested-means-stop-unattested-means-regenerate-register)
+- [Gotcha: staging → audit-register merge is a union, then regenerate](#gotcha-staging--audit-register-merge-is-a-union-then-regenerate)
 - [Gotcha: Rails reserves `params['action']` — consent APIs must use `decision` or member approve/deny routes](#gotcha-rails-reserves-paramsaction--consent-apis-must-use-decision-or-member-approvedeny-routes)
 - [Gotcha: `pending_supervisor_requests` was never serialized — fetch the relationships index instead](#gotcha-pending_supervisor_requests-was-never-serialized--fetch-the-relationships-index-instead)
 - [Gotcha: button-settings Speak must sync vocalization via change_button — set-field alone does not persist](#gotcha-button-settings-speak-must-sync-vocalization-via-change_button--set-field-alone-does-not-persist)
@@ -11922,6 +11923,19 @@ had no matching blob; the git-canonical #703 bytes are `0ee1b92e...` @ `456b673`
 `version + full sha256 + commit` (and a distinct label per attested byte set — e.g.
 `v2.2.1-interim` vs `v2.2.1`) over truncated prefixes alone. Ref: PR #722 Codex review,
 [`2026-08-02-breach-runbook-codex-review-fixes.md`](./2026-08-02-breach-runbook-codex-review-fixes.md).
+
+## Gotcha: staging → audit-register merge is a union, then regenerate
+
+When `staging` lands on a findings-register branch, do not pick one side of
+`FINDINGS.json` / `DOCUMENT-REGISTER.json`. Rebuild from `git show HEAD` +
+`MERGE_HEAD`: keep this branch's unique findings and docs, add staging-only
+rows, and for a shared id keep the longer staging notes/remediation trail
+without changing status, severity, or disposition. Then run
+`scripts/regenerate-register.sh` so the `.md` mirrors and publication status
+are derived, not hand-merged. If citation-check says `file not found at sha`,
+`git fetch` that evidence commit before re-anchoring the pin. Attested
+`attestedContentHash` pins stay untouched. Task log:
+[`2026-08-17-code-hygiene-auditor-staging-merge.md`](./2026-08-17-code-hygiene-auditor-staging-merge.md).
 
 ## Gotcha: BREACH_RUNBOOK vendor contacts live in §7, not §11
 
