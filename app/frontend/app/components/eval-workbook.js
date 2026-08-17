@@ -385,6 +385,48 @@ export default Component.extend({
   labels: computed(function() {
     return {
       // --- Medical / funding -------------------------------------------------
+      // Sections carrying an `lcd` key in utils/eval_workbook satisfy a clause of
+      // Medicare LCD L33739 (verbatim in docs/AAC_EVALUATION_STANDARDS.md §4a).
+      // Hints name the clause in the SLP's own terms rather than citing it — a
+      // clinician filling this in needs to know WHAT is wanted, not the statute
+      // number. The citation lives in the schema for the report to use.
+      'sec.communication_status': i18n.t('wb_sec_comm_status', "Current communication status"),
+      'hint.communication_status': i18n.t('wb_hint_comm_status', "Required for funding. The type and severity of the impairment, language skills, cognitive ability, and how it is expected to change over time."),
+      'communication_status.impairment_type': i18n.t('wb_cs_type', "Type of impairment"),
+      'communication_status.severity': i18n.t('wb_cs_severity', "Severity"),
+      'communication_status.language_skills': i18n.t('wb_cs_language', "Language skills"),
+      'communication_status.cognitive_ability': i18n.t('wb_cs_cognitive', "Cognitive ability"),
+      'communication_status.anticipated_course': i18n.t('wb_cs_course', "Anticipated course"),
+
+      'sec.medical_condition': i18n.t('wb_sec_med_condition', "Medical & speech diagnosis"),
+      'hint.medical_condition': i18n.t('wb_hint_med_condition', "The condition producing the severe expressive speech impairment, with onset dates, plus who is treating and the payer reference."),
+      'medical_condition.diagnosis': i18n.t('wb_mc_dx', "Medical diagnosis"),
+      'medical_condition.onset': i18n.t('wb_mc_onset', "Onset"),
+      'medical_condition.speech_diagnosis': i18n.t('wb_mc_speech_dx', "Speech diagnosis"),
+      'medical_condition.speech_onset': i18n.t('wb_mc_speech_onset', "Speech onset"),
+      'medical_condition.treating_practitioner': i18n.t('wb_mc_practitioner', "Treating practitioner"),
+      'medical_condition.payer_id': i18n.t('wb_mc_payer', "Payer / member ID"),
+
+      'sec.natural_modes': i18n.t('wb_sec_natural_modes', "Natural modes of communication"),
+      'hint.natural_modes': i18n.t('wb_hint_natural_modes', "Whether daily communication needs could be met by speech, gesture, or other natural modes — and why they cannot."),
+      'natural_modes.notes': i18n.t('wb_natural_modes_notes', "Natural modes assessed and why they are insufficient"),
+
+      'sec.selection_rationale': i18n.t('wb_sec_rationale', "Rationale for this device & accessories"),
+      'hint.selection_rationale': i18n.t('wb_hint_rationale', "Drafted from the evaluation where it can be. Each accessory needs its own reason, not one blanket paragraph."),
+      'selection_rationale.notes': i18n.t('wb_rationale_notes', "Why this device, and why each accessory"),
+
+      'sec.device_ability': i18n.t('wb_sec_device_ability', "Demonstrated ability to use this device"),
+      'hint.device_ability': i18n.t('wb_hint_device_ability', "Drafted from the evaluation. This is about the device being recommended, not general cognitive or motor ability."),
+      'device_ability.notes': i18n.t('wb_device_ability_notes', "What the evaluation demonstrated"),
+
+      'sec.benefit_statement': i18n.t('wb_sec_benefit', "Expected benefit from the device ordered"),
+      'hint.benefit_statement': i18n.t('wb_hint_benefit', "Required for funding. What this specific device is expected to change for the person."),
+      'benefit_statement.notes': i18n.t('wb_benefit_notes', "Expected benefit"),
+
+      'sec.upgrade_justification': i18n.t('wb_sec_upgrade', "Upgrade justification"),
+      'hint.upgrade_justification': i18n.t('wb_hint_upgrade', "Only when replacing a device already issued. Required in that case: the functional benefit of the upgrade compared with the existing device."),
+      'upgrade_justification.notes': i18n.t('wb_upgrade_notes', "Functional benefit compared with the current device"),
+
       'sec.non_sgd_ruled_out': i18n.t('wb_sec_non_sgd', "Non-SGD options considered"),
       'hint.non_sgd_ruled_out': i18n.t('wb_hint_non_sgd', "Therapy, sign, writing, communication boards or PECS, low-tech options — and why each was ruled out."),
       'non_sgd_ruled_out.notes': i18n.t('wb_non_sgd_notes', "Options considered and reason ruled out"),
@@ -425,6 +467,9 @@ export default Component.extend({
       'attestations.asha_ccc': i18n.t('wb_attest_asha', "ASHA CCC number"),
       'attestations.npi': i18n.t('wb_attest_npi', "NPI"),
       'attestations.physician': i18n.t('wb_attest_physician', "Referring physician"),
+      // Criterion 6 requires the evaluation to have reached the treating
+      // practitioner BEFORE the device was ordered, so the date is the evidence.
+      'attestations.forwarded_date': i18n.t('wb_attest_forwarded', "Date forwarded to treating practitioner"),
 
       // --- School / IEP ------------------------------------------------------
       'sec.sett': i18n.t('wb_sec_sett', "SETT framework"),
