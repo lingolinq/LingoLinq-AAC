@@ -478,6 +478,18 @@ var modal = EmberObject.extend({
         }
       }, 2000);
     }
+    /* `body.modal-open` is DERIVED from service.isOpen(), and the service syncs
+       it on its own open/close (services/modal.js:111,273). This util path
+       clears the service's state by hand instead of calling service.close(), so
+       it never synced — and ~36 components close through here (pick-avatar,
+       tour-board-picker, new-user, …). The class stayed on <body> after the
+       modal unmounted, and Bootstrap's `.modal-open { overflow: hidden }` kept
+       page scroll locked until some later service-path modal happened to close.
+       Sync AFTER every branch above has finished clearing, so isOpen() is
+       reading the settled state. */
+    if (service && typeof service._syncBodyModalOpen === 'function') {
+      service._syncBodyModalOpen();
+    }
   },
   flash: function(text, type, below_header, sticky, opts) {
     if(!this.route) { throw "must call setup before trying to show a flash message"; }

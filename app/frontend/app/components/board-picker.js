@@ -24,6 +24,25 @@ export default Component.extend({
   category_explainer_overflows: false,
   public_boards_has_more: false,
   public_boards_loading_more: false,
+  /* Board-card density. false = detailed cards (the default, unchanged);
+     true = compact cards showing only icon, name and Preview. The compact
+     state is applied as a modifier class on the grid and the trimming is done
+     in CSS rather than by branching board-icon.hbs — that component renders on
+     the dashboard, boards page and search too, and this density choice belongs
+     to the picker alone. */
+  compact_boards: false,
+  /* Toolbar lead: which set of boards is on screen, and how many. The count is a
+     plain reflection of what the (unchanged) filtering pipeline produced — it
+     does not re-filter anything. */
+  resultsTitle: computed('categories', function() {
+    var selected = (this.get('categories') || []).find(function(c) { return c && c.selected; });
+    return (selected && selected.name) || i18n.t('board_picker_all_boards', "All available boards");
+  }),
+  resultsCountLabel: computed('display_category_boards.[]', 'display_category_boards.loading', 'display_category_boards.error', function() {
+    var boards = this.get('display_category_boards');
+    if(!boards || boards.loading || boards.error || boards.length == null) { return null; }
+    return i18n.t('board_picker_board_count', "board", { count: boards.length });
+  }),
   // Brand-group results for the tabbed (setup) Robust Vocabularies view.
   // Each holds { state: 'loading' | 'loaded' | 'error', boards: [...] }.
   quick_core_group: null,
@@ -489,6 +508,12 @@ export default Component.extend({
   },
 
   actions: {
+    /* Explicit set rather than a toggle: the segmented control has two named
+       options, so each one asserts its own state (re-pressing the active option
+       is a no-op instead of flipping to the other view). */
+    set_compact_boards: function(compact) {
+      this.set('compact_boards', !!compact);
+    },
     set_category: function(str) {
       var res = {};
       res[str] = true;

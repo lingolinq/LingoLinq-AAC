@@ -86,11 +86,9 @@ function fromSpec(spec, opts) {
   var grid = spec.grid || { rows: 3, cols: 3 };
   var stage = spec.stage || 4;
   var name = opts.name || i18n.t('eval_starter_board_name', "Quick Screen Starter Board");
-  var description = opts.description || i18n.t(
-    'eval_starter_board_description',
-    "Auto-generated starter board from a Quick Screen evaluation. Stage %{s}, %{lib} symbols.",
-    { s: stage, lib: spec.library || 'open' }
-  );
+  // One line: i18n_generator.rb parses `i18n.t(` line by line, so a wrapped call
+  // never reaches en.json and is never sent for translation.
+  var description = opts.description || i18n.t('eval_starter_board_description', "Auto-generated starter board from a Quick Screen evaluation. Stage %{s}, %{lib} symbols.", { s: stage, lib: spec.library || 'open' });
   return {
     name: name,
     description: description,

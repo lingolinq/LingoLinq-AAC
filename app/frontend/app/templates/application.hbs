@@ -1503,6 +1503,13 @@
   {{/unless}}{{!-- TEMPORARY (2026-07-27) — remove with the {{#unless}} above --}}
 {{/if}}
 <div id="content" class="{{this.content_class}} {{if this.hide_header "content--no-top-padding"}}">
+  {{!-- Supervising context pill. It lives INSIDE #content on purpose: #content is
+       the app's scroll container (#within_ember is fixed/overflow:hidden on the
+       page-footer layout), so a pill rendered outside it would hover over the
+       page as you scroll. Its own wrapper is zero-height and the pill is
+       absolutely positioned, so it adds nothing to this flex column. Self-
+       suppressing — renders nothing on your own pages or with the flag off. --}}
+  <SupervisingContextPill />
   {{ outlet }}
 </div>
 {{#if this.app_state.eval_paused}}

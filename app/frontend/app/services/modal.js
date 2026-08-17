@@ -108,10 +108,12 @@ export default Service.extend({
     this.set('currentComponent', null);
     this.set('currentController', null);
     
+    this._syncBodyModalOpen();
+
     // Scanner integration - stop scanning when modal opens
     this.set('resumeScanning', true);
     scanner.stop();
-    
+
     // Start scanning if modal is scannable
     runLater(() => {
       const targets = this.scannableTargets();
@@ -267,7 +269,9 @@ export default Service.extend({
     this.set('currentComponent', null);
     this.set('currentController', null);
     this.set('currentPromise', null);
-    
+
+    this._syncBodyModalOpen();
+
     // Resume scanning if needed
     if (this.get('resumeScanning')) {
       runLater(() => {
@@ -368,7 +372,38 @@ export default Service.extend({
     }
     return !!this.get('currentTemplate');
   },
-  
+
+  /**
+   * Mirror the open/closed state onto <body class="modal-open">.
+   *
+   * Bootstrap 3 gates the rule that makes a modal viewport scrollable behind
+   * that class (bootstrap.css):
+   *
+   *   .modal-open        { overflow: hidden }   :5866  page behind is locked
+   *   .modal             { overflow: hidden }   :5877  the modal viewport
+   *   .modal-open .modal { overflow-y: auto }   :5896  makes it scrollable
+   *
+   * Bootstrap's own JS is what adds the class; this app renders the markup
+   * itself (modal-dialog.hbs) and never did, so `.modal` kept `overflow:
+   * hidden` and NO modal in the app could scroll its content. Individual
+   * modals had been patched one at a time; setting the class here fixes every
+   * modal at the source, and locks the page behind at the same time.
+   *
+   * DERIVED from isOpen() rather than counted, so it cannot drift out of sync:
+   * `_openModal` replaces any current modal rather than stacking, so there is
+   * never more than one regular modal open. Highlights, flash messages and
+   * board-preview are separate outlets that do not render `.modal` markup, so
+   * they intentionally do not participate.
+   */
+  _syncBodyModalOpen() {
+    try {
+      var body = document.body;
+      if (!body) { return; }
+      body.classList.toggle('modal-open', this.isOpen());
+    } catch (e) { /* no DOM (fastboot/tests without a body) */ }
+  },
+
+
   /**
    * Check if current modal is closeable
    */

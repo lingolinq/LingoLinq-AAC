@@ -156,10 +156,10 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 
 | Class | Rule | Disposition | Rows | Status |
 |---|---|---|---|---|
-| `executed-agreement` | term + 7 years | archive | 6 | draft |
+| `executed-agreement` | term + 7 years | archive | 8 | draft |
 | `corporate-permanent` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `grant-record` | award + 7 years | archive | 0 | unused (no record of this class exists yet) |
-| `policy-version` | supersession + 7 years | archive | 37 | draft |
+| `policy-version` | supersession + 7 years | archive | 38 | draft |
 | `audit-evidence` | 7 years | archive | 17 | draft |
 | `attestation-record` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `dsar-case` | 3 years | delete | 0 | unused (no record of this class exists yet) |
@@ -168,7 +168,7 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 | `working-note` | 90 days | delete | 1 | draft |
 | `operational-config` | retain while in use; supersession + 1 year | archive | 14 | draft |
 
-All 75 rows carry a retention block.
+All 78 rows carry a retention block.
 
 No retention rule has been approved. Nothing in this register is eligible for disposition.
 
@@ -205,7 +205,7 @@ _No record is under legal hold. A hold suspends all disposition for the rows it 
 
 ## Attestation Integrity
 
-17 attested git record(s). `attestation.attestedContentHash` pins the bytes that were attested; `ruby scripts/document-register-render.rb --check` fails when a pinned hash stops matching the file. Drive and Notion rows are out of scope: their hashes are operator-supplied, so there is nothing CI can verify.
+20 attested git record(s). `attestation.attestedContentHash` pins the bytes that were attested; `ruby scripts/document-register-render.rb --check` fails when a pinned hash stops matching the file. Drive and Notion rows are out of scope: their hashes are operator-supplied, so there is nothing CI can verify.
 
 **No pinned attestation has drifted.** Every record that pins a hash still matches the attested bytes.
 
@@ -217,10 +217,13 @@ A superseded record is never edited, renamed, or moved. It keeps its row and its
 
 | Superseded | Location | Replaced by | Still bundled in |
 |---|---|---|---|
+| AWS BAA Acceptance Record | `docs/legal/AWS_BAA_ACCEPTED.md` | AWS BAA Acceptance and Runtime Status Record | (none) |
+| AWS BAA Acceptance and Runtime Status Record | `docs/legal/2026-08-11_aws-baa-acceptance-record.md` | AWS BAA Acceptance and Runtime Status Record (2026-08-12) | (none) |
 | Compliance Posture Report | `docs/legal/COMPLIANCE_POSTURE_REPORT.md` | Compliance Posture Report (2026-08-09 draft) | (none) |
 | Compliance Posture Report (branded) | [open](https://docs.google.com/document/d/1A2cM0m6GvErHwpiMgns258NbN_M2krNB_HyedHJkqpk/edit) | Compliance Posture Report (branded, 2026-07-16 re-attest) | compliance-records-set-2026-06 |
 | Compliance Program | `docs/legal/COMPLIANCE_PROGRAM.md` | Compliance Program (2026-08-09 draft) | compliance-records-set-2026-06 |
 | Data Retention Schedule | `docs/legal/DATA_RETENTION.md` | Data Retention Schedule (2026-08-09 draft) | (none) |
+| Incident Response and Breach Runbook | `docs/legal/BREACH_RUNBOOK.md` | Incident Response and Breach Runbook (2026-08-15 successor) | (none) |
 | LingoLinq Security, Privacy & Compliance Overview | `docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md` | LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft) | (none) |
 
 ## Bundle Gaps
@@ -274,4 +277,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_75 documents tracked. 52 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 5 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
+_78 documents tracked. 52 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 8 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._

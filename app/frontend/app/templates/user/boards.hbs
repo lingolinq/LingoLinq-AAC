@@ -88,7 +88,13 @@
       </div>
 
       <div class="ub-boards-page__getting-started-actions">
-        <LinkTo @route="home-boards" class="md-btn md-card__getting-started-btn">{{t "Help me Choose" key="help_me_choose"}}</LinkTo>
+        {{!-- Goes to the standalone board picker, not /search/home. `user_id`
+             carries whose home board is being chosen: it is null on your own
+             page (Ember omits a query param at its default, so the URL stays
+             /board-picker and the picker runs its self flow) and the page
+             user's id when a supporter is on a communicator's Boards page —
+             see controllers/user/index#homeBoardPickerUserId. --}}
+        <LinkTo @route="board-picker" @query={{hash user_id=this.homeBoardPickerUserId}} class="md-btn md-card__getting-started-btn">{{t "Help me Choose" key="help_me_choose"}}</LinkTo>
       </div>
     </section>
   </div>

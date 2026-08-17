@@ -27,7 +27,7 @@ import aiPredictor from '../../utils/ai_word_predictor';
 import wordSuggestionsModule from '../../utils/word_suggestions';
 import { buttonSpacingPx, buttonBorderPx, buttonTextPx } from '../../utils/display_prefs';
 import boardDetailCache from '../../utils/board_detail_cache';
-import { pick_aac_type, pick_aac_color } from '../../utils/parts_of_speech';
+import { pick_aac_color, resolve_labels_pos } from '../../utils/parts_of_speech';
 import prefClasses from '../../mixins/pref-classes';
 import LingoLinq from '../../app';
 import buildEventAction from '../../utils/event_action';
@@ -3727,28 +3727,11 @@ export default Controller.extend(prefClasses, {
     return 'default';
   },
 
-  // Pick the best POS from a list of types for a single word
-  best_type: function(types) {
-    if(!types || !types.length) { return null; }
-    var priority = [
-      'verb', 'noun', 'nominative',
-      'negation', 'expletive',
-      'question',
-      'adjective', 'adverb',
-      'pronoun',
-      'social', 'interjection',
-      'preposition',
-      'conjunction', 'number', 'article', 'determiner'
-    ];
-    for(var i = 0; i < priority.length; i++) {
-      if(types.indexOf(priority[i]) >= 0) {
-        return priority[i];
-      }
-    }
-    return types[0];
-  },
-
-  // Look up POS for buttons that have no type assigned
+  // Look up POS for buttons that have no type assigned.
+  // The lookup itself (batching, the session word cache, and the single-vs-multi
+  // word rules) lives in utils/parts_of_speech.js so the board-preview canvas
+  // resolves colours identically — a preview that disagreed with the board it
+  // previews is the bug this shares code to prevent.
   resolve_unknown_buttons: function(buttons) {
     var _this = this;
     var unknowns = buttons.filter(function(btn) {
@@ -3758,75 +3741,13 @@ export default Controller.extend(prefClasses, {
     });
     if(!unknowns.length) { return; }
 
-    var jobs = [];
-    var allWords = [];
-    var seenWord = {};
-    unknowns.forEach(function(btn) {
-      var label = btn.get ? btn.get('label') : btn.label;
-      var words = label.split(/\s+/).filter(function(w) { return !!w; });
-      words.forEach(function(w) {
-        if(!seenWord[w]) {
-          seenWord[w] = true;
-          allWords.push(w);
-        }
-      });
-      jobs.push({ btn: btn, words: words });
-    });
+    var labels = unknowns.map(function(btn) { return btn.get ? btn.get('label') : btn.label; });
 
-    var fetchWordMap = function(start, acc) {
-      acc = acc || {};
-      var chunk = allWords.slice(start, start + 100);
-      if(chunk.length === 0) {
-        return RSVP.resolve(acc);
-      }
-      return persistence.ajax('/api/v1/search/batch_parts_of_speech', {
-        type: 'GET',
-        data: { words: chunk.join(',') }
-      }).then(function(res) {
-        var results = (res && res.results) || {};
-        Object.keys(results).forEach(function(k) {
-          acc[k] = results[k];
-        });
-        return fetchWordMap(start + 100, acc);
-      }, function() {
-        return fetchWordMap(start + 100, acc);
-      });
-    };
-
-    fetchWordMap(0, {}).then(function(wordMap) {
+    resolve_labels_pos(labels, function(url, opts) { return persistence.ajax(url, opts); }, RSVP).then(function(pos_by_label) {
       var mutated = false;
-      jobs.forEach(function(job) {
-        var btn = job.btn;
-        var words = job.words;
-        var results = words.map(function(w) {
-          return wordMap[w] || null;
-        });
-
-        var cls = null;
-
-        if(words.length === 1) {
-          var types = (results[0] && results[0].types) || [];
-          cls = pick_aac_type(types, words[0]);
-        } else {
-          var first_types = (results[0] && results[0].types) || [];
-          if(first_types.length > 0 && first_types[0] === 'verb') {
-            cls = 'verb';
-          } else {
-            var skip_types = ['article', 'determiner', 'preposition', 'conjunction'];
-            for(var i = results.length - 1; i >= 0; i--) {
-              var word_types = (results[i] && results[i].types) || [];
-              var word_best = _this.best_type(word_types);
-              if(word_best && skip_types.indexOf(word_best) < 0) {
-                cls = word_best;
-                break;
-              }
-            }
-            if(!cls && results.length > 0) {
-              var last_types = (results[results.length - 1] && results[results.length - 1].types) || [];
-              cls = _this.best_type(last_types);
-            }
-          }
-        }
+      unknowns.forEach(function(btn) {
+        var label = btn.get ? btn.get('label') : btn.label;
+        var cls = pos_by_label[label];
 
         if(cls) {
           if(btn.set) {

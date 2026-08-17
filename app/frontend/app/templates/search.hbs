@@ -80,7 +80,13 @@
           {{!-- Reuse the SAME renderer as the board-preview modal (board-preview-canvas):
                self-contained canvas that draws the exact grid + button images and waits
                on image loads itself — no board-detail controller coupling. --}}
-          <BoardPreviewCanvas @board={{this.preview_board}} @locale={{this.locale}} @show_links={{true}} @size="modal" @dark_mode={{false}} />
+          {{!-- @dark_mode follows the user's board preference, the same as the
+                board-preview modal (board-preview-overlay.js:59-61). Hard-coding
+                false here gave a dark-mode user a light preview of a board that
+                opens dark — and the canvas skips part-of-speech colouring
+                entirely in dark mode, so the two previews of one board also
+                disagreed on every uncoloured button. --}}
+          <BoardPreviewCanvas @board={{this.preview_board}} @locale={{this.locale}} @show_links={{true}} @size="modal" @dark_mode={{this.app_state.currentUser.preferences.board_dark_mode}} />
         </div>
       {{/if}}
     {{else}}

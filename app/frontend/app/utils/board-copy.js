@@ -1,5 +1,6 @@
 import RSVP from 'rsvp';
 import LingoLinq from '../app';
+import persistence from './persistence';
 
 /* Resolve the current user's already-owned copy of `board`, or null when there
    isn't one we can POSITIVELY confirm.
@@ -29,14 +30,36 @@ export function findExistingUserCopy(board, user) {
   // The picked board is already the user's own board — nothing to copy.
   if (origKey === expectedKey) { return RSVP.resolve(board); }
   var origId = board.get('id');
-  // reload:true forces a /show so parent_board_id/parent_board_key are
-  // AUTHORITATIVE — a board cached as a list partial may omit them, which would
-  // make a real copy look unconfirmed and trigger a needless duplicate. The /show
-  // serializer always includes parent_board_id (null when the board isn't a copy).
+  // The lookup MUST reach the server: `parent_board_id`/`parent_board_key` are
+  // only authoritative from a /show, and — more importantly — a board that no
+  // longer exists server-side must fail here rather than resolve from cache.
+  //
+  // `{reload: true}` alone does NOT do that. The app replaces Ember Data's
+  // adapter with its own offline-first one (utils/persistence.js#findRecord):
+  // `start_with_local` is hard-coded true and `check_remote()` runs ONLY when
+  // nothing was found in the local db, so ED's reload flag never reaches the
+  // network. A board deleted on the server (or on another device) therefore kept
+  // resolving out of IndexedDB, this function reported a copy that wasn't there,
+  // and the caller skipped copying and "assigned" a phantom board — which the
+  // server then silently discarded (app/models/user.rb#process_home_board).
+  //
+  // `persistence.force_reload` is that adapter's own opt-out, keyed
+  // `<modelName>_<id>` and checked before the local lookup — the same switch
+  // models/base.js#reload flips. Restored afterwards, and only if still ours, so
+  // an overlapping lookup's key is never clobbered.
+  var force_key = 'board_' + expectedKey;
+  var prior_force_reload = persistence.force_reload;
+  var restore_force_reload = function() {
+    if(persistence.force_reload === force_key) {
+      persistence.force_reload = prior_force_reload;
+    }
+  };
+  persistence.force_reload = force_key;
   // Wrap in RSVP.Promise + .catch so a 404/reject always resolves to null; a bare
   // .then(success, reject) can fail to run the pick flow when the adapter rejects.
   return new RSVP.Promise(function(resolve) {
     LingoLinq.store.findRecord('board', expectedKey, { reload: true }).then(function(found) {
+      restore_force_reload();
       if (!found) { resolve(null); return; }
       var parentId = found.get('parent_board_id');
       var parentKey = found.get('parent_board_key');
@@ -48,6 +71,7 @@ export function findExistingUserCopy(board, user) {
         resolve(null);
       }
     }).catch(function() {
+      restore_force_reload();
       resolve(null);
     });
   });

@@ -1,16 +1,29 @@
 <div class={{this.elem_class}} style={{this.elem_style}}>
-  <h3>
-    {{#if this.usage_stats.modeling}}<span class='glyphicon glyphicon-hand-up'></span>{{/if}}
-    {{t "Core/Parts of Speech" key="core_parts_of_speech"}}
-  </h3>
-  {{#if this.edit_permission}}
-    <a href="#" style='float: right;' {{on "click" (this.ctrlAction "modify_core")}}>{{t "modify list" key="modify_list"}}</a>
-  {{/if}}
-  <button type="button" class="btn-link" style="border: none; background: none; padding: 0; cursor: pointer;" {{on "click" (this.ctrlAction "word_cloud")}}>{{t "word cloud" key="word_cloud_lower"}}</button>
-  <div style="clear: both;"></div>
-  <div style='height: 250px; overflow: auto;'>
-    {{#each this.core_words as |word|}}
-      <a href='#' {{on "click" (this.ctrlAction "word_data" word.text)}} class={{word.weight_class}}>{{word.text}}</a>
-    {{/each}}
+  {{! Inner card so the column's own padding stays as the gutter between charts. }}
+  <div class="report-chart-card">
+    {{! Two actions plus a two-word title do not fit one line in a col-sm-4 card,
+        so this head stacks: title across the full width, actions on the row under it. }}
+    <div class="report-chart-card__head report-chart-card__head--stacked">
+      <h3 class="report-chart-card__title">
+        {{#if this.usage_stats.modeling}}<span class='glyphicon glyphicon-hand-up' aria-hidden="true"></span>{{/if}}
+        {{t "Core/Parts of Speech" key="core_parts_of_speech"}}
+      </h3>
+      <div class="report-chart-card__actions">
+        {{#if this.edit_permission}}
+          <button type="button" class="md-link-btn report-chart-card__action" {{on "click" (this.ctrlAction "modify_core")}}>{{t "modify list" key="modify_list"}}</button>
+        {{/if}}
+        <button type="button" class="md-link-btn report-chart-card__action" {{on "click" (this.ctrlAction "word_cloud")}}>{{t "word cloud" key="word_cloud_lower"}}</button>
+      </div>
+    </div>
+
+    <div class="report-chart-card__body report-chart-card__body--scroll">
+      {{! `weighted_word weight_N` is the shared weight vocabulary from utils/stats.js —
+          kept so the buckets stay readable elsewhere; the chip skin hangs off it. }}
+      <div class="report-word-chips">
+        {{#each this.core_words as |word|}}
+          <button type="button" class="report-word-chip {{word.weight_class}}" {{on "click" (this.ctrlAction "word_data" word.text)}}>{{word.text}}</button>
+        {{/each}}
+      </div>
+    </div>
   </div>
 </div>

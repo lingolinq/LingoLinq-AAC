@@ -410,29 +410,30 @@ body.ll-layout-focused .md-shell--reports-view {
   .md-user-meta--before-hero {
     margin: 32px 0px 12px !important;
   }
-  // Wrap the reports content in the SAME frosted-glass surface as the focused home page
-  // Boards card (`$focus-boards-bg` + the shared card chrome) — matching the extras page
-  // and the Boards section panel. `.md-stats-main` is already a centered max-width
-  // container with padding, so it becomes that card directly.
+  // `.md-stats-main` is a pure layout container — a centered max-width wrapper —
+  // and carries NO surface of its own. It used to be painted as the frosted-glass
+  // Boards card here; that card is gone so the report's own cards sit directly on
+  // the page. Spacing only; every paint property is explicitly cleared so nothing
+  // reintroduces the panel.
   .md-stats-main {
-    margin-top: 38px !important;
-    background: $focus-boards-bg !important;
-    border: 1px solid rgba($focus-shadow-ink, 0.07) !important;
-    border-radius: 20px !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.6),
-      inset 0 9px 18px rgba($focus-accent, 0.07),
-      inset 0 -1px 0 rgba(255, 255, 255, 0.45),
-      0 1px 3px rgba($focus-shadow-ink, 0.05),
-      0 6px 16px rgba($focus-shadow-ink, 0.08) !important;
-    backdrop-filter: blur(14px) saturate(1.3) !important;
-    -webkit-backdrop-filter: blur(14px) saturate(1.3) !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
-  // Reveal the Reports focused header + subheader (boards-card style).
-  .md-stats-main__focus-head {
+  // Reveal the Reports focused header + subheader (boards-card style) — but only
+  // on the states that do NOT render the "Communication progress" summary
+  // (login / premium-required / logging-off). When that summary is present it
+  // carries the page title and its own selected-range subheader, so showing this
+  // head too would double up the heading.
+  .md-stats-main:not(:has(.communication-report)) .md-stats-main__focus-head {
     display: block !important;
   }
-  .md-stats-main__focus-divider {
+  .md-stats-main:not(:has(.communication-report)) .md-stats-main__focus-divider {
     display: block !important;
   }
 }

@@ -1,27 +1,38 @@
 <div class={{this.elem_class}} style={{this.elem_style}}>
-  <table class="table table-hover table-condensed" style="margin-bottom: 0;">
-    <thead>
-      <tr>
-        <th colspan="2">
-          {{#if this.usage_stats.modeling}}<span class='glyphicon glyphicon-hand-up'></span>{{/if}}
-          {{t "Most common words" key="most_common_words"}}
-          <button type="button" class="btn-link" style="border: none; background: none; padding: 0; cursor: pointer;" {{on "click" (this.ctrlAction "word_cloud")}}>{{t "word cloud" key="word_cloud_lower"}}</button>
-        </th>
-      </tr>
-    </thead>
-    <tbody>
-      {{#if this.usage_stats.popular_words}}
-        {{#each this.usage_stats.popular_words as |word|}}
+  {{! Inner card so the column's own padding stays as the gutter between charts. }}
+  <div class="report-chart-card">
+    <div class="report-chart-card__head">
+      <h3 class="report-chart-card__title">
+        {{#if this.usage_stats.modeling}}<span class='glyphicon glyphicon-hand-up' aria-hidden="true"></span>{{/if}}
+        {{t "Most common words" key="most_common_words"}}
+      </h3>
+      <button type="button" class="md-link-btn report-chart-card__action" {{on "click" (this.ctrlAction "word_cloud")}}>{{t "word cloud" key="word_cloud_lower"}}</button>
+    </div>
+
+    <div class="report-chart-card__body report-chart-card__body--scroll">
+      <table class="report-chart-table">
+        <caption class="sr-only">{{t "Most common words" key="most_common_words"}}</caption>
+        <thead>
           <tr>
-            <td><a href="#" {{on "click" (this.ctrlAction "word_data" word.text)}} style='text-decoration: none; color: #000;'>{{word.text}}</a></td>
-            <td>{{word.count}}</td>
+            <th scope="col">{{t "Word" key="word_column"}}</th>
+            <th scope="col">{{t "Uses" key="uses"}}</th>
           </tr>
-        {{/each}}
-      {{else}}
-        <tr>
-          <td>{{t "No data available" key="no_data"}}</td>
-        </tr>
-      {{/if}}
-    </tbody>
-  </table>
+        </thead>
+        <tbody>
+          {{#if this.usage_stats.popular_words}}
+            {{#each this.usage_stats.popular_words as |word|}}
+              <tr>
+                <th scope="row"><button type="button" class="report-chart-table__link" {{on "click" (this.ctrlAction "word_data" word.text)}}>{{word.text}}</button></th>
+                <td>{{word.count}}</td>
+              </tr>
+            {{/each}}
+          {{else}}
+            <tr>
+              <td colspan="2" class="report-chart-card__empty">{{t "No data available" key="no_data"}}</td>
+            </tr>
+          {{/if}}
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>

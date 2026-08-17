@@ -135,6 +135,12 @@ verify_all() {
     ruby scripts/compliance-publication-status.rb --check || rc=1
   step "verify: capability ledger (currentEvidence at HEAD + negativeEvidence)" \
     ruby scripts/capability-check.rb --check || rc=1
+  step "verify: docs/legal naming rule (attested rows carry no status token)" \
+    ruby scripts/legal-naming-check.rb --check || rc=1
+  # Tested rather than trusted: the naming rule is unfixable once violated, because
+  # attestation freezes the filename permanently.
+  step "verify: the docs/legal naming guards actually fire" \
+    bash scripts/tests/legal-naming-check-test.sh || rc=1
   return $rc
 }
 

@@ -227,8 +227,8 @@
             "location": "https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit"
           },
           {
-            "title": "Incident Response and Breach Runbook",
-            "location": "docs/legal/BREACH_RUNBOOK.md"
+            "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
+            "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
           },
           {
             "title": "Data Retention Schedule (2026-08-09 draft)",
@@ -285,8 +285,8 @@
             "location": "docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md"
           },
           {
-            "title": "Incident Response and Breach Runbook",
-            "location": "docs/legal/BREACH_RUNBOOK.md"
+            "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
+            "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
           },
           {
             "title": "AI Data-Flow Classification",
@@ -323,8 +323,8 @@
             "location": "docs/legal/2026-08-09_data-retention_draft.md"
           },
           {
-            "title": "Incident Response and Breach Runbook",
-            "location": "docs/legal/BREACH_RUNBOOK.md"
+            "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
+            "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
           },
           {
             "title": "Accessibility Conformance Report (ACR / VPAT)",
@@ -361,8 +361,8 @@
             "location": "docs/legal/AWS_BAA_2026-02.pdf"
           },
           {
-            "title": "AWS BAA acceptance record",
-            "location": "docs/legal/AWS_BAA_ACCEPTED.md"
+            "title": "AWS BAA Acceptance and Runtime Status Record (2026-08-12)",
+            "location": "docs/legal/2026-08-12_aws-baa-acceptance-record.md"
           },
           {
             "title": "Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record",
@@ -385,8 +385,8 @@
             "location": "https://docs.google.com/document/d/1Q6hDhooIQVMArkpn4ppxr4om3-Hx64QmYiIQe0sSWmY/edit"
           },
           {
-            "title": "Incident Response and Breach Runbook",
-            "location": "docs/legal/BREACH_RUNBOOK.md"
+            "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
+            "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
           },
           {
             "title": "Written Information Security Program (WISP)",
@@ -454,7 +454,34 @@
     "integrityNote": "--check also enforces: every canonicalSystem is one of canonicalSystemEnum; a git row canonicalLocation is a repo path (not a URL); a drive/notion row canonicalLocation is a URL and does not resolve to a tracked repo file (so a git doc cannot dodge hash verification by being relabeled drive/notion); and id + canonicalLocation are unique across the register.",
     "attestationHashNote": "attestation.attestedContentHash pins the sha256 of the bytes that were actually attested, alongside contentHash which tracks the file as it is now. document-register-render.rb --check fails when the two diverge on a canonicalSystem=git row: the attested revision no longer exists and re-attestation is owed. Enforced for git rows only - Drive and Notion hashes are operator-supplied with no automated refresh, so the field is rejected there. Render NEVER backfills this field; populating it from current bytes would make every attestation self-certifying. Only Scot attests, and the hash is pinned when the attestation is recorded.",
     "attestationBackfillExemptions": [],
-    "attestationBackfillNote": "CLEARED 2026-07-23. All seven rows that predated the attestedContentHash check were re-attested against their current revisions and now pin their attested bytes, so the grandfather list is empty and every attested git row is verifiable. It stays empty: the closed set in scripts/document-register-render.rb is the ceiling and nothing is ever added to it, so a future attestation must pin its hash when it is recorded."
+    "attestationBackfillNote": "CLEARED 2026-07-23. All seven rows that predated the attestedContentHash check were re-attested against their current revisions and now pin their attested bytes, so the grandfather list is empty and every attested git row is verifiable. It stays empty: the closed set in scripts/document-register-render.rb is the ceiling and nothing is ever added to it, so a future attestation must pin its hash when it is recorded.",
+    "legalNamingGrandfathered": [
+      "docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md",
+      "docs/legal/AI_DATA_FLOW_CLASSIFICATION.md",
+      "docs/legal/AI_DATA_SHARING_CONSENT.md",
+      "docs/legal/AI_GOVERNANCE_MEMO.md",
+      "docs/legal/ANTHROPIC_BAA_ACCEPTED.md",
+      "docs/legal/AWS_BAA_2026-02.pdf",
+      "docs/legal/AWS_BAA_ACCEPTED.md",
+      "docs/legal/BREACH_RUNBOOK.md",
+      "docs/legal/CAPABILITY_LEDGER.md",
+      "docs/legal/COMPLIANCE_DOCS_GUIDE.md",
+      "docs/legal/COMPLIANCE_POSTURE_REPORT.md",
+      "docs/legal/COMPLIANCE_PROGRAM.md",
+      "docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md",
+      "docs/legal/COMPLIANCE_STATUS_2026-04-23.md",
+      "docs/legal/COMPLIANCE_STATUS_2026-06-18.md",
+      "docs/legal/COMPLIANCE_STATUS_2026-08-09.md",
+      "docs/legal/COPPA_VERIFICATION_2026-04-26.md",
+      "docs/legal/DATA_RETENTION.md",
+      "docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md",
+      "docs/legal/GCP_BAA_ACCEPTED.md",
+      "docs/legal/INCIDENT_LOG.md",
+      "docs/legal/PARENTAL_CONSENT_EMAIL.md",
+      "docs/legal/README.md",
+      "docs/legal/SUBPROCESSORS.md"
+    ],
+    "legalNamingNote": "CLOSED set of docs/legal records whose names predate the statusless dated naming rule (docs/legal/README.md, \"Naming\"). They keep their names because renaming breaks every inbound reference for no compliance benefit. scripts/legal-naming-check.rb treats any git-canonical docs/legal row that is neither dated nor listed here as a NEW violation, and treats a listed path that is no longer a row as a stale entry to remove. This list may only SHRINK. Note there is deliberately NO exemption list for the four grandfathered dated _draft records: the status-token check fires only on rows that carry an attestation, so their exemption expires automatically the moment one is attested."
   },
   "documents": [
     {
@@ -993,31 +1020,28 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/BREACH_RUNBOOK.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "HIPAA",
         "GDPR",
         "FERPA"
       ],
-      "lastReviewed": "2026-07-28",
-      "nextReviewDue": "2027-07-28",
+      "lastReviewed": "2026-08-02",
+      "nextReviewDue": "2027-08-02",
       "attestation": {
         "attestedBy": "Scot Wahlquist, CEO",
-        "attestedDate": "2026-07-28",
-        "attestedContentHash": "0ee1b92ec130e89215383bcb1ae26de7be5ef6f9fcd1b80d6ad9ae6d41152af1",
+        "attestedDate": "2026-08-01",
+        "attestedContentHash": "2b788387259bc315fc4b1e5a10817f55ae2d9eae02988236b245c5f62ede1907",
         "priorAttestations": [
           "2026-06-21",
-          "2026-07-23"
+          "2026-07-23",
+          "2026-07-28",
+          "2026-07-31"
         ],
-        "note": "Re-attested 2026-07-28 by Scot Wahlquist, CEO. v2.2 refresh after the Dominic SEC-002 review and a current code/evidence check: re-homes incident detection and evidence-capture onto the GCP/Cloud Run + Cloud SQL + Bedrock reality (gcloud logging / Cloud Audit Logs / Cloud SQL clone as primary recovery; Render as write-frozen rollback fallback only), corrects the GDPR/HIPAA/COPPA/NY-Ed-Law notification prose, and removes stale OpenAI/Gemini vendor contacts. Prior attestation 2026-07-23."
+        "note": "Re-attested 2026-08-01 by Scot Wahlquist, CEO, as v2.2.1 (hash 2b788387259bc315fc4b1e5a10817f55ae2d9eae02988236b245c5f62ede1907 @ commit 4ece3a6435). Correction release disclosing four v2.2 drafting defects (self-contradicting draft/attested changelog language; New York Ed Law 2-d; section 4.2 kill list; section 7 vendor contacts). Git-canonical v2.2 bytes are PR #703 commit 456b6735a6, hash 0ee1b92ec130e89215383bcb1ae26de7be5ef6f9fcd1b80d6ad9ae6d41152af1; an earlier register claim that those bytes hashed fbdf49a1 is retracted (no such blob in merged ancestry). Distinct labels: v2.2 = 0ee1b92e... @ 456b6735a6; v2.2.1-interim = 2026-07-31 attestation at 95bc22359cf363e526ca0221a39b1c6f34c1d4afcd353c4c5b5fc8a4d97e5ae6 @ 271b2f961c (superseded before publication; date retained in priorAttestations); v2.2.1 = this 2026-08-01 attestation. Prior attestations: 2026-07-31, 2026-07-28, 2026-07-23, 2026-06-21."
       },
-      "contentHash": "0ee1b92ec130e89215383bcb1ae26de7be5ef6f9fcd1b80d6ad9ae6d41152af1",
-      "bundles": [
-        "soc2-evidence",
-        "school-dpa-package",
-        "security-review",
-        "baa"
-      ],
+      "correctionNote": "CORRECTION 2026-08-02 (not an attestation; only Scot attests). The attestation.note above covers v2.2.1 bytes (2b788387). The document is now v2.2.2: its section 7 Anthropic contact described the runtime AI path as active and asserted active Bedrock egress, which is false (no lingolinq-web revision carries a Bedrock credential; runtime AI dormant since 00011-l7f deployed 2026-07-30T16:37Z). Corrected and disclosed in BREACH_RUNBOOK.md section 13. Operationally material: a responder scoping an incident under v2.2.1 would look for egress that does not exist. Root evidence: the 2026-08-01 correction in docs/legal/AWS_BAA_ACCEPTED.md (PR #725, which must merge first). Re-attestation owed for v2.2.2.",
+      "bundles": [],
       "mirrors": [
         {
           "system": "drive",
@@ -1032,7 +1056,54 @@
         "status": "draft"
       },
       "legalHold": false,
-      "dispositionEligibleAfter": null
+      "dispositionEligibleAfter": null,
+      "contentHash": "2b788387259bc315fc4b1e5a10817f55ae2d9eae02988236b245c5f62ede1907",
+      "supersededBy": "DOC-28f19f73e4"
+    },
+    {
+      "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
+      "description": "Operative incident response and breach runbook, v2.2.3. Supersedes docs/legal/BREACH_RUNBOOK.md, which is frozen at the v2.2.1 bytes attested 2026-08-01. Section 7 corrected 2026-08-15 to state that runtime AI egress to AWS Bedrock is ACTIVE and must be scoped during an incident.",
+      "type": "runbook",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-15_incident-response-breach-runbook.md",
+      "status": "approved",
+      "frameworks": [
+        "HIPAA",
+        "GDPR",
+        "FERPA"
+      ],
+      "lastReviewed": "2026-08-15",
+      "nextReviewDue": "2027-08-02",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-08-16",
+        "attestedContentHash": "ebe2c69f63ac34714106a6f47378da2cb19122352de174edeb270d352f4dc87d",
+        "note": "Attested 2026-08-16 by Scot Wahlquist, CEO. First attestation of this record; it supersedes DOC-d4e3b8be32 (docs/legal/BREACH_RUNBOOK.md), which remains frozen at the v2.2.1 bytes attested 2026-08-01 (2b788387259bc315fc4b1e5a10817f55ae2d9eae02988236b245c5f62ede1907) with its own attestation block unaltered. Delivered as a Path A supersession rather than a same-row re-pin, so the register keeps its byte-level link to that earlier signature. VERIFIED BEFORE ATTESTING, not assumed: section 7 states that runtime AI egress to AWS Bedrock is ACTIVE and must be included in incident scoping. Confirmed against production on 2026-08-15 and re-confirmed 2026-08-16: BEDROCK_AWS_KEY and BEDROCK_AWS_SECRET mounted on the serving revision lingolinq-web-00020-per, AiClient.configured? true, and 63 of 63 logged calls since the 2026-08-12 deploy succeeded on inference profile us.anthropic.claude-haiku-4-5-20251001-v1:0. Section 7 also records, and an MFA-session check confirmed, that Bedrock model-invocation logging has no destination configured in us-west-2, us-east-1, or us-east-2, and that account data retention is inherit resolving to the model default default, with no zero-data-retention guarantee claimed. This corrects the v2.2.2 \"dormant, no runtime model egress on any path\" marking, which was accurate on 2026-08-02 and was overtaken by PR #734. Review dates deliberately follow the attested bytes rather than the usual today+interval rebase: the frozen file states Last reviewed 2026-08-15 and Next review 2027-08-02, and the register must not contradict the bytes that were attested. Evidence pack: outputs/docs/2026-08-15-bedrock-runtime-verification-evidence.md; see also PR #722 and #734."
+      },
+      "bundles": [
+        "soc2-evidence",
+        "school-dpa-package",
+        "security-review",
+        "baa"
+      ],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po/edit"
+        }
+      ],
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-d4e3b8be32",
+      "id": "DOC-28f19f73e4",
+      "contentHash": "ebe2c69f63ac34714106a6f47378da2cb19122352de174edeb270d352f4dc87d"
     },
     {
       "title": "Incident Log",
@@ -1207,7 +1278,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/AWS_BAA_ACCEPTED.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "HIPAA"
       ],
@@ -1226,9 +1297,7 @@
       },
       "correctionNote": "CORRECTION 2026-08-02, SUPERSEDED 2026-08-04 (not an attestation; only Scot attests). The 2026-07-27 attestation note asserted the deployed lingolinq-web credential was verified to resolve to AWS account 2390-4478-5114. That verification is RETRACTED and stays retracted: it was false when made, and no revision from 00001-2vn (2026-06-29) through 00012-x8z (2026-08-02T20:31Z) carried a Bedrock credential. The 2026-08-02 wording 'has ever carried' was an unbounded absolute and is corrected to that bounded range, because revision 00013-76w (2026-08-03T08:23:02Z) did mount the credentials. The operative condition was then independently verified for the first time on 2026-08-04 (sts:GetCallerIdentity returned 239044785114, principal user/lingolinq-bedrock-runtime); that verification is dated 2026-08-04 and does not revive the 2026-07-27 claim. The attestation object is left unmodified because it records what was signed. Re-attested by Scot Wahlquist 2026-08-04.",
       "contentHash": "376b1e18ce5297a8d9c23257850c1b028805d502090167b2a7b0c440941da2b9",
-      "bundles": [
-        "baa"
-      ],
+      "bundles": [],
       "mirrors": [],
       "id": "DOC-286318ff28",
       "retention": {
@@ -1238,7 +1307,79 @@
         "status": "draft"
       },
       "legalHold": false,
-      "dispositionEligibleAfter": null
+      "dispositionEligibleAfter": null,
+      "supersededBy": "DOC-211a60d29e"
+    },
+    {
+      "title": "AWS BAA Acceptance and Runtime Status Record",
+      "description": "Acceptance and provenance record for the signed AWS BAA, with Bedrock runtime status re-verified across all 18 lingolinq-web revisions on 2026-08-11. Supersedes the 2026-08-04 acceptance record.",
+      "type": "evidence",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-11_aws-baa-acceptance-record.md",
+      "status": "superseded",
+      "frameworks": [
+        "HIPAA"
+      ],
+      "lastReviewed": "2026-08-11",
+      "nextReviewDue": "2027-05-11",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-08-11",
+        "attestedContentHash": "d6d4fb76887c8c28c9e1f865b4ae60dc59dd8b9f8601d67346020ce692e330aa",
+        "priorAttestations": [],
+        "note": "Attested 2026-08-11 by Scot Wahlquist, CEO, on the exact bytes at the pinned hash. Path A supersession of DOC-286318ff28, whose file, filename, location, and 2026-08-04 attestation are frozen and were not modified by this cycle; priorAttestations is empty because these are new bytes and the lineage is carried by the supersedes pointer. Scope of this pin: the acceptance facts; the credential-mount history and serving state re-verified across all 18 lingolinq-web revisions within the 2026-08-11T18:41Z to 18:47Z evidence window, including the non-monotonic gap on 00014-5rw; the status of the BAA account assertion (built and merged to staging in PR #768, not enforcing in production because BEDROCK_EXPECTED_AWS_ACCOUNT is absent from serving revision 00018-cup); the nine corrections to the predecessor's frozen text; the evidentiary boundaries; and the verification standard. Explicitly NOT attested: any claim that an in-app Bedrock call succeeded in production. Bedrock model-invocation logging is carried forward at its original 2026-07-27 verification date and could not be re-verified at this evidence time, because bedrock:GetModelInvocationLoggingConfiguration is denied for the available principal."
+      },
+      "contentHash": "d6d4fb76887c8c28c9e1f865b4ae60dc59dd8b9f8601d67346020ce692e330aa",
+      "bundles": [],
+      "mirrors": [],
+      "id": "DOC-211a60d29e",
+      "retention": {
+        "class": "executed-agreement",
+        "rule": "term + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-286318ff28",
+      "supersededBy": "DOC-82e90ba16a"
+    },
+    {
+      "title": "AWS BAA Acceptance and Runtime Status Record (2026-08-12)",
+      "description": "Current standalone acceptance and provenance record for the signed AWS BAA, with Bedrock runtime status re-verified across all 18 lingolinq-web revisions on 2026-08-12. Supersedes the 2026-08-11 record.",
+      "type": "evidence",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-12_aws-baa-acceptance-record.md",
+      "status": "approved",
+      "frameworks": [
+        "HIPAA"
+      ],
+      "lastReviewed": "2026-08-12",
+      "nextReviewDue": "2027-05-11",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-08-12",
+        "attestedContentHash": "a5f2c59512fa04fa2c3f45c66fec2cc95ff3f8f76bb24e35046cd43a9566ea38",
+        "priorAttestations": [],
+        "note": "Attested 2026-08-12 by Scot Wahlquist, CEO, on the exact bytes at the pinned hash. Third record in a Path A chain: DOC-286318ff28 (attested 2026-08-04) superseded by DOC-211a60d29e (attested 2026-08-11) superseded by this record. Both predecessors keep their files, filenames, locations, attestations, and pinned hashes unmodified; this cycle changed only their lifecycle fields and bundle membership. priorAttestations is empty because these are new bytes and the lineage is carried by the supersedes pointer. Scope of this pin: the acceptance facts; the credential-mount history and serving state re-verified across all 18 lingolinq-web revisions on 2026-08-12 (sweep completing 16:29Z, remaining checks 16:30Z), including the non-monotonic gap on 00014-5rw; the status of the BAA account assertion (built and merged to staging in PR #768, not enforcing in production because BEDROCK_EXPECTED_AWS_ACCOUNT is absent from every revision including serving revision 00018-cup); the corrections to both predecessors; the evidentiary boundaries; and the verification standard. Explicitly NOT attested: any claim that an in-app Bedrock call succeeded in production, and any restatement of the 2026-07-27 model-invocation-logging check or the 2026-08-04 and 2026-08-10 caller-identity verifications as currently verified rather than carried forward at their own dates. Both the model-invocation-logging and CloudWatch checks were re-attempted 2026-08-12T16:30Z and remain denied for principal user/lingolinq-app."
+      },
+      "contentHash": "a5f2c59512fa04fa2c3f45c66fec2cc95ff3f8f76bb24e35046cd43a9566ea38",
+      "bundles": [
+        "baa"
+      ],
+      "mirrors": [],
+      "id": "DOC-82e90ba16a",
+      "retention": {
+        "class": "executed-agreement",
+        "rule": "term + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-211a60d29e"
     },
     {
       "title": "Compliance Status Snapshot (2026-06-18)",
@@ -1352,7 +1493,7 @@
       "lastReviewed": "2026-06-16",
       "nextReviewDue": "2026-09-16",
       "attestation": {},
-      "contentHash": "57dfcaae63efc8b492f6ed11231115e4b6bffdf8e26b580ddff79e7069fe077a",
+      "contentHash": "4cddcd9ec580a583a928719a55e043439bfe327234b8d03b68c0ab15304b1b8b",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
@@ -2819,7 +2960,7 @@
       "lastReviewed": "2026-07-12",
       "nextReviewDue": "2027-01-12",
       "attestation": {},
-      "contentHash": "eff0bfe6a99b89f3286e2f813119b2c6ee4d24ca1cdb84e246d9718e50fcfa10",
+      "contentHash": "7562193924b2e20a6fd38f010c48d9d418239b6309191aa1a8a51a051b813489",
       "bundles": [],
       "mirrors": [
         {
@@ -2852,7 +2993,7 @@
       "lastReviewed": "2026-07-22",
       "nextReviewDue": "2027-07-22",
       "attestation": {},
-      "contentHash": "d154d1747c5a61ed347ab697073d8084aeafdd6f656818b31eb96bf3276938f1",
+      "contentHash": "9bdef6d4ae50281d2d1e97dc8018e4ae0d1e507cff6e8a1ecb1536539fd33bad",
       "bundles": [],
       "mirrors": [],
       "notes": "Written for IA report sec 9.2 (folder READMEs so agents stop filing things in the wrong place).",

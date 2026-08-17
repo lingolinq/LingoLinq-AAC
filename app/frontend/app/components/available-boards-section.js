@@ -107,19 +107,34 @@ export default Component.extend({
         if (ctrl) { ctrl.send.apply(ctrl, [actionName].concat(bound)); }
       };
     };
-    /* Factory that returns a click handler — templates bind at render with
-       `(this.sendAction "name" …)` (same as ctrlAction). Do NOT use
-       `(fn this.sendAction …)`: that calls the factory at click time and
-       discards the returned handler. Do NOT make this invoke immediately
-       either: `(this.sendAction "toggleFoldersExpanded")` would then run
-       during render (while aria-expanded / class already read
-       foldersExpanded) and trip Ember's "update after use" assertion.
-       Filter/drag that need the Event use selfEventAction, not sendAction.
-       See LEARNINGS ctrlAction factory gotcha + 2026-08-05 accordion log. */
+    // A FACTORY, like every other wrapper in this component — it RETURNS the
+    // handler. Templates bind it bare: `{{on "click" (this.sendAction "name")}}`,
+    // same as `ctrlAction`. Both halves have to match, and this is the pairing
+    // the component settled on; the two ways to break it are:
+    //
+    //   • `(fn this.sendAction …)` — calls the FACTORY on click and throws the
+    //     returned handler away, so the action never runs.
+    //   • making this invoke `send()` immediately — the bare subexpression is
+    //     evaluated at RENDER time, so the action fires during render (Ember
+    //     then asserts "already been used previously in the same computation",
+    //     e.g. toggling `foldersExpanded` after `aria-expanded` has read it) and
+    //     `{{on}}` receives an `undefined` handler, leaving the folders
+    //     accordion dead to clicks.
+    //
+    // Mixing the two halves is the regression covered by
+    // tests/integration/available-boards-folders-test.js. Dispatches to `self`
+    // (this component). Handlers that need the raw DOM event
+    // (updateFolderFilter, drag/drop) use `selfEventAction` instead; the event
+    // is popped here because every `sendAction` binding is click-only.
     this.sendAction = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function() {
-        self.send.apply(self, [actionName].concat(bound));
+        var args = bound.concat(Array.prototype.slice.call(arguments));
+        var evt = args[args.length - 1];
+        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
+          args.pop();
+        }
+        self.send.apply(self, [actionName].concat(args));
       };
     };
     this.selfActionNoBubble = function(actionName) {

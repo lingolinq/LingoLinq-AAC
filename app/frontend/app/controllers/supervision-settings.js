@@ -87,6 +87,10 @@ export default modal.ModalController.extend({
       }, function() { });
     },
     add_supervisee: function() {
+      if (app_state.get('feature_flags.supervisor_consent_flow')) {
+        modal.open('request-supervision', {user: this.get('model')});
+        return;
+      }
       this.set('add_supervisee_hit', !this.get('add_supervisee_hit'));
     },
     update_alias: function(org) {
