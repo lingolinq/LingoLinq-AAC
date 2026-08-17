@@ -1470,6 +1470,17 @@ class User < ApplicationRecord
         # the value is authoritative server-side; the client no longer supplies
         # a fallback default for it.
         'folder_display_style' => 'default',
+        # Fitzgerald category grouping on board-detail. Empty order = the frontend
+        # registry supplies the default sequence.
+        #
+        # PRE-PRODUCTION: defaults ON so the grouped board is visible without any
+        # console work while the design is being evaluated. Before production this
+        # must go back to 'enabled' => false — turning it on MOVES vocabulary out of
+        # the cells a user has built positional motor memory on, which is a clinical
+        # change and has to be opt-in. See the matching PRE-PRODUCTION markers in
+        # lib/feature_flags.rb and components/board-detail-grid.js#groupingEnabled;
+        # all three flip together.
+        'board_category_grouping' => {'enabled' => true, 'order' => []},
         'symbol_background' => 'clear',
         'utterance_interruptions' => true,
         'click_buttons' => true,
@@ -1962,6 +1973,11 @@ class User < ApplicationRecord
       'skip_supervisee_sync', 'sync_refresh_interval', 'multi_touch_modeling',
       'goal_notifications', 'word_suggestion_images', 'word_suggestions', 'word_suggestion_position', 'hidden_buttons',
       'speak_on_speak_mode', 'ever_synced', 'folder_icons', 'folder_display_style', 'allow_log_reports', 'allow_log_publishing',
+      # Hash: {'enabled' => bool, 'order' => [category keys]}. process_params stores a
+      # whitelisted key's value verbatim, so the nested hash round-trips like
+      # 'device'/'substitutions' already do. Keys are validated frontend-side against
+      # utils/board_categories.js so an unknown/removed category can never break render.
+      'board_category_grouping',
       'symbol_background', 'disable_button_help', 'click_buttons', 'prevent_hide_buttons',
       'new_index', 'debounce', 'cookies', 'telemetry_opt_in', 'comms_log_opt_in', 'preferred_symbols', 'tag_ids', 'vibrate_buttons',
       'highlighted_buttons', 'never_delete', 'dim_header', 'inflections_overlay',

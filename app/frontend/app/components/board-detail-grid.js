@@ -3,6 +3,7 @@ import { inject as service } from '@ember/service';
 import { computed, get } from '@ember/object';
 import { scheduleOnce, debounce, cancel } from '@ember/runloop';
 import labelFit from '../utils/label_fit';
+import { group_buttons, normalize_order } from '../utils/board_categories';
 
 // Throttle window resize re-fits to ~250ms. Resizing fires many events
 // per drag; we only need the last one's measurement.
@@ -36,6 +37,70 @@ export default Component.extend({
       }
     }
     return false;
+  }),
+
+  /*
+   * Fitzgerald category grouping.
+   *
+   *   1. the feature flag must be on for this user;
+   *   2. the preference must not be switched off;
+   *   3. edit mode must be OFF -- editing depends on a cell's grid position for
+   *      drag, swap and paint, and a regrouped board no longer has those
+   *      positions. Editing always shows the true underlying layout.
+   *
+   * PRE-PRODUCTION on (2): a MISSING preference counts as ON, so the grouped
+   * board is visible without a console while the design is being evaluated. This
+   * is needed as well as the Rails default because `generate_defaults` only
+   * backfills on the user's next save, so existing users read `undefined` until
+   * then -- a strict `=== true` here would leave them ungrouped no matter what
+   * the Rails default says.
+   *
+   * BEFORE PRODUCTION: restore the strict test --
+   *     return this.get('...board_category_grouping.enabled') === true;
+   * so grouping is opt-in. It MOVES vocabulary out of cells a user has built
+   * positional motor memory on, which is a clinical change, not a cosmetic one.
+   * Flip together with the PRE-PRODUCTION markers in lib/feature_flags.rb and
+   * app/models/user.rb (preference_defaults).
+   */
+  groupingEnabled: computed(
+    'app_state.feature_flags.board_category_grouping',
+    'app_state.currentUser.preferences.board_category_grouping.enabled',
+    'editMode',
+    function() {
+      if(this.get('editMode')) { return false; }
+      if(!this.get('app_state.feature_flags.board_category_grouping')) { return false; }
+      return this.get('app_state.currentUser.preferences.board_category_grouping.enabled') !== false;
+    }
+  ),
+
+  categoryOrder: computed('app_state.currentUser.preferences.board_category_grouping.order', function() {
+    return normalize_order(this.get('app_state.currentUser.preferences.board_category_grouping.order'));
+  }),
+
+  /*
+   * Panels, in the user's order, built from the SAME `orderedButtons` the
+   * ungrouped grid renders -- grouping is a re-presentation of the existing
+   * array, never a second source of buttons. Empty categories are omitted.
+   */
+  categoryGroups: computed('orderedButtons', 'categoryOrder', 'groupingEnabled', function() {
+    if(!this.get('groupingEnabled')) { return []; }
+    return group_buttons(this.get('orderedButtons') || [], this.get('categoryOrder'));
+  }),
+
+  /*
+   * ONE shape for both modes, so the ~200-line cell block in the template is
+   * written once rather than duplicated into a grouped branch.
+   *
+   * Ungrouped (today's default) yields one pseudo-group per ROW with a null key
+   * and no label; its wrapper is `display: contents` in CSS, so it generates no
+   * box and the existing grid lays out exactly as it does now. Grouped yields the
+   * real category panels. Nothing about the ungrouped path changes.
+   */
+  renderGroups: computed('groupingEnabled', 'categoryGroups', 'orderedButtons', function() {
+    if(this.get('groupingEnabled')) { return this.get('categoryGroups'); }
+    return (this.get('orderedButtons') || []).map(function(row) {
+      return { key: null, label: null, buttons: row || [] };
+    });
   }),
 
   init: function() {

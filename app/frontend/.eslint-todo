@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-08-17T20:41:31.584Z
+# Generated: 2026-08-17T20:48:58.050Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -37,10 +37,10 @@ app/components/big-button.js|ember/no-runloop|101|7|2|5addc2170315
 app/components/board-collection.js|ember/no-runloop|408|7|2|5addc2170315
 app/components/board-collection.js|ember/require-computed-property-dependencies|320|22|1|7ee8eb5ebfea
 app/components/board-collection.js|ember/require-computed-property-dependencies|332|29|1|7ee8eb5ebfea
-app/components/board-detail-grid.js|ember/no-runloop|101|5|2|513c0395fe72
-app/components/board-detail-grid.js|ember/no-runloop|124|28|2|ab6701509d85
-app/components/board-detail-grid.js|ember/no-runloop|84|7|2|513c0395fe72
-app/components/board-detail-grid.js|ember/no-runloop|95|5|2|513c0395fe72
+app/components/board-detail-grid.js|ember/no-runloop|149|7|2|513c0395fe72
+app/components/board-detail-grid.js|ember/no-runloop|160|5|2|513c0395fe72
+app/components/board-detail-grid.js|ember/no-runloop|166|5|2|513c0395fe72
+app/components/board-detail-grid.js|ember/no-runloop|189|28|2|ab6701509d85
 app/components/board-details.js|ember/require-computed-property-dependencies|69|24|1|197771e08107
 app/components/board-details.js|ember/require-computed-property-dependencies|73|24|1|9d99d94c5a54
 app/components/board-icon.js|ember/no-runloop|314|7|2|5addc2170315
