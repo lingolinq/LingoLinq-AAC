@@ -184,3 +184,5 @@ app/frontend/scratchpad/
 # every prod image for ~6 months before this rule existed).
 *.rdb
 dump.rdb
+.cursor/rules/clear-explanations.mdc
+.cursor/rules/recommend-brain-skills.mdc

@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-08-16T21:06:02.467Z
+# Generated: 2026-08-16T21:52:51.123Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -777,17 +777,17 @@ app/services/persistence.js|ember/no-runloop|85|7|2|513c0395fe72
 app/services/persistence.js|ember/no-runloop|88|5|2|5addc2170315
 app/services/session.js|ember/no-runloop|198|11|2|513c0395fe72
 app/services/session.js|ember/no-runloop|299|11|2|5addc2170315
-app/services/stashes.js|ember/no-runloop|143|7|2|5addc2170315
-app/services/stashes.js|ember/no-runloop|152|7|2|5addc2170315
-app/services/stashes.js|ember/no-runloop|237|5|2|5addc2170315
-app/services/stashes.js|ember/no-runloop|267|9|2|513c0395fe72
-app/services/stashes.js|ember/no-runloop|269|33|2|41b2916979a4
-app/services/stashes.js|ember/no-runloop|304|5|2|5addc2170315
-app/services/stashes.js|ember/no-runloop|327|5|2|5addc2170315
-app/services/stashes.js|ember/no-runloop|385|9|2|5addc2170315
-app/services/stashes.js|ember/no-runloop|795|27|2|5addc2170315
-app/services/stashes.js|ember/no-runloop|835|15|2|5addc2170315
-app/services/stashes.js|ember/no-runloop|863|20|2|5addc2170315
+app/services/stashes.js|ember/no-runloop|147|7|2|5addc2170315
+app/services/stashes.js|ember/no-runloop|156|7|2|5addc2170315
+app/services/stashes.js|ember/no-runloop|241|5|2|5addc2170315
+app/services/stashes.js|ember/no-runloop|271|9|2|513c0395fe72
+app/services/stashes.js|ember/no-runloop|273|33|2|41b2916979a4
+app/services/stashes.js|ember/no-runloop|308|5|2|5addc2170315
+app/services/stashes.js|ember/no-runloop|331|5|2|5addc2170315
+app/services/stashes.js|ember/no-runloop|389|9|2|5addc2170315
+app/services/stashes.js|ember/no-runloop|840|27|2|5addc2170315
+app/services/stashes.js|ember/no-runloop|879|15|2|5addc2170315
+app/services/stashes.js|ember/no-runloop|907|20|2|5addc2170315
 app/services/telemetry.js|ember/no-runloop|138|5|2|5addc2170315
 app/services/telemetry.js|ember/no-runloop|94|23|2|5addc2170315
 app/services/telemetry.js|ember/no-runloop|99|7|2|513c0395fe72
@@ -1059,15 +1059,6 @@ tests/unit/components/confirm-remove-board-action-lock-test.js|qunit/no-assert-e
 tests/unit/components/confirm-remove-board-action-lock-test.js|qunit/no-assert-equal|79|5|1|8b9cc9ba7f61
 tests/unit/components/confirm-remove-board-action-lock-test.js|qunit/no-assert-equal|83|7|1|8b9cc9ba7f61
 tests/unit/components/confirm-remove-board-action-lock-test.js|qunit/require-expect|30|3|1|053cb64234aa
-tests/unit/components/eu-ai-parental-consent-test.js|qunit/no-assert-equal-boolean|32|5|1|5860ab713f62
-tests/unit/components/eu-ai-parental-consent-test.js|qunit/no-assert-equal-boolean|33|5|1|5860ab713f62
-tests/unit/components/eu-ai-parental-consent-test.js|qunit/no-assert-equal-boolean|34|5|1|5860ab713f62
-tests/unit/components/eu-ai-parental-consent-test.js|qunit/no-assert-equal-boolean|35|5|1|5860ab713f62
-tests/unit/components/eu-ai-parental-consent-test.js|qunit/no-assert-equal-boolean|38|5|1|5860ab713f62
-tests/unit/components/eu-ai-parental-consent-test.js|qunit/no-assert-equal-boolean|39|5|1|5860ab713f62
-tests/unit/components/eu-ai-parental-consent-test.js|qunit/no-assert-equal-boolean|59|5|1|5860ab713f62
-tests/unit/components/eu-ai-parental-consent-test.js|qunit/no-assert-equal-boolean|60|5|1|5860ab713f62
-tests/unit/components/eu-ai-parental-consent-test.js|qunit/no-assert-equal-boolean|61|5|1|5860ab713f62
 tests/unit/components/tour-board-picker-init-test.js|ember/no-runloop|101|5|2|513c0395fe72
 tests/unit/components/tour-board-picker-init-test.js|ember/no-runloop|118|5|2|513c0395fe72
 tests/unit/components/tour-board-picker-init-test.js|ember/no-runloop|43|5|2|513c0395fe72

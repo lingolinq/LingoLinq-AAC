@@ -213,9 +213,158 @@ describe Api::BadgesController, :type => :controller do
       # modeling-only for EVERYONE (supervising.rb:122), so the supervisee drops.
       expect(json['badge'].map{|b| b['id']}).to eq([mine.global_id])
     end
+
+    it "should not leak a public account's supervisees' badges to a stranger via recent" do
+      token_user
+      pub = User.create(:settings => {'public' => true})
+      # NOT public, and with no relationship whatsoever to the caller.
+      child = User.create
+      User.link_supervisor_to_user(pub, child, nil, 'edit')
+
+      childs = UserBadge.create(:user => child, :earned => true)
+      pubs = UserBadge.create(:user => pub, :earned => true, :highlighted => true)
+
+      # The caller is a total stranger to both accounts. `view_detailed` still
+      # passes on `pub` (user.rb:58 grants it to ['*'] for a public account), so
+      # the request reaches the recent branch.
+      expect(pub.reload.allows?(@user.reload, 'view_detailed')).to eq(true)
+      expect(@user.modeling_only_for?(child)).to eq(false)
+
+      get 'index', params: {:user_id => pub.global_id, recent: true}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      # Previously the exclusion filter negated to "visible" for a stranger and
+      # the supervisee was folded into user_ids, handing back a non-public
+      # child's goal progress.
+      expect(json['badge'].map{|b| b['id']}).to_not include(childs.global_id)
+      expect(json['badge'].map{|b| b['id']}).to eq([pubs.global_id])
+    end
+
+    it "should apply the highlighted downgrade on the recent branch too" do
+      token_user
+      pub = User.create(:settings => {'public' => true})
+      shown = UserBadge.create(:user => pub, :earned => true, :highlighted => true)
+      hidden = UserBadge.create(:user => pub, :earned => true)
+
+      expect(pub.reload.allows?(@user.reload, 'supervise')).to eq(false)
+
+      get 'index', params: {:user_id => pub.global_id, recent: true}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      # The else-branch already limited an unauthorized caller to the public
+      # showcase; this branch dropped the forced `highlighted` filter on the
+      # floor and returned un-highlighted badges as well.
+      expect(json['badge'].map{|b| b['id']}).to eq([shown.global_id])
+    end
+
+    # Both org specs below put the caller in a SUPERVISORY relationship with the
+    # queried account (`holder`), so `user.allows?(@api_user,'supervise')` is true
+    # and the `highlighted` downgrade is NOT forced. That matters: if the caller
+    # were a stranger to `holder`, the downgrade alone would hide an unhighlighted
+    # badge and the negative spec would pass without ever exercising the
+    # cross-account authorization check it claims to test.
+    it "should not leak a supervisee's badges across an organization boundary" do
+      token_user
+      holder = User.create
+      User.link_supervisor_to_user(@user, holder, nil, 'edit')
+
+      other_org = Organization.create(:settings => {'total_licenses' => 1})
+      comm = User.create
+      other_org.add_user(comm.user_name, true, false)
+      User.link_supervisor_to_user(holder, comm.reload, nil, 'edit')
+
+      my_org = Organization.create(:settings => {'total_licenses' => 1})
+      my_org.add_manager(@user.user_name, true)
+
+      comm.reload
+      @user.reload
+      # Preconditions, asserted so this cannot pass vacuously: the downgrade is
+      # NOT in play, and the caller holds no permission on this communicator.
+      expect(holder.reload.allows?(@user, 'supervise')).to eq(true)
+      expect(Organization.manager_for?(@user, comm, true)).to eq(false)
+      expect(comm.allows?(@user, 'set_goals')).to eq(false)
+
+      leaked = UserBadge.create(:user => comm, :earned => true)
+
+      get 'index', params: {:user_id => holder.global_id, recent: true}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      # Managing SOME org does not authorize reading a communicator in another.
+      expect(json['badge'].map{|b| b['id']}).to_not include(leaked.global_id)
+    end
+
+    it "should return a supervisee's badges to a manager of that supervisee's own org" do
+      token_user
+      holder = User.create
+      User.link_supervisor_to_user(@user, holder, nil, 'edit')
+
+      org = Organization.create(:settings => {'total_licenses' => 2})
+      comm = User.create
+      org.add_user(comm.user_name, false, false)
+      org.add_manager(@user.user_name, true)
+      comm.reload
+      @user.reload
+      User.link_supervisor_to_user(holder, comm, nil, 'edit')
+
+      # The other half of the boundary: a manager OF this communicator's own org
+      # holds set_goals (user.rb:85) and must not be denied by the new check.
+      expect(Organization.manager_for?(@user, comm, true)).to eq(true)
+      expect(comm.reload.allows?(@user, 'set_goals')).to eq(true)
+
+      visible = UserBadge.create(:user => comm, :earned => true)
+
+      get 'index', params: {:user_id => holder.reload.global_id, recent: true}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['badge'].map{|b| b['id']}).to include(visible.global_id)
+    end
+
+    it "should still return every supervisee's badges to a legitimate supervisor via recent" do
+      token_user
+      a = User.create
+      b = User.create
+      User.link_supervisor_to_user(@user, a, nil, 'edit')
+      User.link_supervisor_to_user(@user, b, nil, false)
+
+      mine = UserBadge.create(:user => @user)
+      abadge = UserBadge.create(:user => a, :earned => true)
+      bbadge = UserBadge.create(:user => b, :earned => true)
+
+      # Guards the fix against over-tightening: a read-only ('false' link) and an
+      # edit-level supervisor both hold set_goals, so neither may be dropped.
+      expect(a.reload.allows?(@user.reload, 'set_goals')).to eq(true)
+      expect(b.reload.allows?(@user.reload, 'set_goals')).to eq(true)
+
+      get 'index', params: {:user_id => @user.global_id, recent: true}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['badge'].map{|b| b['id']}.sort).to eq([mine.global_id, abadge.global_id, bbadge.global_id].sort)
+    end
   end
   
   describe "show" do
+    it "should not return an unhighlighted badge of a public account to a stranger" do
+      token_user
+      pub = User.create(:settings => {'public' => true})
+      hidden = UserBadge.create(:user => pub, :earned => true)
+      shown = UserBadge.create(:user => pub, :earned => true, :highlighted => true)
+
+      # Pins the boundary a review flagged as a possible bypass of the recent-branch
+      # fix. It is not one: UserBadge#view (user_badge.rb:19-21) grants a stranger
+      # `view` ONLY for a highlighted badge on a public account, so `allowed?` denies
+      # the unhighlighted record before require_progress_visible! is ever consulted.
+      expect(hidden.reload.allows?(@user.reload, 'view')).to eq(false)
+      expect(shown.reload.allows?(@user.reload, 'view')).to eq(true)
+
+      get 'show', params: {:id => hidden.global_id}
+      expect(response).to_not be_successful
+
+      # The public showcase half still works, so the denial above is a real gate
+      # and not the endpoint being broken for everyone.
+      get 'show', params: {:id => shown.global_id}
+      expect(response).to be_successful
+    end
+
     it "should require an api token" do
       get 'show', params: {:id => 'asdf'}
       assert_missing_token

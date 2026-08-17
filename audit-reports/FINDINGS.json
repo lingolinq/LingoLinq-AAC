@@ -3881,7 +3881,7 @@
         "reviewer": "claude-compliance-review",
         "promotedDate": "2026-07-09"
       },
-      "notes": "Promoted from PR #561 review (claude-compliance-review) on 2026-07-09. Surfaced 2026-07-09 during the PR #561 program-overview review (Codex senior-dev pass), code-verified by parallel trace. Not wording-only: a user-requested hard delete does not remove the user's own recorded voice (off-board ButtonSound) or any UserVideo, an incomplete GDPR Art. 17 erasure. Filed on branch scot/compliance/offboarding-coppa-reconsent-finding."
+      "notes": "Promoted from PR #561 review (claude-compliance-review) on 2026-07-09. Surfaced 2026-07-09 during the PR #561 program-overview review (Codex senior-dev pass), code-verified by parallel trace. Not wording-only: a user-requested hard delete does not remove the user's own recorded voice (off-board ButtonSound) or any UserVideo, an incomplete GDPR Art. 17 erasure. Filed on branch scot/compliance/offboarding-coppa-reconsent-finding.\n\nUPDATE 2026-08-16 (PR #806 round-6 dual review, factual correction only -- remediation.options above is preserved unedited as historical record, accurate as filed on 2026-07-09): the original remediation.options text's claim that Flusher does not sweep ButtonSound/UserVideo records by user_id was accurate when filed. That portion was subsequently superseded by PR #721, which added those sweeps (lib/flusher.rb:400-405, ButtonSound.where(user_id:) / UserVideo.where(user_id:), both citing this finding inline). The remaining remediation/verification work concerns associated remote S3 media objects (secondary_output, prior-transcode originals, thumbnails, abandoned uploads -- addressed by PR #806, pending the closure gates in that PR's disclosure) and the linked async-transcode path. Severity, status, and disposition are unchanged; this finding remains open. This note corrects a stale factual claim only -- it does not redefine scope or bear on closure.\n\nRelationship (2026-08-16, Scot-confirmed): sibling, not parent/child, to LL-c4566fa37f and LL-779490b63e. This finding covers hard-delete coverage for persisted/discoverable ButtonSound/UserVideo records and their associated S3 media objects. LL-c4566fa37f covers a different failure mechanism (an async transcode-job/webhook race that can produce S3 output with no persisted application metadata for any record-driven sweep to discover) and LL-779490b63e covers a third (the thumbnail erasure fallback's own bounded/best-effort limitations when S3 listing is unavailable). Any future closure evidence for this finding must be explicit that it covers persisted/discoverable media objects only, and must not claim that every possible asynchronous S3 output is guaranteed discoverable or erased -- that distinction is exactly why LL-c4566fa37f and LL-779490b63e exist as separate, independently open findings."
     },
     {
       "id": "LL-a167848115",
@@ -5746,6 +5746,92 @@
         "attestation": ""
       },
       "notes": "Surfaced by code-hygiene finder on 2026-08-12. Full-tree case-insensitive grep for 'extra-supervisors' and 'ExtraSupervisors' across app/frontend/app/**/*.{js,hbs} returns zero hits outside the component's own two files, and there is no Setup:: namespaced invocation anywhere in the template tree at all. Component body is an empty Component.extend({}); the .hbs holds static onboarding copy about adding supervisors. Low severity given the trivial size (4-line JS, 10-line HBS) and no evidence of a misleading/actively-dangerous state. | adversary: confirmed -- This IS the one component with a real reflective path (setup.hbs's dynamic {{component this.setupComponent}}), and it still doesn't reach: setup.js's order/extra_order allowlists never include 'extra-supervisors'. Confirmed dead, but for a different reason than the finder stated (it checked template references, not the dynamic-dispatch allowlist -- got the right answer without checking the actual risk path). Bonus: setup/extra-reports.js and setup/done.js are dead by the identical mechanism and were not flagged this run."
+    },
+    {
+      "id": "LL-c4566fa37f",
+      "ruleKey": "transcode-webhook-race-orphans-derivative-s3-output",
+      "title": "A ButtonSound/UserVideo record erased mid-transcode, or before/after a lost SNS completion webhook, can leave transcoded output and thumbnails in S3 with no surviving application metadata for the erasure sweep to discover (GDPR Art. 17 / FERPA)",
+      "severity": "medium",
+      "confidence": "medium",
+      "frameworks": [
+        "GDPR",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/transcoder.rb",
+        "line": 36,
+        "snippet": "record.update_media_object(new_record) if record",
+        "sha": "9830a1622e8269b21cd19880997588708cc8a96b"
+      },
+      "firstSeen": "2026-08-15",
+      "lastSeen": "2026-08-15",
+      "owner": "",
+      "remediation": {
+        "options": "Transcoder.handle_event (lib/transcoder.rb) only persists a completed job's output keys by calling record.update_media_object(new_record) if record (line 36) -- ButtonSound#update_media_object / MediaObject#update_media_object (app/models/concerns/media_object.rb) is the sole place transcoded-output and thumbnail keys are written to settings, which is in turn the sole source MediaObject#remove_derivative_remote_data reads from to schedule S3 cleanup on destroy. Two related race windows follow from that: (1) if the owning record is destroyed while Elastic Transcoder is still processing the job (or with the SNS completion notification never delivered/lost/erroring on receipt in app/controllers/api/callbacks_controller.rb), the ETS-produced output/thumbnail objects exist in S3 but are never persisted to any record's settings, so no erasure sweep can ever discover or delete them; (2) even for a job that does complete and call update_media_object, everything between the S3 PUT of transcoded output and that synchronous settings write is a window where the record could be destroyed first, same outcome. This is structurally different from LL-854b1d3853 (persisted-but-unswept metadata, fixed on this branch by MediaObject#remove_derivative_remote_data reading settings that DO exist) -- here the metadata needed to find the object never gets written at all. Remediation is intentionally not prescribed here; likely design directions include a durable external-job/output manifest written before the transcode job is submitted (not after it completes), deletion tombstones keyed by transcoding_key so a late webhook can self-clean after the owning record is gone, explicit cancellation/reconciliation of in-flight ETS jobs on record destroy, and/or a periodic post-delete orphan reconciliation sweep against the bucket. Link: related to LL-854b1d3853 (same ButtonSound/UserVideo S3 erasure surface); whether this keeps LL-854b1d3853 open as a blocker or is a distinct sibling that permits LL-854b1d3853 to close narrowly (persisted/discoverable media erasure only) is Scot's call, not decided here.",
+        "timeframe": "medium -- narrow race window in normal operation, but structurally unfixed by the persisted-metadata sweep landing on this branch; no known production incident, not yet independently verified against a real transcode job"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "manual",
+        "reviewer": "claude-adversary-review",
+        "promotedDate": "2026-08-15"
+      },
+      "notes": "Surfaced 2026-08-15 by the round-5 adversary review pass on the buttonsound-secondary-url-cleanup branch (LL-854b1d3853 remediation work), which fixed persisted-metadata media-erasure gaps (secondary_output, prior_full_filenames, thumbnail families) but explicitly could not reach this async transcode/webhook race without redesigning the transcode job lifecycle -- out of scope for that PR per Scot's direction. Filed as its own finding rather than folded into LL-854b1d3853 so the two remediation efforts (persisted-metadata sweep vs. async-job lifecycle hardening) stay separately trackable. Proposed by the agent; severity, confidence, and the LL-854b1d3853 linkage/blocking relationship are pending Scot's review per repo governance (only Scot sets disposition or closes/downgrades a finding).\n\nRelationship (2026-08-16, Scot-confirmed): sibling, not a blocking child, of LL-854b1d3853. LL-854b1d3853 may be proposed verified-closed on persisted/discoverable ButtonSound/UserVideo media-object erasure alone (PR #806) without this finding closing first; this finding exists precisely so that narrower closure is never mistaken for a claim that every possible async S3 output is guaranteed discoverable or erased. Also related to LL-779490b63e (thumbnail erasure fallback's own bounded/best-effort limitations): distinct failure mechanism -- this finding is about output that never gets persisted application metadata at all; LL-779490b63e is about persisted, metadata-driven cleanup that can silently stop short during its own degraded (listing-unavailable) path. Severity, confidence, and disposition remain untriaged and unchanged by this note."
+    },
+    {
+      "id": "LL-779490b63e",
+      "ruleKey": "thumbnail-fallback-bounded-best-effort-ambiguous-gap",
+      "title": "Thumbnail erasure fallback is bounded/best-effort and cannot reliably distinguish absence, sequence gaps, or transient deletion failure",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/uploader.rb",
+        "line": 309,
+        "snippet": "def self.remote_remove_thumbnail_family(stem, owner_class_name=nil, owner_global_id=nil)",
+        "sha": "328a54299af402cc55011355075e94fcfba5fded"
+      },
+      "firstSeen": "2026-08-16",
+      "lastSeen": "2026-08-16",
+      "owner": "",
+      "remediation": {
+        "options": "Uploader.remote_remove_thumbnail_family (lib/uploader.rb:309) falls back to a bounded guessed-sequence delete (FALLBACK_MAX_GUESS = 5, lib/uploader.rb:307) only when live S3 prefix listing fails (e.g. s3:ListBucket denied on the uploads-bucket credential, unverified in production per LL-854b1d3853's PR #806 disclosure) or errors for any other reason. Two related limitations in that degraded path, both round-6 adversary review findings on PR #806: (1) the fallback loop never raises on total failure -- every delete attempt is rescued and logged (lib/uploader.rb:326-336), so a transient S3 error (permission blip, network timeout, throttling) is contained rather than surfaced, meaning the failure never reaches Resque's durable retry/failure queue and there is no persisted record of which stem needs a retry once the owning ButtonSound/UserVideo row is already destroyed; (2) the fallback assumes a contiguous index sequence starting at 00001 and stops at the first index confirmed absent in both jpg/png (lib/uploader.rb:344, `break if !found_this_index && !errored_this_index`, fixed in PR #806 round 6 to at least not stop on an *errored* index rather than a *confirmed-absent* one) -- but if index 00001's object was already removed by an earlier partial sweep or an S3 lifecycle rule while 00002+ survive, the walk still stops at the first gap and logs deleted=0, which is indistinguishable in the logs from 'no thumbnails ever existed for this stem'. Both are real hardening opportunities on a path that is already disclosed in docs/legal/2026-08-09_data-retention_draft.md and docs/legal/2026-08-09_compliance-program-overview_draft.md as bounded and dependent on an unverified production permission -- not merge blockers for PR #806, and not remediated there. Likely remediation directions: (a) have the fallback path enqueue a durable RemoteAction/Resque retry (or otherwise surface failure) instead of only logging, so a transient error is recoverable rather than silently final; (b) either walk the full FALLBACK_MAX_GUESS range unconditionally (accepting some wasted head_object calls) rather than stopping at the first gap, or make the deleted=0 log line explicitly distinguish 'no gap encountered, nothing found' from 'stopped early at a gap' so an operator can tell the two apart.",
+        "timeframe": "medium -- only exercised on the already-degraded path (s3:ListBucket denied or listing otherwise unavailable), which is itself unverified in production; no known production incident"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "manual",
+        "reviewer": "claude-adversary-review",
+        "promotedDate": "2026-08-16"
+      },
+      "notes": "Surfaced 2026-08-16 by the round-6 adversary review pass on PR #806 (buttonsound-secondary-url-cleanup branch). Filed as its own finding rather than folded into LL-c4566fa37f: that finding is about transcode output that never gets persisted application metadata at all, while this finding is about the erasure sweep's own fallback behavior when persisted metadata DOES exist but live S3 listing is unavailable -- a different failure mechanism with a different remediation shape (retry/enumeration hardening vs. job-lifecycle/manifest redesign). Related to LL-854b1d3853 as residual hardening of its degraded cleanup path; does not block LL-854b1d3853's closure. Proposed by the agent; severity, confidence, and disposition are pending Scot's review per repo governance (only Scot sets disposition or closes/downgrades a finding). Confidence set to high (not medium) because both code paths cited (the un-raised fallback failure and the break-on-first-gap logic) were directly read and verified against lib/uploader.rb at HEAD, not inferred."
     }
   ]
 }
