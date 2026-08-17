@@ -130,10 +130,21 @@ class Api::SupervisorRelationshipsController < ApplicationController
     # nothing a reviewer could act on. Detecting token guessing is a rate-limiting
     # concern, not an audit-trail one.
     if rel || result[:error].nil?
-      actor_id = @api_user&.global_id || rel&.communicator_user&.global_id || 'consent_flow'
+      # The actor is the SESSION, never the subject. On the unauthenticated email
+    # path @api_user is nil, and borrowing the communicator's id recorded the
+    # CHILD as having approved their own supervision — indistinguishable from a
+    # genuine in-app self-approval, because nothing recorded the channel. Consent
+    # tokens are routed to owner_email precisely because the subject may be under
+    # 13, so token possession is a GUARDIAN credential, not the child's.
+    # `channel` is what lets the trail answer "did a parent consent, or did the
+    # child approve their own supervision" — the question COPPA verifiable
+    # parental consent exists to answer.
+    channel = @api_user ? 'in_app' : 'email_token'
+    actor_id = @api_user&.global_id || 'consent_flow'
       AuditEvent.log_command(actor_id, {
         'type' => 'supervisor_consent_response',
         'decision' => decision,
+        'channel' => channel,
         'outcome' => result[:error] ? 'rejected' : 'accepted',
         'reason' => result[:error],
         'relationship_id' => rel&.global_id,

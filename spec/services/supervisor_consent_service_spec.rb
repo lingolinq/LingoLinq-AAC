@@ -625,6 +625,63 @@ describe SupervisorConsentService, :type => :model do
       expect(linked).to eq(final.status == 'approved')
     end
 
+    it "should re-read committed state after acquiring the lock, not before" do
+      supervisor = make_user
+      communicator = make_user
+      rel = make_relationship(
+        supervisor_user: supervisor,
+        communicator_user: communicator,
+        status: 'pending',
+        permission_level: 'edit_boards'
+      )
+      rel.generate_consent_token!
+      token = rel.consent_response_token
+      allow(SupervisorMailer).to receive(:schedule_delivery)
+
+      # Deterministic discriminator for the LOCK itself. "Does it block?" does not
+      # work -- Postgres blocks the UPDATE on the row lock whether or not the
+      # service takes one, so that assertion passes with `with_lock` deleted. What
+      # actually distinguishes them is WHEN the recheck reads:
+      #
+      #   with_lock  -> lock acquired first, row reloaded, recheck sees 'denied', refuses
+      #   no lock    -> recheck already passed on the pre-lock read, then the UPDATE
+      #                 lands after the other transaction commits and overwrites it
+      #
+      # The second is exactly the production bug: a row reading 'denied' with a
+      # live supervisor link. The final status is therefore the assertion.
+      locked = Queue.new
+      committed = Queue.new
+
+      other = Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection do |conn|
+          conn.transaction do
+            conn.execute("SELECT id FROM supervisor_relationships WHERE id = #{rel.id} FOR UPDATE")
+            locked << :held
+            sleep 1.5   # let the service reach its lock/update while this txn is open
+            conn.execute("UPDATE supervisor_relationships SET status = 'denied', consent_response_token = NULL WHERE id = #{rel.id}")
+          end
+          committed << :done
+        end
+      end
+
+      locked.pop
+
+      worker = Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection do
+          SupervisorConsentService.new.approve(token: token)
+        end
+      end
+
+      committed.pop
+      other.join(20)
+      worker.join(20)
+
+      final = SupervisorRelationship.find(rel.id)
+      expect(final.status).to eq('denied')
+      # The invariant that matters: the decision on record and the actual access agree.
+      expect(communicator.reload.supervisor_user_ids).to_not include(supervisor.global_id)
+    end
+
     it "should let exactly one of two simultaneous revokes win" do
       supervisor = make_user
       communicator = make_user

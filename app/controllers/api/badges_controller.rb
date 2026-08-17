@@ -27,7 +27,10 @@ class Api::BadgesController < ApplicationController
       supervisees = user.supervisees.select{|s| supervisee_progress_readable?(s) }
       # TODO: sharding
       user_ids = [user.id] + supervisees.map(&:id)
-      badges = UserBadge.where(:user_id => user_ids).where(['(earned = ? AND updated_at > ?) OR (earned = ? AND superseded = ?)', true, 2.weeks.ago, false, false])
+      # `disabled: false` matches the else-branch at the same gate. Without it a
+      # disabled-but-highlighted badge on a public account was served here while
+      # the non-recent path hid it — a residual sliver of the same leak class.
+      badges = UserBadge.where(:user_id => user_ids, :disabled => false).where(['(earned = ? AND updated_at > ?) OR (earned = ? AND superseded = ?)', true, 2.weeks.ago, false, false])
       # The `highlighted` downgrade forced above was silently dropped on this
       # branch, so an unauthorized caller received the target's un-highlighted
       # badges here while the else-branch correctly limited them to the public

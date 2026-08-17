@@ -128,7 +128,8 @@ class SupervisorConsentService
       relationship,
       # Re-read inside the lock: a concurrent revoke (or an expiry sweep) can move
       # the row off 'approved' between the caller's read and this write.
-      recheck: ->(rel) { rel.status == 'approved' ? nil : { error: 'not_active' } }
+      recheck: ->(rel) { rel.status == 'approved' ? nil : { error: 'not_active' } },
+      not_found_error: 'not_active'
     ) do |rel|
       rel.update!(
         status: 'revoked',
@@ -223,15 +224,26 @@ class SupervisorConsentService
   # `with_lock` opens a transaction and issues SELECT ... FOR UPDATE, which
   # reloads the row, so `recheck` runs against committed state rather than the
   # attributes the caller read earlier.
-  def locked_transition(relationship, recheck:)
-    return { error: 'invalid_or_expired_token' } unless relationship&.persisted?
+  # `not_found_error` carries the CALLER's error vocabulary. `revoke` speaks
+  # 'not_active' and the consent paths speak 'invalid_or_expired_token'; a single
+  # hard-coded string here would hand a revoke caller an error from a different
+  # contract.
+  def locked_transition(relationship, recheck:, not_found_error: 'invalid_or_expired_token')
+    return { error: not_found_error } unless relationship&.persisted?
 
     # Re-find rather than locking the caller's instance. `with_lock` calls `lock!`,
     # which raises on a record carrying unsaved changes, so a caller that handed us
     # a modified object would get a 500 instead of a transition. Re-finding also
     # guarantees the recheck below evaluates committed state rather than whatever
     # the caller happened to have assigned in memory.
-    relationship = relationship.class.find(relationship.id)
+    begin
+      relationship = relationship.class.find(relationship.id)
+    rescue ActiveRecord::RecordNotFound
+      # The row can be deleted between the caller's read and this re-find. The
+      # pre-lock code returned an error hash; raising here would surface a 500
+      # on a race the caller cannot control.
+      return { error: not_found_error }
+    end
 
     result = nil
     relationship.with_lock do
@@ -262,7 +274,29 @@ class SupervisorConsentService
 
     ActiveRecord.after_all_transactions_commit do
       SupervisorMailer.schedule_delivery(delivery_type, relationship.global_id, *args)
+      resupersede_board_cache(relationship)
     end
+  end
+
+  # link_supervisor_to_user / unlink_supervisor_from_user enqueue
+  # `update_available_boards` synchronously (supervising.rb:180,225) via
+  # Worker.schedule_for, which pushes to Redis immediately. This service now runs
+  # them INSIDE a transaction, so a worker can dequeue and recompute from the
+  # pre-transition snapshot before it commits — and that computation writes
+  # authorization state, not display state: board_caching.rb persists
+  # settings['available_private_board_ids'], which board.rb:76 reads to grant
+  # view/edit/delete/share. A stale run after a revoke re-grants the removed
+  # supervisor real access to a child's private boards, behind a 30-minute
+  # permission cache.
+  #
+  # Re-enqueuing after commit does not remove the race, it makes it converge: the
+  # post-commit recomputation always supersedes any stale one. Deferring the
+  # enqueue inside supervising.rb would be the complete fix, but that method has
+  # many callers outside this service and changing it belongs in its own change.
+  def resupersede_board_cache(relationship)
+    relationship.supervisor_user&.schedule_once(:update_available_boards)
+  rescue StandardError => e
+    Rails.logger.warn("consent: board-cache resupersede failed: #{e.class}")
   end
 
   def party_response_error(relationship, actor)
