@@ -95,58 +95,140 @@ class SupervisorConsentService
   end
 
   def approve(token:)
-    relationship = SupervisorRelationship.find_by(consent_response_token: token)
-    return { error: 'invalid_or_expired_token' } unless relationship && relationship.token_valid?
-
-    finalize_approve(relationship)
+    result = transition_by_token(token) { |rel| finalize_approve(rel) }
+    schedule_after_commit(result, :consent_approved)
+    result
   end
 
   # Logged-in communicator approves from the in-app pending list (relationship id, not email token).
   def approve_as_party(relationship:, actor:)
-    auth_error = party_response_error(relationship, actor)
-    return auth_error if auth_error
-
-    finalize_approve(relationship)
+    result = transition_as_party(relationship, actor) { |rel| finalize_approve(rel) }
+    schedule_after_commit(result, :consent_approved)
+    result
   end
 
   def deny(token:)
-    relationship = SupervisorRelationship.find_by(consent_response_token: token)
-    return { error: 'invalid_or_expired_token' } unless relationship && relationship.token_valid?
-
-    finalize_deny(relationship)
+    transition_by_token(token) { |rel| finalize_deny(rel) }
   end
 
   def deny_as_party(relationship:, actor:)
-    auth_error = party_response_error(relationship, actor)
-    return auth_error if auth_error
-
-    finalize_deny(relationship)
+    transition_as_party(relationship, actor) { |rel| finalize_deny(rel) }
   end
 
   def revoke(relationship:, revoker:, reason: nil)
-    return { error: 'not_active' } unless relationship.status == 'approved'
+    return { error: 'not_active' } unless relationship
 
-    revoker_type = if revoker.id == relationship.supervisor_user_id
+    revoker_type = if revoker && revoker.id == relationship.supervisor_user_id
                      'supervisor'
                    else
                      'communicator'
                    end
 
-    relationship.update!(
-      status: 'revoked',
-      revoked_at: Time.current,
-      revoked_by: revoker.id,
-      revocation_reason: reason
-    )
+    result = locked_transition(
+      relationship,
+      # Re-read inside the lock: a concurrent revoke (or an expiry sweep) can move
+      # the row off 'approved' between the caller's read and this write.
+      recheck: ->(rel) { rel.status == 'approved' ? nil : { error: 'not_active' } }
+    ) do |rel|
+      rel.update!(
+        status: 'revoked',
+        revoked_at: Time.current,
+        revoked_by: revoker&.id,
+        revocation_reason: reason
+      )
 
-    User.unlink_supervisor_from_user(relationship.supervisor_user, relationship.communicator_user)
+      User.unlink_supervisor_from_user(rel.supervisor_user, rel.communicator_user)
 
-    SupervisorMailer.schedule_delivery(:supervisor_revoked, relationship.global_id, revoker_type)
+      { relationship: rel }
+    end
 
-    { relationship: relationship }
+    schedule_after_commit(result, :supervisor_revoked, revoker_type)
+    result
   end
 
   private
+
+  # ---------------------------------------------------------------------------
+  # Concurrency
+  #
+  # Every consent transition is a check-then-act on a row that two different
+  # parties can reach at the same time: the guardian's emailed approve/deny links
+  # and the communicator's in-app pending list. Previously nothing serialized
+  # them — no `with_lock`, no `transaction`, no conditional UPDATE — so a
+  # simultaneous approve and deny both read `status == 'pending'`, both passed
+  # their guard, and both wrote. Two orderings, both wrong:
+  #
+  #   * deny commits last  -> row reads 'denied', but finalize_approve has ALREADY
+  #                           called link_supervisor_to_user, leaving a live
+  #                           supervisor link on a relationship the guardian
+  #                           refused. This is the dangerous one: the audit trail
+  #                           and the UI say "denied" while access is real.
+  #   * approve commits last -> the guardian's denial is silently overwritten.
+  #
+  # The same gap admitted approval after expiry, because `token_valid?` was
+  # evaluated on a copy read before the write.
+  #
+  # Fix: load, then take a row-level lock, then re-validate against committed
+  # state, then transition — all inside one transaction, so the status write and
+  # the supervisor-link change either both land or neither does. A competing
+  # transition blocks on the lock and, when it resumes, fails its recheck.
+  # ---------------------------------------------------------------------------
+
+  # Token path. Every failure mode collapses to one generic error so the endpoint
+  # does not distinguish "no such token" from "already answered" from "expired".
+  def transition_by_token(token, &block)
+    return { error: 'invalid_or_expired_token' } if token.blank?
+
+    relationship = SupervisorRelationship.find_by(consent_response_token: token)
+    return { error: 'invalid_or_expired_token' } unless relationship && relationship.token_valid?
+
+    locked_transition(
+      relationship,
+      recheck: ->(rel) { rel.token_valid? ? nil : { error: 'invalid_or_expired_token' } },
+      &block
+    )
+  end
+
+  # In-app path. Preserves this path's more specific error contract
+  # (not_authorized / not_pending / invalid_or_expired_token).
+  def transition_as_party(relationship, actor, &block)
+    auth_error = party_response_error(relationship, actor)
+    return auth_error if auth_error
+
+    locked_transition(
+      relationship,
+      recheck: ->(rel) { party_response_error(rel, actor) },
+      &block
+    )
+  end
+
+  # `with_lock` opens a transaction and issues SELECT ... FOR UPDATE, which
+  # reloads the row, so `recheck` runs against committed state rather than the
+  # attributes the caller read earlier.
+  def locked_transition(relationship, recheck:)
+    return { error: 'invalid_or_expired_token' } unless relationship&.persisted?
+
+    result = nil
+    relationship.with_lock do
+      stale = recheck.call(relationship)
+      result = stale || yield(relationship)
+    end
+    result
+  end
+
+  # Mail is scheduled only after the transaction has committed. `schedule_delivery`
+  # pushes onto Resque immediately (mailers/concerns/general.rb:24), so enqueuing
+  # inside the lock would let a worker dequeue and read the row before this
+  # transaction commits — the mailers re-load by global_id and would see the
+  # pre-transition state.
+  def schedule_after_commit(result, delivery_type, *args)
+    return unless result.is_a?(Hash) && result[:error].nil?
+
+    relationship = result[:relationship]
+    return unless relationship
+
+    SupervisorMailer.schedule_delivery(delivery_type, relationship.global_id, *args)
+  end
 
   def party_response_error(relationship, actor)
     return { error: 'not_authorized' } unless actor && relationship && relationship.communicator_user_id == actor.id
@@ -157,6 +239,8 @@ class SupervisorConsentService
     nil
   end
 
+  # Runs inside the caller's lock and transaction. Mail is NOT scheduled here;
+  # see schedule_after_commit.
   def finalize_approve(relationship)
     relationship.update!(
       status: 'approved',
@@ -167,8 +251,6 @@ class SupervisorConsentService
 
     link_type = relationship.user_link_type
     User.link_supervisor_to_user(relationship.supervisor_user, relationship.communicator_user, nil, link_type)
-
-    SupervisorMailer.schedule_delivery(:consent_approved, relationship.global_id)
 
     { relationship: relationship }
   end

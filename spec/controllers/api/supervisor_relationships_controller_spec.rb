@@ -207,6 +207,58 @@ describe Api::SupervisorRelationshipsController, type: :controller do
       expect(response).to be_successful
     end
 
+    it "should audit a REJECTED consent decision" do
+      token_user
+      supervisor = User.create
+      rel = SupervisorRelationship.create!(
+        supervisor_user: supervisor,
+        communicator_user: @user,
+        status: 'denied',
+        permission_level: 'view_only'
+      )
+
+      # A refused attempt is the event a reviewer most needs, and it previously
+      # left no trace: AuditEvent.log_command sat in the success branch only.
+      expect(AuditEvent).to receive(:log_command).with(@user.global_id, hash_including(
+        'type' => 'supervisor_consent_response',
+        'decision' => 'approve',
+        'outcome' => 'rejected',
+        'reason' => 'not_pending',
+        'relationship_id' => nil
+      )).and_call_original
+
+      put :approve, params: { id: rel.global_id }
+      expect(response).to_not be_successful
+      expect(rel.reload.status).to eq('denied')
+    end
+
+    it "should audit a rejected token decision without recording the token" do
+      token_user
+      supervisor = User.create
+      rel = SupervisorRelationship.create!(
+        supervisor_user: supervisor,
+        communicator_user: @user,
+        status: 'pending',
+        permission_level: 'view_only'
+      )
+      rel.generate_consent_token!
+
+      logged = nil
+      expect(AuditEvent).to receive(:log_command) { |_actor, data| logged = data }
+
+      # An explicit `token` param routes to the unauthenticated token branch,
+      # where a bad token yields no relationship at all.
+      put :approve, params: { id: rel.global_id, token: 'wrong-consent-token' }
+      expect(response).to_not be_successful
+
+      expect(logged['outcome']).to eq('rejected')
+      expect(logged['reason']).to eq('invalid_or_expired_token')
+      expect(logged['relationship_id']).to be_nil
+      # The consent token is a credential; it must never reach the audit trail.
+      expect(logged.to_json).to_not include('wrong-consent-token')
+      expect(rel.reload.status).to eq('pending')
+    end
+
     it "should let the logged-in communicator approve by relationship id without a token" do
       token_user
       supervisor = User.create

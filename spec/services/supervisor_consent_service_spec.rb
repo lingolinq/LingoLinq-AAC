@@ -319,4 +319,156 @@ describe SupervisorConsentService, :type => :model do
       expect(result[:error]).to eq('not_active')
     end
   end
+
+  # Consent transitions are check-then-act on a row two parties reach
+  # independently: the guardian's emailed approve/deny links and the
+  # communicator's in-app pending list. These specs pin the losing side of that
+  # race, by handing the service the STALE copy the loser holds and committing
+  # the winner's write before the lock is taken. `with_lock` reloads under
+  # SELECT ... FOR UPDATE, so the guard re-runs against committed state.
+  describe "concurrent transitions" do
+    def pending_pair(permission_level: 'edit_boards')
+      supervisor = User.create
+      communicator = User.create
+      rel = SupervisorRelationship.create!(
+        supervisor_user: supervisor,
+        communicator_user: communicator,
+        status: 'pending',
+        permission_level: permission_level
+      )
+      rel.generate_consent_token!
+      [supervisor, communicator, rel]
+    end
+
+    it "should refuse an approve whose row was denied after the caller read it" do
+      supervisor, communicator, rel = pending_pair
+      token = rel.consent_response_token
+
+      stale = SupervisorRelationship.find(rel.id)
+      expect(stale.token_valid?).to eq(true)
+      expect(SupervisorRelationship).to receive(:find_by).with(consent_response_token: token).and_return(stale)
+
+      # The competing deny commits while the approver still holds `stale`.
+      SupervisorRelationship.where(id: rel.id).update_all(
+        status: 'denied', consent_response_token: nil, consent_responded_at: Time.current
+      )
+
+      expect(SupervisorMailer).to_not receive(:schedule_delivery)
+      result = service.approve(token: token)
+
+      expect(result[:error]).to eq('invalid_or_expired_token')
+      expect(rel.reload.status).to eq('denied')
+      # The whole point: no live supervisor link on a relationship the guardian
+      # refused. This is the outcome the unlocked version produced.
+      expect(communicator.reload.supervisor_user_ids).to_not include(supervisor.global_id)
+    end
+
+    it "should refuse an in-app approve whose row was denied after the caller read it" do
+      supervisor, communicator, rel = pending_pair
+      stale = SupervisorRelationship.find(rel.id)
+
+      SupervisorRelationship.where(id: rel.id).update_all(
+        status: 'denied', consent_response_token: nil, consent_responded_at: Time.current
+      )
+
+      expect(SupervisorMailer).to_not receive(:schedule_delivery)
+      result = service.approve_as_party(relationship: stale, actor: communicator)
+
+      expect(result[:error]).to eq('not_pending')
+      expect(rel.reload.status).to eq('denied')
+      expect(communicator.reload.supervisor_user_ids).to_not include(supervisor.global_id)
+    end
+
+    it "should refuse a deny whose row was approved after the caller read it" do
+      supervisor, communicator, rel = pending_pair
+      stale = SupervisorRelationship.find(rel.id)
+
+      SupervisorRelationship.where(id: rel.id).update_all(
+        status: 'approved', consent_response_token: nil, activated_at: Time.current
+      )
+
+      result = service.deny_as_party(relationship: stale, actor: communicator)
+
+      expect(result[:error]).to eq('not_pending')
+      # A denial must not silently clobber an already-recorded approval.
+      expect(rel.reload.status).to eq('approved')
+    end
+
+    it "should refuse an approve whose token expired after the caller read it" do
+      supervisor, communicator, rel = pending_pair
+      token = rel.consent_response_token
+
+      stale = SupervisorRelationship.find(rel.id)
+      expect(stale.token_valid?).to eq(true)
+      expect(SupervisorRelationship).to receive(:find_by).with(consent_response_token: token).and_return(stale)
+
+      SupervisorRelationship.where(id: rel.id).update_all(consent_token_expires_at: 1.minute.ago)
+
+      expect(SupervisorMailer).to_not receive(:schedule_delivery)
+      result = service.approve(token: token)
+
+      expect(result[:error]).to eq('invalid_or_expired_token')
+      expect(rel.reload.status).to eq('pending')
+      expect(communicator.reload.supervisor_user_ids).to_not include(supervisor.global_id)
+    end
+
+    it "should treat a replayed approve token as invalid" do
+      supervisor, communicator, rel = pending_pair
+      token = rel.consent_response_token
+
+      expect(SupervisorMailer).to receive(:schedule_delivery).with(:consent_approved, rel.global_id).once
+      expect(service.approve(token: token)[:error]).to be_nil
+
+      # finalize_approve clears the token, so a double-submit finds nothing.
+      expect(service.approve(token: token)[:error]).to eq('invalid_or_expired_token')
+      expect(rel.reload.status).to eq('approved')
+    end
+
+    it "should refuse a second revoke of the same relationship" do
+      supervisor = User.create
+      communicator = User.create
+      User.link_supervisor_to_user(supervisor, communicator)
+      rel = SupervisorRelationship.create!(
+        supervisor_user: supervisor,
+        communicator_user: communicator,
+        status: 'approved',
+        activated_at: Time.current
+      )
+
+      expect(SupervisorMailer).to receive(:schedule_delivery).with(:supervisor_revoked, rel.global_id, 'supervisor').once
+      expect(service.revoke(relationship: rel, revoker: supervisor)[:error]).to be_nil
+
+      # A racing second revoke re-reads under the lock and finds it already gone.
+      expect(service.revoke(relationship: SupervisorRelationship.find(rel.id), revoker: supervisor)[:error]).to eq('not_active')
+    end
+
+    it "should schedule the approval email only after the transition is persisted" do
+      supervisor, communicator, rel = pending_pair
+
+      expect(SupervisorMailer).to receive(:schedule_delivery) do |type, id|
+        expect(type).to eq(:consent_approved)
+        expect(id).to eq(rel.global_id)
+        # Read through a fresh object, the way the Resque worker does when it
+        # re-loads by global_id. Scheduling inside the lock would let the worker
+        # observe a row that had not transitioned yet.
+        expect(SupervisorRelationship.find(rel.id).status).to eq('approved')
+      end
+
+      expect(service.approve(token: rel.consent_response_token)[:error]).to be_nil
+    end
+
+    it "should not leave a supervisor link behind when the transition fails" do
+      supervisor, communicator, rel = pending_pair
+      token = rel.consent_response_token
+
+      stale = SupervisorRelationship.find(rel.id)
+      expect(SupervisorRelationship).to receive(:find_by).with(consent_response_token: token).and_return(stale)
+      SupervisorRelationship.where(id: rel.id).update_all(status: 'expired', consent_response_token: nil)
+
+      service.approve(token: token)
+
+      expect(communicator.reload.supervisor_user_ids).to eq([])
+      expect(rel.reload.status).to eq('expired')
+    end
+  end
 end

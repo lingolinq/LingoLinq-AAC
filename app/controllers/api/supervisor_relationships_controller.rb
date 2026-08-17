@@ -109,18 +109,25 @@ class Api::SupervisorRelationshipsController < ApplicationController
                { error: 'invalid_or_expired_token' }
              end
 
+    rel = result[:relationship]
+    # Log the DECISION, not just the successful decision. A rejected attempt —
+    # expired token, wrong party, already-answered relationship — is the event a
+    # reviewer most needs, and previously it left no trace at all. Never log the
+    # consent token itself; `outcome`/`reason` carry the diagnosis instead.
+    actor_id = @api_user&.global_id || rel&.communicator_user&.global_id || 'consent_flow'
+    AuditEvent.log_command(actor_id, {
+      'type' => 'supervisor_consent_response',
+      'decision' => decision,
+      'outcome' => result[:error] ? 'rejected' : 'accepted',
+      'reason' => result[:error],
+      'relationship_id' => rel&.global_id,
+      'supervisor_id' => rel&.supervisor_user&.global_id,
+      'communicator_id' => rel&.communicator_user&.global_id
+    })
+
     if result[:error]
       api_error 400, { error: result[:error] }
     else
-      rel = result[:relationship]
-      actor_id = @api_user&.global_id || rel&.communicator_user&.global_id || 'consent_flow'
-      AuditEvent.log_command(actor_id, {
-        'type' => 'supervisor_consent_response',
-        'decision' => decision,
-        'relationship_id' => rel&.global_id,
-        'supervisor_id' => rel&.supervisor_user&.global_id,
-        'communicator_id' => rel&.communicator_user&.global_id
-      })
       render json: JsonApi::SupervisorRelationship.as_json(rel, wrapper: true).to_json
     end
   end
