@@ -9,6 +9,7 @@ import editManager from '../utils/edit_manager';
 import i18n from '../utils/i18n';
 import paint_view_switch_overlay from '../utils/view_switch_overlay';
 import { findExistingUserCopy } from '../utils/board-copy';
+import { saveHomeBoard } from '../utils/home_board';
 import { preload_board_images } from '../utils/board_preview_warmer';
 
 /* Minimum time the loading overlay must stay visible after it first
@@ -49,6 +50,15 @@ export default Component.extend({
      account (before routing into edit mode). Drives a "Setting up your board..."
      overlay so the (server-side, can-take-seconds) copy isn't an opaque freeze. */
   copying: false,
+
+  /* The preview must show the board the way THIS user's board-detail will show
+     it. Dark mode there is the `preferences.board_dark_mode` pref (default off —
+     controllers/user/board-detail.js:329, persisted at :5167), so the preview
+     follows the pref instead of the hard-coded `true` it used to pass, which made
+     every board preview navy while the board it previewed was light. */
+  board_dark_mode: computed('modal.boardPreview', function() {
+    return !!app_state.get('currentUser.preferences.board_dark_mode');
+  }),
 
   init() {
     this._super(...arguments);
@@ -213,6 +223,19 @@ export default Component.extend({
       this.set('model_style', null);
       this.get('modal').close(null, 'board-preview');
     },
+    /* Touch-device parity for the tile's hover-only `.board_action`
+       (available-boards-section.hbs:388). The callback is a closure bound in
+       that template which dispatches `remove_board(remove_type, board)` to the
+       user controller — the same path the hover button takes, and every branch
+       of it opens a confirm modal (controllers/user/index.js:1560-1579). Close
+       the preview first so that confirm opens on a clean stack. Mirrors the
+       route-era controllers/board-preview.js#remove. */
+    remove() {
+      var ctx = this.get('modal.boardPreview.remove');
+      if(!ctx || !ctx.callback) { return; }
+      this.send('close');
+      ctx.callback();
+    },
     preview(key) {
       this.set('model_style', true);
       this.set('model_key', key);
@@ -288,13 +311,12 @@ export default Component.extend({
       // Dedup first: skip copying if the user already owns a copy of this board.
       findExistingUserCopy(board, user).then(function(existing) {
         if (existing) {
-          // Reuse the existing copy — just (re)set it as the home board, no new copy.
-          user.set('preferences.home_board', {
-            id: existing.get('id'),
-            key: existing.get('key'),
-            locale: locale
-          });
-          user.save().then(function() {
+          // Reuse the existing copy — just (re)set it as the home board, no new
+          // copy. Via utils/home_board so the save is CONFIRMED against what the
+          // server stored: a 200 here does not mean the assignment was kept (the
+          // server drops the write for a board it can't resolve or the user
+          // can't view), and this branch used to report those as success.
+          saveHomeBoard(user, existing, locale).then(function() {
             _this._finishPickForHome(existing, locale, setupUserSnapshot, routerSvc);
           }, function() {
             _this._handlePickError(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"), routerSvc);
@@ -364,6 +386,27 @@ export default Component.extend({
     if (key) { app_state.set('board_detail_tour_pending_speak', key); }
     if (locale) { app_state.set('label_locale', locale); }
     var parts = key.split('/');
+    /* TWO OBSERVATIONS FROM THE SELF-PICK CLICK-TESTS, DEFERRED (2026-08-14).
+       Both were seen in this path; neither is explained, and neither blocked the
+       finding H3 was about — the home board stored correctly and was confirmed by
+       re-reading the user from the server.
+
+       1. A self-pick landed on `/<user>/boards` — the pickingForOther destination —
+          even though `pickingForOther` is false here, so it is THIS transition to
+          user.board-detail that runs. So it is very unlikely to be a wrong-branch
+          bug. A 404 was logged in that run; the leading (UNCONFIRMED) hypothesis is
+          that board-detail fails to load the just-created copy and something
+          redirects to /boards.
+       2. A separate run (a different communicator, same self-pick path) never
+          reached a terminal state within 180s. Not investigated; may be nothing
+          more than a slow dev-stack copy.
+
+       To pick this up: `node scripts/adversarial-review-qa.mjs --only h3b
+       --self-id <a communicator with no copy of the picked board>` on a quiet
+       stack. The harness already emits a NAV block — the URL trail plus the
+       setup_user/currentUser ids this function branches on — which should settle
+       (1) in a single run. See
+       docs/task-management/2026-08-14-click-test-adversarial-fixes.md. */
     var go = function() {
       if (parts.length >= 2 && routerSvc) {
         var isDark = true;

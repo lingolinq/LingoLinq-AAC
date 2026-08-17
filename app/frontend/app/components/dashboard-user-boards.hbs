@@ -38,7 +38,10 @@
       </div>
 
       <div class="ub-boards-page__getting-started-actions">
-        <LinkTo @route="home-boards" class="md-btn md-card__getting-started-btn">{{t "Help me Choose" key="help_me_choose"}}</LinkTo>
+        {{!-- Board picker, carrying whose board it is (see
+             #homeBoardPickerUserId) so a supporter picking for a communicator
+             lands in the picker's supervisor flow rather than its self flow. --}}
+        <LinkTo @route="board-picker" @query={{hash user_id=this.homeBoardPickerUserId}} class="md-btn md-card__getting-started-btn">{{t "Help me Choose" key="help_me_choose"}}</LinkTo>
       </div>
     </section>
   </div>

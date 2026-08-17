@@ -2,8 +2,10 @@ import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
+import RSVP from 'rsvp';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
+import Badge from '../models/badge';
 
 function resolveSuperviseeHomeBoardKey(s) {
   if (!s || typeof s !== 'object') {
@@ -201,11 +203,18 @@ export default Controller.extend({
     return null;
   },
 
-  _enterSpeakModeForSuperviseeId: function(boardUserId, modeling, superviseeForModelingOnlyCheck) {
+  // `modeling` picks which mode we enter, and it maps to set_speak_mode_user's
+  // `keep_as_self`: true keeps the supporter as themselves on the communicator's
+  // board (modeling), false makes them the speaking user (speak-as).
+  //
+  // A modeling-only link used to be blocked from the speak-as path here. That
+  // guard was UI policy, not a backend constraint: api/logs_controller#create
+  // requires only `allowed?(user, 'model')` (logs_controller.rb:187), which every
+  // supervisor including modeling-only holds (user.rb:63), and it records
+  // `:author => @api_user` regardless of client mode — so the supporter is
+  // attributed server-side either way. Modelers may now Speak.
+  _enterSpeakModeForSuperviseeId: function(boardUserId, modeling) {
     if (!boardUserId) {
-      return;
-    }
-    if (superviseeForModelingOnlyCheck && superviseeForModelingOnlyCheck.modeling_only && !modeling) {
       return;
     }
     var appState = this.get('appState');
@@ -237,23 +246,152 @@ export default Controller.extend({
   _scrollExpandedIntoView: function() {
     try {
       var row = document.querySelector('.md-caseload__list-row--active');
-      if (!row || typeof row.getBoundingClientRect !== 'function') { return; }
-      var rect = row.getBoundingClientRect();
-      var vh = window.innerHeight || document.documentElement.clientHeight || 0;
-      if (rect.top < 0 || rect.bottom > vh) {
-        var block = (rect.height <= vh - 24) ? 'nearest' : 'start';
-        row.scrollIntoView({ behavior: 'smooth', block: block, inline: 'nearest' });
+      if (!row || typeof row.scrollIntoView !== 'function') { return; }
+      // ALWAYS top-align the opened card, and always scroll.
+      //
+      // This used to pick `block: 'nearest'` whenever the card fitted the
+      // viewport, and to skip scrolling entirely when the row was already fully
+      // visible. Both produced the reported behaviour: 'nearest' scrolls the
+      // MINIMUM distance, so a card whose bottom was below the fold got its
+      // BOTTOM pulled to the viewport bottom — leaving the previous
+      // communicator's row occupying the top of the screen, which reads as
+      // "it scrolled to the wrong person".
+      // 'start' puts the card's own top edge at the top every time.
+      //
+      // The navbar clearance is MEASURED from the live header, not taken from
+      // --topbar-height: that token resolves to 16px on authenticated layouts
+      // (app.scss ~367) while the bar this page actually renders is ~88px, so
+      // trusting it scrolled the card up UNDER the header and clipped its top.
+      // Measuring also survives the bar changing height between layouts (16 /
+      // 68 / 70 / 129px are all live values in this app) and when it wraps.
+      // Written to inline scroll-margin-top rather than doing the arithmetic
+      // ourselves, so this keeps working whether the scroll container is the
+      // window or an ancestor element.
+      var offset = 0;
+      var header = document.querySelector('#within_ember > header') || document.querySelector('body > header');
+      if (header && typeof window.getComputedStyle === 'function') {
+        var pos = window.getComputedStyle(header).position;
+        if (pos === 'fixed' || pos === 'sticky') {
+          offset = header.getBoundingClientRect().height || 0;
+        }
       }
+      if (offset > 0) {
+        row.style.scrollMarginTop = (offset + 12) + 'px';
+      }
+      var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      row.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start', inline: 'nearest' });
     } catch (e) { /* best-effort — never block toggling */ }
+  },
+
+  // Load the in-progress badge for the row that just opened.
+  //
+  // Two requests, and both are needed:
+  //   1. `query('badge', {user_id: <me>, recent: 1})` — the index endpoint's
+  //      `recent` branch returns badges for the supporter AND every supervisee
+  //      (badges_controller.rb ~13), including unearned, un-superseded ones,
+  //      which is exactly "in progress". Cached on the controller so opening a
+  //      second row costs nothing.
+  //   2. `findRecord('badge', id)` for the winner — the INDEX serializer omits
+  //      `completion_settings` (it is gated on `args[:permissions]`,
+  //      json_api/badge.rb ~33), and both `completion_explanation` and
+  //      `time_left` are computed from it. Without this second call the panel
+  //      could show a name and a bar but never the "to earn this badge…" text.
+  _loadBadgeForSupervisee: function(supervisee) {
+    var _this = this;
+    var user_id = supervisee && (supervisee.id != null ? supervisee.id : supervisee.user_id);
+    if (!user_id) { return; }
+    this.set('selectedBadge', null);
+    // Tracked separately from `selectedBadge` because null means two different
+    // things — "still loading" and "there is no badge" — and the empty state
+    // must not flash while the request is in flight.
+    this.set('badgeLoading', true);
+    /* Every write below has to re-check that this response still describes the
+       row on screen. `_badgesForUser` only populates its cache after the FIRST
+       query resolves, so clicking row A then row B inside that window fires two
+       concurrent queries with no ordering guarantee — and if A's lands last it
+       used to set `selectedBadge` to A's badge while `selectedSupervisee` was
+       already B. The panel captions the tile with `supervisee.user_name`
+       (caseload.hbs:354), so that rendered one communicator's badge progress
+       under another communicator's name — and because the nested findRecord
+       handler DID guard, B's own detail load then correctly refused to
+       overwrite it, leaving the mismatch on screen rather than flickering past.
+       Safe as a precondition: selectSupervisee sets `selectedSupervisee`
+       immediately before calling this (:416-417). */
+    var stale = function() {
+      return _this.isDestroyed || _this.isDestroying ||
+             _this.get('selectedSupervisee') !== supervisee.user_name;
+    };
+    this._badgesForUser(user_id).then(function(badges) {
+      if (stale()) { return; }
+      var best = Badge.best_next_badge(badges || [], null);
+      if (!best) {
+        _this.set('badgeLoading', false);
+        return;
+      }
+      // Keep the summary visible while the detailed record loads, so the tile
+      // does not flash empty on a slow connection.
+      _this.set('selectedBadge', best);
+      _this.set('badgeLoading', false);
+      _this.get('store').findRecord('badge', best.get('id')).then(function(full) {
+        // Same guard: the supporter may have collapsed this row, or opened a
+        // different one, while the request was in flight.
+        if (stale()) { return; }
+        _this.set('selectedBadge', full);
+      }, function() { /* keep the summary record — it still renders */ });
+    }, function() {
+      // A failed lookup is not proof there is no badge, but the panel has
+      // nothing to show either way — fall through to the empty state, which
+      // offers a useful next step rather than an error the supporter cannot act on.
+      if (stale()) { return; }
+      _this.set('badgeLoading', false);
+    });
+  },
+
+  /* Badges for ONE communicator, cached per user id.
+     This used to be a single `{user_id: me, recent: 1}` query covering the
+     supporter and every supervisee at once, which the API paginates at
+     DEFAULT_PAGE = 10 (lib/json_api/badge.rb:5) with no ordering and no
+     `per_page` sent (json_api/json.rb:24,30) — SQL `LIMIT 11`. A supporter with
+     more than a handful of communicators therefore got at most 10 rows in
+     arbitrary order, and because the `recent` branch also returns EARNED badges
+     that best_next_badge immediately discards, the supporter's own recently
+     earned badges could consume the whole page and leave every supervisee panel
+     showing "No badge in progress".
+     Raising per_page only moves the ceiling (MAX_PAGE is 25). The panel opens
+     one communicator at a time, so scoping the request to that communicator
+     removes the ceiling entirely — and the non-`recent` branch of
+     badges_controller#index is exactly this query (`user_id` + not superseded,
+     not disabled). One request per row, cached for the session. */
+  _badgesForUser: function(user_id) {
+    var _this = this;
+    if (!user_id) { return RSVP.reject(); }
+    var cache = this.get('_superviseeBadges') || {};
+    if (cache[user_id]) { return RSVP.resolve(cache[user_id]); }
+    return this.get('store').query('badge', {user_id: user_id}).then(function(badges) {
+      var list = [];
+      badges.forEach(function(badge) { list.push(badge); });
+      if (!_this.isDestroyed && !_this.isDestroying) {
+        // Re-read: another row's request may have populated the cache meanwhile.
+        var current = _this.get('_superviseeBadges') || {};
+        var next = Object.assign({}, current);
+        next[user_id] = list;
+        _this.set('_superviseeBadges', next);
+      }
+      return list;
+    });
+  },
+
+  /* Drops the per-user badge cache. The controller is a singleton that survives
+     route exit, so without this a badge earned (or a goal-with-badge added)
+     after the first look stayed invisible for the rest of the session. */
+  _clearBadgeCache: function() {
+    if (!this.isDestroyed && !this.isDestroying) { this.set('_superviseeBadges', null); }
   },
 
   actions: {
     // Open the static "Managing Your Caseload" guide modal (info button next to
     // the "People you support" subheader) — maps the row quick-action icons and
     // explains what opening a communicator's card lets you do.
-    showCaseloadGuide: function() {
-      modal.open('modals/caseload-guide');
-    },
     // Toggle the selected supervisee. Clicking a row in the compact
     // student list opens that supervisee's full card below; clicking
     // the same row again (or another row) collapses or switches.
@@ -273,12 +411,21 @@ export default Controller.extend({
       if (!name) { return; }
       if (this.get('selectedSupervisee') === name) {
         this.set('selectedSupervisee', null);
+        this.set('selectedBadge', null);
       } else {
         this.set('selectedSupervisee', name);
+        this._loadBadgeForSupervisee(supervisee);
         // After the panel renders, bring the newly-expanded card into view —
         // expanding a low row can push its content below the fold.
         scheduleOnce('afterRender', this, this._scrollExpandedIntoView);
       }
+    },
+
+    // The badge tile opens the same modal the dashboard uses, so the panel is a
+    // preview of it rather than a second, divergent presentation of a badge.
+    show_badge: function(badge) {
+      if (!badge) { return; }
+      modal.open('badge-awarded', {badge: badge, user_name: badge.get('user_name')});
     },
 
     // Reset the supervisee text filter. Bound to the × inside the
@@ -299,7 +446,7 @@ export default Controller.extend({
       if (boardUserId == null && supervisee.user_name) {
         boardUserId = supervisee.user_name;
       }
-      this._enterSpeakModeForSuperviseeId(boardUserId, true, supervisee);
+      this._enterSpeakModeForSuperviseeId(boardUserId, true);
     },
     caseload_speak_as: function(supervisee) {
       if (!supervisee) {
@@ -309,7 +456,7 @@ export default Controller.extend({
       if (boardUserId == null && supervisee.user_name) {
         boardUserId = supervisee.user_name;
       }
-      this._enterSpeakModeForSuperviseeId(boardUserId, false, supervisee);
+      this._enterSpeakModeForSuperviseeId(boardUserId, false);
     },
 
     stats: function(userName) {
@@ -362,6 +509,17 @@ export default Controller.extend({
         // refresh.
         modal.open('new-goal', { user: user_model }).then(function(res) {
           if (!res) { return; }
+          /* A goal can carry a badge, so the cached badge list for this
+             communicator is now stale — the empty state's own "Add Goal with
+             Badge" CTA otherwise kept saying "No badge in progress" for the
+             rest of the session, including after re-navigating to /caseload. */
+          _this._clearBadgeCache();
+          if (_this.get('selectedSupervisee')) {
+            var open_row = (_this.get('supervisees') || []).filter(function(s) {
+              return s.user_name === _this.get('selectedSupervisee');
+            })[0];
+            if (open_row) { _this._loadBadgeForSupervisee(open_row); }
+          }
           var current = _this.get('appState.currentUser');
           if (current && typeof current.reload === 'function') {
             current.reload();

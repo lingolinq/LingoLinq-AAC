@@ -4267,7 +4267,7 @@
       "frameworks": [
         "HIPAA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "lib/ai_client.rb",
@@ -4283,15 +4283,15 @@
         "timeframe": "before Bedrock is marked operational"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "9470ffbd7b15980c90c53b300148a8fdd6b8a2e3",
+        "verifierNote": "Control built and merged via PR #768 (merge commit 9470ffbd7b15980c90c53b300148a8fdd6b8a2e3 into staging on 2026-08-10; ancestor-verified). AiClient now calls sts:GetCallerIdentity under the exact credential pair it will sign Bedrock with, against an endpoint pinned to https://sts.<region>.amazonaws.com, and refuses to return a client unless the returned Account equals BEDROCK_EXPECTED_AWS_ACCOUNT (lib/ai_client.rb:508 account_verified?, :570 verify_account, :450 sts_endpoint). It fails closed on mismatch, on any probe error, on a malformed expected-account value, and on a region string that is not a well-formed commercial AWS region: the region is interpolated into the STS hostname, so an unvalidated region would defeat the endpoint pin. The result is memoized per credential+region+expected fingerprint under a mutex with a 60s retry floor on failure and a monotonic clock, and the Puma warm-up at config/puma.rb:37 runs it after fork so a wrong credential surfaces at boot rather than at first inference. All four runtime AI seams gate on AiClient.available? and take a client via AiClient.build!, which raises NotAvailableError rather than returning nil (lib/ai_word_predictor.rb:59,201; lib/ai_board_generator.rb:555,568; lib/ai_prediction_generator.rb:118,238; lib/eval_narrator.rb:251,345). The account id stays in configuration rather than hardcoded, so an account migration is a config change; because an absent env var skips the assertion, the deploy pins it as a plaintext literal (.github/workflows/deploy-cloudrun.yml:273) and reads it back after deploy on both lingolinq-web and the lingolinq-worker worker pool, pinned to the value ^239044785114$ rather than to a 12-digit shape (:716-724, via scripts/gcp/assert-runtime-secrets.sh --required-literal). Covered by 69 examples in spec/lib/ai_client_spec.rb plus a new spec/lib/ai_prediction_generator_spec.rb for the seam that had no spec file at all. Confirmed independently out of band on 2026-08-10: a live sts:GetCallerIdentity under the production Bedrock credential returned account 239044785114, principal user/lingolinq-bedrock-runtime, which is the account docs/legal/AWS_BAA_ACCEPTED.md is scoped to. Three adversarial review rounds preceded merge and two returned BLOCK; the defects they caught were a redirectable STS endpoint, a readback that pinned shape instead of value, an unvalidated region, and a scheduled drift job that could never have authenticated (dropped, filed as issue #769). SCOPE NOTE: production runs main, so the assertion has not yet executed in a production process. Its first production execution emits the log line '[AiClient] Bedrock credential verified against AWS account 239044785114' and lands on the next staging-to-main release, which auto-deploys under #758.",
+        "attestation": "Scot Wahlquist 2026-08-11: attested verified-closed. The automated account assertion this finding asked for is built, test-covered, and merged to staging in #768, and the production Bedrock credential was independently confirmed to resolve to the BAA'd account 239044785114. What remains is deployment, not construction; the production log line is being watched as deploy confirmation, not as evidence the control exists."
       },
       "disposition": {
-        "state": "untriaged",
-        "decidedBy": "",
-        "decidedDate": "",
-        "rationale": ""
+        "state": "fixed",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-08-11",
+        "rationale": "Closed on the control's existence and test coverage rather than on its first production execution, because the finding is that no check asserts the account and that is no longer true at staging head. Reaching production is tracked as a release watch item on the next staging-to-main merge, not as an open finding."
       },
       "source": {
         "kind": "pr-review",

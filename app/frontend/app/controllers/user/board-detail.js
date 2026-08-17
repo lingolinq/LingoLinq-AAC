@@ -27,7 +27,7 @@ import aiPredictor from '../../utils/ai_word_predictor';
 import wordSuggestionsModule from '../../utils/word_suggestions';
 import { buttonSpacingPx, buttonBorderPx, buttonTextPx } from '../../utils/display_prefs';
 import boardDetailCache from '../../utils/board_detail_cache';
-import { pick_aac_type, pick_aac_color } from '../../utils/parts_of_speech';
+import { pick_aac_color, resolve_labels_pos } from '../../utils/parts_of_speech';
 import prefClasses from '../../mixins/pref-classes';
 import LingoLinq from '../../app';
 import buildEventAction from '../../utils/event_action';
@@ -1430,6 +1430,13 @@ export default Controller.extend(prefClasses, {
     // building out the button grid while navigating away just wastes CPU and
     // can cause observer churn on a torn-down controller.
     if(this.get('_exiting') || this.isDestroyed || this.isDestroying) { return; }
+    /* After deleteRecord()+save, exiting speak mode still schedules
+       processButtons → here. Ember Data forbids set() on deleted records
+       ("Attempted to set 'buttons' on the deleted record"). Bail early. */
+    var modelForGuard = this.get('model');
+    if(modelForGuard && typeof modelForGuard.get === 'function' && modelForGuard.get('isDeleted')) {
+      return;
+    }
     var _this = this;
     if(!(raw.images && raw.images.length)) {
       if(_this._board_detail_images && _this._board_detail_images.length) {
@@ -1481,7 +1488,7 @@ export default Controller.extend(prefClasses, {
           _this._last_raw.images = _this._board_detail_images;
         }
         var board_early = _this.get('model');
-        if(board_early && board_early.set) {
+        if(board_early && board_early.set && !(board_early.get && board_early.get('isDeleted'))) {
           if(raw.translations !== undefined) { board_early.set('translations', raw.translations); }
           if(raw.buttons !== undefined) { board_early.set('buttons', raw.buttons); }
           if(raw.locale !== undefined) { board_early.set('locale', raw.locale); }
@@ -1496,7 +1503,7 @@ export default Controller.extend(prefClasses, {
     var image_map = raw.image_urls || {};
     (raw.images || []).forEach(function(img) {
       if(img && img.id) {
-        var url = img.skin_url || img.url;
+        var url = (_this._preferred_symbols && img.skin_url) ? img.skin_url : img.url; // library preferred_symbols only
         if(url) {
           image_map[String(img.id)] = url;
         }
@@ -1524,7 +1531,7 @@ export default Controller.extend(prefClasses, {
     if(board && board.get && !raw.translations && board.get('translations')) {
       raw.translations = board.get('translations');
     }
-    if(board && board.set) {
+    if(board && board.set && !(board.get && board.get('isDeleted'))) {
       if(raw.translations !== undefined) { board.set('translations', raw.translations); }
       if(raw.buttons !== undefined) { board.set('buttons', raw.buttons); }
       if(raw.locale !== undefined) { board.set('locale', raw.locale); }
@@ -1953,6 +1960,10 @@ export default Controller.extend(prefClasses, {
     // payload onto model.buttons MUST sync that payload into _last_raw
     // first (see saveButtonChanges) — otherwise this clobbers the save
     // with a pre-edit snapshot (notably newly assigned image_ids).
+    var model = this.get('model');
+    if(model && typeof model.get === 'function' && model.get('isDeleted')) {
+      return;
+    }
     if(this._last_raw) {
       this._build_from_raw(this._last_raw);
     }
@@ -2352,6 +2363,31 @@ export default Controller.extend(prefClasses, {
       return i18n.t('error_no_local', "This board is not available offline.");
     }
   }),
+  /* Broken-board recovery: Home when the referenced communicator (or
+     current user) has a home board or a session entry board to land on. */
+  error_show_home: computed(
+    'app_state.referenced_user.preferences.home_board.key',
+    'app_state.currentUser.preferences.home_board.key',
+    'app_state.board_detail_entry_board.user_name',
+    'app_state.board_detail_entry_board.boardname',
+    function() {
+      if(this.get('app_state.referenced_user.preferences.home_board.key')) { return true; }
+      if(this.get('app_state.currentUser.preferences.home_board.key')) { return true; }
+      var entry = this.get('app_state.board_detail_entry_board');
+      return !!(entry && entry.user_name && entry.boardname);
+    }
+  ),
+  /* Exit Speak is supervisor-facing (supporter role or actively modeling).
+     Communicators stay in speak mode and use Home / Back instead. */
+  error_show_exit_speak: computed(
+    'app_state.speak_mode',
+    'app_state.currentUser.supporter_role',
+    'app_state.modeling',
+    function() {
+      if(!this.get('app_state.speak_mode')) { return false; }
+      return !!(this.get('app_state.currentUser.supporter_role') || this.get('app_state.modeling'));
+    }
+  ),
 
   description_info_expanded: false,
   cc_license: computed('model.license.type', function() {
@@ -3691,28 +3727,11 @@ export default Controller.extend(prefClasses, {
     return 'default';
   },
 
-  // Pick the best POS from a list of types for a single word
-  best_type: function(types) {
-    if(!types || !types.length) { return null; }
-    var priority = [
-      'verb', 'noun', 'nominative',
-      'negation', 'expletive',
-      'question',
-      'adjective', 'adverb',
-      'pronoun',
-      'social', 'interjection',
-      'preposition',
-      'conjunction', 'number', 'article', 'determiner'
-    ];
-    for(var i = 0; i < priority.length; i++) {
-      if(types.indexOf(priority[i]) >= 0) {
-        return priority[i];
-      }
-    }
-    return types[0];
-  },
-
-  // Look up POS for buttons that have no type assigned
+  // Look up POS for buttons that have no type assigned.
+  // The lookup itself (batching, the session word cache, and the single-vs-multi
+  // word rules) lives in utils/parts_of_speech.js so the board-preview canvas
+  // resolves colours identically — a preview that disagreed with the board it
+  // previews is the bug this shares code to prevent.
   resolve_unknown_buttons: function(buttons) {
     var _this = this;
     var unknowns = buttons.filter(function(btn) {
@@ -3722,75 +3741,13 @@ export default Controller.extend(prefClasses, {
     });
     if(!unknowns.length) { return; }
 
-    var jobs = [];
-    var allWords = [];
-    var seenWord = {};
-    unknowns.forEach(function(btn) {
-      var label = btn.get ? btn.get('label') : btn.label;
-      var words = label.split(/\s+/).filter(function(w) { return !!w; });
-      words.forEach(function(w) {
-        if(!seenWord[w]) {
-          seenWord[w] = true;
-          allWords.push(w);
-        }
-      });
-      jobs.push({ btn: btn, words: words });
-    });
+    var labels = unknowns.map(function(btn) { return btn.get ? btn.get('label') : btn.label; });
 
-    var fetchWordMap = function(start, acc) {
-      acc = acc || {};
-      var chunk = allWords.slice(start, start + 100);
-      if(chunk.length === 0) {
-        return RSVP.resolve(acc);
-      }
-      return persistence.ajax('/api/v1/search/batch_parts_of_speech', {
-        type: 'GET',
-        data: { words: chunk.join(',') }
-      }).then(function(res) {
-        var results = (res && res.results) || {};
-        Object.keys(results).forEach(function(k) {
-          acc[k] = results[k];
-        });
-        return fetchWordMap(start + 100, acc);
-      }, function() {
-        return fetchWordMap(start + 100, acc);
-      });
-    };
-
-    fetchWordMap(0, {}).then(function(wordMap) {
+    resolve_labels_pos(labels, function(url, opts) { return persistence.ajax(url, opts); }, RSVP).then(function(pos_by_label) {
       var mutated = false;
-      jobs.forEach(function(job) {
-        var btn = job.btn;
-        var words = job.words;
-        var results = words.map(function(w) {
-          return wordMap[w] || null;
-        });
-
-        var cls = null;
-
-        if(words.length === 1) {
-          var types = (results[0] && results[0].types) || [];
-          cls = pick_aac_type(types, words[0]);
-        } else {
-          var first_types = (results[0] && results[0].types) || [];
-          if(first_types.length > 0 && first_types[0] === 'verb') {
-            cls = 'verb';
-          } else {
-            var skip_types = ['article', 'determiner', 'preposition', 'conjunction'];
-            for(var i = results.length - 1; i >= 0; i--) {
-              var word_types = (results[i] && results[i].types) || [];
-              var word_best = _this.best_type(word_types);
-              if(word_best && skip_types.indexOf(word_best) < 0) {
-                cls = word_best;
-                break;
-              }
-            }
-            if(!cls && results.length > 0) {
-              var last_types = (results[results.length - 1] && results[results.length - 1].types) || [];
-              cls = _this.best_type(last_types);
-            }
-          }
-        }
+      unknowns.forEach(function(btn) {
+        var label = btn.get ? btn.get('label') : btn.label;
+        var cls = pos_by_label[label];
 
         if(cls) {
           if(btn.set) {
@@ -5752,8 +5709,11 @@ export default Controller.extend(prefClasses, {
       // Home is a board-to-board exit like any other and was entirely unguarded
       // — it even cleared board_detail_nav_history on the way out.
       if(this.board_lock_blocks_exit()) { return; }
-      // Prefer the user's saved home board
-      var home = this.get('app_state.currentUser.preferences.home_board');
+      // Prefer the active communicator's home (modeling / speak-as), then
+      // the signed-in user's — so broken-link recovery and the Home control
+      // land on the board the current speak session is for.
+      var home = this.get('app_state.referenced_user.preferences.home_board') ||
+        this.get('app_state.currentUser.preferences.home_board');
       if(home && home.key) {
         this.set('app_state.board_detail_nav_history', []);
         var parts = home.key.split('/');

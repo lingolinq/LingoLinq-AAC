@@ -1,5 +1,39 @@
 <div class={{this.elem_class}} style={{this.elem_style}}>
-  <div style="margin-top: 56px; overflow: hidden;">
-    <div class="core_words" style="width: 100%; margin: 0; overflow: hidden; height: 300px;"></div>
+  {{! Inner card so the column's own padding stays as the gutter between charts. }}
+  <div class="report-chart-card">
+    <div class="report-chart-card__head">
+      <h3 class="report-chart-card__title">{{t "Core vs. Fringe" key="core_vs_fringe"}}</h3>
+    </div>
+
+    <div class="report-chart-card__body">
+      {{#if this.proportion.has_data}}
+        <div class="report-proportion">
+          <p class="report-proportion__figure">
+            <span class="report-proportion__value">{{this.proportion.core_percent_label}}</span>
+            <span class="report-proportion__unit">{{t "core words" key="core_words_lower"}}</span>
+          </p>
+
+          {{! The bar carries no information the legend below does not repeat, so it
+              is a single labelled image rather than two announced segments. }}
+          <div class="report-proportion__track" role="img" aria-label={{this.proportion.summary}}>
+            <span class="report-proportion__segment report-proportion__segment--core" style={{this.proportion.core_style}}></span>
+            <span class="report-proportion__segment report-proportion__segment--fringe" style={{this.proportion.fringe_style}}></span>
+          </div>
+
+          <dl class="report-proportion__legend">
+            <div class="report-proportion__legend-item">
+              <dt><span class="report-proportion__swatch report-proportion__swatch--core" aria-hidden="true"></span>{{this.proportion.core_label}}</dt>
+              <dd>{{this.proportion.core}}</dd>
+            </div>
+            <div class="report-proportion__legend-item">
+              <dt><span class="report-proportion__swatch report-proportion__swatch--fringe" aria-hidden="true"></span>{{this.proportion.fringe_label}}</dt>
+              <dd>{{this.proportion.fringe}}</dd>
+            </div>
+          </dl>
+        </div>
+      {{else}}
+        <p class="report-chart-card__empty">{{t "No data available" key="no_data"}}</p>
+      {{/if}}
+    </div>
   </div>
 </div>
