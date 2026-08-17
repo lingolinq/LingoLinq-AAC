@@ -242,6 +242,24 @@ function _wait_while_mine_list_busy(maxWaitMs) {
   return check();
 }
 
+/* Wait while the boards page is the visible route so phase 3/4 do not
+   compete with Mine pagination and tile images. 30-minute cap so a
+   leaked active flag cannot block prefetch forever. */
+function _wait_while_boards_page_active(maxWaitMs) {
+  maxWaitMs = maxWaitMs === undefined ? 1800000 : maxWaitMs;
+  var started = _now();
+  var check = function() {
+    if (!boardsPageListCache.isBoardsPageActive()) {
+      return RSVP.resolve();
+    }
+    if ((_now() - started) >= maxWaitMs) {
+      return RSVP.resolve();
+    }
+    return _later_promise(200).then(check);
+  };
+  return check();
+}
+
 function _later_promise(ms) {
   if (!ms) {
     return RSVP.resolve();
@@ -313,8 +331,9 @@ function _schedule_sequential_step(processNext, gapMs) {
   });
 }
 
-function _process_roots_sequentially(cache, rootKeys, warm_opts, gapMs) {
+function _process_roots_sequentially(cache, rootKeys, warm_opts, gapMs, seq_opts) {
   if (!rootKeys || !rootKeys.length) { return RSVP.resolve(true); }
+  seq_opts = seq_opts || {};
   var index = 0;
 
   var processNext = function() {
@@ -323,6 +342,14 @@ function _process_roots_sequentially(cache, rootKeys, warm_opts, gapMs) {
     }
     if (_document_hidden() || !_is_online()) {
       return RSVP.resolve(false);
+    }
+    if (seq_opts.respectBoardsPage && boardsPageListCache.isBoardsPageActive()) {
+      return _wait_while_boards_page_active().then(function() {
+        if (_document_hidden() || !_is_online()) {
+          return RSVP.resolve(false);
+        }
+        return processNext();
+      });
     }
     var key = rootKeys[index++];
     var existing = _lookup(key);
@@ -339,7 +366,9 @@ function _process_roots_sequentially(cache, rootKeys, warm_opts, gapMs) {
     var tree_lookup = 'tree:' + key;
     var tree_req = _inflight[tree_lookup];
     if (!tree_req) {
-      tree_req = persistence.ajax('/api/v1/boards/' + key + '/tree', { type: 'GET' });
+      /* Prefetch uses root_only so speak-mode can two-phase load the
+         full tree on open. Board-detail still fetches the full /tree. */
+      tree_req = persistence.ajax('/api/v1/boards/' + key + '/tree?root_only=1', { type: 'GET' });
       _inflight[tree_lookup] = tree_req;
       var _clear_tree_inflight = function() {
         if (_inflight[tree_lookup] === tree_req) { delete _inflight[tree_lookup]; }
@@ -347,7 +376,9 @@ function _process_roots_sequentially(cache, rootKeys, warm_opts, gapMs) {
       tree_req.then(_clear_tree_inflight, _clear_tree_inflight);
     }
     return tree_req.then(function(data) {
-      _ingest_tree_response(cache, data, warm_opts);
+      _ingest_tree_response(cache, data, warm_opts, {
+        warm_root_images: !boardsPageListCache.isBoardsPageActive()
+      });
     }, function() {
       /* swallow per-board errors */
     }).then(function() {
@@ -523,6 +554,9 @@ export default {
   warm_images: function(raw, opts) {
     opts = opts || {};
     if (!raw) { return RSVP.resolve(); }
+    if (boardsPageListCache.isBoardsPageActive()) {
+      return RSVP.resolve();
+    }
     var token = raw.key || raw.id;
     var prefs = _display_prefs_for_warm();
     var skin = opts.skin !== undefined ? opts.skin : prefs.skin;
@@ -681,26 +715,31 @@ export default {
       if (!phaseDone.phase3) {
         chain = chain.then(function() {
           if (_document_hidden() || !_is_online()) { return RSVP.resolve(); }
-          return boardPrefetchPlanner.fetchBoardListsForPrefetch(
-            persistence.ajax.bind(persistence),
-            user,
-            { includeOwned: true, includePublic: false }
-          ).then(function(listData) {
-            var phased = boardPrefetchPlanner.buildPhasedLookups(user, {
-              ownedBoards: listData.ownedBoards,
-              includeLiked: false
-            });
-            if (!phased.phase3.length) {
-              phaseDone.phase3 = true;
-              return RSVP.resolve();
-            }
-            return _process_roots_sequentially(_this, phased.phase3, warm_opts, gapMs).then(function(completed) {
-              _complete_phase_if_done(phaseDone, 'phase3', completed);
+          /* Wait before the duplicate owned-list fetch, not only before
+             /tree, so Mine pagination is not raced. */
+          return _wait_while_boards_page_active().then(function() {
+            if (_document_hidden() || !_is_online()) { return RSVP.resolve(); }
+            return boardPrefetchPlanner.fetchBoardListsForPrefetch(
+              persistence.ajax.bind(persistence),
+              user,
+              { includeOwned: true, includePublic: false }
+            ).then(function(listData) {
+              var phased = boardPrefetchPlanner.buildPhasedLookups(user, {
+                ownedBoards: listData.ownedBoards,
+                includeLiked: false
+              });
+              if (!phased.phase3.length) {
+                phaseDone.phase3 = true;
+                return RSVP.resolve();
+              }
+              return _process_roots_sequentially(_this, phased.phase3, warm_opts, gapMs, { respectBoardsPage: true }).then(function(completed) {
+                _complete_phase_if_done(phaseDone, 'phase3', completed);
+              }, function() {
+                delete phaseDone.phase3;
+              });
             }, function() {
               delete phaseDone.phase3;
             });
-          }, function() {
-            delete phaseDone.phase3;
           });
         });
       }
@@ -709,10 +748,11 @@ export default {
     if (boardPrefetchPlanner.publicPrefetchEnabled(user) && !phaseDone.phase4) {
       chain = chain.then(function() {
         if (_document_hidden() || !_is_online()) { return RSVP.resolve(); }
-        /* Defer catalog/global /tree flood until boards-page Mine list
-           finishes (or the wait cap elapses). Home/liked/owned phases
-           above stay eager. */
-        return _wait_while_mine_list_busy().then(function() {
+        /* Defer catalog/global /tree flood until the boards page is
+           not the visible route and Mine list is not fetching. */
+        return _wait_while_boards_page_active().then(function() {
+          return _wait_while_mine_list_busy();
+        }).then(function() {
           if (_document_hidden() || !_is_online()) { return RSVP.resolve(); }
           return boardPrefetchPlanner.fetchBoardListsForPrefetch(
             persistence.ajax.bind(persistence),
@@ -736,7 +776,7 @@ export default {
               phaseDone.phase4 = true;
               return RSVP.resolve();
             }
-            return _process_roots_sequentially(_this, publicLookups, warm_opts, gapMs).then(function(completed) {
+            return _process_roots_sequentially(_this, publicLookups, warm_opts, gapMs, { respectBoardsPage: true }).then(function(completed) {
               _complete_phase_if_done(phaseDone, 'phase4', completed);
             }, function() {
               delete phaseDone.phase4;
@@ -890,7 +930,7 @@ export default {
         delete _this._prefetched_catalog_user_ids[user_id];
         return RSVP.resolve();
       }
-      return _process_roots_sequentially(_this, publicLookups, warm_opts, gapMs).then(function() {
+      return _process_roots_sequentially(_this, publicLookups, warm_opts, gapMs, { respectBoardsPage: true }).then(function() {
         /* done */
       }, function() {
         delete _this._prefetched_catalog_user_ids[user_id];

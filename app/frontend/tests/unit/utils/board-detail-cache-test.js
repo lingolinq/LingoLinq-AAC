@@ -89,6 +89,7 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
     restoreStubs();
     boardDetailCache.clear();
     boardsPageListCache.setMineListBusy(false);
+    boardsPageListCache.setBoardsPageActive(false);
     resetDocumentHiddenForTest();
     stashLingoLinqGlobals();
     stubBoardDetailCacheOnline();
@@ -97,6 +98,7 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
   hooks.afterEach(function() {
     boardDetailCache.clear();
     boardsPageListCache.setMineListBusy(false);
+    boardsPageListCache.setBoardsPageActive(false);
     restoreDocumentHidden();
     restoreLingoLinqTestGlobals();
     restoreStubs();
@@ -856,6 +858,125 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
     }, function(err) {
       LingoLinq.appState = origAppState;
       done();
+      throw err;
+    });
+  });
+
+  test('prefetch pipeline defers phase-3 owned list and phase-4 while boards page is active', function(assert) {
+    assert.expect(4);
+    var done = assert.async();
+    var ownedListStarted = false;
+    var catalogListStarted = false;
+    var treeOrder = [];
+    var origAppState = LingoLinq.appState;
+
+    boardsPageListCache.setBoardsPageActive(true);
+
+    LingoLinq.appState = {
+      get: function(path) {
+        if (path === 'feature_flags.background_board_prefetch') { return true; }
+        if (path === 'feature_flags.catalog_board_prefetch') { return true; }
+        return null;
+      }
+    };
+
+    stubBoardDetailCacheAjax(function(url) {
+      if (url.indexOf('/tree') !== -1) {
+        var key = url.split('/boards/')[1].split('/tree')[0];
+        treeOrder.push(key);
+        return RSVP.resolve({
+          root: { board: { key: key, id: '1_x', buttons: [] } },
+          descendants: []
+        });
+      }
+      if (url.indexOf('user_id=1_50') !== -1) {
+        ownedListStarted = true;
+        return RSVP.resolve({
+          board: [{ key: 'user/owned', id: '1_20' }],
+          meta: { more: false }
+        });
+      }
+      if (url.indexOf('user_id=lingolinq') !== -1 || url.indexOf('q=&') !== -1) {
+        catalogListStarted = true;
+        return RSVP.resolve({
+          board: url.indexOf('user_id=lingolinq') !== -1
+            ? [{ key: 'lingolinq/cat', id: '9_1' }]
+            : [],
+          meta: { more: false }
+        });
+      }
+      return RSVP.reject({ error: 'unexpected ' + url });
+    });
+
+    var user = {
+      get: function(k) {
+        if (k === 'feature_flags') { return prefetchFeatureFlags({ catalog: true, background: true }); }
+        if (k === 'id') { return '1_50'; }
+        if (k === 'preferences.home_board') { return { key: 'user/home', id: '1_1' }; }
+        if (k === 'preferences.skin') { return 'default'; }
+        if (k === 'preferences.preferred_symbols') { return 'original'; }
+        if (k === 'preferences.locale') { return 'en'; }
+        if (k === 'stats.starred_board_refs') { return []; }
+        return null;
+      }
+    };
+
+    var pipeline = runPrefetchPipeline(user, { skin: 'default', preferred_symbols: 'original' });
+
+    setTimeout(function() {
+      assert.notOk(ownedListStarted, 'phase-3 owned list has not started while boards page is active');
+      assert.notOk(catalogListStarted, 'phase-4 catalog list has not started while boards page is active');
+      boardsPageListCache.setBoardsPageActive(false);
+    }, 50);
+
+    pipeline.then(function() {
+      LingoLinq.appState = origAppState;
+      assert.ok(ownedListStarted, 'owned list runs after boards page deactivates');
+      assert.notStrictEqual(treeOrder.indexOf('lingolinq/cat'), -1, 'catalog tree runs after boards page deactivates');
+      done();
+    }, function(err) {
+      LingoLinq.appState = origAppState;
+      done();
+      throw err;
+    });
+  });
+
+  test('prefetch /tree requests use root_only=1', function(assert) {
+    var treeUrls = [];
+    var origAppState = LingoLinq.appState;
+
+    LingoLinq.appState = { get: function() { return null; } };
+
+    stubBoardDetailCacheAjax(function(url) {
+      if (url.indexOf('/tree') !== -1) {
+        treeUrls.push(url);
+        return RSVP.resolve({
+          root: { board: { key: 'user/home', id: '1_1', buttons: [] } },
+          descendants: []
+        });
+      }
+      return RSVP.reject({ error: 'unexpected ' + url });
+    });
+
+    var user = {
+      get: function(k) {
+        if (k === 'feature_flags') { return prefetchFeatureFlags({ catalog: false, background: false }); }
+        if (k === 'id') { return '1_50'; }
+        if (k === 'preferences.home_board') { return { key: 'user/home', id: '1_1' }; }
+        if (k === 'preferences.skin') { return 'default'; }
+        if (k === 'preferences.preferred_symbols') { return 'original'; }
+        return null;
+      }
+    };
+
+    return runPrefetchPipeline(user, { skin: 'default', preferred_symbols: 'original' }).then(function() {
+      LingoLinq.appState = origAppState;
+      assert.ok(treeUrls.length, 'issued at least one /tree');
+      treeUrls.forEach(function(url) {
+        assert.notStrictEqual(url.indexOf('root_only=1'), -1, url + ' includes root_only=1');
+      });
+    }, function(err) {
+      LingoLinq.appState = origAppState;
       throw err;
     });
   });

@@ -146,6 +146,18 @@ export default Controller.extend({
   // controller (line 172, 196, 237) — `@each.public` on a non-array
   // value (e.g. Promise during initial render) can throw and break
   // the whole boards page below.
+  /* Overlay / hero gate: first Mine page or a completed list (including
+     empty). Distinct from my_boards.done, which still waits for the last
+     pagination page so search/copy-cluster get the full library. */
+  mineListPaintReady: computed(
+    'model.my_boards.done',
+    'model.my_boards.paint_ready',
+    'model.my_boards.loading',
+    'model.my_boards.length',
+    function() {
+      return boardsPageListCache.isPaintReady(this.get('model.my_boards'));
+    }
+  ),
   public_boards_count: computed('model.my_boards.[]', function() {
     var boards = this.get('model.my_boards');
     if(!boards) { return 0; }
@@ -1131,6 +1143,9 @@ export default Controller.extend({
         prior = chunk;
       }
       prior.user_id = _this.get('model.id');
+      if(isMineList) {
+        prior.paint_ready = true;
+      }
       _this.set(list_name, prior);
       if(meta && meta.more) {
         args.per_page = meta.per_page;
@@ -1151,6 +1166,7 @@ export default Controller.extend({
       } else {
         _this.set(list_name + '.done', true);
         if(isMineList) {
+          _this.set(list_name + '.paint_ready', true);
           boardsPageListCache.write(_this.get('model.id'), _this.get(list_name));
           boardsPageListCache.setMineListBusy(false);
         }
