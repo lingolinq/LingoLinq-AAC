@@ -86,6 +86,13 @@ producing.
 
 ★ = element explicitly required by Medicare LCD L33739.
 
+> **Read §4a first — this list was corrected on 2026-08-17.** The ★ markers below
+> were assigned from ASHA/USSAAC summaries. Now that the primary text has been
+> retrieved, three of them (§10's environment/partner breakdown, §12 feature
+> match, §13 per-trial data) are **required by NY Medicaid / MN DHS, not by
+> Medicare**, and two required elements were missing entirely. Marked inline as
+> ★→ⓝ (other payer) and ★NEW.
+
 1. Header / demographics — medical dx + onset, speech dx + onset, payer IDs, physician, SLP, eval date(s) vs report date
 2. Reason for referral & evaluation methods
 3. Background, medical history, medications, prior therapy, education/vocational, living environment
@@ -94,16 +101,17 @@ producing.
 6. Sensory — vision (acuity for symbol size, tracking, CVI) and hearing, **stated relative to device use**
 7. Motor & positioning — postures + % of day; mounting; wheelchair integration
 8. Access/selection — optimal technique; **alternatives explored with trial length, training, and reason ruled out**
+8b. ★NEW Demonstrated cognitive and physical ability to effectively use **the selected device and its accessories** — criterion 1 bullet 6; distinct from the general cognition (§5) and motor (§7) sections (§4a)
 9. Symbol form, language representation, vocabulary organization, rate enhancement
-10. ★ Daily functional communication needs by environment and partner; needs over next 2 years
+10. ★→ⓝ Daily functional communication needs by environment and partner; needs over next 2 years — **Medicare requires only "whether daily needs could be met using other natural modes"; the environment/partner split and 2-year horizon are NY Medicaid (§4a)**
 11. ★ Non-SGD options considered and ruled out — therapy, sign, writing, boards/PECS, low-tech, **and lower-cost tech incl. software on user-owned hardware**
-12. ★ **Feature match** — required features derived from §4–10
-13. ★ Systems trialed — comparison table + per-trial data (see §5)
+12. ★→ⓝ **Feature match** — required features derived from §4–10. **The phrase is absent from L33739; the mandate is "rationale for selection of a specific device and any accessories" (§4a)**
+13. ★→ⓝ Systems trialed — comparison table + per-trial data (see §5). **L33739 requires only "considered and ruled out"; the per-trial rigor is NY Medicaid / MN DHS (§4a)**
 14. ★ Recommendation — device/software + accessories, **manufacturer, product name and number, HCPCS**, per-accessory justification
 15. ★ Functional communication goals — measurable, time-framed, **set before the trial** and achieved at completion
 16. ★ Treatment/implementation plan **with a training schedule**
 17. Environmental supports — caregiver capacity, training commitment, local support
-18. Upgrade/replacement rationale (conditional)
+18. ★NEW Upgrade/replacement rationale — **inside criterion 1, so MANDATORY whenever an upgrade is involved, not optional (§4a)**
 19. ★ Attestations — physician-forwarding statement; **financial-independence statement**; signature block with license #, ASHA CCC #, NPI
 
 **School mode:** swap 11/14 for SETT-derived features described by feature not
@@ -135,6 +143,101 @@ used**.
 
 LCD L33739 has **seven** coverage criteria, all mandatory; criterion 7 bars the
 evaluating SLP from any financial relationship with the supplier.
+
+> ⚠️ **Two different "criterion 7"s, do not conflate them.** LCD L33739's
+> criterion 7 is the SLP financial-independence bar. The lock-down sentence
+> quoted above opens "For criterion 7…" but refers to **A52469's own** seventh
+> DME benefit-category requirement ("Be primarily used for the purpose of
+> generating speech"). Different documents, different lists.
+
+---
+
+## 4a. LCD L33739 — VERBATIM, retrieved from CMS 2026-08-17
+
+Source: `https://www.cms.gov/medicare-coverage-database/view/lcd.aspx?lcdid=33739`
+(HTTP 200 with a browser user-agent). **Original effective 10/01/2015; revision
+effective 10/01/2024.** Contractors: CGS Administrators LLC (J-B, J-C) and
+Noridian Healthcare Solutions LLC (J-A, J-D), all DME MAC.
+
+> A speech generating device (E2500, E2502, E2504, E2506, E2508, E2510, E2511)
+> is covered when all of the following criteria (1-7) are met:
+>
+> 1. Prior to the delivery of the SGD, the beneficiary has had a formal
+>    evaluation of their cognitive and communication abilities by a
+>    speech-language pathologist (SLP). The formal, written evaluation must
+>    include, at a minimum, the following elements:
+>    - Current communication impairment, including the type, severity, language
+>      skills, cognitive ability, and anticipated course of the impairment;
+>    - An assessment of whether the individual's daily communication needs could
+>      be met using other natural modes of communication;
+>    - A description of the functional communication goals expected to be
+>      achieved and treatment options;
+>    - Rationale for selection of a specific device and any accessories;
+>    - Demonstration that the beneficiary possesses a treatment plan that
+>      includes a training schedule for the selected device;
+>    - The cognitive and physical abilities to effectively use the selected
+>      device and any accessories to communicate;
+>    - For a subsequent upgrade to a previously issued SGD, information regarding
+>      the functional benefit to the beneficiary of the upgrade compared to the
+>      initially provided SGD; and
+> 2. The beneficiary's medical condition is one resulting in a severe expressive
+>    speech impairment; and
+> 3. The beneficiary's speaking needs cannot be met using natural communication
+>    methods; and
+> 4. Other forms of treatment have been considered and ruled out; and
+> 5. The beneficiary's speech impairment will benefit from the device ordered; and
+> 6. A copy of the SLP's written evaluation and recommendation have been forwarded
+>    to the beneficiary's treating practitioner prior to ordering the device; and
+> 7. The SLP performing the beneficiary evaluation may not be an employee of or
+>    have a financial relationship with the supplier of the SGD.
+>
+> If one or more of the SGD coverage criteria 1-7 is not met, the SGD will be
+> denied as not reasonable and necessary.
+
+### What the verbatim text CHANGES about §3's ★ list
+
+The ★ markers in §3 were assigned from the ASHA/USSAAC secondary sources. Against
+the primary text, **six hold and three do not**. Corrected below; §3 is annotated
+to match.
+
+**Confirmed ★ — traceable to a specific clause:**
+
+| §3 item | Clause |
+|---|---|
+| §4 Current communication status | 1, bullet 1 — near word-for-word, including "anticipated course" |
+| §11 Non-SGD options ruled out | criterion 4, plus 1 bullet 2 |
+| §15 Functional communication goals | 1, bullet 3 |
+| §16 Treatment plan **with training schedule** | 1, bullet 5 |
+| §19 physician-forwarding statement | criterion 6 |
+| §19 financial-independence statement | criterion 7 |
+
+**Overstated ★ — required by SOMETHING, but not by L33739:**
+
+- **§10 "by environment and partner… needs over next 2 years."** L33739 asks only
+  for "an assessment of whether the individual's daily communication needs could
+  be met using other natural modes." The environment/partner breakdown and the
+  two-year horizon are **NY Medicaid §10** (see §5), not Medicare.
+- **§12 "Feature match."** The phrase does not appear in L33739 at all. The
+  requirement is "rationale for selection of a specific device and any
+  accessories" — feature matching is *our method* for producing that rationale,
+  not the mandate. Consistent with §6: do not call it clinically proven.
+- **§13 "Systems trialed — comparison table + per-trial data."** L33739 requires
+  only that other treatments were "considered and ruled out". The per-trial rigor
+  (dates, environments, partners, ≥10 messages, speed/accuracy) is **NY Medicaid
+  and MN DHS**. Still do it — those payers deny on it — but do not attribute it
+  to Medicare.
+
+**MISSING from §3 — required and we did not list them:**
+
+- **1, bullet 6: "the cognitive and physical abilities to effectively use the
+  selected device and any accessories."** A demonstration tied to the *selected
+  device*, which is not the same as the general cognition/motor sections.
+- **1, bullet 7: upgrade justification.** §3 lists this as §18 "conditional" and
+  left it unstarred. It is inside criterion 1, so when an upgrade is involved it
+  is **mandatory, not optional**.
+
+Net: the report generator must be able to emit both, or a submission that looks
+complete against §3 is still short of criterion 1.
 
 ---
 
@@ -250,8 +353,13 @@ relatedness) rather than *transparency* (naive guessing by potential users).
    is disqualifying for DAGG regardless.
 3. **Gosnell, Costello & Shane (2011)** feature-matching taxonomy — paywalled;
    citation confirmed, category labels not.
-4. **CMS LCD L33739 criteria 1–7 verbatim** — cms.gov 403'd; corroborated via
-   ASHA and USSAAC. Verify against CMS directly before encoding.
+4. ~~**CMS LCD L33739 criteria 1–7 verbatim** — cms.gov 403'd; corroborated via
+   ASHA and USSAAC. Verify against CMS directly before encoding.~~
+   **CLOSED 2026-08-17 — retrieved verbatim from CMS. See §4a.** The earlier 403
+   was a **user-agent block, not an access restriction**: the same URL returns
+   HTTP 200 with an ordinary browser UA. Anything else in this document blocked
+   "because cms.gov 403s" should be retried the same way before being recorded as
+   unavailable.
 5. **Closed except access methods.** Symbol systems / iconic encoding → §8.
    Motor planning / grid-size → §9. Symbol assessment, colour, CVI → §10. Still
    **no research gathered** on **access-method assessment protocols** (scanning
