@@ -357,8 +357,14 @@ module EvalRecommend
   def self.compute_confidence(events, access, library, _stage)
     return 0.0 if events.empty?
     counts = events.length
-    base = [counts / 12.0, 1.0].min
-    library_bonus = (library[:margin] || 0.0) >= 0.2 ? 0.1 : 0.0
+    # Denominator = events a COMPLETE session is expected to produce.
+    # library_compare contributes 4; when it is not in the flow (single-library
+    # deployments, eval_single_library flag) the target drops to 8 and the
+    # library bonus is unreachable. Keyed off the events, not the flag, so a
+    # saved session is always scored by the rule that generated it.
+    library_ran = events.any? {|e| (e['subtest'] || e[:subtest]) == 'library_compare' }
+    base = [counts / (library_ran ? 12.0 : 8.0), 1.0].min
+    library_bonus = (library_ran && (library[:margin] || 0.0) >= 0.2) ? 0.1 : 0.0
     secondary_penalty = access[:secondary] ? -0.05 : 0.0
     raw = base + library_bonus + secondary_penalty
     # Cap upper bound at 0.95 to match Targeted-eval downstream and
@@ -373,7 +379,9 @@ module EvalRecommend
     reasons = []
     reasons << 'low_event_count' if events.length < 8
     reasons << 'access_ambiguous' if access[:secondary]
-    reasons << 'library_tie' if library[:margin] && library[:margin] < 0.1 && library[:winner]
+    # Only a session that actually ran the bake-off can have an ambiguous winner.
+    library_ran = events.any? {|e| (e['subtest'] || e[:subtest]) == 'library_compare' }
+    reasons << 'library_tie' if library_ran && library[:margin] && library[:margin] < 0.1 && library[:winner]
     reasons << 'stage_borderline' if [3, 4].include?(stage)
     reasons
   end

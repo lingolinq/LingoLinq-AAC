@@ -209,6 +209,12 @@ export default Service.extend({
       option: options.option,
       allowStyle: options.allow_style,
       callback: options.callback,
+      // Contextual remove ({type, label, icon, callback}) forwarded from the tile
+      // via board.preview_remove (board-icon.js:330-340 -> utils/modal.js:564,572).
+      // Dropping it here is what left board-preview.hbs's touch-parity remove
+      // button unreachable — `boardPreview.remove` was always undefined, so the
+      // `{{#if this.removeContext}}` block never rendered.
+      remove: options.remove,
       // When true, the preview is a "recommended home board" suggestion (opened by
       // "Assign a Home Board For Me") — the overlay swaps its header copy.
       recommend: options.recommend

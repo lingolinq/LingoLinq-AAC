@@ -1,6 +1,19 @@
 require 'json'
+
+# The locale files and the source strings are UTF-8 (em-dashes, accents, CJK, RTL).
+# Ruby picks its default external encoding from the shell's locale, so in any shell
+# without LANG/LC_ALL set it is US-ASCII and the FIRST read of en.json dies with
+#   `String#encode': "\xE2" on US-ASCII (Encoding::InvalidByteSequenceError)
+# before the script does anything at all. Pinning it here makes the generator
+# independent of the environment it is invoked from, rather than requiring every
+# caller to remember `LANG=en_US.UTF-8 ruby i18n_generator.rb`.
+#
+# Set on this script only — it is standalone and never required by the app.
+Encoding.default_external = Encoding::UTF_8
+Encoding.default_internal = Encoding::UTF_8
+
 # To generate a new english strings file:
-# ruby i18n_generator.rb --generate  
+# ruby i18n_generator.rb --generate
 # To merge any new strings from the english file into other locales:
 # ruby i18n_generator.rb --merge
 # To generate translations for a language, open a rails console:

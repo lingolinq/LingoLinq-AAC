@@ -140,11 +140,35 @@ export default Component.extend({
   return_only: computed('option', function() {
     return this.get('option') == 'return';
   }),
-  // True when this preview was opened from the board-picker TOUR modal (flag set
-  // by tour-board-picker). In that mode the "Try This Board" + "Board Actions"
-  // buttons are replaced by a single "Pick this Board" CTA (see the template).
-  tour_pick: computed('appState.tour_board_picker_active', function() {
-    return !!this.get('appState.tour_board_picker_active');
+  // True when this preview should offer to ASSIGN the board rather than just open
+  // it — the "Try This Board" + "Board Actions" buttons are replaced by a single
+  // "Pick this Board" CTA (see the template), which routes to
+  // board-preview-overlay#pick_for_home.
+  //
+  // Two callers reach that mode:
+  //   * the board-picker TOUR modal, via appState.tour_board_picker_active
+  //     (set by tour-board-picker);
+  //   * a RECOMMENDED-board preview (`recommend`), which is how the eval report's
+  //     "Preview & choose for <user>" card opens the recommended Vocal Flair set.
+  //
+  // The second one was previously unreachable: `recommend` was threaded from
+  // utils/modal#board_preview through services/modal all the way onto the
+  // boardPreview settings object and then read by nothing, so the eval report's
+  // preview rendered the ordinary details footer. "Try This Board" calls `select`,
+  // which opens the board in speak mode for whoever is SIGNED IN — it never
+  // copies to the communicator, so the card's own CTA could not do what it said.
+  // pick_for_home and _finishPickForHome already handle the pick-for-someone-else
+  // case in full; only this flag was missing.
+  pick_for_home_mode: computed('appState.tour_board_picker_active', 'recommend', function() {
+    return !!(this.get('appState.tour_board_picker_active') || this.get('recommend'));
+  }),
+
+  // "Back to Picker" only makes sense when the board-picker tour opened this
+  // preview. A recommended-board preview has no picker behind it to return to.
+  dismiss_label: computed('appState.tour_board_picker_active', function() {
+    return this.get('appState.tour_board_picker_active') ?
+      i18n.t('board_picker_back', "Back to Picker") :
+      i18n.t('cancel', "Cancel");
   }),
   init() {
     this._super(...arguments);
@@ -191,6 +215,18 @@ export default Component.extend({
     canvas_progress: function(loaded, total) {
       if (this.onCanvasProgress && typeof this.onCanvasProgress === 'function') {
         this.onCanvasProgress(loaded, total);
+      }
+    },
+    // Contextual remove (delete / unstar / unlink / untag): delegate to the
+    // overlay, which closes the preview and fires the tile's own remove callback.
+    // Same closure-action idiom as select/pick_for_home above — the template used
+    // to invoke `(this.ctrlAction this.onRemove)`, which only resolved back when a
+    // route controller was the component's `target` and `onRemove` was an action
+    // NAME. Under the angle-bracket <BoardPreview> the overlay renders, `onRemove`
+    // is a closure, so it has to be called as one.
+    remove: function() {
+      if (this.onRemove && typeof this.onRemove === 'function') {
+        this.onRemove();
       }
     },
     // Tour mode "Pick this Board": delegate to the overlay, which sets this board

@@ -223,6 +223,19 @@ export default Component.extend({
       this.set('model_style', null);
       this.get('modal').close(null, 'board-preview');
     },
+    /* Touch-device parity for the tile's hover-only `.board_action`
+       (available-boards-section.hbs:388). The callback is a closure bound in
+       that template which dispatches `remove_board(remove_type, board)` to the
+       user controller — the same path the hover button takes, and every branch
+       of it opens a confirm modal (controllers/user/index.js:1560-1579). Close
+       the preview first so that confirm opens on a clean stack. Mirrors the
+       route-era controllers/board-preview.js#remove. */
+    remove() {
+      var ctx = this.get('modal.boardPreview.remove');
+      if(!ctx || !ctx.callback) { return; }
+      this.send('close');
+      ctx.callback();
+    },
     preview(key) {
       this.set('model_style', true);
       this.set('model_key', key);

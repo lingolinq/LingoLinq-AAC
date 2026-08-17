@@ -423,7 +423,7 @@ export default Component.extend({
         // Inside the board-picker guided-tour modal (tour-board-picker.js sets
         // this flag while open), a card tap must open the board PREVIEW — whose
         // CTA becomes "Pick this Board" while tour_board_picker_active (see
-        // board-preview.js#tour_pick → board-preview-overlay.js#pick_for_home) —
+        // board-preview.js#pick_for_home_mode → board-preview-overlay.js#pick_for_home) —
         // NOT navigate the user away to Speak Mode / board-detail and abandon the
         // tour. Delegates to the same preview path as the tile's Preview pill.
         _this.send('board_preview', board_record);
