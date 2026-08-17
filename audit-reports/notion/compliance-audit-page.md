@@ -11,7 +11,7 @@
 **Audited commit:** `20953ab3d5a80c3a9cbb249f37a79357b7f1baf1`  
 **Audited ref:** `scot/compliance/audit-refresh-2026-07-07`  
 **Run date:** 2026-07-08  
-**Page generated:** 2026-08-17T06:02:27Z
+**Page generated:** 2026-08-17T16:07:00Z
 
 ## Headline - open findings
 

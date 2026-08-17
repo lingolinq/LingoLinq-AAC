@@ -78,9 +78,20 @@ section 2), so it is out of scope for this disclosure and is not in the table be
 
 ## 3. Feature classification table
 
-> **Status correction, 2026-08-02.** The vendor/model column below names the direct commercial API
-> and dated model ids (`claude-haiku-4-5-20251001`). That is stale in two ways. The runtime route is
-> now Anthropic Claude on **AWS Bedrock** in bare-alias form (`anthropic.claude-haiku-4-5`), via
+> **Vendor-plane correction, 2026-08-17.** The vendor/model column below has now been REWRITTEN to
+> name AWS as the processing plane and Anthropic as the model provider. It previously named the
+> direct commercial API and dated model ids (`claude-haiku-4-5-20251001`).
+>
+> Note what happened here, because it is the defect pattern this document keeps reproducing: the
+> 2026-08-02 note below **correctly identified that the table was stale**, and the table was then
+> left wrong anyway for two weeks, through two re-attestations. A correction note was added instead
+> of correcting the thing the note described, and the note's presence made the document look
+> maintained. Correct the artifact, not just the margin.
+>
+> **Status correction, 2026-08-02 (retained as written).** The vendor/model column below names the
+> direct commercial API and dated model ids (`claude-haiku-4-5-20251001`). That is stale in two ways.
+> The runtime route is now Anthropic Claude on **AWS Bedrock** in bare-alias form
+> (`anthropic.claude-haiku-4-5`), via
 > `lib/ai_client.rb`; the direct `api.anthropic.com` route was removed by PR #681 and is CI-enforced
 > by `scripts/ai-endpoint-guard.sh`. **Operational status corrected 2026-08-04** (this previously
 > read "every runtime row here is dormant as of 2026-07-30: no `lingolinq-web` revision carries a
@@ -132,9 +143,9 @@ section 2), so it is out of scope for this disclosure and is not in the table be
 
 | Feature | Code location | Vendor / model / tier | Data sent (post-scrubber) | Account identifier in payload? | Bucket | 2nd-tier VPC gate? | What the disclosure must say |
 |---|---|---|---|---|---|---|---|
-| AI board suggestion + "focus" refinement | `lib/ai_board_generator.rb` (`generate_words`, `generate_focus_words`) | Primary: Anthropic Claude Haiku 4.5 (`claude-haiku-4-5-20251001`), commercial API. Gemini fallback disabled 2026-07-09 (PR #570). | The topic/prompt text a parent, SLP, or communicator types to request a board (e.g. "make a board about the zoo"), plus cell count and locale. Scrubbed via `PiiScrubber.redact_for_ai` before egress -- as of 2026-07-09 this includes a common first-name gazetteer pass (`PiiScrubber::COMMON_FIRST_NAMES`, ~1,656 US SSA names), not just the account holder's own name. | No. `user:` is threaded into the call for the COPPA gate, org opt-out check, and `AiApiLog` audit attribution ONLY; it is not placed in the vendor-bound prompt payload. | **Non-personal -- reclassified 2026-07-09 (Scot).** Was Scrubbed-personal (conservative default); see section 4.2 for the reclassification rationale and residual-risk acceptance. | **No -- reclassified 2026-07-09.** See section 4.2. | Board generation may be omitted from the second-tier AI-data-sharing disclosure entirely, or listed as a non-gated feature, depending on Phase 2/3 copy conventions -- Anthropic (Haiku 4.5) is still named in the general privacy policy as an AI sub-processor regardless of gating status. |
+| AI board suggestion + "focus" refinement | `lib/ai_board_generator.rb` (`generate_words`, `generate_focus_words`) | Primary: Claude Haiku 4.5, wire-resolved to inference profile `us.anthropic.claude-haiku-4-5-20251001-v1:0`. Model provider **Anthropic, PBC**; **processing plane AWS**. Served by **Amazon Bedrock** (`bedrock-runtime.<region>.amazonaws.com`, SigV4), so the payload is delivered to **AWS**, not to Anthropic. The direct `api.anthropic.com` commercial-API route was removed by PR #681 and is CI-enforced. Gemini fallback disabled 2026-07-09 (PR #570). | The topic/prompt text a parent, SLP, or communicator types to request a board (e.g. "make a board about the zoo"), plus cell count and locale. Scrubbed via `PiiScrubber.redact_for_ai` before egress -- as of 2026-07-09 this includes a common first-name gazetteer pass (`PiiScrubber::COMMON_FIRST_NAMES`, ~1,656 US SSA names), not just the account holder's own name. | No. `user:` is threaded into the call for the COPPA gate, org opt-out check, and `AiApiLog` audit attribution ONLY; it is not placed in the vendor-bound prompt payload. | **Non-personal -- reclassified 2026-07-09 (Scot).** Was Scrubbed-personal (conservative default); see section 4.2 for the reclassification rationale and residual-risk acceptance. | **No -- reclassified 2026-07-09.** See section 4.2. | Board generation may be omitted from the second-tier AI-data-sharing disclosure entirely, or listed as a non-gated feature, depending on Phase 2/3 copy conventions -- Anthropic (Haiku 4.5) is still named in the general privacy policy as an AI sub-processor regardless of gating status. |
 | AI word / next-word prediction | `lib/ai_word_predictor.rb` | Same vendor/model/tier and same conditional fallback as above. | The communicator's in-progress sentence or utterance text, i.e. the words the AAC user is actively composing, scrubbed via `PiiScrubber.redact_for_ai` before egress. | No, same pattern as above (`user:` threaded for gating/audit only). | Regulated PII. This is the highest-sensitivity runtime AI feature: it is literally the child or patient's own expressive communication content, sent per keystroke-class interaction, not a one-off prompt. Even scrubbed, small-cohort or context-specific phrasing can be re-identifying. | Yes, highest priority. | Must explicitly say that word prediction sends the words/phrases the user is actively typing or selecting, not just a topic. |
-| Comprehensive / targeted / quick-screen AI evaluation narrative drafting | `lib/eval_narrator.rb`, `app/controllers/api/eval_sessions_controller.rb` | Anthropic Claude Opus 4.7 (`claude-opus-4-7`, overridable via `EVAL_NARRATOR_MODEL`), commercial API. No Gemini fallback in this path (Anthropic-only). | SETT framework fields, intake (age band, etiology, communication profile, suspected access channel), recommendation data (access method, grid size, symbol library, communicator stage, vocabulary band), SLP free-text notes, and dynamic-assessment scores. The free-text student name is structurally dropped from the egress payload before scrubbing (`payload_for_prompt`), and a blocklist seeded with the student's account name(s) plus the SETT free-text name is applied via `PiiScrubber.redact_for_ai`. | No (same client-name-dropped + blocklist pattern; the "name" defense here is stronger than the other two features). | Regulated PII, highest sensitivity. This is clinical evaluation / IEP-adjacent data. Small-cohort re-identification risk is real: a rare etiology or diagnosis combined with an age band and school context can be re-identifying even with the name removed. | Yes, highest priority, plus explicit small-cohort risk flag. | Must name it as clinical evaluation data; note it is opt-in per session (the SLP clicks "Generate AI Narrative," `use_anthropic == true`) and gated on COPPA + org AI opt-out for the STUDENT, not the requesting clinician. |
+| Comprehensive / targeted / quick-screen AI evaluation narrative drafting | `lib/eval_narrator.rb`, `app/controllers/api/eval_sessions_controller.rb` | Claude Opus 4.7 (`claude-opus-4-7`, overridable via `EVAL_NARRATOR_MODEL`). Model provider **Anthropic, PBC**; **processing plane AWS**. Served by **Amazon Bedrock** (`bedrock-runtime.<region>.amazonaws.com`, SigV4), so the payload is delivered to **AWS**, not to Anthropic. The direct `api.anthropic.com` commercial-API route was removed by PR #681 and is CI-enforced. No Gemini fallback in this path. **No call on this path is recorded in production:** `AiApiLog` contains only `word_prediction` (57) and `board_generation` (7) as of 2026-08-17, so this row describes a code path, not observed egress. | SETT framework fields, intake (age band, etiology, communication profile, suspected access channel), recommendation data (access method, grid size, symbol library, communicator stage, vocabulary band), SLP free-text notes, and dynamic-assessment scores. The free-text student name is structurally dropped from the egress payload before scrubbing (`payload_for_prompt`), and a blocklist seeded with the student's account name(s) plus the SETT free-text name is applied via `PiiScrubber.redact_for_ai`. | No (same client-name-dropped + blocklist pattern; the "name" defense here is stronger than the other two features). | Regulated PII, highest sensitivity. This is clinical evaluation / IEP-adjacent data. Small-cohort re-identification risk is real: a rare etiology or diagnosis combined with an age band and school context can be re-identifying even with the name removed. | Yes, highest priority, plus explicit small-cohort risk flag. | Must name it as clinical evaluation data; note it is opt-in per session (the SLP clicks "Generate AI Narrative," `use_anthropic == true`) and gated on COPPA + org AI opt-out for the STUDENT, not the requesting clinician. |
 | `AiApiLog` (internal audit storage) | `app/models/ai_api_log.rb` | Not a vendor; LingoLinq's own database. | Stores `request_summary` / `response_summary` derived from the payloads above, itself re-scrubbed a second time at write (`before_validation :scrub_summary_columns`), defense in depth against a vendor response echoing an identifier from the prompt. | Yes: `user_global_id` / `organization_global_id` columns, by design (audit trail requirement). | N/A (internal retention artifact, not an external send). | N/A | This is LingoLinq's OWN retention window, distinct from vendor-side retention. See section 5 and `docs/legal/DATA_RETENTION.md`. |
 
 ## 4. Vendor-truthfulness finding: the Gemini fallback (resolved 2026-07-09)
@@ -171,7 +182,7 @@ plan's `[V2]` validation note before being written:
 | Constraint | How it is satisfied |
 |---|---|
 | Confirm Google uses Vertex AI, not the free AI Studio tier, before relying on it for child data | Resolved 2026-07-09 by disabling the fallback instead (PR #570) -- see section 4 above. There is no longer a live path to the AI-Studio tier. |
-| Never claim "never trains" unqualified | The copy scopes the no-training claim narrowly to "these two specific models on Anthropic's commercial API," never as a blanket vendor-wide or product-wide claim. Asserted by `spec/lib/lingo_linq/ai_consent_disclosures_spec.rb` ("does not claim unqualified 'never trains'"). |
+| Never claim "never trains" unqualified | The copy scopes the no-training claim narrowly to "these two specific models as served through AWS Bedrock" (the copy must not say "Anthropic's commercial API", which is no longer the route), never as a blanket vendor-wide or product-wide claim. Asserted by `spec/lib/lingo_linq/ai_consent_disclosures_spec.rb` ("does not claim unqualified 'never trains'"). |
 | Do not claim "no identifiers are sent" | The copy states LingoLinq "filters out common identifying details it can detect" and explicitly says the filter "is not perfect" and "free-typed text may still contain identifying details." No claim of zero identifiers ever appears. |
 | Anthropic ZDR is not publicly documented as of the 2026-06-26 validation pass; do not claim or disclaim without confirmation | Superseded by a later, dated company-level confirmation (2026-07-06, verified against Anthropic's own Privacy Center documentation) that Claude Haiku 4.5 and Claude Opus 4.7 specifically are ZDR-eligible. The copy states this ZDR confirmation is scoped to these two models only, and does not extend it to any other Anthropic model. |
 | Never say "de-identified" unless the HIPAA Safe Harbor / Expert Determination standard is met (it is not) | The word never appears in the module, the view, or the privacy.hbs additions; asserted by the module spec. Copy uses "scrubbed" / "pseudonymized" and explicitly contrasts that with "the formal legal standard for removing all identifying information." |
@@ -232,12 +243,28 @@ see `AI_DATA_SHARING_CONSENT.md` section 9), not a counsel-reviewed legal opinio
 
 ## 5. Two distinct retention concepts (do not conflate in copy)
 
-1. **Vendor-side retention**: how long Anthropic keeps the payload after the API call. For
-   Anthropic Claude Haiku 4.5 and Claude Opus 4.7, LingoLinq operates under Anthropic's
-   zero-data-retention (ZDR) terms for these specific models (confirmed against Anthropic's own
-   data-retention documentation; this does not extend to any other Anthropic model not used in the
-   product). The Gemini fallback is disabled as of 2026-07-09 (section 4 above); its vendor-side
-   retention terms are no longer a live concern for this product.
+1. **Vendor-side retention**: how long the receiving processor keeps the payload. **The receiving
+   processor is AWS, not Anthropic.** Runtime inference goes to Amazon Bedrock
+   (`bedrock-runtime.<region>.amazonaws.com`), where AWS serves the Claude model weights inside AWS
+   infrastructure; prompts are not delivered to Anthropic, PBC on this path. Retention is therefore
+   governed by **AWS Bedrock settings under the AWS BAA** (Bedrock is a HIPAA-eligible AWS service;
+   see `docs/legal/AWS_BAA_ACCEPTED.md`), NOT by Anthropic commercial terms.
+
+   Verified account state: the Bedrock account-level data-retention setting is **`inherit`**, which
+   resolves to the **model default (`default`)** for Claude Haiku 4.5. A `none` mode exists in the
+   model's `allowed_modes` but is **not currently selected**. Bedrock model-invocation logging has
+   **no destination configured** in `us-west-2`, `us-east-1`, or `us-east-2`.
+
+   **No zero-data-retention guarantee is claimed for this flow.** A previous revision of this
+   document stated that LingoLinq "operates under Anthropic's zero-data-retention (ZDR) terms for
+   these specific models." That was written for the direct commercial-API route, which PR #681
+   removed; carrying it forward onto the Bedrock path named the wrong processor, the wrong contract,
+   and a retention posture the account does not have. The Anthropic HIPAA-Ready BAA of 2026-07-18
+   remains executed and is recorded in `docs/legal/ANTHROPIC_BAA_ACCEPTED.md`, but it is **not the
+   operative instrument for this flow**; the AWS BAA is.
+
+   The Gemini fallback is disabled as of 2026-07-09 (section 4 above); its vendor-side retention
+   terms are no longer a live concern for this product.
 2. **LingoLinq's own `AiApiLog` retention**: the audit record LingoLinq itself keeps of the
    scrubbed request/response summaries, independent of what the vendor does. See section 6.
 
