@@ -91,16 +91,22 @@ class Api::SupervisorRelationshipsController < ApplicationController
     token = params['token'].presence || params['consent_response_token'].presence
     service = SupervisorConsentService.new
 
+    # Held so a REJECTED in-app attempt can still name its subject: the service
+    # returns only an :error for not_authorized / not_pending, with no
+    # :relationship, and a wrong-party approval attempt is precisely the event
+    # worth auditing with the relationship attached.
+    resolved_rel = nil
+
     result = if token.present?
                decision == 'approve' ? service.approve(token: token) : service.deny(token: token)
              elsif params['id'].present? && @api_user
                # In-app pending list: relationship global id + authenticated communicator
-               rel = SupervisorRelationship.find_by_global_id(params['id'])
-               return unless exists?(rel, params['id'])
+               resolved_rel = SupervisorRelationship.find_by_global_id(params['id'])
+               return unless exists?(resolved_rel, params['id'])
                if decision == 'approve'
-                 service.approve_as_party(relationship: rel, actor: @api_user)
+                 service.approve_as_party(relationship: resolved_rel, actor: @api_user)
                else
-                 service.deny_as_party(relationship: rel, actor: @api_user)
+                 service.deny_as_party(relationship: resolved_rel, actor: @api_user)
                end
              elsif params['id'].present?
                # Unauthenticated path where the consent token was passed as :id
@@ -109,18 +115,47 @@ class Api::SupervisorRelationshipsController < ApplicationController
                { error: 'invalid_or_expired_token' }
              end
 
-    if result[:error]
-      api_error 400, { error: result[:error] }
-    else
-      rel = result[:relationship]
-      actor_id = @api_user&.global_id || rel&.communicator_user&.global_id || 'consent_flow'
+    rel = result[:relationship] || resolved_rel
+    # Log the DECISION, not just the successful decision. A rejected attempt —
+    # expired token, wrong party, already-answered relationship — is the event a
+    # reviewer most needs, and previously it left no trace at all. Never log the
+    # consent token itself; `outcome`/`reason` carry the diagnosis instead.
+    #
+    # A rejection is only recorded when the attempt actually resolved to a
+    # relationship. This endpoint is reachable unauthenticated, so writing a row
+    # for every unresolvable token would let anyone drive unbounded inserts into
+    # the audit table by replaying random strings — turning the audit trail into
+    # an amplification vector. Those attempts also carry no subject (no
+    # relationship, supervisor, or communicator to name), so the row would record
+    # nothing a reviewer could act on. Detecting token guessing is a rate-limiting
+    # concern, not an audit-trail one.
+    if rel || result[:error].nil?
+      # The actor is the SESSION, never the subject. On the unauthenticated email
+    # path @api_user is nil, and borrowing the communicator's id recorded the
+    # CHILD as having approved their own supervision — indistinguishable from a
+    # genuine in-app self-approval, because nothing recorded the channel. Consent
+    # tokens are routed to owner_email precisely because the subject may be under
+    # 13, so token possession is a GUARDIAN credential, not the child's.
+    # `channel` is what lets the trail answer "did a parent consent, or did the
+    # child approve their own supervision" — the question COPPA verifiable
+    # parental consent exists to answer.
+    channel = @api_user ? 'in_app' : 'email_token'
+    actor_id = @api_user&.global_id || 'consent_flow'
       AuditEvent.log_command(actor_id, {
         'type' => 'supervisor_consent_response',
         'decision' => decision,
+        'channel' => channel,
+        'outcome' => result[:error] ? 'rejected' : 'accepted',
+        'reason' => result[:error],
         'relationship_id' => rel&.global_id,
         'supervisor_id' => rel&.supervisor_user&.global_id,
         'communicator_id' => rel&.communicator_user&.global_id
       })
+    end
+
+    if result[:error]
+      api_error 400, { error: result[:error] }
+    else
       render json: JsonApi::SupervisorRelationship.as_json(rel, wrapper: true).to_json
     end
   end

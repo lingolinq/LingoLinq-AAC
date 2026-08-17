@@ -718,6 +718,56 @@ describe Api::UsersController, :type => :controller do
         expect(prefs['vocalize_buttons']).to eq(true)
         expect(prefs['scanning_interval']).to eq(750)
       end
+
+      # `settings['public']` is a VISIBILITY control, and user.rb:2549 sets it
+      # with `!!params['public']`, not `process_boolean`. That distinction is the
+      # whole point: process_boolean maps the strings 'true'/'1' to true and
+      # everything else to false, so it is safe under either encoding, whereas
+      # `!!` treats ANY non-empty string as true — including "false". The three
+      # specs below pin the flag in the direction that actually matters, which is
+      # a user NOT becoming publicly visible when the client said not to.
+      it "should keep public false rather than coercing the string \"false\" to true" do
+        token_user
+        @user.settings['public'] = false
+        @user.save
+        request.headers['Content-Type'] = 'application/json'
+        put :update, params: {:id => @user.global_id}, body: {
+          :user => {:public => false}
+        }.to_json
+        expect(response).to be_successful
+        expect(@user.reload.settings['public']).to eq(false)
+        expect(@user.settings['public']).to be_a(FalseClass)
+      end
+
+      it "should set public true when sent as a real boolean" do
+        token_user
+        @user.settings['public'] = false
+        @user.save
+        request.headers['Content-Type'] = 'application/json'
+        put :update, params: {:id => @user.global_id}, body: {
+          :user => {:public => true}
+        }.to_json
+        expect(response).to be_successful
+        expect(@user.reload.settings['public']).to eq(true)
+      end
+
+      it "should not change public when the client omits it" do
+        # The `!= nil` guard is what protects an omitted flag. Under the
+        # form-encoded shape an unset `public` arrived as "", which passed that
+        # guard and then `!!""` is false — so a public profile was silently made
+        # private on an unrelated save. Under JSON it arrives as null and is
+        # skipped.
+        token_user
+        @user.settings['public'] = true
+        @user.save
+        request.headers['Content-Type'] = 'application/json'
+        put :update, params: {:id => @user.global_id}, body: {
+          :user => {:public => nil, :preferences => {:vocalize_buttons => true}}
+        }.to_json
+        expect(response).to be_successful
+        expect(@user.reload.settings['public']).to eq(true)
+        expect(@user.settings['preferences']['vocalize_buttons']).to eq(true)
+      end
     end
   end
   

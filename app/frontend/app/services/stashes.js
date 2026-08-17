@@ -1,5 +1,5 @@
 import Service from '@ember/service';
-import EmberObject from '@ember/object';
+import EmberObject, { observer } from '@ember/object';
 import {
   later as runLater,
   debounce as runDebounce,
@@ -48,6 +48,10 @@ export default Service.extend({
     //
     // Seeded from the same source persistence uses, so the two agree from the
     // first tick; the observer still keeps them in step on any later change.
+    //
+    // Recorded BEFORE the set so `drain_on_reconnect` does not read the seed as
+    // an offline -> online edge and push on boot.
+    this._was_online = navigator.onLine;
     this.set('online', navigator.onLine);
     this.memory_stash = memory_stash;
     this.prefix = 'lingolinqStash-';
@@ -778,6 +782,47 @@ export default Service.extend({
     return this.log_event(obj, user_id, this.get('session_user_id'));
   },
 
+  /*
+   * Deliver whatever is queued as soon as connectivity comes back.
+   *
+   * persistence#on_connect (utils/persistence.js:3959) already propagates its
+   * `online` flag onto this service on every change — but nothing acted on it.
+   * push_log's other triggers are all USER ACTIVITY (button presses, note and
+   * assessment saves, eval steps) plus persistence#sync, and sync only runs on
+   * reconnect if check_for_needs_sync decides one is warranted: it needs
+   * auth_settings, `auto_sync` enabled, and a CHANGED server sync_stamp
+   * (utils/persistence.js:3990-4030). A user who worked offline, came back
+   * online and then stopped using the app satisfies none of that, so their
+   * events sat in localStorage indefinitely — retained, but never delivered.
+   * That an active AAC user's next button press happens to flush them is luck,
+   * not delivery.
+   *
+   * Only the false -> true EDGE triggers. persistence re-propagating a `true`
+   * must not re-enter push_log, and neither must the seed in init() — which is
+   * why `_was_online` is recorded there before that set.
+   */
+  drain_on_reconnect: observer('online', function() {
+    var now_online = !!this.get('online');
+    var was_online = this._was_online;
+    this._was_online = now_online;
+    // `was_online !== false` also covers undefined: with no known previous
+    // state there is no edge, so do nothing rather than guess.
+    if(!now_online || was_online !== false) { return; }
+    if(this.isDestroyed || this.isDestroying) { return; }
+    // Clear the failure backoff. `errored_at` is a COUNTER for the first three
+    // failures and a TIMESTAMP after that (see push_log), and only the
+    // timestamp form gates `wait_on_error` — so only that form is cleared here.
+    // The backoff exists to stop hammering a failing server on every button
+    // press; a connectivity transition is new information that retires it.
+    // Without this, a drain after a flaky-connection spell no-ops for up to two
+    // minutes and then nothing retries.
+    if(this.errored_at && this.errored_at > 10) { this.errored_at = null; }
+    // No argument on purpose: `only_if_convenient` must stay falsy so the
+    // >50-events / >30-minutes heuristics cannot suppress the flush. push_log
+    // owns its own 10s min-interval and wait_timer retry, so calling it
+    // directly needs no scheduling here.
+    this.push_log();
+  }),
   push_log: function(only_if_convenient) {
     if (this.isDestroyed) {
       return;
@@ -803,7 +848,6 @@ export default Service.extend({
     var diff = (usage_log && usage_log[0] && usage_log[0].timestamp) ? (timestamp - usage_log[0].timestamp) : -1;
     // If log pushes have been failing, don't keep trying on every button press
     var wait_on_error = this.errored_at && this.errored_at > 10 && ((timestamp - this.errored_at) < (2 * 60));
-    // TODO: add listener on persistence.online and trigger this log save stuff when reconnected
     var sessionAuthenticated = LingoLinq.session && LingoLinq.session.get('isAuthenticated');
     var canPushLogs = sessionAuthenticated || (typeof LingoLinq !== 'undefined' && LingoLinq._pushLogAllowUnauthenticated);
     if(canPushLogs && this.get('online') && usage_log.length > 0 && !wait_on_error) {

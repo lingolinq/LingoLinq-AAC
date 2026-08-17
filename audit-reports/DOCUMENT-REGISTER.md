@@ -4,11 +4,11 @@
 > Do not hand-edit; edit the JSON (the source of truth) and re-render.
 > The codebase copy is canonical; the Notion board is a one-way mirror; Drive docs are linked, never copied.
 >
-> Generated: 2026-07-23 | Documents: 80 (git 48 / drive 28 / notion 4)
+> Generated: 2026-07-23 | Documents: 81 (git 49 / drive 28 / notion 4)
 
 ## Headline
 
-- **Status:** draft 14, approved 12, published 42, superseded 12
+- **Status:** draft 14, approved 12, published 43, superseded 12
 - **Overdue for review** (as of 2026-07-23): none
 - **Drafts awaiting attestation:** Compliance Posture Report (2026-08-09 draft); Compliance Program (2026-08-09 draft); Compliance Status Snapshot (2026-08-09); Accessibility Conformance Report (ACR / VPAT); Data Retention Schedule (2026-08-09 draft); Subprocessor Register (2026-08-16 successor); Accessibility Conformance Report (ACR / VPAT) (branded); LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft); EU AI Act Article 50 Transparency: Implementation Milestone Plan; Compliance Posture Report (branded, 2026-07-16 re-attest); Anthropic Business Associate Agreement (2026-05-06); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Annex A - Clinical BAA Template (DRAFT); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT)
 
@@ -24,7 +24,7 @@
 | Business Continuity and Disaster Recovery Plan | Drive | [open](https://docs.google.com/document/d/1WIr3aBuFjworFtv9EOisOCSdfLvMSMFWQrFMzkhda00/edit) | published | SOC2 | Scot Wahlquist | 2026-06-19 | 2026-12-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
 | Compliance & Data Governance (COMPLIANCE.md) | git | `COMPLIANCE.md` | approved | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-04 | 2027-07-10 | 2026-08-04 | `72af832942c4` | soc2-evidence |
 | Data Retention Schedule | git | `docs/legal/DATA_RETENTION.md` | superseded | FERPA, GDPR, HIPAA, COPPA | Scot Wahlquist | 2026-07-23 | 2027-07-23 | 2026-07-23 | `0c748cadd744` |  |
-| Data Retention Schedule (2026-08-09 draft) | git | `docs/legal/2026-08-09_data-retention_draft.md` | draft | FERPA, GDPR, HIPAA, COPPA | Scot Wahlquist | 2026-08-09 | 2027-04-20 | no | `d56e02afee97` | soc2-evidence, school-dpa-package, security-review, dsar |
+| Data Retention Schedule (2026-08-09 draft) | git | `docs/legal/2026-08-09_data-retention_draft.md` | draft | FERPA, GDPR, HIPAA, COPPA | Scot Wahlquist | 2026-08-09 | 2027-04-20 | no | `032d6a3e9b7e` | soc2-evidence, school-dpa-package, security-review, dsar |
 | Data Retention Schedule (branded) | Drive | [open](https://docs.google.com/document/d/1GRFuvaacbUbcAixhaOAOsdGKhOfclAByYS53bWap14k/edit) | published | FERPA, GDPR, HIPAA, COPPA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence, school-dpa-package |
 | EU AI Act Article 50 Transparency: Implementation Milestone Plan | git | `docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md` | draft | GDPR | Scot Wahlquist | 2026-07-14 | 2026-08-02 | no | `1a557d9d5b3d` |  |
 | Subprocessor Register | git | `docs/legal/SUBPROCESSORS.md` | superseded | GDPR, FERPA, HIPAA | Scot Wahlquist | 2026-08-08 | 2026-11-08 | 2026-08-08 | `29360a419661` |  |
@@ -51,7 +51,7 @@
 | Compliance Program | git | `docs/legal/COMPLIANCE_PROGRAM.md` | superseded | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-04 | 2027-07-22 | 2026-08-04 | `72070eb8e84a` | compliance-records-set-2026-06 |
 | Compliance Program (2026-08-09 draft) | git | `docs/legal/2026-08-09_compliance-program_draft.md` | draft | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-09 | 2027-08-09 | no | `1daf268d3990` |  |
 | LingoLinq Security, Privacy & Compliance Overview | git | `docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md` | superseded | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-04 | 2027-07-22 | 2026-08-04 | `63205ea1780c` |  |
-| LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft) | git | `docs/legal/2026-08-09_compliance-program-overview_draft.md` | draft | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-09 | 2027-07-22 | no | `a0946221bc99` | security-review |
+| LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft) | git | `docs/legal/2026-08-09_compliance-program-overview_draft.md` | draft | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-09 | 2027-07-22 | no | `385f549127d1` | security-review |
 | Records of Processing Activities (RoPA) and Data Map | Drive | [open](https://docs.google.com/document/d/1x6F8qiqR_7Ojc6-TQGYp2HYBMxjIUTzH0EGCQj8R-qg/edit) | published | GDPR | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, dsar |
 
 ### evidence (12)
@@ -87,7 +87,7 @@
 | Compliance Status Snapshot (2026-08-09) | git | `docs/legal/COMPLIANCE_STATUS_2026-08-09.md` | draft |  | Scot Wahlquist | 2026-08-09 |  | no | `5d24b9f01831` |  |
 | Data & Compliance Pipeline - Build Inventory (dated) | Drive | [open](https://docs.google.com/document/d/1xxLsESUXKm6rDWuqr_Z-Ob5kWzUZUbFD3gTKZWfLMnY/edit) | approved |  | Scot Wahlquist | 2026-06-22 | 2026-09-22 | no | (supplied) |  |
 | Document Register (this file) | git | `audit-reports/DOCUMENT-REGISTER.json` | published |  | Scot Wahlquist | 2026-06-21 | 2026-09-21 | no | (self) |  |
-| Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | `92f616fa373b` |  |
+| Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | `cf7182ce8d76` |  |
 | LingoLinq Capability Ledger (rendered) | git | `docs/legal/CAPABILITY_LEDGER.md` | published |  | Scot Wahlquist | 2026-07-12 | 2027-01-12 | no | `647b8cacc41f` |  |
 | Notion - Compliance & Audits hub | Notion | [open](https://www.notion.so/3655fe8215c2815a949ec8ed971d5580) | published |  | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | (supplied) |  |
 | Notion - Compliance Documents board (LL) | Notion | [open](https://www.notion.so/3865fe8215c28174aef3ce32239ced5c) | published |  | Scot Wahlquist | 2026-06-21 | 2026-09-21 | no | (supplied) |  |
@@ -114,7 +114,7 @@
 | Parental Consent (COPPA / under-13) (branded) | Drive | [open](https://docs.google.com/document/d/1ljRwXPEAkQdJT81iGgAMHkfZTdbJ3EZPkIbHNuDtNxE/edit) | published | COPPA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, school-dpa-package |
 | Parental Consent Email (COPPA / under-13) | git | `docs/legal/PARENTAL_CONSENT_EMAIL.md` | approved | COPPA | Scot Wahlquist | 2026-07-23 | 2027-07-23 | 2026-07-23 | `d7c935ce4743` | school-dpa-package |
 
-### agent-config (10)
+### agent-config (11)
 
 | Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -124,6 +124,7 @@
 | Agent config - rails-implementer | git | `.claude/agents/rails-implementer.md` | published | SOC2 | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | `6ecdf6902953` |  |
 | Agent config - security-reviewer | git | `.claude/agents/security-reviewer.md` | published | SOC2 | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | `99a8fdf648ef` |  |
 | api-auditor agent definition | git | `.claude/agents/api-auditor.md` | published |  | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `39f0ce0aea09` |  |
+| code-hygiene-auditor agent definition | git | `.claude/agents/code-hygiene-auditor.md` | published |  | Scot Wahlquist | 2026-08-12 | 2027-02-12 | no | `c9f43e41bf85` |  |
 | compliance-officer agent definition | git | `.claude/agents/compliance-officer.md` | published |  | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `bec29394758a` |  |
 | dependency-auditor agent definition | git | `.claude/agents/dependency-auditor.md` | published |  | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `d961e07c1def` |  |
 | infra-auditor agent definition | git | `.claude/agents/infra-auditor.md` | published | SOC2 | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `33dc0fdd939e` |  |
@@ -228,9 +229,9 @@ What a federal or foundation grant application needs from the compliance library
 | `questionnaire-response` | 3 years | sent | delete | 0 |
 | `superseded-draft` | 1 year | superseded | delete | 0 |
 | `working-note` | 90 days | created | delete | 1 |
-| `operational-config` | retain while in use; supersession + 1 year | superseded | archive | 14 |
+| `operational-config` | retain while in use; supersession + 1 year | superseded | archive | 15 |
 
-**Inferred classes needing counsel review (22):** these were derived from type and
+**Inferred classes needing counsel review (23):** these were derived from type and
 status rather than read off the drafted schedule, and are the rows to look at first.
 
 | Title | Class | Why it is ambiguous |
@@ -242,6 +243,7 @@ status rather than read off the drafted schedule, and are the rows to look at fi
 | Agent config - security-reviewer | `operational-config` | agent-config is not a record class in the sec 5.2 starting table; operational-config was added for it and needs counsel confirmation. |
 | api-auditor agent definition | `operational-config` | agent-config is not a record class in the sec 5.2 starting table; operational-config was added for it and needs counsel confirmation. |
 | Audit Reports Index (audit-reports/README.md) | `audit-evidence` | Living generated register rather than a point-in-time evidence artifact; sec 5.2 has no row for the index itself. Assigned the evidence rule conservatively (archive, never delete). |
+| code-hygiene-auditor agent definition | `operational-config` | agent-config is not a record class in the sec 5.2 starting table; operational-config was added for it and needs counsel confirmation. |
 | Compliance Calendar (compliance-calendar.json) | `audit-evidence` | Living generated register rather than a point-in-time evidence artifact; sec 5.2 has no row for the index itself. Assigned the evidence rule conservatively (archive, never delete). |
 | Compliance Posture Report (branded) | `policy-version` | sec 5.2 offers two readings for a superseded record: "policies (each version)" (7yr, archive) and "superseded drafts with no attestation" (1yr, delete). This was a published artifact, not a draft, so the archive reading was taken. Confirm with counsel. |
 | Compliance Status Snapshot (2026-04-23) | `policy-version` | sec 5.2 offers two readings for a superseded record: "policies (each version)" (7yr, archive) and "superseded drafts with no attestation" (1yr, delete). This was a published artifact, not a draft, so the archive reading was taken. Confirm with counsel. |
@@ -312,4 +314,4 @@ frozen point-in-time binder. Only the pointer is added.
 
 ---
 
-_80 documents. Re-run `ruby scripts/document-register-render.rb --check` to validate ids, git content hashes, and bundle completeness._
+_81 documents. Re-run `ruby scripts/document-register-render.rb --check` to validate ids, git content hashes, and bundle completeness._

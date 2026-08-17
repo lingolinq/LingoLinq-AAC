@@ -47,7 +47,30 @@ class Api::LogsController < ApplicationController
     for_self = true
     user_ids = [] if params['supervisees']
     if params['supervisees']
-      sups = user.supervisees.select{|u| !u.private_logging? }
+      # Each supervisee needs its own authorization check against the CALLER.
+      # The gate above evaluates `user.allows?(@api_user, 'supervise')` against
+      # `user` ONLY, and this branch then fans out to a third party's supervisee
+      # list, so without a per-supervisee check the caller receives logs for
+      # communicators they have no relationship with. `private_logging?` is a
+      # per-user preference, not an authorization decision, and was carrying that
+      # weight alone.
+      #
+      # Reachable today: an org manager holds `supervise` over a supporter S
+      # (user.rb:87, via Organization.manager_for?), while S also supervises
+      # communicators outside that org -- a contracting SLP with a private
+      # caseload. `?user_id=<S>&supervisees=true` returned those children's logs.
+      #
+      # The payload is not a summary: lib/json_api/log.rb serializes
+      # journal.vocalization / journal.sentence (actual utterance text), the
+      # tiered_eval block (intake, SLP notes, SETT, AI narrative), geo
+      # latitude/longitude, and readable_ip_address. FERPA education records plus
+      # HIPAA-class clinical content plus child geolocation, across the district
+      # isolation boundary.
+      #
+      # `supervise` is the same bar this controller already applies to `user` at
+      # the gate above, so this makes the per-supervisee standard identical to
+      # the per-user one rather than inventing a new one.
+      sups = user.supervisees.select{|u| !u.private_logging? && u.allows?(@api_user, 'supervise', scopes) }
       sups.each do |sup|
         user_ids << sup.id
         cutoff = sup.effective_logging_cutoff_for(@api_user, logging_code_for(sup))
