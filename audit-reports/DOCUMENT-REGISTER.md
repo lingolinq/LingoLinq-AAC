@@ -4,17 +4,17 @@
 > Do not hand-edit; edit the JSON (the source of truth) and re-render.
 > The codebase copy is canonical; the Notion board is a one-way mirror; Drive docs are linked, never copied.
 >
-> Generated: 2026-07-23 | Documents: 80 (git 48 / drive 28 / notion 4)
+> Generated: 2026-07-23 | Documents: 81 (git 49 / drive 28 / notion 4)
 
 ## Headline
 
-- **Status:** draft 14, approved 12, published 42, superseded 12
+- **Status:** draft 15, approved 11, published 42, superseded 13
 - **Overdue for review** (as of 2026-07-23): none
-- **Drafts awaiting attestation:** Compliance Posture Report (2026-08-09 draft); Compliance Program (2026-08-09 draft); Compliance Status Snapshot (2026-08-09); Accessibility Conformance Report (ACR / VPAT); Data Retention Schedule (2026-08-09 draft); Accessibility Conformance Report (ACR / VPAT) (branded); AI Data-Flow Classification (2026-08-17 successor); LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft); EU AI Act Article 50 Transparency: Implementation Milestone Plan; Compliance Posture Report (branded, 2026-07-16 re-attest); Anthropic Business Associate Agreement (2026-05-06); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Annex A - Clinical BAA Template (DRAFT); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT)
+- **Drafts awaiting attestation:** Compliance Posture Report (2026-08-09 draft); Compliance Program (2026-08-09 draft); Compliance Status Snapshot (2026-08-09); Accessibility Conformance Report (ACR / VPAT); Data Retention Schedule (2026-08-09 draft); Subprocessor Register (2026-08-16 successor); Accessibility Conformance Report (ACR / VPAT) (branded); AI Data-Flow Classification (2026-08-17 successor); LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft); EU AI Act Article 50 Transparency: Implementation Milestone Plan; Compliance Posture Report (branded, 2026-07-16 re-attest); Anthropic Business Associate Agreement (2026-05-06); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Annex A - Clinical BAA Template (DRAFT); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT)
 
 ## Documents by type
 
-### policy (14)
+### policy (15)
 
 | Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -28,7 +28,8 @@
 | Data Retention Schedule (2026-08-09 draft) | git | `docs/legal/2026-08-09_data-retention_draft.md` | draft | FERPA, GDPR, HIPAA, COPPA | Scot Wahlquist | 2026-08-09 | 2027-04-20 | no | `d56e02afee97` | soc2-evidence, school-dpa-package, security-review, dsar |
 | Data Retention Schedule (branded) | Drive | [open](https://docs.google.com/document/d/1GRFuvaacbUbcAixhaOAOsdGKhOfclAByYS53bWap14k/edit) | published | FERPA, GDPR, HIPAA, COPPA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence, school-dpa-package |
 | EU AI Act Article 50 Transparency: Implementation Milestone Plan | git | `docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md` | draft | GDPR | Scot Wahlquist | 2026-07-14 | 2026-08-02 | no | `1a557d9d5b3d` |  |
-| Subprocessor Register | git | `docs/legal/SUBPROCESSORS.md` | approved | GDPR, FERPA, HIPAA | Scot Wahlquist | 2026-08-08 | 2026-11-08 | 2026-08-08 | `29360a419661` | school-dpa-package, soc2-evidence, security-review |
+| Subprocessor Register | git | `docs/legal/SUBPROCESSORS.md` | superseded | GDPR, FERPA, HIPAA | Scot Wahlquist | 2026-08-08 | 2026-11-08 | 2026-08-08 | `29360a419661` |  |
+| Subprocessor Register (2026-08-16 successor) | git | `docs/legal/2026-08-16_subprocessor-register.md` | draft | GDPR, FERPA, HIPAA | Scot Wahlquist | 2026-08-16 | 2026-11-08 | no | `ba856961157d` | school-dpa-package, soc2-evidence, security-review |
 | Subprocessor Register (branded) | Drive | [open](https://docs.google.com/document/d/13i7PUAZO-_lyUrObdB3CLDQ5KB9s5GNL7XHpcBCRn_M/edit) | published | GDPR, FERPA, HIPAA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, school-dpa-package |
 | Vendor and Subprocessor Management Policy | Drive | [open](https://docs.google.com/document/d/1fmBOfw-peYUpdwmttHC3hqzU_5c3OMNgBSN4NDK7mAM/edit) | published | SOC2, GDPR | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
 | Written Information Security Program (WISP) | Drive | [open](https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit) | published | SOC2, HIPAA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence, security-review, baa |
@@ -143,7 +144,7 @@ The attested, externally-released branded binder generated 2026-06-19 and held i
 
 Documents a SOC 2 readiness reviewer expects to see for the security-program controls.
 
-- **Members (13):** Access Control Policy; Business Continuity and Disaster Recovery Plan; Compliance & Data Governance (COMPLIANCE.md); Data Retention Schedule (2026-08-09 draft); Data Retention Schedule (branded); Incident Log; Incident Log (branded); Incident Response and Breach Runbook (2026-08-15 successor); Incident Response and Breach Runbook (branded); Security Risk Assessment 2026 Q2; Subprocessor Register; Vendor and Subprocessor Management Policy; Written Information Security Program (WISP)
+- **Members (13):** Access Control Policy; Business Continuity and Disaster Recovery Plan; Compliance & Data Governance (COMPLIANCE.md); Data Retention Schedule (2026-08-09 draft); Data Retention Schedule (branded); Incident Log; Incident Log (branded); Incident Response and Breach Runbook (2026-08-15 successor); Incident Response and Breach Runbook (branded); Security Risk Assessment 2026 Q2; Subprocessor Register (2026-08-16 successor); Vendor and Subprocessor Management Policy; Written Information Security Program (WISP)
 - **Required member check:** passing, but 3 known gap(s) recorded below - this bundle is NOT complete
 - **Known gaps (3) - artifacts this bundle needs that do not exist yet:**
   - Independent penetration-test report (none commissioned)
@@ -154,7 +155,7 @@ Documents a SOC 2 readiness reviewer expects to see for the security-program con
 
 What a US school-district diligence / DPA review asks for (FERPA / COPPA / accessibility).
 
-- **Members (15):** Accessibility Conformance Report (ACR / VPAT); Accessibility Conformance Report (ACR / VPAT) (branded); AI Data-Flow Classification (2026-08-17 successor); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT); Compliance Posture Report (2026-08-09 draft); Compliance Posture Report (branded, 2026-07-16 re-attest); COPPA Final-Rule Verification; COPPA Final-Rule Verification (branded); Data Retention Schedule (2026-08-09 draft); Data Retention Schedule (branded); Incident Response and Breach Runbook (2026-08-15 successor); Parental Consent (COPPA / under-13) (branded); Parental Consent Email (COPPA / under-13); Subprocessor Register; Subprocessor Register (branded)
+- **Members (15):** Accessibility Conformance Report (ACR / VPAT); Accessibility Conformance Report (ACR / VPAT) (branded); AI Data-Flow Classification (2026-08-17 successor); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT); Compliance Posture Report (2026-08-09 draft); Compliance Posture Report (branded, 2026-07-16 re-attest); COPPA Final-Rule Verification; COPPA Final-Rule Verification (branded); Data Retention Schedule (2026-08-09 draft); Data Retention Schedule (branded); Incident Response and Breach Runbook (2026-08-15 successor); Parental Consent (COPPA / under-13) (branded); Parental Consent Email (COPPA / under-13); Subprocessor Register (2026-08-16 successor); Subprocessor Register (branded)
 - **Required member check:** passing, but 3 known gap(s) recorded below - this bundle is NOT complete
 - **Known gaps (3) - artifacts this bundle needs that do not exist yet:**
   - Signed per-district NDPA instances (register-backed series; none executed yet)
@@ -165,7 +166,7 @@ What a US school-district diligence / DPA review asks for (FERPA / COPPA / acces
 
 What a school district or hospital IT security questionnaire asks for. Deliberately SEPARATE from soc2-evidence: this is the customer-facing diligence pack (posture, accessibility, AI data-flow, subprocessors), whereas soc2-evidence is the internal controls-evidence pack. Merging them would force each to carry documents the other reviewer never asks for.
 
-- **Members (11):** Access Control Policy; Accessibility Conformance Report (ACR / VPAT); AI Data-Flow Classification (2026-08-17 successor); AI Governance Memo; Compliance Posture Report (2026-08-09 draft); Compliance Posture Report (branded, 2026-07-16 re-attest); Data Retention Schedule (2026-08-09 draft); Incident Response and Breach Runbook (2026-08-15 successor); LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft); Subprocessor Register; Written Information Security Program (WISP)
+- **Members (11):** Access Control Policy; Accessibility Conformance Report (ACR / VPAT); AI Data-Flow Classification (2026-08-17 successor); AI Governance Memo; Compliance Posture Report (2026-08-09 draft); Compliance Posture Report (branded, 2026-07-16 re-attest); Data Retention Schedule (2026-08-09 draft); Incident Response and Breach Runbook (2026-08-15 successor); LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft); Subprocessor Register (2026-08-16 successor); Written Information Security Program (WISP)
 - **Required member check:** passing, but 3 known gap(s) recorded below - this bundle is NOT complete
 - **Known gaps (3) - artifacts this bundle needs that do not exist yet:**
   - SSO / authentication description as a standalone record
@@ -221,7 +222,7 @@ What a federal or foundation grant application needs from the compliance library
 | `executed-agreement` | term + 7 years | contract-end | archive | 9 |
 | `corporate-permanent` | permanent | n/a | archive | 0 |
 | `grant-record` | award + 7 years | close-out | archive | 0 |
-| `policy-version` | supersession + 7 years | superseded | archive | 39 |
+| `policy-version` | supersession + 7 years | superseded | archive | 40 |
 | `audit-evidence` | 7 years | finding-closed | archive | 17 |
 | `attestation-record` | permanent | n/a | archive | 0 |
 | `dsar-case` | 3 years | case-closed | delete | 0 |
@@ -309,7 +310,8 @@ frozen point-in-time binder. Only the pointer is added.
 | Data Retention Schedule (`DOC-bff9acf51f`) | Data Retention Schedule (2026-08-09 draft) (`DOC-e62caf7fb9`) | (none) |
 | Incident Response and Breach Runbook (`DOC-d4e3b8be32`) | Incident Response and Breach Runbook (2026-08-15 successor) (`DOC-28f19f73e4`) | (none) |
 | LingoLinq Security, Privacy & Compliance Overview (`DOC-03cb9fe91f`) | LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft) (`DOC-90632edc44`) | (none) |
+| Subprocessor Register (`DOC-0387973005`) | Subprocessor Register (2026-08-16 successor) (`DOC-f850df36ad`) | (none) |
 
 ---
 
-_80 documents. Re-run `ruby scripts/document-register-render.rb --check` to validate ids, git content hashes, and bundle completeness._
+_81 documents. Re-run `ruby scripts/document-register-render.rb --check` to validate ids, git content hashes, and bundle completeness._
