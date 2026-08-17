@@ -172,3 +172,5 @@ docs/CI_TEST_FAILURES_ANALYSIS.md
 # scripts, test-run logs, pre-merge file snapshots). Nothing here is part of
 # the build; keep it out of the repo the same way per-task working logs are.
 app/frontend/scratchpad/
+.cursor/rules/clear-explanations.mdc
+.cursor/rules/recommend-brain-skills.mdc

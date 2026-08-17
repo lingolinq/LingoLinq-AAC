@@ -3592,6 +3592,24 @@ passed while the real rendered text was ~10px. Only DevTools (showing `1.18rem` 
 
 ---
 
+## Pattern: curated system boards live on static S3 — prefer over OpenAAC
+
+**Surface:** large gallery / signup OBZs that must not live in git, and must not land as CoughDrop-branded OpenAAC copies on `lingolinq`.
+
+**Fix recipe:**
+1. Keep sources in `tmp/seed-boards/` (gitignored). Never commit multi‑MB OBZs.
+2. Catalog local → `system-boards/<key>` in `CuratedVocabularySources::CATALOG`.
+3. Upload: `rake lingolinq:upload_curated_boards`. Use `UPLOAD_STATIC_S3_BUCKET=lingolinq-staging-static` (or prod) — **not** a leading `STATIC_S3_BUCKET=` before `op run`, because `--env-file` wins over the shell and will reset it to the local/dev bucket. Pattern: `op run --env-file=.env.op.local -- env UPLOAD_STATIC_S3_BUCKET=… bundle exec rake …`.
+4. Senner signup set: `SystemBoardSources.ensure_senner_baud!` (S3 primary, `SENNER_BAUD_OBZ_PATH` / `tmp/seed-boards/SennerBaudSocialPages60ll.obz` local fallback). After `from_obz`, call `sync_load_board_keys!` so `load_board.key` matches the board resolved by id (avoids `_N` dead links after key collisions).
+5. Gallery curated sets: `rake lingolinq:import_curated_vocabularies` or `SEED_IMPORT_CURATED_VOCABULARIES=1`.
+6. OpenAAC import skips filenames in `CuratedVocabularySources.openaac_skip_files`; keep OpenAAC for non-overlapping sets (quick-core-*, vocal-flair-60, etc.).
+
+**Evidence:** `lib/curated_vocabulary_sources.rb`, `lib/system_board_sources.rb`, `lib/tasks/system_boards.rake`, `lib/tasks/openaac.rake`; task log `2026-08-13-curated-s3-system-board-seeds.md`.
+
+**Collision note (2026-08-14):** Senner OBZ boards can occupy bare keys like `lingolinq/core-60`. OpenAAC Quick Core roots also import as `core-N`, while signup expects `lingolinq/quick-core-N`. Seed order is Senner then OpenAAC. After Senner import, `relinquish_bare_core_roots!` moves bare `core-N` → `senner-baud-core-N` (child keys like `core-60-when` stay shared). After each `quick-core-N.obz` import, `rekey_quick_core_root!` sets the root to `quick-core-N` and `sync_load_board_keys!` runs.
+
+---
+
 ## Pattern: beta seed baseline belongs to `lingolinq`, demo analytics are opt-in
 
 **Surface:** fresh beta/local DB setup through `db/seeds.rb`.

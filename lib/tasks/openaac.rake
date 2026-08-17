@@ -42,6 +42,17 @@ namespace :openaac do
 
     only = ENV['ONLY']
     files = only.present? ? [only] : VOCABULARY_FILES
+    # Prefer curated S3 assets over OpenAAC for overlapping products (CoughDrop branding).
+    # ONLY= still forces a specific OpenAAC file even if it is on the curated skip list.
+    curated_skips = CuratedVocabularySources.openaac_skip_files
+    unless only.present?
+      skipped = files & curated_skips
+      if skipped.any?
+        puts "Preferring curated S3 over OpenAAC for: #{skipped.join(', ')}"
+        puts "  (import with: bundle exec rake lingolinq:import_curated_vocabularies)"
+        files = files - curated_skips
+      end
+    end
 
     puts "Importing #{files.size} vocabulary file(s) as user #{user_name}..."
 
@@ -55,6 +66,15 @@ namespace :openaac do
         puts "\n[#{filename}] SKIP: unrecognized extension '#{ext}' (expected .obz or .obf)."
         next
       end
+
+      # Quick Core OBZ roots import as core-N; signup expects lingolinq/quick-core-N.
+      # Skip download when that signup key already exists (idempotent re-seed).
+      qc_slug = SystemBoardSources.quick_core_root_slug_for_filename(filename)
+      if qc_slug && Board.find_by_path(SystemBoardSources.board_key(qc_slug))
+        puts "\n[#{filename}] SKIP: #{SystemBoardSources.board_key(qc_slug)} already exists"
+        next
+      end
+
       puts "\n[#{filename}] Downloading from #{url}..."
 
       response = SafeHttp.get(url, timeout: 300, connecttimeout: 30)
@@ -84,7 +104,7 @@ namespace :openaac do
         end
 
         puts "  OK: imported #{boards.size} board(s). Configuring settings..."
-        
+
         boards.each_with_index do |board, idx|
           if idx == 0
             # Root board
@@ -100,8 +120,19 @@ namespace :openaac do
           board.save_without_post_processing
         end
 
-        # Build button sets for navigation
         root_board = boards.first
+        if root_board && qc_slug
+          rekeyed = SystemBoardSources.rekey_quick_core_root!(root_board, filename, user)
+          if rekeyed
+            puts "  Re-keyed Quick Core root to #{rekeyed}"
+          else
+            puts "  WARN: could not re-key Quick Core root to #{SystemBoardSources.board_key(qc_slug)} (still #{root_board.key})"
+          end
+        end
+
+        SystemBoardSources.sync_load_board_keys!(boards)
+
+        # Build button sets for navigation
         if root_board
           root_board.instance_variable_set(:@buttons_changed, 'import')
           root_board.instance_variable_set(:@brand_new, true)
