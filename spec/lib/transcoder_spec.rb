@@ -60,7 +60,8 @@ describe Transcoder do
         outputs: [
           OpenStruct.new({
             key: 'some/file.mp4',
-            duration: 12
+            duration: 12,
+            thumbnail_pattern: 'some/file.mp4.{count}'
           })
         ]
       })
@@ -73,7 +74,7 @@ describe Transcoder do
         'duration' => 12,
         'content_type' => 'video/mp4',
         'transcoding_key' => 'bacon',
-        'thumbnail_filename' => 'some/file.mp4.0000.png'
+        'thumbnail_filename' => 'some/file.mp4.00001.png'
       })
       res = Transcoder.handle_event({'Message' => {
         'jobId' => 'jobby',
@@ -81,7 +82,48 @@ describe Transcoder do
       }.to_json})
       expect(res).to eq(true)
     end
-    
+
+    it "should fall back to guessing a thumbnail_filename from the output key when the job echoes no thumbnail_pattern" do
+      # A blank thumbnail_pattern in this one SNS notification isn't
+      # reliable proof no thumbnail was generated (preset config isn't
+      # independently verifiable here), and this value only ever seeds
+      # MediaObject#thumbnail_stem for the destroy-time live-discovery
+      # sweep -- a wrong guess costs nothing (the sweep just finds zero or
+      # different matches), so it's safer to always set one than to skip
+      # and silently orphan a real thumbnail with no log at all.
+      config = OpenStruct.new
+      job = OpenStruct.new({
+        user_metadata: {
+          'video_id' => 'video_id',
+          'conversion_type' => 'video',
+          'transcoding_key' => 'bacon'
+        },
+        outputs: [
+          OpenStruct.new({
+            key: 'some/file.mp4',
+            duration: 12,
+            thumbnail_pattern: ''
+          })
+        ]
+      })
+      expect(Transcoder).to receive(:config).and_return(config)
+      expect(config).to receive(:read_job).with({id: 'jobby'}).and_return(OpenStruct.new({job: job}))
+      v = UserVideo.create
+      expect(UserVideo).to receive(:find_by_global_id).with('video_id').and_return(v)
+      expect(v).to receive(:update_media_object).with({
+        'filename' => 'some/file.mp4',
+        'duration' => 12,
+        'content_type' => 'video/mp4',
+        'transcoding_key' => 'bacon',
+        'thumbnail_filename' => 'some/file.mp4.00001.png'
+      })
+      res = Transcoder.handle_event({'Message' => {
+        'jobId' => 'jobby',
+        'state' => 'COMPLETED'
+      }.to_json})
+      expect(res).to eq(true)
+    end
+
     it "should record an error for errored events" do
       config = OpenStruct.new
       job = OpenStruct.new({

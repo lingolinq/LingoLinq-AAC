@@ -247,8 +247,8 @@
             "location": "COMPLIANCE.md"
           },
           {
-            "title": "Subprocessor Register",
-            "location": "docs/legal/SUBPROCESSORS.md"
+            "title": "Subprocessor Register (2026-08-16 successor)",
+            "location": "docs/legal/2026-08-16_subprocessor-register.md"
           }
         ],
         "gaps": [
@@ -265,8 +265,8 @@
             "location": "docs/legal/2026-08-09_compliance-posture-report_draft.md"
           },
           {
-            "title": "Subprocessor Register",
-            "location": "docs/legal/SUBPROCESSORS.md"
+            "title": "Subprocessor Register (2026-08-16 successor)",
+            "location": "docs/legal/2026-08-16_subprocessor-register.md"
           },
           {
             "title": "Data Retention Schedule (2026-08-09 draft)",
@@ -315,8 +315,8 @@
             "location": "docs/legal/2026-08-09_compliance-program-overview_draft.md"
           },
           {
-            "title": "Subprocessor Register",
-            "location": "docs/legal/SUBPROCESSORS.md"
+            "title": "Subprocessor Register (2026-08-16 successor)",
+            "location": "docs/legal/2026-08-16_subprocessor-register.md"
           },
           {
             "title": "Data Retention Schedule (2026-08-09 draft)",
@@ -858,7 +858,7 @@
       "lastReviewed": "2026-08-09",
       "nextReviewDue": "2027-04-20",
       "attestation": {},
-      "contentHash": "d56e02afee97769fbce39eb2dc94243dec21e96459e56230aaac593fe101e95f",
+      "contentHash": "032d6a3e9b7e784295d252b3dafb603935d02482d558c257d7cc2ddcc3f916dd",
       "bundles": [
         "soc2-evidence",
         "school-dpa-package",
@@ -885,7 +885,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/SUBPROCESSORS.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "GDPR",
         "FERPA",
@@ -907,11 +907,7 @@
         "note": "Re-attested 2026-08-08 by Scot Wahlquist, CEO, against sha256 29360a41966130e4 which he was shown and explicitly confirmed before this pin was written. Scope of this pin, which is the union of the 2026-08-07 and 2026-08-08 amendments plus the record-completeness correction the superseded 2026-08-06 pin covered. (A) QUARTERLY FULL-REGISTER REVIEW PERFORMED 2026-08-08, and it found two active third-party processors absent from the section 4 table: Stripe, Inc. (lib/purchasing.rb sets Stripe.api_key and retrieves Customers and Charges; gem 'stripe' in the Gemfile), receiving payment and customer-identity data and named nowhere in the register before 2026-08-08; and iplocate.io, receiving user IP for geolocation from lib/external_tracker.rb (gated) and app/mailers/subscription_mailer.rb#new_subscription (UNGATED, no user-type check and no consent gate, so it can fire for a child account). Both are disclosed in new section 4.1 on identification rather than held until full rows are drafted, so the table is not mistaken for a complete inventory meanwhile; drafting rows requires per-vendor DPA verification, which is separate tracked work. THIS ATTESTATION IS MADE WITH THOSE TWO OMISSIONS DISCLOSED, NOT RESOLVED. The ungated iplocate call site is raised as findings-register entry LL-07f1869d92 for CEO triage. This review is the cycle that fell due 2026-07-20 and was not performed; rather than re-date the schedule past the gap, the CEO directed on 2026-08-08 that it be performed. (B) The Anthropic/Bedrock runtime status in row 4 and the section 5.7 consistency note is corrected against live infrastructure: both asserted that no lingolinq-web revision carried a Bedrock credential, when credentials have been continuously mounted on the serving revision since 2026-08-04T07:25:08Z. That claim was false at the time of the superseded 2026-08-06 attestation. The data-flow determination is unchanged, subject to the evidentiary limits now stated in row 4 (AiApiLog can under-record because log_ai_call rescues ActiveRecord::ActiveRecordError, and vendor-side confirmation is not obtainable with current AWS permissions). (C) The header revision chain is repaired: it named 2026-07-23 as the prior amendment, skipping 2026-07-24, 2026-08-02 and 2026-08-04, and its 'Last amended' date lagged the change log. (D) The 2026-08-05 discharge note carried a live 'a re-attestation IS currently outstanding' clause, now bounded to the revision it was true of. (E) Review cadence reconciled across all three scheduling sources. Scope of the superseded 2026-08-06 pin, retained here because these corrections are carried forward into these bytes: a record-completeness correction, recorded as the 2026-08-06 change-log entry. Three defects. (1) The section 8 change log is a three-column table, but the 2026-08-02 and 2026-08-04 rows were each authored with only two cells, so the 'Notified to customers' column was structurally absent from both, leaving an Article 28 change-log field unanswered rather than answered. Git history confirms the column was never populated in either row from the commits that introduced them (11453341a, 2624186d6), so this completes an omission at authoring and does not restore deleted content. Both cells are completed from each row's OWN section 2 determination, read with section 2's Pre-tenant baseline and section 5.7; neither is derived from a neighbouring row and neither notice determination changed. (2) The header's 'Last amended' date read 2026-07-23 while the change log already carried 2026-07-24, 2026-08-02 and 2026-08-04 entries. (3) The header carried an undated live clause that Privacy Office confirmation of the section 2 customer-notice timing was 'still owed before external publication'; true when written 2026-07-23, answered 2026-07-24, now bounded to the period it was true with the historical sentence retained. No vendor, data flow, contract, or classification changed in that revision, and none changed in this one either: section 4.1 discloses processors that were already in the code and already receiving data, not new flows. Those 2026-08-06 bytes were corrected before merge and never reached staging, so that attestation is SUPERSEDED rather than void, and 2026-08-06 is appended to priorAttestations as an ordinary entry (a different calendar day from this pin, so no ambiguity). Independently reviewed by Codex CLI (gpt-5.6-terra, Tier 2) across successive heads of PR #763; the Bedrock-status defect at (B) was surfaced by that review and verified against live Cloud Run revisions before this pin."
       },
       "contentHash": "29360a41966130e4722c335ffe0ad0ba26375547abf24e3a575fa59b1a5b7ce0",
-      "bundles": [
-        "school-dpa-package",
-        "soc2-evidence",
-        "security-review"
-      ],
+      "bundles": [],
       "mirrors": [
         {
           "system": "drive",
@@ -927,7 +923,46 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "notes": "Re-attested by Scot Wahlquist, CEO, 2026-07-23. This revision adds the Abair Irish-TTS DISABLE (row #17, PR #674) and the localization/speech finding triage (LL-a167848115 remediated; LL-c38e7da48e and LL-1eb9a2435b accepted-risk) on top of the 2026-07-23 re-attestation recorded in PR #672 (which cleared the 2026-07-21/22/23 DRAFT amendments). Only Scot attests."
+      "notes": "Re-attested by Scot Wahlquist, CEO, 2026-07-23. This revision adds the Abair Irish-TTS DISABLE (row #17, PR #674) and the localization/speech finding triage (LL-a167848115 remediated; LL-c38e7da48e and LL-1eb9a2435b accepted-risk) on top of the 2026-07-23 re-attestation recorded in PR #672 (which cleared the 2026-07-21/22/23 DRAFT amendments). Only Scot attests.",
+      "supersededBy": "DOC-f850df36ad"
+    },
+    {
+      "title": "Subprocessor Register (2026-08-16 successor)",
+      "description": "Vendor / subprocessor list with data-flow and BAA/DPA status. Supersedes docs/legal/SUBPROCESSORS.md; corrects the Anthropic/Bedrock runtime status from \"carrying no traffic\" to active user-attributed egress.",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-16_subprocessor-register.md",
+      "status": "draft",
+      "frameworks": [
+        "GDPR",
+        "FERPA",
+        "HIPAA"
+      ],
+      "lastReviewed": "2026-08-16",
+      "nextReviewDue": "2026-11-08",
+      "bundles": [
+        "school-dpa-package",
+        "soc2-evidence",
+        "security-review"
+      ],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/1AHinfXwANtcGNQ9LjMxyp6c-_82ybxClfKrQIeJh0I8/edit"
+        }
+      ],
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-0387973005",
+      "id": "DOC-f850df36ad",
+      "contentHash": "ba856961157d936be3cf0eb91803c927203e101f6e4649d45b6d81f211e5b08c"
     },
     {
       "title": "COPPA Final-Rule Verification",
@@ -1492,7 +1527,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "92f616fa373b82df0a4d4861e6a7a187c79567b34e0ecbe03300a7aa8292e630",
+      "contentHash": "81dc14dd17785a94a750b616db7a76014b81a72ccf0a35c272257649d6ddb837",
       "bundles": [],
       "mirrors": [
         {
@@ -2940,7 +2975,7 @@
       "lastReviewed": "2026-08-09",
       "nextReviewDue": "2027-07-22",
       "attestation": {},
-      "contentHash": "a0946221bc99c288c16a8cfc8258431527ed83547e3118e7b23e20e68d5c5bf7",
+      "contentHash": "385f549127d14dcb810f48e6df4c677b1793c2b11aa804522934dffb72d7b333",
       "bundles": [
         "security-review"
       ],
