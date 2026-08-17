@@ -32,6 +32,10 @@
 {{#if this.processed_assessment}}
   <div class="md-eval-report">
   {{#if this.processed_assessment.date}}
+    {{!-- SLP summary — recommendation, feature match, goal suggestions and the
+         sections that still have to be written by hand. The trial tables below
+         are the evidence for it. --}}
+    <EvalFullReport @analysis={{this.processed_assessment}} @assessment={{this.raw_assessment}} @user={{this.user}} @log={{this.model}} />
     <div class="row" style='page-break-inside: avoid;'>
       <div class="col-sm-3 col-xs-6">
         <div class="panel panel-default summary smaller">

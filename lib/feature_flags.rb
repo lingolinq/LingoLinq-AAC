@@ -28,6 +28,7 @@ module FeatureFlags
               'background_board_prefetch',
               'portrait_orientation_overlay', 'signup_default_library_boards',
               'english_first_board_generation', 'signup_spanish_library_boards',
+              'eval_single_library',
               'dashboard_drag_layout', 'boards_page_owner_dedup', 'edit_sidebar',
               'sentence_bar_editing',
               'text_symbol_fallback',
@@ -75,6 +76,7 @@ module FeatureFlags
               'ios_head_tracking', 'emergency_boards', 'evaluations',
               'vertical_ios_head_tracking', 'remote_modeling', 'auto_inflections', 'focus_word_highlighting',
               'skin_tones', 'lessons', 'profiles', 'other_menu', 'ai_board_generation', 'ai_word_prediction',
+              'eval_single_library',
               'google_sso', 'quick_screen_eval', 'multi_user_board_import',
               'customize_menu', # TEMPORARY: forced ON for everyone during testing. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON (see the rollout policy above AVAILABLE_FRONTEND_FEATURES).
               'home_tour', # TEMPORARY (spike — 2026-05-27): ON for everyone so Traci can validate the Shepherd.js home-page tour in the browser. REMOVE from this list before merging the spike out of traci/styling/styling-updates — the canonical state is AVAILABLE-only (beta opt-in per user).

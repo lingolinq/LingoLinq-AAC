@@ -4,11 +4,11 @@
 > Do not hand-edit; edit the JSON (the source of truth) and re-render.
 > The codebase copy is canonical; the Notion board is a one-way mirror; Drive docs are linked, never copied.
 >
-> Generated: 2026-07-23 | Documents: 79 (git 47 / drive 28 / notion 4)
+> Generated: 2026-07-23 | Documents: 80 (git 48 / drive 28 / notion 4)
 
 ## Headline
 
-- **Status:** draft 14, approved 12, published 42, superseded 11
+- **Status:** draft 14, approved 12, published 42, superseded 12
 - **Overdue for review** (as of 2026-07-23): none
 - **Drafts awaiting attestation:** Compliance Posture Report (2026-08-09 draft); Compliance Program (2026-08-09 draft); Compliance Status Snapshot (2026-08-09); Accessibility Conformance Report (ACR / VPAT); Data Retention Schedule (2026-08-09 draft); Subprocessor Register (2026-08-16 successor); Accessibility Conformance Report (ACR / VPAT) (branded); LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft); EU AI Act Article 50 Transparency: Implementation Milestone Plan; Compliance Posture Report (branded, 2026-07-16 re-attest); Anthropic Business Associate Agreement (2026-05-06); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Annex A - Clinical BAA Template (DRAFT); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT)
 
@@ -54,11 +54,12 @@
 | LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft) | git | `docs/legal/2026-08-09_compliance-program-overview_draft.md` | draft | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-09 | 2027-07-22 | no | `a0946221bc99` | security-review |
 | Records of Processing Activities (RoPA) and Data Map | Drive | [open](https://docs.google.com/document/d/1x6F8qiqR_7Ojc6-TQGYp2HYBMxjIUTzH0EGCQj8R-qg/edit) | published | GDPR | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, dsar |
 
-### evidence (11)
+### evidence (12)
 
 | Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Anthropic HIPAA-Ready BAA Acceptance Record | git | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` | approved | HIPAA, GDPR | Scot Wahlquist | 2026-08-04 | 2027-07-18 | 2026-08-04 | `bb1ff239ec4c` | baa |
+| Anthropic HIPAA-Ready BAA Acceptance and Runtime Status Record (2026-08-16) | git | `docs/legal/2026-08-16_anthropic-baa-acceptance-record.md` | approved | HIPAA, GDPR | Scot Wahlquist | 2026-08-16 | 2027-08-16 | 2026-08-16 | `50d7771cce4d` | baa |
+| Anthropic HIPAA-Ready BAA Acceptance Record | git | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` | superseded | HIPAA, GDPR | Scot Wahlquist | 2026-08-04 | 2027-07-18 | 2026-08-04 | `bb1ff239ec4c` |  |
 | AWS BAA Acceptance and Runtime Status Record | git | `docs/legal/2026-08-11_aws-baa-acceptance-record.md` | superseded | HIPAA | Scot Wahlquist | 2026-08-11 | 2027-05-11 | 2026-08-11 | `d6d4fb76887c` |  |
 | AWS BAA Acceptance and Runtime Status Record (2026-08-12) | git | `docs/legal/2026-08-12_aws-baa-acceptance-record.md` | approved | HIPAA | Scot Wahlquist | 2026-08-12 | 2027-05-11 | 2026-08-12 | `a5f2c59512fa` | baa |
 | AWS BAA Acceptance Record | git | `docs/legal/AWS_BAA_ACCEPTED.md` | superseded | HIPAA | Scot Wahlquist | 2026-08-04 | 2027-05-11 | 2026-08-04 | `376b1e18ce52` |  |
@@ -87,7 +88,7 @@
 | Data & Compliance Pipeline - Build Inventory (dated) | Drive | [open](https://docs.google.com/document/d/1xxLsESUXKm6rDWuqr_Z-Ob5kWzUZUbFD3gTKZWfLMnY/edit) | approved |  | Scot Wahlquist | 2026-06-22 | 2026-09-22 | no | (supplied) |  |
 | Document Register (this file) | git | `audit-reports/DOCUMENT-REGISTER.json` | published |  | Scot Wahlquist | 2026-06-21 | 2026-09-21 | no | (self) |  |
 | Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | `92f616fa373b` |  |
-| LingoLinq Capability Ledger (rendered) | git | `docs/legal/CAPABILITY_LEDGER.md` | published |  | Scot Wahlquist | 2026-07-12 | 2027-01-12 | no | `7562193924b2` |  |
+| LingoLinq Capability Ledger (rendered) | git | `docs/legal/CAPABILITY_LEDGER.md` | published |  | Scot Wahlquist | 2026-07-12 | 2027-01-12 | no | `647b8cacc41f` |  |
 | Notion - Compliance & Audits hub | Notion | [open](https://www.notion.so/3655fe8215c2815a949ec8ed971d5580) | published |  | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | (supplied) |  |
 | Notion - Compliance Documents board (LL) | Notion | [open](https://www.notion.so/3865fe8215c28174aef3ce32239ced5c) | published |  | Scot Wahlquist | 2026-06-21 | 2026-09-21 | no | (supplied) |  |
 | Notion - Compliance Findings board (LL) | Notion | [open](https://app.notion.com/p/1f8451c4a17b4f5b868878ac4386b805) | published |  | Scot Wahlquist | 2026-06-20 | 2026-09-20 | no | (supplied) |  |
@@ -175,7 +176,7 @@ What a school district or hospital IT security questionnaire asks for. Deliberat
 
 What a covered entity (hospital, clinic, or district health service) asks for before executing a BAA. Covers both directions: the BAAs LingoLinq holds upstream with its subprocessors, and the BAA LingoLinq offers downstream to customers.
 
-- **Members (10):** Access Control Policy; Annex A - Clinical BAA Template (DRAFT); Anthropic Business Associate Agreement (2026-05-06); Anthropic HIPAA-Ready BAA Acceptance Record; AWS BAA Acceptance and Runtime Status Record (2026-08-12); AWS Business Associate Agreement (signed PDF); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record; Incident Response and Breach Runbook (2026-08-15 successor); Written Information Security Program (WISP)
+- **Members (10):** Access Control Policy; Annex A - Clinical BAA Template (DRAFT); Anthropic Business Associate Agreement (2026-05-06); Anthropic HIPAA-Ready BAA Acceptance and Runtime Status Record (2026-08-16); AWS BAA Acceptance and Runtime Status Record (2026-08-12); AWS Business Associate Agreement (signed PDF); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record; Incident Response and Breach Runbook (2026-08-15 successor); Written Information Security Program (WISP)
 - **Required member check:** passing, but 3 known gap(s) recorded below - this bundle is NOT complete
 - **Known gaps (3) - artifacts this bundle needs that do not exist yet:**
   - HIPAA workforce training records (do not exist; owed before real PHI, per the Melissa GCP-admin note)
@@ -217,7 +218,7 @@ What a federal or foundation grant application needs from the compliance library
 
 | Class | Rule | Trigger | Disposition | Rows |
 |---|---|---|---|---|
-| `executed-agreement` | term + 7 years | contract-end | archive | 8 |
+| `executed-agreement` | term + 7 years | contract-end | archive | 9 |
 | `corporate-permanent` | permanent | n/a | archive | 0 |
 | `grant-record` | award + 7 years | close-out | archive | 0 |
 | `policy-version` | supersession + 7 years | superseded | archive | 39 |
@@ -270,6 +271,7 @@ green build. Verified for git rows only; Drive and Notion hashes are operator-su
 | AI Data-Flow Classification | 2026-08-08 | `8c1479578f6b` | verified |
 | AI Data-Sharing Consent: Rationale and Policy | 2026-08-04 | `2e5f09a3a6c2` | verified |
 | AI Governance Memo | 2026-08-04 | `f35f99bd8b29` | verified |
+| Anthropic HIPAA-Ready BAA Acceptance and Runtime Status Record (2026-08-16) | 2026-08-16 | `50d7771cce4d` | verified |
 | Anthropic HIPAA-Ready BAA Acceptance Record | 2026-08-04 | `bb1ff239ec4c` | verified |
 | AWS BAA Acceptance and Runtime Status Record | 2026-08-11 | `d6d4fb76887c` | verified |
 | AWS BAA Acceptance and Runtime Status Record (2026-08-12) | 2026-08-12 | `a5f2c59512fa` | verified |
@@ -297,6 +299,7 @@ frozen point-in-time binder. Only the pointer is added.
 
 | Superseded record | Replaced by | Still bundled in |
 |---|---|---|
+| Anthropic HIPAA-Ready BAA Acceptance Record (`DOC-ab3a8c3ed4`) | Anthropic HIPAA-Ready BAA Acceptance and Runtime Status Record (2026-08-16) (`DOC-91b87f5f7f`) | (none) |
 | AWS BAA Acceptance and Runtime Status Record (`DOC-211a60d29e`) | AWS BAA Acceptance and Runtime Status Record (2026-08-12) (`DOC-82e90ba16a`) | (none) |
 | AWS BAA Acceptance Record (`DOC-286318ff28`) | AWS BAA Acceptance and Runtime Status Record (`DOC-211a60d29e`) | (none) |
 | Compliance Posture Report (`DOC-4e3b7fb1fb`) | Compliance Posture Report (2026-08-09 draft) (`DOC-4fc1647b7e`) | (none) |
@@ -309,4 +312,4 @@ frozen point-in-time binder. Only the pointer is added.
 
 ---
 
-_79 documents. Re-run `ruby scripts/document-register-render.rb --check` to validate ids, git content hashes, and bundle completeness._
+_80 documents. Re-run `ruby scripts/document-register-render.rb --check` to validate ids, git content hashes, and bundle completeness._
