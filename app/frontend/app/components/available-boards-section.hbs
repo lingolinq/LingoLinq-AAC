@@ -588,34 +588,30 @@
              the tab strip extends across the full row (including the
              button area), not just under the tabs. --}}
         <div class="ub-boards-page__tabs-row">
-        {{!-- ≤640px collapsed picker — native <select> for OS-native
-             mobile UX (single accessible source of truth, no custom
-             toggle JS). Shown only at ≤640px via the matching CSS
-             rule (`.ub-boards-page__tabs-mobile-select` block in
-             app.scss); the styled .ub-boards-page__tabs pill row
-             below hides at the same breakpoint. Same actions, same
-             set_selected target — pure presentational alternative. --}}
-        <select class="ub-boards-page__tabs-mobile-select" {{on "change" this.onBoardsSectionSelect}} aria-label={{t "Boards section" key="boards_section_picker"}}>
-          {{#if this.boardsCtrl.model.permissions.edit}}
-            <option value="mine" selected={{this.boardsCtrl.mine_selected}}>{{t "My Boards" key="my_boards"}}</option>
-          {{else if this.boardsCtrl.model.permissions.model}}
-            <option value="mine" selected={{this.boardsCtrl.mine_selected}}>{{t "My Boards" key="my_boards"}}</option>
-          {{/if}}
-          {{#unless this.appState.currentUser.modeling_only}}
-            <option value="public" selected={{this.boardsCtrl.public_selected}}>{{t "Public Boards" key="public_boards"}}</option>
-            {{#if this.boardsCtrl.model.permissions.model}}
-              <option value="root">{{t "Root" key="root"}}</option>
-              <option value="starred">{{t "Liked" key="starred"}}</option>
-              {{#if this.boardsCtrl.model.permissions.edit}}
-                <option value="shared">{{t "Shared with Me" key="shared_with_me"}}</option>
-                <option value="private">{{t "Private" key="private"}}</option>
-              {{/if}}
-              {{#if this.boardsCtrl.model.prior_home_boards}}
-                <option value="prior_home">{{t "Prior Home Boards" key="prior_home"}}</option>
-              {{/if}}
-            {{/if}}
-          {{/unless}}
-        </select>
+        {{!-- ≤640px collapsed picker. Shown only at ≤640px via
+             `.ub-boards-page__tabs-mobile-picker` in app.scss; the styled
+             .ub-boards-page__tabs pill row below hides at the same breakpoint.
+
+             <ModernSelect>, NOT a native <select>: a native select's POPUP is
+             OS-rendered and effectively unstyleable — `option` padding is
+             ignored and the highlight row is the browser's — so the collapsed
+             picker could never match the rest of the page no matter what CSS
+             the trigger carried. This renders a real list we control, and
+             brings keyboard nav, an ARIA listbox and click-outside with it.
+
+             Contents MIRROR THE DESKTOP TAB ROW and must keep doing so — see
+             `boardsSectionOptions` in the .js, which builds the two top-level
+             entries plus a `heading` row for everything the desktop hides
+             behind [More ▾], in the same order under the same permission
+             gates. `tag:` ids route to `set_tag` rather than `set_selected`
+             (see onBoardsSectionChoose). --}}
+        <ModernSelect
+          @class="md-modal-modern-select ub-boards-page__tabs-mobile-picker"
+          @selectId="boards-section-picker"
+          @content={{this.boardsSectionOptions}}
+          @selection={{this.boardsSectionSelection}}
+          @action={{this.onBoardsSectionChoose}}
+          @ariaLabel={{t "Boards section" key="boards_section_picker"}} />
         <ul class="ub-boards-page__tabs ub-boards-page__tabs--boards" role="tablist">
           {{#if this.boardsCtrl.model.permissions.edit}}
             <li role="presentation" class={{if this.boardsCtrl.mine_selected "is-active"}}><a href="#" {{on "click" (this.ctrlAction "set_selected" "mine")}}>{{t "My Boards" key="my_boards"}}</a></li>

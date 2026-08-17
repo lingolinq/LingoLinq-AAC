@@ -193,7 +193,10 @@
                 <div class="md-home-boards-picker__grid {{if this.compact_boards "ll-boards-grid--compact"}}">
                   {{#each group.result.boards as |board|}}
                     {{#if board.key}}
-                      <div class="md-home-boards-picker__board simple_board_holder">
+                      <div class="md-home-boards-picker__board simple_board_holder {{if (is_equal board.key this.home_board_key) "board-picker__item--home"}}">
+                        {{#if (is_equal board.key this.home_board_key)}}
+                          <span class="board-picker__home-badge">{{t "Home Board" key="home_board"}}</span>
+                        {{/if}}
                         <BoardIcon @board={{board}} @prefetchPreview={{true}} @compactRow={{this.compact_boards}} @pickOpensPreview={{true}} />
                       </div>
                     {{/if}}
@@ -226,7 +229,15 @@
         {{else if this.display_category_boards.length}}
           {{#each this.display_category_boards as |board|}}
             {{#if board.key}}
-              <div class="md-home-boards-picker__board simple_board_holder">
+              {{!-- The tile for the board the subject ALREADY calls home gets the
+                   verdigris halo + floating "HOME BOARD" pill (see
+                   .board-picker__item--home / .board-picker__home-badge in
+                   app.scss). Same treatment the boards page gives it, so the
+                   already-chosen board reads the same on both surfaces. --}}
+              <div class="md-home-boards-picker__board simple_board_holder {{if (is_equal board.key this.home_board_key) "board-picker__item--home"}}">
+                {{#if (is_equal board.key this.home_board_key)}}
+                  <span class="board-picker__home-badge">{{t "Home Board" key="home_board"}}</span>
+                {{/if}}
                 <BoardIcon @board={{board}} @prefetchPreview={{true}} @compactRow={{this.compact_boards}} @pickOpensPreview={{true}} />
               </div>
             {{/if}}

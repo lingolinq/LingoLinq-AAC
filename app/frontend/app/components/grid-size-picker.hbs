@@ -1,0 +1,74 @@
+{{!-- Grid-size picker. The Rows/Cols steppers beside this stay the primary,
+     always-visible control; this is the fast path and the preview. See
+     components/grid-size-picker.js for why it is its own component. --}}
+<div class="nb-grid-picker {{if this.isOpen "nb-grid-picker--open"}}">
+  <button type="button"
+          id={{this.pickerId}}
+          class="nb-grid-picker__toggle"
+          aria-haspopup="dialog"
+          aria-expanded={{if this.isOpen "true" "false"}}
+          aria-label={{this.toggleLabel}}
+          title={{this.toggleLabel}}
+          {{on "click" this.onToggle}}>
+    <svg class="nb-grid-picker__toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+    </svg>
+    <svg class="nb-grid-picker__toggle-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <polyline points="6 9 12 15 18 9"/>
+    </svg>
+  </button>
+  {{#if this.isOpen}}
+    {{!-- PORTALLED TO <body>. The new-board card is
+         `.new-board--modern { overflow: hidden !important }` (deliberate — it clips
+         content to the card's rounded corners) and it was cutting the bottom off
+         this panel. `position: fixed` alone did not escape it, so the panel is
+         rendered out of the card entirely; nothing in the form's subtree can clip
+         or contain it. `insertBefore=null` APPENDS — without it `in-element` wipes
+         the destination, which here is the whole document body. --}}
+    {{#in-element this.destination insertBefore=null}}
+      <div class="nb-grid-picker__panel" id="{{this.pickerId}}-panel" role="dialog" aria-label={{t "Choose grid size" key="choose_grid_size"}}>
+      {{!-- Events are delegated to this container rather than bound per cell:
+           225 cells x 3 handlers would be 675 listeners. `mouseover` (not
+           mouseenter) and `focusin` bubble, so both pointer and keyboard land
+           here. --}}
+      <div class="nb-grid-picker__grid"
+           role="grid"
+           aria-label={{t "Grid size" key="grid_size"}}
+           {{on "mouseover" this.onGridPointer}}
+           {{on "focusin" this.onGridPointer}}
+           {{on "mouseleave" this.onClearHover}}
+           {{on "click" this.onGridClick}}
+           {{on "keydown" this.onGridKeydown}}>
+        {{#each this.matrix key="row" as |line|}}
+          {{!-- `display: contents` on the row (see .nb-grid-picker__row) keeps the
+               cells auto-placing into the one CSS grid while completing the
+               grid > row > gridcell ARIA structure. Same pattern as
+               .md-board-detail-grid__row. --}}
+          <div class="nb-grid-picker__row" role="row">
+            {{#each line.cells key="col" as |cell|}}
+              <button type="button"
+                      role="gridcell"
+                      class="nb-grid-picker__cell {{if cell.on "nb-grid-picker__cell--on"}}"
+                      data-row={{cell.row}}
+                      data-col={{cell.col}}
+                      tabindex={{if cell.focusable "0" "-1"}}
+                      aria-selected={{if cell.selected "true" "false"}}
+                      aria-label={{cell.label}}></button>
+            {{/each}}
+          </div>
+        {{/each}}
+      </div>
+      {{!-- Clicking a cell STAGES a size and leaves the panel open, so a choice can
+           be adjusted or abandoned. Nothing reaches the caller until OK. --}}
+      <div class="nb-grid-picker__footer">
+        <p class="nb-grid-picker__readout" aria-live="polite">{{this.readout}}</p>
+        <div class="nb-grid-picker__actions">
+          <button type="button" class="nb-grid-picker__btn" {{on "click" this.onCancel}}>{{t "Cancel" key="cancel"}}</button>
+          <button type="button" class="nb-grid-picker__btn nb-grid-picker__btn--ok" {{on "click" this.onConfirm}}>{{t "OK" key="ok"}}</button>
+        </div>
+        </div>
+      </div>
+    {{/in-element}}
+  {{/if}}
+</div>

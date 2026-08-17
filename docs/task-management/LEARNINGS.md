@@ -146,8 +146,14 @@ file (see [README.md](README.md)).
 - [Fact: pill-nav order is plain template source order — unlike the dashboard card grid](#fact-pill-nav-order-is-plain-template-source-order--unlike-the-dashboard-card-grid)
 - [Gotcha: Focused View's hero is a bespoke ELEMENT, not hero styling applied to a card](#gotcha-focused-views-hero-is-a-bespoke-element-not-hero-styling-applied-to-a-card)
 - [Gotcha: `md-grid--hero-<key>` is only on the HOME tab — scope with `:not()`, not a positive match](#gotcha-md-grid--hero-key-is-only-on-the-home-tab--scope-with-not-not-a-positive-match)
-- [Gotcha: the `sass` CLI is broken in this repo — compile with the JS API to syntax-check app.scss](#gotcha-the-sass-cli-is-broken-in-this-repo--compile-with-the-js-api-to-syntax-check-appscss)
+- [Gotcha: `ERR_REQUIRE_ESM` from `sass`/`ember test` means your shell is on the WRONG NODE, not that the tool is broken](#gotcha-err_require_esm-from-sassember-test-means-your-shell-is-on-the-wrong-node-not-that-the-tool-is-broken)
 - [Gotcha: "This board is not currently available." is board-detail's INLINE error, and it swallows every cause](#gotcha-this-board-is-not-currently-available-is-board-details-inline-error-and-it-swallows-every-cause)
+- [Pattern: an "already loaded?" cache key must include WHO/WHAT is being viewed, not just the filters](#pattern-an-already-loaded-cache-key-must-include-whowhat-is-being-viewed-not-just-the-filters)
+- [Gotcha: a deleted SURFACE leaves its BEM block behind in app.scss — grep for an orphan before authoring a "new" component style](#gotcha-a-deleted-surface-leaves-its-bem-block-behind-in-appscss--grep-for-an-orphan-before-authoring-a-new-component-style)
+- [Gotcha: a `parent > *` stretch rule silently defeats an absolutely-positioned badge's centering](#gotcha-a-parent---stretch-rule-silently-defeats-an-absolutely-positioned-badges-centering)
+- [Pattern: the subject of a board pick is `setup_user || currentUser` — surfaces that MARK it must resolve it the same way as the surface that WRITES it](#pattern-the-subject-of-a-board-pick-is-setup_user--currentuser--surfaces-that-mark-it-must-resolve-it-the-same-way-as-the-surface-that-writes-it)
+- [Pattern: a body attribute published by a self-contained component is the cross-component channel — observe it, don't widen a shared controller](#pattern-a-body-attribute-published-by-a-self-contained-component-is-the-cross-component-channel--observe-it-dont-widen-a-shared-controller)
+- [Pattern: a mobile `<select>` standing in for a desktop tab row must MIRROR it (optgroup), not flatten it](#pattern-a-mobile-select-standing-in-for-a-desktop-tab-row-must-mirror-it-optgroup-not-flatten-it)
 
 ---
 
@@ -11350,11 +11356,33 @@ Same reasoning applies to any future per-hero or per-fullspan CSS.
 
 ---
 
-## Gotcha: the `sass` CLI is broken in this repo — compile with the JS API to syntax-check app.scss
+## Gotcha: `ERR_REQUIRE_ESM` from `sass`/`ember test` means your shell is on the WRONG NODE, not that the tool is broken
 
-`npx sass …` dies with `ERR_REQUIRE_ESM` (`node_modules/sass/sass.js` does
-`require("chokidar")`, which is ESM-only). It exits **0** on that crash, so a CI-style
-`&& echo ok` will report success while having compiled nothing.
+**CORRECTED 2026-08-17.** This entry previously said the `sass` CLI "is broken in this
+repo". It is not — the shell was on the wrong Node version. Verified both ways:
+
+```
+node -v → v16.20.2   npx sass … → ERR_REQUIRE_ESM        (sass.js require()s ESM-only chokidar)
+                     npx ember test → ERR_REQUIRE_ESM    (testem require()s ESM-only execa)
+node -v → v22.23.2   npx sass … → exit 0, 3.7MB of CSS
+                     npx ember test → 2027 tests, runs clean
+```
+
+`.nvmrc` (both root and `app/frontend/`) pins **Node 22**; `require()` of an ESM module
+is only supported from Node 22.12. A shell that has not run `nvm use` lands on whatever
+is default and every ESM-importing dev tool fails identically, which reads as "the repo's
+tooling is broken" rather than "wrong interpreter". Check `node -v` FIRST when a JS tool
+dies this way. `bin/ember-server` already wraps nvm for this reason; ad-hoc `npx`
+invocations do not, so prefix them:
+
+```bash
+export PATH="$HOME/.nvm/versions/node/v22.23.2/bin:$PATH"
+```
+
+The JS API below is still the better choice for **syntax-checking and inspecting output
+specificity** (and it works on any Node), but note the CLI's other trap: on the
+`ERR_REQUIRE_ESM` crash it exits **0**, so a CI-style `&& echo ok` reports success while
+having compiled nothing.
 
 Use the JS API instead — this is the fastest way to prove an `app.scss` edit compiles
 and, more usefully, to check **real** specificity/source order in the OUTPUT rather
@@ -12302,3 +12330,185 @@ be visible on Focused). A too-strong invariant that gets "fixed" in the source i
 working behaviour gets regressed by its own test suite.
 
 **First seen in:** [2026-08-16-display-style-preview-single-source.md](./2026-08-16-display-style-preview-single-source.md)
+
+---
+
+## Gotcha: a deleted SURFACE leaves its BEM block behind in app.scss — grep for an orphan before authoring a "new" component style
+
+When a feature's markup is removed, its stylesheet block usually is not. `26b4b4426`
+("Replace My Boards modal with route transition to user.boards") deleted ~165 lines of
+modal markup and ~500 lines of controller state, and left the entire `.board-picker__*`
+block — `__item`, `__item--home`, `__home-badge`, `__current-badge`, `__thumb`, `__name` —
+sitting in `app.scss` with **zero** template references. Its stale comment still described
+"the My Boards picker", a surface that no longer exists.
+
+The cost is silent duplication: the same "HOME BOARD" pill had already been re-authored as
+`.ub-boards-page__board-item-home-badge` and `.md-strip__home-badge`, so a fourth was one
+"just add a badge" away. Before writing a new component style, grep the SCSS for a block
+that already does it:
+
+```bash
+grep -rn "home-badge" app/frontend/app/styles/
+grep -rn "board-picker__item" app/frontend/app --include=*.hbs --include=*.js   # → orphan if empty
+```
+
+Reviving an orphan is usually better than a fresh variant — but attach only the MODIFIER
+you need, not the base block. `.board-picker__item` sets `display: block`, which would have
+overridden the live wrapper's `display: flex; flex-direction: column`;
+`.board-picker__item--home` is `position: relative` alone, which is inert everywhere else.
+Deleting the orphan instead is a separate decision and needs its own consent — see the
+`:not()`/selector-list text-surgery entry near the top of this file.
+
+**First seen in:** [2026-08-17-picker-badge-boot-skeleton-folders-tabs.md](./2026-08-17-picker-badge-boot-skeleton-folders-tabs.md)
+
+---
+
+## Gotcha: a `parent > *` stretch rule silently defeats an absolutely-positioned badge's centering
+
+Grid/flex tile wrappers in this codebase often carry a "stretch every child" rule so the
+card fills its cell:
+
+```scss
+.md-shell--board-picker .md-home-boards-picker__board > * {   /* 0,3,0 */
+  flex: 1 1 auto; width: 100%; …
+}
+```
+
+Add an absolutely-positioned badge as a sibling of the tile and it matches `> *` too. The
+flex properties are correctly ignored (abspos children are out of flow) — but `width: 100%`
+is **not**, and it resolves against the wrapper, so `left: 50% / transform: translateX(-50%)`
+centers a full-width bar instead of a pill. The badge's own rule
+(`.board-picker__home-badge`, 0,1,0) cannot win.
+
+Fix by narrowing the ORIGINAL selector rather than stacking a `width: auto` override on the
+badge (Rule #0.7):
+
+```scss
+.md-shell--board-picker .md-home-boards-picker__board > *:not(.board-picker__home-badge) {
+```
+
+Check for this whenever you add an absolutely-positioned child to an existing tile: grep
+the SCSS for `<wrapper-class> > *` first. It is invisible in review and only shows up in a
+browser at the one breakpoint where the rule applies.
+
+**First seen in:** [2026-08-17-picker-badge-boot-skeleton-folders-tabs.md](./2026-08-17-picker-badge-boot-skeleton-folders-tabs.md)
+
+---
+
+## Pattern: the subject of a board pick is `setup_user || currentUser` — surfaces that MARK it must resolve it the same way as the surface that WRITES it
+
+Every board-picking surface is either choosing for YOU or, when a supporter arrives via
+`?user_id=X`, for a communicator. `appState.setup_user` is set only in the second case, so
+"setup_user (with a real id), else currentUser" is the standing rule. It is what
+`board-preview-overlay#pick_for_home` (`:266`) uses when the pick is actually persisted,
+and what `board-selection-tool` and `tour-board-picker` use.
+
+The trap is asymmetry: a surface that MARKS state (a "Home Board" badge, a preselected
+row) must resolve the subject identically to the surface that WRITES it, or the badge
+points at the supporter's own home board while the pick sets the communicator's — a wrong
+answer that looks completely plausible on screen.
+
+Now shared, so the two cannot drift:
+[`utils/subject_home_board.js`](../../app/frontend/app/utils/subject_home_board.js) —
+`subjectHomeBoardKey(appState)` plus `SUBJECT_HOME_BOARD_DEPS` for the computed's dependent
+keys. Require a real `setup_user.id`: the controller briefly holds a
+`{loading: true}` placeholder while the record resolves.
+
+**First seen in:** [2026-08-17-picker-badge-boot-skeleton-folders-tabs.md](./2026-08-17-picker-badge-boot-skeleton-folders-tabs.md)
+
+---
+
+## Pattern: a body attribute published by a self-contained component is the cross-component channel — observe it, don't widen a shared controller
+
+`boards-layout-toggle` deliberately keeps its state off `controllers/user/index` (shared
+with the account page, already overloaded) and publishes the choice as
+`data-boards-layout` on `<body>` — the same pattern `app-state#sync_layout_scope` uses for
+`body.ll-layout-focused`. That makes the attribute the contract, and consumers should read
+it rather than reach for the controller.
+
+For a consumer that must REACT (not just read once), `resize` is not enough: the layout also
+changes on a toggle click and when a late-hydrating user record supplies a stored
+preference. All such paths funnel through the toggle's `_reflect()`, so one observer catches
+every one:
+
+```js
+new MutationObserver(fn).observe(document.body, {
+  attributes: true, attributeFilter: ['data-boards-layout']
+});
+```
+
+Two repo-specific constraints: disconnect it in `willDestroyElement`, and call your handler
+**bare, not wrapped in `run()`** — `ember/no-runloop` is enforced, and the neighbouring
+resize handler already sets component properties from a plain `setTimeout`.
+
+Also worth copying: the "default, not a lock" shape that
+`available-boards-section#_syncNarrowFoldersCollapse` / `#_syncSideBySideFoldersExpand`
+share. Act ONCE per transition behind a re-armable flag, and never write the user's stored
+preference — an automatic adjustment must not overwrite a deliberate choice, or a narrow
+visit silently destroys what they set on a desktop.
+
+**First seen in:** [2026-08-17-picker-badge-boot-skeleton-folders-tabs.md](./2026-08-17-picker-badge-boot-skeleton-folders-tabs.md)
+
+---
+
+## Pattern: a mobile `<select>` standing in for a desktop tab row must MIRROR it (optgroup), not flatten it
+
+The boards page swaps `.ub-boards-page__tabs` for a native `<select>` at ≤640px. The desktop
+row is two pills plus a `[More ▾]` dropdown; the select had been written as one flat list of
+every section — two different information architectures for one control depending on
+viewport width. Use `<optgroup>` so the collapsed form keeps the same shape, same order,
+same permission gates.
+
+Flattening also hides divergence. Because the two lists were maintained separately, the
+select had silently lost the user's `board_tags` (present in the desktop dropdown), making
+tagged views **unreachable** on a phone, and its group members had no `selected` attribute,
+so opening the picker while viewing e.g. Liked showed the wrong current value.
+
+Two mechanics worth reusing:
+- The `<optgroup label>` must be a STATIC string (`more_ellipsis`), not the `more_label`
+  computed — that computed swaps to whichever item is currently selected, which is right for
+  a dropdown TRIGGER and wrong for a group heading.
+- When the row's items dispatch to two different actions (sections → `set_selected`, tags →
+  `set_tag`), namespace the values (`tag:<name>`) and unwrap in the change handler. Safe as a
+  sentinel because every non-tag value is a fixed key written in the template, never user
+  input — and a tag literally named `tag:x` still round-trips correctly.
+
+Keep it a NATIVE select. `.modern-select` exists but is a custom trigger/list widget; at
+phone width the OS picker sheet is better, and native stays a single accessible source of
+truth with no toggle JS. "Modernise" it by restyling the native element to match
+`.md-add-supervisor__select` / `.md-stats-filter__select` — and set the chevron via
+`background-image`, never the `background` shorthand, so hover/focus rules cannot wipe it.
+
+**First seen in:** [2026-08-17-picker-badge-boot-skeleton-folders-tabs.md](./2026-08-17-picker-badge-boot-skeleton-folders-tabs.md)
+
+
+---
+
+## Pattern: an "already loaded?" cache key must include WHO/WHAT is being viewed, not just the filters
+
+`controllers/user/stats.js#already_loaded` short-circuits `load_charts` when the
+report is deemed current. Its key was `['device_id', 'location_id', 'snapshot_id',
+'start', 'end']` — every FILTER, but not the **subject**. Switching communicator from
+the Reports page (same route, same filters, different `model`) therefore looked
+"already loaded", and the page redrew the PREVIOUS communicator's charts.
+
+**The tell, and why it misleads:** it works when you arrive from another route and
+fails only when you switch subject IN PLACE. That asymmetry sends you hunting the
+navigation/picker code, which is fine — Ember's `resetController(controller,
+isExiting)` runs `reset_params` only when LEAVING the route, so arriving fresh always
+has a nulled cache and refetches. Switching subject never exits, so the stale cache
+survives. **A "works from over there, not from here" bug on a route that can navigate
+to ITSELF is a cache-invalidation smell, not a routing smell.**
+
+**Second lesson — grep for READS, not just writes.** The fix was already half-built:
+`load_charts` recorded `this.set('last_model_id', ...)` for exactly this purpose, and
+`model_id` was a real computed. But `last_model_id` was never read anywhere. Seeing
+the value recorded makes the guard look present; only
+`grep -rn "last_model_id" | grep -v "set("` shows it is dead. Whenever a guard
+"exists" but does not fire, check that its stored value is actually consulted.
+
+**Related:** this is the same family as the eslint/baseline discipline elsewhere in
+this file — the code LOOKS like it handles the case, so verify the behaviour rather
+than the presence of the code.
+
+**First seen in:** Reports not reloading on communicator switch, 2026-08-17.

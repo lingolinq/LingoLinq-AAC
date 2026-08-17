@@ -49,6 +49,24 @@ $focus-card-surface:
     color-mix(in oklch, $brand-dusty-denim 13%, white) 0%,
     color-mix(in oklch, $brand-dusty-denim 22%, white) 100%);
 
+// A LIGHTER sibling of the surface above, for the large analysis panels (Activity /
+// Highlights) that sit beneath the KPI tiles. Same three-layer recipe — white sheen
+// top-left, verdigris bottom-right corner, dusty-denim base — with every tint pulled
+// well back: denim 13/22% -> 5/9%, verdigris corner 24% -> 11%, white sheen 0.65 ->
+// 0.78. Tuned by eye over two passes. Written as a token beside the original rather
+// than inline so the relationship between the two is visible, and so a change to the
+// family updates both.
+//
+// WHY lighter at all: these panels are several times the area of a KPI tile. At the
+// tiles' full strength they dominate the page and the tiles stop reading as the
+// headline figures, which is the opposite of the intended hierarchy.
+$focus-card-surface-light:
+  radial-gradient(130% 120% at 16% 6%, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0) 48%),
+  radial-gradient(28% 40% at 100% 100%, color-mix(in oklch, $brand-verdigris 11%, white) 0%, transparent 46%),
+  linear-gradient(140deg,
+    color-mix(in oklch, $brand-dusty-denim 5%, white) 0%,
+    color-mix(in oklch, $brand-dusty-denim 9%, white) 100%);
+
 // The focused Boards CARD background — the frosted two-layer gradient from
 // `.md-grid--layout-focused .md-card--boards`. Reused by the Boards section panel and
 // the account page's user hero so their surfaces match.
@@ -405,40 +423,83 @@ body.ll-layout-focused .md-user-summary {
     display: none !important;
   }
 
-  // Tab pills (My Boards / Public Boards / More — all role="presentation" tabs) share
-  // the INACTIVE bg: the focused pill-nav active gradient 20% lighter. The ACTIVE
-  // My/Public pill gets the full (darker) gradient; the More toggle is excluded from
-  // the active rule, so it always stays on the inactive bg. White label on the fill.
+  // Tab pills (My Boards / Public Boards / More — all role="presentation" tabs).
   //
-  // Built from `$focus-pill-active-*` — the SAME tokens the pill-nav's active pill uses
-  // (_variables.scss), so this strip tracks the pill-nav's 10-point desaturation instead
-  // of drifting 10 points more saturated than the nav sitting directly above it. The
-  // inactive variants scale from the desaturated stop, so the whole strip moves together.
+  // INACTIVE tabs are the plain-text treatment the MAIN PILL NAV uses for its own
+  // inactive pills (`.md-pillnav__pill`, app.scss:44544) — transparent fill, no
+  // border, no shadow, `rgba(75, 78, 92, …)` ink, brightening to full opacity over a
+  // 7%-black wash on hover (app.scss:44615). The two rows sit one above the other on
+  // this page, so they now read as one navigation family instead of the tabs looking
+  // like a second, competing set of filled buttons.
+  //
+  // The ink is a raw rgba because the pill-nav's own rules are — there is no token for
+  // it. If one is ever introduced, change it in BOTH places.
+  //
+  // ONE DELIBERATE DEVIATION: full opacity, where the nav pill rests at 0.85. These
+  // tabs sit on `$focus-section-bg-darkened`, which is darker than the page background
+  // the nav sits on. MEASURED against that panel's darkest stop (rgb 218,221,225):
+  // 0.85 gives 4.36:1 — under the 4.5 AA floor, and these are 15px/600, i.e. normal
+  // text, not large. Full opacity gives 6.15:1. On the darker panel the stronger ink
+  // also lands at roughly the same PERCEIVED weight as the nav's 0.85 on its lighter
+  // ground, so parity is preserved where it matters.
+  //
+  // SEPARATOR — the hairline the nav draws down the LEFT of every pill after the
+  // first (`.md-pillnav__pill`, app.scss:44585: `1px solid rgba($la-navy, 0.16)`).
+  // It is what gives each inactive nav item its visible left edge; without it these
+  // tabs were plain text floating on the strip. The base tab rule
+  // (app.scss:65188) sets `border: none`, so the border box has to be re-declared
+  // here, not just recoloured.
   .ub-boards-page__tabs--boards > li > a {
-    color: $focus-on-dark !important;
-    border-color: rgba($focus-on-dark, 0.18) !important;
-    background: linear-gradient(135deg,
-      color.scale($focus-pill-active-from, $lightness: 20%),
-      color.scale($focus-pill-active-to, $lightness: 20%)) !important;
+    color: rgb(75, 78, 92) !important;
+    background: transparent !important;
     box-shadow: none !important;
+    border: none !important;
+    border-left: 1px solid rgba($la-navy, 0.16) !important;
   }
+  // First tab has nothing on its left to divide from — mirrors
+  // `.md-pillnav__pill:first-child` (app.scss:44592), which keeps the border BOX and
+  // only clears its colour, so pill widths stay identical across the strip.
+  .ub-boards-page__tabs--boards > li:first-child > a {
+    border-left-color: transparent !important;
+  }
+  // Hover/focus: the pill-nav's 7%-black wash. The nav ALSO lifts its ink 0.85 → 1 on
+  // hover; ours already rests at 1 (see above), so the wash alone is the affordance.
+  .ub-boards-page__tabs--boards > li > a:hover,
+  .ub-boards-page__tabs--boards > li > a:focus-visible {
+    background: rgba(0, 0, 0, 0.07) !important;
+  }
+  // ACTIVE My/Public tab — unchanged fill, but it now has to carry its OWN ink and
+  // border. It previously inherited `color: #fff` + the border from the rule above,
+  // which has just become grey-on-transparent; without these two lines the selected
+  // tab would render grey text on the dark gradient (~2:1, unreadable).
+  // Border mirrors `.md-shell--layout-focused .md-pillnav__pill.is-active`
+  // (app.scss:44358) so the active tab and the active nav pill match too.
+  // The ACTIVE tab drops the divider (the nav does the same —
+  // `.md-pillnav__pill.is-active:not(:first-child)`, app.scss:44606). Colour-only,
+  // NOT `border-left: none`: keeping the 1px box means the row does not shift by a
+  // pixel as the selection moves between tabs.
   .ub-boards-page__tabs--boards > li.is-active:not(.dropdown) > a {
     background: linear-gradient(135deg, $focus-pill-active-from, $focus-pill-active-to) !important;
+    color: $focus-on-dark !important;
+    border-left-color: transparent !important;
   }
-  // The "More" toggle is never a "selected" filter, so pin it to the INACTIVE bg in
-  // EVERY state — resting, when a More option is selected (li.is-active), and on
+  // The "More" toggle is never a "selected" filter, so pin it to the INACTIVE treatment
+  // in EVERY state — resting, when a More option is selected (li.is-active), and on
   // hover/focus. Including the plain resting `> li.dropdown > .dropdown-toggle` here
   // (specificity 0,5,2) makes it beat the general `.dropdown-toggle` pill rules in
   // app.scss (≤0,4,1) that were keeping it on the white pill.
   .ub-boards-page__tabs--boards > li.dropdown > .dropdown-toggle,
-  .ub-boards-page__tabs--boards > li.dropdown.is-active > .dropdown-toggle,
+  .ub-boards-page__tabs--boards > li.dropdown.is-active > .dropdown-toggle {
+    color: rgb(75, 78, 92) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-left: 1px solid rgba($la-navy, 0.16) !important;
+  }
   .ub-boards-page__tabs--boards > li.dropdown > .dropdown-toggle:hover,
   .ub-boards-page__tabs--boards > li.dropdown > .dropdown-toggle:focus-visible {
-    color: $focus-on-dark !important;
-    border-color: rgba($focus-on-dark, 0.18) !important;
-    background: linear-gradient(135deg,
-      color.scale($focus-pill-active-from, $lightness: 20%),
-      color.scale($focus-pill-active-to, $lightness: 20%)) !important;
+    color: rgb(75, 78, 92) !important;
+    background: rgba(0, 0, 0, 0.07) !important;
     box-shadow: none !important;
   }
 
@@ -510,6 +571,104 @@ body.ll-layout-focused .md-shell--reports-view {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }
+  // ---- Bolder surfaces in Focused View --------------------------------------
+  // The gentle view's reports read as pale frosted glass on a light page. Focused
+  // View asks for more weight, so the summary cards take deeper fills here only —
+  // the base rules in _reports.scss are untouched and still govern gentle view.
+
+  // The three KPI tiles (Sessions / Utterances / Words per utterance) take the
+  // DASHBOARD's focused badge-action card surface — the same `$focus-card-surface`
+  // the "My Account" card wears (white sheen top-left, verdigris bottom-right
+  // corner, dusty-denim gradient beneath). Using the shared token rather than
+  // copying that gradient means the two pages cannot drift apart.
+  .report-kpi {
+    background: $focus-card-surface !important;
+    border-color: rgba($brand-dusty-denim, 0.24) !important;
+  }
+
+  // Activity (.report-trend) + Highlights (.report-insights) — the same surface as
+  // the KPI tiles above, a step lighter, so the analysis panels sit BEHIND the
+  // headline figures in the visual hierarchy rather than competing with them.
+  .report-trend,
+  .report-insights {
+    background: $focus-card-surface-light !important;
+    border-color: rgba($brand-dusty-denim, 0.18) !important;
+  }
+
+  // Headline banner — same gradient SHAPE as the base rule, with the washed-out
+  // white lead pulled back and the tinted stops deepened. Each tone keeps its own
+  // hue (verdigris up / denim steady / coral down): that hue is the signal, so
+  // "bolder" must mean stronger, never recoloured.
+  // Deepened a second time (2026-08-17, requested). The white lead is now only a
+  // highlight rather than half the card, and each tone's tint carries the surface.
+  // Still comfortably light enough for the card's navy title + description: the
+  // darkest stop here (positive, rgb 168 220 211) is ~8.7:1 against $la-navy,
+  // well clear of the 4.5:1 AA floor — so "darker" has not cost legibility.
+  .progress-highlight {
+    background: linear-gradient(
+      110deg,
+      rgba(255, 255, 255, 0.55),
+      rgba(188, 227, 221, 0.95) 58%,
+      rgba(202, 219, 248, 0.95)
+    ) !important;
+  }
+  .progress-highlight--positive {
+    background: linear-gradient(
+      110deg,
+      rgba(255, 255, 255, 0.55),
+      rgba(168, 220, 211, 0.96) 58%,
+      rgba(186, 230, 221, 0.95)
+    ) !important;
+    border-color: rgba(42, 157, 143, 0.5) !important;
+  }
+  .progress-highlight--neutral {
+    background: linear-gradient(
+      110deg,
+      rgba(255, 255, 255, 0.55),
+      rgba(190, 213, 243, 0.96) 58%,
+      rgba(205, 224, 249, 0.95)
+    ) !important;
+    border-color: rgba(76, 134, 216, 0.42) !important;
+  }
+  .progress-highlight--negative {
+    background: linear-gradient(
+      110deg,
+      rgba(255, 255, 255, 0.55),
+      rgba(249, 206, 194, 0.96) 58%,
+      rgba(251, 221, 211, 0.95)
+    ) !important;
+    border-color: rgba(216, 77, 50, 0.44) !important;
+  }
+
+  // "Compare with another period" — the EXACT surface the Change Home Board button
+  // wears in Focused View (the layout toggle's light fill taken down 8%, with that
+  // control's own navy ink, hairline border and inset highlight). Declared as one
+  // selector list across rest/hover/focus, matching how .ub-boards-page__set-home-btn
+  // is written above: this surface does not change on interaction, so writing it
+  // three times would invite the states to drift.
+  //
+  // `!important` and the extra specificity are load-bearing: the base rule
+  // (.md-stats-filter__period-bar .md-stats-filter__compare, app.scss ~60682) sets
+  // background/border/colour/shadow with !important at (0,2,0). This compiles to
+  // (0,2,1) + !important, so it wins on merit rather than on source order.
+  //
+  // Ink measured on these stops for the set-home rule above: $la-navy is 9.51:1 on
+  // the light stop and 7.87:1 on the dark one, against a 4.5:1 AA floor — the same
+  // pairing carries over here unchanged.
+  .md-stats-filter__compare,
+  .md-stats-filter__compare:hover,
+  .md-stats-filter__compare:focus-visible {
+    background: linear-gradient(135deg,
+      color.scale(#f6f8fa, $lightness: -8%) 0%,
+      color.scale(#dce3ec, $lightness: -8%) 100%) !important;
+    color: $la-navy !important;
+    border: 1px solid rgba($la-navy, 0.18) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 1px 3px rgba($la-navy, 0.14) !important;
+  }
+  // The "+" glyph has no colour of its own (app.scss:60795 sets weight/size only),
+  // so it inherits the navy ink above — nothing to force here.
   // Reveal the Reports focused header + subheader (boards-card style) — but only
   // on the states that do NOT render the "Communication progress" summary
   // (login / premium-required / logging-off). When that summary is present it

@@ -31,16 +31,25 @@
         </li>
       {{/if}}
       {{#each this.filteredContent as |item|}}
-        <li
-          class="modern-select__option {{if (is-equal this.selection item.id) "modern-select__option--selected"}}"
-          role="option"
-          tabindex="0"
-          aria-selected={{is-equal this.selection item.id}}
-          {{on "click" (fn this.onChoose item)}}
-          {{on "keydown" (fn this.onOptionKeydown item)}}
-        >
-          {{item.name}}
-        </li>
+        {{#if item.heading}}
+          {{!-- Group heading (the custom-list equivalent of <optgroup label>).
+               `role="none"` keeps it out of the listbox a11y tree so screen
+               readers still announce only `option` children, and it carries no
+               tabindex, so the ArrowDown/Up handlers — which walk
+               `.modern-select__option` — skip it for free. --}}
+          <li class="modern-select__group-label" role="none">{{item.name}}</li>
+        {{else}}
+          <li
+            class="modern-select__option {{if (is-equal this.selection item.id) "modern-select__option--selected"}}"
+            role="option"
+            tabindex="0"
+            aria-selected={{is-equal this.selection item.id}}
+            {{on "click" (fn this.onChoose item)}}
+            {{on "keydown" (fn this.onOptionKeydown item)}}
+          >
+            {{item.name}}
+          </li>
+        {{/if}}
       {{else}}
         {{!-- Empty-state row — modern alternative to a blank dropdown. --}}
         <li class="modern-select__empty" role="presentation">

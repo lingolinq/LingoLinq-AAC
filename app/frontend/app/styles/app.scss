@@ -5397,8 +5397,11 @@ tr.accuracy_non_mastered {
   align-self: stretch;
 }
 /* Stretch the board-icon tile to the full grid cell so PREVIEW can anchor
-   to the card bottom (same pattern as ub-boards-page__board-grid). */
-.md-shell--board-picker .md-home-boards-picker__board > * {
+   to the card bottom (same pattern as ub-boards-page__board-grid).
+   The "HOME BOARD" pill is excluded: it is an absolutely-positioned
+   sibling of the tile, and `width: 100%` here would resolve against the
+   wrapper and defeat its `left: 50% / translateX(-50%)` centering. */
+.md-shell--board-picker .md-home-boards-picker__board > *:not(.board-picker__home-badge) {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
@@ -54490,13 +54493,25 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 }
 
 /* ── AI "Generate Labels" gate (Size & Labels body, pre-generation) ── */
+/* Sits at the foot of the Basics section (AI pre-generation only). RIGHT-ALIGNED
+   and tight to the content above it: the 32px block padding it used to carry was
+   for a centred hero treatment with a lead paragraph under the button, both of
+   which are gone. No bottom padding at all — the section body supplies its own,
+   and anything here read as dead space under the button. */
 .nb-ai-generate {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  padding: 32px 20px;
-  text-align: center;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 0;
+  text-align: right;
+}
+/* The over-limit / error banners keep full width and left-aligned prose — only the
+   BUTTON is right-aligned. A right-ragged paragraph of warning text is hard to read
+   and the banners are explanations, not actions. */
+.nb-ai-generate > .nb-alert {
+  align-self: stretch;
+  text-align: left;
 }
 .nb-ai-generate__lead {
   margin: 0;
@@ -54520,8 +54535,26 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   background: linear-gradient(135deg, rgba(44, 183, 176, 0.30), rgba(91, 141, 239, 0.26));
   box-shadow: 0 2px 6px rgba(13, 36, 56, 0.08);
 }
+/* Soft glow once the button is ACTIONABLE. `:not(:disabled)` is exactly the right
+   condition without a new class binding: ai_generate_disabled is true until a
+   description is entered, while the grid is over the 112-button limit, and while
+   generating — so the glow appears precisely when pressing it would do something,
+   and is absent while it is working (where it would fight the "Generating Labels…"
+   label). Static, not a pulse: a looping animation on the primary action is noise
+   for AAC users and would need its own reduced-motion carve-out. */
+.nb-ai-generate__btn.btn.btn-primary:not(:disabled) {
+  box-shadow:
+    0 0 0 5px rgba(44, 183, 176, 0.12),
+    0 6px 20px rgba(44, 183, 176, 0.30),
+    0 2px 6px rgba(13, 36, 56, 0.10);
+  transition: box-shadow 0.25s ease, background 0.2s ease;
+}
 .nb-ai-generate__btn.btn.btn-primary:not(:disabled):hover {
   background: linear-gradient(135deg, rgba(44, 183, 176, 0.40), rgba(91, 141, 239, 0.34));
+  box-shadow:
+    0 0 0 6px rgba(44, 183, 176, 0.18),
+    0 8px 26px rgba(44, 183, 176, 0.38),
+    0 2px 8px rgba(13, 36, 56, 0.12);
 }
 /* Disabled until a description is entered (or while generating). */
 .nb-ai-generate__btn.btn.btn-primary:disabled,
@@ -55394,16 +55427,14 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 
 /* Composite stepper pair — Rows + Cols inline in one glass pill,
    separated by a vertical divider. More compact than two stacked steppers. */
-.nb-stepper-mini {
-  display: inline-flex;
-  align-items: center;
-  gap: 1px;
-  height: 36px;
-  padding: 3px 7px 1px 12px;
-  border-radius: 999px;
+/* Shared surface for the Basics-header controls — the Rows/Cols steppers and the
+   grid-size picker's toggle sitting beside them. Matches the workspace's
+   Focused-View surface (white sheen over the blue-white focus tint on a white
+   base) so the whole group reads as one band rather than three unrelated chips.
+   Extracted the moment it had a second consumer; change it here, not in either
+   caller. */
+@mixin nb-header-control-surface {
   border: 1px solid rgba($la-navy, 0.08);
-  /* Match the workspace's Focused-View surface (white sheen over the blue-white
-     focus tint on a white base) so the steppers read as part of the surface. */
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.60) 0%, rgba(255, 255, 255, 0.12) 20%, rgba(255, 255, 255, 0) 42%),
     linear-gradient(180deg, rgba($focus-surface-top, 0.60) 0%, rgba($focus-surface-bottom, 0.55) 100%),
@@ -55412,16 +55443,29 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     inset 0 1px 0 rgba(255, 255, 255, 0.75),
     0 1px 2px rgba($la-navy, 0.06),
     0 4px 10px -4px rgba($la-navy, 0.12);
-  width: fit-content;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
-.nb-stepper-mini:focus-within {
+/* Focus treatment that goes with it — verdigris ring, same on both controls. */
+@mixin nb-header-control-focus {
   border-color: rgba(44, 183, 176, 0.55);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
     inset 0 -1px 0 rgba(255, 255, 255, 0.22),
     0 0 0 3px rgba(44, 183, 176, 0.15),
     0 6px 16px -6px rgba(44, 183, 176, 0.3);
+}
+.nb-stepper-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  height: 36px;
+  padding: 3px 7px 1px 12px;
+  border-radius: 999px;
+  @include nb-header-control-surface;
+  width: fit-content;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.nb-stepper-mini:focus-within {
+  @include nb-header-control-focus;
 }
 .nb-stepper-mini__label {
   position: relative;
@@ -56916,16 +56960,17 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+/* Height matches the left card — that is just the grid's `align-items: stretch`
+   (app.scss ~56898) doing its job, so there is nothing to set here.
+
+   DO NOT re-add an `align-self: start` shrink. There used to be one, keyed on the
+   toggle reading "No"
+   (`:has(.new-board-for-collapse:not(.new-board-for-collapse--open))`, with
+   `padding-bottom: 9px`), to stop the space under the toggle row looking loose.
+   Removed 2026-08-17 by request: two side-by-side cards of visibly different
+   heights read as a layout bug, which costs more than the loose space saved. */
 .nb-basics-grid__col--right {
   justify-content: flex-start;
-}
-/* When the toggle is "No" (the dropdown's collapse wrapper has no
-   --open modifier), let the right card shrink to its content height
-   instead of stretching to match the left card. Half the bottom
-   padding so the empty space below the toggle row doesn't look loose. */
-.nb-basics-grid__col--right:has(.new-board-for-collapse:not(.new-board-for-collapse--open)) {
-  align-self: start;
-  padding-bottom: 9px;
 }
 /* Compact Description: one line tall by default, auto-grows with
    content via field-sizing where supported (Chrome 123+/Edge 123+);
@@ -57542,6 +57587,178 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 .nb-section__header-inline .nb-section__hint {
   margin: 0;
   padding-left: 0;
+}
+/* Rows/Cols steppers + grid picker, pinned to the TOP-RIGHT of the Basics header.
+   `margin-left: auto` pushes the group to the right of the title/hint pair;
+   `align-self: flex-start` keeps it on the header's top line when the hint wraps
+   to a second line on a narrow column. */
+.nb-section__header-inline .nb-section__header-dimensions {
+  margin-left: auto;
+  align-self: flex-start;
+}
+/* Narrow: the header is already `flex-wrap: wrap`, so the group drops to its own
+   line — centre it there rather than leaving it hard against the right edge. */
+@media (max-width: $aac-breakpoint-sm) {
+  .nb-section__header-inline .nb-section__header-dimensions {
+    margin-left: 0;
+    align-self: center;
+    justify-content: center;
+    width: 100%;
+  }
+}
+
+/* ---- Grid-size picker (components/grid-size-picker) ---------------------------
+   Sits to the right of the Rows/Cols steppers. Closed it is a single square
+   button; open it drops a 20x20 grid whose filled region IS the current board
+   size, and sweeping across it sets rows x columns in one gesture. */
+.nb-grid-picker {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.nb-grid-picker__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  /* Geometry matched to .nb-stepper-mini — same 36px height and pill radius — and
+     the SAME surface via the shared mixin, so the three controls read as one band. */
+  height: 36px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  @include nb-header-control-surface;
+  color: $la-navy;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+/* Open or focused, it takes the steppers' verdigris ring rather than a treatment
+   of its own. */
+.nb-grid-picker__toggle:focus-visible,
+.nb-grid-picker--open .nb-grid-picker__toggle {
+  @include nb-header-control-focus;
+}
+.nb-grid-picker__toggle-icon { color: $brand-verdigris-aa; }
+.nb-grid-picker__toggle-chevron { opacity: 0.6; }
+.nb-grid-picker--open .nb-grid-picker__toggle-chevron { transform: rotate(180deg); }
+
+/* FIXED, and placed by JS (grid-size-picker#_positionPanel) rather than anchored
+   here. The new-board card is `.new-board--modern { overflow: hidden !important }`
+   — deliberate, it clips content to the card's rounded corners — and an absolutely
+   positioned panel is clipped by it, which cut the bottom off the grid. A fixed
+   element escapes ancestor overflow. `top`/`left` are placeholders; the component
+   right-aligns the panel to the toggle, flips it above when there is no room below,
+   and clamps it into the viewport. */
+.nb-grid-picker__panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 14px;
+  box-shadow:
+    0 8px 24px rgba($la-navy, 0.18),
+    0 2px 6px rgba($la-navy, 0.08);
+}
+.nb-grid-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(15, 14px);
+  gap: 2px;
+}
+/* Keeps the ARIA grid > row > gridcell structure while letting all 400 cells
+   auto-place into the single CSS grid above (same trick as
+   .md-board-detail-grid__row). */
+.nb-grid-picker__row {
+  display: contents;
+}
+.nb-grid-picker__cell {
+  /* Explicit min/max as well as width/height: these are <button>s, and a stray
+     global button rule with a min-width would otherwise inflate the cell. */
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  min-height: 14px;
+  max-width: 14px;
+  max-height: 14px;
+  padding: 0;
+  border: 1px solid rgba($la-navy, 0.16);
+  border-radius: 2px;
+  background: rgba($la-navy, 0.04);
+  cursor: pointer;
+  /* No transition: sweeping the pointer repaints up to 400 cells at once, and a
+     per-cell fade turns that into visible lag. */
+}
+.nb-grid-picker__cell--on {
+  background: $brand-verdigris;
+  border-color: $brand-verdigris-aa;
+}
+.nb-grid-picker__cell:focus-visible {
+  outline: 2px solid $brand-verdigris-aa;
+  outline-offset: 1px;
+}
+/* Footer: the live readout on the left, Cancel / OK on the right. Present because
+   a cell click STAGES a size rather than committing it — the panel stays open so
+   the choice can be compared or abandoned. */
+.nb-grid-picker__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba($la-navy, 0.10);
+}
+.nb-grid-picker__readout {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: $la-navy;
+  white-space: nowrap;
+}
+.nb-grid-picker__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.nb-grid-picker__btn {
+  min-height: 32px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba($la-navy, 0.16);
+  background: rgba(255, 255, 255, 0.9);
+  color: $la-navy;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.nb-grid-picker__btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba($la-navy, 0.24);
+}
+.nb-grid-picker__btn--ok {
+  background: $brand-verdigris;
+  border-color: $brand-verdigris-aa;
+  color: #fff;
+}
+.nb-grid-picker__btn--ok:hover {
+  background: $brand-verdigris-aa;
+  border-color: $brand-verdigris-aa;
+}
+/* Narrow: shrink the cells so 15 columns still fit a phone. Placement needs no
+   media rule — _positionPanel clamps the panel into the viewport at every width. */
+@media (max-width: $aac-breakpoint-sm) {
+  .nb-grid-picker__grid {
+    grid-template-columns: repeat(15, 12px);
+  }
+  .nb-grid-picker__cell {
+    width: 12px;
+    height: 12px;
+    min-width: 12px;
+    min-height: 12px;
+    max-width: 12px;
+    max-height: 12px;
+  }
 }
 .nb-section__toggle {
   font-size: 14px;
@@ -64961,9 +65178,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    The tabs KEEP THEIR OWN COLOURS: the item rules below only drop each pill's individual
    border and outer shadow (what made them read as separate bubbles); fills and text
    colour are untouched, and Focused View's denim gradients still apply on top.
-   LEFT-ALIGNED and hugging its content — `flex: 0 0 auto` instead of `1 1 auto` so the
-   bar is only as wide as its tabs, plus `justify-content: flex-start` and
-   `align-self: center` so it sits at the row's left edge instead of centred across it. */
+   HUGS ITS CONTENT — `flex: 0 0 auto` instead of `1 1 auto` so the bar is only as wide
+   as its tabs, not stretched across the row; `align-self: center` handles the cross
+   axis. Horizontal placement is the media rule below. */
 .ub-boards-page__tabs.ub-boards-page__tabs--boards {
   background: rgba(255, 255, 255, 0.98);
   border: none;
@@ -64978,65 +65195,88 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   gap: 0;
   position: relative;
 }
+/* Centre the bar on the PAGE at full width. `margin-inline: auto` on a `flex: 0 0 auto`
+   item is what does it — `justify-content` on the bar only moves tabs INSIDE it, which
+   is why the bar itself needs the auto margins.
+
+   ≥768px, not unconditional: the New Board button in this row is `position: absolute;
+   right: 0` (`&__boards-summary-new-btn--in-tabs-row`), so it is out of flow and a
+   centred bar can slide underneath it on a narrow desktop. The bar is ~400px and the
+   button ~140px, so they start to overlap below roughly 680px of row width. Between
+   641px (where the pill row is swapped for the mobile picker) and 768px the bar
+   therefore stays left-aligned, clear of the button. Focused View hides that button
+   entirely, so it is unaffected either way.
+
+   Scoped to `> .ub-boards-page__tabs-row` ON PURPOSE. The board-picker page's strip
+   carries the same `.ub-boards-page__tabs--boards` classes (board-picker.hbs:13) but
+   sits in its own `.md-home-boards-picker__tabs-row` — deliberately not this row, see
+   app.scss ~6175 — and is a wrapping, internally-centred strip whose layout auto
+   margins would disturb. The parent selector keeps this to the boards page. */
+@media (min-width: 768px) {
+  .ub-boards-page__tabs-row > .ub-boards-page__tabs.ub-boards-page__tabs--boards {
+    margin-inline: auto;
+  }
+}
 /* ≤640px boards-section picker — at this width the styled
-   `.ub-boards-page__tabs--boards` pill row collapses into a single
-   native <select> dropdown so the section picker fits comfortably
-   next to the New Board button on a phone-width viewport. The
-   select fires the same `set_selected` action with the option's
-   value (mine / public / root / starred / shared / private /
-   prior_home), so all wiring is identical to the desktop pills. */
-.ub-boards-page__tabs-mobile-select {
+   `.ub-boards-page__tabs--boards` pill row collapses into a single dropdown so
+   the section picker fits comfortably next to the New Board button on a
+   phone-width viewport. It fires the same `set_selected` / `set_tag` actions as
+   the desktop pills, so the wiring is identical.
+
+   This is a <ModernSelect>, not a native <select>. A native select's popup is
+   OS-rendered — `option` padding is ignored, the highlight row is the browser's
+   — so it could never match the page however the trigger was styled. All of the
+   LOOK comes from the shared `.md-modal-modern-select` skin (~app.scss:86009);
+   this class handles only when the control is shown, how it sits in the row, and
+   the AAC type scale. Do not re-add trigger chrome (fill, border, radius,
+   chevron, focus ring) here, or this and the shared skin will drift.
+
+   BOTH visibility rules chain `.modern-select` deliberately. The base
+   `.modern-select` rule (app.scss ~85792) sets `display: inline-block` at the
+   same (0,1,0) specificity and is LATER in the file, so an unchained
+   `.ub-boards-page__tabs-mobile-picker { display: none }` loses the tie and the
+   picker renders at every width, next to the desktop pill row. Chaining makes
+   it (0,2,0) and wins on merit rather than on source order. */
+.modern-select.ub-boards-page__tabs-mobile-picker {
   display: none;
 }
 @media (max-width: 640px) {
   .ub-boards-page__tabs-row > .ub-boards-page__tabs.ub-boards-page__tabs--boards {
     display: none !important;
   }
-  .ub-boards-page__tabs-mobile-select {
+  .modern-select.ub-boards-page__tabs-mobile-picker {
     display: block;
     flex: 1 1 auto;
     min-width: 0;
-    /* Chunky pill so the control reads as a primary affordance at
-       phone widths instead of a tiny system control. Native styling
-       reset (appearance:none) so we control the chrome; a chevron
-       SVG via background-image gives the dropdown affordance. */
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    padding: 10px 36px 10px 14px;
-    font: inherit;
-    font-size: 15px;
-    font-weight: 600;
-    color: $la-navy;
-    background-color: rgba(255, 255, 255, 0.92);
-    /* Chevron stroke is %231B365D (URL-encoded $la-navy = #1B365D);
-       hardcoded so we don't need Sass string interpolation inside
-       the data URI, which sassc choked on in earlier attempts. */
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="%231B365D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>');
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    background-size: 14px 14px;
-    border: 1px solid rgba($la-navy, 0.18);
-    border-radius: 12px;
-    box-shadow: 0 1px 2px rgba($la-navy, 0.05);
-    cursor: pointer;
   }
-  .ub-boards-page__tabs-mobile-select:focus-visible {
-    outline: 2px solid rgba($brand-verdigris, 0.55);
-    outline-offset: 2px;
+  /* AAC type scale. The shared skin is sized for dense modal forms (14px, 44px
+     target); this is the primary navigation control on a phone, where the house
+     rule is ~30% above the usual web default. Type and touch target only — the
+     chrome still comes from the skin. */
+  .ub-boards-page__tabs-mobile-picker .modern-select__trigger {
+    font-size: 17px;
+    min-height: 48px;
+  }
+  .ub-boards-page__tabs-mobile-picker .modern-select__option {
+    font-size: 16px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+  .ub-boards-page__tabs-mobile-picker .modern-select__group-label {
+    font-size: 12px;
   }
   /* New Board button drops to its own row beneath the picker.
-     The tabs-row already has the select on it; allowing wrap and
+     The tabs-row already has the picker on it; allowing wrap and
      forcing both children to 100% basis stacks them vertically
      instead of cramming both into the single narrow row. */
   .ub-boards-page__tabs-row {
     flex-wrap: wrap !important;
   }
-  .ub-boards-page__tabs-mobile-select {
+  .ub-boards-page__tabs-mobile-picker {
     flex: 1 1 100% !important;
   }
   .ub-boards-page__boards-summary-new-btn--in-tabs-row {
-    /* Back into flow at phone width so it stacks below the <select>
+    /* Back into flow at phone width so it stacks below the picker
        (desktop pins it absolutely to page-center the tabs). */
     position: static !important;
     flex: 1 1 100% !important;
@@ -65875,11 +66115,18 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   transition: color 0.18s ease;
 }
 
-/* Home Board tile distinction in the My Boards picker — mirrors the
-   dashboard board strip's `.md-strip__item--home` + `.md-strip__home-
-   badge` treatment so the user's home board reads as the "primary"
-   tile in this list too. Verdigris outline + soft glow halo on the
-   tile, floating uppercase "HOME BOARD" pill crowning it. */
+/* Home Board tile distinction — mirrors the dashboard board strip's
+   `.md-strip__item--home` + `.md-strip__home-badge` treatment so the
+   user's home board reads as the "primary" tile in this list too.
+   Verdigris outline + soft glow halo on the tile, uppercase
+   "HOME BOARD" pill pinned inside its top edge.
+
+   Applied as a MODIFIER on whatever wrapper a surface already uses —
+   the base `.board-picker__item` block below belongs to the My Boards
+   modal removed in 26b4b4426. The live consumer is the home-board
+   picker (`components/board-picker.hbs`), whose tiles carry
+   `.md-home-boards-picker__board`; it adds `--home` and the badge span
+   without the base class so the wrapper keeps its own flex layout. */
 .board-picker__item--home {
   position: relative;
 }
@@ -65898,7 +66145,15 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 }
 .board-picker__home-badge {
   position: absolute;
-  top: -10px;
+  /* Sits INSIDE the tile's top edge, not crowning it. The original -10px was
+     written for the removed My Boards modal, whose tiles had their own card
+     chrome and outer margin to overhang; on the picker's grid it read as
+     floating above the tile.
+     Landed at 8px by eye over two passes (-10 → 6 → 8), which turns out to be
+     EXACTLY the boards page's own home badge offset
+     (`.ub-boards-page__board-item-home-badge`, top: 8px). Keep the two in step:
+     they mark the same board on two surfaces a user moves between. */
+  top: 8px;
   left: 50%;
   transform: translateX(-50%);
   background: linear-gradient(135deg, $brand-verdigris, $brand-verdigris-aa);
@@ -65913,6 +66168,41 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   white-space: nowrap;
   pointer-events: none;
   z-index: 1;
+}
+
+/* --- Card-width-driven badge offset — board-picker page, COMPACT rows only ---
+   Compact rows are `grid-template-columns: 1fr` (two columns from 1024px up,
+   _board_picker.scss ~626), so a card's width tracks the content column, not the
+   viewport: at one wide column a card can be 700px while at two columns on the
+   same screen it is ~450px. A @media breakpoint measures the wrong box — this has
+   to be a container query (see LEARNINGS, "when a COLUMN is narrow but the
+   viewport is wide, media queries are inert").
+
+   THE `:not(:has(…))` GUARD IS LOAD-BEARING — DO NOT DROP IT.
+   `container-type: inline-size` also applies LAYOUT containment, which makes the
+   element a containing block for `position: fixed` descendants. board-icon.hbs
+   renders the full-screen `.ll-premium-progress` preview loader INSIDE this tile
+   and documents "position:fixed so the overlay covers the viewport regardless of
+   where this component is rendered". Containing it unconditionally would clip that
+   overlay into a single grid cell. Dropping the container while the overlay is
+   mounted keeps that invariant; the badge falls back to its 8px base for exactly
+   as long as a full-screen overlay is covering it, so the change is unobservable.
+
+   Scoped to the home tile because it is the only tile with a badge — this avoids
+   putting containment on every card in the grid. */
+.md-shell--board-picker .ll-boards-grid--compact .md-home-boards-picker__board.board-picker__item--home:not(:has(.ll-premium-progress)) {
+  container-type: inline-size;
+  container-name: ll-picker-home-tile;
+}
+/* Wide card: the pill has room to sit clear of the row's top edge.
+   22px, tuned by eye on the real compact picker (8px base → 24 → 22). */
+@container ll-picker-home-tile (width >= 465px) {
+  .board-picker__home-badge { top: 22px; }
+}
+/* Narrow card: the row is short, so the pill rides flush with the top edge
+   rather than colliding with the board name beneath it. */
+@container ll-picker-home-tile (width < 465px) {
+  .board-picker__home-badge { top: 0; }
 }
 
 /* Currently-viewing tile + badge — distinct visual treatment from
@@ -70930,7 +71220,12 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 /* Home button — sits to the left of the sentence bar inside .md-board-detail-sentence-row.
    Mirrors the sentence bar's glass + sunken-well styling so the two elements
    read as a single coordinated row. */
-.md-board-detail-home-btn {
+/* The modeling button shares this surface verbatim — it is the same control
+   family sitting directly under Home. Only its INK differs (verdigris, set in
+   .md-board-detail-modeling-btn below), because it is a state indicator rather
+   than navigation. Joined here rather than copied so the two cannot drift. */
+.md-board-detail-home-btn,
+.md-board-detail-modeling-btn {
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -70964,13 +71259,13 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
     0 4px 14px rgba($la-navy, 0.10);
 }
-.md-board-detail-home-btn:hover {
+.md-board-detail-home-btn:hover,
+.md-board-detail-modeling-btn:hover {
   background: rgba(110, 122, 140, 0.42);
 }
-.md-board-detail-home-btn:active {
-  transform: scale(var(--md-tap, 0.97));
-}
-.md-board-detail-home-btn:focus-visible {
+.md-board-detail-home-btn:active,
+.md-board-detail-home-btn:focus-visible,
+.md-board-detail-modeling-btn:focus-visible {
   outline: none;
   /* Focus ring on top of the floating-chip elevation. */
   box-shadow:
@@ -71001,6 +71296,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    sentence-bar presets or overflow the shortest one. Overrides the base home-btn's
    row direction / 56px width / -8px margin / 10px padding. */
 .md-board-detail-nav-stack .md-board-detail-home-btn,
+.md-board-detail-nav-stack .md-board-detail-modeling-btn,
 .md-board-detail-nav-stack__back {
   flex: 0 0 auto;
   width: 60px;
@@ -71490,42 +71786,77 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 /* (The folder Back button no longer sits inside the sentence bar — it
    now stacks beneath the Home button in .md-board-detail-nav-stack on
    the left of the row. See .md-board-detail-nav-stack__back above.) */
-/* Modeling mode badge — appears inside the sentence bar when modeling
-   is active so the supporter always knows their taps are being logged
-   as modeling actions, not communicator actions. Click to pause/resume. */
-.md-board-detail-sentence-bar__modeling-badge {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
-  border: none;
-  border-radius: 999px;
-  background: rgba($brand-verdigris, 0.18);
+/* Modeling mode control — tells the supporter their taps are being logged as
+   modeling actions, not communicator actions. Click to pause/resume.
+
+   MOVED 2026-08-17 out of the sentence bar (hence the rename from
+   `.md-board-detail-sentence-bar__modeling-badge`) to sit under the Home button
+   as a third nav button. Shape now matches .md-board-detail-nav-stack__back —
+   icon over an 11px label at the shared 60px width — so Home / Modeling / Back
+   read as one control family. Colour stays verdigris: it is a STATE indicator,
+   not navigation, and that is the one thing distinguishing it from its
+   neighbours. */
+/* Everything structural (fill, border, radius, blur, elevation, hover, active,
+   focus ring) comes from the shared .md-board-detail-home-btn rules above. What
+   is left here is only what MUST differ: the ink. Later in source than the base
+   rule at equal specificity, so this colour wins. */
+.md-board-detail-modeling-btn {
+  width: 100%;
   color: $brand-verdigris-aa;
-  font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.02em;
   white-space: nowrap;
-  cursor: pointer;
-  transition: background 0.15s ease, transform 0.1s ease;
 }
-.md-board-detail-sentence-bar__modeling-badge:hover {
-  background: rgba($brand-verdigris, 0.28);
+/* The label inherits the nav-button label size (11px); the icon keeps its own
+   fill-based artwork rather than the stroked nav icon set. */
+/* Dark mode: Home flips to white ink; modeling keeps its verdigris identity,
+   lightened for contrast on the dark surface. Deliberately NOT added to the
+   `.md-board-detail--dark .md-board-detail-home-btn { color: #fff }` rule. */
+.md-board-detail--dark .md-board-detail-modeling-btn {
+  color: color.adjust($brand-verdigris, $lightness: 22%);
 }
-.md-board-detail-sentence-bar__modeling-badge:active {
+.md-board-detail-modeling-btn svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+/* Home + modeling share a column so modeling sits directly UNDER Home at the
+   same width. Home is the flexible child, so it gives up exactly the modeling
+   button's height when modeling is active and reclaims it when not — that is
+   the "Home shrinks when modeling shows" behaviour, done by the layout rather
+   than by a second competing rule. */
+.md-board-detail-nav-stack__home-col {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: stretch;
+  gap: 4px;
+  flex: 0 0 auto;
+  width: 60px;
+  min-height: 0;
+}
+.md-board-detail-nav-stack__home-col .md-board-detail-home-btn {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+}
+/* With modeling showing, the column holds TWO stacked buttons instead of one
+   tall Home, so each is roughly half the height — and the 18px radius Home
+   wears when it owns the full column reads as over-rounded on a short button
+   (the curve starts eating the icon). Tighten both to 12px so the pair still
+   reads as one stacked unit.
+
+   Keyed on `:has(.md-board-detail-modeling-btn)` rather than a class the
+   template toggles: the modeling button's mere presence IS the condition, so
+   there is no second source of truth to keep in sync. `:has()` is used
+   extensively in this file already. Both children are named explicitly so the
+   radii can never diverge from each other. */
+.md-board-detail-nav-stack__home-col:has(.md-board-detail-modeling-btn) .md-board-detail-home-btn,
+.md-board-detail-nav-stack__home-col:has(.md-board-detail-modeling-btn) .md-board-detail-modeling-btn {
+  border-radius: 12px;
+}
+.md-board-detail-modeling-btn:active {
   transform: scale(var(--md-tap, 0.97));
-}
-.md-board-detail-sentence-bar__modeling-badge:focus-visible {
-  outline: 2px solid $brand-verdigris-aa;
-  outline-offset: 2px;
-}
-.md-board-detail--dark .md-board-detail-sentence-bar__modeling-badge {
-  background: rgba($brand-verdigris, 0.25);
-  color: $brand-verdigris;
-}
-.md-board-detail--dark .md-board-detail-sentence-bar__modeling-badge:hover {
-  background: rgba($brand-verdigris, 0.38);
 }
 /* Paused variant — applied when modeling logging is paused. Two render
    contexts:
@@ -71533,53 +71864,23 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
      clinician can resume the session with one tap.
    - <span> (auto pause on the supervisee's edit page): static info chip;
      resumes automatically on exit. */
-.md-board-detail-sentence-bar__modeling-badge--paused {
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 4px 14px 6px;
-  background: rgba($brand-verdigris, 0.10);
-  opacity: 0.75;
+/* Paused — same surface, dimmed. The old variant swapped in its own verdigris
+   fill; now that the button wears the Home surface, changing the fill would break
+   the very match this control is meant to have. Opacity + the play-vs-pause icon
+   carry the state instead. Two render contexts:
+   - <button> (manual pause): interactive, resumes on one tap.
+   - <span>   (auto pause on the supervisee's edit page): static, resumes on exit. */
+.md-board-detail-modeling-btn--paused {
+  opacity: 0.7;
 }
-.md-board-detail-sentence-bar__modeling-badge__row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-  margin-left: -8px;
-}
-.md-board-detail-sentence-bar__modeling-badge__caption {
-  font-size: 15px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+.md-board-detail-modeling-btn--paused:hover {
   opacity: 0.85;
-  line-height: 1.1;
-  width: 100%;
-  text-align: center;
 }
-.md-board-detail-sentence-bar__modeling-badge--paused:hover {
-  background: rgba($brand-verdigris, 0.18);
-}
-span.md-board-detail-sentence-bar__modeling-badge--paused {
+span.md-board-detail-modeling-btn--paused {
   cursor: default;
 }
-span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
-  background: rgba($brand-verdigris, 0.10);
-}
-.md-board-detail--dark .md-board-detail-sentence-bar__modeling-badge--paused {
-  background: rgba($brand-verdigris, 0.22);
-  color: color.adjust($brand-verdigris, $lightness: 22%);
-  opacity: 1;
-}
-.md-board-detail--dark .md-board-detail-sentence-bar__modeling-badge--paused:hover {
-  background: rgba($brand-verdigris, 0.32);
-}
-.md-board-detail--dark span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
-  background: rgba($brand-verdigris, 0.22);
-}
-.md-board-detail--dark .md-board-detail-sentence-bar__modeling-badge--paused .md-board-detail-sentence-bar__modeling-badge__caption {
-  opacity: 1;
+span.md-board-detail-modeling-btn--paused:hover {
+  opacity: 0.7;
 }
 .md-board-detail-sentence-bar__text {
   flex: 1;
@@ -73053,6 +73354,62 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
      to scan than two widely-spaced buttons). */
   gap: 6px;
   flex-shrink: 0;
+}
+/* Exit to Home — a quiet text link sitting LEFT of Cancel. Styled as a link
+   rather than a third button on purpose: Cancel and Save are the two ways to
+   FINISH editing, and a third filled control beside them would compete with
+   both. A little extra right margin separates it from that pair so the eye
+   still groups Cancel+Save together. */
+.md-board-edit-session__exit-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-right: 6px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  /* Verdigris, in the AA variant (documented 4.73:1 on white). The session bar
+     is `glass-bar-surface` — a translucent WHITE gradient — so the earlier
+     rgba(255,255,255,.82) here was near-invisible on it. The neighbouring
+     Cancel/Save icons are light-toned because they sit on their own dark slate
+     BUTTON, not on the bar. */
+  color: $brand-verdigris-aa;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.md-board-edit-session__exit-link:hover {
+  color: color.adjust($brand-verdigris-aa, $lightness: -8%);
+  background: rgba($brand-verdigris, 0.10);
+}
+.md-board-edit-session__exit-link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px $brand-verdigris;
+}
+.md-board-edit-session__exit-link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+/* Narrow: the session bar's actions become a stacked column so Exit / Cancel /
+   Save each get a full-width row instead of being squeezed onto one line. The
+   link loses its right margin (the column gap spaces it now) and centres with
+   the buttons it sits above. */
+@media (max-width: $aac-breakpoint-sm) {
+  .md-board-edit-session__actions {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+  .md-board-edit-session__exit-link {
+    margin-right: 0;
+    justify-content: center;
+  }
 }
 .md-board-edit-session__btn {
   display: inline-flex;
@@ -74645,9 +75002,12 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   @include glass-bar-surface;
 }
 
-/* 2. Home + Back buttons — same translucent-white treatment so the nav
-   buttons + bar read as one coordinated rail on the bright canvas. */
+/* 2. Home + Modeling + Back buttons — same translucent-white treatment so the nav
+   buttons + bar read as one coordinated rail on the bright canvas.
+   The modeling button is included so its background MATCHES Home's; only its ink
+   is pulled back to verdigris immediately below. */
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-home-btn,
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-modeling-btn,
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-nav-stack__back,
 .new-board-mockup-wrap:not(.md-board-detail--dark) .md-board-detail-home-btn {
   /* Same glassy glossy language as the bar, scaled for a button (smaller sheen
@@ -74668,7 +75028,9 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     0 1px 2px rgba($la-navy, 0.05),
     0 4px 14px rgba($la-navy, 0.10);
 }
+
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-home-btn:hover,
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-modeling-btn:hover,
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-nav-stack__back:hover,
 .new-board-mockup-wrap:not(.md-board-detail--dark) .md-board-detail-home-btn:hover {
   background: linear-gradient(
@@ -74683,6 +75045,16 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     inset 0 8px 12px -8px rgba(255, 255, 255, 0.68),
     0 1px 2px rgba($la-navy, 0.06),
     0 6px 18px rgba($la-navy, 0.13);
+}
+/* Ink ONLY. The rail rule above legitimately sets navy for Home/Back; the
+   modeling button must keep its verdigris identity (it is a state indicator, not
+   navigation) and the icons are `fill="currentColor"`, so this covers glyph and
+   label together. Placed AFTER the hover block, not before it: that block sets navy too
+   (it must, to share the hover background), so an earlier rule lost on hover and
+   the ink flickered navy on mouse-over. */
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-modeling-btn,
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-modeling-btn:hover {
+  color: $brand-verdigris-aa;
 }
 
 /* 3. Tool buttons (backspace / clear / options chevron) — smaller
@@ -75256,8 +75628,25 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
    the AAC ≥11px readability floor (see the ≤768 note further down), so it steps 15→12→11
    rather than scaling below legibility. Gated by .md-shell--many-columns (set on the shell
    when current_grid.columns > 10). */
+/* EXCEPTION to the 0.75 scale above: the base tier is 100px, not 112×0.75 = 84.
+   The Edit pill at the sidebar's foot keeps its "Edit" LABEL above 1024px (the label
+   only collapses to icon-only at ≤1024px), and the label does not scale with this
+   rail — so 84px clipped the pill's trailing padding and border. Measured, all
+   border-box:
+
+     sidebar 100  − 2 (own borders)  − 16 (__scroll padding 8+8)      = 82 available
+     pill      1 + 12 (padding) + 16 (icon) + 6 (gap) + ~26 ("Edit"@13px/600)
+             + 12 (padding) + 1                                       ≈ 74 needed
+
+   ~8px of slack, which also absorbs the shorter translations of `edit`. The ≤1024px
+   and ≤768px tiers below are unaffected and keep the 0.75 scale, because the label is
+   hidden there and only the icon has to fit.
+
+   COST: 16px of board width on a many-columns board. That is the trade the wider pill
+   is worth; if it ever needs reclaiming, hide the label here the way ≤1024px does
+   rather than narrowing the rail back under the pill. */
 .md-shell--many-columns .md-board-detail-inline-sidebar {
-  width: 84px;
+  width: 100px;
 }
 .md-shell--many-columns .md-board-detail-inline-sidebar__item {
   padding: 8px 6px;
@@ -85977,6 +86366,24 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
     0 2px 6px rgba($la-navy, 0.08);
   max-height: 280px;
   overflow-y: auto;
+}
+/* Group heading — the custom list's equivalent of <optgroup label>. Inert
+   (not an option, no hover/selected state), so it reads as structure rather
+   than as a disabled choice: uppercase micro-label, muted, with its options
+   indented beneath it. A heading is never rendered without options under it
+   (see modern-select.js#filteredContent). */
+.modern-select.md-modal-modern-select .modern-select__group-label {
+  padding: 10px 14px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba($la-navy, 0.5);
+  cursor: default;
+  pointer-events: none;
+}
+.modern-select.md-modal-modern-select .modern-select__group-label ~ .modern-select__option {
+  padding-left: 26px;
 }
 .modern-select.md-modal-modern-select .modern-select__option {
   padding: 10px 14px;
@@ -98456,20 +98863,27 @@ body:not(.ll-layout-focused) .app-navbar__home-actions .md-tour__trigger::before
    bottom, so floating-ui flips this popover ABOVE it and it rode too high. Nudge
    the whole popover down 10rem. A margin shifts an absolutely-positioned
    floating-ui element regardless of whether it positions via `top` or `transform`. */
-/* Nudge two specific spotlight popovers down 10rem: the board-picker "Let us pick
-   for you" step (its assign-button target sits near the page bottom) and the
-   speak-mode "Tap to communicate" step (its grid target fills the page) — both
-   ride too high. The margin offset MUST combine the step class with
+/* Nudge two specific spotlight popovers down 10rem when floating-ui FLIPS them
+   ABOVE their target: the board-picker "Let us pick for you" step (its
+   assign-button target sits near the page bottom) and the speak-mode "Tap to
+   communicate" step (its grid target fills the page). Flipped above, both rode
+   too high. The margin offset MUST combine the step class with
    [data-popper-placement] so it beats the generic placement margin rules below
    (-16px top / 16px bottom, equal specificity but later in source). We ADD to that
-   arrow-gap offset via calc so the popover stays detached from its target. */
+   arrow-gap offset via calc so the popover stays detached from its target.
+
+   TOP PLACEMENT ONLY — do not re-add a `[data-popper-placement^=bottom]` variant.
+   There used to be one (`calc(10rem + 16px)`), and it was a bug: whether the
+   popover flips depends on how much room is below the target, which varies with
+   viewport height and page chrome. Where there IS room below, placement stays
+   `bottom` and that rule shoved the popover ~176px past its target — over the
+   content beneath it and off the bottom of the viewport. It looked correct in
+   local dev only because the layout there happened to force the flip every time.
+   Reported on the deployed board-picker tour and removed 2026-08-17; the generic
+   16px arrow-gap rule below now applies to the un-flipped case, as it should. */
 .shepherd-element.md-tour__step--bp-assign[data-popper-placement^=top],
 .shepherd-element.md-tour__step--bds-grid[data-popper-placement^=top] {
   margin-top: calc(10rem - 16px);
-}
-.shepherd-element.md-tour__step--bp-assign[data-popper-placement^=bottom],
-.shepherd-element.md-tour__step--bds-grid[data-popper-placement^=bottom] {
-  margin-top: calc(10rem + 16px);
 }
 .shepherd-element.md-tour__step--intro {
   /* Wide enough to hold the (long) progress-dot row + the intro/outro buttons on

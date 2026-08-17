@@ -612,6 +612,13 @@
            button) instead of sitting inside the sentence bar, so the row
            reads as symmetric stacked-controls | bar | stacked-controls. --}}
       <div class="md-board-detail-nav-stack">
+        {{!-- Home and the modeling control share one COLUMN so modeling sits
+             directly under Home at the same width; Back stays a sibling of the
+             column, keeping the row's Home|Back pairing. The column is a flex
+             column and Home is the flexible child, so Home shrinks by exactly
+             the modeling button's height when modeling is active and takes the
+             full height when it is not — no separate "shrink" rule needed. --}}
+        <div class="md-board-detail-nav-stack__home-col">
         <button type="button" class="md-board-detail-home-btn" data-bd-action="go_home" {{on "click" (this.ctrlAction "go_home")}} aria-label={{t "Home" key="board_detail_home"}} title={{t "Home" key="board_detail_home"}}>
           <svg width="33" height="33" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M3 12 12 3l9 9"/>
@@ -619,6 +626,37 @@
           </svg>
           <span class="md-board-detail-nav-btn__label">{{t "Home" key="board_detail_home"}}</span>
         </button>
+        {{!-- Modeling control — was a pill inside the sentence bar; it now reads as
+             a third nav button under Home. The long "Modeling is paused" caption
+             the pill carried is dropped: it cannot fit a 60px button, and each
+             state's aria-label already says it in full for screen readers, with
+             the play/pause icon and colour carrying it visually. --}}
+        {{#if this.app_state.modeling_session_active}}
+          {{#if this.edit_mode}}
+            <span class="md-board-detail-modeling-btn md-board-detail-modeling-btn--paused" role="status" aria-label={{t "Modeling paused while editing — will resume on exit" key="board_detail_modeling_paused_edit"}}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                <path d="M8 5.5a1 1 0 0 1 1.5-.87l9 6.5a1 1 0 0 1 0 1.74l-9 6.5A1 1 0 0 1 8 18.5v-13z"/>
+              </svg>
+              <span class="md-board-detail-nav-btn__label">{{t "Modeling" key="board_detail_modeling_label"}}</span>
+            </span>
+          {{else if this.app_state.modeling_paused}}
+            <button type="button" class="md-board-detail-modeling-btn md-board-detail-modeling-btn--paused" data-bd-action="toggle_modeling_pause" {{on "click" (this.ctrlAction "toggle_modeling_pause")}} aria-label={{t "Modeling paused — click to resume" key="board_detail_modeling_paused_resume"}}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                <path d="M8 5.5a1 1 0 0 1 1.5-.87l9 6.5a1 1 0 0 1 0 1.74l-9 6.5A1 1 0 0 1 8 18.5v-13z"/>
+              </svg>
+              <span class="md-board-detail-nav-btn__label">{{t "Modeling" key="board_detail_modeling_label"}}</span>
+            </button>
+          {{else}}
+            <button type="button" class="md-board-detail-modeling-btn" data-bd-action="toggle_modeling_pause" {{on "click" (this.ctrlAction "toggle_modeling_pause")}} aria-label={{t "Modeling mode is active — click to pause" key="board_detail_modeling_active_pause"}}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                <rect x="6" y="5" width="4" height="14" rx="1.5"/>
+                <rect x="14" y="5" width="4" height="14" rx="1.5"/>
+              </svg>
+              <span class="md-board-detail-nav-btn__label">{{t "Modeling" key="board_detail_modeling_label"}}</span>
+            </button>
+          {{/if}}
+        {{/if}}
+        </div>
         {{#if this.show_board_back_nav}}
           <button type="button" class="md-board-detail-nav-stack__back" data-bd-action="go_back" {{on "click" (this.ctrlAction "go_back")}} aria-label={{t "Go back to previous board" key="board_detail_go_back"}}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -629,37 +667,6 @@
         {{/if}}
       </div>
       <div class="md-board-detail-sentence-bar" role="region" aria-label={{t "Message composition" key="board_detail_message_composition"}}>
-        {{#if this.app_state.modeling_session_active}}
-          {{#if this.edit_mode}}
-            <span class="md-board-detail-sentence-bar__modeling-badge md-board-detail-sentence-bar__modeling-badge--paused" role="status" aria-label={{t "Modeling paused while editing — will resume on exit" key="board_detail_modeling_paused_edit"}}>
-              <span class="md-board-detail-sentence-bar__modeling-badge__row">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
-                  <path d="M8 5.5a1 1 0 0 1 1.5-.87l9 6.5a1 1 0 0 1 0 1.74l-9 6.5A1 1 0 0 1 8 18.5v-13z"/>
-                </svg>
-                {{t "Modeling" key="board_detail_modeling_label"}}
-              </span>
-              <span class="md-board-detail-sentence-bar__modeling-badge__caption">{{t "Modeling is paused" key="board_detail_modeling_paused_caption"}}</span>
-            </span>
-          {{else if this.app_state.modeling_paused}}
-            <button type="button" class="md-board-detail-sentence-bar__modeling-badge md-board-detail-sentence-bar__modeling-badge--paused" data-bd-action="toggle_modeling_pause" {{on "click" (this.ctrlAction "toggle_modeling_pause")}} aria-label={{t "Modeling paused — click to resume" key="board_detail_modeling_paused_resume"}}>
-              <span class="md-board-detail-sentence-bar__modeling-badge__row">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
-                  <path d="M8 5.5a1 1 0 0 1 1.5-.87l9 6.5a1 1 0 0 1 0 1.74l-9 6.5A1 1 0 0 1 8 18.5v-13z"/>
-                </svg>
-                {{t "Modeling" key="board_detail_modeling_label"}}
-              </span>
-              <span class="md-board-detail-sentence-bar__modeling-badge__caption">{{t "Modeling is paused" key="board_detail_modeling_paused_caption"}}</span>
-            </button>
-          {{else}}
-            <button type="button" class="md-board-detail-sentence-bar__modeling-badge" data-bd-action="toggle_modeling_pause" {{on "click" (this.ctrlAction "toggle_modeling_pause")}} aria-label={{t "Modeling mode is active — click to pause" key="board_detail_modeling_active_pause"}}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
-                <rect x="6" y="5" width="4" height="14" rx="1.5"/>
-                <rect x="14" y="5" width="4" height="14" rx="1.5"/>
-              </svg>
-              {{t "Modeling" key="board_detail_modeling_label"}}
-            </button>
-          {{/if}}
-        {{/if}}
         {{!-- Tapping the composed message also speaks it (mouse/touch bonus —
              the inline mic below is the keyboard/SR speak control, so this
              stays a plain click target with no tabindex/role to avoid a
@@ -1418,6 +1425,26 @@
                     {{/if}}
                   </span>
                   <div class="md-board-edit-session__actions">
+                    {{!-- Exit to Home — a quiet text link, not a third button, so it
+                         reads as a way OUT of editing rather than a competing
+                         completion action beside Cancel/Save. Routes through
+                         exit_to_home_from_edit (not exit_to_home) so it confirms
+                         discard first, exactly like Cancel — see the controller. --}}
+                    <button type="button"
+                      class="md-board-edit-session__exit-link"
+                      disabled={{this.board_saving}}
+                      data-bd-action="exit_to_home_from_edit" {{on "click" (this.ctrlAction "exit_to_home_from_edit")}}>
+                      {{!-- Two-tone in the house pair used everywhere else for this
+                           glyph (slate roof, verdigris body) — see the getting-started
+                           home icon in create-board-new.hbs and the pencil/report icons
+                           in this file. Explicit strokes, NOT currentColor, so the icon
+                           keeps both tones while the label alone follows the link colour. --}}
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M3 12 12 3l9 9" stroke="#46505F"/>
+                        <path d="M5 10v10a1 1 0 0 0 1 1h3v-6h6v6h3a1 1 0 0 0 1-1V10" stroke="#2A9D8F"/>
+                      </svg>
+                      <span class="md-board-edit-session__exit-link-label">{{t "Exit to Home" key="board_detail_exit_to_home"}}</span>
+                    </button>
                     <button type="button"
                       class="md-board-edit-session__btn md-board-edit-session__btn--discard"
                       disabled={{this.board_saving}}

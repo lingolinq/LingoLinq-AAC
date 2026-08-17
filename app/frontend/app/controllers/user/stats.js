@@ -196,6 +196,20 @@ export default Controller.extend({
   }),
   already_loaded: function(side, stats) {
     if(!stats) { return false; }
+    /* WHICH USER the loaded stats belong to. Without this the cache key is only
+       the date/device/location/snapshot filters, so switching communicator from
+       the Reports page itself — same route, same filters, different `model` —
+       looked "already loaded" and load_charts returned after merely redrawing
+       the PREVIOUS communicator's charts. Arriving from anywhere else worked
+       only because leaving the route fires resetController -> reset_params,
+       which nulls usage_stats and forces a fetch.
+
+       `last_model_id` was already being recorded by load_charts (below) for
+       exactly this purpose but was never read anywhere — the guard was
+       half-built. This is the missing half. */
+    if(this.get('last_model_id') && this.get('last_model_id') != (this.get('model_id') || '_blank')) {
+      return false;
+    }
     var suffix = side == 'left' ? '' : '2';
     var keys = ['device_id', 'location_id', 'snapshot_id', 'start', 'end'];
     var ref = this.get('status' + suffix) || this.get('usage_stats' + suffix);

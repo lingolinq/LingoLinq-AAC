@@ -15,6 +15,7 @@ import {
   boardsPagePreferUserNames,
   sortByNameNatural
 } from '../utils/board-roots';
+import { subjectHomeBoardKey, SUBJECT_HOME_BOARD_DEPS } from '../utils/subject_home_board';
 
 export default Component.extend({
   appState: service('app-state'),
@@ -33,6 +34,15 @@ export default Component.extend({
   /* Toolbar lead: which set of boards is on screen, and how many. The count is a
      plain reflection of what the (unchanged) filtering pipeline produced — it
      does not re-filter anything. */
+  /* The key of the board the subject of this pick ALREADY has as their home
+     board, so the grid can crown that tile with a "Home Board" badge instead
+     of offering it as an undifferentiated choice. Subject = the communicator
+     when a supporter arrived via `?user_id=X`, else the current user — the
+     same resolution `board-preview-overlay#pick_for_home` uses when the pick
+     is actually written. '' when none is set, which never matches a real key. */
+  home_board_key: computed(...SUBJECT_HOME_BOARD_DEPS, function() {
+    return subjectHomeBoardKey(this.appState);
+  }),
   resultsTitle: computed('categories', function() {
     var selected = (this.get('categories') || []).find(function(c) { return c && c.selected; });
     return (selected && selected.name) || i18n.t('board_picker_all_boards', "All available boards");

@@ -1956,6 +1956,21 @@ export default Component.extend({
       value = Math.min(Math.max(1, value), 20);
       this.set(attribute, value);
     },
+    /* Set both dimensions at once from <GridSizePicker>. Clamped to the same 1-20
+       range `plus_minus` above enforces, so the picker cannot reach a size the
+       steppers could not — 20x20 is also the MAX_GRID_LABELS (400) ceiling. */
+    setGridSize: function(rows, columns) {
+      var clamp = function(value) {
+        var n = parseInt(value, 10);
+        if (isNaN(n)) { return null; }
+        return Math.min(Math.max(1, n), 20);
+      };
+      var r = clamp(rows);
+      var c = clamp(columns);
+      if (r === null || c === null) { return; }
+      this.set('model.grid.rows', r);
+      this.set('model.grid.columns', c);
+    },
     setForUserId: function(userId) {
       this.set('model.for_user_id', userId);
     },

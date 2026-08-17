@@ -112,8 +112,8 @@
                BEFORE Generate Labels with AI fires, the badge prompts
                the user to describe the board ("Describe the board
                below, then generate"); AFTER labels come back, the
-               badge guides them to the final Create Board step
-               ("Click Create Board to complete generation"). The user
+               badge guides them to the final Save Board step
+               ("Click Save Board to complete generation"). The user
                is still mid-flow at that point — labels exist but the
                board hasn't been persisted yet — so "Generating with
                AI" stays current-tense. --}}
@@ -127,7 +127,7 @@
               </span>
               <span class="nb-ai-mode-badge__caption">
                 {{#if this.ai_labels_generated}}
-                  {{t "Click Create Board to complete generation" key="ai_mode_badge_caption_after_labels"}}
+                  {{t "Click Save Board to complete generation" key="ai_mode_badge_caption_after_labels_save"}}
                 {{else}}
                   {{t "Describe the board below, then generate" key="ai_mode_badge_caption"}}
                 {{/if}}
@@ -154,7 +154,7 @@
             {{t "Other Create Board Methods" key="other_create_methods"}}
           </button>
         {{/if}}
-        {{!-- Top-right Create Board: same action as the footer button,
+        {{!-- Top-right Save Board: same action as the footer button,
              but only rendered once the form is valid (createBoardDisabled
              is false) so it stays hidden until the user has filled out
              the required fields. --}}
@@ -166,7 +166,7 @@
             {{else if this.status.error}}
               {{t "Error Creating Board" key="error_creating_board"}}
             {{else}}
-              {{t "Create Board" key="create_board"}}
+              {{t "Save Board" key="save_board"}}
             {{/if}}
           </button>
         {{/unless}}
@@ -196,7 +196,7 @@
               </span>
               <span class="nb-ai-mode-badge__caption">
                 {{#if this.ai_labels_generated}}
-                  {{t "Click Create Board to complete generation" key="ai_mode_badge_caption_after_labels"}}
+                  {{t "Click Save Board to complete generation" key="ai_mode_badge_caption_after_labels_save"}}
                 {{else}}
                   {{t "Describe the board below, then generate" key="ai_mode_badge_caption"}}
                 {{/if}}
@@ -249,6 +249,44 @@
           <div class="nb-section__header-inline">
             <h4 class="nb-section__title">{{t "Basics" key="new_board_section_basics"}}</h4>
             <p class="nb-section__hint">{{t "Give your board a name and brief description." key="new_board_section_basics_hint"}}</p>
+            {{!-- Rows / columns live HERE, at the top-right of Basics, rather than in
+                 the Size & Labels head below — the grid size is a basic property of
+                 the board and is needed before the AI label generator runs.
+
+                 Visible in ALL modes, including AI pre-generation: the generator
+                 passes the current rows/columns to the backend (see
+                 generate_labels_with_ai), so the user MUST be able to set the target
+                 grid size BEFORE clicking Generate.
+
+                 <GridSizePicker> is the fast path and the preview beside them — the
+                 steppers stay the primary, always-visible control. --}}
+            <div class="new-board-dimensions nb-section__header-dimensions" role="group" aria-label={{t "Grid size" key="grid_size"}}>
+              <div class="nb-stepper-mini">
+                <span class="nb-stepper-mini__label" id="nb-rows-label">{{t "Rows" key="rows"}}</span>
+                <button type="button" class="nb-stepper-mini__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "model.grid.rows")}} aria-label={{t "Decrease rows" key="decrease_rows"}}>
+                  <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                </button>
+                <input type="number" value={{this.model.grid.rows}} class="nb-stepper-mini__input" id="new_board_rows" aria-labelledby="nb-rows-label" {{on "input" (set-field this "model.grid.rows")}} />
+                <button type="button" class="nb-stepper-mini__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "model.grid.rows")}} aria-label={{t "Increase rows" key="increase_rows"}}>
+                  <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M6 2.5 L6 9.5 M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                </button>
+              </div>
+              <div class="nb-stepper-mini">
+                <span class="nb-stepper-mini__label" id="nb-cols-label">{{t "Cols" key="cols_short"}}</span>
+                <button type="button" class="nb-stepper-mini__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "model.grid.columns")}} aria-label={{t "Decrease columns" key="decrease_columns"}}>
+                  <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                </button>
+                <input type="number" value={{this.model.grid.columns}} class="nb-stepper-mini__input" id="new_board_columns" aria-labelledby="nb-cols-label" {{on "input" (set-field this "model.grid.columns")}} />
+                <button type="button" class="nb-stepper-mini__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "model.grid.columns")}} aria-label={{t "Increase columns" key="increase_columns"}}>
+                  <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M6 2.5 L6 9.5 M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                </button>
+              </div>
+              <GridSizePicker
+                @pickerId="new_board_grid_picker"
+                @rows={{this.model.grid.rows}}
+                @columns={{this.model.grid.columns}}
+                @onChange={{this.ctrlAction "setGridSize"}} />
+            </div>
           </div>
           <div class="nb-section__body">
             <div class="nb-basics-grid">
@@ -297,39 +335,84 @@
                 </div>
               {{/if}}
             </div>
+            {{!-- AI mode, PRE-generation only (`unless show_full_size_section`
+                 == ai_mode && !ai_labels_generated). Sits at the foot of Basics
+                 because everything it needs is here: the description it sends as
+                 the prompt, and the Rows/Cols that set the target grid. It used to
+                 live at the top of the labels section below, which asked the user
+                 to jump back up to Basics, fill it in, then come back down.
+                 The over-limit and error banners travel WITH the button — both are
+                 about this action, and ai_generate_disabled is what they explain. --}}
+            {{#unless this.show_full_size_section}}
+            <div class="nb-ai-generate">
+              {{!-- Over-limit warning: shows when the user dials the
+                   rows/cols steppers past the recommended 112-button
+                   ceiling. Also blocks the Generate button (via
+                   ai_generate_disabled) until the user dials back
+                   below 112. Larger boards become hard to scan, AI
+                   label quality drops, and the per-button symbol
+                   lookup rate-limits aggressively. --}}
+              {{#if this.ai_button_count_over_limit}}
+                <div class="nb-alert nb-alert--warning" role="alert">
+                  <span class="nb-alert__icon" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 20 20" focusable="false">
+                      <path d="M10 1.6 L19 17.5 L1 17.5 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                      <path d="M10 7.5 L10 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                      <circle cx="10" cy="14.5" r="1" fill="currentColor"/>
+                    </svg>
+                  </span>
+                  <div class="nb-alert__body">
+                    <p class="nb-alert__text">{{t "Your board size (%{n} buttons) is larger than the recommended 112. Reduce rows or columns to enable AI generation." n=this.ai_button_count key="ai_board_size_over_limit"}}</p>
+                  </div>
+                </div>
+              {{/if}}
+              {{#if this.ai_generate_error}}
+                <div class="nb-alert nb-alert--warning" role="alert">
+                  <span class="nb-alert__icon" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 20 20" focusable="false">
+                      <path d="M10 1.6 L19 17.5 L1 17.5 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                      <path d="M10 7.5 L10 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                      <circle cx="10" cy="14.5" r="1" fill="currentColor"/>
+                    </svg>
+                  </span>
+                  <div class="nb-alert__body">
+                    <p class="nb-alert__text">{{this.ai_generate_error}}</p>
+                  </div>
+                </div>
+              {{/if}}
+              <button type="button"
+                      class="btn btn-primary nb-ai-generate__btn"
+                      disabled={{this.ai_generate_disabled}}
+                      aria-disabled={{if this.ai_generate_disabled "true" "false"}}
+                      {{on "click" (this.ctrlAction "generate_labels_with_ai")}}>
+                {{#if this.ai_generating}}
+                  {{t "Generating Labels…" key="ai_generating_labels"}}
+                {{else}}
+                  {{t "Generate Labels with AI" key="ai_generate_labels_btn"}}
+                {{/if}}
+              </button>
+            </div>
+            {{/unless}}
           </div>
         </section>
 
+        {{!-- The whole Board Labels section is AI-post-generation / regular mode only.
+             Its body is a single `show_full_size_section` conditional, so in AI
+             PRE-generation it would otherwise render as an empty titled shell — the
+             Generate button that used to fill it now lives at the foot of Basics. --}}
+        {{#if this.show_full_size_section}}
         <section class="nb-section">
           <div class="nb-section__head">
-            <h4 class="nb-section__title">{{t "Size & Labels" key="new_board_section_size"}}</h4>
-            {{!-- Rows / columns steppers are visible in ALL modes,
-                 including AI pre-generation. The AI label generator
-                 passes the current rows/columns to the backend (see
-                 generate_labels_with_ai), so the user MUST be able to
-                 set the target grid size BEFORE clicking Generate. --}}
-            <div class="new-board-dimensions" role="group" aria-label={{t "Grid size" key="grid_size"}}>
-              <div class="nb-stepper-mini">
-                <span class="nb-stepper-mini__label" id="nb-rows-label">{{t "Rows" key="rows"}}</span>
-                <button type="button" class="nb-stepper-mini__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "model.grid.rows")}} aria-label={{t "Decrease rows" key="decrease_rows"}}>
-                  <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-                </button>
-                <input type="number" value={{this.model.grid.rows}} class="nb-stepper-mini__input" id="new_board_rows" aria-labelledby="nb-rows-label" {{on "input" (set-field this "model.grid.rows")}} />
-                <button type="button" class="nb-stepper-mini__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "model.grid.rows")}} aria-label={{t "Increase rows" key="increase_rows"}}>
-                  <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M6 2.5 L6 9.5 M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-                </button>
-              </div>
-              <div class="nb-stepper-mini">
-                <span class="nb-stepper-mini__label" id="nb-cols-label">{{t "Cols" key="cols_short"}}</span>
-                <button type="button" class="nb-stepper-mini__btn" {{on "click" (this.ctrlAction "plus_minus" "minus" "model.grid.columns")}} aria-label={{t "Decrease columns" key="decrease_columns"}}>
-                  <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-                </button>
-                <input type="number" value={{this.model.grid.columns}} class="nb-stepper-mini__input" id="new_board_columns" aria-labelledby="nb-cols-label" {{on "input" (set-field this "model.grid.columns")}} />
-                <button type="button" class="nb-stepper-mini__btn" {{on "click" (this.ctrlAction "plus_minus" "plus" "model.grid.columns")}} aria-label={{t "Increase columns" key="increase_columns"}}>
-                  <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M6 2.5 L6 9.5 M2.5 6 L9.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-                </button>
-              </div>
-            </div>
+            {{!-- "Board Labels", not "Size & Labels": the Rows/Cols steppers moved to
+                 the top-right of the Basics header above (with the grid-size picker
+                 beside them), so this section is only about labels now.
+
+                 A NEW KEY, not re-worded `new_board_section_size` — that key is still
+                 used by components/new-board.hbs, where the steppers DO still sit in
+                 this head and "Size & Labels" is still accurate. Re-wording it in
+                 place would have changed the other form's heading too, and left every
+                 non-English locale showing the old translation under a new meaning. --}}
+            <h4 class="nb-section__title">{{t "Board Labels" key="new_board_section_board_labels"}}</h4>
           </div>
           <div class="nb-section__body">
             {{#if this.show_full_size_section}}
@@ -1213,7 +1296,7 @@
                 {{/if}}
               </div>
               {{!-- Primary action docked at the foot of the Edit Tools rail on
-                   the standalone page: a compact, bottom-aligned Create Board.
+                   the standalone page: a compact, bottom-aligned Save Board.
                    The legacy modal keeps its own footer below. --}}
               {{#if this.standalone}}
                 <div class="nb-create-rail__actions">
@@ -1227,70 +1310,17 @@
                     {{else if this.status.error}}
                       {{t "Error Creating Board" key="error_creating_board"}}
                     {{else}}
-                      {{t "Create Board" key="create_board"}}
+                      {{t "Save Board" key="save_board"}}
                     {{/if}}
                   </button>
                 </div>
               {{/if}}
             </aside>
             </div>
-            {{else}}
-              {{!-- AI mode, pre-generation: the whole Size & Labels UI
-                   is gated behind this button. It calls the AI with the
-                   required description, fills the labels, then flips
-                   show_full_size_section so the full section renders. --}}
-              <div class="nb-ai-generate">
-                {{!-- Over-limit warning: shows when the user dials the
-                     rows/cols steppers past the recommended 112-button
-                     ceiling. Also blocks the Generate button (via
-                     ai_generate_disabled) until the user dials back
-                     below 112. Larger boards become hard to scan, AI
-                     label quality drops, and the per-button symbol
-                     lookup rate-limits aggressively. --}}
-                {{#if this.ai_button_count_over_limit}}
-                  <div class="nb-alert nb-alert--warning" role="alert">
-                    <span class="nb-alert__icon" aria-hidden="true">
-                      <svg width="20" height="20" viewBox="0 0 20 20" focusable="false">
-                        <path d="M10 1.6 L19 17.5 L1 17.5 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-                        <path d="M10 7.5 L10 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                        <circle cx="10" cy="14.5" r="1" fill="currentColor"/>
-                      </svg>
-                    </span>
-                    <div class="nb-alert__body">
-                      <p class="nb-alert__text">{{t "Your board size (%{n} buttons) is larger than the recommended 112. Reduce rows or columns to enable AI generation." n=this.ai_button_count key="ai_board_size_over_limit"}}</p>
-                    </div>
-                  </div>
-                {{/if}}
-                {{#if this.ai_generate_error}}
-                  <div class="nb-alert nb-alert--warning" role="alert">
-                    <span class="nb-alert__icon" aria-hidden="true">
-                      <svg width="20" height="20" viewBox="0 0 20 20" focusable="false">
-                        <path d="M10 1.6 L19 17.5 L1 17.5 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-                        <path d="M10 7.5 L10 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                        <circle cx="10" cy="14.5" r="1" fill="currentColor"/>
-                      </svg>
-                    </span>
-                    <div class="nb-alert__body">
-                      <p class="nb-alert__text">{{this.ai_generate_error}}</p>
-                    </div>
-                  </div>
-                {{/if}}
-                <button type="button"
-                        class="btn btn-primary nb-ai-generate__btn"
-                        disabled={{this.ai_generate_disabled}}
-                        aria-disabled={{if this.ai_generate_disabled "true" "false"}}
-                        {{on "click" (this.ctrlAction "generate_labels_with_ai")}}>
-                  {{#if this.ai_generating}}
-                    {{t "Generating Labels…" key="ai_generating_labels"}}
-                  {{else}}
-                    {{t "Generate Labels with AI" key="ai_generate_labels_btn"}}
-                  {{/if}}
-                </button>
-                <p class="nb-ai-generate__lead">{{t "Generate this board's buttons from your description using AI. You'll be able to review and edit everything before creating the board." key="ai_generate_labels_lead"}}</p>
-              </div>
             {{/if}}
           </div>
         </section>
+        {{/if}}
 
         {{!-- AI mode: Visibility + Advanced options stay hidden until
              the user has run "Generate Labels with AI". In regular
@@ -1416,7 +1446,7 @@
           {{else if this.status.error}}
             {{t "Error Creating Board" key="error_creating_board"}}
           {{else}}
-            {{t "Create Board" key="create_board"}}
+            {{t "Save Board" key="save_board"}}
           {{/if}}
         </button>
         <button type="button" class="la-btn la-btn--ghost" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>

@@ -493,8 +493,14 @@ $report-icon-tints: (
 
 // The one-line statement of what every change on the page is measuring. Sits
 // directly under the KPI row so no arrow is ever unexplained.
+//
+// 32px above vs the 12px `.report-analysis` leaves below it: the copy reads
+// "Every change BELOW compares…", so it introduces what follows rather than
+// captioning the KPI row it sits under. The asymmetry groups it downward, which
+// is what it actually describes, and the gap doubles as the break between the KPI
+// row and the analysis section. (Tuned by eye over two passes: 8 → 20 → 32.)
 .report-kpis__basis {
-  margin: 8px 2px 0;
+  margin: 32px 2px 0;
   color: var(--report-muted);
   font-size: 14px;
   line-height: 1.4;

@@ -167,10 +167,20 @@ export default Component.extend({
         self.send.apply(self, [actionName].concat(bound));
       };
     };
-    this.onBoardsSectionSelect = function(event) {
-      var value = event && event.target && event.target.value;
+    /* ≤640px section picker (<ModernSelect>). Sections go through `set_selected`,
+       the user's board TAGS through `set_tag`, and one picker carries one action —
+       so tag options are namespaced `tag:<name>` and unwrapped here. `tag:` is safe
+       as a sentinel: every other id is a fixed section key built in
+       `boardsSectionOptions` below, never user-supplied, so a tag literally named
+       "tag:x" still round-trips to set_tag correctly. */
+    this.onBoardsSectionChoose = function(value) {
       var ctrl = self.get('boardsCtrl');
-      if (ctrl && value) { ctrl.send('set_selected', value); }
+      if (!ctrl || !value) { return; }
+      if (value.indexOf('tag:') === 0) {
+        ctrl.send('set_tag', value.slice(4));
+      } else {
+        ctrl.send('set_selected', value);
+      }
     };
     this.onSaveFolderRename = function(event) {
       if (event && event.preventDefault) { event.preventDefault(); }
@@ -185,6 +195,79 @@ export default Component.extend({
       if (ctrl) { ctrl.send('load_children'); }
     };
   },
+
+  /* ≤640px section picker contents. MIRRORS THE DESKTOP TAB ROW and must keep doing
+     so: the two top-level pills are plain options, and everything the desktop row
+     hides behind [More ▾] follows a `heading` row, in the same order and under the
+     same permission gates. Built here rather than in the template because
+     <ModernSelect> takes a flat `content` array; `heading: true` is the custom
+     list's equivalent of <optgroup label>. */
+  boardsSectionOptions: computed(
+    'boardsCtrl.model.permissions.edit',
+    'boardsCtrl.model.permissions.model',
+    'boardsCtrl.model.prior_home_boards',
+    'boardsCtrl.model.board_tags.[]',
+    'appState.currentUser.modeling_only',
+    function() {
+      var perms = this.get('boardsCtrl.model.permissions') || {};
+      var opts = [];
+      if (perms.edit || perms.model) {
+        opts.push({ id: 'mine', name: i18n.t('my_boards', "My Boards") });
+      }
+      if (!this.get('appState.currentUser.modeling_only')) {
+        opts.push({ id: 'public', name: i18n.t('public_boards', "Public Boards") });
+        if (perms.model) {
+          /* Static heading, NOT the controller's `more_label` — that computed swaps
+             to whichever item is currently selected, which is right for a dropdown
+             TRIGGER and wrong for a group heading. */
+          opts.push({ heading: true, name: i18n.t('more_ellipsis', "More...") });
+          opts.push({ id: 'root', name: i18n.t('root', "Root") });
+          opts.push({ id: 'starred', name: i18n.t('starred', "Liked") });
+          if (perms.edit) {
+            opts.push({ id: 'shared', name: i18n.t('shared_with_me', "Shared with Me") });
+          }
+          if (this.get('boardsCtrl.model.prior_home_boards')) {
+            opts.push({ id: 'prior_home', name: i18n.t('prior_home', "Prior Home Boards") });
+          }
+          if (perms.edit) {
+            opts.push({ id: 'private', name: i18n.t('private', "Private") });
+          }
+          (this.get('boardsCtrl.model.board_tags') || []).forEach(function(tag) {
+            opts.push({ id: 'tag:' + tag, name: tag });
+          });
+        }
+      }
+      return opts;
+    }
+  ),
+
+  /* Which option the picker shows as current.
+     GET derives from the controller — `mine_selected` / `public_selected` rather than
+     raw `selected`, because on first load `selected` is undefined while the UI already
+     shows Mine via `update_selected`'s default_key fallback.
+     SET exists because <ModernSelect> writes the chosen id back to its `selection`
+     binding; without a setter that write asserts on a read-only computed. The cached
+     write is immediately superseded — choosing fires `onBoardsSectionChoose`, which
+     changes the controller, which invalidates a dependent key and recomputes. */
+  boardsSectionSelection: computed(
+    'boardsCtrl.selected',
+    'boardsCtrl.current_tag',
+    'boardsCtrl.mine_selected',
+    'boardsCtrl.public_selected',
+    {
+      get() {
+        var ctrl = this.get('boardsCtrl');
+        if (!ctrl) { return null; }
+        if (ctrl.get('selected') === 'tagged') {
+          return 'tag:' + (ctrl.get('current_tag') || '');
+        }
+        if (ctrl.get('mine_selected')) { return 'mine'; }
+        if (ctrl.get('public_selected')) { return 'public'; }
+        return ctrl.get('selected') || null;
+      },
+      set(key, value) { return value; }
+    }
+  ),
 
   /* Info popover next to the BOARDS-section "in this section" pill.
      Only rendered when the home board is tagged into a folder (the
@@ -702,6 +785,40 @@ export default Component.extend({
     if (this.get('foldersExpanded')) { this.set('foldersExpanded', false); }
   },
 
+  /* SIDE-BY-SIDE DEFAULTS TO EXPANDED (>768px): in the side-by-side arrangement the
+     folders card owns its own quarter-width column, so a collapsed accordion just
+     leaves that column empty while the folders it exists to show sit hidden. The
+     stacked layout has the opposite problem (folders push the boards list down), which
+     is why this only applies to side-by-side and only above the breakpoint every
+     side-by-side rule is gated at.
+
+     The exact mirror of `_syncNarrowFoldersCollapse` above, and it obeys the same two
+     rules:
+       - A DEFAULT, NOT A LOCK. It expands ONCE on entering side-by-side; collapse it
+         again and it stays collapsed, because the flag is only re-armed after the
+         layout leaves side-by-side (or the viewport goes narrow).
+       - The stored preference is NOT written. `foldersExpanded` persists only when the
+         USER toggles it, and this is not the user toggling it.
+
+     Keyed off the same `data-boards-layout` body attribute for the same reason: it is
+     what boards-layout-toggle publishes and what the CSS reads — one source for "which
+     layout did the user choose". */
+  _syncSideBySideFoldersExpand: function() {
+    var narrow = (typeof window !== 'undefined') && window.innerWidth <= 768;
+    var sideBySide = false;
+    try {
+      sideBySide = document.body.getAttribute('data-boards-layout') === 'side-by-side';
+    } catch (e) { /* no document (tests) — treat as not side-by-side */ }
+    if (narrow || !sideBySide) {
+      // Not the side-by-side case — re-arm so re-entering it expands again.
+      this._expandedForSideBySide = false;
+      return;
+    }
+    if (this._expandedForSideBySide) { return; }
+    this._expandedForSideBySide = true;
+    if (!this.get('foldersExpanded')) { this.set('foldersExpanded', true); }
+  },
+
   didInsertElement() {
     this._super(...arguments);
     var _this = this;
@@ -709,16 +826,38 @@ export default Component.extend({
     // Evaluate once for a page that LOADS narrow, then follow resizes. Throttled with a
     // timeout rather than a runloop helper: this repo's lint bans @ember/runloop, and a
     // resize burst would otherwise re-run this on every frame.
+    this._syncSideBySideFoldersExpand();
     this._syncNarrowFoldersCollapse();
     var narrowHandler = function() {
       if (_this._narrowResizeTimer) { clearTimeout(_this._narrowResizeTimer); }
       _this._narrowResizeTimer = setTimeout(function() {
         if (_this.isDestroyed || _this.isDestroying) { return; }
+        _this._syncSideBySideFoldersExpand();
         _this._syncNarrowFoldersCollapse();
       }, 120);
     };
     window.addEventListener('resize', narrowHandler);
     this.set('_narrowResizeHandler', narrowHandler);
+
+    /* The layout can change WITHOUT a resize — boards-layout-toggle flips it on click,
+       and again when a late-hydrating user record brings a stored preference. Every one
+       of those paths goes through its `_reflect()`, which sets the body attribute, so
+       watching the attribute catches all of them. Watching the attribute (rather than
+       taking state onto the shared `controllers/user/index`) also keeps the toggle's
+       deliberate self-containment intact — see the header note in
+       components/boards-layout-toggle.js. */
+    if (typeof MutationObserver !== 'undefined' && document && document.body) {
+      // Called bare, not wrapped in `run()`, matching the resize handler above —
+      // this repo's lint bans @ember/runloop, and these two syncs only ever set a
+      // plain component property.
+      var layoutObserver = new MutationObserver(function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        _this._syncSideBySideFoldersExpand();
+        _this._syncNarrowFoldersCollapse();
+      });
+      layoutObserver.observe(document.body, { attributes: true, attributeFilter: ['data-boards-layout'] });
+      this._layoutObserver = layoutObserver;
+    }
 
     var handler = function(ev) {
       if (!ev || !ev.target || !ev.target.closest) { return; }
@@ -768,6 +907,10 @@ export default Component.extend({
     if (this._narrowResizeTimer) {
       clearTimeout(this._narrowResizeTimer);
       this._narrowResizeTimer = null;
+    }
+    if (this._layoutObserver) {
+      this._layoutObserver.disconnect();
+      this._layoutObserver = null;
     }
     var handler = this.get('_folderClickOutside');
     if (handler) {

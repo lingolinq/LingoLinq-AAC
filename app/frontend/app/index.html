@@ -97,21 +97,33 @@
         transition: opacity 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
       }
       #loading_box.is-fading { opacity: 0; pointer-events: none; }
-      /* Logout context — uses the EXACT compiled values from landing-alt:
-         page gradient is white → white → #F5F5F3 (first two stones
-         clamp at L>100% per Sass color.adjust); glows use the same
-         rgba/opacity as `.la-hero-card-inner::before/after` (0.12 and
-         0.09 — NOT scaled up, just positioned relative to viewport). */
-      #loading_box.is-logout-context {
+      /* Signed-out context — applied both when LEAVING (logout) and when
+         arriving with no session at all. Either way there is no dashboard
+         to preview, so the skeleton's app chrome is suppressed in favour of
+         a landing-style backdrop.
+         Uses the EXACT compiled values from landing-alt: page gradient is
+         white → white → #F5F5F3 (first two stones clamp at L>100% per Sass
+         color.adjust); glows use the same rgba/opacity as
+         `.la-hero-card-inner::before/after` (0.12 and 0.09 — NOT scaled up,
+         just positioned relative to viewport). */
+      #loading_box.is-signed-out-context {
         background:
           radial-gradient(circle 420px at 75% 20%, rgba(242, 185, 90, 0.12) 0%, transparent 55%),
           radial-gradient(circle 360px at 25% 75%, rgba(78, 205, 196, 0.09) 0%, transparent 55%),
           linear-gradient(180deg, #FFFFFF 0%, #FFFFFF 50%, #F5F5F3 100%);
       }
-      #loading_box.is-logout-context .ll-skel-navbar,
-      #loading_box.is-logout-context .ll-skel-pillnav,
-      #loading_box.is-logout-context .ll-skel-hero,
-      #loading_box.is-logout-context .ll-skel-grid {
+      #loading_box.is-signed-out-context .ll-skel-navbar,
+      #loading_box.is-signed-out-context .ll-skel-pillnav,
+      #loading_box.is-signed-out-context .ll-skel-hero,
+      #loading_box.is-signed-out-context .ll-skel-grid {
+        display: none;
+      }
+      /* Anonymous arrival (no session, and not mid-logout): nothing is
+         being prepared for anybody yet, so "Preparing your workspace" is
+         simply untrue — the app is about to show the landing/login page.
+         Drop the progress card entirely and let the backdrop bridge the
+         gap. Logout keeps its card; it has real copy to deliver. */
+      #loading_box.is-anonymous .ll-skel-progress {
         display: none;
       }
       .ll-skel-navbar {
@@ -395,25 +407,46 @@
     </div>
     <script>
       // Context-aware progress card copy + 3s slow-load swap.
-      // `lingolinq_auth_intent` flag is set by session.invalidate() right
-      // before reload — when present, the card shows logout-appropriate
-      // copy instead of the login copy. Flag is cleared after first read.
+      // Three first-paint contexts, decided before the Ember bundle runs:
+      //   logging out  — `lingolinq_auth_intent` is set by
+      //                  session.invalidate() right before reload. Shows
+      //                  logout copy; flag cleared after first read.
+      //   anonymous    — no stored session, so the app is heading for the
+      //                  landing/login page, not a workspace. Backdrop
+      //                  only, no progress card (see .is-anonymous above).
+      //   signed in    — the default dashboard skeleton + slow-load swap.
       (function() {
         var t = document.getElementById('ll-skel-progress-title');
         var s = document.getElementById('ll-skel-progress-sub');
+        var box = document.getElementById('loading_box');
         var loggingOut = false;
+        // Fail SAFE: if storage is unreadable (private mode, a locked-down
+        // webview, a malformed stash) we cannot prove the visitor is
+        // anonymous, so assume a session and keep the existing skeleton.
+        // Mislabelling a signed-in user as anonymous is the worse error.
+        var signedIn = true;
         try {
-          if (window.localStorage && window.localStorage.getItem('lingolinq_auth_intent') === 'logging_out') {
-            loggingOut = true;
-            window.localStorage.removeItem('lingolinq_auth_intent');
+          if (window.localStorage) {
+            if (window.localStorage.getItem('lingolinq_auth_intent') === 'logging_out') {
+              loggingOut = true;
+              window.localStorage.removeItem('lingolinq_auth_intent');
+            }
+            // Same key utils/_stashes.js writes: prefix + 'auth_settings'.
+            var auth = window.localStorage.getItem('lingolinqStash-auth_settings');
+            signedIn = !!(auth && JSON.parse(auth).access_token);
           }
-        } catch (e) {}
+        } catch (e) { signedIn = true; }
 
         if (loggingOut) {
           if (t) { t.textContent = 'Signing you out…'; }
           if (s) { s.textContent = 'See you soon'; }
-          var box = document.getElementById('loading_box');
-          if (box) { box.classList.add('is-logout-context'); }
+          if (box) { box.classList.add('is-signed-out-context'); }
+        } else if (!signedIn) {
+          if (box) {
+            box.classList.add('is-signed-out-context');
+            box.classList.add('is-anonymous');
+          }
+          // No slow-load swap: there is no card on screen to swap.
         } else {
           setTimeout(function() {
             if (t) { t.textContent = 'Still working…'; }

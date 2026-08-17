@@ -7408,6 +7408,21 @@ export default Controller.extend(prefClasses, {
       });
     },
 
+    /* "Exit to Home" from the EDIT session bar. Deliberately NOT wired straight to
+       `exit_to_home`: that action navigates immediately (it is used from speak mode,
+       where there is nothing to lose), so on the edit page it would be a silent
+       data-loss trapdoor sitting right next to Cancel, which does confirm. Reuses
+       the SAME confirm-discard-changes modal so both escapes from edit mode behave
+       identically, then hands off to the existing exit_to_home for the PIN gate,
+       timer cleanup and nav-history reset. */
+    exit_to_home_from_edit: function() {
+      var _this = this;
+      modal.open('confirm-discard-changes', {}).then(function(result) {
+        if(result === 'discard') {
+          _this.send('exit_to_home');
+        }
+      }, function() { });
+    },
     cancel_edit: function() {
       var _this = this;
       modal.open('confirm-discard-changes', {}).then(function(result) {
