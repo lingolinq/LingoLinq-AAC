@@ -343,6 +343,28 @@ describe Api::BadgesController, :type => :controller do
   end
   
   describe "show" do
+    it "should not return an unhighlighted badge of a public account to a stranger" do
+      token_user
+      pub = User.create(:settings => {'public' => true})
+      hidden = UserBadge.create(:user => pub, :earned => true)
+      shown = UserBadge.create(:user => pub, :earned => true, :highlighted => true)
+
+      # Pins the boundary a review flagged as a possible bypass of the recent-branch
+      # fix. It is not one: UserBadge#view (user_badge.rb:19-21) grants a stranger
+      # `view` ONLY for a highlighted badge on a public account, so `allowed?` denies
+      # the unhighlighted record before require_progress_visible! is ever consulted.
+      expect(hidden.reload.allows?(@user.reload, 'view')).to eq(false)
+      expect(shown.reload.allows?(@user.reload, 'view')).to eq(true)
+
+      get 'show', params: {:id => hidden.global_id}
+      expect(response).to_not be_successful
+
+      # The public showcase half still works, so the denial above is a real gate
+      # and not the endpoint being broken for everyone.
+      get 'show', params: {:id => shown.global_id}
+      expect(response).to be_successful
+    end
+
     it "should require an api token" do
       get 'show', params: {:id => 'asdf'}
       assert_missing_token

@@ -31,8 +31,20 @@ class Api::BadgesController < ApplicationController
       # The `highlighted` downgrade forced above was silently dropped on this
       # branch, so an unauthorized caller received the target's un-highlighted
       # badges here while the else-branch correctly limited them to the public
-      # showcase. Apply the same restriction both ways.
-      badges = badges.where(:highlighted => true) if params['highlighted']
+      # showcase.
+      #
+      # It applies to `user`'s OWN badges only, because that is the relationship
+      # it was computed from: `user.allows?(@api_user,'supervise')`. Each
+      # supervisee in this list has already passed its own affirmative
+      # `supervisee_progress_readable?` check, so downgrading them on the strength
+      # of the caller's relationship to a DIFFERENT account would hide records the
+      # caller is independently entitled to read — an org manager holding
+      # `set_goals` on a supervisee, but no `supervise` on the account whose list
+      # it appeared in.
+      if params['highlighted']
+        # An empty supervisee list degrades to plain highlighted-only.
+        badges = badges.where('user_badges.highlighted = ? OR user_badges.user_id IN (?)', true, supervisees.map(&:id))
+      end
     else
       badges = UserBadge.where(:user_id => user.id, :disabled => false)
       if params['goal_id']

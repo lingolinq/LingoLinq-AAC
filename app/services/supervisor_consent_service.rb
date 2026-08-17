@@ -208,6 +208,13 @@ class SupervisorConsentService
   def locked_transition(relationship, recheck:)
     return { error: 'invalid_or_expired_token' } unless relationship&.persisted?
 
+    # Re-find rather than locking the caller's instance. `with_lock` calls `lock!`,
+    # which raises on a record carrying unsaved changes, so a caller that handed us
+    # a modified object would get a 500 instead of a transition. Re-finding also
+    # guarantees the recheck below evaluates committed state rather than whatever
+    # the caller happened to have assigned in memory.
+    relationship = relationship.class.find(relationship.id)
+
     result = nil
     relationship.with_lock do
       stale = recheck.call(relationship)
@@ -221,13 +228,23 @@ class SupervisorConsentService
   # inside the lock would let a worker dequeue and read the row before this
   # transaction commits — the mailers re-load by global_id and would see the
   # pre-transition state.
+  #
+  # `after_all_transactions_commit` rather than a bare call, because being outside
+  # `with_lock` is not the same as being outside a transaction. If a caller wraps
+  # this service in its own transaction, `with_lock` joins that transaction instead
+  # of opening one, so by the time control returns here nothing has committed yet
+  # and a later rollback would leave an email queued for a transition that never
+  # happened. With no surrounding transaction the block runs immediately, so the
+  # ordinary controller path is unchanged.
   def schedule_after_commit(result, delivery_type, *args)
     return unless result.is_a?(Hash) && result[:error].nil?
 
     relationship = result[:relationship]
     return unless relationship
 
-    SupervisorMailer.schedule_delivery(delivery_type, relationship.global_id, *args)
+    ActiveRecord.after_all_transactions_commit do
+      SupervisorMailer.schedule_delivery(delivery_type, relationship.global_id, *args)
+    end
   end
 
   def party_response_error(relationship, actor)

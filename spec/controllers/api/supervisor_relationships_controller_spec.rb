@@ -219,12 +219,18 @@ describe Api::SupervisorRelationshipsController, type: :controller do
 
       # A refused attempt is the event a reviewer most needs, and it previously
       # left no trace: AuditEvent.log_command sat in the success branch only.
+      # The rejection names its SUBJECT. The service returns only an :error for
+      # not_pending (no :relationship), so the controller falls back to the
+      # relationship it resolved from the id -- otherwise a wrong-party or
+      # already-answered attempt would be logged with nothing a reviewer could act on.
       expect(AuditEvent).to receive(:log_command).with(@user.global_id, hash_including(
         'type' => 'supervisor_consent_response',
         'decision' => 'approve',
         'outcome' => 'rejected',
         'reason' => 'not_pending',
-        'relationship_id' => nil
+        'relationship_id' => rel.global_id,
+        'supervisor_id' => supervisor.global_id,
+        'communicator_id' => @user.global_id
       )).and_call_original
 
       put :approve, params: { id: rel.global_id }
@@ -232,7 +238,7 @@ describe Api::SupervisorRelationshipsController, type: :controller do
       expect(rel.reload.status).to eq('denied')
     end
 
-    it "should audit a rejected token decision without recording the token" do
+    it "should NOT write an audit row for an unresolvable consent token" do
       token_user
       supervisor = User.create
       rel = SupervisorRelationship.create!(
@@ -243,20 +249,39 @@ describe Api::SupervisorRelationshipsController, type: :controller do
       )
       rel.generate_consent_token!
 
+      # This endpoint is reachable unauthenticated. Writing a row per unresolvable
+      # token would let anyone drive unbounded inserts into the audit table by
+      # replaying random strings, turning the audit trail into an amplification
+      # vector -- and the row would name no subject anyway. Token guessing is a
+      # rate-limiting concern, not an audit-trail one.
+      expect(AuditEvent).to_not receive(:log_command)
+
+      put :approve, params: { id: rel.global_id, token: 'wrong-consent-token' }
+      expect(response).to_not be_successful
+      expect(rel.reload.status).to eq('pending')
+    end
+
+    it "should audit a rejected decision without ever recording the consent token" do
+      token_user
+      supervisor = User.create
+      rel = SupervisorRelationship.create!(
+        supervisor_user: supervisor,
+        communicator_user: @user,
+        status: 'denied',
+        permission_level: 'view_only'
+      )
+
       logged = nil
       expect(AuditEvent).to receive(:log_command) { |_actor, data| logged = data }
 
-      # An explicit `token` param routes to the unauthenticated token branch,
-      # where a bad token yields no relationship at all.
-      put :approve, params: { id: rel.global_id, token: 'wrong-consent-token' }
+      put :approve, params: { id: rel.global_id }
       expect(response).to_not be_successful
 
       expect(logged['outcome']).to eq('rejected')
-      expect(logged['reason']).to eq('invalid_or_expired_token')
-      expect(logged['relationship_id']).to be_nil
+      expect(logged['relationship_id']).to eq(rel.global_id)
       # The consent token is a credential; it must never reach the audit trail.
-      expect(logged.to_json).to_not include('wrong-consent-token')
-      expect(rel.reload.status).to eq('pending')
+      expect(logged.to_json).to_not include(rel.consent_response_token.to_s) if rel.consent_response_token
+      expect(logged.keys).to_not include('token')
     end
 
     it "should let the logged-in communicator approve by relationship id without a token" do
