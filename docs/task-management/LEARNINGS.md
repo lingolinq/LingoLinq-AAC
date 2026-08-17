@@ -41,6 +41,7 @@ file (see [README.md](README.md)).
 - [Gotcha: Ember `<Input>` checkboxes need `@type`, and bound-select must stopPropagation](#gotcha-ember-input-checkboxes-need-type-and-bound-select-must-stoppropagation)
 - [Gotcha: Ember strict-mode templates treat bare names as helpers — use `this.` for controller props](#gotcha-ember-strict-mode-templates-treat-bare-names-as-helpers--use-this-for-controller-props)
 - [Gotcha: AI feature flags are rollout; prefs turn AI on — Ember UI must AND both](#gotcha-ai-feature-flags-are-rollout-prefs-turn-ai-on--ember-ui-must-and-both)
+- [Gotcha: Generate-with-AI UI opt-in is explicit; server grandfather is not](#gotcha-generate-with-ai-ui-opt-in-is-explicit-server-grandfather-is-not)
 - [Gotcha: serialize rapid model saves — overlapping user.save() lose updates / trip "in flight"](#gotcha-serialize-rapid-model-saves--overlapping-usersave-lose-updates--trip-in-flight)
 - [Pattern: dedup an "already-owned copy" by parent lineage, never by slug convention](#pattern-dedup-an-already-owned-copy-by-parent-lineage-never-by-slug-convention)
 - [Pattern: phased board prefetch — shared planner, dual persistence files](#pattern-phased-board-prefetch--shared-planner-dual-persistence-files)
@@ -6367,6 +6368,32 @@ turned prefs off. Do not bake prefs into the flags payload. Mirror pref semantic
 word-prediction UI through it. Master `nil` = grandfather allow; master false = block; master true
 = per-feature must be true for `USER_PREF_AI_FEATURES`. See
 `docs/task-management/2026-07-14-eu-ai-prefs-parental-consent.md`. (2026-07-15)
+
+## Gotcha: Generate-with-AI UI opt-in is explicit; server grandfather is not
+
+`prefAllowsAi` still grandfathers a nil master (the generate_labels API can succeed). The
+create-board chooser uses `prefExplicitlyEnabled` / `boardGenerationEntry` so unset prefs open
+`enable-ai-features` instead of letting the user fill the form and then see "Feature not
+available". Do not fold that stricter check into `aiFeatureEnabled` — other AI UI still relies on
+grandfather. Register the modal in `modal-container.hbs` **and** `convertedModals` (same trap as
+`eu-ai-parental-consent`). Cancel is `modal.close(false)`, which **rejects**; callers must
+`.then(stay, stay)` or cancel looks like an unhandled error. EU under-16 without consent opens
+`eu-ai-parental-consent` instead of self-enable.
+
+The create-board chooser (`.nb-create-chooser`) is an in-page `position:fixed` overlay at
+z-index 6000, above Bootstrap `.modal` (1050). Opening `enable-ai-features` (or EU consent)
+while the chooser is visible paints the system modal behind the chooser, and the chooser's
+`backdrop-filter` blurs it. Hide the chooser before `modal.open`, restore it if the user
+does not proceed — same pattern as `choose_paste_html` / `choose_json_bundle`. Do not raise
+global `.modal` z-index to beat the chooser.
+
+`applyAiFeaturePrefs` must only write `true` for requested keys (master + the triggered feature).
+Writing `false` for the other `USER_PREF_AI_FEATURES` overwrites siblings that were already on
+(e.g. word prediction). Clone the whole `preferences` object before `user.set('preferences', …)`
+so Ember Data `attr('raw')` dirties. Apply runs before `user.save()`, so Cancel and a rejected
+save must `rollbackAttributes()` or the next Generate with AI skips the popup with in-memory prefs
+on and the API can still 403. See
+`docs/task-management/2026-08-17-ai-enable-popup.md`. (2026-08-17)
 
 ## Gotcha: `EvalNarrator` shipped against the OLD `ruby-anthropic` API; the gem is official `anthropic ~> 1.23`
 
