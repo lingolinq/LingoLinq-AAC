@@ -141,7 +141,7 @@ function applyAiFeaturePrefs(user, features) {
   var f = features || {};
   var payload = { ai_features_enabled: true };
   Object.keys(USER_PREF_AI_FEATURES).forEach(function(k) {
-    if(!!f[k]) { payload[k] = true; }
+    if(f[k]) { payload[k] = true; }
   });
   if(user && typeof user.set === 'function') {
     var current = userAttr(user, 'preferences');

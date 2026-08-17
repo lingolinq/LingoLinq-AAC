@@ -369,14 +369,14 @@ describe('ai_feature_gate', function() {
       });
       expect(payload.ai_features_enabled).toEqual(true);
       expect(payload.ai_board_generation).toEqual(true);
-      expect(payload.hasOwnProperty('ai_word_prediction')).toEqual(false);
-      expect(payload.hasOwnProperty('ai_board_suggestions')).toEqual(false);
+      expect(Object.prototype.hasOwnProperty.call(payload, 'ai_word_prediction')).toEqual(false);
+      expect(Object.prototype.hasOwnProperty.call(payload, 'ai_board_suggestions')).toEqual(false);
       var prefs = user.get('preferences');
       expect(prefs.ai_features_enabled).toEqual(true);
       expect(prefs.ai_board_generation).toEqual(true);
       expect(prefs.ai_word_prediction).toEqual(true);
       expect(prefs.device).toEqual('ipad');
-      expect(prefs.hasOwnProperty('ai_board_suggestions')).toEqual(false);
+      expect(Object.prototype.hasOwnProperty.call(prefs, 'ai_board_suggestions')).toEqual(false);
     });
 
     it('clones preferences so the original object is not mutated in place', function() {

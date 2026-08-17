@@ -69,7 +69,7 @@ describe('EnableAiFeaturesComponent', 'component:enable-ai-features', function()
     expect(user.get('preferences.ai_board_suggestions')).toEqual(undefined);
     expect(closedWith && closedWith.saved).toEqual(true);
     expect(closedWith.requested_features.ai_board_generation).toEqual(true);
-    expect(closedWith.requested_features.hasOwnProperty('ai_word_prediction')).toEqual(false);
+    expect(Object.prototype.hasOwnProperty.call(closedWith.requested_features, 'ai_word_prediction')).toEqual(false);
   });
 
   itAsync('rolls back in-memory prefs when save is rejected', async function() {
