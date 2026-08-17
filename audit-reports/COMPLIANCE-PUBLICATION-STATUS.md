@@ -159,7 +159,7 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 | `executed-agreement` | term + 7 years | archive | 8 | draft |
 | `corporate-permanent` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `grant-record` | award + 7 years | archive | 0 | unused (no record of this class exists yet) |
-| `policy-version` | supersession + 7 years | archive | 38 | draft |
+| `policy-version` | supersession + 7 years | archive | 39 | draft |
 | `audit-evidence` | 7 years | archive | 17 | draft |
 | `attestation-record` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `dsar-case` | 3 years | delete | 0 | unused (no record of this class exists yet) |
@@ -168,7 +168,7 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 | `working-note` | 90 days | delete | 1 | draft |
 | `operational-config` | retain while in use; supersession + 1 year | archive | 14 | draft |
 
-All 78 rows carry a retention block.
+All 79 rows carry a retention block.
 
 No retention rule has been approved. Nothing in this register is eligible for disposition.
 
@@ -225,6 +225,7 @@ A superseded record is never edited, renamed, or moved. It keeps its row and its
 | Data Retention Schedule | `docs/legal/DATA_RETENTION.md` | Data Retention Schedule (2026-08-09 draft) | (none) |
 | Incident Response and Breach Runbook | `docs/legal/BREACH_RUNBOOK.md` | Incident Response and Breach Runbook (2026-08-15 successor) | (none) |
 | LingoLinq Security, Privacy & Compliance Overview | `docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md` | LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft) | (none) |
+| Subprocessor Register | `docs/legal/SUBPROCESSORS.md` | Subprocessor Register (2026-08-16 successor) | (none) |
 
 ## Bundle Gaps
 
@@ -277,4 +278,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_78 documents tracked. 52 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 8 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
+_79 documents tracked. 52 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 22 inferred retention class(es). 0 legal hold(s). 9 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
