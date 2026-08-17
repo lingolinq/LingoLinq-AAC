@@ -66,7 +66,7 @@ export default Component.extend({
      * Mark the board-picker tour flow as active while this modal is open. A
      * board "Preview" opened from here (the overlay stacks ON TOP of this modal,
      * which stays mounted) reads the flag to switch to the "Pick this Board" CTA
-     * (board-preview.js#tour_pick), and board-icon.js:416 uses it to open the
+     * (board-preview.js#pick_for_home_mode), and board-icon.js:416 uses it to open the
      * preview rather than navigating the user away to Speak Mode.
      */
     this._tour_flag_preexisting = !!this.get('appState.tour_board_picker_active');

@@ -1287,6 +1287,171 @@ describe LogSession, :type => :model do
       expect(log.author).to eq(u)
       expect(log.data['eval']).to eq({'b' => 1, 'ref_id' => ref_id})
     end
+
+    it "should attach a report workbook to an existing eval by ref_id without duplicating it" do
+      # The SLP report workbook (app/frontend/app/utils/eval_workbook.js) is saved
+      # by re-sending the whole eval blob, because no endpoint merges into a saved
+      # eval. This pins the two properties that makes that safe: the workbook
+      # lands on the SAME record, and re-saving does not create a second eval.
+      u2 = User.create
+      u = User.create
+      User.link_supervisor_to_user(u, u2, nil, true)
+      d = Device.create(:user => u)
+      ref_id = "tmp.#{Time.now.to_i * 1000}.0.98765"
+
+      eval_blob = {'name' => 'Full Eval', 'mastery_cutoff' => 0.69, 'ref_id' => ref_id}
+      s = LogSession.new(:data => {'events' => [{
+        'timestamp' => User.default_log_session_duration + 101,
+        'type' => 'eval', 'user_id' => u2.global_id, 'eval' => eval_blob
+      }]}, :user => u, :author => u, :device => d)
+      s.split_out_later_sessions(true)
+
+      expect(LogSession.where(log_type: 'eval').count).to eq(1)
+      log = LogSession.find_by(log_type: 'eval')
+      expect(log.data['eval']['report_workbook']).to eq(nil)
+
+      workbook = {
+        'medical' => {
+          'least_costly' => {'rows' => [
+            {'option' => 'low-tech board', 'trial_length' => '4 weeks',
+             'training' => 'parent + aide', 'reason' => 'could not repair breakdowns'}
+          ]},
+          'attestations' => {'slp_name' => 'A. Clinician', 'npi' => '1234567890'}
+        },
+        'school' => {'sett' => {'student' => 'uses 2-symbol combos'}}
+      }
+      s2 = LogSession.new(:data => {'events' => [{
+        'timestamp' => User.default_log_session_duration + 102,
+        'type' => 'eval', 'user_id' => u2.global_id,
+        'eval' => eval_blob.merge({'report_workbook' => workbook, 'log_session_id' => log.global_id})
+      }]}, :user => u, :author => u, :device => d)
+      s2.split_out_later_sessions(true)
+
+      # Same record, not a second eval.
+      expect(LogSession.where(log_type: 'eval').count).to eq(1)
+      log.reload
+      expect(log.global_id).to eq(LogSession.find_by(log_type: 'eval').global_id)
+      expect(log.data['eval']['report_workbook']).to eq(workbook)
+      # The eval's own data is still intact alongside it.
+      expect(log.data['eval']['name']).to eq('Full Eval')
+      expect(log.data['eval']['ref_id']).to eq(ref_id)
+      # And it is exposed back to the client under the 'evaluation' key.
+      json = JsonApi::Log.as_json(log.reload, :wrapper => true)
+      expect(json['log']['evaluation']['report_workbook']).to eq(workbook)
+    end
+
+    # A different author resuming an eval deliberately gets their OWN new record
+    # (see "should create a new copy if the eval was resumed by a different
+    # author" above) — that is not what these pin.
+    #
+    # What they pin is that the fork must not inherit `ref_id`. The eval workbook
+    # is read-only for non-authors in the UI
+    # (components/eval-workbook.js#isAuthor), but that is a client flag: a direct
+    # POST to /api/v1/logs bypasses it and submits the whole copied blob. Before
+    # this guard that produced a second eval carrying the SAME ref_id, and
+    # utils/eval#find_saved_log_id matches on ref_id and takes the first hit — so
+    # which record a later workbook save binds to became list-order dependent,
+    # for BOTH accounts.
+    describe "eval author mismatch" do
+      def eval_setup
+        u2 = User.create           # the communicator the eval is about
+        author = User.create       # the SLP who ran the eval
+        other = User.create        # a second account that can also write for u2
+        User.link_supervisor_to_user(author, u2, nil, true)
+        User.link_supervisor_to_user(other, u2, nil, true)
+        ref_id = "tmp.#{Time.now.to_i * 1000}.0.55555"
+        blob = {'name' => 'Full Eval', 'mastery_cutoff' => 0.69, 'ref_id' => ref_id}
+        LogSession.new(:data => {'events' => [{
+          'timestamp' => User.default_log_session_duration + 101,
+          'type' => 'eval', 'user_id' => u2.global_id, 'eval' => blob
+        }]}, :user => author, :author => author, :device => Device.create(:user => author)
+        ).split_out_later_sessions(true)
+        log = LogSession.find_by(log_type: 'eval')
+        [u2, author, other, ref_id, blob, log]
+      end
+
+      it "should not let a non-author's fork inherit the ref_id (log_session_id match)" do
+        u2, author, other, ref_id, blob, log = eval_setup
+        expect(LogSession.where(log_type: 'eval').count).to eq(1)
+
+        LogSession.new(:data => {'events' => [{
+          'timestamp' => User.default_log_session_duration + 102,
+          'type' => 'eval', 'user_id' => u2.global_id,
+          'eval' => blob.merge({'report_workbook' => {'medical' => {'x' => 'HIJACK'}},
+                                'log_session_id' => log.global_id})
+        }]}, :user => other, :author => other, :device => Device.create(:user => other)
+        ).split_out_later_sessions(true)
+
+        # The fork itself is expected — it is the resumed-by-another-author flow.
+        expect(LogSession.where(log_type: 'eval').count).to eq(2)
+        fork = LogSession.where(log_type: 'eval').detect { |l| l.author == other }
+        expect(fork).to_not eq(nil)
+        # But exactly ONE record answers to the ref_id, so find_saved_log_id stays
+        # unambiguous.
+        expect(fork.data['eval']['ref_id']).to eq(nil)
+        expect(LogSession.where(log_type: 'eval').map { |l| l.data['eval']['ref_id'] }.compact).to eq([ref_id])
+
+        # And the original author's record is untouched.
+        log.reload
+        expect(log.author).to eq(author)
+        expect(log.data['eval']['report_workbook']).to eq(nil)
+        expect(log.data['eval']['ref_id']).to eq(ref_id)
+      end
+
+      it "should not let a non-author's fork inherit the ref_id (ref_id-only match)" do
+        # ref_id is the matcher that does not require knowing the record id, so it
+        # is the one a copied payload carries even without a log_session_id.
+        u2, _author, other, ref_id, blob, log = eval_setup
+
+        LogSession.new(:data => {'events' => [{
+          'timestamp' => User.default_log_session_duration + 102,
+          'type' => 'eval', 'user_id' => u2.global_id,
+          'eval' => blob.merge({'report_workbook' => {'medical' => {'x' => 'HIJACK'}}})
+        }]}, :user => other, :author => other, :device => Device.create(:user => other)
+        ).split_out_later_sessions(true)
+
+        expect(LogSession.where(log_type: 'eval').map { |l| l.data['eval']['ref_id'] }.compact).to eq([ref_id])
+        log.reload
+        expect(log.data['eval']['report_workbook']).to eq(nil)
+      end
+
+      it "should record an auditable event when it refuses" do
+        u2, author, other, _ref_id, blob, log = eval_setup
+        expect {
+          LogSession.new(:data => {'events' => [{
+            'timestamp' => User.default_log_session_duration + 102,
+            'type' => 'eval', 'user_id' => u2.global_id,
+            'eval' => blob.merge({'log_session_id' => log.global_id})
+          }]}, :user => other, :author => other, :device => Device.create(:user => other)
+          ).split_out_later_sessions(true)
+        }.to change { AuditEvent.where(event_type: 'eval_author_mismatch').count }.by(1)
+
+        ev = AuditEvent.where(event_type: 'eval_author_mismatch').last
+        expect(ev.record_id).to eq(log.global_id)
+        expect(ev.data['target_author_id']).to eq(author.global_id)
+        expect(ev.data['requesting_author_id']).to eq(other.global_id)
+        # global_ids only — no eval content, no names.
+        expect(ev.data.to_json).to_not match(/Full Eval/)
+      end
+
+      it "should still let the ACTUAL author update their own eval in place" do
+        # The guard must not catch the legitimate case it sits next to.
+        u2, author, _other, _ref_id, blob, log = eval_setup
+        workbook = {'medical' => {'attestations' => {'slp_name' => 'A. Clinician'}}}
+
+        LogSession.new(:data => {'events' => [{
+          'timestamp' => User.default_log_session_duration + 102,
+          'type' => 'eval', 'user_id' => u2.global_id,
+          'eval' => blob.merge({'report_workbook' => workbook, 'log_session_id' => log.global_id})
+        }]}, :user => author, :author => author, :device => Device.create(:user => author)
+        ).split_out_later_sessions(true)
+
+        expect(LogSession.where(log_type: 'eval').count).to eq(1)
+        log.reload
+        expect(log.data['eval']['report_workbook']).to eq(workbook)
+        expect(AuditEvent.where(event_type: 'eval_author_mismatch').count).to eq(0)
+      end
+    end
   end
 
   describe "handle_alert" do

@@ -63,12 +63,16 @@
          in app.scss). Same row for board-picker TOUR mode (Pick this Board) and the
          regular board-preview details modal (Try This Board / Board Actions). --}}
     <div class='md-board-preview__actions'>
-      {{#if this.tour_pick}}
-        {{!-- Board-picker TOUR mode: "Back" returns to the live tour modal (left);
-             "Pick this Board" copies the board to the user and opens it in edit
-             mode (right). See board-preview-overlay#pick_for_home. --}}
+      {{#if this.pick_for_home_mode}}
+        {{!-- ASSIGN mode — board-picker TOUR, or a RECOMMENDED-board preview such
+             as the eval report's "Preview & choose for <user>" card. The dismiss
+             button (left) returns to the picker in tour mode and simply cancels
+             otherwise; "Pick this Board" (right) copies the board to the target
+             user and sets it as their home board. The target is
+             `setup_user || currentUser`, resolved at PICK time — see
+             board-preview-overlay#pick_for_home. --}}
         <button class='btn btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{on "click" (this.ctrlAction "close")}}>
-          {{t "Back to Picker" key="board_picker_back"}}
+          {{this.dismiss_label}}
         </button>
         {{#if this.back}}
           <button class='btn btn-lg btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{on "click" (this.ctrlAction this.back)}}>
@@ -95,7 +99,7 @@
                button. Danger treatment, far-left + isolated. Label + icon come from
                board_list.remove_* so all four contextual variants (delete, unstar,
                unlink, untag) are covered with their correct copy. --}}
-          <button type='button' class='btn btn-default md-modal-btn md-board-preview__action md-board-preview__action--remove' {{on "click" (this.ctrlAction this.onRemove)}} aria-label={{this.removeContext.label}}>
+          <button type='button' class='btn btn-default md-modal-btn md-board-preview__action md-board-preview__action--remove' {{on "click" (this.ctrlAction "remove")}} aria-label={{this.removeContext.label}}>
             {{#if this.removeContext.icon}}
               <span class='md-board-preview__action--remove-icon {{this.removeContext.icon}}' aria-hidden="true"></span>
             {{/if}}

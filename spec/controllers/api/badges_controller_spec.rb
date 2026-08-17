@@ -356,4 +356,47 @@ describe Api::BadgesController, :type => :controller do
       expect(b.reload.highlighted).to eq(true)
     end
   end
+
+  # See the matching blocks in goals_controller_spec.rb / images_controller_spec.rb.
+  # UserBadge#process_params:152-153 reads both flags through `!!params[...]` with
+  # no string coercion, so the form-encoded string "false" becomes TRUE. Every
+  # other spec in this file only ever sets these to true, so nothing here noticed.
+  describe "update with a raw JSON body" do
+    it "should let highlighted be turned OFF" do
+      token_user
+      b = UserBadge.create(:user => @user, :highlighted => true)
+      request.headers['Content-Type'] = 'application/json'
+      put :update, params: {:id => b.global_id}, body: {
+        :badge => {:highlighted => false}
+      }.to_json
+      expect(response).to be_successful
+      expect(b.reload.highlighted).to eq(false)
+      expect(b.highlighted).to be_a(FalseClass)
+    end
+
+    it "should let disabled be turned OFF" do
+      token_user
+      b = UserBadge.create(:user => @user, :disabled => true)
+      request.headers['Content-Type'] = 'application/json'
+      put :update, params: {:id => b.global_id}, body: {
+        :badge => {:disabled => false}
+      }.to_json
+      expect(response).to be_successful
+      expect(b.reload.disabled).to eq(false)
+    end
+
+    it "should not clobber highlighted when the client omits it" do
+      # Unset attributes serialize to null and the `!= nil` guard skips them.
+      # Under the form-encoded shape they arrived as "", passed the guard, and
+      # forced the flag TRUE on every save.
+      token_user
+      b = UserBadge.create(:user => @user, :highlighted => false)
+      request.headers['Content-Type'] = 'application/json'
+      put :update, params: {:id => b.global_id}, body: {
+        :badge => {:highlighted => nil, :disabled => nil}
+      }.to_json
+      expect(response).to be_successful
+      expect(b.reload.highlighted).to eq(false)
+    end
+  end
 end
