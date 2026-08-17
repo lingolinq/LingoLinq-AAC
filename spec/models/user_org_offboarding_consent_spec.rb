@@ -392,6 +392,25 @@ describe 'User org offboarding parental consent', type: :model do
       expect(u.coppa_parental_consent_blocks_access?).to eq(true)
     end
 
+    it 'signup decline schedules deletion without export' do
+      u = User.process_new({
+        'name' => 'signup_decl_model',
+        'email' => "signup_decl_model_#{SecureRandom.hex(4)}@example.com",
+        'password' => 'abcdef',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'signup_decl_model_parent@example.com'
+      }, {:pending => true})
+      tok = u.settings['coppa']['parent_consent_token']
+      expect(Exporter).not_to receive(:export_user)
+      expect(UserMailer).not_to receive(:schedule_parent_consent_delivery)
+      expect(u.decline_parental_consent!(tok)).to eq(true)
+      u.reload
+      expect(u.settings['coppa']['parent_consent_declined_at']).to be_present
+      expect(u.settings['coppa']['offboarding_export_scheduled_at']).to be_blank
+      expect(u.schedule_deletion_at).to be_present
+    end
+
     it 'process_expired_offboarding_consents! schedules delete after deadline' do
       u = school_authorized_user!(suffix: 'expdue')
       o = Organization.create(settings: {'total_licenses' => 1})

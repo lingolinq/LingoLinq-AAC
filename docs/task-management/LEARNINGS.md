@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: COPPA decline copy must split signup vs offboarding on every surface](#gotcha-coppa-decline-copy-must-split-signup-vs-offboarding-on-every-surface)
 - [Gotcha: contentHash drift — ATTESTED means stop; unattested means regenerate-register](#gotcha-contenthash-drift--attested-means-stop-unattested-means-regenerate-register)
 - [Gotcha: Rails reserves `params['action']` — consent APIs must use `decision` or member approve/deny routes](#gotcha-rails-reserves-paramsaction--consent-apis-must-use-decision-or-member-approvedeny-routes)
 - [Gotcha: `pending_supervisor_requests` was never serialized — fetch the relationships index instead](#gotcha-pending_supervisor_requests-was-never-serialized--fetch-the-relationships-index-instead)
@@ -11896,6 +11897,17 @@ had no matching blob; the git-canonical #703 bytes are `0ee1b92e...` @ `456b673`
 `version + full sha256 + commit` (and a distinct label per attested byte set — e.g.
 `v2.2.1-interim` vs `v2.2.1`) over truncated prefixes alone. Ref: PR #722 Codex review,
 [`2026-08-02-breach-runbook-codex-review-fixes.md`](./2026-08-02-breach-runbook-codex-review-fixes.md).
+
+## Gotcha: COPPA decline copy must split signup vs offboarding on every surface
+
+Signup `decline_parental_consent!` schedules deletion only. Offboarding runs
+`schedule_offboarding_export_then_delete!`. Email templates already branch on
+`@offboarding` (`decline_prompt` vs `offboarding_decline_prompt`). The
+post-click landing page (`parental_consents/decline.html.erb`) must do the same;
+a shared `decline_thanks_body` that mentions export will lie to signup parents.
+When Copilot flags the emails, grep `prepare an export` across mailers *and*
+`app/views/parental_consents/`. Ref:
+[`2026-08-17-copilot-coppa-review-comments.md`](./2026-08-17-copilot-coppa-review-comments.md).
 
 ## Gotcha: BREACH_RUNBOOK vendor contacts live in §7, not §11
 

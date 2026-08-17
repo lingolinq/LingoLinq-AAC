@@ -43,8 +43,10 @@ class ParentalConsentsController < ApplicationController
     token = params[:token].presence || params['token']
     @success = false
     @already_declined = false
+    @offboarding = false
     if user && user.valid_parent_consent_grant_link_token?(token)
       c = user.settings && user.settings['coppa']
+      @offboarding = !!(c.is_a?(Hash) && c['offboarding'])
       if c.is_a?(Hash) && c['parent_consent_declined_at'].present?
         @already_declined = true
         @success = true

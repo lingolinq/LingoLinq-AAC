@@ -2,10 +2,10 @@
   <% app_name = (JsonApi::Json.current_domain['settings'] || {})['app_name'] || 'LingoLinq' %>
   <% if @success && @already_declined %>
     <h1><%= t('parental_consent.decline_already_title') %></h1>
-    <p><%= t('parental_consent.decline_already_body') %></p>
+    <p><%= t(@offboarding ? 'parental_consent.offboarding_decline_already_body' : 'parental_consent.decline_already_body') %></p>
   <% elsif @success %>
     <h1><%= t('parental_consent.decline_thanks_title') %></h1>
-    <p><%= t('parental_consent.decline_thanks_body') %></p>
+    <p><%= t(@offboarding ? 'parental_consent.offboarding_decline_thanks_body' : 'parental_consent.decline_thanks_body') %></p>
   <% else %>
     <h1><%= t('parental_consent.decline_invalid_title') %></h1>
     <p><%= t('parental_consent.decline_invalid_body') %></p>
