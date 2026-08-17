@@ -45909,6 +45909,102 @@ a.md-pillnav__pill.active .md-pillnav__badge,
   transform: translateY(-1px);
   text-decoration: none !important;
 }
+/* ORG USERS — the three headline cards share a 24px title (2026-08-16, requested).
+   My Organizations was 22px, My Caseload 28px, and Speak Mode inherited 24px from the
+   badge-action as-button rule (~52323) — so on an org dashboard the three stacked cards
+   announced themselves at three different sizes. One size makes them read as peers, which
+   is what they now are: Organizations is the hero, the other two are ordinary cards.
+   SPECIFICITY: each selector carries five classes (0,5,0) so it beats the badge-action
+   rule at the same weight on source order, and the caseload rule at (0,3,0) outright.
+   BOUNDED BY `min-width: 475px` ON PURPOSE. Below 474px a responsive rule (~62755) drops
+   every dashboard title to 18px so headings fit a phone; an unbounded rule here would
+   outrank it and force 24px onto a 375px screen. This keeps the org sizing to the widths
+   it was asked for and leaves the small-screen behaviour intact. */
+@media (min-width: 475px) {
+  .md-grid.md-grid--hero-org .md-card.md-card--org-management .md-card__title,
+  .md-grid.md-grid--hero-org .md-card.md-card--caseload.md-card--caseload-as-button .md-card__title,
+  .md-grid.md-grid--hero-org .md-card.md-card--speak.md-card--speak-as-button .md-card__title {
+    font-size: 24px !important;
+  }
+}
+
+/* ORG USERS — 10px more breathing room between rows (2026-08-16, requested).
+   `row-gap` ONLY, not the `gap` shorthand: widening the column gap too would narrow the
+   utility cards that share a row.
+   THE BASE IS 14px, NOT 28. `.md-grid { gap: 28px }` is overridden for this view by
+   `.md-grid.md-grid--layout-focused { gap: 14px !important }` (~1.99M chars into the
+   compiled sheet). The first cut of this rule read 28 + 10 = 38 and ALSO lost the cascade:
+   it matched that rule's (0,2,0) + !important exactly, and lost on source order because
+   the focused rule is emitted ~260k characters later — its `gap` SHORTHAND then reset the
+   `row-gap` entirely. Measured on the page: 14px, i.e. the whole rule was inert.
+   Both problems are fixed by chaining `.md-grid--layout-focused` here: (0,3,0) wins
+   outright, and the value is now 14 + 10 = 24.
+   THE BOARDS CARD IS EXEMPT, as asked — its trailing space stays at the original 28px.
+   A grid row-gap cannot be varied per row, so the extra 10px is cancelled underneath that
+   one card with a matching negative margin. Verified there is no existing margin on
+   `.md-card--boards` (base rule ~50306) for this to overwrite, so the two compose cleanly:
+   38 - 10 = 28.
+   Scoped to `.md-grid--hero-org`, applied on the home tab only. */
+.md-grid.md-grid--layout-focused.md-grid--hero-org {
+  row-gap: 24px !important;
+}
+.md-grid.md-grid--hero-org .md-card.md-card--boards {
+  margin-bottom: -10px !important;
+}
+
+/* ORG USERS — the Caseload|Speak pair: LEVEL with each other, and set down from the row
+   above (2026-08-16, requested "more space above the caseload and speak button row").
+   THE AUTHORITATIVE RULE for this pair's vertical placement — put any further adjustment
+   HERE rather than in a competing selector.
+
+   A grid `row-gap` cannot be varied per row, so the extra space above this ONE row comes
+   from a margin on the two cards in it, the same mechanism the boards exemption above uses
+   in the other direction. 24px row-gap + 16px = 40px above the pair.
+
+   BOTH cards carry the SAME margin, which is what keeps them level: under the grid's
+   default `align-items: stretch` each item is sized so its MARGIN box fills the row, so an
+   equal margin moves both tops down together and leaves the two the same height — the
+   "Speak must match Caseload's height" requirement still holds.
+   RECORDED so the earlier 10px LIFT is not reintroduced casually: `margin-top: -10px` alone
+   made the card 10px TALLER rather than higher (same stretch behaviour, opposite sign), and
+   then needed either a cancelling `margin-bottom` or `align-self: start` + `height: 100%` to
+   restore equal heights. See the LEARNINGS entry "align-items: stretch absorbs a negative
+   margin by GROWING the item". A POSITIVE margin on both is the well-behaved direction. */
+.md-grid.md-grid--layout-focused.md-grid--hero-org .md-card.md-card--caseload.md-card--caseload-as-button,
+.md-grid.md-grid--layout-focused.md-grid--hero-org .md-card.md-card--speak.md-card--speak-as-button {
+  margin-top: 16px !important;
+}
+
+/* ORG USERS — a quieter halo (2026-08-16, requested). On an org dashboard the
+   Organizations card is the hero, so My Caseload is a peer card rather than the showcase
+   action; at the shared 38px/0.32 verdigris halo it competed with the hero for attention.
+   Reduced to 24px/0.18 resting and 32px/0.26 hover — roughly a third off each, keeping the
+   hover step proportional so the card still visibly responds.
+   THE WHOLE STACK IS RESTATED, not just the halo, because the base rule declares its six
+   layers as ONE atomic `box-shadow` (see the note there): a second declaration listing only
+   the halo would replace the bevels and lift as well, flattening the card. The first five
+   layers are therefore identical to the base by design — change them together.
+   Scoped to `.md-grid--hero-org`, which is only applied on the home tab, so this cannot
+   reach the Caseload card anywhere else. */
+.md-grid.md-grid--hero-org .md-card.md-card--caseload-as-button {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba($la-navy, 0.06),
+    0 1px 2px rgba($la-navy, 0.05),
+    0 4px 10px rgba($la-navy, 0.08),
+    0 12px 28px rgba($la-navy, 0.10),
+    0 0 24px rgba($brand-verdigris, 0.18) !important;
+}
+.md-grid.md-grid--hero-org .md-card.md-card--caseload-as-button:hover,
+.md-grid.md-grid--hero-org .md-card.md-card--caseload-as-button:focus-visible {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba($la-navy, 0.07),
+    0 2px 4px rgba($la-navy, 0.06),
+    0 8px 18px rgba($la-navy, 0.10),
+    0 20px 44px rgba($la-navy, 0.14),
+    0 0 32px rgba($brand-verdigris, 0.26) !important;
+}
 .md-grid .md-card.md-card--caseload-as-button:active {
   transform: translateY(0.5px);
   box-shadow:
@@ -50802,12 +50898,24 @@ a.md-goal-nav-action:hover,
    the same 12px below the navbar. Both values are measured, not derived. */
 .ub-boards-page__layout-toggle {
   position: relative;
-  align-self: flex-end;
+  /* LEFT-ALIGNED (2026-08-16, requested) — was `flex-end`, i.e. pinned to the right edge
+     of the workspace's content box. `align-self` places the control itself; `align-items`
+     below places its contents, and both have to move or the control sits left while its
+     options stay right-aligned inside it.
+     This is the SHARED base rule, so it applies in Gentle AND Focused. Scope it to
+     `body:not(.ll-layout-focused)` if Focused should stay right-aligned. */
+  align-self: flex-start;
   height: 0;
-  /* Gentle: flow position is 66px below the navbar, so -54 lands it at 12. */
-  top: -54px;
+  /* Gentle: flow position is 66px below the navbar, so -54 landed it at 12.
+     MOVED DOWN 130px ("8rem" then "another 5rem" — `html { font-size: 10px }` in this
+     codebase, so 1rem is 10px; see the rem trap in
+     docs/task-management/LEARNINGS.md): -54 + 80 + 50 = 76.
+     GENTLE ONLY. The Focused offsets below are deliberately left at their originals
+     (-30 / -14), so the two views no longer sit at a matching distance below the navbar —
+     that was the point of the request, not an oversight. */
+  top: 76px;
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   flex-direction: column;
   gap: 10px;
   margin: 0;
@@ -50818,8 +50926,45 @@ a.md-goal-nav-action:hover,
 /* Focused: flow position is 42px below the navbar (its workspace padding-top is 16px, not
    40px), so -30 lands it at the same 12. */
 body.ll-layout-focused .ub-boards-page__layout-toggle {
+  /* Focused is at its ORIGINAL offset — the 2026-08-16 "8rem"/"5rem" shifts were meant
+     for Gentle only and were rolled back here. Flow position is 42px below the navbar
+     (its workspace padding-top is 16px, not 40px), so -30 lands it at 12. */
   top: -30px;
 }
+/* FULL-SIZE SCREENS, GENTLE ONLY (2026-08-16). Down 60px total ("5rem" then "1rem") from
+   the shared base's 76px, and right 30px ("2rem" then "1rem") — 10px root, so 1rem is
+   10px.
+   THREE THINGS MAKE THIS ITS OWN RULE rather than an edit to the base:
+   1. `min-width: 1025px` — the request was scoped to full-size screens, and every other
+      breakpoint rule here is `max-width`, so >1024 has no existing home.
+   2. `body:not(.ll-layout-focused)` — the base rule is shared, and Focused only ever
+      overrides `top`. A `left` on the base would drag the Focused control right as well.
+   3. `left`, not `right` — the control is left-aligned (`align-self: flex-start`), so a
+      rightward nudge is an inset from the edge it is anchored to.
+   The base's 76px still applies to Gentle at 769-1024px via the max-width blocks below. */
+@media (min-width: 1025px) {
+  body:not(.ll-layout-focused) .ub-boards-page__layout-toggle {
+    /* 76 + 50 + 10 */
+    top: 136px;
+    /* 20 + 10 */
+    left: 30px;
+  }
+  /* FOCUSED, full-size screens: right 5rem (2026-08-16, requested).
+     50px, NOT 80px — `html { font-size: 10px }` in this codebase, so 1rem is 10px. That is
+     the rem trap recorded in docs/task-management/LEARNINGS.md and already applied by the
+     Gentle values above; converting at the browser default would have moved this 30px too
+     far.
+     `left`, not `right`, for the same reason as the Gentle rule: the control is
+     left-aligned (`align-self: flex-start` on the shared base), so a rightward nudge is an
+     inset from the edge it is anchored to.
+     ONLY `left` is set here. Focused's `top` stays at the base rule's -30px — the earlier
+     vertical shifts were explicitly Gentle-only and were rolled back for this view, and
+     re-stating a top here would quietly re-open that. */
+  body.ll-layout-focused .ub-boards-page__layout-toggle {
+    left: 50px;
+  }
+}
+
 /* Below these widths the page's own top padding shrinks, so the same nudge would drag the
    control up BEHIND the navbar (measured -32 / -20 / -4). Each value below re-lands it at
    12px. They are measured offsets, not a formula — the workspace's padding-top is not
@@ -50827,14 +50972,17 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    If these drift, re-measure with scripts/focused-layout-qa.mjs rather than guessing. */
 @media (max-width: 1024px) {
   body:not(.ll-layout-focused) .ub-boards-page__layout-toggle {
-    top: -10px;
+    /* -10 + 80 + 50 */
+    top: 120px;
   }
 }
 @media (max-width: 950px) {
   body:not(.ll-layout-focused) .ub-boards-page__layout-toggle {
-    top: -22px;
+    /* -22 + 80 + 50 */
+    top: 108px;
   }
   body.ll-layout-focused .ub-boards-page__layout-toggle {
+    /* Original — Gentle-only shifts rolled back here too. */
     top: -14px;
   }
 }
@@ -50845,7 +50993,8 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    closes that band. */
 @media (max-width: 820px) {
   body:not(.ll-layout-focused) .ub-boards-page__layout-toggle {
-    top: -10px;
+    /* -10 + 80 + 50 */
+    top: 120px;
   }
 }
 
@@ -50989,6 +51138,7 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   }
 }
 
+
 /* ==========================================================================
    Boards page — FOLDERS COLUMN at side-by-side width
    ==========================================================================
@@ -51009,6 +51159,16 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   .ub-boards-page__folders-toolbar {
     flex-wrap: wrap !important;
   }
+  /* The hoist that puts the caret and the action pills outside the header band lives in
+     the SIDE-BY-SIDE rule near the boards-page layout block, NOT here.
+     WHY IT CANNOT LIVE HERE: `.ub-boards-page__folders-section` IS this query's container
+     (`container-type: inline-size`), and a @container block styles the container's
+     DESCENDANTS — never the container element itself. The section's `display: grid` was
+     therefore silently inert while the header's `display: contents` (a descendant, so it
+     did apply) took effect, leaving the three hoisted children stacking in BLOCK flow with
+     the caret dumped below the heading. Measured, not deduced: scripts/folders-caret-qa.mjs
+     reported section display:block against header display:contents at a 252px column. */
+
   /* Toolbar only — the actions row gets its centring from the mixin argument above, so
      restating it here would be two declarations fighting over one element. */
   .ub-boards-page__folders-toolbar {
@@ -51053,6 +51213,155 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   }
 }
 
+/* SIDE-BY-SIDE: the two column headers are the same height (2026-08-16, requested).
+   MEASURED, not guessed: FOLDERS renders 60px and BOARDS 72px at 1440 / 1280 / 1100 / 900
+   — a constant 12px gap. They already share a top edge, so only the height differed, and
+   with the two cards side by side that read as a misalignment down the whole column.
+   BOARDS is the taller one because its header carries the "Change Home Board" button and
+   the stat pills; FOLDERS has only its toggle and chevron (both pad 14px/18px).
+   Applied as a MIN-height to BOTH rather than a fixed height on the short one: the
+   number is stated once, and if the boards header ever grows past 72 it pushes its own
+   row rather than silently re-opening the gap. `align-items: stretch` on the folders
+   header (its base rule) means the toggle fills the new height, so the label stays
+   vertically centred instead of hugging the top.
+   Scoped to side-by-side only — stacked has the full page width and the two headers are
+   never adjacent, so matching them there would just make the folders header taller for
+   no reason. */
+/* EVERY SIDE-BY-SIDE FOLDERS RULE IS GATED AT 769px (2026-08-16, requested).
+   Below 768px the layout toggle is hidden and the page renders stacked — but the BODY
+   ATTRIBUTE does not change: `data-boards-layout` still says `side-by-side`, because it
+   records the user's CHOICE, not the width. Every rule below keys off that attribute, so
+   without this gate the folders card kept its hoisted heading row, its caret placement and
+   its divider while the rest of the page had already fallen back to stacked — a card
+   styled for a two-column layout that was no longer on screen.
+   769px, not 768px: the hide rule for the toggle is `max-width: 768px`, so this picks up
+   exactly where that leaves off with no overlapping band.
+   The companion behaviour — collapsing the folders card on the way down — lives in
+   components/available-boards-section.js (`_syncNarrowFoldersCollapse`), because a
+   collapsed/expanded state is a property of the component, not something CSS should fake. */
+@media (min-width: 769px) {
+  body[data-boards-layout='side-by-side'] #content.boards-page .ub-boards-page__folders-header,
+  body[data-boards-layout='side-by-side'] #content.boards-page .ub-boards-page__boards-summary-header {
+    min-height: 72px;
+  }
+
+  /* SIDE-BY-SIDE folders card: the heading row owns the caret; the action pills and the
+     body get their own rows (2026-08-16, requested).
+     `display: contents` on the header stops it generating a box, so its three children become
+     grid items of the SECTION and the caret can sit next to the FOLDERS label instead of in a
+     band below it. Safe because the header owns no chrome — background, border and radius all
+     live on `&__folders-section`; if the header ever gains a background this needs a real
+     markup move instead.
+     `auto 1fr` puts the slack to the RIGHT of the caret so it hugs the label, and
+     `justify-self: start` stops the button stretching across that slack and centring its icon
+     in the middle of it.
+     SCOPED TO THE LAYOUT, NOT TO A COLUMN WIDTH, and applied from outside the @container
+     block on purpose — see the note in that block: the section is the container, so it cannot
+     be styled from within it. */
+  body[data-boards-layout='side-by-side'] #content.boards-page {
+    .ub-boards-page__folders-section {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      grid-template-areas:
+        "toggle chevron"
+        "actions actions"
+        "body body";
+      align-items: center;
+    }
+    .ub-boards-page__folders-header {
+      display: contents;
+    }
+    .ub-boards-page__folders-toggle {
+      grid-area: toggle;
+      /* Matches the BOARDS header's pinned height so the two columns start level now that
+         the header box itself is gone. */
+      min-height: 72px;
+    }
+    .ub-boards-page__folders-chevron-btn {
+      grid-area: chevron;
+      justify-self: start;
+      padding-left: 0;
+    }
+    /* THE FOLDERS ROW GETS THE SAME UNDER-SHADOW THE BODY DRAWS (2026-08-16, requested).
+       The card's one divider treatment — hairline + highlight + tight inner shadow + wide
+       falloff — is authored on `&__folders-body`'s TOP edge (~66137). Before the hoist that
+       edge sat directly beneath the whole header, so the header appeared to cast it. Now the
+       actions row sits between them, and the FOLDERS row had no separation at all.
+       DRAWN ON THE ACTIONS ROW'S TOP EDGE, because that edge IS the underside of the FOLDERS
+       row — the two are adjacent grid rows. Styling the toggle's own bottom instead would
+       only cover column 1: the caret column is `1fr` with the button justified to its start,
+       so the slack beside it is empty grid space with nothing to paint.
+       Values mirror the body rule deliberately rather than being re-invented, so the card has
+       ONE divider look. If that rule changes, this must change with it — the alternative
+       (a shared mixin) is not worth it for a single duplicate, but the coupling is real.
+       Replaces the mixin's lighter 0.06 hairline for this layout; when the actions row is
+       absent (collapsed, or no edit permission) the body's own edge still separates the
+       heading exactly as before. */
+    .ub-boards-page__folders-actions--header {
+      grid-area: actions;
+      border-top: 1px solid rgba(13, 36, 56, 0.12);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.85),
+        inset 0 2px 4px -1px rgba($la-navy, 0.16),
+        inset 0 8px 14px -8px rgba($la-navy, 0.12);
+      /* Nothing of its own behind the pills — the card's gradient reads straight through, so
+         the actions row is a strip of the card rather than a panel sitting on it. Stated
+         explicitly (2026-08-16, requested) rather than relied on: the row inherits no
+         background today, and this pins that so a future panel treatment cannot creep in
+         unnoticed. The shading across it comes from the insets above, which belong to the
+         FOLDERS row's underside, not to this row. */
+      background: transparent;
+    }
+    /* NO SECOND DIVIDER (2026-08-16, requested). The body's own top edge — hairline plus the
+       three insets — is what used to separate the header from the content, and it now sits
+       under the ACTIONS row, giving the card two parallel dividers a few pixels apart.
+       The FOLDERS row's underside (above) is the one that was asked for, so this one is
+       switched off IN THIS LAYOUT ONLY. The base rule is untouched, so the stacked layout —
+       where the actions row still lives inside the header band and the body's edge is the
+       only divider there is — keeps exactly the separation it has today.
+       `box-shadow: none` alongside `border-top: none` because all three insets in that stack
+       exist to carry the hairline's shadow downward; leaving them would keep a shaded band
+       with no line to justify it. The body's background gradients are NOT touched. */
+    .ub-boards-page__folders-body {
+      grid-area: body;
+      border-top: none;
+      box-shadow: none;
+    }
+  }
+
+  /* SIDE-BY-SIDE: the expand/collapse caret sits BESIDE the FOLDERS heading (2026-08-16,
+     requested), not pinned to the far right of the header band.
+     The header is a flex row of three items in DOM order: toggle (the heading), the action
+     pills, then the caret. The toggle's base rule takes `flex: 1 1 auto`, so it eats the free
+     space and pushes the caret to the far edge with the pills stranded between the two.
+     Two declarations fix that, both scoped to this layout:
+       • the toggle shrinks to its content (`0 1 auto` — still allowed to SHRINK, and it keeps
+         the base rule's `min-width: 0`, so a long heading cannot overflow the column)
+       • `order` re-sequences the row to heading -> caret -> pills, and the pills take
+         `margin-left: auto` so they stay at the right edge rather than trailing the caret
+     INERT AT <=420px BY DESIGN: the container query below hoists this header to
+     `display: contents`, which makes these three grid items of the SECTION, where the grid
+     areas already place the caret on the heading's row. Flex `order`/`flex` do not apply to
+     grid items, so the narrow column is untouched by this rule — no second behaviour to
+     reconcile. */
+  body[data-boards-layout='side-by-side'] #content.boards-page {
+    .ub-boards-page__folders-toggle {
+      flex: 0 1 auto;
+      order: 0;
+    }
+    .ub-boards-page__folders-chevron-btn {
+      order: 1;
+      /* The toggle already pads 18px on its right; the caret's own 18px left pad on top of
+         that read as detached from the heading it belongs to. */
+      padding-left: 0;
+    }
+    .ub-boards-page__folders-actions--header {
+      order: 2;
+      margin-left: auto;
+    }
+  }
+}
+
 /* The SECOND "+ New Board" button — the one pinned in the tabs row — is redundant beside
    the section header's own New Board button, and side-by-side has markedly less
    horizontal room for the tabs row. Focused View already dropped it for the same reason
@@ -51071,6 +51380,20 @@ body[data-boards-layout='side-by-side'] #content.boards-page .ub-boards-page__bo
    to win. Scoped to the Boards page; the picker's own compact grid is untouched. */
 .ub-boards-page__board-grid.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact {
   justify-content: center;
+}
+
+/* HOME BOARD badge sits 6px higher in COMPACT (2026-08-16, requested in three steps of
+   2px). The base rule
+   (`&__board-item-home-badge`, ~68922) pins every density at `top: 8px`; compact tiles are
+   shorter, so the same offset reads lower on the card relative to its content.
+   A DENSITY-SCOPED rule rather than an edit to that base value on purpose — changing the
+   8px there would move the badge in DETAILED view too, which was not asked for and is
+   already correct.
+   Specificity (0,3,0) against the base rule's (0,1,0), so it wins on weight alone —
+   no `!important` needed, and the base stays the single source for everything else about
+   the badge (fill, radius, shadow, centring). */
+.ub-boards-page__board-grid.ll-boards-grid--compact .ub-boards-page__board-item-home-badge {
+  top: 2px;
 }
 
 /* Side-by-side at <=1024px reclaims the workspace's horizontal padding, dropping it to
@@ -51515,7 +51838,7 @@ body[data-boards-layout='side-by-side'] #content.boards-page .ub-boards-page__bo
    positive .md-grid--hero-speak, because gridClassString — and therefore the hero
    class — is only applied on the home tab (see authenticated-view.hbs), so a
    positive scope would silently drop the Speak hero everywhere else. */
-.md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload) .md-card.md-card--speak-focused,
+.md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload):not(.md-grid--hero-org) .md-card.md-card--speak-focused,
 .md-grid.md-grid--layout-focused.md-grid--hero-caseload .md-card.md-card--caseload-focused {
   display: flex !important;
   flex-direction: row !important;
@@ -51556,7 +51879,7 @@ body[data-boards-layout='side-by-side'] #content.boards-page .ub-boards-page__bo
 }
 /* Hover: a clear "press me" cue — lift 2px, deepen the drop shadow, and bloom a
    faint brand-blue glow around the whole card so it reads as interactive. */
-.md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload) .md-card.md-card--speak-focused:hover,
+.md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload):not(.md-grid--hero-org) .md-card.md-card--speak-focused:hover,
 .md-grid.md-grid--layout-focused.md-grid--hero-caseload .md-card.md-card--caseload-focused:hover {
   transform: translateY(-2px) !important;
   box-shadow:
@@ -51569,7 +51892,7 @@ body[data-boards-layout='side-by-side'] #content.boards-page .ub-boards-page__bo
 }
 /* Active: PRESS — depress down, collapse the drop shadow + invert to an inset
    "pushed-in" shadow (the decisive "it's a button" cue). */
-.md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload) .md-card.md-card--speak-focused:active,
+.md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload):not(.md-grid--hero-org) .md-card.md-card--speak-focused:active,
 .md-grid.md-grid--layout-focused.md-grid--hero-caseload .md-card.md-card--caseload-focused:active {
   transform: translateY(2px) !important;
   box-shadow:
@@ -51583,13 +51906,55 @@ body[data-boards-layout='side-by-side'] #content.boards-page .ub-boards-page__bo
    an SLP works from their caseload here, and gridLayoutState drops the `speak` key
    from the packed order too so no empty grid row/gap is left behind. The standard
    Caseload card is hidden only when the Caseload hero is showing. */
-.md-grid.md-grid--layout-focused .md-card.md-card--speak-as-button { display: none !important; }
+/* NO IMPLICIT COLUMNS. Any card rendered into this grid WITHOUT a matching name in the
+   inline `grid-template-areas` is placed outside the explicit grid, and the browser
+   invents columns to hold it. Measured on /example/home in Focused View: the inline style
+   correctly said `repeat(4, 1fr)` and named four tokens per row, but the computed columns
+   came back as SIX — `97.7px 97.7px 97.7px 97.7px 0px 493.1px`. The Speak hero had been
+   auto-placed into a new 493px column and Extras into a 0px one, squeezing every named
+   card into the four leftovers. That is the "squished into two weird columns" report.
+   Forcing these two to span the explicit grid (`1 / -1`) puts Speak on its own full-width
+   row and stops either card creating a track.
+   WHY CSS AND NOT THE LAYOUT ENGINE: which cards get an area is per-user (the areas string
+   is built from the visible section list), so a card can be renderable for one account and
+   unnamed for another. This makes the grid resilient to that mismatch for the two cards it
+   affects, rather than assuming every account produces a complete areas string.
+   ORG DASHBOARDS ARE EXCLUDED FOR SPEAK (2026-08-16). There, Speak now has a REAL grid
+   area — it shares the bottom row with Caseload (utils/dashboard_sections.js
+   `focusedLayout`, the `orgPair` branch) — so forcing `1 / -1` here would override that
+   pairing and stretch it back across the row. The safety net still covers Speak on every
+   other hero (a supervisor's dashboard drops it from the areas the same way an org
+   dashboard used to), and still covers Extras everywhere.
+   SCOPED TO THE DASHBOARD GRID, NOT JUST FOCUSED. Gentle was MEASURED as already correct
+   for this account — its areas name every card (`"speak speak"`, `"extras extras"`), so it
+   has no implicit tracks and both cards are already full width. `1 / -1` is therefore a
+   NO-OP there today; it is included so the same per-user mismatch cannot produce the bug
+   in Gentle for an account whose section list differs. At <=950px Gentle switches the grid
+   to flex, where `grid-column` is simply inert.
+   `1 / -1` resolves to the explicit grid's first and last lines, so it cannot itself
+   create a track. */
+.md-grid.md-grid--dashboard:not(.md-grid--hero-org) > .md-card.md-card--speak-focused,
+.md-grid.md-grid--dashboard:not(.md-grid--hero-org) > .md-card.md-card--speak,
+.md-grid.md-grid--dashboard > .md-card.md-card--extras {
+  grid-column: 1 / -1 !important;
+}
+/* The plain Speak card is hidden only where Speak IS the hero — mirroring the caseload
+   rule on the next line, which hides its plain card only under `.md-grid--hero-caseload`.
+   ORG USERS (2026-08-16): their hero is the Organizations card (`focusedHeroKey` returns
+   'org' for admins), so Speak is NOT their hero and renders as an ordinary card — the same
+   treatment the Caseload card already gets on their dashboard. Before this it matched the
+   `:not(.md-grid--hero-caseload)` hero scope above and rendered as the big glossy hero
+   bar, so an org user saw two heroes competing.
+   NEGATIVE scoping (`:not(hero-org)`), not a positive `.md-grid--hero-speak`, for the
+   reason given above the hero rule: the hero class is only applied on the home tab, so a
+   positive scope would silently drop the Speak hero everywhere else. */
+.md-grid.md-grid--layout-focused:not(.md-grid--hero-org) .md-card.md-card--speak-as-button { display: none !important; }
 .md-grid.md-grid--layout-focused.md-grid--hero-caseload .md-card.md-card--caseload-as-button { display: none !important; }
 /* Larger screens only (above the wrap breakpoint): nudge the centered icon+text
    group 8px to the LEFT via asymmetric padding (24/40 keeps the 64px total, so
    the justify-center group shifts left 8px). Small screens keep their centering. */
 @media (min-width: 1025px) {
-  .md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload) .md-card.md-card--speak-focused,
+  .md-grid.md-grid--layout-focused:not(.md-grid--hero-caseload):not(.md-grid--hero-org) .md-card.md-card--speak-focused,
   .md-grid.md-grid--layout-focused.md-grid--hero-caseload .md-card.md-card--caseload-focused {
     padding-left: 24px !important;
     padding-right: 40px !important;
@@ -62345,24 +62710,54 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     margin-left: -20px !important;
 
   }
-  .md-pillnav {
-    display: none !important;
-
-  }
   .ub-boards-page__getting-started-actions {
     justify-content: center !important;
   }
-  .md-pillnav-dropdown {
+}
+
+/* PRIMARY NAV: PILL ROW -> DROPDOWN. Two breakpoints, by MENU LENGTH (2026-08-16,
+   requested), not by view — nothing here is scoped to Gentle/Focused, so both behave
+   identically.
+     • SLP (no org management): 460px. Five pills fit until then.
+     • ORG MANAGER: 550px. Their menu carries an extra Organizations item, so it runs out
+       of room sooner and has to collapse earlier.
+   The org rule is the WIDER of the two, so at <=460 both match and the org branch simply
+   restates the same swap — harmless, and it keeps each user type readable as one rule
+   rather than a rule plus an exception.
+
+   WAS 375px FOR EVERYONE, which is the bug this replaces: between 376 and 550 the pills
+   merely WRAPPED (measured: 5 pills over 3 rows at 460/440), and at <=375 the row was
+   hidden. On the Boards / Caseload / Reports nav that hid the navigation outright, because
+   UserPillNav had no dropdown to reveal — it now has one (components/user-pill-nav.hbs).
+   Measured before and after with scripts/pillnav-narrow-qa.mjs. */
+@media (max-width: 460px) {
+  .md-pillnav:not(.md-pillnav--org-menu) {
+    display: none !important;
+  }
+  .md-pillnav-dropdown:not(.md-pillnav-dropdown--org-menu) {
     display: block !important;
-
     width: 40% !important;
-
-    margin-top: 20px !important;
-
-    margin-left: auto !important;
-
-    margin-right: auto !important;
-
+    /* 40px, i.e. the original 20px + 2rem (2026-08-16, requested). 1rem is 10px in this
+       codebase (`html { font-size: 10px }`), so 2rem is 20px — see the rem trap in
+       docs/task-management/LEARNINGS.md. The ACCOUNT-pages nav
+       (`.md-pillnav-dropdown--user` further down) keeps its original 20px: it is a
+       different surface and was not part of this request. */
+    margin: 40px auto 0 !important;
+  }
+}
+@media (max-width: 550px) {
+  .md-pillnav--org-menu {
+    display: none !important;
+  }
+  .md-pillnav-dropdown--org-menu {
+    display: block !important;
+    width: 40% !important;
+    /* 40px, i.e. the original 20px + 2rem (2026-08-16, requested). 1rem is 10px in this
+       codebase (`html { font-size: 10px }`), so 2rem is 20px — see the rem trap in
+       docs/task-management/LEARNINGS.md. The ACCOUNT-pages nav
+       (`.md-pillnav-dropdown--user` further down) keeps its original 20px: it is a
+       different surface and was not part of this request. */
+    margin: 40px auto 0 !important;
   }
 }
 
@@ -62481,6 +62876,32 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   .md-grid--layout-focused > .md-card--rooms { order: var(--ord-rooms, 2) !important; flex: 1 1 100% !important; }
   .md-grid--layout-focused > .md-card--attention { order: var(--ord-attention, 3) !important; flex: 1 1 100% !important; }
   .md-grid--layout-focused > .md-card--org-management { order: var(--ord-org, 4) !important; flex: 1 1 100% !important; }
+  /* The PLAIN Speak card needs an order here too (2026-08-16). Until Speak began rendering
+     as an ordinary card on org dashboards, Focused always hid `--speak-as-button`, so only
+     the hero variant above needed a rule. Without one it fell back to `order: 0` and TIED
+     with My Organizations (whose `--ord-org` is 0 when Organizations leads the areas) — and
+     a flex `order` tie is broken by DOM position, which put Speak first and pushed the hero
+     down. Measured at 1024/900/640: both cards reported order=0.
+     The fallback is 7, i.e. behind the full-width cards, matching where Speak sits in the
+     org areas (last row). `flex: 1 1 100%` for the same reason as its siblings above: once
+     `display:flex` makes the inline grid-template inert, a card with no basis shrinks to
+     its content. */
+  .md-grid--layout-focused > .md-card--speak-as-button { order: var(--ord-speak, 7) !important; flex: 1 1 100% !important; }
+  /* ORG DASHBOARDS keep the Caseload | Speak pair SIDE BY SIDE here, matching the wide
+     layout (2026-08-16, requested). The rules above give every full-width card
+     `flex: 1 1 100%`, which would stack this pair — so the org case overrides the basis to
+     a half, exactly like the four utility tiles in this block already do.
+     Order comes from the areas and needs no help: Caseload is index 6 and Speak 7 in the
+     org packing, so they are adjacent and land left-then-right on their own row.
+     `calc(50% - 12px)` matches the utility tiles' basis rather than the container's exact
+     16px gap, so the row's two halves and the four tiles above them share one measurement.
+     Both `--caseload-as-button` and `--caseload` are named: which variant renders depends
+     on whether Caseload is the hero, and on an org dashboard it is the ordinary card. */
+  .md-grid--layout-focused.md-grid--hero-org > .md-card--caseload-as-button,
+  .md-grid--layout-focused.md-grid--hero-org > .md-card--caseload,
+  .md-grid--layout-focused.md-grid--hero-org > .md-card--speak-as-button {
+    flex: 1 1 calc(50% - 12px) !important;
+  }
   .md-grid--layout-focused > .md-card--account { order: var(--ord-account, 2) !important; }
   .md-grid--layout-focused > .md-card--create-board { order: var(--ord-createboard, 6) !important; }
   .md-grid--layout-focused > .md-card--reports { order: var(--ord-reports, 8) !important; }

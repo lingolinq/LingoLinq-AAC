@@ -124,11 +124,18 @@ function interiorSteps() {
       sel: '.md-caseload__list',
       on: 'top',
       padded: true,
+      // DO NOT SCROLL FOR THIS STEP (2026-08-16, requested). The roster is the one target
+      // here that grows without bound, and the shared centre-scroll dragged the view
+      // partway down it — the step introduces "one row per communicator" while the first
+      // communicators sit above the fold. Aligning its top ('start') still moved the page.
+      // 'none' leaves the view exactly where the previous step (the filter, immediately
+      // above the roster) left it, so the spotlight lands on the roster in place and the
+      // popover — `on: 'top'` — sits directly above the first row.
+      block: 'none',
       title: i18n.t('caseload_tour_list_title', "Your roster"),
       text: tourChecklist([
         i18n.t('caseload_tour_list_b1', "One row per communicator"),
-        i18n.t('caseload_tour_list_b2', "Tap a row to open their full details"),
-        i18n.t('caseload_tour_list_b3', "Rows stay put so the list never jumps")
+        i18n.t('caseload_tour_list_b2', "Tap a row to open their full details")
       ])
     },
     {
@@ -140,7 +147,7 @@ function interiorSteps() {
       on: 'bottom',
       title: i18n.t('caseload_tour_access_title', "What you're allowed to do"),
       text: tourChecklist([
-        i18n.t('caseload_tour_access_b1', "Full access lets you edit boards and settings"),
+        i18n.t('caseload_tour_access_b1', "Editor gives you full access to edit boards and settings"),
         i18n.t('caseload_tour_access_b2', "Modeling only lets you model on their boards"),
         i18n.t('caseload_tour_access_b3', "View only is read-only — ask them to change it")
       ])
@@ -319,13 +326,18 @@ function pushInteriorSteps(steps) {
       beforeShowPromise: cfg.expand ? expandFirstRow() : waitForElement(cfg.sel),
       title: cfg.title,
       text: cfg.text,
-      classes: 'md-tour__step',
+      // Per-step class hook, same spelling the board-picker tour uses (`cfg.cls`) so the
+      // two tours share one convention rather than each inventing their own.
+      classes: 'md-tour__step' + (cfg.cls ? ' ' + cfg.cls : ''),
       buttons: standardButtons()
     };
-    // Force a center-scroll for every step so placement is consistent (rather
-    // than the runner's "already visible? skip" fast-path, which would let
-    // floating-ui flip the popover).
-    step.scrollBlock = 'center';
+    // Force a scroll for every step so placement is consistent (rather than the runner's
+    // "already visible? skip" fast-path, which would let floating-ui flip the popover).
+    // CENTRE BY DEFAULT, overridable per step via `cfg.block` — the same hint the
+    // board-picker tour uses (utils/tours/board-picker.js) rather than a second convention.
+    // Centring is wrong for a TALL target: it scrolls the middle of the element to the
+    // middle of the pane, which for the roster means landing partway DOWN the list.
+    step.scrollBlock = cfg.block || 'center';
     // Region targets (the nav, the list, the quick-action strip, the panel
     // blocks) get a roomy rounded cutout instead of the tight shape-match;
     // matchTargetRadius:false keeps the rounded corners.

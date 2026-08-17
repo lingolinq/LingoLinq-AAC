@@ -19,6 +19,13 @@
       displayed image. %>
   <link rel="preload" as="image" href="/images/speak-circle-simple-dark.webp" type="image/webp" fetchpriority="high" />
   <link rel="preload" as="image" href="/images/caseload-dark.webp" type="image/webp" fetchpriority="high" />
+  <%# Focused View My Organizations illustration. A CSS background (not an <img>), so it
+      cannot take decoding="sync" and this preload is the whole fix -- the org card is
+      display:none until Focused View is active, so without it the browser would not start
+      the fetch until the card painted and the illustration would pop in afterwards. %>
+  <link rel="preload" as="image" href="/images/organizations-dark.webp" type="image/webp" fetchpriority="high" />
+  <%# ...and the per-organization TILE illustration inside that same card. %>
+  <link rel="preload" as="image" href="/images/organization-dark.webp" type="image/webp" fetchpriority="high" />
   <%# Gentle View big-icon caseload card -- a CSS background-image, which cannot
       take decoding="sync", so the preload fetch is the whole fix. %>
   <link rel="preload" as="image" href="/images/caseload-light.png" type="image/png" fetchpriority="high" />

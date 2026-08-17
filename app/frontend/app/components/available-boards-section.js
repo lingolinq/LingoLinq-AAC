@@ -668,9 +668,58 @@ export default Component.extend({
      so the handler returns early. */
   _folderClickOutside: null,
 
+  /* SIDE-BY-SIDE BELOW 768px: the page falls back to the stacked layout (the toggle hides
+     and every side-by-side folders rule is gated at 769px in app.scss), so the folders card
+     is presented COLLAPSED there — the stacked layout gives the boards list the full width,
+     and an expanded folders accordion pushes it off screen on a phone.
+
+     A DEFAULT, NOT A LOCK. It collapses ONCE on the way down; the user can expand it again
+     immediately and it will stay expanded, because the flag below is only re-armed after
+     the viewport goes back above the breakpoint. Re-collapsing on every resize event would
+     make the control feel broken.
+
+     The stored preference is deliberately NOT written: `foldersExpanded` persists to
+     localStorage when the user TOGGLES it, and this is not the user toggling it. Writing
+     here would let a narrow visit silently overwrite the choice they made on a desktop.
+
+     Keyed off the body attribute rather than a component property because that attribute is
+     what boards-layout-toggle publishes and what the CSS keys off — one source for "which
+     layout did the user choose". */
+  _syncNarrowFoldersCollapse: function() {
+    var narrow = (typeof window !== 'undefined') && window.innerWidth <= 768;
+    if (!narrow) {
+      // Back above the breakpoint — re-arm so a later shrink collapses again.
+      this._collapsedForNarrow = false;
+      return;
+    }
+    if (this._collapsedForNarrow) { return; }
+    var sideBySide = false;
+    try {
+      sideBySide = document.body.getAttribute('data-boards-layout') === 'side-by-side';
+    } catch (e) { /* no document (tests) — leave it expanded */ }
+    if (!sideBySide) { return; }
+    this._collapsedForNarrow = true;
+    if (this.get('foldersExpanded')) { this.set('foldersExpanded', false); }
+  },
+
   didInsertElement() {
     this._super(...arguments);
     var _this = this;
+
+    // Evaluate once for a page that LOADS narrow, then follow resizes. Throttled with a
+    // timeout rather than a runloop helper: this repo's lint bans @ember/runloop, and a
+    // resize burst would otherwise re-run this on every frame.
+    this._syncNarrowFoldersCollapse();
+    var narrowHandler = function() {
+      if (_this._narrowResizeTimer) { clearTimeout(_this._narrowResizeTimer); }
+      _this._narrowResizeTimer = setTimeout(function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        _this._syncNarrowFoldersCollapse();
+      }, 120);
+    };
+    window.addEventListener('resize', narrowHandler);
+    this.set('_narrowResizeHandler', narrowHandler);
+
     var handler = function(ev) {
       if (!ev || !ev.target || !ev.target.closest) { return; }
       // Dismiss the BOARDS-section home-board-info popover on any
@@ -711,6 +760,15 @@ export default Component.extend({
   },
 
   willDestroyElement() {
+    var narrowHandler = this.get('_narrowResizeHandler');
+    if (narrowHandler) {
+      window.removeEventListener('resize', narrowHandler);
+      this.set('_narrowResizeHandler', null);
+    }
+    if (this._narrowResizeTimer) {
+      clearTimeout(this._narrowResizeTimer);
+      this._narrowResizeTimer = null;
+    }
     var handler = this.get('_folderClickOutside');
     if (handler) {
       document.removeEventListener('click', handler, true);

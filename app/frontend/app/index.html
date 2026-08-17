@@ -58,6 +58,11 @@
          browser that would pick the PNG fallback also ignores this hint's type,
          and preloading both would double the bytes for one displayed image. -->
     <link rel="preload" as="image" href="{{rootURL}}images/caseload-dark.webp" type="image/webp" fetchpriority="high" />
+    <!-- Focused View My Organizations illustration. CSS background, so no decoding="sync"
+         is possible: this preload is what stops it painting after the rest of the card.
+         MIRRORS the link in app/views/boards/index.html.erb; keep the two in sync. -->
+    <link rel="preload" as="image" href="/images/organizations-dark.webp" type="image/webp" fetchpriority="high">
+    <link rel="preload" as="image" href="/images/organization-dark.webp" type="image/webp" fetchpriority="high">
 
     <!-- Preload the guided-tour welcome-card map illustrations. These are CSS
          background-images on the tour's welcome step (.md-tour__step--welcome

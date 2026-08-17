@@ -40,6 +40,13 @@ export default Service.extend({
     } catch (e) { /* localStorage unavailable */ }
   },
 
+  // RUNTIME-ONLY proof that the server accepted our token in THIS page session. Set by
+  // check_token(); deliberately NOT persisted and NOT restored, unlike `access_token`,
+  // `user_name` and `isAuthenticated`, all of which survive a reload and therefore say
+  // nothing about whether the token is still good. The sign-in route reads this to decide
+  // whether redirecting away from the form is safe — see routes/login.js#beforeModel.
+  token_validated: false,
+
   persist: function(data) {
     this.set('auth_settings_fallback_data', data);
     var res = this.stashes.persist_object('auth_settings', data, true);
@@ -277,15 +284,18 @@ export default Service.extend({
         // When access_token is undefined/'none', we're simply not logged in, not "expired".
         if(store_data.access_token && store_data.access_token !== 'none') {
           _this.set('invalid_token', true);
+          _this.set('token_validated', false);
           if(allow_invalidate) {
             _this.force_logout(i18n.t('session_token_invalid', "This session has expired, please log back in"));
             return {success: true};
           }
         } else {
           _this.set('invalid_token', false);
+          _this.set('token_validated', false);
         }
       } else {
         _this.set('invalid_token', false);
+        _this.set('token_validated', true);
       }
       if(data.user_name) {
         _this.set('user_name', data.user_name);
@@ -363,6 +373,7 @@ export default Service.extend({
             });
           }
           _this.set('invalid_token', true);
+          _this.set('token_validated', false);
           if(allow_invalidate) {
             _this.force_logout(i18n.t('session_token_invalid', "This session has expired, please log back in"));
             return {success: false, needsReauth: true};
@@ -370,6 +381,7 @@ export default Service.extend({
         } else if(result.error === 'Token needs refresh') {
           if (_vb) { console.warn('[check_token] Token needs refresh'); }
           _this.set('invalid_token', true);
+          _this.set('token_validated', false);
           // Could implement token refresh logic here in the future
         }
       }

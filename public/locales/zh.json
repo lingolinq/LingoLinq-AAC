@@ -8928,5 +8928,6 @@
   "boards_layout_side_by_side": "*** Side by side",
   "boards_layout_top_down_hint": "*** Folders stacked above the boards, each at full width",
   "boards_layout_top_down": "*** Top down",
-  "focused_home_caseload_sub": "*** Open My Caseload"
+  "focused_home_caseload_sub": "*** Open My Caseload",
+  "boards_layout_stacked_view": "*** Stacked view"
 }

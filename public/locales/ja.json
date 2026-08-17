@@ -8445,6 +8445,7 @@
   "boards_layout_top_down_hint": "*** Folders stacked above the boards, each at full width",
   "boards_layout_top_down": "*** Top down",
   "focused_home_caseload_sub": "*** Open My Caseload",
+  "boards_layout_stacked_view": "*** Stacked view",
   "==== lvl8 ============": "Below are all words for priority level 8 (this string does not need to be translated)",
   "on_the_date": "デート中 [[ On the Date",
   "after_time": "時間が経過した後 [[ After Time",

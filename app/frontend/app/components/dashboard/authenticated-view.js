@@ -18,7 +18,7 @@ import sync from '../../utils/sync';
 import i18n from '../../utils/i18n';
 import { filterRootBoards } from '../../utils/board-roots';
 import sessionHistory from '../../utils/session_history';
-import { availableHomeSections, sectionHidden, gridLayoutState, focusedHeroKey, communicatorsNeedingAttention } from '../../utils/dashboard_sections';
+import { availableHomeSections, sectionHidden, layoutPresentation, focusedHeroKey, communicatorsNeedingAttention } from '../../utils/dashboard_sections';
 import { homePillLabel } from '../../helpers/home-pill-label';
 
 export default Component.extend({
@@ -152,18 +152,12 @@ export default Component.extend({
     'appState.currentUser.managing_supervision_orgs',
     'appState.currentUser.supervisees',
     function() {
-      var user = this.get('appState.currentUser');
-      var vis = {};
-      availableHomeSections(user).forEach(function(s) {
-        vis[s.key] = !sectionHidden(user, s.key);
-      });
-      // The Focused View layout never shows the Extras card — Speak takes the focal
-      // full-width hero slot instead. Force it hidden so the grid matrix and the
-      // per-card cardHideStyle agree (no orphaned Extras card overflowing the grid).
-      if (this.get('effectiveLayout') === 'focused') {
-        vis.extras = false;
-      }
-      return vis;
+      // Derived by the shared layout description, which the two preview surfaces
+      // also call — so a section the previews hide is a section this page hides.
+      // (That includes Focused View's forced-off Extras: Speak takes the focal
+      // full-width hero slot, and a visible-but-unplaced card would land in an
+      // implicit grid row of its own.)
+      return layoutPresentation(this.get('appState.currentUser'), this.get('effectiveLayout')).vis;
     }
   ),
 
@@ -183,8 +177,17 @@ export default Component.extend({
   // the computed grid-template-areas/rows. The layout is applied as an inline
   // style (gridStyle) from the shared layout matrix, so the home grid and the
   // Getting Started preview reflow identically with no CSS-specificity juggling.
-  dashboardGrid: computed('sectionVisibility', 'sectionOrder', 'effectiveLayout', 'heroKey', function() {
-    return gridLayoutState(this.get('sectionVisibility'), this.get('sectionOrder'), this.get('effectiveLayout'), this.get('heroKey'));
+  dashboardGrid: computed('sectionVisibility', 'sectionOrder', 'effectiveLayout', 'heroKey',
+    'appState.currentUser', 'appState.feature_flags.dashboard_drag_layout', function() {
+    // Same call the Dashboard Design clone and the Display Style preview iframes
+    // make. `vis`/`order` are passed explicitly because this component resolved
+    // them already (sectionOrder applies the drag-flag gate); `dragEnabled` is
+    // passed too so the gate is applied identically no matter which surface asks.
+    return layoutPresentation(this.get('appState.currentUser'), this.get('effectiveLayout'), {
+      vis: this.get('sectionVisibility'),
+      order: this.get('sectionOrder'),
+      dragEnabled: !!this.get('appState.feature_flags.dashboard_drag_layout')
+    }).grid;
   }),
 
   // The user's saved drag-to-reorder arrangement: an ordered array of section
@@ -909,7 +912,7 @@ export default Component.extend({
   // is silently DELETED by the next i18n_generator.rb run.)
   activeTabLabel: computed('activeTab', 'appState.currentUser.supporter_role', function() {
     var tab = this.get('activeTab');
-    var labels = { home: homePillLabel(this.get('appState.currentUser.supporter_role')), boards: i18n.t('boards', "Boards"), reports: i18n.t('reports', "Reports"), extras: i18n.t('extras', "Extras"), supervisors: i18n.t('supervisors', "Supervisors") };
+    var labels = { home: homePillLabel(this.get('appState.currentUser.supporter_role'), this.get('appState.currentUser.has_management_responsibility')), boards: i18n.t('boards', "Boards"), reports: i18n.t('reports', "Reports"), extras: i18n.t('extras', "Extras"), supervisors: i18n.t('supervisors', "Supervisors") };
     return labels[tab] || labels.home;
   }),
   /** Index route @model is the logged-in user; @user is registration placeholder — use model for boards embed */

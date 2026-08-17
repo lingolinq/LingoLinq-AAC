@@ -333,17 +333,18 @@ body.ll-layout-focused .md-user-summary {
   // operate on them — the same constraint the Model tile's hover records.
   // CONTRAST: the ink is white ($focus-on-dark) on a fill that is getting DARKER, so
   // white-on-fill can only improve. No AA risk in this direction.
+  // CHANGE HOME BOARD IS NO LONGER IN THIS GROUP (2026-08-16, requested) — it now takes the
+  // layout toggle's light surface instead; see the rule directly below. Removed from these
+  // selectors rather than overridden afterwards, so each surface still has exactly ONE
+  // authoritative declaration rather than a rule and a counter-rule.
   .ub-boards-page__boards-summary-new-btn,
   .ub-boards-page__new-board-btn,
-  .ub-boards-page__set-home-btn,
   .ub-boards-page__show-more-btn,
   .ub-boards-page__boards-summary-new-btn:hover,
   .ub-boards-page__new-board-btn:hover,
-  .ub-boards-page__set-home-btn:hover,
   .ub-boards-page__show-more-btn:hover,
   .ub-boards-page__boards-summary-new-btn:focus-visible,
   .ub-boards-page__new-board-btn:focus-visible,
-  .ub-boards-page__set-home-btn:focus-visible,
   .ub-boards-page__show-more-btn:focus-visible {
     color: $focus-on-dark !important;
     border-color: rgba($focus-on-dark, 0.18) !important;
@@ -351,11 +352,35 @@ body.ll-layout-focused .md-user-summary {
       color-mix(in oklab, #{$focus-btn-base} 90%, black) 0%,
       color-mix(in oklab, #{$focus-btn-edge} 90%, black) 100%) !important;
   }
-  // The Change Home Board glyph has its OWN verdigris `color` (app.scss:60930) and its
-  // SVG paints with fill=currentColor, so it doesn't inherit the white button text —
-  // force it white to match the dark button surface.
+  // CHANGE HOME BOARD — the active layout toggle's surface, a step darker (2026-08-16,
+  // requested). The toggle's active option is
+  // `linear-gradient(135deg, #f6f8fa 0%, #dce3ec 100%)` (app.scss ~51081); both stops are
+  // taken down 8% here so the button reads as related to that control but sits a shade
+  // heavier than it.
+  // PLAIN HEX, so `color.scale()` works — unlike the dark surface above, whose tokens are
+  // `color-mix()` values that Sass colour functions cannot operate on.
+  // THE INK HAD TO CHANGE WITH IT. This button carried WHITE text on the dark shared fill;
+  // white on a light fill would have been unreadable (~1.3:1). It takes the toggle's own
+  // ink, border and inset highlight instead, so the two controls read as one family.
+  // MEASURED on the darkened stops: $la-navy is 9.51:1 on the light stop and 7.87:1 on the
+  // dark stop, against a 4.5:1 AA floor.
+  .ub-boards-page__set-home-btn,
+  .ub-boards-page__set-home-btn:hover,
+  .ub-boards-page__set-home-btn:focus-visible {
+    background: linear-gradient(135deg,
+      color.scale(#f6f8fa, $lightness: -8%) 0%,
+      color.scale(#dce3ec, $lightness: -8%) 100%) !important;
+    color: $la-navy !important;
+    border-color: rgba($la-navy, 0.18) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 1px 3px rgba($la-navy, 0.14) !important;
+  }
+  // The glyph has its OWN verdigris `color` (app.scss:60930) and paints with
+  // fill=currentColor, so it does not inherit the button text — matched to the new ink
+  // (it was forced WHITE for the dark surface this button no longer uses).
   .ub-boards-page__set-home-btn-icon {
-    color: $focus-on-dark !important;
+    color: $la-navy !important;
   }
   // New Board button — make it the EXACT same style as the Change Home Board button in
   // Focused View. They already share the dark gradient surface + white text/border above;
@@ -814,6 +839,36 @@ body.ll-layout-focused {
   // Board-needed 20%, Modeling 10%, Attention 10% — so 10% is the most the SET can take
   // while staying a matched lightness. A larger lift is only possible by giving the
   // badges dark ink again (the Gentle arrangement); with white ink this is the limit.
+  // SEMANTIC BADGES — rebuilt 2026-08-16. The derived version washed every variant into
+  // the same pale neutral: compiled, Viewer was #CFCFCF, Editor #BFD8C8, Modeling #DAD0BF
+  // and Eval-needed #DCCFB8 — three near-identical warm tints, so "Editor" disappeared
+  // into the card and the set carried no meaning at a glance.
+  //
+  // WHAT CHANGED, and why each part:
+  //   • TRANSLUCENT FILL over the row instead of an opaque derived tint. The row is
+  //     white-to-#FAFBFC, so a low-alpha wash of a SATURATED hue keeps the badge airy
+  //     while the hue survives to the pixel — the opposite of scaling a source toward
+  //     white, which is what produced the mud.
+  //   • NO GRADIENT anywhere in the set. The quick-action tiles are glossy radials; the
+  //     badges are flat. That difference IS the hierarchy — a glossy badge competes with
+  //     the buttons no matter how small it is.
+  //   • PER-VARIANT INK, not one navy for everything. A badge's own hue, darkened, reads
+  //     as "the same thing, quieter" — navy on an amber wash reads as a different system.
+  //   • TWO FAMILIES: cool (role — who this person is to you) and amber (attention — what
+  //     you must do). See the call sites below.
+  //
+  // Every pair is measured on the COMPOSITE (fill over white), not on the raw hue, at the
+  // 12px/650 label size, so the 4.5:1 AA floor applies:
+  //   Viewer 10.14  Editor 5.67  Modeling 5.95  Eval 5.83 (icon 7.07)  Board-needed 9.69
+  @mixin caseload-focused-badge-solid($ink, $bg, $border) {
+    background: $bg !important;
+    // The border is its family's mid-tone, not navy: a navy hairline round an amber chip
+    // was half of what made these read as muddy.
+    border-color: $border !important;
+    color: $ink !important;
+  }
+  // Retained for any caller still deriving a tint from a source hue. The five caseload
+  // badges no longer use it — see the solid variants above.
   @mixin caseload-focused-badge($src, $light: 43%, $sat: 33.8%) {
     // Same rebuild as the tiles: derived straight from the source hue with `color.scale`
     // rather than mixed into a neutral anchor and whitened, which was washing the colour
@@ -826,11 +881,24 @@ body.ll-layout-focused {
     border-color: rgba($la-navy, 0.28) !important;
     color: $la-navy !important;
   }
-  // The attention glyph is drawn with `stroke="currentColor"`, so it follows the white
-  // ink above on its own. The setup badge's ::before dot does not — it carries its own
-  // colour and would stay a dark teal speck on a dark pill.
+  // The setup badge's ::before dot carries its own colour and would otherwise stay a dark
+  // teal speck; it follows the badge's ink instead so the two can never drift.
   .md-shell--caseload .md-caseload__list-access--setup::before {
-    background: $la-navy !important;
+    background: currentColor !important;
+  }
+
+  // SIZE — the badges sit BELOW the quick actions in the hierarchy, so the box shrinks:
+  // 24px -> 22px min-height and 9px -> 8px side padding, which is what makes them read as
+  // annotations beside the name rather than small buttons.
+  // THE 12px TYPE IS NOT REDUCED, deliberately. `_caseload.scss` records that the previous
+  // 11px/700 pill was "below the size floor these badges are meant to be read at" and was
+  // raised to 12px/650 on purpose — a badge stating a REQUIRED next step has to survive a
+  // glance. Shrinking the box gets the quieter feel without re-crossing that line; say so
+  // if you want 11px and I will move it back with the AAC size note updated.
+  // Scoped to Focused View — the Gentle chassis in _caseload.scss is shared and untouched.
+  .md-shell--caseload .md-caseload__list-access {
+    min-height: 22px;
+    padding: 0 8px;
   }
 
   // The caret rides inside More Actions, whose ink is white — but the chevron carries its
@@ -885,7 +953,46 @@ body.ll-layout-focused {
   // colour here (a $caseload-* token or a literal), so this is available.
   // `$sat` is the DEFAULT for the loud end of the set (Model / Choose Board / Ideas).
   // Raised 31.5% -> 41.5% with the rest of the row; see the note on the mixin below.
-  @mixin caseload-focused-tile-bg($src, $mix: 38%, $light: 37%, $sat: 41.5%, $darken: 0%) {
+  // EXPLICIT STOPS override the derivation (2026-08-16). Pass `$from`/`$to` and the tile
+  // paints those two colours verbatim; the `$mix`/`$light`/`$sat`/`$darken` maths below is
+  // skipped entirely. The five quick-action tiles now take this path so the shipped pixel
+  // is the chosen hex rather than the output of four chained transforms.
+  // The derivation is NOT removed: the setup badge and the avatar placeholder disc still
+  // call this mixin with a source hue, and they were not part of the palette change.
+  @mixin caseload-focused-tile-bg($src: null, $mix: 38%, $light: 37%, $sat: 41.5%, $darken: 0%, $from: null, $to: null) {
+    @if $from != null and $to != null {
+      // THREE LAYERS — a glass surface over a 145deg colour ramp (glossier, 2026-08-16,
+      // requested). This DELIBERATELY REVERSES the restraint recorded in the previous
+      // revision of this comment, which took the sheen down to 0.24 alpha because a heavy
+      // coating "fought the labels". Reversed knowingly, and it is safe here for a reason
+      // worth stating: the row's ink is DARK ($brand-blue-black), so every white layer
+      // added below RAISES label contrast rather than eroding it. The documented AA floor
+      // for this set (worst case 6.73:1 on Model's dark edge, against 4.5:1) can only
+      // improve. If this row ever switches to white ink, this whole stack has to be
+      // re-measured before it ships.
+      //
+      // 145deg on the colour layer, not 180: a diagonal ramp gives the tile a light
+      // source, which is what stops a muted fill reading flat under the gloss.
+      // No `in oklab` on that layer — these pairs are close in luminance, and the sRGB
+      // interpolation is what the palette was chosen against.
+      background:
+        // 1. SPECULAR CAP. The bright catch of light across the top. Brighter than before
+        //    and with a harder falloff — a fast fade to nothing by 52% is what reads as
+        //    GLASS; a slow one just reads as a lighter tint.
+        linear-gradient(180deg,
+          rgba(255, 255, 255, 0.62) 0%,
+          rgba(255, 255, 255, 0.34) 16%,
+          rgba(255, 255, 255, 0.10) 40%,
+          rgba(255, 255, 255, 0) 52%),
+        // 2. BASE SHEEN. Light bouncing back off the lower curve. Small, but it is the
+        //    difference between a domed piece of glass and a flat panel with a highlight
+        //    painted on top of it.
+        linear-gradient(0deg,
+          rgba(255, 255, 255, 0.20) 0%,
+          rgba(255, 255, 255, 0) 26%),
+        // 3. COLOUR RAMP — the palette hexes, unchanged.
+        linear-gradient(145deg, #{$from}, #{$to}) !important;
+    } @else {
     // ABSOLUTE saturation via `color.change`, not a relative `color.scale`. Scaling is
     // proportional to each source's own saturation, so one factor produced a 62% Speak
     // beside a 23% Reports — the set has to be even, so the target is stated outright.
@@ -901,9 +1008,10 @@ body.ll-layout-focused {
     // A shallow ramp: the edge is 9% darker than the centre. It stays shallow on purpose —
     // a wide one spans too much luminance for a single ink, which is what forced white to
     // fail the light centre (2.66-3.09:1) and navy the dark edge (2.46-3.45:1) earlier.
-    background: radial-gradient(ellipse at center in oklab,
-      #{$tint} 0%,
-      #{color.scale($tint, $lightness: -9%)} 100%) !important;
+      background: radial-gradient(ellipse at center in oklab,
+        #{$tint} 0%,
+        #{color.scale($tint, $lightness: -9%)} 100%) !important;
+    }
   }
   // SATURATION, +10 POINTS ACROSS THE ROW (2026-08-16). Every quick-action tile took a
   // flat +10 percentage points: Model / Choose Board / Ideas 31.5% -> 41.5%, Speak /
@@ -925,27 +1033,53 @@ body.ll-layout-focused {
   // More : Speak : Model. It is still the least-tinted tile, and at HSL L 85.5% it is
   // still comfortably the LIGHTEST of the six (Ideas, the next lightest, is 76.9%), so
   // it goes on reading as overflow rather than workflow.
-  @mixin caseload-focused-tile($src, $mix: 38%, $light: 37%, $sat: 41.5%, $darken: 0%) {
-    @include caseload-focused-tile-bg($src, $mix, $light, $sat, $darken);
-    border-color: rgba($la-navy, 0.22) !important;
-    // NAVY ink, not white. The fills are now 25% lighter than the CTA's; white on them
-    // measured 2.66-3.09:1, well under the 4.5:1 floor. Navy is what makes this lightness
-    // shippable — the same trade Gentle View already makes.
-    color: $la-navy !important;
+  // `$from`/`$to` are forwarded straight through: a tile that states its stops outright
+  // still gets the shared border, ink and shadow from this wrapper, so the two ways of
+  // specifying colour produce the same tile in every respect except the fill.
+  @mixin caseload-focused-tile($src: null, $mix: 38%, $light: 37%, $sat: 41.5%, $darken: 0%, $from: null, $to: null, $ink: $la-navy, $border: null) {
+    @include caseload-focused-tile-bg($src, $mix, $light, $sat, $darken, $from, $to);
+    // A STATED border when the palette supplies one, else a wash of the ink. The stated
+    // ones are each their family's mid-tone, which is what keeps a light tile from
+    // dissolving into the card — the edge does that work, not the fill.
+    // `@if`, not the `if()` FUNCTION — dart-sass deprecated that syntax in favour of the
+    // modern CSS form, and this repo fixes deprecations rather than carrying them.
+    @if $border != null {
+      border-color: $border !important;
+    } @else {
+      border-color: rgba($ink, 0.22) !important;
+    }
+    // One ink for the row — $brand-blue-black, a step deeper than LA Navy, which is what
+    // lets the fills be this muted without the labels going soft.
+    color: $ink !important;
+    // GLASS EDGE (2026-08-16, requested "more glassy glossy"). Four layers that give the
+    // tile thickness, paired with the specular/sheen background above:
+    //   1. a crisp lit top edge — the rim of the glass catching light
+    //   2. a soft inner bloom just under it, so the cap has DEPTH rather than being a
+    //      flat band of white
+    //   3. a seated base, slightly deeper than before, so the tile sits ON the card
+    //   4. one soft drop
+    // Still NO brand-coloured glow: the 18px verdigris halo an earlier revision carried
+    // put a coloured ring around every tile and is what made the row shouty. Gloss comes
+    // from white and depth here, never from colour — that distinction is the whole reason
+    // this can be glossy without going back to what was reverted.
     box-shadow:
-      inset 0 2px 0 rgba($focus-on-dark, 0.34),
-      inset 0 -2px 5px rgba($focus-shadow-ink, 0.14),
-      0 1px 4px rgba($focus-shadow-ink, 0.13),
-      0 0 18px rgba($focus-hero-glow, 0.08) !important;
+      inset 0 1px 0 rgba(255, 255, 255, 0.90),
+      inset 0 6px 12px rgba(255, 255, 255, 0.28),
+      inset 0 -2px 4px rgba($la-navy, 0.14),
+      0 4px 10px rgba($la-navy, 0.18) !important;
   }
-  // Hover: same fill, brighter bevel + brand glow, NO lift — matches the CTA exactly.
+  // Hover: same fill, a step up in glass, NO lift — matches the CTA exactly.
+  // Re-tuned alongside the glossier resting state so hover is still a PROPORTIONAL step
+  // rather than a jump: each layer moves up by roughly the same fraction it did before.
+  // Still no brand glow and still no lift — a hover that re-introduced the 26px verdigris
+  // halo would put a coloured ring back around the row, which is the thing that was
+  // reverted, not the gloss itself.
   @mixin caseload-focused-tile-hover {
-    border-color: rgba($focus-on-dark, 0.2) !important;
     box-shadow:
-      inset 0 2px 0 rgba($focus-on-dark, 0.38),
-      inset 0 -2px 5px rgba($focus-shadow-ink, 0.16),
-      0 2px 6px rgba($focus-shadow-ink, 0.16),
-      0 0 26px rgba($focus-hero-glow-hover, 0.35) !important;
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      inset 0 7px 14px rgba(255, 255, 255, 0.36),
+      inset 0 -2px 5px rgba($la-navy, 0.16),
+      0 6px 14px rgba($la-navy, 0.24) !important;
     transform: none;
   }
   // The glyphs carry hardcoded dark strokes as inline presentation attributes, which any
@@ -970,7 +1104,10 @@ body.ll-layout-focused {
   // must keep doing so, or they gain outlines they were never drawn with.
   .md-shell--caseload .md-caseload__list-quick
     .md-caseload__quick-action:not(.md-caseload__quick-action--empty) svg *:not([stroke="none"]) {
-    stroke: $la-navy;
+    // `currentColor`, not a literal: the tiles no longer share one ink (white on the three
+    // deep ones, navy on the two light ones), so a hardcoded value would be wrong on one
+    // group or the other. This way a glyph can never drift from its tile's label.
+    stroke: currentColor;
   }
   .md-shell--caseload .md-caseload__list-quick
     .md-caseload__quick-action:not(.md-caseload__quick-action--empty) svg *:not([fill="none"]):not([fill]) {
@@ -978,7 +1115,7 @@ body.ll-layout-focused {
   }
   .md-shell--caseload .md-caseload__list-quick
     .md-caseload__quick-action:not(.md-caseload__quick-action--empty) svg [fill]:not([fill="none"]) {
-    fill: $la-navy;
+    fill: currentColor;
   }
 
   // MODEL is the exception to the alpha-tint scheme above: in Focused View it takes the
@@ -1008,20 +1145,21 @@ body.ll-layout-focused {
     // The ACTIVE PILL-NAV gradient, verbatim (see the caseload pill rule above) — the row's
     // primary action and the nav's current page now read as one surface. Restated rather
     // than tokenised because the pill rule states it literally too; change both together.
-    // Light blue, through the same mixin as its neighbours. It was briefly the pill-nav
-    // gradient darkened 18%, which needed white ink to stay legible; back to a light tile
-    // with dark ink so the whole row reads as one family again.
-    @include caseload-focused-tile-bg($caseload-model-blue, $light: 23%, $sat: 41.5%);
-    border-color: rgba($focus-pill-accent-to, 0.35) !important;
-    // NAVY ink, not white. The fills are now 25% lighter than the CTA's; white on them
-    // measured 2.66-3.09:1, well under the 4.5:1 floor. Navy is what makes this lightness
-    // shippable — the same trade Gentle View already makes.
-    color: $la-navy !important;
+    // LITERAL STOPS (2026-08-16, Traci's palette) — "confident professional blue". The
+    // derivation from $caseload-model-blue is gone from this tile; the chosen hexes are
+    // stated in _variables.scss and painted verbatim.
+    // CONTRAST: 4.88:1 centre / 3.55:1 edge against the navy ink below. The edge is under
+    // the 4.5:1 floor for the 14px/700 label — see the note on the tokens.
+    @include caseload-focused-tile-bg($from: $caseload-tile-model-from, $to: $caseload-tile-model-to);
+    border-color: $caseload-tile-model-border !important;
+    // WHITE ink (2026-08-16) — Dusty Denim is deep enough to carry it.
+    color: $caseload-tile-model-ink !important;
+    // Same restrained stack as every sibling (the tile mixin) — restated because this
+    // rule sets its own; a glow here would single Model out as glossier than the row.
     box-shadow:
-      inset 0 2px 0 rgba($focus-on-dark, 0.34),
-      inset 0 -2px 5px rgba($focus-shadow-ink, 0.14),
-      0 1px 4px rgba($focus-shadow-ink, 0.13),
-      0 0 18px rgba($focus-hero-glow, 0.08) !important;
+      inset 0 1px 0 rgba(255, 255, 255, 0.55),
+      inset 0 -1px 0 rgba($la-navy, 0.10),
+      0 3px 7px rgba($la-navy, 0.16) !important;
   }
   // The glyph's strokes are INLINE presentation attributes (`stroke="#46505F"` in
   // caseload.hbs), which any CSS declaration outranks. Matched by value so the one
@@ -1031,15 +1169,16 @@ body.ll-layout-focused {
     stroke: currentColor;
   }
   .md-caseload__quick-action.md-caseload__quick-action--model:hover {
-    background: radial-gradient(ellipse at center in oklab,
-      color-mix(in oklab, #{$focus-hero-center} 40%, white) 0%,
-      color-mix(in oklab, color-mix(in oklab, #{$focus-hero-center} 40%, white) 94%, black) 100%) !important;
+    // NO BACKGROUND OVERRIDE (2026-08-16). This used to repaint the tile with the old
+    // glossy navy CTA radial on hover, which — now that the resting tile is the Dusty
+    // Denim linear ramp — meant hovering jumped to a different palette AND a different
+    // gradient type. Every sibling's hover changes only the bevel and glow, so this one
+    // does too; the fill it inherits is the tile's own.
     border-color: rgba($focus-on-dark, 0.2) !important;
     box-shadow:
-      inset 0 2px 0 rgba($focus-on-dark, 0.38),
-      inset 0 -2px 5px rgba($focus-shadow-ink, 0.16),
-      0 2px 6px rgba($focus-shadow-ink, 0.16),
-      0 0 26px rgba($focus-hero-glow-hover, 0.35) !important;
+      inset 0 1px 0 rgba(255, 255, 255, 0.65),
+      inset 0 -1px 0 rgba($la-navy, 0.12),
+      0 5px 11px rgba($la-navy, 0.22) !important;
     // No lift — matches the CTA, which deliberately drops the base hover's translateY.
     transform: none;
   }
@@ -1048,24 +1187,26 @@ body.ll-layout-focused {
     // 26) kept it reading blue-GREY rather than blue: at this tile's saturation the hue
     // angle is barely perceptible, so rotating it was never going to be the lever. The
     // source is already the blue that was wanted.
-    @include caseload-focused-tile($caseload-speak-denim, $light: 41%, $sat: 25%);
+    // LITERAL STOPS (2026-08-16, Traci's palette) — "distinct blue-violet".
+    // CONTRAST: 5.14:1 centre / 3.69:1 edge vs the navy ink; edge under the 4.5:1 floor.
+    @include caseload-focused-tile($from: $caseload-tile-speak-from, $to: $caseload-tile-speak-to, $ink: $caseload-tile-speak-ink, $border: $caseload-tile-speak-border);
   }
   .md-caseload__list-quick .md-caseload__quick-action--speak:not(.md-caseload__quick-action--empty):hover {
     @include caseload-focused-tile-hover;
   }
   .md-caseload__quick-action.md-caseload__quick-action--ideas:not(.md-caseload__quick-action--empty) {
-    // Champagne is the palette's lightest source, so it reaches the contrast floor
-    // first: at the 20% lift its siblings use it measured 4.26:1 white-on-fill,
-    // under 4.5:1. Capped at 12% — the most lift it takes while staying legible.
-    // No `$sat` — this one rides the mixin default, which is the loud end of the set
-    // (41.5%) and moved with the rest of the row.
-    @include caseload-focused-tile($caseload-ideas-champagne, $light: 37%);
+    // LITERAL STOPS (2026-08-16, Traci's palette) — "warm, sophisticated gold".
+    // CONTRAST: 6.57:1 centre / 4.48:1 edge vs the navy ink. The edge misses 4.5:1 by
+    // 0.02 — #BE9947 clears it if that matters.
+    @include caseload-focused-tile($from: $caseload-tile-ideas-from, $to: $caseload-tile-ideas-to, $ink: $caseload-tile-ideas-ink, $border: $caseload-tile-ideas-border);
   }
   .md-caseload__quick-action.md-caseload__quick-action--ideas:hover:not(.md-caseload__quick-action--empty) {
     @include caseload-focused-tile-hover;
   }
   .md-caseload__quick-action.md-caseload__quick-action--reports:not(.md-caseload__quick-action--empty) {
-    @include caseload-focused-tile($caseload-reports-sage, $light: 41%, $sat: 25%);
+    // LITERAL STOPS (2026-08-16, Traci's palette) — "strong, reassuring green".
+    // CONTRAST: 4.90:1 centre / 3.48:1 edge vs the navy ink; the lowest in the set.
+    @include caseload-focused-tile($from: $caseload-tile-reports-from, $to: $caseload-tile-reports-to, $ink: $caseload-tile-reports-ink, $border: $caseload-tile-reports-border);
   }
   .md-caseload__quick-action.md-caseload__quick-action--reports:hover:not(.md-caseload__quick-action--empty) {
     @include caseload-focused-tile-hover;
@@ -1080,11 +1221,13 @@ body.ll-layout-focused {
     // The ACTIVE PILL-NAV gradient, verbatim (see the caseload pill rule above) — the row's
     // primary action and the nav's current page now read as one surface. Restated rather
     // than tokenised because the pill rule states it literally too; change both together.
-    // Light blue, through the same mixin as its neighbours. It was briefly the pill-nav
-    // gradient darkened 18%, which needed white ink to stay legible; back to a light tile
-    // with dark ink so the whole row reads as one family again.
-    @include caseload-focused-tile-bg($caseload-model-blue, $light: 23%, $sat: 41.5%);
-    border-color: rgba($focus-pill-accent-to, 0.35) !important;
+    // MODEL'S NEW STOPS, deliberately. This tile and Model share the leading slot (the
+    // "has this communicator got a home board yet" branch) and that slot must not change
+    // appearance depending on which branch is showing — so the palette change carries
+    // here too, even though Choose Board was not itemised in the request.
+    @include caseload-focused-tile-bg($from: $caseload-tile-model-from, $to: $caseload-tile-model-to);
+    border-color: $caseload-tile-model-border !important;
+    color: $caseload-tile-model-ink !important;
     // NAVY ink, not white. The fills are now 25% lighter than the CTA's; white on them
     // measured 2.66-3.09:1, well under the 4.5:1 floor. Navy is what makes this lightness
     // shippable — the same trade Gentle View already makes.
@@ -1092,19 +1235,19 @@ body.ll-layout-focused {
     // NO HALO. It marked this as the row's setup action, but read as a second emphasis
     // competing with the tiles — and the "Board needed" badge beside the name already
     // carries that message. Plain tile shadow, same as every neighbour.
+    // Same restrained stack as every sibling (the tile mixin) — restated because this
+    // rule sets its own; a glow here would single Model out as glossier than the row.
     box-shadow:
-      inset 0 2px 0 rgba(255, 255, 255, 0.55),
-      inset 0 -2px 5px rgba($focus-shadow-ink, 0.14),
-      0 1px 4px rgba($focus-shadow-ink, 0.13),
-      0 0 18px rgba($focus-hero-glow, 0.08) !important;
+      inset 0 1px 0 rgba(255, 255, 255, 0.55),
+      inset 0 -1px 0 rgba($la-navy, 0.10),
+      0 3px 7px rgba($la-navy, 0.16) !important;
   }
   .md-shell--caseload .md-caseload__quick-action--choose-board:hover {
     border-color: rgba($focus-on-dark, 0.2) !important;
     box-shadow:
-      inset 0 2px 0 rgba(255, 255, 255, 0.60),
-      inset 0 -2px 5px rgba($focus-shadow-ink, 0.16),
-      0 2px 6px rgba($focus-shadow-ink, 0.16),
-      0 0 26px rgba($focus-hero-glow-hover, 0.35) !important;
+      inset 0 1px 0 rgba(255, 255, 255, 0.65),
+      inset 0 -1px 0 rgba($la-navy, 0.12),
+      0 5px 11px rgba($la-navy, 0.22) !important;
     transform: none;
   }
 
@@ -1130,7 +1273,12 @@ body.ll-layout-focused {
     // as a control. Darkening the finished tint keeps its `$light: 45%` relationship to
     // the gentle source legible instead of burying the move in a re-tuned lightness.
     // Measured: centre HSL L 95.04% -> 85.54%, i.e. exactly 10% darker; ink 12.58:1.
-    @include caseload-focused-tile(#E2E7EE, $mix: 26%, $light: 45%, $sat: 17.5%, $darken: 10%);
+    // LITERAL STOPS (2026-08-16, Traci's palette) — "neutral supporting action". The
+    // `$darken: 10%` nudge is gone with the derivation; this pair is darker than the old
+    // finished tint anyway, so the tile still reads as a control rather than a gap.
+    // CONTRAST: 7.08:1 centre / 5.25:1 edge vs the navy ink — the only tile clearing the
+    // 4.5:1 floor on BOTH stops.
+    @include caseload-focused-tile($from: $caseload-tile-more-from, $to: $caseload-tile-more-to, $ink: $caseload-tile-more-ink, $border: $caseload-tile-more-border);
   }
   .md-shell--caseload .md-caseload__quick-action--more:hover:not(.md-caseload__quick-action--empty) {
     @include caseload-focused-tile-hover;
@@ -1175,21 +1323,62 @@ body.ll-layout-focused {
   // for Modeling) are gone with them: every badge is white on dark now, so there is no
   // longer a hue-specific ink to tune. Measured white-on-fill per variant before shipping.
   // Viewer matches the MORE ACTIONS tile.
-  .md-shell--caseload .md-caseload__list-access--view { @include caseload-focused-badge(#E2E7EE, $light: -11%, $sat: 0%); }
+  // ROLE FAMILY — cool. Viewer is the quietest thing in the row on purpose: it states a
+  // permission that requires nothing of the supporter, so it gets a plain slate wash.
+  .md-shell--caseload .md-caseload__list-access--view {
+    // Viewer stays the quietest thing in the row — a plain LA Navy tint, which is still a
+    // brand colour, so the set reads as one family. It states a permission that asks
+    // nothing of the supporter.
+    @include caseload-focused-badge-solid($la-navy, rgba($la-navy, 0.10), rgba($la-navy, 0.18));
+  }
   // Board needed takes the MODEL tile's SOURCE HUE, at its own lightness (48% vs 23%).
   // It no longer shares Model's saturation: the +10-point lift was scoped to the
   // quick-action BUTTONS, and this is a status badge beside the name, not a control.
   // Left at 31.5% deliberately — restate it here if the badges are ever moved to match.
-  .md-shell--caseload .md-caseload__list-access--setup { // Light blue, through the same mixin as its neighbours. It was briefly the pill-nav
-    // gradient darkened 18%, which needed white ink to stay legible; back to a light tile
-    // with dark ink so the whole row reads as one family again.
-    @include caseload-focused-tile-bg($caseload-model-blue, $light: 48%, $sat: 31.5%);
-    border-color: rgba($focus-pill-accent-to, 0.3) !important;
-    color: $la-navy !important; }
-  .md-shell--caseload .md-caseload__list-access--attention { @include caseload-focused-badge($brand-soft-fawn); }
-  // Editor matches the REPORTS tile.
-  .md-shell--caseload .md-caseload__list-access--edit { @include caseload-focused-badge($caseload-reports-sage, $light: 66%, $sat: 24%); }
-  .md-shell--caseload .md-caseload__list-access--modeling { @include caseload-focused-badge(#F2B95A, $sat: 26.2%); }
+  // BOARD NEEDED — was the ONLY badge painted with a radial GRADIENT (it borrowed the
+  // quick-action tile mixin), which is precisely what made it read as a glossy control
+  // shrunk down rather than a status chip. Now a flat blue wash like the rest of the set.
+  //
+  // ⚠️ OPEN QUESTION — hue left as BLUE deliberately. "Board needed" is semantically an
+  // ATTENTION badge ("you must do something"), so by the two-family rule it belongs in
+  // amber beside "Eval needed". It is left blue here because it was not named in the
+  // request and its blue is a deliberate tie to the Model / Choose Board tile. One-line
+  // switch if you want the families consistent:
+  //   @include caseload-focused-badge-solid($brand-honey-bronze, 0.45, $caseload-badge-amber-ink, 0.38);
+  .md-shell--caseload .md-caseload__list-access--setup {
+    @include caseload-focused-badge-solid($caseload-badge-sel-ink, $caseload-badge-sel-bg, $caseload-badge-sel-border);
+  }
+  // ATTENTION FAMILY — amber. This is the only badge that asks the supporter to DO
+  // something ("Eval needed"), so it is the one warm thing among cool ones. Amber at 0.45
+  // over white lands at #F9E0B5 — unmistakably warm without becoming a filled chip.
+  .md-shell--caseload .md-caseload__list-access--attention {
+    @include caseload-focused-badge-solid($caseload-badge-attn-ink, $caseload-badge-attn-bg, $caseload-badge-attn-border);
+  }
+  // The warning glyph goes DARKER than the label — 7.07:1 against the fill versus the
+  // label's 5.83:1. It is the part that has to register pre-reading, and it is a small
+  // stroked shape, so it needs the extra weight the 12px text does not.
+  .md-shell--caseload .md-caseload__list-access--attention svg,
+  .md-shell--caseload .md-caseload__list-access--attention svg * {
+    stroke: $caseload-badge-attn-icon !important;
+    color: $caseload-badge-attn-icon !important;
+  }
+  // EDITOR — teal, the role badge that was called out as muddy. It was the REPORTS tile's
+  // sage scaled 66% lighter, which compiled to #BFD8C8: a pale green a hair off the card,
+  // which is exactly why it vanished. A verdigris wash at 0.22 keeps it clearly teal.
+  .md-shell--caseload .md-caseload__list-access--edit {
+    @include caseload-focused-badge-solid($caseload-badge-role-ink, $caseload-badge-role-bg, $caseload-badge-role-border);
+  }
+  // MODELING — the SPEAK tile's resting fill (2026-08-16, requested). Read as the tile's
+  // NON-HOVER background, i.e. its light stop $caseload-tile-speak-from; the other
+  // reading, the disabled `--empty-tint` (rgb 72,112,170), is a much darker blue that
+  // would need white ink and would outweigh every other badge.
+  // Carried at 0.85 rather than 1.0 so it stays translucent like its siblings; the 15%
+  // of white lifts navy ink from 5.14:1 to 5.95:1 as a side benefit.
+  // It also moves Modeling OUT of the amber family into the cool one, which is right:
+  // it is a role, not a task, and amber now means "you must act".
+  .md-shell--caseload .md-caseload__list-access--modeling {
+    @include caseload-focused-badge-solid($caseload-badge-model-ink, $caseload-badge-model-bg, $caseload-badge-model-border);
+  }
 
   // 6. AVATAR DISC — the outer circle takes the SAME gradient as the active
   //    pill-nav item (135deg $focus-accent-from -> $focus-pill-accent-to, i.e.
@@ -1462,4 +1651,148 @@ body.ll-layout-focused .md-logs {
 
 // -----------------------------------------------------------------------------
 // Board view, modals, … (added as the overlay rolls out page-by-page)
+// -----------------------------------------------------------------------------
+// Focused View — My Organizations sits ABOVE the utility buttons in the hierarchy
+// -----------------------------------------------------------------------------
+// It is the org dashboard's hero, but it was painting LIGHTER than the four cards it
+// outranks. Measured on /example/home in Focused View:
+//   org card   linear-gradient(rgba(255,255,255,0.98), rgba(235,238,243,0.95))  lum 1.00 -> 0.85
+//   Account / Create a Board / Edit Dashboard / Reports (badge-action surface)   lum ~0.80
+// So the hero was the palest thing in the column and read as a backdrop rather than as the
+// primary card.
+//
+// A denim tint of $brand-blue-grey, deep enough to sit clearly below the utility cards on
+// the lightness scale while staying a LIGHT surface — this is a hierarchy cue, not a mood
+// change, and the card carries dark ink.
+//   0.22 -> 0.38 over white = #E1E7F0 -> #CBD6E4, lum 0.795 -> 0.664.
+// Both stops are darker than the utility cards' ~0.80, and the ramp itself is steeper
+// (0.13 of luminance against the old 0.15 across a much lighter range), so the card reads
+// as one deliberate surface rather than a white panel with a tint at the bottom.
+//
+// INK IS SAFE BY A WIDE MARGIN: $la-navy measures 9.75:1 on the top stop and 8.24:1 on the
+// bottom, against a 4.5:1 floor — the 24px title and the 16px subtitle both clear it.
+//
+// Scoped to `.md-grid--hero-org` so it only applies where Organizations IS the hero. On any
+// other dashboard the card keeps the shared surface.
+body.ll-layout-focused .md-grid.md-grid--hero-org .md-card.md-card--org-management {
+  background: linear-gradient(180deg,
+    #{color.mix($brand-blue-grey, #FFFFFF, 22%)} 0%,
+    #{color.mix($brand-blue-grey, #FFFFFF, 38%)} 100%) !important;
+}
+
+// The INDIVIDUAL organization tiles inside that card take the BOARDS card's surface
+// (2026-08-16, requested), so a tile reads as a panel sitting on the org card rather than
+// as another card competing with it.
+// `$focus-boards-bg` is the token `.md-grid--layout-focused .md-card--boards` uses, reused
+// here rather than copied — the two surfaces are meant to be identical, and a copy would
+// drift the first time the Boards card is retuned. It is a two-layer gradient (white sheen
+// over a tinted base), which is why this sets `background` and not `background-color`.
+// Scoped INSIDE `.md-card--org-management`: `.md-room-card` is shared with the Rooms card,
+// which is not part of this request.
+// ORG HOME — the Caseload icon tile matches the Speak one (2026-08-16, requested). The two
+// cards sit side by side on the bottom row, so a 46px tile beside a 64px one read as a
+// mistake rather than a hierarchy.
+// VALUES ARE COPIED FROM THE SPEAK TILE AS MEASURED ON THE PAGE, not re-derived: 64px,
+// 22px radius, and the four-layer shadow (white top bevel, verdigris inner shade, slate
+// drop, verdigris glow). Reading them off the rendered element is what makes them exact —
+// the Speak tile's size comes from a different rule than the one that styles it, so
+// copying from a source selector risked matching the wrong declaration.
+// The RADIUS moves with the size on purpose: 16px on a 64px tile is a visibly different
+// shape from 22px, so matching size alone would not have matched the tile.
+// The BORDER is matched too — it is part of the glow's read at this size.
+// The card's own fill is left alone; only the icon tile is being aligned.
+// Scoped to `.md-grid--hero-org`, so a supervisor's Caseload icon keeps its own 46px tile.
+body.ll-layout-focused .md-grid.md-grid--hero-org .md-card.md-card--caseload-as-button .md-card__icon {
+  width: 64px !important;
+  height: 64px !important;
+  border-radius: 22px !important;
+  border: 1px solid rgba($brand-verdigris, 0.2) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -3px 5px rgba($brand-verdigris, 0.10),
+    0 4px 12px rgba(15, 23, 42, 0.14),
+    0 0 16px rgba($brand-verdigris, 0.16) !important;
+}
+// The glyph scales with its tile — 34px in 64px, the same ratio Speak uses. Without this
+// the icon would sit small inside a larger tile and look off-centre by weight.
+body.ll-layout-focused .md-grid.md-grid--hero-org .md-card.md-card--caseload-as-button .md-card__icon > svg,
+body.ll-layout-focused .md-grid.md-grid--hero-org .md-card.md-card--caseload-as-button .md-card__icon-glyph {
+  width: 34px !important;
+  height: 34px !important;
+}
+
+// FOCUSED-ONLY organization TILE illustration (2026-08-16) — the per-organization buttons
+// inside the card, which reuse `.md-room-card` chrome and swap the room door for the
+// SINGULAR organization art (app.scss ~46327). Gentle keeps `organization.png`.
+// Same pattern as the card's header icon below: `image-set()` for the WebP/PNG pair,
+// prefixed copy first for Safari, preload in both shells.
+// The source was 192x192 for a 46x46 box; resized to 92x92 (2x the display size) —
+// 48KB -> 13KB PNG, 2.1KB WebP.
+// The light art's saturate/brightness lift is cleared: the dark version is already tuned,
+// and stacking the filter on it muddied the tile.
+body.ll-layout-focused .md-card--org-management .md-room-card__icon {
+  background-image: -webkit-image-set(
+    url('../images/organization-dark.webp') type('image/webp'),
+    url('../images/organization-dark.png') type('image/png')) !important;
+  background-image: image-set(
+    url('../images/organization-dark.webp') type('image/webp'),
+    url('../images/organization-dark.png') type('image/png')) !important;
+  filter: none !important;
+}
+
+// FOCUSED-ONLY organizations illustration (2026-08-16). The card's icon is a CSS
+// background (`.md-card__icon--org`, app.scss ~46785) rather than an <img>, so the swap
+// happens here rather than in the template — and Gentle keeps `organizations.png`
+// untouched, as asked.
+//
+// `image-set()` gives the WebP/PNG pair the same treatment the <picture> heroes get:
+// browsers that understand `type("image/webp")` take the 6.7KB WebP, the rest fall back to
+// the 69KB PNG. Both are declared here; the `-webkit-` prefixed copy first because Safari
+// only accepts the prefixed form, and an unprefixed-only declaration silently drops the
+// background there.
+// The source art was 492x507 / 210KB for a box that renders at 92x92; it is resized to
+// 248x256 (2x the display size, matching organizations.png's 256px convention) and stripped
+// of metadata.
+//
+// RENDERING EARLY IS THE PRELOAD'S JOB, not this rule's: a CSS background cannot carry
+// `decoding="sync"`, so the fetch is started ahead of time by the <link rel="preload"> in
+// BOTH shells — app/views/boards/index.html.erb (production, Rails-served) and
+// app/frontend/app/index.html (ember serve). Those two lists must stay in sync; the card is
+// `display:none` until Focused View is active, so without the preload the browser would not
+// even begin fetching until the card painted, and the illustration would pop in after the
+// rest of the card.
+body.ll-layout-focused .md-grid .md-card.md-card--org-management .md-card__icon--org {
+  background-image: -webkit-image-set(
+    url('../images/organizations-dark.webp') type('image/webp'),
+    url('../images/organizations-dark.png') type('image/png')) !important;
+  background-image: image-set(
+    url('../images/organizations-dark.webp') type('image/webp'),
+    url('../images/organizations-dark.png') type('image/png')) !important;
+  // The light illustration was warmed with saturate/brightness to lift it off the card;
+  // the dark art is already tuned, so the filter is cleared rather than stacked on top.
+  filter: none !important;
+}
+
+// ...LIGHTENED 10% (2026-08-16, requested). The tiles no longer take `$focus-boards-bg`
+// verbatim — they take its STRUCTURE with the colour layer scaled 10% toward white, so
+// they read as a lighter sibling of the Boards surface rather than a copy of it.
+// Structure restated rather than filtered: `filter: brightness()` would lighten the tile's
+// TEXT and icon along with its background, and `opacity` would let the darker org card
+// underneath show through and darken it instead.
+// The FIRST layer is the white sheen — already white, so lightening it is a no-op and it is
+// carried over unchanged. Only the second (colour) layer moves.
+// Both stops keep their original alphas; `color.scale(..., $lightness: 10%)` moves each
+// 10% of the remaining distance to white, which is the "10% lighter" being asked for and
+// leaves the ramp's shape intact.
+body.ll-layout-focused .md-grid.md-grid--hero-org .md-card.md-card--org-management .md-room-card {
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.60) 0%,
+      rgba(255, 255, 255, 0.12) 20%,
+      rgba(255, 255, 255, 0) 42%),
+    linear-gradient(180deg,
+      rgba(color.scale($focus-surface-top, $lightness: 10%), 0.60) 0%,
+      rgba(color.scale($focus-surface-bottom, $lightness: 10%), 0.55) 100%) !important;
+}
+
 // -----------------------------------------------------------------------------

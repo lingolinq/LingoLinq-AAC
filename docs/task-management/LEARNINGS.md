@@ -249,6 +249,34 @@ places — miss one and it silently fails:
    ember-data may not send the change. Canonical example: `set_board_view_style`
    in controllers/board/index.js.
 
+   > **`set('preferences.device.updated', …)` THROWS when `device` is absent** —
+   > *"Property set failed: object in path 'preferences.device' could not be found"*.
+   > Every existing call site assumes the key exists; on a record whose preferences carry
+   > no `device` it raises **from inside the click handler**, i.e. after the optimistic
+   > `set()` has already updated the UI — so the change appears to work and then silently
+   > never persists, with only a console error. Create the container first:
+   > `if(!user.get('preferences.device')) { user.set('preferences.device', {}); }`
+   > (Found 2026-08-16 by a unit test whose stub happened to omit `device`.)
+
+4. **Constrain the value server-side** when the preference drives markup — a CSS class,
+   a `data-` attribute, an inline style. `dashboard_layout` and `boards_layout` both get a
+   sanitizer that DROPS an unrecognised value (`sanitize_boards_layout_preference!`,
+   user.rb) rather than persisting arbitrary client JSON; dropping makes the client fall
+   back to its own default, which is the behaviour you want anyway.
+
+**On step 2 — a server default is optional, and sometimes wrong.** `boards_layout`
+deliberately has NONE: absent means "never chosen" and the frontend constant
+(`SIDE_BY_SIDE`) is the single source of truth. Add a server default only when the server
+itself needs to reason about the value; otherwise it is a second copy that can drift from
+the client's — the exact hazard the `dashboard_layout` default carries a comment about.
+
+**Device-scoped vs user-scoped is a real decision.** localStorage alone means the choice
+does not follow the user to a new login or device; a user preference does. When both are
+used, make the PREFERENCE authoritative and localStorage a first-paint cache only —
+otherwise a stale device value beats the user's real choice. Re-resolve when the user
+record hydrates (it can arrive after the component renders), and serialize the saves if
+the control can be clicked twice quickly.
+
 For UI driven off the value, default in JS too (`|| 'dynamic'` + validate against a
 known set) so nil/unknown never breaks render before the backend backfills. Applied
 in 2026-06-08 dashboard_layout preference (md-grid--layout-* hook class).
@@ -4965,6 +4993,16 @@ never loads. Two consequences: (1) `ember test --filter` matches **test NAMES**,
 util logic, verify by **exhaustive manual trace + eslint + `ember build`** (which still compiles
 SCSS/templates/JS), not by trying to run the QUnit file. Still write the `-test.js` — it documents
 intent and will run if/when the unit suite is wired into CI — just don't expect it to gate here.
+
+> **UPDATE 2026-08-16 — partly superseded, and the workaround is now the convention.**
+> Unit tests DO execute, but **only when explicitly imported in `tests/test-helper.js`**
+> (the `/* eslint-disable ember/no-test-import-export */` block near the bottom). The
+> requirejs auto-loader still drops them, so an unregistered `tests/unit/**-test.js` is
+> lint-checked and **never run** — exactly as described above. Add the import line in the
+> same commit as the test file, then confirm with
+> `npx ember test --filter="<module name>"`: registered modules match by test NAME and
+> report real assertion counts, while an unregistered one still reports *"No tests
+> matched"*. Verified by adding three suites (17 tests) that run green.
 
 ## Pattern: dashboard "fill the row" needs an inline grid-template-columns = visible-item count
 
@@ -12012,3 +12050,255 @@ node that actually has ink (see
 [measure a page's "ink box" from LEAF elements](#technique-measure-a-pages-ink-box-from-leaf-elements-not-containers)).
 
 **First seen in:** [2026-08-16-focused-view-colour-and-pillnav-alignment.md](./2026-08-16-focused-view-colour-and-pillnav-alignment.md)
+
+---
+
+## Gotcha: a fixed sleep in a click probe manufactures BOTH false passes and false failures
+
+**Surface:** a Puppeteer sweep clicking every Boards-page card sampled the outcome 1.8s
+after each click. It reported most cards as broken — `url` unchanged, no preview — while
+two cards in the same sweep passed. Nothing was wrong with the app.
+
+**Why:** opening a board raises the "preparing workspace" overlay *before* the route
+transitions. At a fixed sample a slow card is indistinguishable from a dead one. The tell
+was the inconsistency: the gate under test is a per-component flag, so it **cannot** vary
+card to card — when a per-component behaviour appears to differ per item, suspect the
+harness, not the code.
+
+**Fix shape:** poll for the outcome instead of sampling for it, and report what was on
+screen when the deadline expired.
+
+```js
+async function outcome(page, startUrl) {
+  const deadline = Date.now() + 15000;
+  for (;;) {
+    const s = await snapshot(page);                      // url + previewOpen + working
+    if (s.url !== startUrl || s.previewOpen) { return s; }
+    if (Date.now() > deadline) { return Object.assign(s, { timedOut: true }); }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+}
+```
+
+A fixed delay fails in both directions: too short and the right outcome hasn't happened
+yet (false failure); too long and a *wrong* fast outcome has already been replaced by a
+right slow one (false pass). Related: indices into a list go stale across a round trip —
+re-count each iteration rather than trusting a count taken before the first click.
+
+**First seen in:** [2026-08-16-automating-the-visual-checklist.md](./2026-08-16-automating-the-visual-checklist.md)
+
+---
+
+## Pattern: every NEGATIVE assertion needs a positive control proving the detector still fires
+
+**Surface:** a click sweep asserted, per card, "the route changed **and** no preview modal
+opened". The second clause is a negative — it passes when a selector matches nothing.
+If `.md-board-details-modal` were ever renamed, every card would still pass, and the probe
+would look green while testing half of what it claimed.
+
+**The guard:** exercise the same detector on a surface where the thing is *supposed* to
+happen, and fail loudly if it doesn't. Here the board-PICKER is the surface that opens a
+preview on card click, so it doubles as the control:
+
+```js
+check(res.previewOpen,
+  'CONTROL: clicking a PICKER card opens a preview (detector verified live)',
+  'if this fails, every "no preview" result above is unproven');
+```
+
+It earned its place immediately: the first run failed the control (the picker grid paints
+a "Loading boards…" message before its cards, so waiting on the grid raced the data) —
+which correctly reported the negatives as *unproven* rather than passing them. Wait for
+the **cards**, not the container.
+
+**Generalises:** any "X did not happen" assertion — no error toast, no console error, no
+modal, no request — needs a companion test that makes X happen.
+
+**First seen in:** [2026-08-16-automating-the-visual-checklist.md](./2026-08-16-automating-the-visual-checklist.md)
+
+---
+
+## Gotcha: a self-reverting command must anchor its paths to the REPO ROOT
+
+Proving a regression test actually fails means reintroducing the bug, running, and
+reverting — ideally in one command so the revert cannot be forgotten:
+
+```bash
+sed -i 's/&&/||/' app/frontend/app/components/board-icon.js
+cd app/frontend && npx ember test --filter="…"
+git checkout app/frontend/app/components/board-icon.js     # <-- FAILS: wrong cwd
+```
+
+The `cd` earlier in the chain made the checkout path resolve against `app/frontend`, so it
+exited 128 (`pathspec … did not match`) and **left the deliberate bug in the working
+tree**. The test output looked like a clean negative control while the repo was dirty.
+
+Use `git -C "$REPO_ROOT" checkout -- <path>`, or a path relative to wherever the command
+actually runs — and verify with `git status --short` in the same breath rather than
+assuming the revert took.
+
+**First seen in:** [2026-08-16-automating-the-visual-checklist.md](./2026-08-16-automating-the-visual-checklist.md)
+
+---
+
+## Gotcha: a card with no name in `grid-template-areas` invents COLUMNS and squashes the whole grid
+
+**Surface:** the Focused dashboard rendered "squished into two weird columns" for one account
+and was perfect for another. The inline style was correct in both cases —
+`grid-template-columns: repeat(4, 1fr)` with four tokens per area row — yet the computed
+columns came back as **six**: `97.7px 97.7px 97.7px 97.7px 0px 493.1px`.
+
+**Why:** `utils/dashboard_sections.js` builds the areas string from the account's VISIBLE
+section list, but the template renders every AVAILABLE card. A card that is rendered while
+unnamed in the areas is placed outside the explicit grid, so the browser creates implicit
+tracks to hold it — and every named card is then squeezed into what's left. Here the Speak
+hero took a 493px invented column and Extras a 0px one.
+
+**The tell:** the computed `grid-template-columns` has MORE tracks than the inline/authored
+value. If those disagree, look for a grid item that isn't in the areas — not for a broken
+column rule. Cards that render at `w=0` beside a card that renders far too wide is the same
+signal.
+
+**Two fixes, and they are different:**
+* *Cause* — give the card an area (for org dashboards, Speak now shares a bottom row with
+  Caseload via the `orgPair` branch in `focusedLayout`).
+* *Resilience* — `grid-column: 1 / -1` on the cards most likely to be unnamed. `1 / -1`
+  resolves to the explicit grid's own first and last lines, so it cannot itself create a
+  track. Keep it scoped OFF any layout where the card now has a real area, or it overrides
+  the placement.
+
+**First seen in:** [2026-08-16-automating-the-visual-checklist.md](./2026-08-16-automating-the-visual-checklist.md)
+
+---
+
+## Gotcha: `align-items: stretch` absorbs a negative margin by GROWING the item
+
+Giving a grid item `margin-top: -10px` to lift it 10px made it 10px TALLER instead —
+measured 170px against its row-mate's 160px, tops offset by exactly the margin.
+
+A stretched grid item is sized so its **margin box** fills the row, so
+`height = row − margin-top − margin-bottom`. A negative top margin therefore *adds* to the
+height rather than moving the box.
+
+Three ways out, and the choice matters:
+
+| Want | Do |
+|---|---|
+| move it, keep the row's spacing | `margin-top: -10px` **+** `margin-bottom: 10px` (they cancel) |
+| move it, keep it the same height as its row-mate | `align-self: start` + `height: 100%` |
+| move it and let it grow | the negative margin alone — which is what you get by accident |
+
+`height: 100%` on a start-aligned grid item resolves against the grid AREA, so the item
+tracks whichever sibling sizes the row without hard-coding a pixel height.
+
+**First seen in:** [2026-08-16-automating-the-visual-checklist.md](./2026-08-16-automating-the-visual-checklist.md)
+
+---
+
+## Gotcha: a later `gap` SHORTHAND silently resets an earlier `row-gap` at equal specificity
+
+`.md-grid.md-grid--hero-org { row-gap: 38px !important }` measured as **14px** on the page —
+the rule was completely inert. Two compounding reasons, both invisible in the source:
+
+1. `.md-grid.md-grid--layout-focused { gap: 14px !important }` has the SAME specificity
+   (0,2,0) and is emitted **~260k characters later** in the compiled sheet, so it wins on
+   source order — the same "equal specificity, decided by emit order" trap this file already
+   records for `@use`d partials, arriving from the other direction.
+2. It sets the `gap` SHORTHAND, which resets `row-gap` and `column-gap` together. Even a
+   winning `row-gap` elsewhere is wiped by a later shorthand.
+
+Also note the base was **not** the value it appeared to be: `.md-grid { gap: 28px }` is
+overridden to 14px for this view, so an increment computed from 28 was wrong twice over.
+
+**Rule:** before adjusting one axis of a gap, compile and find EVERY rule that sets `gap` or
+`row-gap` for that element, and check which is last. Then out-specify it rather than matching
+it — here, chaining `.md-grid--layout-focused` into the selector took it to (0,3,0) and it
+applied. Verify on the page: a computed value that equals the untouched base is the tell.
+
+**First seen in:** [2026-08-16-automating-the-visual-checklist.md](./2026-08-16-automating-the-visual-checklist.md)
+
+---
+
+## Gotcha: the dashboard has TWO order resolvers — the live grid does not use `defaultOrderFor`
+
+Adding a new role-based card order to `gentleDefaultOrder()` reordered the dashboard's
+EDIT/PREVIEW surfaces and left the real page unchanged.
+
+`utils/dashboard_sections.js` resolves the default card order in two independent places:
+
+| Function | Serves | Chooses its base by |
+|---|---|---|
+| `gentleDefaultOrder` → `defaultOrderFor(user, layout)` | display-style.js — the drag preview and the style chooser | takes a `user`, calls `availableHomeSections` / `sectionHidden` |
+| `dashboardLayout(vis, order)` | **the live grid** | its own `supervisor ? SUPERVISOR_DEFAULT_ORDER : DEFAULT_ORDER` line — it never calls the other two |
+
+`focusedLayout` has the same local `var base = supervisor ? … : …`. So a new order must be
+added in **every** place that picks a base, or the dashboard and its own editor disagree —
+and the editor is what the user is looking at while deciding, which makes the disagreement
+especially confusing.
+
+**The packers take `vis`, not `user`**, so a role test there has to be expressible in
+visibility terms. That is usually fine because a section's availability gate IS the role
+test: `vis.org` is true exactly when `hasOrgManagement(user)` is (HOME_SECTIONS entry for
+`org`), so keying off `vis.org` in `dashboardLayout` matches `hasOrgManagement` in
+`gentleDefaultOrder` without threading a user through. Check the section's `available:`
+function before assuming a `vis` flag is a safe proxy.
+
+**Order the branches most-specific-first.** An org manager satisfies the generic supervisor
+test too (`vis.org` is one of its terms), so the org branch has to be evaluated before it or
+it can never be reached.
+
+**First seen in:** [2026-08-16-automating-the-visual-checklist.md](./2026-08-16-automating-the-visual-checklist.md)
+
+## Pattern: a preview of "the other state" is a DERIVATION, not a copy — give it one source
+
+The Display Style chooser shows two thumbnails; one of them necessarily depicts the layout
+the user is *not* in. That thumbnail cannot be a clone, because every input derived from the
+saved preference is wrong in the clone. We fixed it five times — body class, element classes,
+inline `grid-template-*`, engine state classes, card visibility — each fix a real bug, each
+found by a user looking at a wrong picture.
+
+**The fix that ends the series is structural:** one function that answers "what does layout
+L look like for this user" (`dashboard_sections#layoutPresentation`), called by the live page
+AND by every preview surface. Callers pass only what they alone know (which user; whether a
+feature flag is on; live UI state the preview is editing). Anything that varies by the thing
+being previewed belongs in that function — a caller deriving it privately is the bug.
+
+**How to know you have this problem:** count the surfaces that re-derive the same state. Here
+it was three (live page, modal clone, preview iframes), and consolidating them exposed two
+bugs nobody had reported yet — a missing feature-flag gate on the saved drag order, and a
+stale-class sweep whose regex was missing one prefix that the other copy had.
+
+**Corollary — passing live UI state through the shared function needs an "unset" channel.**
+The modal's checkboxes are live state, not preferences. Returning a preference-derived value
+for a toggle the caller's UI doesn't render would silently override that UI; returning
+`undefined` lets the caller skip it. Encode "my UI doesn't offer this" distinctly from "off".
+
+## Gotcha: layout is DOCUMENT-scoped here — 68 rules hang off `body.ll-layout-focused`
+
+Before proposing "just render the other variant off-screen and screenshot it", check what the
+variant is keyed on. `_focused-view.scss` documents `body.ll-layout-focused .foo` as the
+DEFAULT convention and relies on its specificity to beat the gentle base; `grep -c` finds 68
+such rules. Two layouts therefore cannot coexist in one document at all — the preview needs
+its own document (an iframe), which is why the existing design already used one.
+
+**And check what a second app instance would drag along before "just booting the real app"
+in that iframe.** For this repo that is a second `stashes`/`persistence` pair —
+`services/stashes.js:631` pushes logs on startup and persistence opens the offline DB. On an
+AAC app, a decorative modal that writes usage logs and contends for the local DB is a worse
+bug than the one being fixed. "Authoritative by construction" is only better if its side
+effects are acceptable.
+
+## Technique: when a new invariant test fails, verify the behaviour before "fixing" it
+
+A new test asserting "no section is visible but unplaced in the grid" failed on
+`supervisor / focused: speak`. The tempting read is a sixth preview bug. The code says
+otherwise: `app.scss` full-spans an unplaced Speak/Extras card with `grid-column: 1 / -1`
+(which resolves to the explicit grid's existing lines and so cannot create a track), and the
+comment states that a supervisor's dashboard drops Speak from the areas deliberately.
+
+The *invariant* was wrong, not the code. Narrowed it to a named exception set
+(`FULLSPAN_SAFETY_NET`) and asserted the genuinely-broken half separately (Extras must never
+be visible on Focused). A too-strong invariant that gets "fixed" in the source is how a
+working behaviour gets regressed by its own test suite.
+
+**First seen in:** [2026-08-16-display-style-preview-single-source.md](./2026-08-16-display-style-preview-single-source.md)

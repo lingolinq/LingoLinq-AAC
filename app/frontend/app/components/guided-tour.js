@@ -98,6 +98,13 @@ function _scrollHighlightIntoView(step) {
   }
   var block = (step.options && step.options.scrollBlock) || 'center';
   var force = !!(step.options && step.options.scrollBlock);
+  // `scrollBlock: 'none'` — DO NOT MOVE THE PAGE for this step. For a target that is both
+  // tall and already on screen (the caseload roster), any scroll is a loss: centring it
+  // drags the view down past the first rows, and even aligning its top nudges the page for
+  // no gain. The spotlight and the popover work perfectly well where the user already is.
+  // Distinct from omitting scrollBlock, which still centre-scrolls when the target is not
+  // judged "in view" — this skips the scroll outright and reveals immediately.
+  if (block === 'none') { reveal(); return; }
   scrollIntoViewSettled(target, block, force).then(reveal);
 }
 

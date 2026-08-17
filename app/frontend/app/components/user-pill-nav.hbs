@@ -1,9 +1,15 @@
-<nav class="md-pillnav md-pillnav--dashboard" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
-  {{! Supervisors lead with Caseload — it is their workspace and their default
-      landing page on login (see routes/index.js `_land_on_default`) — so Home
-      sits just to its right. This pill only renders for `supporter_role`, so
-      communicators are unaffected and still lead with Home. }}
-  {{#if this.appState.currentUser.supporter_role}}
+<nav class="md-pillnav md-pillnav--dashboard {{if this.appState.currentUser.has_management_responsibility "md-pillnav--org-menu"}}" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
+  {{! STRICTLY-SLP users lead with Caseload — it is their workspace and their default
+      landing page on login (see routes/index.js `_land_on_default`) — so Home sits just
+      to its right.
+      NOT FOR ORG MANAGERS (2026-08-16). A supporter who also manages an organization is
+      a different kind of user: their nav carries Organizations and this page is their
+      landing point, not a caseload overview. They keep the ORIGINAL order (Home first,
+      Caseload after) and the original "Home" label. `has_management_responsibility` is
+      the same flag that gates the Organizations pill below, so the nav cannot end up
+      claiming org duties in one place and denying them in another.
+      Communicators are unaffected either way and still lead with Home. }}
+  {{#if (and this.appState.currentUser.supporter_role (not this.appState.currentUser.has_management_responsibility))}}
     {{#if (is-equal @active "caseload")}}
       <span class="md-pillnav__pill is-active" aria-current="page">{{t "Caseload" key="caseload_pill"}}</span>
     {{else}}
@@ -11,12 +17,23 @@
     {{/if}}
   {{/if}}
 
-  {{! Reads "Dashboard" for supporters, "Home" for communicators — see
-      helpers/home-pill-label.js. }}
+  {{! "Dashboard" for strictly-SLP users, "Home" for communicators AND for org managers —
+      see helpers/home-pill-label.js, which takes the same two flags. }}
   {{#if (is-equal @active "home")}}
-    <span class="md-pillnav__pill is-active" aria-current="page">{{home-pill-label this.appState.currentUser.supporter_role}}</span>
+    <span class="md-pillnav__pill is-active" aria-current="page">{{home-pill-label this.appState.currentUser.supporter_role this.appState.currentUser.has_management_responsibility}}</span>
   {{else}}
-    <LinkTo @route="user.home" @model={{@userName}} class="md-pillnav__pill">{{home-pill-label this.appState.currentUser.supporter_role}}</LinkTo>
+    <LinkTo @route="user.home" @model={{@userName}} class="md-pillnav__pill">{{home-pill-label this.appState.currentUser.supporter_role this.appState.currentUser.has_management_responsibility}}</LinkTo>
+  {{/if}}
+
+  {{! The org manager's Caseload pill — same markup, rendered AFTER Home so the original
+      order is preserved for them. Rendered here rather than by making the block above
+      position-aware, so each branch reads as one arrangement. }}
+  {{#if (and this.appState.currentUser.supporter_role this.appState.currentUser.has_management_responsibility)}}
+    {{#if (is-equal @active "caseload")}}
+      <span class="md-pillnav__pill is-active" aria-current="page">{{t "Caseload" key="caseload_pill"}}</span>
+    {{else}}
+      <LinkTo @route="caseload" class="md-pillnav__pill">{{t "Caseload" key="caseload_pill"}}</LinkTo>
+    {{/if}}
   {{/if}}
 
   {{#if this.appState.currentUser.has_management_responsibility}}
@@ -49,3 +66,36 @@
     <LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}} class="md-pillnav__pill md-pillnav__pill--account">{{t "Account" key="account"}}</LinkTo>
   {{/unless}}
 </nav>
+
+{{!-- COLLAPSED VARIANT (2026-08-16). This nav previously had NONE: below the swap
+     breakpoint the pill row was hidden and nothing replaced it, so Boards / Caseload /
+     Reports lost their primary navigation entirely at narrow widths — measured with
+     scripts/pillnav-narrow-qa.mjs before this was added, and the reason checklist item
+     J10 was re-opened.
+     Native <details>/<summary>, matching the account nav in templates/user.hbs and the
+     caseload variant, so the open state needs no component JS. It carries
+     `md-pillnav-dropdown--user` purely to inherit that details styling; the SHOW/HIDE
+     breakpoint comes from `--org-menu` (or its absence) below.
+     Mirrors the pill row above one-for-one, including the same role gates — a link that
+     is not offered as a pill must not appear here either. --}}
+<details class="md-pillnav-dropdown md-pillnav-dropdown--user {{if this.appState.currentUser.has_management_responsibility "md-pillnav-dropdown--org-menu"}}" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
+  <summary class="md-pillnav-dropdown__trigger" aria-haspopup="menu">
+    <span class="md-pillnav-dropdown__label">{{this.activeLabel}}</span>
+    <svg class="md-pillnav-dropdown__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+  </summary>
+  <ul class="md-pillnav-dropdown__list">
+    <li><LinkTo @route="user.home" @model={{@userName}} class="md-pillnav-dropdown__option {{if (is-equal @active "home") "is-active"}}">{{home-pill-label this.appState.currentUser.supporter_role this.appState.currentUser.has_management_responsibility}}</LinkTo></li>
+    {{#if this.appState.currentUser.supporter_role}}
+      <li><LinkTo @route="caseload" class="md-pillnav-dropdown__option {{if (is-equal @active "caseload") "is-active"}}">{{t "Caseload" key="caseload_pill"}}</LinkTo></li>
+    {{/if}}
+    {{#if this.appState.currentUser.has_management_responsibility}}
+      <li><LinkTo @route="organizations" class="md-pillnav-dropdown__option {{if (is-equal @active "organizations") "is-active"}}">{{t "Organizations" key="organizations"}}</LinkTo></li>
+    {{/if}}
+    <li><LinkTo @route="user.boards" @model={{@userName}} class="md-pillnav-dropdown__option {{if (is-equal @active "boards") "is-active"}}">{{t "Boards" key="boards"}}</LinkTo></li>
+    <li><LinkTo @route="user.stats" @model={{@userName}} @query={{hash highlighted=null start=null end=null location_id=null device_id=null split=null start2=null end2=null device_id2=null location_id2=null}} class="md-pillnav-dropdown__option {{if (is-equal @active "reports") "is-active"}}">{{t "Reports" key="reports"}}</LinkTo></li>
+    <li><LinkTo @route="user.extras" @model={{@userName}} class="md-pillnav-dropdown__option {{if (is-equal @active "extras") "is-active"}}">{{t "Extras" key="extras"}}</LinkTo></li>
+    {{#unless this.appState.currentUser.supporter_role}}
+      <li><LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}} class="md-pillnav-dropdown__option">{{t "Account" key="account"}}</LinkTo></li>
+    {{/unless}}
+  </ul>
+</details>

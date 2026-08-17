@@ -3834,13 +3834,40 @@ a.md-caseload__action {
     align-items: center;
     gap: 10px;
   }
-  /* Hide the goal/extras bottom row at this width — the empty-state
-     "No goal set | + Add goal" chip has nowrap content that overflows
-     the narrowed card, and the chevron is already swapped for the
-     "More Actions" tile at ≤950px. The goal area can be reached via
-     the per-supervisee Account / dropdown actions. */
+  /* SHOW the goal / badge bottom row here (2026-08-16, requested). It used to be
+     `display: none` at this width because the empty-state "No goal set | + Add goal" chip
+     is `white-space: nowrap` and overflowed the narrowed card.
+     THE OVERFLOW IS FIXED RATHER THAN HIDDEN, because hiding cost more than it saved:
+     this row carries BOTH the goal and the achievement badge, so on a phone a supporter
+     lost the goal entirely — and the caseload tour's badge step had no target to attach
+     to, which is what surfaced this.
+     Three things make it fit, none of which need a magic width:
+       1. the row stacks, so the goal block and the badge each get the full card width
+       2. `min-width: 0` on the goal chain — a flex item will NOT shrink below its content
+          without it, which is the actual reason a nowrap chip overflowed instead of
+          ellipsising. The chip already carries overflow:hidden + text-overflow:ellipsis;
+          it simply never got the chance to use them.
+       3. the goal row wraps, so "+ Add goal" (still nowrap, and it should stay that way —
+          a button reading "+ Add\ngoal" is worse than one on its own line) drops below
+          the label instead of forcing the row wider. */
   .md-caseload__bottom-row {
-    display: none !important;
+    display: flex !important;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    min-width: 0;
+  }
+  .md-caseload__bottom-row__goal,
+  .md-caseload__goal-row,
+  .md-caseload__goal {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .md-caseload__goal-row {
+    flex-wrap: wrap;
+  }
+  .md-caseload__goal-add {
+    align-self: flex-start;
   }
 }
 /* Mid-narrow screens (480px–640px) — keep the two columns but

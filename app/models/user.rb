@@ -1980,6 +1980,16 @@ class User < ApplicationRecord
       # remembered choice across sessions. Unset => each surface applies its own
       # default (board-detail dark, create-board-new light).
       'board_dark_mode',
+      # Boards-page arrangement: 'side-by-side' (Folders 1/4 left, Boards 3/4 right)
+      # or 'top-down' (the original stacked order). Persisted per USER, not per
+      # device, so the choice follows the user to a new login/browser — localStorage
+      # is only a same-device mirror for first paint (components/boards-layout-toggle.js).
+      # DELIBERATELY NO SERVER DEFAULT: absent means "never chosen" and the frontend
+      # constant (SIDE_BY_SIDE) is the single source of truth for the default. A server
+      # default here would be a second copy that can drift out of sync — the exact
+      # failure mode called out on 'dashboard_layout' above.
+      # Values are constrained on write by sanitize_boards_layout_preference!.
+      'boards_layout',
       # AI feature prefs (master + per-feature). Master nil = grandfather (allowed);
       # for EU under-16 without parental consent these are forced false on write.
       'ai_features_enabled', 'ai_board_generation', 'ai_word_prediction',
@@ -2284,6 +2294,9 @@ class User < ApplicationRecord
     # they fall back to client defaults (matching the frontend's own fallback),
     # rather than persisting arbitrary client-supplied JSON.
     sanitize_dashboard_preferences! if params['preferences']
+    # Boards-page arrangement is a separate concern from the dashboard grid, so it
+    # gets its own sanitizer rather than widening the dashboard one.
+    sanitize_boards_layout_preference! if params['preferences']
     # On INITIAL registration only, derive preferences.role from the
     # picked registration_type so the canonical app-wide gate
     # (preferences.role == 'supporter' → frontend `supporter_role`)
@@ -2580,6 +2593,20 @@ class User < ApplicationRecord
   # section-key whitelist on write. Unknown/garbage values are dropped, which
   # makes the client fall back to its defaults — matching the frontend's own
   # fallback behavior — instead of persisting arbitrary client JSON.
+  # Boards-page arrangement ('side-by-side' | 'top-down'). The stored value is echoed
+  # back to the client and drives a `data-boards-layout` attribute on <body>, so it is
+  # constrained to the two known variants on write — an unknown value is DROPPED rather
+  # than persisted, which makes the client fall back to its own default (SIDE_BY_SIDE),
+  # matching how dashboard_layout behaves.
+  BOARDS_LAYOUT_VALUES = ['side-by-side', 'top-down']
+  def sanitize_boards_layout_preference!
+    prefs = self.settings['preferences']
+    return unless prefs.is_a?(Hash)
+    if prefs.has_key?('boards_layout') && !BOARDS_LAYOUT_VALUES.include?(prefs['boards_layout'])
+      prefs.delete('boards_layout')
+    end
+  end
+
   def sanitize_dashboard_preferences!
     prefs = self.settings['preferences']
     return unless prefs.is_a?(Hash)

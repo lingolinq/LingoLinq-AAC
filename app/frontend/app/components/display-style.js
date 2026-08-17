@@ -2,7 +2,7 @@ import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { observer } from '@ember/object';
 import i18n from '../utils/i18n';
-import { availableHomeSections, sectionHidden, sectionLabel, sectionsMapFor, HOME_SECTIONS, EXTRA_HOME_TOGGLES, gridLayoutState, reorderInsert, reorderForFocused, defaultOrderFor, focusedHeroKey } from '../utils/dashboard_sections';
+import { availableHomeSections, sectionHidden, sectionLabel, sectionsMapFor, HOME_SECTIONS, EXTRA_HOME_TOGGLES, layoutPresentation, reorderInsert, reorderForFocused, defaultOrderFor } from '../utils/dashboard_sections';
 
 // Centered-step show hook — toggles the body flag the CSS uses to scope the
 // "paused" backdrop blur to centered (non-anchored) modal steps, mirroring
@@ -447,10 +447,113 @@ function _applyLayoutClasses(root, layout) {
 // scaled down — a 15-person caseload made it so tall that fitting it left a narrow strip.
 // Three rows show what the list looks like in each style while keeping the preview large.
 var PREVIEW_MAX_ROSTER_ROWS = 3;
+// Extra height allowed below the measured ink box when sizing a preview panel. The ink box
+// is measured from LEAF elements, so a trailing border/shadow/padding on the last card sits
+// just outside it; without this the final row renders visibly clipped.
+var PREVIEW_FIT_BLEED = 16;
+// How long to wait before the authoritative fit + reveal. Covers the modal's entrance
+// animation and the iframes' first layout; the existing 60ms settle pass in the show hook
+// still runs before it and is simply invisible.
+var PREVIEW_SETTLE_MS = 320;
+
+// Re-pack a cloned dashboard grid FOR THE LAYOUT UNDER PREVIEW.
+//
+// WHY THIS EXISTS: a clone carries the live grid's INLINE `grid-template-areas` /
+// `-rows` / `-columns`, which authenticated-view#gridStyle computed for whichever layout
+// is currently saved — and it writes them `!important`. `_applyLayoutClasses` above swaps
+// the CSS classes, but a class cannot beat an inline !important, so both style previews
+// rendered the CURRENT layout's packing with only the other layout's colour and chrome.
+// Viewed from Gentle, the "Focused" preview was Focused paint on a Gentle grid; viewed
+// from Focused, the reverse. The previews therefore disagreed with the real page, which
+// makes them useless for exactly the decision they exist to support.
+//
+// A preview can never be a straight copy of the live page: it shows the layout the user
+// is NOT in, so every layout-dependent input must be re-derived. That derivation lives in
+// dashboard_sections#layoutPresentation — ONE description of a layout, called by the live
+// page and by both previews. These two functions only APPLY it to a DOM subtree.
+//
+// Apply a layout presentation's GRID state to a grid element: the layout class, the
+// engine-driven state classes, the inline template, and the reading-order vars.
+//
+// Shared by BOTH preview surfaces (the style-preview iframes and the Dashboard Design
+// live clone) so neither can forget a step the other remembers. It previously mattered:
+// the modal clone's stale-class sweep omitted `md-grid--hero-`, so switching Focused →
+// Gentle left a hero class on the clone that the live page would not have.
+function _applyGridPresentation(gridEl, pres) {
+  if (!gridEl || !pres || !pres.grid) { return; }
+  ['gentle', 'focused'].forEach(function(name) {
+    gridEl.classList.toggle('md-grid--layout-' + name, pres.layout === name);
+  });
+  // Engine-driven state classes are recomputed, not inherited — `md-grid--fullspan-*`,
+  // `--boards-full`, `--with-*` and the hero class all key off the layout, and a stale
+  // one from the live page would style the preview for the wrong arrangement.
+  Array.prototype.slice.call(gridEl.classList).forEach(function(c) {
+    if (/^md-grid--(boards-full|boards-right|with-caseload|with-org-mgmt|fullspan-|hero-)/.test(c)) { gridEl.classList.remove(c); }
+  });
+  pres.grid.classes.forEach(function(c) { gridEl.classList.add(c); });
+  gridEl.style.setProperty('grid-template-areas', pres.grid.areasValue, 'important');
+  gridEl.style.setProperty('grid-template-rows', pres.grid.rows, 'important');
+  // Focused View pins the column count to the visible utility-card count so the utility
+  // row fills evenly; Gentle View hands columns back to the CSS.
+  if (pres.grid.columns) { gridEl.style.setProperty('grid-template-columns', pres.grid.columns, 'important'); }
+  else { gridEl.style.removeProperty('grid-template-columns'); }
+  // Mirror the reading-order vars so the clone's small-screen fallback orders cards the
+  // same as the real grid (inert above 950px).
+  var oi = pres.grid.orderIndices || {};
+  Object.keys(oi).forEach(function(k) { gridEl.style.setProperty('--ord-' + k, oi[k]); });
+}
+
+// HIDE THE CARDS THE LAYOUT DOES NOT INCLUDE. Re-packing the grid is only half the job:
+// a clone still contains every card the live page rendered, and a card that is not named
+// in the areas is placed OUTSIDE the explicit grid, where the browser gives it an implicit
+// row of its own. Focused View drops Extras, so the Focused preview showed an Extras card
+// the real Focused page does not have — stretched full-width by the unplaced-card safety
+// rule in app.scss.
+//
+// `display: none !important` because the speak/caseload wide/narrow variants are toggled
+// by `display: ... !important` media rules, which a plain inline `display:none` loses to.
+function _applyCardVisibility(root, pres) {
+  var apply = function(cardClass, on) {
+    Array.prototype.forEach.call(root.querySelectorAll('.' + cardClass), function(card) {
+      if (on) { card.style.removeProperty('display'); }
+      else { card.style.setProperty('display', 'none', 'important'); }
+    });
+  };
+  HOME_SECTIONS.forEach(function(sec) {
+    if (pres.vis[sec.key] === undefined) { return; }
+    apply(sec.cardClass, pres.vis[sec.key]);
+  });
+  EXTRA_HOME_TOGGLES.forEach(function(t) {
+    if (pres.toggles[t.key] === undefined) { return; }
+    apply(t.cardClass, pres.toggles[t.key]);
+  });
+}
+
+function _applyLayoutGrid(root, layout) {
+  var grid = root.classList && root.classList.contains('md-grid--dashboard')
+    ? root : root.querySelector('.md-grid--dashboard');
+  if (!grid) { return; }
+  try {
+    // Same user the modal's live-clone path resolves: the referenced user when a
+    // supporter is editing someone else's dashboard, otherwise the signed-in user.
+    // Read through window.LingoLinq because this is a module-level helper with no `this`.
+    var app = (typeof window !== 'undefined' && window.LingoLinq) ? window.LingoLinq.appState : null;
+    var user = app ? (app.get('referenced_user') || app.get('currentUser')) : null;
+    if (!user) { return; }
+    // The drag-flag gate travels WITH the user now. Reading the saved order without it
+    // (which this path did) packed the previews in an order the real page would not use.
+    var pres = layoutPresentation(user, layout, {
+      dragEnabled: !!(app && app.get('feature_flags.dashboard_drag_layout'))
+    });
+    _applyGridPresentation(grid, pres);
+    _applyCardVisibility(root, pres);
+  } catch (e) { /* decorative — a failed re-pack must not break the chooser */ }
+}
 
 function _previewChainHtml(shell, layout) {
   var deep = shell.cloneNode(true);
   _applyLayoutClasses(deep, layout);
+  _applyLayoutGrid(deep, layout);
   // Trim the roster. Done on the CLONE only — the live page is untouched.
   Array.prototype.forEach.call(deep.querySelectorAll('.md-caseload__list'), function(list) {
     var rows = list.querySelectorAll(':scope > .md-caseload__list-row');
@@ -671,7 +774,11 @@ function _fitStylePreviews(el) {
     frame.style.top = '-' + Math.round(box.top * scale) + 'px';
     var panelW = Math.round(vw * scale);
     wrap.style.width = panelW + 'px';
-    wrap.style.height = Math.round(box.height * scale) + 'px';
+    // BOTTOM BLEED. The frame gets `box.bottom + 8` above, but the visible panel was sized
+    // to the bare ink height — so a card's border, shadow or padding just past its last
+    // measured leaf was shaved, and the last row read as cut off. 16px matches the bleed
+    // the ink-box technique calls for at the bottom (8 top / 16 bottom).
+    wrap.style.height = Math.round((box.height + PREVIEW_FIT_BLEED) * scale) + 'px';
     // Match the caption to the panel so `text-align: center` centres it under the PANEL
     // rather than under the wider figure (see the caption rule in app.scss).
     var cap = wrap.parentElement && wrap.parentElement.querySelector('.md-ds-stylepreview__caption');
@@ -704,6 +811,30 @@ function _buildStylePreviews(el) {
   // Fit AFTER every frame is written: the shared scale is derived from the tallest of
   // them, so it cannot be computed one preview at a time.
   try { _fitStylePreviews(el); } catch (e) { /* decorative */ }
+  // FIT LATE, BUT HIDDEN UNTIL IT LANDS.
+  //
+  // These two requirements pull against each other and both are real:
+  //  - measuring EARLY under-reads the ink box (the frame has not finished laying out
+  //    after `document.write`, and fonts + the re-packed grid arrive a frame or two
+  //    later), which clips the last row;
+  //  - measuring LATE is accurate, but every fit rewrites the frame size, transform and
+  //    panel dimensions — so a pass that lands after the modal has settled is visible, and
+  //    reads as the preview jumping on its own.
+  // Removing the late pass fixed the jump and brought back a WORSE clip, which is the
+  // evidence that the late measurement is the accurate one. So it stays, and the panels
+  // are simply not shown until it has run.
+  //
+  // `visibility`, not `display` or `opacity: 0` + reflow: hidden elements still occupy
+  // their box, so the fit can size them while they are invisible and the modal's layout
+  // does not shift when they appear.
+  var _viewports = function() {
+    return Array.prototype.slice.call(el.querySelectorAll('.md-ds-stylepreview__viewport'));
+  };
+  _viewports().forEach(function(v) { v.style.visibility = 'hidden'; });
+  setTimeout(function() {
+    try { _fitStylePreviews(el); } catch (e) { /* decorative */ }
+    _viewports().forEach(function(v) { v.style.visibility = ''; });
+  }, PREVIEW_SETTLE_MS);
 }
 
 // Swap the preview content. Removes the existing page first so switching styles
@@ -1008,46 +1139,29 @@ function _onDisplayShow(component) {
       // changes, so a captured reference would go stale.
       gridEl = liveEl && liveEl.querySelector('.md-ds-preview__clone');
       var layout = currentLayout();
-      var vis = readVis();
-      // Focused View never shows Extras — Speak becomes the full-width hero instead.
-      // Force it off before card-hide + layout so the clone matches the real page.
-      if (layout === 'focused') { vis.extras = false; }
+      // The shared layout description, given this modal's LIVE state rather than saved
+      // preferences: `vis` comes from the checkboxes the user is toggling right now and
+      // `order` from the drag in progress. Everything else — the forced-off Extras on
+      // Focused View, the drag-flag gate, the hero, the grid matrix — is derived in one
+      // place that the live page and the style-preview iframes also call.
+      var pres = layoutPresentation(previewUser, layout, {
+        vis: readVis(),
+        order: order,
+        dragEnabled: flagOn
+      });
       if (liveEl && gridEl) {
-        // Reflect the selected display style on the clone so layout-scoped CSS
-        // (e.g. the Focused View full-width Speak hero's doubled height) applies to
-        // the preview too — the clone inherits the live grid's layout class, so
-        // it must be re-stamped when the user switches styles.
-        ['gentle', 'focused'].forEach(function(name) {
-          gridEl.classList.toggle('md-grid--layout-' + name, layout === name);
-        });
+        // Reflect the selected display style on the clone so layout-scoped CSS (e.g. the
+        // Focused View full-width Speak hero's doubled height) applies to the preview too.
+        _applyGridPresentation(gridEl, pres);
         HOME_SECTIONS.forEach(function(s) {
-          if (vis[s.key] === undefined) { return; }
-          setCardDisplay(s.cardClass, vis[s.key]);
+          if (pres.vis[s.key] === undefined) { return; }
+          setCardDisplay(s.cardClass, pres.vis[s.key]);
         });
         // Non-grid toggles (welcome hero): gentleOnly ones never show on Focused View.
         EXTRA_HOME_TOGGLES.forEach(function(t) {
-          if (vis[t.key] === undefined) { return; }
-          var on = vis[t.key] && !(t.gentleOnly && layout === 'focused');
-          setCardDisplay(t.cardClass, on);
+          if (pres.toggles[t.key] === undefined) { return; }
+          setCardDisplay(t.cardClass, pres.toggles[t.key]);
         });
-        var state = gridLayoutState(vis, flagOn ? order : null, layout, focusedHeroKey(previewUser));
-        // Reconcile ALL engine-driven state classes (boards-full + the gentle
-        // per-card md-grid--fullspan-<key>) so the preview matches the real grid:
-        // strip the current set, then add the computed one.
-        Array.prototype.slice.call(gridEl.classList).forEach(function(c) {
-          if (/^md-grid--(boards-full|boards-right|with-caseload|with-org-mgmt|fullspan-)/.test(c)) { gridEl.classList.remove(c); }
-        });
-        state.classes.forEach(function(c) { gridEl.classList.add(c); });
-        gridEl.style.setProperty('grid-template-areas', state.areasValue, 'important');
-        gridEl.style.setProperty('grid-template-rows', state.rows, 'important');
-        // Focused View pins the column count to the visible utility-card count so
-        // the utility row fills evenly; Gentle View hands columns back to the CSS.
-        if (state.columns) { gridEl.style.setProperty('grid-template-columns', state.columns, 'important'); }
-        else { gridEl.style.removeProperty('grid-template-columns'); }
-        // Mirror the reading-order vars so the clone's small-screen fallback orders
-        // cards the same as the real grid (inert above 950px).
-        var _oi = state.orderIndices || {};
-        Object.keys(_oi).forEach(function(k) { gridEl.style.setProperty('--ord-' + k, _oi[k]); });
         // Stamp the live order back so the persist step can read it.
         liveEl.setAttribute('data-gst-order', JSON.stringify(order));
       }

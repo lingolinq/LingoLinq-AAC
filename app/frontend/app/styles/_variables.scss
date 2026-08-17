@@ -528,8 +528,19 @@ $focus-pill-accent-to:   $focus-accent;
 // contrast-engineered and must NOT follow the fill.
 // Points, not a multiplier, matching the quick-action `$sat` convention in
 // _focused-view.scss: S 32.37% -> 22.37% and 64.22% -> 54.22%.
-$focus-pill-active-from: color.adjust($focus-accent-from, $saturation: -10%);    // #8094AF
-$focus-pill-active-to:   color.adjust($focus-pill-accent-to, $saturation: -10%); // #5788CD
+// DARKENED 20% (2026-08-16) so the WHITE label on the active pill clears AA. Measured on
+// the live page, white on the undarkened pill was 3.10:1 at the lighter stop and 3.62:1 at
+// the darker — both under the 4.5:1 floor for the 15px/600 label.
+// 20% IS THE MINIMUM, not a taste call: -5% lands at 3.44, -10% at 3.83, -15% at 4.23,
+// -20% at 4.71. Re-measure before reducing it. (-25% would give 5.23 if more headroom is
+// wanted.) Keeping white ink was the explicit choice here — dark ink on the original
+// gradient also cleared, but read as harder to scan.
+// These tokens are FOCUSED-VIEW ONLY (every consumer is in _focused-view.scss or the
+// `.md-shell--layout-focused` rule in app.scss), so Gentle View's pill-nav is unaffected.
+// The focused TAB STRIP and the pill hover variants derive from the same two tokens and
+// move with them by design — that is what keeps the nav and the strip one surface.
+$focus-pill-active-from: color.scale(color.adjust($focus-accent-from, $saturation: -10%), $lightness: -20%);    // #8094AF -> #5E7595
+$focus-pill-active-to:   color.scale(color.adjust($focus-pill-accent-to, $saturation: -10%), $lightness: -20%); // #5788CD -> #366AB4
 
 // — Focused Boards card surface —
 // Cool blue-gray glass tints (used with alpha over the shell gradient).
@@ -566,3 +577,102 @@ $caseload-speak-denim:      #3A83EA;  // $brand-dusty-denim,   S 64.2% → 80.3%
 $caseload-reports-sage:     #48865E;  // $color-sage-dark,     S 24.3% → 30.3%
 $caseload-ideas-champagne:  #D3B070;  // $brand-soft-fawn,     S 42.2% → 52.8%
 $caseload-model-blue-aa:    #2880C9;  // border only — $brand-dusty-denim-aa rotated the same
+
+// FOCUSED-VIEW quick-action tiles — LITERAL gradient stops (2026-08-16, Traci's palette).
+// These five tiles no longer DERIVE their fill from the source hues above; the stops are
+// stated outright, so what ships is what was chosen. The sources above are still live for
+// everything else that reads them (the setup badge, the avatar placeholder disc, Gentle
+// View), which is why they are not touched here.
+//
+// ⚠️ CONTRAST — measured against $la-navy (#1B365D), the ink these tiles use, at the
+// 14px/700 label size (below the 18.66px-bold large-text allowance, so the 4.5:1 AA floor
+// applies, not 3:1):
+//     Model   4.88 / 3.55     Speak   5.14 / 3.69     Reports  4.90 / 3.48
+//     Ideas   6.57 / 4.48     More    7.08 / 5.25          (light stop / dark stop)
+// FOUR DARK STOPS ARE BELOW 4.5:1. On a radial the label sits over the centre, so the
+// lighter number is the one the text mostly rides — but this row previously held BOTH
+// stops above the floor (worst case 6.73:1), and glyph strokes do reach the edge.
+// The AA-safe dark stops, each the darkest value on the same ramp that reaches 4.5:1:
+//     Model #75A3CC   Speak #8E9DC7   Reports #71AA87   Ideas #BE9947   More unchanged
+// Swap the `-to` values below for those to bring the set back over the floor.
+// MIDDLE-GROUND palette (2026-08-16, 5th iteration) — 145deg diagonal ramp under a faint
+// gloss. Muted brand families: the previous light set was clean but pastel, and the deep
+// set before it forced two different inks. These sit between the two.
+//
+// MODELING IDEAS IS THE REAL CORRECTION: Honey Bronze lightened next to blue, indigo and
+// green reads as Easter yellow, so it moves to the SOFT FAWN hue (43.3deg). Measured, it
+// is now in family rather than the outlier it was — saturation 32.5/23.9 against a row of
+// 17.4-41.4, where the previous version sat at 77.8/69.7.
+//
+// INK is $brand-blue-black (#111A2E) on all five, not LA Navy — a touch deeper, which is
+// what lets the fills be this muted without the labels softening.
+// Measured ink-on-fill at 14px/700 (4.5:1 floor), top corner / bottom corner:
+//   Model 8.63/6.27   Speak 6.64/4.41   Reports 8.24/5.35   Ideas 8.83/6.19   More 9.46/6.79
+// Only Speak's BOTTOM CORNER is under the floor. The label sits mid-ramp, where it
+// measures 5.45:1; #7681A9 would clear the corner too if that matters.
+// BORDERS are derived, not stated: each is its bottom stop darkened L-11.5, which is the
+// same relationship the previous palette's stated borders had (measured L-10.7 average).
+$caseload-tile-model-from:    #A1B9D8;  // Muted Dusty Denim
+$caseload-tile-model-to:      #7D9EC7;
+$caseload-tile-model-border:  #547FB5;
+$caseload-tile-speak-from:    #969FC3;  // Professional slate-indigo
+// Bottom stop lifted 5% toward the top stop (2026-08-16). At #747FA8 the tile's BOTTOM
+// CORNER measured 4.41:1 against the #111A2E ink — the only part of any tile in this row
+// under the 4.5 floor. The label itself was never at risk (it sits mid-ramp at 5.45, and
+// the live page measured the rendered label at 4.54), so this is not a legibility fix; it
+// is so an automated audit sampling the darkest pixel cannot flag the button.
+// Now: corner 4.53, label 5.51. The lift is invisible beside its neighbours.
+$caseload-tile-speak-to:      #7681A9;
+$caseload-tile-speak-border:  #57628B;
+$caseload-tile-reports-from:  #91BBB5;  // Muted Verdigris
+$caseload-tile-reports-to:    #68988F;
+$caseload-tile-reports-border:#50756E;
+$caseload-tile-ideas-from:    #C7B891;  // Soft Fawn / bronze — NOT yellow
+$caseload-tile-ideas-to:      #A99973;
+$caseload-tile-ideas-border:  #8C7C56;
+$caseload-tile-more-from:     #B8C0CD;  // Neutral blue-grey
+$caseload-tile-more-to:       #98A3B3;
+$caseload-tile-more-border:   #76859A;
+$caseload-tile-ink:           $brand-blue-black;
+$caseload-tile-model-ink:     $caseload-tile-ink;
+$caseload-tile-speak-ink:     $caseload-tile-ink;
+$caseload-tile-reports-ink:   $caseload-tile-ink;
+$caseload-tile-ideas-ink:     $caseload-tile-ink;
+$caseload-tile-more-ink:      $caseload-tile-ink;
+
+// FOCUSED-VIEW caseload BADGE inks (2026-08-16). Each badge is a translucent wash of its
+// own hue with a DARKENED version of that hue as ink — a badge tinted amber but inked
+// navy reads as two systems bolted together, which was half of the "muddy" problem.
+// Ratios are measured on the composite (fill over the white row), 12px/650 => 4.5:1 floor:
+//   teal ink on the 0.22 verdigris wash  5.67:1
+//   amber ink on the 0.45 honey wash     5.83:1   icon 7.07:1
+// BADGE TRIPLES (2026-08-16, Traci's palette). Stated as ink / fill / border rather than
+// derived, and every family is a tint of an existing BRAND colour — the previous green and
+// beige were unrelated to the brand, which is what made them read as muddy.
+// Solid, not translucent: a stated hex is what ships regardless of what the row behind it
+// does. Still flat — no gradients — which is what separates a badge from a glossy tile.
+// Ink-on-fill measured at the 12px/650 label size (4.5:1 floor):
+//   Editor 5.57   Eval 6.45   Board needed 6.17   Modeling 7.15   Viewer 10.14
+// Neutralised a step (2026-08-16) so the row does not carry yet another pastel.
+$caseload-badge-role-ink:      #315D5E;  // Verdigris family — role
+$caseload-badge-role-bg:       #D5E3E2;
+$caseload-badge-role-border:   #9AB8B5;
+// DESATURATED + HUE-SHIFTED 2026-08-16 (Focused View only). It measured S 86.7 against a
+// badge set running 17.9-68.9 — 18 points above the loudest other badge (Board needed,
+// 68.9) and more than 4x the quietest. Now S 48, which sits inside the set: still the one
+// warm chip, no longer the loudest thing in the row.
+// The hue also moves 44.3 -> 43deg, onto SOFT FAWN, matching the Modeling Ideas tile after
+// its own yellow->fawn correction, so the two warm elements on the page agree.
+// Lightness is HELD, so the ink keeps its headroom: 6.45:1 (was 6.85), floor 4.5.
+$caseload-badge-attn-ink:      #5F4B18;  // Soft Fawn family — attention
+$caseload-badge-attn-bg:       #ECE1C8;
+$caseload-badge-attn-border:   #C4B07E;
+$caseload-badge-attn-icon:     #4A350A;  // warning glyph, still a step darker than the label
+$caseload-badge-sel-ink:       #234F9D;  // Dusty Denim family — selected / current state
+$caseload-badge-sel-bg:        #D9E5F8;
+$caseload-badge-sel-border:    #83A8DF;
+// MODELING follows the SPEAK tile per the earlier request; Speak is now Smart Blue, so
+// this is a tint of that rather than of denim, which keeps it distinct from Board-needed.
+$caseload-badge-model-ink:     #26407F;
+$caseload-badge-model-bg:      #D2DBF3;
+$caseload-badge-model-border:  #95ABE2;

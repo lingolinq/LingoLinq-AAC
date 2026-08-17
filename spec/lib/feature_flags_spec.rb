@@ -161,4 +161,69 @@ describe FeatureFlags do
       expect(FeatureFlags.compliance_workflow_kernel_enabled?).to eq(true)
     end
   end
+
+  describe "boards_layout preference" do
+    # The Boards-page arrangement is persisted per USER so the choice follows them to a
+    # new login. Two things have to hold for that: the key must be in the preference
+    # whitelist (User#process_params drops anything else SILENTLY — the pref would look
+    # saved client-side and be gone on reload), and the value must be constrained.
+    it "is an accepted user preference" do
+      expect(User::PREFERENCE_PARAMS).to include('boards_layout')
+    end
+
+    it "persists a known value" do
+      u = User.create
+      u.process({'preferences' => {'boards_layout' => 'top-down'}})
+      expect(u.settings['preferences']['boards_layout']).to eq('top-down')
+      u.process({'preferences' => {'boards_layout' => 'side-by-side'}})
+      expect(u.settings['preferences']['boards_layout']).to eq('side-by-side')
+    end
+
+    it "DROPS an unknown value rather than storing client JSON" do
+      u = User.create
+      u.process({'preferences' => {'boards_layout' => 'top-down'}})
+      u.process({'preferences' => {'boards_layout' => 'diagonal'}})
+      expect(u.settings['preferences']['boards_layout']).to eq(nil)
+    end
+
+    it "stores no server-side default — absent means the client default applies" do
+      u = User.create
+      expect(u.settings['preferences']['boards_layout']).to eq(nil)
+    end
+  end
+
+  describe "flag list invariants" do
+    # A flag forced on for everyone but never registered as available is a typo that
+    # frontend_flags_for silently swallows: the intersection with the available pool
+    # is what reaches the client, so the misspelled flag is simply never true and the
+    # feature looks broken with nothing logged.
+    it "every enabled frontend feature is also registered as available" do
+      unregistered = FeatureFlags::ENABLED_FRONTEND_FEATURES - FeatureFlags::AVAILABLE_FRONTEND_FEATURES
+      expect(unregistered).to eq([]), "enabled but not available (typo?): #{unregistered.inspect}"
+    end
+
+    it "registers no duplicates in either list" do
+      %w[AVAILABLE_FRONTEND_FEATURES ENABLED_FRONTEND_FEATURES].each do |list_name|
+        list = FeatureFlags.const_get(list_name)
+        dups = list.select { |f| list.count(f) > 1 }.uniq
+        expect(dups).to eq([]), "#{list_name} has duplicates: #{dups.inspect}"
+      end
+    end
+  end
+
+  describe "boards_side_by_side_layout" do
+    # TRIPWIRE, not a preference. This flag is TEMPORARILY forced on for everyone
+    # (2026-08-16) so the Boards-page layout selector is visible for design comparison
+    # without a per-user opt-in. Turning it off before production go-live means REMOVING
+    # it from ENABLED_FRONTEND_FEATURES — at which point the second expectation below
+    # fails and this spec must be updated to the "available but OFF by default" shape
+    # used by compliance_workflow_kernel above. The failure is the reminder.
+    it "is registered as available" do
+      expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).to include('boards_side_by_side_layout')
+    end
+
+    it "is currently forced ON for everyone — remove from ENABLED before go-live" do
+      expect(FeatureFlags::ENABLED_FRONTEND_FEATURES).to include('boards_side_by_side_layout')
+    end
+  end
 end

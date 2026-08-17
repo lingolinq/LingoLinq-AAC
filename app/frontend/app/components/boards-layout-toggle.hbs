@@ -36,6 +36,13 @@
       <rect x="3" y="4" width="18" height="6" rx="1"/>
       <rect x="3" y="14" width="18" height="6" rx="1"/>
     </svg>
-    {{t "Top down" key="boards_layout_top_down"}}
+    {{!-- LABEL ONLY. The stored value stays `top-down` (TOP_DOWN in the .js, the
+         `data-boards-layout` attribute, ~6 selectors in app.scss and the server-side
+         preference constraint) — renaming that would invalidate every saved preference and
+         silently drop users back to the default layout.
+         NEW KEY, not a re-worded `boards_layout_top_down`: that key is already translated
+         as "Top down" in the other locale files, so reusing it would show the old wording
+         everywhere except English. --}}
+    {{t "Stacked view" key="boards_layout_stacked_view"}}
   </button>
 </span>
