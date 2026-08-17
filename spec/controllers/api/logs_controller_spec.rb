@@ -119,6 +119,47 @@ describe Api::LogsController, :type => :controller do
       expect(json['meta']['next_url']).to eq(nil)
     end
 
+    it "should not return a supporter's supervisees' logs to a caller with no relationship to them" do
+      # Same defect class as the badge-progress leak, on communication content.
+      # The caller manages an org that S belongs to, which grants `supervise` on
+      # S (user.rb:87). S separately supervises a communicator OUTSIDE that org --
+      # a contracting SLP with a private caseload. Before the per-supervisee
+      # check, ?user_id=<S>&supervisees=true returned that child's logs.
+      token_user
+      supporter = User.create
+      outside = User.create
+
+      org = Organization.create(:settings => {'total_licenses' => 2})
+      org.add_manager(@user.user_name, true)
+      org.add_user(supporter.user_name, false, false)
+      supporter.reload
+      @user.reload
+
+      User.link_supervisor_to_user(supporter, outside)
+      d = Device.create(:user => outside)
+      3.times do |i|
+        LogSession.process_new({
+          :events => [
+            {'timestamp' => (i.days.ago + i).to_i, 'type' => 'button', 'button' => {'label' => 'private', 'board' => {'id' => '1_1'}}}
+          ]
+        }, {:user => outside, :device => d, :author => outside})
+      end
+      Worker.process_queues
+
+      # Preconditions, so this cannot pass vacuously: the caller DOES reach the
+      # endpoint (holds supervise on the supporter), and does NOT hold supervise
+      # on the third-party communicator.
+      expect(supporter.reload.allows?(@user.reload, 'supervise')).to eq(true)
+      expect(outside.reload.allows?(@user, 'supervise')).to eq(false)
+      expect(supporter.reload.supervisees.map(&:global_id)).to eq([outside.global_id])
+
+      get :index, params: {:user_id => supporter.global_id, :supervisees => true}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['log'].map{|l| l['author']['id'] }).to_not include(outside.global_id)
+      expect(json['log']).to eq([])
+    end
+
     it "should not return supervisee sessions that are before the user's login_cutoff" do
       users = [User.create, User.create, User.create]
       token_user
