@@ -20,7 +20,13 @@ import * as QUnit from 'qunit';
  * utils/app_state.js is a Proxy onto it, so this is the same instance the rest of
  * the controller already used — not a second one).
  *
- * The third test is the one that matters: it fails on the old dependency key.
+ * Compare `sessionUser.global_id`, not `.id`. The network load path pins
+ * sessionUser.id to the literal 'self' (serializers/application.js); the author's
+ * id is a real global id. Matching those hides Resume from the eval's own author.
+ * eval-workbook.js#isAuthor already uses this gate.
+ *
+ * The third test is the one that matters for the old dependency key. The 'self'
+ * tests are the ones that matter for the id-vs-global_id comparison.
  */
 QUnit.module('Unit | user/log same_author', function(hooks) {
   setupTest(hooks);
@@ -43,10 +49,14 @@ QUnit.module('Unit | user/log same_author', function(hooks) {
     if (app) { app.set('sessionUser', this._priorSessionUser || null); }
   });
 
-  function setup(owner, authorId, sessionId) {
+  function setup(owner, authorId, sessionId, globalId) {
     const controller = owner.lookup('controller:user/log');
     const app = owner.lookup('service:app-state');
-    app.set('sessionUser', sessionId ? EmberObject.create({ id: sessionId }) : null);
+    var sessionAttrs = sessionId ? { id: sessionId } : null;
+    if (sessionAttrs && globalId !== undefined) {
+      sessionAttrs.global_id = globalId;
+    }
+    app.set('sessionUser', sessionAttrs ? EmberObject.create(sessionAttrs) : null);
     controller.set('model', EmberObject.create({ author: EmberObject.create({ id: authorId }) }));
     return { controller, app };
   }
@@ -79,6 +89,44 @@ QUnit.module('Unit | user/log same_author', function(hooks) {
       'switching to a non-author must invalidate the computed — a stale true here is the bug this key fixes');
 
     app.set('sessionUser', EmberObject.create({ id: '1_24' }));
+
+    assert.true(!!controller.get('same_author'), 'and back again');
+  });
+
+  /*
+   * Production path: serializers/application.js pins sessionUser.id to 'self'.
+   * The existing tests above stub a real id, which is the local-storage load
+   * path — they would pass on the broken `.id` comparison. These would not.
+   */
+  QUnit.test("true when sessionUser.id is 'self' and global_id matches the author", function(assert) {
+    const { controller } = setup(this.owner, '1_24', 'self', '1_24');
+    assert.true(!!controller.get('same_author'),
+      'the author must be offered Resume Evaluation while the session record is keyed self');
+  });
+
+  QUnit.test("false when sessionUser.id is 'self' and global_id belongs to someone else", function(assert) {
+    const { controller } = setup(this.owner, '1_24', 'self', '1_33');
+    assert.false(!!controller.get('same_author'),
+      'a non-author keyed as self must not be offered Resume Evaluation');
+  });
+
+  QUnit.test("false when sessionUser.id is 'self' and global_id is missing", function(assert) {
+    const { controller } = setup(this.owner, '1_24', 'self', undefined);
+    assert.false(!!controller.get('same_author'),
+      'the self sentinel is not an identity — fail closed until global_id is known');
+  });
+
+  QUnit.test("recomputes when switching between two 'self'-keyed session users", function(assert) {
+    const { controller, app } = setup(this.owner, '1_24', 'self', '1_24');
+
+    assert.true(!!controller.get('same_author'), 'starts true for the author');
+
+    app.set('sessionUser', EmberObject.create({ id: 'self', global_id: '1_33' }));
+
+    assert.false(!!controller.get('same_author'),
+      'switching to a different self-keyed user must invalidate — watching only .id would keep the stale true because both ids are the string self');
+
+    app.set('sessionUser', EmberObject.create({ id: 'self', global_id: '1_24' }));
 
     assert.true(!!controller.get('same_author'), 'and back again');
   });

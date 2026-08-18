@@ -289,8 +289,8 @@
             "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
           },
           {
-            "title": "AI Data-Flow Classification",
-            "location": "docs/legal/AI_DATA_FLOW_CLASSIFICATION.md"
+            "title": "AI Data-Flow Classification (2026-08-17 successor)",
+            "location": "docs/legal/2026-08-17_ai-data-flow-classification.md"
           },
           {
             "title": "Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT)",
@@ -331,8 +331,8 @@
             "location": "docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md"
           },
           {
-            "title": "AI Data-Flow Classification",
-            "location": "docs/legal/AI_DATA_FLOW_CLASSIFICATION.md"
+            "title": "AI Data-Flow Classification (2026-08-17 successor)",
+            "location": "docs/legal/2026-08-17_ai-data-flow-classification.md"
           },
           {
             "title": "AI Governance Memo",
@@ -415,8 +415,8 @@
             "location": "docs/legal/2026-08-09_data-retention_draft.md"
           },
           {
-            "title": "AI Data-Flow Classification",
-            "location": "docs/legal/AI_DATA_FLOW_CLASSIFICATION.md"
+            "title": "AI Data-Flow Classification (2026-08-17 successor)",
+            "location": "docs/legal/2026-08-17_ai-data-flow-classification.md"
           }
         ],
         "gaps": [
@@ -962,7 +962,7 @@
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-0387973005",
       "id": "DOC-f850df36ad",
-      "contentHash": "ba856961157d936be3cf0eb91803c927203e101f6e4649d45b6d81f211e5b08c"
+      "contentHash": "1c4307aaa6f67fb475c6a5459a81c0b8245b709174d4b8268eef9a719cfcf0a8"
     },
     {
       "title": "COPPA Final-Rule Verification",
@@ -1527,7 +1527,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "cf7182ce8d764b495ec0d4cc333f9e2a20cec9c6da38c3a2299669aeb2e3e570",
+      "contentHash": "48ecb1bf3bdc7c6da45c4f30aec55b9f88e5f9e247a307794dff025e512c32ef",
       "bundles": [],
       "mirrors": [
         {
@@ -2835,7 +2835,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/AI_DATA_FLOW_CLASSIFICATION.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -2856,11 +2856,7 @@
         "note": "Re-attested 2026-08-08 by Scot Wahlquist, CEO, against sha256 8c1479578f6bce46 which he was shown and explicitly confirmed before this pin was written. This remains a PROVISIONAL attestation: outside-counsel review is deferred until the full 5-phase VPC is built. Scope of this pin covers two corrections. FIRST, the section 3 runtime operational-status note asserted the Bedrock path had been not operational since revision 00014-5rw (2026-08-04T06:31:46Z); in fact Bedrock credentials have been continuously mounted on the serving lingolinq-web revision since 00015-9l9 at 2026-08-04T07:25:08Z, 53 minutes after the withdrawal that note cited. That claim was false at the time of the superseded 2026-08-06 attestation. The note is corrected and now states its evidentiary limits explicitly rather than asserting a negative it cannot establish. SECOND, carried forward from the superseded 2026-08-06 pin, a section 8 correction. The bullet resolving whether scrubbed neutral board generation can move to the Non-personal bucket read 'resolved 2026-07-09 (Scot's provisional attestation: stays gated)', stating the SUPERSEDED initial position as the outcome. That contradicted this document's own section 3 table (row 1: Non-personal, gate column 'No'), its own section 4.2 reclassification rationale, AI_DATA_SHARING_CONSENT.md section 7 (which records the Non-personal reclassification as 'the CURRENT, final position'), AND the shipped implementation: lib/lingo_linq/ai_consent_disclosures.rb deliberately omits board generation from the second-tier disclosure inventory with a comment citing section 4.2 by name, and config/locales/en.yml (board_suggestions_note) tells parents board suggestions are not covered by that consent. The bullet now states Non-personal as the final position with 'stays gated' retained and explicitly marked superseded. The decision itself is unchanged; only this document's description of it is corrected. No classification, gate, or data flow changed in either correction. The 2026-08-06 bytes were corrected before merge and never reached staging, so that attestation is SUPERSEDED rather than void, and 2026-08-06 is appended to priorAttestations as an ordinary entry (a different calendar day from this pin, so no ambiguity). Independently reviewed by Codex CLI (gpt-5.6-terra, Tier 2) across successive heads of PR #763; the Bedrock-status defect was surfaced by that review and verified against live Cloud Run revisions before this pin."
       },
       "contentHash": "8c1479578f6bce463e6d3290340e88d6c7a5cf28bc312a0a7e2f203f53d99601",
-      "bundles": [
-        "school-dpa-package",
-        "security-review",
-        "dsar"
-      ],
+      "bundles": [],
       "mirrors": [],
       "notes": "Re-attested (provisional) by Scot Wahlquist 2026-07-22, covering the current revision. The prior 2026-07-09 attestation covered an earlier revision (PR #656 rewrote the AI-log retention tiers). Before the re-attestation was recorded, the changed claims were verified against live code: AiApiLog.purge_old_eu_logs!(years: 5) exists at app/models/ai_api_log.rb and is dispatched from lib/tasks/scheduler.rake, and LingoLinq::Article50CallContext.for(user) stamps jurisdiction at exactly the three AI call sites. Outside-counsel review remains deferred until the full 5-phase VPC is built, so this stays a provisional attestation.",
       "retention": {
@@ -2871,7 +2867,42 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "id": "DOC-90b5d33227"
+      "id": "DOC-90b5d33227",
+      "supersededBy": "DOC-6d37a68cf4"
+    },
+    {
+      "title": "AI Data-Flow Classification (2026-08-17 successor)",
+      "description": "Classification of AI data flows. Supersedes docs/legal/AI_DATA_FLOW_CLASSIFICATION.md; corrects the Bedrock runtime status from \"carrying no traffic\" to active user-attributed egress.",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-17_ai-data-flow-classification.md",
+      "status": "draft",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR"
+      ],
+      "lastReviewed": "2026-08-17",
+      "nextReviewDue": "2027-07-22",
+      "bundles": [
+        "school-dpa-package",
+        "security-review",
+        "dsar"
+      ],
+      "mirrors": [],
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-90b5d33227",
+      "id": "DOC-6d37a68cf4",
+      "contentHash": "3e29771ac11ce312bdae7c6eb4ed5c54141753dff4f76856448b90a282d36f00"
     },
     {
       "title": "AI Data-Sharing Consent: Rationale and Policy",
@@ -3032,7 +3063,7 @@
       "lastReviewed": "2026-07-12",
       "nextReviewDue": "2027-01-12",
       "attestation": {},
-      "contentHash": "647b8cacc41fa260c51fb7d7d24f61279d91b9c980dcb3b9e9e3053bb7278c8f",
+      "contentHash": "89eea139ee5762ad8d36e1a22e83a0295e3cc8df27bd9f01228661c8e082b2fc",
       "bundles": [],
       "mirrors": [
         {
