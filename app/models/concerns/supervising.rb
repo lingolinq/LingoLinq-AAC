@@ -125,6 +125,26 @@ module Supervising
     supervisee.supervisor_links.any?{|l| l['record_code'] == Webhook.get_record_code(self) && l['user_id'] == supervisee.global_id && l['state']['modeling_only'] }
   end
 
+  # Affirmative authorization for a communicator reached through someone
+  # else's supervisee list. "No relationship" must mean DENIED.
+  #
+  # Exclusion filters (`!modeling_only_for?`, `!private_logging?`) admit
+  # strangers: supervising.rb finds no link, returns false, and the
+  # negation lets them through. That was the badges / logs /
+  # users#supervisees leak class.
+  #
+  # `permission` is per-disclosure: 'set_goals' for progress, 'supervise'
+  # for usage data and roster identity. Both resolve through self,
+  # non-modeling supervisor, and org manager (user.rb:71,87).
+  #
+  # ApplicationController#supervisee_readable? wraps this for HTTP
+  # fan-out; JsonApi::User calls it directly for nested supervisees.
+  def readable_as_supervisee_by?(caller, permission, scopes=['full'])
+    return false unless caller
+    return true if id == caller.id
+    allows?(caller, permission, scopes) && !caller.modeling_only_for?(self)
+  end
+
   def org_units_for_supervising(supervisee)
     unit_ids = supervisee_links.map{|l| l['state']['organization_unit_ids'] }.compact.flatten.uniq
     OrganizationUnit.find_all_by_global_id(unit_ids)

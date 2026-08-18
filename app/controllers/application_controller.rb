@@ -337,9 +337,10 @@ class ApplicationController < ActionController::Base
   # Authorization for a communicator reached INDIRECTLY, through some OTHER
   # account's supervisee list.
   #
-  # Three endpoints fan out over `user.supervisees` and serve something about each
-  # one -- badges#index (`recent`), logs#index (`supervisees=true`), and
-  # users#supervisees. In all three the only gate was `allowed?(user, ...)` on the
+  # Endpoints that fan out over `user.supervisees` and serve something about each
+  # one -- badges#index (`recent`), logs#index (`supervisees=true`),
+  # users#supervisees, users#ws_settings, and the nested list in JsonApi::User.
+  # In each the only gate was `allowed?(user, ...)` on the
   # account whose list it is, which says nothing about the third parties inside it,
   # and which passes unconditionally when a supporter asks about THEMSELVES.
   #
@@ -347,8 +348,9 @@ class ApplicationController < ActionController::Base
   # authorization but was not one: an exclusion filter (`!modeling_only_for?`) or a
   # preference flag (`private_logging?`). Both return TRUE for a caller with no
   # relationship at all -- supervising.rb:121 finds no link and returns false, and
-  # the negation then admits the stranger. Three instances of one mistake is why
-  # this is a shared helper and not a fourth hand-rolled predicate.
+  # the negation then admits the stranger. Multiple instances of one mistake is why
+  # this is a shared helper (User#readable_as_supervisee_by?) and not another
+  # hand-rolled predicate.
   #
   # The check must be AFFIRMATIVE: here "no relationship" has to mean DENIED.
   #
@@ -366,9 +368,7 @@ class ApplicationController < ActionController::Base
   # same way `allowed?` does at every direct gate.
   def supervisee_readable?(supervisee, permission)
     return false unless supervisee && @api_user
-    return true if supervisee.id == @api_user.id
-    supervisee.allows?(@api_user, permission, api_permission_scopes) &&
-      !@api_user.modeling_only_for?(supervisee)
+    supervisee.readable_as_supervisee_by?(@api_user, permission, api_permission_scopes)
   end
 
   def api_permission_scopes

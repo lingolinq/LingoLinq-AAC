@@ -72,6 +72,43 @@ describe Supervising, :type => :model do
       expect(u2.edit_permission_for?(u)).to eq(true)
     end
 
+    describe "readable_as_supervisee_by?" do
+      it "is true for a direct supervisor and for self" do
+        child = User.create
+        sup = User.create
+        User.link_supervisor_to_user(sup, child)
+        expect(child.readable_as_supervisee_by?(sup, 'supervise')).to eq(true)
+        expect(child.readable_as_supervisee_by?(child, 'supervise')).to eq(true)
+      end
+
+      it "is false for a stranger and for a supervisor-of-supervisor" do
+        child = User.create
+        therapist = User.create
+        viewer = User.create
+        User.link_supervisor_to_user(therapist, child)
+        User.link_supervisor_to_user(viewer, therapist)
+        expect(child.readable_as_supervisee_by?(nil, 'supervise')).to eq(false)
+        expect(child.readable_as_supervisee_by?(User.create, 'supervise')).to eq(false)
+        expect(child.readable_as_supervisee_by?(viewer, 'supervise')).to eq(false)
+      end
+
+      it "is true for an in-org manager and false for an out-of-org child" do
+        manager = User.create
+        therapist = User.create
+        inside = User.create
+        outside = User.create
+        o = Organization.create(:settings => {'total_licenses' => 4})
+        o.add_manager(manager.user_name, true)
+        o.add_supervisor(therapist.user_name, false)
+        o.add_user(inside.user_name, false)
+        User.link_supervisor_to_user(therapist, inside)
+        User.link_supervisor_to_user(therapist, outside)
+        manager.reload
+        expect(inside.readable_as_supervisee_by?(manager, 'supervise')).to eq(true)
+        expect(outside.readable_as_supervisee_by?(manager, 'supervise')).to eq(false)
+      end
+    end
+
     it "treats an approved SupervisorRelationship as supervision for set_goals when UserLink is absent" do
       sup = User.create
       comm = User.create

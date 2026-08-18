@@ -263,6 +263,55 @@ describe Api::UsersController, :type => :controller do
       expect(json['user']['id']).to eq(u.global_id)
       expect(json['user']['preferences']).to_not eq(nil)
     end
+
+    it "should not nest supervisees the caller has no relationship with" do
+      token_user
+      supporter = User.create
+      outside = User.create
+      User.link_supervisor_to_user(supporter, outside)
+      User.link_supervisor_to_user(@user, supporter)
+
+      get :show, params: {:id => supporter.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect((json['user']['supervisees'] || []).map { |s| s['id'] }).to_not include(outside.global_id)
+    end
+
+    it "should nest supervisees the caller independently supervises" do
+      token_user
+      supporter = User.create
+      shared = User.create
+      User.link_supervisor_to_user(supporter, shared)
+      User.link_supervisor_to_user(@user, shared)
+      User.link_supervisor_to_user(@user, supporter)
+
+      get :show, params: {:id => supporter.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect((json['user']['supervisees'] || []).map { |s| s['id'] }).to eq([shared.global_id])
+    end
+
+    it "should not nest a district manager's therapist's out-of-org caseload" do
+      token_user
+      supporter = User.create
+      inside = User.create
+      outside = User.create
+      o = Organization.create(:settings => {'total_licenses' => 4})
+      o.add_manager(@user.user_name, true)
+      o.add_supervisor(supporter.user_name, false)
+      o.add_user(inside.user_name, false)
+      User.link_supervisor_to_user(supporter, inside)
+      User.link_supervisor_to_user(supporter, outside)
+      @user.reload
+      supporter.reload
+
+      get :show, params: {:id => supporter.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      ids = (json['user']['supervisees'] || []).map { |s| s['id'] }
+      expect(ids).to include(inside.global_id)
+      expect(ids).to_not include(outside.global_id)
+    end
   end
   
   describe "index" do
@@ -3740,6 +3789,30 @@ describe Api::UsersController, :type => :controller do
       expect(json['supervisees'][0]['ws_user_id']).to_not eq(nil)
       expect(json['supervisees'][0]['my_device_id']).to eq(nil)
       expect(json['supervisees'][0]['verifier']).to eq(nil)
+    end
+
+    it "should not list a district manager's therapist's out-of-org caseload" do
+      token_user
+      supporter = User.create
+      inside = User.create
+      outside = User.create
+      o = Organization.create(:settings => {'total_licenses' => 4})
+      o.add_manager(@user.user_name, true)
+      o.add_supervisor(supporter.user_name, false)
+      o.add_user(inside.user_name, false)
+      User.link_supervisor_to_user(supporter, inside)
+      User.link_supervisor_to_user(supporter, outside)
+      @user.reload
+      supporter.reload
+
+      get 'ws_settings', params: {user_id: supporter.global_id}
+      json = assert_success_json
+      ids = (json['supervisees'] || []).map { |s| s['user_id'] }
+      expect(ids).to include(inside.global_id)
+      expect(ids).to_not include(outside.global_id)
+      (json['supervisees'] || []).each do |row|
+        expect(row['verifier']).to eq(nil)
+      end
     end
 
     it 'should have a consistent iv for multiple requests in the same session' do

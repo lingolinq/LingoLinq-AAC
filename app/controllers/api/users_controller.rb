@@ -137,7 +137,10 @@ class Api::UsersController < ApplicationController
     code = GoSecure.sha512("#{res[:ws_user_id]}:#{res[:my_device_id]}:#{ts}", "room_join_verifier", ENV['LLWEBSOCKET_SHARED_VERIFIER'])[0, 30]
     res[:verifier] = "#{code}:#{ts}"
     if user.supporter_role?
-      sups = user.supervisees
+      # Same fan-out as users#supervisees: the gate above authorizes the list
+      # owner, not the children inside. Filter before emitting ids (and, on
+      # self, room-join verifiers).
+      sups = user.supervisees.select { |s| supervisee_readable?(s, 'supervise') }
       if sups.length < 20
         res[:supervisees] = sups.map do |sup|
           ws_user_id = sup.global_id
