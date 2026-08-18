@@ -188,31 +188,47 @@ module Supervising
     # update_available_boards recomputes settings['available_private_board_ids'],
     # which board.rb:76 reads to grant view/edit/delete/share -- it writes
     # AUTHORIZATION state, not display state, and its result sits behind a
-    # 30-minute permission cache.
+    # 30-minute permission cache. The persisted list has no TTL of its own, so a
+    # missed refresh stays stale until some other event retriggers it.
     #
-    # schedule_once pushes to Redis the moment it is called, and Redis is not
-    # enrolled in the Postgres transaction. SupervisorConsentService runs both
-    # link_supervisor_to_user and unlink_supervisor_from_user inside `with_lock`,
-    # so a worker could dequeue and recompute from the PRE-COMMIT snapshot: a
-    # revoke undone by its own job, re-granting a removed supervisor real access
-    # to a child's private boards.
-    #
-    # The consent service already re-enqueues after commit, but that only made the
-    # race CONVERGE -- it cannot order the two workers' writes, and schedule_once
-    # dedupes against a job still sitting in the queue, so the corrective enqueue
-    # could itself be a silent no-op. Deferring at the source is the ordering fix,
-    # and it belongs here rather than in the service because both call sites are
-    # here and every other caller wants the same guarantee.
+    # Ordering: schedule_once pushes to Redis the moment it is called, and Redis
+    # is not enrolled in the Postgres transaction. SupervisorConsentService runs
+    # both link_supervisor_to_user and unlink_supervisor_from_user inside
+    # `with_lock`, so a worker could dequeue and recompute from the PRE-COMMIT
+    # snapshot: a revoke undone by its own job, re-granting a removed supervisor
+    # real access to a child's private boards. The consent service's post-commit
+    # re-enqueue only made that race CONVERGE -- it cannot order the two workers'
+    # writes, and schedule_once dedupes against a job still sitting in the queue,
+    # so the corrective enqueue could itself be a silent no-op. Deferring at the
+    # source is the ordering fix.
     #
     # after_all_transactions_commit, not a bare call: with no open transaction it
     # runs the block IMMEDIATELY, so the many non-transactional callers of these
-    # two methods are byte-for-byte unchanged. Only callers already inside a
-    # transaction see the deferral -- which is exactly the set that was broken.
+    # two methods are unchanged. Only callers already inside a transaction see
+    # the deferral -- which is exactly the set that was broken.
+    #
+    # Durability: the post-commit callback cannot roll the relationship change
+    # back. If the process exits or Redis is down between commit and enqueue, the
+    # supervisor link is gone and no refresh job exists. RemoteAction is this
+    # app's outbox for the same job (board_caching.rb, organization.rb);
+    # writing it in the same transaction as the link change means
+    # Uploader.remote_remove_batch (hourly) will still schedule the refresh.
+    # Pull existing rows forward so a prior delayed RA cannot outlive a revoke.
     def schedule_board_cache_refresh(supervisor)
       return unless supervisor
+      persist_board_cache_refresh(supervisor)
       ActiveRecord.after_all_transactions_commit do
         supervisor.schedule_once(:update_available_boards)
+      rescue StandardError => e
+        Rails.logger.warn("supervising: board-cache enqueue failed: #{e.class}")
       end
+    end
+
+    def persist_board_cache_refresh(supervisor)
+      path = supervisor.global_id
+      return unless path
+      updated = RemoteAction.where(path: path, action: 'update_available_boards').update_all(act_at: Time.now)
+      RemoteAction.create(path: path, action: 'update_available_boards', act_at: Time.now) if updated == 0
     end
 
     def link_supervisor_to_user(supervisor, user, code=nil, type=true, organization_unit_id=nil)

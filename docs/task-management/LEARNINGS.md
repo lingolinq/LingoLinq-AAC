@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: `after_all_transactions_commit` is not a durable outbox — pair it with a same-transaction RemoteAction](#gotcha-after_all_transactions_commit-is-not-a-durable-outbox--pair-it-with-a-same-transaction-remoteaction)
 - [Gotcha: `sessionUser.id` is the `'self'` sentinel — compare `global_id` on authorship gates](#gotcha-sessionuserid-is-the-self-sentinel--compare-global_id-on-authorship-gates)
 - [Gotcha: Ruby indent is not control flow — a 4-space line can still be inside the `if`](#gotcha-ruby-indent-is-not-control-flow--a-4-space-line-can-still-be-inside-the-if)
 - [Gotcha: contentHash drift — ATTESTED means stop; unattested means regenerate-register](#gotcha-contenthash-drift--attested-means-stop-unattested-means-regenerate-register)
@@ -11978,3 +11979,8 @@ Copying `**Attestation history:** re-attested 2026-08-08` onto a `draft` success
 §7 is Vendor Notification List; §11 is Appendix: Key References. Changelog / header /
 register `correctionNote` text that says "§11 vendor contacts" sends responders to the wrong
 procedure. When correcting Anthropic/OpenAI/Google contact rows, cite §7.
+
+## Gotcha: `after_all_transactions_commit` is not a durable outbox — pair it with a same-transaction RemoteAction
+
+Deferring `schedule_once` until after commit closes the Redis-vs-Postgres ordering race (a worker must not recompute `available_private_board_ids` from the pre-commit snapshot). It does not close the crash/Redis-down window after commit: the relationship change is already durable, the callback cannot roll it back, and a missed enqueue leaves a revoked supervisor's persisted board-id list stale until some unrelated refresh. `RemoteAction` with `action: 'update_available_boards'` is this app's outbox (`board_caching.rb`, `organization.rb`); write it in the same transaction as the link change, keep post-commit `schedule_once` as the fast path, and let hourly `Uploader.remote_remove_batch` drain the fallback. Pull an existing delayed row's `act_at` forward on revoke so a prior 30-minute RA cannot outlive the unlink. Ref: `app/models/concerns/supervising.rb` `schedule_board_cache_refresh`, [`2026-08-18-board-cache-refresh-outbox.md`](./2026-08-18-board-cache-refresh-outbox.md).
+

@@ -981,9 +981,11 @@ describe Supervising, :type => :model do
   # The consent service's post-commit re-enqueue only made the race CONVERGE; it
   # could not order the two writes, and schedule_once dedupes against a job still
   # sitting in the queue, so the corrective enqueue could also be a silent no-op.
-  # Deferring at the source is the actual ordering fix, which is what these two
-  # examples pin. They need real commits, so the surrounding transactional fixture
-  # is disabled -- with it on, nothing ever commits and both assertions would pass
+  # Deferring at the source is the actual ordering fix. A RemoteAction in the same
+  # transaction is the durability fix: if the process dies or Redis is down after
+  # commit, the hourly outbox drain still schedules the refresh. These examples
+  # need real commits, so the surrounding transactional fixture is disabled --
+  # with it on, nothing ever commits and the ordering assertions would pass
   # vacuously.
   describe "board-cache enqueue ordering" do
     self.use_transactional_tests = false
@@ -991,6 +993,7 @@ describe Supervising, :type => :model do
     after(:each) do
       UserLink.delete_all
       User.delete_all
+      RemoteAction.delete_all
       Worker.flush_queues
     end
 
@@ -1009,19 +1012,27 @@ describe Supervising, :type => :model do
       found
     end
 
+    def board_cache_remote_actions_for(user)
+      RemoteAction.where(path: user.global_id, action: 'update_available_boards')
+    end
+
     it "should defer the supervisor board-cache recompute past commit when linking" do
       sup = User.create
       com = User.create
       Worker.flush_queues
 
-      during = nil
+      during_jobs = nil
+      during_ra = nil
       ActiveRecord::Base.transaction do
         User.link_supervisor_to_user(sup, com)
-        during = queued_board_updates_for(sup)
+        during_jobs = queued_board_updates_for(sup)
+        during_ra = board_cache_remote_actions_for(sup).count
       end
 
-      expect(during).to eq([]), "board-cache recompute was queued while the transaction was still open"
+      expect(during_jobs).to eq([]), "board-cache recompute was queued while the transaction was still open"
+      expect(during_ra).to eq(1), "durable outbox row must be written inside the same transaction as the link"
       expect(queued_board_updates_for(sup).length).to be > 0
+      expect(board_cache_remote_actions_for(sup).count).to eq(1)
     end
 
     it "should defer the supervisor board-cache recompute past commit when unlinking" do
@@ -1029,15 +1040,59 @@ describe Supervising, :type => :model do
       com = User.create
       User.link_supervisor_to_user(sup, com)
       Worker.flush_queues
+      RemoteAction.delete_all
 
-      during = nil
+      during_jobs = nil
+      during_ra = nil
       ActiveRecord::Base.transaction do
         User.unlink_supervisor_from_user(sup, com)
-        during = queued_board_updates_for(sup)
+        during_jobs = queued_board_updates_for(sup)
+        during_ra = board_cache_remote_actions_for(sup).count
       end
 
-      expect(during).to eq([]), "board-cache recompute was queued while the transaction was still open"
+      expect(during_jobs).to eq([]), "board-cache recompute was queued while the transaction was still open"
+      expect(during_ra).to eq(1), "durable outbox row must be written inside the same transaction as the unlink"
       expect(queued_board_updates_for(sup).length).to be > 0
+      expect(board_cache_remote_actions_for(sup).count).to eq(1)
+    end
+
+    it "should roll the board-cache outbox back with the supervision change" do
+      sup = User.create
+      com = User.create
+      Worker.flush_queues
+
+      ActiveRecord::Base.transaction do
+        User.link_supervisor_to_user(sup, com)
+        expect(board_cache_remote_actions_for(sup).count).to eq(1)
+        raise ActiveRecord::Rollback
+      end
+
+      expect(board_cache_remote_actions_for(sup).count).to eq(0)
+      expect(queued_board_updates_for(sup)).to eq([])
+    end
+
+    it "should keep the board-cache outbox when the post-commit enqueue fails" do
+      sup = User.create
+      com = User.create
+      Worker.flush_queues
+      allow(sup).to receive(:schedule_once).and_raise(RuntimeError, "redis down")
+
+      expect { User.link_supervisor_to_user(sup, com) }.not_to raise_error
+      expect(board_cache_remote_actions_for(sup).count).to eq(1)
+    end
+
+    it "should pull a delayed board-cache RemoteAction forward on revoke" do
+      sup = User.create
+      com = User.create
+      User.link_supervisor_to_user(sup, com)
+      Worker.flush_queues
+      RemoteAction.delete_all
+      ra = RemoteAction.create(path: sup.global_id, action: 'update_available_boards', act_at: 30.minutes.from_now)
+
+      User.unlink_supervisor_from_user(sup, com)
+
+      expect(board_cache_remote_actions_for(sup).count).to eq(1)
+      expect(ra.reload.act_at).to be <= Time.now + 1
     end
   end
 end
